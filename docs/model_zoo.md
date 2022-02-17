@@ -3,6 +3,8 @@
 
 @sphinxdirective
 
+.. _model zoo:
+
 .. toctree::
    :maxdepth: 1
    :hidden:

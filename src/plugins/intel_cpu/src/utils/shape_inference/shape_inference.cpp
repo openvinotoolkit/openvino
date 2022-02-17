@@ -79,6 +79,7 @@
 #include "topk_shape_inference.hpp"
 #include "utils.hpp"
 #include "variadic_split_shape_inference.hpp"
+#include "matmul_shape_inference.hpp"
 
 void shape_inference(ov::Node* op,
                      const std::vector<ov::StaticShape>& input_shapes,
@@ -412,10 +413,9 @@ std::shared_ptr<IShapeInfer> make_shape_inference(const std::shared_ptr<ngraph::
     } else if (auto node = ov::as_type_ptr<ov::op::util::LogicalReductionKeepDims>(op)) {
         return make_shared_entryIOC(node);
     } else if (ov::is_type<ov::op::util::UnaryElementwiseArithmetic>(op) || ov::is_type<ov::opset1::Convert>(op) ||
-               ov::is_type<ov::opset1::Clamp>(op) || ov::is_type<ov::opset1::GRN>(op) ||
-               ov::is_type<ov::opset1::LogicalNot>(op) || ov::is_type<ov::opset4::Mish>(op) ||
-               ov::is_type<ov::opset2::MVN>(op) || ov::is_type<ov::opset1::Relu>(op) ||
-               ov::is_type<ov::opset1::Elu>(op) || ov::is_type<ov::opset1::Softmax>(op) ||
+               ov::is_type<ov::opset1::Clamp>(op) || ov::is_type<ov::opset1::GRN>(op) || ov::is_type<ov::opset1::NormalizeL2>(op) ||
+               ov::is_type<ov::opset1::LogicalNot>(op) || ov::is_type<ov::opset4::Mish>(op) || ov::is_type<ov::opset2::MVN>(op) ||
+               ov::is_type<ov::opset1::Relu>(op) || ov::is_type<ov::opset1::Elu>(op) || ov::is_type<ov::opset1::Softmax>(op) ||
                ov::is_type<ov::opset8::Softmax>(op) || ov::is_type<ov::opset5::Round>(op)) {
         return std::make_shared<entryCopy>(op);
     } else if (ov::is_type<ov::opset6::MVN>(op) || ov::is_type<ov::opset1::LRN>(op) ||
@@ -532,6 +532,8 @@ std::shared_ptr<IShapeInfer> make_shape_inference(const std::shared_ptr<ngraph::
     } else if (auto node = ov::as_type_ptr<ov::opset1::Select>(op)) {
         return make_shared_entryIO(node);
     } else if (auto node = ov::as_type_ptr<ov::opset1::ShuffleChannels>(op)) {
+        return make_shared_entryIO(node);
+    } else if (auto node = ov::as_type_ptr<ov::opset1::MatMul>(op)) {
         return make_shared_entryIO(node);
     } else if (auto node = ov::as_type_ptr<ov::opset2::BatchToSpace>(op)) {
         return make_shared_entryIOC(node);

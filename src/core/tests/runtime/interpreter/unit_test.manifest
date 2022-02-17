@@ -69,14 +69,9 @@ INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_int8
 INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_int8_4d
 INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_uint8_negative_axis
 
-# ONNX If - result mismatch - 77383
+# ONNX evaluate method not implemented for If operator
 INTERPRETER.onnx_if_inside_if
 INTERPRETER.onnx_if_inside_loop
-INTERPRETER.onnx_if_branches_with_same_inputs
-INTERPRETER.onnx_if_branches_with_different_inputs
-INTERPRETER.onnx_if_branches_without_inputs
-INTERPRETER.onnx_if_branches_with_multiple_outputs
-INTERPRETER.onnx_if_dynamic_inputs
 
 # Activation function hardsigmoid unsupported
 onnx_model_gru_fwd_activations_relu_hardsigmoid
