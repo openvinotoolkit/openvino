@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""openvino exceptions hierarchy. All exceptions are descendants of OV."""
+"""openvino exceptions hierarchy. All exceptions are descendants of OVError."""
 
 
 class OVError(Exception):
