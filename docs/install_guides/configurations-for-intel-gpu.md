@@ -16,7 +16,7 @@ Once you have your OpenVINO installed, follow the steps to be able to work on GP
 
 1. Go to the install_dependencies directory:
    ```sh
-   cd <INSTALL_DIR>/intel/openvino_2022/install_dependencies/
+   cd <INSTALL_DIR>/install_dependencies/
    ```
 
 2. Install the **Intel® Graphics Compute Runtime for OpenCL™** driver components required to use the GPU plugin and write custom layers for Intel® Integrated Graphics. The drivers are not included in the package. To install, run this script:
