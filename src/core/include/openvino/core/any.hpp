@@ -968,21 +968,13 @@ public:
     }
 
     /**
-<<<<<<< HEAD
-     * @brief Returns addres to internal value if any is not empty and `nullptr` instead
-=======
      * @brief Returns address to internal value if any is not empty and `nullptr` instead
->>>>>>> master
      * @return address to internal stored value
      */
     void* addressof();
 
     /**
-<<<<<<< HEAD
-     * @brief Returns addres to internal value if any is not empty and `nullptr` instead
-=======
      * @brief Returns address to internal value if any is not empty and `nullptr` instead
->>>>>>> master
      * @return address to internal stored value
      */
     const void* addressof() const;
