@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <blob_tests/dynamic_batch.hpp>
+#include <behavior/infer_request/dynamic_batch.hpp>
 #include "common_test_utils/test_constants.hpp"
 
 namespace ConfigurationTestsDefinitions {
 namespace {
 std::vector<size_t> batch_sizes = {
-    16,
     1,
     5,
     9,
@@ -22,7 +21,7 @@ std::map<std::string, std::string> additional_config = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_DynamicBatchTest_async, DynamicBatchTest,
     ::testing::Combine(
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(InferenceEngine::Precision::FP32),
         ::testing::Values(batch_sizes),
         ::testing::Values(true),
@@ -31,7 +30,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_DynamicBatchTest_async, DynamicBatchTest,
 
 INSTANTIATE_TEST_SUITE_P(smoke_DynamicBatchTest_sync, DynamicBatchTest,
     ::testing::Combine(
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(InferenceEngine::Precision::FP32),
         ::testing::Values(batch_sizes),
         ::testing::Values(false),

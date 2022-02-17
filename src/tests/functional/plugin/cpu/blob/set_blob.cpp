@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "blob_tests/set_blob.hpp"
-#include <shared_test_classes/single_layer/cum_sum.hpp>
+#include "set_blob.hpp"
+#include "common_test_utils/test_constants.hpp"
+#include "ngraph_functions/builders.hpp"
 
 using namespace InferenceEngine;
 
@@ -11,17 +12,17 @@ namespace BehaviorTestsDefinitions {
 
 std::ostream& operator<<(std::ostream & os, setType type) {
     switch (type) {
-    case setType::INPUT:
-        os << "INPUT";
-        break;
-    case setType::OUTPUT:
-        os << "OUTPUT";
-        break;
-    case setType::BOTH:
-        os << "BOTH";
-        break;
-    default:
-        IE_THROW() << "Not supported type for SetBlob";
+        case setType::INPUT:
+            os << "INPUT";
+            break;
+        case setType::OUTPUT:
+            os << "OUTPUT";
+            break;
+        case setType::BOTH:
+            os << "BOTH";
+            break;
+        default:
+            IE_THROW() << "Not supported type for SetBlob";
     }
     return os;
 }
@@ -43,19 +44,19 @@ std::string SetBlobTest::getTestCaseName(testing::TestParamInfo<SetBlobParams> o
 inline void fillBlob(Blob::Ptr &blob) {
     switch (blob->getTensorDesc().getPrecision()) {
 #define CASE(X) case X: CommonTestUtils::fill_data_random<X>(blob); break;
-    CASE(Precision::U8)
-    CASE(Precision::I8)
-    CASE(Precision::U16)
-    CASE(Precision::I16)
-    CASE(Precision::U32)
-    CASE(Precision::I32)
-    CASE(Precision::U64)
-    CASE(Precision::I64)
-    CASE(Precision::BF16)
-    CASE(Precision::FP16)
-    CASE(Precision::FP32)
-    CASE(Precision::FP64)
-    CASE(Precision::BOOL)
+        CASE(Precision::U8)
+        CASE(Precision::I8)
+        CASE(Precision::U16)
+        CASE(Precision::I16)
+        CASE(Precision::U32)
+        CASE(Precision::I32)
+        CASE(Precision::U64)
+        CASE(Precision::I64)
+        CASE(Precision::BF16)
+        CASE(Precision::FP16)
+        CASE(Precision::FP32)
+        CASE(Precision::FP64)
+        CASE(Precision::BOOL)
 #undef CASE
         default:
             IE_THROW() << "Can't fill blob with precision: " << blob->getTensorDesc().getPrecision();
@@ -113,7 +114,28 @@ void SetBlobTest::SetUp() {
 }
 
 TEST_P(SetBlobTest, CompareWithRefs) {
-    Run();
+Run();
 }
 
 } // namespace BehaviorTestsDefinitions
+
+using namespace BehaviorTestsDefinitions;
+
+const std::vector<Precision> precisionSet = {
+    Precision::U8,   Precision::I8,
+    Precision::U16,  Precision::I16,
+    Precision::U32,  Precision::I32,
+    Precision::U64,  Precision::I64,
+    Precision::BF16, Precision::FP16,
+    Precision::FP32, Precision::FP64,
+    Precision::BOOL
+};
+
+const std::vector<setType> typeSet = {setType::INPUT, setType::OUTPUT, setType::BOTH};
+
+const auto params = ::testing::Combine(::testing::ValuesIn(precisionSet),
+                                       ::testing::ValuesIn(precisionSet),
+                                       ::testing::ValuesIn(typeSet),
+                                       ::testing::Values(CommonTestUtils::DEVICE_CPU));
+
+INSTANTIATE_TEST_SUITE_P(smoke_SetBlobCPU, SetBlobTest, params, SetBlobTest::getTestCaseName);
