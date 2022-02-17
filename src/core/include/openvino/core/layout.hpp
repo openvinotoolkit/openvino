@@ -16,8 +16,8 @@
 
 namespace ov {
 
-/// \brief ov::Layout represents the text information of tensor's dimensions/axes. E.g. layout "NCHW" means that 4D tensor
-/// {-1, 3, 480, 640} will have:
+/// \brief ov::Layout represents the text information of tensor's dimensions/axes. E.g. layout "NCHW" means that 4D
+/// tensor {-1, 3, 480, 640} will have:
 /// - 0: `N = -1`: batch dimension is dynamic
 /// - 1: `C = 3`: number of channels is '3'
 /// - 2: 'H = 480': image height is 480
@@ -27,8 +27,10 @@ namespace ov {
 /// - Preprocessing purposes. E.g.
 ///    - To apply normalization (means/scales) it is usually required to set 'C' dimension in a layout.
 ///    - To resize the image to specified width/height it is needed to set 'H' and 'W' dimensions in a layout
-///    - To transpose image - source and target layout can be set (see `ov::preprocess::PreProcessSteps::convert_layout`)
-/// - To set/get model's batch (see `ov::get_batch`/`ov::set_batch') it is required in general to specify 'N' dimension in layout for appropriate inputs
+///    - To transpose image - source and target layout can be set (see
+///    `ov::preprocess::PreProcessSteps::convert_layout`)
+/// - To set/get model's batch (see `ov::get_batch`/`ov::set_batch') it is required in general to specify 'N' dimension
+/// in layout for appropriate inputs
 ///
 /// Refer also to 'ov::layout' namespace for various additional helper functions of `ov::Layout`
 class OPENVINO_API Layout {
