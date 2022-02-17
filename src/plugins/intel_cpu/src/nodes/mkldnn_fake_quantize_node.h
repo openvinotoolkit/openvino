@@ -120,7 +120,8 @@ public:
     InferenceEngine::Precision getInputPrecision() const { return inputPrecision; }
     InferenceEngine::Precision getOutputPrecision() const { return outputPrecision; }
 
-    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims = {}) override;
+    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<MKLDNNMemoryPtr>& postOpsMem) override;
+    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem) override;
     void appendBinPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<MKLDNNMemoryPtr>& binaryPostOpsMem) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
@@ -157,9 +158,15 @@ private:
     void init() override;
     std::vector<LayoutType> getDataFormats() const;
     void initializePostOpData(const VectorDims &postOpDims, const size_t bufferAlignment);
+    void initializePostOpDataLegacy(const VectorDims &dims, const size_t bufferAlignment);
     void executeReference();
     void executeBinarization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const;
     void executeQuantization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const;
+
+    void appendMemory(const size_t dataSize, const void *data, MKLDNNMemoryPtr &memPtr, std::vector<MKLDNNMemoryPtr>& postOpsMem);
+    void appendMemory(const size_t dataSize, const void *data, MKLDNNMemoryPtr &memPtr, std::vector<const void*>& postOpsMem);
+    template <typename T>
+    void appendPostOpsImpl(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<T>& postOpsMem);
 
     size_t levels = 0;
 
@@ -174,6 +181,10 @@ private:
     std::vector<float> inputShift;
     std::vector<float> outputScale;
     std::vector<float> outputShift;
+
+    std::vector<float> quantizationData;
+    size_t quantizationDataSize;
+    MKLDNNMemoryPtr quantizationMemory;
 
     size_t cropLowSize;
     size_t cropHighSize;

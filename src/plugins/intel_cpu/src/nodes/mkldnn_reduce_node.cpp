@@ -1096,7 +1096,7 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
                         this, post_op.eltwise.alg, post_op.eltwise.alpha, post_op.eltwise.beta, post_op.eltwise.scale));
             } else if (post_op.is_depthwise()) {
                 depthwise_injectors.push_back(std::make_shared<jit_uni_depthwise_injector_f32<isa>>(
-                        this, post_op.depthwise.alg));
+                        this, post_op));
             } else if (post_op.is_quantization()) {
                 quantization_injectors.push_back(std::make_shared<jit_uni_quantization_injector_f32<isa>>(
                         this, post_op, vmm_d_weights, vmm_d_bias, reg_d_weights, reg_d_bias));
@@ -1418,11 +1418,11 @@ private:
             } else if (post_op.is_depthwise()) {
                 mov(reg_d_weights, ptr[reg_post_ops_data + post_ops_data_offset]);
                 add(reg_d_weights, reg_oc_off);
-                post_ops_data_offset += sizeof(float*);
-                mov(reg_d_bias, ptr[reg_post_ops_data + post_ops_data_offset]);
-                add(reg_d_bias, reg_oc_off);
-                post_ops_data_offset += sizeof(float*);
-                depthwise_injectors[depthwise_inj_idx]->compute_vector_range(vmm_dst.getIdx(), vmm_dst.getIdx() + 1, reg_d_weights, reg_d_bias, is_broadcast);
+
+                depthwise_injectors[depthwise_inj_idx]->compute_vector_range(
+                        vmm_dst.getIdx(), vmm_dst.getIdx() + 1, reg_d_weights, reg_d_weights, is_broadcast);
+
+                post_ops_data_offset += depthwise_injectors[depthwise_inj_idx]->memoryStep();
                 depthwise_inj_idx++;
             } else if (post_op.is_quantization()) {
                 bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
@@ -2832,37 +2832,22 @@ inline void MKLDNNReduceNode::reduce_ref_map(float *out_ptr, size_t work_amount_
 
 void MKLDNNReduceNode::setPostOps(mkldnn::primitive_attr &attr, const VectorDims &postOpDims, bool initWeights) {
     mkldnn::post_ops ops;
+    postOpsDataPtrs.clear();
     for (auto &node : fusedWith) {
         auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops);
+            fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs);
             continue;
         }
 
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
-            eltwiseNode->appendPostOps(ops, postOpDims);
+            eltwiseNode->appendPostOps(ops, postOpDims, postOpsDataPtrs);
             continue;
         }
         IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
     }
 
-    postOpsDataPtrs.clear();
-    for (int i = 0; i < ops.len(); ++i) {
-        auto &post_op = ops.get()->entry_[i];
-        if (post_op.is_quantization()) {
-            auto &data = post_op.quantization.data;
-            postOpsDataPtrs.insert(postOpsDataPtrs.end(), std::begin(data), std::end(data));
-            memset(data, 0, sizeof(data));
-        } else if (post_op.is_depthwise()) {
-            auto &weights = post_op.depthwise.weights_data;
-            auto &biases = post_op.depthwise.biases_data;
-            postOpsDataPtrs.push_back(weights);
-            postOpsDataPtrs.push_back(biases);
-            weights = 0;
-            biases = 0;
-        }
-    }
     attr.set_post_ops(ops);
 }
 

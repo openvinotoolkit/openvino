@@ -76,7 +76,7 @@ MKLDNNGatherNode::MKLDNNGatherNode(const std::shared_ptr<ov::Node>& op, const mk
 
     if (batchDims < 0)
         batchDims += indicesRank;
-    if (batchDims < 0 || batchDims >= std::min(static_cast<int>(dataSrcRank), static_cast<int>(indicesRank)))
+    if (batchDims < 0 || batchDims > std::min(static_cast<int>(dataSrcRank), static_cast<int>(indicesRank)))
         THROW_ERROR << "has incorrect batch_dims " << batchDims << "!";
 
     if (ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(GATHER_AXIS))) {
@@ -444,8 +444,7 @@ void MKLDNNGatherNode::execReference() {
     const uint8_t* srcData = reinterpret_cast<const uint8_t*>(getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->GetPtr());
     uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
-    const size_t dstIdxAndAfterAxisSize = afterAxisSizeInBytes * specIndicesSize;
-    const size_t dstAfterBatchSize = betweenBatchAndAxisSize * dstIdxAndAfterAxisSize;
+    const size_t dstAfterBatchSize = betweenBatchAndAxisSize * specIdxAndAfterAxSizeB;
     parallel_for2d(beforeBatchSize, specIndicesSize, [&](const size_t b, const size_t j) {
         int ii = srcIndices[b * specIndicesSize + j];
         if (ii < 0) {
@@ -460,13 +459,13 @@ void MKLDNNGatherNode::execReference() {
             size_t c1 = srcAfterBatchSizeInBytes * b + afterAxisSizeInBytes * idx;
             for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {
                 size_t srcIdx = c1 + axisAndAfterAxisSizeInBytes * i;
-                size_t dstIdx = c2 + dstIdxAndAfterAxisSize * i;
+                size_t dstIdx = c2 + specIdxAndAfterAxSizeB * i;
 
                 cpu_memcpy(&dstData[dstIdx], &srcData[srcIdx], afterAxisSizeInBytes);
             }
         } else {
             for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {
-                memset(&dstData[c2 + dstIdxAndAfterAxisSize * i], 0, afterAxisSizeInBytes);
+                memset(&dstData[c2 + specIdxAndAfterAxSizeB * i], 0, afterAxisSizeInBytes);
             }
         }
     });

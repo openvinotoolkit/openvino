@@ -317,6 +317,8 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
     new_graph = Graph()
     new_graph.stage = 'back'
     new_graph.graph = graph.graph
+    new_graph.inputs_order = graph.inputs_order
+    new_graph.outputs_order = graph.outputs_order
 
     node_connections = dict()
     mapping_of_old_idx_into_new = dict()
@@ -372,9 +374,9 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
             else:
                 node = Op.get_op_class_by_name(op_type)(new_graph, op.attrs()).create_node()
 
-            # Fill out_ports_count attribute
-            if 'out_ports_count' not in node and node.soft_get('type') != 'Result':
-                node['out_ports_count'] = len(op.out_edges())
+        # Fill out_ports_count attribute
+        if 'out_ports_count' not in node and node.soft_get('type') != 'Result':
+            node['out_ports_count'] = len(op.out_edges())
 
         # This attribute is no longer needed and we can delete it
         if 'ir_data_attrs' in node:

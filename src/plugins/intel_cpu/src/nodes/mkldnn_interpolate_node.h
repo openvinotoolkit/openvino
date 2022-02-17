@@ -226,7 +226,7 @@ private:
             std::vector<float> dataScales;
     };
 
-    void setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims, bool initWeights = false);
+    void setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims);
 
     static SizeVector getPaddedInputShape(const VectorDims &srcDims, const std::vector<int> &padBegin, const std::vector<int> &padEnd);
     std::vector<float> getScales(const VectorDims &srcDimPad, const VectorDims &dstDim);
