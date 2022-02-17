@@ -5,6 +5,7 @@ import numpy as np
 #! [import]
 import openvino.runtime as ov
 #! [import]
+import openvino.runtime.passes as passes
 
 # ! [ov:create_simple_model]
 def create_simple_model():
@@ -55,6 +56,24 @@ def ov_api_examples():
     if not partial_shape.is_dynamic: # or partial_shape.is_static
         static_shape = partial_shape.get_shape()
     # ! [ov:partial_shape]
+
+# ! [ov:serialize]
+def serialize_example(m : ov.Model):
+    # Need import:
+    # * import openvino.runtime.passes as passes
+    pass_manager = passes.Manager()
+    pass_manager.register_pass(pass_name="Serialize", xml_path='model.xml', bin_path='model.bin')
+    pass_manager.run_passes(m)
+# ! [ov:serialize]
+
+# ! [ov:visualize]
+def visualize_example(m : ov.Model):
+    # Need import:
+    # * import openvino.runtime.passes as passes
+    pass_manager = passes.Manager()
+    pass_manager.register_pass(pass_name="VisualTree", file_name='image.svg')
+    pass_manager.run_passes(m)
+# ! [ov:visualize]
 
 if __name__ == '__main__':
     ov_api_examples()

@@ -7,6 +7,10 @@
 #include <openvino/opsets/opset8.hpp>
 // ! [ov:include]
 
+#include <openvino/pass/manager.hpp>
+#include <openvino/pass/serialize.hpp>
+#include <openvino/pass/visualize_tree.hpp>
+
 // ! [ov:create_simple_model]
 std::shared_ptr<ov::Model> create_simple_model() {
     // This example shows how to create ov::Model
@@ -68,3 +72,31 @@ void ov_api_examples() {
     }
     // ! [ov:partial_shape]
 }
+
+// ! [ov:serialize]
+void serialize_example(const std::shared_ptr<ov::Model>& f) {
+    // Need include:
+    // * openvino/pass/manager.hpp
+    // * openvino/pass/serialize.hpp
+    ov::pass::Manager manager;
+
+    // Serialize ov::Model to IR
+    manager.register_pass<ov::pass::Serialize>("/path/to/file/model.xml", "/path/to/file/model.bin");
+
+    manager.run_passes(f);
+}
+// ! [ov:serialize]
+
+// ! [ov:visualize]
+void visualize_example(const std::shared_ptr<ov::Model>& m) {
+    // Need include:
+    // * openvino/pass/manager.hpp
+    // * openvino/pass/visualize_tree.hpp
+    ov::pass::Manager manager;
+
+    // Serialize ov::Model to before.svg file before transformation
+    manager.register_pass<ov::pass::VisualizeTree>("image.svg");
+
+    manager.run_passes(m);
+}
+// ! [ov:visualize]

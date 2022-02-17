@@ -143,9 +143,40 @@ The following code creates a model with several outputs:
 
    - To receive additional messages about applied graph modifications, rebuild the OpenVINO™ Runtime library with the `-DENABLE_OPENVINO_DEBUG=ON` option.
    - A model can be visualized to image from the xDot format:
-    @snippet example_ngraph_utils.cpp ov:visualize
+
+    @sphinxdirective
+
+    .. tab:: C++
+
+        .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+           :language: cpp
+           :fragment: [ov:visualize]
+
+    .. tab:: Python
+
+        .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+           :language: python
+           :fragment: [ov:visualize]
+
+    @endsphinxdirective
+
    - A model can be serialized to IR:
-    @snippet example_ngraph_utils.cpp ov:serialize
+
+    @sphinxdirective
+
+    .. tab:: C++
+
+        .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+           :language: cpp
+           :fragment: [ov:serialize]
+
+    .. tab:: Python
+
+        .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+           :language: python
+           :fragment: [ov:serialize]
+
+    @endsphinxdirective
 
 @sphinxdirective
 .. raw:: html
