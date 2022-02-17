@@ -17,15 +17,14 @@
 namespace LayerTestsDefinitions {
 
 using LSTMCellParams = typename std::tuple<
-        bool,                                   // using decompose to sub-ops transformation
-        size_t,                                 // batch
-        size_t,                                 // hidden size
-        size_t,                                 // input size
-        std::vector<std::string>,               // activations
-        float,                                  // clip
-        InferenceEngine::Precision,             // Network precision
-        std::string,                            // Device name
-        std::map<std::string, std::string>>;    // Config
+        bool,                              // using decompose to sub-ops transformation
+        size_t,                            // batch
+        size_t,                            // hidden size
+        size_t,                            // input size
+        std::vector<std::string>,          // activations
+        float,                             // clip
+        InferenceEngine::Precision,        // Network precision
+        std::string>;                      // Device name
 
 class LSTMCellTest : public testing::WithParamInterface<LSTMCellParams >,
                      virtual public LayerTestsUtils::LayerTestsCommon {

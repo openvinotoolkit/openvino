@@ -22,7 +22,6 @@ std::vector<std::vector<std::string>> activations = {{"relu", "sigmoid", "tanh"}
 std::vector<float> clip{0.f, 0.7f};
 std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
                                                         InferenceEngine::Precision::FP16};
-std::map<std::string, std::string> config = {};
 
 INSTANTIATE_TEST_SUITE_P(LSTMCellCommon, LSTMCellTest,
                         ::testing::Combine(
@@ -33,8 +32,7 @@ INSTANTIATE_TEST_SUITE_P(LSTMCellCommon, LSTMCellTest,
                                 ::testing::ValuesIn(activations),
                                 ::testing::ValuesIn(clip),
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU),
-                                ::testing::Values(config)),
+                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         LSTMCellTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_LSTMCellCommon, LSTMCellTest,
@@ -46,7 +44,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LSTMCellCommon, LSTMCellTest,
                                 ::testing::ValuesIn(activations_smoke),
                                 ::testing::ValuesIn(clip),
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU),
-                                ::testing::Values(config)),
+                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         LSTMCellTest::getTestCaseName);
 }  // namespace

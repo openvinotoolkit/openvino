@@ -1,13 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/op_conversions/lstm_cell_decomposition.hpp"
-#include "shared_test_classes/single_layer/lstm_cell.hpp"
+#include "shared_test_classes/single_layer/lstm_cell_basic.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string LSTMCellTest::getTestCaseName(const testing::TestParamInfo<LSTMCellParams> &obj) {
+std::string LSTMCellBasicTest::getTestCaseName(const testing::TestParamInfo<LSTMCellBasicParams> &obj) {
     bool should_decompose;
     size_t batch;
     size_t hidden_size;
@@ -18,8 +18,9 @@ std::string LSTMCellTest::getTestCaseName(const testing::TestParamInfo<LSTMCellP
     float clip;
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
+    std::map<std::string, std::string> additionalConfig;
     std::tie(should_decompose, batch, hidden_size, input_size, activations, clip, netPrecision,
-            targetDevice) = obj.param;
+            targetDevice, additionalConfig) = obj.param;
     std::vector<std::vector<size_t>> inputShapes = {
             {{batch, input_size}, {batch, hidden_size}, {batch, hidden_size}, {4 * hidden_size, input_size},
                     {4 * hidden_size, hidden_size}, {4 * hidden_size}},
@@ -34,10 +35,13 @@ std::string LSTMCellTest::getTestCaseName(const testing::TestParamInfo<LSTMCellP
     result << "clip=" << clip << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice << "_";
+    for (const auto configEntry : additionalConfig) {
+        result << configEntry.first << ", " << configEntry.second << ";";
+    }
     return result.str();
 }
 
-void LSTMCellTest::SetUp() {
+void LSTMCellBasicTest::SetUp() {
     bool should_decompose;
     size_t batch;
     size_t hidden_size;
@@ -47,8 +51,11 @@ void LSTMCellTest::SetUp() {
     std::vector<float> activations_beta;
     float clip;
     InferenceEngine::Precision netPrecision;
+    std::map<std::string, std::string> additionalConfig;
     std::tie(should_decompose, batch, hidden_size, input_size, activations, clip, netPrecision,
-            targetDevice) = this->GetParam();
+            targetDevice, additionalConfig) = this->GetParam();
+
+    configuration.insert(additionalConfig.begin(), additionalConfig.end());
     std::vector<std::vector<size_t>> inputShapes = {
             {{batch, input_size}, {batch, hidden_size}, {batch, hidden_size}, {4 * hidden_size, input_size},
                     {4 * hidden_size, hidden_size}, {4 * hidden_size}},

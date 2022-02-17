@@ -3,7 +3,7 @@
 //
 
 #include <vector>
-#include "single_layer_tests/lstm_cell.hpp"
+#include "single_layer_tests/lstm_cell_basic.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
@@ -44,7 +44,7 @@ namespace {
         }
     };
 
-    INSTANTIATE_TEST_SUITE_P(smoke_LSTMCellCommon, LSTMCellTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_LSTMCellBasicCommon, LSTMCellBasicTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(should_decompose),
                                     ::testing::ValuesIn(batch),
@@ -55,6 +55,6 @@ namespace {
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                     ::testing::ValuesIn(configs)),
-                            LSTMCellTest::getTestCaseName);
+                            LSTMCellBasicTest::getTestCaseName);
 
 } // namespace
