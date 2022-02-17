@@ -1,6 +1,4 @@
-# Integrate OpenVINO™ into customer application {#openvino_docs_Integrate_OV_into_customer_application}
-
-## Integrate OpenVINO™ Runtime with Your Application
+# Integrate OpenVINO™ into your application {#openvino_docs_Integrate_OV_into_customer_application}
 
 The following diagram illustrates usual application development workflow:
 
@@ -148,6 +146,7 @@ Compile the model to the device using `ov::Core::compile_model()`:
 @sphinxdirective
 
 .. tab:: C++
+
     .. tab:: IR
 
         .. doxygensnippet:: docs/snippets/src/main.cpp
@@ -173,6 +172,7 @@ Compile the model to the device using `ov::Core::compile_model()`:
            :fragment: [part4_4]
 
 .. tab:: Python
+
     .. tab:: IR
 
         .. doxygensnippet:: docs/snippets/src/main.py
