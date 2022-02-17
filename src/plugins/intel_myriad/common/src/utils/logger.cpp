@@ -118,7 +118,7 @@ const auto COLOR_RESET = "\033[0m";
 
 }  // namespace
 
-void Logger::printHeader(LogLevel msgLevel) const noexcept {
+void Logger::printHeader(LogLevel msgLevel) const {
     try {
         if (_out->supportColors()) {
             static const EnumMap<LogLevel, const char*> levelColors{
@@ -148,7 +148,7 @@ void Logger::printHeader(LogLevel msgLevel) const noexcept {
     }
 }
 
-void Logger::printFooter() const noexcept {
+void Logger::printFooter() const {
     try {
         if (_out->supportColors()) {
             _out->get() << COLOR_RESET;
