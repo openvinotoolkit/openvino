@@ -100,12 +100,16 @@ class IEEngine(Engine):
             self.set_model(model_with_stat_op)
             nodes_names_map = nodes_names_map[self._model.friendly_name]
             nodes_name = list(nodes_names_map.keys())
-            cast_friendly_names(self._model.outputs)
+            for model in self._model:
+                cast_friendly_names(model['model'].outputs)
 
-            outputs = self._add_outputs(list(nodes_names_map.values()))
-            add_tensor_names(outputs, nodes_name)
+            outputs = self._add_outputs(nodes_names_map)
+            for model_name, outputs_data in outputs.items():
+                add_tensor_names(outputs_data, nodes_name[model_name].keys())
 
-            model_output_names = collect_model_outputs(self._model)
+            model_output_names = []
+            for model in self._model:
+                model_output_names.extend(collect_model_outputs(model['model']))
 
             align_stat_names_with_results(model_output_names,
                                           nodes_name,

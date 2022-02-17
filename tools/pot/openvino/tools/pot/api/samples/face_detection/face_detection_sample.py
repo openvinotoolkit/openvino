@@ -28,7 +28,7 @@ class WiderFaceLoader(DataLoader):
     def __init__(self, config):
         super().__init__(config)
         self._min_height_ann = 60
-        self._img_ids, self._annotations = self._read_image_ids_annotations(config.annotation_file)
+        self._img_ids, self._annotations = self._read_image_ids_annotations(self.config.annotation_file)
 
     def __getitem__(self, index):
         """
@@ -105,7 +105,7 @@ class MTCNNEngine(IEEngine):
             }
 
     def _add_outputs(self, nodes_name):
-        add_outputs(self._model, nodes_name)
+        return add_outputs(self._model, nodes_name)
 
     def _predict(self, stats_layout, sampler, print_progress=False,
                  need_metrics_per_sample=False):
