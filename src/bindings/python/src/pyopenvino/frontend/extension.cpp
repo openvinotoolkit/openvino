@@ -8,15 +8,13 @@
 #include <pybind11/stl_bind.h>
 
 #include "extension/json_config.hpp"
-#include "manager.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "openvino/frontend/extension/op.hpp"
 #include "openvino/frontend/extension/progress_reporter.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
-#include "pyopenvino/graph/model.hpp"
-#include "utils.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
