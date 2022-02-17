@@ -270,30 +270,31 @@ application folder or accessible via `%PATH%` environment variable.
 ## FAQ
 
  - Can I change device configuration?
+
     @sphinxdirective
     .. raw:: html
 
         <div class="collapsible-section">
     @endsphinxdirective
 
-         Third parameter of `ov::Core::compile_model()` method allows to set a configuration for device. It is list of properties which affects device behavior.
-         [Supported devices](supported_plugins/Supported_Devices.md) page for more details about supported configuration parameters.
+    Third parameter of `ov::Core::compile_model()` method allows to set a configuration for device. It is list of properties which affects device behavior.
+    [Supported devices](supported_plugins/Supported_Devices.md) page for more details about supported configuration parameters.
 
-         @sphinxdirective
+    @sphinxdirective
 
-         .. tab:: C++
+    .. tab:: C++
 
-             .. doxygensnippet:: docs/snippets/src/main.cpp
-                :language: cpp
-                :fragment: [part5]
+        .. doxygensnippet:: docs/snippets/src/main.cpp
+           :language: cpp
+           :fragment: [part5]
 
-         .. tab:: Python
+    .. tab:: Python
 
-             .. doxygensnippet:: docs/snippets/src/main.py
-                :language: python
-                :fragment: [part5]
+        .. doxygensnippet:: docs/snippets/src/main.py
+           :language: python
+           :fragment: [part5]
 
-         @endsphinxdirective
+    @endsphinxdirective
 
     @sphinxdirective
     .. raw:: html
@@ -302,29 +303,30 @@ application folder or accessible via `%PATH%` environment variable.
     @endsphinxdirective
 
  - How can I use tensor name to get or set tensor?
+
     @sphinxdirective
     .. raw:: html
 
         <div class="collapsible-section">
     @endsphinxdirective
 
-         To use tensor name in order to get or set tensor you can use `ov::InferRequest::get_tensor()` or `ov::InferRequest::set_tensor()` methods respectively:
+    To use tensor name in order to get or set tensor you can use `ov::InferRequest::get_tensor()` or `ov::InferRequest::set_tensor()` methods respectively:
 
-         @sphinxdirective
+    @sphinxdirective
 
-         .. tab:: C++
+    .. tab:: C++
 
-             .. doxygensnippet:: docs/snippets/src/main.cpp
-                :language: cpp
-                :fragment: [faq:get_set_tensor]
+        .. doxygensnippet:: docs/snippets/src/main.cpp
+           :language: cpp
+           :fragment: [faq:get_set_tensor]
 
-         .. tab:: Python
+    .. tab:: Python
 
-             .. doxygensnippet:: docs/snippets/src/main.py
-                :language: python
-                :fragment: [faq:get_set_tensor]
+        .. doxygensnippet:: docs/snippets/src/main.py
+           :language: python
+           :fragment: [faq:get_set_tensor]
 
-         @endsphinxdirective
+    @endsphinxdirective
 
     @sphinxdirective
     .. raw:: html
@@ -339,23 +341,23 @@ application folder or accessible via `%PATH%` environment variable.
         <div class="collapsible-section">
     @endsphinxdirective
 
-        Get output tensor from the first request using `ov::InferRequest::get_tensor()` and set it as input for the second request using `ov::InferRequest::set_tensor()`. But be careful, shared tensors across compiled models can be rewritten by the first model if the first infer request is run once again, while the second model has not started yet.
+    Get output tensor from the first request using `ov::InferRequest::get_tensor()` and set it as input for the second request using `ov::InferRequest::set_tensor()`. But be careful, shared tensors across compiled models can be rewritten by the first model if the first infer request is run once again, while the second model has not started yet.
 
-         @sphinxdirective
+    @sphinxdirective
 
-         .. tab:: C++
+    .. tab:: C++
 
-             .. doxygensnippet:: docs/snippets/src/main.cpp
-                :language: cpp
-                :fragment: [faq:cascade_models]
+        .. doxygensnippet:: docs/snippets/src/main.cpp
+           :language: cpp
+           :fragment: [faq:cascade_models]
 
-         .. tab:: Python
+    .. tab:: Python
 
-             .. doxygensnippet:: docs/snippets/src/main.py
-                :language: python
-                :fragment: [faq:cascade_models]
+        .. doxygensnippet:: docs/snippets/src/main.py
+           :language: python
+           :fragment: [faq:cascade_models]
 
-         @endsphinxdirective
+    @endsphinxdirective
 
     @sphinxdirective
     .. raw:: html
@@ -364,30 +366,31 @@ application folder or accessible via `%PATH%` environment variable.
     @endsphinxdirective
 
  - Can I create ROI tensor?
+
     @sphinxdirective
     .. raw:: html
 
         <div class="collapsible-section">
     @endsphinxdirective
 
-        It is possible to re-use shared input by several models. You do not need to allocate separate input tensor for a model if it processes a ROI object located inside of already allocated input of a previous model. For instance, when first model detects objects on a video frame (stored as input tensor) and second model accepts detected bounding boxes (ROI inside of the frame) as input. In this case, it is allowed to re-use pre-allocated input tensor (used by first model) by second model and just crop ROI without allocation of new memory using `ov::Tensor()` with passing of `ov::Tensor` and `ov::Coordinate` as parameters.
+    It is possible to re-use shared input by several models. You do not need to allocate separate input tensor for a model if it processes a ROI object located inside of already allocated input of a previous model. For instance, when first model detects objects on a video frame (stored as input tensor) and second model accepts detected bounding boxes (ROI inside of the frame) as input. In this case, it is allowed to re-use pre-allocated input tensor (used by first model) by second model and just crop ROI without allocation of new memory using `ov::Tensor()` with passing of `ov::Tensor` and `ov::Coordinate` as parameters.
 
 
-         @sphinxdirective
+    @sphinxdirective
 
-         .. tab:: C++
+    .. tab:: C++
 
-             .. doxygensnippet:: docs/snippets/src/main.cpp
-                :language: cpp
-                :fragment: [faq:roi_tensor]
+        .. doxygensnippet:: docs/snippets/src/main.cpp
+           :language: cpp
+           :fragment: [faq:roi_tensor]
 
-         .. tab:: Python
+    .. tab:: Python
 
-             .. doxygensnippet:: docs/snippets/src/main.py
-                :language: python
-                :fragment: [faq:roi_tensor]
+        .. doxygensnippet:: docs/snippets/src/main.py
+           :language: python
+           :fragment: [faq:roi_tensor]
 
-         @endsphinxdirective
+    @endsphinxdirective
 
     @sphinxdirective
     .. raw:: html
@@ -396,29 +399,30 @@ application folder or accessible via `%PATH%` environment variable.
     @endsphinxdirective
 
  - How can I run inference in the synchronous mode?
+
     @sphinxdirective
     .. raw:: html
 
         <div class="collapsible-section">
     @endsphinxdirective
 
-        Run inference in the synchronous mode:
+    Run inference in the synchronous mode:
 
-         @sphinxdirective
+    @sphinxdirective
 
-         .. tab:: C++
+    .. tab:: C++
 
-             .. doxygensnippet:: docs/snippets/src/main.cpp
-                :language: cpp
-                :fragment: [faq:sync_infer]
+        .. doxygensnippet:: docs/snippets/src/main.cpp
+           :language: cpp
+           :fragment: [faq:sync_infer]
 
-         .. tab:: Python
+    .. tab:: Python
 
-             .. doxygensnippet:: docs/snippets/src/main.py
-                :language: python
-                :fragment: [faq:sync_infer]
+        .. doxygensnippet:: docs/snippets/src/main.py
+           :language: python
+           :fragment: [faq:sync_infer]
 
-         @endsphinxdirective
+    @endsphinxdirective
 
     @sphinxdirective
     .. raw:: html
