@@ -18,13 +18,13 @@ OpenVINO™ Runtime allows to use tensor names or indexes to work wit model inpu
 
     .. doxygensnippet:: docs/snippets/src/main.cpp
        :language: cpp
-       :fragment: [part2]
+       :fragment: [faq:all_inputs_ouputs]
 
 .. tab:: Python
 
     .. doxygensnippet:: docs/snippets/src/main.py
        :language: python
-       :fragment: [part2]
+       :fragment: [faq:all_inputs_ouputs]
 
 @endsphinxdirective
 

@@ -97,5 +97,12 @@ infer_request.infer();
 //! [faq:sync_infer]
 }
 
+//! [faq:all_inputs_ouputs]
+/* Take information about all topology inputs */
+auto inputs = model->inputs();
+/* Take information about all topology outputs */
+auto outputs = model->outputs();
+//! [faq:all_inputs_ouputs]
+
     return 0;
 }
