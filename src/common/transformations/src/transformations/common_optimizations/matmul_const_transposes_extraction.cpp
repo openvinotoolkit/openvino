@@ -21,9 +21,7 @@ ngraph::pass::MatMulConstTransposesExtraction::MatMulConstTransposesExtraction()
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto node = m.get_match_root();
         auto matmul = as_type<opset8::MatMul>(node.get());
-        if (!matmul)
-            return false;
-        if (matmul->get_transpose_b())
+        if (!matmul || matmul->get_transpose_b())
             return false;
 
         const auto& pattern_value_map = m.get_pattern_value_map();
@@ -31,7 +29,7 @@ ngraph::pass::MatMulConstTransposesExtraction::MatMulConstTransposesExtraction()
 
         std::vector<int> transpose_order(weights.get_partial_shape().size());
         std::iota(transpose_order.begin(), transpose_order.end(), 0);
-        std::swap(*(transpose_order.end() - 1), *(transpose_order.end() - 2));
+        std::reverse(transpose_order.end() - 2, transpose_order.end());
         auto transpose = std::make_shared<opset8::Transpose>(weights, op::Constant::create(element::i32, {transpose_order.size()}, transpose_order));
         auto new_matmul = std::make_shared<opset8::MatMul>(pattern_value_map.at(data_pattern), transpose, matmul->get_transpose_a(), true);
         new_matmul->set_friendly_name(matmul->get_friendly_name());
