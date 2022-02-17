@@ -159,7 +159,7 @@ struct ValueTyped {
 
 template <typename T,
           typename std::enable_if<ValueTyped<T>::value && Readable<typename T::value_type>::value, bool>::type = true>
- typename T::value_type from_string(const std::string& val, const T&) {
+typename T::value_type from_string(const std::string& val, const T&) {
     std::stringstream ss(val);
     typename T::value_type value;
     Read<typename T::value_type, void>{}(ss, value);
@@ -283,8 +283,7 @@ auto to_string(const T& value) ->
 }
 
 template <typename T>
-auto to_string(const T&) ->
-    typename std::enable_if<!Writable<T>::value && !Ostreamable<T>::value, std::string>::type {
+auto to_string(const T&) -> typename std::enable_if<!Writable<T>::value && !Ostreamable<T>::value, std::string>::type {
     OPENVINO_UNREACHABLE("Could convert to string from type without std::ostream& operator>>(std::ostream&, const T&)",
                          " defined or ov::util::Write<T> class specialization, T: ",
                          typeid(T).name());
