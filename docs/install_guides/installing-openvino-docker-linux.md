@@ -194,7 +194,7 @@ Note the following things:
 
 In some cases, the ion driver is not enabled (for example, due to a newer kernel version or iommu (Input-Output Memory Management Unit) incompatibility). `lsmod | grep myd_ion` returns empty output. To resolve this issue, use the following command:
 ```sh
-docker run -it --rm --net=host -v /var/tmp:/var/tmp –-ipc=host <image_name>
+docker run -it --rm --ipc=host --net=host -v /var/tmp:/var/tmp <image_name>
 ```
 If that still does not solve the issue, try starting `hddldaemon` with the root user on host. However, this approach is not recommended. Please use with caution.
 
