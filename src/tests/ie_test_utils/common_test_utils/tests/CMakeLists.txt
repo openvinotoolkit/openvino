@@ -1,4 +1,4 @@
-set(TARGET_NAME CommonTestUtilsFuncTests)
+set(TARGET_NAME commonUtilsTests)
 
 addIeTargetTest(
         NAME ${TARGET_NAME}

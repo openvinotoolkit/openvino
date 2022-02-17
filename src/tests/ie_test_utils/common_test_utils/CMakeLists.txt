@@ -10,7 +10,7 @@ function(add_common_utils ADD_TARGET_NAME)
             ROOT ${CMAKE_CURRENT_SOURCE_DIR}
             EXCLUDED_SOURCE_PATHS
                 ${CMAKE_CURRENT_SOURCE_DIR}/gtest
-                ${CMAKE_CURRENT_SOURCE_DIR}/tests
+                ${CMAKE_CURRENT_SOURCE_DIR}/tests/
             ADD_CPPLINT
             DEVELOPER_PACKAGE
                 tests
