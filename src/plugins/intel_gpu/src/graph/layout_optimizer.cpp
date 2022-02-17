@@ -1680,8 +1680,6 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                 format expected_conv_fmt = get_expected_layout(conv_output_layout, conv, weights_layout).format;
                 if (layout.format.spatial_num() == 2 && layout.size.feature[0] % 32 == 0 && expected_conv_fmt == format::b_fs_yx_fsv32)
                     expected = expected_conv_fmt;
-                else
-                    expected = format::bfyx;
             }
         }
     } else if (node.is_type<reorder>() || node.is_type<input_layout>()) {
