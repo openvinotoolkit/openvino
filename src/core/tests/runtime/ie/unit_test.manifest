@@ -909,9 +909,6 @@ roll_negative_axes
 #-------------------------------------------------------------------------------
 
 # Clamp op:
-# Issue 51676: Output mismatch due to wrong conversion of bounds
-IE_CPU.clamp_integral
-IE_CPU.clamp_integral_negative
 # Issue 51679: CI failure on Ubuntu 20. Overflow handling -inf lower bound
 IE_CPU.clamp_int32
 # Precision mismatch
@@ -1421,11 +1418,6 @@ onnx_controlflow_loop_2d_both_cond_and_trip_count_as_inputs
 onnx_controlflow_loop_no_variadic_inputs_and_outputs
 onnx_controlflow_loop_power
 onnx_if_dynamic_inputs
-onnx_if_branches_with_same_inputs
-onnx_if_branches_with_different_inputs
-onnx_if_branches_without_inputs
-onnx_if_inside_if
-onnx_if_branches_with_multiple_outputs
 
 # Input body shape is changed during Loop iterations
 # Exception is throw during Loop shape inference

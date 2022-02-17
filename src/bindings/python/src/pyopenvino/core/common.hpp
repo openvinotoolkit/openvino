@@ -8,8 +8,6 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include <ie_parameter.hpp>
-#include <ie_plugin_config.hpp>
 #include <openvino/core/type/element_type.hpp>
 #include <string>
 
@@ -18,6 +16,7 @@
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "pyopenvino/core/containers.hpp"
 #include "pyopenvino/graph/any.hpp"
 
@@ -27,6 +26,8 @@ namespace Common {
 const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype();
 
 const std::map<std::string, ov::element::Type>& dtype_to_ov_type();
+
+ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape);
 
 ov::Tensor tensor_from_numpy(py::array& array, bool shared_memory);
 

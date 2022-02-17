@@ -136,7 +136,7 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
         // will be deprecated and removed.
         if (m_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && f->is_dynamic()) {
             NGRAPH_DEBUG << "matcher callback requires static shape but the "
-                            "function is dynamic, skipping this "
+                            "model is dynamic, skipping this "
                             "optimization till the shapes are fully "
                             "materialized";
             return false;
@@ -316,27 +316,10 @@ bool ov::pass::RecurrentGraphRewrite::run_on_model(const std::shared_ptr<Model>&
     bool changed = false;
     size_t i = 0;
 
-    // This check is very expensive and is only needed for experimental features, so we will hide
-    // it behind an environment variable for now. TODO: Find a less expensive way to handle this.
-    static bool s_rerun_dynamic_check = ngraph::getenv_bool("NGRAPH_GRAPH_REWRITE_RERUN_DYNAMIC_CHECK");
-
     auto run_matchers = [&]() -> bool {
-        bool is_dyn_func = s_rerun_dynamic_check && f->is_dynamic();
         for (const auto& node : f->get_ops()) {
             for (auto& m_pass : m_matchers) {
-                if (is_dyn_func && m_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE)) {
-                    NGRAPH_DEBUG << "matcher callback requires static shape but the "
-                                    "function is dynamic, skipping this "
-                                    "optimization till the shapes are fully "
-                                    "materialized";
-                    continue;
-                }
                 if (m_pass->apply(node)) {
-                    // If call back may change function's is_dynamic state, we need to
-                    // update the cached value.
-                    if (m_pass->get_property(PassProperty::CHANGE_DYNAMIC_STATE)) {
-                        is_dyn_func = s_rerun_dynamic_check && f->is_dynamic();
-                    }
                     return true;
                 }
             }

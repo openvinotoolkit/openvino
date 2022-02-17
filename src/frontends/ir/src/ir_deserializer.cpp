@@ -177,7 +177,7 @@ ngraph::op::v5::Loop::SpecialBodyPorts XmlDeserializer::parsePurposeAttribute(co
     const auto up_io_map = updated_io_map(node, body_node);
 
     NGRAPH_CHECK(!up_io_map.inputs.empty() || !up_io_map.outputs.empty(),
-                 "No parameters or results found in body Function.");
+                 "No parameters or results found in body Model.");
 
     // Parse PortMap: external_port_id for inputs/outputs does not always appear in consecutive
     // order
@@ -496,12 +496,12 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
         auto node = createNode(inputs, p.xml, weights, p.params);
         id_to_node[layer_id] = node;
 
-        // Check that output shape after nGraph node validation the same as in IR
+        // Check that output shape after OpenVINO node validation the same as in IR
         // because IR always right!
         // Temporary disabled!
         //        for (size_t i = 0; i < p.params.outputPorts.size(); ++i) {
         //            if (p.params.outputPorts[i].dims != node->output(i).get_shape()) {
-        //                IE_THROW() << "Shape after nGraph infer " <<
+        //                IE_THROW() << "Shape after Model infer " <<
         //                details::dumpVec(node->output(i).get_shape())
         //                                   << " differ from IR shapes: " <<
         //                                   details::dumpVec(p.params.outputPorts[i].dims);

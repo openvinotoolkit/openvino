@@ -10,6 +10,7 @@
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/graph/program.hpp"
 #include "data_inst.h"
+#include "eltwise_inst.h"
 
 #include <string>
 #include <vector>
@@ -126,6 +127,8 @@ struct program_helpers {
     static layout get_weights_layout(typed_program_node<cldnn::data>& data_node, int32_t split);
 
     static bool are_layouts_identical_for_onednn_sum_post_op(layout input_layout, layout output_layout);
+
+    static bool needs_onednn_sum_post_op(const eltwise_node& n, layout input_layout);
 };
 
 // Base class for performing pattern match style optimizations.

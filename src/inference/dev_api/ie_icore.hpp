@@ -86,11 +86,13 @@ public:
      * @param deviceName Name of device to load network to
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation
+     * @param val Optional callback to perform validation of loaded CNNNetwork, if ReadNetwork is triggered
      * @return An executable network reference
      */
     virtual SoExecutableNetworkInternal LoadNetwork(const std::string& modelPath,
                                                     const std::string& deviceName,
-                                                    const std::map<std::string, std::string>& config) = 0;
+                                                    const std::map<std::string, std::string>& config,
+                                                    const std::function<void(const CNNNetwork&)>& val = nullptr) = 0;
 
     /**
      * @brief Creates an executable network from a previously exported network

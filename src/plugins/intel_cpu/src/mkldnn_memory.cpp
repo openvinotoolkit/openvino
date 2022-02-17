@@ -92,8 +92,8 @@ void MKLDNNMemory::Create(MemoryDescPtr desc, const void* data, bool pads_zeroin
     }
 }
 
-void MKLDNNMemory::SetData(const MKLDNNMemory& src, size_t size, bool ftz) const {
-    MKLDNNReorderNode::reorderData(src, *this, size);
+void MKLDNNMemory::SetData(const MKLDNNMemory& src, bool ftz) const {
+    MKLDNNReorderNode::reorderData(src, *this);
 
     if (ftz
         && src.GetDataType() == memory::data_type::f32

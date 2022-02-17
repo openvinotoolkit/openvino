@@ -153,10 +153,12 @@ ngraph::pass::TransposeReshapeEliminationForMatmul::TransposeReshapeEliminationF
         // check transpose order before and after matmul
         auto transpose_before = std::dynamic_pointer_cast<opset1::Transpose>(pattern_value_map.at(transpose_before_pattern).get_node_shared_ptr());
         auto transpose_after = std::dynamic_pointer_cast<opset1::Transpose>(pattern_value_map.at(transpose_after_pattern).get_node_shared_ptr());
+        if (!transpose_before || !transpose_after) return false;
+
         auto transpose_before_constant = std::dynamic_pointer_cast<ngraph::opset1::Constant>(transpose_before->get_input_node_shared_ptr(1));
         auto transpose_after_constant = std::dynamic_pointer_cast<ngraph::opset1::Constant>(transpose_after->get_input_node_shared_ptr(1));
-        if (!transpose_before || !transpose_after || !transpose_before_constant || !transpose_after_constant)
-            return false;
+        if (!transpose_before_constant || !transpose_after_constant) return false;
+
         auto transpose_before_order = transpose_before_constant->cast_vector<int64_t>();
         auto transpose_after_order = transpose_after_constant->cast_vector<int64_t>();
         // need to check that input shape is correctly contracted and output shape is correctly unpacked using transposes

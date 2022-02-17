@@ -220,13 +220,6 @@ std::vector<CPUSpecificParams> filterSpecificParams_Brgemm() {
     return specificParams;
 }
 
-const auto fusingBias = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
-            {[](std::shared_ptr<Node> inpNode, const element::Type& ngPrc, ParameterVector& params) {
-                size_t last_dim = inpNode->get_output_partial_shape(0).rbegin()->get_length();
-                auto bias = builder::makeConstant(ngPrc, Shape{last_dim}, std::vector<float>{}, true);
-                return std::make_shared<opset1::Add>(inpNode, bias);
-            }, "fusingBias"}}), {"Add"}};
-
 /* ============= FullyConnected ============= */
 namespace fullyConnected {
 

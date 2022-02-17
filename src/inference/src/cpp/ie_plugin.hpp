@@ -272,21 +272,12 @@ public:
 
     template <typename T, PropertyMutability M>
     T get_property(const ov::Property<T, M>& property) const {
-        auto to = Any::make<T>();
-        get_property(property.name(), {}, to);
-        return to.template as<T>();
+        return get_property(property.name(), {}).template as<T>();
     }
 
     template <typename T, PropertyMutability M>
     T get_property(const ov::Property<T, M>& property, const AnyMap& arguments) const {
-        auto to = Any::make<T>();
-        get_property(property.name(), arguments, to);
-        return to.template as<T>();
-    }
-
-private:
-    void get_property(const std::string& name, const AnyMap& arguments, Any& to) const {
-        any_lexical_cast(get_property(name, arguments), to);
+        return get_property(property.name(), arguments).template as<T>();
     }
 };
 

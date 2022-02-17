@@ -34,7 +34,7 @@ class FrontEnd;
 }
 
 class ModelAccessor;
-/// A user-defined function.
+/// A user-defined model.
 class OPENVINO_API Model : public std::enable_shared_from_this<Model> {
     friend class frontend::FrontEnd;
     friend OPENVINO_API std::shared_ptr<Model> clone_model(const Model& func,
@@ -43,7 +43,7 @@ class OPENVINO_API Model : public std::enable_shared_from_this<Model> {
 
 public:
     static const ::ov::DiscreteTypeInfo& get_type_info_static() {
-        static const ::ov::DiscreteTypeInfo type_info{"Function", 0};
+        static const ::ov::DiscreteTypeInfo type_info{"Model", 0};
         return type_info;
     }
     const ::ov::DiscreteTypeInfo& get_type_info() const {
@@ -92,22 +92,22 @@ public:
           const ov::op::util::VariableVector& variables,
           const std::string& name = "");
 
-    /// Constructs a Function. Lists of parameters and variables will be generated automatically
+    /// Constructs a Model. Lists of parameters and variables will be generated automatically
     /// based on traversing the graph from the results.
     explicit Model(const ov::OutputVector& results, const std::string& name = "");
 
-    /// Constructs a Function. Lists of parameters and variables will be generated automatically
+    /// Constructs a Model. Lists of parameters and variables will be generated automatically
     /// based on traversing the graph from the results and the sinks.
     Model(const ov::OutputVector& results, const ov::SinkVector& sinks, const std::string& name = "");
 
     virtual ~Model() = default;
-    /// Return the number of outputs for this function.
+    /// Return the number of outputs for this Model.
     size_t get_output_size() const;
 
     /// Return the op that generates output i
     std::shared_ptr<ov::Node> get_output_op(size_t i) const;
 
-    /// Output functions
+    /// Model outputs
     std::vector<ov::Output<ov::Node>> outputs();
     ov::Output<ov::Node> output();
     ov::Output<ov::Node> output(size_t i);
@@ -116,7 +116,7 @@ public:
     ov::Output<const ov::Node> output() const;
     ov::Output<const ov::Node> output(size_t i) const;
     ov::Output<const ov::Node> output(const std::string& tensor_name) const;
-    /// Input functions
+    /// Model inputs
     std::vector<ov::Output<ov::Node>> inputs();
     ov::Output<ov::Node> input();
     ov::Output<ov::Node> input(size_t i);
@@ -147,19 +147,19 @@ public:
     /// Check that there is a single result and return it.
     std::shared_ptr<ov::Node> get_result() const;
 
-    /// \brief Get the unique name of the function.
-    /// \returns A const reference to the function's unique name.
+    /// \brief Get the unique name of the model.
+    /// \returns A const reference to the model's unique name.
     const std::string& get_name() const;
 
-    /// \brief Sets a friendly name for a function. This does not overwrite the unique name
-    ///        of the function and is retrieved via get_friendly_name(). Used mainly for
+    /// \brief Sets a friendly name for a model. This does not overwrite the unique name
+    ///        of the model and is retrieved via get_friendly_name(). Used mainly for
     ///        debugging.
     /// \param name is the friendly name to set
     void set_friendly_name(const std::string& name);
 
-    /// \brief Gets the friendly name for a function. If no friendly name has been set via
-    ///        set_friendly_name then the function's unique name is returned.
-    /// \returns A const reference to the function's friendly name.
+    /// \brief Gets the friendly name for a model. If no friendly name has been set via
+    ///        set_friendly_name then the model's unique name is returned.
+    /// \returns A const reference to the model's friendly name.
     const std::string& get_friendly_name() const;
 
     std::vector<std::shared_ptr<ov::Node>> get_ops() const;
@@ -176,13 +176,13 @@ public:
     /// graphs and should not be considered the actual memory consumption of a graph.
     size_t get_graph_size() const;
 
-    /// \brief Returns true if any of the op's defined in the function contains partial shape
+    /// \brief Returns true if any of the op's defined in the model contains partial shape
     bool is_dynamic() const;
 
-    /// \brief Replace the `parameter_index`th parameter of the function with `parameter`.
+    /// \brief Replace the `parameter_index`th parameter of the model with `parameter`.
     ///
     /// All users of the `parameter_index`th parameter are redirected to `parameter`, and the
-    /// `parameter_index`th entry in the function parameter list is replaced with `parameter`.
+    /// `parameter_index`th entry in the model parameter list is replaced with `parameter`.
     ///
     /// \param parameter_index The index of the parameter to replace.
     /// \param parameter The parameter to substitute for the `parameter_index`th parameter.
@@ -194,49 +194,49 @@ public:
 
     virtual bool visit_attributes(ov::AttributeVisitor& visitor);
 
-    /// Return the function parameters
+    /// Return the model parameters
     const ov::ParameterVector& get_parameters() const {
         return m_parameters;
     };
-    /// Return a list of function's outputs
+    /// Return a list of model's outputs
     const ov::ResultVector& get_results() const {
         return m_results;
     };
     /// Index for parameter, or -1
     int64_t get_parameter_index(const std::shared_ptr<ov::op::v0::Parameter>& parameter) const;
 
-    /// \brief Return the index of this function's Result represented by the "value" Output object.
-    /// This method returns -1 if an the passed output is not related to the Results of a function.
+    /// \brief Return the index of this model's Result represented by the "value" Output object.
+    /// This method returns -1 if an the passed output is not related to the Results of a model.
     /// \param value Output containing Node
     int64_t get_result_index(const ov::Output<ov::Node>& value) const;
 
-    /// \brief Return the index of this function's Result represented by the "value" Output object.
-    /// This method returns -1 if an the passed output is not related to the Results of a function.
+    /// \brief Return the index of this model's Result represented by the "value" Output object.
+    /// This method returns -1 if an the passed output is not related to the Results of a model.
     /// \param value Output containing Node
     int64_t get_result_index(const ov::Output<const ov::Node>& value) const;
 
     /// \deprecated Use evaluate with ov::Tensor instead
-    /// \brief Evaluate the function on inputs, putting results in outputs.
+    /// \brief Evaluate the model on inputs, putting results in outputs.
     /// \param output_tensors Tensors for the outputs to compute. One for each result
     /// \param input_tensors Tensors for the inputs. One for each inputs.
     /// \param evaluation_context Storage of additional settings and attributes that can be used
-    /// when evaluating the function. This additional information can be shared across nodes.
+    /// when evaluating the model. This additional information can be shared across nodes.
     OPENVINO_DEPRECATED(
         "This method is deprecated and will be removed soon. Please use evaluate with ov::Tensor instead.")
     bool evaluate(const ov::HostTensorVector& output_tensors,
                   const ov::HostTensorVector& input_tensors,
                   ov::EvaluationContext evaluation_context = ov::EvaluationContext()) const;
 
-    /// \brief Evaluate the function on inputs, putting results in outputs.
+    /// \brief Evaluate the model on inputs, putting results in outputs.
     /// \param output_tensors Tensors for the outputs to compute. One for each result
     /// \param input_tensors Tensors for the inputs. One for each inputs.
     /// \param evaluation_context Storage of additional settings and attributes that can be used
-    /// when evaluating the function. This additional information can be shared across nodes.
+    /// when evaluating the model. This additional information can be shared across nodes.
     bool evaluate(ov::TensorVector& output_tensors,
                   const ov::TensorVector& input_tensors,
                   ov::EvaluationContext evaluation_context = ov::EvaluationContext()) const;
 
-    /// \brief Return a list of function's sinks.
+    /// \brief Return a list of model's sinks.
     const ov::SinkVector& get_sinks() const {
         return m_sinks;
     }
@@ -296,7 +296,7 @@ public:
     /// \param variable Variable to delete
     void remove_variable(const ov::op::util::Variable::Ptr& variable);
 
-    /// \brief Return a list of function's variables.
+    /// \brief Return a list of model's variables.
     const ov::op::util::VariableVector& get_variables() const {
         return m_variables;
     }
@@ -319,12 +319,12 @@ private:
     friend class ov::ModelAccessor;
 
     /// \brief Depending on the options selected,
-    /// checks all the Parameter/Variables are registered in the list of Function
-    /// parameters/variables or finds all Parameters/Variables in a function and registers them.
-    /// \param detect_variables If this flag is true, then it finds all Variables in a function
+    /// checks all the Parameter/Variables are registered in the list of Model
+    /// parameters/variables or finds all Parameters/Variables in a model and registers them.
+    /// \param detect_variables If this flag is true, then it finds all Variables in a model
     /// and registers them, otherwise checks all the Variables are registered.
     /// \param detect_parameters If this flag is true, then it finds all Parameters in a
-    /// function and registers them, otherwise checks all the Parameters are registered.
+    /// model and registers them, otherwise checks all the Parameters are registered.
     void prerequirements(bool detect_variables, bool detect_parameters);
 
     static std::atomic<size_t> m_next_instance_id;
@@ -362,43 +362,43 @@ class OPENVINO_API AttributeAdapter<std::shared_ptr<ov::Model>>
 public:
     AttributeAdapter(std::shared_ptr<ov::Model>& value) : DirectValueAccessor<std::shared_ptr<ov::Model>>(value) {}
 
-    OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<Function>");
+    OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<Model>");
     BWDCMP_RTTI_DECLARATION;
 };
 
-/// \brief Helper method to get associated batch size for a Function
-/// \details Checks layout of each parameter in a Function and extracts value for N (B) dimension. All values are then
+/// \brief Helper method to get associated batch size for a Model
+/// \details Checks layout of each parameter in a Model and extracts value for N (B) dimension. All values are then
 /// merged and returned
 ///
 /// \throws ::ov::AssertFailure with details in case of error. Possible errors are:
-/// * There is no parameter with layout set. Function shall have at least one parameter with layout with 'N' dimension.
+/// * There is no parameter with layout set. Model shall have at least one parameter with layout with 'N' dimension.
 /// Recommended fix is to use `Parameter::set_layout` API, e.g.
-/// `function->get_parameters()[some_index]->set_layout("NCHW");`
+/// `model->get_parameters()[some_index]->set_layout("NCHW");`
 /// * Several parameters have conflicting N dimension, e.g. param1 NCHW{1,3,224,224} and param2 NCHW{2,3,224,224}. This
 /// is ambiguous, most probably first dimension is incorrectly marked as 'batch' (N) in some layout. User shall
 ///// fix it before using of 'get_batch' (in example above correct layout for param2 from 'NCHW' to 'CHWN')
 ///
-/// \param f function where to look for a batch_size value
+/// \param f Model where to look for a batch_size value
 /// \return Dimension representing current batch size. Can represent a number or be a dynamic
 OPENVINO_API ov::Dimension get_batch(const std::shared_ptr<const ov::Model>& f);
 
-/// \brief Helper method to set batch size to a Function
+/// \brief Helper method to set batch size to a Model
 ///
-/// \details Checks layout of each parameter in a Function and sets value for N (B) dimension. Then performs validation
+/// \details Checks layout of each parameter in a Model and sets value for N (B) dimension. Then performs validation
 /// and type propagation
 ///
 /// \throws ::ov::AssertFailure with details in case of error. Possible errors are:
-/// * There is no parameter with N dimension in layout. Function shall have at least one parameter with layout with 'N'
+/// * There is no parameter with N dimension in layout. Model shall have at least one parameter with layout with 'N'
 /// dimension. Recommended fix is to use `Parameter::set_layout` API, e.g.
-/// `function->get_parameters()[some_index]->set_layout("NCHW");`
+/// `model->get_parameters()[some_index]->set_layout("NCHW");`
 /// * Several parameters have conflicting N dimension, e.g. param1 NCHW{1,3,224,224} and param2 NCHW{3,224,224,1}. This
 /// is ambiguous (1 != 3), most probably some dimension is incorrectly marked as 'batch' (N) in some layout. User shall
 /// fix it before using of 'set_batch' (in example above correct layout for param2 from 'NCHW' to 'CHWN')
-/// * Validation fails after setting batch_size. Function becomes in inconsistent state after new batch size value is
+/// * Validation fails after setting batch_size. Model becomes in inconsistent state after new batch size value is
 /// applied. Possible reason could be that layout was not set for some parameters, or batch size can't be applied to
 /// model at all
 ///
-/// \param f function where to set batch_size value
+/// \param f model where to set batch_size value
 /// \param batch_size Batch size value. For dynamic batch size, Dimension::dynamic() can be passed.
 OPENVINO_API void set_batch(const std::shared_ptr<ov::Model>& f, ov::Dimension batch_size);
 

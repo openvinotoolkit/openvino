@@ -390,7 +390,7 @@ std::string MKLDNNReorderNode::getReorderArgs(const MemoryDesc &parentDesc, cons
     return inArgs + "_" + outArgs;
 }
 
-void MKLDNNReorderNode::reorderData(const MKLDNNMemory &input, const MKLDNNMemory &output, size_t size) {
+void MKLDNNReorderNode::reorderData(const MKLDNNMemory &input, const MKLDNNMemory &output) {
     if (!input.getDesc().isDefined() || !output.getDesc().isDefined())
         IE_THROW() << "Can't reorder data with dynamic shapes";
 
@@ -398,13 +398,11 @@ void MKLDNNReorderNode::reorderData(const MKLDNNMemory &input, const MKLDNNMemor
         return;
     }
 
-    if (size != 0)
-        IE_ASSERT(size <= output.GetSize());
     if (input.getDesc().isCompatible(output.getDesc())) {
         auto srcPtr = static_cast<uint8_t*>(input.GetPtr());
         auto dstPtr = static_cast<uint8_t*>(output.GetPtr());
 
-        auto copySize = size == 0 ? output.GetSize() : size;
+        auto copySize = output.GetSize();
         cpu_memcpy(dstPtr, srcPtr, copySize);
     } else {
         std::unique_ptr<mkldnn::reorder> pReorder;
