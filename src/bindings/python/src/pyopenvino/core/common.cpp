@@ -112,7 +112,7 @@ ov::PartialShape partial_shape_from_list(const py::list& shape) {
             throw py::type_error(
                 "Incorrect type " + std::string(dim.get_type().str()) +
                 " for dimension. Next types are expected: "
-                "int, ov.runtime.Dimension, list or tuple with lower and upper values for dynamic dimension.");
+                "int, openvino.runtime.Dimension, list or tuple with lower and upper values for dynamic dimension.");
         }
     }
     return ov::PartialShape(dims);

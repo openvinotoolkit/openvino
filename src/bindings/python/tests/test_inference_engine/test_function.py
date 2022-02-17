@@ -419,4 +419,9 @@ def test_reshape_with_python_types(device):
     with pytest.raises(TypeError) as e:
         model.reshape({model.input().node: shape9})
     assert "Incorrect key type <class 'openvino.pyopenvino.op.Parameter'> to reshape a model, " \
-                                "expected keys as ov.runtime.Output, int or str." in str(e.value)
+                                "expected keys as openvino.runtime.Output, int or str." in str(e.value)
+
+    with pytest.raises(TypeError) as e:
+        model.reshape({0: range(1,9)})
+    assert "Incorrect value type <class 'range'> to reshape a model, " \
+           "expected values as openvino.runtime.PartialShape, list or tuple." in str(e.value)

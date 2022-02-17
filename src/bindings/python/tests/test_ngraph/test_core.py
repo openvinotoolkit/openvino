@@ -157,7 +157,7 @@ def test_partial_shape():
     with pytest.raises(TypeError) as e:
         PartialShape(['?'])
     assert "Incorrect type <class 'str'> for dimension. Next types are expected: " \
-                            "int, ov.runtime.Dimension, list or tuple with lower " \
+                            "int, openvino.runtime.Dimension, list or tuple with lower " \
                             "and upper values for dynamic dimension." in str(e.value)
 
 

@@ -310,13 +310,17 @@ void regclass_graph_Model(py::module m) {
                     new_shape.first = item.first.cast<ov::Output<ov::Node>>();
                 } else {
                     throw py::type_error("Incorrect key type " + std::string(item.first.get_type().str()) +
-                                         " to reshape a model, expected keys as ov.runtime.Output, int or str.");
+                                         " to reshape a model, expected keys as openvino.runtime.Output, int or str.");
                 }
                 // check values
                 if (py::isinstance<ov::PartialShape>(item.second)) {
                     new_shape.second = item.second.cast<ov::PartialShape>();
                 } else if (py::isinstance<py::list>(item.second) || py::isinstance<py::tuple>(item.second)) {
                     new_shape.second = Common::partial_shape_from_list(item.second.cast<py::list>());
+                } else {
+                    throw py::type_error(
+                        "Incorrect value type " + std::string(item.second.get_type().str()) +
+                        " to reshape a model, expected values as openvino.runtime.PartialShape, list or tuple.");
                 }
                 new_shapes.insert(new_shape);
             }
