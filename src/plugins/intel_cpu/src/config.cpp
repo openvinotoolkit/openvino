@@ -16,6 +16,7 @@
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/runtime/properties.hpp"
+#include <cpu/x64/cpu_isa_traits.hpp>
 
 namespace MKLDNNPlugin {
 
@@ -42,7 +43,7 @@ Config::Config() {
         }
     #endif
 
-    if (!with_cpu_x86_bfloat16())
+    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
         enforceBF16 = false;
 
     CPU_DEBUG_CAP_ENABLE(readDebugCapsProperties());
@@ -105,7 +106,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 IE_THROW() << "Wrong value for property key " << PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE;
         } else if (key == PluginConfigParams::KEY_ENFORCE_BF16) {
             if (val == PluginConfigParams::YES) {
-                if (with_cpu_x86_avx512_core()) {
+                if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
                     enforceBF16 = true;
                     manualEnforceBF16 = true;
                 } else {
@@ -120,7 +121,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             }
         } else if (key == ov::hint::inference_precision.name()) {
             if (val == "bf16") {
-                if (with_cpu_x86_avx512_core()) {
+                if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
                     enforceBF16 = true;
                     manualEnforceBF16 = true;
                 } else {

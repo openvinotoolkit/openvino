@@ -121,10 +121,12 @@
 # ifdef _WIN32
 #  include <intrin.h>
 #  include <windows.h>
-# else
+# elif defined(__APPLE__)
 #  include <cpuid.h>
 # endif
 #endif
+
+#include <cpu/x64/cpu_isa_traits.hpp>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -200,7 +202,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
             {ngraph::element::u4,      ngraph::element::u8}
         };
 
-        if (!with_cpu_x86_avx512_core())
+        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
             array.push_back({ngraph::element::bf16, ngraph::element::f32});
 
         return array;
@@ -504,7 +506,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     postLPTPassManager.register_pass<ngraph::pass::ConstantFolding>();
     postLPTPassManager.run_passes(nGraphFunc);
 
-    if (!useLpt && _enableSnippets && with_cpu_x86_avx2()) {
+    if (!useLpt && _enableSnippets && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
         ngraph::pass::Manager tokenization_manager;
         tokenization_manager.register_pass<SnippetsMarkSkipped>();
         tokenization_manager.register_pass<ngraph::snippets::pass::EnumerateNodes>();
@@ -656,7 +658,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
             || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled for the plugin */;
     const auto& BF16Prop = config.find(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16);
     const bool enableBF16 = ((BF16Prop != config.end() && BF16Prop->second == PluginConfigParams::YES)
-            || engConfig.enforceBF16) && with_cpu_x86_avx512_core();
+            || engConfig.enforceBF16) && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
     const auto& modelCacheProp = config.find(InferenceEngine::PluginConfigParams::KEY_CACHE_DIR);
     const bool enableModelCache = (modelCacheProp != config.end() && !modelCacheProp->second.empty())
             || !engConfig.cache_dir.empty();
@@ -753,20 +755,6 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
     return GetConfigLegacy(name, options);
 }
 
-static bool hasAVX512() {
-#if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
-    unsigned int regs[4] = {7, 0, 0, 0};
-#ifdef _WIN32
-    __cpuid(reinterpret_cast<int*>(regs), regs[0]);
-#else
-    __cpuid_count(regs[0], regs[1], regs[0], regs[1], regs[2], regs[3]);
-#endif
-    if (regs[1] & (1U << 16))
-        return true;
-#endif
-    return false;
-}
-
 Parameter Engine::GetMetricLegacy(const std::string& name, const std::map<std::string, Parameter>& options) const {
     if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics = {
@@ -787,9 +775,9 @@ Parameter Engine::GetMetricLegacy(const std::string& name, const std::map<std::s
         IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, availableDevices);
     } else if (name == METRIC_KEY(OPTIMIZATION_CAPABILITIES)) {
         std::vector<std::string> capabilities;
-        if (with_cpu_x86_bfloat16())
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
             capabilities.push_back(METRIC_VALUE(BF16));
-        if (hasAVX512())
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_common))
             capabilities.push_back(METRIC_VALUE(WINOGRAD));
         capabilities.push_back(METRIC_VALUE(FP32));
         capabilities.push_back(METRIC_VALUE(FP16));
@@ -855,9 +843,9 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         return availableDevices;
     } else if (name == ov::device::capabilities) {
         std::vector<std::string> capabilities;
-        if (with_cpu_x86_bfloat16())
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
             capabilities.push_back(METRIC_VALUE(BF16));
-        if (hasAVX512())
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_common))
             capabilities.push_back(METRIC_VALUE(WINOGRAD));
         capabilities.push_back(METRIC_VALUE(FP32));
         capabilities.push_back(METRIC_VALUE(FP16));
@@ -904,7 +892,8 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
         const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
         const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
                                || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
-        const bool enableSnippets = !(conf.cache_dir.empty() || conf.enableDynamicBatch || (conf.enforceBF16 && with_cpu_x86_avx512_core()));
+        const bool enableSnippets = !(conf.cache_dir.empty() || conf.enableDynamicBatch || (conf.enforceBF16
+                && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)));
         Transformation(clonedNetwork, enableLPT, enableSnippets, isLegacyAPI());
         auto ops = clonedNetwork.getFunction()->get_ordered_ops();
         std::unordered_set<std::string> supported;
