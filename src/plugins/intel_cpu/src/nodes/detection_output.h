@@ -73,7 +73,7 @@ private:
 
     inline void confReorderDense(const float* confData, const float* ARMConfData, float* reorderedConfData);
 
-    inline void confFilterCF(float* reorderedConfData, int* indicesData, int* indicesBufData, int* detectionsData);
+    inline void confFilterCF(const float* pConf, int* pindices, int* pbuffer, int* detectionsData, const int& n);
 
     inline void confFilterMX(const float* confData, const float* ARMConfData, float* reorderedConfData,
         int* indicesData, int* indicesBufData, int* detectionsData);
