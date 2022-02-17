@@ -857,7 +857,7 @@ bool evaluate(const shared_ptr<op::v5::NonMaxSuppression>& op,
                                             &valid_outputs,
                                             info.sort_result_descending);
 
-    auto selected_scores_type = (inputs.size() < 4) ? element::f32 : inputs[3]->get_element_type();
+    auto selected_scores_type = element::f32;
 
     runtime::reference::nms5_postprocessing(outputs,
                                             info.output_type,
