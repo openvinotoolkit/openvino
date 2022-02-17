@@ -123,12 +123,15 @@ struct OPENVINO_API Read<std::tuple<unsigned int, unsigned int>> {
     void operator()(std::istream& is, std::tuple<unsigned int, unsigned int>& tuple) const;
 };
 
-static inline const std::string& from_string(const std::string& str) {
+template <typename T>
+auto from_string(const std::string& str) -> const
+    typename std::enable_if<std::is_same<T, std::string>::value, T>::type& {
     return str;
 }
 
 template <typename T>
-auto from_string(const std::string& val) -> typename std::enable_if<Readable<T>::value, T>::type {
+auto from_string(const std::string& val) ->
+    typename std::enable_if<Readable<T>::value && !std::is_same<T, std::string>::value, T>::type {
     std::stringstream ss(val);
     T value;
     Read<T>{}(ss, value);
@@ -137,7 +140,8 @@ auto from_string(const std::string& val) -> typename std::enable_if<Readable<T>:
 
 template <typename T>
 auto from_string(const std::string& val) ->
-    typename std::enable_if<!Readable<T>::value && Istreamable<T>::value, T>::type {
+    typename std::enable_if<!Readable<T>::value && Istreamable<T>::value && !std::is_same<T, std::string>::value,
+                            T>::type {
     std::stringstream ss(val);
     T value;
     ss >> value;
@@ -179,7 +183,8 @@ typename T::value_type from_string(const std::string& val, const T&) {
 
 template <typename T>
 auto from_string(const std::string& val) ->
-    typename std::enable_if<!Readable<T>::value && !Istreamable<T>::value, T>::type {
+    typename std::enable_if<!Readable<T>::value && !Istreamable<T>::value && !std::is_same<T, std::string>::value,
+                            T>::type {
     OPENVINO_UNREACHABLE("Could read type without std::istream& operator>>(std::istream&, T)",
                          " defined or ov::util::Read<T> class specialization, T: ",
                          typeid(T).name());
@@ -263,12 +268,14 @@ struct OPENVINO_API Write<std::tuple<unsigned int, unsigned int>> {
     void operator()(std::ostream& os, const std::tuple<unsigned int, unsigned int>& tuple) const;
 };
 
-static inline const std::string& to_string(const std::string& str) {
+template <typename T>
+auto to_string(const T& str) -> const typename std::enable_if<std::is_same<T, std::string>::value, T>::type& {
     return str;
 }
 
 template <typename T>
-auto to_string(const T& value) -> typename std::enable_if<Writable<T>::value, std::string>::type {
+auto to_string(const T& value) ->
+    typename std::enable_if<Writable<T>::value && !std::is_same<T, std::string>::value, std::string>::type {
     std::stringstream ss;
     Write<T>{}(ss, value);
     return ss.str();
@@ -276,14 +283,17 @@ auto to_string(const T& value) -> typename std::enable_if<Writable<T>::value, st
 
 template <typename T>
 auto to_string(const T& value) ->
-    typename std::enable_if<!Writable<T>::value && Ostreamable<T>::value, std::string>::type {
+    typename std::enable_if<!Writable<T>::value && Ostreamable<T>::value && !std::is_same<T, std::string>::value,
+                            std::string>::type {
     std::stringstream ss;
     ss << value;
     return ss.str();
 }
 
 template <typename T>
-auto to_string(const T&) -> typename std::enable_if<!Writable<T>::value && !Ostreamable<T>::value, std::string>::type {
+auto to_string(const T&) ->
+    typename std::enable_if<!Writable<T>::value && !Ostreamable<T>::value && !std::is_same<T, std::string>::value,
+                            std::string>::type {
     OPENVINO_UNREACHABLE("Could convert to string from type without std::ostream& operator>>(std::ostream&, const T&)",
                          " defined or ov::util::Write<T> class specialization, T: ",
                          typeid(T).name());
