@@ -14,32 +14,94 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::Op> &node) {
     return nullptr;
 }
 
-std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v5::GRUSequence> &node) {
-    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 5, 3}, {2, 1, 3}});
-    const auto params_seqLength = ngraph::builder::makeDynamicParams(ov::element::i64, {{2}});
-    const auto W = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 9, 3}, {}, true);
-    const auto R = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 9, 3}, {}, true);
-    const auto B = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 9}, {}, true);
-    auto RNNCellBaseNode = std::make_shared<ov::op::v5::GRUSequence>(params[0], params[1], params_seqLength[0],
-                                                                     W, R, B, 3, ov::op::RecurrentSequenceDirection::FORWARD);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode->output(0)),
-                                 std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode->output(1))};
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{params[0], params[1], params_seqLength[0]}, "RNNCellBaseGraph");
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::PriorBox> &node) {
+    ov::op::v0::PriorBox::Attributes attrs;
+    attrs.min_size = {2.0f};
+    attrs.aspect_ratio = {1.5f};
+    attrs.scale_all_sizes = false;
+    const auto LS = ngraph::builder::makeConstant<int32_t>(ov::element::i32, {2}, {2, 2});
+    const auto IS = ngraph::builder::makeConstant<int32_t>(ov::element::i32, {2}, {10, 10});
+    auto Node = std::make_shared<ov::op::v0::PriorBox>(LS, IS, attrs);
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(Node)};
+    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{}, "PrioBoxGraph");
 }
 
-std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::LSTMSequence> &node) {
-    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{5, 10, 10}, {5, 1, 10}, {5, 1, 10}});
-    const auto params_seqLength = ngraph::builder::makeDynamicParams(ov::element::i64, {{5}});
-    const auto W = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 40, 10}, {}, true);
-    const auto R = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 40, 10}, {}, true);
-    const auto B = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 40}, {}, true);
-    const auto P = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 30}, {}, true);
-    auto RNNCellBaseNode = std::make_shared<ov::op::v0::LSTMSequence>(params[0], params[1], params[2], params_seqLength[0],
-                                                                      W, R, B, P, 10, ov::op::RecurrentSequenceDirection::FORWARD);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode->output(0)),
-                                 std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode->output(1)),
-                                 std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode->output(2))};
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{params[0], params[1], params[2], params_seqLength[0]}, "RNNCellBaseGraph");
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v8::PriorBox> &node) {
+    ov::op::v8::PriorBox::Attributes attrs;
+    attrs.min_size = {2.0f};
+    attrs.max_size = {5.0f};
+    attrs.aspect_ratio = {1.5f};
+    attrs.scale_all_sizes = true;
+    attrs.min_max_aspect_ratios_order = false;
+    const auto LS = ngraph::builder::makeConstant<int32_t>(ov::element::i32, {2}, {2, 2});
+    const auto IS = ngraph::builder::makeConstant<int32_t>(ov::element::i32, {2}, {10, 10});
+    auto Node = std::make_shared<ov::op::v8::PriorBox>(LS, IS, attrs);
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(Node)};
+    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{}, "PrioBoxGraph");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::PriorBoxClustered> &node) {
+    ov::op::v0::PriorBoxClustered::Attributes attrs;
+    attrs.widths = {3.0f};
+    attrs.heights = {3.0f};
+    attrs.clip = true;
+    const auto LS = ngraph::builder::makeConstant<int32_t>(ov::element::i32, {2}, {2, 2});
+    const auto IS = ngraph::builder::makeConstant<int32_t>(ov::element::i32, {2}, {10, 10});
+    auto Node = std::make_shared<ov::op::v0::PriorBoxClustered>(LS, IS, attrs);
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(Node)};
+    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{}, "PrioBoxClustedGraph");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Proposal> &node) {
+    ov::op::v0::Proposal::Attributes attrs;
+    attrs.base_size = 16;
+    attrs.min_size = 16;
+    attrs.pre_nms_topn = 6000;
+    attrs.post_nms_topn = 10;
+    attrs.nms_thresh = 0.7f;
+    attrs.feat_stride = 16;
+    attrs.min_size = 16;
+    attrs.ratio = {0.5f};
+    attrs.scale = {32.0f};
+    attrs.clip_before_nms = true;
+    attrs.clip_after_nms = false;
+    attrs.normalize = false;
+    attrs.box_size_scale = 1.0f;
+    attrs.box_coordinate_scale = 1.0f;
+    attrs.framework = "";
+    attrs.infer_probs = false;
+    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{1, 2, 10, 10},
+                                                                              {1, 4, 10, 10},
+                                                                              {3}});
+    auto Node = std::make_shared<ov::op::v0::Proposal>(params[0], params[1], params[2], attrs);
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(Node)};
+    return std::make_shared<ngraph::Function>(results, params, "ProposalGraph");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v4::Proposal> &node) {
+    ov::op::v4::Proposal::Attributes attrs;
+    attrs.base_size = 16;
+    attrs.min_size = 16;
+    attrs.pre_nms_topn = 6000;
+    attrs.post_nms_topn = 10;
+    attrs.nms_thresh = 0.7f;
+    attrs.feat_stride = 16;
+    attrs.min_size = 16;
+    attrs.ratio = {0.5f};
+    attrs.scale = {32.0f};
+    attrs.clip_before_nms = true;
+    attrs.clip_after_nms = false;
+    attrs.normalize = false;
+    attrs.box_size_scale = 1.0f;
+    attrs.box_coordinate_scale = 1.0f;
+    attrs.framework = "";
+    attrs.infer_probs = true;
+    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{1, 2, 10, 10},
+                                                                              {1, 4, 10, 10},
+                                                                              {3}});
+    auto Node = std::make_shared<ov::op::v4::Proposal>(params[0], params[1], params[2], attrs);
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(Node)};
+    return std::make_shared<ngraph::Function>(results, params, "ProposalGraph");
 }
 
 std::shared_ptr<ov::Model> generateBinaryEltwise(const std::shared_ptr<ov::op::Op> &node) {
