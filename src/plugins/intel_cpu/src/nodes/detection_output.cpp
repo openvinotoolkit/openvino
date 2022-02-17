@@ -123,7 +123,7 @@ void DetectionOutput::prepareParams() {
         confInfoForPrior.resize(imgNum * priorsNum);
 
     // confs...count...indices for caffe style and sparsity case.
-    // caffe: conf_info for sparsity or indices for dense --> topk(buffer) --> nms(indices)
+    // caffe: filter(conf_info for sparsity or indices for dense) --> topk(buffer) --> nms(indices)
     //        --> g_topk(vector<>(all detections) --> indices per class))
     // MXNet: max conf for prior within img, filter(indices) --> topk_img(buffer) --> nms_cls(indices)
     //        --> g_topk(vector<>(all detections) --> indices per class))
@@ -203,9 +203,7 @@ void DetectionOutput::execute(dnnl::stream strm) {
     if (!isSparsityWorthwhile) {
         confReorderDense(confData, ARMConfData, reorderedConfData);
 
-        if (!decreaseClassId) {
-            confFilterCF(reorderedConfData, indicesData, indicesBufData, detectionsData);
-        } else {
+        if (decreaseClassId) {
             confFilterMX(confData, ARMConfData, reorderedConfData, indicesData, indicesBufData, detectionsData);
         }
     } else { // sparsity
@@ -244,7 +242,7 @@ void DetectionOutput::execute(dnnl::stream strm) {
             }
         } else {
             for (int c = 0; c < locNumForClasses; ++c) {
-                if (c == backgroundClassId) {
+                if (c == static_cast<size_t>(backgroundClassId)) {
                     continue;
                 }
                 int locShift = n * priorsNum * locNumForClasses;
@@ -270,9 +268,14 @@ void DetectionOutput::execute(dnnl::stream strm) {
             // Caffe style
             parallel_for(classesNum, [&](int c) {
                 if (c != backgroundClassId) {  // Ignore background class
-                    int *pindices    = indicesData + n * classesNum * priorsNum + c * priorsNum;
-                    int *pbuffer     = indicesBufData + n * classesNum * priorsNum + c * priorsNum;
+                    int off = n * priorsNum * classesNum + c * priorsNum;
+                    const float *pconf = reorderedConfData + off;
+                    int *pindices = indicesData + off;
+                    int *pbuffer = indicesBufData + off;
                     int *pdetections = detectionsData + n * classesNum + c;
+
+                    if (!isSparsityWorthwhile)
+                        confFilterCF(pconf, pindices, pbuffer, pdetections, n);
 
                     const float *pboxes;
                     const float *psizes;
@@ -362,7 +365,7 @@ inline void DetectionOutput::confReorderDense(const float *confData, const float
         parallel_for2d(imgNum, priorsNum, [&](size_t n, size_t p) {
             if (ARMConfData[n * priorsNum * 2 + p * 2 + 1] < objScore) {
                 for (int c = 0; c < classesNum; ++c) {
-                    reorderedConfData[n * priorsNum * classesNum + c * priorsNum + p] = c == backgroundClassId ? 1.0f : 0.0f;
+                    reorderedConfData[n * priorsNum * classesNum + c * priorsNum + p] = c == static_cast<size_t>(backgroundClassId) ? 1.0f : 0.0f;
                 }
             } else {
                 for (int c = 0; c < classesNum; ++c) {
@@ -382,31 +385,22 @@ inline void DetectionOutput::confReorderDense(const float *confData, const float
     });
 }
 
-inline void DetectionOutput::confFilterCF(float* reorderedConfData, int* indicesData, int* indicesBufData, int* detectionsData) {
-    parallel_for2d(imgNum, classesNum, [&](size_t n, size_t c) {
-        // in:  reorderedConf
-        // out: pindices count
-        if (c == static_cast<size_t>(backgroundClassId))
-            return;
-        int off = n * priorsNum * classesNum + c * priorsNum;
-        const float *pconf = reorderedConfData + off;
-        int *pindices = indicesData + off;
-        int *pbuffer = indicesBufData + off;
-
-        int count = 0;
-        for (int i = 0; i < numPriorsActual[n]; ++i) {
-            if (pconf[i] > confidenceThreshold) {
-                pindices[count] = i;
-                count++;
-            }
+inline void DetectionOutput::confFilterCF(const float* pconf, int* pindices, int* pbuffer, int* detectionsData, const int& n) {
+    // in:  reorderedConf
+    // out: pindices count
+    int count = 0;
+    for (int i = 0; i < numPriorsActual[n]; ++i) {
+        if (pconf[i] > confidenceThreshold) {
+            pindices[count] = i;
+            count++;
         }
+    }
 
-        // in:  pindices count
-        // out: buffer detectionCount
-        int k = (topK == -1 ? count : (std::min)(topK, count));
-        topk(pindices, pbuffer, pconf, count, k);
-        detectionsData[n*classesNum + c] = k;
-    });
+    // in:  pindices count
+    // out: buffer detectionCount
+    int k = (topK == -1 ? count : (std::min)(topK, count));
+    topk(pindices, pbuffer, pconf, count, k);
+    detectionsData[0] = k;
 }
 
 // MX filter is per image filter, max output is prior num(select max for all class within this prior)
@@ -427,7 +421,7 @@ inline void DetectionOutput::confFilterMX(const float* confData, const float* AR
                 for (int c = 1; c < classesNum; ++c) {
                     float conf = confData[offB + p * classesNum + c];
                     if (isARMPrior)
-                        conf = (c == backgroundClassId) ? 1.0f : 0.0f;  // still need refresh conf due to read from origin conf
+                        conf = (c == static_cast<size_t>(backgroundClassId)) ? 1.0f : 0.0f;  // still need refresh conf due to read from origin conf
                     if (conf >= confidenceThreshold && conf > maxConf) {
                         maxConf = conf;
                         maxCIdx = c;
@@ -499,7 +493,7 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
                 for (int c = 0; c < classesNum; ++c) {
                     float conf = confData[confIdxPrior + c];
                     if (isARMPrior)
-                        conf = (c == backgroundClassId) ? 1.0f : 0.0f;
+                        conf = (c == static_cast<size_t>(backgroundClassId)) ? 1.0f : 0.0f;
                     if (conf > confidenceThreshold) {
                         int idx = offH + c * confInfoLen;
                         reorderedConfData[idx + p] = conf;
@@ -576,7 +570,7 @@ inline void DetectionOutput::confReorderAndFilterSparsityMX(const float* confDat
             for (int c = 0; c < classesNum; ++c) {
                 float conf = confData[confIdxPrior + c];
                 if (withAddBoxPred && isARMPrior)
-                    conf = (c == backgroundClassId) ? 1.0f : 0.0f;
+                    conf = (c == static_cast<size_t>(backgroundClassId)) ? 1.0f : 0.0f;
                 if (conf >= confidenceThreshold) {
                     int idx = off + c * confInfoLen;
                     reorderedConfData[idx + p] = conf;
