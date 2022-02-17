@@ -95,17 +95,47 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Combine(::testing::Values("MULTI", "AUTO"),
                            ::testing::ValuesIn(multiConfigs)));
 
-//INSTANTIATE_TEST_SUITE_P(
-//        smoke_OVClassSetPerformanceHintNumRequestsConfigTest, OVClassSetPerformanceHintNumRequestsConfigTest,
-//        ::testing::Values("GPU", "MULTI", "AUTO"));
-//
-//INSTANTIATE_TEST_SUITE_P(
-//        smoke_OVClassSetPerformanceHintConfigTest, OVClassSetPerformanceHintConfigTest,
-//        ::testing::Values("GPU", "MULTI", "AUTO"));
+const std::vector<ov::AnyMap> performanceHintConfigs = {
+        {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
+        {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
+        {ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)}
+};
 
-//
-// GPU specific metrics
-//
+const std::vector<ov::AnyMap> performanceHintAutoConfigs = {
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)}
+};
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassSetPerformanceHintConfigTest, OVClassSetPerformanceHintConfigTest,
+        ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GPU),
+                           ::testing::ValuesIn(performanceHintConfigs)));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Auto_OVClassSetPerformanceHintConfigTest, OVClassSetPerformanceHintConfigTest,
+        ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO, CommonTestUtils::DEVICE_BATCH),
+                           ::testing::ValuesIn(performanceHintAutoConfigs)));
+
+const std::vector<ov::AnyMap> performanceHintNumRequestsConfigs = {
+        {ov::hint::num_requests(1)},
+        {ov::hint::num_requests(100)}
+};
+
+const std::vector<ov::AnyMap> performanceHintNumRequestsAutoConfigs = {
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::hint::num_requests(1)},
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::hint::num_requests(100)}
+};
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassSetPerformanceHintNumRequestsConfigTest, OVClassSetPerformanceHintNumRequestsConfigTest,
+        ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GPU),
+                           ::testing::ValuesIn(performanceHintNumRequestsConfigs)));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Auto_OVClassSetPerformanceHintNumRequestsConfigTest, OVClassSetPerformanceHintNumRequestsConfigTest,
+        ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO, CommonTestUtils::DEVICE_BATCH),
+                           ::testing::ValuesIn(performanceHintNumRequestsAutoConfigs)));
+
 using OVClassGetMetricTest_GPU_DEVICE_TOTAL_MEM_SIZE = OVClassBaseTestP;
 TEST_P(OVClassGetMetricTest_GPU_DEVICE_TOTAL_MEM_SIZE, GetMetricAndPrintNoThrow) {
     ov::Core ie;
