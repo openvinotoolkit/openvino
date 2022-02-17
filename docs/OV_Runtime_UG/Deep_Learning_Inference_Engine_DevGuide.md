@@ -11,7 +11,8 @@
    openvino_2_0_transition_guide
    openvino_docs_IE_DG_Integrate_with_customer_application_new_API
    openvino_docs_OV_Runtime_UG_Model_Representation
-   openvino_docs_OV_Runtime_UG_Preprocessing
+   openvino_docs_OV_Runtime_UG_Preprocessing_Overview
+   openvino_docs_OV_Runtime_UG_Layout_Overview
    ngraph_transformation
    openvino_docs_deployment_optimization_guide_dldt_optimization_guide
    openvino_docs_IE_DG_Device_Plugins
