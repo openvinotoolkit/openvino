@@ -15,7 +15,8 @@ namespace {
     std::vector<size_t> input_size{1, 10, 16};
     std::vector<std::vector<std::string>> activations = {{"sigmoid", "tanh", "tanh"},
                                                          {"sigmoid", "sigmoid", "sigmoid"},
-                                                         {"tanh", "tanh", "tanh"}};
+                                                         {"tanh", "tanh", "tanh"},
+                                                         {"tanh", "sigmoid", "relu"}};
     float clip = 0.f;
     std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
                                                              InferenceEngine::Precision::FP16};
