@@ -227,7 +227,7 @@ docker run -itu root:root --rm --device-cgroup-rule='c 189:* rmw' -v /dev/bus/us
 **HDDL**:
 
 ```sh
-docker run -itu root:root --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp <image_name>
+docker run -itu root:root --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp -v /dev/shm:/dev/shm <image_name>
 /bin/bash -c "omz_downloader --name googlenet-v1 --precisions FP16 && omz_converter --name googlenet-v1 --precision FP16 && curl -O https://storage.openvinotoolkit.org/data/test_data/images/car_1.bmp && umask 000 && python3 samples/python/hello_classification/hello_classification.py public/googlenet-v1/FP16/googlenet-v1.xml car_1.bmp HDDL"
 ```
 
