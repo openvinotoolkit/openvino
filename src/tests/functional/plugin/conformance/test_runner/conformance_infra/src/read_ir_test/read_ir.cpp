@@ -11,6 +11,7 @@
 
 #include "ngraph_functions/builders.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/layer_test_utils/op_info.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
@@ -140,18 +141,25 @@ void ReadIRTest::SetUp() {
             }
         }
     }
-    std::vector<ov::Shape> staticShapes;
-    for (const auto param : function->get_parameters()) {
+    std::vector<InputShape> inputShapes;
+    for (const auto& param : function -> get_parameters()) {
         if (param->get_partial_shape().is_static()) {
-            staticShapes.push_back(param->get_shape());
+            inputShapes.push_back(InputShape{{}, {param->get_shape()}});
         } else {
-            staticShapes.push_back(param->get_partial_shape().get_max_shape());
+            ov::Shape midShape;
+            for (const auto s : param->get_partial_shape()) {
+                int dimValue = s.get_length();
+                if (s.is_dynamic()) {
+                    CommonTestUtils::fill_data_random(&dimValue, 1, s.get_max_length() - s.get_min_length(), s.get_min_length(), 1);
+                }
+                midShape.push_back(dimValue);
+            }
+            inputShapes.push_back(InputShape{param->get_partial_shape(), { param->get_partial_shape().get_min_shape(),
+                                                                                 param->get_partial_shape().get_max_shape(),
+                                                                                 midShape }});
         }
     }
-    for (const auto& param : function->get_parameters()) {
-        inputDynamicShapes.push_back(param->get_partial_shape());
-    }
-    targetStaticShapes.push_back(staticShapes);
+    init_input_shapes(inputShapes);
 }
 
 } // namespace subgraph
