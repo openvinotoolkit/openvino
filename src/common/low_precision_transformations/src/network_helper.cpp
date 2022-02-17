@@ -116,7 +116,7 @@ std::shared_ptr<opset1::Constant> NetworkHelper::foldDequantizationConstant(
 
         const auto result = ov::as_type_ptr<opset1::Constant>(outputs[outIdx].get_node_shared_ptr());
         if (result == nullptr) {
-            THROW_IE_LPT_EXCEPTION(*result) << "result of constant folding is not constant";
+            THROW_TRANSFORMATION_EXCEPTION << "result of constant folding is not constant";
         }
 
         return result;
@@ -441,9 +441,9 @@ std::vector<size_t> NetworkHelper::updateReshapeValues(
 }
 
 std::shared_ptr<ngraph::opset1::Multiply> NetworkHelper::optimizeMultipliesAfter(std::shared_ptr<Node> node) {
-    std::shared_ptr<ngraph::opset1::Multiply> multiply = ov::as_type_ptr<opset1::Multiply>(std::move(node));
+    const auto multiply = ov::as_type_ptr<opset1::Multiply>(std::move(node));
     if (!multiply) {
-        THROW_IE_LPT_EXCEPTION(*multiply) << "Unexpected operation type";
+        THROW_TRANSFORMATION_EXCEPTION << "Unexpected operation type in the optimizeMultipliesAfter method";
     }
 
     if (multiply->output(0).get_target_inputs().size() == 1) {
@@ -586,7 +586,7 @@ FakeQuantizeDequantization NetworkHelper::foldDequantization(const std::shared_p
 std::shared_ptr<ngraph::Node> NetworkHelper::separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node,
     const std::vector<ngraph::element::Type>& defaultPrecisions) {
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(node, defaultPrecisions);
-    if (dequantization.isShared()) {
+    if (dequantization.isShared() && !dequantization.empty()) {
         Output<Node> parent = dequantization.data;
         if (dequantization.convert != nullptr) {
             auto convert = dequantization.convert->clone_with_new_inputs({ parent });
@@ -1708,6 +1708,10 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationBefor
                 dequantization.convert->get_output_element_type(0) :
                 deqPrecision;
             parent = std::make_shared<opset1::Convert>(parent, convertOutputPrecision);
+            if (dequantization.convert == nullptr) {
+                THROW_TRANSFORMATION_EXCEPTION << "dequantization convert is absent";
+            }
+
             parent->set_friendly_name(dequantization.convert->get_friendly_name() + "_" + std::to_string(i + 1));
             ngraph::copy_runtime_info(dequantization.convert, parent);
         }
@@ -1761,6 +1765,9 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationBefor
     }
     auto newOperation = operation->clone_with_new_inputs(ngraph::OutputVector(newNodes.begin(), newNodes.end()));
     NetworkHelper::copyInfo(operation, newOperation);
+    if (dequantization.multiply == nullptr) {
+        THROW_TRANSFORMATION_EXCEPTION << "dequantization operations must end with multiply";
+    }
     replace_node(dequantization.multiply, newOperation);
 
     if (const auto op = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(newOperation)) {

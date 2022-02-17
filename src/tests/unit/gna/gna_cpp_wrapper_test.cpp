@@ -22,4 +22,3 @@ TEST_F(GNA_CPPWrapper_test, CPPWrapperConstructorCanWorkWithInputNotEqualToZero)
 TEST_F(GNA_CPPWrapper_test, CPPWrapperConstructorCanWorkWithoutAnyInput) {
     ASSERT_NO_THROW(GNAPluginNS::CPPWrapper<Gna2Model>());
 }
-

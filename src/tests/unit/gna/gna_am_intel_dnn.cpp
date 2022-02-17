@@ -3,19 +3,17 @@
 //
 
 #include <gtest/gtest.h>
-
 #include <inference_engine.hpp>
 #include <backend/am_intel_dnn.hpp>
 
-#include "gna_matcher.hpp"
-
 using namespace testing;
 
-class GNA_AmIntelDnn_test : public GNATest<> {
+class GNA_AmIntelDnn_test : public ::testing::Test {
 protected:
     GNAPluginNS::backend::AMIntelDNN amIntelDnn;
     Gna2Model desc = {};
 };
+
 
 TEST_F(GNA_AmIntelDnn_test, intel_nnet_type_tSecondInitNotAllowed) {
     desc.Operations = nullptr;

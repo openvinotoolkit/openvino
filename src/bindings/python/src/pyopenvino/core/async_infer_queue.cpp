@@ -183,7 +183,10 @@ void regclass_AsyncInferQueue(py::module m) {
             // getIdleRequestId function has an intention to block InferQueue
             // until there is at least one idle (free to use) InferRequest
             auto handle = self.get_idle_request_id();
-            self._idle_handles.pop();
+            {
+                std::lock_guard<std::mutex> lock(self._mutex);
+                self._idle_handles.pop();
+            }
             // Set new inputs label/id from user
             self._user_ids[handle] = userdata;
             // Update inputs if there are any
@@ -314,4 +317,8 @@ void regclass_AsyncInferQueue(py::module m) {
         :return: List of all passed userdata. None if the data wasn't passed yet.
         :rtype: List[Any]
     )");
+
+    cls.def("__repr__", [](const AsyncInferQueue& self) {
+        return "<AsyncInferQueue: " + std::to_string(self._requests.size()) + " jobs>";
+    });
 }
