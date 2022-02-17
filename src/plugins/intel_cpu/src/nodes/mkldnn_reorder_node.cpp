@@ -211,17 +211,13 @@ void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc& srcDe
     dst_blocked = std::make_shared<MKLDNNMemory>(engine);
     dst_blocked->Create(MKLDNNExtensionUtils::makeDescriptor(dstDesc), dstPtr, false);
 
-    impl_desc_type impl_type;
     ReorderKey key = {src_blocked->GetPrimitive().get_desc(), dst_blocked->GetPrimitive().get_desc()};
 
-    auto builder = [&engine, &impl_type](const ReorderKey& key) -> std::shared_ptr<mkldnn::primitive> {
+    auto builder = [&engine](const ReorderKey& key) -> std::shared_ptr<mkldnn::primitive> {
         mkldnn::primitive_attr attr;
         reorder::primitive_desc pd = mkldnn::reorder::primitive_desc(engine, key.src, engine, key.dest, attr, true);
-
         if (!pd)
             return nullptr;
-        auto info = pd.impl_info_str();
-        impl_type = parse_impl_name(info);
         return std::make_shared<mkldnn::reorder>(pd);
     };
 
@@ -260,6 +256,11 @@ void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc& srcDe
         IE_THROW() << "Cannot create reorder primitive: unsupported reorder case";
     }
     prim = result.first;
+
+    const char *impl_type_str;
+    dnnl_primitive_desc_query(result.first->get_primitive_desc(), dnnl_query_impl_info_str, 0, &impl_type_str);
+    impl_desc_type impl_type = parse_impl_name(impl_type_str);
+
     supportedPrimitiveDescriptors[0].setImplementationType(impl_type);
     auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
     auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
