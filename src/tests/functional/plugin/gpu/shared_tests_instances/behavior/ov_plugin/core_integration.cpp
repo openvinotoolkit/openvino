@@ -95,13 +95,13 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Combine(::testing::Values("MULTI", "AUTO"),
                            ::testing::ValuesIn(multiConfigs)));
 
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassSetPerformanceHintNumRequestsConfigTest, OVClassSetPerformanceHintNumRequestsConfigTest,
-        ::testing::Values("GPU", "MULTI", "AUTO"));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassSetPerformanceHintConfigTest, OVClassSetPerformanceHintConfigTest,
-        ::testing::Values("GPU", "MULTI", "AUTO"));
+//INSTANTIATE_TEST_SUITE_P(
+//        smoke_OVClassSetPerformanceHintNumRequestsConfigTest, OVClassSetPerformanceHintNumRequestsConfigTest,
+//        ::testing::Values("GPU", "MULTI", "AUTO"));
+//
+//INSTANTIATE_TEST_SUITE_P(
+//        smoke_OVClassSetPerformanceHintConfigTest, OVClassSetPerformanceHintConfigTest,
+//        ::testing::Values("GPU", "MULTI", "AUTO"));
 
 //
 // GPU specific metrics

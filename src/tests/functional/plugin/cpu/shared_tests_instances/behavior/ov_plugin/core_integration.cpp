@@ -80,13 +80,47 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassSetLogLevelConfigTest, OVClassSetLogLevelConfigTest,
         ::testing::Values("MULTI", "AUTO"));
 
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassSetPerformanceHintNumRequestsConfigTest, OVClassSetPerformanceHintNumRequestsConfigTest,
-        ::testing::Values("CPU", "MULTI", "AUTO"));
 
+const std::vector<ov::AnyMap> performanceHintConfigs = {
+        {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
+        {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
+        {ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)}
+};
+
+const std::vector<ov::AnyMap> performanceHintAutoConfigs = {
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU), ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU), ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU), ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)}
+};
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassSetPerformanceHintConfigTest, OVClassSetPerformanceHintConfigTest,
-        ::testing::Values("CPU", "MULTI", "AUTO"));
+        ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_CPU),
+                           ::testing::ValuesIn(performanceHintConfigs)));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Auto_OVClassSetPerformanceHintConfigTest, OVClassSetPerformanceHintConfigTest,
+        ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO, CommonTestUtils::DEVICE_BATCH),
+                           ::testing::ValuesIn(performanceHintAutoConfigs)));
+
+const std::vector<ov::AnyMap> performanceHintNumRequestsConfigs = {
+        {ov::hint::num_requests(1)},
+        {ov::hint::num_requests(100)}
+};
+
+const std::vector<ov::AnyMap> performanceHintNumRequestsAutoConfigs = {
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU), ov::hint::num_requests(1)},
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU), ov::hint::num_requests(100)}
+};
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassSetPerformanceHintNumRequestsConfigTest, OVClassSetPerformanceHintNumRequestsConfigTest,
+        ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_CPU),
+                           ::testing::ValuesIn(performanceHintNumRequestsConfigs)));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Auto_OVClassSetPerformanceHintNumRequestsConfigTest, OVClassSetPerformanceHintNumRequestsConfigTest,
+        ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO, CommonTestUtils::DEVICE_BATCH),
+                           ::testing::ValuesIn(performanceHintNumRequestsAutoConfigs)));
 
 const std::vector<ov::AnyMap> multiConfigs = {
         {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}};

@@ -96,8 +96,8 @@ using OVClassSetModelPriorityConfigTest = OVClassBaseTestP;
 using OVClassSetLogLevelConfigTest = OVClassBaseTestP;
 using OVClassSpecificDeviceTestSetConfig = OVClassBaseTestP;
 using OVClassSpecificDeviceTestGetConfig = OVClassBaseTestP;
-using OVClassSetPerformanceHintConfigTest = OVClassBaseTestP;
-using OVClassSetPerformanceHintNumRequestsConfigTest = OVClassBaseTestP;
+using OVClassSetPerformanceHintConfigTest = OVClassSetDevicePriorityConfigTest;
+using OVClassSetPerformanceHintNumRequestsConfigTest = OVClassSetDevicePriorityConfigTest;
 
 class OVClassSeveralDevicesTest : public OVClassNetworkTest,
                                   public ::testing::WithParamInterface<std::vector<std::string>> {
@@ -410,24 +410,17 @@ TEST_P(OVClassSetLogLevelConfigTest, SetConfigNoThrow) {
 TEST_P(OVClassSetPerformanceHintConfigTest, SetConfigNoThrow) {
     ov::Core ie = createCoreWithTemplate();
     ov::hint::PerformanceMode value;
-    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)));
+    OV_ASSERT_NO_THROW(ie.set_property(deviceName, configuration));
     OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::hint::performance_mode));
-    EXPECT_EQ(value, ov::hint::PerformanceMode::UNDEFINED);
-    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
-    OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::hint::performance_mode));
-    EXPECT_EQ(value, ov::hint::PerformanceMode::LATENCY);
-    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)));
-    OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::hint::performance_mode));
-    EXPECT_EQ(value, ov::hint::PerformanceMode::THROUGHPUT);
+    ASSERT_EQ(value, configuration[ov::hint::performance_mode.name()].as<ov::hint::PerformanceMode>());
 }
 
 TEST_P(OVClassSetPerformanceHintNumRequestsConfigTest, SetConfigNoThrow) {
     ov::Core ie = createCoreWithTemplate();
     uint32_t value;
-    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::num_requests(1)));
+    OV_ASSERT_NO_THROW(ie.set_property(deviceName, configuration));
     OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::hint::num_requests));
-    EXPECT_EQ(value, 1);
-
+    ASSERT_EQ(value, configuration[ov::hint::num_requests.name()].as<uint32_t>());
     ASSERT_ANY_THROW(ie.set_property(deviceName, ov::hint::num_requests(-1)));
 }
 //
