@@ -220,10 +220,9 @@ int main(int argc, char* argv[]) {
         auto t0 = Time::now();
         ms loadTime = std::chrono::duration_cast<ms>(Time::now() - t0);
         slog::info << "Model loading time " << loadTime.count() << " ms" << slog::endl;
-        slog::info << "Loading model to the device " << FLAGS_d << slog::endl;
         ov::CompiledModel executableNet;
         if (!FLAGS_m.empty()) {
-            slog::info << "Loading model to the device" << slog::endl;
+            slog::info << "Loading model to the device " << FLAGS_d << slog::endl;
             executableNet = core.compile_model(model, deviceStr, genericPluginConfig);
         } else {
             slog::info << "Importing model to the device" << slog::endl;
@@ -301,10 +300,10 @@ int main(int argc, char* argv[]) {
         // --------------------------- Step 5. Do inference --------------------------------------------------------
         std::vector<std::vector<uint8_t>> ptrUtterances;
         std::vector<std::vector<uint8_t>> vectorPtrScores((outputs.size() == 0) ? 1 : outputs.size());
-        std::vector<uint8_t> ptrScores;
         std::vector<uint16_t> numScoresPerOutput((outputs.size() == 0) ? 1 : outputs.size());
-        std::vector<uint8_t> ptrReferenceScores;
-        ScoreErrorT frameError, totalError;
+        std::vector<std::vector<uint8_t>> vectorPtrReferenceScores(reference_name_files.size());
+        std::vector<ScoreErrorT> vectorFrameError(reference_name_files.size()),
+            vectorTotalError(reference_name_files.size());
         ptrUtterances.resize(inputFiles.size());
         // initialize memory state before starting
         for (auto&& state : inferRequests.begin()->inferRequest.query_state()) {
@@ -317,8 +316,10 @@ int main(int argc, char* argv[]) {
             std::string uttName;
             uint32_t numFrames(0), n(0);
             std::vector<uint32_t> numFrameElementsInput;
-            uint32_t numFramesReference(0), numFrameElementsReference(0), numBytesPerElementReference(0),
-                numBytesReferenceScoreThisUtterance(0);
+            std::vector<uint32_t> numFramesReference(reference_name_files.size()),
+                numFrameElementsReference(reference_name_files.size()),
+                numBytesPerElementReference(reference_name_files.size()),
+                numBytesReferenceScoreThisUtterance(reference_name_files.size());
 
             /** Get information from input file for current utterance **/
             numFrameElementsInput.resize(numInputFiles);
@@ -355,9 +356,12 @@ int main(int argc, char* argv[]) {
             }
 
             double totalTime = 0.0;
-            std::cout << "Utterance " << utteranceIndex << ": " << std::endl;
-            clear_score_error(&totalError);
-            totalError.threshold = frameError.threshold = MAX_SCORE_DIFFERENCE;
+
+            for (size_t errorIndex = 0; errorIndex < vectorFrameError.size(); errorIndex++) {
+                clear_score_error(&vectorTotalError[errorIndex]);
+                vectorTotalError[errorIndex].threshold = vectorFrameError[errorIndex].threshold = MAX_SCORE_DIFFERENCE;
+            }
+
             std::vector<uint8_t*> inputFrame;
             for (auto& ut : ptrUtterances) {
                 inputFrame.push_back(&ut.front());
@@ -388,15 +392,15 @@ int main(int argc, char* argv[]) {
                         fileReferenceScores->get_file_info(reference_name_files[next_output].c_str(),
                                                            utteranceIndex,
                                                            &n,
-                                                           &numBytesReferenceScoreThisUtterance);
-                        ptrReferenceScores.resize(numBytesReferenceScoreThisUtterance);
+                                                           &numBytesReferenceScoreThisUtterance[next_output]);
+                        vectorPtrReferenceScores[next_output].resize(numBytesReferenceScoreThisUtterance[next_output]);
                         fileReferenceScores->load_file(reference_name_files[next_output].c_str(),
                                                        utteranceIndex,
                                                        refUtteranceName,
-                                                       ptrReferenceScores,
-                                                       &numFramesReference,
-                                                       &numFrameElementsReference,
-                                                       &numBytesPerElementReference);
+                                                       vectorPtrReferenceScores[next_output],
+                                                       &numFramesReference[next_output],
+                                                       &numFrameElementsReference[next_output],
+                                                       &numBytesPerElementReference[next_output]);
                     }
                 }
             }
@@ -455,17 +459,22 @@ int main(int argc, char* argv[]) {
                                     /** Compare output data with reference scores **/
                                     ov::Tensor outputBlob =
                                         inferRequest.inferRequest.get_tensor(executableNet.output(outputName));
-                                    if (!FLAGS_oname.empty())
-                                        outputBlob =
-                                            inferRequest.inferRequest.get_tensor(executableNet.output(outputName));
-                                    compare_scores(
-                                        outputBlob.data<float>(),
-                                        &ptrReferenceScores[inferRequest.frameIndex * numFrameElementsReference *
-                                                            numBytesPerElementReference],
-                                        &frameError,
-                                        inferRequest.numFramesThisBatch,
-                                        numFrameElementsReference);
-                                    update_score_error(&frameError, &totalError);
+
+                                    if (numScoresPerOutput[next_output] == numFrameElementsReference[next_output]) {
+                                        compare_scores(
+                                            outputBlob.data<float>(),
+                                            &vectorPtrReferenceScores[next_output]
+                                                                     [inferRequest.frameIndex *
+                                                                      numFrameElementsReference[next_output] *
+                                                                      numBytesPerElementReference[next_output]],
+                                            &vectorFrameError[next_output],
+                                            inferRequest.numFramesThisBatch,
+                                            numFrameElementsReference[next_output]);
+                                        update_score_error(&vectorFrameError[next_output],
+                                                           &vectorTotalError[next_output]);
+                                    } else {
+                                        throw std::logic_error("Number of output and reference frames does not match.");
+                                    }
                                 }
                                 if (FLAGS_pc) {
                                     // retrieve new counters
@@ -528,6 +537,24 @@ int main(int argc, char* argv[]) {
 
             // --------------------------- Step 6. Process output
             // -------------------------------------------------------
+
+            /** Show performance results **/
+            std::cout << "Utterance " << utteranceIndex << ": " << std::endl;
+            std::cout << "Total time in Infer (HW and SW):\t" << totalTime << " ms" << std::endl;
+            std::cout << "Frames in utterance:\t\t\t" << numFrames << " frames" << std::endl;
+            std::cout << "Average Infer time per frame:\t\t" << totalTime / static_cast<double>(numFrames) << " ms\n"
+                      << std::endl;
+
+            if (FLAGS_pc) {
+                // print performance results
+                print_performance_counters(utterancePerfMap,
+                                           frameIndex,
+                                           std::cout,
+                                           getFullDeviceName(core, FLAGS_d),
+                                           totalNumberOfRunsOnHw,
+                                           FLAGS_d);
+            }
+
             for (size_t next_output = 0; next_output < count_file; next_output++) {
                 if (!FLAGS_o.empty()) {
                     auto exOutputScoresFile = fileExt(FLAGS_o);
@@ -547,29 +574,14 @@ int main(int argc, char* argv[]) {
                                           numFramesFile,
                                           numScoresPerOutput[next_output]);
                 }
+                if (!FLAGS_r.empty()) {
+                    // print statistical score error
+                    std::cout << "Output name: " << output_names[next_output] << std::endl;
+                    std::cout << "Number scores per frame:" << numScoresPerOutput[next_output] << std::endl;
+                    print_reference_compare_results(vectorTotalError[next_output], numFrames, std::cout);
+                }
             }
-            /** Show performance results **/
-            std::cout << "Total time in Infer (HW and SW):\t" << totalTime << " ms" << std::endl;
-            std::cout << "Frames in utterance:\t\t\t" << numFrames << " frames" << std::endl;
-            std::cout << "Average Infer time per frame:\t\t" << totalTime / static_cast<double>(numFrames) << " ms"
-                      << std::endl;
-            if (FLAGS_pc) {
-                // print performance results
-                print_performance_counters(utterancePerfMap,
-                                           frameIndex,
-                                           std::cout,
-                                           getFullDeviceName(core, FLAGS_d),
-                                           totalNumberOfRunsOnHw,
-                                           FLAGS_d);
-            }
-            if (!FLAGS_r.empty()) {
-                // print statistical score error
-                print_reference_compare_results(totalError, numFrames, std::cout);
-            }
-            std::cout << "End of Utterance " << utteranceIndex << std::endl << std::endl;
-            // -----------------------------------------------------------------------------------------------------
         }
-        // -----------------------------------------------------------------------------------------------------
     } catch (const std::exception& error) {
         slog::err << error.what() << slog::endl;
         return 1;
