@@ -100,7 +100,7 @@ def download_engine_config(model_name):
                 engine_conf_.network_info = model_.network_info
 
             for launcher in model_.launchers:
-                if launcher.framework == 'dlsdk':
+                if launcher.framework == 'openvino':
                     engine_conf_.launchers = list()
                     engine_launcher = {'framework': launcher.framework}
                     if launcher.adapter:
