@@ -1061,8 +1061,7 @@ int main(int argc, char* argv[]) {
                      StatisticsVariant("Percentile boundary", "percentile_boundary", FLAGS_latency_percentile),
                      StatisticsVariant("Average latency (ms)", "latency_avg", generalLatency.avg),
                      StatisticsVariant("Min latency (ms)", "latency_min", generalLatency.min),
-                     StatisticsVariant("Max latency (ms)", "latency_max", generalLatency.max),
-                     StatisticsVariant("throughput", "throughput", fps)});
+                     StatisticsVariant("Max latency (ms)", "latency_max", generalLatency.max)});
 
                 if (FLAGS_pcseq && app_inputs_info.size() > 1) {
                     for (size_t i = 0; i < groupLatencies.size(); ++i) {
@@ -1072,6 +1071,8 @@ int main(int argc, char* argv[]) {
                     }
                 }
             }
+            statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                       {StatisticsVariant("throughput", "throughput", fps)});
         }
         progressBar.finish();
 
