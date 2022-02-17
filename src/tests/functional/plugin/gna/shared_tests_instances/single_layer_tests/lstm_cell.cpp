@@ -11,8 +11,8 @@ using namespace LayerTestsDefinitions;
 namespace {
     std::vector<bool> should_decompose{false, true};
     std::vector<size_t> batch{1};
-    std::vector<size_t> hidden_size{1, 5};
-    std::vector<size_t> input_size{1, 10};
+    std::vector<size_t> hidden_size{1, 5, 16};
+    std::vector<size_t> input_size{1, 10, 16};
     std::vector<std::vector<std::string>> activations = {{"sigmoid", "tanh", "tanh"},
                                                          {"sigmoid", "sigmoid", "sigmoid"},
                                                          {"tanh", "tanh", "tanh"}};
