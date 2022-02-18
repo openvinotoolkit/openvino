@@ -80,13 +80,19 @@ def run(args):
             cldnn_config = config[GPU_DEVICE_NAME]['CONFIG_FILE']
             benchmark.add_extension(path_to_cldnn_config=cldnn_config)
 
-        if not args.perf_hint:
-            for device in devices:
-                supported_properties = benchmark.core.get_property(device, 'SUPPORTED_PROPERTIES')
-                if 'PERFORMANCE_HINT' in supported_properties:
-                    logger.warning(f"-hint default value is determined as 'THROUGHPUT' automatically for {device} device" +
-                                    "For more detailed information look at README.")
+        for device in devices:
+            supported_properties = benchmark.core.get_property(device, 'SUPPORTED_PROPERTIES')
+            if 'PERFORMANCE_HINT' in supported_properties:
+                if is_flag_set_in_command_line('hint'):
+                    if args.perf_hint=='none':
+                        logger.warning(f"No device {device} performance hint is set.")
+                        args.perf_hint = ""
+                else:
+                    logger.warning(f"PerformanceMode was not explicitly specified in command line. " +
+                    f"Device {device} performance hint will be set to THROUGHPUT.")
                     args.perf_hint = "throughput"
+            else:
+                logger.warning(f"Device {device} does not support performance hint property(-hint).")
 
         version = benchmark.get_version_info()
 
