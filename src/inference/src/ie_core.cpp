@@ -453,9 +453,9 @@ public:
 #ifdef OPENVINO_STATIC_LIBRARY
 
     /**
-     * @brief Register plugins for devices which are located in .xml configuration file.
+     * @brief Register plugins for devices using statically defined configuration
      * @note The function supports UNICODE path
-     * @param xmlConfigFile An .xml configuraion with device / plugin information
+     * @param static_registry a statically defined configuration with device / plugin information
      */
     void RegisterPluginsInRegistry(const decltype(::getStaticPluginsRegistry())& static_registry) {
         std::lock_guard<std::mutex> lock(pluginsMutex);
@@ -1143,12 +1143,19 @@ public:
 
     std::map<std::string, std::string> GetSupportedConfig(const std::string& deviceName,
                                                           const std::map<std::string, std::string>& configs) override {
-        auto supportedConfigKeys =
-            GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
-        for (auto&& property : ICore::get_property(deviceName, ov::supported_properties)) {
-            if (property.is_mutable()) {
-                supportedConfigKeys.emplace_back(std::move(property));
+        std::vector<std::string> supportedConfigKeys;
+        try {
+            supportedConfigKeys =
+                GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
+        } catch (ov::Exception&) {
+        }
+        try {
+            for (auto&& property : ICore::get_property(deviceName, ov::supported_properties)) {
+                if (property.is_mutable()) {
+                    supportedConfigKeys.emplace_back(std::move(property));
+                }
             }
+        } catch (ov::Exception&) {
         }
         std::map<std::string, std::string> supportedConfig;
         for (auto&& key : supportedConfigKeys) {

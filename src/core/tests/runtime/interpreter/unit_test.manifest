@@ -138,10 +138,5 @@ INTERPRETER.onnx_model_instance_normalization_dyn_shape
 INTERPRETER.onnx_controlflow_loop_2d_no_identity_termination_cond_false
 
 # new failures after fixing the TestCase class - 77385
-onnx_bool_const_op
-onnx_bool_init_and
-onnx_bool_input_or
-onnx_bool_init_raw
 quant_dequant_pattern_axis
 onnx_clip_no_min_no_max_int64
-onnx_constant_sparse_tensor_boolean_3x4
