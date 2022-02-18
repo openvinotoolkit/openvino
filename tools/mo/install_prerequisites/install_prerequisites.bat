@@ -176,11 +176,6 @@ IF %USE_VENV% == "true" (
     echo [ WARNING ] run install_prerequisites.bat "{caffe|tf|tf2|mxnet|kaldi|onnx}" venv
 )
 
-echo *****************************************************************************************
-echo Optional: To speed up model conversion process, install protobuf-*.egg located in the
-echo "model-optimizer\install_prerequisites" folder or building protobuf library from sources.
-echo For more information please refer to Model Optimizer FAQ, question #80.
-
 goto:eof
 
 :error
