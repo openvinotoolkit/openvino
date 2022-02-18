@@ -12,19 +12,9 @@ namespace frontend {
 namespace paddle {
 namespace op {
 
-void check_rank(const NodeContext& node, const ngraph::Output<ov::Node>& input, const int64_t input_rank)
-{
-    std::string input_name = input.get_node()->get_friendly_name();
-    PADDLE_OP_CHECK(node, input.get_partial_shape().rank().is_static(), "generate proposals: " + input_name + " rank must be static!");
-    PADDLE_OP_CHECK(node, input.get_partial_shape().rank() == Dimension(input_rank), "generate proposals: " + input_name + " rank must be " + std::to_string(input_rank));
-}
-
 std::shared_ptr<ngraph::Node> get_one_batch(const NodeContext& node, const ngraph::Output<ov::Node>& input, const int64_t input_rank)
 {
     std::string input_name = input.get_node()->get_friendly_name();
-    check_rank(node, input, input_rank);
-    PADDLE_OP_CHECK(node, input.get_partial_shape()[0].is_static(), "generate proposals: " + input_name + " the first dimension of shape (batch size dimension) must be static!");
-    PADDLE_OP_CHECK(node, input.get_partial_shape()[0] == Dimension(1), "generate proposals: " + input_name + " the first dimension of shape (batch size dimension) must be 1!");
 
     auto squeeze_axes = default_opset::Constant::create<int32_t>(ov::element::i64, {1}, {0});
     auto output = std::make_shared<default_opset::Squeeze>(input, squeeze_axes);
@@ -45,12 +35,6 @@ NamedOutputs generate_proposals_v2(const NodeContext& node)
     auto single_bbox_deltas = get_one_batch(node, bbox_deltas, 4);
     auto single_im_shape = get_one_batch(node, im_shape, 2);
     auto single_scores = get_one_batch(node, scores, 4);
-
-    //check_rank(node, anchors, 0);
-    auto anchors_rank = anchors.get_partial_shape().rank();
-    PADDLE_OP_CHECK(node, anchors_rank.is_static(), "generate proposals: anchors rank must be static!");
-    PADDLE_OP_CHECK(node, (anchors_rank == Dimension(2)) || (anchors_rank == Dimension(4)),
-                    "generate proposals: anchors rank must be 2 or 4");
 
     // attribute
     ov::op::v9::GenerateProposalsSingleImage::Attributes attrs;
