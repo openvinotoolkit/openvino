@@ -26,6 +26,7 @@ from google.protobuf import text_format
 import onnx
 from onnx.external_data_helper import convert_model_to_external_data
 import os
+import sys
 
 ONNX_SUFFX = '.onnx'
 PROTOTXT_SUFFX = '.prototxt'
