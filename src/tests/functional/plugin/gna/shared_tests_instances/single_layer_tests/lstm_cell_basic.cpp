@@ -27,7 +27,6 @@ namespace {
         },
         {
             {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-            {"GNA_COMPACT_MODE", "NO"},
             {"GNA_PRECISION", "I16"},
             {"GNA_SCALE_FACTOR_0", "1024"},
             {"GNA_SCALE_FACTOR_1", "1024"},
@@ -35,7 +34,6 @@ namespace {
         },
         {
             {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-            {"GNA_COMPACT_MODE", "NO"},
             {"GNA_PRECISION", "I8"},
             {"GNA_SCALE_FACTOR_0", "1024"},
             {"GNA_SCALE_FACTOR_1", "1024"},
