@@ -211,7 +211,7 @@ void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc& srcDe
     dst_blocked = std::make_shared<MKLDNNMemory>(engine);
     dst_blocked->Create(MKLDNNExtensionUtils::makeDescriptor(dstDesc), dstPtr, false);
 
-    impl_desc_type impl_type;
+    impl_desc_type impl_type = getSelectedPrimitiveDescriptor()->getImplementationType();
     ReorderKey key = {src_blocked->GetPrimitive().get_desc(), dst_blocked->GetPrimitive().get_desc()};
 
     auto builder = [&engine, &impl_type](const ReorderKey& key) -> std::shared_ptr<mkldnn::primitive> {
