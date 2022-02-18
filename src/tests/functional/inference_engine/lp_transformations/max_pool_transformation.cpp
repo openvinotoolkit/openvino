@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -92,7 +92,7 @@ public:
 
 TEST_P(MaxPoolTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, false, false);
+    auto res = compare_functions(actualFunction, referenceFunction, true, false, false);
     ASSERT_TRUE(res.first) << res.second;
 
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
@@ -102,7 +102,7 @@ namespace testValues1 {
 const std::vector<ngraph::PartialShape> shapes = {
     { 1, 3, 72, 48 },
     { 4, 3, 72, 48 },
-    { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() },
+    { -1, -1, -1, -1 },
 };
 
 const std::vector<MaxPoolTransformationTestValues> testValues = {
@@ -239,7 +239,6 @@ INSTANTIATE_TEST_SUITE_P(
 
 namespace testValues2 {
 const std::vector<ngraph::PartialShape> shapesWithDynamicChannels = {
-    { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
     PartialShape::dynamic()
 };
 

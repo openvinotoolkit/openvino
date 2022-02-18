@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -128,7 +128,9 @@ static bool ShouldDecompose(GraphData& graph_data, const ConvData& conv_data) {
     // GNA supported features or handled otherwise - there is no need to decompose such convolution
     if (graph_data.conv_count == 1 && (((conv_data.input_height == 1 || conv_data.input_width == 1) &&
         conv_data.filter_dilation_width == 1 && conv_data.filter_dilation_height == 1) ||
-        GNAConvolutionLayer::isMappableFrom2DTo1D(conv_data.input_height, conv_data.input_width, conv_data.filter_width, conv_data.filter_stride_width)))
+        GNAConvolutionLayer::isMappableFrom2DTo1D(conv_data.input_height, conv_data.input_width, conv_data.input_channel_count,
+                                                  conv_data.filter_height, conv_data.filter_width,
+                                                  conv_data.filter_stride_height, conv_data.filter_stride_width)))
         return false;
 
     return true;
@@ -312,7 +314,7 @@ static std::shared_ptr<ngraph::Node> Create1DConv(const GraphData& graph_data, c
         }
 
         // Max pooling
-        if ((graph_data.max_pool && graph_data.pool_size_width > 1) || graph_data.pool_stride_width > 1) {
+        if (graph_data.max_pool && (graph_data.pool_size_width > 1 || graph_data.pool_stride_width > 1)) {
             last_conv_block_op = std::make_shared<ngraph::opset7::MaxPool>(last_conv_block_op,
                 ngraph::Strides{1, graph_data.pool_stride_width}, ngraph::Shape{0, 0}, ngraph::Shape{0, 0},
                 ngraph::Shape{1, graph_data.pool_size_width}, graph_data.max_pool->get_rounding_type(), ngraph::op::PadType::VALID);

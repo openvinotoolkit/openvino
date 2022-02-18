@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@
 #include "cache/lru_cache.h"
 #include "cache/multi_cache.h"
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 
 namespace {
 struct IntKey {

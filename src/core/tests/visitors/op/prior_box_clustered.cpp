@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ TEST(attributes, prior_box_clustered_op) {
     attrs.clip = true;
     attrs.step_widths = 0.0f;
     attrs.step_heights = 0.0f;
-    attrs.step = 0.0f;
+    attrs.step = 16.0f;
     attrs.offset = 0.0f;
     attrs.variances = {0.1f};
 
@@ -40,6 +40,7 @@ TEST(attributes, prior_box_clustered_op) {
     EXPECT_EQ(g_pbc_attrs.clip, pbc_attrs.clip);
     EXPECT_EQ(g_pbc_attrs.step_widths, pbc_attrs.step_widths);
     EXPECT_EQ(g_pbc_attrs.step_heights, pbc_attrs.step_heights);
+    EXPECT_EQ(g_pbc_attrs.step, pbc_attrs.step);
     EXPECT_EQ(g_pbc_attrs.offset, pbc_attrs.offset);
     EXPECT_EQ(g_pbc_attrs.variances, pbc_attrs.variances);
 }

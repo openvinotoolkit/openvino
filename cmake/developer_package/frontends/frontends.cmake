@@ -1,9 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set(FRONTEND_INSTALL_INCLUDE "runtime/include/")
-set(FRONTEND_NAME_PREFIX "ov_")
+set(FRONTEND_NAME_PREFIX "openvino_")
 set(FRONTEND_NAME_SUFFIX "_frontend")
 
 set(FRONTEND_NAMES "" CACHE INTERNAL "")
@@ -35,7 +35,7 @@ function(ov_generate_frontends_hpp)
     endif()
 
     # add frontends to libraries including ov_frontends.hpp
-    ov_target_link_frontends(ov_runtime)
+    ov_target_link_frontends(openvino)
 
     set(ov_frontends_hpp "${CMAKE_BINARY_DIR}/src/frontends/common/src/ov_frontends.hpp")
     set(frontends_hpp_in "${IEDevScripts_DIR}/frontends/ov_frontends.hpp.in")
@@ -57,7 +57,7 @@ function(ov_generate_frontends_hpp)
     # for some reason dependency on source files does not work
     # so, we have to use explicit target and make it dependency for frontend_common
     add_custom_target(_ov_frontends_hpp DEPENDS ${ov_frontends_hpp})
-    add_dependencies(frontend_common _ov_frontends_hpp)
+    add_dependencies(frontend_common_obj _ov_frontends_hpp)
 
     # add dependency for object files
     get_target_property(sources frontend_common_obj SOURCES)
@@ -165,7 +165,7 @@ macro(ov_add_frontend)
         # frontend's CMakeLists.txt must define its own custom 'ov_ncc_naming_style' step
     else()
         ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
-                            INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include"
+                            SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include"
                             ADDITIONAL_INCLUDE_DIRECTORIES
                                 $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>)
     endif()
@@ -182,7 +182,8 @@ macro(ov_add_frontend)
 
     ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
-    target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime ${OV_FRONTEND_LINK_LIBRARIES})
+    target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime)
+    target_link_libraries(${TARGET_NAME} PRIVATE ${OV_FRONTEND_LINK_LIBRARIES})
 
     # WA for TF frontends which always requires protobuf (not protobuf-lite)
     # if TF FE is built in static mode, use protobuf for all other FEs

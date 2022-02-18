@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,26 +12,26 @@
 using OVDefaultAllocatorTest = ::testing::Test;
 
 TEST_F(OVDefaultAllocatorTest, notThrowOnZeroSize) {
-    ov::runtime::Allocator allocator;
+    ov::Allocator allocator;
     void* ptr = nullptr;
     ASSERT_NO_THROW(ptr = allocator.allocate(0));
     ASSERT_NO_THROW(allocator.deallocate(ptr));
 }
 
 TEST_F(OVDefaultAllocatorTest, canAllocateAndDeallocate) {
-    ov::runtime::Allocator allocator;
+    ov::Allocator allocator;
     void* ptr = nullptr;
     ASSERT_NO_THROW(ptr = allocator.allocate(64));
     ASSERT_NO_THROW(allocator.deallocate(ptr));
 }
 
 TEST_F(OVDefaultAllocatorTest, alignedAllocationIsNotImplemented) {
-    ov::runtime::Allocator allocator;
+    ov::Allocator allocator;
     ASSERT_THROW(allocator.allocate(64, 64), ov::Exception);
 }
 
 TEST_F(OVDefaultAllocatorTest, sizedAndAlignedDeallocationAreNotImplemented) {
-    ov::runtime::Allocator allocator;
+    ov::Allocator allocator;
     void* ptr = nullptr;
     ASSERT_NO_THROW(ptr = allocator.allocate(64));
     ASSERT_THROW(allocator.deallocate(ptr, 64), ov::Exception);
@@ -40,7 +40,7 @@ TEST_F(OVDefaultAllocatorTest, sizedAndAlignedDeallocationAreNotImplemented) {
 }
 
 TEST_F(OVDefaultAllocatorTest, defaultAllocatorsAreEqual) {
-    ov::runtime::Allocator allocator0, allocator1;
+    ov::Allocator allocator0, allocator1;
     ASSERT_TRUE(allocator0 == allocator1);
     void* ptr = nullptr;
     ASSERT_NO_THROW(ptr = allocator0.allocate(64));
@@ -50,7 +50,7 @@ TEST_F(OVDefaultAllocatorTest, defaultAllocatorsAreEqual) {
 }
 
 TEST_F(OVDefaultAllocatorTest, canAllocate10KMemory) {
-    ov::runtime::Allocator allocator;
+    ov::Allocator allocator;
     // large block such as 10k will result in sigsegv if not allocated
     void* handle = allocator.allocate(10000);
     char* ptr = reinterpret_cast<char*>(handle);

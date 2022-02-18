@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,7 @@ class RemoteBlob_Test : public CommonTestUtils::TestsCommon, public testing::Wit
 protected:
     std::shared_ptr<ngraph::Function> fn_ptr;
     std::string deviceName;
+    std::map<std::string, std::string> config;
 
 public:
     void SetUp() override {
@@ -33,6 +34,7 @@ public:
         auto with_auto_batching = this->GetParam();
         if (with_auto_batching) { // BATCH:GPU
             deviceName = std::string(CommonTestUtils::DEVICE_BATCH) + ":" + deviceName;
+            config = {{CONFIG_KEY(ALLOW_AUTO_BATCHING), CONFIG_VALUE(YES)}};
         }
     }
     static std::string getTestCaseName(const testing::TestParamInfo<bool>& obj) {
@@ -174,7 +176,10 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserContext) {
     // inference using remote blob
     auto ocl_instance = std::make_shared<OpenCL>();
     auto remote_context = make_shared_context(*ie, deviceName, ocl_instance->_context.get());
-    auto exec_net_shared = ie->LoadNetwork(net, remote_context);
+    // since there is no way to enable the Auto-Batching thru the device name when loading with the RemoteContext
+    // (as the device name is deduced from the context, which is the "GPU")
+    // the only-way to test the auto-batching is explicit config with ALLOW_AUTO_BATCHING set to YES
+    auto exec_net_shared = ie->LoadNetwork(net, remote_context, config);
     auto inf_req_shared = exec_net_shared.CreateInferRequest();
     inf_req_shared.SetBlob(net.getInputsInfo().begin()->first, fakeImageData);
 

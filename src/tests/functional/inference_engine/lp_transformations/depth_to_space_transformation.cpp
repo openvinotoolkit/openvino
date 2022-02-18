@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -100,7 +100,7 @@ public:
 
 TEST_P(DepthToSpaceTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true);
+    auto res = compare_functions(actualFunction, referenceFunction, true, true);
     ASSERT_TRUE(res.first) << res.second;
 
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
@@ -109,7 +109,7 @@ TEST_P(DepthToSpaceTransformation, CompareFunctions) {
 namespace testValues1 {
 const std::vector<ngraph::PartialShape> inputShapesForBlockSize2 = {
     { 1, 4, 3, 3 },
-    {Dimension::dynamic(), 4, Dimension::dynamic(), Dimension::dynamic()}
+    {-1, -1, -1, -1}
 };
 
 const std::vector<DepthToSpaceTransformationTestValues> testValues = {
@@ -231,7 +231,7 @@ INSTANTIATE_TEST_SUITE_P(
 namespace testValues2 {
 const std::vector<ngraph::PartialShape> inputShapesForBlockSize3 = {
     { 1, 9, 3, 3 },
-    {Dimension::dynamic(), 9, Dimension::dynamic(), Dimension::dynamic()}
+    {-1, -1, -1, -1}
 };
 
 const std::vector<DepthToSpaceTransformationTestValues> testValues = {
@@ -279,62 +279,6 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace testValues2
 
 namespace testValues3 {
-const std::vector<ngraph::PartialShape> inputShapesWithDynamicChannel = {
-    { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-};
-
-const std::vector<DepthToSpaceTransformationTestValues> testValues = {
-    {
-        DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
-            2,
-            LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {0.32f}, {0.45f}}
-        },
-            {
-                ngraph::element::u8,
-                {{}, {}, {}},
-                ngraph::element::u8,
-                {{ngraph::element::f32}, {0.32f}, {0.45f}}
-            }
-    },
-    // per-channel dequantizations with the same values
-    {
-        DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
-        2,
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {
-                {ngraph::element::f32},
-                {{0.32f, 0.32f, 0.32f, 0.32f}},
-                {{0.1f, 0.1f, 0.1f, 0.1f}}
-            }
-        },
-        {
-            ngraph::element::u8,
-            {
-                {ngraph::element::f32},
-                {{0.32f, 0.32f, 0.32f, 0.32f}},
-                {{0.1f, 0.1f, 0.1f, 0.1f}}
-            },
-            ngraph::element::f32,
-            {}
-        }
-    },
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    DepthToSpaceTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(inputShapesWithDynamicChannel),
-        ::testing::ValuesIn(testValues)),
-    DepthToSpaceTransformation::getTestCaseName);
-} // namespace testValues3
-
-namespace testValues4 {
 const std::vector<ngraph::PartialShape> inputShapesWithDynamicRank = {
     PartialShape::dynamic(),
 };
@@ -364,5 +308,5 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(inputShapesWithDynamicRank),
         ::testing::ValuesIn(testValues)),
     DepthToSpaceTransformation::getTestCaseName);
-} // namespace testValues4
+} // namespace testValues3
 } // namespace

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -125,4 +125,12 @@ OPENVINO_API bool evaluate_as_partial_shape(const Output<Node>& output, PartialS
 /// \brief Runs an estimation of source tensor. If it succeeded to calculate both bounds and
 /// they are the same returns Constant operation from the resulting bound, otherwise nullptr.
 OPENVINO_API std::shared_ptr<op::v0::Constant> get_constant_from_source(const Output<Node>& source);
+
+/// \brief Propagates value label from 0 input to the only output through an operation.
+/// Not applicable for operations which require values interaction (example: mathematical
+/// operations). Could be used for movement operations (example: gathering, shape change)
+/// \param node Operation to be performed
+/// \param output_labels Vector of TensorLabel objects representing resulting value labels
+/// \return boolean status if label evaluation was successful.
+OPENVINO_API bool default_label_evaluator(const Node* node, TensorLabelVector& output_labels);
 }  // namespace ov

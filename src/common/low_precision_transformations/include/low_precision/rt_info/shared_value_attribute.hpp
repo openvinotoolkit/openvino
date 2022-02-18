@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,30 @@ public:
             SharedValue() = default;
             SharedValue(const T& value) : value{value} {}
             T value = {};
+            void addAttribute(std::weak_ptr<SharedValueAttribute> attribute) {
+                auto attributeLocked = attribute.lock();
+                if (attributeLocked == nullptr) {
+                    return;
+                }
+
+                for (auto& attr : attributes) {
+                    auto attrLocked = attr.lock();
+                    if (attrLocked == nullptr) {
+                        continue;
+                    }
+                    if (attributeLocked == attrLocked) {
+                        return;
+                    }
+                }
+
+                attributes.push_back(attribute);
+            }
+
+            std::vector<std::weak_ptr<SharedValueAttribute>>& getAttributes() {
+                return attributes;
+            }
+
+        private:
             std::vector<std::weak_ptr<SharedValueAttribute>> attributes;
         };
         SharedValueAttribute() : sharedValue(std::make_shared<SharedValue>()) {}
@@ -49,7 +73,7 @@ public:
 
             bool firstAttribute = true;
             ss << ", attributes: {";
-            for (auto& attributeWeakPtr : sharedValue->attributes) {
+            for (auto& attributeWeakPtr : sharedValue->getAttributes()) {
                 auto attribute = attributeWeakPtr.lock();
                 if (attribute == nullptr) {
                     continue;
@@ -67,10 +91,10 @@ public:
     };
 
     SharedAttribute() : attribute{std::make_shared<SharedValueAttribute>()} {
-        attribute->sharedValue->attributes.emplace_back(attribute);
+        attribute->sharedValue->addAttribute(attribute);
     }
     SharedAttribute(const T& value) : attribute{std::make_shared<SharedValueAttribute>(value)} {
-        attribute->sharedValue->attributes.emplace_back(attribute);
+        attribute->sharedValue->addAttribute(attribute);
     }
 
     std::shared_ptr<SharedValueAttribute> attribute;

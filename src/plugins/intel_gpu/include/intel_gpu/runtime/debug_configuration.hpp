@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,6 +38,7 @@ public:
     int dump_layers_dst_only;       // Dump only output of layers
     int dump_layers_limit_batch;    // Limit the size of batch to dump
     int base_batch_for_memory_estimation; // Base batch size to be used in memory estimation
+    std::vector<std::string> after_proc; // Start inference after the listed processes
     static const debug_configuration *get_instance();
     bool is_dumped_layer(const std::string& layerName) const;
 };

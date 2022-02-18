@@ -46,7 +46,7 @@ if(OpenCV_FOUND)
 endif()
 
 if(ENABLE_OV_ONNX_FRONTEND)
-    target_link_libraries(${TARGET_NAME} PRIVATE ov_onnx_frontend)
+    target_link_libraries(${TARGET_NAME} PRIVATE openvino_onnx_frontend)
 endif()
 
 if(NOT MSVC)

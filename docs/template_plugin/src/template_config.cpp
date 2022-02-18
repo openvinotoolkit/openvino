@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,6 +33,9 @@ Configuration::Configuration(const ConfigMap& config, const Configuration& defau
             }
         } else if (CONFIG_KEY(PERF_COUNT) == key) {
             perfCount = (CONFIG_VALUE(YES) == value);
+        } else if (ov::hint::performance_mode == key) {
+            std::stringstream strm{value};
+            strm >> performance_mode;
         } else if (throwOnUnsupported) {
             IE_THROW(NotFound) << ": " << key;
         }
@@ -40,7 +43,11 @@ Configuration::Configuration(const ConfigMap& config, const Configuration& defau
 }
 
 InferenceEngine::Parameter Configuration::Get(const std::string& name) const {
-    if (name == CONFIG_KEY(DEVICE_ID)) {
+    auto streamExecutorConfigKeys = _streamsExecutorConfig.SupportedKeys();
+    if ((streamExecutorConfigKeys.end() !=
+         std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), name))) {
+        return _streamsExecutorConfig.GetConfig(name);
+    } else if (name == CONFIG_KEY(DEVICE_ID)) {
         return {std::to_string(deviceId)};
     } else if (name == CONFIG_KEY(PERF_COUNT)) {
         return {perfCount};
@@ -52,6 +59,8 @@ InferenceEngine::Parameter Configuration::Get(const std::string& name) const {
         return {std::to_string(_streamsExecutorConfig._threads)};
     } else if (name == CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM)) {
         return {std::to_string(_streamsExecutorConfig._threadsPerStream)};
+    } else if (name == ov::hint::performance_mode) {
+        return performance_mode;
     } else {
         IE_THROW(NotFound) << ": " << name;
     }

@@ -220,17 +220,17 @@ Typical transformation pipeline described below.
 ### Step 1. Common optimizations
 This step is optional for LPT but typically is presented in OpenVINO™ plugins. The step doesn't use any LPT transformation. Firstly, the step disables dequantization operations constant folding on constant subgraph on weights to prevent the lost of dequantization info on the next plugin transformations. After that, it optimizes nGraph function and convert operations to operation set 1. Typically, usage of this step is the simplest way to meet LPT requirements for the input quantized model. If plugin can guarantee that LPT input requirements are met, then this step can be skipped.
 
-@snippet snippets/lpt_mkldnn_plugin.cpp lpt_common
+@snippet snippets/lpt_intel_cpu_plugin.cpp lpt_common
 
 ### Step 2. Low precision transformations execution  
 This step is mandatory. It configures and runs LPT transformations.
 
-@snippet snippets/lpt_mkldnn_plugin.cpp lpt_execution
+@snippet snippets/lpt_intel_cpu_plugin.cpp lpt_execution
 
 ### Step 3. Plugin-specific transformations  
 This step is optional. It modifies the nGraph function to a device-specific operation set.
 
-@snippet snippets/lpt_mkldnn_plugin.cpp lpt_device
+@snippet snippets/lpt_intel_cpu_plugin.cpp lpt_device
 
 ## Result model overview
 
@@ -285,7 +285,7 @@ available from the Inference Engine API. For example, the part of performance co
 As result all operations (except not quantized `SoftMax` at the end of the model) in OpenVINO™ CPU plugin are inferred in low precision. Note, please, in the result model there are `FakeQuantize` operations in FP32 but the plugin responsibility is fuse these operations with previous operations. OpenVINO™ CPU plugin achieves maximum optimized inference for all operations by fusing INT8 `Convolution` with FP32 output with `FakeQuantize` operation with FP32 input and INT8 output. In this case OpenVINO™ CPU plugin uses INT8 and FP32 vectorized instructions but reports about one INT8 kernel usage for inference, which is the most optimized for this case.
 
 ## Mixed precision
-If LPT input model operation output has `fp16` precision then dequantization computations still occurs in `fp32` precision. This approach is used to avoid accuracy loss in `fp16` arithmetic computations. Note, the latest dequantization operation output has `fp16` precision.
+If LPT input model operation output has `fp16` precision then dequantization computations still occurs in `fp32` precision. This approach is used to avoid accuracy loss in `fp16` arithmetic computations. The ultimate output of the dequantization operation  will have the `fp16` precision, as expected.
 
 ## Customization
 Low Precision Transformations can be customizable. Build-in customization options:
@@ -298,14 +298,14 @@ Low Precision Transformations can be customizable. Build-in customization option
 ### Operation precision restrictions
 This option defines precisions which allowed for the operation input ports. The option value is passed as input argument for `LowPrecision` constructor. For example:
 
-@snippet snippets/lpt_mkldnn_plugin.cpp lpt_supported_precisions
+@snippet snippets/lpt_intel_cpu_plugin.cpp lpt_supported_precisions
 
 In provided example in result model `Convolution` operation inputs must have specific precisions: `u8` (unsigned int8) precision on input 0 (on activations) and `i8` (signed int8) precision on input 1 (on weights).
 
 ### Operation per tensor quantization restrictions
 This option defines if operation supports per-tensor quantization only. The option value is passed as input argument for `LowPrecision` constructor. For example:
 
-@snippet snippets/lpt_mkldnn_plugin.cpp per_tensor_quantization
+@snippet snippets/lpt_intel_cpu_plugin.cpp per_tensor_quantization
 
 In provided example in result model `Convolution` operations must have per-tensor quantization on input 0 (on activations).
 
@@ -316,4 +316,4 @@ This option defines if each LPT transformation updates precision or not. The opt
 
 Plugin specific customization can be implemented via nGraph transformation callbacks. For example: asymmetric quantization support can be easily customizable via `LayerTransformation::isAsymmetricQuantization` and `WeightableLayerTransformation::isAsymmetricOnWeights` methods usage in callbacks. For example:
 
-@snippet snippets/lpt_mkldnn_plugin.cpp asymmetric_quantization
+@snippet snippets/lpt_intel_cpu_plugin.cpp asymmetric_quantization

@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from collections import OrderedDict
@@ -259,21 +259,24 @@ class BiasCorrection(Algorithm):
     def _create_parameters_for_input_nodes(input_nodes):
         outputs_shapes = {nu.create_node_name(n): nu.get_output_shape(n, 0).copy() for n in input_nodes}
         inputs_data = []
+        param_type = 'Parameter'
         for input_node in input_nodes:
             input_node_name = nu.create_node_name(input_node)
-            input_node_data_type = nu.get_node_data_type(input_node)
             c_input_shape = outputs_shapes[input_node_name]
             c_input_shape[0] = 1
-            parameter_name = input_node_name + '/parameter'
-            param_node = ge.create_node(input_node.graph, parameter_name, 'Parameter',
-                                        {'shape': c_input_shape, 'data_type': input_node_data_type})
-            for _, port in input_node.out_ports().items():
-                for in_port in port.get_destinations():
-                    in_port.disconnect()
-                    in_port.connect(param_node.out_port(0))
-
+            if input_node.type == param_type:
+                parameter_name = input_node.name
+            else:
+                input_node_data_type = nu.get_node_data_type(input_node)
+                parameter_name = input_node_name + '/parameter'
+                param_node = ge.create_node(input_node.graph, parameter_name, param_type,
+                                            {'shape': c_input_shape, 'data_type': input_node_data_type})
+                for _, port in input_node.out_ports().items():
+                    for in_port in port.get_destinations():
+                        in_port.disconnect()
+                        in_port.connect(param_node.out_port(0))
             inputs_data.append({
-                'param_name': param_node.name,
+                'param_name': parameter_name,
                 'param_shape': tuple(c_input_shape),
                 'input_name': input_node_name
             })
@@ -283,9 +286,12 @@ class BiasCorrection(Algorithm):
     def _create_results_after_nodes(self, output_nodes):
         outputs_data = []
         for output_node in output_nodes:
-            output_name = nu.create_node_name(output_node, str)
+            output_name = output_node.name
             result_name = output_name + '/result'
             result_node = ge.create_node(output_node.graph, result_name, 'Result', {})
+            for out_node in output_node.out_nodes().values():
+                if 'fw_tensor_debug_info' in out_node:
+                    del out_node['fw_tensor_debug_info']
             result_node.in_port(0).connect(output_node.out_port(0))
             if output_name in self._fp32_statistics:
                 self._fp32_statistics[output_name]['batch_mean_in'] = []
@@ -319,8 +325,8 @@ class BiasCorrection(Algorithm):
         return feed_dicts
 
     def _reshape_model_by_feed_dict(self, feed_dict, model_copy):
-        current_inputs = self._launcher.model.input_info
-        current_shapes = {input_name: tuple(current_inputs[input_name].input_data.shape) for input_name in
+        current_inputs = self._launcher.model.inputs
+        current_shapes = {input_const.get_node().friendly_name: tuple(input_const.partial_shape) for input_const in
                           current_inputs}
         feed_shapes = {input_name: tuple(feed_dict[input_name].shape) for input_name in feed_dict}
         if feed_shapes != current_shapes:

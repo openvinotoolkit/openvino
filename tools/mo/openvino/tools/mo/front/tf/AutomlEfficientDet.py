@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -48,7 +48,6 @@ class EfficientDet(FrontReplacementFromConfigFileGeneral):
     def transform_graph(self, graph: Graph, replacement_descriptions: dict):
         parameter_node = graph.get_op_nodes(op='Parameter')[0]
         parameter_node['data_type'] = data_type_str_to_np(parameter_node.graph.graph['cmd_params'].data_type)
-        parameter_node.out_port(0).disconnect()
 
         # remove existing Result operations to remove unsupported sub-graph
         graph.remove_nodes_from([node.id for node in graph.get_op_nodes(op='Result')] + ['detections'])

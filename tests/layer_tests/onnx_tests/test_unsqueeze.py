@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -175,36 +175,42 @@ class TestUnsqueeze(Caffe2OnnxLayerTest):
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
-    def test_unsqueeze_5D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_unsqueeze_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_unsqueeze_5D(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_unsqueeze_net(**params, ir_version=ir_version), ie_device,
+                   precision, ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
-    def test_unsqueeze_4D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_unsqueeze_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_unsqueeze_4D(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_unsqueeze_net(**params, ir_version=ir_version), ie_device,
+                   precision, ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
-    def test_unsqueeze_3D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_unsqueeze_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_unsqueeze_3D(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_unsqueeze_net(**params, ir_version=ir_version), ie_device,
+                   precision, ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
-    def test_unsqueeze_const_5D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_unsqueeze_net_const(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_unsqueeze_const_5D(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_unsqueeze_net_const(**params, ir_version=ir_version), ie_device,
+                   precision, ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
-    def test_unsqueeze_const_4D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_unsqueeze_net_const(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_unsqueeze_const_4D(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_unsqueeze_net_const(**params, ir_version=ir_version), ie_device,
+                   precision, ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
-    def test_unsqueeze_const_3D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_unsqueeze_net_const(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_unsqueeze_const_3D(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_unsqueeze_net_const(**params, ir_version=ir_version), ie_device,
+                   precision, ir_version,
+                   temp_dir=temp_dir, api_2=api_2)

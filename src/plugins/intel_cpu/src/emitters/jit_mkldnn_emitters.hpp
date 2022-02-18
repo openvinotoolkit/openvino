@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,11 +7,9 @@
 #include <cpu/x64/jit_generator.hpp>
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
 #include "jit_emitter.hpp"
-#include "mkldnn_node.h"
 
-
-
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class jit_mkldnn_emitter : public jit_emitter {
 public:
@@ -53,4 +51,5 @@ public:
 private:
 };
 
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

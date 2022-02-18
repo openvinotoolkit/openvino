@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,6 +46,7 @@
 #include <ngraph/runtime/reference/gru_cell.hpp>
 #include <ngraph/runtime/reference/hard_sigmoid.hpp>
 #include <ngraph/runtime/reference/if.hpp>
+#include <ngraph/runtime/reference/interpolate.hpp>
 #include <ngraph/runtime/reference/log.hpp>
 #include <ngraph/runtime/reference/log_softmax.hpp>
 #include <ngraph/runtime/reference/lrn.hpp>
@@ -57,6 +58,7 @@
 #include <ngraph/runtime/reference/non_max_suppression.hpp>
 #include <ngraph/runtime/reference/normalize_l2.hpp>
 #include <ngraph/runtime/reference/pad.hpp>
+#include <ngraph/runtime/reference/prelu.hpp>
 #include <ngraph/runtime/reference/prior_box.hpp>
 #include <ngraph/runtime/reference/proposal.hpp>
 #include <ngraph/runtime/reference/psroi_pooling.hpp>
@@ -828,7 +830,6 @@ InfoForNMS5 get_info_for_nms5_eval(const std::shared_ptr<op::v5::NonMaxSuppressi
 
     return result;
 }
-
 }  // namespace nms_v5
 
 template <element::Type_t ET>
@@ -836,6 +837,519 @@ bool evaluate(const shared_ptr<op::v5::NonMaxSuppression>& op,
               const HostTensorVector& outputs,
               const HostTensorVector& inputs) {
     auto info = nms_v5::get_info_for_nms5_eval(op, inputs);
+
+    std::vector<int64_t> selected_indices(info.out_shape_size);
+    std::vector<float> selected_scores(info.out_shape_size);
+    int64_t valid_outputs = 0;
+
+    runtime::reference::non_max_suppression(info.boxes_data.data(),
+                                            info.boxes_shape,
+                                            info.scores_data.data(),
+                                            info.scores_shape,
+                                            info.max_output_boxes_per_class,
+                                            info.iou_threshold,
+                                            info.score_threshold,
+                                            info.soft_nms_sigma,
+                                            selected_indices.data(),
+                                            info.out_shape,
+                                            selected_scores.data(),
+                                            info.out_shape,
+                                            &valid_outputs,
+                                            info.sort_result_descending);
+
+    auto selected_scores_type = (inputs.size() < 4) ? element::f32 : inputs[3]->get_element_type();
+
+    runtime::reference::nms5_postprocessing(outputs,
+                                            info.output_type,
+                                            selected_indices,
+                                            selected_scores,
+                                            valid_outputs,
+                                            selected_scores_type);
+    return true;
+}
+
+namespace nms_v4 {
+using V4BoxEncoding = op::v4::NonMaxSuppression::BoxEncodingType;
+
+struct InfoForNMS4 {
+    int64_t max_output_boxes_per_class;
+    float iou_threshold;
+    float score_threshold;
+    float soft_nms_sigma;
+    Shape out_shape;
+    Shape boxes_shape;
+    Shape scores_shape;
+    std::vector<float> boxes_data;
+    std::vector<float> scores_data;
+    size_t out_shape_size;
+    bool sort_result_descending;
+    ngraph::element::Type output_type;
+};
+
+constexpr size_t boxes_port = 0;
+constexpr size_t scores_port = 1;
+
+PartialShape infer_selected_indices_shape(const std::vector<std::shared_ptr<HostTensor>>& inputs,
+                                          int64_t max_output_boxes_per_class) {
+    const auto boxes_ps = inputs[boxes_port]->get_partial_shape();
+    const auto scores_ps = inputs[scores_port]->get_partial_shape();
+
+    // NonMaxSuppression produces triplets
+    // that have the following format: [batch_index, class_index, box_index]
+    PartialShape result = {Dimension::dynamic(), 3};
+
+    if (boxes_ps.rank().is_static() && scores_ps.rank().is_static()) {
+        const auto num_boxes_boxes = boxes_ps[1];
+        if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static()) {
+            const auto num_boxes = num_boxes_boxes.get_length();
+            const auto num_classes = scores_ps[1].get_length();
+
+            result[0] = std::min(num_boxes, max_output_boxes_per_class) * num_classes * scores_ps[0].get_length();
+        }
+    }
+    return result;
+}
+
+void normalize_corner(float* boxes, const Shape& boxes_shape) {
+    size_t total_num_of_boxes = shape_size(boxes_shape) / 4;
+    for (size_t i = 0; i < total_num_of_boxes; ++i) {
+        float* current_box = boxes + 4 * i;
+
+        float y1 = current_box[0];
+        float x1 = current_box[1];
+        float y2 = current_box[2];
+        float x2 = current_box[3];
+
+        float ymin = std::min(y1, y2);
+        float ymax = std::max(y1, y2);
+        float xmin = std::min(x1, x2);
+        float xmax = std::max(x1, x2);
+
+        current_box[0] = ymin;
+        current_box[1] = xmin;
+        current_box[2] = ymax;
+        current_box[3] = xmax;
+    }
+}
+
+void normalize_center(float* boxes, const Shape& boxes_shape) {
+    size_t total_num_of_boxes = shape_size(boxes_shape) / 4;
+    for (size_t i = 0; i < total_num_of_boxes; ++i) {
+        float* current_box = boxes + 4 * i;
+
+        float x_center = current_box[0];
+        float y_center = current_box[1];
+        float width = current_box[2];
+        float height = current_box[3];
+
+        float y1 = y_center - height / 2.0;
+        float x1 = x_center - width / 2.0;
+        float y2 = y_center + height / 2.0;
+        float x2 = x_center + width / 2.0;
+
+        current_box[0] = y1;
+        current_box[1] = x1;
+        current_box[2] = y2;
+        current_box[3] = x2;
+    }
+}
+
+void normalize_box_encoding(float* boxes, const Shape& boxes_shape, const V4BoxEncoding box_encoding) {
+    if (box_encoding == V4BoxEncoding::CORNER) {
+        normalize_corner(boxes, boxes_shape);
+    } else {
+        normalize_center(boxes, boxes_shape);
+    }
+}
+
+std::vector<float> prepare_boxes_data(const std::shared_ptr<HostTensor>& boxes,
+                                      const Shape& boxes_shape,
+                                      const V4BoxEncoding box_encoding) {
+    auto result = get_floats(boxes, boxes_shape);
+    normalize_box_encoding(result.data(), boxes_shape, box_encoding);
+    return result;
+}
+
+std::vector<float> prepare_scores_data(const std::shared_ptr<HostTensor>& scores, const Shape& scores_shape) {
+    auto result = get_floats(scores, scores_shape);
+    return result;
+}
+
+InfoForNMS4 get_info_for_nms4_eval(const std::shared_ptr<op::v4::NonMaxSuppression>& nms4,
+                                   const std::vector<std::shared_ptr<HostTensor>>& inputs) {
+    InfoForNMS4 result;
+
+    result.max_output_boxes_per_class = inputs.size() > 2 ? get_integers(inputs[2], Shape({}))[0] : 0;
+    result.iou_threshold = inputs.size() > 3 ? get_floats(inputs[3], Shape({}))[0] : 0.0f;
+    result.score_threshold = inputs.size() > 4 ? get_floats(inputs[4], Shape({}))[0] : 0.0f;
+    result.soft_nms_sigma = inputs.size() > 5 ? get_floats(inputs[5], Shape({}))[0] : 0.0f;
+
+    auto selected_indices_shape = infer_selected_indices_shape(inputs, result.max_output_boxes_per_class);
+    result.out_shape = selected_indices_shape.to_shape();
+
+    result.boxes_shape = inputs[boxes_port]->get_shape();
+    result.scores_shape = inputs[scores_port]->get_shape();
+
+    result.boxes_data = prepare_boxes_data(inputs[boxes_port], result.boxes_shape, nms4->get_box_encoding());
+    result.scores_data = prepare_scores_data(inputs[scores_port], result.scores_shape);
+
+    result.out_shape_size = shape_size(result.out_shape);
+
+    result.sort_result_descending = nms4->get_sort_result_descending();
+
+    result.output_type = nms4->get_output_type();
+
+    return result;
+}
+}  // namespace nms_v4
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v4::NonMaxSuppression>& op,
+              const HostTensorVector& outputs,
+              const HostTensorVector& inputs) {
+    auto info = nms_v4::get_info_for_nms4_eval(op, inputs);
+
+    std::vector<int64_t> selected_indices(info.out_shape_size);
+    std::vector<float> selected_scores(info.out_shape_size);
+    int64_t valid_outputs = 0;
+
+    runtime::reference::non_max_suppression(info.boxes_data.data(),
+                                            info.boxes_shape,
+                                            info.scores_data.data(),
+                                            info.scores_shape,
+                                            info.max_output_boxes_per_class,
+                                            info.iou_threshold,
+                                            info.score_threshold,
+                                            info.soft_nms_sigma,
+                                            selected_indices.data(),
+                                            info.out_shape,
+                                            selected_scores.data(),
+                                            info.out_shape,
+                                            &valid_outputs,
+                                            info.sort_result_descending);
+
+    auto selected_scores_type = (inputs.size() < 4) ? element::f32 : inputs[3]->get_element_type();
+
+    runtime::reference::nms5_postprocessing(outputs,
+                                            info.output_type,
+                                            selected_indices,
+                                            selected_scores,
+                                            valid_outputs,
+                                            selected_scores_type);
+    return true;
+}
+
+namespace nms_v3 {
+using V3BoxEncoding = op::v3::NonMaxSuppression::BoxEncodingType;
+
+struct InfoForNMS3 {
+    int64_t max_output_boxes_per_class;
+    float iou_threshold;
+    float score_threshold;
+    float soft_nms_sigma;
+    Shape out_shape;
+    Shape boxes_shape;
+    Shape scores_shape;
+    std::vector<float> boxes_data;
+    std::vector<float> scores_data;
+    size_t out_shape_size;
+    bool sort_result_descending;
+    ngraph::element::Type output_type;
+};
+
+constexpr size_t boxes_port = 0;
+constexpr size_t scores_port = 1;
+
+PartialShape infer_selected_indices_shape(const std::vector<std::shared_ptr<HostTensor>>& inputs,
+                                          int64_t max_output_boxes_per_class) {
+    const auto boxes_ps = inputs[boxes_port]->get_partial_shape();
+    const auto scores_ps = inputs[scores_port]->get_partial_shape();
+
+    // NonMaxSuppression produces triplets
+    // that have the following format: [batch_index, class_index, box_index]
+    PartialShape result = {Dimension::dynamic(), 3};
+
+    if (boxes_ps.rank().is_static() && scores_ps.rank().is_static()) {
+        const auto num_boxes_boxes = boxes_ps[1];
+        if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static()) {
+            const auto num_boxes = num_boxes_boxes.get_length();
+            const auto num_classes = scores_ps[1].get_length();
+
+            result[0] = std::min(num_boxes, max_output_boxes_per_class * num_classes);
+        }
+    }
+    return result;
+}
+
+void normalize_corner(float* boxes, const Shape& boxes_shape) {
+    size_t total_num_of_boxes = shape_size(boxes_shape) / 4;
+    for (size_t i = 0; i < total_num_of_boxes; ++i) {
+        float* current_box = boxes + 4 * i;
+
+        float y1 = current_box[0];
+        float x1 = current_box[1];
+        float y2 = current_box[2];
+        float x2 = current_box[3];
+
+        float ymin = std::min(y1, y2);
+        float ymax = std::max(y1, y2);
+        float xmin = std::min(x1, x2);
+        float xmax = std::max(x1, x2);
+
+        current_box[0] = ymin;
+        current_box[1] = xmin;
+        current_box[2] = ymax;
+        current_box[3] = xmax;
+    }
+}
+
+void normalize_center(float* boxes, const Shape& boxes_shape) {
+    size_t total_num_of_boxes = shape_size(boxes_shape) / 4;
+    for (size_t i = 0; i < total_num_of_boxes; ++i) {
+        float* current_box = boxes + 4 * i;
+
+        float x_center = current_box[0];
+        float y_center = current_box[1];
+        float width = current_box[2];
+        float height = current_box[3];
+
+        float y1 = y_center - height / 2.0;
+        float x1 = x_center - width / 2.0;
+        float y2 = y_center + height / 2.0;
+        float x2 = x_center + width / 2.0;
+
+        current_box[0] = y1;
+        current_box[1] = x1;
+        current_box[2] = y2;
+        current_box[3] = x2;
+    }
+}
+
+void normalize_box_encoding(float* boxes, const Shape& boxes_shape, const V3BoxEncoding box_encoding) {
+    if (box_encoding == V3BoxEncoding::CORNER) {
+        normalize_corner(boxes, boxes_shape);
+    } else {
+        normalize_center(boxes, boxes_shape);
+    }
+}
+
+std::vector<float> prepare_boxes_data(const std::shared_ptr<HostTensor>& boxes,
+                                      const Shape& boxes_shape,
+                                      const V3BoxEncoding box_encoding) {
+    auto result = get_floats(boxes, boxes_shape);
+    normalize_box_encoding(result.data(), boxes_shape, box_encoding);
+    return result;
+}
+
+std::vector<float> prepare_scores_data(const std::shared_ptr<HostTensor>& scores, const Shape& scores_shape) {
+    auto result = get_floats(scores, scores_shape);
+    return result;
+}
+
+InfoForNMS3 get_info_for_nms3_eval(const std::shared_ptr<op::v3::NonMaxSuppression>& nms3,
+                                   const std::vector<std::shared_ptr<HostTensor>>& inputs) {
+    InfoForNMS3 result;
+
+    result.max_output_boxes_per_class = inputs.size() > 2 ? get_integers(inputs[2], Shape({}))[0] : 0;
+    result.iou_threshold = inputs.size() > 3 ? get_floats(inputs[3], Shape({}))[0] : 0.0f;
+    result.score_threshold = inputs.size() > 4 ? get_floats(inputs[4], Shape({}))[0] : 0.0f;
+    result.soft_nms_sigma = inputs.size() > 5 ? get_floats(inputs[5], Shape({}))[0] : 0.0f;
+
+    auto selected_indices_shape = infer_selected_indices_shape(inputs, result.max_output_boxes_per_class);
+    result.out_shape = selected_indices_shape.to_shape();
+
+    result.boxes_shape = inputs[boxes_port]->get_shape();
+    result.scores_shape = inputs[scores_port]->get_shape();
+
+    result.boxes_data = prepare_boxes_data(inputs[boxes_port], result.boxes_shape, nms3->get_box_encoding());
+    result.scores_data = prepare_scores_data(inputs[scores_port], result.scores_shape);
+
+    result.out_shape_size = shape_size(result.out_shape);
+
+    result.sort_result_descending = nms3->get_sort_result_descending();
+
+    result.output_type = nms3->get_output_type();
+
+    return result;
+}
+}  // namespace nms_v3
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v3::NonMaxSuppression>& op,
+              const HostTensorVector& outputs,
+              const HostTensorVector& inputs) {
+    auto info = nms_v3::get_info_for_nms3_eval(op, inputs);
+
+    std::vector<int64_t> selected_indices(info.out_shape_size);
+    std::vector<float> selected_scores(info.out_shape_size);
+    int64_t valid_outputs = 0;
+
+    runtime::reference::non_max_suppression(info.boxes_data.data(),
+                                            info.boxes_shape,
+                                            info.scores_data.data(),
+                                            info.scores_shape,
+                                            info.max_output_boxes_per_class,
+                                            info.iou_threshold,
+                                            info.score_threshold,
+                                            info.soft_nms_sigma,
+                                            selected_indices.data(),
+                                            info.out_shape,
+                                            selected_scores.data(),
+                                            info.out_shape,
+                                            &valid_outputs,
+                                            info.sort_result_descending);
+
+    auto selected_scores_type = (inputs.size() < 4) ? element::f32 : inputs[3]->get_element_type();
+
+    runtime::reference::nms5_postprocessing(outputs,
+                                            info.output_type,
+                                            selected_indices,
+                                            selected_scores,
+                                            valid_outputs,
+                                            selected_scores_type);
+    return true;
+}
+
+namespace nms_v1 {
+using V1BoxEncoding = op::v1::NonMaxSuppression::BoxEncodingType;
+
+struct InfoForNMS1 {
+    int64_t max_output_boxes_per_class;
+    float iou_threshold;
+    float score_threshold;
+    float soft_nms_sigma;
+    Shape out_shape;
+    Shape boxes_shape;
+    Shape scores_shape;
+    std::vector<float> boxes_data;
+    std::vector<float> scores_data;
+    size_t out_shape_size;
+    bool sort_result_descending;
+    ngraph::element::Type output_type;
+};
+
+constexpr size_t boxes_port = 0;
+constexpr size_t scores_port = 1;
+
+PartialShape infer_selected_indices_shape(const std::vector<std::shared_ptr<HostTensor>>& inputs,
+                                          int64_t max_output_boxes_per_class) {
+    const auto boxes_ps = inputs[boxes_port]->get_partial_shape();
+    const auto scores_ps = inputs[scores_port]->get_partial_shape();
+
+    // NonMaxSuppression produces triplets
+    // that have the following format: [batch_index, class_index, box_index]
+    PartialShape result = {Dimension::dynamic(), 3};
+
+    if (boxes_ps.rank().is_static() && scores_ps.rank().is_static()) {
+        const auto num_boxes_boxes = boxes_ps[1];
+        if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static()) {
+            const auto num_boxes = num_boxes_boxes.get_length();
+            const auto num_classes = scores_ps[1].get_length();
+
+            result[0] = std::min(num_boxes, max_output_boxes_per_class * num_classes);
+        }
+    }
+    return result;
+}
+
+void normalize_corner(float* boxes, const Shape& boxes_shape) {
+    size_t total_num_of_boxes = shape_size(boxes_shape) / 4;
+    for (size_t i = 0; i < total_num_of_boxes; ++i) {
+        float* current_box = boxes + 4 * i;
+
+        float y1 = current_box[0];
+        float x1 = current_box[1];
+        float y2 = current_box[2];
+        float x2 = current_box[3];
+
+        float ymin = std::min(y1, y2);
+        float ymax = std::max(y1, y2);
+        float xmin = std::min(x1, x2);
+        float xmax = std::max(x1, x2);
+
+        current_box[0] = ymin;
+        current_box[1] = xmin;
+        current_box[2] = ymax;
+        current_box[3] = xmax;
+    }
+}
+
+void normalize_center(float* boxes, const Shape& boxes_shape) {
+    size_t total_num_of_boxes = shape_size(boxes_shape) / 4;
+    for (size_t i = 0; i < total_num_of_boxes; ++i) {
+        float* current_box = boxes + 4 * i;
+
+        float x_center = current_box[0];
+        float y_center = current_box[1];
+        float width = current_box[2];
+        float height = current_box[3];
+
+        float y1 = y_center - height / 2.0;
+        float x1 = x_center - width / 2.0;
+        float y2 = y_center + height / 2.0;
+        float x2 = x_center + width / 2.0;
+
+        current_box[0] = y1;
+        current_box[1] = x1;
+        current_box[2] = y2;
+        current_box[3] = x2;
+    }
+}
+
+void normalize_box_encoding(float* boxes, const Shape& boxes_shape, const V1BoxEncoding box_encoding) {
+    if (box_encoding == V1BoxEncoding::CORNER) {
+        normalize_corner(boxes, boxes_shape);
+    } else {
+        normalize_center(boxes, boxes_shape);
+    }
+}
+
+std::vector<float> prepare_boxes_data(const std::shared_ptr<HostTensor>& boxes,
+                                      const Shape& boxes_shape,
+                                      const V1BoxEncoding box_encoding) {
+    auto result = get_floats(boxes, boxes_shape);
+    normalize_box_encoding(result.data(), boxes_shape, box_encoding);
+    return result;
+}
+
+std::vector<float> prepare_scores_data(const std::shared_ptr<HostTensor>& scores, const Shape& scores_shape) {
+    auto result = get_floats(scores, scores_shape);
+    return result;
+}
+
+InfoForNMS1 get_info_for_nms1_eval(const std::shared_ptr<op::v1::NonMaxSuppression>& nms1,
+                                   const std::vector<std::shared_ptr<HostTensor>>& inputs) {
+    InfoForNMS1 result;
+
+    result.max_output_boxes_per_class = inputs.size() > 2 ? get_integers(inputs[2], Shape({}))[0] : 0;
+    result.iou_threshold = inputs.size() > 3 ? get_floats(inputs[3], Shape({}))[0] : 0.0f;
+    result.score_threshold = inputs.size() > 4 ? get_floats(inputs[4], Shape({}))[0] : 0.0f;
+    result.soft_nms_sigma = inputs.size() > 5 ? get_floats(inputs[5], Shape({}))[0] : 0.0f;
+
+    auto selected_indices_shape = infer_selected_indices_shape(inputs, result.max_output_boxes_per_class);
+    result.out_shape = selected_indices_shape.to_shape();
+
+    result.boxes_shape = inputs[boxes_port]->get_shape();
+    result.scores_shape = inputs[scores_port]->get_shape();
+
+    result.boxes_data = prepare_boxes_data(inputs[boxes_port], result.boxes_shape, nms1->get_box_encoding());
+    result.scores_data = prepare_scores_data(inputs[scores_port], result.scores_shape);
+
+    result.out_shape_size = shape_size(result.out_shape);
+
+    result.sort_result_descending = nms1->get_sort_result_descending();
+
+    result.output_type = ov::element::i64;
+
+    return result;
+}
+}  // namespace nms_v1
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v1::NonMaxSuppression>& op,
+              const HostTensorVector& outputs,
+              const HostTensorVector& inputs) {
+    auto info = nms_v1::get_info_for_nms1_eval(op, inputs);
 
     std::vector<int64_t> selected_indices(info.out_shape_size);
     std::vector<float> selected_scores(info.out_shape_size);
@@ -987,7 +1501,8 @@ bool evaluate(const shared_ptr<op::v8::MatrixNms>& op,
                                                               op->get_output_type(),
                                                               selected_outputs,
                                                               selected_indices,
-                                                              valid_outputs);
+                                                              valid_outputs,
+                                                              op->get_input_element_type(0));
     return true;
 }
 
@@ -1111,7 +1626,8 @@ bool evaluate(const shared_ptr<op::v8::MulticlassNms>& op,
                                                               op->get_output_type(),
                                                               selected_outputs,
                                                               selected_indices,
-                                                              valid_outputs);
+                                                              valid_outputs,
+                                                              op->get_input_element_type(0));
 
     return true;
 }
@@ -1654,6 +2170,17 @@ bool evaluate(const shared_ptr<op::v0::Relu>& op, const HostTensorVector& output
 }
 
 template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v0::PRelu>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    using T = typename element_type_traits<ET>::value_type;
+    runtime::reference::prelu<T>(inputs[0]->get_data_ptr<T>(),
+                                 inputs[1]->get_data_ptr<T>(),
+                                 outputs[0]->get_data_ptr<T>(),
+                                 inputs[0]->get_shape(),
+                                 inputs[1]->get_shape());
+    return true;
+}
+
+template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v0::Sign>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     using T = typename element_type_traits<ET>::value_type;
     runtime::reference::sign<T>(inputs[0]->get_data_ptr<T>(),
@@ -1965,24 +2492,28 @@ bool evaluate(const shared_ptr<op::v0::RNNCell>& op, const HostTensorVector& out
 template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v0::LSTMCell>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::lstm_cell<T>(inputs[0]->get_data_ptr<ET>(),
-                                     inputs[0]->get_shape(),
-                                     inputs[1]->get_data_ptr<ET>(),
-                                     inputs[1]->get_shape(),
-                                     inputs[2]->get_data_ptr<ET>(),
-                                     inputs[2]->get_shape(),
-                                     inputs[3]->get_data_ptr<ET>(),
-                                     inputs[3]->get_shape(),
-                                     inputs[4]->get_data_ptr<ET>(),
-                                     inputs[4]->get_shape(),
-                                     inputs[5]->get_data_ptr<ET>(),
-                                     inputs[5]->get_shape(),
-                                     outputs[0]->get_data_ptr<ET>(),
-                                     outputs[1]->get_data_ptr<ET>(),
-                                     op->get_activations()[0],
-                                     op->get_activations()[1],
-                                     op->get_activations()[2],
-                                     op->get_clip());
+    runtime::reference::lstm_cell_v1<T>(inputs[0]->get_data_ptr<ET>(),
+                                        inputs[0]->get_shape(),
+                                        inputs[1]->get_data_ptr<ET>(),
+                                        inputs[1]->get_shape(),
+                                        inputs[2]->get_data_ptr<ET>(),
+                                        inputs[2]->get_shape(),
+                                        inputs[3]->get_data_ptr<ET>(),
+                                        inputs[3]->get_shape(),
+                                        inputs[4]->get_data_ptr<ET>(),
+                                        inputs[4]->get_shape(),
+                                        inputs[5]->get_data_ptr<ET>(),
+                                        inputs[5]->get_shape(),
+                                        inputs[6]->get_data_ptr<ET>(),
+                                        inputs[6]->get_shape(),
+                                        outputs[0]->get_data_ptr<ET>(),
+                                        outputs[1]->get_data_ptr<ET>(),
+                                        op->get_activations()[0],
+                                        op->get_activations()[1],
+                                        op->get_activations()[2],
+                                        op->get_clip(),
+                                        op->get_weights_format(),
+                                        op->get_input_forget());
     return true;
 }
 
@@ -2077,6 +2608,42 @@ bool evaluate(const shared_ptr<op::v5::RNNSequence>& op,
     return true;
 }
 
+namespace lstm_seq_v1 {
+template <element::Type_t t1, element::Type_t t2>
+inline void evaluate(const shared_ptr<op::v0::LSTMSequence>& op,
+                     const HostTensorVector& outputs,
+                     const HostTensorVector& inputs) {
+    using T1 = typename element_type_traits<t1>::value_type;
+    using T2 = typename element_type_traits<t2>::value_type;
+    runtime::reference::lstm_sequence_v1<T1, T2>(inputs[0]->get_data_ptr<char>(),
+                                                 inputs[0]->get_shape(),
+                                                 inputs[1]->get_data_ptr<char>(),
+                                                 inputs[1]->get_shape(),
+                                                 inputs[2]->get_data_ptr<char>(),
+                                                 inputs[2]->get_shape(),
+                                                 inputs[3]->get_data_ptr<char>(),
+                                                 inputs[3]->get_shape(),
+                                                 inputs[4]->get_data_ptr<char>(),
+                                                 inputs[4]->get_shape(),
+                                                 inputs[5]->get_data_ptr<char>(),
+                                                 inputs[5]->get_shape(),
+                                                 inputs[6]->get_data_ptr<char>(),
+                                                 inputs[6]->get_shape(),
+                                                 inputs[7]->get_data_ptr<char>(),
+                                                 inputs[7]->get_shape(),
+                                                 outputs[0]->get_data_ptr<char>(),
+                                                 outputs[1]->get_data_ptr<char>(),
+                                                 outputs[2]->get_data_ptr<char>(),
+                                                 op->get_activations()[0],
+                                                 op->get_activations()[1],
+                                                 op->get_activations()[2],
+                                                 op->get_clip_threshold(),
+                                                 op->get_weights_format(),
+                                                 op->get_input_forget(),
+                                                 op->get_direction());
+}
+}  // namespace lstm_seq_v1
+
 namespace lstm_seq_v5 {
 template <element::Type_t t1, element::Type_t t2>
 inline void evaluate(const shared_ptr<op::v5::LSTMSequence>& op,
@@ -2108,6 +2675,25 @@ inline void evaluate(const shared_ptr<op::v5::LSTMSequence>& op,
                                               op->get_direction());
 }
 }  // namespace lstm_seq_v5
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v0::LSTMSequence>& op,
+              const HostTensorVector& outputs,
+              const HostTensorVector& inputs) {
+    switch (inputs[3]->get_element_type()) {
+    case element::Type_t::i64:
+    case element::Type_t::u64:
+        lstm_seq_v1::evaluate<ET, element::Type_t::i64>(op, outputs, inputs);
+        break;
+    case element::Type_t::i32:
+    case element::Type_t::u32:
+        lstm_seq_v1::evaluate<ET, element::Type_t::i32>(op, outputs, inputs);
+        break;
+    default:
+        return false;
+    }
+    return true;
+}
 
 template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v5::LSTMSequence>& op,
@@ -2780,6 +3366,65 @@ inline bool evaluate(const shared_ptr<op::v8::NV12toBGR>& op,
                                                       outputs,
                                                       inputs,
                                                       ov::op::util::ConvertColorNV12Base::ColorConversion::NV12_TO_BGR);
+}
+
+template <ov::element::Type_t ET>
+inline bool evaluate(const shared_ptr<op::v8::I420toRGB>& op,
+                     const HostTensorVector& outputs,
+                     const HostTensorVector& inputs) {
+    return runtime::reference::color_convert_i420<ET>(op,
+                                                      outputs,
+                                                      inputs,
+                                                      ov::op::util::ConvertColorI420Base::ColorConversion::I420_TO_RGB);
+}
+
+template <ov::element::Type_t ET>
+inline bool evaluate(const shared_ptr<op::v8::I420toBGR>& op,
+                     const HostTensorVector& outputs,
+                     const HostTensorVector& inputs) {
+    return runtime::reference::color_convert_i420<ET>(op,
+                                                      outputs,
+                                                      inputs,
+                                                      ov::op::util::ConvertColorI420Base::ColorConversion::I420_TO_BGR);
+}
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v0::Interpolate>& op,
+              const HostTensorVector& outputs,
+              const HostTensorVector& inputs) {
+    element::Type input_et = op->get_input_element_type(0);
+    switch (input_et) {
+    case element::Type_t::f64:
+        ngraph::runtime::reference::interpolate<double>(inputs[0]->get_data_ptr<double>(),
+                                                        op->get_input_partial_shape(0),
+                                                        outputs[0]->get_data_ptr<double>(),
+                                                        op->get_output_shape(0),
+                                                        op->get_attrs());
+        break;
+    case element::Type_t::f32:
+        ngraph::runtime::reference::interpolate<float>(inputs[0]->get_data_ptr<float>(),
+                                                       op->get_input_partial_shape(0),
+                                                       outputs[0]->get_data_ptr<float>(),
+                                                       op->get_output_shape(0),
+                                                       op->get_attrs());
+        break;
+    case element::Type_t::f16:
+        ngraph::runtime::reference::interpolate<float16>(inputs[0]->get_data_ptr<float16>(),
+                                                         op->get_input_partial_shape(0),
+                                                         outputs[0]->get_data_ptr<float16>(),
+                                                         op->get_output_shape(0),
+                                                         op->get_attrs());
+        break;
+    case element::Type_t::bf16:
+        ngraph::runtime::reference::interpolate<bfloat16>(inputs[0]->get_data_ptr<bfloat16>(),
+                                                          op->get_input_partial_shape(0),
+                                                          outputs[0]->get_data_ptr<bfloat16>(),
+                                                          op->get_output_shape(0),
+                                                          op->get_attrs());
+        break;
+    default:;
+    }
+    return true;
 }
 
 template <typename T>

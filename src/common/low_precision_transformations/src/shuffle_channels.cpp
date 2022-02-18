@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,8 +38,8 @@ bool ShuffleChannelsTransformation::transform(TransformationContext& context, ng
         return false;
     }
 
-    const auto shuffleChannels = ov::as_type_ptr<opset1::ShuffleChannels>(NetworkHelper::separateInStandaloneBranch(m.get_match_root()));
-    auto dequantization = NetworkHelper::getDequantization(shuffleChannels);
+    const auto shuffleChannels = ov::as_type_ptr<opset1::ShuffleChannels>(NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions));
+    auto dequantization = NetworkHelper::getDequantization(shuffleChannels, defaultPrecisions);
 
     const auto shuffleDequantizationConstant = [&](const std::shared_ptr<Node>& eltwise) {
         const auto normalizedConst = NetworkHelper::normalizeDequantizationShape(eltwise);
@@ -87,9 +87,23 @@ bool ShuffleChannelsTransformation::canBeTransformed(const TransformationContext
         return false;
     }
 
-    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(shuffleChannels);
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(shuffleChannels, defaultPrecisions);
     if (dequantization.empty()) {
         return false;
+    }
+
+    // It's impossible to normalize a negative axis in case of dynamic rank
+    // but it's necessary when dequantization operations are per channel
+    if (shuffleChannels->get_input_partial_shape(0).rank().is_dynamic() && shuffleChannels->get_axis() < 0) {
+        const bool perChannelSub = dequantization.subtractConstant ?
+            ov::shape_size(dequantization.subtractConstant->get_shape()) > 0 :
+            false;
+        const bool perChannelMul = dequantization.multiplyConstant ?
+            ov::shape_size(dequantization.multiplyConstant->get_shape()) > 0 :
+            false;
+        if (perChannelMul || perChannelSub) {
+            return false;
+        }
     }
 
     return true;

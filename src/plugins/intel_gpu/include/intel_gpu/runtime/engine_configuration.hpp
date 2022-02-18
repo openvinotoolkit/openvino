@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -87,8 +87,8 @@ struct engine_configuration {
         bool enable_profiling = false,
         queue_types queue_type = queue_types::out_of_order,
         const std::string& sources_dumps_dir = std::string(),
-        priority_mode_types priority_mode = priority_mode_types::disabled,
-        throttle_mode_types throttle_mode = throttle_mode_types::disabled,
+        priority_mode_types priority_mode = priority_mode_types::med,
+        throttle_mode_types throttle_mode = throttle_mode_types::med,
         bool use_memory_pool = true,
         bool use_unified_shared_memory = true,
         const std::string& kernels_cache_path = "",

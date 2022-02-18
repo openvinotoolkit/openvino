@@ -1,11 +1,12 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array, is_fully_defined, dynamic_dimension, shape_delete
+from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined, dynamic_dimension, shape_delete, \
+    clarify_partial_shape, shape_array, mo_array
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.graph.perm_inputs import PermuteInputs
 from openvino.tools.mo.ops.op import Op, PermuteAttrs
@@ -97,7 +98,7 @@ class VariadicSplitBase(Op):
         # value propagation
         input_value = node.in_port(0).data.get_value()
         if input_value is not None:
-            split = np.split(input_value, idxs[:-1], axis)
+            split = np.split(input_value, mo_array(idxs[:-1], dtype=split_lengths.dtype), axis)
             for i, port in node.out_ports().items():
                 if not port.disconnected():
                     port.data.set_value(split[i])
@@ -106,6 +107,18 @@ class VariadicSplitBase(Op):
             PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'axis')
         elif op == 'AttributedVariadicSplit':
             PermuteAttrs.create_permute_attrs(node, attrs=[('axis', 'input:0')])
+
+    @staticmethod
+    def reverse_infer(node: Node):
+        if node.in_port(0).data.get_shape() is not None:
+            return
+
+        axis = node.in_port(1).data.get_value() if node.op == 'VariadicSplit' else node.soft_get('axis', None)
+        assert axis is not None, '{} `axis` is unknown for node {}'.format(node.op, node.soft_get('name', node.id))
+        split_lengths = node.in_port(2).data.get_value() if node.op == 'VariadicSplit' else node.soft_get('split_lengths', None)
+        assert split_lengths is not None, '{} `split_lengths` is unknown for node {}'.format(node.op, node.soft_get('name', node.id))
+
+        split_reverse_infer(node, len(split_lengths), axis)
 
 
 class VariadicSplit(VariadicSplitBase):
@@ -129,6 +142,7 @@ class VariadicSplit(VariadicSplitBase):
             'type': self.op,
 
             'infer': self.infer,
+            'reverse_infer': self.reverse_infer,
 
             'in_ports_count': 3,
         }, attrs)
@@ -154,6 +168,7 @@ class AttributedVariadicSplit(VariadicSplitBase):
             'version': 'opset1',
 
             'infer': self.infer,
+            'reverse_infer': self.reverse_infer,
 
             'in_ports_count': 1,
         }, attrs)
@@ -212,6 +227,16 @@ class SplitBase(Op):
         elif op == 'AttributedSplit':
             PermuteAttrs.create_permute_attrs(node, attrs=[('axis', 'input:0')])
 
+    @staticmethod
+    def reverse_infer(node: Node):
+        if node.in_port(0).data.get_shape() is not None:
+            return
+
+        assert hasattr(node, 'num_splits')
+        axis = node.in_port(1).data.get_value() if node.op == 'Split' else node.soft_get('axis', None)
+        assert axis is not None, '{} `axis` is unknown for node {}'.format(node.op, node.soft_get('name', node.id))
+        split_reverse_infer(node, node['num_splits'], axis)
+
 
 class Split(SplitBase):
     op = 'Split'
@@ -227,6 +252,7 @@ class Split(SplitBase):
             'version': 'opset1',
 
             'infer': self.infer,
+            'reverse_infer': self.reverse_infer,
 
             'in_ports_count': 2,
         }, attrs)
@@ -255,6 +281,7 @@ class AttributedSplit(SplitBase):
             'axis': 1,
 
             'infer': self.infer,
+            'reverse_infer': self.reverse_infer,
 
             'in_ports_count': 1,
         }, attrs)
@@ -263,3 +290,32 @@ class AttributedSplit(SplitBase):
 
     def supported_attrs(self):
         return ['num_splits', 'axis']
+
+
+def split_reverse_infer(node: Node, num_splits: int, axis: int):
+    aggregated_size_along_axis = 0
+    shapes = []
+    for i in range(num_splits):
+        shape = node.out_port(i).data.get_shape() if not node.out_port(i).disconnected() else None
+        if shape is not None:
+            # if out_shape_1 = [dyn, 4, 3], out_shape_2 = [7, dyn, 3], axis = 2
+            # to get the original source shape [7, 4, 6]
+            # dimensions along axis must be summed while
+            # for other dimensions clarify_partial_shape should be called
+            aggregated_size_along_axis += shape[axis]
+            # in order to be able to call clarify_partial_shape axis dimension is masked into dynamic
+            shape[axis] = dynamic_dimension
+            shapes.append(shape_array(shape))
+        else:
+            # if at least one output shape is None/undefined
+            # set value of shape along axis into dynamic
+            # dynamic_dimension + static_value = dynamic_dimension
+            aggregated_size_along_axis = dynamic_dimension
+            continue
+
+    if len(shapes) == 0:
+        return
+
+    res_partial_shape = clarify_partial_shape(shapes)
+    res_partial_shape[axis] = aggregated_size_along_axis
+    node.in_port(0).data.set_shape(res_partial_shape)

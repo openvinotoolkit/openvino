@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,7 +43,7 @@ TEST(TransformationTests, DoNotStartSubgraphAfterInputs) {
         pass::Manager m;
         m.register_pass<InitNodeInfo>();
         // Todo: When moved to CPU-specific tests, uncomment the markup transformation below.
-        //  m.register_pass<MKLDNNPlugin::SnippetsMarkFused>();
+        //  m.register_pass<ov::intel_cpu::SnippetsMarkFused>();
         m.register_pass<EnumerateNodes>();
         m.register_pass<TokenizeSnippets>();
         m.run_passes(f);

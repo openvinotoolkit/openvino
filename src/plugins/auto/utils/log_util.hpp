@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@
 
 // #define HFrequent(isOn, tag, ...) HLogPrint(isOn, MultiDevicePlugin::LogLevel::FREQUENT, "FREQ", tag, __VA_ARGS__)
 // #define HFatal(...) HLogPrint(true, false, MultiDevicePlugin::LogLevel::FATAL, "FATAL", nullptr, __VA_ARGS__)
-#define LOG_TRACE(isOn, tag, ...) HLogPrint(isOn, false, MultiDevicePlugin::LogLevel::PROCESS, "PROC", tag, __VA_ARGS__)
+#define LOG_TRACE(isOn, tag, ...) HLogPrint(isOn, false, MultiDevicePlugin::LogLevel::PROCESS, "TRACE", tag, __VA_ARGS__)
 #define LOG_DEBUG(...) HLogPrint(true, false, MultiDevicePlugin::LogLevel::DEBUG, "DEBUG", nullptr, __VA_ARGS__)
 #define LOG_INFO(...) HLogPrint(true, false, MultiDevicePlugin::LogLevel::INFO, "INFO", nullptr, __VA_ARGS__)
 #define LOG_WARNING(...) HLogPrint(true, false, MultiDevicePlugin::LogLevel::WARN, "WARN", nullptr, __VA_ARGS__)

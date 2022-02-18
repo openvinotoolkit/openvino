@@ -1,4 +1,4 @@
-# Post-training Optimization Tool {#pot_README_dev}
+# Post-training Optimization Tool
 
 Starting with the 2020.1 version, OpenVINO&trade; toolkit delivers the Post-Training Optimization Tool designed to accelerate the inference of DL models by converting them into a more hardware-friendly representation by applying specific methods that do not require re-training, for example, post-training quantization.
 For more details about the low-precision flow in OpenVINO&trade;, refer to the [Low Precision Optimization Guide](docs/LowPrecisionOptimizationGuide.md).
@@ -24,7 +24,7 @@ Post-Training Optimization Tool includes standalone command-line tool and Python
 - OpenVINO
 
 ### Installation (Temporary)
-1) Clone DLDT repo: `git clone https://github.com/openvinotoolkit/openvino`
+1) Clone the openvino repo: `git clone https://github.com/openvinotoolkit/openvino`
 2) Download submodules:
    ```
    git submodule init

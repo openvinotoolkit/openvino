@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,12 +28,12 @@ struct SelectParams {
     element::Type data_type;
     op::AutoBroadcastSpec broadcast;
     PartialShape select_input_pshape;
-    ov::runtime::Tensor select_input;
+    ov::Tensor select_input;
     PartialShape if_input_pshape;
-    ov::runtime::Tensor if_input;
+    ov::Tensor if_input;
     PartialShape else_input_pshape;
-    ov::runtime::Tensor else_input;
-    ov::runtime::Tensor expected_output;
+    ov::Tensor else_input;
+    ov::Tensor expected_output;
 };
 
 class ReferenceSelectLayerTest : public testing::TestWithParam<SelectParams>, public CommonReferenceTest {

@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <node_context.hpp>
-
+#include "openvino/frontend/paddle/node_context.hpp"
+#include "openvino/frontend/paddle/visibility.hpp"
 #include "openvino/opsets/opset6.hpp"
 
 namespace ov {
@@ -11,11 +11,11 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs expand_v2(const NodeContext& node) {
-    auto x = node.get_ng_input("X");
+    auto x = node.get_input("X");
     Output<Node> shape_expected_node;
-    if (node.has_ng_input("Shape")) {
-        shape_expected_node = node.get_ng_input("Shape");
-    } else if (node.has_ng_input("expand_shapes_tensor")) {
+    if (node.has_input("Shape")) {
+        shape_expected_node = node.get_input("Shape");
+    } else if (node.has_input("expand_shapes_tensor")) {
         auto inputs = node.get_ng_inputs("expand_shapes_tensor");
         ov::NodeVector node_vec;
         for (auto& input : inputs) {
@@ -25,7 +25,7 @@ NamedOutputs expand_v2(const NodeContext& node) {
         shape_expected_node = std::make_shared<ov::opset6::Concat>(node_vec, 0);
     } else {
         std::vector<int32_t> shape_expected;
-        if (node.has_attribute<std::vector<int32_t>>("shape")) {
+        if (node.has_attribute("shape")) {
             shape_expected = node.get_attribute<std::vector<int32_t>>("shape");
         } else {
             throw std::runtime_error("expand: has no shape attribute");

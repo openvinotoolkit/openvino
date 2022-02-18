@@ -460,24 +460,24 @@ As an alternative, the Intel® Distribution of OpenVINO™ toolkit includes seve
 @sphinxdirective
 .. tab:: Linux
 
-- ``/opt/intel/openvino_2021/deployment_tools/demo/car.png``
-- ``/opt/intel/openvino_2021/deployment_tools/demo/car_1.bmp``
-- `Sample images and video <https://storage.openvinotoolkit.org/data/test_data/>`_
-- `Sample videos <https://github.com/intel-iot-devkit/sample-videos>`_
+   - ``/opt/intel/openvino_2021/deployment_tools/demo/car.png``
+   - ``/opt/intel/openvino_2021/deployment_tools/demo/car_1.bmp``
+   - `Sample images and video <https://storage.openvinotoolkit.org/data/test_data/>`_
+   - `Sample videos <https://github.com/intel-iot-devkit/sample-videos>`_
 
 .. tab:: Windows
 
-- ``<INSTALL_DIR>\deployment_tools\demo\car.png``
-- ``<INSTALL_DIR>\deployment_tools\demo\car_1.bmp``
-- `Sample images and video <https://storage.openvinotoolkit.org/data/test_data/>`_
-- `Sample videos <https://github.com/intel-iot-devkit/sample-videos>`_
+   - ``<INSTALL_DIR>\deployment_tools\demo\car.png``
+   - ``<INSTALL_DIR>\deployment_tools\demo\car_1.bmp``
+   - `Sample images and video <https://storage.openvinotoolkit.org/data/test_data/>`_
+   - `Sample videos <https://github.com/intel-iot-devkit/sample-videos>`_
 
 .. tab:: macOS
 
-- ``/opt/intel/openvino_2021/deployment_tools/demo/car.png``
-- ``/opt/intel/openvino_2021/deployment_tools/demo/car_1.bmp``
-- `Sample images and video <https://storage.openvinotoolkit.org/data/test_data/>`_
-- `Sample videos <https://github.com/intel-iot-devkit/sample-videos>`_
+   - ``/opt/intel/openvino_2021/deployment_tools/demo/car.png``
+   - ``/opt/intel/openvino_2021/deployment_tools/demo/car_1.bmp``
+   - `Sample images and video <https://storage.openvinotoolkit.org/data/test_data/>`_
+   - `Sample videos <https://github.com/intel-iot-devkit/sample-videos>`_
 
 @endsphinxdirective
 
@@ -587,7 +587,7 @@ The following commands run the Image Classification Code Sample using the `car.p
 
    **GPU:**
    > **NOTE**: Running inference on Intel® Processor Graphics (GPU) requires 
-    [additional hardware configuration steps](https://docs.openvinotoolkit.org/latest/_docs_install_guides_installing_openvino_linux.html#additional-GPU-steps), as described earlier on this page. Running on GPU is not compatible with macOS*.
+    [additional hardware configuration steps](https://docs.openvino.ai/latest/_docs_install_guides_installing_openvino_linux.html#additional-GPU-steps), as described earlier on this page. Running on GPU is not compatible with macOS*.
 
 @sphinxdirective
 .. tab:: Linux
@@ -817,7 +817,7 @@ To run the **Security Barrier Camera Demo Application** using an input image on 
 @endsphinxdirective
 
 **GPU:**
-> **NOTE**: Running inference on Intel® Processor Graphics (GPU) requires [additional hardware configuration steps](https://docs.openvinotoolkit.org/latest/_docs_install_guides_installing_openvino_linux.html#additional-GPU-steps), as described earlier on this page. Running on GPU is not compatible with macOS*.
+> **NOTE**: Running inference on Intel® Processor Graphics (GPU) requires [additional hardware configuration steps](https://docs.openvino.ai/latest/_docs_install_guides_installing_openvino_linux.html#additional-GPU-steps), as described earlier on this page. Running on GPU is not compatible with macOS*.
 
 @sphinxdirective
 .. tab:: Linux
@@ -841,7 +841,7 @@ To run the **Security Barrier Camera Demo Application** using an input image on 
 @endsphinxdirective
 
 **MYRIAD:**
-> **NOTE**: Running inference on VPU devices (Intel® Movidius™ Neural Compute Stick or Intel® Neural Compute Stick 2) with the MYRIAD plugin requires     [additional hardware configuration steps](https://docs.openvinotoolkit.org/latest/_docs_install_guides_installing_openvino_linux.html#additional-NCS-steps), as described earlier on this page.
+> **NOTE**: Running inference on VPU devices (Intel® Movidius™ Neural Compute Stick or Intel® Neural Compute Stick 2) with the MYRIAD plugin requires     [additional hardware configuration steps](https://docs.openvino.ai/latest/_docs_install_guides_installing_openvino_linux.html#additional-NCS-steps), as described earlier on this page.
 
 @sphinxdirective
 .. tab:: Linux
@@ -869,6 +869,6 @@ To run the **Security Barrier Camera Demo Application** using an input image on 
 
 For more samples and demos, you can visit the samples and demos pages below. You can review samples and demos by complexity or by usage, run the relevant application, and adapt the code for your use.
 
-[Samples](../IE_DG/Samples_Overview.md)
+[Samples](../OV_Runtime_UG/Samples_Overview.md)
 
 [Demos](@ref omz_demos)

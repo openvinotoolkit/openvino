@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -112,6 +112,7 @@ public:
 #define CASE_POOLING_F16_8 { 16, 32, 10, 10 }, data_types::f16, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
 #define CASE_POOLING_F16_9 { 16, 32, 10, 10, 10 }, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::bfyx
 #define CASE_POOLING_F16_10 { 16, 32, 10, 10, 10 }, data_types::f32, format::bs_fs_zyx_bsv16_fsv16, data_types::f32, format::bfyx
+#define CASE_POOLING_F16_11 { 1, 64, 10, 10 }, data_types::f16, format::fs_b_yx_fsv32, data_types::f32, format::bfyx
 
 #define CASE_POOLING_F16_FP16_1 { 1, 32, 10, 10 }, data_types::f16, format::bfyx, data_types::f16, format::bfyx
 #define CASE_POOLING_F16_FP16_2 { 1, 32, 10, 10 }, data_types::f16, format::fs_b_yx_fsv32, data_types::f16, format::bfyx
@@ -343,7 +344,7 @@ TEST_P(pooling_scale_activation, eltwise_mul) {
 
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / tensor{ 1, 1, 4, 4 }.count())),
+        data("scale_data", get_mem(get_per_channel_layout(p))),
         pooling("pooling", "input", "", p.pool_mode, tensor(1, 1, 4, 4), tensor(1, 1, 2, 2)),
         eltwise("scale", { "pooling", "scale_data" }, eltwise_mode::prod, p.default_type),
         activation("activation", "scale", activation_func::relu),
@@ -410,6 +411,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, pooling_scale_activation, ::testing::Value
     pooling_test_params{ CASE_POOLING_F16_9, 2, 4, pooling_mode::max, "pooling_gpu_ref" },
     pooling_test_params{ CASE_POOLING_F16_10, 2, 4, pooling_mode::average, "pooling_gpu_bsv16_fsv16" },
     pooling_test_params{ CASE_POOLING_F16_10, 2, 4, pooling_mode::max, "pooling_gpu_bsv16_fsv16" },
+    pooling_test_params{ CASE_POOLING_F16_11, 2, 4, pooling_mode::max, "pooling_gpu_fs_b_yx_fsv32" },
 
     // Input type: FP16
     pooling_test_params{ CASE_POOLING_F16_FP16_1, 2, 4, pooling_mode::average, "pooling_gpu_bfyx_block_opt" },

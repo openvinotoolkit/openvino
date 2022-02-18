@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <limits>  // std::numeric_limits
-#include <node_context.hpp>
 #include <numeric>
 
+#include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset6.hpp"
 
 namespace ov {
@@ -20,8 +20,8 @@ using namespace element;
 // Paddle2ONNX/paddle2onnx/op_mapper/detection/yolo_box.py - clip_bbox is not used
 // by Paddle2ONNX.
 NamedOutputs yolo_box(const NodeContext& node_context) {
-    auto data = node_context.get_ng_input("X");
-    auto image_size = node_context.get_ng_input("ImgSize");
+    auto data = node_context.get_input("X");
+    auto image_size = node_context.get_input("ImgSize");
 
     // get shape of X
     auto input_shape = std::make_shared<ShapeOf>(data, i64);

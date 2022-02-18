@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -82,8 +82,8 @@ function(register_extra_modules)
             endif()
         endforeach()
         if ("${NS}" STREQUAL "openvino")
-            file(APPEND "${devconfig_file}" "add_library(${NS}::runtime ALIAS ov_runtime)\n")
-            file(APPEND "${devconfig_file}" "add_library(${NS}::runtime::dev ALIAS ov_runtime_dev)\n")
+            file(APPEND "${devconfig_file}" "add_library(${NS}::runtime ALIAS openvino)\n")
+            file(APPEND "${devconfig_file}" "add_library(${NS}::runtime::dev ALIAS openvino_dev)\n")
         endif()
     endfunction()
 

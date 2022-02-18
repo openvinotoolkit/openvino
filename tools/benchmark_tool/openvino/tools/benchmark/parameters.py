@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import sys,argparse
@@ -50,11 +50,12 @@ def parse_args():
     args.add_argument('-c', '--path_to_cldnn_config', type=str, required=False,
                       help='Optional. Required for GPU custom kernels. Absolute path to an .xml file with the '
                            'kernels description.')
-    args.add_argument('-hint', '--perf_hint', type=str, required=False, default='', choices=['throughput', 'latency'],
-                      help='Optional. Performance hint (optimize for latency or throughput). '
-                            'The hint allows the OpenVINO device to select the right network-specific settings, '
-                            'as opposite to accepting specific values like  \'nstreams\' from the command line. '
-                            'So you can specify just the hint without adding explicit device-specific options')
+    args.add_argument('-hint', '--perf_hint', type=str, required=False, default='', choices=['throughput', 'latency', 'none'],
+                      help='Optional. Performance hint (latency or throughput or none). Performance hint allows the OpenVINO device to select the right network-specific settings.\n'
+                            '\'throughput\': device performance mode will be set to THROUGHPUT. \n'
+                            '\'latency\': device performance mode will be set to LATENCY. \n'
+                            '\'none\': no device performance mode will be set. \n'
+                            'Using explicit \'nstreams\' or other device-specific options, please set hint to \'none\'')
     args.add_argument('-api', '--api_type', type=str, required=False, default='async', choices=['sync', 'async'],
                       help='Optional. Enable using sync/async API. Default value is async.')
     args.add_argument('-niter', '--number_iterations', type=check_positive, required=False, default=None,

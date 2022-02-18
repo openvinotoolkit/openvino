@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -165,17 +165,33 @@ std::string get_load_program_name(build_options opts) {
 void dump_graph_init(std::ofstream& graph,
                      const program& program,
                      std::function<bool(program_node const&)> const& filter) {
-    const auto extr_oformat = [](program_node* ptr) {
-        std::string out = fmt_to_str(ptr->get_output_layout().format);
-
+    const std::string invalid_layout_msg = "(invalid layout)";
+    const auto extr_oformat = [&invalid_layout_msg](const program_node* ptr) {
         if (!ptr->is_valid_output_layout())
-            out += " (invalid)";
+            return invalid_layout_msg;
+
+        auto output_layout = ptr->get_output_layout();
+        std::string out = fmt_to_str(output_layout.format);
 
         return out;
     };
 
-    const auto dump_mem_info = [](program_node* ptr) {
+    const auto extr_odt = [&invalid_layout_msg](const program_node* ptr) {
+        if (!ptr->is_valid_output_layout())
+            return invalid_layout_msg;
+
+        auto output_layout = ptr->get_output_layout();
+        std::string out = dt_to_str(output_layout.data_type);
+
+        return out;
+    };
+
+    const auto dump_mem_info = [&invalid_layout_msg](const program_node* ptr) {
         std::string out = "size_info: ";
+        if (!ptr->is_valid_output_layout()) {
+            return out + invalid_layout_msg;
+        }
+
         auto out_layout = ptr->get_output_layout();
         auto tensor_str = out_layout.size.to_string();
         auto padding = out_layout.data_padding;
@@ -202,7 +218,7 @@ void dump_graph_init(std::ofstream& graph,
         std::string node_type_name = get_extr_type(node_type.name());
         graph << "    " << get_node_id(node) << "[label=\"" << node->id() << ":\n"
               << node_type_name << "\n out format: " + extr_oformat(node)
-              << "\n out data_type: " + dt_to_str(node->get_output_layout().data_type)
+              << "\n out data_type: " + extr_odt(node)
               << "\\nprocessing number: " << program.get_processing_order().get_processing_number(node)
               << "\\n color:" << (node->is_reusing_memory() ? std::to_string(node->get_reused_memory_color()) : "none")
               << (node->can_be_optimized() ? "\\n optimized out" : "");

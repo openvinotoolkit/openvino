@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,8 @@
 
 #include "jit_emitter.hpp"
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class jit_emu_vcvtneps2bf16 : public jit_emitter {
 public:
@@ -71,4 +72,5 @@ private:
     size_t aux_vecs_count() const override { return 2; }
 };
 
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

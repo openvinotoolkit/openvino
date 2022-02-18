@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,7 @@ ov::Any QuantizationAlignmentAttribute::create(
         const auto& input = node->input(index);
         auto inputNode = input.get_source_output().get_node_shared_ptr();
 
-        const auto dequantization = NetworkHelper::getDequantization(node, index);
+        const auto dequantization = NetworkHelper::getDequantization(node, params.defaultPrecisions, index);
         if (!dequantization.empty() &&
             (ov::is_type<opset1::Convert>(dequantization.data.get_node())) &&
             ov::is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {

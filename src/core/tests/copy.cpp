@@ -1,13 +1,15 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <memory>
 #include <string>
 
+#include "engines_util/execute_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset5.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "util/ndarray.hpp"
 #include "util/test_tools.hpp"
 
@@ -401,4 +403,36 @@ TEST(copy, loop) {
     EXPECT_EQ(loop_copy->get_output_shape(0), out0_shape);
     EXPECT_EQ(loop_copy->get_output_shape(1), out1_shape);
     EXPECT_EQ(loop_copy->get_output_shape(2), out2_shape);
+}
+
+TEST(copy, random_uniform) {
+    const auto min_val_param = make_shared<op::Parameter>(element::f32, Shape{1});
+    const auto max_val_param = make_shared<op::Parameter>(element::f32, Shape{1});
+    auto out_shape = make_shared<op::Constant>(element::i64, Shape{3}, std::vector<int64_t>{1, 2, 3});
+    auto ru =
+        std::make_shared<ov::opset8::RandomUniform>(out_shape, min_val_param, max_val_param, element::f32, 150, 10);
+
+    // Call `evaluate` to update m_state
+    ru->evaluate({make_host_tensor<element::i64>(out_shape->get_shape(), out_shape->get_vector<int64_t>()),
+                  make_host_tensor<element::f32>(min_val_param->get_shape(), {0}),
+                  make_host_tensor<element::f32>(max_val_param->get_shape(), {1})},
+                 {make_host_tensor<element::i64>(out_shape->get_shape(), out_shape->get_vector<int64_t>()),
+                  make_host_tensor<element::f32>(min_val_param->get_shape(), {0}),
+                  make_host_tensor<element::f32>(max_val_param->get_shape(), {1})});
+
+    auto out_shape_c = make_shared<op::Constant>(element::i64, Shape{4}, std::vector<int64_t>{4, 3, 2, 1});
+    const auto min_val_param_c = make_shared<op::Parameter>(element::f32, Shape{1});
+    const auto max_val_param_c = make_shared<op::Parameter>(element::f32, Shape{1});
+    OutputVector new_args{out_shape_c, min_val_param_c, max_val_param_c};
+    auto new_ru = ru->clone_with_new_inputs(new_args);
+    auto node_cast = ov::as_type_ptr<ov::opset8::RandomUniform>(new_ru);
+    ASSERT_NE(node_cast, nullptr);
+
+    ASSERT_TRUE(nullptr != new_ru);
+    ASSERT_TRUE(new_args == new_ru->input_values());
+    ASSERT_TRUE(ru->get_out_type() == node_cast->get_out_type());
+    ASSERT_TRUE(out_shape_c->get_shape_val() == node_cast->get_shape());
+    ASSERT_TRUE(ru->get_global_seed() == node_cast->get_global_seed());
+    ASSERT_TRUE(ru->get_op_seed() == node_cast->get_op_seed());
+    ASSERT_TRUE(ru->get_state() == node_cast->get_state());
 }

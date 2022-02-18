@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2020-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,8 @@
 
 #include "snippets/generator.hpp"
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class CPUTargetMachine : public ngraph::snippets::TargetMachine {
 public:
@@ -30,4 +31,5 @@ public:
     ~CPUGenerator() = default;
 };
 
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

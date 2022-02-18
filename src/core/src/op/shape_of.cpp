@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/shape_of.hpp"
 
 #include <algorithm>
+#include <dimension_tracker.hpp>
 #include <ngraph/validation_util.hpp>
 #include <vector>
 
@@ -149,6 +150,20 @@ bool evaluate_bound_shape(const Node* shape_of_node, const HostTensorVector& out
     }
     return true;
 }
+
+bool evaluate_label(const Node* shape_of_node, TensorLabelVector& output_labels) {
+    const auto& shape = shape_of_node->get_input_partial_shape(0);
+    NGRAPH_CHECK(shape.rank().is_static());  // sanity check. at this point value propagation was successful
+    output_labels[0].reserve(shape.size());
+    bool label_is_set = false;
+    for (const auto& d : shape) {
+        const auto& label = ov::DimensionTracker::get_label(d);
+        if (label)
+            label_is_set = true;
+        output_labels[0].push_back(label);
+    }
+    return label_is_set;
+}
 }  // namespace
 }  // namespace shape_of
 
@@ -179,6 +194,10 @@ bool op::v3::ShapeOf::evaluate_lower(const HostTensorVector& output_values) cons
 
 bool op::v3::ShapeOf::evaluate_upper(const HostTensorVector& output_values) const {
     return shape_of::evaluate_bound_shape(this, output_values, true);
+}
+
+bool op::v3::ShapeOf::evaluate_label(TensorLabelVector& output_labels) const {
+    return shape_of::evaluate_label(this, output_labels);
 }
 
 bool op::v3::ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
@@ -253,4 +272,8 @@ bool op::v0::ShapeOf::evaluate_lower(const HostTensorVector& output_values) cons
 
 bool op::v0::ShapeOf::evaluate_upper(const HostTensorVector& output_values) const {
     return shape_of::evaluate_bound_shape(this, output_values, true);
+}
+
+bool op::v0::ShapeOf::evaluate_label(TensorLabelVector& output_labels) const {
+    return shape_of::evaluate_label(this, output_labels);
 }

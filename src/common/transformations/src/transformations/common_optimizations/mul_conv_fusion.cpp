@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,32 +18,6 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MultiplyConvolutionFusion, "MultiplyConvolutionFusion", 0);
 
-static bool is_dequantization_subgraph(const ngraph::Output<ngraph::Node>& multiply) {
-    auto inputs = multiply.get_node()->input_values();
-    const auto subtract = std::find_if(inputs.begin(), inputs.end(),
-                                       [] (const ngraph::Output<ngraph::Node>& n) -> bool {
-                                           return ov::is_type<ngraph::opset8::Subtract>(n.get_node());
-                                       });
-    if (subtract != inputs.end())
-        inputs = subtract->get_node()->input_values();
-    const auto first_convert = std::find_if(inputs.begin(), inputs.end(),
-                                      [] (const ngraph::Output<ngraph::Node>& n) -> bool {
-                                          if (ov::is_type<ngraph::opset8::Convert>(n.get_node())) {
-                                              const auto input = n.get_node()->input_value(0);
-                                              return ov::is_type<ngraph::opset8::Convert>(input.get_node());
-                                          }
-                                          return false;
-                                      });
-    if (first_convert == inputs.end())
-        return false;
-    const auto second_convert = first_convert->get_node()->input_value(0);
-    const auto& first_convert_src_type = second_convert.get_element_type();
-    const auto& first_convert_dest_type = first_convert->get_element_type();
-    const auto second_convert_src_type = second_convert.get_node()->input_value(0).get_element_type();
-    return (first_convert_src_type == ngraph::element::i8 || first_convert_src_type == ngraph::element::u8) &&
-        first_convert_dest_type == second_convert_src_type;
-}
-
 ngraph::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
     MATCHER_SCOPE(MultiplyConvolutionFusion);
     auto input_pattern = pattern::any_input();
@@ -57,7 +31,7 @@ ngraph::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
 
         // Can't fuse Multiply to Convolution if that Multiply is part of dequantization subgraph
         // since that breaks low precision transformations
-        if (is_dequantization_subgraph(pattern_to_output.at(mul_pattern)))
+        if (op::util::is_dequantization_subgraph(pattern_to_output.at(mul_pattern)))
             return false;
 
         const auto& weights = pattern_to_output.at(weights_pattern);
@@ -110,7 +84,7 @@ ngraph::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
 
         // Can't fuse Multiply to Convolution if that Multiply is part of dequantization subgraph
         // since that breaks low precision transformations
-        if (is_dequantization_subgraph(pattern_to_output.at(mul_pattern)))
+        if (op::util::is_dequantization_subgraph(pattern_to_output.at(mul_pattern)))
             return false;
 
         const auto& weights = pattern_to_output.at(weights_pattern);
@@ -174,7 +148,7 @@ ngraph::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackprop
 
         // Can't fuse Multiply to Convolution if that Multiply is part of dequantization subgraph
         // since that breaks low precision transformations
-        if (is_dequantization_subgraph(pattern_to_output.at(mul_pattern)))
+        if (op::util::is_dequantization_subgraph(pattern_to_output.at(mul_pattern)))
             return false;
 
         const auto& weights = pattern_to_output.at(weights_pattern);
@@ -240,7 +214,7 @@ ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvoluti
 
         // Can't fuse Multiply to Convolution if that Multiply is part of dequantization subgraph
         // since that breaks low precision transformations
-        if (is_dequantization_subgraph(pattern_to_output.at(mul_pattern)))
+        if (op::util::is_dequantization_subgraph(pattern_to_output.at(mul_pattern)))
             return false;
 
         const auto& weights = pattern_to_output.at(weights_pattern);

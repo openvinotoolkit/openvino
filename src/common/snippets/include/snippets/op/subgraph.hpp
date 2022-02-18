@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -88,14 +88,14 @@ public:
         return m_generator;
     }
 
-    std::shared_ptr<Subgraph> make_canonical_from_this();
 
     snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes,
-                                ngraph::pass::Manager opt = ngraph::pass::Manager(), const void* compile_params = nullptr);
+                                ngraph::pass::Manager& opt, const void* compile_params = nullptr);
     snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes,
                                 const void* compile_params = nullptr);
-    /// Set a new body for the op; body needs to satisfy requirements on inputs/outputs
-    void set_body(std::shared_ptr<ov::Model> body);
+    snippets::Schedule generate(ngraph::pass::Manager &opt, const void* compile_params = nullptr);
+    snippets::Schedule generate(const void* compile_params = nullptr);
+    Shape canonicalize(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes);
 
     // plugin sets generator for a snippet to some specific generator.
     // it's going to be replaced with Jitters table later
@@ -109,9 +109,8 @@ public:
     static auto wrap_node_as_subgraph(const std::shared_ptr<ngraph::Node>& node) -> std::shared_ptr<Subgraph>;
 
 private:
-    void canonicalize(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes);
     void convert_to_snippet_dialect();
-
+    Shape exec_domain;
     std::shared_ptr<ov::Model> m_body;
     std::shared_ptr<ngraph::snippets::Generator> m_generator;
 };

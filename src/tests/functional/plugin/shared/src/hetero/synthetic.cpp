@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@ static std::vector<std::function<std::shared_ptr<ngraph::Function>()>> builders 
     [] {return ngraph::builder::subgraph::makeNestedSplitConvConcat();},
     [] {return ngraph::builder::subgraph::makeSplitConvConcatNestedInBranch();},
     [] {return ngraph::builder::subgraph::makeSplitConvConcatNestedInBranchNestedOut();},
+    [] {return ngraph::builder::subgraph::makeNestedBranchConvConcat();},
 };
 
 std::vector<FunctionParameter> HeteroSyntheticTest::withMajorNodesFunctions(

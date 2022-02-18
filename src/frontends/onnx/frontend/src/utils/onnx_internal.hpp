@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,8 +7,8 @@
 #include <memory>
 #include <string>
 
-#include "common/extension_holder.hpp"
 #include "ngraph/function.hpp"
+#include "openvino/frontend/extension/holder.hpp"
 
 namespace ONNX_NAMESPACE {
 class ModelProto;

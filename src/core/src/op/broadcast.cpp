@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,7 @@ namespace {
 std::pair<bool, AxisSet> get_broadcast_axes_bidirectional(const ov::Shape& arg_shape, const ov::Shape& result_shape) {
     AxisSet broadcast_axes;
     bool axes_known = false;
-    const auto start_axis = result_shape.size() - arg_shape.size();
+    const auto start_axis = static_cast<int64_t>(result_shape.size()) - static_cast<int64_t>(arg_shape.size());
     NGRAPH_CHECK(start_axis >= 0);
     for (size_t i = 0; i < result_shape.size(); i++) {
         if (i < start_axis || result_shape[i] != arg_shape[i - start_axis]) {

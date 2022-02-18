@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,8 @@
 #include <atomic>
 #include "cache_entry.h"
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 /**
  * @brief Class that represent a preemptive cache for different key/value pair types.
@@ -81,4 +82,5 @@ MultiCache::EntryPtr<KeyType, ValueType> MultiCache::getEntry() {
 using MultiCachePtr = std::shared_ptr<MultiCache>;
 using MultiCacheCPtr = std::shared_ptr<const MultiCache>;
 
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

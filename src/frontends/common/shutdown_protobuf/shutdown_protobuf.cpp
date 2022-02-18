@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include <google/protobuf/stubs/common.h>
 
 #if defined(_WIN32)

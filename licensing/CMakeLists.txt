@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -9,7 +9,7 @@
 ie_cpack_add_component(licensing)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
-        DESTINATION licensing
+        DESTINATION docs/licensing
         COMPONENT licensing
         PATTERN CMakeLists.txt EXCLUDE
         PATTERN dev-third-party-programs.txt EXCLUDE

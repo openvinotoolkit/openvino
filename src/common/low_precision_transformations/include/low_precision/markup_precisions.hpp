@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,11 +48,13 @@ public:
     };
 
     NGRAPH_RTTI_DECLARATION;
-    explicit MarkupPrecisions(const std::vector<OperationPrecisionRestriction>& restrictions = {});
+    explicit MarkupPrecisions(const std::vector<OperationPrecisionRestriction>& restrictions = {},
+        const std::vector<ngraph::element::Type>& defaultPrecisions = { ngraph::element::u8, ngraph::element::i8 });
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 
 private:
     static bool isPrecisionPreserved(const std::shared_ptr<Node>& node);
     static bool isSupported(const std::shared_ptr<Node>& node);
     std::unordered_map<std::string, Restriction> restrictionsByOperation;
+    std::vector<ngraph::element::Type> defaultPrecisions;
 };

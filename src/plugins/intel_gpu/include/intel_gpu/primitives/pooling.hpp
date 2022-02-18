@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -231,7 +231,7 @@ struct pooling : public primitive_base<pooling> {
     /// @brief Defines a shift, relative to the end of padding shape.
     tensor pad_end;
     /// @brief first dimension of input that should be used to calculate the upper bound of index output
-    int64_t axis;
+    int64_t axis = 0;
     /// @brief type of index output
     data_types index_element_type = data_types::i32;
     bool maxPoolOpset8Features{false};

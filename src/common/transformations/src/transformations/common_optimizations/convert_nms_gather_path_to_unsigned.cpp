@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "transformations/common_optimizations/convert_nms_gather_path_to_unsigned.hpp"
@@ -49,7 +49,9 @@ class PropagateNMSPath: public pass::MatcherPass {
                     opset8::Reshape,
                     op::util::BroadcastBase,
                     opset8::StridedSlice,
+                    opset8::Slice,
                     opset8::VariadicSplit,
+                    op::util::GatherBase,
                     opset8::Concat,
                     opset8::Convert>();
             matcher_pass_callback callback = [=](pattern::Matcher &m) {
@@ -60,7 +62,7 @@ class PropagateNMSPath: public pass::MatcherPass {
                 })) {
                     ov::set_nms_selected_indices(node.get());
                 }
-                return true;
+                return false;
             };
             auto m = make_shared<pattern::Matcher>(node_pattern, matcher_name);
             register_matcher(m, callback);
@@ -77,6 +79,7 @@ class UpdateConvertGather: public pass::MatcherPass {
                 auto indices = gather->input_value(1);
                 if (!ov::has_nms_selected_indices(indices.get_node()))
                     return false;
+                gather->get_rt_info()["dontReverseIndices"] = true;
                 auto out_type = (indices.get_element_type() == element::i64 ?  element::u64 : element::u32);
                 auto existing_convert = dynamic_pointer_cast<opset8::Convert>(indices.get_node_shared_ptr());
                 if (existing_convert && indices.get_target_inputs().size() == 1) {

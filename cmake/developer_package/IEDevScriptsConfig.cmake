@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -129,7 +129,7 @@ set(IE_DEBUG_POSTFIX_WIN "d")
 set(IE_RELEASE_POSTFIX_WIN "")
 set(IE_DEBUG_POSTFIX_LIN "")
 set(IE_RELEASE_POSTFIX_LIN "")
-set(IE_DEBUG_POSTFIX_MAC "")
+set(IE_DEBUG_POSTFIX_MAC "d")
 set(IE_RELEASE_POSTFIX_MAC "")
 
 if(WIN32)

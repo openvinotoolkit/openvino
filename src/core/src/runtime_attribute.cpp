@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,10 @@ Any RuntimeAttribute::init(const std::shared_ptr<ngraph::Node>& node) const {
 }
 
 Any RuntimeAttribute::merge(const ngraph::NodeVector& nodes) const {
+    return {};
+}
+
+Any RuntimeAttribute::merge(const ngraph::OutputVector& outputs) const {
     return {};
 }
 

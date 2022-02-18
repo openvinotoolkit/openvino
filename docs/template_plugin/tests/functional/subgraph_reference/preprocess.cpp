@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,8 +22,8 @@ namespace {
 struct RefPreprocessParams {
     RefPreprocessParams(const std::string& val): name(val) {}
     std::function<std::shared_ptr<ov::Model>()> function;
-    std::vector<Tensor> inputs;
-    std::vector<Tensor> expected;
+    std::vector<reference_tests::Tensor> inputs;
+    std::vector<reference_tests::Tensor> expected;
     float abs_threshold = 0.01f;
     float rel_threshold = 0.01f;
     std::string name;
@@ -1018,15 +1018,15 @@ static RefPreprocessParams reverse_channels_nchw() {
 
 static RefPreprocessParams color_cut_last_channel() {
     RefPreprocessParams res("color_cut_last_channel");
-    auto input_tensor = Tensor(Shape{1, 2, 2, 4}, element::f32, std::vector<float>{1, 2, 3, 4,
+    auto input_tensor = reference_tests::Tensor(Shape{1, 2, 2, 4}, element::f32, std::vector<float>{1, 2, 3, 4,
                                                                                    5, 6, 7, 8,
                                                                                    3, 4, 5, 6,
                                                                                    6, 7, 8, 9});
-    auto exp_3_channels = Tensor(Shape{1, 2, 2, 3}, element::f32, std::vector<float>{1, 2, 3,
+    auto exp_3_channels = reference_tests::Tensor(Shape{1, 2, 2, 3}, element::f32, std::vector<float>{1, 2, 3,
                                                                                      5, 6, 7,
                                                                                      3, 4, 5,
                                                                                      6, 7, 8});
-    auto inv_3_channels = Tensor(Shape{1, 2, 2, 3}, element::f32, std::vector<float>{3, 2, 1,
+    auto inv_3_channels = reference_tests::Tensor(Shape{1, 2, 2, 3}, element::f32, std::vector<float>{3, 2, 1,
                                                                                      7, 6, 5,
                                                                                      5, 4, 3,
                                                                                      8, 7, 6});
@@ -1047,8 +1047,8 @@ static RefPreprocessParams color_cut_last_channel() {
         return prep.build();
     };
 
-    res.inputs = std::vector<Tensor>{input_tensor, input_tensor, input_tensor, input_tensor};
-    res.expected = std::vector<Tensor>{exp_3_channels, inv_3_channels, exp_3_channels, inv_3_channels};
+    res.inputs = std::vector<reference_tests::Tensor>{input_tensor, input_tensor, input_tensor, input_tensor};
+    res.expected = std::vector<reference_tests::Tensor>{exp_3_channels, inv_3_channels, exp_3_channels, inv_3_channels};
     return res;
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <vector>
 
 #include <legacy/ie_layers.h>
+#include "backend/gna_limitations.hpp"
 
 namespace GNAPluginNS {
 // Split, Slice
@@ -47,7 +48,7 @@ public:
 };
 
 // @brief Returns sizes of split outputs to split the input tensor to aligned parts not greater than the specified size
-static std::vector<uint32_t> GetAlignedSplitSizes(uint32_t totalSize, uint32_t maxSplitSize, uint32_t alignment = 64) {
+static std::vector<uint32_t> GetAlignedSplitSizes(uint32_t totalSize, uint32_t maxSplitSize, uint32_t alignment = GNALimitations::inputByteAlignment) {
     std::vector<uint32_t> splitSizes;
     uint32_t maxAlignedSplitSize = maxSplitSize - maxSplitSize % alignment;
     uint32_t usedSize = 0;

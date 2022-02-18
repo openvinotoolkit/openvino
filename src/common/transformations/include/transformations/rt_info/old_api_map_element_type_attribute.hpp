@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,7 +62,7 @@ inline OldApiMapElementType get_old_api_map_element_type(const std::shared_ptr<N
     return rt_map.at(OldApiMapElementType::get_type_info_static()).as<OldApiMapElementType>();
 }
 
-inline void set_old_api_map_element_type(std::shared_ptr<Node>& node, const OldApiMapElementType& old_api_map) {
+inline void set_old_api_map_element_type(const std::shared_ptr<Node>& node, const OldApiMapElementType& old_api_map) {
     auto& rt_map = node->get_rt_info();
     rt_map[OldApiMapElementType::get_type_info_static()] = old_api_map;
 }

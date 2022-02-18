@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ std::string OVInferRequestCallbackTests::getTestCaseName(const testing::TestPara
 }
 
 TEST_P(OVInferRequestCallbackTests, canCallAsyncWithCompletionCallback) {
-    runtime::InferRequest req;
+    ov::InferRequest req;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     bool is_called = false;
     OV_ASSERT_NO_THROW(req.set_callback([&] (std::exception_ptr exception_ptr) {
@@ -30,7 +30,7 @@ TEST_P(OVInferRequestCallbackTests, canCallAsyncWithCompletionCallback) {
 }
 
 TEST_P(OVInferRequestCallbackTests, syncInferDoesNotCallCompletionCallback) {
-    runtime::InferRequest req;
+    ov::InferRequest req;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     bool is_called = false;
     req.set_callback([&] (std::exception_ptr exception_ptr) {
@@ -50,7 +50,7 @@ TEST_P(OVInferRequestCallbackTests, canStartSeveralAsyncInsideCompletionCallback
     };
     TestUserData data;
 
-    runtime::InferRequest req;
+    ov::InferRequest req;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     OV_ASSERT_NO_THROW(req.set_callback([&] (std::exception_ptr exception_ptr) {
         if (exception_ptr) {
@@ -74,7 +74,7 @@ TEST_P(OVInferRequestCallbackTests, canStartSeveralAsyncInsideCompletionCallback
 }
 
 TEST_P(OVInferRequestCallbackTests, returnGeneralErrorIfCallbackThrowException) {
-    runtime::InferRequest req;
+    ov::InferRequest req;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     OV_ASSERT_NO_THROW(req.set_callback([] (std::exception_ptr) {
         OPENVINO_UNREACHABLE("Throw");
@@ -88,7 +88,7 @@ TEST_P(OVInferRequestCallbackTests, ReturnResultNotReadyFromWaitInAsyncModeForTo
     // so increases chances for getting RESULT_NOT_READY
     OV_ASSERT_NO_THROW(execNet = core->compile_model(
         SubgraphTestsDefinitions::Basic_LSTM_S::GetNetwork(300, 38), targetDevice, configuration));
-    runtime::InferRequest req;
+    ov::InferRequest req;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     std::promise<std::chrono::system_clock::time_point> callbackTimeStamp;
     auto callbackTimeStampFuture = callbackTimeStamp.get_future();
@@ -114,7 +114,7 @@ TEST_P(OVInferRequestCallbackTests, ReturnResultNotReadyFromWaitInAsyncModeForTo
 }
 
 TEST_P(OVInferRequestCallbackTests, ImplDoesNotCopyCallback) {
-    runtime::InferRequest req;
+    ov::InferRequest req;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     {
         auto somePtr = std::make_shared<int>(42);

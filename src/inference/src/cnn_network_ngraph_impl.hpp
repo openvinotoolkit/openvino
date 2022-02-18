@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,14 +54,14 @@ public:
     InputInfo::Ptr getInput(const std::string& inputName) const noexcept override;
     const std::string& getName() const noexcept override;
 
-    size_t layerCount() const noexcept override;
+    size_t layerCount() const override;
 
     void setInputInfo(InputInfo::Ptr data);
 
     // public version
     StatusCode setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept override;
 
-    size_t getBatchSize() const noexcept override;
+    size_t getBatchSize() const override;
 
     StatusCode addOutput(const std::string& layerName, size_t outputIndex, ResponseDesc* resp) noexcept override;
 

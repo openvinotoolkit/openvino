@@ -1,4 +1,15 @@
-# OpenVINO™ API 2.0 transition guide {#ov_2_0_transition_guide}
+# OpenVINO™ API 2.0 Transition Guide {#openvino_2_0_transition_guide}
+
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   
+   openvino_inference_pipeline
+   openvino_graph_construction
+      
+@endsphinxdirective
 
 The OpenVINO™ API 2.0 introduced in order to simplify migration from other frameworks and make the OpenVINO™ API more user-friendly.
 The list with differences between APIs below:
@@ -9,5 +20,5 @@ The list with differences between APIs below:
  - Namespaces were aligned between components.
 
 Please look at next transition guides to understand how transit own application to OpenVINO™ API 2.0.
- - [OpenVINO™ Graph Construction](@ref ov_graph_construction)
- - [OpenVINO™ Common Inference pipeline](@ref ov_inference_pipeline)
+ - [OpenVINO™ Graph Construction](graph_construction.md)
+ - [OpenVINO™ Common Inference pipeline](common_inference_pipeline.md)

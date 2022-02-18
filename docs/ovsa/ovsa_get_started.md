@@ -1,4 +1,4 @@
-# OpenVINO™ Security Add-on  {#ovsa_get_started}
+# OpenVINO™ Security Add-on {#ovsa_get_started}
 
 This guide provides instructions for people who use the OpenVINO™ Security Add-on to create, distribute, and use models that are created with the OpenVINO™ toolkit:
 

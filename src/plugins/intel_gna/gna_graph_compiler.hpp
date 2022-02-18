@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -128,8 +128,8 @@ public:
 
     void finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerPtr,
         uint32_t in_batch, uint32_t in_channels, uint32_t in_width,
-        uint32_t out_batch, uint32_t out_channels, uint32_t out_width);
-
+        uint32_t out_batch, uint32_t out_channels, uint32_t out_width,
+        uint32_t in_kernel_x, uint32_t in_kernel_y, bool transpose);
     void finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerPtr,
         uint32_t in_batch, uint32_t in_channels, uint32_t in_height, uint32_t in_width,
         uint32_t out_batch, uint32_t out_channels, uint32_t out_height, uint32_t out_width);

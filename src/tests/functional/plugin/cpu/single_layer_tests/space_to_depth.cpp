@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -195,30 +195,30 @@ INSTANTIATE_TEST_SUITE_P(smoke_CPUSpaceToDepthStaticBS3_5D, SpaceToDepthLayerCPU
 namespace dynamic_shapes {
 
 const std::vector<InputShape> inputShapes4D = {
-        {{-1, -1, -1 , -1},                                  // dynamic
-         {{2, 12, 6, 12}, {1, 2, 18, 6}, {1, 10, 12, 24}}},     // target
+    {{-1, -1, -1, -1},                                                   // dynamic
+     {{2, 12, 6, 12}, {1, 2, 18, 6}, {1, 10, 12, 24}, {2, 12, 6, 12}}},  // target
 
-        {{-1, 32, -1 , -1},                                 // dynamic
-         {{1, 32, 6, 12}, {2, 32, 24, 24}, {3, 32, 30, 6}}},  // target
+    {{-1, 32, -1, -1},                                                     // dynamic
+     {{1, 32, 6, 12}, {2, 32, 24, 24}, {3, 32, 30, 6}, {2, 32, 24, 24}}},  // target
 
-        {{{2, 5}, {1, 50}, {1, 100}, {1, 100}},               // dynamic
-         {{3, 5, 12, 36}, {2, 3, 6, 12}, {5, 2, 12, 18}}},   // target
+    {{{2, 5}, {1, 50}, {1, 100}, {1, 100}},                            // dynamic
+     {{3, 5, 12, 36}, {2, 3, 6, 12}, {5, 2, 12, 18}, {2, 3, 6, 12}}},  // target
 };
 
 const std::vector<InputShape> inputShapes5D = {
-        {{-1, -1, -1, -1, -1},                                        // dynamic
-         {{2, 2, 6, 12, 24}, {1, 4, 24, 24, 36}, {1, 7, 6, 30, 18}}},  // target
+    {{-1, -1, -1, -1, -1},                                                            // dynamic
+     {{2, 2, 6, 12, 24}, {1, 4, 24, 24, 36}, {1, 7, 6, 30, 18}, {2, 2, 6, 12, 24}}},  // target
 
-        {{{1, 3}, {5, 16}, {1, 60}, {1, 60}, {1, 60}},                // dynamic
-         {{3, 5, 12, 6, 24}, {1, 6, 24, 18, 6}}},               // target
+    {{{1, 3}, {5, 16}, {1, 60}, {1, 60}, {1, 60}},                // dynamic
+     {{3, 5, 12, 6, 24}, {1, 6, 24, 18, 6}, {3, 5, 12, 6, 24}}},  // target
 };
 
 const std::vector<InputShape> inputShapesBlocked5D = {
-        {{-1, 16, -1, -1, -1},                                          // dynamic
-         {{1, 16, 4, 6, 10}, {1, 16, 12, 8, 2}, {3, 16, 2, 14, 24}}},     // target
+    {{-1, 16, -1, -1, -1},                                                            // dynamic
+     {{1, 16, 4, 6, 10}, {1, 16, 12, 8, 2}, {3, 16, 2, 14, 24}, {1, 16, 12, 8, 2}}},  // target
 
-        {{{1, 3}, 32, {1, 32}, {1, 32}, {1, 32}},                          // dynamic
-         {{1, 32, 4, 16, 10}, {1, 32, 18, 6, 14}, {3, 32, 2, 14, 12}}},     // target
+    {{{1, 3}, 32, {1, 32}, {1, 32}, {1, 32}},                                            // dynamic
+     {{1, 32, 4, 16, 10}, {1, 32, 18, 6, 14}, {3, 32, 2, 14, 12}, {1, 32, 18, 6, 14}}},  // target
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_CPUSpaceToDepthDynamic4D, SpaceToDepthLayerCPUTest,

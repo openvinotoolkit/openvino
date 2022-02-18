@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,3 +22,8 @@ namespace internal {
     void PrintTo<ov::Any>(const ov::Any& a, std::ostream* os);
 }
 }
+
+#define ENABLE_LOG_IN_MOCK() \
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) { \
+            std::cout << stream.str() << std::endl; \
+            });

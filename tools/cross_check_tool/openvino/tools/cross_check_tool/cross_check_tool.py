@@ -1,34 +1,26 @@
 #!/usr/bin/python3
 
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import datetime
 import logging as log
-import os
 import sys
-
+from collections import defaultdict
+from typing import Union
 import numpy as np
 
 try:
-    from openvino import inference_engine as ie
-    from openvino.inference_engine import IENetwork, IECore
+    from openvino.runtime import Core, Model, CompiledModel, InferRequest, Output, get_version
 except Exception as e:
     exception_type = type(e).__name__
-    print(f"The following error happened while importing Python API module:\n[ {exception_type} ] {e}")
+    print(f"The following error happened while importing OpenVINO Python API module:\n[ {exception_type} ] {e}")
     sys.exit(1)
 
-try:
-    import ngraph as ng
-except Exception as e:
-    exception_type = type(e).name
-    print(f"The following error happened while importing nGraph module:\n[ {exception_type} ] {e}")
-    sys.exit(1)
-
-from openvino.tools.cross_check_tool.utils import get_config_dictionary, get_layers_list, print_output_layers, \
+from openvino.tools.cross_check_tool.utils import get_config_dictionary, get_ops_list, print_output_ops, \
     input_processing, accuracy_metrics, validate_args, build_parser, set_logger, find_out_cct_mode, \
-    print_all_over_the_net_metrics, update_global_accuracy_matrics, blob_counters, performance_metrics, \
-    manage_user_outputs_with_mapping, dump_output_file, load_dump, error_handling, print_input_layers, set_verbosity
+    print_all_over_the_net_metrics, update_global_accuracy_matrics, tensor_counters, performance_metrics, \
+    dump_output_file, load_dump, error_handling, print_inputs, set_verbosity, perf_counts_to_dump, load_profiling_info
 
 
 ###
@@ -37,22 +29,22 @@ from openvino.tools.cross_check_tool.utils import get_config_dictionary, get_lay
 
 
 @error_handling('plugin of \'{device}\' device config \'{config}\' loading')
-def set_plugin_config(core: IECore, device: str, config: str = None):
-    core.set_config(get_config_dictionary(config_file=config), device_name=device)
+def set_plugin_config(core: Core, device: str, config: str = None):
+    core.set_property(device, get_config_dictionary(config_file=config))
 
 
 @error_handling('\'{cpu_ext}\' cpu extensions loading')
-def set_cpu_extensions(core: IECore, cpu_ext: str):
-    core.add_extension(cpu_ext, "CPU")
+def set_cpu_extensions(core: Core, cpu_ext: str):
+    core.add_extension(cpu_ext)
 
 
 def get_plugin(device: str, cpu_ext: str = None, config: str = None):
-    ie = IECore()
+    core = Core()
     # log.info('{} plugin:\n          API version ............ {}'.format(device, plugin.version), extra={'no_lvl': True})
-    set_plugin_config(core=ie, device=device, config=config)
+    set_plugin_config(core=core, device=device, config=config)
     if cpu_ext and 'CPU' in device:
-        set_cpu_extensions(core=ie, cpu_ext=cpu_ext)
-    return ie
+        set_cpu_extensions(core=core, cpu_ext=cpu_ext)
+    return core
 
 
 ###
@@ -60,87 +52,108 @@ def get_plugin(device: str, cpu_ext: str = None, config: str = None):
 ###
 
 
-@error_handling('reading {model} IR model')
-def get_net(model: str, core: IECore):
-    model_xml = model
-    model_bin = os.path.splitext(model_xml)[0] + ".bin"
-    net = core.read_network(model=model_xml, weights=model_bin)
-    return net
+@error_handling('reading {xml_path} IR model')
+def get_model(model_path: str, core: Core):
+    model = core.read_model(model=model_path)
+    # TODO: can we support it?
+    if model.is_dynamic():
+        raise Exception("Cross check tool doesn't support dynamic models for now.")
+    return model
 
 
-@error_handling('loading network to plugin of {device} device')
-def get_exec_net(core, net, device):
-    return core.load_network(network=net, device_name=device)
+@error_handling('compiling model for {device} device')
+def get_compiled_model(core: Core, model: Model, device: str):
+    return core.compile_model(model=model, device_name=device)
+
+
+@error_handling('creating infer request')
+def get_infer_request(compiled_model: CompiledModel):
+    return compiled_model.create_infer_request()
 
 
 @error_handling('output \'{output}\' addition for network from model \'{model}\'')
-def get_net_copy_with_output(model: str, output: str, core: IECore):
-    net_copy = get_net(model=model, core=core)
-    func = ng.function_from_cnn(net_copy)
+def get_model_copy_with_output(model: str, output: tuple, core: Core):
+    model_copy = get_model(model_path=model, core=core)
+    new_output = None
     if output not in ['None', None]:
-        # output with port_id in name is absent in ops list
-        founded_op = [op for op in func.get_ops() if op.friendly_name == output]
-        if founded_op:
-            net_copy.add_outputs(output)
-        else:
-            split = output.rsplit(".", 1)
-            net_copy.add_outputs((split[0], int(split[1])))
-    return net_copy
+        new_output = model_copy.add_outputs(output).pop()
+    return model_copy, new_output
 
 
-@error_handling('getting model layers info')
-def get_model_info(net: IENetwork):
-    func = ng.function_from_cnn(net)
-    ops = func.get_ordered_ops()
-    return ops, net.input_info, net.outputs
+@error_handling('getting model operations info')
+def get_model_info(model: Model):
+    return model.get_ordered_ops(), model.inputs, model.outputs
 
+
+def check_inputs_and_default_outputs_are_equal(model, ref_model):
+    if len(model.inputs) != len(ref_model.inputs):
+        raise Exception("Models have different number of inputs! Cannot cross check!")
+    if len(model.outputs) != len(ref_model.outputs):
+        raise Exception("Models have different number of outputs! Cannot cross check!")
+    for input, ref_input in zip(model.inputs, ref_model.inputs):
+        if input.any_name != ref_input.any_name:
+            raise Exception("Models have different inputs! Cannot cross check!")
+    for output, ref_output in zip(model.outputs, ref_model.outputs):
+        if output.any_name != ref_output.any_name:
+            raise Exception("Models have different outputs! Cannot cross check!")
+
+
+def get_ops_intersection(ops, ref_ops):
+    ops_map = {node.friendly_name: node for node in ops}
+    operation_names = set(ops_map.keys())
+    ref_operation_names = set(node.friendly_name for node in ref_ops)
+    intersection_names = operation_names.intersection(ref_operation_names)
+    return [ops_map[intersection_name] for intersection_name in intersection_names]
+
+
+def get_ops_union(ops, ref_ops):
+    ops_map = {}
+    for op, ref_op in zip(ops, ref_ops):
+        ops_map.update({op.friendly_name: op})
+        ops_map.update({ref_op.friendly_name: ref_op})
+    return ops_map.values()
 
 ###
 #   INFER
 ###
 
 
-@error_handling('processing inference')
-def get_infer_results(executable_network, inputs: dict):
-    return executable_network.infer(inputs=inputs)
+@error_handling('getting inference results for output: \'{output.any_name}\'')
+def get_infer_results(infer_request: InferRequest, output: Output):
+    return infer_request.get_tensor(output).data
 
 
-@error_handling('getting performance counts from executable network')
-def get_perf_counts(executable_network):
-    return executable_network.requests[0].get_perf_counts()
+@error_handling('getting performance counts from infer request')
+def get_profiling_info(infer_request: InferRequest, port: Output):
+    for pi in infer_request.profiling_info:
+       if pi.node_name == port.node.friendly_name:
+           return pi
 
 
-@error_handling('getting inference results for outputs: \'{output}\' on \'{device}\' device')
-def infer(net: IENetwork, core: IECore, device: str, inputs: dict, output: list):
-    executable_network = get_exec_net(core=core, net=net, device=device)
-    infer_dict = get_infer_results(executable_network=executable_network, inputs=inputs)
-    pc = get_perf_counts(executable_network=executable_network)
-    no_i = 'no_info'
-    no_info_pc = {'cpu_time': no_i, 'exec_time': no_i, 'layer_type': no_i, 'real_time': no_i, 'status': no_i}
-    result = {}
-    for out in output:
-        if out not in infer_dict:
-            log.warning(f"There is no '{out}' layer in Inference Engine outputs results")
-            continue
-        pc = pc[out] if out in pc else no_info_pc
-        pc['device'] = device
-        result = {out: [infer_dict[out], pc]}
-    return result
+@error_handling('processing inference on \'{device}\' device')
+def infer(model: Model, core: Core, device: str, inputs: Union[list, dict], output=None):
+    compiled_model = get_compiled_model(core=core, model=model, device=device)
+    infer_request = get_infer_request(compiled_model)
+    infer_request.infer(inputs)
+    if output:
+        result = get_infer_results(infer_request, output)
+        prof_info = get_profiling_info(infer_request, output)
+        return result, prof_info
 
 
-@error_handling('getting inference results for outputs: \'{layers}\'')
-def overall_accuracy_check(model: str, ref_model: str, out_layers: list, ref_out_layers: list, inputs: dict,
-                           ref_inputs: dict, core: IECore, device: str, ref_core: IECore, ref_device: str, layers: str,
+@error_handling('computing overall performance')
+def overall_accuracy_check(model: str, ref_model: str, out_ops: list, ref_out_ops: list, inputs: list,
+                           ref_inputs: list, core: Core, device: str, ref_core: Core, ref_device: str, layers: str,
                            num_of_iterations: int):
     global_times, ref_global_times = [], []
     if layers in ['None', None]:
-        net_copy = get_net_copy_with_output(model=model, output=layers, core=core)
-        ref_net_copy = get_net_copy_with_output(model=ref_model, output=layers, core=ref_core)
+        model_copy, _ = get_model_copy_with_output(model=model, output=layers, core=core)
+        ref_model_copy, _ = get_model_copy_with_output(model=ref_model, output=layers, core=ref_core)
         for i in range(num_of_iterations):
             t1 = datetime.datetime.now()
-            infer(net=net_copy, core=core, device=device, inputs=inputs, output=out_layers)
+            infer(model=model_copy, core=core, device=device, inputs=inputs)
             t2 = datetime.datetime.now()
-            infer(net=ref_net_copy, core=ref_core, device=ref_device, inputs=ref_inputs, output=ref_out_layers)
+            infer(model=ref_model_copy, core=ref_core, device=ref_device, inputs=ref_inputs)
             t3 = datetime.datetime.now()
             global_times.append(t2 - t1)
             ref_global_times.append(t3 - t2)
@@ -149,38 +162,34 @@ def overall_accuracy_check(model: str, ref_model: str, out_layers: list, ref_out
 
 def one_ir_mode(args):
     core = get_plugin(args.device, args.l, args.config)
-    net = get_net(model=args.model, core=core)
-    net_layers, net_inputs, net_outputs = get_model_info(net)
+    model = get_model(model_path=args.model, core=core)
+    model_ops, model_inputs, model_outputs = get_model_info(model)
     log.info(f'{args.device} vs {args.reference_device}')
     log.info(f'The same IR on both devices: {args.model}')
-    out_layers = get_layers_list(net_layers, net_inputs, net_outputs, args.layers)
-    print_input_layers(net_inputs)
-    print_output_layers(out_layers)
+    out_ops = get_ops_list(model_ops, model_outputs, args.layers)
+    print_inputs(model_inputs)
+    print_output_ops(out_ops)
     ref_core = get_plugin(args.reference_device, args.l, args.reference_config)
     global_accuracy = []
-    inputs = input_processing(model_path=args.model, net_inputs=net_inputs, input_file=args.input)
+    inputs = input_processing(model_path=args.model, model_inputs=model_inputs, input_file=args.input)
     global_times, ref_global_times = overall_accuracy_check(model=args.model, ref_model=args.model,
-                                                            out_layers=out_layers, ref_out_layers=out_layers,
+                                                            out_ops=out_ops, ref_out_ops=out_ops,
                                                             inputs=inputs, ref_inputs=inputs, core=core,
                                                             device=args.device, ref_core=ref_core,
                                                             ref_device=args.reference_device, layers=args.layers,
                                                             num_of_iterations=args.num_of_iterations)
-    for out_layer in out_layers:
-        log.info(f'Layer {out_layer} statistics')
-        net_copy = get_net_copy_with_output(model=args.model, output=out_layer, core=core)
-        results = infer(net=net_copy, core=core, device=args.device, inputs=inputs, output=[out_layer])
-        if out_layer not in results:
-            continue
-        out_blob, pc = results[out_layer]
-        ref_results = infer(net=net_copy, core=ref_core, device=args.reference_device,
-                            inputs=inputs, output=[out_layer])
-        if out_layer not in ref_results:
-            continue
-        ref_out_blob, ref_pc = ref_results[out_layer]
-        a_m = accuracy_metrics(out_blob=out_blob, ref_out_blob=ref_out_blob)
-        performance_metrics(pc=pc, ref_pc=ref_pc)
-        blob_counters(out_blob=out_blob, ref_out_blob=ref_out_blob)
-        global_accuracy = update_global_accuracy_matrics(global_accuracy=global_accuracy, current_accuracy=a_m)
+    for op in out_ops:
+        log.info(f'Layer {op.friendly_name} statistics')
+        for i in range(op.get_output_size()):
+            if op.get_output_size() > 1:
+                log.info(f'Port {i}: ')
+            model_copy, new_output = get_model_copy_with_output(model=args.model, output=(op.friendly_name, i), core=core)
+            out_tensor, pc = infer(model=model_copy, core=core, device=args.device, inputs=inputs, output=new_output)
+            ref_out_tensor, ref_pc = infer(model=model_copy, core=ref_core, device=args.reference_device, inputs=inputs, output=new_output)
+            a_m = accuracy_metrics(out_tensor, ref_out_tensor)
+            performance_metrics(args.device, pc, args.reference_device, ref_pc)
+            tensor_counters(out_tensor, ref_out_tensor)
+            global_accuracy = update_global_accuracy_matrics(global_accuracy=global_accuracy, current_accuracy=a_m)
     print_all_over_the_net_metrics(global_times=global_times, ref_global_times=ref_global_times,
                                    global_accuracy=global_accuracy)
 
@@ -188,108 +197,103 @@ def one_ir_mode(args):
 def two_ir_mode(args):
     core = get_plugin(args.device, args.l, args.config)
     ref_core = get_plugin(args.reference_device, args.l, args.reference_config)
-    net = get_net(model=args.model, core=core)
-    net_layers, net_inputs, net_outputs = get_model_info(net)
-    ref_net = get_net(model=args.reference_model, core=ref_core)
-    ref_net_layers, ref_net_inputs, ref_net_outputs = get_model_info(ref_net)
+    model = get_model(model_path=args.model, core=core)
+    model_ops, model_inputs, model_outputs = get_model_info(model)
+    ref_model = get_model(model_path=args.reference_model, core=ref_core)
+    ref_model_ops, _, _ = get_model_info(ref_model)
+    check_inputs_and_default_outputs_are_equal(model, ref_model)
     log.info(f'{args.device} vs {args.reference_device}')
     log.info(f'IR for {args.device} : {args.model}')
     log.info(f'IR for {args.reference_device} : {args.reference_model}')
-    out_layers = get_layers_list(net_layers, net_inputs, net_outputs, args.layers)
-    ref_out_layers = get_layers_list(ref_net_layers, ref_net_inputs, ref_net_outputs, args.layers)
-    print_input_layers(net_inputs)
-    print_output_layers(out_layers)
-    layers_map = manage_user_outputs_with_mapping(mapping=args.mapping, reference_mapping=args.reference_mapping,
-                                                  user_layers=out_layers)
-    inputs = input_processing(model_path=args.model, net_inputs=net_inputs, input_file=args.input,
-                              layers_map=layers_map)
-    ref_inputs = input_processing(model_path=args.reference_model, net_inputs=ref_net_inputs, input_file=args.input,
-                                  layers_map=layers_map)
+    if args.reference_layers:
+        out_ops = get_ops_list(model_ops, model_outputs, args.layers)
+        ref_out_ops = get_ops_list(ref_model_ops, model_outputs, args.reference_layers)
+        if len(out_ops) != len(ref_out_ops):
+            raise Exception("Number of layers to compare against should be equal!")
+    else:
+        ref_out_ops = out_ops = get_ops_list(get_ops_intersection(model_ops, ref_model_ops), model_outputs, args.layers)
+    print_inputs(model_inputs)
+    print_output_ops(get_ops_union(out_ops, ref_out_ops))
+    inputs = input_processing(model_path=args.model, model_inputs=model_inputs, input_file=args.input)
     global_accuracy = []
     global_times, ref_global_times = overall_accuracy_check(model=args.model, ref_model=args.reference_model,
-                                                            out_layers=out_layers, ref_out_layers=ref_out_layers,
-                                                            inputs=inputs, ref_inputs=ref_inputs, core=core,
+                                                            out_ops=out_ops, ref_out_ops=out_ops,
+                                                            inputs=inputs, ref_inputs=inputs, core=core,
                                                             device=args.device, ref_core=ref_core,
                                                             ref_device=args.reference_device, layers=args.layers,
                                                             num_of_iterations=args.num_of_iterations)
-    for out_layer in layers_map:
-        ref_out_layer = layers_map[out_layer]
-        if out_layer == ref_out_layer:
-            log.info(f'Layer {out_layer} statistics')
+    for op, ref_op in zip(out_ops, ref_out_ops):
+        if op.friendly_name == ref_op.friendly_name:
+            log.info(f'Layer {op.friendly_name} statistics')
         else:
-            log.info(f'Statistics \'{out_layer}\' vs \'{ref_out_layer}\'')
-        net_copy = get_net_copy_with_output(model=args.model, output=out_layer, core=core)
-        ref_net_copy = get_net_copy_with_output(model=args.reference_model, output=ref_out_layer, core=ref_core)
-        results = infer(net=net_copy, core=core, device=args.device, inputs=inputs, output=[out_layer])
-        if out_layer not in results:
-            continue
-        out_blob, pc = results[out_layer]
-        ref_results = infer(net=ref_net_copy, core=ref_core, device=args.reference_device,
-                            inputs=ref_inputs, output=[ref_out_layer])
-        ref_out_blob, ref_pc = ref_results[ref_out_layer]
-        if ref_out_layer not in ref_results:
-            continue
-        a_m = accuracy_metrics(out_blob=out_blob, ref_out_blob=ref_out_blob)
-        performance_metrics(pc=pc, ref_pc=ref_pc)
-        blob_counters(out_blob=out_blob, ref_out_blob=ref_out_blob)
-        global_accuracy = update_global_accuracy_matrics(global_accuracy=global_accuracy, current_accuracy=a_m)
+            if op.get_output_size() != ref_op.get_output_size():
+                log.warning(f"Skipping {op.friendly_name} vs {ref_op.frinedly_name} comparison due to different number of outputs!")
+                continue
+            log.info(f'Layer {op.friendly_name} vs {ref_op.friendly_name} statistics')
+        for i in range(op.get_output_size()):
+            if op.get_output_size() > 1:
+                log.info(f'Port {i}: ')
+            model_copy, new_output = get_model_copy_with_output(model=args.model, output=(op.friendly_name, i), core=core)
+            ref_model_copy, ref_new_output = get_model_copy_with_output(model=args.reference_model, output=(ref_op.friendly_name, i), core=ref_core)
+            out_tensor, pc = infer(model=model_copy, core=core, device=args.device, inputs=inputs, output=new_output)
+            ref_out_tensor, ref_pc = infer(model=ref_model_copy, core=ref_core, device=args.reference_device,
+                                                                    inputs=inputs, output=ref_new_output)
+            a_m = accuracy_metrics(out_tensor, ref_out_tensor)
+            performance_metrics(args.device, pc, args.reference_device, ref_pc)
+            tensor_counters(out_tensor, ref_out_tensor)
+            global_accuracy = update_global_accuracy_matrics(global_accuracy=global_accuracy, current_accuracy=a_m)
     print_all_over_the_net_metrics(global_times=global_times, ref_global_times=ref_global_times,
                                    global_accuracy=global_accuracy)
 
 
 def dump_mode(args):
     core = get_plugin(args.device, args.l, args.config)
-    net = get_net(model=args.model, core=core)
-    func = ng.function_from_cnn(net)
-    ops = func.get_ops()
-    out_layers = get_layers_list(ops, net.input_info, net.outputs, args.layers)
-    inputs = input_processing(args.model, net.input_info, args.input)
-    dump_dict = {}
-    for out_layer in out_layers:
-        log.info(f'Layer {out_layer} processing')
-        net_copy = get_net_copy_with_output(model=args.model, output=out_layer, core=core)
-        results = infer(net=net_copy, core=core, device=args.device, inputs=inputs, output=[out_layer])
-        if out_layer not in results:
-            continue
-        out_blob, pc = results[out_layer]
-        dump_dict[out_layer] = np.array({'blob': out_blob, 'pc': pc})
+    model = get_model(model_path=args.model, core=core)
+    model_ops, model_inputs, model_outputs = get_model_info(model)
+    out_ops = get_ops_list(model_ops, model_outputs, args.layers)
+    inputs = input_processing(args.model, model_inputs, args.input)
+    dump_dict = defaultdict(list)
+    for op in out_ops:
+        for i in range(op.get_output_size()):
+            if op.get_output_size() > 1:
+                log.info(f'Layer {op.friendly_name}, port {i} processing')
+            else:
+                log.info(f'Layer {op.friendly_name} processing')
+            model_copy, new_output = get_model_copy_with_output(model=args.model, output=(op.friendly_name, i), core=core)
+            out_tensor, pc = infer(model=model_copy, core=core, device=args.device, inputs=inputs, output=new_output)
+            dump_dict[op.friendly_name].append(np.array({'tensor': out_tensor, 'pc': perf_counts_to_dump(pc)}))
+    dump_dict["device"] = args.device
     dump_output_file(args.model + '_' + args.device + '_dump.npz', dump_dict)
 
 
 def load_mode(args):
     core = get_plugin(args.device, args.l, args.config)
     log.info(f'IR for {args.device} : {args.model}')
-    log.info(f'Loading blob from {args.load}')
-    net = get_net(model=args.model, core=core)
-    net_layers, net_inputs, net_outputs = get_model_info(net)
-    out_layers = get_layers_list(net_layers, net_inputs, net_outputs, args.layers)
-    print_input_layers(net_inputs)
-    print_output_layers(out_layers)
-    layers_map = manage_user_outputs_with_mapping(mapping=args.mapping, reference_mapping=args.reference_mapping,
-                                                  user_layers=out_layers)
-    inputs = input_processing(args.model, net_inputs, args.input, layers_map)
+    log.info(f'Loading tensors from {args.load}')
+    model = get_model(model_path=args.model, core=core)
+    model_ops, model_inputs, model_outputs = get_model_info(model)
+    out_ops = get_ops_list(model_ops, model_outputs, args.layers)
+    print_inputs(model_inputs)
+    print_output_ops(out_ops)
+    inputs = input_processing(args.model, model_inputs, args.input)
     global_accuracy = []
     loaded = load_dump(args.load)
-    for out_layer in layers_map:
-        ref_out_layer = layers_map[out_layer]
-        if out_layer == ref_out_layer:
-            log.info(f'Layer {out_layer} statistics')
+    for op in out_ops:
+        if op.friendly_name in loaded:
+            log.info(f'Layer {op.friendly_name} statistics')
         else:
-            log.info(f'Statistics \'{out_layer}\' vs \'{ref_out_layer}\'')
-        net_copy = get_net_copy_with_output(model=args.model, output=out_layer, core=core)
-        results = infer(net=net_copy, core=core, device=args.device, inputs=inputs, output=[out_layer])
-        if out_layer not in results:
+            log.info(f'Statistics for layer \'{op.friendly_name}\' was not dumped. Skipping this layer.')
             continue
-        out_blob, pc = results[out_layer]
-        if ref_out_layer not in loaded:
-            continue
-        ref_out_blob = loaded[ref_out_layer]['blob']
-        a_m = accuracy_metrics(out_blob=out_blob, ref_out_blob=ref_out_blob)
-        if 'pc' in loaded[ref_out_layer]:
-            ref_pc = loaded[ref_out_layer]['pc']
-            performance_metrics(pc=pc, ref_pc=ref_pc)
-        blob_counters(out_blob=out_blob, ref_out_blob=ref_out_blob)
-        global_accuracy = update_global_accuracy_matrics(global_accuracy=global_accuracy, current_accuracy=a_m)
+        for i in range(op.get_output_size()):
+            if op.get_output_size() > 1:
+                log.info(f'Port {i}: ')
+            model_copy, new_output = get_model_copy_with_output(model=args.model, output=(op.friendly_name, i), core=core)
+            out_tensor, pc = infer(model=model_copy, core=core, device=args.device, inputs=inputs, output=new_output)
+            ref_out_tensor, ref_pc = loaded[op.friendly_name][i]['tensor'], load_profiling_info(loaded[op.friendly_name][i]['pc'])
+            a_m = accuracy_metrics(out_tensor, ref_out_tensor)
+            performance_metrics(args.device, pc, loaded["device"], ref_pc)
+            tensor_counters(out_tensor, ref_out_tensor)
+            global_accuracy = update_global_accuracy_matrics(global_accuracy=global_accuracy, current_accuracy=a_m)
     print_all_over_the_net_metrics(global_accuracy=global_accuracy)
 
 
@@ -297,7 +301,7 @@ def main():
     set_logger(log.DEBUG)
     args = validate_args(build_parser().parse_args())
 
-    log.info(f'Inference Engine:\n          API version ............ {ie.__version__}', extra={'no_lvl': True})
+    log.info(f'OpenVINO:\n          API version ............ {get_version()}', extra={'no_lvl': True})
     set_verbosity(args.verbosity)
     mode = find_out_cct_mode(args)
     if mode == 1:

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,7 +75,8 @@ bool concat_noop_optimization::match(concatenation_node& node) {
 
 bool concat_noop_optimization::optimize(concatenation_node& node) {
     auto& dep = node.get_dependency(0);
-    dep.merge_output_padding(node.get_output_layout().data_padding);
+    auto outputPadding = node.get_output_layout().data_padding;
+    dep.merge_output_padding(outputPadding);
     prog.extract_and_remove(node);
     // Node has been removed, so no further optimizations.
     return true;
@@ -97,7 +98,7 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
                     auto eltw_in_layout = eltw_in.get_output_layout();
                     auto out_layout = input->get_output_layout();
 
-                    if (!fused_op.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(eltw_in_layout))
+                    if (!program_helpers::needs_onednn_sum_post_op(fused_op.node->as<eltwise>(), eltw_in_layout))
                         continue;
                     if (program_helpers::are_layouts_identical_for_onednn_sum_post_op(eltw_in_layout, out_layout))
                         return false;
@@ -119,10 +120,13 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
     }
 
     // For in place concatenation input layouts and data types must match.
+    // Also, it checks whether data along f-axis is aligned properly for implicit concat.
+    // Otherwise, use explicit concat instead.
     auto output_format = node.get_output_layout().format;
     auto output_datatype = node.get_output_layout().data_type;
     auto concat_axis = node.get_primitive()->axis;
 
+    size_t idx = 0;
     for (auto& input : node.get_dependencies()) {
         if (input->is_type<reshape>())
             // reshapes should be optimized out.
@@ -133,24 +137,25 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
         if (output_format != l.format || output_datatype != l.data_type)
             return false;
 
+        if (l.format.block_sizes().size() > 1)
+            return false;
+
         // TODO: Below condition should be moved to program_node::supports_padding.
-        // This hovewer will need updating the algorithm as it may make cascade adjustment impossible in some cases.
-        // It hovewer would make normal optimizations possible in others, so this is a trade-off to be investigated.
-        if (l.format == format::b_fs_yx_fsv16 && (l.size.feature[0] % 16 != 0 || node.get_primitive()->axis != concatenation::along_f))
-            return false;
+        // This however will need updating the algorithm as it may make cascade adjustment impossible in some cases.
+        // It however would make normal optimizations possible in others, so this is a trade-off to be investigated.
+        if (idx != node.get_dependencies().size() - 1) {
+            if ((l.format == format::b_fs_yx_fsv16 || l.format == format::b_fs_zyx_fsv16) &&
+                (l.size.feature[0] % 16 != 0 || node.get_primitive()->axis != concatenation::along_f))
+                return false;
 
-        if (l.format == format::b_fs_zyx_fsv16 && (l.size.feature[0] % 16 != 0 || node.get_primitive()->axis != concatenation::along_f))
-            return false;
+            if ((l.format == format::b_fs_yx_fsv32 || l.format == format::b_fs_zyx_fsv32) &&
+                (l.size.feature[0] % 32 != 0 || node.get_primitive()->axis != concatenation::along_f))
+                return false;
 
-        if ((l.format == format::b_fs_yx_fsv32 || l.format == format::b_fs_zyx_fsv32) &&
-            (l.size.feature[0] % 32 != 0 || node.get_primitive()->axis != concatenation::along_f))
-            return false;
-
-        if (l.format == format::bs_fs_yx_bsv16_fsv16)
-            return false;
-
-        if (l.format == format::b_fs_yx_fsv4 && (l.size.feature[0] != 8 || node.get_primitive()->axis != concatenation::along_f))
-            return false;
+            if (l.format == format::b_fs_yx_fsv4 && (l.size.feature[0] != 4 || node.get_primitive()->axis != concatenation::along_f))
+                return false;
+        }
+        idx++;
     }
 
     auto lower_padd_in_axis = node.get_output_layout().data_padding.lower_size().raw[concat_axis];
@@ -158,7 +163,7 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
                                   node.get_dependency(0).get_output_layout().data_padding.lower_size().raw[concat_axis]);
 
     // check if concatenation in place can be applied for inputs set
-    size_t idx = 0;
+    idx = 0;
     for (auto input : node.get_dependencies()) {
         // reverted condition - if any of this node's inputs is used by more than one primitive
         // and is not optimized concatenation then do not fuse buffers
@@ -222,7 +227,8 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
     // Select output padding by propagating all required input paddings.
     auto padd = node.get_output_layout().data_padding;
     for (auto input : node.get_dependencies()) {
-        padd = padding::max(padd, input->get_output_layout().data_padding);
+        auto inputPadding = input->get_output_layout().data_padding;
+        padd = padding::max(padd, inputPadding);
     }
 
     auto lower_padd = padd.lower_size();
@@ -269,6 +275,10 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
 
 }  // namespace
 
+static bool can_reshape_be_optimized(const reshape_node& node) {
+    return node.is_in_place() && node.get_fused_activations_funcs().empty();
+}
+
 // ToDo remove friendship relation from  program_node
 void prepare_buffer_fusing::run(program& p) {
     bool is_debug = p.get_options().get<build_option_type::debug>()->enabled();
@@ -310,6 +320,11 @@ void prepare_buffer_fusing::run(program& p) {
                     return;
                 if (user->is_type<loop>() || user->is_type<non_max_suppression>())
                     return;
+                if (user->is_type<reshape>()) {
+                    auto& reshape_node = user->as<reshape>();
+                    if (can_reshape_be_optimized(reshape_node))
+                        return;
+                }
             }
 
             if (node.get_dependencies().size() == 1 && node.get_users().size() > 0) {
@@ -387,10 +402,7 @@ void prepare_buffer_fusing::run(program& p) {
             continue;
         program_helpers::do_for_types<reshape>(*node, [&p](reshape_node& node) {
             node.get_output_layout();
-            if (node.is_in_place() && node.get_fused_activations_funcs().empty())
-                node.can_be_optimized(true);
-            else
-                node.can_be_optimized(false);
+            node.can_be_optimized(can_reshape_be_optimized(node));
         });
     }
 }

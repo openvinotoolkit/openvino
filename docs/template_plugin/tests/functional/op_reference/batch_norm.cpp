@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,12 +42,12 @@ struct BatchNormParams {
     Shape m_expected_shape;
     element::Type m_input_type;
     element::Type m_expected_type;
-    runtime::Tensor m_input_value;
-    runtime::Tensor m_expected_value;
-    runtime::Tensor m_gamma;
-    runtime::Tensor m_beta;
-    runtime::Tensor m_mean;
-    runtime::Tensor m_variance;
+    ov::Tensor m_input_value;
+    ov::Tensor m_expected_value;
+    ov::Tensor m_gamma;
+    ov::Tensor m_beta;
+    ov::Tensor m_mean;
+    ov::Tensor m_variance;
     float m_epsilon;
 };
 

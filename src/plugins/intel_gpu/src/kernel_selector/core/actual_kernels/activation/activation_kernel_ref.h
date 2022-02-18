@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,9 @@
 namespace kernel_selector {
 class ActivationKernelRef : public ActivationKernelBase {
 public:
+    using Parent = ActivationKernelBase;
+    using Parent::Parent;
+
     ActivationKernelRef() : ActivationKernelBase("activation_ref") {}
     virtual ~ActivationKernelRef() {}
 
@@ -23,5 +26,7 @@ public:
                 FusedOpType::SCALE,
                 FusedOpType::ACTIVATION};
     }
+
+    bool Validate(const Params& p, const optional_params& o) const override;
 };
 }  // namespace kernel_selector

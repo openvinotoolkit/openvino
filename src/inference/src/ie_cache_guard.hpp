@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -82,7 +82,6 @@ private:
 class CacheGuard {
 public:
     CacheGuard() = default;
-    ~CacheGuard();
 
     /**
      * @brief Gets a lock for a specific cache entry identified by it's hash value

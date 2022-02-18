@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,14 +28,12 @@ namespace {
                                     ::testing::ValuesIn(inconfigs)),
                             IncorrectConfigTests::getTestCaseName);
 
-
     const std::vector<std::map<std::string, std::string>> Inconfigs = {
-            {{"KEY_KEY_GNA_DEVICE_MODE", InferenceEngine::GNAConfigParams::GNA_SW}},
-            {{"GNA_DEVICE_MODE_XYZ", InferenceEngine::GNAConfigParams::GNA_SW}},
-            {{"KEY_GNA_DEVICE_MODE_XYZ", InferenceEngine::GNAConfigParams::GNA_SW}},
-            {{"KEY_GNA_SCALE_FACTOR_1", InferenceEngine::GNAConfigParams::GNA_SW}}
+            {{"KEY_KEY_GNA_DEVICE_MODE", InferenceEngine::GNAConfigParams::GNA_SW_EXACT}},
+            {{"GNA_DEVICE_MODE_XYZ", InferenceEngine::GNAConfigParams::GNA_SW_EXACT}},
+            {{"KEY_GNA_DEVICE_MODE_XYZ", InferenceEngine::GNAConfigParams::GNA_SW_EXACT}},
+            {{"KEY_GNA_SCALE_FACTOR_1", InferenceEngine::GNAConfigParams::GNA_SW_EXACT}}
     };
-
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigAPITests,
                             ::testing::Combine(
