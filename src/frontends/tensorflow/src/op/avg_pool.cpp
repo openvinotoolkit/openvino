@@ -24,7 +24,7 @@ OutputVector translate_avg_pool_op(const NodeContext& node) {
     TENSORFLOW_OP_VALIDATION(node,
                              tf_data_format == "NHWC" || tf_data_format == "NCHW" || tf_data_format == "NDHWC"
                              || tf_data_format == "NCDHW",
-                             "AvgPool data format is neither NHWC nor NCHW");
+                             "AvgPool data format is neither NHWC (NDHWC) nor NCHW (NCDHW)");
 
     bool is_nhwc = (tf_data_format == "NHWC") || (tf_data_format == "NDHWC");
 
