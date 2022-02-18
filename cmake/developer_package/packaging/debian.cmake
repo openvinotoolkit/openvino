@@ -9,6 +9,7 @@
 #
 macro(ov_debian_cpack_set_dirs)
     # override default locations for Debian
+    set(OV_CPACK_TOOLSDIR ${CMAKE_INSTALL_BINDIR}) # only C++ tools are here
     set(OV_CPACK_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
     set(OV_CPACK_LIBRARYDIR ${CMAKE_INSTALL_LIBDIR})
     set(OV_CPACK_RUNTIMEDIR ${CMAKE_INSTALL_LIBDIR})
@@ -23,7 +24,6 @@ macro(ov_debian_cpack_set_dirs)
     set(OV_CPACK_PYTHONDIR ${OV_CPACK_PLUGINSDIR})
     set(OV_CPACK_SHAREDIR ${CMAKE_INSTALL_DATADIR}/openvino${OpenVINO_VERSION}) # internal
     set(OV_CPACK_SAMPLESDIR ${OV_CPACK_SHAREDIR}/samples)
-    set(OV_CPACK_TOOLSDIR bin) # only C++ tools are here
     set(OV_CPACK_DEVREQDIR ${OV_CPACK_SHAREDIR})
 
     set(OV_CPACK_WHEELSDIR .) # TODO
