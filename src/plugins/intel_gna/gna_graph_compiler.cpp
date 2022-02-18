@@ -503,19 +503,28 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
     } else {
         auto paddedWeights = num_filter_coefficients * num_filters;
         auto paddedWeightsSize = paddedWeights * convolution.precision.size();
-        auto initializer = [=](void* data, std::size_t size) {
+        std::string layerName = (layer)->type + " layer : \"" + (layer)->name + "\" ";
+        const auto cpSize = convolution.precision.size();
+
+        auto initializer = [paddedWeightsSize,
+                            layerName,
+                            num_conv_kernel_padding,
+                            cpSize,
+                            transposedWeights,
+                            num_filters,
+                            single_conv_kernel_size](void* data, std::size_t size) {
             if (paddedWeightsSize > size) {
-                THROW_GNA_LAYER_EXCEPTION(&convolution) << "size is less than paddedWeightsSize";
+                THROW_GNA_EXCEPTION << layerName << "size is less than paddedWeightsSize";
             }
             std::size_t offset = 0;
-            std::vector<uint8_t> padding_zeros(num_conv_kernel_padding * convolution.precision.size(), 0);
+            std::vector<uint8_t> padding_zeros(num_conv_kernel_padding * cpSize, 0);
             uint8_t* dstPtr = reinterpret_cast<uint8_t*>(data);
             for (int i = 0; i < num_filters; i++) {
                 ie_memcpy(dstPtr + offset,
                     size - offset,
-                    transposedWeights.data() + single_conv_kernel_size * i * convolution.precision.size(),
-                    single_conv_kernel_size * convolution.precision.size());
-                offset += single_conv_kernel_size * convolution.precision.size();
+                    transposedWeights.data() + single_conv_kernel_size * i * cpSize,
+                    single_conv_kernel_size * cpSize);
+                offset += single_conv_kernel_size * cpSize;
                 ie_memcpy(dstPtr + offset,
                     size - offset,
                     &padding_zeros[0],
@@ -1514,6 +1523,9 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
         transposedCols = connectionInfo.permute->input()->getDims()[1];
     }
 
+    auto wpSize = weightable.precision.size();
+    const auto weightsBuffer = weightable._weights->cbuffer().as<const uint8_t*>();
+
     if (num_padding == 0) {
         if (!transpose) {
             gnamem->readonly().push_ptr(layer, ptr_weights,
@@ -1521,22 +1533,23 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
                 weightable._weights->byteSize(),
                 64);
         } else {
-            gnamem->readonly().push_initializer(layer, ptr_weights, weightable._weights->byteSize(), [=](void* data, size_t size) {
+            gnamem->readonly().push_initializer(layer, ptr_weights, weightable._weights->byteSize(),
+                [isDiag, num_rows_in, num_rows_out, num_padding, transposedRows, transposedCols, weightsBuffer, wpSize](void* data, size_t size) {
                 for (uint32_t k = 0; k < (isDiag ? 1 : num_rows_out); k++) {
-                    auto rowOffset = k * transposedRows * transposedCols * weightable.precision.size();
-                    auto cbuffer = weightable._weights->cbuffer().as<const uint8_t*>() + rowOffset;
+                    auto rowOffset = k * transposedRows * transposedCols * wpSize;
+                    auto cbuffer = weightsBuffer + rowOffset;
                     auto u8Data = reinterpret_cast<uint8_t*>(data) + rowOffset;
                     for (int j = 0; j < transposedCols; j++) {
                         for (int i = 0; i < transposedRows; i++) {
-                            auto offsetWrite = (transposedRows * j + i) * weightable.precision.size();
-                            auto offsetRead = (i * transposedCols + j) * weightable.precision.size();
+                            auto offsetWrite = (transposedRows * j + i) * wpSize;
+                            auto offsetRead = (i * transposedCols + j) * wpSize;
                             if (size < rowOffset + offsetWrite) {
                                 // zero out dest if error detected
                                 memset(data, 0, size);
                                 THROW_GNA_EXCEPTION << "Size error";
                             }
                             ie_memcpy(u8Data + offsetWrite, size - rowOffset - offsetWrite,
-                                cbuffer + offsetRead, weightable.precision.size());
+                                cbuffer + offsetRead, wpSize);
                         }
                     }
                 }
@@ -1550,12 +1563,13 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
         auto paddedWeights = isDiag ? elementsIn : elementsIn * num_rows_out;
         auto paddedWeightsSize = paddedWeights * weightable.precision.size();
 
-        gnamem->readonly().push_initializer(layer, ptr_weights, paddedWeightsSize, [=](void* data, size_t size) {
+        gnamem->readonly().push_initializer(layer, ptr_weights, paddedWeightsSize,
+            [isDiag, num_rows_in, num_rows_out, num_padding, weightsBuffer, wpSize](void* data, size_t size) {
             for (uint32_t i = 0; i < (isDiag ? 1 : num_rows_out); i++) {
                 ie_memcpy(data, size,
-                    weightable._weights->cbuffer().as<const uint8_t*>() + num_rows_in * i * weightable.precision.size(),
-                    num_rows_in * weightable.precision.size());
-                data = reinterpret_cast<uint8_t*>(data) + (num_rows_in + num_padding) * weightable.precision.size();
+                    weightsBuffer + num_rows_in * i * wpSize,
+                    num_rows_in * wpSize);
+                data = reinterpret_cast<uint8_t*>(data) + (num_rows_in + num_padding) * wpSize;
             }
             }, 64);
     }
