@@ -24,7 +24,10 @@ static const char input_message[] =
     " of files for each input (except cases with single file for any input):"
     "\"input1:1.jpg input2:1.bin\", \"input1:1.bin,2.bin input2:3.bin input3:4.bin,5.bin \"."
     " Also you can pass specific keys for inputs: \"random\" - for fillling input with random data,"
-    " \"image_info\" - for filling input with image size.";
+    " \"image_info\" - for filling input with image size.\n"
+    "                              You should specify either one files set to be used for all inputs (without "
+    "providing "
+    "input names) or separate files sets for every input of model (providing inputs names).";
 
 /// @brief message for model argument
 static const char model_message[] =
@@ -329,7 +332,7 @@ DEFINE_string(data_shape, "", data_shape_message);
 DEFINE_string(layout, "", layout_message);
 
 /// @brief Define flag for inference precision
-DEFINE_string(infer_precision, "f32", inference_precision_message);
+DEFINE_string(infer_precision, "", inference_precision_message);
 
 /// @brief Specify precision for all input layers of the network
 DEFINE_string(ip, "", inputs_precision_message);

@@ -29,8 +29,8 @@ class Mask : public std::vector<std::set<uint64_t>>,
              public std::enable_shared_from_this<Mask> {
 public:
     static const ::ov::DiscreteTypeInfo& get_type_info_static() {
-        static const ::ov::DiscreteTypeInfo type_info{"Mask", 0, "0"};
-        return type_info;
+        static const ::ov::DiscreteTypeInfo type_info_static{"Mask", 0, "0"};
+        return type_info_static;
     }
 
     using Ptr = std::shared_ptr<Mask>;

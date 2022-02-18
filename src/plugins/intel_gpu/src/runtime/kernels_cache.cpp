@@ -148,7 +148,7 @@ bool kernels_cache::is_cache_enabled() const {
 }
 
 size_t kernels_cache::get_max_kernels_per_batch() const {
-    return 10;
+    return 9;
 }
 
 
