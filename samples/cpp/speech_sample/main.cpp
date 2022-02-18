@@ -502,7 +502,8 @@ int main(int argc, char* argv[]) {
                                     ov::Tensor outputBlob =
                                         inferRequest.inferRequest.get_tensor(executableNet.output(outputName));
 
-                                    if (numScoresPerOutput[next_output] == numFrameElementsReference[next_output]) {
+                                    if (numScoresPerOutput[next_output] / numFrameElementsReference[next_output] ==
+                                        batchSize) {
                                         compare_scores(
                                             outputBlob.data<float>(),
                                             &vectorPtrReferenceScores[next_output]
@@ -621,7 +622,7 @@ int main(int argc, char* argv[]) {
                     std::string outputName =
                         (outputs.size() == 0) ? executableNet.output(0).get_any_name() : output_names[next_output];
                     std::cout << "Output name: " << outputName << std::endl;
-                    std::cout << "Number scores per frame: " << numScoresPerOutput[next_output] << std::endl
+                    std::cout << "Number scores per frame: " << numScoresPerOutput[next_output] / batchSize << std::endl
                               << std::endl;
                     print_reference_compare_results(vectorTotalError[next_output], numFrames, std::cout);
                 }
