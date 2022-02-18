@@ -6,7 +6,7 @@
 #include "utils/general_utils.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 
 bool Shape::isCompatible(const VectorDims &vecDims) const {
     if (getRank() != vecDims.size()) {

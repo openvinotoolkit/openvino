@@ -5,9 +5,9 @@
 #include <utility>
 #include <gtest/gtest.h>
 
-#include "mkldnn_memory.h"
+#include <cpu_memory.h>
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 TEST(MemoryTest, SedDataCheck) {
