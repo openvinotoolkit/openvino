@@ -407,6 +407,8 @@ private:
     Vmm vmm_d_weights = Vmm(12);
     Vmm vmm_d_bias = Vmm(13);
     Vmm vmm_zero = Vmm(15);
+    Vmm vmm_mask = Vmm(5);
+    Xmm xmm_mask = Xmm(8);
 
     std::shared_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
 
@@ -752,6 +754,9 @@ private:
                 if (isa == x64::avx512_common) {
                     vpmovusdb(op, vmm_dst);
                 } else {
+                    uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
+                    uni_vpsrld(vmm_mask, vmm_mask, 24);
+                    uni_vpand(vmm_dst, vmm_dst, vmm_mask);
                     uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
                     if (isa != x64::sse41)
                         vpermq(ymm_dst, ymm_dst, 0x08);
@@ -807,6 +812,9 @@ private:
                 mov(op, reg_tmp_8);
                 break;
             case Precision::U8:
+                uni_vpcmpeqd(xmm_mask, xmm_mask, xmm_mask);
+                uni_vpsrld(xmm_mask, xmm_mask, 24);
+                uni_vpand(xmm_dst, xmm_dst, xmm_mask);
                 uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
                 movq(reg_tmp_64, xmm_dst);

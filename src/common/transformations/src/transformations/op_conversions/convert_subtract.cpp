@@ -32,6 +32,10 @@ ngraph::pass::ConvertSubtract::ConvertSubtract() {
             return false;
         }
 
+        if (sub->input(0).get_element_type() == element::u8) {
+            return false;
+        }
+
         if (sub->input(0).get_element_type() == sub->input(1).get_element_type()) {
             const auto subChildren = sub->output(0).get_target_inputs();
             if (subChildren.size() == 1ul) {
