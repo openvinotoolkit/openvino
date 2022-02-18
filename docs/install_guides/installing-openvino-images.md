@@ -1,4 +1,4 @@
-# Install From Images and Repositories {#openvino_docs_install_guides_installing_openvino_images}
+# Install From Images and Repositories 
 
 You may install Intel® Distribution of OpenVINO™ toolkit from images and repositories using the **Install OpenVINO™** button above or directly from the [Get the Intel® Distribution of OpenVINO™ Toolkit](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit/download.html) page. Use the documentation below if you need additional support: 
 
