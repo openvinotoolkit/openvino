@@ -20,12 +20,13 @@ OutputVector translate_unpack_op(const NodeContext& node) {
 
     auto axis_const = make_shared<Constant>(element::i64, Shape{}, axis);
     auto split = make_shared<Split>(input, axis_const, num);
-    set_node_name(node.get_name(), split);
     OutputVector res;
-    int i = 0;
+    int idx = 0;
     for (auto out : split->outputs()) {
         auto squeezed_res = make_shared<Squeeze>(out, axis_const);
-        set_node_name(node.get_name() + "/squeeze_" + to_string(i++), squeezed_res);
+        squeezed_res->set_friendly_name(node.get_name() + "/squeeze_" + to_string(idx));
+        set_out_name(node.get_name() + ":" + std::to_string(idx), squeezed_res->output(0));
+        ++idx;
         res.push_back(squeezed_res);
     }
     return res;
