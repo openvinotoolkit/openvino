@@ -49,8 +49,7 @@ public:
         const InferenceEngine::SoExecutableNetworkInternal& networkForDevice,
         const InferenceEngine::SoExecutableNetworkInternal& networkForDeviceWithoutBatch,
         const DeviceInformation& networkDevices,
-        const std::unordered_map<std::string, InferenceEngine::Parameter>& config,
-        const bool needPerfCounters = false);
+        const std::unordered_map<std::string, InferenceEngine::Parameter>& config);
 
     void SetConfig(const std::map<std::string, InferenceEngine::Parameter>& config) override;
     InferenceEngine::Parameter GetConfig(const std::string& name) const override;
@@ -90,14 +89,12 @@ public:
                                    const InferenceEngine::OutputsDataMap& networkOutputs,
                                    AutoBatchExecutableNetwork::WorkerInferRequest& workerRequestPtr,
                                    int batch_id,
-                                   int num_batch,
-                                   bool _needPerfCounters = false);
+                                   int num_batch);
     explicit AutoBatchInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                    const std::vector<std::shared_ptr<const ov::Node>>& outputs,
                                    AutoBatchExecutableNetwork::WorkerInferRequest& workerRequestPtr,
                                    int batch_id,
-                                   int num_batch,
-                                   bool _needPerfCounters = false);
+                                   int num_batch);
 
     // Batch-Device impl specific: sets the data (blobs from the device request to the batched device request)
     void SetBlobsToAnotherRequest(InferenceEngine::SoIInferRequestInternal& req);
@@ -112,7 +109,6 @@ public:
     } _wasBatchedRequestUsed = eExecutionFlavor::NOT_EXECUTED;
 
 protected:
-    bool _needPerfCounters = false;
     void CopyBlobIfNeeded(InferenceEngine::Blob::CPtr src, InferenceEngine::Blob::Ptr dst, bool bInput);
     void ShareBlobsWithBatchRequest();
     size_t _batchId;
@@ -124,7 +120,6 @@ public:
     using Ptr = std::shared_ptr<AutoBatchAsyncInferRequest>;
 
     explicit AutoBatchAsyncInferRequest(const AutoBatchInferRequest::Ptr& inferRequest,
-                                        const bool needPerfCounters,
                                         InferenceEngine::SoIInferRequestInternal& inferRequestWithoutBatch,
                                         const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor);
     void Infer_ThreadUnsafe() override;
