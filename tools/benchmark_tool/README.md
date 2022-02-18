@@ -106,8 +106,10 @@ Options:
                         none). Performance hint allows the OpenVINO device to
                         select the right network-specific settings.
                         'throughput': device performance mode will be set to
-                        THROUGHPUT. 'latency': device performance mode will be
-                        set to LATENCY. 'none': no device performance mode
+                        THROUGHPUT, default value for -api sync.
+                        'latency': device performance mode will be
+                        set to LATENCY, default value for -api async.
+                        'none': no device performance mode
                         will be set. Using explicit 'nstreams' or other
                         device-specific options, please set hint to 'none'
   -api {sync,async}, --api_type {sync,async}
