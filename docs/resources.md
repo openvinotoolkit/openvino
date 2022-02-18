@@ -10,7 +10,7 @@
    
    Release Notes <https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html>
    openvino_docs_IE_DG_supported_plugins_Supported_Devices
-   openvino_docs_IE_DG_Glossary
+   openvino_docs_OV_Glossary
    openvino_docs_Legal_Information
 
 
@@ -21,7 +21,6 @@
     
    openvino_docs_ops_opset
    openvino_docs_ops_broadcast_rules
-   openvino_docs_operations_specifications
 
 
 .. toctree::
@@ -47,8 +46,6 @@ This section includes a variety of reference information in three broad categori
 [Available Operation Sets](ops/opset.md) is a list of supported operations and explanation of supported capabilities.
 
 [Broadcast Rules for Elementwise Operations](ops/broadcast_rules.md) explains the rules used for to support an arbitrary number of dimensions in neural nets.
-
-[Operation Specifications](OV_Runtime_UG/Operations_specifications.md) is a detailed reference of supported operations.
 
 ### Case Studies
 Links to [articles](https://www.intel.com/openvino-success-stories) about real-world examples of OpenVINO™ usage.
