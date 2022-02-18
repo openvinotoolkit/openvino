@@ -32,7 +32,7 @@ Following the OpenVINO™ convention of labeling devices, the Multi-Device plugi
 | "MULTI_DEVICE_PRIORITIES" | comma-separated device names with no spaces | N/A | Prioritized list of devices |
 
 You can set the configuration directly as a string, or use the metric key `MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES from the `multi/multi_device_config.hpp` file, which defines the same string.
- 
+
 Basically, there are three ways to specify the devices to be use by the "MULTI":
 
 @snippet snippets/MULTI0.cpp part0

@@ -29,7 +29,7 @@ Intermediate blobs between these subgraphs are allocated automatically in the mo
 
 ### Sample Usage
 
-Inference Engine sample programs can use the Heterogeneous plugin used with the `-d` option:
+OpenVINO™ sample programs can use the Heterogeneous plugin used with the `-d` option:
 
 ```sh
 ./hello_classification <path_to_model>/squeezenet1.1.xml <path_to_pictures>/picture.jpg HETERO:GPU,CPU
@@ -40,26 +40,33 @@ where:
 
 You can point more than two devices: `-d HETERO:MYRIAD,GPU,CPU`
 
+### Defining and Configuring the Hetero-Device Plugin
+
+Following the OpenVINO™ convention of labeling devices, the Hetero-Device plugin uses the name "HETERO". Configuration options for the Hetero-Device plugin:
+
+| Parameter name | C++ property | Parameter values | Default | Description |
+| -------------- | ---------------- | ---------------- | --- | --- |
+| "MULTI_DEVICE_PRIORITIES" | `ov::device::priorities` | comma-separated device names with no spaces | N/A | Prioritized list of devices |
 
 ### Annotation of Layers per Device and Default Fallback Policy
 
 Default fallback policy decides which layer goes to which device automatically according to the support in dedicated plugins (GPU, CPU, MYRIAD).
 
-Another way to annotate a network is to set affinity manually using `ngraph::Node::get_rt_info` with key `affinity`:
+Another way to annotate a network is to set affinity manually using `ov::Node::get_rt_info` with key `affinity`:
 
-@snippet snippets/HETERO0.cpp part0
+@snippet snippets/ov_hetero_0.cpp part0
 
 The fallback policy does not work if even one layer has an initialized affinity. The sequence should be to call automating affinity settings and then fix manually.
 
-> **NOTE**: If you set affinity manually, be careful because currently Inference Engine plugins don't support constant (`Constant`->`Result`) and empty (`Parameter`->`Result`) networks. Please avoid such subgraphs when you set affinity manually.
+> **NOTE**: If you set affinity manually, be careful because currently OpenVINO™ plugins don't support constant (`Constant`->`Result`) and empty (`Parameter`->`Result`) networks. Please avoid such subgraphs when you set affinity manually.
 
-@snippet snippets/HETERO1.cpp part1
+@snippet snippets/ov_hetero_1.cpp part1
 
-If you rely on the default affinity distribution, you can avoid calling <code>InferenceEngine::Core::QueryNetwork</code> and just call <code>InferenceEngine::Core::LoadNetwork</code> instead:
+If you rely on the default affinity distribution, you can avoid calling <code>ov::Core::query_model</code> and just call <code>ov::Core::compile_model</code> instead:
 
-@snippet snippets/HETERO2.cpp part2
+@snippet snippets/ov_hetero_2.cpp part2
 
-> **NOTE**: `InferenceEngine::Core::QueryNetwork` does not depend on affinities set by a user. Instead, it queries for layer support based on device capabilities.
+> **NOTE**: `ov::Core::query_model` does not depend on affinities set by a user. Instead, it queries for layer support based on device capabilities.
 
 ### Handling Difficult Topologies
 
@@ -76,14 +83,13 @@ Precision for inference in the heterogeneous plugin is defined by:
 For example, if you want to execute GPU with CPU fallback with FP16 on GPU, you need to use only FP16 IR.
 
 ### Analyzing Performance Heterogeneous Execution
-After enabling the <code>KEY_HETERO_DUMP_GRAPH_DOT</code> config key (shown in code snippet below), you can dump GraphViz* `.dot` files with annotations of devices per layer.
+After enabling the <code>OPENVINO_HETERO_VISUALIZE</code> environment variable, you can dump GraphViz* `.dot` files with annotations of devices per layer.
 
 The Heterogeneous plugin can generate two files:
 
-* `hetero_affinity_<network name>.dot` - annotation of affinities per layer. This file is written to the disk only if default fallback policy was executed
-* `hetero_subgraphs_<network name>.dot` - annotation of affinities per graph. This file is written to the disk during execution of `ICNNNetwork::LoadNetwork()` for the Heterogeneous plugin
+* `hetero_affinity_<network name>.dot` - annotation of affinities per layer.
+* `hetero_subgraphs_<network name>.dot` - annotation of affinities per graph.
 
-@snippet snippets/HETERO3.cpp part3
 
 You can use the GraphViz* utility or a file converter to view the images. On the Ubuntu* operating system, you can use xdot:
 
@@ -170,7 +176,7 @@ for node in ng_func.get_ordered_ops():
 
 The fallback policy does not work if even one layer has an initialized affinity. The sequence should be calling the default affinity settings and then setting the layers manually.
 
-> **NOTE**: If you set affinity manually, be aware that currently Inference Engine plugins do not support constant (*Constant -> Result*) and empty (*Parameter -> Result*) networks. Please avoid these subgraphs when you set affinity manually.
+> **NOTE**: If you set affinity manually, be aware that currently OpenVINO™ plugins do not support constant (*Constant -> Result*) and empty (*Parameter -> Result*) networks. Please avoid these subgraphs when you set affinity manually.
 
 ### Example - Manually Setting Layer Affinities
 
