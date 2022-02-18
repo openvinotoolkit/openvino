@@ -18,12 +18,19 @@ typedef std::tuple<
         InferenceEngine::Precision,         // Network precision
         std::vector<size_t>,                // Input shapes
         std::string                        // Device name
+> shapeOfParamsCommon;
+
+typedef std::tuple<
+        InferenceEngine::Precision,         // Network precision
+        InferenceEngine::Precision,          // Output precision
+        std::vector<size_t>,                // Input shapes
+        std::string                        // Device name
 > shapeOfParams;
 
 class ShapeOfLayerTest : public testing::WithParamInterface<shapeOfParams>,
                          virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<shapeOfParams>& obj);
+    static std::string getTestCaseName(testing::TestParamInfo<ParamType> obj);
 
 protected:
     void SetUp() override;
