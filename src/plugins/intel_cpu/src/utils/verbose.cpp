@@ -4,7 +4,7 @@
 #ifdef CPU_DEBUG_CAPS
 
 #include "verbose.h"
-#include "mkldnn_node.h"
+#include <node.h>
 #include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 
@@ -17,7 +17,8 @@
 #include <sstream>
 #include <iostream>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 bool Verbose::shouldBePrinted() const {
     if (lvl < 1)
@@ -168,5 +169,8 @@ void Verbose::printDuration() {
 void Verbose::flush() const {
     std::cout << stream.rdbuf() << "\n";
 }
-} // namespace MKLDNNPlugin
+
+}   // namespace intel_cpu
+}   // namespace ov
+
 #endif // CPU_DEBUG_CAPS

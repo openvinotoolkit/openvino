@@ -628,10 +628,11 @@ constexpr static const auto EXPORT_IMPORT = "EXPORT_IMPORT";  //!< Device suppor
 }  // namespace capability
 }  // namespace device
 
+namespace streams {
 /**
  * @brief Class to represent number of streams in streams executor
  */
-struct NumStreams {
+struct Num {
     using Base = std::tuple<int32_t>;  //!< NumStreams is representable as int32_t
 
     /**
@@ -642,9 +643,9 @@ struct NumStreams {
         NUMA = -2,  //!< Creates as many streams as needed to accommodate NUMA and avoid associated penalties
     };
 
-    NumStreams() : num{AUTO} {};
+    constexpr Num() : num{AUTO} {};
 
-    NumStreams(const int32_t num_) : num{num_} {}
+    constexpr Num(const int32_t num_) : num{num_} {}
 
     operator int32_t() {
         return num;
@@ -657,28 +658,37 @@ struct NumStreams {
     int32_t num = 0;
 };
 
+/**
+ * @brief The number of executor logical partitions
+ */
+static constexpr Property<Num, PropertyMutability::RW> num{"NUM_STREAMS"};
+
+static constexpr Num AUTO{Num::AUTO};  //!< Creates bare minimum of streams to improve the performance
+static constexpr Num NUMA{
+    Num::NUMA};  //!< Creates as many streams as needed to accommodate NUMA and avoid associated penalties
+
 /** @cond INTERNAL */
-inline std::ostream& operator<<(std::ostream& os, const NumStreams& num_streams) {
-    switch (num_streams.num) {
-    case NumStreams::AUTO:
+inline std::ostream& operator<<(std::ostream& os, const Num& num) {
+    switch (num.num) {
+    case Num::AUTO:
         return os << "AUTO";
-    case NumStreams::NUMA:
+    case Num::NUMA:
         return os << "NUMA";
     default:
-        return os << num_streams.num;
+        return os << num.num;
     }
 }
 
-inline std::istream& operator>>(std::istream& is, NumStreams& num_streams) {
+inline std::istream& operator>>(std::istream& is, Num& num) {
     std::string str;
     is >> str;
     if (str == "AUTO") {
-        num_streams = {NumStreams::AUTO};
+        num = AUTO;
     } else if (str == "NUMA") {
-        num_streams = {NumStreams::NUMA};
+        num = NUMA;
     } else {
         try {
-            num_streams = {std::stoi(str)};
+            num = {std::stoi(str)};
         } catch (const std::exception& e) {
             throw ov::Exception{std::string{"Could not read number of streams from str: "} + str + "; " + e.what()};
         }
@@ -686,11 +696,17 @@ inline std::istream& operator>>(std::istream& is, NumStreams& num_streams) {
     return is;
 }
 /** @endcond */
+}  // namespace streams
+
+/**
+ * @brief Class to represent number of streams in streams executor
+ */
+using NumStreams = streams::Num;
 
 /**
  * @brief The number of executor logical partitions
  */
-static constexpr Property<NumStreams, PropertyMutability::RW> num_streams{"NUM_STREAMS"};
+static constexpr Property<streams::Num, PropertyMutability::RW> num_streams{"NUM_STREAMS"};
 
 /**
  * @brief Maximum number of threads that can be used for inference tasks
