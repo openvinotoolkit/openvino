@@ -180,7 +180,7 @@ docker run -it --rm --privileged -v /dev:/dev --network=host <image_name>
 
 ### Running the Image on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
 
-> **NOTE**: To run inferences on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, make sure that you have <a href="set-up-hddldaemon">configured the Docker image</a> first.
+> **NOTE**: To run inferences on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, make sure that you have <a href="#set-up-hddldaemon">configured the Docker image</a> first.
 
 Use the following command:
 ```sh
