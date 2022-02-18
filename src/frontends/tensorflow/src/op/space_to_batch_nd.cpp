@@ -39,9 +39,9 @@ OutputVector translate_batch_nd_and_space_nd_op(const NodeContext& node) {
 
     // TODO: support dynamic shape
     TENSORFLOW_OP_VALIDATION(node,
-                             block_shape_pshape.is_static(),
-                             "Dynamic shape for block_shape input is not supported.");
-    auto M = static_cast<int64_t>(block_shape_pshape.to_shape()[0]);
+                             block_shape_pshape[0].is_static(),
+                             "First dimension of block_shape input should be static.");
+    auto M = static_cast<int64_t>(block_shape_pshape[0].get_length());
 
     auto padded_crops =
         make_shared<Pad>(crops,
