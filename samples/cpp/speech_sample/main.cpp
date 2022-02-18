@@ -223,9 +223,9 @@ int main(int argc, char* argv[]) {
         }
         gnaPluginConfig[ov::hint::inference_precision.name()] = (FLAGS_qb == 8) ? ov::element::i8 : ov::element::i16;
         auto parse_target = [&](const std::string& target) -> ov::intel_gna::HWGeneration {
-            return (target == "GNA_TARGET_2_0")   ? ov::intel_gna::HWGeneration::GNA_2_0
-                   : (target == "GNA_TARGET_3_0") ? ov::intel_gna::HWGeneration::GNA_3_0
-                                                  : ov::intel_gna::HWGeneration::UNDEFINED;
+            return (target == "GNA_TARGET_2_0") ? ov::intel_gna::HWGeneration::GNA_2_0
+                                                : (target == "GNA_TARGET_3_0") ? ov::intel_gna::HWGeneration::GNA_3_0
+                                                                               : ov::intel_gna::HWGeneration::UNDEFINED;
         };
         gnaPluginConfig[ov::intel_gna::execution_target.name()] = parse_target(FLAGS_exec_target);
         gnaPluginConfig[ov::intel_gna::compile_target.name()] = parse_target(FLAGS_compile_target);
