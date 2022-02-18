@@ -110,7 +110,7 @@ RUN yum update -y && yum install -y https://dl.fedoraproject.org/pub/epel/epel-r
 
 To use the Docker container for inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, do the following steps:
 
-1. Set up the environment on the host machine to be used for running Docker*. It is required to execute hddldaemon, which is responsible for communication between the HDDL plugin and the board. To learn how to set up the environment (the OpenVINO package or HDDL package must be pre-installed), see [Configuration guide for HDDL device](https://github.com/openvinotoolkit/docker_ci/blob/master/install_guide_vpu_hddl.md) or [Configurations for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs on Linux](configurations-for-vpu-linux.md).
+1. Set up the environment on the host machine to be used for running Docker. It is required to execute hddldaemon, which is responsible for communication between the HDDL plugin and the board. To learn how to set up the environment (the OpenVINO package or HDDL package must be pre-installed), see [Configuration guide for HDDL device](https://github.com/openvinotoolkit/docker_ci/blob/master/install_guide_vpu_hddl.md) or [Configurations for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs on Linux](configurations-for-vpu-linux.md).
 2. Run `hddldaemon` on the host in a separate terminal session using the following command:
     ```sh
     $HDDL_INSTALL_DIR/hddldaemon
@@ -183,6 +183,11 @@ docker run -it --rm --privileged -v /dev:/dev --network=host <image_name>
 Use the following command:
 ```sh
 docker run -it --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp <image_name>
+```
+
+If your application runs inference of a network with a big size (>4MB) of input/output, the HDDL plugin will use shared memory. In this case, you must mount `/dev/shm` as volume:
+```sh
+docker run -it --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp -v /dev/shm:/dev/shm <image_name>
 ```
 
 Note the following things: 
