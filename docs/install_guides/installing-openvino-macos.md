@@ -90,7 +90,7 @@ The environment variables are set. Continue to the next section if you want to d
 
 ## <a name="model-optimizer"></a>Step 3 (Optional): Download additional components
 
-> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. The OpenVINO™ Development Tools can only be installed via PyPI now. See [Install OpenVINO™ Development Tools](@ref installing_model_dev_tools) for detailed steps. 
+> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. The OpenVINO™ Development Tools can only be installed via PyPI now. See [Install OpenVINO™ Development Tools](@ref installing-model-dev-tools) for detailed steps. 
 
 @sphinxdirective
 

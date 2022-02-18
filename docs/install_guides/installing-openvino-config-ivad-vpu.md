@@ -42,9 +42,7 @@ Now the dependencies are installed and you are ready to use the Intel® Vision A
 
 ### Optional Steps
 
-* For advanced configuration steps for your **IEI Mustang-V100-MX8-R10** accelerator, see [Configurations for IEI Mustang-V100-MX8-R10 card](movidius-setup-guide.md). **IEI Mustang-V100-MX8-R11** accelerator doesn't require any additional steps. 
-
-* After you've configured your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, see [Intel® Movidius™ VPUs Programming Guide for Use with Intel® Distribution of OpenVINO™ toolkit](movidius-programming-guide.md) to learn how to distribute a model across all 8 VPUs to maximize performance.
+For advanced configuration steps for your **IEI Mustang-V100-MX8-R10** accelerator, see [Configurations for IEI Mustang-V100-MX8-R10 card](movidius-setup-guide.md). **IEI Mustang-V100-MX8-R11** accelerator doesn't require any additional steps. 
 
 ## Windows
 
@@ -57,10 +55,6 @@ To enable inference on Intel® Vision Accelerator Design with Intel® Movidius�
 
 You are done installing your device driver and are ready to use your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.
 
-See also: 
+For advanced configuration steps for your IEI Mustang-V100-MX8 accelerator, see [Configurations for IEI Mustang-V100-MX8-R10 card](movidius-setup-guide.md).
 
-* For advanced configuration steps for your IEI Mustang-V100-MX8 accelerator, see [Configurations for IEI Mustang-V100-MX8-R10 card](movidius-setup-guide.md).
-
-* After you've configured your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, see [Intel® Movidius™ VPUs Programming Guide for Use with Intel® Distribution of OpenVINO™ toolkit](movidius-programming-guide.md) to learn how to distribute a model across all 8 VPUs to maximize performance.
-
-After configuration is done, you are ready to go to <a href="#get-started">Start Using the Toolkit</a> section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.
+After configuration is done, you are ready to go to <a href="openvino_docs_install_guides_installing_openvino_windows.html#get-started">Start Using the Toolkit</a> section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.
