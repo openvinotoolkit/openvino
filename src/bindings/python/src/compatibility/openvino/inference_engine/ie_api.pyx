@@ -1740,7 +1740,11 @@ cdef class IENetwork:
             if input not in net_inputs:
                 raise AttributeError(f"Specified '{input}' layer not in network inputs '{net_inputs}'! ")
             for v in shape:
-                c_shape.push_back(v)
+                try:
+                    c_shape.push_back(v)
+                except OverflowError:
+                    raise ValueError(f"Detected dynamic dimension in the shape {shape} of the `{input}` input. Dynamic shapes are supported since OpenVINO Runtime API 2022.1.")
+
             c_input_shapes[input.encode()] = c_shape
         self.impl.reshape(c_input_shapes)
 
