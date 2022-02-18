@@ -177,7 +177,7 @@ The following methods can be overridden in subclasses:
   - `metadata` - information about the data used for inference.
   
   *Return*
-  - list of the output data sorted by output layers order
+  - list of the output data in an order expected by the accuracy metric if any is used
   
 `IEEngine` supports data returned by `DataLoader` in the format:
 ```
