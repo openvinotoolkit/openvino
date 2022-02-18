@@ -236,7 +236,7 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
             break;
         }
     }
-    if (!f32_exist) {
+    if (true) {
         static const precisions_array precisions = {
                 {ngraph::element::bf16, ngraph::element::f32},
                 {ngraph::element::f16,  ngraph::element::f32}
