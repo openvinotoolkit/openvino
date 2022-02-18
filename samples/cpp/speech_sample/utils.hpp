@@ -291,6 +291,7 @@ void print_performance_counters(std::map<std::string, ov::ProfilingInfo> const& 
                                 const uint64_t numberOfFramesOnHw,
                                 std::string FLAGS_d) {
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
+    std::ios::fmtflags fmt(std::cout.flags());
     stream << std::endl << "Performance counts:" << std::endl;
     stream << std::setw(10) << std::right << ""
            << "Counter descriptions";
@@ -307,7 +308,12 @@ void print_performance_counters(std::map<std::string, ov::ProfilingInfo> const& 
     for (const auto& it : utterancePerfMap) {
         std::string const& counter_name = it.first;
         float current_units_us = static_cast<float>(it.second.real_time.count()) / freq;
-        float call_units_us = current_units_us / numberOfFrames;
+        float call_units_us = 0;
+        if (numberOfFrames == 0) {
+            throw std::logic_error("Number off frames = 0,  division by zero.");
+        } else {
+            call_units_us = current_units_us / numberOfFrames;
+        }
         if (FLAGS_d.find("GNA") != std::string::npos) {
             stream << std::setw(30) << std::left << counter_name.substr(4, counter_name.size() - 1);
         } else {
@@ -324,6 +330,7 @@ void print_performance_counters(std::map<std::string, ov::ProfilingInfo> const& 
     stream << "Number of frames delivered to GNA HW: " << numberOfFramesOnHw;
     stream << "/" << numberOfFrames;
     stream << std::endl;
+    std::cout.flags(fmt);
 #endif
 }
 
@@ -487,4 +494,44 @@ std::vector<std::string> convert_str_to_vector(std::string str) {
         blobName.push_back(str.substr(pos_last));
     }
     return blobName;
+}
+
+/**
+ * @brief Parse layout string like "input0[value0],input1[value1]" or "[value]" (applied to all inputs)
+ * @param layout_string input names with layout values
+ * @param input_info reference to vector of inputs
+ * @return map of inputs with layout values
+ */
+std::map<std::string, std::string> parse_input_layouts(const std::string& layout_string,
+                                                       const std::vector<ov::Output<ov::Node>>& input_info) {
+    // Parse parameter string like "input0[value0],input1[value1]" or "[value]" (applied to all
+    // inputs)
+    std::map<std::string, std::string> return_value;
+    std::string search_string = layout_string;
+    auto start_pos = search_string.find_first_of('[');
+    auto input_name = search_string.substr(0, start_pos);
+    while (start_pos != std::string::npos) {
+        auto end_pos = search_string.find_first_of(']');
+        if (end_pos == std::string::npos)
+            break;
+        if (start_pos)
+            input_name = search_string.substr(0, start_pos);
+        auto input_value = search_string.substr(start_pos + 1, end_pos - start_pos - 1);
+        if (!input_name.empty()) {
+            return_value[input_name] = input_value;
+        } else {
+            for (auto& item : input_info) {
+                return_value[item.get_any_name()] = input_value;
+            }
+        }
+        search_string = search_string.substr(end_pos + 1);
+        if (search_string.empty() || (search_string.front() != ',' && search_string.front() != '['))
+            break;
+        if (search_string.front() == ',')
+            search_string = search_string.substr(1);
+        start_pos = search_string.find_first_of('[');
+    }
+    if (!search_string.empty())
+        throw std::logic_error("Can't parse input parameter string: " + layout_string);
+    return return_value;
 }
