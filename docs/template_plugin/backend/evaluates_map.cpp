@@ -1635,6 +1635,7 @@ bool evaluate(const shared_ptr<op::v8::MulticlassNms>& op,
 namespace experimental_prior_grid {
 struct InfoForEDPriorGrid {
     Shape output_shape;
+    bool flatten;
     int64_t grid_h;
     int64_t grid_w;
     float stride_h;
@@ -1676,8 +1677,9 @@ InfoForEDPriorGrid get_info_for_ed_prior_grid_eval(
     const std::vector<std::shared_ptr<HostTensor>>& inputs) {
     InfoForEDPriorGrid result;
 
-    auto attrs = prior_grid->get_attrs();
+    auto &attrs = prior_grid->get_attrs();
 
+    result.flatten = attrs.flatten;
     result.grid_h = attrs.h;
     result.grid_w = attrs.w;
     result.stride_h = attrs.stride_y;
@@ -1703,6 +1705,7 @@ bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronPriorGridGenerator>&
                                                                        inputs[1]->get_shape(),
                                                                        inputs[2]->get_shape(),
                                                                        outputs[0]->get_data_ptr<T>(),
+                                                                       info.flatten,
                                                                        info.grid_h,
                                                                        info.grid_w,
                                                                        info.stride_h,

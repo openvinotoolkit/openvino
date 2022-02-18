@@ -35,13 +35,16 @@ void experimental_detectron_prior_grid_generator(const T* priors,
                                                  const Shape& feature_map_shape,
                                                  const Shape& im_data_shape,
                                                  T* output_rois,
+                                                 bool flatten,
                                                  int64_t grid_h,
                                                  int64_t grid_w,
                                                  float stride_h,
                                                  float stride_w) {
     const int64_t num_priors = static_cast<int64_t>(priors_shape[0]);
-    const int64_t layer_width = grid_w ? grid_w : feature_map_shape[3];
-    const int64_t layer_height = grid_h ? grid_h : feature_map_shape[2];
+    const int64_t output_width = feature_map_shape[3];
+    const int64_t output_height = feature_map_shape[2];
+    const int64_t layer_width = grid_w ? grid_w : output_width;
+    const int64_t layer_height = grid_h ? grid_h : output_height;
     const float step_w = stride_w ? stride_w : static_cast<float>(im_data_shape[3]) / layer_width;
     const float step_h = stride_h ? stride_h : static_cast<float>(im_data_shape[2]) / layer_height;
 
@@ -55,6 +58,8 @@ void experimental_detectron_prior_grid_generator(const T* priors,
                 output_rois += 4;
             }
         }
+        if(!flatten)
+            output_rois += 4 * num_priors * (output_width - layer_width);
     }
 }
 }  // namespace reference
