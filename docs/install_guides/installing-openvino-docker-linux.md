@@ -30,7 +30,7 @@ This guide provides steps on creating a Docker image with Intel® Distribution o
 There are two ways to install OpenVINO with Docker. You can choose either of them according to your needs:
 * Use a prebuilt image. Do the following steps:
   1. <a href="#get-prebuilt-image">Get a prebuilt image from provided sources</a>.
-  2. <a href="#run-image">Run the image on different devices</a>.
+  2. <a href="#run-image">Run the image on different devices</a>. To run inferences on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, <a href="set-up-hddldaemon">configure the Docker image</a> first before you run the image.
   3. <a href="#run-samples">(Optional) Run samples in the Docker image</a>.
 * If you want to customize your image, you can also build a Docker image manually by using the following steps:
   1. <a href="#prepare-dockerfile">Prepare a Dockerfile</a>.
@@ -57,7 +57,7 @@ You can also try our [Tutorials](https://github.com/openvinotoolkit/docker_ci/tr
 
 If you want to run inferences on a CPU or Intel® Neural Compute Stick 2, no extra configuration is needed. Go to <a href="#run-image">Running the image on different devices</a> for the next step.
 
-### Configuring Docker image for GPU
+### Configuring Docker Image for GPU
 
 By default, the distributed Docker image for OpenVINO has the the recommended version of Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL Driver for the operating system installed inside. If you want to build an image with a custom version of OpenCL Runtime included, you need to modify the Dockerfile using the lines below (the 19.41.14441 version is used as an example) and build the image manually:
 
@@ -104,13 +104,13 @@ RUN yum update -y && yum install -y https://dl.fedoraproject.org/pub/epel/epel-r
     yum remove -y epel-release
 ```
 
-### Configuring Docker image for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
+### <a name="set-up-hddldaemon"></a>Configuring Docker Image for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
 
 > **NOTE**: When building the Docker image, create a user in the Dockerfile that has the same UID (User Identifier) and GID (Group Identifier) as the user which that runs hddldaemon on the host, and then run the application in the Docker image with this user. This step is necessary to run the container as a non-root user.
 
 To use the Docker container for inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, do the following steps:
 
-1. Set up the environment on the host machine to be used for running Docker. It is required to execute hddldaemon, which is responsible for communication between the HDDL plugin and the board. To learn how to set up the environment (the OpenVINO package or HDDL package must be pre-installed), see [Configuration guide for HDDL device](https://github.com/openvinotoolkit/docker_ci/blob/master/install_guide_vpu_hddl.md) or [Configurations for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs on Linux](configurations-for-vpu-linux.md).
+1. Set up the environment on the host machine to be used for running Docker. It is required to execute `hddldaemon`, which is responsible for communication between the HDDL plugin and the board. To learn how to set up the environment (the OpenVINO package or HDDL package must be pre-installed), see [Configuration guide for HDDL device](https://github.com/openvinotoolkit/docker_ci/blob/master/install_guide_vpu_hddl.md) or [Configurations for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs on Linux](configurations-for-vpu-linux.md).
 2. Run `hddldaemon` on the host in a separate terminal session using the following command:
     ```sh
     $HDDL_INSTALL_DIR/hddldaemon
@@ -179,6 +179,8 @@ docker run -it --rm --privileged -v /dev:/dev --network=host <image_name>
 
 
 ### Running the Image on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
+
+> **NOTE**: To run inferences on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, make sure that you have <a href="set-up-hddldaemon">configured the Docker image</a> first.
 
 Use the following command:
 ```sh
