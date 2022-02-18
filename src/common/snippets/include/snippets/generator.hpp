@@ -61,8 +61,16 @@ public:
         return jitters.find(type) != jitters.end();
     }
 
+    // TODO: workaround: move to constructor
+    void set_types(const ov::element::Type& load_type, const ov::element::Type& store_type) noexcept {
+        this->load_type = load_type;
+        this->store_type = store_type;
+    }
+
 protected:
     std::map<const ngraph::DiscreteTypeInfo, std::function<std::shared_ptr<Emitter>(std::shared_ptr<ngraph::Node>)>> jitters;
+    ov::element::Type load_type;
+    ov::element::Type store_type;
 };
 
 /**
@@ -116,6 +124,11 @@ public:
      * @return pointer to generated code
      */
     code generate(std::shared_ptr<ov::Model>& m, const void* compile_params = nullptr) const;
+
+    // TODO: workaround: move to constructor
+    void set_types(const ov::element::Type& load_type, const ov::element::Type& store_type) noexcept {
+        target->set_types(load_type, store_type);
+    }
 
 protected:
     std::shared_ptr<TargetMachine> target;

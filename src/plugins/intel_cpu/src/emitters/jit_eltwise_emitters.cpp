@@ -257,13 +257,142 @@ size_t jit_divide_emitter::aux_vecs_count() const {
     return exec_prc_ == Precision::I32 ? 1 : 0;
 }
 
+/// CONVERT ///
+jit_convert_emitter::jit_convert_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
+: jit_emitter(host, host_isa, node, exec_prc) {
+    assert(ov::is_type<ngraph::opset1::Convert>(node));
+
+    input_type = node->input(0).get_source_output().get_element_type();
+    output_type = node->output(0).get_element_type();
+
+    // TODO: should I check precisions here?
+
+    const auto checkPrecision = [](const ov::element::Type& type) -> bool {
+        return (type == ov::element::u8) || (type == ov::element::i8) || (type == ov::element::f32);
+    };
+    if (!checkPrecision(input_type)) {
+        THROW_IE_EXCEPTION << "unexpected input precision: " << input_type;
+    }
+    if (!checkPrecision(output_type)) {
+        THROW_IE_EXCEPTION << "unexpected output precision: " << output_type;
+    }
+
+    if ((((input_type == ov::element::u8) || (output_type == ov::element::i8)) && (output_type != ov::element::f32)) ||
+        ((input_type == ov::element::f32) && ((output_type != ov::element::u8) && (output_type != ov::element::i8)))) {
+        THROW_IE_EXCEPTION << "unexpected precisions: input=" << input_type << ", output=" << output_type;
+    }
+}
+jit_convert_emitter::jit_convert_emitter(jit_generator* host, cpu_isa_t host_isa, Precision exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {
+    // TODO: what I should do here?
+    THROW_IE_EXCEPTION << "unexpected initialization";
+}
+
+size_t jit_convert_emitter::get_inputs_num() const {
+    return 1;
+}
+
+void jit_convert_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                const emitter_context *emit_context) const {
+    if (host_isa_ == cpu::x64::sse41) {
+        emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx2) {
+        emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_common) {
+        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else {
+        assert(!"unsupported isa");
+    }
+}
+
+template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+void jit_convert_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
+    Vmm vmm_src = Vmm(in_vec_idxs[0]);
+    Vmm vmm_dst = Vmm(out_vec_idxs[0]);
+
+    switch (input_type) {
+        case ov::element::f32: {
+            break;
+        }
+        case ov::element::i8: {
+            h->uni_vpmovsxbd(vmm_src, vmm_src);
+            break;
+        }
+        case ov::element::u8: {
+            h->uni_vpmovzxbd(vmm_src, vmm_src);
+            break;
+        }
+        default: {
+            THROW_IE_EXCEPTION << "unexpected input precision: " << input_type;
+        }
+    }
+
+    // TODO: AVX512: use VPMOVDB directly
+
+    switch (output_type) {
+        case ov::element::f32: {
+            h->uni_vcvtdq2ps(vmm_dst, vmm_src);
+            break;
+        }
+        case ov::element::i8:
+        case ov::element::u8: {
+            h->uni_vcvtps2dq(vmm_dst, vmm_src);
+
+            // TODO: AVX512: use more optimial mask to avoid vpshufb
+            // for AVX512: 6 bits
+            // static const int8_t offsets[32] = {
+            //    0,  4,  8,  12, 16, 20, 24, 28,
+            //    -1, -1, -1, -1, -1, -1, -1, -1,
+            //    -1, -1, -1, -1, -1, -1, -1, -1,
+            //    -1, -1, -1, -1, -1, -1, -1, -1};
+
+            // for AVX2: 4 bits
+            static const int8_t offsets[32] = {
+                 0,  4,  8, 12, -1, -1, -1, -1,
+                -1, -1, -1, -1, -1, -1, -1, -1,
+                -1, -1, -1, -1,  0,  4,  8, 12,
+                -1, -1, -1, -1, -1, -1, -1, -1
+            };
+            auto order = Vmm(aux_vec_idxs[0]);
+            auto addr = h->r15;
+            h->mov(addr, (size_t)offsets);
+            h->vmovdqu(order, h->yword[addr]);
+
+            h->vpshufb(vmm_dst, vmm_dst, order);
+            auto xmm_tmp1 = Xmm(vmm_src.getIdx());
+            auto xmm_tmp2 = Xmm(vmm_dst.getIdx());
+            auto ymm_dst = Ymm(vmm_dst.getIdx());
+            h->vextracti128(xmm_tmp1, ymm_dst, 1);
+            h->vpor(xmm_tmp2, xmm_tmp2, xmm_tmp1);
+            break;
+        }
+        default: {
+            THROW_IE_EXCEPTION << "unexpected output precision: " << output_type;
+        }
+    }
+}
+
+void jit_convert_emitter::register_table_entries() {
+    // 0, 4, 8, 12, 16, 20, 24, 28
+    //push_arg_entry_of("mask1", 0x0004080C1014181C, true);
+    //push_arg_entry_of("mask2", 0xFFFFFFFFFFFFFFFF, true);
+    //push_arg_entry_of("mask3", 0xFFFFFFFFFFFFFFFF, true);
+    //push_arg_entry_of("mask4", 0xFFFFFFFFFFFFFFFF, true);
+}
+
+size_t jit_convert_emitter::aux_vecs_count() const {
+    return 1;
+}
+
 /// FLOOR ///
 jit_floor_emitter::jit_floor_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
 : jit_emitter(host, host_isa, node, exec_prc) {}
 jit_floor_emitter::jit_floor_emitter(jit_generator *host, cpu_isa_t host_isa, Precision exec_prc)
 : jit_emitter(host, host_isa, exec_prc) {}
 
-size_t jit_floor_emitter::get_inputs_num() const { return 2; }
+size_t jit_floor_emitter::get_inputs_num() const { return 1; }
 
 void jit_floor_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
                                 const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
@@ -323,6 +452,41 @@ void jit_ceiling_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const
 }
 
 size_t jit_ceiling_emitter::aux_vecs_count() const {
+    return 1;
+}
+
+/// ROUND ///
+jit_round_emitter::jit_round_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
+: jit_emitter(host, host_isa, node, exec_prc) {}
+jit_round_emitter::jit_round_emitter(jit_generator* host, cpu_isa_t host_isa, Precision exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {}
+
+size_t jit_round_emitter::get_inputs_num() const { return 2; }
+
+void jit_round_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                    const std::vector<size_t>& out_vec_idxs,
+                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                const emitter_context *emit_context) const {
+    if (host_isa_ == cpu::x64::sse41) {
+        emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx2) {
+        emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_common) {
+        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else {
+        assert(!"unsupported isa");
+    }
+}
+
+template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+void jit_round_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
+    Vmm vmm_src = Vmm(in_vec_idxs[0]);
+    Vmm vmm_dst = Vmm(out_vec_idxs[0]);
+    h->uni_vroundps(vmm_dst, vmm_src, 2);
+}
+
+size_t jit_round_emitter::aux_vecs_count() const {
     return 1;
 }
 

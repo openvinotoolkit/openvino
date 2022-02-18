@@ -22,6 +22,10 @@ namespace MKLDNNPlugin {
 /// precision: fp32
 class MKLDNNSnippetNode : public MKLDNNNode {
 public:
+    // TODO: to debug only
+    static void* data1;
+    static void* data2;
+
     MKLDNNSnippetNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNSnippetNode() override = default;
 

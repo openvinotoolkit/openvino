@@ -14,11 +14,16 @@
 #include "jit_mkldnn_emitters.hpp"
 #include "jit_mkldnn_ext_emitters.hpp"
 
+#include <ngraph/opsets/opset5.hpp>
+
 using namespace std;
 using namespace ngraph::snippets;
 
 #define CREATE_EMITTER(e_type) [this](const std::shared_ptr<ngraph::Node>& n) \
     -> std::shared_ptr<ngraph::snippets::Emitter> {return std::make_shared<e_type>(h.get(), isa, n);};
+
+#define CREATE_EMITTER_WITH_TYPES(e_type, type) [this](const std::shared_ptr<ngraph::Node>& n) \
+    -> std::shared_ptr<ngraph::snippets::Emitter> {return std::make_shared<e_type>(h.get(), isa, n, type);};
 
 class jit_snippet : public dnnl::impl::cpu::x64::jit_generator {
 public:
@@ -41,13 +46,13 @@ MKLDNNPlugin::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t
     jitters[ngraph::opset1::Result::get_type_info_static()] = CREATE_EMITTER(NopEmitter);
     // jitters[ngraph::opset1::Constant::get_type_info_static()] = CREATE_EMITTER(); // Not supported
 
-    jitters[ngraph::snippets::op::Load::get_type_info_static()] = CREATE_EMITTER(LoadEmitter);
-    jitters[ngraph::snippets::op::VectorLoad::get_type_info_static()] = CREATE_EMITTER(LoadEmitter);
+    jitters[ngraph::snippets::op::Load::get_type_info_static()] = CREATE_EMITTER_WITH_TYPES(LoadEmitter, load_type);
+    jitters[ngraph::snippets::op::VectorLoad::get_type_info_static()] = CREATE_EMITTER_WITH_TYPES(LoadEmitter, load_type);
     jitters[ngraph::snippets::op::ScalarLoad::get_type_info_static()] = CREATE_EMITTER(ScalarLoadEmitter);
     jitters[ngraph::snippets::op::BroadcastLoad::get_type_info_static()] = CREATE_EMITTER(BroadcastLoadEmitter);
 
-    jitters[ngraph::snippets::op::Store::get_type_info_static()] = CREATE_EMITTER(StoreEmitter);
-    jitters[ngraph::snippets::op::VectorStore::get_type_info_static()] = CREATE_EMITTER(StoreEmitter);
+    jitters[ngraph::snippets::op::Store::get_type_info_static()] = CREATE_EMITTER_WITH_TYPES(StoreEmitter, store_type);
+    jitters[ngraph::snippets::op::VectorStore::get_type_info_static()] = CREATE_EMITTER_WITH_TYPES(StoreEmitter, store_type);
     jitters[ngraph::snippets::op::ScalarStore::get_type_info_static()] = CREATE_EMITTER(ScalarStoreEmitter);
 
     jitters[ngraph::snippets::op::Scalar::get_type_info_static()] = CREATE_EMITTER(ScalarEmitter);
@@ -89,12 +94,14 @@ MKLDNNPlugin::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t
     // jitters[ngraph::opset1::Atan::get_type_info_static()] = CREATE_EMITTER(); // not supported
     jitters[ngraph::opset1::Ceiling::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_ceiling_emitter);
     jitters[ngraph::opset1::Clamp::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_clamp_emitter);
+    jitters[ngraph::opset1::Convert::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_convert_emitter);
     // jitters[ngraph::opset1::Cos::get_type_info_static()] = CREATE_EMITTER(); // not supported
     // jitters[ngraph::opset1::Cosh::get_type_info_static()] = CREATE_EMITTER(); // not supported
     jitters[ngraph::opset1::Elu::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_elu_emitter);
     jitters[ngraph::opset1::Erf::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_erf_emitter);
     jitters[ngraph::opset1::Exp::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_exp_emitter);
     jitters[ngraph::opset1::Floor::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_floor_emitter);
+    jitters[ngraph::opset5::Round::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_round_emitter);
     // jitters[ngraph::opset1::Log::get_type_info_static()] = CREATE_EMITTER(); // not supported
     jitters[ngraph::opset1::LogicalNot::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_logical_not_emitter);
     jitters[ngraph::opset1::Negative::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_negative_emitter);

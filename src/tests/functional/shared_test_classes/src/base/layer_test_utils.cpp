@@ -557,6 +557,27 @@ std::string LayerTestsCommon::getRuntimePrecisionByFusedName(const std::string& 
     return "";
 }
 
+std::map<std::string, std::string> LayerTestsCommon::getExecGraphInfoAsMap() {
+    const auto execGraph = executableNetwork.GetExecGraphInfo();
+    const auto execFunction = execGraph.getFunction();
+
+    std::map<std::string, std::string> result;
+
+    for (auto& op : execFunction->get_ops()) {
+        const auto& rtInfo = op->get_rt_info();
+
+        const auto& nameIt = rtInfo.find("originalLayersNames");
+        const auto name = nameIt->second.as<std::string>();
+
+        const auto& typeIt = rtInfo.find("layerType");
+        const auto type = typeIt->second.as<std::string>();
+
+        result[name] = type;
+    }
+
+    return result;
+}
+
 std::map<std::string, ngraph::Node::RTMap> LayerTestsCommon::getRuntimeInfo() {
     const auto execGraph = executableNetwork.GetExecGraphInfo();
     const auto function = execGraph.getFunction();

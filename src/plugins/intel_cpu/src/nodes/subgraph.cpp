@@ -137,7 +137,9 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
             }
         };
 
-        size_t offset = std::numeric_limits<size_t>::max();
+        // TODO: it's the reason why CpuBlockedMemoryDesc is not defined (isNotDefined() == true).
+        //size_t offset = std::numeric_limits<size_t>::max();
+        size_t offset = 0;
         NodeConfig config;
         config.dynBatchSupport = false;
         config.inConfs.resize(inputShapes.size());
@@ -145,11 +147,21 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
             PortConfig portConfig;
             portConfig.inPlace = (!i && canBeInPlace()) ? 0 : -1;
             portConfig.constant = false;
-            portConfig.desc = createMemoryDesc(inputShapes[i], supportedPrecision, offset);
+            const auto insPrecision = getOriginalInputPrecisionAtPort(i);
+            // supported f32 & u8 only
+            portConfig.desc = createMemoryDesc(inputShapes[i], insPrecision, offset);
             if (inputShapes[i].getDims()[0] == 1) {
                 const auto denseDesc = portConfig.desc->as<BlockedMemoryDesc>();
+                //auto const denseOffsetPadding = denseDesc->as<CpuBlockedMemoryDesc>()->offsetPadding;
+                //assert(denseOffsetPadding != Shape::UNDEFINED_DIM);
+
                 auto strides = denseDesc->getStrides();
-                strides[0] = Shape::UNDEFINED_DIM;
+                // TODO: it's the reason why CpuBlockedMemoryDesc is not defined (isNotDefined() == true).
+                // As result instead self (Subgraph) memory descriptor with U8 on input port,
+                // parent memory descriptor is used which use FP32 precision in port
+                // Note, plase, if native Convert is used then strides[0] is defined
+                // TODO: temporary commented: not clear
+                // strides[0] = Shape::UNDEFINED_DIM;
                 portConfig.desc = std::make_shared<CpuBlockedMemoryDesc>(denseDesc->getPrecision(),
                                                                          denseDesc->getShape(),
                                                                          denseDesc->getBlockDims(),
@@ -165,11 +177,12 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
             PortConfig portConfig;
             portConfig.inPlace = -1;
             portConfig.constant = false;
-            portConfig.desc = createMemoryDesc(outputShapes[i], supportedPrecision, offset);
+            const auto outPrecision = getOriginalOutputPrecisionAtPort(0);
+            portConfig.desc = createMemoryDesc(outputShapes[i], outPrecision, offset);
             if (outputShapes[i].getDims()[0] == 1) {
                 const auto denseDesc = portConfig.desc->as<BlockedMemoryDesc>();
                 auto strides = denseDesc->getStrides();
-                strides[0] = Shape::UNDEFINED_DIM;
+                //strides[0] = Shape::UNDEFINED_DIM;
                 portConfig.desc = std::make_shared<CpuBlockedMemoryDesc>(denseDesc->getPrecision(),
                                                                          denseDesc->getShape(),
                                                                          denseDesc->getBlockDims(),
@@ -295,7 +308,9 @@ static auto collapseLastDims(std::vector<int64_t>& dims, int dimsToCollapse) -> 
 
 void MKLDNNSnippetNode::define_schedule() {
     const auto config = getSelectedPrimitiveDescriptor()->getConfig();
-    const auto dataSize = config.inConfs[0].desc->getPrecision().size();
+    const auto inDataSize = config.inConfs[0].desc->getPrecision().size();
+    const auto outDataSize = config.outConfs[0].desc->getPrecision().size();
+
     // store to use as an execution domain
     max_rank_out_desc_idx = argmax_rank(getChildEdges());
     const auto outBlockingDesc_maxRank = getChildEdgeAt(max_rank_out_desc_idx)->getMemory().GetDescWithType<BlockedMemoryDesc>();
@@ -344,7 +359,7 @@ void MKLDNNSnippetNode::define_schedule() {
         }
     };
 
-    auto initOffsets = [this, config, dataSize](size_t tensorRank) {
+    auto initOffsets = [this, config, inDataSize, outDataSize](size_t tensorRank) {
         // find max rank input among all outputs
         const size_t inputNum = getParentEdges().size();
         offsets_in.resize(inputNum);
@@ -352,7 +367,7 @@ void MKLDNNSnippetNode::define_schedule() {
             offsets_in[i].resize(tensorRank, 1);
             offset_calculation(offsets_in[i], dims_in[i], dims_out[max_rank_out_desc_idx]);
             for (size_t j = 0; j < tensorRank; j++) {
-                offsets_in[i][j] *= dataSize;
+                offsets_in[i][j] *= inDataSize;
             }
         }
 
@@ -361,7 +376,8 @@ void MKLDNNSnippetNode::define_schedule() {
         for (size_t i = 0; i < inputNum; i++) {
             const auto memPtr = getParentEdgeAt(i)->getMemoryPtr();
             srcMemPtrs[i] = memPtr;
-            start_offset_in[i] =  memPtr->GetDescWithType<BlockedMemoryDesc>()->getOffsetPadding() * dataSize;
+            const auto offsetPadding = memPtr->GetDescWithType<BlockedMemoryDesc>()->getOffsetPadding();
+            start_offset_in[i] = offsetPadding * inDataSize;
         }
 
         const size_t outputNum = config.outConfs.size();
@@ -370,7 +386,7 @@ void MKLDNNSnippetNode::define_schedule() {
             offsets_out[i].resize(tensorRank, 1);
             offset_calculation(offsets_out[i], dims_out[i], dims_out[max_rank_out_desc_idx]);
             for (size_t j = 0; j < tensorRank; j++) {
-                offsets_out[i][j] *= dataSize;
+                offsets_out[i][j] *= outDataSize;
             }
         }
 
@@ -379,7 +395,7 @@ void MKLDNNSnippetNode::define_schedule() {
         for (size_t i = 0; i < outputNum; i++) {
             const auto memPtr = getChildEdgeAt(i)->getMemoryPtr();
             dstMemPtrs[i] = memPtr;
-            start_offset_out[i] = memPtr->GetDescWithType<BlockedMemoryDesc>()->getOffsetPadding() * dataSize;
+            start_offset_out[i] = memPtr->GetDescWithType<BlockedMemoryDesc>()->getOffsetPadding() * outDataSize;
         }
     };
 
@@ -429,7 +445,7 @@ void MKLDNNSnippetNode::define_schedule() {
         return collapsedDims;
     };
 
-    auto initSchedulingInfo = [this, dataSize](const size_t tensorRank) -> void {
+    auto initSchedulingInfo = [this, inDataSize, outDataSize](const size_t tensorRank) -> void {
         // initialize scheduling information
         sch_offsets_in.resize(offsets_in.size(), 0);
         sch_offsets_out.resize(offsets_out.size(), 0);
@@ -444,16 +460,16 @@ void MKLDNNSnippetNode::define_schedule() {
             // update offsets for tile 2D because loaders have ptr shifts in some cases and stores have always ptrs shifts
             for (size_t i = 0; i < offsets_in.size(); i++) {
                 int64_t offset = offsets_in[i][tensorRank - 2];
-                if ((offset > dataSize) || (offset == 0 && dims_in[i].back() != 1)) {
-                    sch_offsets_in[i] = offset - dims_out[max_rank_out_desc_idx].back() * dataSize;
-                } else if (offset == dataSize) {
+                if ((offset > inDataSize) || (offset == 0 && dims_in[i].back() != 1)) {
+                    sch_offsets_in[i] = offset - dims_out[max_rank_out_desc_idx].back() * inDataSize;
+                } else if (offset == inDataSize) {
                     sch_offsets_in[i] = offset;
                 }
             }
 
             for (size_t i = 0; i < offsets_out.size(); i++) {
                 int64_t offset = offsets_out[i][tensorRank - 2];
-                sch_offsets_out[i] = offset - dims_out[max_rank_out_desc_idx].back() * dataSize;
+                sch_offsets_out[i] = offset - dims_out[max_rank_out_desc_idx].back() * outDataSize;
             }
         }
     };
@@ -494,6 +510,12 @@ void MKLDNNSnippetNode::generate() {
 
     ngraph::snippets::op::Subgraph::BlockedShapeVector output_blocked_shapes;
     std::transform(output_first_row.begin(), output_first_row.end(), std::back_inserter(output_blocked_shapes), edgeToBlockedShape);
+
+    // TODO: question: one LoadEmitter emitter per input?
+    // TODO: question: one StoreEmitter emitter per output?
+    // TODO: workaround: move to constructor
+    snippet->get_generator()->set_types(std::get<2>(input_blocked_shapes[0]), std::get<2>(output_blocked_shapes[0]));
+
     jit_snippets_compile_args jcp;
     jcp.output_dims = dims_out[max_rank_out_desc_idx];
     std::copy(sch_dims.begin(), sch_dims.end(), jcp.scheduler_dims);
