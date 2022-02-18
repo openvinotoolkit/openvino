@@ -360,6 +360,7 @@ std::string get_test_info_stream_header(benchmark_app::InputInfo& inputInfo) {
 
 std::map<std::string, ov::TensorVector> get_tensors(std::map<std::string, std::vector<std::string>> inputFiles,
                                                     std::vector<benchmark_app::InputsInfo>& app_inputs_info) {
+    std::ios::fmtflags fmt(std::cout.flags());
     std::map<std::string, ov::TensorVector> tensors;
     if (app_inputs_info.empty()) {
         throw std::logic_error("Inputs Info for network is empty!");
@@ -515,6 +516,7 @@ std::map<std::string, ov::TensorVector> get_tensors(std::map<std::string, std::v
             slog::info << std::left << std::setw(maxNameWidth + 2) << inputLog.first << inputLog.second << slog::endl;
         }
     }
+    std::cout.flags(fmt);
 
     return tensors;
 }
@@ -523,6 +525,7 @@ std::map<std::string, ov::TensorVector> get_tensors_static_case(const std::vecto
                                                                 const size_t& batchSize,
                                                                 benchmark_app::InputsInfo& app_inputs_info,
                                                                 size_t requestsNum) {
+    std::ios::fmtflags fmt(std::cout.flags());
     std::map<std::string, ov::TensorVector> blobs;
 
     std::vector<std::pair<size_t, size_t>> net_input_im_sizes;
@@ -687,6 +690,7 @@ std::map<std::string, ov::TensorVector> get_tensors_static_case(const std::vecto
             slog::info << std::left << std::setw(maxNameWidth + 2) << inputLog.first << inputLog.second << slog::endl;
         }
     }
+    std::cout.flags(fmt);
 
     return blobs;
 }

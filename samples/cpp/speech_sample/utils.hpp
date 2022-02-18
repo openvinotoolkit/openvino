@@ -291,6 +291,7 @@ void print_performance_counters(std::map<std::string, ov::ProfilingInfo> const& 
                                 const uint64_t numberOfFramesOnHw,
                                 std::string FLAGS_d) {
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
+    std::ios::fmtflags fmt(std::cout.flags());
     stream << std::endl << "Performance counts:" << std::endl;
     stream << std::setw(10) << std::right << ""
            << "Counter descriptions";
@@ -307,7 +308,12 @@ void print_performance_counters(std::map<std::string, ov::ProfilingInfo> const& 
     for (const auto& it : utterancePerfMap) {
         std::string const& counter_name = it.first;
         float current_units_us = static_cast<float>(it.second.real_time.count()) / freq;
-        float call_units_us = current_units_us / numberOfFrames;
+        float call_units_us = 0;
+        if (numberOfFrames == 0) {
+            throw std::logic_error("Number off frames = 0,  division by zero.");
+        } else {
+            call_units_us = current_units_us / numberOfFrames;
+        }
         if (FLAGS_d.find("GNA") != std::string::npos) {
             stream << std::setw(30) << std::left << counter_name.substr(4, counter_name.size() - 1);
         } else {
@@ -324,6 +330,7 @@ void print_performance_counters(std::map<std::string, ov::ProfilingInfo> const& 
     stream << "Number of frames delivered to GNA HW: " << numberOfFramesOnHw;
     stream << "/" << numberOfFrames;
     stream << std::endl;
+    std::cout.flags(fmt);
 #endif
 }
 
