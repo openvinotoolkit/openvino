@@ -32,5 +32,4 @@ TEST(attributes, assign_readvalue_v6_op) {
     const auto in = make_shared<op::Parameter>(element::f32, Shape{1});
     const auto variable_id = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "v0"});
     const auto read_value = make_shared<opset6::ReadValue>(in, variable_id);
-    const auto assign = make_shared<opset6::Assign>(read_value, variable_id);
 }
