@@ -27,10 +27,10 @@ NamedOutputs generate_proposals_v2(const NodeContext& node)
     auto bbox_deltas = node.get_input("BboxDeltas"); // [N，4 * A，H，W]
     auto im_shape = node.get_input("ImShape");       // [N, 2]
     auto scores = node.get_input("Scores");          // [N，A，H，W]
-    auto anchors = node.get_input("Anchors");        // [H，W，A，4]
+    auto anchors = node.get_input("Anchors");        // [H，W，A，4] or [H * W * A, 4]
     Output<Node> variances;
     if (node.has_input("Variances"))
-        variances = node.get_input("Variances");    // [H，W，A，4]
+        variances = node.get_input("Variances");    // [H，W，A，4] or [H * W * A, 4]
 
     auto single_bbox_deltas = get_one_batch(node, bbox_deltas, 4);
     auto single_im_shape = get_one_batch(node, im_shape, 2);
@@ -51,15 +51,23 @@ NamedOutputs generate_proposals_v2(const NodeContext& node)
     auto reshaped_anchors = std::make_shared<default_opset::Reshape>(anchors, anchors_shape, true);
 
     auto variances_bbox_deltas = single_bbox_deltas;
-    //if (variances.get_node()) {
-    //    // Transpose variances from [H, W, A, 4] to [A*4, H, W]
-    //    auto reshape_pattern = default_opset::Constant::create<int64_t>(ov::element::i64, {3}, {0, 0, -1});
-    //    auto reshaped_variances = std::make_shared<default_opset::Reshape>(variances, reshape_pattern, true);
-    //    auto transpose_order = default_opset::Constant::create(ov::element::i64, {3}, {2, 0, 1});
-    //    auto transposed_variances = std::make_shared<default_opset::Transpose>(reshaped_variances, transpose_order);
-    //    //auto transposed_variances = default_opset::Constant::create(ov::element::f32, {}, {2.0});
-    //    variances_bbox_deltas = std::make_shared<default_opset::Multiply>(single_bbox_deltas, transposed_variances);
-    //}
+    if (variances.get_node()) {
+        // Reshape variances to [H, W, A, 4] if it is [H * W * A, 4]
+        auto scores_shape = std::make_shared<default_opset::ShapeOf>(single_scores);
+        auto gather_indices = default_opset::Constant::create<int64_t>(ov::element::i64, {3}, {1, 2, 0});
+        auto gather_axis = default_opset::Constant::create<int64_t>(ov::element::i64, {}, {0});
+        auto partial_variances_shape = std::make_shared<default_opset::Gather>(scores_shape, gather_indices, gather_axis);
+        auto const_4 = default_opset::Constant::create<int64_t>(ov::element::i64, {1}, {4});
+        auto variances_shape = std::make_shared<default_opset::Concat>(OutputVector{partial_variances_shape, const_4}, 0);
+        auto dim4_variances = std::make_shared<default_opset::Reshape>(variances, variances_shape, true);
+        // Transpose variances from [H, W, A, 4] to [A*4, H, W]
+        auto reshape_pattern = default_opset::Constant::create<int64_t>(ov::element::i64, {3}, {0, 0, -1});
+        auto reshaped_variances = std::make_shared<default_opset::Reshape>(dim4_variances, reshape_pattern, true);
+        auto transpose_order = default_opset::Constant::create(ov::element::i64, {3}, {2, 0, 1});
+        auto transposed_variances = std::make_shared<default_opset::Transpose>(reshaped_variances, transpose_order);
+        //auto transposed_variances = default_opset::Constant::create(ov::element::f32, {}, {2.0});
+        variances_bbox_deltas = std::make_shared<default_opset::Multiply>(single_bbox_deltas, transposed_variances);
+    }
 
     // generate im_info from im_scale
     auto im_scale = default_opset::Constant::create(ov::element::f32, {1}, {1.0});

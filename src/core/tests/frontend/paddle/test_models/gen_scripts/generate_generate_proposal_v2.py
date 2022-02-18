@@ -122,6 +122,9 @@ if __name__ == "__main__":
 
     # test case 1
     input_name = "generate_proposals_v2_1"
+    input_data["variances"] = np.ones((4 * 4 * 3, 4)).astype('float32')
+    input_data["anchors"] = np.reshape(np.arange(4 * 4 * 3 * 4),
+                                        [4 * 4 * 3, 4]).astype('float32')
     attr["min_size"] = 4
     attr["pixel_offset"] = True
 
@@ -162,7 +165,9 @@ if __name__ == "__main__":
 
     # test case 4
     input_name = "generate_proposals_v2_4"
-    input_data["variances"] = np.ones((4, 4, 3, 4)).astype('float32') * 0.5
+    variances_0 = np.ones((11, 4)).astype('float32') * 0.5
+    variances_1 = np.ones((37, 4)).astype('float32')
+    input_data["variances"] = np.concatenate((variances_0, variances_1), axis = 0)
 
     generate_proposals_v2(input_name, input_data, attr)
 
