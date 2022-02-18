@@ -21,7 +21,7 @@ Custom operations, that is those not included in the list, are not recognized by
 
 If your model contains operations not normally supported by OpenVINO™, the OpenVINO™ Extensibility API lets you add support for those custom operations in a library containing custom operation and use one implementation for Model Optimizer and OpenVINO™ Runtime.
 
-There are three steps to support inference of a model with custom operation(s):
+There are two steps to support inference of a model with custom operation(s):
 1. Add support for a [custom operation in the Model Optimizer](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md) so
 the Model Optimizer can generate the IR with the operation.
 2. Create a custom operation in it as described in the [Custom Operation](add_openvino_ops.md).
