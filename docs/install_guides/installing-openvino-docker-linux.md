@@ -30,7 +30,7 @@ This guide provides steps on creating a Docker image with Intel® Distribution o
 There are two ways to install OpenVINO with Docker. You can choose either of them according to your needs:
 * Use a prebuilt image. Do the following steps:
   1. <a href="#get-prebuilt-image">Get a prebuilt image from provided sources</a>.
-  2. <a href="#run-image">Run the image on different devices</a>. To run inferences on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, <a href="set-up-hddldaemon">configure the Docker image</a> first before you run the image.
+  2. <a href="#run-image">Run the image on different devices</a>. To run inferences on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, <a href="#set-up-hddldaemon">configure the Docker image</a> first before you run the image.
   3. <a href="#run-samples">(Optional) Run samples in the Docker image</a>.
 * If you want to customize your image, you can also build a Docker image manually by using the following steps:
   1. <a href="#prepare-dockerfile">Prepare a Dockerfile</a>.
