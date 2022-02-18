@@ -98,9 +98,10 @@ set(def_postinst "${OpenVINO_BINARY_DIR}/_CPack_Packages/postinst")
 set(def_postrm "${OpenVINO_BINARY_DIR}/_CPack_Packages/postrm")
 set(def_triggers "${OpenVINO_BINARY_DIR}/_CPack_Packages/triggers/${package_name}/triggers")
 
-set(triggers_content "activate-noawait ldconfig\n")
+set(triggers_content "activate-noawait ldconfig\n\n")
 set(post_content "#!/bin/sh\n\nset -e\n\n")
 
+file(REMOVE ${def_postinst} ${def_postrm} ${def_triggers})
 file(WRITE "${def_postinst}" "${post_content}")
 file(WRITE "${def_postrm}" "${post_content}")
 file(WRITE "${def_triggers}" "${triggers_content}")
@@ -293,6 +294,7 @@ macro(ov_debian_components)
         set(CPACK_COMPONENT_PYTHON_PYTHON3.8_DEPENDS "core")
     endif()
     set(CPACK_DEBIAN_PYTHON_PYTHON3.8_PACKAGE_NAME "libopenvino-python${cpack_ver_mm}")
+    set(CPACK_DEBIAN_PYTHON_PYTHON3.8_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
 
     #
     # Samples
@@ -345,18 +347,14 @@ macro(ov_debian_components)
 
         # copyright
         # install(FILES "${OpenVINO_SOURCE_DIR}/LICENSE"
-        #         DESTINATION share/doc/${package_name}/
+        #         DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/${package_name}/
         #         COMPONENT ${comp}
         #         RENAME copyright)
 
         # TODO: install changelog
 
         # install triggers
-        set(triggers_content "activate-noawait ldconfig")
-        set(triggers_file "${OpenVINO_BINARY_DIR}/_CPack_Packages/triggers/${package_name}/triggers")
-        file(REMOVE ${triggers_file})
-        file(WRITE ${triggers_file} ${triggers_content})
-        install(FILES ${triggers_file}
+        install(FILES ${def_triggers}
                 DESTINATION ../DEBIAN/
                 COMPONENT ${comp})
     endforeach()
