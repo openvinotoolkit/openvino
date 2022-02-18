@@ -32,7 +32,6 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 63469
         R"(.*ConversionLayerTest.*ConvertLike.*)",
         // TODO: Issue: 34055
-        R"(.*ShapeOfLayerTest.*)",
         R"(.*ReluShapeOfSubgraphTest.*)",
         // TODO: Issue: 43314
         R"(.*Broadcast.*mode=BIDIRECTIONAL.*inNPrec=BOOL.*)",
