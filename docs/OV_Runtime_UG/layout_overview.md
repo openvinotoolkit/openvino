@@ -28,7 +28,6 @@ The easiest way is to fully specify each dimension with one alphabetical letter
          :language: cpp
          :fragment: [ov:layout:simple]
 
-      See also: `ov::Layout`
 .. tab:: Python
 
       .. doxygensnippet:: docs/snippets/ov_layout.py

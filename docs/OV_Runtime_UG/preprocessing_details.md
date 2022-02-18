@@ -137,6 +137,7 @@ To integrate precision conversion into execution graph as a preprocessing step, 
 @endsphinxdirective
 
 C++ references:
+  * <code>ov::preprocess::InputTensorInfo::set_element_type()</code>
   * <code>ov::preprocess::PreProcessSteps::convert_element_type()</code>
 
 
