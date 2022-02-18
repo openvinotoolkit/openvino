@@ -28,7 +28,7 @@ An implementation constructor checks parameters of an nGraph operation, stores r
 
 ### `getSupportedConfigurations`
 
-The InferenceEngine::ILayerExecImpl::getSupportedConfigurations method returns all supported configuration formats (input/output tensor layouts) for your implementation. To specify formats of data, use InferenceEngine::TensorDesc. Refer to the [Memory Primitives](../Memory_primitives.md) section for instructions.
+The InferenceEngine::ILayerExecImpl::getSupportedConfigurations method returns all supported configuration formats (input/output tensor layouts) for your implementation. To specify formats of data, use InferenceEngine::TensorDesc.
 
 @snippet template_extension/old/cpu_kernel.cpp cpu_implementation:getSupportedConfigurations
 

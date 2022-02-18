@@ -1,4 +1,5 @@
-# Configurations for Intel® Processor Graphics (GPU) with Intel® Distribution of OpenVINO™ toolkit 
+# Configurations for Intel® Processor Graphics (GPU) with Intel® Distribution of OpenVINO™ toolkit {#openvino_docs_install_guides_configurations_for_intel_gpu}
+
 
 @sphinxdirective
 
@@ -6,13 +7,16 @@
 
 @endsphinxdirective
 
+
+This page introduces additional configurations for Intel® Processor Graphics (GPU) with Intel® Distribution of OpenVINO™ toolkit on Linux and Windows.
+
 ## Linux
 
-Once you have your Intel® Distribution of OpenVINO™ Toolkit installed, follow the steps to be able to work on GPU:
+Once you have your OpenVINO installed, follow the steps to be able to work on GPU:
 
 1. Go to the install_dependencies directory:
    ```sh
-   cd <INSTALL_DIR>/intel/openvino_2022/install_dependencies/
+   cd <INSTALL_DIR>/install_dependencies/
    ```
 
 2. Install the **Intel® Graphics Compute Runtime for OpenCL™** driver components required to use the GPU plugin and write custom layers for Intel® Integrated Graphics. The drivers are not included in the package. To install, run this script:
@@ -35,7 +39,7 @@ Once you have your Intel® Distribution of OpenVINO™ Toolkit installed, follow
 3. **Optional:** Install header files to allow compilation of new code. You can find the header files at [Khronos OpenCL™ API Headers](https://github.com/KhronosGroup/OpenCL-Headers.git).
 
 You've completed all required configuration steps to perform inference on processor graphics. 
-Proceed to the <a href="#get-started">Start Using the Toolkit</a> section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.
+Proceed to the <a href="openvino_docs_install_guides_installing_openvino_linux.html#get-started">Start Using the Toolkit</a> section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.
 
 @sphinxdirective
 
@@ -62,4 +66,5 @@ To check if you have this driver installed:
 4. Click the **Driver** tab to see the driver version. 
    ![](../img/DeviceDriverVersion.PNG)
 
-You are done updating your device driver and are ready to use your GPU. Proceed to the <a href="#get-started">Start Using the Toolkit</a> section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.
+You are done updating your device driver and are ready to use your GPU. Proceed to the <a href="openvino_docs_install_guides_installing_openvino_windows.html#get-started">Start Using the Toolkit</a> section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.
+
