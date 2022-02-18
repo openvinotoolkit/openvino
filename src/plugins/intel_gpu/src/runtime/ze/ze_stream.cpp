@@ -508,6 +508,7 @@ ze_event::ptr ze_stream::create_base_event() {
 }
 
 void ze_stream::flush() const {
+//*
     ZE_CHECK(zeCommandListClose(_command_list));
     ze_command_queue_handle_t hCommandQueue;
     ZE_CHECK(zeCommandQueueCreate(_engine.get_context(), _engine.get_device(), &command_queue_desc, &hCommandQueue));
@@ -524,30 +525,31 @@ void ze_stream::flush() const {
     ZE_CHECK(zeFenceHostSynchronize(hFence, UINT32_MAX));
     ZE_CHECK(zeFenceReset(hFence));
     ZE_CHECK(zeCommandListReset(_command_list));
-
+//*/
     //_queue_counter.store(uint64_t(0));
 }
 
 void ze_stream::finish() const {
     flush();
-    // ZE_CHECK(zeCommandQueueSynchronize(hCommandQueue, UINT32_MAX));
-    // //ZE_CHECK(zeFenceHostSynchronize(hFence, UINT32_MAX));
-    // //ZE_CHECK(zeFenceReset(hFence));
-    // for (auto it_command_list : vec_command_list) {
-    //     ZE_CHECK(zeCommandListReset(it_command_list));
-    // }
-    // vec_command_list.clear();
-    // ZE_CHECK(zeCommandQueueDestroy(hCommandQueue));
-    // ze_command_queue_desc_t commandQueueDesc = {
-    //     ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC ,
-    //     nullptr,
-    //     0,
-    //     0,
-    //     0,
-    //     ZE_COMMAND_QUEUE_MODE_DEFAULT ,
-    //     ZE_COMMAND_QUEUE_PRIORITY_NORMAL
-    // };
-    // ZE_CHECK(zeCommandQueueCreate(_engine.get_context(), _engine.get_device(), &commandQueueDesc, &hCommandQueue));
+/*
+    ZE_CHECK(zeCommandListClose(_command_list));
+    ze_command_queue_handle_t hCommandQueue;
+    ZE_CHECK(zeCommandQueueCreate(_engine.get_context(), _engine.get_device(), &command_queue_desc, &hCommandQueue));
+
+    ze_fence_desc_t fenceDesc = {
+        ZE_STRUCTURE_TYPE_FENCE_DESC ,
+        nullptr,
+        0
+    };
+    ze_fence_handle_t hFence;
+    ZE_CHECK(zeFenceCreate(hCommandQueue, &fenceDesc, &hFence));
+    //ZE_CHECK(
+    auto res = zeCommandQueueExecuteCommandLists(hCommandQueue, 1, &_command_list, hFence);//);
+    ZE_CHECK(zeCommandQueueSynchronize(hCommandQueue, UINT32_MAX));
+    ZE_CHECK(zeFenceHostSynchronize(hFence, UINT32_MAX));
+    ZE_CHECK(zeFenceReset(hFence));
+    ZE_CHECK(zeCommandListReset(_command_list));
+*/
 }
 
 void ze_stream::wait_for_events(const std::vector<event::ptr>& events) {

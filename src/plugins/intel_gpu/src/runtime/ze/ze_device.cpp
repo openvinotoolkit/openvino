@@ -76,8 +76,8 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
         return std::string(p.name) == "DDR";
     });
 
-    ze_device_module_properties_t device_module_properties;
-    ZE_CHECK(zeDeviceGetModuleProperties(device, &device_module_properties));
+    //ze_device_module_properties_t device_module_properties;
+    //ZE_CHECK(zeDeviceGetModuleProperties(device, &device_module_properties));
 
     ze_device_image_properties_t device_image_properties;
     ZE_CHECK(zeDeviceGetImageProperties(device, &device_image_properties));
@@ -106,15 +106,15 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     // info.max_image2d_width = ??;
     // info.max_image2d_height = ??;
 
-    info.supports_fp16 = (device_module_properties.flags & ZE_DEVICE_MODULE_FLAG_FP16) != 0;
-    info.supports_fp64 = (device_module_properties.flags & ZE_DEVICE_MODULE_FLAG_FP64) != 0;
-    info.supports_fp16_denorms = info.supports_fp16 && (device_module_properties.fp16flags & ZE_DEVICE_FP_FLAG_DENORM) != 0;
+    info.supports_fp16 = true;//(device_module_properties.flags & ZE_DEVICE_MODULE_FLAG_FP16) != 0;
+    info.supports_fp64 = true;//(device_module_properties.flags & ZE_DEVICE_MODULE_FLAG_FP64) != 0;
+    info.supports_fp16_denorms = true;//info.supports_fp16 && (device_module_properties.fp16flags & ZE_DEVICE_FP_FLAG_DENORM) != 0;
 
     info.supports_subgroups = true;
     info.supports_subgroups_short = true;
     info.supports_subgroups_char = true;
 
-    info.supports_imad = (device_module_properties.flags & ZE_DEVICE_MODULE_FLAG_DP4A) != 0;;
+    info.supports_imad = false;//(device_module_properties.flags & ZE_DEVICE_MODULE_FLAG_DP4A) != 0;;
     info.supports_immad = false;
 
     info.num_threads_per_eu = device_properties.numThreadsPerEU;

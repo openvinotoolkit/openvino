@@ -253,15 +253,12 @@ gpu_usm::gpu_usm(ze_engine* engine, const layout& layout, allocation_type type)
     switch (get_allocation_type()) {
     case allocation_type::usm_host:
         _buffer.allocateHost(_bytes_count);
-        fill(engine->get_program_stream());
         break;
     case allocation_type::usm_shared:
         _buffer.allocateShared(_bytes_count);
-        fill(engine->get_program_stream());
         break;
     case allocation_type::usm_device:
         _buffer.allocateDevice(_bytes_count);
-        fill(engine->get_program_stream());
         break;
     default:
         CLDNN_ERROR_MESSAGE("gpu_usm allocation type",
@@ -307,7 +304,7 @@ event::ptr gpu_usm::fill(stream& stream, unsigned char pattern) {
     // cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(), _buffer.get(), temp_buffer.data(), _bytes_count, blocking, nullptr, &ev_ze);
     //ZE_CHECK(zeCommandListAppendWaitOnEvents(_ze_stream.get_queue(), 1, &ev_ze));
     //ZE_CHECK(zeEventHostSynchronize(ev_ze, UINT32_MAX));
-    _ze_stream.finish();
+    _ze_stream.flush();
     return ev;
 }
 
@@ -342,7 +339,7 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& other) {
                                                0,
                                                nullptr));
     //2ZE_CHECK(zeCommandListAppendWaitOnEvents(_ze_stream.get_queue(), 1, &ev_ze));
-    _ze_stream.finish();
+    _ze_stream.flush();
     return ev;
 }
 
@@ -363,7 +360,7 @@ event::ptr gpu_usm::copy_from(stream& stream, const void* host_ptr) {
                                                0,
                                                nullptr));
     //ZE_CHECK(zeCommandListAppendWaitOnEvents(_ze_stream.get_queue(), 1, &ev_ze));
-    _ze_stream.finish();
+    _ze_stream.flush();
     return ev;
 }
 

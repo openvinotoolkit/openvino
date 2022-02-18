@@ -110,7 +110,20 @@ memory::ptr ze_engine::reinterpret_buffer(const memory& memory, const layout& ne
 }
 
 memory::ptr ze_engine::reinterpret_handle(const layout& new_layout, shared_mem_params params) {
-    return nullptr;
+    if (params.mem_type == shared_mem_type::shared_mem_usm) {
+        ze::UsmMemory usm_buffer(get_context(), get_device(), params.mem);
+        // FIXME: implement code below
+        // auto actual_mem_size = get_usm_helper().get_usm_allocation_size(usm_buffer.get());
+        // auto requested_mem_size = new_layout.bytes_count();
+        // if (actual_mem_size < requested_mem_size) {
+        //     throw std::runtime_error("[GPU] shared USM buffer has smaller size (" + std::to_string(actual_mem_size) +
+        //                                 ") than specified layout (" + std::to_string(requested_mem_size) + ")");
+        // }
+        // FIXME: replace allocation_type::usm_host with proper mem type
+        return std::make_shared<ze::gpu_usm>(this, new_layout, usm_buffer, allocation_type::usm_host);
+    } else {
+        return nullptr;
+    }
 //    try {
 //         if (new_layout.format.is_image_2d() && params.mem_type == shared_mem_type::shared_mem_image) {
 //             cl::Image2D img(static_cast<cl_mem>(params.mem), true);

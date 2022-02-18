@@ -101,14 +101,21 @@ struct lockable_gpu_mem {
 */
 class UsmHolder {
 public:
-    UsmHolder(ze_context_handle_t context, void* ptr) : _context(context), _ptr(ptr) { }
+    UsmHolder(ze_context_handle_t context, void* ptr, bool shared_memory = false) : _context(context), _ptr(ptr), _shared_memory(shared_memory) { }
     void* ptr() { return _ptr; }
     ~UsmHolder() {
-        zeMemFree(_context, _ptr);
+        try {
+            if (!_shared_memory)
+                zeMemFree(_context, _ptr);
+        } catch (...) {
+            // Exception may happen only when clMemFreeINTEL function is unavailable, thus can't free memory properly
+        }
+        _ptr = nullptr;
     }
 private:
     ze_context_handle_t _context;
     void* _ptr;
+    bool _shared_memory = false;
 };
 
 class UsmMemory {
@@ -116,6 +123,11 @@ public:
     explicit UsmMemory(ze_context_handle_t context, ze_device_handle_t device)
         : _context(context)
         , _device(device) {}
+
+    UsmMemory(ze_context_handle_t context, ze_device_handle_t device, void* usm_ptr)
+        : _context(context)
+        , _device(device)
+        , _usm_pointer(std::make_shared<UsmHolder>(_context, usm_ptr, true)) {}
 
     // Get methods returns original pointer allocated by openCL.
     void* get() const { return _usm_pointer->ptr(); }
