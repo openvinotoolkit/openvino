@@ -329,7 +329,7 @@ int main(int argc, char* argv[]) {
                         } else if (supported(ov::num_streams.name())) {
                             // Use API 2.0 key for streams
                             key = ov::num_streams.name();
-                            device_config[key] = ov::NumStreams::AUTO;
+                            device_config[key] = ov::streams::AUTO;
                         }
                     }
                 }
@@ -402,6 +402,8 @@ int main(int argc, char* argv[]) {
                 setThroughputStreams();
             } else if (device.find("GNA") != std::string::npos) {
                 set_infer_precision();
+            } else if (device.find("AUTO") != std::string::npos) {
+                device_nstreams.erase(device);
             }
         }
 
@@ -550,7 +552,9 @@ int main(int argc, char* argv[]) {
                             info.at(name).type = type_to_set;
                         }
                     }
-                    // Explicitly set inputs layout.
+                }
+                // Explicitly set inputs layout.
+                if (!name.empty() && !app_inputs_info[0].at(name).layout.empty()) {
                     in.model().set_layout(app_inputs_info[0].at(name).layout);
                 }
             }
@@ -1059,8 +1063,7 @@ int main(int argc, char* argv[]) {
                      StatisticsVariant("Percentile boundary", "percentile_boundary", FLAGS_latency_percentile),
                      StatisticsVariant("Average latency (ms)", "latency_avg", generalLatency.avg),
                      StatisticsVariant("Min latency (ms)", "latency_min", generalLatency.min),
-                     StatisticsVariant("Max latency (ms)", "latency_max", generalLatency.max),
-                     StatisticsVariant("throughput", "throughput", fps)});
+                     StatisticsVariant("Max latency (ms)", "latency_max", generalLatency.max)});
 
                 if (FLAGS_pcseq && app_inputs_info.size() > 1) {
                     for (size_t i = 0; i < groupLatencies.size(); ++i) {
@@ -1070,6 +1073,8 @@ int main(int argc, char* argv[]) {
                     }
                 }
             }
+            statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                       {StatisticsVariant("throughput", "throughput", fps)});
         }
         progressBar.finish();
 

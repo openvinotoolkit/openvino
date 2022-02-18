@@ -787,7 +787,17 @@ static bool is_node_for_onednn(deconvolution_node const& node) {
                                get_post_ops_count(node) <= 32 &&
                                input_layout.data_type == output_layout.data_type;
 
-    auto spatial_dims_num = input_layout.format.spatial_num();
+    auto spatial_dims_num = input_layout.get_spatial_rank();
+
+    // oneDNN doesn't support sum post ops for deconvolutions
+    for (auto& fused_op : node.get_fused_primitives()) {
+        if (fused_op.node->is_type<eltwise>() && fused_op.deps.size() == 1) {
+            auto eltw_in_layout = node.get_dependency(fused_op.dep_start_idx).get_output_layout();
+            if (program_helpers::needs_onednn_sum_post_op(fused_op.node->as<eltwise>(), eltw_in_layout)) {
+                return false;
+            }
+        }
+    }
 
     return onednn_valid_dt && onednn_valid_params && spatial_dims_num <= 3;
 }
@@ -1477,19 +1487,6 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         if (node.is_type<convolution>() && node.as<convolution>().weights_zero_points_term())
             impl_candidate = impl_types::ocl;
 
-        // oneDNN doesn't support sum post ops for deconvolutions
-        if (node.is_type<deconvolution>() && impl_candidate == impl_types::onednn) {
-            for (auto& fused_op : node.get_fused_primitives()) {
-                if (fused_op.node->is_type<eltwise>() && fused_op.deps.size() == 1) {
-                    auto eltw_in_layout = node.get_dependency(fused_op.dep_start_idx).get_output_layout();
-                    if (program_helpers::needs_onednn_sum_post_op(fused_op.node->as<eltwise>(), eltw_in_layout)) {
-                        impl_candidate = impl_types::ocl;
-                        break;
-                    }
-                }
-            }
-        }
-
         preferred_impl = impl_candidate;
     } else if (node.is_type<concatenation>()) {
         if (!_optimization_attributes.use_onednn_impls)
@@ -1497,9 +1494,11 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
 
         for (auto& dep : node.get_dependencies()) {
             if (dep->is_in_data_flow() && dep->get_preferred_impl_type() == impl_types::onednn) {
-                preferred_impl = impl_types::onednn;
-                break;
+                return impl_types::onednn;
             }
+        }
+        if (format::is_blocked(node.get_output_layout().format)) {
+            return impl_types::onednn;
         }
     // TODO: uncomment this code when onednn gemm implementations will have real perf improvements vs cldnn
     } else if (node.is_type<fully_connected>()/* || node.is_type<gemm>()*/) {
@@ -1652,8 +1651,6 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                     format expected_conv_fmt = get_expected_layout(conv_output_layout, conv, weights_layout).format;
                     if (expected == format::bfyx && expected_conv_fmt == format::bs_fs_yx_bsv32_fsv32 && layout.size.feature[0] % 32 == 0)
                         expected = expected_conv_fmt;
-                } else {
-                    expected = format::bfyx;
                 }
             } else if (layout.size.feature[0] > 8) {
                 expected = format::b_fs_yx_fsv16;
@@ -1680,10 +1677,6 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                 format expected_conv_fmt = get_expected_layout(conv_output_layout, conv, weights_layout).format;
                 if (layout.format.spatial_num() == 2 && layout.size.feature[0] % 32 == 0 && expected_conv_fmt == format::b_fs_yx_fsv32)
                     expected = expected_conv_fmt;
-                else
-                    expected = format::bfyx;
-            } else {
-                expected = format::bfyx;
             }
         }
     } else if (node.is_type<reorder>() || node.is_type<input_layout>()) {
