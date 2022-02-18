@@ -72,7 +72,7 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
    @endsphinxdirective
    
 3. Follow the instructions on your screen. During the installation you will be asked to accept the license agreement. The acceptance is required to continue. Check out the installation process in the image below:<br>
-   ![](../img/openvino-install-win-run-boostrapper-script-2.gif)
+   ![](../img/openvino-install-win-run-boostrapper-script.gif)
    Click on the image to see the details.
    <br>
    <br>By default, the Intel® Distribution of OpenVINO™ is installed to the following directory, referred to as `<INSTALL_DIR>` elsewhere in the documentation: `C:\Program Files (x86)\Intel\openvino_<version>/`.
