@@ -54,17 +54,17 @@ Default fallback policy decides which layer goes to which device automatically a
 
 Another way to annotate a network is to set affinity manually using `ov::Node::get_rt_info` with key `affinity`:
 
-@snippet snippets/ov_hetero_0.cpp part0
+@snippet snippets/ov_hetero.cpp part0
 
 The fallback policy does not work if even one layer has an initialized affinity. The sequence should be to call automating affinity settings and then fix manually.
 
 > **NOTE**: If you set affinity manually, be careful because currently OpenVINO™ plugins don't support constant (`Constant`->`Result`) and empty (`Parameter`->`Result`) networks. Please avoid such subgraphs when you set affinity manually.
 
-@snippet snippets/ov_hetero_1.cpp part1
+@snippet snippets/ov_hetero.cpp part1
 
 If you rely on the default affinity distribution, you can avoid calling <code>ov::Core::query_model</code> and just call <code>ov::Core::compile_model</code> instead:
 
-@snippet snippets/ov_hetero_2.cpp part2
+@snippet snippets/ov_hetero.cpp part2
 
 > **NOTE**: `ov::Core::query_model` does not depend on affinities set by a user. Instead, it queries for layer support based on device capabilities.
 

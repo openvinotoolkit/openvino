@@ -28,7 +28,7 @@ The `ov::CompiledModel` class is also extended to support the Properties API:
 
 #### get_available_devices
 
-@snippet snippets/ov_properties_api_0.cpp part0
+@snippet snippets/ov_properties_api.cpp part0
 
 The function returns a list of available devices, for example:
 
@@ -46,17 +46,31 @@ Each device name can then be passed to:
 * `ov::Core::get_property` to get common or device specific properties.
 * All other methods of the `ov::Core` class that accept `deviceName`.
 
+#### ov::Core methods
+
+`ov::Core` methods like:
+
+* `ov::Core::compile_model`
+* `ov::Core::import_model`
+* `ov::Core::query_model`
+* `ov::Core::query_model`
+* `ov::Core::create_context`
+
+accept variadic list of properties as last arguments. Each property in such parameters lists should be used as function call to pass property value with specified property type
+
+@snippet snippets/ov_properties_api.cpp part3
+
 #### get_property()
 
 For documentation about common configuration keys, refer to `openvino/runtime/properties.hpp`. Device specific configuration keys can be found in corresponding plugin folders.
 
 * The code below demonstrates how to query `HETERO` device priority of devices which will be used to infer the model:
 
-@snippet snippets/ov_properties_api_1.cpp part1
+@snippet snippets/ov_properties_api.cpp part1
 
 * To extract device properties such as available device, device name, supported configuration keys, and others, use the `ov::Core::get_property` method:
 
-@snippet snippets/ov_properties_api_2.cpp part2
+@snippet snippets/ov_properties_api.cpp part2
 
 A returned value appears as follows: `Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz`.
 
@@ -68,15 +82,15 @@ A returned value appears as follows: `Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz`.
 
 The method is used to get configuration values the compiled model has been created with or compiled model specific property such as `ov::optimal_number_of_infer_requests`:
 
-@snippet snippets/ov_properties_api_3.cpp part3
+@snippet snippets/ov_properties_api.cpp part4
 
 Or the current temperature of the `MYRIAD` device:
 
-@snippet snippets/ov_properties_api_4.cpp part4
+@snippet snippets/ov_properties_api.cpp part5
 
 Or the number of threads that would be used for inference in `CPU` device:
 
-@snippet snippets/ov_properties_api_5.cpp part5
+@snippet snippets/ov_properties_api.cpp part6
 
 #### set_property()
 
