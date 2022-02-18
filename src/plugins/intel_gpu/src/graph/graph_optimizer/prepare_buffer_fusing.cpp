@@ -120,10 +120,13 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
     }
 
     // For in place concatenation input layouts and data types must match.
+    // Also, it checks whether data along f-axis is aligned properly for implicit concat.
+    // Otherwise, use explicit concat instead.
     auto output_format = node.get_output_layout().format;
     auto output_datatype = node.get_output_layout().data_type;
     auto concat_axis = node.get_primitive()->axis;
 
+    size_t idx = 0;
     for (auto& input : node.get_dependencies()) {
         if (input->is_type<reshape>())
             // reshapes should be optimized out.
@@ -134,24 +137,25 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
         if (output_format != l.format || output_datatype != l.data_type)
             return false;
 
+        if (l.format.block_sizes().size() > 1)
+            return false;
+
         // TODO: Below condition should be moved to program_node::supports_padding.
-        // This hovewer will need updating the algorithm as it may make cascade adjustment impossible in some cases.
-        // It hovewer would make normal optimizations possible in others, so this is a trade-off to be investigated.
-        if (l.format == format::b_fs_yx_fsv16 && (l.size.feature[0] % 16 != 0 || node.get_primitive()->axis != concatenation::along_f))
-            return false;
+        // This however will need updating the algorithm as it may make cascade adjustment impossible in some cases.
+        // It however would make normal optimizations possible in others, so this is a trade-off to be investigated.
+        if (idx != node.get_dependencies().size() - 1) {
+            if ((l.format == format::b_fs_yx_fsv16 || l.format == format::b_fs_zyx_fsv16) &&
+                (l.size.feature[0] % 16 != 0 || node.get_primitive()->axis != concatenation::along_f))
+                return false;
 
-        if (l.format == format::b_fs_zyx_fsv16 && (l.size.feature[0] % 16 != 0 || node.get_primitive()->axis != concatenation::along_f))
-            return false;
+            if ((l.format == format::b_fs_yx_fsv32 || l.format == format::b_fs_zyx_fsv32) &&
+                (l.size.feature[0] % 32 != 0 || node.get_primitive()->axis != concatenation::along_f))
+                return false;
 
-        if ((l.format == format::b_fs_yx_fsv32 || l.format == format::b_fs_zyx_fsv32) &&
-            (l.size.feature[0] % 32 != 0 || node.get_primitive()->axis != concatenation::along_f))
-            return false;
-
-        if (l.format == format::bs_fs_yx_bsv16_fsv16)
-            return false;
-
-        if (l.format == format::b_fs_yx_fsv4 && (l.size.feature[0] != 8 || node.get_primitive()->axis != concatenation::along_f))
-            return false;
+            if (l.format == format::b_fs_yx_fsv4 && (l.size.feature[0] != 4 || node.get_primitive()->axis != concatenation::along_f))
+                return false;
+        }
+        idx++;
     }
 
     auto lower_padd_in_axis = node.get_output_layout().data_padding.lower_size().raw[concat_axis];
@@ -159,7 +163,7 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
                                   node.get_dependency(0).get_output_layout().data_padding.lower_size().raw[concat_axis]);
 
     // check if concatenation in place can be applied for inputs set
-    size_t idx = 0;
+    idx = 0;
     for (auto input : node.get_dependencies()) {
         // reverted condition - if any of this node's inputs is used by more than one primitive
         // and is not optimized concatenation then do not fuse buffers
