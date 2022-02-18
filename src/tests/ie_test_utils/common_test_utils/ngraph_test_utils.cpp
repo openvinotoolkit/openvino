@@ -14,15 +14,19 @@ void TransformationTestsF::accuracy_check(const std::shared_ptr<ov::Model>& ref_
         if (ref_function->is_dynamic() || cur_function->is_dynamic()) {
             return;
         }
-        std::map<std::shared_ptr<ov::Node>, ov::Tensor> input_data;
-        for (const auto& param : ref_function->get_parameters()) {
-            const auto &tensor = ov::test::utils::create_and_fill_tensor(param->get_element_type(),
-                                                                        param->get_shape());
-            input_data[param] = tensor;
+        IE_ASSERT(ref_function->get_parameters().size() == cur_function->get_parameters().size());
+
+        std::map<std::shared_ptr<ov::Node>, ov::Tensor> ref_input_data;
+        std::map<std::shared_ptr<ov::Node>, ov::Tensor> cur_input_data;
+        for (size_t i=0; i < ref_function->get_parameters().size(); i++) {
+            const auto &tensor = ov::test::utils::create_and_fill_tensor(ref_function->get_parameters()[i]->get_element_type(),
+                                                                         ref_function->get_parameters()[i]->get_shape());
+            ref_input_data[ref_function->get_parameters()[i]] = tensor;
+            cur_input_data[cur_function->get_parameters()[i]] = tensor;
         }
 
-        auto ref_outputs = ngraph::helpers::interpretFunction(ref_function, input_data);
-        auto outputs = ngraph::helpers::interpretFunction(ref_function, input_data);
+        auto ref_outputs = ngraph::helpers::interpretFunction(ref_function, ref_input_data);
+        auto outputs = ngraph::helpers::interpretFunction(cur_function, cur_input_data);
 
         IE_ASSERT(ref_outputs.size() == outputs.size());
 
