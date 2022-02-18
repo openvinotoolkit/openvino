@@ -3,10 +3,10 @@
 @sphinxdirective
 
 .. toctree::
-:maxdepth: 1
-:hidden:
+   :maxdepth: 1
+   :hidden:
 
-openvino_docs_OV_Runtime_UG_Preprocessing_Details
+   openvino_docs_OV_Runtime_UG_Preprocessing_Details
 
 @endsphinxdirective
 
@@ -15,18 +15,19 @@ openvino_docs_OV_Runtime_UG_Preprocessing_Details
 When your input data don't perfectly fit to Neural Network model input tensor - this means that additional operations/steps are needed to transform your data to format expected by model. These operations are known as "preprocessing".
 
 ### Example
-Consider the following standard example: deep learning model expects input with shape `{1, 3, 224, 224}`, `FP32` precision, RGB channels order, and require data normalization (subtract mean and divide by scale factor). But you have BGR 640x480 image (data is `{480, 640, 3}`). This means that we need some operations which will:
+Consider the following standard example: deep learning model expects input with shape `{1, 3, 224, 224}`, `FP32` precision, `RGB` color channels order, and requires data normalization (subtract mean and divide by scale factor). But you have just a `640x480` `BGR` image (data is `{480, 640, 3}`). This means that we need some operations which will:
  - Convert U8 buffer to FP32
  - Transform to `planar` format: from `{1, 480, 640, 3}` to `{1, 3, 480, 640}`
  - Resize image from 640x480 to 224x224
- - Make it `BGR->RGB` conversion as model expects `RGB`
+ - Make `BGR->RGB` conversion as model expects `RGB`
  - For each pixel, subtract mean values and divide by scale factor
 
-![preprocess_not_fit]
+
+![](img/preprocess_not_fit.png)
 
 
-Even though all these steps can be relatively easy implemented manually in application's code before actual inference, it is possible to do it with PreProcessing API. Reasons to use this API are:
- - PreProcessing API is easy to use
+Even though all these steps can be relatively easy implemented manually in application's code before actual inference, it is possible to do it with Preprocessing API. Reasons to use this API are:
+ - Preprocessing API is easy to use
  - Preprocessing steps will be integrated into execution graph and will be performed on selected device (CPU/GPU/VPU/etc.) rather than always being executed on CPU. This will improve selected device utilization which is always good.
 
 ## Preprocessing API
@@ -41,35 +42,42 @@ Intuitively, Preprocessing API consists of the following parts:
 ### PrePostProcessor object
 
 `ov::preprocess::PrePostProcessor` class allows specifying preprocessing and postprocessing steps for model read from disk.
-- C++
-@snippet snippets/ov_preprocessing.cpp ov:preprocess:create
 
-- Python
-    ```python
-    from openvino.preprocess import PrePostProcessor
-    from openvino.runtime import Core
+@sphinxdirective
 
-    core = Core()
-    model = core.read_model(model=xml_path)
-    ppp = PrePostProcessor(model)
-     ```
+.. tab:: C++
+
+      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+         :language: cpp
+         :fragment: [ov:preprocess:create]
+
+.. tab:: Python
+
+      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
+         :language: python
+         :fragment: [ov:preprocess:create]
+
+@endsphinxdirective
 
 ### Declare user's data format
 
 To address particular input of model/preprocessor, use `PrePostProcessor::input(input_name)` method
 
-- C++
-@snippet snippets/ov_preprocessing.cpp ov:preprocess:tensor
-- Python
-    ```python
-    from openvino.preprocess import ColorFormat
-    from openvino.runtime import Layout, Type
-    ppp.input(input_name).tensor()
-            .set_element_type(Type.u8)
-            .set_shape([1, 480, 640, 3])
-            .set_layout(Layout('NHWC'))
-            .set_color_format(ColorFormat.BGR)
-     ```
+@sphinxdirective
+
+.. tab:: C++
+
+      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+         :language: cpp
+         :fragment: [ov:preprocess:tensor]
+
+.. tab:: Python
+
+      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
+         :language: python
+         :fragment: [ov:preprocess:tensor]
+
+@endsphinxdirective
 
 
 Here we've specified all information about user's input:
@@ -82,15 +90,21 @@ Here we've specified all information about user's input:
 
 Model's input already has information about precision and shape. Preprocessing API is not intended to modify this. The only thing that may be specified is input's data [layout](./layout_overview.md)
 
-- C++
-@snippet snippets/ov_preprocessing.cpp ov:preprocess:model
-- Python
-    ```python
-    from openvino.preprocess import ColorFormat
-    from openvino.runtime import Layout, Type
-    ppp.input(input_name).model()
-            .set_layout(Layout('NCHW'))
-     ```
+@sphinxdirective
+
+.. tab:: C++
+
+      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+         :language: cpp
+         :fragment: [ov:preprocess:model]
+
+.. tab:: Python
+
+      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
+         :language: python
+         :fragment: [ov:preprocess:model]
+
+@endsphinxdirective
 
 
 Now, if model's input has `{1,3,224,224}` shape, preprocessing will be able to identify that model's `height=224`, `width=224`, `channels=3`. Height/width information is necessary for 'resize', and `channels` is needed for mean/scale normalization
@@ -99,19 +113,21 @@ Now, if model's input has `{1,3,224,224}` shape, preprocessing will be able to i
 
 Now we can define sequence of preprocessing steps:
 
-- C++
-@snippet snippets/ov_preprocessing.cpp ov:preprocess:steps
-- Python
-    ```python
-    from openvino.preprocess import ResizeAlgorithm
-    ppp.input(input_name).preprocess()
-            .convert_element_type(Type.f32)
-            .convert_color(ColorFormat.RGB)
-            .resize(ResizeAlgorithm.RESIZE_LINEAR)
-            .mean([100.5, 101, 101.5])
-            .scale([50., 51., 52.]);
-            // .convert_layout(Layout('NCHW')); # Not needed, such conversion will be added implicitly
-     ```
+@sphinxdirective
+
+.. tab:: C++
+
+      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+         :language: cpp
+         :fragment: [ov:preprocess:steps]
+
+.. tab:: Python
+
+      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
+         :language: python
+         :fragment: [ov:preprocess:steps]
+
+@endsphinxdirective
 
 Here:
  - Convert U8 to FP32 precision
@@ -125,16 +141,26 @@ Here:
 
 We've finished with preprocessing steps declaration, now it is time to build it. For debugging purposes it is possible to print `PrePostProcessor` configuration on screen:
 
-- C++
-@snippet snippets/ov_preprocessing.cpp ov:preprocess:build
-- Python
-    ```python
-    print(f'Dump preprocessor: {ppp}')
-    model = ppp.build()
-     ```
+@sphinxdirective
+
+.. tab:: C++
+
+      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+         :language: cpp
+         :fragment: [ov:preprocess:build]
+
+.. tab:: Python
+
+      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
+         :language: python
+         :fragment: [ov:preprocess:build]
+
+@endsphinxdirective
 
 
 After this, `model` will accept U8 input with `{1, 480, 640, 3}` shape, with `BGR` channels order. All conversion steps will be integrated into execution graph. Now you can load model on device and pass your image to model as is, without any data manipulation on application's side
 
 
-[preprocess_not_fit]: img/preprocess_not_fit.png
+## See Also
+
+* [Preprocessing Details](./preprocessing_details.md)
