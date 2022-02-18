@@ -21,10 +21,10 @@ OutputVector translate_avg_pool_op(const NodeContext& node) {
     auto tf_padding_type = node.get_attribute<std::string>("padding");
     auto tf_data_format = node.get_attribute<std::string>("data_format");
 
-    TENSORFLOW_OP_VALIDATION(node,
-                             tf_data_format == "NHWC" || tf_data_format == "NCHW" || tf_data_format == "NDHWC"
-                             || tf_data_format == "NCDHW",
-                             "AvgPool data format is neither NHWC (NDHWC) nor NCHW (NCDHW)");
+    TENSORFLOW_OP_VALIDATION(
+        node,
+        tf_data_format == "NHWC" || tf_data_format == "NCHW" || tf_data_format == "NDHWC" || tf_data_format == "NCDHW",
+        "AvgPool data format is neither NHWC (NDHWC) nor NCHW (NCDHW)");
 
     bool is_nhwc = (tf_data_format == "NHWC") || (tf_data_format == "NDHWC");
 
