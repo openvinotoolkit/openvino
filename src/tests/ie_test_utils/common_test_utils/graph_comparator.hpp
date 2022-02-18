@@ -977,3 +977,6 @@ private:
 Comparator::Result compare(ngraph::Node* node1, ngraph::Node* node2, Comparator::CmpValues comparition_flags);
 
 }  // namespace attributes
+
+void accuracy_check(const std::shared_ptr<ov::Model>& ref_function,
+                    const std::shared_ptr<ov::Model>& cur_function);

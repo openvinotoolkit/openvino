@@ -5,7 +5,7 @@
 #include <functional_test_utils/include/functional_test_utils/blob_utils.hpp>
 #include "ngraph_test_utils.hpp"
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
-#include <functional_test_utils/include/functional_test_utils/ov_tensor_utils.hpp>
+#include "ov_tensor_utils.hpp"
 
 
 void TransformationTestsF::accuracy_check(const std::shared_ptr<ov::Model>& ref_function,
