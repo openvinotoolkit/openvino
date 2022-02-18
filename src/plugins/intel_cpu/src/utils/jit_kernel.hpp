@@ -13,7 +13,8 @@
 #include <array>
 #include <tuple>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 struct jit_kernel;
 
@@ -1030,4 +1031,5 @@ variable<T[N], register_tag>::variable(jit_kernel & krnl, const shared_reg<reg_t
 
 }   // namespace internal
 
-}   // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

@@ -7,7 +7,8 @@
 
 using namespace dnnl::impl::cpu;
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 const unsigned jitGatherKernelBase::shufMask8bitUni[16]  = {0x0C080400, 0x80808080, 0x80808080, 0x80808080, 0x0C080400, 0x80808080, 0x80808080, 0x80808080,
                                                             0x0C080400, 0x80808080, 0x80808080, 0x80808080, 0x0C080400, 0x80808080, 0x80808080, 0x80808080};
@@ -1040,4 +1041,5 @@ bool jitUniGatherKernel<isa>::isSupportedConfiguration(uint64_t afterAxisSize) {
 template struct jitUniGatherKernel<x64::avx2>;
 template struct jitUniGatherKernel<x64::avx512_common>;
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov
