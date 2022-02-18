@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,7 @@ TEST(type_prop_layers, roi_align_incompatible_num_rois) {
     const auto rois = make_shared<op::Parameter>(element::f32, PartialShape{1, Dimension{}});
     const auto batch_indices = make_shared<op::Parameter>(element::i32, Shape{2});
     // the first dimension of rois and batch_indices should be equal
-    ASSERT_THROW(make_shared<op::v3::ROIAlign>(data, rois, batch_indices, 3, 4, 1, 1.0f, "avg"),
+    ASSERT_THROW(const auto unused = make_shared<op::v3::ROIAlign>(data, rois, batch_indices, 3, 4, 1, 1.0f, "avg"),
                  ngraph::NodeValidationFailure);
 }
 
@@ -46,7 +46,7 @@ TEST(type_prop_layers, roi_align_incompatible_input_rank) {
     const auto rois = make_shared<op::Parameter>(element::f32, Shape{1, 4});
     const auto batch_indices = make_shared<op::Parameter>(element::i32, Shape{1});
     // data rank needs to be 4
-    ASSERT_THROW(make_shared<op::v3::ROIAlign>(data, rois, batch_indices, 3, 4, 1, 1.0f, "avg"),
+    ASSERT_THROW(const auto unused = make_shared<op::v3::ROIAlign>(data, rois, batch_indices, 3, 4, 1, 1.0f, "avg"),
                  ngraph::NodeValidationFailure);
 }
 
@@ -55,6 +55,6 @@ TEST(type_prop_layers, roi_align_incompatible_rois_second_dim) {
     const auto rois = make_shared<op::Parameter>(element::f32, Shape{1, 5});
     const auto batch_indices = make_shared<op::Parameter>(element::i32, Shape{1});
     // the second dim of rois needs to be 4
-    ASSERT_THROW(make_shared<op::v3::ROIAlign>(data, rois, batch_indices, 3, 4, 1, 1.0f, "avg"),
+    ASSERT_THROW(const auto unused = make_shared<op::v3::ROIAlign>(data, rois, batch_indices, 3, 4, 1, 1.0f, "avg"),
                  ngraph::NodeValidationFailure);
 }

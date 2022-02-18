@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import re
@@ -10,8 +10,14 @@ from openvino.frontend import InputModel  # pylint: disable=no-name-in-module,im
 
 import numpy as np
 
+from enum import Enum
 
-def decode_name_with_port(input_model: InputModel, node_name: str):
+class MatchType(Enum):
+    PRE = 1
+    POST = 2
+
+
+def decode_name_with_port(input_model: InputModel, node_name: str, framework=""):
     """
     Decode name with optional port specification w/o traversing all the nodes in the graph
     TODO: in future node_name can specify input/output port groups as well as indices (58562)
@@ -19,34 +25,81 @@ def decode_name_with_port(input_model: InputModel, node_name: str):
     :param node_name: user provided node name
     :return: decoded place in the graph
     """
-    found_nodes = []
-    found_node_names = []
 
-    node = input_model.get_place_by_tensor_name(node_name)
-    if node:
-        found_node_names.append('Tensor:' + node_name)
-        found_nodes.append(node)
+    def extract_nodes(input_model, name, port, match_type, search_tensor = True):
+        nodes = []
+        node_names = []
+        node = input_model.get_place_by_operation_name(name)
+        if not node and search_tensor:
+            tensor = input_model.get_place_by_tensor_name(name)
+            if tensor:
+                node_names.append('Tensor:' + tensor.get_names()[0])
+                nodes.append(tensor)
+                search_tensor = False
+        if node:
+            # if there is an operation with given name, we add input port
+            if match_type == MatchType.PRE:
+                new_node = node.get_input_port(input_port_index=int(port))
+            elif match_type == MatchType.POST:
+                new_node = node.get_output_port(output_port_index=int(port))
+            if new_node:
+                node_names.append(name)
+                nodes.append(new_node)
+            # if we are still looking for the tensor e add one with given port
+            if search_tensor:
+                if match_type == MatchType.PRE:
+                    tensor = node.get_source_tensor(input_port_index=int(port))
+                elif match_type == MatchType.POST:
+                    tensor = node.get_target_tensor(output_port_index=0)
+                if tensor:
+                    node_names.append('Tensor:' + tensor.get_names()[0])
+                    nodes.append(tensor)
+                    search_tensor = False
+        return nodes, node_names, search_tensor
 
-    regexp_post = r'(.+):(\d+)'
-    match_post = re.search(regexp_post, node_name)
-    if match_post:
-        node_post = input_model.get_place_by_operation_name(match_post.group(1))
-        if node_post:
-            node_post = node_post.get_output_port(output_port_index=int(match_post.group(2)))
-            if node_post:
-                found_node_names.append(match_post.group(1))
-                found_nodes.append(node_post)
 
-    regexp_pre = r'(\d+):(.+)'
-    match_pre = re.search(regexp_pre, node_name)
-    if match_pre:
-        node_pre = input_model.get_place_by_operation_name(match_pre.group(2))
-        if node_pre:
-            node_pre = node_pre.get_input_port(input_port_index=int(match_pre.group(1)))
-            if node_pre:
-                found_node_names.append(match_pre.group(2))
-                found_nodes.append(node_pre)
+    def try_get_nodes(input_model, node_name):
+        # Passed node_name can be in several forms:
+        # (1) name (2) port:name (3) name:port
+        found_nodes = []
+        found_node_names = []
+        # if we find tensor, there is no need to continue searching
+        search_tensor = True
+        # check if there is a tensor with given node_name
+        tensor = input_model.get_place_by_tensor_name(node_name)
+        if tensor:
+            found_node_names.append('Tensor:' + tensor.get_names()[0])
+            found_nodes.append(tensor)
+            search_tensor = False
 
+        regexp_pre = r'(\d+):(.+)'
+        match_pre = re.search(regexp_pre, node_name)
+        # we check for port:name combination
+        if match_pre:
+            nodes, node_names, search_tensor = extract_nodes(input_model, match_pre.group(2), match_pre.group(1), MatchType.PRE, search_tensor)
+            if nodes:
+                found_nodes += nodes
+                found_node_names += node_names
+        regexp_post = r'(.+):(\d+)'
+        match_post = re.search(regexp_post, node_name)
+        # we check for name:port combination
+        if match_post:
+            nodes, node_names, search_tensor = extract_nodes(input_model, match_post.group(1), match_post.group(2), MatchType.POST, search_tensor)
+            if nodes:
+                found_nodes += nodes
+                found_node_names += node_names
+        # if node and tensor were not found yet
+        # we try to find operation with node_name
+        if not found_nodes and search_tensor:
+            node = input_model.get_place_by_operation_name(node_name)
+            if node:
+                tensor = node.get_target_tensor(output_port_index=0)
+                if tensor:
+                    found_node_names.append('Tensor:' + tensor.get_names()[0])
+                    found_nodes.append(tensor)
+        return found_node_names, found_nodes
+
+    found_node_names, found_nodes = try_get_nodes(input_model, node_name)
     if len(found_nodes) == 0:
         raise_no_node(node_name)
 
@@ -54,19 +107,14 @@ def decode_name_with_port(input_model: InputModel, node_name: str):
     if not all([n.is_equal_data(found_nodes[0]) for n in found_nodes]):
         raise_node_name_collision(node_name, found_node_names)
 
-    # TODO: ONNX specific (59408)
-    # To comply with legacy behavior, for ONNX-only there shall be considered additional 2 possibilities
-    # 1) "abc:1" - get_place_by_tensor_name("abc").get_producing_operation().get_output_port(1)
-    # 2) "1:abc" - get_place_by_tensor_name("abc").get_producing_operation().get_input_port(1)
-    # This logic is not going to work with other frontends
-
     # TODO: Add support for input/output group name and port index here (58562)
     # For new frontends logic shall be extended to additionally support input and output group names
-    return found_nodes[0]
+    idx = next((idx for idx, name in enumerate(found_node_names) if 'Tensor' in name), 0)
+    return found_nodes[idx]
 
 
 def fe_input_user_data_repack(input_model: InputModel, input_user_shapes: [None, list, dict, np.ndarray],
-                              freeze_placeholder: dict, input_user_data_types=dict()):
+                              freeze_placeholder: dict, framework: str, input_user_data_types=dict(), ):
     """
     Restructures user input cutting request. Splits ports out of node names.
         Transforms node names to node ids.
@@ -107,7 +155,7 @@ def fe_input_user_data_repack(input_model: InputModel, input_user_shapes: [None,
     _input_shapes = []
     if isinstance(input_user_shapes, list) or isinstance(input_user_shapes, dict):
         for input_name in input_user_shapes:
-            node = decode_name_with_port(input_model, input_name)
+            node = decode_name_with_port(input_model, input_name, framework)
             if node is None:
                 raise Error('Cannot find location {} in the input model'.format(input_name))
             shape = None if isinstance(input_user_shapes, list) else input_user_shapes[input_name]
@@ -126,7 +174,7 @@ def fe_input_user_data_repack(input_model: InputModel, input_user_shapes: [None,
     return _input_shapes, dict()
 
 
-def fe_output_user_data_repack(input_model: InputModel, outputs: list):
+def fe_output_user_data_repack(input_model: InputModel, outputs: list, framework: str):
     """
 
     :param input_model: Input Model to operate on
@@ -153,7 +201,7 @@ def fe_output_user_data_repack(input_model: InputModel, outputs: list):
     _outputs = []
     if outputs is not None:
         for output in outputs:
-            node = decode_name_with_port(input_model, output)
+            node = decode_name_with_port(input_model, output, framework)
             if node is None:
                 raise Error('Cannot find location {} in the graph'.format(output))
             _outputs.append({'node': node})
@@ -161,7 +209,7 @@ def fe_output_user_data_repack(input_model: InputModel, outputs: list):
 
 
 def fe_user_data_repack(input_model: InputModel, input_user_shapes: [None, list, dict, np.array],
-                        input_user_data_types: dict, outputs: list, freeze_placeholder: dict):
+                        input_user_data_types: dict, outputs: list, freeze_placeholder: dict, framework: str):
     """
     :param input_model: Input Model to operate on
     :param input_user_shapes: data structure representing user input cutting request
@@ -171,7 +219,7 @@ def fe_user_data_repack(input_model: InputModel, input_user_shapes: [None, list,
     :return: restructured input, output and freeze placeholder dictionaries or None values
     """
     _input_shapes, _freeze_placeholder = fe_input_user_data_repack(
-        input_model, input_user_shapes, freeze_placeholder, input_user_data_types=input_user_data_types)
-    _outputs = fe_output_user_data_repack(input_model, outputs)
+        input_model, input_user_shapes, freeze_placeholder,  framework, input_user_data_types=input_user_data_types,)
+    _outputs = fe_output_user_data_repack(input_model, outputs, framework)
 
     return _input_shapes, _outputs, _freeze_placeholder

@@ -1,15 +1,15 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set(TARGET_NAME cpuFuncTests)
 
-add_library(cpuSpecificRtInfo STATIC ${IE_MAIN_SOURCE_DIR}/src/mkldnn_plugin/utils/rt_info/memory_formats_attribute.hpp
-                                     ${IE_MAIN_SOURCE_DIR}/src/mkldnn_plugin/utils/rt_info/memory_formats_attribute.cpp)
-target_link_libraries(cpuSpecificRtInfo PRIVATE ngraph)
+add_library(cpuSpecificRtInfo STATIC $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/rt_info/memory_formats_attribute.hpp
+                                     $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/rt_info/memory_formats_attribute.cpp)
+target_link_libraries(cpuSpecificRtInfo PRIVATE openvino::runtime)
 
-set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} $<TARGET_PROPERTY:MKLDNNPlugin,SOURCE_DIR>)
-set(DEPENDENCIES MKLDNNPlugin)
+set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src)
+set(DEPENDENCIES openvino_intel_cpu_plugin)
 set(LINK_LIBRARIES funcSharedTests cpuSpecificRtInfo)
 if (ENABLE_OV_ONNX_FRONTEND)
     list(APPEND INCLUDES "${OpenVINO_SOURCE_DIR}/docs/onnx_custom_op")

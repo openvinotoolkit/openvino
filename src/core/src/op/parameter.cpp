@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <sstream>
 
 #include "itt.hpp"
+#include "layout_utils.hpp"
 #include "ngraph/attribute_visitor.hpp"
 
 using namespace std;
@@ -49,19 +50,23 @@ void op::Parameter::set_is_relevant_to_shapes(bool is_relevant) {
 }
 
 ov::Layout op::Parameter::get_layout() const {
-    auto it = output(0).get_rt_info().find(ov::LayoutAttribute::get_type_info_static());
-    if (it == output(0).get_rt_info().end()) {
-        return {};
-    }
-    return it->second.as<ov::LayoutAttribute>().value;
+    return ov::layout::get_layout(output(0));
 }
 
 void op::Parameter::set_layout(const ov::Layout& layout) {
-    if (layout.empty()) {
-        output(0).get_rt_info().erase(ov::LayoutAttribute::get_type_info_static());
-    } else {
-        output(0).get_rt_info()[ov::LayoutAttribute::get_type_info_static()] = ov::LayoutAttribute(layout);
-    }
+    ov::layout::set_layout(output(0), layout);
+}
+
+void op::Parameter::set_partial_shape(const PartialShape& partial_shape) {
+    OPENVINO_ASSERT(ov::layout::utils::is_compatible(get_layout(), partial_shape),
+                    "Can't set partial shape ",
+                    partial_shape,
+                    " for Parameter ",
+                    *this,
+                    " with layout ",
+                    get_layout().to_string(),
+                    ". Layout is not compatible with shape");
+    m_partial_shape = partial_shape;
 }
 
 BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ParameterVector>);

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
@@ -43,7 +43,7 @@ def common_pool_extender(op: Node):
     op['batch_dims'] = int64_array([0]),
     op['channel_dims'] = int64_array([1]),
 
-    op['pool_method'] = 'max' if op.type is 'MaxPool' else 'avg'
+    op['pool_method'] = 'max' if op.type == 'MaxPool' else 'avg'
 
     dim = len(op.pads_begin)
 

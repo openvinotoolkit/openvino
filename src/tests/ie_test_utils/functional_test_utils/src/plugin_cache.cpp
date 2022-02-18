@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,7 +55,7 @@ std::shared_ptr<InferenceEngine::Core> PluginCache::ie(const std::string &device
 
     // register template plugin if it is needed
     try {
-        std::string pluginName = "templatePlugin";
+        std::string pluginName = "openvino_template_plugin";
         pluginName += IE_BUILD_POSTFIX;
         ie_core->RegisterPlugin(pluginName, "TEMPLATE");
     } catch (...) {}

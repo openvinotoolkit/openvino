@@ -1,0 +1,67 @@
+%{
+--------------------------------------------------------------------------------
+--
+--  This file is part of the Doxyrest toolkit.
+--
+--  Doxyrest is distributed under the MIT license.
+--  For details see accompanying license.txt file,
+--  the public copy of which is also available at:
+--  http://tibbo.com/downloads/archive/doxyrest/license.txt
+--
+--------------------------------------------------------------------------------
+
+local argArray = table.pack(...)
+local compound = argArray[1]
+}
+	// enums
+
+%{
+local isLastUnnamed = false
+
+for i = 1, #compound.enumArray do
+	local item = compound.enumArray[i]
+	local enumKind = getItemKindString(item, "enum")
+
+	if isUnnamedItem(item) then
+		if i > 1 then
+			emit("\n")
+		end
+}
+	$enumKind$g_preBodySpace{
+%{
+		local enumStats = prepareEnum(item)
+
+		for j = 1, #item.enumValueArray do
+			local subItem = item.enumValueArray[j]
+			local initializer = getLinkedTextString(subItem.initializer, true)
+
+			if string.len(initializer) > 0 then
+				local spaceCount = enumStats.maxEnumValueNameLength - string.len(subItem.name) + 1
+				initializer = string.rep(" ", spaceCount) .. initializer
+			end
+}
+	    $(getItemNameForOverview(subItem))$initializer,
+%{
+		end -- for
+
+		isLastUnnamed = true
+}
+	};
+%{
+	else
+		local targetFileName = getItemFileName(item)
+
+		if compound.compoundKind ~= "group" and not compound.isBaseCompound then
+			generateFile(targetFileName, "enum.rst.in", item)
+		end
+
+		if isLastUnnamed then
+			emit("\n")
+			isLastUnnamed = false
+		end
+}
+	$enumKind :ref:`$(getItemName(item))<doxid-$(item.id)>`;
+%{
+	end -- if
+end -- for
+}

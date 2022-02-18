@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -18,7 +18,7 @@ addIeTarget(
         LINK_LIBRARIES
             PRIVATE
                 ngraphFunctions
-                inference_engine_lp_transformations
+                openvino::runtime::dev
                 inference_engine_legacy
         ADD_CPPLINT
         DEPENDENCIES

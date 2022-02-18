@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
 #include <openvino/op/lstm_cell.hpp>
+
 #include "utils.hpp"
 
 namespace ov {
@@ -16,7 +17,7 @@ void lstm_shape_infer(const OpsType* op,
     using DimType = typename std::iterator_traits<typename ShapeType::iterator>::value_type;
     enum { X, initial_hidden_state, initial_cell_state, W, R, B };
     std::vector<bool> input_rank_static(6, false);
-    bool all_rank_dynamic = false;
+    bool all_rank_dynamic = true;
     bool all_rank_static = true;
     // Prepare OutShape
     auto& hidden_shape = output_shapes[0];
@@ -27,8 +28,8 @@ void lstm_shape_infer(const OpsType* op,
     // If rank is dynamic, then output_shape is undefined
     for (size_t i = 0; i < input_shapes.size() && i < 6; i++) {
         input_rank_static[i] = input_shapes[i].rank().is_static();
-        all_rank_dynamic &= !input_rank_static[i];
-        all_rank_static &= input_rank_static[i];
+        all_rank_dynamic = all_rank_dynamic && !input_rank_static[i];
+        all_rank_static = all_rank_static && input_rank_static[i];
     }
 
     if (all_rank_dynamic) {
@@ -43,7 +44,7 @@ void lstm_shape_infer(const OpsType* op,
     bool is_hidden_init = false;
 
     // deduce batch/hidden_size
-    for (size_t i = 0; i < input_shapes.size() && i < 6 ; i++) {
+    for (size_t i = 0; i < input_shapes.size() && i < 6; i++) {
         const auto& input = input_shapes[i];
         if (input_rank_static[i]) {
             // batch could be deduced from x, cell_state or hidden_state
@@ -94,7 +95,9 @@ void lstm_shape_infer(const OpsType* op,
                         } else {
                             NODE_VALIDATION_CHECK(
                                 op,
-                                DimType::merge(output_hidden_size, output_hidden_size, input[0].get_length() / gates_count),
+                                DimType::merge(output_hidden_size,
+                                               output_hidden_size,
+                                               input[0].get_length() / gates_count),
                                 "Parameter hidden_size not matched for W, R, B, initial_hidden_state and "
                                 "initial_cell_state "
                                 "inputs.");
@@ -115,7 +118,9 @@ void lstm_shape_infer(const OpsType* op,
                         } else {
                             NODE_VALIDATION_CHECK(
                                 op,
-                                DimType::merge(output_hidden_size, output_hidden_size, input[0].get_length() / gates_count),
+                                DimType::merge(output_hidden_size,
+                                               output_hidden_size,
+                                               input[0].get_length() / gates_count),
                                 "Parameter hidden_size not matched for W, R, B, initial_hidden_state and "
                                 "initial_cell_state "
                                 "inputs.");
@@ -140,9 +145,7 @@ void lstm_shape_infer(const OpsType* op,
     // Check peepholes
     if (input_shapes.size() == 7) {
         const auto& p_pshape = input_shapes[6];
-        NODE_VALIDATION_CHECK(op,
-                              (p_pshape.rank().compatible(1)),
-                              "LSTMCell input tensor P shall have dimension 1D.");
+        NODE_VALIDATION_CHECK(op, (p_pshape.rank().compatible(1)), "LSTMCell input tensor P shall have dimension 1D.");
     }
 
     // check input size

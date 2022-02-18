@@ -1,10 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
-import unittest
 
 from openvino.tools.mo.middle.CheckForCycle import CheckForCycle
 from openvino.tools.mo.utils.error import Error
+from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op'},
@@ -35,7 +34,7 @@ nodes_attributes = {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op'},
                     }
 
 
-class CycleTest(unittest.TestCase):
+class CycleTest(UnitTestWithMockedTelemetry):
     def test_check_for_cycle1(self):
         # cyclic case
         graph = build_graph(nodes_attributes,

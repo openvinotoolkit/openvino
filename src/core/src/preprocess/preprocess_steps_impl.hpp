@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -146,6 +146,14 @@ using InternalPreprocessOp =
                                                               const std::shared_ptr<Model>& function,
                                                               PreprocessingContext& context)>;
 
+struct InternalPreprocessAction {
+    InternalPreprocessAction(InternalPreprocessOp op, std::string name)
+        : m_op(std::move(op)),
+          m_name(std::move(name)) {}
+    InternalPreprocessOp m_op;
+    std::string m_name;
+};
+
 /// \brief PreProcessStepsImpl - internal data structure
 class PreStepsList {
 public:
@@ -160,12 +168,14 @@ public:
     std::tuple<PartialShape, Layout> calculate_param_shape(const PartialShape& model_shape,
                                                            const Layout& model_layout) const;
 
-    const std::list<InternalPreprocessOp>& actions() const {
+    const std::list<InternalPreprocessAction>& actions() const {
         return m_actions;
     }
-    std::list<InternalPreprocessOp>& actions() {
+    std::list<InternalPreprocessAction>& actions() {
         return m_actions;
     }
+
+    Layout propagate_layout(const Layout& tensor_layout) const;
 
 private:
     static std::tuple<std::vector<Output<Node>>, bool> reverse_channels(const std::vector<Output<Node>>& nodes,
@@ -177,8 +187,11 @@ private:
                                                                         PreprocessingContext& context);
 
 private:
-    std::list<InternalPreprocessOp> m_actions;
+    std::list<InternalPreprocessAction> m_actions;
     std::list<std::vector<uint64_t>> m_layout_converts;
+    std::list<std::vector<uint64_t>> m_forward_layout_converts;
+    Layout m_last_explicit_layout;
+    bool m_last_explicit_layout_set = false;
 };
 
 class PreProcessSteps::PreProcessStepsImpl : public PreStepsList {};
@@ -192,6 +205,14 @@ public:
 using InternalPostprocessOp = std::function<std::tuple<ov::Output<ov::Node>, bool>(const ov::Output<ov::Node>& node,
                                                                                    PostprocessingContext& context)>;
 
+struct InternalPostprocessAction {
+    InternalPostprocessAction(InternalPostprocessOp op, std::string name)
+        : m_op(std::move(op)),
+          m_name(std::move(name)) {}
+    InternalPostprocessOp m_op;
+    std::string m_name;
+};
+
 /// \brief PostProcessStepsImpl - internal data structure
 class PostStepsList {
 public:
@@ -199,15 +220,15 @@ public:
     void add_convert_layout_impl(const Layout& layout);
     void add_convert_layout_impl(const std::vector<uint64_t>& dims);
 
-    const std::list<InternalPostprocessOp>& actions() const {
+    const std::list<InternalPostprocessAction>& actions() const {
         return m_actions;
     }
-    std::list<InternalPostprocessOp>& actions() {
+    std::list<InternalPostprocessAction>& actions() {
         return m_actions;
     }
 
 private:
-    std::list<InternalPostprocessOp> m_actions;
+    std::list<InternalPostprocessAction> m_actions;
 };
 
 class PostProcessSteps::PostProcessStepsImpl : public PostStepsList {};

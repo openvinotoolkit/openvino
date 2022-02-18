@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,7 @@ public:
     ///
     /// \return     Einsum equation
     ///
-    std::string get_equation() const {
+    const std::string& get_equation() const {
         return m_equation;
     }
 

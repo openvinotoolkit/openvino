@@ -33,8 +33,9 @@ export PYTHONPATH="${PYTHONPATH}:/path/to/CRNN_Tensorflow/"
        * For  Windows\* OS add `/path/to/CRNN_Tensorflow/` to the `PYTHONPATH` environment variable in settings.
     3. Open the `tools/test_shadownet.py` script. After `saver.restore(sess=sess, save_path=weights_path)` line, add the following code:
 ```python
+import tensorflow as tf
 from tensorflow.python.framework import graph_io
-frozen = tf.graph_util.convert_variables_to_constants(sess, sess.graph_def, ['shadow/LSTMLayers/transpose_time_major'])
+frozen = tf.compat.v1.graph_util.convert_variables_to_constants(sess, sess.graph_def, ['shadow/LSTMLayers/transpose_time_major'])
 graph_io.write_graph(frozen, '.', 'frozen_graph.pb', as_text=False)
 ```
     4. Run the demo with the following command:

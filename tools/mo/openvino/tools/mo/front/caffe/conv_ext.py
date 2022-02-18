@@ -1,10 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
-import numpy as np
 
 from openvino.tools.mo.front.caffe.extractors.utils import get_spatial_attr, get_list_from_container, weights_biases
 from openvino.tools.mo.front.common.extractors.utils import layout_attrs
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.extractor import FrontExtractorOp
 from openvino.tools.mo.ops.convolution import Convolution
 from openvino.tools.mo.utils.error import Error
@@ -97,18 +96,18 @@ def conv_create_attrs(params):
     return {
         'bias_addable': True,
         'bias_term': params['bias_term'],
-        'pad': np.array([[0, 0], [0, 0], [params['padding'][1], params['padding'][1]],
-                         [params['padding'][0], params['padding'][0]]], dtype=np.int64),
-        'pad_spatial_shape': np.array([[params['padding'][1], params['padding'][1]],
-                                       [params['padding'][0], params['padding'][0]]], dtype=np.int64),
-        'dilation': np.array([1, 1, params['dilate'][1], params['dilate'][0]], dtype=np.int64),
+        'pad': int64_array([[0, 0], [0, 0], [params['padding'][1], params['padding'][1]],
+                         [params['padding'][0], params['padding'][0]]]),
+        'pad_spatial_shape': int64_array([[params['padding'][1], params['padding'][1]],
+                                       [params['padding'][0], params['padding'][0]]]),
+        'dilation': int64_array([1, 1, params['dilate'][1], params['dilate'][0]]),
         'output_spatial_shape': None,
         'output_shape': None,
-        'stride': np.array([1, 1, params['stride'][1], params['stride'][0]], dtype=np.int64),
+        'stride': int64_array([1, 1, params['stride'][1], params['stride'][0]]),
         'group': params['group'],
         'output': params['output'],
-        'kernel_spatial': np.array([params['kernel'][1], params['kernel'][0]], dtype=np.int64),
-        'kernel_spatial_idx': np.array([2, 3], dtype=np.int64),
+        'kernel_spatial': int64_array([params['kernel'][1], params['kernel'][0]]),
+        'kernel_spatial_idx': int64_array([2, 3]),
         'reshape_kernel': True,
 
         'input_feature_channel': 1,

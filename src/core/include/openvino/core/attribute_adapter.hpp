@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "openvino/core/any.hpp"
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/enum_names.hpp"
 #include "openvino/core/rtti.hpp"
@@ -22,8 +23,8 @@ class AttributeVisitor;
 template <typename VAT>
 class ValueAccessor;
 
-/// \brief ValueAccessor<void> provides an accessor for values that do not have get/set methonds
-/// via AttributeVistor.on_adapter.
+/// \brief ValueAccessor<void> provides an accessor for values that do not have get/set methods
+/// via AttributeVisitor.on_adapter.
 ///
 /// All ValueAccessors must be derived from ValueAccessor<void> so that an AttributeVisitor
 /// only needs to implement a subset of the on_adapter methods.
@@ -34,6 +35,9 @@ public:
     /// as_type.
     virtual const DiscreteTypeInfo& get_type_info() const = 0;
     virtual ~ValueAccessor() = default;
+    virtual void set_as_any(const ov::Any& x) {
+        throw ov::Exception("set_as_any is not implemented");
+    }
 };
 
 /// \brief Provides access to values via get/set methods from an m_value, typically from
@@ -52,6 +56,15 @@ public:
     virtual const VAT& get() = 0;
     /// Sets the value
     virtual void set(const VAT& value) = 0;
+    void set_as_any(const ov::Any& x) override {
+        const auto* data = x.addressof();
+        OPENVINO_ASSERT(data != nullptr, "Data conversion is not possible. Empty data is provided.");
+        if (x.is<VAT>()) {
+            set(*static_cast<const VAT*>(data));
+        } else {
+            OPENVINO_UNREACHABLE("Bad cast from: ", x.type_info().name(), " to: ", typeid(VAT).name());
+        }
+    }
 };
 
 template <>
@@ -94,6 +107,22 @@ public:
         m_buffer_valid = false;
     }
 
+    void set_as_any(const ov::Any& x) override {
+        const auto* data = x.addressof();
+        OPENVINO_ASSERT(data != nullptr, "Data conversion is not possible. Empty data is provided.");
+        // Try to represent x as VAT or AT
+        if (x.is<VAT>()) {
+            set(*static_cast<const VAT*>(data));
+        } else if (x.is<AT>()) {
+            // Don't call set here avoiding unnecessary casts AT -> VAT -> AT,
+            // instead reimplement logic from set.
+            m_ref = *static_cast<const AT*>(data);
+            m_buffer_valid = false;
+        } else {
+            OPENVINO_UNREACHABLE("Bad cast from: ", x.type_info().name(), " to: ", typeid(AT).name());
+        }
+    }
+
 protected:
     AT& m_ref;
     VAT m_buffer;
@@ -127,6 +156,21 @@ public:
         m_buffer_valid = false;
     }
 
+    void set_as_any(const ov::Any& x) override {
+        const auto* data = x.addressof();
+        OPENVINO_ASSERT(data != nullptr, "Data conversion is not possible. Empty data is provided.");
+        // Try to represent x as VAT or AT
+        if (x.is<VAT>()) {
+            set(*static_cast<const VAT*>(data));
+        } else if (x.is<AT>()) {
+            // Don't call set here avoiding unnecessary casts AT -> VAT -> AT,
+            // instead reimplement logic from set.
+            m_ref = *static_cast<const AT*>(data);
+            m_buffer_valid = false;
+        } else {
+            OPENVINO_UNREACHABLE("Bad cast from: ", x.type_info().name(), " to: ", typeid(AT).name());
+        }
+    }
     operator AT&() {
         return m_ref;
     }
@@ -157,6 +201,21 @@ public:
     }
     operator AT&() {
         return m_ref;
+    }
+
+    void set_as_any(const ov::Any& x) override {
+        const auto* data = x.addressof();
+        OPENVINO_ASSERT(data != nullptr, "Data conversion is not possible. Empty data is provided.");
+        // Try to represent x as std::string or AT
+        if (x.is<std::string>()) {
+            set(x.as<std::string>());
+        } else if (x.is<AT>()) {
+            // Don't call set here avoiding unnecessary casts AT -> std::string -> AT,
+            // instead reimplement logic from set.
+            m_ref = *static_cast<const AT*>(data);
+        } else {
+            OPENVINO_UNREACHABLE("Bad cast from: ", x.type_info().name(), " to: ", typeid(AT).name());
+        }
     }
 
 protected:

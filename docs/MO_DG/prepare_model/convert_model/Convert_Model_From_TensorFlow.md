@@ -1,12 +1,38 @@
 # Converting a TensorFlow* Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow}
 
+@sphinxdirective
+
+.. _convert model tf:
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_RetinaNet_From_Tensorflow
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_AttentionOCR_From_Tensorflow
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_YOLO_From_Tensorflow
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_FaceNet_From_Tensorflow
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_NCF_From_Tensorflow
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_DeepSpeech_From_Tensorflow
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_lm_1b_From_Tensorflow
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Slim_Library_Models
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_CRNN_From_Tensorflow
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_GNMT_From_Tensorflow
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_BERT_From_Tensorflow
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_XLNet_From_Tensorflow
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_WideAndDeep_Family_Models
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_EfficientDet_Models
+
+@endsphinxdirective
+
 A summary of the steps for optimizing and deploying a model that was trained with the TensorFlow\* framework:
 
-1. [Configure the Model Optimizer](../Config_Model_Optimizer.md) for TensorFlow\* (TensorFlow was used to train your model).
+1. [Configure the Model Optimizer](../../Deep_Learning_Model_Optimizer_DevGuide.md) for TensorFlow\* (TensorFlow was used to train your model).
 2. [Freeze the TensorFlow model](#freeze-the-tensorflow-model) if your model is not already frozen or skip this step and use the [instruction](#loading-nonfrozen-models) to a convert a non-frozen model.
 3. [Convert a TensorFlow\* model](#Convert_From_TF) to produce an optimized [Intermediate Representation (IR)](../../IR_and_opsets.md) of the model based on the trained network topology, weights, and biases values.
-4. Test the model in the Intermediate Representation format using the [Inference Engine](../../../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) in the target environment via provided [sample applications](../../../IE_DG/Samples_Overview.md).
-5. [Integrate](../../../IE_DG/Samples_Overview.md) the Inference Engine in your application to deploy the model in the target environment.
+4. Test the model in the Intermediate Representation format using the [OpenVINO™ Runtime](../../../OV_Runtime_UG/OpenVINO_Runtime_User_Guide.md) in the target environment via provided [sample applications](../../../OV_Runtime_UG/Samples_Overview.md).
+5. [Integrate](../../../OV_Runtime_UG/Samples_Overview.md) the Inference Engine in your application to deploy the model in the target environment.
 
 ## Supported Topologies
 
@@ -37,7 +63,7 @@ Detailed information on how to convert models from the <a href="https://github.c
 
 **Supported Pre-Trained Topologies from TensorFlow 1 Detection Model Zoo**
 
-Detailed information on how to convert models from the <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf1_detection_zoo.md">TensorFlow 1 Object Detection Models Zoo</a> and <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf2_detection_zoo.md">TensorFlow 2 Object Detection Models Zoo</a> is available in the [Converting TensorFlow Object Detection API Models](tf_specific/Convert_Object_Detection_API_Models.md) chapter. The table below contains models from the Object Detection Models Zoo that are supported.
+Detailed information on how to convert models from the <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf1_detection_zoo.md">TensorFlow 1 Detection Model Zoo</a> is available in the [Converting TensorFlow Object Detection API Models](tf_specific/Convert_Object_Detection_API_Models.md) chapter. The table below contains models from the Object Detection Models zoo that are supported.
 
 | Model Name| TensorFlow 1 Object Detection API Models|
 | :------------- | -----:|
@@ -232,7 +258,7 @@ The graph is frozen and dumped to a file with the following code:
 ```python
 import tensorflow as tf
 from tensorflow.python.framework import graph_io
-frozen = tf.graph_util.convert_variables_to_constants(sess, sess.graph_def, ["name_of_the_output_node"])
+frozen = tf.compat.v1.graph_util.convert_variables_to_constants(sess, sess.graph_def, ["name_of_the_output_node"])
 graph_io.write_graph(frozen, './', 'inference_graph.pb', as_text=False)
 ```
 
@@ -259,10 +285,10 @@ To convert a TensorFlow model:
 
 Two groups of parameters are available to convert your model:
 
-* [Framework-agnostic parameters](Converting_Model_General.md): These parameters are used to convert any model trained in any supported framework.
+* Framework-agnostic parameters are used to convert a model trained with any supported framework. For details, see see the General Conversion Parameters section on the [Converting a Model to Intermediate Representation (IR)](Converting_Model.md) page.
 * [TensorFlow-specific parameters](#tensorflow_specific_conversion_params): Parameters used to convert only TensorFlow models.
 
-> **NOTE:** The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For more information about the parameter, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](Converting_Model_General.md).
+> **NOTE**: The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For more information about the parameter, refer to **When to Reverse Input Channels** section of [Converting a Model to Intermediate Representation (IR)](Converting_Model.md).
 
 ### Using TensorFlow\*-Specific Conversion Parameters  <a name="tensorflow_specific_conversion_params"></a>
 The following list provides the TensorFlow\*-specific parameters.
@@ -304,7 +330,7 @@ TensorFlow*-specific parameters:
                         with previous releases.
 ```
 
-> **NOTE:** Models produces with TensorFlow\* usually have not fully defined shapes (contain `-1` in some dimensions). It is necessary to pass explicit shape for the input using command line parameter `--input_shape` or `-b` to override just batch dimension. If the shape is fully defined, then there is no need to specify either `-b` or `--input_shape` options.
+> **NOTE**: Models produces with TensorFlow\* usually have not fully defined shapes (contain `-1` in some dimensions). It is necessary to pass explicit shape for the input using command line parameter `--input_shape` or `-b` to override just batch dimension. If the shape is fully defined, then there is no need to specify either `-b` or `--input_shape` options.
 
 #### Command-Line Interface (CLI) Examples Using TensorFlow\*-Specific Parameters
 
@@ -328,7 +354,7 @@ TensorFlow*-specific parameters:
  mo --input_model inception_v1.pb -b 1 --tensorboard_logdir /tmp/log_dir --output_dir <OUTPUT_MODEL_DIR>
 ```
 
-* Launching the Model Optimizer for a model with custom TensorFlow operations (refer to the [TensorFlow* documentation](https://www.tensorflow.org/extend/adding_an_op)) implemented in C++ and compiled into the shared library `my_custom_op.so`. Model Optimizer falls back to TensorFlow to infer output shape of operations implemented in the library if a custom TensorFlow operation library is provided. If it is not provided, a custom operation with an inference function is needed. For more information about custom operations, refer to the [Extending the Model Optimizer with New Primitives](../customize_model_optimizer/Extending_Model_Optimizer_with_New_Primitives.md).
+* Launching the Model Optimizer for a model with custom TensorFlow operations (refer to the [TensorFlow* documentation](https://www.tensorflow.org/extend/adding_an_op)) implemented in C++ and compiled into the shared library `my_custom_op.so`. Model Optimizer falls back to TensorFlow to infer output shape of operations implemented in the library if a custom TensorFlow operation library is provided. If it is not provided, a custom operation with an inference function is needed. For more information about custom operations, refer to the [Custom Layers Guide](../../../HOWTO/Custom_Layers_Guide.md).
 ```sh
  mo --input_model custom_model.pb --tensorflow_custom_layer_libraries ./my_custom_op.so --output_dir <OUTPUT_MODEL_DIR>
 ```
@@ -336,7 +362,7 @@ TensorFlow*-specific parameters:
 
 ## Convert TensorFlow* 2 Models <a name="Convert_From_TF2X"></a>
 
-In order to convert TensorFlow* 2 models, installation of dependencies from `requirements_tf2.txt` is required.
+In order to convert TensorFlow* 2 models, installation of dependencies from `requirements_tf.txt` is required.
 TensorFlow* 2.X officially supports two model formats: SavedModel and Keras H5 (or HDF5).    
 Below are the instructions on how to convert each of them.
 
@@ -384,7 +410,7 @@ tf.saved_model.save(model,'model')
 
 Then follow the above instructions for the SavedModel format.
 
-> **NOTE:** Do not use other hacks to resave TensorFlow* 2 models into TensorFlow* 1 formats.
+> **NOTE**: Do not use other hacks to resave TensorFlow* 2 models into TensorFlow* 1 formats.
 
 
 ## Custom Layer Definition
@@ -408,7 +434,15 @@ The Model Optimizer provides explanatory messages if it is unable to run to comp
 
 ## Video: Converting a TensorFlow Model
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/QW6532LtiTc" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+@sphinxdirective
+
+.. raw:: html
+
+    <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="560" height="315"
+    src="https://www.youtube.com/embed/QW6532LtiTc">
+    </iframe>
+
+@endsphinxdirective
 
 ## Summary
 In this document, you learned:

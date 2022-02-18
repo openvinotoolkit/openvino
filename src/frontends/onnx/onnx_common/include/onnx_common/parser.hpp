@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 #include <fstream>
 #include <string>
 
+/// \ingroup ngraph_cpp_api
 namespace ONNX_NAMESPACE {
 class ModelProto;
 }

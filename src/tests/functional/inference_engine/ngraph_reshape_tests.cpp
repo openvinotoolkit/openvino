@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,18 +74,14 @@ TEST_F(NGraphReshapeTests, ReshapedDynamicShapeLayout) {
 
     CNNNetwork cnnNetwork(ngraph);
     ASSERT_EQ(Layout::NCHW, cnnNetwork.getInputsInfo()["A"]->getLayout());
-    IE_SUPPRESS_DEPRECATED_START
-    ASSERT_TRUE(cnnNetwork.getInputsInfo()["A"]->getInputData()->isDynamic());
-    IE_SUPPRESS_DEPRECATED_END
+    ASSERT_EQ(cnnNetwork.getInputsInfo()["A"]->getInputData()->getDims(), (SizeVector{0, 0, 0, 0}));
 
     ICNNNetwork::InputShapes new_shape;
     new_shape["A"] = {1, 3, 22, 22};
     cnnNetwork.reshape(new_shape);
 
     ASSERT_EQ(Layout::NCHW, cnnNetwork.getInputsInfo()["A"]->getLayout());
-    IE_SUPPRESS_DEPRECATED_START
-    ASSERT_FALSE(cnnNetwork.getInputsInfo()["A"]->getInputData()->isDynamic());
-    IE_SUPPRESS_DEPRECATED_END
+    ASSERT_EQ(cnnNetwork.getInputsInfo()["A"]->getInputData()->getDims(), (SizeVector{1, 3, 22, 22}));
 }
 
 TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLU) {
@@ -121,9 +117,7 @@ TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLU) {
     ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
 
     ASSERT_EQ(Layout::NCHW, cnnNetwork.getInputsInfo()["data"]->getLayout());
-    IE_SUPPRESS_DEPRECATED_START
-    ASSERT_FALSE(cnnNetwork.getInputsInfo()["data"]->getInputData()->isDynamic());
-    IE_SUPPRESS_DEPRECATED_END
+    ASSERT_EQ(cnnNetwork.getInputsInfo()["data"]->getInputData()->getDims(), (SizeVector{1, 3, 25, 25}));
 }
 
 TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUWithoutCloneFunction) {
@@ -159,146 +153,7 @@ TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUWithoutCloneFunction) {
     ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 25, 25}));
 
     ASSERT_EQ(Layout::NCHW, cnnNetwork.getInputsInfo()["data"]->getLayout());
-    IE_SUPPRESS_DEPRECATED_START
-    ASSERT_FALSE(cnnNetwork.getInputsInfo()["data"]->getInputData()->isDynamic());
-    IE_SUPPRESS_DEPRECATED_END
-}
-
-TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUStaticToDynamic) {
-    const ngraph::PartialShape refShape{1, 3, ngraph::Dimension::dynamic(), 25};
-    std::shared_ptr<ngraph::Function> ngraph;
-    {
-        ngraph::PartialShape shape({1, 3, 22, 22});
-        ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
-        param->set_friendly_name("data");
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
-        auto result = std::make_shared<ngraph::op::Result>(relu);
-
-        ngraph::ParameterVector params = {param};
-        ngraph::ResultVector results = {result};
-
-        ngraph = std::make_shared<ngraph::Function>(results, params);
-    }
-
-    ASSERT_EQ(ngraph->get_parameters()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
-    ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
-
-    CNNNetwork cnnNetwork(ngraph);
-    std::map<std::string, ngraph::PartialShape> shapes;
-    shapes["data"] = refShape;
-
-    IE_SUPPRESS_DEPRECATED_START
-    ASSERT_NO_THROW(cnnNetwork.reshape(shapes));
-    IE_SUPPRESS_DEPRECATED_END
-
-    auto changedFunction = cnnNetwork.getFunction();
-    ASSERT_NE(nullptr, changedFunction);
-    ASSERT_TRUE(changedFunction->get_parameters()[0]->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(changedFunction->get_results()[0]->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(ngraph->get_parameters()[0]->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(ngraph->get_results()[0]->get_output_partial_shape(0).is_dynamic());
-    ASSERT_EQ(changedFunction->get_parameters()[0]->get_output_partial_shape(0), refShape);
-    ASSERT_EQ(changedFunction->get_results()[0]->get_output_partial_shape(0), refShape);
-    ASSERT_EQ(ngraph->get_parameters()[0]->get_output_partial_shape(0), refShape);
-    ASSERT_EQ(ngraph->get_results()[0]->get_output_partial_shape(0), refShape);
-
-    ASSERT_EQ(Layout::NCHW, cnnNetwork.getInputsInfo()["data"]->getLayout());
-    IE_SUPPRESS_DEPRECATED_START
-    ASSERT_TRUE(cnnNetwork.getInputsInfo()["data"]->getInputData()->isDynamic());
-    IE_SUPPRESS_DEPRECATED_END
-}
-
-TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUStaticToFullyDynamic) {
-    const ngraph::PartialShape refShape = ngraph::PartialShape::dynamic();
-    std::shared_ptr<ngraph::Function> ngraph;
-    {
-        ngraph::PartialShape shape({1, 3, 22, 22});
-        ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
-        param->set_friendly_name("data");
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
-        auto result = std::make_shared<ngraph::op::Result>(relu);
-
-        ngraph::ParameterVector params = {param};
-        ngraph::ResultVector results = {result};
-
-        ngraph = std::make_shared<ngraph::Function>(results, params);
-    }
-
-    ASSERT_EQ(ngraph->get_parameters()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
-    ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
-
-    CNNNetwork cnnNetwork(ngraph);
-    std::map<std::string, ngraph::PartialShape> shapes;
-    shapes["data"] = refShape;
-
-    IE_SUPPRESS_DEPRECATED_START
-    ASSERT_NO_THROW(cnnNetwork.reshape(shapes));
-    IE_SUPPRESS_DEPRECATED_END
-
-    auto changedFunction = cnnNetwork.getFunction();
-    ASSERT_NE(nullptr, changedFunction);
-    ASSERT_TRUE(changedFunction->get_parameters()[0]->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(changedFunction->get_results()[0]->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(ngraph->get_parameters()[0]->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(ngraph->get_results()[0]->get_output_partial_shape(0).is_dynamic());
-    ASSERT_EQ(changedFunction->get_parameters()[0]->get_output_partial_shape(0), refShape);
-    ASSERT_EQ(changedFunction->get_results()[0]->get_output_partial_shape(0), refShape);
-    ASSERT_EQ(ngraph->get_parameters()[0]->get_output_partial_shape(0), refShape);
-    ASSERT_EQ(ngraph->get_results()[0]->get_output_partial_shape(0), refShape);
-
-    ASSERT_EQ(Layout::BLOCKED, cnnNetwork.getInputsInfo()["data"]->getLayout());
-    IE_SUPPRESS_DEPRECATED_START
-    ASSERT_TRUE(cnnNetwork.getInputsInfo()["data"]->getInputData()->isDynamic());
-    IE_SUPPRESS_DEPRECATED_END
-}
-
-TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUDynamicToDynamic) {
-    const ngraph::PartialShape refShape{1, 3, ngraph::Dimension::dynamic(), 25};
-    const Layout refLayout = Layout::NHWC;
-    std::shared_ptr<ngraph::Function> ngraph;
-    {
-        ngraph::PartialShape shape({1, 3, 22, ngraph::Dimension::dynamic()});
-        ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
-        param->set_friendly_name("data");
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
-        auto result = std::make_shared<ngraph::op::Result>(relu);
-
-        ngraph::ParameterVector params = {param};
-        ngraph::ResultVector results = {result};
-
-        ngraph = std::make_shared<ngraph::Function>(results, params);
-    }
-
-    ASSERT_EQ(ngraph->get_parameters()[0]->get_output_partial_shape(0), ngraph::PartialShape({1, 3, 22, ngraph::Dimension::dynamic()}));
-    ASSERT_EQ(ngraph->get_results()[0]->get_output_partial_shape(0), ngraph::PartialShape({1, 3, 22, ngraph::Dimension::dynamic()}));
-
-    CNNNetwork cnnNetwork(ngraph);
-    cnnNetwork.getInputsInfo()["data"]->setLayout(refLayout);
-    std::map<std::string, ngraph::PartialShape> shapes;
-    shapes["data"] = refShape;
-
-    IE_SUPPRESS_DEPRECATED_START
-    ASSERT_NO_THROW(cnnNetwork.reshape(shapes));
-    IE_SUPPRESS_DEPRECATED_END
-
-    auto changedFunction = cnnNetwork.getFunction();
-    ASSERT_NE(nullptr, changedFunction);
-    ASSERT_TRUE(changedFunction->get_parameters()[0]->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(changedFunction->get_results()[0]->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(ngraph->get_parameters()[0]->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(ngraph->get_results()[0]->get_output_partial_shape(0).is_dynamic());
-    ASSERT_EQ(changedFunction->get_parameters()[0]->get_output_partial_shape(0), refShape);
-    ASSERT_EQ(changedFunction->get_results()[0]->get_output_partial_shape(0), refShape);
-    ASSERT_EQ(ngraph->get_parameters()[0]->get_output_partial_shape(0), refShape);
-    ASSERT_EQ(ngraph->get_results()[0]->get_output_partial_shape(0), refShape);
-
-    ASSERT_EQ(refLayout, cnnNetwork.getInputsInfo()["data"]->getLayout());
-    IE_SUPPRESS_DEPRECATED_START
-    ASSERT_TRUE(cnnNetwork.getInputsInfo()["data"]->getInputData()->isDynamic());
-    IE_SUPPRESS_DEPRECATED_END
+    ASSERT_EQ(cnnNetwork.getInputsInfo()["data"]->getInputData()->getDims(), (SizeVector{1, 3, 25, 25}));
 }
 
 class CustomTestOp: public ngraph::op::Op {

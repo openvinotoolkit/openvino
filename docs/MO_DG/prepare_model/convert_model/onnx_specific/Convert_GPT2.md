@@ -13,5 +13,5 @@ To download the model and sample test data, click **Download** on [https://githu
 
 To generate the Intermediate Representation (IR) of the model GPT-2, run the Model Optimizer with the following parameters:
 ```sh
- mo --input_model gpt2-10.onnx --input_shape [X,Y,Z] --output_dir <OUTPUT_MODEL_DIR>
+mo --input_model gpt2-10.onnx --input_shape [X,Y,Z] --output_dir <OUTPUT_MODEL_DIR>
 ```

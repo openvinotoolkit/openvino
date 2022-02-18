@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,7 +48,7 @@ const DeviceInformation MYRIAD_INFO = {CommonTestUtils::DEVICE_MYRIAD, {}, 2, "0
 const DeviceInformation KEEMBAY_INFO = {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "01", "VPUX_01" };
 const std::vector<DeviceInformation>  fp32DeviceVector = {DGPU_INFO, IGPU_INFO, CPU_INFO, MYRIAD_INFO};
 const std::vector<DeviceInformation>  fp16DeviceVector = {DGPU_INFO, IGPU_INFO, MYRIAD_INFO, CPU_INFO};
-const std::vector<DeviceInformation>  int8DeviceVector = {KEEMBAY_INFO, CPU_INFO};
+const std::vector<DeviceInformation>  int8DeviceVector = {KEEMBAY_INFO, DGPU_INFO, IGPU_INFO, CPU_INFO};
 const std::vector<DeviceInformation>  binDeviceVector = {DGPU_INFO, IGPU_INFO, CPU_INFO};
 const std::vector<DeviceInformation>  batchedblobDeviceVector = {DGPU_INFO, IGPU_INFO};
 std::map<std::string, const std::vector<DeviceInformation>> devicesMap = {{"FP32", fp32DeviceVector},
@@ -106,14 +106,21 @@ public:
                 auto& devicesInfo = devicesMap[netPrecision];
                 bool find = false;
                 DeviceInformation expect;
-                for (auto& item : devicesInfo) {
-                    auto device =  std::find_if(metaDevices.begin(), metaDevices.end(),
-                            [&item](const DeviceInformation& d)->bool{return d.uniqueName == item.uniqueName;});
-                    if (device != metaDevices.end()) {
-                        find = true;
-                        expect = item;
-                        break;
+                if (metaDevices.size() > 1) {
+                    for (auto& item : devicesInfo) {
+                        auto device =  std::find_if(metaDevices.begin(), metaDevices.end(),
+                                [&item](const DeviceInformation& d)->bool{return d.uniqueName == item.uniqueName;});
+                        if (device != metaDevices.end()) {
+                            find = true;
+                            expect = item;
+                            break;
+                        }
                     }
+                } else if (metaDevices.size() == 1) {
+                    expect = metaDevices[0];
+                    find = true;
+                } else {
+                    find = false;
                 }
                 testConfigs.push_back(std::make_tuple(netPrecision, metaDevices, expect, !find));
             } else {
@@ -161,7 +168,7 @@ public:
        plugin->SetCore(core);
 
        IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, cpuCability, {"FP32", "FP16", "INT8", "BIN"});
-       IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, gpuCability, {"FP32", "FP16", "BATCHED_BLOB", "BIN"});
+       IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, gpuCability, {"FP32", "FP16", "BATCHED_BLOB", "BIN", "INT8"});
        IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, myriadCability, {"FP16"});
        IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, vpuxCability, {"INT8"});
 

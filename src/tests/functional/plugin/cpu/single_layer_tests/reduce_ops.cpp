@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -151,7 +151,7 @@ protected:
         const auto& funcInputs = function->inputs();
         for (int i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            ov::runtime::Tensor tensor;
+            ov::Tensor tensor;
             if (reductionType == ngraph::helpers::ReductionType::Prod) {
                 tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 10, 5);
                 if (netPrecision == ElementType::f32) {

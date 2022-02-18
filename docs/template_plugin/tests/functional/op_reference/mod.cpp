@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,9 +31,9 @@ struct ModParams {
     PartialShape pshape2;
     element::Type inType;
     element::Type outType;
-    runtime::Tensor inputData1;
-    runtime::Tensor inputData2;
-    runtime::Tensor refData;
+    ov::Tensor inputData1;
+    ov::Tensor inputData2;
+    ov::Tensor refData;
 };
 
 class ReferenceModLayerTest : public testing::TestWithParam<ModParams>, public CommonReferenceTest {

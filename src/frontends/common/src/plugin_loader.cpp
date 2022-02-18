@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,7 +45,7 @@ void load_static_plugins(std::vector<PluginInfo>& res) {
             {"ir", "ir"},
             {"onnx", "onnx"},
             {"tf", "tensorflow"},
-            {"paddle", "paddlepaddle"},
+            {"paddle", "paddle"},
         };
         auto it = predefined_frontends.find(factory.m_name);
         if (it != predefined_frontends.end()) {

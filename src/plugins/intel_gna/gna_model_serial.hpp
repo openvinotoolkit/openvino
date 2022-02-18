@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,113 +9,56 @@
 #include <utility>
 #include <ie_input_info.hpp>
 
-#include "descriptions/gna_input_desc.hpp"
-#include "descriptions/gna_output_desc.hpp"
+#include "descriptions/gna_desc.hpp"
 #include "gna_plugin_log.hpp"
 #include "serial/headers/latest/gna_model_header.hpp"
-#if GNA_LIB_VER == 2
 #include "gna2-model-api.h"
-#endif
 
 
 /**
- * @brief implements serialisation tasks for GNAGraph
+ * @brief implements serialization tasks for GNAGraph
  */
 class GNAModelSerial {
- public:
+public:
     using MemoryType = std::vector<std::tuple<void*, uint32_t, std::string, float>>;
 
 private:
-#if GNA_LIB_VER == 2
-    Gna2Model * gna2Model;
-#else
-    intel_nnet_type_t *ptr_nnet;
-#endif
-    std::vector<GNAPluginNS::HeaderLatest::RuntimeEndPoint> inputs;
-    std::vector<GNAPluginNS::HeaderLatest::RuntimeEndPoint> outputs;
-    std::vector<std::string> inputNames;
-    std::vector<std::string> outputNames;
-    TranspositionInfoMap transposeInputsInfo;
-    TranspositionInfoMap transposeOutputsInfo;
+    Gna2Model * gna2model_;
+    MemoryType states, *pstates_ = nullptr;
+    GNAPluginNS::GnaInputs inputs_;
+    GNAPluginNS::GnaOutputs outputs_;
+    TranspositionInfoMap inputs_transpose_info_;
+    TranspositionInfoMap outputs_transpose_info_;
+    GNAPluginNS::HeaderLatest::ModelHeader model_header_;
 
-    MemoryType states, *pstates = nullptr;
-    GNAPluginNS::HeaderLatest::ModelHeader modelHeader;
+    void ImportInputs(std::istream &is, void* basePtr, GNAPluginNS::GnaInputs &inputs);
 
-    void ImportInputs(std::istream &is,
-            void* basePtr,
-            std::shared_ptr<GNAPluginNS::InputDesc> inputsDesc,
-            InferenceEngine::InputsDataMap& dataMap);
+    void ImportOutputs(std::istream &is, void* basePtr, GNAPluginNS::GnaOutputs &outputs);
 
-    void ImportOutputs(std::istream &is,
-            void* basePtr,
-            std::vector<GNAPluginNS::OutputDesc> &desc,
-            InferenceEngine::OutputsDataMap& dataMap);
+    void ImportTranspositionInfo(std::istream &is, std::string &name, std::vector<TranspositionInfo> &transpositionInfo);
 
-    void ImportTranspositionInfo(std::istream &is,
-            std::string &name,
-            std::vector<TranspositionInfo> &transpositionInfo);
-
-    void ExportTranspositionInfo(std::ostream &os,
-            const TranspositionInfoMap &transpositionInfoMap) const;
+    void ExportTranspositionInfo(std::ostream &os, const TranspositionInfoMap &transpositionInfoMap) const;
 
  public:
-#if GNA_LIB_VER == 2
     GNAModelSerial(Gna2Model * model, MemoryType & states_holder)
-        : gna2Model(model), pstates(&states_holder) {
+        : gna2model_(model), pstates_(&states_holder) {
     }
 
-    GNAModelSerial(
-        Gna2Model * model,
-        const std::shared_ptr<GNAPluginNS::InputDesc> inputDesc,
-        const std::vector<GNAPluginNS::OutputDesc>& outputsDesc,
-        const InferenceEngine::InputsDataMap& inputsDataMap,
-        const InferenceEngine::OutputsDataMap& outputsDataMap) : gna2Model(model),
-            inputs(serializeInputs(inputsDataMap, inputDesc)),
-            outputs(serializeOutputs(outputsDataMap, outputsDesc)) {
-        for (auto const& input : inputsDataMap) {
-            inputNames.push_back(input.first);
-        }
-
-        for (auto const& input : outputsDataMap) {
-            outputNames.push_back(input.first);
-        }
+    GNAModelSerial(Gna2Model * model, GNAPluginNS::GnaInputs &inputs, GNAPluginNS::GnaOutputs &outputs)
+        : gna2model_(model), inputs_(inputs), outputs_(outputs) {
     }
 
-#else
-     /**
-  *
-  * @brief Used for import/export
-  * @param ptr_nnet
-  * @param inputScale  - in/out parameter representing input scale factor
-  * @param outputScale - in/out parameter representing output scale factor
-  */
-     GNAModelSerial(intel_nnet_type_t *ptr_nnet, MemoryType &states_holder)
-         : ptr_nnet(ptr_nnet), pstates(&states_holder) {
-     }
+    void setHeader(GNAPluginNS::HeaderLatest::ModelHeader header) {
+        model_header_ = header;
+    }
 
-     /**
-      * @brief used for export only since runtime params are not passed by pointer
-      * @param ptr_nnet
-      * @param runtime
-      */
-     GNAModelSerial(
-         intel_nnet_type_t *ptr_nnet,
-         const std::shared_ptr<GNAPluginNS::InputDesc> inputDesc,
-         const std::vector<GNAPluginNS::OutputDesc>& outputsDesc,
-         const InferenceEngine::InputsDataMap& inputsDataMap,
-         const InferenceEngine::OutputsDataMap& outputsDataMap) : ptr_nnet(ptr_nnet),
-                                                                  inputs(serializeInputs(inputsDataMap, inputDesc)),
-                                                                  outputs(serializeOutputs(outputsDataMap, outputsDesc)) {
-     }
-#endif
-
-    GNAModelSerial & SetInputRotation(const TranspositionInfoMap &transposeInputsInfo) {
-      this->transposeInputsInfo = transposeInputsInfo;
+    GNAModelSerial & SetInputRotation(const TranspositionInfoMap &transpose_inputs_info) {
+      inputs_transpose_info_ = transpose_inputs_info;
       return *this;
     }
 
-    GNAModelSerial& SetOutputRotation(const TranspositionInfoMap &transposeOutputsInfo) {
-        this->transposeOutputsInfo = transposeOutputsInfo;
+    GNAModelSerial & SetOutputRotation(const TranspositionInfoMap &transpose_outputs_info) {
+        outputs_transpose_info_ = transpose_outputs_info;
         return *this;
     }
 
@@ -149,11 +92,9 @@ private:
      */
     void Import(void *basePointer,
                 size_t gnaGraphSize,
-                std::istream & is,
-                std::shared_ptr<GNAPluginNS::InputDesc> inputsDesc,
-                std::vector<GNAPluginNS::OutputDesc> &desc,
-                InferenceEngine::InputsDataMap& inputsDataMap,
-                InferenceEngine::OutputsDataMap& outputsDataMap,
+                std::istream &is,
+                GNAPluginNS::GnaInputs &inputs,
+                GNAPluginNS::GnaOutputs &outputs,
                 TranspositionInfoMap& inputstranspositionInfo,
                 TranspositionInfoMap& outputstranspositionInfo);
 
@@ -166,13 +107,4 @@ private:
     void Export(void *basePtr,
                 size_t gnaGraphSize,
                 std::ostream &os) const;
-
-    static std::vector<GNAPluginNS::HeaderLatest::RuntimeEndPoint> serializeOutputs(const InferenceEngine::OutputsDataMap& outputsDataMap,
-            const std::vector<GNAPluginNS::OutputDesc>& outputsDesc);
-
-
-    static std::vector<GNAPluginNS::HeaderLatest::RuntimeEndPoint> serializeInputs(const InferenceEngine::InputsDataMap& inputsDataMap,
-                                                                        const std::shared_ptr<GNAPluginNS::InputDesc>);
-
-    void setHeader(GNAPluginNS::HeaderLatest::ModelHeader header);
 };

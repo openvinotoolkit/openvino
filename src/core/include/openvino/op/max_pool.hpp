@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,6 +63,7 @@ namespace v8 {
 class OPENVINO_API MaxPool : public op::util::MaxPoolBase {
 public:
     OPENVINO_OP("MaxPool", "opset8", op::util::MaxPoolBase);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs an empty MaxPool operation.
     MaxPool() = default;

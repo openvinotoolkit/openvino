@@ -1,15 +1,16 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
-import numpy as np
 from typing import Optional
 
-from openvino.tools.mo.ops.activation_ops import Floor
+import numpy as np
+
 from openvino.tools.mo.ops.Cast import Cast
+from openvino.tools.mo.ops.activation_ops import Floor
 from openvino.tools.mo.ops.elementwise import Mul
 from openvino.tools.mo.ops.interpolate import Interpolate
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, float32_array
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
@@ -87,7 +88,7 @@ def get_split_scale(split: Node) -> int:
 
 def replace_interpolate_pattern(graph: Graph, match: dict):
     split = match['split']
-    scale = np.array([get_split_scale(split)], dtype=np.float32)
+    scale = float32_array([get_split_scale(split)])
     axis = int(split.in_port(1).get_connection().get_source().node.value)
     split_node_name = split.name
     axis_node = Const(graph, {'name': split_node_name + '/axis', 'value': int64_array([axis])}).create_node()

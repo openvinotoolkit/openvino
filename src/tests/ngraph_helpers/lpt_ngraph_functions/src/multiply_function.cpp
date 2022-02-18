@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,20 +24,6 @@ struct BranchNodes {
 };
 
 BranchNodes getBranch(const MultiplyBranch& branch) {
-    if (!branch.constant.empty()) {
-        if (branch.inputShape != branch.constant.shape) {
-            std::ostringstream message;
-            message << "shapes are not equals: " << branch.inputShape << " & " << branch.constant.shape;
-            throw std::runtime_error(message.str());
-        }
-
-        if (branch.precisionBeforeDequantization != branch.constant.outPrecision) {
-            std::ostringstream message;
-            message << "precisions are not equals: " << branch.precisionBeforeDequantization << " & " << branch.constant.outPrecision;
-            throw std::runtime_error(message.str());
-        }
-    }
-
     const std::shared_ptr<Node> parent = branch.constant.empty() ?
         std::make_shared<ngraph::opset1::Parameter>(branch.precisionBeforeDequantization, branch.inputShape) :
         std::dynamic_pointer_cast<Node>(std::make_shared<ngraph::opset1::Constant>(
@@ -94,17 +80,23 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::getOriginal(
     const ngraph::builder::subgraph::FakeQuantizeOnData& fq1,
     const bool broadcast2,
     const ngraph::builder::subgraph::FakeQuantizeOnData& fq2,
-    const ngraph::builder::subgraph::FakeQuantizeOnData& fqAfter) {
+    const ngraph::builder::subgraph::FakeQuantizeOnData& fqAfter,
+    const bool secondInputIsConstant) {
     auto inputShape1 = inputShape;
     if (broadcast1) {
         inputShape1[2] = 1;
         inputShape1[3] = 1;
     }
 
-    auto inputShape2 = inputShape;
-    if (broadcast2) {
-        inputShape2[2] = 1;
-        inputShape2[3] = 1;
+    ngraph::PartialShape inputShape2;
+    if (secondInputIsConstant) {
+        inputShape2 = {};
+    } else {
+        inputShape2 = inputShape;
+        if (broadcast2) {
+            inputShape2[2] = 1;
+            inputShape2[3] = 1;
+        }
     }
 
     const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape1);
@@ -117,7 +109,9 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::getOriginal(
         fakeQuantize1->set_friendly_name("fakeQuantize1");
     }
 
-    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape2);
+    const std::shared_ptr<ngraph::Node> input2 = secondInputIsConstant ?
+        makeConstant(element::f32, Shape{}, std::vector<float>{0.5f}, false) :
+        std::make_shared<ngraph::opset1::Parameter>(precision, inputShape2);
     const auto fakeQuantize2 = fq2.empty() ?
         nullptr :
         ngraph::builder::makeFakeQuantize(
@@ -143,7 +137,9 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::getOriginal(
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(result) };
     std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
         results,
-        ngraph::ParameterVector{ input1, input2 },
+        secondInputIsConstant ?
+            ngraph::ParameterVector{ input1 } :
+            ngraph::ParameterVector{ input1, ngraph::as_type_ptr<ngraph::opset1::Parameter>(input2) },
         "MultiplyTransformation");
 
     return function;

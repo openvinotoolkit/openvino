@@ -1,12 +1,11 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 
-import numpy as np
-
 from openvino.tools.mo.middle.AddIsCyclicAttribute import AddIsCyclicAttribute
 from openvino.tools.mo.ops.TensorIterator_ops import TensorIteratorInput
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 
@@ -239,7 +238,7 @@ class BackEdgeSimpleInputMatcher(MiddleReplacementPattern):
                 graph.remove_edge(init_input.in_node(0).id, init_input.id)
 
             input_data_node = input_node.create_node_with_data(inputs=[init_input])
-            input_data_node.shape = np.array(init_input.shape, dtype=np.int64)
+            input_data_node.shape = int64_array(init_input.shape)
             graph.remove_edges_from([(init_input.id, match['BackEdge'].id)])
             graph.add_edges_from([(input_data_node.id, match['BackEdge'].id, {'in': 0, 'out': 0})])
 

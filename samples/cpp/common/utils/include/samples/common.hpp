@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,6 @@
 #include <vector>
 
 // clang-format off
-#include "inference_engine.hpp"
 #include "openvino/openvino.hpp"
 #include "slog.hpp"
 // clang-format on
@@ -123,32 +122,12 @@ inline std::string fileExt(const std::string& filename) {
     return filename.substr(pos + 1);
 }
 
-inline slog::LogStream& operator<<(slog::LogStream& os, const InferenceEngine::Version& version) {
-    os << version.description << " version ......... ";
-    os << IE_VERSION_MAJOR << "." << IE_VERSION_MINOR << "." << IE_VERSION_PATCH << slog::endl;
-
-    os << "Build ........... ";
-    os << version.buildNumber << slog::endl;
-
-    return os;
-}
-
 inline slog::LogStream& operator<<(slog::LogStream& os, const ov::Version& version) {
     os << version.description << " version ......... ";
     os << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH << slog::endl;
 
     os << "Build ........... ";
     os << version.buildNumber << slog::endl;
-
-    return os;
-}
-
-inline slog::LogStream& operator<<(slog::LogStream& os,
-                                   const std::map<std::string, InferenceEngine::Version>& versions) {
-    for (auto&& version : versions) {
-        os << version.first << slog::endl;
-        os << version.second << slog::endl;
-    }
 
     return os;
 }
@@ -572,35 +551,18 @@ static UNUSED bool writeOutputBmp(unsigned char* data, size_t height, size_t wid
     return true;
 }
 
-static std::vector<std::pair<std::string, InferenceEngine::InferenceEngineProfileInfo>> perfCountersSorted(
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap) {
-    using perfItem = std::pair<std::string, InferenceEngine::InferenceEngineProfileInfo>;
-    std::vector<perfItem> sorted;
-    for (auto& kvp : perfMap)
-        sorted.push_back(kvp);
-
-    std::stable_sort(sorted.begin(), sorted.end(), [](const perfItem& l, const perfItem& r) {
-        return l.second.execution_index < r.second.execution_index;
-    });
-
-    return sorted;
-}
-
-static UNUSED void printPerformanceCounts(
-    const std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& performanceMap,
-    std::ostream& stream,
-    std::string deviceName,
-    bool bshowHeader = true) {
-    long long totalTime = 0;
+static UNUSED void printPerformanceCounts(const std::map<std::string, ov::ProfilingInfo>& performanceMap,
+                                          std::ostream& stream,
+                                          std::string deviceName,
+                                          bool bshowHeader = true) {
+    std::chrono::microseconds totalTime = std::chrono::microseconds::zero();
     // Print performance counts
     if (bshowHeader) {
         stream << std::endl << "performance counts:" << std::endl << std::endl;
     }
     std::ios::fmtflags fmt(std::cout.flags());
 
-    auto performanceMapSorted = perfCountersSorted(performanceMap);
-
-    for (const auto& it : performanceMapSorted) {
+    for (const auto& it : performanceMap) {
         std::string toPrint(it.first);
         const int maxLayerName = 30;
 
@@ -611,83 +573,32 @@ static UNUSED void printPerformanceCounts(
 
         stream << std::setw(maxLayerName) << std::left << toPrint;
         switch (it.second.status) {
-        case InferenceEngine::InferenceEngineProfileInfo::EXECUTED:
+        case ov::ProfilingInfo::Status::EXECUTED:
             stream << std::setw(15) << std::left << "EXECUTED";
             break;
-        case InferenceEngine::InferenceEngineProfileInfo::NOT_RUN:
+        case ov::ProfilingInfo::Status::NOT_RUN:
             stream << std::setw(15) << std::left << "NOT_RUN";
             break;
-        case InferenceEngine::InferenceEngineProfileInfo::OPTIMIZED_OUT:
+        case ov::ProfilingInfo::Status::OPTIMIZED_OUT:
             stream << std::setw(15) << std::left << "OPTIMIZED_OUT";
             break;
         }
-        stream << std::setw(30) << std::left << "layerType: " + std::string(it.second.layer_type) + " ";
-        stream << std::setw(20) << std::left << "realTime: " + std::to_string(it.second.realTime_uSec);
-        stream << std::setw(20) << std::left << "cpu: " + std::to_string(it.second.cpu_uSec);
+        stream << std::setw(30) << std::left << "layerType: " + std::string(it.second.node_type) + " ";
+        stream << std::setw(20) << std::left << "realTime: " + std::to_string(it.second.real_time.count());
+        stream << std::setw(20) << std::left << "cpu: " + std::to_string(it.second.cpu_time.count());
         stream << " execType: " << it.second.exec_type << std::endl;
-        if (it.second.realTime_uSec > 0) {
-            totalTime += it.second.realTime_uSec;
+        if (it.second.real_time.count() > 0) {
+            totalTime += it.second.real_time;
         }
     }
-    stream << std::setw(20) << std::left << "Total time: " + std::to_string(totalTime) << " microseconds" << std::endl;
+    stream << std::setw(20) << std::left << "Total time: " + std::to_string(totalTime.count()) << " microseconds"
+           << std::endl;
     std::cout << std::endl;
     std::cout << "Full device name: " << deviceName << std::endl;
     std::cout << std::endl;
     std::cout.flags(fmt);
 }
 
-static UNUSED void printPerformanceCounts(InferenceEngine::InferRequest request,
-                                          std::ostream& stream,
-                                          std::string deviceName,
-                                          bool bshowHeader = true) {
-    auto performanceMap = request.GetPerformanceCounts();
-    printPerformanceCounts(performanceMap, stream, deviceName, bshowHeader);
-}
-
-inline std::map<std::string, std::string> getMapFullDevicesNames(InferenceEngine::Core& ie,
-                                                                 std::vector<std::string> devices) {
-    std::map<std::string, std::string> devicesMap;
-    InferenceEngine::Parameter p;
-    for (std::string& deviceName : devices) {
-        if (deviceName != "") {
-            try {
-                p = ie.GetMetric(deviceName, METRIC_KEY(FULL_DEVICE_NAME));
-                devicesMap.insert(std::pair<std::string, std::string>(deviceName, p.as<std::string>()));
-            } catch (InferenceEngine::Exception&) {
-            }
-        }
-    }
-    return devicesMap;
-}
-
-inline std::string getFullDeviceName(std::map<std::string, std::string>& devicesMap, std::string device) {
-    std::map<std::string, std::string>::iterator it = devicesMap.find(device);
-    if (it != devicesMap.end()) {
-        return it->second;
-    } else {
-        return "";
-    }
-}
-
-inline std::string getFullDeviceName(InferenceEngine::Core& ie, std::string device) {
-    InferenceEngine::Parameter p;
-    try {
-        p = ie.GetMetric(device, METRIC_KEY(FULL_DEVICE_NAME));
-        return p.as<std::string>();
-    } catch (InferenceEngine::Exception&) {
-        return "";
-    }
-}
-
-inline std::string getFullDeviceName(ov::runtime::Core& ie, std::string device) {
-    InferenceEngine::Parameter p;
-    try {
-        p = ie.get_metric(device, METRIC_KEY(FULL_DEVICE_NAME));
-        return p.as<std::string>();
-    } catch (InferenceEngine::Exception&) {
-        return "";
-    }
-}
 /**
  * @brief This class represents an object that is found by an object detection net
  */
@@ -1043,99 +954,8 @@ static UNUSED void addRectangles(unsigned char* data,
     }
 }
 
-inline std::size_t getTensorWidth(const InferenceEngine::TensorDesc& desc) {
-    const auto& layout = desc.getLayout();
-    const auto& dims = desc.getDims();
-    const auto& size = dims.size();
-    if ((size >= 2) && (layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC ||
-                        layout == InferenceEngine::Layout::NCDHW || layout == InferenceEngine::Layout::NDHWC ||
-                        layout == InferenceEngine::Layout::OIHW || layout == InferenceEngine::Layout::GOIHW ||
-                        layout == InferenceEngine::Layout::OIDHW || layout == InferenceEngine::Layout::GOIDHW ||
-                        layout == InferenceEngine::Layout::CHW || layout == InferenceEngine::Layout::HW)) {
-        // Regardless of layout, dimensions are stored in fixed order
-        return dims.back();
-    } else {
-        IE_THROW() << "Tensor does not have width dimension";
-    }
-    return 0;
-}
-
-inline std::size_t getTensorHeight(const InferenceEngine::TensorDesc& desc) {
-    const auto& layout = desc.getLayout();
-    const auto& dims = desc.getDims();
-    const auto& size = dims.size();
-    if ((size >= 2) && (layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC ||
-                        layout == InferenceEngine::Layout::NCDHW || layout == InferenceEngine::Layout::NDHWC ||
-                        layout == InferenceEngine::Layout::OIHW || layout == InferenceEngine::Layout::GOIHW ||
-                        layout == InferenceEngine::Layout::OIDHW || layout == InferenceEngine::Layout::GOIDHW ||
-                        layout == InferenceEngine::Layout::CHW || layout == InferenceEngine::Layout::HW)) {
-        // Regardless of layout, dimensions are stored in fixed order
-        return dims.at(size - 2);
-    } else {
-        IE_THROW() << "Tensor does not have height dimension";
-    }
-    return 0;
-}
-
-inline std::size_t getTensorChannels(const InferenceEngine::TensorDesc& desc) {
-    const auto& layout = desc.getLayout();
-    if (layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC ||
-        layout == InferenceEngine::Layout::NCDHW || layout == InferenceEngine::Layout::NDHWC ||
-        layout == InferenceEngine::Layout::C || layout == InferenceEngine::Layout::CHW ||
-        layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::CN) {
-        // Regardless of layout, dimensions are stored in fixed order
-        const auto& dims = desc.getDims();
-        switch (desc.getLayoutByDims(dims)) {
-        case InferenceEngine::Layout::C:
-            return dims.at(0);
-        case InferenceEngine::Layout::NC:
-            return dims.at(1);
-        case InferenceEngine::Layout::CHW:
-            return dims.at(0);
-        case InferenceEngine::Layout::NCHW:
-            return dims.at(1);
-        case InferenceEngine::Layout::NCDHW:
-            return dims.at(1);
-        case InferenceEngine::Layout::SCALAR:   // [[fallthrough]]
-        case InferenceEngine::Layout::BLOCKED:  // [[fallthrough]]
-        default:
-            IE_THROW() << "Tensor does not have channels dimension";
-        }
-    } else {
-        IE_THROW() << "Tensor does not have channels dimension";
-    }
-    return 0;
-}
-
-inline std::size_t getTensorBatch(const InferenceEngine::TensorDesc& desc) {
-    const auto& layout = desc.getLayout();
-    if (layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC ||
-        layout == InferenceEngine::Layout::NCDHW || layout == InferenceEngine::Layout::NDHWC ||
-        layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::CN) {
-        // Regardless of layout, dimensions are stored in fixed order
-        const auto& dims = desc.getDims();
-        switch (desc.getLayoutByDims(dims)) {
-        case InferenceEngine::Layout::NC:
-            return dims.at(0);
-        case InferenceEngine::Layout::NCHW:
-            return dims.at(0);
-        case InferenceEngine::Layout::NCDHW:
-            return dims.at(0);
-        case InferenceEngine::Layout::CHW:      // [[fallthrough]]
-        case InferenceEngine::Layout::C:        // [[fallthrough]]
-        case InferenceEngine::Layout::SCALAR:   // [[fallthrough]]
-        case InferenceEngine::Layout::BLOCKED:  // [[fallthrough]]
-        default:
-            IE_THROW() << "Tensor does not have channels dimension";
-        }
-    } else {
-        IE_THROW() << "Tensor does not have channels dimension";
-    }
-    return 0;
-}
-
 inline void showAvailableDevices() {
-    ov::runtime::Core core;
+    ov::Core core;
     std::vector<std::string> devices = core.get_available_devices();
 
     std::cout << std::endl;
@@ -1155,3 +975,66 @@ inline void showAvailableDevices() {
  * @param comment - lines starting with symbol `comment` are skipped
  */
 std::map<std::string, std::string> parseConfig(const std::string& configName, char comment = '#');
+
+inline std::string getFullDeviceName(ov::Core& core, std::string device) {
+    try {
+        return core.get_property(device, ov::device::full_name);
+    } catch (ov::Exception&) {
+        return {};
+    }
+}
+
+static UNUSED void printPerformanceCounts(std::vector<ov::ProfilingInfo> performanceData,
+                                          std::ostream& stream,
+                                          std::string deviceName,
+                                          bool bshowHeader = true) {
+    std::chrono::microseconds totalTime = std::chrono::microseconds::zero();
+    // Print performance counts
+    if (bshowHeader) {
+        stream << std::endl << "performance counts:" << std::endl << std::endl;
+    }
+    std::ios::fmtflags fmt(std::cout.flags());
+    for (const auto& it : performanceData) {
+        std::string toPrint(it.node_name);
+        const int maxLayerName = 30;
+
+        if (it.node_name.length() >= maxLayerName) {
+            toPrint = it.node_name.substr(0, maxLayerName - 4);
+            toPrint += "...";
+        }
+
+        stream << std::setw(maxLayerName) << std::left << toPrint;
+        switch (it.status) {
+        case ov::ProfilingInfo::Status::EXECUTED:
+            stream << std::setw(15) << std::left << "EXECUTED";
+            break;
+        case ov::ProfilingInfo::Status::NOT_RUN:
+            stream << std::setw(15) << std::left << "NOT_RUN";
+            break;
+        case ov::ProfilingInfo::Status::OPTIMIZED_OUT:
+            stream << std::setw(15) << std::left << "OPTIMIZED_OUT";
+            break;
+        }
+        stream << std::setw(30) << std::left << "layerType: " + std::string(it.node_type) + " ";
+        stream << std::setw(20) << std::left << "realTime: " + std::to_string(it.real_time.count());
+        stream << std::setw(20) << std::left << "cpu: " + std::to_string(it.cpu_time.count());
+        stream << " execType: " << it.exec_type << std::endl;
+        if (it.real_time.count() > 0) {
+            totalTime += it.real_time;
+        }
+    }
+    stream << std::setw(20) << std::left << "Total time: " + std::to_string(totalTime.count()) << " microseconds"
+           << std::endl;
+    std::cout << std::endl;
+    std::cout << "Full device name: " << deviceName << std::endl;
+    std::cout << std::endl;
+    std::cout.flags(fmt);
+}
+
+static UNUSED void printPerformanceCounts(ov::InferRequest request,
+                                          std::ostream& stream,
+                                          std::string deviceName,
+                                          bool bshowHeader = true) {
+    auto performanceMap = request.get_profiling_info();
+    printPerformanceCounts(performanceMap, stream, deviceName, bshowHeader);
+}

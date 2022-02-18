@@ -1,10 +1,12 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 
 from ..conftest import model_path
-from openvino.runtime import ConstOutput, Shape, PartialShape, Type
+import openvino.runtime.opset8 as ops
+from openvino.runtime import ConstOutput, Shape, PartialShape, Type, \
+    Output, Parameter, RTMap
 
 from openvino.runtime import Core
 
@@ -36,7 +38,7 @@ def test_const_output_docs(device):
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, device)
     node = exec_net.input(0)
-    exptected_string = "openvino.runtime.ConstOutput wraps ov::Output<Const ov::Node >"
+    exptected_string = "openvino.runtime.ConstOutput represents port/node output."
     assert node.__doc__ == exptected_string
 
 
@@ -100,3 +102,42 @@ def test_const_output_get_names(device):
     assert node.names == expected_names
     assert node.get_any_name() == input_name
     assert node.any_name == input_name
+
+
+def test_const_get_rf_info(device):
+    core = Core()
+    func = core.read_model(model=test_net_xml, weights=test_net_bin)
+    exec_net = core.compile_model(func, device)
+    output_node = exec_net.output(0)
+    rt_info = output_node.get_rt_info()
+    assert isinstance(rt_info, RTMap)
+
+
+def test_const_output_runtime_info(device):
+    core = Core()
+    func = core.read_model(model=test_net_xml, weights=test_net_bin)
+    exec_net = core.compile_model(func, device)
+    input_name = "data"
+    output_node = exec_net.input(input_name)
+    rt_info = output_node.rt_info
+    assert isinstance(rt_info, RTMap)
+
+
+def test_update_rt_info(device):
+    relu = ops.relu(5)
+    output_node = Output._from_node(relu)
+    rt = output_node.get_rt_info()
+    rt["test12345"] = "test"
+    for k, v in output_node.get_rt_info().items():
+        assert k == "test12345"
+        assert isinstance(v, Parameter)
+
+
+def test_operations():
+    data = ops.parameter([2])
+    split = ops.split(data, 0, 2)
+    outputs = split.outputs()
+    assert outputs[0] < outputs[1]
+    assert outputs[0] == split.output(0)
+    assert hash(outputs[0]) == hash(split.output(0))
+    assert hash(outputs[0]) != hash(outputs[0].node)

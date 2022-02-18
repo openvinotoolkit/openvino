@@ -1,8 +1,7 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.ops.hard_sigmoid import HardSigmoid
 from openvino.tools.mo.front.common.replacement import FrontReplacementOp
 from openvino.tools.mo.front.onnx.extractors.utils import onnx_attr
@@ -18,7 +17,7 @@ class HardSigmoidFrontExtractor(FrontReplacementOp):
         alpha = onnx_attr(node, 'alpha', 'f', default=0.2)
         beta = onnx_attr(node, 'beta', 'f', default=0.5)
 
-        hard_sigmoid = create_op_with_const_inputs(graph, HardSigmoid, {1: np.array(alpha), 2: np.array(beta)},
+        hard_sigmoid = create_op_with_const_inputs(graph, HardSigmoid, {1: mo_array(alpha), 2: mo_array(beta)},
                                                    {'name': node.name + '/HardSigmoid_'})
 
         node.in_port(0).get_connection().set_destination(hard_sigmoid.in_port(0))

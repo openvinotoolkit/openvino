@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from typing import Dict
@@ -10,6 +10,7 @@ from openvino.tools.mo.ops.elementwise import Mul, Add
 from openvino.tools.mo.ops.mvn import MVN
 from openvino.tools.mo.ops.range import Range
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.middle.passes.convert_data_type import data_type_str_to_np
@@ -66,7 +67,7 @@ class GroupNormToMVN(MiddleReplacementPattern):
                                         'name': group_norm_node.name + '/GroupSize'}).create_node()
 
         # calculate "features // group_size" value
-        reciprocal_group_size_node = Const(graph, {'value': np.array([1.0 / group_norm_node.num_groups]),
+        reciprocal_group_size_node = Const(graph, {'value': mo_array([1.0 / group_norm_node.num_groups]),
                                                    'name': group_norm_node.name + '/ReciprocalGroupSize'}).create_node()
 
         c_div_g_node = Mul(graph, {}).create_node()

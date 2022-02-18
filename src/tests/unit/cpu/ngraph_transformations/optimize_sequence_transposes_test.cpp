@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset5.hpp>
+#include <ngraph/opsets/opset8.hpp>
 #include <ngraph_transformations/rnn_sequences_optimization.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
@@ -18,7 +19,7 @@
 #include "common_test_utils/ngraph_test_utils.hpp"
 
 using namespace testing;
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 
 TEST(TransformationTests, OptimizeLSTMSequenceTransposesTest) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
@@ -147,7 +148,7 @@ TEST(TransformationTests, OptimizeLSTMSequenceTransposesDynamicTest) {
         auto B = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{ 1, 512 }, b_val);
 
         auto data = std::make_shared<ngraph::opset1::ShapeOf>(X);
-        auto reshape_before_pattern = std::make_shared<ngraph::opset1::Gather>(data,
+        auto reshape_before_pattern = std::make_shared<ngraph::opset8::Gather>(data,
             ngraph::opset1::Constant::create(ngraph::element::i32, { 3 }, { 1, 0, 2 }),
             ngraph::opset1::Constant::create(ngraph::element::i32, {}, { 0 }));
         auto reshape_before = std::make_shared<ngraph::opset1::Reshape>(X, reshape_before_pattern, false);
@@ -290,7 +291,7 @@ TEST(TransformationTests, OptimizeRNNSequenceTransposesDynamicTest) {
         auto B = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{ 1, 128 }, b_val);
 
         auto data = std::make_shared<ngraph::opset1::ShapeOf>(X);
-        auto reshape_before_pattern = std::make_shared<ngraph::opset1::Gather>(data,
+        auto reshape_before_pattern = std::make_shared<ngraph::opset8::Gather>(data,
             ngraph::opset1::Constant::create(ngraph::element::i32, { 3 }, { 1, 0, 2 }),
             ngraph::opset1::Constant::create(ngraph::element::i32, {}, { 0 }));
         auto reshape_before = std::make_shared<ngraph::opset1::Reshape>(X, reshape_before_pattern, false);
@@ -431,7 +432,7 @@ TEST(TransformationTests, OptimizeGRUSequenceTransposesDynamicTest) {
         auto B = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{ 1, 384 }, b_val);
 
         auto data = std::make_shared<ngraph::opset1::ShapeOf>(X);
-        auto reshape_before_pattern = std::make_shared<ngraph::opset1::Gather>(data,
+        auto reshape_before_pattern = std::make_shared<ngraph::opset8::Gather>(data,
             ngraph::opset1::Constant::create(ngraph::element::i32, { 3 }, { 1, 0, 2 }),
             ngraph::opset1::Constant::create(ngraph::element::i32, {}, { 0 }));
         auto reshape_before = std::make_shared<ngraph::opset1::Reshape>(X, reshape_before_pattern, false);

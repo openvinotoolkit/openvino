@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,8 +29,8 @@ const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype() {
     return ov_type_to_dtype_mapping;
 }
 
-const std::map<py::str, ov::element::Type>& dtype_to_ov_type() {
-    static const std::map<py::str, ov::element::Type> dtype_to_ov_type_mapping = {
+const std::map<std::string, ov::element::Type>& dtype_to_ov_type() {
+    static const std::map<std::string, ov::element::Type> dtype_to_ov_type_mapping = {
         {"float16", ov::element::f16},
         {"float32", ov::element::f32},
         {"float64", ov::element::f64},
@@ -47,7 +47,18 @@ const std::map<py::str, ov::element::Type>& dtype_to_ov_type() {
     return dtype_to_ov_type_mapping;
 }
 
-ov::runtime::Tensor tensor_from_numpy(py::array& array, bool shared_memory) {
+ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape) {
+    bool is_contiguous = C_CONTIGUOUS == (array.flags() & C_CONTIGUOUS);
+    auto type = Common::dtype_to_ov_type().at(py::str(array.dtype()));
+
+    if (is_contiguous) {
+        return ov::Tensor(type, shape, const_cast<void*>(array.data(0)), {});
+    } else {
+        throw ov::Exception("Tensor with shared memory must be C contiguous!");
+    }
+}
+
+ov::Tensor tensor_from_numpy(py::array& array, bool shared_memory) {
     // Check if passed array has C-style contiguous memory layout.
     bool is_contiguous = C_CONTIGUOUS == (array.flags() & C_CONTIGUOUS);
     auto type = Common::dtype_to_ov_type().at(py::str(array.dtype()));
@@ -59,7 +70,7 @@ ov::runtime::Tensor tensor_from_numpy(py::array& array, bool shared_memory) {
     if (shared_memory) {
         if (is_contiguous) {
             std::vector<size_t> strides(array.strides(), array.strides() + array.ndim());
-            return ov::runtime::Tensor(type, shape, const_cast<void*>(array.data(0)), strides);
+            return ov::Tensor(type, shape, const_cast<void*>(array.data(0)), strides);
         } else {
             throw ov::Exception("Tensor with shared memory must be C contiguous!");
         }
@@ -69,7 +80,7 @@ ov::runtime::Tensor tensor_from_numpy(py::array& array, bool shared_memory) {
         array = Common::as_contiguous(array, type);
     }
     // Create actual Tensor and copy data.
-    auto tensor = ov::runtime::Tensor(type, shape);
+    auto tensor = ov::Tensor(type, shape);
     // If ndim of py::array is 0, array is a numpy scalar. That results in size to be equal to 0.
     // To gain access to actual raw/low-level data, it is needed to use buffer protocol.
     py::buffer_info buf = array.request();
@@ -117,8 +128,8 @@ py::array as_contiguous(py::array& array, ov::element::Type type) {
     }
 }
 
-const ov::runtime::Tensor& cast_to_tensor(const py::handle& tensor) {
-    return tensor.cast<const ov::runtime::Tensor&>();
+const ov::Tensor& cast_to_tensor(const py::handle& tensor) {
+    return tensor.cast<const ov::Tensor&>();
 }
 
 const Containers::TensorNameMap cast_to_tensor_name_map(const py::dict& inputs) {
@@ -130,7 +141,7 @@ const Containers::TensorNameMap cast_to_tensor_name_map(const py::dict& inputs) 
         } else {
             throw py::type_error("incompatible function arguments!");
         }
-        if (py::isinstance<ov::runtime::Tensor>(input.second)) {
+        if (py::isinstance<ov::Tensor>(input.second)) {
             auto tensor = Common::cast_to_tensor(input.second);
             result_map[name] = tensor;
         } else {
@@ -149,7 +160,7 @@ const Containers::TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs
         } else {
             throw py::type_error("incompatible function arguments!");
         }
-        if (py::isinstance<ov::runtime::Tensor>(input.second)) {
+        if (py::isinstance<ov::Tensor>(input.second)) {
             auto tensor = Common::cast_to_tensor(input.second);
             result_map[idx] = tensor;
         } else {
@@ -159,13 +170,18 @@ const Containers::TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs
     return result_map;
 }
 
-void set_request_tensors(ov::runtime::InferRequest& request, const py::dict& inputs) {
+void set_request_tensors(ov::InferRequest& request, const py::dict& inputs) {
     if (!inputs.empty()) {
         for (auto&& input : inputs) {
-            if (py::isinstance<py::str>(input.first)) {
-                request.set_tensor(input.first.cast<std::string>(), Common::cast_to_tensor(input.second));
+            // Cast second argument to tensor
+            auto tensor = Common::cast_to_tensor(input.second);
+            // Check if key is compatible, should be port/string/integer
+            if (py::isinstance<ov::Output<const ov::Node>>(input.first)) {
+                request.set_tensor(input.first.cast<ov::Output<const ov::Node>>(), tensor);
+            } else if (py::isinstance<py::str>(input.first)) {
+                request.set_tensor(input.first.cast<std::string>(), tensor);
             } else if (py::isinstance<py::int_>(input.first)) {
-                request.set_input_tensor(input.first.cast<size_t>(), Common::cast_to_tensor(input.second));
+                request.set_input_tensor(input.first.cast<size_t>(), tensor);
             } else {
                 throw py::type_error("Incompatible key type for tensor named: " + input.first.cast<std::string>());
             }
@@ -288,26 +304,31 @@ PyAny from_ov_any(const ov::Any& any) {
             PyDict_SetItemString(dict, it.first.c_str(), PyLong_FromLong((long)it.second));
         }
         return dict;
+    }
+    // Check for std::vector<ov::PropertyName>
+    else if (any.is<std::vector<ov::PropertyName>>()) {
+        auto val = any.as<std::vector<ov::PropertyName>>();
+        PyObject* dict = PyDict_New();
+        for (const auto& it : val) {
+            std::string property_name = it;
+            std::string mutability = it.is_mutable() ? "RW" : "RO";
+            PyDict_SetItemString(dict, property_name.c_str(), PyUnicode_FromString(mutability.c_str()));
+        }
+        return dict;
     } else {
         PyErr_SetString(PyExc_TypeError, "Failed to convert parameter to Python representation!");
         return (PyObject*)NULL;
     }
 }
 
-uint32_t get_optimal_number_of_requests(const ov::runtime::CompiledModel& actual) {
+uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual) {
     try {
-        auto parameter_value = actual.get_metric(METRIC_KEY(SUPPORTED_METRICS));
-        auto supported_metrics = parameter_value.as<std::vector<std::string>>();
-        const std::string key = METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS);
-        if (std::find(supported_metrics.begin(), supported_metrics.end(), key) != supported_metrics.end()) {
-            parameter_value = actual.get_metric(key);
-            if (parameter_value.is<unsigned int>())
-                return parameter_value.as<unsigned int>();
-            else
-                IE_THROW() << "Unsupported format for " << key << "!"
-                           << " Please specify number of infer requests directly!";
+        auto supported_properties = actual.get_property(ov::supported_properties);
+        if (std::find(supported_properties.begin(), supported_properties.end(), ov::optimal_number_of_infer_requests) !=
+            supported_properties.end()) {
+            return actual.get_property(ov::optimal_number_of_infer_requests);
         } else {
-            IE_THROW() << "Can't load network: " << key << " is not supported!"
+            IE_THROW() << "Can't load network: " << ov::optimal_number_of_infer_requests.name() << " is not supported!"
                        << " Please specify number of infer requests directly!";
         }
     } catch (const std::exception& ex) {
@@ -315,34 +336,29 @@ uint32_t get_optimal_number_of_requests(const ov::runtime::CompiledModel& actual
     }
 }
 
-py::dict outputs_to_dict(const std::vector<ov::Output<const ov::Node>>& outputs, ov::runtime::InferRequest& request) {
+py::dict outputs_to_dict(const std::vector<ov::Output<const ov::Node>>& outputs, ov::InferRequest& request) {
     py::dict res;
     for (const auto& out : outputs) {
-        ov::runtime::Tensor t{request.get_tensor(out)};
+        ov::Tensor t{request.get_tensor(out)};
         switch (t.get_element_type()) {
         case ov::element::Type_t::i8: {
             res[py::cast(out)] = py::array_t<int8_t>(t.get_shape(), t.data<int8_t>());
-            ;
             break;
         }
         case ov::element::Type_t::i16: {
             res[py::cast(out)] = py::array_t<int16_t>(t.get_shape(), t.data<int16_t>());
-            ;
             break;
         }
         case ov::element::Type_t::i32: {
             res[py::cast(out)] = py::array_t<int32_t>(t.get_shape(), t.data<int32_t>());
-            ;
             break;
         }
         case ov::element::Type_t::i64: {
             res[py::cast(out)] = py::array_t<int64_t>(t.get_shape(), t.data<int64_t>());
-            ;
             break;
         }
         case ov::element::Type_t::u8: {
             res[py::cast(out)] = py::array_t<uint8_t>(t.get_shape(), t.data<uint8_t>());
-            ;
             break;
         }
         case ov::element::Type_t::u16: {
@@ -351,7 +367,6 @@ py::dict outputs_to_dict(const std::vector<ov::Output<const ov::Node>>& outputs,
         }
         case ov::element::Type_t::u32: {
             res[py::cast(out)] = py::array_t<uint32_t>(t.get_shape(), t.data<uint32_t>());
-            ;
             break;
         }
         case ov::element::Type_t::u64: {
@@ -368,17 +383,14 @@ py::dict outputs_to_dict(const std::vector<ov::Output<const ov::Node>>& outputs,
         }
         case ov::element::Type_t::f32: {
             res[py::cast(out)] = py::array_t<float>(t.get_shape(), t.data<float>());
-            ;
             break;
         }
         case ov::element::Type_t::f64: {
             res[py::cast(out)] = py::array_t<double>(t.get_shape(), t.data<double>());
-            ;
             break;
         }
         case ov::element::Type_t::boolean: {
             res[py::cast(out)] = py::array_t<bool>(t.get_shape(), t.data<bool>());
-            ;
             break;
         }
         default: {

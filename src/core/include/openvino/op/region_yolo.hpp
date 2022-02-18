@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -79,6 +79,9 @@ private:
     std::vector<float> m_anchors{};
     int m_axis;
     int m_end_axis;
+
+    template <class T>
+    friend void shape_infer(const RegionYolo* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes);
 };
 }  // namespace v0
 }  // namespace op

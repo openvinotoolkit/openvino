@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,8 @@
 #include <string>
 
 #include "cpp/ie_infer_request.hpp"
-#include "ie_blob.h"
 #include "ie_common.h"
+#include "ie_compound_blob.h"
 #include "ie_input_info.hpp"
 #include "ie_preprocess_data.hpp"
 #include "openvino/core/node_output.hpp"
@@ -88,6 +88,31 @@ public:
     virtual void SetBlob(const std::string& name, const Blob::Ptr& data);
 
     /**
+     * @brief Set batch of input data to infer. Default implementation performs basic validation and checks that all
+     * tensors are not remote. Plugin-specific implementations may override this behavior to handle remote tensors case.
+     * If plugin expects only memory blobs (not remote blobs), consider to override only SetBlobsImpl and reuse basic
+     * existing implementation
+     * @param name - an operation name of input or output blob.
+     * @param blobs - input blobs. The type of Blob must correspond to the model's input
+     * precision and size.
+     */
+    virtual void SetBlobs(const std::string& name, const std::vector<Blob::Ptr>& blobs);
+
+    /**
+     * @brief Set batch of input data to infer. Default implementation throws "Not implemented" exception
+     * To support 'set_input_tensors'/'set_tensors' plugin-specific implementations shall:
+     *  - Inside SetBlobsImpl: update 'InferenceEngine::IInferRequestInternal::batched_inputs' map
+     *  - Inside 'SetBlob': erase appropriate 'InferenceEngine::IInferRequestInternal::_batched_inputs[name]' item
+     *  - Inside 'InferImpl': call 'convertBatchedInputBlobs' on the beginning to convert many user blobs into single
+     * one
+     *  - If needed, override 'convertBatchedInputBlob' to perform custom concatenation and data copy to input blob
+     * @param name - an operation name of input or output blob.
+     * @param batched_blob - input blobs combined in batched blob. Called only if number of blobs > 1
+     * precision and size.
+     */
+    virtual void SetBlobsImpl(const std::string& name, const BatchedBlob::Ptr& batched_blob);
+
+    /**
      * @brief Get input/output data to infer
      * @note Memory allocation doesn't happen
      * @param name - a name of input or output blob.
@@ -95,6 +120,14 @@ public:
      * precision and size.
      */
     virtual Blob::Ptr GetBlob(const std::string& name);
+
+    /**
+     * @brief Get input/output data to infer
+     * @note Memory allocation doesn't happen
+     * @param name - a name of input or output blob.
+     * @return data - a reference to input batched blob.
+     */
+    virtual BatchedBlob::Ptr GetBlobs(const std::string& name);
 
     /**
      * @brief Sets pre-process for input data
@@ -208,11 +241,17 @@ public:
     const std::vector<std::shared_ptr<const ov::Node>>& GetInputs() const;
     const std::vector<std::shared_ptr<const ov::Node>>& GetOutputs() const;
 
+    /**
+     * @brief Sets inputs/outputs from ov::Model
+     */
+    virtual void setModelInputsOutputs(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                       const std::vector<std::shared_ptr<const ov::Node>>& outputs);
+
 protected:
     /**
      * @brief Destroys the object.
      */
-    ~IInferRequestInternal();
+    virtual ~IInferRequestInternal();
 
     /**
      * @brief Checks and executes input data pre-processing if needed.
@@ -233,6 +272,26 @@ protected:
     bool findInputAndOutputBlobByName(const std::string& name, InputInfo::Ptr& foundInput, DataPtr& foundOutput) const;
 
     /**
+     * @brief Helper function to find input node by legacy blob name
+     * @param name A legacy name of input blob
+     * @return shared pointer to OpenVINO input node
+     */
+    std::shared_ptr<const ov::Node> findInputByNodeName(const std::string& name) const;
+    /**
+     * @brief Helper function to find output node by legacy blob name
+     * @param name A legacy name of output blob
+     * @return shared pointer to OpenVINO output node
+     */
+    std::shared_ptr<const ov::Node> findOutputByNodeName(const std::string& name) const;
+
+    /**
+     * @brief Concatenates _batched_inputs into single blob before inference
+     * It is expected that _batched_inputs map contains only valid BatchedBlob blobs with 2 or more blobs inside
+     * @throws Exception if error occurs
+     */
+    void convertBatchedInputBlobs();
+
+    /**
      * @brief Checks whether pre-processing step is required for a given input
      * @param info InputInfo corresponding to input blob
      * @param userBlob Input Blob object corresponding to input info
@@ -245,6 +304,24 @@ protected:
 
     void addInputPreProcessingFor(const std::string& name, const Blob::Ptr& from, const Blob::Ptr& to);
 
+    /**
+     * @brief Performs actual concatenation of blobs into single tensor
+     * Default implementation may allocate memory for new blob containing user's input data
+     * Plugin is allowed to override this behavior
+     * @throws Exception if error occurs
+     */
+    virtual void convertBatchedInputBlob(const std::string& name,
+                                         const InferenceEngine::BatchedBlob::Ptr& batched_blob);
+
+    /**
+     * @brief Performs basic validation of user's blobs set via SetBlobs
+     * @note Plugin-specific implementations may call this function to performs basic validation inside 'SetBlobs'
+     * @param name - input name.
+     * @param blobs - input blobs. The type of Blob must correspond to the network input
+     * precision and size.
+     */
+    virtual void checkBlobsForBatch(const std::string& name, const std::vector<Blob::Ptr>& blobs);
+
     InferenceEngine::InputsDataMap _networkInputs;    //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
     InferenceEngine::BlobMap _inputs;                 //!< A map of user passed blobs for network inputs
@@ -253,6 +330,7 @@ protected:
     std::vector<std::shared_ptr<const ov::Node>> _parameters;  //!< A vector of function inputs
     std::vector<std::shared_ptr<const ov::Node>> _results;     //!< A vector of function outputs
     std::map<std::string, PreProcessDataPtr> _preProcData;     //!< A map of pre-process data per input
+    std::map<std::string, BatchedBlob::Ptr> _batched_inputs;   //!< A map of user passed blobs for network inputs
     int m_curBatch = -1;                                       //!< Current batch value used in dynamic batching
 
     /**
@@ -269,6 +347,6 @@ private:
 /**
  * @brief SoPtr to IInferRequestInternal.
  */
-using SoIInferRequestInternal = ov::runtime::SoPtr<IInferRequestInternal>;
+using SoIInferRequestInternal = ov::SoPtr<IInferRequestInternal>;
 
 }  // namespace InferenceEngine

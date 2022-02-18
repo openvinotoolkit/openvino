@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ namespace builder {
 namespace subgraph {
 
 std::shared_ptr<Function> TransformationsAfterSplitFunction::get(const std::string transformationName) {
-    const auto input = std::make_shared<opset1::Parameter>(element::u8, Shape{ 1, 3, 16, 16 });
+    const auto input = std::make_shared<opset1::Parameter>(element::u8, Shape{ 1, 9, 16, 16 });
     const size_t outputSize = 2ul;
 
     const auto axis = opset1::Constant::create(element::i64, Shape{}, { 2 });
@@ -68,7 +68,7 @@ std::shared_ptr<Node> TransformationsAfterSplitFunction::getLayerByTransformatio
     }
     if (transformationName == "ConvolutionTransformation") {
         const auto dequantizationOnData = makeDequantization(parent, { {element::f32}, {}, { 0.1f } });
-        const auto weights = opset1::Constant::create(element::i8, Shape{ 3, 3, 1, 1 }, { 2 });
+        const auto weights = opset1::Constant::create(element::i8, Shape{ 3, 9, 1, 1 }, { 2 });
         const auto dequantizationOnWeights = makeDequantization(weights, { {element::f32}, {}, {0.3f} });
         return std::make_shared<opset1::Convolution>(
             dequantizationOnData,
@@ -80,7 +80,7 @@ std::shared_ptr<Node> TransformationsAfterSplitFunction::getLayerByTransformatio
     }
     if (transformationName == "AsymmetricConvolutionTransformation") {
         const auto dequantizationOnData = makeDequantization(parent, { {element::f32}, { 128.f }, { 0.1f } });
-        const auto weights = opset1::Constant::create(element::i8, Shape{ 3, 3, 1, 1 }, { 2 });
+        const auto weights = opset1::Constant::create(element::i8, Shape{ 3, 9, 1, 1 }, { 2 });
         const auto dequantizationOnWeights = makeDequantization(weights, { {element::f32}, {}, {0.3f} });
         return std::make_shared<opset1::Convolution>(
             dequantizationOnData,

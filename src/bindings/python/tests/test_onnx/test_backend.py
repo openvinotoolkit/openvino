@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
@@ -6,7 +6,6 @@ import logging
 import onnx.backend.test
 from tests import (
     BACKEND_NAME,
-    xfail_issue_FLOAT_LIKE,
     skip_rng_tests,
     xfail_issue_33488,
     xfail_issue_33538,
@@ -27,9 +26,7 @@ from tests import (
     xfail_issue_38735,
     xfail_issue_39658,
     xfail_issue_39662,
-    xfail_issue_44854,
     xfail_issue_44858,
-    xfail_issue_44956,
     xfail_issue_44965,
     xfail_issue_44968,
     xfail_issue_45180,
@@ -99,13 +96,6 @@ globals().update(backend_test.enable_report().test_cases)
 
 tests_expected_to_fail = [
     (
-        xfail_issue_FLOAT_LIKE,
-        "OnnxBackendNodeModelTest.test_cast_BFLOAT16_to_FLOAT_cpu",
-        "OnnxBackendNodeModelTest.test_cast_FLOAT_to_BFLOAT16_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_BFLOAT16_to_FLOAT_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_BFLOAT16_expanded_cpu",
-    ),
-    (
         xfail_issue_49207,
         "OnnxBackendNodeModelTest.test_rnn_seq_length_cpu",
         "OnnxBackendNodeModelTest.test_simple_rnn_defaults_cpu",
@@ -124,11 +114,9 @@ tests_expected_to_fail = [
     (
         xfail_issue_39662,
         "OnnxBackendNodeModelTest.test_scatter_elements_with_negative_indices_cpu",
-        "OnnxBackendNodeModelTest.test_gather_negative_indices_cpu",
     ),
     (
         xfail_issue_38091,
-        "OnnxBackendNodeModelTest.test_gather_negative_indices_cpu",
         "OnnxBackendNodeModelTest.test_dynamicquantizelinear_cpu",
         "OnnxBackendNodeModelTest.test_dynamicquantizelinear_expanded_cpu",
     ),
@@ -265,12 +253,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_reduce_sum_do_not_keepdims_random_cpu",
     ),
     (
-        xfail_issue_44854,
-        "OnnxBackendNodeModelTest.test_split_variable_parts_1d_cpu",
-        "OnnxBackendNodeModelTest.test_split_variable_parts_2d_cpu",
-        "OnnxBackendNodeModelTest.test_split_variable_parts_default_axis_cpu",
-    ),
-    (
         xfail_issue_44858,
         "OnnxBackendNodeModelTest.test_unsqueeze_axis_0_cpu",
         "OnnxBackendNodeModelTest.test_unsqueeze_axis_1_cpu",
@@ -279,12 +261,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_unsqueeze_three_axes_cpu",
         "OnnxBackendNodeModelTest.test_unsqueeze_two_axes_cpu",
         "OnnxBackendNodeModelTest.test_unsqueeze_unsorted_axes_cpu",
-    ),
-    (
-        xfail_issue_44956,
-        "OnnxBackendNodeModelTest.test_loop11_cpu",
-        "OnnxBackendNodeModelTest.test_range_int32_type_negative_delta_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_range_float_type_positive_delta_expanded_cpu",
     ),
     (
         xfail_issue_44965,

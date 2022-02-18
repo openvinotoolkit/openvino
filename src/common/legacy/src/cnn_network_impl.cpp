@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -349,7 +349,7 @@ void CNNNetworkImpl::removeOutput(const string& dataName) {
     }
 }
 
-size_t CNNNetworkImpl::getBatchSize() const noexcept {
+size_t CNNNetworkImpl::getBatchSize() const {
     if (!_inputData.size()) return 0;
     // currently CNNNetworkImpl::setBatchSize set the same values
     // for the latest dim as a batch, we can take the first input

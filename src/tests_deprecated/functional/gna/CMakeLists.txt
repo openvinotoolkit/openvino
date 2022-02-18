@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -13,28 +13,21 @@ file(GLOB TEST_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instance/single_layer_tests/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/backward_compatibility/*.cpp)
 
-list(APPEND DEPENDENCIES ov_intel_gna_plugin)
+list(APPEND DEPENDENCIES openvino_intel_gna_plugin)
 
 if(ENABLE_HETERO)
-    list(APPEND DEPENDENCIES ov_hetero_plugin)
+    list(APPEND DEPENDENCIES openvino_hetero_plugin)
 endif()
 
-if(ENABLE_MKL_DNN)
-    list(APPEND DEPENDENCIES MKLDNNPlugin)
+if(ENABLE_INTEL_CPU)
+    list(APPEND DEPENDENCIES openvino_intel_cpu_plugin)
 endif()
 
 add_executable(${TARGET_NAME} ${TEST_SRC} ${TEST_INCLUDE})
 
-if(GNA_LIBRARY_VERSION STREQUAL "GNA2")
-    set(GNA_LIBRARY_VERSION_NUMBER 2)
-else()
-    set(GNA_LIBRARY_VERSION_NUMBER 1)
-endif()
-
 target_compile_definitions(${TARGET_NAME}
         PRIVATE
             USE_GNA=ON
-            GNA_LIB_VER=${GNA_LIBRARY_VERSION_NUMBER}
         PUBLIC ${ARGV}
             DATA_PATH=\"${DATA_PATH}\"
             MODELS_PATH=\"${MODELS_PATH}\")
@@ -59,6 +52,3 @@ install(TARGETS ${TARGET_NAME}
         COMPONENT tests
         EXCLUDE_FROM_ALL)
 
-if(GNA_LIBRARY_VERSION STREQUAL "GNA1")
-    target_compile_definitions(${TARGET_NAME} PRIVATE GNA1_LIB)
-endif()

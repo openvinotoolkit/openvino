@@ -1,9 +1,10 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
 from openvino.tools.mo.front.caffe.extractors.utils import input_as_const
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.common.replacement import FrontReplacementOp
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.scale_shift import ScaleShiftOp
@@ -28,10 +29,10 @@ class BNToScaleShift(FrontReplacementOp):
         if len(blobs) != 4:
             raise Error("Incorrect number of blobs in BN layer {}".format(node.id))
 
-        mean = np.array(blobs[0].data)
-        var = np.array(blobs[1].data)
-        betta = np.array(blobs[2].data)
-        gamma = np.array(blobs[3].data)
+        mean = mo_array(blobs[0].data)
+        var = mo_array(blobs[1].data)
+        betta = mo_array(blobs[2].data)
+        gamma = mo_array(blobs[3].data)
 
         gamma = gamma + np.repeat(param.eps, gamma.shape)
 

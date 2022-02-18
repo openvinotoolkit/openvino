@@ -1,8 +1,8 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "ov_intel_gna_plugin")
+set(TARGET_NAME "openvino_intel_gna_plugin")
 
 if(CMAKE_COMPILER_IS_GNUCC)
     ie_add_compiler_flags(-Wno-all)
@@ -18,14 +18,8 @@ file(GLOB_RECURSE HEADERS
 addVersionDefines(gna_plugin_entry_points.cpp CI_BUILD_NUMBER)
 
 find_package(libGNA REQUIRED
-             PATHS "${IE_MAIN_SOURCE_DIR}/cmake"
+             PATHS "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
              NO_DEFAULT_PATH)
-
-if(GNA_LIBRARY_VERSION STREQUAL "GNA2")
-    set(GNA_LIBRARY_VERSION_NUMBER 2)
-else()
-    set(GNA_LIBRARY_VERSION_NUMBER 1)
-endif()
 
 #
 # Shared plugin library
@@ -38,15 +32,14 @@ ie_add_plugin(NAME ${TARGET_NAME}
 # Enable support of CC for the plugin
 ie_mark_target_as_cc(${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_legacy inference_engine_transformations
+target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_legacy
         Threads::Threads libGNA)
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_compile_definitions(${TARGET_NAME}
     PRIVATE
         _NO_MKL_
-    PUBLIC
-        GNA_LIB_VER=${GNA_LIBRARY_VERSION_NUMBER})
+    )
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
@@ -61,11 +54,10 @@ target_compile_definitions(${TARGET_NAME}_test_static
             _NO_MKL_
             IMPLEMENT_INFERENCE_ENGINE_PLUGIN
         PUBLIC
-            GNA_LIB_VER=${GNA_LIBRARY_VERSION_NUMBER}
             INTEGER_LOW_P
             USE_STATIC_IE)
 
-target_link_libraries(${TARGET_NAME}_test_static PUBLIC inference_engine_s inference_engine_preproc_s inference_engine_transformations libGNA::API)
+target_link_libraries(${TARGET_NAME}_test_static PUBLIC inference_engine_s openvino_gapi_preproc_s inference_engine_transformations libGNA::API)
 target_include_directories(${TARGET_NAME}_test_static
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
@@ -83,3 +75,17 @@ file(GLOB_RECURSE source_list "${libGNA_LIBRARIES_BASE_PATH}/*${CMAKE_SHARED_LIB
 install(FILES ${source_list}
         DESTINATION ${IE_CPACK_RUNTIME_PATH}
         COMPONENT gna)
+
+if(NOT BUILD_SHARED_LIBS)
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/libGNAConfig.cmake ${CMAKE_BINARY_DIR} COPYONLY)
+    install(FILES "${CMAKE_BINARY_DIR}/libGNAConfig.cmake"
+            DESTINATION runtime/cmake
+            COMPONENT gna)
+
+    if(WIN32)
+        file(GLOB_RECURSE source_list "${libGNA_LIBRARIES_BASE_PATH}/*${CMAKE_STATIC_LIBRARY_SUFFIX}")
+        install(FILES ${source_list}
+                DESTINATION ${IE_CPACK_LIBRARY_PATH}
+                COMPONENT gna)
+    endif()
+endif()

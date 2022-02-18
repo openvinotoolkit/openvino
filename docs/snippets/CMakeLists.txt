@@ -46,7 +46,7 @@ if(OpenCV_FOUND)
 endif()
 
 if(ENABLE_OV_ONNX_FRONTEND)
-    target_link_libraries(${TARGET_NAME} PRIVATE ov_onnx_frontend)
+    target_link_libraries(${TARGET_NAME} PRIVATE openvino_onnx_frontend)
 endif()
 
 if(NOT MSVC)
@@ -56,5 +56,4 @@ if(NOT MSVC)
     endif()
 endif()
 
-target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_plugin_api
-    ngraph inference_engine_transformations)
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime openvino::runtime::dev)

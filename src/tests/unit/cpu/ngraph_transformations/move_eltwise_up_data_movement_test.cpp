@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,7 @@ TEST(MoveEltwiseUpThroughDataMov, SingleUnaryEltwise) {
 
     ngraph::pass::Manager m;
     m.register_pass<ngraph::pass::InitNodeInfo>();
-    m.register_pass<MKLDNNPlugin::MoveEltwiseUpThroughDataMov>();
+    m.register_pass<ov::intel_cpu::MoveEltwiseUpThroughDataMov>();
     m.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
     std::shared_ptr<ngraph::Function> f_ref(nullptr);
@@ -84,7 +84,7 @@ TEST(MoveEltwiseUpThroughDataMov, EltwiseSequence) {
 
     ngraph::pass::Manager m;
     m.register_pass<ngraph::pass::InitNodeInfo>();
-    m.register_pass<MKLDNNPlugin::MoveEltwiseUpThroughDataMov>();
+    m.register_pass<ov::intel_cpu::MoveEltwiseUpThroughDataMov>();
     m.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
 
@@ -142,7 +142,7 @@ TEST(MoveEltwiseUpThroughDataMov, DataMovementTwoConsumers) {
 
     ngraph::pass::Manager m;
     m.register_pass<ngraph::pass::InitNodeInfo>();
-    m.register_pass<MKLDNNPlugin::MoveEltwiseUpThroughDataMov>();
+    m.register_pass<ov::intel_cpu::MoveEltwiseUpThroughDataMov>();
     m.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
 
@@ -174,7 +174,7 @@ TEST(MoveEltwiseUpThroughDataMov, SingleBinaryEltwiseWithScalarOnSecondBranch) {
     }
     ngraph::pass::Manager m;
     m.register_pass<ngraph::pass::InitNodeInfo>();
-    m.register_pass<MKLDNNPlugin::MoveEltwiseUpThroughDataMov>();
+    m.register_pass<ov::intel_cpu::MoveEltwiseUpThroughDataMov>();
     m.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
     std::shared_ptr<ngraph::Function> f_ref(nullptr);
@@ -215,7 +215,7 @@ TEST(MoveEltwiseUpThroughDataMov, SingleEltwiseWith5ScalarOnSecondBranch) {
     }
     ngraph::pass::Manager m;
     m.register_pass<ngraph::pass::InitNodeInfo>();
-    m.register_pass<MKLDNNPlugin::MoveEltwiseUpThroughDataMov>();
+    m.register_pass<ov::intel_cpu::MoveEltwiseUpThroughDataMov>();
     m.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
     std::shared_ptr<ngraph::Function> f_ref(nullptr);
@@ -257,7 +257,7 @@ TEST(MoveEltwiseUpThroughDataMov, SingleBinaryEltwiseWithNotScalarOnSecondBranch
     std::shared_ptr<ngraph::Function> f = create_graph();
     ngraph::pass::Manager m;
     m.register_pass<ngraph::pass::InitNodeInfo>();
-    m.register_pass<MKLDNNPlugin::MoveEltwiseUpThroughDataMov>();
+    m.register_pass<ov::intel_cpu::MoveEltwiseUpThroughDataMov>();
     m.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
 
@@ -284,7 +284,7 @@ TEST(MoveEltwiseUpThroughDataMov, SingleUnaryEltwiseDynamicShape) {
 
     ngraph::pass::Manager m;
     m.register_pass<ngraph::pass::InitNodeInfo>();
-    m.register_pass<MKLDNNPlugin::MoveEltwiseUpThroughDataMov>();
+    m.register_pass<ov::intel_cpu::MoveEltwiseUpThroughDataMov>();
     m.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
     std::shared_ptr<ngraph::Function> f_ref(nullptr);
@@ -319,7 +319,7 @@ TEST(MoveEltwiseUpThroughDataMov, SingleUnaryEltwiseDynamicRank) {
     std::shared_ptr<ngraph::Function> f = create_graph();
     ngraph::pass::Manager m;
     m.register_pass<ngraph::pass::InitNodeInfo>();
-    m.register_pass<MKLDNNPlugin::MoveEltwiseUpThroughDataMov>();
+    m.register_pass<ov::intel_cpu::MoveEltwiseUpThroughDataMov>();
 
     m.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));

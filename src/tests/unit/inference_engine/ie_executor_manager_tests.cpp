@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,29 +10,27 @@ using namespace std;
 using namespace InferenceEngine;
 
 TEST(ExecutorManagerTests, canCreateSingleExecutorManager) {
-    ExecutorManager *executorManager1 = ExecutorManager::getInstance();
+    auto executorManager1 = executorManager();
 
-    ExecutorManager *executorManager2 = ExecutorManager::getInstance();
+    auto executorManager2 = executorManager();
 
     ASSERT_EQ(executorManager1, executorManager2);
 }
 
 TEST(ExecutorManagerTests, createDifferentExecutorsForDifferentDevices) {
-    ExecutorManagerImpl _manager;
-    auto executor1 = _manager.getExecutor("CPU");
-    auto executor2 = _manager.getExecutor("GPU");
+    auto executor1 = executorManager()->getExecutor("CPU");
+    auto executor2 = executorManager()->getExecutor("GPU");
 
     ASSERT_NE(executor1, executor2);
-    ASSERT_EQ(2, _manager.getExecutorsNumber());
+    ASSERT_EQ(2, executorManager()->getExecutorsNumber());
 }
 
 TEST(ExecutorManagerTests, returnTheSameExecutorForTheSameDevice) {
-    ExecutorManagerImpl _manager;
-    auto executor1 = _manager.getExecutor("CPU");
-    auto executor2 = _manager.getExecutor("GPU");
+    auto executor1 = executorManager()->getExecutor("CPU");
+    auto executor2 = executorManager()->getExecutor("GPU");
 
-    auto executor = _manager.getExecutor("GPU");
+    auto executor = executorManager()->getExecutor("GPU");
 
     ASSERT_EQ(executor, executor2);
-    ASSERT_EQ(2, _manager.getExecutorsNumber());
+    ASSERT_EQ(2, executorManager()->getExecutorsNumber());
 }

@@ -3,12 +3,7 @@
 This topic demonstrates how to use the Benchmark C++ Tool to estimate deep learning inference performance on supported devices.
 Performance can be measured for two inference modes: latency- and throughput-oriented.
 
-> **NOTE:** This topic describes usage of C++ implementation of the Benchmark Tool. For the Python* implementation, refer to [Benchmark Python* Tool](../../../tools/benchmark_tool/README.md).
-
-> **TIP**: You can quick start with the Benchmark Tool inside the OpenVINO™ [Deep Learning Workbench](@ref openvino_docs_get_started_get_started_dl_workbench) (DL Workbench).
-> [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is the OpenVINO™ toolkit UI you to
-> import a model, analyze its performance and accuracy, visualize the outputs, optimize and prepare the model for
-> deployment on various Intel® platforms.
+> **NOTE**: This topic describes usage of C++ implementation of the Benchmark Tool. For the Python* implementation, refer to [Benchmark Python* Tool](../../../tools/benchmark_tool/README.md).
 
 
 ## How It Works
@@ -19,7 +14,7 @@ Upon start-up, the application reads command-line parameters and loads a network
   If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application
   or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified.
   For more information about the argument, refer to **When to Reverse Input Channels** section of
-  [Converting a Model Using General Conversion Parameters](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+  [Converting a Model](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 
 Device-specific execution parameters (number of streams, threads, and so on) can be either explicitly specified through the command line
 or left default. In the last case, the sample logic will select the values for the optimal throughput.
@@ -59,11 +54,11 @@ Note that the benchmark_app usually produces optimal performance for any device 
 ./benchmark_app -m <model> -i <input> -d CPU
 ```
 
-But it is still may be sub-optimal for some cases, especially for very small networks. More details can read in [Introduction to Performance Topics](../../../docs/IE_DG/Intro_to_Performance.md).
+But it is still may be sub-optimal for some cases, especially for very small networks. More details can read in [Performance Optimization Guide](../../../docs/optimization_guide/dldt_optimization_guide.md).
 
-As explained in the  [Introduction to Performance Topics](../../../docs/IE_DG/Intro_to_Performance.md) section, for all devices, including new [MULTI device](../../../docs/IE_DG/supported_plugins/MULTI.md) it is preferable to use the FP16 IR for the model.
+As explained in the  [Performance Optimization Guide](../../../docs/optimization_guide/dldt_optimization_guide.md) section, for all devices, including new [MULTI device](../../../docs/OV_Runtime_UG/supported_plugins/MULTI.md) it is preferable to use the FP16 IR for the model.
 Also if latency of the CPU inference on the multi-socket machines is of concern, please refer to the same
-[Introduction to Performance Topics](../../../docs/IE_DG/Intro_to_Performance.md) document.
+[Performance Optimization Guide](../../../docs/optimization_guide/dldt_optimization_guide.md).
 
 Running the application with the `-h` option yields the following usage message:
 ```
@@ -90,11 +85,11 @@ Options:
     -l "<absolute_path>"        Required for CPU custom layers. Absolute path to a shared library with the kernels implementations.
           Or
     -c "<absolute_path>"        Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.
-    -hint "<throughput(or just 'tput')/latency">
-                                Optional. Performance hint (optimize for latency or throughput).
-                                The hint allows the OpenVINO device to select the right network-specific settings,
-                                as opposite to just accepting specific values from the sample command line.
-                                So you can specify only the hint without setting explicit 'nstreams' or other device-specific options.
+    -hint "performance hint (latency or throughput or none)"   Optional. Performance hint allows the OpenVINO device to select the right network-specific settings.
+                                 'throughput' or 'tput': device performance mode will be set to THROUGHPUT.
+                                 'latency': device performance mode will be set to LATENCY.
+                                 'none': no device performance mode will be set.
+                                Using explicit 'nstreams' or other device-specific options, please set hint to 'none'
     -api "<sync/async>"         Optional (deprecated). Enable Sync/Async API. Default value is "async".
     -niter "<integer>"          Optional. Number of iterations. If not specified, the number of iterations is calculated depending on a device.
     -nireq "<integer>"          Optional. Number of infer requests. Default value is determined automatically for a device.
@@ -129,12 +124,12 @@ Options:
                                 Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency
                                 estimations the number of streams should be set to 1.
     -nthreads "<integer>"       Optional. Number of threads to use for inference on the CPU (including HETERO and MULTI cases).
-    -enforcebf16="<true/false>" Optional. By default floating point operations execution in bfloat16 precision are enforced if supported by platform.
-    -pin "YES"/"HYBRID_AWARE"/"NUMA"/"NO"
+    -pin ("YES"|"CORE")/"HYBRID_AWARE"/"NUMA"/("NO"|"NONE")
                                 Optional. Explicit inference threads binding options (leave empty to let the OpenVINO to make a choice):
                                 enabling threads->cores pinning ("YES", which is already default for a conventional CPU),
                                 letting the runtime to decide on the threads->different core types ("HYBRID_AWARE", which is default on the hybrid CPUs)
                                 threads->(NUMA)nodes ("NUMA") or completely disable ("NO") CPU inference threads pinning.
+    -infer_precision device_name:infer_precision1,device_name:infer_precision2 Optional. Hint to specifies inference precision
     -ip "U8"/"FP16"/"FP32"      Optional. Specifies precision for all input layers of the network.
     -op "U8"/"FP16"/"FP32"      Optional. Specifies precision for all output layers of the network.
     -iop                        Optional. Specifies precision for input and output layers by name. Example: -iop "input:FP16, output:FP16". Notice that quotes are required.
@@ -148,8 +143,8 @@ Options:
     -report_folder              Optional. Path to a folder where statistics report is stored.
     -exec_graph_path            Optional. Path to a file where to store executable graph information serialized.
     -pc                         Optional. Report performance counters.
-    -dump_config                Optional. Path to XML/YAML/JSON file to dump IE parameters, which were set by application.
-    -load_config                Optional. Path to XML/YAML/JSON file to load custom IE parameters. Please note, command line parameters have higher priority then parameters from configuration file.
+    -dump_config                Optional. Path to JSON file to dump IE parameters, which were set by application.
+    -load_config                Optional. Path to JSON file to load custom IE parameters. Please note, command line parameters have higher priority than parameters from configuration file.
 ```
 
 Running the application with the empty list of options yields the usage message given above and an error message.
@@ -169,7 +164,7 @@ To run the tool, you can use [public](@ref omz_models_group_public) or [Intel's]
 
 This section provides step-by-step instructions on how to run the Benchmark Tool with the `googlenet-v1` public model on CPU or GPU devices. As an input, the `car.png` file from the `<INSTALL_DIR>/samples/scripts/` directory is used.
 
-> **NOTE:** The Internet access is required to execute the following steps successfully. If you have access to the Internet through the proxy server only, please make sure that it is configured in your OS environment.
+> **NOTE**: The Internet access is required to execute the following steps successfully. If you have access to the Internet through the proxy server only, please make sure that it is configured in your OS environment.
 
 1. Download the model. Go to the the Model Downloader directory and run the `downloader.py` script with specifying the model name and directory to download the model to:
    ```sh
@@ -178,12 +173,9 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
    ```sh
    python3 downloader.py --name googlenet-v1 -o <models_dir>
    ```
-2. Convert the model to the Inference Engine IR format. Go to the Model Optimizer directory and run the `mo.py` script with specifying the path to the model, model format (which must be FP32 for CPU and FPG) and output directory to generate the IR files:
+2. Convert the model to the Inference Engine IR format. Run the Model Optimizer using the `mo` command with the path to the model, model format (which must be FP32 for CPU and FPG) and output directory to generate the IR files:
    ```sh
-   cd <INSTALL_DIR>/tools/model_optimizer
-   ```
-   ```sh
-   python3 mo.py --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP32 --output_dir <ir_dir>
+   mo --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP32 --output_dir <ir_dir>
    ```
 3. Run the tool with specifying the `<INSTALL_DIR>/samples/scripts/car.png` file as an input image, the IR of the `googlenet-v1` model and a device to perform inference on. The following commands demonstrate running the Benchmark Tool in the asynchronous mode on CPU and GPU devices:
 
@@ -251,6 +243,6 @@ Below are fragments of sample output static and dynamic networks:
    ```
 
 ## See Also
-* [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
+* [Using Inference Engine Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 * [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 * [Model Downloader](@ref omz_tools_downloader)

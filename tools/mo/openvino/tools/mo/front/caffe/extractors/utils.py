@@ -1,8 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.ops.const import Const
 
@@ -16,7 +17,7 @@ def dim_to_shape(dim):
     Returns:
         shape of the layer as np.array
     """
-    return np.array(dim, dtype=np.int64)
+    return int64_array(dim)
 
 
 def embed_input(attrs: dict, port: int, name: str, value: np.array, bin_name: str = None):
@@ -39,7 +40,9 @@ def embed_input(attrs: dict, port: int, name: str, value: np.array, bin_name: st
 
     # memory safe value conversion to numpy;
     # previously we used `np.array(value)` and it was greedy for memory on caffe models especially
-    val = np.ndarray(shape=(len(value),))
+    # previously we always created float64 np.ndarray, now we force float32, we can't get data type from "value" for
+    # Caffe, because it comes as float64 from protobuf
+    val = np.ndarray(shape=(len(value),), dtype=np.float32)
     for i, item in enumerate(value):
         val[i] = item
     attrs[name] = val

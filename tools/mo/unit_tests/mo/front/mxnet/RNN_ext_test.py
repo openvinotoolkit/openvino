@@ -1,16 +1,15 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
-import unittest
 
 import numpy as np
 
 from openvino.tools.mo.front.mxnet.RNN_ext import RNNFrontExtractor
 from openvino.tools.mo.utils.error import Error
+from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from unit_tests.utils.extractors import PB
 
 
-class RNNFrontExtractorTest(unittest.TestCase):
+class RNNFrontExtractorTest(UnitTestWithMockedTelemetry):
     @staticmethod
     def _create_node(**attrs):
         params = {'attrs': {

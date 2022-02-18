@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from collections import deque
@@ -109,7 +109,7 @@ def compare_graphs(graph: Graph, graph_ref: Graph, last_node: str, last_node_ref
                 for attr in graph_ref.node[node_ref.id]:
                     if graph_ref.node[node_ref.id][attr] is None or attr in \
                             ['name', 'id', '_in_ports', '_out_ports', 'infer', 'IE', 'biases', 'weights', 'custom',
-                             'offset', 'ir_data_attrs']:
+                             'offset', 'ir_data_attrs', 'rt_info']:
                         continue
                     if attr not in graph.node[node.id]:
                         stderr.append('Current node "{}" with type {} has missing attribute {}'
@@ -121,12 +121,6 @@ def compare_graphs(graph: Graph, graph_ref: Graph, last_node: str, last_node_ref
                             stderr.append('Current node "{}" with type {} and reference node "{}" with type have '
                                           'different values \n{} \nand \n{}'.format(
                                 node.id, cur_node_type, node_ref.id, ref_node_type, node.value, node_ref.value))
-                        continue
-                    if attr == 'rt_info':
-                        if node.rt_info.info != node_ref.rt_info.info:
-                            stderr.append('Current node "{}" with type {} and reference node "{}" with type have '
-                                          'different rt_info \n{} \nand \n{}'.format(
-                                node.id, cur_node_type, node_ref.id, ref_node_type, node.rt_info.info, node_ref.rt_info.info))
                         continue
                     compare_node(node_ref, node, graph_ref.node[node_ref.id][attr], graph.node[node.id][attr], attr,
                                  stderr)

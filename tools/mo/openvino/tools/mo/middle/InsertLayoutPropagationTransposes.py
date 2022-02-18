@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -94,8 +94,8 @@ class InsertLayoutPropagationTranspose(MiddleReplacementPattern):
                 mark_output_as_in_correct_layout(permute_node, 0)
 
                 # keep the reinterp_shape_node in NHWC layout
-                mark_input_as_in_correct_layout(reinterp_shape_node, 0)
-                mark_input_as_in_correct_layout(reinterp_shape_node, 1)
+                for in_port_id, _ in reinterp_shape_node.in_ports().items():
+                    mark_input_as_in_correct_layout(reinterp_shape_node, in_port_id)
 
         # reshape from ND -> 4D-5D. Insert Transpose(N(D)HWC->NC(D)HW) after Reshape
         for reinterp_shape_node_id in graph.get_nodes_with_attributes(reinterp_shape=True):
@@ -118,7 +118,9 @@ class InsertLayoutPropagationTranspose(MiddleReplacementPattern):
 
                 # keep the reinterp_shape_node in NHWC layout
                 mark_output_as_in_correct_layout(reinterp_shape_node, 0)
-                mark_input_as_in_correct_layout(reinterp_shape_node, 1)
+                for in_port_id in reinterp_shape_node.in_ports().keys():
+                    if in_port_id:
+                        mark_input_as_in_correct_layout(reinterp_shape_node, in_port_id)
 
                 # do not re-infer the Transpose node because it output data node should be in NHWC layout to make the
                 # rest of the graph consistent

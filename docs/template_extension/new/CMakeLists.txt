@@ -1,11 +1,11 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 # [cmake:extension]
 set(CMAKE_CXX_STANDARD 11)
 
-set(TARGET_NAME "template_ov_extension")
+set(TARGET_NAME "openvino_template_extension")
 
 find_package(OpenVINO)
 

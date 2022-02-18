@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,6 @@
 
 namespace {
 using namespace ov::test::conformance;
-using namespace ConformanceTests;
 using namespace BehaviorTestsDefinitions;
 
 const std::vector<FuncTestUtils::BlobType> setBlobTypes = {
@@ -45,5 +44,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_Behavior_Hetero, InferRequestSetBlobByType,
                          ::testing::Combine(::testing::ValuesIn(setBlobTypes),
                                             ::testing::Values(CommonTestUtils::DEVICE_HETERO),
                                             ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_HETERO))),
+                         InferRequestSetBlobByType::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Behavior_Batch, InferRequestSetBlobByType,
+                         ::testing::Combine(::testing::ValuesIn(setBlobTypes),
+                                            ::testing::Values(CommonTestUtils::DEVICE_BATCH),
+                                            ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_BATCH))),
                          InferRequestSetBlobByType::getTestCaseName);
 } // namespace

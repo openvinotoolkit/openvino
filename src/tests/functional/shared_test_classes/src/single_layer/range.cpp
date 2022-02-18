@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,9 @@ std::string RangeLayerTest::getTestCaseName(const testing::TestParamInfo<RangePa
     result << "inL=" << inLayout << separator;
     result << "outL=" << outLayout << separator;
     result << "trgDev=" << targetDevice;
-    return result.str();
+    auto str = result.str();
+    replace(str.begin(), str.end(), '.', '_');
+    return str;
 }
 
 void RangeLayerTest::Infer() {
@@ -46,17 +48,16 @@ void RangeLayerTest::Infer() {
 
 void RangeLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
-    std::tie(start, stop, step, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = GetParam();
+    tie(start, stop, step, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    std::vector<std::pair<std::string, std::vector<size_t>>> inputs {{"start", {}}, {"stop", {}}, {"step", {}}};
+    auto params = ngraph::builder::makeParams(ngPrc, inputs);
+    auto range = std::make_shared<ngraph::opset4::Range>(params[0], params[1], params[2], ngPrc);
 
-    auto params = ngraph::builder::makeParams(ngPrc, {std::vector<size_t>(), std::vector<size_t>(), std::vector<size_t>()});
-    params[0]->set_friendly_name("start");
-    params[1]->set_friendly_name("stop");
-    params[2]->set_friendly_name("step");
-
-    auto range = std::make_shared<ngraph::opset3::Range>(params[0], params[1], params[2]);
-    const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(range)};
-    function = std::make_shared<ngraph::Function>(results, params, "Range");
+    function = std::make_shared<ngraph::Function>(
+        std::make_shared<ngraph::opset1::Result>(range),
+        params,
+        "Range");
 }
 
 std::string RangeNumpyLayerTest::getTestCaseName(const testing::TestParamInfo<RangeParams>& obj) {

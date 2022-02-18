@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/bucketize.hpp"
 
+#include "bucketize_shape_inference.hpp"
 #include "itt.hpp"
 
 using namespace ngraph;
@@ -51,17 +52,16 @@ void op::v3::Bucketize::validate_and_infer_types() {
                           "Output type must be i32 or i64. Got: ",
                           m_output_type);
 
-    NODE_VALIDATION_CHECK(this,
-                          buckets_pshape.rank().compatible(1),
-                          "Buckets input must be a 1D tensor. Got: ",
-                          buckets_pshape);
+    std::vector<ov::PartialShape> input_shapes = {data_pshape, buckets_pshape};
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
+    shape_infer(this, input_shapes, output_shapes);
 
     if (data_pshape.is_dynamic()) {
         set_input_is_relevant_to_shape(0);
     }
 
     set_output_size(1);
-    set_output_type(0, m_output_type, data_pshape);
+    set_output_type(0, m_output_type, output_shapes[0]);
 }
 
 shared_ptr<Node> op::v3::Bucketize::clone_with_new_inputs(const OutputVector& inputs) const {

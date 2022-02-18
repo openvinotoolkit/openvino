@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,7 +32,6 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 63469
         R"(.*ConversionLayerTest.*ConvertLike.*)",
         // TODO: Issue: 34055
-        R"(.*ShapeOfLayerTest.*)",
         R"(.*ReluShapeOfSubgraphTest.*)",
         // TODO: Issue: 43314
         R"(.*Broadcast.*mode=BIDIRECTIONAL.*inNPrec=BOOL.*)",
@@ -42,8 +41,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(BF|bf)16.*(jit_avx(?!5)|jit_sse|ref).*)",
         // TODO: Incorrect blob sizes for node BinaryConvolution_X
         R"(.*BinaryConvolutionLayerTest.*)",
-        R"(.*ClampLayerTest.*netPrc=(I64|I32).*)",
-        R"(.*ClampLayerTest.*netPrc=U64.*)",
         // TODO: 53618. BF16 gemm ncsp convolution crash
         R"(.*_GroupConv.*_inFmts=nc.*_primitive=jit_gemm.*ENFORCE_BF16=YES.*)",
         // TODO: 53578. fork DW bf16 convolution does not support 3d cases yet
@@ -69,8 +66,8 @@ std::vector<std::string> disabledTestPatterns() {
 
         // TODO: 57562 No dynamic output shape support
         R"(.*NonZeroLayerTest.*)",
-        // TODO: 69084 Not constant Axis input produces dynamic output shape.
-        R"(.*GatherLayerTestCPU.*constAx=False.*)",
+        // TODO: 74961.  Enforce precision via inType and outType does not work properly.
+        R"(.*(RNN|GRU|LSTM).*ENFORCE_BF16=YES.*)",
         // Not expected behavior
         R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
         R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
@@ -102,6 +99,18 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Hetero.*Behavior.*ExecutableNetworkBaseTest.*ExecGraphInfo.*)",
         R"(.*Hetero.*Behavior.*ExecutableNetworkBaseTest.*CanCreateTwoExeNetworksAndCheckFunction.*)",
 
+        // CVS-74306
+        R"(.*importExportedIENetworkParameterResultOnly.*elementType=(i8|u8).*)",
+        R"(.*importExportedIENetworkParameterResultOnly.*elementType=(i16|u16).*)",
+        R"(.*importExportedIENetworkParameterResultOnly.*elementType=(i64|u64).*)",
+        R"(.*importExportedIENetworkParameterResultOnly.*elementType=u32.*)",
+
+        // CVS-74307
+        R"(.*ConstantResultOnly.*elementType=(i8|u8).*)",
+        R"(.*ConstantResultOnly.*elementType=(i16|u16).*)",
+        R"(.*ConstantResultOnly.*elementType=(i64|u64).*)",
+        R"(.*ConstantResultOnly.*elementType=(u32|f16).*)",
+
         // CPU plugin does not support some precisions
         R"(smoke_CachingSupportCase_CPU/LoadNetworkCacheTestBase.CompareWithRefImpl/ReadConcatSplitAssign_f32_batch1_CPU)",
 
@@ -116,17 +125,11 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_Hetero_BehaviorTests.*DynamicInputToDynamicOutput.*)",
         R"(.*smoke_Auto_BehaviorTests.*DynamicOutputToDynamicInput.*)",
         R"(.*smoke_Auto_BehaviorTests.*DynamicInputToDynamicOutput.*)",
-        // CPU dynamism: empty tensor returns size() == 1. Looks like layout is SCALAR
-        // Issue: CVS-66780
-        R"(.*smoke_BehaviorTests.*InferUpperBoundNetworkWithGetTensor.*)",
-        R"(.*smoke_BehaviorTests.*InferDynamicNetworkWithGetTensor.*)",
 
         // TODO: Issue CVS-51680
         R"(.*BehaviorTests.*canRun3SyncRequestsConsistentlyFromThreads.*CPU_THROUGHPUT.*)",
         // Issue 67214
         R"(smoke_PrePostProcess.*resize_and_convert_layout_i8.*)",
-        // Issue 67910
-        R"(.*smoke_PrePostProcess.*two_inputs_trivial.*)",
         // TODO: CVS-67255
         R"(smoke_If.*SimpleIf2OutTest.*)",
 
@@ -138,12 +141,11 @@ std::vector<std::string> disabledTestPatterns() {
         // bad accuracy
         R"(.*smoke_FakeQuantizeLayerCPUTest_Decompos.
             *IS=_TS=\(\(4\.5\.6\.7\)\)_RS=\(\(1\.1\.6\.1\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.1\.1\.1\)\)_\(\(1\.1\.6\.1\)\).*)",
-
-        // Issue: 71121
-        R"(.*smoke_Proposal*.*TS=\(2.*)",
-        // TODO : CVS-69533
-        R"(.*ConvolutionLayerCPUTest.*IS=\{.+\}.*_Fused=.*Add\(Parameters\).*)",
-        R"(.*GroupConvolutionLayerCPUTest.*IS=\{.+\}.*_Fused=.*Add\(Parameters\).*)",
+        // Issue: 69222
+        R"(.*smoke_PriorBoxClustered.*PriorBoxClusteredLayerCPUTest.*_netPRC=f16_.*)",
+        // Issue: 74817
+        // Sporadic failings with NAN on Dynamic shape cases with jit implementation
+        R"(.*DefConvLayoutTest7.*)",
         // Issue: 71968
         R"(.*LSTMSequenceCommonZeroClip.*PURE.*CONST.*hidden_size=10.*sigmoid.sigmoid.sigmoid.*reverse.*FP32_targetDevice=CPU.*)",
         // Issue: 72005
@@ -154,9 +156,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*CTCLossLayerCPUTest.*ctcMergeRepeated=1.*)",
         // Issue: 71756
         R"(.*Deconv_.*D_(Blocked|DW|1x1)_.*DeconvolutionLayerCPUTest\.CompareWithRefs.*inFmts=(nChw16c|nCdhw16c)_outFmts=(nChw16c|nCdhw16c)_primitive=jit_avx512_.*Fused=Multiply\(PerChannel\)\.Add\(PerChannel\).*)",
+        R"(.*Deconv_.*D_(Blocked|DW|1x1)_.*DeconvolutionLayerCPUTest\.CompareWithRefs.*inFmts=(nChw8c|nCdhw8c)_outFmts=(nChw8c|nCdhw8c)_primitive=jit_avx2_.*Fused=Multiply\(PerChannel\)\.Add\(PerChannel\).*)",
+        R"(.*Deconv_.*D_(Blocked|1x1)_.*DeconvolutionLayerCPUTest\.CompareWithRefs.*inFmts=(nChw8c|nCdhw8c)_outFmts=(nChw8c|nCdhw8c)_primitive=jit_avx2.*)",
         R"(.*smoke_GroupDeconv_(2|3)D_Blocked_BF16.*S=(\(2\.2\)|\(2\.2\.2\))_PB=(\(0\.0\)|\(0\.0\.0\))_PE=(\(0\.0\)|\(0\.0\.0\))_D=(\(1\.1\)|\(1\.1\.1\))_.*_O=64_G=4.*)",
-        // Issue: 72150
-        R"(.*smoke_SetBlobCPU/SetBlobTest.CompareWithRefs/Type=.*_Device=CPU_PrecisionInNet=BOOL.*)",
         // Issue: 59594
         R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*BOOL.*)",
         R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*MIXED.*)",
@@ -168,6 +170,18 @@ std::vector<std::string> disabledTestPatterns() {
         R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*UNSPECIFIED.*)",
         // Issue:
         R"(.*smoke_VariadicSplit4D_CPU_zero_dims.*)",
+        // New API tensor tests
+        R"(.*OVInferRequestCheckTensorPrecision.*type=i4.*)",
+        R"(.*OVInferRequestCheckTensorPrecision.*type=u1.*)",
+        R"(.*OVInferRequestCheckTensorPrecision.*type=u4.*)",
+        // Issue: 75022
+        R"(.*OVExecutableNetworkBaseTest.*LoadNetworkToDefaultDeviceNoThrow.*)",
+        R"(.*IEClassBasicTest.*LoadNetworkToDefaultDeviceNoThrow.*)",
+        // Issue: 77390
+        R"(.*LoopLayerCPUTest.*exec_cond=0.*)",
+        R"(.*LoopLayerCPUTest.*trip_count=0.*)",
+        R"(.*LoopForDiffShapesLayerCPUTest.*exec_cond=0.*)",
+        R"(.*LoopForDiffShapesLayerCPUTest.*trip_count=0.*)",
     };
 
 #define FIX_62820 0

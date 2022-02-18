@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from typing import Dict
@@ -6,11 +6,13 @@ from typing import Dict
 import numpy as np
 
 from openvino.tools.mo.ops.Cast import Cast
-from openvino.tools.mo.ops.elementwise import Sub, Div, Mul, Negative, Equal
+from openvino.tools.mo.ops.elementwise import Sub, Div, Mul, Equal
 from openvino.tools.mo.ops.select import Select
 from openvino.tools.mo.back.replacement import BackReplacementPattern
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.middle.passes.convert_data_type import data_type_str_to_np, np_data_type_to_destination_type, packed_I4
+from openvino.tools.mo.middle.pattern_match import apply_pattern
 from openvino.tools.mo.ops.const import Const
 
 
@@ -90,7 +92,7 @@ class CompressQuantizeWeights(BackReplacementPattern):
         16: (packed_I4, "signed"),
     }
 
-    def pattern(self):
+    def pattern1(self):
         return dict(
             nodes=[
                 ('const', dict(type='Const')),
@@ -102,6 +104,27 @@ class CompressQuantizeWeights(BackReplacementPattern):
                 ('const_d', 'fake_quantize', {'in': 0}),
             ]
         )
+
+    def pattern2(self):
+        return dict(
+            nodes=[
+                ('const', dict(type='Const')),
+                ('const_d', dict()),
+                ('convert', dict(type='Convert')),
+                ('convert_d', dict()),
+                ('fake_quantize', dict(type='FakeQuantize', levels=lambda x: x is not None and 2 < x <= 256)),
+            ],
+            edges=[
+                ('const', 'const_d'),
+                ('const_d', 'convert'),
+                ('convert', 'convert_d'),
+                ('convert_d', 'fake_quantize', {'in': 0}),
+            ]
+        )
+
+    def find_and_replace_pattern(self, graph: Graph):
+        apply_pattern(graph, **self.pattern1(), action=self.replace_pattern)  # pylint: disable=no-member
+        apply_pattern(graph, **self.pattern2(), action=self.replace_pattern)  # pylint: disable=no-member
 
     @staticmethod
     def quantize_data(fake_quantize: Node, dst_type: type, quantized_type: type, mode: str):
@@ -120,8 +143,8 @@ class CompressQuantizeWeights(BackReplacementPattern):
         assert mode in ["signed", "unsigned"]
         i_min_value = -(levels // 2) if mode == "signed" else 0
 
-        i_min = np.array([i_min_value], dtype=dst_type)
-        i_max = np.array(levels + i_min - 1, dtype=dst_type)
+        i_min = mo_array(i_min_value, dtype=dst_type) if not quantize.in_node(0).shape.size else mo_array([i_min_value], dtype=dst_type)
+        i_max = mo_array(levels + i_min - 1, dtype=dst_type)
 
         assert i_max - i_min == levels - 1
         out_low = Const(graph, dict(name=name + '/Copy/out_low', value=i_min)).create_node()
@@ -183,7 +206,7 @@ class CompressQuantizeWeights(BackReplacementPattern):
         shift.in_port(0).connect(in_low)
         shift.in_port(1).connect(descaled_output_low.out_port(0))
 
-        zero = Const(graph, {'name': name + '/zero', 'value': np.array(0, dtype=dst_type)}).create_node()
+        zero = Const(graph, {'name': name + '/zero', 'value': mo_array(0, dtype=dst_type)}).create_node()
         scale_eq_zero = Equal(graph, {'name': name + '/scale_eq_zero'}).create_node()
         scale_eq_zero.in_port(0).connect(scale.out_port(0))
         scale_eq_zero.in_port(1).connect(zero.out_port(0))
@@ -209,9 +232,15 @@ class CompressQuantizeWeights(BackReplacementPattern):
     def replace_pattern(self, graph: Graph, match: Dict[str, Node]):
         fake_quantize = match['fake_quantize']
 
-        dst_type = match['const'].value.dtype
-        if np.issubdtype(dst_type, np.floating):
-            dst_type = data_type_str_to_np(graph.graph['cmd_params'].data_type)
+        if fake_quantize.has_and_set('stop_compression'):
+            return
+
+        if 'convert' in match:
+            dst_type = match['convert'].dst_type
+            match['convert']['stop_value_propagation'] = False
+            Cast.infer(match['convert'])
+        else:
+            dst_type = match['const'].value.dtype
 
         quantized_type, mode = None, None
         for quantization_levels in sorted(self.QUANTIZATION_MAP):

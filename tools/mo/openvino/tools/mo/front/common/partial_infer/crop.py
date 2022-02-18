@@ -1,11 +1,10 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 
-import numpy as np
-
 from openvino.tools.mo.front.caffe.extractors.utils import get_canonical_axis_index
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 
 
 def crop_infer(node):
@@ -31,11 +30,11 @@ def crop_infer(node):
     if any(s is None for s in shapes):
         return
 
-    input_shape = np.array(shapes[0])
+    input_shape = mo_array(shapes[0])
     start_axis = get_canonical_axis_index(input_shape, node.axis)
     node.axis = start_axis
 
-    reference_shape = np.array(shapes[1])
+    reference_shape = mo_array(shapes[1])
     input_dim = input_shape.size
 
     # set new shape to current shape

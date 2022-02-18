@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -118,7 +118,6 @@ std::unordered_map<std::string, std::vector<size_t>> compute_label_dim_map(const
     std::unordered_map<std::string, std::vector<size_t>> resulted_map;
     NGRAPH_CHECK(input_rank_length >= labels.size());
     size_t num_broadcasted_dims = input_rank_length - labels.size() + 1;
-    NGRAPH_CHECK(num_broadcasted_dims >= 0);
 
     size_t current_dim = 0;
     for (const auto& label : labels) {

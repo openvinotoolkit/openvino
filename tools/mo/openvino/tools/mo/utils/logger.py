@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import importlib.util
@@ -6,6 +6,7 @@ import logging as log
 import os
 import re
 import sys
+from argparse import Namespace
 
 # WA for abseil bug that affects logging while importing TF starting 1.14 version
 # Link to original issue: https://github.com/abseil/abseil-py/issues/99
@@ -111,3 +112,37 @@ def progress_bar(function: callable):
         function(*args, **kwargs)
 
     return wrapper
+
+def progress_printer(argv: Namespace):
+    """
+    A higher-order factory function returning a configurable callback displaying a progress bar
+    Depending on the configuration stored in 'argv' the progress bar can be one-line, multi-line, or silent.
+    """
+    def _progress_bar(progress, total, completed, endline):
+        bar_len = 20
+
+        def dots():
+            return '.' * int(progress * bar_len)
+
+        print('\rProgress: [{:{}}]{:>7.2f}% done'.format(dots(), bar_len, progress*100), end=endline)
+        sys.stdout.flush()
+
+    def no_progress_bar(progress, total, completed):
+        """ A 'dummy' progressbar which doesn't print anything """
+        pass
+
+    def oneline_progress_bar(progress, total, completed):
+        """ A callback that always prints the progress in the same line (mimics real GUI progress bar)"""
+        _progress_bar(progress, total, completed, '')
+
+    def newline_progress_bar(progress, total, completed):
+        """ A callback that prints an updated progress bar in separate lines """
+        _progress_bar(progress, total, completed, '\n')
+
+    if "progress" in argv and argv.progress:
+        if "stream_output" in argv and argv.stream_output:
+            return newline_progress_bar
+        else:
+            return oneline_progress_bar
+    else:
+        return no_progress_bar

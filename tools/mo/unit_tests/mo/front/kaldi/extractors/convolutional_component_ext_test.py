@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -33,7 +33,7 @@ class ConvolutionalComponentFrontExtractorTest(KaldiFrontExtractorTest):
 
     def test_attrs(self):
         val_attrs = {
-            'kernel': [1, 1, 1, 2],
+            'kernel': [2, 2, 1, 2],
             'stride': [1, 1, 1, 2],
             'pad': [[[0, 0], [0, 0], [0, 0], [0, 0]]],
             'output': 2,

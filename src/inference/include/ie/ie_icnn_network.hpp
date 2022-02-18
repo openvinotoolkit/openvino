@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -114,7 +114,7 @@ public:
      * @return The number of layers as an integer value
      */
     INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::CNNNetwork wrapper instead")
-    virtual size_t layerCount() const noexcept = 0;
+    virtual size_t layerCount() const = 0;
 
     /**
      * @deprecated Use InferenceEngine::CNNNetwork wrapper instead
@@ -160,7 +160,7 @@ public:
      * @return The size of batch as a size_t value
      */
     INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::CNNNetwork wrapper instead")
-    virtual size_t getBatchSize() const noexcept = 0;
+    virtual size_t getBatchSize() const = 0;
 
     /**
      * @deprecated Use InferenceEngine::CNNNetwork wrapper instead

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,6 @@
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 namespace ocl {
 
@@ -40,7 +39,7 @@ namespace ocl {
 class D3DBufferTensor : public ClBufferTensor {
 public:
     /**
-     * @brief Checks that type defined runtime paramters are presented in remote object
+     * @brief Checks that type defined runtime parameters are presented in remote object
      * @param tensor a tensor to check
      */
     static void type_check(const Tensor& tensor) {
@@ -67,10 +66,10 @@ public:
 class D3DSurface2DTensor : public ClImage2DTensor {
 public:
     /**
-     * @brief Checks that type defined runtime paramters are presented in remote object
+     * @brief Checks that type defined runtime parameters are presented in remote object
      * @param remote_tensor remote tensor to check
      */
-    static void type_check(const RemoteTensor& remote_tensor) {
+    static void type_check(const Tensor& remote_tensor) {
         RemoteTensor::type_check(remote_tensor,
                                  {{GPU_PARAM_KEY(DEV_OBJECT_HANDLE), {}},
                                   {GPU_PARAM_KEY(VA_PLANE), {}},
@@ -98,7 +97,7 @@ public:
  * @brief This class represents an abstraction for GPU plugin remote context
  * which is shared with Direct3D 11 device.
  * The plugin object derived from this class can be obtained either with
- * ExecutableNetwork::get_context() or Core::create_context() calls.
+ * CompiledModel::get_context() or Core::create_context() calls.
  * @note User can also obtain OpenCL context handle from this class.
  */
 class D3DContext : public ClContext {
@@ -107,8 +106,8 @@ public:
     using ClContext::create_tensor;
 
     /**
-     * @brief Checks that type defined runtime paramters are presented in remote object
-     * @param remote_context remote context to check
+     * @brief Checks that type defined runtime parameters are presented in remote object
+     * @param remote_context A remote context to check
      */
     static void type_check(const RemoteContext& remote_context) {
         RemoteContext::type_check(
@@ -133,12 +132,12 @@ public:
      */
     D3DContext(Core& core, ID3D11Device* device, int target_tile_id = -1) : ClContext(core, (cl_context) nullptr) {
         // clang-format off
-        ParamMap context_params = {
+        AnyMap context_params = {
             {GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(VA_SHARED)},
             {GPU_PARAM_KEY(VA_DEVICE), static_cast<gpu_handle_param>(device)},
             {GPU_PARAM_KEY(TILE_ID), target_tile_id}
         };
-        *this = core.create_context(device_name, context_params);
+        *this = core.create_context(device_name, context_params).as<D3DContext>();
     }
 
     /**
@@ -150,14 +149,14 @@ public:
      * @return A pair of remote tensors for each plane
      */
     std::pair<D3DSurface2DTensor, D3DSurface2DTensor> create_tensor_nv12(const size_t height, const size_t width, ID3D11Texture2D* nv12_surf) {
-        ParamMap tensor_params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(VA_SURFACE)},
+        AnyMap tensor_params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(VA_SURFACE)},
                                   {GPU_PARAM_KEY(DEV_OBJECT_HANDLE), static_cast<gpu_handle_param>(nv12_surf)},
                                   {GPU_PARAM_KEY(VA_PLANE), uint32_t(0)}};
         auto y_tensor = create_tensor(element::u8, {1, 1, height, width}, tensor_params);
         tensor_params[GPU_PARAM_KEY(MEM_HANDLE)] = static_cast<gpu_handle_param>(nv12_surf);
         tensor_params[GPU_PARAM_KEY(VA_PLANE)] = uint32_t(1);
         auto uv_tensor = create_tensor(element::u8, {1, 2, height / 2, width / 2}, tensor_params);
-        return std::make_pair(y_tensor, uv_tensor);
+        return std::make_pair(y_tensor.as<D3DSurface2DTensor>(), uv_tensor.as<D3DSurface2DTensor>());
     }
 
     /**
@@ -168,9 +167,9 @@ public:
      * @return A remote tensor instance
      */
     D3DBufferTensor create_tensor(const element::Type type, const Shape& shape, ID3D11Buffer* buffer) {
-        ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(DX_BUFFER)},
+        AnyMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(DX_BUFFER)},
                            {GPU_PARAM_KEY(DEV_OBJECT_HANDLE), static_cast<gpu_handle_param>(buffer)}};
-        create_tensor(type, shape, params);
+        create_tensor(type, shape, params).as<D3DBufferTensor>();
     }
 
     /**
@@ -186,13 +185,12 @@ public:
                                      const Shape& shape,
                                      ID3D11Texture2D* surface,
                                      uint32_t plane = 0) {
-        ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(VA_SURFACE)},
+        AnyMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(VA_SURFACE)},
                            {GPU_PARAM_KEY(DEV_OBJECT_HANDLE), static_cast<gpu_handle_param>(surface)},
                            {GPU_PARAM_KEY(VA_PLANE), plane}};
-        return create_tensor(type, shape, params);
+        return create_tensor(type, shape, params).as<D3DSurface2DTensor>();
     }
 };
 }  // namespace ocl
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

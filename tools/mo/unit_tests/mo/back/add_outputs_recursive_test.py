@@ -1,4 +1,4 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import numpy as np
 import unittest
@@ -65,9 +65,10 @@ sub_graph_1_nodes = {
 
 sub_graph_2_nodes = {
     **shaped_parameter('cond_2_int', [1, 4, 64, 54], {'internal_layer_id': 0}),
-    **result("cond_2_int_out"),
+    **regular_op_with_empty_data("cond_2_int_out",
+                                 {'op': 'Result', 'type': 'Result', 'infer': lambda x: None, 'internal_layer_id': 8}),
     **shaped_parameter('in_2_int', [1, 4, 64, 54], {'internal_layer_id': 1}),
-    **shaped_const_with_data('ones', int64_array([1, 4, 64, 54])),
+    **shaped_const_with_data('ones', int64_array([1, 4, 64, 54]), {'internal_layer_id': 9}),
     **regular_op_with_shaped_data('OUT_2', int64_array([1, 4, 64, 54]), {'op': "Add", 'infer': copy_shape_infer}),
     **regular_op_with_empty_data('OUT_2_out',
                                  {'op': 'Result', 'type': 'Result', 'infer': lambda x: None, 'internal_layer_id': 7}),
@@ -153,16 +154,21 @@ class AddOutputRecursiveTest(unittest.TestCase):
         loop_node = Node(main_graph, 'Loop')
         loop_node.body = sub_graph_1
         main_graph.graph['additional_outputs'] = ['Loop', 'Loop_2']
+        loop_node_1['out_ports_count'] = 2
+        loop_node_1.add_output_port(1)
+        loop_node_1['output_port_map'].append({'external_port_id': 1, 'internal_layer_id': 8, 'axis': None})
+
         loop_node_output_port_map_len = len(loop_node.output_port_map)
         loop_node_out_ports_len = len(loop_node.out_ports())
         loop_2_out_ports_len = len(loop_node_1.out_ports())
         max_layer_id = 5
 
-        AddOutputRecursive().find_and_replace_pattern(main_graph)
+        results = AddOutputRecursive().find_and_replace_pattern(main_graph)
 
+        self.assertEqual(len(results), 2)
         loop_node = Node(main_graph, 'Loop')
-        self.assertEqual(len(loop_node.output_port_map), loop_node_output_port_map_len + 1)
-        self.assertEqual(len(loop_node.out_ports()), loop_node_out_ports_len + 1)
+        self.assertEqual(len(loop_node.output_port_map), loop_node_output_port_map_len + 2)
+        self.assertEqual(len(loop_node.out_ports()), loop_node_out_ports_len + 2)
         self.assertEqual(loop_node.out_port(1).get_destination().node.op, 'Result')
         self.assertTrue(np.all(loop_node.out_port(1).data.get_shape() == int64_array([5, 10, 4, 64, 54])))
         last_node = Node(sub_graph_1, 'Loop_2')

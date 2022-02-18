@@ -3,6 +3,8 @@ _*
 # but ensure we don't skip __init__.py and __main__.py
 !__init__.py
 !__main__.py
+# and sphinx documentation folders
+!docs/_*
 
 # developer tools
 *.idea
@@ -26,7 +28,6 @@ temp/
 docs/template_plugin/html/
 CMakeLists.txt.user
 docs/IE_PLUGIN_DG/html/
-inference-engine/ie_bridges/python/wheel/.env
 
 *.project
 *.cproject

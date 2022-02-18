@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from copy import deepcopy
@@ -45,7 +45,7 @@ class TunableQuantization(MinMaxQuantization):
     def __get_activations_statistics_layout(self, model, qscheme=None):
         """
         Compute statistics layout for activations
-        :param model: NXModel instance
+        :param model: CompressedModel instance
         :return: statistics layout in format {node_name: [stat_1, stat_2] .. }
         """
         fake_quantize_config = fqut.compute_stats_layouts(self._config, model, qscheme=qscheme)

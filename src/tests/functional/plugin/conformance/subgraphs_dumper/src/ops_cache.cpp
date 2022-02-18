@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,14 +30,14 @@ void OPCache::update_ops_cache(const std::shared_ptr<ngraph::Node> &op,
         try {
             const std::shared_ptr<ngraph::Node> op_clone = clone_fn(op, meta);
             op_clone->set_friendly_name(op_clone->get_friendly_name() + "_cached");
-            m_ops_cache.emplace_back(std::make_pair(op_clone, meta));
+            m_ops_cache.insert({op_clone, meta});
         } catch (std::exception &e) {
             std::cout << e.what() << std::endl;
         }
     }
 }
 
-void OPCache::update_ops_cache(const std::shared_ptr<ngraph::Function> &func, const std::string &source_model) {
+void OPCache::update_ops_cache(const std::shared_ptr<ngraph::Function> &func, const bool extract_body, const std::string &source_model) {
     size_t cached_ops_count = m_ops_cache.size();
     for (const auto &op : func->get_ordered_ops()) {
         if (ngraph::is_type<ngraph::op::Parameter>(op) ||
@@ -49,6 +49,24 @@ void OPCache::update_ops_cache(const std::shared_ptr<ngraph::Function> &func, co
             ngraph::is_type<ngraph::op::ReadValueBase>(op)
                     ) {
             continue;
+        }
+        if (extract_body) {
+            if (ngraph::is_type<ngraph::op::v8::If>(op)) {
+                auto if_op = std::dynamic_pointer_cast<ngraph::op::v8::If>(op);
+                std::vector<std::shared_ptr<ngraph::Function>> bodies;
+                for (size_t i = 0; i < if_op->get_internal_subgraphs_size(); i++) {
+                    auto if_body = if_op->get_function(i);
+                    update_ops_cache(if_body, extract_body, source_model);
+                }
+            } else if (ngraph::is_type<ngraph::op::v5::Loop>(op)) {
+                auto loop = std::dynamic_pointer_cast<ngraph::op::v5::Loop>(op);
+                auto loop_body = loop->get_function();
+                update_ops_cache(loop_body, extract_body, source_model);
+            } else if (ngraph::is_type<ngraph::op::v0::TensorIterator>(op)) {
+                auto ti = std::dynamic_pointer_cast<ngraph::op::v0::TensorIterator>(op);
+                auto ti_body = ti->get_body();
+                update_ops_cache(ti_body, extract_body, source_model);
+            }
         }
         update_ops_cache(op, source_model);
     }

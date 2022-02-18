@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "vpu_case_common.hpp"
+#include "ie_plugin_config.hpp"
 
 bool CheckMyriadX() {
     if (auto envVar = std::getenv("IE_VPU_MYRIADX")) {

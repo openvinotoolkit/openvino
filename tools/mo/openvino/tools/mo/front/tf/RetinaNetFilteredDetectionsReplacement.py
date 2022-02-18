@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -8,7 +8,7 @@ from openvino.tools.mo.ops.DetectionOutput import DetectionOutput
 from openvino.tools.mo.ops.elementwise import Mul, Sub, Pow
 from openvino.tools.mo.ops.gather import Gather
 from openvino.tools.mo.ops.split import VariadicSplit
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array, float32_array
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, float32_array, mo_array
 from openvino.tools.mo.front.subgraph_matcher import SubgraphMatch
 from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
 from openvino.tools.mo.front.tf.replacement import FrontReplacementFromConfigFileSubGraph
@@ -57,10 +57,10 @@ class RetinaNetFilteredDetectionsReplacement(FrontReplacementFromConfigFileSubGr
         begin = Const(graph, {'value': int64_array([-2])}).create_node()
         end = Const(graph, {'value': int64_array([-1])}).create_node()
         stride = Const(graph, {'value': int64_array([1])}).create_node()
-        shape_part_for_tiling = StridedSlice(graph, {'name': name + '/get_-2_dim', 'begin_mask': np.array([1]),
-                                                     'end_mask': np.array([1]), 'new_axis_mask': np.array([0]),
-                                                     'shrink_axis_mask': np.array([0]),
-                                                     'ellipsis_mask': np.array([0])}).create_node()
+        shape_part_for_tiling = StridedSlice(graph, {'name': name + '/get_-2_dim', 'begin_mask': int64_array([1]),
+                                                     'end_mask': int64_array([1]), 'new_axis_mask': int64_array([0]),
+                                                     'shrink_axis_mask': int64_array([0]),
+                                                     'ellipsis_mask': int64_array([0])}).create_node()
 
         sp_shape.out_port(0).connect(shape_part_for_tiling.in_port(0))
         begin.out_port(0).connect(shape_part_for_tiling.in_port(1))
@@ -83,7 +83,7 @@ class RetinaNetFilteredDetectionsReplacement(FrontReplacementFromConfigFileSubGr
         sp_reshape.in_port(1).connect(reshape_dim.out_port(0))
 
         concat = Concat(graph,
-                        {'name': name + '/priors_concat', 'axis': np.array(0), 'in_ports_count': 2}).create_node()
+                        {'name': name + '/priors_concat', 'axis': int64_array(0), 'in_ports_count': 2}).create_node()
         sp_reshape.out_port(0).connect(concat.in_port(0))
         tile.out_port(0).connect(concat.in_port(1))
 
@@ -116,9 +116,9 @@ class RetinaNetFilteredDetectionsReplacement(FrontReplacementFromConfigFileSubGr
         begin = Const(graph, {'value': int64_array([1])}).create_node()
         end = Const(graph, {'value': int64_array([3])}).create_node()
         stride = Const(graph, {'value': int64_array([1])}).create_node()
-        spatial = StridedSlice(graph, {'name': name + '/get_h_w', 'begin_mask': np.array([1]),
-                                       'end_mask': np.array([1]), 'new_axis_mask': np.array([0]),
-                                       'shrink_axis_mask': np.array([0]), 'ellipsis_mask': np.array([0])}).create_node()
+        spatial = StridedSlice(graph, {'name': name + '/get_h_w', 'begin_mask': int64_array([1]),
+                                       'end_mask': int64_array([1]), 'new_axis_mask': int64_array([0]),
+                                       'shrink_axis_mask': int64_array([0]), 'ellipsis_mask': int64_array([0])}).create_node()
 
         spatial.in_port(0).connect(shape.out_port(0))
         spatial.in_port(1).connect(begin.out_port(0))
@@ -159,16 +159,16 @@ class RetinaNetFilteredDetectionsReplacement(FrontReplacementFromConfigFileSubGr
         initial_priors_node = match.single_input_node(2)[0]
         priors_name = initial_priors_node.soft_get('name', initial_priors_node.id)
         # model calculates identical prior boxes for each batch, so we take first slice of them
-        begin = Const(graph, {'value': np.array([0, 0, 0], dtype=np.int32)}).create_node()
-        end = Const(graph, {'value': np.array([1, 0, 0], dtype=np.int32)}).create_node()
-        stride = Const(graph, {'value': np.array([1, 1, 1], dtype=np.int32)}).create_node()
+        begin = Const(graph, {'value': mo_array([0, 0, 0], dtype=np.int32)}).create_node()
+        end = Const(graph, {'value': mo_array([1, 0, 0], dtype=np.int32)}).create_node()
+        stride = Const(graph, {'value': mo_array([1, 1, 1], dtype=np.int32)}).create_node()
 
         priors_node = StridedSlice(graph, {'name': priors_name + '/0_batch_slice',
-                                           'begin_mask': np.array([1, 1, 1], dtype=np.int32),
-                                           'end_mask': np.array([1, 0, 0], dtype=np.int32),
-                                           'new_axis_mask': np.array([0], dtype=np.int32),
-                                           'shrink_axis_mask': np.array([0], dtype=np.int32),
-                                           'ellipsis_mask': np.array([0], dtype=np.int32)}).create_node()
+                                           'begin_mask': int64_array([1, 1, 1]),
+                                           'end_mask': int64_array([1, 0, 0]),
+                                           'new_axis_mask': int64_array([0]),
+                                           'shrink_axis_mask': int64_array([0]),
+                                           'ellipsis_mask': int64_array([0])}).create_node()
 
         initial_priors_node.out_port(0).connect(priors_node.in_port(0))
         begin.out_port(0).connect(priors_node.in_port(1))

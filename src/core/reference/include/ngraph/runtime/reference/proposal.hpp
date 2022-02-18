@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -181,7 +181,6 @@ static void enumerate_proposals(const T* bottom4d,
 
 template <typename T>
 static void nms(const int num_boxes,
-                std::vector<int>& is_dead,
                 const std::vector<ProposalBox<T>>& proposals,
                 std::vector<unsigned int>& index_out,
                 int& num_out,
@@ -189,7 +188,7 @@ static void nms(const int num_boxes,
                 const float nms_thresh,
                 const int max_num_out,
                 T coordinates_offset) {
-    std::fill(is_dead.begin(), is_dead.begin() + num_boxes, 0);
+    std::vector<int> is_dead(num_boxes, 0);
     for (int box = 0; box < num_boxes; ++box) {
         if (is_dead[box])
             continue;
@@ -348,7 +347,6 @@ static void proposal_exec(const T* class_probs,
     int num_rois = 0;
     std::vector<ProposalBox<T>> proposals(num_proposals);
     const int pre_nms_topn = num_proposals < attrs.pre_nms_topn ? num_proposals : attrs.pre_nms_topn;
-    std::vector<int> is_dead(pre_nms_topn);
     std::vector<unsigned int> roi_indices(attrs.post_nms_topn);
 
     std::vector<float> anchors = generate_anchors(attrs, anchor_count);
@@ -359,6 +357,9 @@ static void proposal_exec(const T* class_probs,
     bool swap_xy = attrs.framework == "tensorflow";
 
     for (unsigned int batch_idx = 0; batch_idx < batch_num; ++batch_idx) {
+        std::fill(roi_indices.begin(), roi_indices.end(), 0);
+        num_rois = 0;
+
         enumerate_proposals(p_bottom_item + num_proposals + batch_idx * num_proposals * 2,
                             p_d_anchor_item + batch_idx * num_proposals * 4,
                             anchors.data(),
@@ -385,7 +386,6 @@ static void proposal_exec(const T* class_probs,
                               return (box1.score > box2.score);
                           });
         nms(pre_nms_topn,
-            is_dead,
             proposals,
             roi_indices,
             num_rois,

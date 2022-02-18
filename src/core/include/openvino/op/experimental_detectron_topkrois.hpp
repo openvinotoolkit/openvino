@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,7 @@ public:
     }
 
 private:
-    size_t m_max_rois;
+    size_t m_max_rois{0};
 
     template <class T>
     friend void shape_infer(ExperimentalDetectronTopKROIs* op,

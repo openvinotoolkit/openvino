@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,7 +52,7 @@ namespace InferenceEngine {
     try {                                                                   \
         __VA_ARGS__;                                                        \
     } catch (const ::InferenceEngine::RequestBusy& ex) {                    \
-        throw ov::runtime::Busy(ex.what());                                 \
+        throw ov::Busy(ex.what());                                          \
     } catch (const std::exception& ex) {                                    \
         throw ov::Exception(ex.what());                                     \
     } catch (...) {                                                         \
@@ -79,9 +79,9 @@ Blob::Ptr InferRequest::GetBlob(const std::string& name) {
     Blob::Ptr blobPtr;
     INFER_REQ_CALL_STATEMENT(blobPtr = _impl->GetBlob(name);)
     std::string error = "Internal error: blob with name `" + name + "` is not allocated!";
-    const bool remoteBlobPassed = blobPtr->is<RemoteBlob>();
     if (blobPtr == nullptr)
         IE_THROW() << error;
+    const bool remoteBlobPassed = blobPtr->is<RemoteBlob>();
     if (!remoteBlobPassed && blobPtr->buffer() == nullptr)
         IE_THROW() << error;
     return blobPtr;
@@ -243,7 +243,6 @@ std::string get_legacy_name_from_port(const ov::Output<const ov::Node>& port) {
 }  // namespace
 
 namespace ov {
-namespace runtime {
 
 InferRequest::~InferRequest() {
     _impl = {};
@@ -272,6 +271,25 @@ void InferRequest::set_tensor(const std::string& name, const Tensor& tensor) {
     });
 }
 
+void InferRequest::set_tensors(const std::string& name, const std::vector<Tensor>& tensors) {
+    OV_INFER_REQ_CALL_STATEMENT({
+        ov::Output<const ov::Node> port;
+        OPENVINO_ASSERT(::getPort(port, name, {_impl->GetInputs()}),
+                        "set_tensors error. Input port for tensor name ",
+                        name,
+                        " was not found.");
+        set_tensors(port, tensors);
+    })
+}
+
+void InferRequest::set_tensors(const ov::Output<const ov::Node>& port, const std::vector<Tensor>& tensors) {
+    auto impls = std::vector<InferenceEngine::Blob::Ptr>();
+    std::transform(tensors.begin(), tensors.end(), std::back_inserter(impls), [](const Tensor& item) {
+        return item._impl;
+    });
+    OV_INFER_REQ_CALL_STATEMENT({ _impl->SetBlobs(get_legacy_name_from_port(port), impls); })
+}
+
 void InferRequest::set_input_tensor(size_t idx, const Tensor& tensor) {
     OV_INFER_REQ_CALL_STATEMENT({
         const auto& inputs = _impl->GetInputs();
@@ -292,6 +310,28 @@ void InferRequest::set_input_tensor(const Tensor& tensor) {
                         "set_input_tensor() must be called on a function with exactly one parameter.");
         set_tensor(inputs.at(0)->output(0), tensor);
     });
+}
+
+void InferRequest::set_input_tensors(size_t idx, const std::vector<Tensor>& tensors) {
+    OV_INFER_REQ_CALL_STATEMENT({
+        OPENVINO_ASSERT(idx < _impl->GetInputs().size(),
+                        "set_input_tensors error. Input port for index ",
+                        idx,
+                        " is out of bounds. Model has only ",
+                        _impl->GetInputs().size(),
+                        " inputs");
+        set_tensors(_impl->GetInputs().at(idx)->output(0), tensors);
+    })
+}
+
+void InferRequest::set_input_tensors(const std::vector<Tensor>& tensors) {
+    OV_INFER_REQ_CALL_STATEMENT({
+        OPENVINO_ASSERT(_impl->GetInputs().size() == 1,
+                        "set_input_tensors(tensors) must be used for single-input models only. Model has ",
+                        _impl->GetInputs().size(),
+                        " inputs");
+        set_tensors(_impl->GetInputs().at(0)->output(0), tensors);
+    })
 }
 
 void InferRequest::set_output_tensor(size_t idx, const Tensor& tensor) {
@@ -319,6 +359,11 @@ void InferRequest::set_output_tensor(const Tensor& tensor) {
 Tensor InferRequest::get_tensor(const ov::Output<const ov::Node>& port) {
     OV_INFER_REQ_CALL_STATEMENT({
         const auto& name = get_legacy_name_from_port(port);
+        OPENVINO_ASSERT(!_impl->GetBlobs(name),
+                        "get_tensor shall not be used together with batched "
+                        "set_tensors/set_input_tensors for name '",
+                        name,
+                        "'");
         auto blob = _impl->GetBlob(name);
         return {blob, _so};
     });
@@ -397,7 +442,7 @@ std::vector<ProfilingInfo> InferRequest::get_profiling_info() const {
                 info.status = ProfilingInfo::Status::OPTIMIZED_OUT;
                 break;
             case ie::InferenceEngineProfileInfo::EXECUTED:
-                info.status = ProfilingInfo::Status::OPTIMIZED_OUT;
+                info.status = ProfilingInfo::Status::EXECUTED;
                 break;
             }
             info.real_time = std::chrono::microseconds{ieInfo.realTime_uSec};
@@ -475,5 +520,4 @@ bool InferRequest::operator==(const InferRequest& r) const noexcept {
     return r._impl == _impl;
 }
 
-}  // namespace runtime
 }  // namespace ov

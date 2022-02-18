@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,7 @@
 #include <transformations/rt_info/old_api_map_order_attribute.hpp>
 #include <transformations/rt_info/primitives_priority_attribute.hpp>
 #include <transformations/rt_info/strides_property.hpp>
+#include <transformations/rt_info/preprocessing_attribute.hpp>
 #include <transformations/rt_info/decompression.hpp>
 #include <transformations_visibility.hpp>
 #include <utility>

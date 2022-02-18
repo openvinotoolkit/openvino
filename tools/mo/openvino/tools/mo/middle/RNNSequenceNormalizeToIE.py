@@ -1,9 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_delete
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_delete, mo_array
 from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
@@ -81,10 +81,10 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
 
         # Sum component of B that correspond to W and R
         if lstm.op == 'GRU' and lstm.linear_before_reset:
-            B_shape = np.array(B.shape)
+            B_shape = mo_array(B.shape)
             B_shape[3] = 4
             B_shape[2] = 1
-            B_tmp = np.zeros(shape=B_shape)
+            B_tmp = np.zeros(shape=B_shape, dtype=np.float32)
             B_tmp[:, :, :, 0, :] = B[:, :, 0, 0, :] + B[:, :, 1, 0, :]
             B_tmp[:, :, :, 1, :] = B[:, :, 0, 1, :] + B[:, :, 1, 1, :]
             B_tmp[:, :, :, 2, :] = B[:, :, 0, 2, :][:, :, np.newaxis, :]
@@ -123,7 +123,7 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
             Op.create_and_connect_input_data_node(
                 graph,
                 lstm,
-                {'value': blob, 'shape': np.array(blob.shape, dtype=np.int64)},
+                {'value': blob, 'shape': int64_array(blob.shape)},
                 {'in': port, 'bin': name, 'permutation': None}
             )
 

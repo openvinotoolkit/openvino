@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,13 +9,16 @@
 #include <future>
 using ::testing::_;
 using namespace MockMultiDevice;
+// disable using windows.h
+#if 0
 #if (defined(_WIN32) || defined(_WIN64))
-#include <winbase.h>
+#include <windows.h>
 #elif defined(__linux__)
 #include <stdlib.h>
 #elif defined(__APPLE__)
 #include <stdlib.h>
 #else
+#endif
 #endif
 
 MockLog* MockLog::_mockLog = NULL;
@@ -42,6 +45,7 @@ public:
         return result.str();
     }
 
+#if 0
     void SetTestEnv(std::string key, std::string value) {
 #ifdef WIN32
         SetEnvironmentVariable(key.c_str(), value.c_str());
@@ -52,7 +56,7 @@ public:
 #else
 #endif
     }
-
+#endif
     void SetUp() override {
         std::tie(_logLevel, _envLogLevel, _expectCallNum) = this->GetParam();
     }
@@ -81,12 +85,14 @@ TEST_P(LogUtilsTest, setLogLevel) {
     printLog();
 }
 
+#if 0
 TEST_P(LogUtilsTest, setEnvNotAffectSetLogLevel) {
     EXPECT_CALL(*(HLogger), print(_)).Times(_expectCallNum);
     setLogLevel(_logLevel);
     SetTestEnv("OPENVINO_LOG_LEVEL", "3");
     printLog();
 }
+#endif
 
 //can not test ENV case. because of the ENV variable is readed at the
 //beginning of test application and modify it in runtime is not valid

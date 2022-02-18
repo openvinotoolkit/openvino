@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -21,7 +21,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
 set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
 set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
 
-set(TARGET_FE_NAME "ov_mock_mo_frontend")
+set(TARGET_FE_NAME "openvino_mock_mo_frontend")
 set(PYBIND_FE_NAME "mock_mo_python_api")
 
 set(PYBIND_FE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/mock_mo_python_api.cpp)
@@ -34,7 +34,7 @@ add_subdirectory(${OpenVINO_SOURCE_DIR}/src/bindings/python/thirdparty/pybind11
 
 pybind11_add_module(${PYBIND_FE_NAME} MODULE ${PYBIND_FE_SRC})
 
-target_link_libraries(${PYBIND_FE_NAME} PRIVATE ngraph frontend_common::static)
+target_link_libraries(${PYBIND_FE_NAME} PRIVATE openvino::runtime)
 target_link_libraries(${PYBIND_FE_NAME} PRIVATE ${TARGET_FE_NAME})
 
 add_dependencies(${PYBIND_FE_NAME} ${TARGET_FE_NAME})

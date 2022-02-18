@@ -1,8 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import float32_array
 from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
 from openvino.tools.mo.graph.graph import Graph, rename_node
@@ -24,8 +25,8 @@ class AttributedClampNormalizer(FrontReplacementPattern):
             min_value = attr_clamp.soft_get('min', np.finfo(np.float32).min)
             max_value = attr_clamp.soft_get('max', np.finfo(np.float32).max)
             new_clamp = create_op_with_const_inputs(graph, Clamp,
-                                                    {1: np.array(min_value, dtype=np.float32),
-                                                     2: np.array(max_value, dtype=np.float32)},
+                                                    {1: float32_array(min_value),
+                                                     2: float32_array(max_value)},
                                                     {'name': original_name})
             rename_node(new_clamp, original_name)
 

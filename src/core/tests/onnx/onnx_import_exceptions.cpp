@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,8 +27,7 @@ TEST(onnx_importer, exception_msg_ngraph_error) {
         // Should have thrown, so fail if it didn't
         FAIL() << "ONNX Importer did not detected incorrect model!";
     } catch (const ngraph_error& e) {
-        EXPECT_HAS_SUBSTRING(e.what(), std::string("While validating ONNX node '<Node(DepthToSpace)"));
-        EXPECT_HAS_SUBSTRING(e.what(), std::string("While validating node 'v0::DepthToSpace"));
+        EXPECT_HAS_SUBSTRING(e.what(), std::string("must be a multiple of divisor"));
     } catch (...) {
         FAIL() << "The ONNX model importer failed for unexpected reason";
     }

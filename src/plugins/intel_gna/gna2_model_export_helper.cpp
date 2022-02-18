@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#if GNA_LIB_VER == 2
 #include "gna2_model_export_helper.hpp"
 #include "gna2_model_helper.hpp"
 #include "gna_device.hpp"
@@ -97,9 +96,9 @@ void ExportGnaDescriptorPartiallyFilled(uint32_t number_of_layers, std::ostream&
     outStream.write(gd, sizeof(gd));
     outStream.write(gd2, sizeof(gd2));
     // TODO: GNA2: Scratchpad
-    outStream.fill(constScratchFill);
-    outStream.width(scratchPadSize);
+    auto previousCharacter = outStream.fill(constScratchFill);
+    auto previousWidth = outStream.width(scratchPadSize);
     outStream << constScratchFill;
+    outStream.width(previousWidth);
+    outStream.fill(previousCharacter);
 }
-
-#endif

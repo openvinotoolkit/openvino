@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,24 +8,38 @@
 #include <string>
 #include <vector>
 
-#include "input_model.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/op_extension.hpp"
-#include "visibility.hpp"
+#include "openvino/frontend/input_model.hpp"
+#include "openvino/frontend/visibility.hpp"
 
 namespace ov {
 namespace frontend {
 /// \brief An interface for identifying a frontend for a particular framework.
 /// Provides an ability to load and convert of input model
 class FRONTEND_API FrontEnd {
-public:
-    typedef std::shared_ptr<FrontEnd> Ptr;
+    friend class FrontEndManager;
 
+    std::shared_ptr<void> m_shared_object = {};  // Library handle
+    std::shared_ptr<FrontEnd> m_actual = {};
+
+public:
+    using Ptr = std::shared_ptr<FrontEnd>;
+
+    /// \brief Default constructor
     FrontEnd();
 
-    virtual ~FrontEnd() = 0;
+    FrontEnd(const FrontEnd&) = delete;
+
+    FrontEnd(FrontEnd&&) = delete;
+
+    FrontEnd& operator=(const FrontEnd&) = delete;
+
+    FrontEnd& operator=(FrontEnd&&) = delete;
+
+    virtual ~FrontEnd();
 
     /// \brief Validates if FrontEnd can recognize model with parameters specified.
     /// Same parameters should be used to load model.
@@ -93,17 +107,21 @@ public:
     /// \brief Register base extension in the FrontEnd
     /// \param extension base extension
     virtual void add_extension(const std::shared_ptr<ov::Extension>& extension);
+
     /// \brief Register base extensions in the FrontEnd
     /// \param extensions vector of extensions
     void add_extension(const std::vector<std::shared_ptr<ov::Extension>>& extensions);
+
     /// \brief Registers extension
     /// \param library_path path to library with ov::Extension
     void add_extension(const std::string& library_path);
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+
     /// \brief Registers extension
     /// \param library_path path to library with ov::Extension
     void add_extension(const std::wstring& library_path);
+
 #endif
 
     /// @brief Registers extension
@@ -113,6 +131,7 @@ public:
         std::shared_ptr<ov::Extension> ext = std::make_shared<T>(extension);
         add_extension(ext);
     }
+
     /// @brief Registers extensions
     /// @param extension Extension class which is inherited from ov::Extension class
     template <class T,
@@ -126,7 +145,12 @@ public:
 
 protected:
     virtual bool supported_impl(const std::vector<ov::Any>& variants) const;
+
     virtual InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const;
+
+private:
+    static std::shared_ptr<ov::Model> create_copy(const std::shared_ptr<ov::Model>& ov_model,
+                                                  const std::shared_ptr<void>& shared_object);
 };
 
 template <>

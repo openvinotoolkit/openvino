@@ -1,8 +1,8 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set (TARGET_NAME "inference_engine_preproc")
+set (TARGET_NAME "openvino_gapi_preproc")
 
 file(GLOB LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
@@ -99,7 +99,7 @@ ie_faster_build(${TARGET_NAME}_obj
 )
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN
-                                                      $<TARGET_PROPERTY:inference_engine,INTERFACE_COMPILE_DEFINITIONS>
+                                                      $<TARGET_PROPERTY:openvino::runtime,INTERFACE_COMPILE_DEFINITIONS>
                                                       $<TARGET_PROPERTY:fluid,INTERFACE_COMPILE_DEFINITIONS>
                                                       $<$<BOOL:${ENABLE_GAPI_PREPROCESSING}>:ENABLE_GAPI_PREPROCESSING>)
 
@@ -139,10 +139,10 @@ if(ENABLE_GAPI_PREPROCESSING)
     target_link_libraries(${TARGET_NAME} PRIVATE fluid openvino::itt openvino::util)
 
     if(BUILD_SHARED_LIBS)
-        target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
+        target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
     else()
         # for static linkage the dependencies are in opposite order
-        target_link_libraries(ov_runtime PRIVATE ${TARGET_NAME})
+        target_link_libraries(openvino PRIVATE ${TARGET_NAME})
     endif()
 
     # Workaround to avoid warnings caused with bug in the avx512intrin.h of GCC5
@@ -163,7 +163,7 @@ endif()
 
 target_include_directories(${TARGET_NAME} INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-    $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>)
+    $<TARGET_PROPERTY:openvino,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Static library used for unit tests which are always built
 
@@ -178,7 +178,7 @@ if(WIN32)
     set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
 endif()
 
-target_link_libraries(${TARGET_NAME}_s PRIVATE fluid openvino::itt inference_engine)
+target_link_libraries(${TARGET_NAME}_s PRIVATE fluid openvino::itt openvino::runtime)
 
 target_compile_definitions(${TARGET_NAME}_s INTERFACE USE_STATIC_IE)
 

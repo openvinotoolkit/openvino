@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/runtime_attribute.hpp"
+#include "threading/ie_executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace InferenceEngine {
@@ -74,6 +75,8 @@ OutputsDataMap copyInfo(const OutputsDataMap& networkOutputs) {
     }
     return _networkOutputs;
 }
+
+IInferencePlugin::IInferencePlugin() : _executorManager(InferenceEngine::executorManager()) {}
 
 void IInferencePlugin::VersionStore::copyFrom(const Version& v) {
     _dsc = v.description;
@@ -143,7 +146,8 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
                                                orig_function->get_friendly_name());
         function->get_rt_info() = orig_function->get_rt_info();
     }
-    if (function && GetCore() && !GetCore()->isNewAPI()) {
+    const auto& core = GetCore();
+    if (function && core && !core->isNewAPI()) {
         auto& rt_info = function->get_rt_info();
         if (rt_info.find("version") == rt_info.end()) {
             rt_info["version"] = int64_t(10);
@@ -254,6 +258,10 @@ std::shared_ptr<ICore> IInferencePlugin::GetCore() const noexcept {
     return _core.lock();
 }
 
+const std::shared_ptr<ExecutorManager>& IInferencePlugin::executorManager() const {
+    return _executorManager;
+}
+
 QueryNetworkResult IInferencePlugin::QueryNetwork(const CNNNetwork& network,
                                                   const std::map<std::string, std::string>& config) const {
     IE_THROW(NotImplemented);
@@ -285,13 +293,23 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
 }
 
 void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
-                                         const std::shared_ptr<ov::Model>& function) {
+                                         const std::shared_ptr<const ov::Model>& function) {
+    const auto& core = GetCore();
+    bool newAPI = core && core->isNewAPI();
+    InferenceEngine::SetExeNetworkInfo(exeNetwork, function, newAPI);
+    exeNetwork->SetPointerToPlugin(shared_from_this());
+}
+
+void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
+                       const std::shared_ptr<const ov::Model>& function,
+                       bool new_api) {
     OPENVINO_ASSERT(exeNetwork != nullptr);
     OPENVINO_ASSERT(function != nullptr);
 
     std::vector<std::shared_ptr<const ov::Node>> const_params;
     std::vector<std::shared_ptr<const ov::Node>> const_results;
 
+    std::unordered_set<std::string> leaf_names;
     bool add_operation_names = false;
     const auto& rt_info = function->get_rt_info();
     const auto it = rt_info.find("version");
@@ -301,44 +319,86 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
         // getInputs / getOutputs. Since these functions are designed to be used in new API only
         // always need to add operation names for IR v10
         add_operation_names = ir_version == 10;
+
+        for (const auto& vals : {function->inputs(), function->outputs()}) {
+            for (const auto& val : vals) {
+                for (const auto& name : val.get_names()) {
+                    leaf_names.insert(name);
+                }
+            }
+        }
     }
 
     const auto& inputsInfo = exeNetwork->GetInputsInfo();
     const auto& outputsInfo = exeNetwork->GetOutputsInfo();
     OPENVINO_ASSERT(inputsInfo.size() == function->get_parameters().size());
-    OPENVINO_ASSERT(outputsInfo.size() == function->get_output_size());
+
+    if (outputsInfo.size() != function->get_output_size()) {
+        const auto& outputs = function->outputs();
+        std::unordered_set<std::shared_ptr<ov::descriptor::Tensor>> output_tensors;
+        std::transform(outputs.cbegin(),
+                       outputs.cend(),
+                       std::inserter(output_tensors, output_tensors.begin()),
+                       [](const ov::Output<const ov::Node>& out) {
+                           return out.get_tensor_ptr();
+                       });
+
+        OPENVINO_ASSERT(outputsInfo.size() == output_tensors.size(),
+                        "outputsInfo.size() is: ",
+                        outputsInfo.size(),
+                        ", and function->get_output_size() is: ",
+                        function->get_output_size(),
+                        ". Number of duplicated outputs: ",
+                        outputs.size() - output_tensors.size());
+    }
 
     for (const auto& param : function->get_parameters()) {
+        const auto& param_name = param->get_friendly_name();
         auto new_param = ov::as_type_ptr<ov::op::v0::Parameter>(param->copy_with_new_inputs({}));
-        new_param->set_friendly_name(param->get_friendly_name());
-        if (add_operation_names)
-            new_param->output(0).get_tensor().add_names({new_param->get_friendly_name()});
+        new_param->set_friendly_name(param_name);
+        if (add_operation_names) {
+            OPENVINO_ASSERT(!new_api || leaf_names.find(param_name) == leaf_names.end() ||
+                                param->output(0).get_names().find(param_name) != param->output(0).get_names().end(),
+                            "Model operation names have collisions with tensor names.",
+                            " Please use MO to generate new IR version, it should allow to avoid the issue");
+            leaf_names.insert(param_name);
+            new_param->output(0).get_tensor().add_names({param_name});
+        }
         // WA: use CNNNetwork's precisions since plugins sometimes override their precisions
         // after transformation pipeline is run
         new_param->set_element_type(
-            InferenceEngine::details::convertPrecision(inputsInfo.at(new_param->get_friendly_name())->getPrecision()));
+            InferenceEngine::details::convertPrecision(inputsInfo.at(param_name)->getPrecision()));
+        new_param->set_layout(param->get_layout());
+        new_param->output(0).get_rt_info() = param->output(0).get_rt_info();
         new_param->validate_and_infer_types();
         const_params.emplace_back(new_param);
     }
     for (const auto& result : function->get_results()) {
         auto fake_param = std::make_shared<ov::op::v0::Parameter>(result->get_output_element_type(0),
                                                                   result->get_output_partial_shape(0));
-        const std::string param_name = ngraph::op::util::create_ie_output_name(result->input_value(0));
-        fake_param->set_friendly_name(param_name);
+        const std::string res_name = ngraph::op::util::create_ie_output_name(result->input_value(0));
+        fake_param->set_friendly_name(res_name);
         fake_param->set_element_type(
-            InferenceEngine::details::convertPrecision(outputsInfo.at(param_name)->getPrecision()));
+            InferenceEngine::details::convertPrecision(outputsInfo.at(res_name)->getPrecision()));
         fake_param->validate_and_infer_types();
         auto new_result = result->copy_with_new_inputs({fake_param});
         new_result->set_friendly_name(result->get_friendly_name());
         if (add_operation_names) {
-            new_result->output(0).get_tensor().add_names({fake_param->get_friendly_name()});
+            OPENVINO_ASSERT(!new_api || leaf_names.find(res_name) == leaf_names.end() ||
+                                result->output(0).get_names().find(res_name) != result->output(0).get_names().end(),
+                            "Model operation names have collisions with tensor names.",
+                            " Please use MO to generate new IR version, it should allow to avoid the issue");
+            leaf_names.insert(res_name);
+            new_result->output(0).get_tensor().add_names({res_name});
         }
+        auto r = std::dynamic_pointer_cast<ov::op::v0::Result>(new_result);
+        OPENVINO_ASSERT(r, "Internal error. SetNetworkInfo failure casting output copy to Result");
+        r->set_layout(result->get_layout());
         const_results.emplace_back(new_result);
     }
 
     exeNetwork->setInputs(const_params);
     exeNetwork->setOutputs(const_results);
-    exeNetwork->SetPointerToPlugin(shared_from_this());
 }
 
 }  //  namespace InferenceEngine

@@ -1,15 +1,28 @@
 # Converting an MXNet* Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet}
 
+@sphinxdirective
+
+.. _convert model mxnet:
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   openvino_docs_MO_DG_prepare_model_convert_model_mxnet_specific_Convert_Style_Transfer_From_MXNet
+   openvino_docs_MO_DG_prepare_model_convert_model_mxnet_specific_Convert_GluonCV_Models
+
+@endsphinxdirective
+
 A summary of the steps for optimizing and deploying a model that was trained with the MXNet\* framework:
 
-1. [Configure the Model Optimizer](../Config_Model_Optimizer.md) for MXNet* (MXNet was used to train your model)
+1. [Configure the Model Optimizer](../../Deep_Learning_Model_Optimizer_DevGuide.md) for MXNet* (MXNet was used to train your model)
 2. [Convert a MXNet model](#ConvertMxNet) to produce an optimized [Intermediate Representation (IR)](../../IR_and_opsets.md) of the model based on the trained network topology, weights, and biases values
-3. Test the model in the Intermediate Representation format using the [Inference Engine](../../../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) in the target environment via provided Inference Engine [sample applications](../../../IE_DG/Samples_Overview.md)
-4. [Integrate](../../../IE_DG/Samples_Overview.md) the [Inference Engine](../../../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) in your application to deploy the model in the target environment
+3. Test the model in the Intermediate Representation format using the [OpenVINO™ Runtime](../../../OV_Runtime_UG/OpenVINO_Runtime_User_Guide.md) in the target environment via provided Inference Engine [sample applications](../../../OV_Runtime_UG/Samples_Overview.md)
+4. [Integrate](../../../OV_Runtime_UG/Samples_Overview.md) the [OpenVINO™ Runtime](../../../OV_Runtime_UG/OpenVINO_Runtime_User_Guide.md) in your application to deploy the model in the target environment
 
 ## Supported Topologies
 
-> **NOTE:** SSD models from the table require converting to the deploy mode. For details, see the [Conversion Instructions](https://github.com/zhreshold/mxnet-ssd/#convert-model-to-deploy-mode) in the GitHub MXNet-SSD repository.
+> **NOTE**: SSD models from the table require converting to the deploy mode. For details, see the [Conversion Instructions](https://github.com/zhreshold/mxnet-ssd/#convert-model-to-deploy-mode) in the GitHub MXNet-SSD repository.
 
 | Model Name| Model File |
 | ------------- |:-------------:|
@@ -27,12 +40,14 @@ A summary of the steps for optimizing and deploying a model that was trained wit
 |SSD-ResNet-50|	[Repo](https://github.com/zhreshold/mxnet-ssd), [Symbol + Params](https://github.com/zhreshold/mxnet-ssd/releases/download/v0.6/resnet50_ssd_512_voc0712_trainval.zip)|
 |SSD-VGG-16-300|	[Repo](https://github.com/zhreshold/mxnet-ssd), [Symbol + Params](https://github.com/zhreshold/mxnet-ssd/releases/download/v0.5-beta/vgg16_ssd_300_voc0712_trainval.zip)|
 |SSD-Inception v3|	[Repo](https://github.com/zhreshold/mxnet-ssd), [Symbol + Params](https://github.com/zhreshold/mxnet-ssd/releases/download/v0.7-alpha/ssd_inceptionv3_512_voc0712trainval.zip)|
+|FCN8 (Semantic Segmentation)|	[Repo](https://github.com/apache/incubator-mxnet/tree/master/example/fcn-xs), [Symbol](https://www.dropbox.com/sh/578n5cxej7ofd6m/AAA9SFCBN8R_uL2CnAd3WQ5ia/FCN8s_VGG16-symbol.json?dl=0), [Params](https://www.dropbox.com/sh/578n5cxej7ofd6m/AABHWZHCtA2P6iR6LUflkxb_a/FCN8s_VGG16-0019-cpu.params?dl=0)|
 |MTCNN part 1 (Face Detection)| [Repo](https://github.com/pangyupo/mxnet_mtcnn_face_detection), [Symbol](https://github.com/pangyupo/mxnet_mtcnn_face_detection/blob/master/model/det1-symbol.json), [Params](https://github.com/pangyupo/mxnet_mtcnn_face_detection/blob/master/model/det1-0001.params)|
 |MTCNN part 2 (Face Detection)| [Repo](https://github.com/pangyupo/mxnet_mtcnn_face_detection), [Symbol](https://github.com/pangyupo/mxnet_mtcnn_face_detection/blob/master/model/det2-symbol.json), [Params](https://github.com/pangyupo/mxnet_mtcnn_face_detection/blob/master/model/det2-0001.params)|
 |MTCNN part 3 (Face Detection)| [Repo](https://github.com/pangyupo/mxnet_mtcnn_face_detection), [Symbol](https://github.com/pangyupo/mxnet_mtcnn_face_detection/blob/master/model/det3-symbol.json), [Params](https://github.com/pangyupo/mxnet_mtcnn_face_detection/blob/master/model/det3-0001.params)|
 |MTCNN part 4 (Face Detection)| [Repo](https://github.com/pangyupo/mxnet_mtcnn_face_detection), [Symbol](https://github.com/pangyupo/mxnet_mtcnn_face_detection/blob/master/model/det4-symbol.json), [Params](https://github.com/pangyupo/mxnet_mtcnn_face_detection/blob/master/model/det4-0001.params)|
 |Lightened_moon| [Repo](https://github.com/tornadomeet/mxnet-face/tree/master/model/lightened_moon), [Symbol](https://github.com/tornadomeet/mxnet-face/blob/master/model/lightened_moon/lightened_moon_fuse-symbol.json), [Params](https://github.com/tornadomeet/mxnet-face/blob/master/model/lightened_moon/lightened_moon_fuse-0082.params)|
 |RNN-Transducer| [Repo](https://github.com/HawkAaron/mxnet-transducer) |
+|word_lm| [Repo](https://github.com/apache/incubator-mxnet/tree/master/example/rnn/word_lm) |
 
 **Other supported topologies**
 
@@ -41,18 +56,16 @@ A summary of the steps for optimizing and deploying a model that was trained wit
 
 ## Convert an MXNet* Model <a name="ConvertMxNet"></a>
 
-To convert an MXNet\* model:
+To convert an MXNet\* model, run Model Optimizer with a path to the input model `.params` file and to an output directory where you have write permissions:
 
-1. Go to the `<INSTALL_DIR>/tools/model_optimizer` directory.
-2. To convert an MXNet\* model contained in a `model-file-symbol.json` and `model-file-0000.params`, run the Model Optimizer launch script `mo`, specifying a path to the input model file and a path to an output directory with write permissions:
 ```sh
  mo --input_model model-file-0000.params --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 Two groups of parameters are available to convert your model:
 
-* [Framework-agnostic parameters](Converting_Model_General.md): These parameters are used to convert any model trained in any supported framework.
-* [MXNet-specific parameters](#mxnet_specific_conversion_params): Parameters used to convert only MXNet models
+* Framework-agnostic parameters are used to convert a model trained with any supported framework. For details, see see the General Conversion Parameters section on the [Converting a Model to Intermediate Representation (IR)](Converting_Model.md) page.
+* [MXNet-specific parameters](#mxnet_specific_conversion_params) are used to convert only MXNet models.
 
 
 ### Using MXNet\*-Specific Conversion Parameters <a name="mxnet_specific_conversion_params"></a>
@@ -78,7 +91,7 @@ MXNet-specific parameters:
             Use only if your topology is one of ssd gluoncv topologies
 ```
 
-> **NOTE:** By default, the Model Optimizer does not use the MXNet loader, as it transforms the topology to another format, which is compatible with the latest
+> **NOTE**: By default, the Model Optimizer does not use the MXNet loader, as it transforms the topology to another format, which is compatible with the latest
 > version of MXNet, but it is required for models trained with lower version of MXNet. If your model was trained with MXNet version lower than 1.0.0, specify the
 > `--legacy_mxnet_model` key to enable the MXNet loader. However, the loader does not support models with custom layers. In this case, you must manually
 > recompile MXNet with custom layers and install it to your environment.

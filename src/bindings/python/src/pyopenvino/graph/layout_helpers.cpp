@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,4 +23,11 @@ void regmodule_graph_layout_helpers(py::module m) {
     mod.def("height_idx", &ov::layout::height_idx, py::arg("layout"));
     mod.def("has_width", &ov::layout::has_width, py::arg("layout"));
     mod.def("width_idx", &ov::layout::width_idx, py::arg("layout"));
+    mod.def("get_layout",
+            static_cast<ov::Layout (*)(const ov::Output<ov::Node>&)>(&ov::layout::get_layout),
+            py::arg("port"));
+    mod.def("get_layout",
+            static_cast<ov::Layout (*)(const ov::Output<const ov::Node>&)>(&ov::layout::get_layout),
+            py::arg("port"));
+    mod.def("set_layout", &ov::layout::set_layout, py::arg("port"), py::arg("layout"));
 }

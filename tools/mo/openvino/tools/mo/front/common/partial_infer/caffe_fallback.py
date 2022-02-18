@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -6,6 +6,7 @@ import os
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.find_inputs import find_inputs
@@ -104,5 +105,5 @@ def caffe_native_node_infer(node: Node):
         )
 
     for iout in range(len(node.out_nodes())):
-        output_shape = np.array(net.blobs[node.top].data.shape, dtype=np.int64)
+        output_shape = int64_array(net.blobs[node.top].data.shape)
         node.out_node(iout).shape = output_shape

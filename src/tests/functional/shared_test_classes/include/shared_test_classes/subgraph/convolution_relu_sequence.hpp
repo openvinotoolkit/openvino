@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,6 @@
 
 namespace SubgraphTestsDefinitions {
 
-// ! [test_convolution:definition]
 typedef struct {
     InferenceEngine::SizeVector kernelSize;
     InferenceEngine::SizeVector strides;
@@ -48,6 +47,5 @@ public:
 protected:
     void SetUp() override;
 };
-// ! [test_convolution_relu_sequence:definition]
 
 }  // namespace SubgraphTestsDefinitions

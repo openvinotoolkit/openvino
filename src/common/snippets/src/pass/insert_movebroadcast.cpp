@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,18 +31,18 @@ std::shared_ptr<ngraph::Node> numpy_broadcast_node(const ngraph::Output<ngraph::
                     " vs ",
                     output_shape.size());
 
-    ngraph::AxisVector broadcast_axes;
-    ngraph::Shape squeezed_shape;
-    for (size_t index = 0; index < output_shape.size(); ++index) {
-        if (source_shape.at(index) == 1 && output_shape.at(index) != 1) {
-            broadcast_axes.push_back(index);
-        } else {
-            squeezed_shape.push_back(source_shape.at(index));
+    bool do_broadcast = output_shape.size() > value.get_shape().size();
+    if (!do_broadcast) {
+        for (size_t index = 0; index < output_shape.size(); ++index) {
+            if (source_shape.at(index) == 1 && output_shape.at(index) != 1) {
+                do_broadcast = true;
+                break;
+            }
         }
     }
 
     remark(2) << "Insert explicit broadcast " << value.get_node()->get_type_name()
-    << " " << broadcast_axes << " " << broadcasted_node->get_shape() << " -> " << output_shape << std::endl;
+    << " " << broadcasted_node->get_shape() << " -> " << output_shape << std::endl;
 
     // it shouldn't be a probrem for now since we don't consider StridedSlice and Broadcast here
     if (auto constant = ngraph::as_type_ptr<ngraph::opset1::Constant>(broadcasted_node)) {
@@ -63,7 +63,7 @@ std::shared_ptr<ngraph::Node> numpy_broadcast_node(const ngraph::Output<ngraph::
         }
     }
 
-    if (!broadcast_axes.empty()) {
+    if (do_broadcast) {
         // ShapeOf
         broadcasted_node = std::make_shared<ngraph::snippets::op::BroadcastMove>(broadcasted_node, output_shape);
     }

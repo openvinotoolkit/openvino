@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -20,8 +20,8 @@ addIeTargetTest(
         LINK_LIBRARIES
             vpu_graph_transformer_test_static
             mvnc
-            ngraph
-            inference_engine_lp_transformations # for ngraphFunctions
+            openvino::runtime
+            openvino::runtime::dev
         ADD_CPPLINT
         LABELS
             VPU

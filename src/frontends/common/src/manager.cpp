@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,8 +7,9 @@
 #include <openvino/util/env_util.hpp>
 #include <openvino/util/file_util.hpp>
 
+#include "ngraph/except.hpp"
 #include "openvino/frontend/exception.hpp"
-#include "openvino/frontend/place.hpp"
+#include "openvino/util/env_util.hpp"
 #include "plugin_loader.hpp"
 #include "utils.hpp"
 
@@ -32,7 +33,7 @@ public:
             {"ir", "ir"},
             {"onnx", "onnx"},
             {"tf", "tensorflow"},
-            {"paddle", "paddlepaddle"},
+            {"paddle", "paddle"},
         };
         auto it = predefined_frontends.find(framework);
         std::lock_guard<std::mutex> guard(m_loading_mutex);
@@ -43,15 +44,21 @@ public:
             });
             if (plugin_it != m_plugins.end()) {
                 if (plugin_it->load()) {
-                    return plugin_it->get_creator().m_creator();
+                    auto fe_obj = std::make_shared<FrontEnd>();
+                    fe_obj->m_shared_object = plugin_it->get_so_pointer();
+                    fe_obj->m_actual = plugin_it->get_creator().m_creator();
+                    return fe_obj;
                 }
             }
         }
         // Load plugins until we found the right one
         for (auto& plugin : m_plugins) {
-            plugin.load();
+            OPENVINO_ASSERT(plugin.load(), "Cannot load frontend ", plugin.get_name_from_file());
             if (plugin.get_creator().m_name == framework) {
-                return plugin.get_creator().m_creator();
+                auto fe_obj = std::make_shared<FrontEnd>();
+                fe_obj->m_shared_object = plugin.get_so_pointer();
+                fe_obj->m_actual = plugin.get_creator().m_creator();
+                return fe_obj;
             }
         }
         FRONT_END_INITIALIZATION_CHECK(false, "FrontEnd for Framework ", framework, " is not found");
@@ -85,10 +92,13 @@ public:
             auto fe = plugin.get_creator().m_creator();
             OPENVINO_ASSERT(fe, "Frontend error: frontend '", plugin.get_creator().m_name, "' created null FrontEnd");
             if (fe->supported(variants)) {
-                return fe;
+                auto fe_obj = std::make_shared<FrontEnd>();
+                fe_obj->m_shared_object = plugin.get_so_pointer();
+                fe_obj->m_actual = fe;
+                return fe_obj;
             }
         }
-        return {};
+        return nullptr;
     }
 
     void register_front_end(const std::string& name, FrontEndFactory creator) {
@@ -99,7 +109,7 @@ public:
 
 private:
     // Helper structure for searching plugin either by name or by file name
-    // File name here doesn't contain prefix/suffix (like "ov_*_frontend.so")
+    // File name here doesn't contain prefix/suffix (like "openvino_*_frontend.so")
     struct FrontEndNames {
         FrontEndNames(std::string n, std::string f) : name(std::move(n)), file_name(std::move(f)) {}
         bool operator==(const FrontEndNames& other) const {
@@ -119,7 +129,7 @@ private:
             {".xml", {"ir", "ir"}},
             {".onnx", {"onnx", "onnx"}},
             {".pb", {"tf", "tensorflow"}},
-            {".pdmodel", {"paddle", "paddlepaddle"}},
+            {".pdmodel", {"paddle", "paddle"}},
         };
 
         // List of prioritized frontends.
@@ -127,7 +137,7 @@ private:
             {"ir", "ir"},
             {"onnx", "onnx"},
             {"tf", "tensorflow"},
-            {"paddle", "paddlepaddle"},
+            {"paddle", "paddle"},
         };
         if (variants.empty()) {
             return nullptr;
@@ -174,7 +184,10 @@ private:
             auto fe = plugin_info.get_creator().m_creator();
             if (fe && fe->supported(variants)) {
                 // Priority FE (e.g. IR) is found and is suitable
-                return fe;
+                auto fe_obj = std::make_shared<FrontEnd>();
+                fe_obj->m_shared_object = plugin_info.get_so_pointer();
+                fe_obj->m_actual = fe;
+                return fe_obj;
             }
         }
         return {};

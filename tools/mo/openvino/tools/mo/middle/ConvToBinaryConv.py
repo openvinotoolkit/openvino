@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -6,6 +6,7 @@ import logging as log
 import numpy as np
 
 from openvino.tools.mo.ops.elementwise import Mul, Add
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
@@ -80,7 +81,7 @@ class ConvToBinaryConv(MiddleReplacementPattern):
 
             operator_name = operator.soft_get('name', operator.id)
             add = create_op_node_with_second_input(graph, Add, weights_reduced, {'name': operator_name + '/Add_'})
-            mul = create_op_node_with_second_input(graph, Mul, np.array(0.5), {'name': operator_name + '/Mul_'})
+            mul = create_op_node_with_second_input(graph, Mul, mo_array(0.5), {'name': operator_name + '/Mul_'})
 
             add.out_port(0).connect(mul.in_port(0))
 
@@ -108,5 +109,5 @@ class ConvToBinaryConv(MiddleReplacementPattern):
         output_high = quantize.in_node(4)
 
         # Make sure that low/high values are exactly 0/1
-        output_low.value = np.zeros(output_low.shape)
-        output_high.value = np.ones(output_high.shape)
+        output_low.value = np.zeros(output_low.shape, dtype=np.float32)
+        output_high.value = np.ones(output_high.shape, dtype=np.float32)

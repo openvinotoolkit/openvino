@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,36 +23,41 @@ const std::vector<MultiplyToGroupConvolutionTransformationParam> params = {
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
         {{1.f, 2.f, 3.f}, element::f32, Shape{1, 3, 1, 1}},
         "output/GroupConvolution",
-        "U8"
-    },
-    // Multiply with scalar is transformed to GroupConvolution
-    {
-        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
-        {{4.f}, element::f32, Shape{1, 1, 1, 1}},
-        "output/GroupConvolution",
-        "U8"
-    },
-    // multiply with scalar is transformed to groupconvolution
-    {
-        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
-        {{4.f}, element::f32, Shape{}},
-        "output/GroupConvolution",
-        "U8"
+        "U8",
+        false
     },
     // zero point
     {
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
         {{1.f, 2.f, 3.f}, element::f32, Shape{1, 3, 1, 1}},
         "output/GroupConvolution",
-        "I8"
+        "I8",
+        false
     },
     // zero point
     {
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f / 2.f }, { -1.28f }, { 1.27f / 2.f} },
         {{1.f, 2.f, 3.f}, element::f32, Shape{1, 3, 1, 1}},
         "output/GroupConvolution",
-        "U8"
-    }
+        "U8",
+        false
+    },
+
+    // Multiply => GroupConvolution optimizations
+    {
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
+        {{3.f}, element::f32, Shape{1, 1, 1, 1}},
+        "output/GroupConvolution",
+        "",
+        false
+    },
+    {
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
+        {{3.f}, element::f32, Shape{1, 1, 1, 1}},
+        "output/GroupConvolution",
+        "",
+        true
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, MultiplyToGroupConvolutionTransformation,

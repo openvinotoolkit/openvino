@@ -1,13 +1,19 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 
 import openvino.runtime.opset8 as ops
+from openvino.runtime import Core, Model, Tensor, Output, Dimension,\
+    Layout, Type, PartialShape, Shape, set_batch, get_batch
 
-from openvino.runtime import Model, Tensor, set_batch, get_batch, Dimension, Layout
-from openvino.runtime import Type, PartialShape, Shape
+
+def create_test_model():
+    param1 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data1")
+    param2 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data2")
+    add = ops.add(param1, param2)
+    return Model(add, [param1, param2], "TestFunction")
 
 
 def test_test_descriptor_tensor():
@@ -176,17 +182,13 @@ def test_add_outputs_incorrect_outputs_list():
 
 
 def test_validate_nodes_and_infer_types():
-    param1 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data1")
-    param2 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data2")
-    add = ops.add(param1, param2)
-    func = Model(add, [param1, param2], "TestFunction")
-
+    model = create_test_model()
     invalid_shape = Shape([3, 7])
     param3 = ops.parameter(invalid_shape, dtype=np.float32, name="data3")
-    func.replace_parameter(0, param3)
+    model.replace_parameter(0, param3)
 
     with pytest.raises(RuntimeError) as e:
-        func.validate_nodes_and_infer_types()
+        model.validate_nodes_and_infer_types()
     assert "Argument shapes are inconsistent" in str(e.value)
 
 
@@ -246,27 +248,19 @@ def test_replace_parameter():
 
 
 def test_evaluate():
-    param1 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data1")
-    param2 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data2")
-    add = ops.add(param1, param2)
-    func = Model(add, [param1, param2], "TestFunction")
-
+    model = create_test_model()
     input1 = np.array([2, 1], dtype=np.float32).reshape(2, 1)
     input2 = np.array([3, 7], dtype=np.float32).reshape(2, 1)
     out_tensor = Tensor("float32", Shape([2, 1]))
 
-    assert func.evaluate([out_tensor], [Tensor(input1), Tensor(input2)])
+    assert model.evaluate([out_tensor], [Tensor(input1), Tensor(input2)])
     assert np.allclose(out_tensor.data, np.array([5, 8]).reshape(2, 1))
 
 
 def test_evaluate_invalid_input_shape():
-    param1 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data1")
-    param2 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data2")
-    add = ops.add(param1, param2)
-    func = Model(add, [param1, param2], "TestFunction")
-
+    model = create_test_model()
     with pytest.raises(RuntimeError) as e:
-        assert func.evaluate(
+        assert model.evaluate(
             [Tensor("float32", Shape([2, 1]))],
             [Tensor("float32", Shape([3, 1])), Tensor("float32", Shape([3, 1]))],
         )
@@ -274,13 +268,10 @@ def test_evaluate_invalid_input_shape():
 
 
 def test_get_batch():
-    param1 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data1")
-    param2 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data2")
-    add = ops.add(param1, param2)
-    func = Model(add, [param1, param2], "TestFunction")
-    param = func.get_parameters()[0]
+    model = create_test_model()
+    param = model.get_parameters()[0]
     param.set_layout(Layout("NC"))
-    assert get_batch(func) == 2
+    assert get_batch(model) == 2
 
 
 def test_get_batch_CHWN():
@@ -296,49 +287,77 @@ def test_get_batch_CHWN():
 
 
 def test_set_batch_dimension():
-    param1 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data1")
-    param2 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data2")
-    add = ops.add(param1, param2)
-    func = Model(add, [param1, param2], "TestFunction")
-    func_param1 = func.get_parameters()[0]
-    func_param2 = func.get_parameters()[1]
+    model = create_test_model()
+    model_param1 = model.get_parameters()[0]
+    model_param2 = model.get_parameters()[1]
     # batch == 2
-    func_param1.set_layout(Layout("NC"))
-    assert get_batch(func) == 2
+    model_param1.set_layout(Layout("NC"))
+    assert get_batch(model) == 2
     # set batch to 1
-    set_batch(func, Dimension(1))
-    assert get_batch(func) == 1
+    set_batch(model, Dimension(1))
+    assert get_batch(model) == 1
     # check if shape of param 1 has changed
-    assert str(func_param1.get_output_shape(0) == {1, 1})
+    assert model_param1.get_output_shape(0) == PartialShape([1, 1])
     # check if shape of param 2 has not changed
-    assert str(func_param2.get_output_shape(0) == {2, 1})
+    assert model_param2.get_output_shape(0) == PartialShape([2, 1])
 
 
 def test_set_batch_int():
-    param1 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data1")
-    param2 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data2")
-    add = ops.add(param1, param2)
-    func = Model(add, [param1, param2], "TestFunction")
-    func_param1 = func.get_parameters()[0]
-    func_param2 = func.get_parameters()[1]
+    model = create_test_model()
+    model_param1 = model.get_parameters()[0]
+    model_param2 = model.get_parameters()[1]
     # batch == 2
-    func_param1.set_layout(Layout("NC"))
-    assert get_batch(func) == 2
+    model_param1.set_layout(Layout("NC"))
+    assert get_batch(model) == 2
     # set batch to 1
-    set_batch(func, 1)
-    assert get_batch(func) == 1
+    set_batch(model, 1)
+    assert get_batch(model) == 1
     # check if shape of param 1 has changed
-    assert str(func_param1.get_output_shape(0) == {1, 1})
+    assert model_param1.get_output_shape(0) == PartialShape([1, 1])
     # check if shape of param 2 has not changed
-    assert str(func_param2.get_output_shape(0) == {2, 1})
+    assert model_param2.get_output_shape(0) == PartialShape([2, 1])
 
 
 def test_set_batch_default_batch_size():
-    param1 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data1")
-    param2 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data2")
-    add = ops.add(param1, param2)
-    func = Model(add, [param1, param2], "TestFunction")
-    func_param1 = func.get_parameters()[0]
-    func_param1.set_layout(Layout("NC"))
-    set_batch(func)
-    assert func.is_dynamic()
+    model = create_test_model()
+    model_param1 = model.get_parameters()[0]
+    model_param1.set_layout(Layout("NC"))
+    set_batch(model)
+    assert model.is_dynamic()
+
+
+def test_reshape_with_ports():
+    model = create_test_model()
+    new_shape = PartialShape([1, 4])
+    for input in model.inputs:
+        assert isinstance(input, Output)
+        model.reshape({input: new_shape})
+        assert input.partial_shape == new_shape
+
+
+def test_reshape_with_indexes():
+    model = create_test_model()
+    new_shape = PartialShape([1, 4])
+    for index, input in enumerate(model.inputs):
+        model.reshape({index: new_shape})
+        assert input.partial_shape == new_shape
+
+
+def test_reshape_with_names():
+    model = create_test_model()
+    new_shape = PartialShape([1, 4])
+    for input in model.inputs:
+        model.reshape({input.any_name: new_shape})
+        assert input.partial_shape == new_shape
+
+
+def test_reshape(device):
+    shape = Shape([1, 10])
+    param = ops.parameter(shape, dtype=np.float32)
+    model = Model(ops.relu(param), [param])
+    ref_shape = model.input().partial_shape
+    ref_shape[0] = 3
+    model.reshape(ref_shape)
+    core = Core()
+    compiled = core.compile_model(model, device)
+    assert compiled.input().partial_shape == ref_shape

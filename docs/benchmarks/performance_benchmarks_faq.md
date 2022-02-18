@@ -48,10 +48,10 @@ The image size used in the inference depends on the network being benchmarked. T
 | [vgg19-caffe](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/vgg19-caffe2)                         | VGG-19                                | classification              | 224x224|
  
 #### 7. Where can I purchase the specific hardware used in the benchmarking?
-Intel partners with various vendors all over the world. Visit the [Intel® AI: In Production Partners & Solutions Catalog](https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/partners-solutions-catalog.html) for a list of Equipment Makers and the [Supported Devices](../IE_DG/supported_plugins/Supported_Devices.md) documentation. You can also remotely test and run models before purchasing any hardware by using [Intel® DevCloud for the Edge](http://devcloud.intel.com/edge/).
+Intel partners with various vendors all over the world. Visit the [Intel® AI: In Production Partners & Solutions Catalog](https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/partners-solutions-catalog.html) for a list of Equipment Makers and the [Supported Devices](../OV_Runtime_UG/supported_plugins/Supported_Devices.md) documentation. You can also remotely test and run models before purchasing any hardware by using [Intel® DevCloud for the Edge](http://devcloud.intel.com/edge/).
 
 #### 8. How can I optimize my models for better performance or accuracy?
-We published a set of guidelines and recommendations to optimize your models available in an [introductory](../IE_DG/Intro_to_Performance.md) guide and an [advanced](../optimization_guide/dldt_optimization_guide.md) guide. For further support, please join the conversation in the [Community Forum](https://software.intel.com/en-us/forums/intel-distribution-of-openvino-toolkit).
+We published a set of guidelines and recommendations to optimize your models available in the [optimization guide](../optimization_guide/dldt_optimization_guide.md). For further support, please join the conversation in the [Community Forum](https://software.intel.com/en-us/forums/intel-distribution-of-openvino-toolkit).
 
 #### 9. Why are INT8 optimized models used for benchmarking on CPUs with no VNNI support?
 The benefit of low-precision optimization using the OpenVINO™ toolkit model optimizer extends beyond processors supporting VNNI through Intel® DL Boost. The reduced bit width of INT8 compared to FP32 allows Intel® CPU to process the data faster and thus offers better throughput on any converted model agnostic of the intrinsically supported low-precision optimizations within Intel® hardware. Please refer to [INT8 vs. FP32 Comparison on Select Networks and Platforms](performance_int8_vs_fp32.md) for comparison on boost factors for different network models and a selection of Intel® CPU architectures, including AVX-2 with Intel® Core™ i7-8700T, and AVX-512 (VNNI) with Intel® Xeon® 5218T and Intel® Xeon® 8270.
@@ -68,17 +68,4 @@ The web site format has changed in order to support the more common search appro
 #### 13. How is Latency measured?
 Latency is measured by running the OpenVINO™ inference engine in synchronous mode. In synchronous mode each frame or image is processed through the entire set of stages (pre-processing, inference, post-processing) before the next frame or image is processed. This KPI is relevant for applications where the inference on a single image is required, for example the analysis of an ultra sound image in a medical application or the analysis of a seismic image in the oil & gas industry. Other use cases include real-time or near real-time applications like an industrial robot's response to changes in its environment and obstacle avoidance for autonomous vehicles where a quick response to the result of the inference is required.
 
-\htmlonly
-<style>
-    .footer {
-        display: none;
-    }
-</style>
-<div class="opt-notice-wrapper">
-<p class="opt-notice">
-\endhtmlonly
 For more complete information about performance and benchmark results, visit: [www.intel.com/benchmarks](https://www.intel.com/benchmarks) and [Optimization Notice](https://software.intel.com/articles/optimization-notice). [Legal Information](../Legal_Information.md).
-\htmlonly
-</p>
-</div>
-\endhtmlonly

@@ -1,10 +1,10 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 project (pyopenvino)
 
 if(NOT DEFINED OpenVINO_SOURCE_DIR)
-    find_package(InferenceEngineDeveloperPackage REQUIRED)
+    find_package(OpenVINODeveloperPackage REQUIRED)
 endif()
 
 # PYTHON_VERSION_MAJOR and PYTHON_VERSION_MINOR are defined inside pybind11
@@ -48,16 +48,31 @@ if(ENABLE_TESTS)
     add_subdirectory(test_utils)
 endif()
 
+if(TARGET openvino::frontend::onnx)
+    add_subdirectory(frontend/onnx)
+endif()
+
+if(TARGET openvino::frontend::tensorflow)
+    add_subdirectory(frontend/tensorflow)
+endif()
+
+if(TARGET openvino::frontend::paddle)
+    add_subdirectory(frontend/paddle)
+endif()
+
 # create target
 
 file(GLOB_RECURSE SOURCES core/*.cpp graph/*.cpp frontend/*.cpp pyopenvino.cpp)
+list(FILTER SOURCES EXCLUDE REGEX frontend/onnx|tensorflow|paddle/* )
 
 pybind11_add_module(${PROJECT_NAME} MODULE ${SOURCES})
 
 if(TARGET offline_transformations)
     set(OFFLINE_TRANSFORMATIONS_LIB offline_transformations)
-else()
+elseif(TARGET IE::offline_transformations)
     set(OFFLINE_TRANSFORMATIONS_LIB IE::offline_transformations)
+else()
+    set(OFFLINE_TRANSFORMATIONS_LIB openvino::offline_transformations)
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
@@ -77,14 +92,19 @@ if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
 
     ie_cpack_add_component(pyopenvino_${PYTHON_VERSION})
 
-    install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../openvino
+    install(DIRECTORY ${PYTHON_SOURCE_DIR}/openvino
             DESTINATION python/${PYTHON_VERSION}
             COMPONENT pyopenvino_${PYTHON_VERSION}
-            USE_SOURCE_PERMISSIONS)
+            USE_SOURCE_PERMISSIONS
+            PATTERN "test_utils" EXCLUDE)
 
     install(TARGETS ${PROJECT_NAME}
             DESTINATION python/${PYTHON_VERSION}/openvino
             COMPONENT pyopenvino_${PYTHON_VERSION})
+
+    install(DIRECTORY ${PYTHON_BINDINGS_ROOT_DIR}/tests
+            DESTINATION tests/${PROJECT_NAME}
+            COMPONENT tests EXCLUDE_FROM_ALL)
 endif()
 
 if(TARGET ie_wheel)

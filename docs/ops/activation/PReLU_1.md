@@ -1,4 +1,4 @@
-## PReLU <a name="PReLU"></a> {#openvino_docs_ops_activation_PReLU_1}
+# PReLU {#openvino_docs_ops_activation_PReLU_1}
 
 **Versioned name**: *PReLU-1*
 

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -446,7 +446,7 @@ class Loop(TensorIterator):
             max_port_id = sorted(loop_node.in_ports().keys())[-1]
             new_port_id = 0
             for port_id in range(max_port_id + 1):
-                if port_id in loop_node.in_ports():
+                if loop_node.is_in_port_connected(port_id):
                     if port_id != new_port_id:
                         re_number_input_port(loop_node, port_id, new_port_id)
                     new_port_id += 1

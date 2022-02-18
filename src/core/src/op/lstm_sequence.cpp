@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -291,6 +291,14 @@ shared_ptr<Node> op::v0::LSTMSequence::prepare_input(Output<Node> node,
 
 void op::v0::LSTMSequence::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_LSTMSequence_validate_and_infer_types);
+    for (const auto& input : inputs()) {
+        if (input.get_partial_shape().rank().is_dynamic()) {
+            set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic());
+            set_output_type(1, get_input_element_type(0), ov::PartialShape::dynamic());
+            set_output_type(2, get_input_element_type(0), ov::PartialShape::dynamic());
+            return;
+        }
+    }
     std::vector<ov::PartialShape> input_param{};
 
     auto lstm_seq_gates_count = 4;
@@ -372,6 +380,26 @@ void op::v0::LSTMSequence::validate_and_infer_types() {
                               Dimension::merge(merged_num_directions, merged_num_directions, r_pshape[0]) &&
                               Dimension::merge(merged_num_directions, merged_num_directions, b_pshape[0]),
                           "Parameter num_directions not matched in LSTMSequence.");
+
+    auto valid_num_directions = 0;
+    if (m_direction == op::RecurrentSequenceDirection::FORWARD ||
+        m_direction == op::RecurrentSequenceDirection::REVERSE) {
+        valid_num_directions = 1;
+    } else if (m_direction == op::RecurrentSequenceDirection::BIDIRECTIONAL) {
+        valid_num_directions = 2;
+    } else {
+        // Guard for potential future extension of RecurrentSequenceDirection enum
+        NODE_VALIDATION_CHECK(this, false, "Parameter direction must be FORWARD or REVERSE or BIDIRECTIONAL.");
+    }
+
+    NODE_VALIDATION_CHECK(this,
+                          Dimension::merge(merged_num_directions, merged_num_directions, valid_num_directions),
+                          "Parameter 'num_directions' doesn't match with direction '",
+                          m_direction,
+                          "' in LSTMSequence. Expected ",
+                          valid_num_directions,
+                          ", actual ",
+                          merged_num_directions);
 
     // Validate hidden_size value for W, R, B and P inputs
     if (merged_hidden_size.is_static()) {
@@ -538,22 +566,25 @@ void op::v5::LSTMSequence::validate_and_infer_types() {
                               Dimension::merge(merged_num_directions, merged_num_directions, b_pshape[0]),
                           "Parameter num_directions not matched in LSTMSequence.");
 
-    auto check_direction_valid = [](const ov::PartialShape& pshape, size_t index) -> bool {
-        if (pshape[index].is_static())
-            return static_cast<direction>(pshape[index].get_length()) == direction::FORWARD ||
-                   static_cast<direction>(pshape[index].get_length()) == direction::REVERSE ||
-                   static_cast<direction>(pshape[index].get_length()) == direction::BIDIRECTIONAL;
-        return true;
-    };
+    auto valid_num_directions = 0;
+    if (m_direction == op::RecurrentSequenceDirection::FORWARD ||
+        m_direction == op::RecurrentSequenceDirection::REVERSE) {
+        valid_num_directions = 1;
+    } else if (m_direction == op::RecurrentSequenceDirection::BIDIRECTIONAL) {
+        valid_num_directions = 2;
+    } else {
+        // Guard for potential future extension of RecurrentSequenceDirection enum
+        NODE_VALIDATION_CHECK(this, false, "Parameter direction must be FORWARD or REVERSE or BIDIRECTIONAL.");
+    }
 
     NODE_VALIDATION_CHECK(this,
-                          check_direction_valid(ht_pshape, 1),
-                          "Parameter direction must be Forward or Reverse or Bidirectional.");
-
-    NODE_VALIDATION_CHECK(this,
-                          m_direction == direction::FORWARD || m_direction == direction::REVERSE ||
-                              m_direction == direction::BIDIRECTIONAL,
-                          "Parameter direction must be Forward or Reverse or Bidirectional.");
+                          Dimension::merge(merged_num_directions, merged_num_directions, valid_num_directions),
+                          "Parameter 'num_directions' doesn't match with direction '",
+                          m_direction,
+                          "' in LSTMSequence. Expected ",
+                          valid_num_directions,
+                          ", actual ",
+                          merged_num_directions);
 
     // Validate hidden_size value for W, R, B inputs
     if (merged_hidden_size.is_static()) {

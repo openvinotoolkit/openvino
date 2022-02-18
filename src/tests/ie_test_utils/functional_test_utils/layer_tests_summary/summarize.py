@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -78,7 +78,7 @@ def merge_xmls(xml_paths: list):
                             logger.warning(f'Test counter is different in {op_result.tag} for {device.tag}'\
                                            f'({total_tests_count_xml} vs {total_tests_count_xml})')
                             for attr_name in device_results.find(op_result.tag).attrib:
-                                if attr_name == "passrate":
+                                if attr_name == "passrate" or attr_name == "implemented":
                                     continue
                                 xml_value = int(op_result.attrib.get(attr_name))
                                 device_results.find(current_op_res.tag).set(attr_name, str(xml_value))

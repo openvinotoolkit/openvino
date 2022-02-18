@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -327,9 +327,7 @@ void LayerTestsCommon::Compare(const InferenceEngine::TensorDesc &actualDesc, co
 
 void LayerTestsCommon::ConfigureNetwork() {
     for (const auto &in : cnnNetwork.getInputsInfo()) {
-        if (inLayout != InferenceEngine::Layout::ANY &&
-            // cannot setLayout for fully-dynamic network
-            !in.second->getPartialShape().rank().is_dynamic()) {
+        if (inLayout != InferenceEngine::Layout::ANY) {
             in.second->setLayout(inLayout);
         }
         if (inPrc != InferenceEngine::Precision::UNSPECIFIED) {
@@ -338,9 +336,7 @@ void LayerTestsCommon::ConfigureNetwork() {
     }
 
     for (const auto &out : cnnNetwork.getOutputsInfo()) {
-        if (outLayout != InferenceEngine::Layout::ANY &&
-            // cannot setLayout for fully-dynamic network
-            !out.second->getPartialShape().rank().is_dynamic()) {
+        if (outLayout != InferenceEngine::Layout::ANY) {
             out.second->setLayout(outLayout);
         }
         if (outPrc != InferenceEngine::Precision::UNSPECIFIED) {
@@ -439,7 +435,7 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTe
     auto refInputsTypes = std::vector<ngraph::element::Type>(inputs.size());
     for (std::size_t i = 0; i < inputs.size(); ++i) {
         const auto &input = inputs[i];
-        const auto &inputSize = input->byteSize();
+        const auto inputSize = input->byteSize();
 
         auto &referenceInput = referenceInputs[i];
         referenceInput.resize(inputSize);

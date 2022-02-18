@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,12 +34,8 @@ FakeQuantizeTransformation::FakeQuantizeTransformation(const Params& params) : L
 }
 
 bool FakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
-    std::shared_ptr<opset1::FakeQuantize> layer = std::dynamic_pointer_cast<opset1::FakeQuantize>(m.get_match_root());
-    if (!QuantizationDetails::outputLayoutIsSupported(layer)) {
-        return false;
-    }
-
-    if (NetworkHelper::isFQByDynamicDimension(layer)) {
+    const auto layer = ov::as_type_ptr<opset1::FakeQuantize>(m.get_match_root());
+    if (!layer || !QuantizationDetails::outputLayoutIsSupported(layer)) {
         return false;
     }
 
@@ -108,11 +104,7 @@ bool FakeQuantizeTransformation::checkElementwise(const std::shared_ptr<Node>& e
             return false;
         }
 
-        if ((eltwiseOutputPShape.rank().get_length() - shape.size()) > 1) {
-            return false;
-        }
-
-        if ((eltwiseOutputPShape.rank().get_length() - shape.size()) == 1ul) {
+        while (eltwiseOutputPShape.size() > shape.size()) {
             shape.insert(shape.begin(), 1ul);
         }
 
@@ -129,17 +121,15 @@ bool FakeQuantizeTransformation::checkElementwise(const std::shared_ptr<Node>& e
 std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwise(
     TransformationContext& context,
     MatcherPass* matcherPass,
-    const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) const {
+    const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) {
     const std::shared_ptr<Node> eltwise = fakeQuantize->get_input_node_shared_ptr(0);
 
-    std::shared_ptr<Node> inputLowConst_f32 = foldConvert(fakeQuantize->input_value(1), deqPrecision);
-    std::shared_ptr<Node> inputHighConst_f32 = foldConvert(fakeQuantize->input_value(2), deqPrecision);
+    std::shared_ptr<Node> inputLowConst_f32 = foldConvert(fakeQuantize->input_value(1), element::f32);
+    std::shared_ptr<Node> inputHighConst_f32 = foldConvert(fakeQuantize->input_value(2), element::f32);
 
     std::shared_ptr<opset1::Constant> constant = fq::getConstant(eltwise);
     if (ov::is_type<opset1::Multiply>(eltwise) && checkElementwise(eltwise)) {
-        const auto value = constant->get_output_element_type(0) == deqPrecision ?
-            constant :
-            foldConvert(constant, deqPrecision);
+        const auto value = foldConvert(constant, element::f32);
 
         const auto valueVec = ov::as_type_ptr<opset1::Constant>(value)->cast_vector<float>();
 
@@ -159,9 +149,7 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
         inputLowConst_f32 = fq::updateShape(inputLowConst_f32, fakeQuantize->get_output_partial_shape(0));
         inputHighConst_f32 =  fq::updateShape(inputHighConst_f32, fakeQuantize->get_output_partial_shape(0));
     } else if (ov::is_type<opset1::Subtract>(eltwise) && checkElementwise(eltwise)) {
-        const auto value = constant->get_output_element_type(0) == deqPrecision ?
-            constant :
-            foldConvert(constant, deqPrecision);
+        const auto value = foldConvert(constant, element::f32);
 
         inputLowConst_f32 = fq::updateShape(fold<opset1::Add>(inputLowConst_f32, value), fakeQuantize->get_output_partial_shape(0));
         inputHighConst_f32 = fq::updateShape(fold<opset1::Add>(inputHighConst_f32, value), fakeQuantize->get_output_partial_shape(0));
@@ -173,9 +161,7 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
             return nullptr;
         }
 
-        const auto value = constant->get_output_element_type(0) == deqPrecision ?
-            constant :
-            foldConvert(constant, deqPrecision);
+        const auto value = foldConvert(constant, element::f32);
 
         inputLowConst_f32 = fq::updateShape(fold<opset1::Subtract>(inputLowConst_f32, value), fakeQuantize->get_output_partial_shape(0));
         inputHighConst_f32 = fq::updateShape(fold<opset1::Subtract>(inputHighConst_f32, value), fakeQuantize->get_output_partial_shape(0));
@@ -196,8 +182,8 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
         data->output(outputIdx),
         inputLowConst_f32,
         inputHighConst_f32,
-        foldConvert(fakeQuantize->input_value(3), deqPrecision),
-        foldConvert(fakeQuantize->input_value(4), deqPrecision) }));
+        foldConvert(fakeQuantize->input_value(3), element::f32),
+        foldConvert(fakeQuantize->input_value(4), element::f32) }));
 
     matcherPass->register_new_node(newFakeQuantize);
 

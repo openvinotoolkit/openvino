@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,9 +61,9 @@ protected:
             const auto& funcInput = funcInputs[i];
             const auto& inputPrecision = funcInput.get_element_type();
             const auto& targetShape = targetInputStaticShapes[i];
-            ov::runtime::Tensor tensor;
+            ov::Tensor tensor;
             if (i == 1) {
-                tensor = ov::runtime::Tensor{ inputPrecision, targetShape };
+                tensor = ov::Tensor{ inputPrecision, targetShape };
                 const auto indicesVals = std::get<0>(this->GetParam()).indicesValues;
                 if (inputPrecision == ElementType::i32) {
                     auto data = tensor.data<std::int32_t>();

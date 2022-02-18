@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -130,8 +130,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_NGraph, DoNotConvertEIPToReorgYoloOnNot4DInput, t
         testing::Values(ngraph::PartialShape{1, 1, 64, 500, 500},
                         ngraph::PartialShape{64, 500, 500},
                         ngraph::PartialShape{500, 500},
-                        ngraph::PartialShape{500},
-                        ngraph::PartialShape::dynamic()),
+                        ngraph::PartialShape{500}),
         testing::Values(ngraph::Shape{5, 5}),
         testing::Values(ngraph::Strides{5, 5}),
         testing::Values(ngraph::Shape{1, 1}),

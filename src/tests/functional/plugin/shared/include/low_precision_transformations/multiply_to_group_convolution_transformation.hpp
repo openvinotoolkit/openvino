@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,7 @@ public:
     builder::subgraph::Constant constant;
     std::string layerName;
     std::string expectedKernelType;
+    bool parentHasOneConsumer;
 };
 
 typedef std::tuple <

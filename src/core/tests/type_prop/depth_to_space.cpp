@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,29 @@
 
 using namespace std;
 using namespace ngraph;
+
+#define DIV_ROUND_UP(n, d) (((n) + (d)-1) / (d))
+
+TEST(type_prop, depth_to_space_output_dynamicshape_block_first_5D_when_depth_is_static) {
+    auto A = make_shared<op::Parameter>(element::f32, PartialShape{{2, 10}, 24, {3, 7}, {423, 3000}, {235, 1345}});
+    auto space_to_depth = make_shared<op::DepthToSpace>(A, op::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, 2);
+
+    ASSERT_EQ(space_to_depth->get_output_partial_shape(0),
+              (PartialShape{{2, 10}, 3, {3 * 2, 7 * 2}, {423 * 2, 3000 * 2}, {235 * 2, 1345 * 2}}));
+}
+
+TEST(type_prop, depth_to_space_output_dynamicshape_block_first_5D_when_depth_is_dynamic) {
+    auto A =
+        make_shared<op::Parameter>(element::f32, PartialShape{{2, 10}, {81, 82}, {3, 7}, {423, 3000}, {235, 1345}});
+    auto space_to_depth = make_shared<op::DepthToSpace>(A, op::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, 3);
+
+    ASSERT_EQ(space_to_depth->get_output_partial_shape(0),
+              (PartialShape{{2, 10},
+                            {DIV_ROUND_UP(81, 27), 82 / 27},
+                            {3 * 3, 7 * 3},
+                            {423 * 3, 3000 * 3},
+                            {235 * 3, 1345 * 3}}));
+}
 
 TEST(type_prop, depth_to_space_output_shape_block_first_4D) {
     auto A = make_shared<op::Parameter>(element::f32, Shape{1, 128, 8, 8});
@@ -67,9 +90,7 @@ TEST(type_prop, depth_to_space_blocksize_not_matched) {
         auto space_to_depth = make_shared<op::DepthToSpace>(A, op::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, 2);
         FAIL() << "Not matched blocksize for DepthToSpace exception not thrown";
     } catch (const ngraph_error& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             "DepthToSpace: The input data's 'channels' axis size: 7"
-                             " must be a equivalent to 'block_size'^'spatial_dims': 4");
+        EXPECT_HAS_SUBSTRING(error.what(), "Dimension value: [ 7, 7] must be a multiple of divisor: 4");
     } catch (...) {
         FAIL() << "DepthToSpace decomposition failed for unexpected reason";
     }

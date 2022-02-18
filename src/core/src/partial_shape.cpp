@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <iostream>
 #include <vector>
 
+#include "dimension_tracker.hpp"
 #include "ngraph/check.hpp"
 
 ov::PartialShape::PartialShape() : PartialShape(std::initializer_list<Dimension>{}) {}
@@ -130,6 +131,8 @@ std::ostream& ov::operator<<(std::ostream& str, const PartialShape& shape) {
             if (!first) {
                 str << ",";
             }
+            if (const auto& l = ov::DimensionTracker::get_label(d))
+                str << "l<" << l << ">";
             str << d;
             first = false;
         }
@@ -298,6 +301,9 @@ bool ov::PartialShape::broadcast_merge_into(PartialShape& dst,
             // Ranks are both static.
             auto dst_rank = dst.rank().get_length();
             auto src_rank = src.rank().get_length();
+            // source rank can't be bigger than destination rank according to PDPD broadcast rule.
+            if (src_rank > dst_rank)
+                return false;
             if (dst_rank == src_rank && dst.compatible(src))
                 return true;
 

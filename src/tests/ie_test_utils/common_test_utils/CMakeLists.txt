@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -15,12 +15,12 @@ function(add_common_utils ADD_TARGET_NAME)
                 tests
             LINK_LIBRARIES
                 PUBLIC
-                    ngraph
                     gtest
                     gtest_main
-                    inference_engine_transformations
                     ngraph_test_util
                     ngraphFunctions
+                    openvino::runtime
+                    openvino::runtime::dev
                 PRIVATE
                     openvino::util
     )
@@ -55,12 +55,10 @@ function(add_common_utils ADD_TARGET_NAME)
 
     target_include_directories(${ADD_TARGET_NAME}
         PUBLIC
-            $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:openvino::runtime,INTERFACE_INCLUDE_DIRECTORIES>
         PRIVATE
             $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
-            )
+            $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>)
     target_include_directories(${ADD_TARGET_NAME} SYSTEM PUBLIC ${IE_TESTS_ROOT}/ie_test_utils)
 
     target_compile_definitions(${ADD_TARGET_NAME} PUBLIC ${ARGN})

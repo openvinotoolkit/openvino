@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -7,6 +7,7 @@ import numpy as np
 
 from openvino.tools.mo.ops.elementwise import Mul, Add
 from openvino.tools.mo.front.common.partial_infer.utils import compatible_shapes
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.middle.passes.fusing.helpers import get_value_in_port, get_tensor_in_port
 from openvino.tools.mo.ops.const import Const
@@ -38,8 +39,13 @@ def _fuse_linear_sequence(graph: Graph, start_node: Node):
 
     init_dims_cnt = len(input_shape) - 2 if graph.graph['layout'] == 'NCHW' else 1
 
-    mul = np.ones([1 for x in range(init_dims_cnt)])
-    add = np.zeros([1 for x in range(init_dims_cnt)])
+    first_value = get_value_in_port(fnodes[0]).data.get_value()
+    if not isinstance(first_value, np.ndarray):
+        first_value = mo_array(first_value)
+    first_value_type = first_value.dtype
+
+    mul = np.ones([1 for x in range(init_dims_cnt)], dtype=first_value_type)
+    add = np.zeros([1 for x in range(init_dims_cnt)], dtype=first_value_type)
 
     first_mul_name = None
     first_add_name = None
@@ -58,7 +64,7 @@ def _fuse_linear_sequence(graph: Graph, start_node: Node):
 
     # If mul is scalar we broadcast it to biases shape
     if mul.shape != add.shape and len(mul.shape) == 1 and mul.shape[0] == 1:
-        mul = np.array([mul[0] for x in range(add.shape[0])])
+        mul = mo_array([mul[0] for x in range(add.shape[0])])
 
     assert (compatible_shapes(get_tensor_in_port(fnodes[0]).data.get_shape(), fnodes[-1].out_port(0).data.get_shape()))
 
@@ -78,8 +84,8 @@ def _fuse_linear_sequence(graph: Graph, start_node: Node):
     if any([x != 0 for x in np.nditer(add)]) and any([x != 1 for x in np.nditer(mul)]):
         #  Const\    Const\
         #  ----->Mul------>Add-->
-        mul_const = Const(graph, dict(name="data_mul_", value=np.array(mul))).create_node()
-        add_const = Const(graph, dict(name="data_add_", value=np.array(add))).create_node()
+        mul_const = Const(graph, dict(name="data_mul_", value=mo_array(mul))).create_node()
+        add_const = Const(graph, dict(name="data_add_", value=mo_array(add))).create_node()
 
         mul_node = mul_op.create_node()
         add_node = add_op.create_node()
@@ -93,7 +99,7 @@ def _fuse_linear_sequence(graph: Graph, start_node: Node):
     elif any([x != 1 for x in np.nditer(mul)]):
         #  Const\
         #  ----->Mul-->
-        mul_const = Const(graph, dict(name="data_mul_", value=np.array(mul))).create_node()
+        mul_const = Const(graph, dict(name="data_mul_", value=mo_array(mul))).create_node()
         mul_node = mul_op.create_node()
 
         in_port.get_connection().set_destination(mul_node.in_port(0))
@@ -102,7 +108,7 @@ def _fuse_linear_sequence(graph: Graph, start_node: Node):
     elif any([x != 0 for x in np.nditer(add)]):
         #  Const\
         #  ----->Add-->
-        add_const = Const(graph, dict(name="data_add_", value=np.array(add))).create_node()
+        add_const = Const(graph, dict(name="data_add_", value=mo_array(add))).create_node()
         add_node = add_op.create_node()
 
         in_port.get_connection().set_destination(add_node.in_port(0))

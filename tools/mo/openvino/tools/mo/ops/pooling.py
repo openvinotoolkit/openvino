@@ -1,16 +1,17 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.common.partial_infer.utils import tf_window_op_pad_infer, int64_array, shape_array, \
     dynamic_dimension_value, dynamic_dimension, undefined_shape_of_rank
+from openvino.tools.mo.front.extractor import bool_to_str
 from openvino.tools.mo.front.onnx.extractors.utils import get_backend_pad
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from openvino.tools.mo.ops.op import Op, PermuteAttrs
 from openvino.tools.mo.utils.error import Error
-from openvino.tools.mo.front.extractor import bool_to_str
 
 
 poolings_map = {
@@ -81,7 +82,7 @@ class Pooling(Op):
         }, attrs)
 
     def backend_attrs(self):
-        return [
+        backend_attrs_list = [
             ('strides', lambda node: ','.join(map(str, node['stride'][node.spatial_dims]))),
             ('kernel', lambda node: ','.join(map(str, node['window'][node.spatial_dims]))),
 
@@ -91,13 +92,17 @@ class Pooling(Op):
             ('exclude-pad', lambda node: bool_to_str(node, 'exclude_pad')),
 
             'rounding_type',
-            ('auto_pad', lambda node: node.auto_pad if node.has_valid('auto_pad') else 'explicit'),
-
-            ('dilations', lambda node: ','.join(map(str, node['dilation'][node.spatial_dims]))),
-            'axis',
-
-            ('index_element_type', lambda node: np_data_type_to_destination_type(node.index_element_type))
+            ('auto_pad', lambda node: node.auto_pad if node.has_valid('auto_pad') else 'explicit')
         ]
+
+        if self.attrs.get('pool_method') == 'avg':
+            return backend_attrs_list
+        else:
+            return backend_attrs_list + [
+                ('dilations', lambda node: ','.join(map(str, node['dilation'][node.spatial_dims]))),
+                'axis',
+                ('index_element_type', lambda node: np_data_type_to_destination_type(node.index_element_type))
+            ]
 
     @staticmethod
     def infer(node: Node):
@@ -132,7 +137,7 @@ class Pooling(Op):
             node.window[node.spatial_dims] = input_spatial_shape
 
         if not node.has_valid('dilation'):
-            node['dilation'] = np.ones(len(input_shape))
+            node['dilation'] = np.ones(len(input_shape), dtype=np.float32)
 
         if not node.has_valid('axis'):
             node['axis'] = 0
@@ -173,7 +178,7 @@ class Pooling(Op):
                 if padded_spatial_shape[idx] is not dynamic_dimension and stride_spatial[idx] is not dynamic_dimension:
                     output_spatial_shape[idx] = int(rounding(padded_spatial_shape[idx] / stride_spatial[idx])) + 1
 
-            original_pads = np.array([i[1] for i in node.pad_spatial_shape])
+            original_pads = mo_array([i[1] for i in node.pad_spatial_shape])
 
             for i in range(len(input_spatial_shape)):
                 if original_pads[i] and (output_spatial_shape[i] - 1) * stride_spatial[i] >= \

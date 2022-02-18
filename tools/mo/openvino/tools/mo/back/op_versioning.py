@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -33,6 +33,7 @@ class OpVersioning(BackReplacementPattern):
         "ConvolutionBackpropData",
         "Cos",
         "Cosh",
+        'DeformableConvolution',
         "DeformablePSROIPooling",
         "DepthToSpace",
         "DetectionOutput",

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.graph.graph import Graph
@@ -74,7 +74,7 @@ class TensorFlowYOLOV1V2Analysis(AnalyzeAction):
                       "\t--batch 1\n" \
                       "\t--tensorflow_use_custom_operations_config <PYTHON_SITE_PACKAGES>/openvino/tools/mo/front/tf/<yolo_config>.json\n" \
                       "All detailed information about conversion of this model can be found at\n" \
-                      "https://docs.openvinotoolkit.org/latest/_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_YOLO_From_Tensorflow.html"
+                      "https://docs.openvino.ai/latest/_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_YOLO_From_Tensorflow.html"
             return {'model_type': {'YOLO': get_YOLO_params_by_flavor(flavor)}}, message
         else:
             return None, None
@@ -101,7 +101,7 @@ class TensorFlowYOLOV3Analysis(AnalyzeAction):
                       "\t--batch 1\n" \
                       "\t--tensorflow_use_custom_operations_config <PYTHON_SITE_PACKAGES>/openvino/tools/mo/front/tf/yolo_v3.json\n" \
                       "Detailed information about conversion of this model can be found at\n" \
-                      "https://docs.openvinotoolkit.org/latest/_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_YOLO_From_Tensorflow.html"
+                      "https://docs.openvino.ai/latest/_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_YOLO_From_Tensorflow.html"
             return {'model_type': {'YOLO': get_YOLO_params_by_flavor(flavor)}}, message
         else:
             return None, None

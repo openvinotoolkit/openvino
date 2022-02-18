@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <ngraph/validation_util.hpp>
+#include <select_shape_inference.hpp>
 
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
@@ -42,36 +43,12 @@ void op::v1::Select::validate_and_infer_types() {
                           element::Type::merge(result_et, get_input_element_type(1), get_input_element_type(2)),
                           "Argument 1 and 2 element types must match.");
 
-    ov::PartialShape result_shape;
-    if (get_auto_broadcast().m_type == op::AutoBroadcastType::PDPD) {
-        result_shape = get_input_partial_shape(1);  // 'then' tensor
-        NODE_VALIDATION_CHECK(
-            this,
-            ov::PartialShape::broadcast_merge_into(result_shape, get_input_partial_shape(2), get_auto_broadcast()),
-            "'Else' tensor shape is not broadcastable.");
-        NODE_VALIDATION_CHECK(
-            this,
-            ov::PartialShape::broadcast_merge_into(result_shape, get_input_partial_shape(0), get_auto_broadcast()),
-            "'Cond' tensor shape is not broadcastable.");
-    } else {
-        result_shape = get_input_partial_shape(2);
-        for (int i = 1; i >= 0; i--) {
-            if (get_auto_broadcast().m_type == op::AutoBroadcastType::NONE) {
-                NODE_VALIDATION_CHECK(this,
-                                      ov::PartialShape::merge_into(result_shape, get_input_partial_shape(i)),
-                                      "Argument shapes are inconsistent.");
-            } else if (get_auto_broadcast().m_type == op::AutoBroadcastType::NUMPY) {
-                NODE_VALIDATION_CHECK(this,
-                                      ov::PartialShape::broadcast_merge_into(result_shape,
-                                                                             get_input_partial_shape(i),
-                                                                             get_auto_broadcast()),
-                                      "Argument shapes are inconsistent.");
-            } else {
-                NODE_VALIDATION_CHECK(this, false, "Unsupported auto broadcast specification");
-            }
-        }
-    }
-    set_output_type(0, result_et, result_shape);
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
+    const std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),
+                                                        get_input_partial_shape(1),
+                                                        get_input_partial_shape(2)};
+    shape_infer(this, input_shapes, output_shapes);
+    set_output_type(0, result_et, output_shapes[0]);
 }
 
 shared_ptr<Node> op::v1::Select::clone_with_new_inputs(const OutputVector& new_args) const {

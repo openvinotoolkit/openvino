@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -32,7 +32,7 @@ class Benchmark:
 
     def add_extension(self, path_to_extension: str=None, path_to_cldnn_config: str=None):
         if path_to_cldnn_config:
-            self.core.set_config({'CONFIG_FILE': path_to_cldnn_config}, GPU_DEVICE_NAME)
+            self.core.set_property(GPU_DEVICE_NAME, {'CONFIG_FILE': path_to_cldnn_config})
             logger.info(f'GPU extensions is loaded {path_to_cldnn_config}')
 
         if path_to_extension:
@@ -40,7 +40,7 @@ class Benchmark:
             logger.info(f'CPU extensions is loaded {path_to_extension}')
 
     def get_version_info(self) -> str:
-        logger.info(f"InferenceEngine:\n{'': <9}{'API version':.<24} {get_version()}")
+        logger.info(f"OpenVINO:\n{'': <9}{'API version':.<24} {get_version()}")
         version_string = 'Device info\n'
         for device, version in self.core.get_versions(self.device).items():
             version_string += f"{'': <9}{device}\n"
@@ -50,10 +50,10 @@ class Benchmark:
 
     def set_config(self, config = {}):
         for device in config.keys():
-            self.core.set_config(config[device], device)
+            self.core.set_property(device, config[device])
 
     def set_cache_dir(self, cache_dir: str):
-        self.core.set_config({'CACHE_DIR': cache_dir}, '')
+        self.core.set_property({'CACHE_DIR': cache_dir})
 
     def read_model(self, path_to_model: str):
         model_filename = os.path.abspath(path_to_model)
@@ -61,11 +61,11 @@ class Benchmark:
         weights_filename = os.path.abspath(head + BIN_EXTENSION) if ext == XML_EXTENSION else ""
         return self.core.read_model(model_filename, weights_filename)
 
-    def create_infer_requests(self, exe_network):
+    def create_infer_requests(self, compiled_model):
         if self.api_type == 'sync':
-            requests = [exe_network.create_infer_request()]
+            requests = [compiled_model.create_infer_request()]
         else:
-            requests = AsyncInferQueue(exe_network, self.nireq)
+            requests = AsyncInferQueue(compiled_model, self.nireq)
             self.nireq = len(requests)
         return requests
 

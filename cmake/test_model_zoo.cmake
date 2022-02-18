@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -136,8 +136,8 @@ if(ENABLE_TESTS)
         add_dependencies(test_model_zoo test_pip_prerequsites)
     endif()
 
-    if (ENABLE_OV_PDPD_FRONTEND AND ENABLE_OV_CORE_UNIT_TESTS)
-        add_dependencies(test_model_zoo paddlepaddle_test_models)
+    if (ENABLE_OV_PADDLE_FRONTEND AND ENABLE_OV_CORE_UNIT_TESTS)
+        add_dependencies(test_model_zoo paddle_test_models)
     endif()
 
     install(DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo"

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -65,11 +65,6 @@ xfail_issue_38708 = xfail_test(reason="RuntimeError: While validating ONNX node 
 xfail_issue_38710 = xfail_test(reason="RuntimeError: data has zero dimension which is not allowed")
 xfail_issue_38713 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "ai.onnx.preview.training.Momentum")
-xfail_issue_45457 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v5::Loop "
-                                      "Not constant termination condition body output is not supported")
-xfail_issue_38722 = xfail_test(reason="RuntimeError: While validating ONNX nodes MatMulInteger "
-                                      "and QLinearMatMul "
-                                      "Input0 scale and input0 zero point shape must be same and 1")
 xfail_issue_38724 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Resize): Y>': "
                                       "tf_crop_and_resize - this type of coordinate transformation mode "
                                       "is not supported. Choose one of the following modes: "
@@ -88,9 +83,7 @@ xfail_issue_38735 = xfail_test(reason="RuntimeError: nGraph does not support the
 xfail_issue_48052 = xfail_test(reason="Dropout op is not supported in traning mode")
 xfail_issue_45180 = xfail_test(reason="RuntimeError: Unsupported dynamic op: ReduceSum")
 xfail_issue_44851 = xfail_test(reason="Expected: Unsupported dynamic op: Broadcast")
-xfail_issue_44854 = xfail_test(reason="Expected: Unsupported dynamic op: VariadicSplit")
 xfail_issue_44858 = xfail_test(reason="Expected: Unsupported dynamic op: Unsqueeze")
-xfail_issue_44956 = xfail_test(reason="Expected: Unsupported dynamic op: Loop")
 xfail_issue_44957 = xfail_test(reason="Expected: Unsupported dynamic op: NonZero")
 xfail_issue_44958 = xfail_test(reason="Expected: Unsupported dynamic op: Interpolate")
 xfail_issue_44965 = xfail_test(reason="Expected: RuntimeError: value info has no element")
@@ -131,7 +124,6 @@ xfail_issue_52463 = xfail_test(reason="test_operator_add_size1_singleton_broadca
 xfail_issue_58033 = xfail_test(reason="Einsum operation misses support for complex ellipsis equations")
 xfail_issue_58676 = xfail_test(reason="AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
 xfail_issue_onnx_models_140 = xfail_test(reason="https://github.com/onnx/models/issues/140")
-xfail_issue_54630 = xfail_test(reason="Gather with negative indices is not yet implemented on CPU")
 
 xfail_issue_63033 = xfail_test(reason="BatchNormalization: Training mode is not supported")
 xfail_issue_63036 = xfail_test(reason="Changes in ConvTranspose padding")
@@ -143,4 +135,6 @@ skip_rng_tests = pytest.mark.skip(reason="Tests use random number generator with
 xfail_issue_63136 = xfail_test(reason="Unsupported operation: CastLike")
 xfail_issue_63137 = xfail_test(reason="Unsupported operations: OptionalHasElement, OptionalGetElement")
 xfail_issue_63138 = xfail_test(reason="Missing ONNX Shape-15 support")
-xfail_issue_63643 = xfail_test(reason="RuntimeError: Unsupported operation of type: Convolution name")
+
+xfail_issue_78843 = xfail_test(reason="Missing reference output files for ssd mobilenet models")
+xfail_issue_78741 = xfail_test(reason="Cannot get dims for non static shape")

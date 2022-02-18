@@ -1,4 +1,4 @@
-## Add <a name="Add"></a> {#openvino_docs_ops_arithmetic_Add_1}
+# Add {#openvino_docs_ops_arithmetic_Add_1}
 
 **Versioned name**: *Add-1*
 

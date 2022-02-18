@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -71,8 +71,8 @@ public:
         const std::vector<float>& outputLowValues,
         const std::vector<float>& outputHighValues,
         const ngraph::element::Type outputPrecision = ngraph::element::undefined,
-
-        const std::vector<ov::Any>& attributes = {});
+        const std::vector<ov::Any>& attributes = {},
+        const bool addConverts = false);
     virtual ~FakeQuantizeOnDataWithConstant();
 
     virtual bool empty() const;
@@ -85,6 +85,7 @@ public:
     std::vector<float> outputHighValues;
     ngraph::element::Type outputPrecision;
     std::vector<ov::Any> attributes;
+    bool addConverts;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeOnDataWithConstant& data) {

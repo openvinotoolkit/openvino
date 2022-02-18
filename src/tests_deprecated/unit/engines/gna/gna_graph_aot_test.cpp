@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,10 +53,6 @@ TEST_F(GNAAOTTests, DISABLED_AffineWith2AffineOutputs_canbe_export_imported) {
 }
 
 TEST_F(GNAAOTTests, DISABLED_AffineWith2AffineOutputs_canbe_imported_verify_structure) {
-// Disabled because of random fails: Issue-23611
-#if GNA_LIB_VER == 1
-    GTEST_SKIP();
-#endif
     auto & nnet_type = storage<gna_nnet_type_t>();
 
     // saving pointer to nnet - todo probably deep copy required
@@ -77,11 +73,6 @@ TEST_F(GNAAOTTests, DISABLED_AffineWith2AffineOutputs_canbe_imported_verify_stru
 }
 
 TEST_F(GNAAOTTests, DISABLED_TwoInputsModel_canbe_export_imported) {
-    // Disabled because of random conflicts with other tests: Issue-54220
-#if GNA_LIB_VER == 1
-    GTEST_SKIP();
-#endif
-
     const std::string X = registerFileForRemove(generateFileName("unit_tests.bin"));
 
     // running export to a file
@@ -97,11 +88,6 @@ TEST_F(GNAAOTTests, DISABLED_TwoInputsModel_canbe_export_imported) {
 }
 
 TEST_F(GNAAOTTests, DISABLED_PermuteModel_canbe_export_imported) {
-    // Disabled because of random conflicts with other tests: Issue-54220
-#if GNA_LIB_VER == 1
-    GTEST_SKIP();
-#endif
-
     const std::string X = registerFileForRemove(generateFileName("unit_tests.bin"));
 
     // running export to a file
@@ -114,11 +100,6 @@ TEST_F(GNAAOTTests, DISABLED_PermuteModel_canbe_export_imported) {
 }
 
 TEST_F(GNAAOTTests, DISABLED_PoolingModel_canbe_export_imported) {
-    // Disabled because of random conflicts with other tests: Issue-54220
-#if GNA_LIB_VER == 1
-    GTEST_SKIP();
-#endif
-
     const std::string X = registerFileForRemove(generateFileName("unit_tests.bin"));
 
     // running export to a file

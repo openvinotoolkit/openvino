@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 #include <string>
 
 #include "openvino/core/except.hpp"
-#include "visibility.hpp"
+#include "openvino/frontend/visibility.hpp"
 
 namespace ov {
 namespace frontend {
@@ -78,6 +78,16 @@ public:
     OPENVINO_ASSERT_HELPER(::ov::frontend::NotImplementedFailure, \
                            "",                                    \
                            false,                                 \
+                           #NAME " is not implemented for this FrontEnd class")
+
+/// \brief Assert macro.
+/// \param COND Condition. If 'false', throws 'NotImplementedFailure'
+/// \param NAME Name of the function that is not implemented
+/// \throws ::ov::frontend::NotImplementedFailure
+#define FRONT_END_CHECK_IMPLEMENTED(COND, NAME)                   \
+    OPENVINO_ASSERT_HELPER(::ov::frontend::NotImplementedFailure, \
+                           "",                                    \
+                           (COND),                                \
                            #NAME " is not implemented for this FrontEnd class")
 
 /// \brief Assert macro.

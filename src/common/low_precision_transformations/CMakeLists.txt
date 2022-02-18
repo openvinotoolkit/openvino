@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -52,14 +52,3 @@ target_include_directories(${TARGET_NAME} INTERFACE
 # developer package
 
 openvino_developer_export_targets(COMPONENT core_legacy TARGETS ${TARGET_NAME})
-
-# install
-
-# TODO: remove this
-if(BUILD_SHARED_LIBS)
-    install(TARGETS ${TARGET_NAME}
-            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
-            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
-else()
-    ov_install_static_lib(${TARGET_NAME} core)
-endif()

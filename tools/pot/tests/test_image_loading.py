@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -47,10 +47,10 @@ def test_check_image(tmp_path, models, model_name, model_framework):
 
 
 TEST_MODELS_LAYOUT = [
-    #('mobilenet-v2-pytorch', 'pytorch', 'NCHW', (3, 224, 224)),
-    #('mobilenet-v2-pytorch', 'pytorch', 'NHWC', (224, 224, 3)),
-    #('mobilenet-v2-pytorch', 'pytorch', None, (3, 224, 224)),
-    #('mobilenet-v1-1.0-224-tf', 'tf', None, (224, 224, 3))
+    ('mobilenet-v2-pytorch', 'pytorch', 'NCHW', (3, 224, 224)),
+    ('mobilenet-v1-1.0-224-tf', 'tf', 'NHWC', (224, 224, 3)),
+    ('mobilenet-v2-pytorch', 'pytorch', None, (3, 224, 224)),
+    ('mobilenet-v1-1.0-224-tf', 'tf', None, (224, 224, 3))
 ]
 
 
@@ -69,6 +69,6 @@ def test_check_layout(tmp_path, models, model_name, model_framework, layout, ref
     model = load_model(model.model_params)
 
     data_loader = create_data_loader(engine_config, model)
-    image = data_loader.item()
+    image = next(iter(data_loader))
 
     assert image.shape == reference_shape

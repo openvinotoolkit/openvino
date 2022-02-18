@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,18 +22,19 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 
 SimpleLowPrecisionTransformer::SimpleLowPrecisionTransformer(
     const std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>& precisionRestrictions,
-    const std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>& quantizationRestrictions) {
+    const std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>& quantizationRestrictions,
+    const AttributeParameters& params) {
     auto passConfig = get_pass_config();
 
     // TODO: use one pass manager
     markup = std::make_shared<ngraph::pass::Manager>(passConfig);
-    markup->register_pass<ngraph::pass::low_precision::MarkupCanBeQuantized>();
-    markup->register_pass<ngraph::pass::low_precision::MarkupPrecisions>(precisionRestrictions);
+    markup->register_pass<ngraph::pass::low_precision::MarkupCanBeQuantized>(params.defaultPrecisions);
+    markup->register_pass<ngraph::pass::low_precision::MarkupPrecisions>(precisionRestrictions, params.defaultPrecisions);
     markup->register_pass<ngraph::pass::low_precision::MarkupPerTensorQuantization>(quantizationRestrictions);
-    markup->register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved>();
-    markup->register_pass<ngraph::pass::low_precision::PropagatePrecisions>();
-    markup->register_pass<ngraph::pass::low_precision::AlignQuantizationIntervals>();
-    markup->register_pass<ngraph::pass::low_precision::AlignQuantizationParameters>();
+    markup->register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved>(params.defaultPrecisions);
+    markup->register_pass<ngraph::pass::low_precision::PropagatePrecisions>(params);
+    markup->register_pass<ngraph::pass::low_precision::AlignQuantizationIntervals>(params.defaultPrecisions);
+    markup->register_pass<ngraph::pass::low_precision::AlignQuantizationParameters>(params.defaultPrecisions);
 
     common = std::make_shared<ngraph::pass::Manager>(passConfig);
     commonGraphRewrite = common->register_pass<ngraph::pass::GraphRewrite>();

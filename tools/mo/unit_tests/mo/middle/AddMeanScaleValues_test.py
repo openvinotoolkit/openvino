@@ -1,7 +1,6 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
 from argparse import Namespace
 
 import numpy as np
@@ -11,14 +10,21 @@ from openvino.tools.mo.middle.ScaleInput import ScaleInput
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.utils.cli_parser import get_mean_scale_dictionary, parse_tuple_pairs
 from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
+from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, result, connect, connect_data, \
     valued_const_with_data
 
 nodes = {
     **regular_op_with_shaped_data('parameter', [1, 3, 227, 227],
-                                  {'type': 'Parameter', 'op': 'Parameter', 'shape': [1, 3, 227, 227]}),
+                                  {'type': 'Parameter',
+                                   'op': 'Parameter',
+                                   'shape': [1, 3, 227, 227],
+                                   'data_type': np.float32}),
     **regular_op_with_shaped_data('parameter_2', [1, 3, 227, 227],
-                                  {'type': 'Parameter', 'op': 'Parameter', 'shape': [1, 3, 227, 227]}),
+                                  {'type': 'Parameter',
+                                   'op': 'Parameter',
+                                   'shape': [1, 3, 227, 227],
+                                   'data_type': np.float32}),
 
     **regular_op_with_shaped_data('mul_scale', [1, 3, 227, 227], {'type': 'Multiply', 'op': 'Mul'}),
     **regular_op_with_shaped_data('add_mean', [1, 3, 227, 227], {'type': 'Add', 'op': 'Add'}),
@@ -36,7 +42,7 @@ nodes = {
 }
 
 
-class AddMeanScaleValuesTest(unittest.TestCase):
+class AddMeanScaleValuesTest(UnitTestWithMockedTelemetry):
     def check_graph_attrs(self, graph: Graph, graph_ref: Graph, parameter_node_names: list):
         for node in graph.get_op_nodes():
             if node.soft_get('name') in parameter_node_names:
@@ -45,6 +51,9 @@ class AddMeanScaleValuesTest(unittest.TestCase):
                 out_node_ref = Node(graph_ref, node.id).out_node(0)
                 self.assertTrue(out_node['fw_tensor_debug_info'] == out_node_ref['fw_tensor_debug_info'])
             else:
+                if node.soft_get('type') == 'Const':
+                    value = node.out_port(0).data.get_value()
+                    self.assertTrue(value.dtype == np.float32)
                 if 0 in node.out_nodes():
                     out_node = node.out_node(0)
                     self.assertFalse('fw_tensor_debug_info' in out_node)
@@ -375,3 +384,93 @@ class AddMeanScaleValuesTest(unittest.TestCase):
         self.check_graph_attrs(graph, graph_ref, [])
         add_node = graph.get_op_nodes(type="Add")[0]
         self.assertTrue(add_node.in_port(1).get_connection().get_source().node['value'].dtype == np.float32)
+
+    def test_mean_values_explicit_and_optimized_layout(self):
+        graph_ref = build_graph(nodes, [
+            *connect('parameter', '0:add_mean'),
+            *connect('mean', '1:add_mean'),
+            *connect('add_mean', 'result'),
+            *connect('parameter_2', 'result_2'),
+        ])
+
+        argv = Namespace(mean_scale_values={'parameter': {'mean': np.array([1., 2., 3.])},
+                                            'parameter_2': {'mean': np.array([0., 0., 0.])}},
+                         layout_values={'parameter': {'source_layout': 'nchw', 'target_layout': None},
+                                        'parameter_2': {'source_layout': 'nchw', 'target_layout': None}}
+                         )
+        graph = build_graph(nodes, [*connect('parameter', 'result'), *connect('parameter_2', 'result_2')],
+                            nodes_with_edges_only=True, cli=argv)
+        self.set_graph_attrs(graph, ['parameter', 'parameter_2'])
+        self.set_graph_attrs(graph_ref, ['parameter', 'parameter_2'])
+        graph.graph['layout'] = 'NHWC'
+
+        AddMeanScaleValues().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result_2', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+        self.check_graph_attrs(graph, graph_ref, ['parameter', 'parameter_2'])
+
+    def test_mean_values_explicit_and_scale_values_optimized_layout(self):
+        graph_ref = build_graph(nodes, [
+            *connect('parameter', '0:add_mean'),
+            *connect('mean', '1:add_mean'),
+            *connect('add_mean', 'result'),
+        ])
+
+        argv = Namespace(mean_scale_values={'parameter': {'scale': np.array([1.]), 'mean': np.array([1., 2., 3.])}},
+                         layout_values={'': {'source_layout': 'nchw', 'target_layout': None}}
+                         )
+        graph = build_graph(nodes, [*connect('parameter', 'result')], nodes_with_edges_only=True, cli=argv)
+        self.set_graph_attrs(graph, ['parameter'])
+        self.set_graph_attrs(graph_ref, ['parameter'])
+        graph.graph['layout'] = 'NHWC'
+
+        AddMeanScaleValues().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+        self.check_graph_attrs(graph, graph_ref, ['parameter'])
+
+    def test_mean_values_optimized_and_scale_values_explicit_layout(self):
+        graph_ref = build_graph(nodes, [
+            *connect('parameter', '0:mul_scale'),
+            *connect('scale', '1:mul_scale'),
+            *connect('mul_scale', 'result'),
+        ])
+
+        argv = Namespace(
+            mean_scale_values={'parameter': {'scale': np.array([1., 2., 3.]), 'mean': np.array([0., 0., 0.])}},
+                         layout_values={'': {'source_layout': 'nchw', 'target_layout': None}}
+                         )
+        graph = build_graph(nodes, [*connect('parameter', 'result')], nodes_with_edges_only=True, cli=argv)
+        self.set_graph_attrs(graph, ['parameter'])
+        self.set_graph_attrs(graph_ref, ['parameter'])
+        graph.graph['layout'] = 'NHWC'
+
+        AddMeanScaleValues().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+        self.check_graph_attrs(graph, graph_ref, ['parameter'])
+
+    def test_mean_values_explicit_and_scale_values_explicit_layout(self):
+        graph_ref = build_graph(nodes, [
+            *connect('parameter', '0:add_mean'),
+            *connect('mean', '1:add_mean'),
+            *connect('add_mean', '0:mul_scale'),
+            *connect('scale', '1:mul_scale'),
+            *connect('mul_scale', 'result'),
+        ])
+
+        argv = Namespace(mean_scale_values=[[np.array([1., 2., 3.]), np.array([1., 2., 3.])]],
+                         layout_values={'': {'source_layout': 'nchw', 'target_layout': None}}
+                         )
+        graph = build_graph(nodes, [*connect('parameter', 'result')],
+                            nodes_with_edges_only=True, cli=argv)
+        self.set_graph_attrs(graph, ['parameter'])
+        self.set_graph_attrs(graph_ref, ['parameter'])
+        graph.graph['layout'] = 'NHWC'
+
+        AddMeanScaleValues().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+        self.check_graph_attrs(graph, graph_ref, ['parameter'])

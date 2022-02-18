@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -15,11 +15,9 @@ addIeTargetTest(
         INCLUDES
             ${OpenVINO_SOURCE_DIR}/src/plugins/auto ${CMAKE_CURRENT_SOURCE_DIR}
         LINK_LIBRARIES
-            inference_engine_lp_transformations
             ngraphFunctions
-            inference_engine
-            ngraph
-            inference_engine_transformations
+            openvino::runtime
+            openvino::runtime::dev
             unitTestUtils
         ADD_CPPLINT
         DEPENDENCIES

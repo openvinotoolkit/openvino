@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@ const char DEVICE_AUTO[] = "AUTO";
 const char DEVICE_CPU[] = "CPU";
 const char DEVICE_GNA[] = "GNA";
 const char DEVICE_GPU[] = "GPU";
+const char DEVICE_BATCH[] = "BATCH";
 const char DEVICE_HDDL[] = "HDDL";
 const char DEVICE_MYRIAD[] = "MYRIAD";
 const char DEVICE_KEEMBAY[] = "VPUX";

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,6 @@
 #include <mutex>
 #include <vector>
 
-#if GNA_LIB_VER == 2
 #include "gna_api_wrapper.hpp"
 #include "gna2-capability-api.h"
 #include "gna2-device-api.h"
@@ -19,10 +18,6 @@
 #include "gna2-memory-api.h"
 #include "gna2_model_export_helper.hpp"
 #include "gna2_model_debug_log.hpp"
-#else
-#include "gna-api-status.h"
-#include "gna-api.h"
-#endif
 
 #include "backend/am_intel_dnn.hpp"
 #include "gna/gna_config.hpp"
@@ -36,12 +31,8 @@ std::mutex GNADeviceHelper::acrossPluginsSync{};
 uint8_t* GNADeviceHelper::alloc(uint32_t size_requested, uint32_t *size_granted) {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     void * memPtr = nullptr;
-#if GNA_LIB_VER == 1
-    memPtr = GNAAlloc(nGNAHandle, size_requested, size_granted);
-#else
     const auto status = Gna2MemoryAlloc(size_requested, size_granted, &memPtr);
     checkGna2Status(status, "Gna2MemoryAlloc");
-#endif
     if (memPtr == nullptr) {
         THROW_GNA_EXCEPTION << "GNAAlloc failed to allocate memory. Requested: " << size_requested << " Granted: " << *(size_granted);
     }
@@ -52,46 +43,23 @@ uint8_t* GNADeviceHelper::alloc(uint32_t size_requested, uint32_t *size_granted)
 
 void GNADeviceHelper::free(void * ptr) {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
-#if GNA_LIB_VER == 1
-    GNAFree(nGNAHandle);
-#else
     const auto status = Gna2MemoryFree(ptr);
     checkGna2Status(status, "Gna2MemoryFree");
-#endif
 }
 
 std::string GNADeviceHelper::getGnaLibraryVersionPrivate() {
-#if GNA_LIB_VER == 1
-    return "1.X";
-#else
     char buffer[64] = {};
     const auto status = Gna2GetLibraryVersion(buffer, sizeof(buffer));
     if (status != Gna2StatusSuccess) {
         return "2.Gna2GetLibraryVersionReturned[" + std::to_string(status) + "]";
     }
     return buffer;
-#endif
 }
 
 std::string GNADeviceHelper::GetGnaLibraryVersion() {
     static std::string gnaLibraryVersion{ getGnaLibraryVersionPrivate() };
     return gnaLibraryVersion;
 }
-
-#if GNA_LIB_VER == 1
-uint32_t GNADeviceHelper::propagate(const intel_nnet_type_t *pNeuralNetwork,
-                   const uint32_t *pActiveIndices,
-                   uint32_t nActiveIndices,
-                   intel_gna_proc_t nGNAProcType) {
-    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
-    uint32_t reqId;
-
-    nGNAStatus = GNAPropagateForward(nGNAHandle, pNeuralNetwork,
-                                     pActiveIndices, nActiveIndices, &reqId, nGNAProcType);
-    checkStatus();
-    return reqId;
-}
-#else
 
 void GNADeviceHelper::setUpActiveList(const uint32_t requestConfigId, uint32_t layerIndex, uint32_t* ptr_active_indices, uint32_t num_active_indices) {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
@@ -152,7 +120,7 @@ uint32_t GNADeviceHelper::createModel(Gna2Model& gnaModel) const {
 
     GNAPluginNS::backend::AMIntelDNN::updateNumberOfOutputsIfPoolingEnabled(gnaModel, legacyExecTarget);
 
-#if GNA_LIB_VER == 2 && defined MODEL_DUMP
+#ifdef MODEL_DUMP
     std::string path =
 #ifdef _WIN32
         ".\\";
@@ -411,11 +379,9 @@ const std::map <const std::pair<Gna2OperationType, int32_t>, const std::string> 
             {{Gna2OperationTypeThreshold, 0}, "Input"},
             {{Gna2OperationTypeThreshold, 1}, "Output"}
 };
-#endif
 
 GnaWaitStatus GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
-#if GNA_LIB_VER == 2
     const auto status = Gna2RequestWait(reqId, millisTimeout);
     if (status == Gna2StatusWarningDeviceBusy) {
         return GNA_REQUEST_PENDING;
@@ -425,44 +391,16 @@ GnaWaitStatus GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
         return GNA_REQUEST_ABORTED;
     }
     checkGna2Status(status, "Gna2RequestWait");
-#else
-    if (isPerformanceMeasuring) {
-        nGNAStatus = GNAWaitPerfRes(nGNAHandle, millisTimeout, reqId, &nGNAPerfResults);
-    } else {
-        nGNAStatus = GNAWait(nGNAHandle, millisTimeout, reqId);
-    }
-    checkStatus();
-#endif
     updateGnaPerfCounters();
     return GNA_REQUEST_COMPLETED;
 }
 
-#if GNA_LIB_VER == 1
-GNADeviceHelper::DumpResult GNADeviceHelper::dumpXnn(const intel_nnet_type_t *pNeuralNetwork,
-                                    const uint32_t *pActiveIndices,
-                                    uint32_t nActiveIndices) {
-#else
 GNADeviceHelper::DumpResult GNADeviceHelper::dumpXnn(const uint32_t modelId) {
-#endif
     DumpResult r;
 
-#if GNA_LIB_VER == 1
-    if (!pNeuralNetwork) {
-        THROW_GNA_EXCEPTION << "GNADumpXnn got invalid NeuralNetwork parameter \n";
-    }
-    r.model.reset(GNADumpXnn(pNeuralNetwork,
-                             pActiveIndices,
-                             nActiveIndices,
-                             &r.header,
-                             &nGNAStatus,
-                             [](size_t count)-> void* {return new char[count]();}),
-                             [](void * ptr) {::operator delete[](ptr);});
-    checkStatus();
-#else
     r.model.reset(
         ExportSueLegacyUsingGnaApi2(modelId, nGnaDeviceIndex, &r.header),
         gnaUserFree);
-#endif
 
     if (r.model == nullptr) {
         THROW_GNA_EXCEPTION << "GNADumpXnn returned nullptr";
@@ -471,7 +409,27 @@ GNADeviceHelper::DumpResult GNADeviceHelper::dumpXnn(const uint32_t modelId) {
     return r;
 }
 
-#if GNA_LIB_VER == 2
+void GNADeviceHelper::dumpXnnForDeviceVersion(
+    const uint32_t modelId,
+    std::ostream & outStream,
+    const Gna2DeviceVersion targetDeviceVersion) {
+
+    Gna2ModelSueCreekHeader sueHeader;
+    auto ptr = ExportSueLegacyUsingGnaApi2(modelId, nGnaDeviceIndex, &sueHeader);
+    gnaUserFree(ptr);
+
+    ExportGnaDescriptorPartiallyFilled(sueHeader.NumberOfLayers, outStream);
+
+    ExportLdForDeviceVersion(modelId, outStream, targetDeviceVersion);
+    if (dumpXNNROPtr == nullptr) {
+        THROW_GNA_EXCEPTION << "Bad RO pointer (nullptr)";
+    }
+    outStream.write(static_cast<const char*>(dumpXNNROPtr), dumpXNNROSize);
+
+    // TODO: GNA2: remove
+    outStream.write("Gna2ModelSueCreekHeader", 24);
+    outStream.write(reinterpret_cast<const char*>(&sueHeader), sizeof(sueHeader));
+}
 
 void GNADeviceHelper::createVirtualDevice(Gna2DeviceVersion devVersion, std::string purpose) {
     const auto status = Gna2DeviceCreateForExport(devVersion, &nGnaDeviceIndex);
@@ -482,22 +440,9 @@ void GNADeviceHelper::updateGnaDeviceVersion() {
     const auto status = Gna2DeviceGetVersion(nGnaDeviceIndex, &detectedGnaDevVersion);
     checkGna2Status(status, "Gna2DeviceGetVersion");
 }
-#endif
 
-#if GNA_LIB_VER == 1
-void GNADeviceHelper::checkStatus() const {
-    if ((nGNAStatus != GNA_NOERROR) && (nGNAStatus != GNA_SSATURATE)) {
-        THROW_GNA_EXCEPTION << "Bad GNA status " << nGNAStatus << ", " << GNAStatusName[nGNAStatus];
-    }
-}
-#endif
-
-void GNADeviceHelper::open(uint8_t n_threads) {
+void GNADeviceHelper::open() {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
-#if GNA_LIB_VER == 1
-    nGNAHandle = GNADeviceOpenSetThreads(&nGNAStatus, n_threads);
-    checkStatus();
-#else
     updateGnaDeviceVersion();
     const auto gnaExecTarget = parseTarget(executionTarget);
     if (useDeviceEmbeddedExport) {
@@ -512,20 +457,10 @@ void GNADeviceHelper::open(uint8_t n_threads) {
         const auto status = Gna2DeviceOpen(nGnaDeviceIndex);
         checkGna2Status(status, "Gna2DeviceOpen");
     }
-
-    // TODO: GNA2: uncomment when scratchpad repaired
-    // status = Gna2DeviceSetNumberOfThreads(nGnaDeviceIndex, n_threads);
-    // checkGna2Status(status);
-#endif
     deviceOpened = true;
 }
 
 void GNADeviceHelper::close() {
-#if GNA_LIB_VER == 1
-    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
-    GNADeviceClose(nGNAHandle);
-    nGNAHandle = 0;
-#else
     auto requestsToClose = unwaitedRequestIds;
     for (auto requestId : requestsToClose) {
         try {
@@ -541,46 +476,16 @@ void GNADeviceHelper::close() {
     } catch (...) {
         gnawarn() << "GNA Device was not successfully closed with status " << status << std::endl;
     }
-#endif
     deviceOpened = false;
-}
-
-void GNADeviceHelper::setOMPThreads(uint8_t const n_threads) {
-    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
-#if GNA_LIB_VER == 1
-    gmmSetThreads(n_threads);
-#else
-    const auto status = Gna2DeviceSetNumberOfThreads(nGnaDeviceIndex, n_threads);
-    checkGna2Status(status, "Gna2DeviceSetNumberOfThreads");
-#endif
 }
 
 void GNADeviceHelper::updateGnaPerfCounters() {
     if (!isPerformanceMeasuring)
         return;
-#if GNA_LIB_VER == 2
     instrumentationTotal[0] = instrumentationResults[0];
     instrumentationTotal[1] = instrumentationResults[1];
     instrumentationResults[0] = 0;
     instrumentationResults[1] = 0;
-#else
-    nGNAPerfResultsTotal.hw.stall = nGNAPerfResults.hw.stall;
-    nGNAPerfResultsTotal.hw.total = nGNAPerfResults.hw.total;
-    nGNAPerfResultsTotal.lib.submit = nGNAPerfResults.lib.submit;
-    nGNAPerfResultsTotal.lib.preprocess = nGNAPerfResults.lib.preprocess;
-    nGNAPerfResultsTotal.lib.process = nGNAPerfResults.lib.process;
-    nGNAPerfResultsTotal.lib.scoring = nGNAPerfResults.lib.scoring;
-    nGNAPerfResultsTotal.lib.total = nGNAPerfResults.lib.total;
-    nGNAPerfResultsTotal.lib.ioctlSubmit = nGNAPerfResults.lib.ioctlSubmit;
-    nGNAPerfResultsTotal.lib.ioctlWaitOn = nGNAPerfResults.lib.ioctlWaitOn;
-
-    nGNAPerfResultsTotal.total.start = nGNAPerfResults.total.start;
-    nGNAPerfResultsTotal.total.stop = nGNAPerfResults.total.stop;
-
-    nGNAPerfResultsTotal.drv.startHW = nGNAPerfResults.drv.startHW;
-    nGNAPerfResultsTotal.drv.scoreHW = nGNAPerfResults.drv.scoreHW;
-    nGNAPerfResultsTotal.drv.intProc = nGNAPerfResults.drv.intProc;
-#endif
 }
 
 void GNADeviceHelper::getGnaPerfCounters(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& retPerfCounters) {
@@ -590,27 +495,15 @@ void GNADeviceHelper::getGnaPerfCounters(std::map<std::string, InferenceEngine::
     info.execution_index = 0;
     info.realTime_uSec = 0;
     // Hardware
-#if GNA_LIB_VER == 1
-    info.realTime_uSec = nGNAPerfResultsTotal.hw.total;
-#else
     info.realTime_uSec = instrumentationTotal[0];
-#endif
     retPerfCounters["1.1 Total scoring time in HW"] = info;
-#if GNA_LIB_VER == 1
-    info.realTime_uSec = nGNAPerfResultsTotal.hw.stall;
-#else
     info.realTime_uSec = instrumentationTotal[1];
-#endif
     retPerfCounters["1.2 Stall scoring time in HW"] = info;
 }
 
 std::string GNADeviceHelper::getEffectiveGnaCompileTarget() const {
-#if GNA_LIB_VER == 1
-    return InferenceEngine::GNAConfigParams::GNA_TARGET_2_0;
-#else
     if (getTargetDevice(false) == Gna2DeviceVersion3_0) {
         return InferenceEngine::GNAConfigParams::GNA_TARGET_3_0;
     }
     return InferenceEngine::GNAConfigParams::GNA_TARGET_2_0;
-#endif
 }

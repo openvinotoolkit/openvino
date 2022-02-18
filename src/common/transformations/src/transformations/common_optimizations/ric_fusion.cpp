@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -77,7 +77,7 @@ public:
     // we have to merge RIC attrs from all inputs. To check that given attr be merged with
     // current we check the order and axis which must be the same.
     bool can_be_merged_with(const Attribute & other) {
-        return m_order == other.m_order && m_axis == other.m_axis;
+        return (m_order.empty() || other.m_order.empty() || m_order == other.m_order) && m_axis == other.m_axis;
     }
 
     // When merging two and more attrs for further propagation we have to keep can_be_fused references
@@ -101,6 +101,8 @@ public:
     bool is_initial() const { return m_is_initial; }
 
 private:
+    // empty order means that the order is default and must be n, n-1, ..., 0
+    // according to the dimension values specified by m_axis
     std::vector<int64_t> m_order;
     int64_t m_axis;
 
@@ -227,18 +229,23 @@ public:
             const auto & pattern_map = m.get_pattern_value_map();
             const auto & output = pattern_map.at(pattern_root);
 
-            auto order = ov::get_constant_from_source(pattern_map.at(indices_p));
             auto axis = ov::get_constant_from_source(pattern_map.at(axis_p));
-            if (!order || !axis) {
-                return false;
+            if (!axis) return false;
+
+            const auto axis_value = axis->cast_vector<int64_t>().at(0);
+
+            if (ov::is_preprocesing_node(output.get_node_shared_ptr())) {
+                ric_attr::init(output, {}, axis_value);
+                return true;
             }
+
+            auto order = ov::get_constant_from_source(pattern_map.at(indices_p));
+            if (!order) return false;
 
             // Avoid cases with two consecutive Gathers
             if (ric_attr::has(pattern_map.at(input_p))) {
                 return false;
             }
-
-            const auto axis_value = axis->cast_vector<int64_t>().at(0);
 
             // This constraint helps to avoid detection of other Gathers that do not perform RIC
             const auto & data_shape = m.get_match_root()->input(0).get_partial_shape();
@@ -333,7 +340,8 @@ public:
                 }
 
                 const int64_t & new_axis = ric.get_axis() - (data_rank - shape_rank);
-                if (shape[new_axis] == 1) {
+                const auto & axis_dim = shape[new_axis];
+                if (axis_dim == 1) {
                     // we don't have to insert RIC for constant, so we keep propagating
                     ric_attr::set(m.get_match_value(), ric);
                     continue;
@@ -343,9 +351,15 @@ public:
                 auto ric_const = ric;
                 ric_const.set_axis(new_axis);
                 ric_const.set_is_final(true);
-                ric_const.set_callback([](Input<Node> input, const ric_attr::Attribute & attr) {
+                ric_const.set_callback([axis_dim](Input<Node> input, const ric_attr::Attribute & attr) {
                     auto output = input.get_source_output();
-                    auto gather = std::make_shared<opset8::Gather>(output, create_const(attr.get_order()),
+                    // Handle case when the RIC order is default
+                    auto order = attr.get_order();
+                    if (order.empty()) {
+                        order.resize(axis_dim);
+                        std::iota(order.rbegin(), order.rend(), 0);
+                    }
+                    auto gather = std::make_shared<opset8::Gather>(output, create_const(order),
                                                                    create_const({attr.get_axis()}));
                     input.replace_source_output(gather);
                     // TODO: copy runtime info from RIC sub-graph
@@ -372,7 +386,7 @@ public:
         auto input_p = pattern::any_input(ric_attr::has<Output<Node>>);
         auto pattern_root = pattern::wrap_type<opset8::Convolution>({input_p,
                                                                      pattern::wrap_type<opset8::Constant,
-                                                                                        opset8::FakeQuantize>()});
+                                                                                        opset8::FakeQuantize>(pattern::has_static_dim(1/*output channel*/))});
         auto callback = [=](pattern::Matcher& m) {
             auto conv = m.get_match_root();
             auto ric = ric_attr::get(conv->input_value(0)).propagate();
@@ -380,9 +394,16 @@ public:
 
             ric.set_is_final(true);
             ric.set_callback([](Input<Node> input, const ric_attr::Attribute & attr) {
+                const auto output_channel_index = 1;
+                auto order = attr.get_order();
+                // Handle case when the RIC order is default
+                if (order.empty()) {
+                    order.resize(input.get_partial_shape()[output_channel_index].get_length());
+                    std::iota(order.rbegin(), order.rend(), 0);
+                }
                 auto weights = input.get_source_output();
-                auto gather = std::make_shared<opset8::Gather>(weights, create_const(attr.get_order()),
-                                                               create_const({1} /* output channel */));
+                auto gather = std::make_shared<opset8::Gather>(weights, create_const(order),
+                                                               create_const({output_channel_index}));
                 input.replace_source_output(gather);
                 // TODO: copy runtime info from RIC sub-graph
             });
@@ -419,9 +440,18 @@ public:
             const auto & weights_shape = conv->input_value(1).get_shape();
             const int64_t & group = static_cast<int64_t>(weights_shape.at(0));
             const int64_t & channels = static_cast<int64_t>(weights_shape.at(1));
+            const int64_t & in_channels = static_cast<int64_t>(weights_shape.at(2));
 
             auto ric = ric_attr::get(conv->input_value(0)).propagate();
-            if (ric.get_order().size() != static_cast<size_t>(group) || ric.get_axis() != 1) {
+            auto order = ric.get_order();
+            // Handle case when the RIC order is default
+            if (order.empty()) {
+                order.resize(group);
+                std::iota(order.rbegin(), order.rend(), 0);
+                ric.set_order(order);
+            }
+
+            if (in_channels != 1 || ric.get_order().size() != static_cast<size_t>(group) || ric.get_axis() != 1) {
                 // TODO: insert RIC when group == 1
                 return false;
             }

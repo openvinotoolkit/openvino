@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -118,7 +118,7 @@ class PreserveRuntimeInfo(MiddleReplacementPattern):
                     transpose.name = in_node.name
                     in_node.name += "/prev"
 
-                    prev_node_out_port.get_connection().insert_node(transpose)
+                    op.in_port(0).get_connection().insert_node(transpose)
                 else:
                     continue
 

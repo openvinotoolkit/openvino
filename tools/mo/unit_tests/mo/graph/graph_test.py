@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
@@ -11,6 +11,7 @@ from openvino.tools.mo.graph.graph import Node, Graph, add_opoutput, dict_includ
 from openvino.tools.mo.ops.const import Const
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
+from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from unit_tests.utils.graph import build_graph, build_graph_with_edge_attrs
 
 nodes = {
@@ -33,8 +34,9 @@ edges = {
 }
 
 
-class TestGetNodeById(unittest.TestCase):
+class TestGetNodeById(UnitTestWithMockedTelemetry):
     def setUp(self):
+        super().setUp()
         self.graph = build_graph(nodes, edges)
 
     def test_get_node_id_by_name(self):

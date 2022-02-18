@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -70,6 +70,7 @@ public:
     using Attributes = op::util::DetectionOutputBase::AttributesBase;
 
     OPENVINO_OP("DetectionOutput", "opset8", op::util::DetectionOutputBase);
+    BWDCMP_RTTI_DECLARATION;
 
     DetectionOutput() = default;
     /// \brief Constructs a DetectionOutput operation

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,8 +63,8 @@ std::shared_ptr<Node> makeDequantization(
                 dequantizationOperations.subtract.outPrecision);
 
             auto& rt = subtractConstConvert->get_rt_info();
-            for (const std::string& attribute : dequantizationOperations.subtract.convertAttributes) {
-                rt[attribute] = "";
+            for (const auto& attribute : dequantizationOperations.subtract.convertAttributes) {
+                rt.insert(attribute);
             }
 
             subtractConst = subtractConstConvert;
@@ -104,8 +104,8 @@ std::shared_ptr<Node> makeDequantization(
 
         if (!dequantizationOperations.subtract.attributes.empty()) {
             auto& rt = subtract->get_rt_info();
-            for (const std::string& attribute : dequantizationOperations.subtract.attributes) {
-                rt[attribute] = "";
+            for (const auto& attribute : dequantizationOperations.subtract.attributes) {
+                rt.insert(attribute);
             }
         }
 
@@ -282,6 +282,9 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
             fqOnData.constantShapes.empty() ? ngraph::Shape{} : fqOnData.constantShapes[0],
             fqOnData.inputLowValues,
             fqOnData.inputLowValues.empty());
+        if (fqOnData.addConverts) {
+            inputLowNode = ngraph::builder::makeConversion(inputLowNode, ov::element::f32, ngraph::helpers::ConversionTypes::CONVERT);
+        }
 
         inputHighNode = ngraph::builder::makeConstant(
             constantPrecision,
@@ -290,23 +293,32 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
                 (fqOnData.constantShapes.size() == 1 ? fqOnData.constantShapes[0] : fqOnData.constantShapes[1]),
             fqOnData.inputHighValues,
             fqOnData.inputHighValues.empty());
+        if (fqOnData.addConverts) {
+            inputHighNode = ngraph::builder::makeConversion(inputHighNode, ov::element::f32, ngraph::helpers::ConversionTypes::CONVERT);
+        }
     }
 
-    const auto outputLowNode = ngraph::builder::makeConstant(
+    auto outputLowNode = ngraph::builder::makeConstant(
         constantPrecision,
         fqOnData.constantShapes.empty() ?
             ngraph::Shape{} :
             (fqOnData.constantShapes.size() == 1 ? fqOnData.constantShapes[0] : fqOnData.constantShapes[2]),
         fqOnData.outputLowValues,
         fqOnData.outputLowValues.empty());
+    if (fqOnData.addConverts) {
+        outputLowNode = ngraph::builder::makeConversion(outputLowNode, ov::element::f32, ngraph::helpers::ConversionTypes::CONVERT);
+    }
 
-    const auto outputHighNode = ngraph::builder::makeConstant(
+    auto outputHighNode = ngraph::builder::makeConstant(
         constantPrecision,
         fqOnData.constantShapes.empty() ?
             ngraph::Shape{} :
             (fqOnData.constantShapes.size() == 1 ? fqOnData.constantShapes[0] : fqOnData.constantShapes[3]),
         fqOnData.outputHighValues,
         fqOnData.outputHighValues.empty());
+    if (fqOnData.addConverts) {
+        outputHighNode = ngraph::builder::makeConversion(outputHighNode, ov::element::f32, ngraph::helpers::ConversionTypes::CONVERT);
+    }
 
     auto fq = std::make_shared<ngraph::opset1::FakeQuantize>(input, inputLowNode, inputHighNode, outputLowNode, outputHighNode, fqOnData.quantizationLevel);
 

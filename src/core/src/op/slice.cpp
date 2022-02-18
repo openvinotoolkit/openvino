@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,6 +60,20 @@ int64_t get_sliced_dim_size(int64_t start, int64_t stop, int64_t step, int64_t d
     return sliced_dim_size;
 }
 
+bool is_max_int(element::Type_t ind_type, int64_t value) {
+    int64_t max_type_value = 0;
+    switch (ind_type) {
+    case element::i32:
+        max_type_value = std::numeric_limits<typename element_type_traits<element::i32>::value_type>::max();
+        break;
+    case element::i64:
+        max_type_value = std::numeric_limits<typename element_type_traits<element::i64>::value_type>::max();
+        break;
+    default:
+        return false;
+    }
+    return max_type_value == value;
+}
 }  // namespace
 
 bool op::v8::Slice::visit_attributes(AttributeVisitor& visitor) {
@@ -288,16 +302,17 @@ PartialShape op::v8::Slice::calculate_output_shape(const std::vector<int64_t>& s
 
         // Avoid negative index normalization without upper bounds
         if (!axis_dim.get_interval().has_upper_bound()) {
-            if ((step < 0 && start < 0 && stop > 0) || (step > 0 && stop < 0 && start > 0)) {
+            if (is_max_int(get_input_element_type(2), stop) || is_max_int(get_input_element_type(1), start)) {
+                output_shape[norm_axis] = Dimension(-1);
+                continue;
+            } else if ((step < 0 && start < 0 && stop > 0) || (step > 0 && stop < 0 && start > 0)) {
                 output_shape[norm_axis] = Dimension(-1);
                 continue;
             } else if (step < 0 && start > 0 && stop < 0) {
-                int64_t max_out_dim = start >= INT32_MAX ? INT64_MAX : start + 1;
-                output_shape[norm_axis] = Dimension(0, max_out_dim);
+                output_shape[norm_axis] = Dimension(0, start + 1);
                 continue;
             } else if (step > 0 && stop > 0 && start < 0) {
-                int64_t max_out_dim = stop >= INT32_MAX ? INT64_MAX : stop;
-                output_shape[norm_axis] = Dimension(0, max_out_dim);
+                output_shape[norm_axis] = Dimension(0, stop);
                 continue;
             }
         }
@@ -379,4 +394,36 @@ bool op::v8::Slice::evaluate(const HostTensorVector& outputs, const HostTensorVe
                                       steps,
                                       axes);
     return true;
+}
+
+namespace {
+bool slice_input_check(const ov::Node* node) {
+    if (!node->get_input_tensor(1).has_and_set_bound())
+        return false;
+    if (!node->get_input_tensor(2).has_and_set_bound())
+        return false;
+    if (!node->get_input_tensor(3).has_and_set_bound())
+        return false;
+    if (node->get_input_size() == 5 && !node->get_input_tensor(4).has_and_set_bound())
+        return false;
+    return true;
+}
+}  // namespace
+
+bool op::v8::Slice::evaluate_lower(const HostTensorVector& output_values) const {
+    if (!slice_input_check(this))
+        return false;
+    return default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v8::Slice::evaluate_upper(const HostTensorVector& output_values) const {
+    if (!slice_input_check(this))
+        return false;
+    return default_upper_bound_evaluator(this, output_values);
+}
+
+bool op::v8::Slice::evaluate_label(TensorLabelVector& output_labels) const {
+    if (!slice_input_check(this))
+        return false;
+    return default_label_evaluator(this, output_labels);
 }

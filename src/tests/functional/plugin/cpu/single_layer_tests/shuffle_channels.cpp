@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -169,24 +169,24 @@ const auto shuffleChannelsParams5DBlock = ::testing::Combine(
 
 const std::vector<InputShape> inputShapesDynamic4D = {
         {{-1, -1, -1, -1},
-         {{8, 4, 4, 4}, {8, 16, 8, 4}}},
+         {{8, 4, 4, 4}, {8, 16, 8, 4}, {8, 4, 4, 4}}},
 
         {{-1, 8, -1, -1},
-         {{8, 8, 8, 8}, {8, 8, 4, 16}}},
+         {{8, 8, 8, 8}, {8, 8, 4, 16}, {8, 8, 8, 8}}},
 
         {{{4, 32}, {4, 32}, {4, 32}, {4, 32}},
-         {{4, 12, 8, 8}, {8, 32, 12, 4}}},
+         {{4, 12, 8, 8}, {8, 32, 12, 4}, {4, 12, 8, 8}}},
 };
 
 const std::vector<InputShape> inputShapesDynamic5D = {
         {{-1, -1, -1, -1, -1},
-         {{6, 6, 6, 6, 6}, {12, 6, 12, 12, 12}}},
+         {{6, 6, 6, 6, 6}, {12, 6, 12, 12, 12}, {6, 6, 6, 6, 6}}},
 
         {{-1, 18, -1, -1, -1},
-         {{6, 18, 12, 6, 12}, {6, 18, 6, 6, 6}}},
+         {{6, 18, 12, 6, 12}, {6, 18, 6, 6, 6}, {6, 18, 12, 6, 12}}},
 
         {{{6, 24}, {6, 24}, {6, 24}, {6, 24}, {6, 24}},
-         {{24, 12, 6, 6, 6}, {12, 24, 6, 12, 12}}},
+         {{24, 12, 6, 6, 6}, {12, 24, 6, 12, 12}, {24, 12, 6, 6, 6}}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannelsStatic4D, ShuffleChannelsLayerCPUTest,

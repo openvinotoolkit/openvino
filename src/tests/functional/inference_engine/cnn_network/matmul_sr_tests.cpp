@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -272,11 +272,17 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeBothMatMulFuse) {
 TEST(SmartReshapeTransposeMatMulTests, TransposeBothMatMulWithAttrFuse) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto data_A = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 2});
-        auto data_B = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 5});
+        auto data_A = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3, 2});
+        auto split_A = std::make_shared<ngraph::opset4::VariadicSplit>(data_A,
+                       ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0}),
+                       ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 1}));
+        auto data_B = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3, 5});
+        auto split_B = std::make_shared<ngraph::opset4::VariadicSplit>(data_B,
+                                                                       ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0}),
+                                                                       ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 1}));
         auto order = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {0, 2, 1});
-        auto transpose_A = std::make_shared<ngraph::opset4::Transpose>(data_A, order);
-        auto transpose_B = std::make_shared<ngraph::opset4::Transpose>(data_B, order);
+        auto transpose_A = std::make_shared<ngraph::opset4::Transpose>(split_A->output(0), order);
+        auto transpose_B = std::make_shared<ngraph::opset4::Transpose>(split_B->output(1), order);
         auto matmul = std::make_shared<ngraph::opset4::MatMul>(transpose_A, transpose_B, false, true);
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{data_A, data_B});
 
@@ -287,9 +293,15 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeBothMatMulWithAttrFuse) {
         ASSERT_NO_THROW(check_rt_info(f));
     }
     {
-        auto data_A = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 2});
-        auto data_B = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 5});
-        auto matmul = std::make_shared<ngraph::opset4::MatMul>(data_A, data_B, true, false);
+        auto data_A = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3, 2});
+        auto split_A = std::make_shared<ngraph::opset4::VariadicSplit>(data_A,
+                                                                       ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0}),
+                                                                       ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 1}));
+        auto data_B = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3, 5});
+        auto split_B = std::make_shared<ngraph::opset4::VariadicSplit>(data_B,
+                                                                       ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0}),
+                                                                       ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 1}));
+        auto matmul = std::make_shared<ngraph::opset4::MatMul>(split_A->output(0), split_B->output(1), true, false);
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{data_A, data_B});
     }
 

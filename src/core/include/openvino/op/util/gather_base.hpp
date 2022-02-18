@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,6 +34,7 @@ public:
     bool evaluate_lower(const HostTensorVector& outputs) const override;
     bool evaluate_upper(const HostTensorVector& outputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate_label(TensorLabelVector& output_labels) const override;
 
     bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
     const int64_t& get_batch_dims() const;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -122,7 +122,7 @@ TEST(type_prop, rnn_sequence_invalid_input) {
             make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction);
         FAIL() << "RNNSequence node was created with invalid data.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter num_directions not match direction in RNNSequence."));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter 'num_directions' doesn't match with direction"));
     }
 }
 
@@ -257,36 +257,41 @@ TEST(type_prop, rnn_sequence_dynamic_invalid_input_rank0) {
 
     // Invalid rank0 for X tensor.
     X = make_shared<opset5::Parameter>(element::f32, PartialShape{});
-    ASSERT_THROW(make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction),
-                 ngraph::CheckFailure)
+    ASSERT_THROW(
+        const auto unused = make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction),
+        ngraph::CheckFailure)
         << "RNNSequence node was created with invalid data.";
 
     // Invalid rank0 for H_t tensor.
     X = make_shared<opset5::Parameter>(element::f32, Shape{batch_size, seq_length, input_size});
     H_t = make_shared<opset5::Parameter>(element::f32, PartialShape{});
-    ASSERT_THROW(make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction),
-                 ngraph::CheckFailure)
+    ASSERT_THROW(
+        const auto unused = make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction),
+        ngraph::CheckFailure)
         << "RNNSequence node was created with invalid data.";
 
     // Invalid rank0 for W tensor.
     H_t = make_shared<opset5::Parameter>(element::f32, Shape{batch_size, num_directions, hidden_size});
     W = make_shared<opset5::Parameter>(element::f32, PartialShape{});
-    ASSERT_THROW(make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction),
-                 ngraph::CheckFailure)
+    ASSERT_THROW(
+        const auto unused = make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction),
+        ngraph::CheckFailure)
         << "RNNSequence node was created with invalid data.";
 
     // Invalid rank0 for R tensor.
     W = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, hidden_size, input_size});
     R = make_shared<opset5::Parameter>(element::f32, PartialShape{});
-    ASSERT_THROW(make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction),
-                 ngraph::CheckFailure)
+    ASSERT_THROW(
+        const auto unused = make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction),
+        ngraph::CheckFailure)
         << "RNNSequence node was created with invalid data.";
 
     // Invalid rank0 for B tensor.
     R = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, hidden_size, hidden_size});
     B = make_shared<opset5::Parameter>(element::f32, PartialShape{});
-    ASSERT_THROW(make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction),
-                 ngraph::CheckFailure)
+    ASSERT_THROW(
+        const auto unused = make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction),
+        ngraph::CheckFailure)
         << "RNNSequence node was created with invalid data.";
 }
 

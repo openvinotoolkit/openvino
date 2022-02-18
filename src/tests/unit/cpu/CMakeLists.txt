@@ -1,18 +1,21 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set(TARGET_NAME cpuUnitTests)
 
+if(BUILD_SHARED_LIBS)
+    set (OBJ_LIB $<TARGET_OBJECTS:openvino_intel_cpu_plugin_obj>)
+endif()
+
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES
-            $<TARGET_PROPERTY:MKLDNNPlugin,SOURCE_DIR>
-            $<TARGET_PROPERTY:MKLDNNPlugin,SOURCE_DIR>/nodes
+            $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src
             $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>
         OBJECT_FILES
-            $<TARGET_OBJECTS:MKLDNNPlugin_obj>
+            ${OBJ_LIB}
         LINK_LIBRARIES
             gtest
             gtest_main
@@ -30,11 +33,19 @@ addIeTargetTest(
             CPU
 )
 
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
+    $<TARGET_PROPERTY:mkldnn,INCLUDE_DIRECTORIES>)
+
+if (WIN32)
+    # Prevents defining min/max as macros
+    target_compile_definitions(${TARGET_NAME} PRIVATE NOMINMAX)
+endif()
+
 ie_faster_build(${TARGET_NAME}
     UNITY
 )
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-        ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/common
-        ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/cpu
-        ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/include)
+    $<TARGET_PROPERTY:mkldnn,SOURCE_DIR>/src/common
+    $<TARGET_PROPERTY:mkldnn,SOURCE_DIR>/src/cpu
+    $<TARGET_PROPERTY:mkldnn,SOURCE_DIR>/include)

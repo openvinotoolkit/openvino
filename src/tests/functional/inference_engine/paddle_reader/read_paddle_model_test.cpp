@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "common_test_utils/unicode_utils.hpp"
 
-TEST(PDPD_Reader_Tests, ImportBasicModelToCore) {
+TEST(Paddle_Reader_Tests, ImportBasicModelToCore) {
     auto model = std::string(PADDLE_TEST_MODELS) + "relu.pdmodel";
     InferenceEngine::Core ie;
     auto cnnNetwork = ie.ReadNetwork(model);
@@ -41,14 +41,14 @@ TEST(PDPD_Reader_Tests, ImportBasicModelToCore) {
     const auto reference = std::make_shared<ngraph::Function>(
         ngraph::NodeVector{ result },
         ngraph::ParameterVector{ data },
-        "RefPDPDFunction");
+        "RefPaddleFunction");
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::NAMES);
     const FunctionsComparator::Result res = func_comparator(function, reference);
     ASSERT_TRUE(res.valid) << res.message;
 }
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-TEST(PDPD_Reader_Tests, ImportBasicModelToCoreWstring) {
+TEST(Paddle_Reader_Tests, ImportBasicModelToCoreWstring) {
     std::string win_dir_path{ PADDLE_TEST_MODELS "relu.pdmodel" };
     std::wstring wmodel = CommonTestUtils::addUnicodePostfixToPath(win_dir_path,
         CommonTestUtils::test_unicode_postfix_vector[0]);
@@ -82,7 +82,7 @@ TEST(PDPD_Reader_Tests, ImportBasicModelToCoreWstring) {
     const auto reference = std::make_shared<ngraph::Function>(
         ngraph::NodeVector{ result },
         ngraph::ParameterVector{ data },
-        "RefPDPDFunction");
+        "RefPaddleFunction");
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::NAMES);
     const FunctionsComparator::Result res = func_comparator(function, reference);
     ASSERT_TRUE(res.valid) << res.message;

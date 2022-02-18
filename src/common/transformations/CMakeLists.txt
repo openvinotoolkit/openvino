@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -25,7 +25,7 @@ ie_faster_build(${TARGET_NAME}_obj
     PCH PRIVATE "src/precomp.hpp"
 )
 
-target_link_libraries(${TARGET_NAME}_obj PRIVATE ngraph_reference openvino::itt ngraph::builder)
+target_link_libraries(${TARGET_NAME}_obj PRIVATE ngraph_reference openvino::itt ngraph::builder ov_core_dev)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
                                               "${CMAKE_CURRENT_SOURCE_DIR}/src")
@@ -53,11 +53,3 @@ target_link_libraries(${TARGET_NAME} INTERFACE openvino::runtime)
 # developer package
 
 openvino_developer_export_targets(COMPONENT core_legacy TARGETS ${TARGET_NAME})
-
-# install
-
-# TODO remove this
-install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
-        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)

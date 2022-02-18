@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@
 
 const std::vector<DevicesNamesAndSupportPair> device_names_and_support_for_remote_blobs {
         {{MYRIAD}, false}, // MYX via MULTI
-#ifdef ENABLE_MKL_DNN
+#ifdef ENABLE_INTEL_CPU
         {{CPU, MYRIAD}, false},  // CPU+MYX
 #endif
 };

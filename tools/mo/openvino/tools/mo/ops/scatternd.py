@@ -1,9 +1,10 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import compatible_shapes, strict_compare_tensors, is_fully_defined
+from openvino.tools.mo.front.common.partial_infer.utils import compatible_shapes, strict_compare_tensors, \
+    is_fully_defined
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.op import Op
 
@@ -55,7 +56,7 @@ class ScatterNDBase(Op):
         expected_updates_shape = np.ma.concatenate((indices_shape[:-1], input_shape[indices_shape[-1]:]), axis=0)
         assert compatible_shapes(updates_shape, expected_updates_shape) or \
                (strict_compare_tensors(expected_updates_shape, []) and
-                strict_compare_tensors(updates_shape, np.ones(len(updates_shape)))), \
+                strict_compare_tensors(updates_shape, np.ones(len(updates_shape), dtype=np.int64))), \
             'The updates shape must be equal to indices_shape[:-1] + input_shape[indices_shape[-1]:] for the node ' \
             '"{}"'.format(node_name)
 
@@ -93,3 +94,20 @@ class ScatterNDUpdate(ScatterNDBase):
                 output_value[indices_value[indx]] = updates_value[indx]
 
             node.out_port(0).data.set_value(output_value)
+
+
+class TFScatterND(Op):
+    """
+    TFScatterND operation comes from TensorFlow and will be replaced by TFScatterNDDecomposition.
+    """
+    op = 'TFScatterND'
+    enabled = False
+
+    def __init__(self, graph: Graph, attrs: dict):
+        super().__init__(graph, {
+            'type': None,
+            'op': self.op,
+            'in_ports_count': 3,
+            'out_ports_count': 1,
+            'infer': None
+        }, attrs)

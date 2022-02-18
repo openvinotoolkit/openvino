@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -321,7 +321,7 @@ public:
     }
 
     void addSpecificCreator(const std::vector<std::string>& forTypes, const CreatorFor& creator) {
-        for (const auto type : forTypes) {
+        for (const auto& type : forTypes) {
             creators[type] = creator;
         }
     }
@@ -2069,17 +2069,17 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         }
     }
 
-    if (!cnnNetworkImpl) IE_THROW() << "Cannot convert nGraph function to CNNNetworkImpl!";
-
     // update input preprocessing info
     InputsDataMap resultInputDataMap;
     cnnNetworkImpl->getInputsInfo(resultInputDataMap);
     IE_ASSERT(resultInputDataMap.size() == thisInputDataMap.size());
-    for (auto i : resultInputDataMap) {
-        auto &thisInputData = *thisInputDataMap[i.first];
-        i.second->setPrecision(thisInputData.getPrecision());
-        i.second->setLayout(thisInputData.getLayout());
-        i.second->getPreProcess() = thisInputData.getPreProcess();
+    auto params = graph->get_parameters();
+    for ( const auto &param : params ) {
+        const std::string input_name = param->get_friendly_name();
+        auto &thisInputData = *thisInputDataMap[input_name];
+        resultInputDataMap[input_name]->setPrecision(thisInputData.getPrecision());
+        resultInputDataMap[input_name]->setLayout(thisInputData.getLayout());
+        resultInputDataMap[input_name]->getPreProcess() = thisInputData.getPreProcess();
     }
 }
 

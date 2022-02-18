@@ -1,15 +1,9 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gna/gna_config.hpp>
 #include "lstm_cell_test.hpp"
-
-#if defined GNA_LIB_VER && GNA_LIB_VER == 2
-# define DISABLE_TEST_ON_GNA2 GTEST_SKIP();
-#else
-# define DISABLE_TEST_ON_GNA2
-#endif
 
 TEST_P(LSTMCellTestBase, GNA_sw_fp32_single_lstm_test) {
     runSingleLSTMTest({{"GNA_DEVICE_MODE", "GNA_SW_FP32"}, {"GNA_COMPACT_MODE", "NO"}});

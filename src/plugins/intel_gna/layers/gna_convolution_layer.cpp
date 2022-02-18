@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,8 +16,13 @@
 
 namespace GNAPluginNS {
 namespace GNAConvolutionLayer {
-bool isMappableFrom2DTo1D(const uint32_t inHeight, const uint32_t inWidth, const uint32_t kernelWidth, const uint32_t strideWidth) {
-    return inHeight > 1 && inWidth > 1 && inWidth == kernelWidth && strideWidth == 1;
+
+bool isMappableFrom2DTo1D(const uint32_t inHeight, const uint32_t inWidth, const uint32_t in_channels,
+                          const uint32_t kernelHeight, const uint32_t kernelWidth,
+                          const uint32_t strideHeight, const uint32_t strideWidth) {
+    return ((inHeight > 1 && inWidth > 1) &&
+            ((inWidth == kernelWidth && strideWidth == 1) ||
+             (inHeight == kernelHeight && strideHeight == 1 && in_channels == 1)));
 }
 
 // 3D input or 2D kernel
@@ -39,7 +44,7 @@ double getWeightsReducer(InferenceEngine::ConvolutionLayer& conv) {
     const auto inHeight = GetDataDimSize(conv.insData.front().lock(), InferenceEngine::DataDimName::H);
     const auto inWidth = GetDataDimSize(conv.insData.front().lock(), InferenceEngine::DataDimName::W);
     if (isConv2D(inHeight, inWidth, inDepth, conv._kernel_y, conv._kernel_x) &&
-         !isMappableFrom2DTo1D(inHeight, inWidth, conv._kernel_x, conv._stride_x)) {
+         !isMappableFrom2DTo1D(inHeight, inWidth, inDepth, conv._kernel_y, conv._kernel_x, conv._stride_y, conv._stride_x)) {
         const auto kernelSize = conv._kernel_x * conv._kernel_y;
         auto r = std::lower_bound(reducers.begin(), reducers.end(), kernelSize,
             [](const KRT& l, const KRT::first_type& r) {return l.first > r; });

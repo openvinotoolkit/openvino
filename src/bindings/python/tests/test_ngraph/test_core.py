@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -220,6 +220,16 @@ def test_partial_shape_equals():
     shape = Shape([1, 2, 3])
     ps = PartialShape([1, 2, 3])
     assert shape == ps
+    assert shape == ps.to_shape()
+
+
+def test_input_shape_read_only():
+    shape = Shape([1, 10])
+    param = ov.parameter(shape, dtype=np.float32)
+    model = Model(ov.relu(param), [param])
+    ref_shape = model.input().shape
+    ref_shape[0] = Dimension(3)
+    assert model.input().shape == shape
 
 
 def test_repr_dynamic_shape():
@@ -229,7 +239,10 @@ def test_repr_dynamic_shape():
     model = parameter_a + parameter_b
     function = Model(model, [parameter_a, parameter_b], "simple_dyn_shapes_graph")
 
-    assert repr(function) == "<Model: 'simple_dyn_shapes_graph' ({?,2})>"
+    assert repr(function) == "<Model: 'simple_dyn_shapes_graph'\ninputs[" + \
+                             "\n<ConstOutput: names[A] shape{?,2} type: f32>," +\
+                             "\n<ConstOutput: names[B] shape{?,2} type: f32>\n]" + \
+                             "\noutputs[\n<ConstOutput: names[] shape{?,2} type: f32>\n]>"
 
     ops = function.get_ordered_ops()
     for op in ops:

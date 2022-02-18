@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -6,13 +6,9 @@ import math
 
 import cv2
 import numpy as np
-from addict import Dict
 
-from openvino.tools.pot.api import Metric, DataLoader
-from openvino.tools.pot.engines.ie_engine import IEEngine
-from openvino.tools.pot.graph import load_model, save_model
-from openvino.tools.pot.graph.model_utils import compress_model_weights
-from openvino.tools.pot.pipeline.initializer import create_pipeline
+from openvino.tools.pot import Metric, DataLoader, IEEngine, \
+    load_model, save_model, compress_model_weights, create_pipeline
 from openvino.tools.pot.utils.logger import init_logger
 from openvino.tools.pot.api.samples.utils.argument_parser import get_common_argparser
 
@@ -36,8 +32,6 @@ class VOCSegmentationLoader(DataLoader):
 
     # Required methods:
     def __init__(self, config):
-        if not isinstance(config, Dict):
-            config = Dict(config)
         super().__init__(config)
         self._image_size = config.image_size
         self._img_ids = self._read_img_ids(config)
@@ -77,10 +71,10 @@ class VOCSegmentationLoader(DataLoader):
         # Pad image to destination size
         image = central_padding(image, self._image_size, self._image_size)
 
-        return image.transpose(2, 0, 1)  # Change data layout from HWC to CHW
+        return image
 
     def _read_and_preprocess_mask(self, mask_path):
-        mask = self._read_and_preprocess_image(mask_path).transpose(1, 2, 0)
+        mask = self._read_and_preprocess_image(mask_path)
         encoded_mask = np.zeros((mask.shape[0], mask.shape[1]), dtype=np.int16)
         for label, color in enumerate(_SEGMENTATION_COLORS):
             encoded_mask[np.where(np.all(mask == color, axis=-1))[:2]] = label
@@ -190,24 +184,24 @@ def main():
     if not args.weights:
         args.weights = '{}.bin'.format(os.path.splitext(args.model)[0])
 
-    model_config = Dict({
+    model_config = {
         'model_name': 'deeplabv3',
         'model': os.path.expanduser(args.model),
         'weights': os.path.expanduser(args.weights)
-    })
+    }
 
-    engine_config = Dict({
+    engine_config = {
         'device': 'CPU',
         'stat_requests_number': 4,
         'eval_requests_number': 4
-    })
+    }
 
-    dataset_config = Dict({
+    dataset_config = {
         'data_source': os.path.expanduser(args.dataset),
         'mask_dir': os.path.expanduser(args.mask_dir),
         'imageset_file': os.path.expanduser(args.imageset_file),
         'image_size': 513
-    })
+    }
 
     algorithms = [
         {

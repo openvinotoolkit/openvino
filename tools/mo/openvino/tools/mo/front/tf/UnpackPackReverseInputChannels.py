@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -66,7 +66,7 @@ class UnpackPackReverseInputChannels(FrontReplacementSubgraph):
 
         reverse_channels = ReverseChannels(graph, {
             'name': pack.soft_get('name', pack.id) + '/ReverseChannels',
-            'axis': int64_array(axis), 'order': int64_array([2, 0, 1])}).create_node()
+            'axis': int64_array(axis), 'order': int64_array([2, 1, 0])}).create_node()
 
         pack.out_port(0).get_connection().set_source(reverse_channels.out_port(0))
         unpack.in_port(0).get_connection().set_destination(reverse_channels.in_port(0))

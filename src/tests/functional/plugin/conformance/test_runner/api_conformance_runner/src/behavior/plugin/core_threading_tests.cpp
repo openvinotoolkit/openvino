@@ -1,12 +1,13 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <behavior/plugin/core_threading.hpp>
 #include "api_conformance_helpers.hpp"
 
-namespace {
 using namespace ov::test::conformance;
+
+namespace {
 
 const Params coreThreadingParams[] = {
     std::tuple<Device, Config>{ CommonTestUtils::DEVICE_HETERO, generateConfigs(CommonTestUtils::DEVICE_HETERO).front() },
@@ -17,7 +18,7 @@ const Params coreThreadingParams[] = {
 INSTANTIATE_TEST_SUITE_P(Conformance_, CoreThreadingTests, testing::ValuesIn(coreThreadingParams), CoreThreadingTests::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(Conformance, CoreThreadingTests,
         ::testing::Combine(
-                ::testing::Values(ConformanceTests::targetDevice),
+                ::testing::Values(ov::test::conformance::targetDevice),
                 ::testing::Values(Config{{ CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES) }})),
         CoreThreadingTests::getTestCaseName);
 

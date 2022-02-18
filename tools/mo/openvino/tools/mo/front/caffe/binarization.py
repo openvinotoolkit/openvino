@@ -1,8 +1,7 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
+from openvino.tools.mo.front.common.partial_infer.utils import float32_array
 from openvino.tools.mo.ops.fakequantize import FakeQuantize
 from openvino.tools.mo.front.common.replacement import FrontReplacementOp
 from openvino.tools.mo.graph.graph import Node, Graph
@@ -19,7 +18,7 @@ class BinarizationToQuantize(FrontReplacementOp):
     def replace_op(self, graph: Graph, node: Node):
         in_node_0 = node.in_node(0)
 
-        broadcast = lambda x: np.array([x], dtype=np.float32)
+        broadcast = lambda x: float32_array([x])
         threshold = Const(graph, {'name': node.id + "/Input_1", "value": broadcast(0)}).create_node()
         in_1 = threshold
         in_2 = threshold

@@ -1,16 +1,17 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import importlib
 import logging as log
+import mmap
 import os
 import sys
 
-import mmap
 import numpy as np
 from google.protobuf import text_format
 from google.protobuf.internal import api_implementation
 
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array, int64_array
 from openvino.tools.mo.front.extractor import add_outputs_identity
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.utils.error import Error, FrameworkError
@@ -37,7 +38,7 @@ def parse_mean(file_path: str, in_shape: np.ndarray, mean_file_offsets: [tuple, 
 
     try:
         blob.ParseFromString(data)
-        data = np.array(blob.data)  # pylint: disable=no-member
+        data = mo_array(blob.data)  # pylint: disable=no-member
 
         if blob.HasField('channels') or blob.HasField('height') or blob.HasField('width'):
             data = data.reshape(blob.channels, blob.height, blob.width)  # pylint: disable=no-member
@@ -203,7 +204,7 @@ def caffe_pb_to_nx(graph, proto, model):
         # input_dim: 3
         # input_dim: 500
         # input_dim: 500
-        input_dims = [np.array(list(proto.input_dim), dtype=np.int64)]
+        input_dims = [int64_array(list(proto.input_dim))]
         input_names = [proto.input[0]]
 
     elif len(list(proto.input)) == 1 and len(list(proto.input_shape)):
@@ -216,7 +217,7 @@ def caffe_pb_to_nx(graph, proto, model):
         #     dim: 227
         #     dim: 227
         # }
-        input_dims = [np.array(proto.input_shape[0].dim, dtype=np.int64)]
+        input_dims = [int64_array(proto.input_shape[0].dim)]
         input_names = [proto.input[0]]
 
     elif len(proto.input_shape) > 0:
@@ -236,7 +237,7 @@ def caffe_pb_to_nx(graph, proto, model):
         #     dim: 3
         # }
         for i in range(len(proto.input_shape)):
-            input_dims.append(np.array(proto.input_shape[i].dim, dtype=np.int64))
+            input_dims.append(int64_array(proto.input_shape[i].dim))
             input_names.append(proto.input[i])
 
     for i in range(len(input_names)):
@@ -283,7 +284,7 @@ def caffe_pb_to_nx(graph, proto, model):
                 }
                 """
                 dims = map(int, list(filter(None, str(list(input_param.shape)[0]).split('dim:'))))
-                input_dims.append(np.array(list(dims), dtype=np.int64))
+                input_dims.append(int64_array(list(dims)))
                 input_names.append(layer.name)
 
         node_id = graph.unique_id(layer.name)

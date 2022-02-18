@@ -1,7 +1,18 @@
 # Post-Training Optimization Tool API {#pot_compression_api_README}
+
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   
+   API Samples <pot_sample_README>
+
+@endsphinxdirective
+
 ## Overview
 The Post-Training Optimization Tool (POT) Python* API allows injecting optimization methods supported by POT into a 
-model inference script written with OpenVINO&trade; [Python* API](@ref openvino_inference_engine_ie_bridges_python_docs_api_overview). 
+model inference script written with OpenVINO&trade; [Python* API](ie_python_api/api.html). 
 Thus, POT API helps to implement a custom 
 optimization pipeline for a single or cascaded/composite DL model (set of joint models). By the optimization pipeline, 
 we mean the consecutive application of optimization algorithms to the model. The input for the optimization pipeline is 
@@ -21,7 +32,7 @@ should be implemented according to the custom DL model:
 - `Engine` is responsible for model inference and provides statistical data and accuracy metrics for the model.
   > **NOTE**: The POT has the implementation of the Engine class with the class name IEEngine located in 
   >           `<POT_DIR>/engines/ie_engine.py`, where `<POT_DIR>` is a directory where the Post-Training Optimization Tool is installed.
-  >           It is based on the [OpenVINO™ Inference Engine Python* API](@ref openvino_inference_engine_ie_bridges_python_docs_api_overview)
+  >           It is based on the [OpenVINO™ Inference Engine Python* API](ie_python_api/api.html)
   >           and can be used as a baseline engine in the customer pipeline instead of the abstract Engine class.
 - `DataLoader` is responsible for the dataset loading, including the data pre-processing.
 - `Metric` is responsible for calculating the accuracy metric for the model.
@@ -38,10 +49,10 @@ Before diving into the Python* POT API, it is highly recommended to read [Best P
 scenarios of using the Post-Training Optimization Tool are described. 
 
 The POT Python* API for model optimization can be used in the following cases:
-- [Accuracy Checker](@ref omz_tools_accuracy_checker_README) tool does not support the model or dataset.
+- [Accuracy Checker](@ref omz_tools_accuracy_checker) tool does not support the model or dataset.
 - POT does not support the model in the [Simplified Mode](@ref pot_docs_BestPractices) or produces the optimized model with low 
 accuracy in this mode.
-- You already have the Python* script to validate the accuracy of the model using the [OpenVINO&trade; Inference Engine](@ref openvino_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide).  
+- You already have the Python* script to validate the accuracy of the model using the [OpenVINO&trade; Runtime](@ref openvino_docs_OV_Runtime_User_Guide).  
 
 ## API Description
 
@@ -51,7 +62,7 @@ pipeline.
 ### DataLoader
 
 ```
-class compression.api.DataLoader(config)
+class openvino.tools.pot.api.DataLoader(config)
 ```
 The base class for all DataLoaders.
 
@@ -64,7 +75,7 @@ which supports integer indexing in range of 0 to `len(self)`
 ### Metric
 
 ```
-class compression.api.Metric()
+class openvino.tools.pot.api.Metric()
 ```
 An abstract class representing an accuracy metric.
 
@@ -87,7 +98,7 @@ All subclasses should override the following methods:
 ### Engine
 
 ```
-class compression.api.Engine(config, data_loader=None, metric=None)
+class openvino.tools.pot.api.Engine(config, data_loader=None, metric=None)
 ```
 Base class for all Engines.
 
@@ -101,7 +112,7 @@ The engine provides model inference, statistics collection for activations and c
 All subclasses should override the following methods:
 - `set_model(model)` - sets/resets a model.<br><br>
   *Parameters*
-  - `model` - `NXModel` instance for inference (see details below).
+  - `model` - `CompressedModel` instance for inference (see details below).
 
 - `predict(stats_layout=None, sampler=None, metric_per_sample=False, print_progress=False)` - performs model inference 
 on the specified subset of data.<br><br>
@@ -153,9 +164,9 @@ describe internal representation of the DL model and how to work with it.
 ### IEEngine
 
 ```
-class compression.engines.IEEngine(config, data_loader=None, metric=None)
+class openvino.tools.pot.engines.ie_engine.IEEngine(config, data_loader=None, metric=None)
 ```
-IEEngine is a helper which implements Engine class based on [OpenVINO&trade; Inference Engine Python* API](@ref openvino_inference_engine_ie_bridges_python_docs_api_overview).
+IEEngine is a helper which implements Engine class based on [OpenVINO&trade; Inference Engine Python* API](ie_python_api/api.html).
 This class support inference in synchronous and asynchronous modes and can be reused as-is in the custom pipeline or 
 with some modifications, e.g. in case of custom post-processing of inference results.
 
@@ -190,15 +201,15 @@ Metric values returned by a `Metric` instance are expected to be in the format:
 
 In order to implement a custom `Engine` class you may need to get familiar with the following interfaces:
 
-### NXModel
+### CompressedModel
 
-The Python* POT API provides the `NXModel` class as one interface for working with single and cascaded DL model. 
+The Python* POT API provides the `CompressedModel` class as one interface for working with single and cascaded DL model. 
 It is used to load, save and access the model, in case of the cascaded model, access each model of the cascaded model.
 
 ```
-class compression.graph.nx_wrapper.NXModel(**kwargs)
+class openvino.tools.pot.graph.nx_model.CompressedModel(**kwargs)
 ```
-The NXModel class provides a representation of the DL model. A single model and cascaded model can be 
+The CompressedModel class provides a representation of the DL model. A single model and cascaded model can be 
 represented as an instance of this class. The cascaded model is stored as a list of models.
 
 *Properties*
@@ -209,7 +220,7 @@ represented as an instance of this class. The cascaded model is stored as a list
 
 The Python* POT API provides the utility function to load model from the OpenVINO&trade; Intermediate Representation (IR):
 ```
-compression.graph.model_utils.load_model(model_config)
+openvino.tools.pot.graph.model_utils.load_model(model_config)
 ```
 *Parameters*
 - `model_config` - dictionary describing a model that includes the following attributes:
@@ -219,15 +230,15 @@ compression.graph.model_utils.load_model(model_config)
   
   Example of `model_config` for a single model:
   ```
-  model_config = Dict({
+  model_config = {
       'model_name': 'mobilenet_v2',
       'model': '<PATH_TO_MODEL>/mobilenet_v2.xml',
       'weights': '<PATH_TO_WEIGHTS>/mobilenet_v2.bin'
-  })
+  }
   ```
   Example of `model_config` for a cascaded model:
   ```
-  model_config = Dict({
+  model_config = {
       'model_name': 'mtcnn',
       'cascade': [
           {
@@ -246,19 +257,19 @@ compression.graph.model_utils.load_model(model_config)
               'weights': '<PATH_TO_WEIGHTS>/onet.bin'
           }
       ]
-  })
+  }
   ```
 
 *Returns*
-- `NXModel` instance
+- `CompressedModel` instance
 
 #### Saving model to IR
 The Python* POT API provides the utility function to save model in the OpenVINO&trade; Intermediate Representation (IR):
 ```
-compression.graph.model_utils.save_model(model, save_path, model_name=None, for_stat_collection=False)
+openvino.tools.pot.graph.model_utils.save_model(model, save_path, model_name=None, for_stat_collection=False)
 ```
 *Parameters*
-- `model` - `NXModel` instance.
+- `model` - `CompressedModel` instance.
 - `save_path` - path to save the model.
 - `model_name` - name under which the model will be saved.
 - `for_stat_collection` - whether model is saved to be used for statistic collection or for normal inference
@@ -280,7 +291,7 @@ compression.graph.model_utils.save_model(model, save_path, model_name=None, for_
 ### Sampler
 
 ```
-class compression.samplers.Sampler(data_loader=None, batch_size=1, subset_indices=None)
+class openvino.tools.pot.samplers.Sampler(data_loader=None, batch_size=1, subset_indices=None)
 ```
 Base class for all Samplers.
 
@@ -298,7 +309,7 @@ that returns the length of the returned iterators.
 ### BatchSampler
 
 ```
-class  compression.samplers.batch_sampler.BatchSampler(data_loader, batch_size=1, subset_indices=None):
+class openvino.tools.pot.samplers.batch_sampler.BatchSampler(data_loader, batch_size=1, subset_indices=None):
 ```
 Sampler provides an iterable over the dataset subset if `subset_indices` is specified or over the whole dataset with 
 given `batch_size`. Returns a list of data items.
@@ -306,20 +317,20 @@ given `batch_size`. Returns a list of data items.
 ## Pipeline
 
 ```
-class compression.pipeline.pipeline.Pipeline(engine)
+class openvino.tools.pot.pipeline.pipeline.Pipeline(engine)
 ```
 Pipeline class represents the optimization pipeline.
 
 *Parameters* 
 - `engine` - instance of `Engine` class for model inference.
 
-The pipeline can be applied to the DL model by calling `run(model)` method where `model` is the `NXModel` instance.
+The pipeline can be applied to the DL model by calling `run(model)` method where `model` is the `CompressedModel` instance.
 
 #### Create a pipeline
 
 The POT Python* API provides the utility function to create and configure the pipeline:
 ```
-compression.pipeline.initializer.create_pipeline(algo_config, engine)
+openvino.tools.pot.pipeline.initializer.create_pipeline(algo_config, engine)
 ```
 *Parameters* 
 - `algo_config` - a list defining optimization algorithms and their parameters included in the optimization pipeline. 
@@ -351,7 +362,7 @@ Before running the optimization tool it's highly recommended to make sure that
 
 As was described above, `DataLoader`, `Metric` and `Engine` interfaces should be implemented in order to create 
 the custom optimization pipeline for your model. There might be a case you have the Python* validation script for your 
-model using the [OpenVINO&trade; Inference Engine](@ref openvino_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide),
+model using the [OpenVINO&trade; Runtime](@ref openvino_docs_OV_Runtime_User_Guide),
 which in practice includes loading a dataset, model inference, and calculating the accuracy metric.
 So you just need to wrap the existing functions of your validation script in `DataLoader`, `Metric` and `Engine` interfaces. 
 In another case, you need to implement interfaces from scratch. 
