@@ -15,6 +15,7 @@
 #include <type_traits>
 #include <tuple>
 #include <cmath>
+#include "mkldnn/ie_mkldnn.h"
 
 using namespace ov::intel_cpu;
 using namespace InferenceEngine;
@@ -530,7 +531,19 @@ void cpu_convert(const void *srcPtr,
         IE_THROW() << "cpu_convert has null data pointer";
 
     if (srcPrc == dstPrc && srcPrc == interimPrc) {
-        cpu_memcpy(dstPtr, srcPtr, size * dstPrc.size());
+        const size_t L2_cache_size = mkldnn::utils::get_cache_size(2, true);
+        const size_t totalSize = size * dstPrc.size();
+        if (totalSize >= L2_cache_size) {
+            auto src = static_cast<const uint8_t *>(srcPtr);
+            auto dst = static_cast<uint8_t *>(dstPtr);
+            parallel_nt(0, [&](const size_t ithr, const size_t nthr) {
+                size_t start = 0, end = 0;
+                splitter(totalSize, nthr, ithr, start, end);
+                cpu_memcpy(dst + start, src + start, end - start);
+            });
+        } else {
+            cpu_memcpy(dstPtr, srcPtr, size * dstPrc.size());
+        }
     } else {
         ConvertContext ctx = {
             srcPtr,
