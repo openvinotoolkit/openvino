@@ -143,7 +143,11 @@ class IEEngine(Engine):
 
     @staticmethod
     def postprocess_output(outputs, _metadata):
-        """ Processes raw model output using the image metadata obtained during data loading """
+        """ Processes model output data using the image metadata obtained during data loading
+        :param outputs: dictionary of output data per output name
+        :param _metadata: metadata obtained during data loading
+        :return: list of the output data sorted by output layers order.
+        """
         return list(outputs.values())
 
     def _reset(self):

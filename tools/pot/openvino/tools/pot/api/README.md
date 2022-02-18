@@ -171,14 +171,13 @@ This class support inference in synchronous and asynchronous modes and can be re
 with some modifications, e.g. in case of custom post-processing of inference results.
 
 The following methods can be overridden in subclasses:
-- `postprocess_output(outputs, metadata)` - processes raw model output using the image metadata obtained during 
-data loading.<br><br>
+- `postprocess_output(outputs, metadata)` - Processes model output data using the image metadata obtained during data loading.<br><br>
   *Parameters*
-  - `outputs` - raw output of the model.
+  - `outputs` - dictionary of output data per output name.
   - `metadata` - information about the data used for inference.
   
   *Return*
-  - post-processed model output
+  - list of the output data sorted by output layers order
   
 `IEEngine` supports data returned by `DataLoader` in the format:
 ```
