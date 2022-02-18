@@ -4,6 +4,9 @@
 
 #include "common_test_utils/graph_comparator.hpp"
 
+#include <gtest/gtest.h>
+#include "ie_common.h"
+
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
