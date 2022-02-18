@@ -76,7 +76,7 @@ private:
     inline void confFilterCF(const float* pConf, int* pindices, int* pbuffer, int* detectionsData, const int& n);
 
     inline void confFilterMX(const float* confData, const float* ARMConfData, float* reorderedConfData,
-        int* indicesData, int* indicesBufData, int* detectionsData);
+        int* indicesData, int* indicesBufData, int* detectionsData, const int& n);
 
     inline void confReorderAndFilterSparsityCF(const float* confData, const float* ARMConfData, float* reorderedConfData,
         int* indicesData, int* indicesBufData, int* detectionsData);
