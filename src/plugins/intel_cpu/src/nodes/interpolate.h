@@ -106,6 +106,7 @@ public:
         return false;
     }
     bool canFuse(const MKLDNNNodePtr& node) const override;
+    bool needAlignedMemOnSSE(const size_t& inPort) const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 

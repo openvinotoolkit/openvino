@@ -3473,6 +3473,19 @@ bool MKLDNNInterpolateNode::canFuse(const MKLDNNNodePtr& node) const {
     return canFuseSimpleOperation(node);
 }
 
+bool MKLDNNInterpolateNode::needAlignedMemOnSSE(const size_t& inPort) const {
+        switch (inPort) {
+        case DATA_ID:
+            return true;
+        case TARGET_SHAPE_ID:
+        case SCALES_ID:
+        case AXES_ID:
+            return false;
+        default:
+            IE_THROW() << "Interpolate layer has unexpected input port number";
+    }
+}
+
 bool MKLDNNInterpolateNode::created() const {
     return getType() == Interpolate;
 }

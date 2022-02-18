@@ -125,7 +125,8 @@ bool MKLDNNEdge::enforceReorder() {
     // the memory address in the operands must be aligned on 16-byte boundary.
     if ((childSPD->getImplementationType() & impl_desc_type::sse42) &&
         Type::Input == parentNode->getType() &&
-        parentNode->isConstant()) {
+        parentNode->isConstant() &&
+        getChild()->needAlignedMemOnSSE(outNumber)) {
         if (auto pInputNode = std::dynamic_pointer_cast<MKLDNNInputNode>(parentNode)) {
             auto rawMemPtr = pInputNode->getMemoryPtr()->GetData();
             bool isAligned = (reinterpret_cast<uintptr_t>(rawMemPtr) & 15) == 0;

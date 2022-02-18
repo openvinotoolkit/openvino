@@ -519,6 +519,10 @@ public:
         return false;
     }
 
+    virtual bool needAlignedMemOnSSE(const size_t& inPort) const {
+        return true;
+    }
+
     void setQuantizedGraphFlag(bool flag) {
         isInQuantizedGraph = flag;
     }
