@@ -118,10 +118,13 @@
 #include "transformations/smart_reshape/smart_reshape.hpp"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
+#ifndef __GNUC_PREREQ
+#define __GNUC_PREREQ(major, minor) ((((__GNUC__) << 16) + (__GNUC_MINOR__)) >= (((major) << 16) + (minor)))
+#endif
 # ifdef _WIN32
 #  include <intrin.h>
 #  include <windows.h>
-# elif defined(__APPLE__)
+# elif !(__GNUC_PREREQ(4, 3) && !defined(__APPLE__))
 #  include <cpuid.h>
 # endif
 #endif
