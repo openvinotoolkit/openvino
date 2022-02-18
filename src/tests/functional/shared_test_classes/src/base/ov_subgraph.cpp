@@ -228,14 +228,15 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
 
     auto functionToProcess = ov::clone_model(*functionRefs);
     //TODO: remove this conversions as soon as function interpreter fully support bf16 and f16
-    bool f16_bf16_exist = false;
+    bool f32_exist = false;
     for (size_t i = 0; i < functionRefs->get_parameters().size(); ++i) {
         auto el_type = functionRefs->get_parameters()[i]->get_element_type();
-        if (el_type == element::f16 || el_type == element::bf16) {
-            f16_bf16_exist = true;
+        if (el_type == element::f32) {
+            f32_exist = true;
+            break;
         }
     }
-    if (f16_bf16_exist) {
+    if (!f32_exist) {
         static const precisions_array precisions = {
                 {ngraph::element::bf16, ngraph::element::f32},
                 {ngraph::element::f16,  ngraph::element::f32}
