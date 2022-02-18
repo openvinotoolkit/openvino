@@ -21,6 +21,7 @@
     
    openvino_docs_ops_opset
    openvino_docs_ops_broadcast_rules
+   openvino_docs_operations_specifications
 
 
 .. toctree::
