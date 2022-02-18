@@ -72,10 +72,10 @@ void MKLDNNExperimentalDetectronPriorGridGeneratorNode::execute(mkldnn::stream s
     for (int h = 0; h < layer_height; ++h) {
         for (int w = 0; w < layer_width; ++w) {
             for (int s = 0; s < num_priors_; ++s) {
-                top_data_0[0] = bottom_data_0[4 * s + 0] + step_w * (w + 0.5f);
-                top_data_0[1] = bottom_data_0[4 * s + 1] + step_h * (h + 0.5f);
-                top_data_0[2] = bottom_data_0[4 * s + 2] + step_w * (w + 0.5f);
-                top_data_0[3] = bottom_data_0[4 * s + 3] + step_h * (h + 0.5f);
+                top_data_0[0] = bottom_data_0[4 * s + 0] + step_w * (w);
+                top_data_0[1] = bottom_data_0[4 * s + 1] + step_h * (h);
+                top_data_0[2] = bottom_data_0[4 * s + 2] + step_w * (w);
+                top_data_0[3] = bottom_data_0[4 * s + 3] + step_h * (h);
                 top_data_0 += 4;
             }
         }

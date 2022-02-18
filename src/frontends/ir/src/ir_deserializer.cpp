@@ -638,7 +638,6 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
     // Try to create operation from loaded opsets
     static const std::unordered_set<std::string> experimental_ops_added_to_opset = {
         "ExperimentalDetectronDetectionOutput",
-        "ExperimentalDetectronGenerateProposalsSingleImage",
         "ExperimentalDetectronPriorGridGenerator",
         "ExperimentalDetectronROIFeatureExtractor",
         "ExperimentalDetectronTopKROIs",

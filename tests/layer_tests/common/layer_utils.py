@@ -63,6 +63,7 @@ class IEInfer(BaseInfer):
 
     def get_inputs_info(self, precision) -> dict:
         core = IECore()
+        print(self.model)
         net = core.read_network(self.model, self.weights)
         inputs_info = {}
         for item in net.input_info.items():
@@ -89,6 +90,8 @@ class InferAPI20(BaseInfer):
         print("Starting inference")
         request = exec_net.create_infer_request()
         request_result = request.infer(input_data)
+        #print(request_result)
+        #print("=====================")
 
         result = {}
         for out_obj, out_tensor in request_result.items():
@@ -103,6 +106,7 @@ class InferAPI20(BaseInfer):
         if "ie" in locals():
             del ie
 
+        print("=====================End fw_infer")
         return result
 
     def get_inputs_info(self, precision) -> dict:

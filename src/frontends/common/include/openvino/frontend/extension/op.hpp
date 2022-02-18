@@ -37,8 +37,10 @@ inline const ov::OpSet& get_opset_by_name(const std::string& opset_name) {
         return ov::get_opset7();
     } else if (opset_name == "opset8") {
         return ov::get_opset8();
+    } else if (opset_name == "opset9") {
+        return ov::get_opset9();
     } else if (opset_name.empty() || opset_name == "latest") {
-        return ov::get_opset8();
+        return ov::get_opset9();
     } else {
         FRONT_END_GENERAL_CHECK(false, "Unsupported opset name: ", opset_name);
     }

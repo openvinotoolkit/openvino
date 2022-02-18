@@ -287,6 +287,11 @@ const Attribute& Node::get_attribute(const std::string& name) const {
 }
 
 template <>
+bool Node::get_attribute_value(const std::string& name, bool default_value) const {
+    return m_pimpl->template get_attribute_value<bool>(name, default_value);
+}
+
+template <>
 float Node::get_attribute_value(const std::string& name, float default_value) const {
     return m_pimpl->template get_attribute_value<float>(name, default_value);
 }
@@ -363,6 +368,11 @@ std::vector<SparseTensor> Node::get_attribute_value(const std::string& name,
 template <>
 std::vector<Graph> Node::get_attribute_value(const std::string& name, std::vector<Graph> default_value) const {
     return m_pimpl->template get_attribute_value<std::vector<Graph>>(name, std::move(default_value));
+}
+
+template <>
+bool Node::get_attribute_value(const std::string& name) const {
+    return m_pimpl->template get_attribute_value<bool>(name);
 }
 
 template <>

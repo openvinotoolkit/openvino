@@ -126,7 +126,6 @@ class OpVersioning(BackReplacementPattern):
     ]))
 
     opset_1_experimental_ops = set(map(lambda s: s.lower(), [
-        "ExperimentalDetectronGenerateProposalsSingleImage",
         "ExperimentalDetectronTopKROIs",
         "ExperimentalDetectronROIFeatureExtractor",
         "ExperimentalDetectronDetectionOutput",

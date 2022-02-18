@@ -22,11 +22,14 @@ class Caffe2OnnxLayerTest(CommonLayerTest):
     def get_framework_results(self, inputs_dict, model_path):
         # Evaluate model via Caffe2 and IE
         # Load the ONNX model
+        print("====================Starting framework inference")
         import onnx
         model = onnx.load(model_path)
+        print("====================Starting framework inference")
         # Run the ONNX model with Caffe2
         import caffe2.python.onnx.backend
         caffe2_res = caffe2.python.onnx.backend.run_model(model, inputs_dict)
+        print("====================Starting framework inference")
         res = dict()
         for field in caffe2_res._fields:
             res[field] = caffe2_res[field]
