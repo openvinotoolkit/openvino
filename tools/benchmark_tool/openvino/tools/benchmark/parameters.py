@@ -84,7 +84,7 @@ def parse_args():
                       help='Optional. '
                            'Optional if network shapes are all static (original ones or set by -shape).'
                            'Required if at least one input shape is dynamic and input images are not provided.'
-                           'Set shape for input tensors. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224] in case of one input size.')
+                           'Set shape for input tensors. For example, "input1[1,3,224,224][1,3,448,448],input2[1,4][1,8]" or "[1,3,224,224][1,3,448,448] in case of one input size.')
     args.add_argument('-layout', type=str, required=False, default='',
                       help='Optional. '
                            'Prompts how network layouts should be treated by application. '
@@ -133,9 +133,9 @@ def parse_args():
     args.add_argument('-report_folder', '--report_folder', type=str, required=False, default='',
                       help="Optional. Path to a folder where statistics report is stored.")
     args.add_argument('-dump_config', type=str, required=False, default='',
-                      help="Optional. Path to JSON file to dump IE parameters, which were set by application.")
+                      help="Optional. Path to JSON file to dump OpenVINO parameters, which were set by application.")
     args.add_argument('-load_config', type=str, required=False, default='',
-                      help="Optional. Path to JSON file to load custom IE parameters."
+                      help="Optional. Path to JSON file to load custom OpenVINO parameters."
                            " Please note, command line parameters have higher priority then parameters from configuration file.")
     args.add_argument('-qb', '--quantization_bits', type=int, required=False, default=None, choices=[8, 16],
                       help="Optional. Weight bits for quantization:  8 (I8) or 16 (I16) ")

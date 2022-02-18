@@ -146,11 +146,11 @@ Options:
                         input size. Also can be defined partially -
                         "input1[N...],input2[N...C]"
   -nstreams NUMBER_STREAMS, --number_streams NUMBER_STREAMS
-                       Optional. Number of streams to use for inference on the CPU/GPU/MYX in throughput mode
-                       (for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> or just <nstreams>).
-                       Default value is determined automatically for a device.
-                       Please note that although the automatic selection usually provides a reasonable performance,
-                       it still may be non-optimal for some cases, especially for very small networks.
+                        Optional. Number of streams to use for inference on the CPU/GPU/MYX in throughput mode
+                        (for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> or just <nstreams>).
+                        Default value is determined automatically for a device.
+                        Please note that although the automatic selection usually provides a reasonable performance,
+                        it still may be non-optimal for some cases, especially for very small networks.
   -nthreads NUMBER_THREADS, --number_threads NUMBER_THREADS
                         Number of threads to use for inference on the CPU
                         (including HETERO  and MULTI cases).
@@ -186,6 +186,25 @@ Options:
                            "counters values for each layer from the network. \"detailed_counters\" report "
                            "extends \"average_counters\" report and additionally includes per-layer PM "
                            "counters and latency for each executed infer request.
+  -dump_config DUMP_CONFIG
+                        Optional. Path to JSON file to dump OpenVINO parameters, which were set by application.
+  -load_config LOAD_CONFIG
+                        Optional. Path to JSON file to load custom OpenVINO parameters.
+                           Please note, command line parameters have higher priority then parameters from configuration file.
+  -cdir CACHE_DIR -cache_dir
+                        Optional. Enable model caching to specified directory.
+  -lfile LOAD_FROM_FILE --load_from_file LOAD_FROM_FILE
+                        Optional. Loads model from file directly without read_network.
+  -qb QUANTIZATION_BITS --quantization_bits QUANTIZATION_BITS
+                        Optional. Weight bits for quantization:  8 (I8) or 16 (I16)
+  -iscale INPUT_SCALE --input_scale INPUT_SCALE
+                        Optional. Scale values to be used for the input image per channel.
+                        Values to be provided in the [R, G, B] format. Can be defined for desired input of the model.
+                        Example: -iscale data[255,255,255],info[255,255,255]
+  -imean INPUT_MEAN --input_mean INPUT_MEAN
+                        Optional. Mean values to be used for the input image per channel.
+                        Values to be provided in the [R, G, B] format. Can be defined for desired input of the model.
+                        Example: -imean data[255,255,255],info[255,255,255]
   -ip "u8"/"f16"/"f32"  Optional. Specifies precision for all input layers of the network.
   -op "u8"/"f16"/"f32"  Optional. Specifies precision for all output layers of the network.
   -iop                  Optional. Specifies precision for input and output layers by name. Example: -iop "input:FP16, output:FP16". Notice that quotes are required. Overwrites precision from ip and op options for specified layers.
@@ -234,30 +253,48 @@ The application outputs number of executed iterations, total duration of executi
 Additionally, if you set the `-pc` parameter, the application outputs performance counters.
 If you set `-exec_graph_path`, the application reports executable graph information serialized.
 
-Below are fragments of sample output for CPU and GPU devices:
-* For CPU:
+Below are fragments of sample output for static and dynamic models:
+* For static model:
    ```
-   [Step 8/9] Measuring performance (Start inference asynchronously, 60000 ms duration, 4 inference requests in parallel using 4 streams)
-   Progress: |................................| 100.00%
-
-   [Step 9/9] Dumping statistics report
-   Progress: |................................| 100.00%
-
-   Count:      4408 iterations
-   Duration:   60153.52 ms
-   Latency:    51.8244 ms
-   Throughput: 73.28 FPS
-   ```
-* For GPU:
-   ```
-   [Step 10/11] Measuring performance (Start inference asynchronously, 5 inference requests using 1 streams for CPU, limits: 120000 ms duration)
-   Progress: |................................| 100%
-
+   [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests using 4 streams for CPU, inference only: True, limits: 60000 ms duration)
+   [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+   [ INFO ] First inference took 5.00 ms
    [Step 11/11] Dumping statistics report
-   Count:      98075 iterations
-   Duration:   120011.03 ms
-   Latency:    5.65 ms
-   Throughput: 817.22 FPS
+   Count:          29936 iterations
+   Duration:       60010.13 ms
+   Latency:
+      Median:     7.30 ms
+      AVG:        7.97 ms
+      MIN:        5.02 ms
+      MAX:        29.26 ms
+   Throughput: 498.85 FPS
+   ```
+* For dynamic model:
+   ```
+   [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests using 4 streams for CPU, inference only: False, limits: 60000 ms duration)
+   [ INFO ] Benchmarking in full mode (inputs filling are included in measurement loop).
+   [ INFO ] First inference took 5.10 ms
+   [Step 11/11] Dumping statistics report
+   Count:          13596 iterations
+   Duration:       60028.12 ms
+   Latency:
+      AVG:        17.53 ms
+      MIN:        2.88 ms
+      MAX:        63.54 ms
+   Latency for each data shape group:
+   data: {1, 3, 128, 128}
+      AVG:        5.09 ms
+      MIN:        2.88 ms
+      MAX:        23.30 ms
+   data: {1, 3, 224, 224}
+      AVG:        10.67 ms
+      MIN:        5.97 ms
+      MAX:        31.79 ms
+   data: {1, 3, 448, 448}
+      AVG:        36.84 ms
+      MIN:        24.76 ms
+      MAX:        63.54 ms
+   Throughput: 226.49 FPS
    ```
 
 ## See Also
