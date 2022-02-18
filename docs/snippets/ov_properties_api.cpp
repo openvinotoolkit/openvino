@@ -18,7 +18,7 @@ auto cpu_device_name = core.get_property("GPU", ov::device::full_name);
 auto model = core.read_model("sample.xml");
 {
     auto compiled_model = core.compile_model(model, "CPU",
-        ov::hint::performance(oc::hint::Performance::THROUGHPUT),
+        ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
         ov::hint::inference_precision(ov::element::f32));
 }
 //! [part3]
