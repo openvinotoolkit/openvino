@@ -17,10 +17,11 @@
 #include <ngraph/coordinate_transform.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <inference_engine.hpp>
+#include <openvino/util/env_util.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
-#define VISUALIZE_TESTS_TREE false
+#define VISUALIZE_TESTS_TREE true
 #define VISUALIZE_TREE_ROOT "/tmp/"
 
 using namespace testing;
@@ -54,52 +55,52 @@ Output<Node> create_constant_with_zeros(const Shape & shape, const Mask & mask) 
 
 // Uncomment, specify PRUNING_TARGET_IR_PATH var and
 // include <openvino/util/env_util.hpp> to check pruning on given IR
-//TEST(TransformationTests, PruneIRTest) {
-//    InferenceEngine::Core core;
-//
-//    const std::string input_model = ov::util::getenv_string("PRUNING_TARGET_IR_PATH");
-//    if (input_model == "")
-//        return;
-//
-//    auto function = core.ReadNetwork(input_model).getFunction();
-//
-//    pass::Manager m;
-//    m.register_pass<pass::InitMasks>();
-//    m.register_pass<pass::PropagateMasks>();
-//
-//    // VisualizeTree modifier helps to print Masks and mark nodes with masks
-//    auto modifier = [](const Node& node, std::vector<std::string>& attributes) {
-//        std::stringstream ss;
-//        size_t index{0};
-//        for (const auto & output : node.outputs()) {
-//            if (const auto & mask = getMask(output)) {
-//                if (!mask->all_dims_are_empty()) {
-//                    attributes.emplace_back("color=green");
-//                    attributes.emplace_back("penwidth=2");
-//                }
-//                ss << "Mask(" << index << ") : " << *mask << "\\n";
-//            }
-//            index++;
-//        }
-//        if (!ss.str().empty()) {
-//            auto label = std::find_if(attributes.begin(), attributes.end(),
-//                                   [](const std::string & value) { return value.find("label=") != std::string::npos; });
-//            if (label != attributes.end()) {
-//                label->pop_back();
-//                *label += "\n" + ss.str() + "\"";
-//            } else {
-//                attributes.push_back("label=\"" + ss.str() + "\"");
-//            }
-//        }
-//    };
-//
-//    m.register_pass<ngraph::pass::VisualizeTree>(std::string(VISUALIZE_TREE_ROOT) + "PruneIRTest_with_masks.svg", modifier);
-//    m.register_pass<pass::ShrinkWeights>();
-//
-//    if (VISUALIZE_TESTS_TREE)
-//        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneIRTest.svg").run_on_function(function);
-//    m.run_passes(function);
-//}
+TEST(TransformationTests, PruneIRTest) {
+    InferenceEngine::Core core;
+
+    const std::string input_model = ov::util::getenv_string("PRUNING_TARGET_IR_PATH");
+    if (input_model == "")
+        return;
+
+    auto function = core.ReadNetwork(input_model).getFunction();
+
+    pass::Manager m;
+    m.register_pass<pass::InitMasks>();
+    m.register_pass<pass::PropagateMasks>();
+
+    // VisualizeTree modifier helps to print Masks and mark nodes with masks
+    auto modifier = [](const Node& node, std::vector<std::string>& attributes) {
+        std::stringstream ss;
+        size_t index{0};
+        for (const auto & output : node.outputs()) {
+            if (const auto & mask = getMask(output)) {
+                if (!mask->all_dims_are_empty()) {
+                    attributes.emplace_back("color=green");
+                    attributes.emplace_back("penwidth=2");
+                }
+                ss << "Mask(" << index << ") : " << *mask << "\\n";
+            }
+            index++;
+        }
+        if (!ss.str().empty()) {
+            auto label = std::find_if(attributes.begin(), attributes.end(),
+                                   [](const std::string & value) { return value.find("label=") != std::string::npos; });
+            if (label != attributes.end()) {
+                label->pop_back();
+                *label += "\n" + ss.str() + "\"";
+            } else {
+                attributes.push_back("label=\"" + ss.str() + "\"");
+            }
+        }
+    };
+
+    m.register_pass<ngraph::pass::VisualizeTree>(std::string(VISUALIZE_TREE_ROOT) + "PruneIRTest_with_masks.svg", modifier);
+    m.register_pass<pass::ShrinkWeights>();
+
+    if (VISUALIZE_TESTS_TREE)
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneIRTest.svg").run_on_function(function);
+    m.run_passes(function);
+}
 
 
 TEST(TransformationTests, InitMasksOI) {
@@ -2856,4 +2857,69 @@ TEST_F(TransformationTestsF, PropagateFlattenUp) {
     }
     disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+
+TEST_F(TransformationTestsF, PropagateMasksTranspose) {
+    // Propagate Flatten down is the same as in
+    // PruneLinearIsClosingAndInGroup test
+    using nested_vector = std::vector<std::set<uint64_t>>;
+    Shape input_shape{1, 8};
+    //Shape start_mul_weights_shape{8, 8};
+    Shape weights_shape{5, 8};
+
+    auto input = std::make_shared<opset5::Parameter>(element::f32, input_shape);
+
+    //auto start_mul_weights = create_constant_with_zeros(start_mul_weights_shape, {{}, {}});
+    //auto start_mul = std::make_shared<opset5::MatMul>(input, start_mul_weights);
+
+    auto weights = create_constant_with_zeros(weights_shape, {{1, 2, 3}, {}});
+    auto transpose_const = opset5::Constant::create(element::i64, {2}, {1, 0});
+    auto transpose = std::make_shared<opset5::Transpose>(weights, transpose_const);
+    auto mul = std::make_shared<opset5::MatMul>(input, transpose);
+    auto relu = std::make_shared<opset5::Relu>(mul);
+
+
+    auto last_mul_weights = create_constant_with_zeros(weights_shape, {{}, {1, 2, 3}});
+    auto last_mul = std::make_shared<opset5::MatMul>(relu, last_mul_weights);
+
+    function = std::make_shared<Function>(NodeVector{last_mul}, ParameterVector{input});
+    {
+        auto input = std::make_shared<opset5::Parameter>(element::f32, input_shape);
+
+        //auto start_mul_weights = create_constant_with_zeros({start_mul_weights_shape[0], start_mul_weights_shape[1] - 3}, {{}, {}});
+        //auto start_mul = std::make_shared<opset5::MatMul>(input, start_mul_weights);
+
+        auto weights = create_constant_with_zeros({weights_shape[0] - 3, weights_shape[1]}, {{}, {}});
+        auto transpose_const = opset5::Constant::create(element::i64, {2}, {1, 0});
+        auto transpose = std::make_shared<opset5::Transpose>(weights, transpose_const);
+        auto mul = std::make_shared<opset5::MatMul>(input, transpose);
+        auto relu = std::make_shared<opset5::Relu>(mul);
+
+        auto last_mul_weights = create_constant_with_zeros({weights_shape[0] - 3, weights_shape[1]}, {{}, {}});
+        auto last_mul = std::make_shared<opset5::MatMul>(relu, last_mul_weights);
+
+        function_ref = std::make_shared<Function>(NodeVector{last_mul}, ParameterVector{input});
+    }
+    if (VISUALIZE_TESTS_TREE)
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksTranspose.svg").run_on_function(function);
+    {
+        pass::Manager m;
+        m.register_pass<pass::InitMasks>();
+        m.register_pass<pass::PropagateMasks>();
+        m.run_passes(function);
+    }
+    //compare_masks(*getMask(start_mul_weights.get_node_shared_ptr()->output(0)),  Mask({{}, {1, 2, 3}}));
+    //compare_masks(*getMask(start_mul->output(0)), Mask({{}, {1, 2, 3}}));
+    compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)),  Mask({{1, 2, 3}, {}}));
+    compare_masks(*getMask(mul->output(0)), Mask({{}, {1, 2, 3}}));
+    compare_masks(*getMask(relu->output(0)), Mask({{}, {1, 2, 3}}));
+    compare_masks(*getMask(last_mul->output(0)), Mask{{}, {}});
+    {
+        pass::Manager m;
+        m.register_pass<pass::ShrinkWeights>();
+        m.run_passes(function);
+    }
+    disable_rt_info_check();
+    enable_accuracy_check();
 }

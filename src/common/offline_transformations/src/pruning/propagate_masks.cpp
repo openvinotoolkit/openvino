@@ -10,6 +10,7 @@
 #include <iterator>
 
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/opsets/opset7.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/log.hpp>
@@ -28,6 +29,7 @@ class Elementwise;
 class PassThrough;
 class Reduce;
 class Reshape;
+class Transpose;
 class StopPropagation;
 class SkipPropagation;
 class FakeQuantize;
@@ -400,7 +402,7 @@ public:
             bool union_eltwise_type = ngraph::is_type<opset6::Multiply>(m_output.get_node_shared_ptr());
 
             // In case if first of the inputs is constant
-            InitConstMask({0, 1/* potential output channel dim */}).apply(m_input.get_node_shared_ptr());
+            InitConstMask({0, 1, 2/* potential output channel dim */}).apply(m_input.get_node_shared_ptr());
             auto input_mask = getMask(m_input);
             if (!input_mask) {
                 NGRAPH_DEBUG << "No input mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
@@ -672,7 +674,7 @@ public:
                                            opset6::Elu, opset6::HardSigmoid, opset6::PRelu, opset6::Mish,
                                            opset6::Softmax, opset6::SoftPlus, opset6::Convert, opset6::ConvertLike,
                                            opset6::AvgPool, opset6::MaxPool, opset6::ROIPooling, opset6::PSROIPooling,
-                                           opset6::Pad, opset6::MVN>();
+                                           opset6::Pad, opset6::MVN, opset6::Gelu, opset7::Gelu>();
 
 
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
@@ -923,6 +925,74 @@ public:
     }
 };
 
+class ngraph::pass::mask_propagation::Transpose : public MatcherPass {
+public:
+    Transpose() {
+        auto input = pattern::any_input();
+        auto weights = pattern::any_input();
+        auto transpose = pattern::wrap_type<opset6::Transpose>({input, weights});
+        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+            const auto & pattern_map = m.get_pattern_value_map();
+            const auto & m_input = pattern_map.at(input);
+            const auto & m_weights = pattern_map.at(weights);
+            const auto & m_output = pattern_map.at(transpose);
+
+            const auto input_order_node = get_constant_from_source(m_weights.get_node_shared_ptr());
+            if (!input_order_node) {
+                NGRAPH_DEBUG << "Can't process transpose node " << m_output.get_node()->get_friendly_name()
+                             <<" with no constant node " << m_weights.get_node()->get_friendly_name()
+                             << " as input_order input.";
+                return false;
+            }
+
+            const auto input_mask = getMask(m_input);
+            if (!input_mask) {
+                NGRAPH_DEBUG << "No input mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
+                return false;
+            }
+            if (input_mask->size() != m_output.get_partial_shape().rank().get_length()) {
+                NGRAPH_DEBUG << "Transpose which change tensor rank is not supported yet.";
+                return false;
+            }
+
+            const auto forward_order = input_order_node->cast_vector<int64_t>();
+            auto backward_order = std::vector<int64_t>();
+            for (size_t i = 0; i < input_mask->size(); i++) {
+                const auto dim = std::find(forward_order.begin(), forward_order.end(), i) - forward_order.begin();
+                if (dim == input_mask->size()) {
+                    NGRAPH_DEBUG << "Transpose which removing any of dimension is not supported yet.";
+                    return false;
+                }
+                backward_order.push_back(dim);
+            }
+            auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
+            const auto input_mask_row = input_mask.get();
+            const auto output_mask_row = output_mask.get();
+
+            output_mask->add_callback([input_mask_row, forward_order](Mask::Ptr cur_mask) -> bool{
+                cur_mask->clear();
+                for (auto& dim : forward_order)
+                    cur_mask->push_back(input_mask_row->at(dim));
+                return true;
+            }, input_mask);
+            input_mask->add_callback([output_mask_row, backward_order](Mask::Ptr cur_mask) -> bool{
+                cur_mask->clear();
+                for (auto& dim : backward_order)
+                    cur_mask->push_back(output_mask_row->at(dim));
+                return true;
+            }, output_mask);
+            if (!output_mask->apply_callback(input_mask)) {
+                return false;
+            }
+            setMask(m_output, output_mask);
+            return true;
+        };
+
+        auto m = std::make_shared<ngraph::pattern::Matcher>(transpose, "TransposePropagation");
+        register_matcher(m, callback);
+    }
+};
+
 class ngraph::pass::mask_propagation::StopPropagation : public MatcherPass {
 public:
     StopPropagation() {
@@ -996,6 +1066,7 @@ ngraph::pass::PropagateMasks::PropagateMasks() {
     add_matcher<mask_propagation::PassThrough>();
     add_matcher<mask_propagation::Reduce>();
     add_matcher<mask_propagation::Reshape>();
+    add_matcher<mask_propagation::Transpose>();
     add_matcher<mask_propagation::FakeQuantize>();
     add_matcher<mask_propagation::Concat>();
     add_matcher<mask_propagation::SkipPropagation>();
