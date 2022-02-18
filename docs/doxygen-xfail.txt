@@ -64,3 +64,5 @@ ovms_extras_nginx-mtls-auth-readme.rst
 ovms_client_python_lib_readme.rst
 ovms_docs_shape_batch_layout.rst
 api/api_reference.rst
+workbench/docs/workbench_dg/key_concepts.md
+workbench/docs/workbench_dg/run_single_inference.md
