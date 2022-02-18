@@ -23,8 +23,7 @@ namespace {
 
     std::vector<std::map<std::string, std::string>> configs = {
         {
-            {"GNA_DEVICE_MODE", "GNA_SW_FP32"},
-            {"GNA_COMPACT_MODE", "NO"}
+            {"GNA_DEVICE_MODE", "GNA_SW_FP32"}
         },
         {
             {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
