@@ -129,7 +129,7 @@ void rdft_shape_infer(const ov::op::v9::RDFT* op,
     for (size_t i = 0; i < num_of_axes; ++i) {
         const int64_t current_axis = axes[i];
         if (signal_size[i] != -1) {
-            output_shape[current_axis] = DimType(signal_size[i]);
+            output_shape[current_axis] = get_rdft_output_dimension(DimType(signal_size[i]));
         } else {
             output_shape[current_axis] = get_rdft_output_dimension(input_shape[current_axis]);
         }
