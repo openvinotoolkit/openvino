@@ -15,7 +15,8 @@ using namespace mkldnn::impl::cpu::x64;
 using namespace Xbyak;
 using namespace Xbyak::util;
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 /// LOAD ///
 jit_load_emitter::jit_load_emitter(jit_generator *host, cpu_isa_t host_isa,
@@ -35,7 +36,7 @@ size_t jit_load_emitter::aux_gprs_count() const {
 void jit_load_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
                   const emitter_context *emit_context) const {
-    const auto* load_emitter_context = dynamic_cast<const MKLDNNPlugin::load_emitter_context*>(emit_context);
+    const auto* load_emitter_context = dynamic_cast<const ov::intel_cpu::load_emitter_context*>(emit_context);
     if (load_emitter_context == nullptr) {
         IE_THROW() << "Load emitter in " << name << " does not get load emmiter context.";
     }
@@ -515,7 +516,7 @@ void jit_store_emitter::emit_data() const {
 void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
                   const emitter_context *emit_context) const {
-    const auto* store_emitter_context = dynamic_cast<const MKLDNNPlugin::store_emitter_context*>(emit_context);
+    const auto* store_emitter_context = dynamic_cast<const ov::intel_cpu::store_emitter_context*>(emit_context);
     if (store_emitter_context == nullptr) {
         IE_THROW() << "Store emitter in " << name << " does not get store emmiter context.";
     }
@@ -886,4 +887,5 @@ template <typename Vmm>
         }
     }
 
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

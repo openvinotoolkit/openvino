@@ -157,6 +157,14 @@ def test_reshape():
     assert net.input_info["data"].input_data.shape == [2, 3, 32, 32]
 
 
+def test_reshape_dynamic():
+    ie = IECore()
+    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    with pytest.raises(ValueError) as e:
+        net.reshape({"data": (-1, 3, 32, 32)})
+    assert "Detected dynamic dimension in the shape (-1, 3, 32, 32) of the `data` input" in str(e.value)
+
+
 def test_net_from_buffer_valid():
     ie = IECore()
     with open(test_net_bin, 'rb') as f:

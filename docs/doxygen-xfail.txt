@@ -63,3 +63,4 @@ notebooks/notebook_utils-with-output.rst
 ovms_extras_nginx-mtls-auth-readme.rst
 ovms_client_python_lib_readme.rst
 ovms_docs_shape_batch_layout.rst
+api/api_reference.rst
