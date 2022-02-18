@@ -4,7 +4,7 @@
 
 **Category**: *Signal processing*
 
-**Short description**: *RDFT* operation performs the discrete real-to-complex Fourier transformation of input tensor by specified dimensions.
+**Short description**: *RDFT* operation performs the discrete real-to-complex Fourier transformation of the input tensor by specified dimensions.
 
 **Attributes**:
 
@@ -14,12 +14,18 @@
 
 *   **1**: `data` - Input tensor of type *T* with data for the RDFT transformation. **Required.**
 *   **2**: `axes` - 1D tensor of type *T_IND* specifying dimension indices where RDFT is applied, and `axes` is any unordered list of indices of different dimensions of input tensor, for example, `[0, 4]`, `[4, 0]`, `[4, 2, 1]`, `[1, 2, 3]`, `[-3, 0, -2]`. These indices should be integers from `-r` to `r - 1` inclusively, where `r = rank(data)`. A negative axis `a` is interpreted as an axis `r + a`. Other dimensions do not change. The order of elements in `axes` attribute matters, and is mapped directly to elements in the third input `signal_size`. **Required.**
-*   **3**: `signal_size` - 1D tensor of type *T_SIZE* describing signal size with respect to axes from the input `axes`. If `signal_size[i] == -1`, then RDFT is calculated for full size of the axis `axes[i]`. If `signal_size[i] > data_shape[axes[i]]`, then input data are zero-padded with respect to the axis `axes[i]` at the end. Finally, `signal_size[i] < data_shape[axes[i]]`, then input data are trimmed with respect to the axis `axes[i]`. More precisely, if `signal_size[i] < data_shape[axes[i]]`, the slice `0: signal_size[i]` of the axis `axes[i]` is considered. Optional, with default value `[data_shape[a] for a in axes]`.
+*   **3**: `signal_size` - 1D tensor of type *T_SIZE* describing signal size with respect to axes from the input `axes`. If `signal_size[i] == -1`, then RDFT is calculated for full size of the axis `axes[i]`. If `signal_size[i] > data_shape[axes[i]]`, then input data is zero-padded with respect to the axis `axes[i]` at the end. Finally, `signal_size[i] < data_shape[axes[i]]`, then input data is trimmed with respect to the axis `axes[i]`. More precisely, if `signal_size[i] < data_shape[axes[i]]`, the slice `0: signal_size[i]` of the axis `axes[i]` is considered. Optionally, with default value `[data_shape[a] for a in axes]`.
 *   **NOTE**: If the input `signal_size` is specified, the size of `signal_size` must be the same as the size of `axes`.
 
 **Outputs**
 
-*   **1**: Resulting tensor with elements of the same type as input `data` tensor and with rank `r + 1`, where `r = rank(data)`. The shape of the output has the form `[S_0, S_1, ..., S_{r-1}, 2]`, where all `S_a` are calculated as follows. Firstly, we calculate `normalized_axes`, where each `normalized_axes[i] = axes[i]`, if `axes[i] >= 0`, and `normalized_axes[i] = axes[i] + r` otherwise. Next, if `a not in normalized_axes`, then `S_a = data_shape[a]`. Suppose that `a in normalized_axes`, that is `a = normalized_axes[i]` for some `i`. In such case, `S_a = data_shape[a] // 2 + 1` if the `signal_size` input is not specified, or, if it is specified, `signal_size[i] = -1`; and `S_a = signal_size[a] // 2 + 1` otherwise.
+*   **1**: Resulting tensor with elements of the same type as input `data` tensor and with rank `r + 1`, where `r = rank(data)`. The shape of the output has the form `[S_0, S_1, ..., S_{r-1}, 2]`, where all `S_a` are calculated as follows:
+
+1. Calculate `normalized_axes`, where each `normalized_axes[i] = axes[i]`, if `axes[i] >= 0`, and `normalized_axes[i] = axes[i] + r` otherwise.
+
+2. If `a not in normalized_axes`, then `S_a = data_shape[a]`.
+
+3. If `a in normalized_axes`, then `a = normalized_axes[i]` for some `i`. In such case, `S_a = data_shape[a] // 2 + 1` if the `signal_size` input is not specified, or, if it is specified, `signal_size[i] = -1`; and `S_a = signal_size[a] // 2 + 1` otherwise.
 
 **Types**
 
