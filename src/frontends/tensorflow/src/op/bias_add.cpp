@@ -39,8 +39,7 @@ OutputVector translate_bias_add_op(const NodeContext& node) {
         std::vector<int64_t> target_shape(ng_input_shape.size());
         for (int64_t i = 0; i < ng_input_shape.size(); i++) {
             if (i == 1) {
-                TENSORFLOW_OP_VALIDATION(node, channel_dim.is_static(),
-                                         "Input channel dym is dynamic for BiasAdd");
+                TENSORFLOW_OP_VALIDATION(node, channel_dim.is_static(), "Input channel dym is dynamic for BiasAdd");
                 target_shape[i] = channel_dim.get_length();
             } else {
                 target_shape[i] = 1;

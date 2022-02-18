@@ -33,10 +33,8 @@ OutputVector translate_avg_pool_op(const NodeContext& node) {
     }
 
     auto ng_image_pshape = extract_spatial_dims(is_nhwc, ng_input.get_partial_shape());
-    TENSORFLOW_OP_VALIDATION(node, ng_image_pshape.is_static(),
-                             "AvgPool spatial dimentions are dynamic.");
-    TENSORFLOW_OP_VALIDATION(node, ng_image_pshape.size() == N,
-                             "AvgPool spatial dimentions have unexpected rank.");
+    TENSORFLOW_OP_VALIDATION(node, ng_image_pshape.is_static(), "AvgPool spatial dimentions are dynamic.");
+    TENSORFLOW_OP_VALIDATION(node, ng_image_pshape.size() == N, "AvgPool spatial dimentions have unexpected rank.");
     auto ng_image_shape = ng_image_pshape.get_shape();
 
     Strides ng_strides(N);

@@ -28,7 +28,7 @@ OutputVector translate_max_pool_op(const NodeContext& node) {
     if (node.get_name() == "MaxPool3D") {
         N = 3;
     }
-        
+
     auto ng_image_pshape = extract_spatial_dims(is_nhwc, ng_input.get_partial_shape());
     TENSORFLOW_OP_VALIDATION(node,
                              ng_image_pshape.is_static(),

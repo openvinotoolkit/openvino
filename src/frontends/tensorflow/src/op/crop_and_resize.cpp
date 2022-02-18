@@ -42,7 +42,7 @@ OutputVector translate_crop_and_resize_op(const NodeContext& node) {
     auto image_depth = spatial_shape[2].get_length();
 
     TENSORFLOW_OP_VALIDATION(node,
-                             ng_boxes.get_partial_shape().is_static() && ng_box_ind.get_partial_shape().is_static() && 
+                             ng_boxes.get_partial_shape().is_static() && ng_box_ind.get_partial_shape().is_static() &&
                                  ng_size.get_partial_shape().is_static(),
                              "Dynamic shapes are not supported.");
 

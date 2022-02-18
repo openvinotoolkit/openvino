@@ -35,7 +35,7 @@ OutputVector translate_conv_2d_op(const NodeContext& node) {
                                  false,
                                  "Strides in batch and depth dimensions is not supported: " + node.get_op_type());
     }
-        
+
     auto ng_image_pshape = extract_spatial_dims(is_nhwc, ng_input.get_partial_shape());
     TENSORFLOW_OP_VALIDATION(node,
                              ng_image_pshape.is_static(),
@@ -48,7 +48,7 @@ OutputVector translate_conv_2d_op(const NodeContext& node) {
     Strides ng_strides(2);
     Strides ng_dilations(2);
     Shape ng_kernel_shape(2);
-    convert_nhwc_to_hw(is_nhwc, tf_strides, ng_strides);    
+    convert_nhwc_to_hw(is_nhwc, tf_strides, ng_strides);
     convert_nhwc_to_hw(is_nhwc, tf_dilations, ng_dilations);
     convert_nhwc_to_nchw(node.get_name(), is_nhwc, ng_input);
 

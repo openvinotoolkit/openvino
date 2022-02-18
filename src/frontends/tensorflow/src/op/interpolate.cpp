@@ -28,9 +28,7 @@ ov::OutputVector translate_interpolate_op(const NodeContext& node) {
     }
 
     auto ng_image_shape = extract_spatial_dims(true, input.get_partial_shape());
-    TENSORFLOW_OP_VALIDATION(node,
-                             ng_image_shape.is_static(),
-                             node.get_op_type() + " spatial dimentions are dynamic.");
+    TENSORFLOW_OP_VALIDATION(node, ng_image_shape.is_static(), node.get_op_type() + " spatial dimentions are dynamic.");
     TENSORFLOW_OP_VALIDATION(node,
                              ng_image_shape.size() == 2,
                              node.get_op_type() + " spatial dimentions have unexpected rank.");
