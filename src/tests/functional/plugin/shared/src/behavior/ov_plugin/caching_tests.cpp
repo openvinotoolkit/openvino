@@ -137,6 +137,7 @@ std::string CompileModelCacheTestBase::getTestCaseName(testing::TestParamInfo<co
 }
 
 void CompileModelCacheTestBase::SetUp() {
+    utils::PluginCache::get().reset();
     ovModelWithName funcPair;
     std::tie(funcPair, m_precision, m_batchSize, targetDevice) = GetParam();
     auto fGen = std::get<0>(funcPair);
