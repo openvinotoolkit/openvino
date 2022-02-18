@@ -17,7 +17,7 @@
 #include <ngraph/op/generate_proposals.hpp>
 #include "ie_parallel.hpp"
 #include "common/cpu_memcpy.h"
-#include "generate_proposals_single_image_node.h"
+#include "generate_proposals_single_image.h"
 
 namespace {
 struct Indexer4d {
