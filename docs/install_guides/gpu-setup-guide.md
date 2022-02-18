@@ -1,4 +1,4 @@
-# Configurations for Intel® Processor Graphics (GPU) with Intel® Distribution of OpenVINO™ toolkit {#openvino_docs_install_guides_gpu_setup_guide}
+# Configurations for Intel® Processor Graphics (GPU) with Intel® Distribution of OpenVINO™ toolkit 
 
 @sphinxdirective
 
