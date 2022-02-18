@@ -362,7 +362,11 @@ void regclass_graph_Model(py::module m) {
             (2) `[min, max]`
             (3) `(min, max)`
             (4) `openvino.runtime.Dimension`
-            (5) `str`
+            (5) `str` using next syntax:
+                '?' - to define fully dinamic dimension
+                '1' - to define dimension which length is 1
+                '1..10' - to define bounded dimension
+                '..10' or '1..' to define dimension with only lower or only upper limit
 
             :param partial_shapes: New shapes.
             :type partial_shapes: Dict[keys, values]
