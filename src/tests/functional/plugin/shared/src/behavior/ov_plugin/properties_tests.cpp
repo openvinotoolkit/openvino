@@ -64,17 +64,6 @@ TEST_P(OVPropertiesTests, canSetPropertyAndCheckGetProperty) {
     }
 }
 
-TEST_P(OVPropertiesTests, canSetPropertyTwiceAndCheckGetProperty) {
-    core->set_property(device_name, {});
-    core->set_property(device_name, properties);
-    for (const auto& property_item : properties) {
-        Any property;
-        OV_ASSERT_NO_THROW(property = core->get_property(device_name, property_item.first));
-        ASSERT_FALSE(property.empty());
-        std::cout << property_item.first << ":" << property.as<std::string>() << std::endl;
-    }
-}
-
 TEST_P(OVPropertiesIncorrectTests, SetPropertiesWithIncorrectKey) {
     ASSERT_THROW(core->set_property(device_name, properties), ov::Exception);
 }
