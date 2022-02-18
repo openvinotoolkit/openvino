@@ -104,19 +104,19 @@ ov::PartialShape partial_shape_from_list(const py::list& shape) {
             py::list bounded_dim = dim.cast<py::list>();
             if (bounded_dim.size() != 2) {
                 throw py::type_error("Two elements are expected in tuple(lower, upper) for dynamic dimension, but " +
-                                     std::to_string(bounded_dim.size()) + " were given.");
+                                     std::to_string(bounded_dim.size()) + " elements were given.");
             }
             if (!(py::isinstance<py::int_>(bounded_dim[0]) && py::isinstance<py::int_>(bounded_dim[1]))) {
-                std::string wrong_type = py::isinstance<py::int_>(bounded_dim[0]) ? bounded_dim[1].get_type().str()
-                                                                                  : bounded_dim[0].get_type().str();
-                throw py::type_error("Incorrect type " + wrong_type + " for dynamic dimension, int is expected.");
+                throw py::type_error("Incorrect pair of types (" + std::string(bounded_dim[0].get_type().str()) + ", " +
+                                     std::string(bounded_dim[1].get_type().str()) +
+                                     ") for dynamic dimension, ints are expected.");
             }
             pshape.insert(pshape.end(),
                           ov::Dimension(bounded_dim[0].cast<value_type>(), bounded_dim[1].cast<value_type>()));
         } else {
             throw py::type_error("Incorrect type " + std::string(dim.get_type().str()) +
-                                 " for dimension. Next types are expected: "
-                                 "int, str, openvino.runtime.Dimension, list or tuple with lower and upper values for "
+                                 " for dimension. Expected types are: "
+                                 "int, str, openvino.runtime.Dimension, list/tuple with lower and upper values for "
                                  "dynamic dimension.");
         }
     }
@@ -126,8 +126,9 @@ ov::PartialShape partial_shape_from_list(const py::list& shape) {
 bool check_all_digits(const std::string& value) {
     auto val = ov::util::trim(value);
     for (const auto& c : val) {
-        if (!std::isdigit(c) || c == '-')
+        if (!std::isdigit(c) || c == '-') {
             return false;
+        }
     }
     return true;
 }
@@ -149,30 +150,29 @@ ov::Dimension dimension_from_str(const std::string& value) {
         return {-1};
     }
     if (val.find("..") == std::string::npos) {
-        if (!Common::check_all_digits(val))
-            IE_THROW() << "Cannot parse dimension: \"" << val << "\"";
+        OPENVINO_ASSERT(Common::check_all_digits(val), "Cannot parse dimension: \"", val, "\"");
         return {Common::stringToType<value_type>(val)};
     }
 
     std::string min_value_str = val.substr(0, val.find(".."));
-    if (!Common::check_all_digits(min_value_str))
-        IE_THROW() << "Cannot parse min bound: \"" << min_value_str << "\"";
+    OPENVINO_ASSERT(Common::check_all_digits(min_value_str), "Cannot parse min bound: \"", min_value_str, "\"");
 
     value_type min_value;
-    if (min_value_str.empty())
+    if (min_value_str.empty()) {
         min_value = 0;
-    else
+    } else {
         min_value = Common::stringToType<value_type>(min_value_str);
+    }
 
     std::string max_value_str = val.substr(val.find("..") + 2);
     value_type max_value;
-    if (max_value_str.empty())
+    if (max_value_str.empty()) {
         max_value = -1;
-    else
+    } else {
         max_value = Common::stringToType<value_type>(max_value_str);
+    }
 
-    if (!Common::check_all_digits(max_value_str))
-        IE_THROW() << "Cannot parse max bound: \"" << max_value_str << "\"";
+    OPENVINO_ASSERT(Common::check_all_digits(max_value_str), "Cannot parse max bound: \"", max_value_str, "\"");
 
     return {min_value, max_value};
 }
@@ -186,8 +186,7 @@ ov::PartialShape partial_shape_from_str(const std::string& value) {
     std::stringstream ss(val);
     std::string field;
     while (getline(ss, field, ',')) {
-        if (field.empty())
-            IE_THROW() << "Cannot get vector of dimensions! \"" << val << "\" is incorrect";
+        OPENVINO_ASSERT(!field.empty(), "Cannot get vector of dimensions! \"", val, "\" is incorrect");
         res.insert(res.end(), Common::dimension_from_str(field));
     }
     return res;

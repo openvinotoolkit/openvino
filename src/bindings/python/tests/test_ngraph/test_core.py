@@ -176,16 +176,17 @@ def test_partial_shape():
     with pytest.raises(TypeError) as e:
         PartialShape([(1, 2, 3)])
     assert "Two elements are expected in tuple(lower, upper) " \
-           "for dynamic dimension, but 3 were given." in str(e.value)
+           "for dynamic dimension, but 3 elements were given." in str(e.value)
 
     with pytest.raises(TypeError) as e:
         PartialShape([("?", "?")])
-    assert "Incorrect type <class 'str'> for dynamic dimension, int is expected." in str(e.value)
+    assert "Incorrect pair of types (<class 'str'>, <class 'str'>) " \
+           "for dynamic dimension, ints are expected." in str(e.value)
 
     with pytest.raises(TypeError) as e:
         PartialShape([range(10)])
-    assert "Incorrect type <class 'range'> for dimension. Next types are expected: " \
-           "int, str, openvino.runtime.Dimension, list or tuple with lower " \
+    assert "Incorrect type <class 'range'> for dimension. Expected types are: " \
+           "int, str, openvino.runtime.Dimension, list/tuple with lower " \
            "and upper values for dynamic dimension." in str(e.value)
 
     ps = PartialShape("...")
