@@ -51,15 +51,15 @@ NamedOutputs generate_proposals_v2(const NodeContext& node)
     auto reshaped_anchors = std::make_shared<default_opset::Reshape>(anchors, anchors_shape, true);
 
     auto variances_bbox_deltas = single_bbox_deltas;
-    if (variances.get_node()) {
-        // Transpose variances from [H, W, A, 4] to [A*4, H, W]
-        auto reshape_pattern = default_opset::Constant::create<int64_t>(ov::element::i64, {3}, {0, 0, -1});
-        auto reshaped_variances = std::make_shared<default_opset::Reshape>(variances, reshape_pattern, true);
-        auto transpose_order = default_opset::Constant::create(ov::element::i64, {3}, {2, 0, 1});
-        auto transposed_variances = std::make_shared<default_opset::Transpose>(reshaped_variances, transpose_order);
-        //auto transposed_variances = default_opset::Constant::create(ov::element::f32, {}, {2.0});
-        variances_bbox_deltas = std::make_shared<default_opset::Multiply>(single_bbox_deltas, transposed_variances);
-    }
+    //if (variances.get_node()) {
+    //    // Transpose variances from [H, W, A, 4] to [A*4, H, W]
+    //    auto reshape_pattern = default_opset::Constant::create<int64_t>(ov::element::i64, {3}, {0, 0, -1});
+    //    auto reshaped_variances = std::make_shared<default_opset::Reshape>(variances, reshape_pattern, true);
+    //    auto transpose_order = default_opset::Constant::create(ov::element::i64, {3}, {2, 0, 1});
+    //    auto transposed_variances = std::make_shared<default_opset::Transpose>(reshaped_variances, transpose_order);
+    //    //auto transposed_variances = default_opset::Constant::create(ov::element::f32, {}, {2.0});
+    //    variances_bbox_deltas = std::make_shared<default_opset::Multiply>(single_bbox_deltas, transposed_variances);
+    //}
 
     // generate im_info from im_scale
     auto im_scale = default_opset::Constant::create(ov::element::f32, {1}, {1.0});
