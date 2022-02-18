@@ -199,6 +199,9 @@ def test_partial_shape():
         ps = PartialShape("?,,3")
     assert 'Cannot get vector of dimensions! "?,,3" is incorrect' in str(e.value)
 
+    shape = Shape()
+    assert len(shape) == 0
+
 
 def test_partial_shape_compatible():
     ps1 = PartialShape.dynamic()
