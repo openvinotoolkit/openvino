@@ -84,6 +84,23 @@ void convert_nhwc_to_hw(bool is_nhwc, const std::vector<T>& src, std::vector<siz
     }
 }
 
+inline ov::PartialShape extract_spatial_dims(bool is_nhwc, const ov::PartialShape& src) {
+    if (src.rank().is_dynamic()) {
+        return ov::PartialShape::dynamic();
+    }
+    auto start_idx = 2;
+    int64_t end_idx = src.rank().get_length();
+    if (is_nhwc) {
+        start_idx -= 1;
+        end_idx -= 1;
+    }
+    ov::PartialShape res;
+    for (int i = start_idx; i < end_idx; i++) {
+        res.push_back(src[i]);
+    }
+    return res;
+}
+
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

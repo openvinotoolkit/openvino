@@ -28,13 +28,20 @@ OutputVector translate_max_pool_op(const NodeContext& node) {
     if (node.get_name() == "MaxPool3D") {
         N = 3;
     }
+        
+    auto ng_image_pshape = extract_spatial_dims(is_nhwc, ng_input.get_partial_shape());
+    TENSORFLOW_OP_VALIDATION(node,
+                             ng_image_pshape.is_static(),
+                             node.get_op_type() + " spatial dimentions are dynamic.");
+    TENSORFLOW_OP_VALIDATION(node,
+                             ng_image_pshape.size() == N,
+                             node.get_op_type() + " spatial dimentions have unexpected rank.");
+    auto ng_image_shape = ng_image_pshape.get_shape();
+
     Strides ng_strides(N);
-    Shape ng_image_shape(N);
     Shape ng_kernel_shape(N);
     Shape ng_dilations(N, 1);
-
     convert_nhwc_to_hw(is_nhwc, tf_strides, ng_strides);
-    convert_nhwc_to_hw(is_nhwc, ng_input.get_shape(), ng_image_shape);
     convert_nhwc_to_hw(is_nhwc, tf_ksize, ng_kernel_shape);
     convert_nhwc_to_nchw(node.get_name(), is_nhwc, ng_input);
 

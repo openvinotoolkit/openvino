@@ -33,19 +33,22 @@ OutputVector translate_crop_and_resize_op(const NodeContext& node) {
 
     auto resize_method = node.get_attribute<string>("method");
 
+    auto spatial_shape = extract_spatial_dims(true, ng_input.get_partial_shape());
+    TENSORFLOW_OP_VALIDATION(node, spatial_shape.is_static(), "Conv3D spatial dimentions are dynamic.");
+    TENSORFLOW_OP_VALIDATION(node, spatial_shape.size() == 3, "Conv3D spatial dimentions have unexpected rank.");
+
+    auto image_height = spatial_shape[0].get_length();
+    auto image_width = spatial_shape[1].get_length();
+    auto image_depth = spatial_shape[2].get_length();
+
     TENSORFLOW_OP_VALIDATION(node,
-                             ng_input.get_partial_shape().is_static() && ng_boxes.get_partial_shape().is_static() &&
-                                 ng_box_ind.get_partial_shape().is_static() && ng_size.get_partial_shape().is_static(),
+                             ng_boxes.get_partial_shape().is_static() && ng_box_ind.get_partial_shape().is_static() && 
+                                 ng_size.get_partial_shape().is_static(),
                              "Dynamic shapes are not supported.");
 
-    auto spatial_shape = ng_input.get_shape();
-    auto image_height = spatial_shape[1];
-    auto image_width = spatial_shape[2];
-    auto image_depth = spatial_shape[3];
-
     auto const_boxes = dynamic_pointer_cast<Constant>(ng_boxes.get_node_shared_ptr());
-    auto const_box_ind = dynamic_pointer_cast<Constant>(ng_boxes.get_node_shared_ptr());
-    auto const_crop_size = dynamic_pointer_cast<Constant>(ng_boxes.get_node_shared_ptr());
+    auto const_box_ind = dynamic_pointer_cast<Constant>(ng_box_ind.get_node_shared_ptr());
+    auto const_crop_size = dynamic_pointer_cast<Constant>(ng_size.get_node_shared_ptr());
 
     TENSORFLOW_OP_VALIDATION(node,
                              const_boxes && const_box_ind && const_crop_size,
@@ -61,7 +64,7 @@ OutputVector translate_crop_and_resize_op(const NodeContext& node) {
                                      Shape{0,
                                            static_cast<unsigned long>(crop_size.at(0)),
                                            static_cast<unsigned long>(crop_size.at(1)),
-                                           image_depth},
+                                           static_cast<unsigned long>(image_depth)},
                                      vector<float>({}))
             ->outputs();
     } else {

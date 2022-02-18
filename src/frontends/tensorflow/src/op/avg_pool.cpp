@@ -25,13 +25,23 @@ OutputVector translate_avg_pool_op(const NodeContext& node) {
                              tf_data_format == "NHWC" || tf_data_format == "NCHW",
                              "AvgPool data format is neither NHWC nor NCHW");
 
-    bool is_nhwc = (tf_data_format == "NHWC");
+    bool is_nhwc = (tf_data_format == "NHWC") || (tf_data_format == "NDHWC");
 
-    Strides ng_strides(2);
-    Shape ng_image_shape(2);
-    Shape ng_kernel_shape(2);
+    int N = 2;
+    if (node.get_op_type() == "AvgPool3D") {
+        N = 3;
+    }
+
+    auto ng_image_pshape = extract_spatial_dims(is_nhwc, ng_input.get_partial_shape());
+    TENSORFLOW_OP_VALIDATION(node, ng_image_pshape.is_static(),
+                             "AvgPool spatial dimentions are dynamic.");
+    TENSORFLOW_OP_VALIDATION(node, ng_image_pshape.size() == N,
+                             "AvgPool spatial dimentions have unexpected rank.");
+    auto ng_image_shape = ng_image_pshape.get_shape();
+
+    Strides ng_strides(N);
+    Shape ng_kernel_shape(N);
     convert_nhwc_to_hw(is_nhwc, tf_strides, ng_strides);
-    convert_nhwc_to_hw(is_nhwc, ng_input.get_shape(), ng_image_shape);
     convert_nhwc_to_hw(is_nhwc, tf_ksize, ng_kernel_shape);
     convert_nhwc_to_nchw(node.get_name(), is_nhwc, ng_input);
 

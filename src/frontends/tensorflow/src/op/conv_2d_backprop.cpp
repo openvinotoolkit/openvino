@@ -14,7 +14,8 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_conv_2d_backprop_input_op(const NodeContext& node) {
-    auto ng_filter = node.get_input(1), ng_out_backprop = node.get_input(2);
+    auto ng_filter = node.get_input(1);
+    auto ng_out_backprop = node.get_input(2);
 
     // TODO: refactor me to be less redundant with other convolution ops
     auto tf_strides = node.get_attribute<std::vector<int64_t>>("strides");
@@ -59,6 +60,9 @@ OutputVector translate_conv_2d_backprop_input_op(const NodeContext& node) {
                           static_cast<unsigned long>(tf_input_sizes[3])};
     }
 
+    TENSORFLOW_OP_VALIDATION(node,
+                             ng_filter.get_partial_shape().is_static(),
+                             node.get_op_type() + " filter dimentions are dynamic.");
     auto& ng_filter_shape = ng_filter.get_shape();
     ng_kernel_shape[0] = ng_filter_shape[0];
     ng_kernel_shape[1] = ng_filter_shape[1];

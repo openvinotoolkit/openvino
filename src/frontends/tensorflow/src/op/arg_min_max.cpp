@@ -19,8 +19,8 @@ OutputVector translate_arg_min_max(const NodeContext& node, std::string mode) {
     std::vector<int64_t> tf_dim;
     get_const_input(node, 1, &tf_dim);
 
-    Shape input_shape = ng_input.get_shape();
-    size_t input_rank = input_shape.size();
+    auto input_shape = ng_input.get_partial_shape();
+    size_t input_rank = input_shape.rank().get_length();
 
     TENSORFLOW_OP_VALIDATION(node,
                              tf_dim.size() == 1,

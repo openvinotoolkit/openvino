@@ -14,7 +14,8 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_conv_2d_op(const NodeContext& node) {
-    auto ng_input = node.get_input(0), ng_filter = node.get_input(1);
+    auto ng_input = node.get_input(0);
+    auto ng_filter = node.get_input(1);
 
     auto tf_strides = node.get_attribute<std::vector<int64_t>>("strides");
     auto tf_dilations = node.get_attribute<std::vector<int64_t>>("dilations");
@@ -34,17 +35,26 @@ OutputVector translate_conv_2d_op(const NodeContext& node) {
                                  false,
                                  "Strides in batch and depth dimensions is not supported: " + node.get_op_type());
     }
+        
+    auto ng_image_pshape = extract_spatial_dims(is_nhwc, ng_input.get_partial_shape());
+    TENSORFLOW_OP_VALIDATION(node,
+                             ng_image_pshape.is_static(),
+                             node.get_op_type() + " spatial dimentions are dynamic.");
+    TENSORFLOW_OP_VALIDATION(node,
+                             ng_image_pshape.size() == 2,
+                             node.get_op_type() + " spatial dimentions have unexpected rank.");
+    auto ng_image_shape = ng_image_pshape.get_shape();
 
     Strides ng_strides(2);
     Strides ng_dilations(2);
-    Shape ng_image_shape(2);
     Shape ng_kernel_shape(2);
-
-    convert_nhwc_to_hw(is_nhwc, tf_strides, ng_strides);
-    convert_nhwc_to_hw(is_nhwc, ng_input.get_shape(), ng_image_shape);
+    convert_nhwc_to_hw(is_nhwc, tf_strides, ng_strides);    
     convert_nhwc_to_hw(is_nhwc, tf_dilations, ng_dilations);
     convert_nhwc_to_nchw(node.get_name(), is_nhwc, ng_input);
 
+    TENSORFLOW_OP_VALIDATION(node,
+                             ng_filter.get_partial_shape().is_static(),
+                             node.get_op_type() + " filter dimentions are dynamic.");
     auto& ng_filter_shape = ng_filter.get_shape();
     ng_kernel_shape[0] = ng_filter_shape[0];
     ng_kernel_shape[1] = ng_filter_shape[1];

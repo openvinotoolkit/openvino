@@ -22,19 +22,26 @@ OutputVector translate_bias_add_op(const NodeContext& node) {
                              tf_data_format == "NHWC" || tf_data_format == "NCHW",
                              "BiasAdd data format is neither NHWC nor NCHW");
 
-    auto ng_input_shape = ng_input.get_shape();
-    auto ng_bias_shape = ng_bias.get_shape();
-    TENSORFLOW_OP_VALIDATION(node, ng_bias_shape.size() == 1, "Bias argument to BiasAdd does not have one dimension");
+    auto ng_input_shape = ng_input.get_partial_shape();
+    auto ng_bias_shape = ng_bias.get_partial_shape();
+    TENSORFLOW_OP_VALIDATION(node,
+                             ng_bias_shape.rank().is_static() && ng_bias_shape.rank().get_length() == 1,
+                             "Bias argument to BiasAdd does not have one dimension");
 
     // We'll choose reshape over broadcast
     // Reshape the bias to (1, C, 1, ...) if input is channels-first.
     Output<Node> ng_bias_reshaped = ng_bias;
     if (tf_data_format == "NCHW") {
+        TENSORFLOW_OP_VALIDATION(node,
+                                 ng_input_shape.rank().is_static() && ng_input_shape.rank().get_length() > 1,
+                                 "Unsupported input rank for BiasAdd");
         auto channel_dim = ng_input_shape[1];
         std::vector<int64_t> target_shape(ng_input_shape.size());
         for (int64_t i = 0; i < ng_input_shape.size(); i++) {
             if (i == 1) {
-                target_shape[i] = channel_dim;
+                TENSORFLOW_OP_VALIDATION(node, channel_dim.is_static(),
+                                         "Input channel dym is dynamic for BiasAdd");
+                target_shape[i] = channel_dim.get_length();
             } else {
                 target_shape[i] = 1;
             }

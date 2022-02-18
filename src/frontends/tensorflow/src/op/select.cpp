@@ -19,10 +19,12 @@ OutputVector translate_select_op(const NodeContext& node) {
     auto in_3 = node.get_input(2);
     if (in_1.get_partial_shape().is_static() && in_2.get_partial_shape().is_static()) {
         // select broadcast
-        if (in_1.get_shape().size() == 1 && in_2.get_shape().size() > 1) {
-            std::vector<uint64_t> axes(in_2.get_shape().size() - 1);
+        auto in_1_shape = in_1.get_shape();
+        auto in_2_shape = in_2.get_shape();
+        if (in_1_shape.size() == 1 && in_2_shape.size() > 1) {
+            std::vector<uint64_t> axes(in_2_shape.size() - 1);
             std::iota(axes.begin(), axes.end(), 1);
-            auto unsqueeze_axes = make_shared<Constant>(ov::element::i64, Shape{in_2.get_shape().size() - 1}, axes);
+            auto unsqueeze_axes = make_shared<Constant>(ov::element::i64, Shape{in_2_shape.size() - 1}, axes);
             auto unsqueeze = make_shared<Unsqueeze>(in_1, unsqueeze_axes);
             auto res = make_shared<Select>(unsqueeze, in_2, in_3);
             set_node_name(node.get_name(), res);

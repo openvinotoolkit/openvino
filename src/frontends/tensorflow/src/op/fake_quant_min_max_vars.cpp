@@ -50,11 +50,11 @@ OutputVector translate_fake_quant_op(const NodeContext& node) {
     auto adjustment = make_shared<Subtract>(min_adj, minimum);
     auto max_adj = make_shared<Add>(maximum, adjustment);
 
-    auto ng_input_shape = ng_input.get_shape();
-    if (ng_input_shape.size() == 4)
+    auto ng_input_shape = ng_input.get_partial_shape();
+    if (ng_input_shape.rank().get_length() == 4)
         transpose<0, 3, 1, 2>(ng_input);
     auto res = make_shared<FakeQuantize>(ng_input, min_adj, max_adj, min_adj, max_adj, levels)->output(0);
-    if (ng_input_shape.size() == 4)
+    if (ng_input_shape.rank().get_length() == 4)
         transpose<0, 2, 3, 1>(res);
 
     set_node_name(node.get_name(), res.get_node_shared_ptr());

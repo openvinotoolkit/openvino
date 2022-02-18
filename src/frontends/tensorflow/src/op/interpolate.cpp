@@ -27,9 +27,16 @@ ov::OutputVector translate_interpolate_op(const NodeContext& node) {
         interpolate_attrs.nearest_mode = Interpolate::NearestMode::ROUND_PREFER_FLOOR;
     }
 
-    // TODO: do we need this .get_shape() actually?
-    auto input_shape = input.get_shape();
-    std::vector<float> spatial_shape = {static_cast<float>(input_shape[1]), static_cast<float>(input_shape[2])};
+    auto ng_image_shape = extract_spatial_dims(true, input.get_partial_shape());
+    TENSORFLOW_OP_VALIDATION(node,
+                             ng_image_shape.is_static(),
+                             node.get_op_type() + " spatial dimentions are dynamic.");
+    TENSORFLOW_OP_VALIDATION(node,
+                             ng_image_shape.size() == 2,
+                             node.get_op_type() + " spatial dimentions have unexpected rank.");
+
+    std::vector<float> spatial_shape = {static_cast<float>(ng_image_shape[0].get_length()),
+                                        static_cast<float>(ng_image_shape[1].get_length())};
     auto ng_spatial_shape = make_shared<Constant>(element::f32, Shape{2}, spatial_shape);
 
     auto ng_sizes = make_shared<Convert>(input_sizes, element::f32);

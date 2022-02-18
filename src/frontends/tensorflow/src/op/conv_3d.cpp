@@ -36,17 +36,26 @@ OutputVector translate_conv_3d_op(const NodeContext& node) {
     //       "Strides in batch and depth dimensions is not supported: ",
     //       op->type_string());
     // }
+        
+    auto ng_image_pshape = extract_spatial_dims(is_ndhwc, ng_input.get_partial_shape());
+    TENSORFLOW_OP_VALIDATION(node,
+                             ng_image_pshape.is_static(),
+                             node.get_op_type() + " spatial dimentions are dynamic.");
+    TENSORFLOW_OP_VALIDATION(node,
+                             ng_image_pshape.size() == 2,
+                             node.get_op_type() + " spatial dimentions have unexpected rank.");
+    auto ng_image_shape = ng_image_pshape.get_shape();
 
     Strides ng_strides(3);
     Strides ng_dilations(3);
-    Shape ng_image_shape(3);
     Shape ng_kernel_shape(3);
-
-    convert_nhwc_to_hw(is_ndhwc, tf_strides, ng_strides);
-    convert_nhwc_to_hw(is_ndhwc, ng_input.get_shape(), ng_image_shape);
+    convert_nhwc_to_hw(is_ndhwc, tf_strides, ng_strides);    
     convert_nhwc_to_hw(is_ndhwc, tf_dilations, ng_dilations);
     convert_nhwc_to_nchw(node.get_name(), is_ndhwc, ng_input);
 
+    TENSORFLOW_OP_VALIDATION(node,
+                             ng_filter.get_partial_shape().is_static(),
+                             node.get_op_type() + " filter dimentions are dynamic.");
     auto& ng_filter_shape = ng_filter.get_shape();
     ng_kernel_shape[0] = ng_filter_shape[0];
     ng_kernel_shape[1] = ng_filter_shape[1];
