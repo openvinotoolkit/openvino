@@ -316,10 +316,6 @@ void AutoBatchInferRequest::CopyOutputsIfNeeded() {
     }
 }
 
-std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> AutoBatchInferRequest::GetPerformanceCounts() const {
-    return _perfMap;
-}
-
 AutoBatchAsyncInferRequest::AutoBatchAsyncInferRequest(
     const AutoBatchInferRequest::Ptr& inferRequest,
     const bool needPerfCounters,
@@ -355,17 +351,15 @@ AutoBatchAsyncInferRequest::AutoBatchAsyncInferRequest(
              // in the case of non-batched execution the blobs were set explicitly
              if (AutoBatchInferRequest::eExecutionFlavor::BATCH_EXECUTED == this->_inferRequest->_wasBatchedRequestUsed)
                  this->_inferRequest->CopyOutputsIfNeeded();
-             if (needPerfCounters) {
-                 try {
-                     if (AutoBatchInferRequest::eExecutionFlavor::BATCH_EXECUTED ==
-                         this->_inferRequest->_wasBatchedRequestUsed)
-                         this->_inferRequest->_perfMap = batchReq._inferRequestBatched->GetPerformanceCounts();
-                     else
-                         this->_inferRequest->_perfMap = this->_inferRequestWithoutBatch->GetPerformanceCounts();
-                 } catch (...) {
-                 }
-             }
          }}};
+}
+
+std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> AutoBatchAsyncInferRequest::GetPerformanceCounts() const {
+    CheckState();
+    if (AutoBatchInferRequest::eExecutionFlavor::BATCH_EXECUTED == _inferRequest->_wasBatchedRequestUsed)
+        return _inferRequest->_myBatchedRequestWrapper._inferRequestBatched->GetPerformanceCounts();
+    else
+        return _inferRequestWithoutBatch->GetPerformanceCounts();
 }
 
 void AutoBatchAsyncInferRequest::Infer_ThreadUnsafe() {
@@ -728,7 +722,7 @@ IE_DEFINE_PLUGIN_CREATE_FUNCTION(AutoBatchInferencePlugin, version)
 
 AutoBatchInferencePlugin::AutoBatchInferencePlugin() {
     _pluginName = "BATCH";
-    _config[CONFIG_KEY(AUTO_BATCH_TIMEOUT)] = "1000";  // default value, in ms
+    _config[CONFIG_KEY(AUTO_BATCH_TIMEOUT)] = "0";  // default value, in ms
 }
 
 InferenceEngine::Parameter AutoBatchInferencePlugin::GetMetric(

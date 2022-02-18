@@ -99,7 +99,6 @@ public:
                                    int num_batch,
                                    bool _needPerfCounters = false);
 
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
     // Batch-Device impl specific: sets the data (blobs from the device request to the batched device request)
     void SetBlobsToAnotherRequest(InferenceEngine::SoIInferRequestInternal& req);
     void CopyInputsIfNeeded();
@@ -111,7 +110,6 @@ public:
         BATCH_EXECUTED,
         TIMEOUT_EXECUTED
     } _wasBatchedRequestUsed = eExecutionFlavor::NOT_EXECUTED;
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> _perfMap;
 
 protected:
     bool _needPerfCounters = false;
@@ -131,6 +129,7 @@ public:
                                         const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor);
     void Infer_ThreadUnsafe() override;
     virtual ~AutoBatchAsyncInferRequest();
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
 
     InferenceEngine::SoIInferRequestInternal _inferRequestWithoutBatch;
     AutoBatchInferRequest::Ptr _inferRequest;
