@@ -264,3 +264,16 @@ TEST_F(TransformationTestsF, NegativeAddFakeQuantizeFusionWithNonPerChannelConst
     function = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data});
     manager.register_pass<pass::AddFakeQuantizeFusion>();
 }
+
+TEST_F(TransformationTestsF, AddFakeQuantizeFusionWithBroadcastingConstant) {
+    auto data = std::make_shared<opset5::Parameter>(element::f32, ov::PartialShape{DYN, 3});
+    auto add_const = opset5::Constant::create(element::f32, Shape{3, 3}, {1, 2, 3, 4, 5, 6, 7, 8, 9});
+    auto add = std::make_shared<opset5::Add>(data, add_const);
+    auto input_low = opset5::Constant::create(element::f32, Shape{1}, {0});
+    auto input_high = opset5::Constant::create(element::f32, Shape{1}, {20});
+    auto output_low = opset5::Constant::create(element::f32, Shape{}, {0});
+    auto output_high = opset5::Constant::create(element::f32, Shape{}, {10});
+    auto fq = std::make_shared<opset5::FakeQuantize>(add, input_low, input_high, output_low, output_high, 11);
+    function = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data});
+    manager.register_pass<pass::AddFakeQuantizeFusion>();
+}

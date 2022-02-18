@@ -173,10 +173,10 @@ public:
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::low_precision::MarkupPrecisions>(precisionsRestrictions);
         manager.register_pass<ngraph::pass::low_precision::MarkupPerTensorQuantization>(quantizationRestrictions);
-        manager.register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved>();
+        manager.register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved>(params.defaultPrecisions);
         manager.register_pass<ngraph::pass::low_precision::PropagatePrecisions>();
-        manager.register_pass<ngraph::pass::low_precision::AlignQuantizationIntervals>();
-        manager.register_pass<ngraph::pass::low_precision::AlignQuantizationParameters>();
+        manager.register_pass<ngraph::pass::low_precision::AlignQuantizationIntervals>(params.defaultPrecisions);
+        manager.register_pass<ngraph::pass::low_precision::AlignQuantizationParameters>(params.defaultPrecisions);
 
         std::shared_ptr<ngraph::pass::GraphRewrite> common = manager.register_pass<ngraph::pass::GraphRewrite>();
         common->add_matcher<ngraph::pass::low_precision::ConcatTransformation>(legacyParams);

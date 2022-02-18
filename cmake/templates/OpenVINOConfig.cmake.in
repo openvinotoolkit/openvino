@@ -236,6 +236,7 @@ if(_need_package_name_reset)
     unset(_need_package_name_reset)
 endif()
 
+unset(${CMAKE_FIND_PACKAGE_NAME}_IR_FOUND)
 unset(${CMAKE_FIND_PACKAGE_NAME}_Paddle_FOUND)
 unset(${CMAKE_FIND_PACKAGE_NAME}_ONNX_FOUND)
 unset(${CMAKE_FIND_PACKAGE_NAME}_TensorFlow_FOUND)

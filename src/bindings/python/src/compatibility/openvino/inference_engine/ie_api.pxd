@@ -39,7 +39,7 @@ cdef class InferRequest:
     cpdef get_perf_counts(self)
     cdef void user_callback(self, int status) with gil
     cdef public:
-        _inputs_list, _outputs_list, _py_callback, _py_data, _user_blobs, _inputs_is_dynamic
+        _inputs_list, _outputs_list, _py_callback, _py_data, _user_blobs
 
 cdef class IENetwork:
     cdef C.IENetwork impl

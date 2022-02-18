@@ -57,8 +57,8 @@ bool InterpolateTransformation::transform(TransformationContext &context, ngraph
     if (!canBeTransformed(context, m.get_match_root())) {
         return false;
     }
-    interpolate = NetworkHelper::separateInStandaloneBranch(interpolate);
-    moveDequantizationAfter(context, interpolate, NetworkHelper::getDequantization(interpolate), true);
+    interpolate = NetworkHelper::separateInStandaloneBranch(interpolate, defaultPrecisions);
+    moveDequantizationAfter(context, interpolate, NetworkHelper::getDequantization(interpolate, defaultPrecisions), true);
     return true;
 }
 
@@ -85,7 +85,7 @@ bool InterpolateTransformation::canBeTransformed(const TransformationContext& co
 
     // TODO: expand transformation cases
     // just repeat CNNNetwork Resample transformation
-    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(layer);
+    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(layer, defaultPrecisions);
     if (dequantization.empty()) {
         return false;
     }

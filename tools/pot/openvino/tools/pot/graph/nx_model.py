@@ -55,6 +55,7 @@ class CompressedModel:
                 self._models.append({'model': load_graph(model_config_, target_device)})
                 if len(model_config.cascade) > 1:
                     self._models[-1]['name'] = model_dict.name
+                    self._models[-1]['model'].name = model_dict.name
         else:
             self._models.append({'model': load_graph(model_config, target_device)})
 
@@ -66,6 +67,12 @@ class CompressedModel:
             ge.add_fullname_for_nodes(model['model'])
 
     def _from_graph(self, graph):
+        if graph.graph['ir_version'] == 10:
+            raise AssertionError(
+                'POT does not support version 10 of IR.'
+                'Please convert the model with the newer version of OpenVINO '
+                'or use the POT from OpenVINO 2021.4.2 to work with version 10 of IR.')
+
         ge.add_fullname_for_nodes(graph)
         self._models.append({'model': graph})
         self._is_cascade = False

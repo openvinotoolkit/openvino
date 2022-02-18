@@ -109,17 +109,23 @@ std::vector<std::string> parse_devices(const std::string& device_string) {
     std::string comma_separated_devices = device_string;
     auto colon = comma_separated_devices.find(":");
     if (colon != std::string::npos) {
+        if (comma_separated_devices.substr(0, colon) == "AUTO") {
+            std::vector<std::string> result;
+            result.push_back("AUTO");
+            return result;
+        }
         auto bracket = comma_separated_devices.find("(");  // e.g. in BATCH:GPU(4)
         comma_separated_devices = comma_separated_devices.substr(colon + 1, bracket - colon - 1);
     }
     if ((comma_separated_devices == "MULTI") || (comma_separated_devices == "HETERO"))
         return std::vector<std::string>();
+
     auto devices = split(comma_separated_devices, ',');
     return devices;
 }
 
-std::map<std::string, std::string> parse_nstreams_value_per_device(const std::vector<std::string>& devices,
-                                                                   const std::string& values_string) {
+std::map<std::string, std::string> parse_value_per_device(const std::vector<std::string>& devices,
+                                                          const std::string& values_string) {
     //  Format: <device1>:<value1>,<device2>:<value2> or just <value>
     std::map<std::string, std::string> result;
     auto device_value_strings = split(values_string, ',');
@@ -316,7 +322,11 @@ std::map<std::string, std::vector<std::string>> parse_input_arguments(const std:
             }
 
             for (auto& file : files.second) {
-                readInputFilesArguments(mapped_files[files.first], file);
+                if (file == "image_info" || file == "random") {
+                    mapped_files[files.first].push_back(file);
+                } else {
+                    readInputFilesArguments(mapped_files[files.first], file);
+                }
             }
         }
         args_it = files_end;

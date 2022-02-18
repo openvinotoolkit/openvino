@@ -59,7 +59,7 @@ using ThrottleLevel = ov::hint::Priority;
 /**
  * @brief This key instructs the GPU plugin to use OpenCL queue throttle hints
  * as defined in https://www.khronos.org/registry/OpenCL/specs/opencl-2.1-extensions.pdf,
- * chapter 9.19. This option should be used with ov::intl_gpu::hint::ThrottleLevel values.
+ * chapter 9.19. This option should be used with ov::intel_gpu::hint::ThrottleLevel values.
  */
 static constexpr Property<ThrottleLevel> queue_throttle{"GPU_QUEUE_THROTTLE"};
 

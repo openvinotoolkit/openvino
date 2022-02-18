@@ -8,14 +8,13 @@
 #include <pybind11/stl_bind.h>
 
 #include "extension/json_config.hpp"
-#include "manager.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "openvino/frontend/extension/op.hpp"
-#include "openvino/frontend/extension/progress_reporter_extension.hpp"
+#include "openvino/frontend/extension/progress_reporter.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
-#include "pyopenvino/graph/model.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -130,7 +129,7 @@ void regclass_frontend_OpExtension(py::module m) {
                         const std::map<std::string, py::object>& attr_values_map) {
                 std::map<std::string, ov::Any> any_map;
                 for (const auto& it : attr_values_map) {
-                    any_map[it.first] = it.second;
+                    any_map[it.first] = py_object_to_any(it.second);
                 }
                 return std::make_shared<OpExtension<void>>(fw_type_name, attr_names_map, any_map);
             }),
@@ -144,8 +143,9 @@ void regclass_frontend_OpExtension(py::module m) {
                         const std::map<std::string, py::object>& attr_values_map) {
                 std::map<std::string, ov::Any> any_map;
                 for (const auto& it : attr_values_map) {
-                    any_map[it.first] = it.second;
+                    any_map[it.first] = py_object_to_any(it.second);
                 }
+
                 return std::make_shared<OpExtension<void>>(ov_type_name, fw_type_name, attr_names_map, any_map);
             }),
             py::arg("ov_type_name"),
