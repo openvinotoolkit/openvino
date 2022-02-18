@@ -913,7 +913,7 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
     }
 
     auto fused_to_layer = connectInput(layer, ptr_inputs, num_data_bytes_in);
-    // PWL will be fused with the previous layer and we need to use it's order id
+    // Pooling will be fused with the previous layer and we need to use it's order id
     layer->userValue.v_int = fused_to_layer.input->userValue.v_int;
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
 }
