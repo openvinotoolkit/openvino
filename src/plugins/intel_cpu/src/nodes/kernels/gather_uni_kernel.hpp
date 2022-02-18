@@ -25,7 +25,8 @@
 #include "cpu/x64/jit_generator.hpp"
 #include <mkldnn_types.h>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 struct jGatherConfParams {
     uint64_t dataTypeSize = 1lu;
@@ -206,4 +207,5 @@ protected:
     const unsigned* permMask16bitUni;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

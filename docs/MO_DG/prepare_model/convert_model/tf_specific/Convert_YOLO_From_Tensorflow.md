@@ -72,6 +72,7 @@ git checkout ed60b90
 pip install pillow
 ```
 6. Run a converter:
+> **NOTE**: This converter works with TensorFlow 1.x and numpy 1.19 or lower.
 - For YOLO-v3:
 ```sh
 python3 convert_weights_pb.py --class_names coco.names --data_format NHWC --weights_file yolov3.weights

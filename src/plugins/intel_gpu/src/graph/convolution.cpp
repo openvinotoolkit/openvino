@@ -165,6 +165,22 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
                       input_layout.data_padding};
     }
 
+    // Adjust output format for mixed precision case in onednn
+    auto out_fmt = input_layout.format;
+    if (node.get_preferred_impl_type() == impl_types::onednn) {
+        if (data_type_traits::is_i8_u8(output_type)) {
+            if (input_layout.format == format::b_fs_yx_fsv16)
+                out_fmt = format::b_fs_yx_fsv32;
+            else if (input_layout.format == format::bs_fs_yx_bsv32_fsv16)
+                out_fmt = format::bs_fs_yx_bsv32_fsv32;
+        } else if (data_type_traits::is_floating_point(output_type)) {
+            if (input_layout.format == format::b_fs_yx_fsv32)
+                out_fmt = format::b_fs_yx_fsv16;
+            else if (input_layout.format == format::bs_fs_yx_bsv32_fsv32)
+                out_fmt = format::bs_fs_yx_bsv32_fsv16;
+        }
+    }
+
     // get output feature map from weights. It should be the same as number of biases. Will be verifed in
     // convolution::create()
     auto group = desc->groups;
@@ -208,7 +224,7 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
             return {output_type, format::b_fs_yx_32fp, output_size};
         }
 
-        return {output_type, input_layout.format, output_size};
+        return {output_type, out_fmt, output_size};
     }
 
     auto output_range = calc_sliding_window_output_range<swor_mode::all>(input_layout.size,
@@ -231,8 +247,7 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
     if (output_type == data_types::bin) {
         return {output_type, format::b_fs_yx_32fp, output_size};
     }
-
-    return {output_type, input_layout.format, output_size};
+    return {output_type, out_fmt, output_size};
 }
 
 std::string convolution_inst::to_string(convolution_node const& node) {
