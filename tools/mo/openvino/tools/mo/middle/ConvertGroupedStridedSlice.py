@@ -91,6 +91,10 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
 
             sorted_out_nodes = sorted(out_nodes, key=lambda n: list(n.slices))
             out_nodes = unique_by(sorted_out_nodes, strided_slices_equality)
+            # if there is only one StridedSlice out_node with unique 'slices',
+            # there is nothing to optimize, continue to the next data node
+            if len(out_nodes) <= 1:
+                continue
 
             for node in out_nodes:
                 if len(node.slices) != len(out_nodes[0].slices):
