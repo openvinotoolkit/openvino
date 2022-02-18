@@ -15,7 +15,7 @@ If you encounter a permission error for files in `/dev/shm` (see `hddldaemon.log
 Try one of these solutions:
 
 * Create the user in the Docker container with the same uid and gid as the HDDL daemon user.
-* Set the container user umask to `0000: umask 000`.
+* Set the container user umask to 0000: `umask 000`.
 * (NOT RECOMMENDED) Start HDDL daemon on the host as root and start the container as root with the `-u root:root` option.
 
 ## Issues with Configurations for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs 
