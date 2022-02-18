@@ -1,44 +1,26 @@
-# Set Up Intel® Vision Accelerator Design with Intel® Movidius™ VPUs for Use with Intel® Distribution of OpenVINO™ toolkit {#openvino_docs_install_guides_installing_openvino_linux_ivad_vpu}
+# Troubleshooting {#openvino_docs_get_started_guide_troubleshooting}
 
-@sphinxdirective
+<!-- this part was from Docker installation -->
 
-.. _vpu guide:
+## Issues with Installing OpenVINO™ for Linux from Docker
 
-@endsphinxdirective
+### Proxy Issues
 
-> **NOTES**: 
-> - These steps are only required if you want to perform inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.
-> - If you installed the Intel® Distribution of OpenVINO™ to the non-default install directory, replace `/opt/intel` with the directory in which you installed the software.
+If you met proxy issues during the installation with Docker, please set up proxy settings for Docker. See the Proxy section in the [Install the DL Workbench from DockerHub*](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Prerequisites.html#set-proxy) topic.
 
+### Permission Errors for `/dev/shm`
 
-## Configuration Steps
+If you encounter a permission error for files in `/dev/shm` (see `hddldaemon.log`). A possible cause is that the uid and gid of the container user are different from the uid and gid of the user who created `hddldaemon` service on the host.
 
-For Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, the following additional installation steps are required.
+Try one of these solutions:
 
-1. Set the environment variables:
-```sh
-source /opt/intel/openvino_2022/setupvars.sh
-```
-> **NOTE**: The `HDDL_INSTALL_DIR` variable is set to `<openvino_install_dir>/runtime/3rdparty/hddl`. If you installed the Intel® Distribution of OpenVINO™ to the default install directory, the `HDDL_INSTALL_DIR` was set to `/opt/intel/openvino_2022/runtime/3rdparty/hddl`.
+* Create the user in the Docker container with the same uid and gid as the HDDL daemon user.
+* Set the container user umask to 0000: `umask 000`.
+* (NOT RECOMMENDED) Start HDDL daemon on the host as root and start the container as root with the `-u root:root` option.
 
-2. Install dependencies:
-```sh
-${HDDL_INSTALL_DIR}/install_IVAD_VPU_dependencies.sh
-```
-Note, if the Linux kernel is updated after the installation, it is required to install drivers again: 
-```sh
-cd ${HDDL_INSTALL_DIR}/drivers
-```
-```sh
-sudo ./setup.sh install
-```
-Now the dependencies are installed and you are ready to use the Intel® Vision Accelerator Design with Intel® Movidius™ with the Intel® Distribution of OpenVINO™ toolkit.
+## Issues with Configurations for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs 
 
-## Optional Steps
-
-* For advanced configuration steps for your **IEI Mustang-V100-MX8-R10** accelerator, see [Intel® Movidius™ VPUs Setup Guide for Use with Intel® Distribution of OpenVINO™ toolkit](movidius-setup-guide.md). **IEI Mustang-V100-MX8-R11** accelerator doesn't require any additional steps. 
-
-## Troubleshooting
+<!-- this part was taken from original installing-openvino-config-ivad-vpu.md -->
 
 ### Unable to run inference with the MYRIAD Plugin after running with the HDDL Plugin
 
