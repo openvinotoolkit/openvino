@@ -32,7 +32,6 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 63469
         R"(.*ConversionLayerTest.*ConvertLike.*)",
         // TODO: Issue: 34055
-        R"(.*ShapeOfLayerTest.*)",
         R"(.*ReluShapeOfSubgraphTest.*)",
         // TODO: Issue: 43314
         R"(.*Broadcast.*mode=BIDIRECTIONAL.*inNPrec=BOOL.*)",
@@ -144,9 +143,6 @@ std::vector<std::string> disabledTestPatterns() {
             *IS=_TS=\(\(4\.5\.6\.7\)\)_RS=\(\(1\.1\.6\.1\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.1\.1\.1\)\)_\(\(1\.1\.6\.1\)\).*)",
         // Issue: 69222
         R"(.*smoke_PriorBoxClustered.*PriorBoxClusteredLayerCPUTest.*_netPRC=f16_.*)",
-        // TODO : CVS-69533
-        R"(.*ConvolutionLayerCPUTest.*IS=\{.+\}.*_Fused=.*Add\(Parameters\).*)",
-        R"(.*GroupConvolutionLayerCPUTest.*IS=\{.+\}.*_Fused=.*Add\(Parameters\).*)",
         // Issue: 74817
         // Sporadic failings with NAN on Dynamic shape cases with jit implementation
         R"(.*DefConvLayoutTest7.*)",
