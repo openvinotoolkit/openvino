@@ -223,9 +223,9 @@ int main(int argc, char* argv[]) {
         }
         gnaPluginConfig[ov::hint::inference_precision.name()] = (FLAGS_qb == 8) ? ov::element::i8 : ov::element::i16;
         auto parse_target = [&](const std::string& target) -> ov::intel_gna::HWGeneration {
-            return (target == "GNA_TARGET_2_0") ? ov::intel_gna::HWGeneration::GNA_2_0
-                                                : (target == "GNA_TARGET_3_0") ? ov::intel_gna::HWGeneration::GNA_3_0
-                                                                               : ov::intel_gna::HWGeneration::UNDEFINED;
+            return (target == "GNA_TARGET_2_0")   ? ov::intel_gna::HWGeneration::GNA_2_0
+                   : (target == "GNA_TARGET_3_0") ? ov::intel_gna::HWGeneration::GNA_3_0
+                                                  : ov::intel_gna::HWGeneration::UNDEFINED;
         };
         gnaPluginConfig[ov::intel_gna::execution_target.name()] = parse_target(FLAGS_exec_target);
         gnaPluginConfig[ov::intel_gna::compile_target.name()] = parse_target(FLAGS_compile_target);
@@ -618,8 +618,11 @@ int main(int argc, char* argv[]) {
                 }
                 if (!FLAGS_r.empty()) {
                     // print statistical score error
-                    std::cout << "Output name: " << output_names[next_output] << std::endl;
-                    std::cout << "Number scores per frame:" << numScoresPerOutput[next_output] << std::endl;
+                    std::string outputName =
+                        (outputs.size() == 0) ? executableNet.output(0).get_any_name() : output_names[next_output];
+                    std::cout << "Output name: " << outputName << std::endl;
+                    std::cout << "Number scores per frame: " << numScoresPerOutput[next_output] << std::endl
+                              << std::endl;
                     print_reference_compare_results(vectorTotalError[next_output], numFrames, std::cout);
                 }
             }
