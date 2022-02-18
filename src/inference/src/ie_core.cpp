@@ -595,41 +595,18 @@ public:
             if (bExclReqsEnabled || (!bTputInPlg && !bTputInLoadCfg))
                 return;
         }
-        CNNNetwork clonedNetwork(InferenceEngine::details::cloneNetwork(network));
-        if (!InferenceEngine::details::isNetworkBatchable(clonedNetwork.getFunction()))
-            return;
-        auto function = network.getFunction();
-        // have to execute the DetectionOutput separately (without batching)
-        // as this layer mix-in the values from the different inputs (batch id)
-        bool bDetectionOutput = false;
-        const std::string detectionOutputOpName = ngraph::op::DetectionOutput::get_type_info_static().name;
-        const std::string resultOpName = ngraph::op::Result::get_type_info_static().name;
-        for (auto&& node : function->get_ops()) {
-            auto isDetectionOutputParent = [&detectionOutputOpName](decltype(node)& nd) {
-                for (size_t n = 0; n < nd->get_input_size(); n++) {
-                    // the code below doesn't need to separate the versions (opsets) of the DetectionOutput
-                    // so type_info name check is enough
-                    // (if in a future there will be a new ver that doesn't mix the batch, this will be new op)
-                    if (detectionOutputOpName == nd->get_input_node_ptr(n)->get_type_info().name)
-                        return true;
-                }
-                return false;
-            };
-
-            if ((detectionOutputOpName == node->get_type_info().name) ||
-                ((resultOpName == node->get_type_info().name) && isDetectionOutputParent(node))) {
-                node->get_rt_info()["affinity"] = deviceNameWithoutBatch;
-                bDetectionOutput = true;
-            } else {
-                node->get_rt_info()["affinity"] = "BATCH";
-            }
-        }
         auto batchConfig = deviceNameWithBatchSize.empty() ? deviceNameWithoutBatch : deviceNameWithBatchSize;
-        if (bDetectionOutput) {
+        auto res = InferenceEngine::details::isNetworkBatchable(network, deviceNameWithoutBatch);
+        switch (res) {
+        case InferenceEngine::details::NetworkBatchAbility::NO:
+            return;
+        case InferenceEngine::details::NetworkBatchAbility::AS_IS:
+            deviceName = "BATCH:" + batchConfig;
+            break;
+        case InferenceEngine::details::NetworkBatchAbility::WITH_HETERO:
             deviceName = "HETERO:BATCH," + deviceNameWithoutBatch;
             config[CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)] = batchConfig;
-        } else {
-            deviceName = "BATCH:" + batchConfig;
+            break;
         }
     }
 

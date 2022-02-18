@@ -5,7 +5,7 @@
 
 #include <memory>
 
-#include "ngraph/function.hpp"
+#include "cnn_network_ngraph_impl.hpp"
 
 namespace InferenceEngine {
 namespace details {
@@ -14,7 +14,8 @@ namespace details {
  * @param function A ngraph function to check for automatic-batching applicability
  * @return A boolean value indicating whether the network can be safely batched
  */
-bool isNetworkBatchable(std::shared_ptr<ngraph::Function> function);
+enum NetworkBatchAbility : uint32_t { NO = 0, AS_IS, WITH_HETERO };
+NetworkBatchAbility isNetworkBatchable(const CNNNetwork& network, const std::string& deviceNoBatch);
 
 }  // namespace details
 }  // namespace InferenceEngine
