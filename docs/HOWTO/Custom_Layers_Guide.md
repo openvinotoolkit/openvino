@@ -32,7 +32,7 @@ There are three steps to support inference of a model with custom operation(s):
 the Model Optimizer can generate the IR with the operation.
 2. Create an operation set and implement a custom nGraph operation in it as described in the
 [Custom nGraph Operation](../OV_Runtime_UG/Extensibility_DG/AddingNGraphOps.md).
-3. Implement a customer operation in one of the [Inference Engine](../OV_Runtime_UG/Deep_Learning_Inference_Engine_DevGuide.md)
+3. Implement a customer operation in one of the [OpenVINO™ Runtime](../OV_Runtime_UG/OpenVINO_Runtime_User_Guide.md)
 plugins to support inference of this operation using a particular target hardware (CPU, GPU or VPU).
 
 To see the operations that are supported by each device plugin for the Inference Engine, refer to the

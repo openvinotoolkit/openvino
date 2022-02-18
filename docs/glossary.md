@@ -1,4 +1,4 @@
-# Glossary {#openvino_docs_IE_DG_Glossary}
+# Glossary {#openvino_docs_OV_Glossary}
 
 ## Acronyms and Abbreviations
 
@@ -12,7 +12,6 @@
 | CPU               | Central Processing Unit |
 | CV                | Computer Vision |
 | DL                | Deep Learning |
-| DLDT              | Intel(R) Deep Learning Deployment Toolkit |
 | DLL               | Dynamic Link Library |
 | DNN               | Deep Neural Networks |
 | ELU               | Exponential Linear rectification Unit |
@@ -21,7 +20,6 @@
 | GCC               | GNU Compiler Collection |
 | GPU               | Graphics Processing Unit |
 | HD                | High Definition |
-| IE                | Inference Engine |
 | IR                | Intermediate Representation |
 | JIT               | Just In Time |
 | JTAG              | Joint Test Action Group |
@@ -55,31 +53,26 @@
 
 ## Terms
 
-Glossary of terms used in the Inference Engine
+Glossary of terms used in the OpenVINO™
 
 
 | Term                        | Description         |
 | :---                        | :---                |
 | Batch | Number of images to analyze during one call of infer. Maximum batch size is a property of the network and it is set before loading of the network to the plugin. In NHWC, NCHW and NCDHW image data layout representation, the N refers to the number of images in the batch |
-| Blob | Memory container used for storing inputs, outputs of the network, weights and biases of the layers |
+| Tensor | Memory container used for storing inputs, outputs of the network, weights and biases of the layers |
 | Device (Affinitity) | A preferred Intel(R) hardware device to run the inference (CPU, GPU, etc.) |
-| Extensibility mechanism, Custom layers | The mechanism that provides you with capabilities to extend the Inference Engine and Model Optimizer so that they can work with topologies containing layers that are not yet supported |
-| <code>CNNNetwork</code> | A class of the Convolutional Neural Network that Inference Engine reads from IR. Consists of topology, weights and biases |
-| <code>ExecutableNetwork</code> | An instance of the loaded network which allows the Inference Engine to request (several) infer requests and perform inference synchronously or asynchronously |
+| Extensibility mechanism, Custom layers | The mechanism that provides you with capabilities to extend the OpenVINO™ Runtime and Model Optimizer so that they can work with topologies containing layers that are not yet supported |
+| <code>ov::Model</code> | A class of the Model that OpenVINO™ Runtime reads from IR. Consists of topology, weights and biases |
+| <code>ov::CompiledModel</code> | An instance of the loaded network which allows the OpenVINO™ Runtime to request (several) infer requests and perform inference synchronously or asynchronously |
 | <code>InferRequest</code> | A class that represents the end point of inference on the model loaded to the plugin and represented by executable network. Inputs are set here, outputs should be requested from this interface as well |
-| <code>InferenceEngineProfileInfo</code> | Represents basic inference profiling information per layer |
-| Inference Engine | A C++ library with a set of classes that you can use in your application to infer input data (images) and get the result |
-| Inference Engine API | The basic default API for all supported devices, which allows you to load a model from Intermediate Representation, set input and output formats and execute the model on various devices |
-| Inference Engine <code>Core</code> | Inference Engine Core is a software component that manages inference on certain Intel(R) hardware devices: CPU, GPU, MYRIAD, GNA, etc. |
-| Layer catalog or Operations specification | A list of supported layers or operations and its parameters. Sets of supported layers are different for different plugins, please check the documentation on plugins to verify if the Inference Engine supports certain layer on the dedicated hardware |
-| <code>Layout</code> | Image data layout refers to the representation of images batch. Layout shows a sequence of 4D or 5D tensor data in memory. A typical NCHW format represents pixel in horizontal direction, rows by vertical dimension, planes by channel and images into batch |
-| <code>OutputsDataMap</code> | Structure which contains information about output precisions and layouts |
-| Precision | Represents data precision. For example, FP32 is 32-bit floating point, FP16 is 16-bit floating point. Precision can be changed before loading the network to the plugin |
-| <code>PreProcessInfo</code> | Class that represents input data for the network. It contains information about input precision, its layout, and pre-processing |
-| <code>ResponseDesc</code> | Represents debug information for an error |
+| <code>ov::ProfileInfo</code> | Represents basic inference profiling information per layer |
+| OpenVINO™ Runtime | A C++ library with a set of classes that you can use in your application to infer input data (images) and get the result |
+| OpenVINO™ API | The basic default API for all supported devices, which allows you to load a model from Intermediate Representation, set input and output formats and execute the model on various devices |
+| OpenVINO™ <code>Core</code> | OpenVINO™ Core is a software component that manages inference on certain Intel(R) hardware devices: CPU, GPU, MYRIAD, GNA, etc. |
+| <code>ov::Layout</code> | Image data layout refers to the representation of images batch. Layout shows a sequence of 4D or 5D tensor data in memory. A typical NCHW format represents pixel in horizontal direction, rows by vertical dimension, planes by channel and images into batch |
+| <code>ov::element::Type</code> | Represents data element type. For example, f32 is 32-bit floating point, f16 is 16-bit floating point. Element type can be changed before loading the network to the plugin |
 
 
 ## See Also
-* [Deep Learning Model Optimizer IR Operations Catalog](../ops/opset.md)
-* [Inference Engine Memory primitives](Memory_primitives.md)
-* [Terminology](supported_plugins/Supported_Devices.md)
+* [Available Operations Sets](ops/opset.md)
+* [Terminology](OV_Runtime_UG/supported_plugins/Supported_Devices.md)

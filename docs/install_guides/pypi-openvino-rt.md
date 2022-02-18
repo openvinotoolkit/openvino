@@ -4,7 +4,7 @@
 
 OpenVINO™ toolkit is a comprehensive toolkit for quickly developing applications and solutions that solve a variety of tasks including emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, and many others. Based on latest generations of artificial neural networks, including Convolutional Neural Networks (CNNs), recurrent and attention-based networks, the toolkit extends computer vision and non-vision workloads across Intel® hardware, maximizing performance. It accelerates applications with high-performance, AI and deep learning inference deployed from edge to cloud.
 
-[OpenVINO™ Runtime](https://docs.openvino.ai/latest/openvino_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide.html) package for Python includes a set of libraries for an easy inference integration into your Python applications and   supports of heterogeneous execution across Intel® CPU and Intel® GPU hardware.
+[OpenVINO™ Runtime](https://docs.openvino.ai/latest/openvino_docs_OV_Runtime_User_Guide.html) package for Python includes a set of libraries for an easy inference integration into your Python applications and   supports of heterogeneous execution across Intel® CPU and Intel® GPU hardware.
 
 ## System Requirements
 The complete list of supported hardware is available in the [Release Notes](https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-relnotes.html).

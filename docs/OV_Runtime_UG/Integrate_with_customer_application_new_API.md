@@ -80,8 +80,6 @@ Optionally, configure input and output of the model using the steps below:
          
          auto network = core.ReadNetwork("model.onnx");
 
-      You can find more information about the ONNX format support in the document `ONNX format support in the OpenVINO™ <https://docs.openvino.ai/latest/openvino_docs_IE_DG_ONNX_Support.html>`_   
-   
    .. tab:: nGraph
       
       .. code-block:: c
