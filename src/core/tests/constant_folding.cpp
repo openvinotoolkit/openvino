@@ -319,7 +319,8 @@ TEST(constant_folding, constant_unary_binary) {
     auto sub_uint8 = make_shared<op::v1::Subtract>(k, k);
     auto equal_doubles = make_shared<op::v1::Equal>(doubles, doubles2, op::AutoBroadcastType::NUMPY);
     auto equal_shorts = make_shared<op::v1::Equal>(shorts, shorts2, op::AutoBroadcastType::NUMPY);
-    auto equal_unsigned_shorts = make_shared<op::v1::Equal>(unsigned_shorts, unsigned_shorts2, op::AutoBroadcastType::NUMPY);
+    auto equal_unsigned_shorts =
+        make_shared<op::v1::Equal>(unsigned_shorts, unsigned_shorts2, op::AutoBroadcastType::NUMPY);
 
     auto neg_sqrt = make_shared<op::Sqrt>(c);
 
