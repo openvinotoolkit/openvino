@@ -8,10 +8,10 @@ If you are planning to develop your own inference solutions, install OpenVINO™
 * Post-Training Optimization Tool
 * Model Downloader and other Open Model Zoo tools
 
-From 2022.1 release, the OpenVINO Development Tools can only be installed via PyPI.
+From the 2022.1 release, OpenVINO Development Tools can only be installed via PyPI.
 
 
-## For C++ developers
+## For C++ Developers
 
 Note the following things:
 
@@ -20,7 +20,7 @@ Note the following things:
 
 Use either of the following ways to install OpenVINO Development Tools:
 
-### Recommended: Install using the requirements files
+### Recommended: Install Using the Requirements Files
 
 1. After you have installed OpenVINO Runtime from an installer, APT or YUM repository, you can find a set of requirements files in the `<INSTALLDIR>\tools\` directory. Select the most suitable ones to use.
 2. Install the same version of OpenVINO Development Tools by using the requirements files. 
@@ -33,7 +33,7 @@ Use either of the following ways to install OpenVINO Development Tools:
 pip install -r <INSTALLDIR>\tools\requirements_tensorflow2.txt
 ```
 
-### Alternative: Install from the openvino-dev package
+### Alternative: Install from the openvino-dev Package
 
 You can also use the following command to install the latest package version available in the index:
 ```
@@ -51,7 +51,7 @@ pip install openvino-dev[tensorflow2,mxnet,caffe]==2022.1
 For more details, see <https://pypi.org/project/openvino-dev/>.
 
     
-## For Python developers
+## For Python Developers
 
 You can use the following command to install the latest package version available in the index:
 ```

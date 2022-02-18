@@ -1,4 +1,4 @@
-# Install and Configure Intel® Distribution of OpenVINO™ toolkit for Windows* {#openvino_docs_install_guides_installing_openvino_windows_header}
+# Install and Configure Intel® Distribution of OpenVINO™ toolkit for Windows {#openvino_docs_install_guides_installing_openvino_windows_header}
 
 @sphinxdirective
 

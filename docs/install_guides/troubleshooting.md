@@ -1,15 +1,26 @@
 # Troubleshooting {#openvino_docs_get_started_guide_troubleshooting}
 
-<!-- this part is from Docker installation -->
+<!-- this part was from Docker installation -->
 
-## Proxy issues
+## Issues with Installing OpenVINO™ for Linux from Docker
+
+### Proxy Issues
 
 If you met proxy issues during the installation with Docker, please set up proxy settings for Docker. See the Proxy section in the [Install the DL Workbench from DockerHub*](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Prerequisites.html#set-proxy) topic.
 
+### Permission Errors for `/dev/shm`
 
-## Issues with configurations for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs 
+If you encounter a permission error for files in `/dev/shm` (see `hddldaemon.log`). A possible cause is that the uid and gid of the container user are different from the uid and gid of the user who created `hddldaemon` service on the host.
 
-<!-- this part is taken from original installing-openvino-config-ivad-vpu.md -->
+Try one of these solutions:
+
+* Create the user in the Docker container with the same uid and gid as the HDDL daemon user.
+* Set the container user umask to 0000: `umask 000`.
+* (NOT RECOMMENDED) Start HDDL daemon on the host as root and start the container as root with the `-u root:root` option.
+
+## Issues with Configurations for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs 
+
+<!-- this part was taken from original installing-openvino-config-ivad-vpu.md -->
 
 ### Unable to run inference with the MYRIAD Plugin after running with the HDDL Plugin
 

@@ -6,9 +6,9 @@ Intel® Distribution of OpenVINO™ toolkit is a comprehensive toolkit for quick
 * Supporting heterogeneous execution across Intel® CPU, Intel® Integrated Graphics, Intel® Neural Compute Stick 2, and Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.
 * Speeding time-to-market via an easy-to-use library of computer vision functions and pre-optimized kernels.
 
-## Installation options
+## Installation Options
 
-### Decide what to install
+### Decide What to Install
 
 **If you have already finished your model development and want to deploy your applications on various devices, install OpenVINO Runtime**, which contains the Inference Engine to run deep learning models. Inference Engine includes a set of libraries for an easy inference integration into your applications.
 
@@ -21,7 +21,7 @@ Intel® Distribution of OpenVINO™ toolkit is a comprehensive toolkit for quick
   * Model Downloader and other Open Model Zoo tools
 
 
-### Choose your installation method
+### Choose Your Installation Method
 
 For Python developers, you can [install OpenVINO from PyPI](installing-openvino-pip.md), which contains both OpenVINO Runtime and Development Tools and less steps. 
 
