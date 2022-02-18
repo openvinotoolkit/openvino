@@ -146,7 +146,7 @@ class IEEngine(Engine):
         """ Processes model output data using the image metadata obtained during data loading
         :param outputs: dictionary of output data per output name
         :param _metadata: metadata obtained during data loading
-        :return: list of the output data sorted by output layers order.
+        :return: list of the output data in an order expected by the accuracy metric if any is used
         """
         return list(outputs.values())
 
@@ -187,7 +187,7 @@ class IEEngine(Engine):
 
         # Postprocess network output
         processed_outputs = process_raw_output(predictions)
-        outputs = {name: data for name, data in processed_outputs.items() if name in self._output_layers}
+        outputs = {name: processed_outputs[name] for name in self._output_layers}
         logits = self.postprocess_output(outputs, batch_meta)
 
         # Update metrics
