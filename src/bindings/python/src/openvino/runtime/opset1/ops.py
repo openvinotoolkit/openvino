@@ -312,7 +312,11 @@ def concat(nodes: List[NodeInput], axis: int, name: Optional[str] = None) -> Nod
 
 
 @nameable_op
-def constant(value: NumericData, dtype: NumericType = None, name: Optional[str] = None) -> Constant:
+def constant(
+    value: NumericData,
+    dtype: Union[NumericType, Type] = None,
+    name: Optional[str] = None,
+) -> Constant:
     """Create a Constant node from provided value.
 
     :param value: One of: array of values or scalar to initialize node with.

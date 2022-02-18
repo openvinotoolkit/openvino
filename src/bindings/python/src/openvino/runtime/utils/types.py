@@ -92,7 +92,7 @@ def get_element_type_str(data_type: NumericType) -> str:
 
 
 def get_dtype(openvino_type: Type) -> np.dtype:
-    """Return a numpy.dtype for an ngraph element type."""
+    """Return a numpy.dtype for an openvino element type."""
     np_type = next(
         (np_type for (ov_type, np_type) in openvino_to_numpy_types_map if ov_type == openvino_type),
         None,
@@ -121,7 +121,7 @@ def get_shape(data: NumericData) -> TensorShape:
 
 
 def make_constant_node(value: NumericData, dtype: Union[NumericType, Type] = None) -> Constant:
-    """Return an ngraph Constant node with the specified value."""
+    """Return an openvino Constant node with the specified value."""
     ndarray = get_ndarray(value)
     if dtype is not None:
         element_type = get_element_type(dtype) if isinstance(dtype, (type, np.dtype)) else dtype
