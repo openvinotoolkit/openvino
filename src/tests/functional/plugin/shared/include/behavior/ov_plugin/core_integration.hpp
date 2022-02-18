@@ -332,6 +332,24 @@ TEST(OVClassBasicTest, smoke_SetConfigAutoNoThrows) {
     OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::HIGH)));
     OV_ASSERT_NO_THROW(value = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority));
     EXPECT_EQ(value, ov::hint::Priority::HIGH);
+
+    // performance hint config test
+    ov::hint::PerformanceMode mode;
+    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
+    OV_ASSERT_NO_THROW(mode = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::hint::performance_mode));
+    EXPECT_EQ(mode, ov::hint::PerformanceMode::LATENCY);
+
+    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)));
+    OV_ASSERT_NO_THROW(mode = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::hint::performance_mode));
+    EXPECT_EQ(mode, ov::hint::PerformanceMode::THROUGHPUT);
+
+    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_MULTI, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
+    OV_ASSERT_NO_THROW(mode = ie.get_property(CommonTestUtils::DEVICE_MULTI, ov::hint::performance_mode));
+    EXPECT_EQ(mode, ov::hint::PerformanceMode::LATENCY);
+
+    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_MULTI, ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)));
+    OV_ASSERT_NO_THROW(mode = ie.get_property(CommonTestUtils::DEVICE_MULTI, ov::hint::performance_mode));
+    EXPECT_EQ(mode, ov::hint::PerformanceMode::THROUGHPUT);
 }
 
 TEST_P(OVClassSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {
