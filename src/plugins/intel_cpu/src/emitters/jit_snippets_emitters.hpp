@@ -439,8 +439,12 @@ protected:
 
 class StoreEmitter : public MemoryEmitter  {
 public:
-    StoreEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
-    : MemoryEmitter(h, isa, n) {
+    StoreEmitter(
+        mkldnn::impl::cpu::x64::jit_generator* h,
+        mkldnn::impl::cpu::x64::cpu_isa_t isa,
+        const std::shared_ptr<ov::Node>& n,
+        const ov::element::Type& output_type)
+    : MemoryEmitter(h, isa, n), output_type(output_type) {
     }
 
     size_t get_inputs_num() const override {return 1;}
@@ -469,9 +473,13 @@ private:
                                     Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
         Reg64 out_reg(ea);
         Vmm vmm_src0 = Vmm(in[0]);
+
         h->uni_vmovups(h->ptr[out_reg], vmm_src0);
-        h->add(out_reg, mkldnn::impl::cpu::x64::cpu_isa_traits<isa>::vlen);
+        const auto vlen = mkldnn::impl::cpu::x64::cpu_isa_traits<isa>::vlen / (ov::element::f32.bitwidth() / output_type.bitwidth());
+        h->add(out_reg, vlen);
     }
+
+    const ov::element::Type output_type;
 };
 
 class ScalarStoreEmitter : public MemoryEmitter {
@@ -513,8 +521,12 @@ private:
 
 class LoadEmitter : public MemoryEmitter {
 public:
-    LoadEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
-    : MemoryEmitter(h, isa, n), shouldPostIncrement(*n->get_input_shape(0).rbegin() != 1) {
+    LoadEmitter(
+        mkldnn::impl::cpu::x64::jit_generator* h,
+        mkldnn::impl::cpu::x64::cpu_isa_t isa,
+        const std::shared_ptr<ov::Node>& n,
+        const ov::element::Type& input_type)
+    : MemoryEmitter(h, isa, n), shouldPostIncrement(*n->get_input_shape(0).rbegin() != 1), input_type(input_type) {
     }
 
     size_t get_inputs_num() const override {return 0;}
@@ -546,12 +558,14 @@ private:
         h->uni_vmovups(vmm_src0, h->ptr[in_reg]);
 
         if (shouldPostIncrement) {
-            h->add(in_reg, mkldnn::impl::cpu::x64::cpu_isa_traits<isa>::vlen);
+            const auto vlen = mkldnn::impl::cpu::x64::cpu_isa_traits<isa>::vlen / (ov::element::f32.bitwidth() / input_type.bitwidth());
+            h->add(in_reg, vlen);
         }
     }
 
 private:
     bool shouldPostIncrement;
+    const ov::element::Type input_type;
 };
 
 class BroadcastLoadEmitter : public MemoryEmitter {

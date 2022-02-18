@@ -50,6 +50,8 @@
 #include <low_precision/low_precision.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
+#include "nodes/subgraph.h"
+
 using namespace mkldnn;
 using namespace ov::intel_cpu;
 using namespace InferenceEngine;

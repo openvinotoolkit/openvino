@@ -118,6 +118,8 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
             }
         };
 
+        // TODO: it's the reason why CpuBlockedMemoryDesc is not defined (isNotDefined() == true).
+        //size_t offset = std::numeric_limits<size_t>::max();
         size_t offset = 0;
         NodeConfig config;
         config.dynBatchSupport = false;
@@ -125,10 +127,33 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
         for (size_t i = 0; i < inputShapes.size(); i++) {
             BlockedMemoryDesc::CmpMask inputMask = BLOCKED_DESC_SKIP_OFFSET_MASK;
             PortConfig portConfig;
+
             portConfig.inPlace((!i && canBeInPlace()) ? 0 : -1);
             portConfig.constant(false);
+            //const auto insPrecision = getOriginalInputPrecisionAtPort(i);
+            //// supported f32 & u8 only
+            //portConfig.desc = createMemoryDesc(inputShapes[i], insPrecision, offset);
             if (inputShapes[i].getDims()[0] == 1) {
                 inputMask.reset(0); // accepts any stride on batch axis
+
+                //const auto denseDesc = portConfig.desc->as<BlockedMemoryDesc>();
+                ////auto const denseOffsetPadding = denseDesc->as<CpuBlockedMemoryDesc>()->offsetPadding;
+                ////assert(denseOffsetPadding != Shape::UNDEFINED_DIM);
+
+                //auto strides = denseDesc->getStrides();
+                //// TODO: it's the reason why CpuBlockedMemoryDesc is not defined (isNotDefined() == true).
+                //// As result instead self (Subgraph) memory descriptor with U8 on input port,
+                //// parent memory descriptor is used which use FP32 precision in port
+                //// Note, plase, if native Convert is used then strides[0] is defined
+                //// TODO: temporary commented: not clear
+                //// strides[0] = Shape::UNDEFINED_DIM;
+                //portConfig.desc = std::make_shared<CpuBlockedMemoryDesc>(denseDesc->getPrecision(),
+                //                                                         denseDesc->getShape(),
+                //                                                         denseDesc->getBlockDims(),
+                //                                                         denseDesc->getOrder(),
+                //                                                         denseDesc->getOffsetPadding(),
+                //                                                         denseDesc->getOffsetPaddingToData(),
+                //                                                         strides);
             }
             portConfig.setMemDesc(createMemoryDesc(inputShapes[i], supportedPrecision, offset), inputMask);
             config.inConfs[i] = portConfig;
@@ -139,8 +164,21 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
             PortConfig portConfig;
             portConfig.inPlace(-1);
             portConfig.constant(false);
+            //const auto outPrecision = getOriginalOutputPrecisionAtPort(0);
+            //portConfig.desc = createMemoryDesc(outputShapes[i], outPrecision, offset);
             if (outputShapes[i].getDims()[0] == 1) {
                 outputMask.reset(0); // accepts any stride on batch axis
+
+                //const auto denseDesc = portConfig.desc->as<BlockedMemoryDesc>();
+                //auto strides = denseDesc->getStrides();
+                ////strides[0] = Shape::UNDEFINED_DIM;
+                //portConfig.desc = std::make_shared<CpuBlockedMemoryDesc>(denseDesc->getPrecision(),
+                //                                                         denseDesc->getShape(),
+                //                                                         denseDesc->getBlockDims(),
+                //                                                         denseDesc->getOrder(),
+                //                                                         denseDesc->getOffsetPadding(),
+                //                                                         denseDesc->getOffsetPaddingToData(),
+                //                                                         strides);
             }
             portConfig.setMemDesc(createMemoryDesc(outputShapes[i], supportedPrecision, offset), outputMask);
             config.outConfs[i] = portConfig;
@@ -270,6 +308,12 @@ void MKLDNNSnippetNode::define_schedule() {
     for (size_t i = 0; i < outputShapes.size(); i++)
         output_blocked_shapes.push_back(edgeToBlockedShape(getChildEdgesAtPort(i)[0]));
     exec_domain = snippet->canonicalize(output_blocked_shapes, input_blocked_shapes);
+
+    // TODO: question: one LoadEmitter emitter per input?
+    // TODO: question: one StoreEmitter emitter per output?
+    // TODO: workaround: move to constructor
+    snippet->get_generator()->set_types(std::get<2>(input_blocked_shapes[0]), std::get<2>(output_blocked_shapes[0]));
+
     // initialize by maximum output dimension. Dimensions of outputs should be broadcastable
     tensorRank = std::max(static_cast<size_t>(rank6D), exec_domain.size());
     // Canonicalization broadcasts inputs and outputs to max input rank, which can be smaller than tensorRank
@@ -285,8 +329,9 @@ void MKLDNNSnippetNode::define_schedule() {
     }
 
     const auto config = getSelectedPrimitiveDescriptor()->getConfig();
-    const auto dataSize = config.inConfs[0].getMemDesc()->getPrecision().size();
-    auto initOffsets = [this, config, dataSize]() {
+    const auto inDataSize = config.inConfs[0].getMemDesc()->getPrecision().size();
+    const auto outDataSize = config.outConfs[0].getMemDesc()->getPrecision().size();
+    auto initOffsets = [this, config, inDataSize, outDataSize]() {
         // find max rank input among all outputs
         const size_t inputNum = getParentEdges().size();
         offsets_in.resize(inputNum);
@@ -294,7 +339,7 @@ void MKLDNNSnippetNode::define_schedule() {
             offsets_in[i].resize(tensorRank, 1);
             offset_calculation(offsets_in[i], dims_in[i], exec_domain);
             for (size_t j = 0; j < tensorRank; j++) {
-                offsets_in[i][j] *= dataSize;
+                offsets_in[i][j] *= inDataSize;
             }
         }
 
@@ -303,7 +348,8 @@ void MKLDNNSnippetNode::define_schedule() {
         for (size_t i = 0; i < inputNum; i++) {
             const auto memPtr = getParentEdgeAt(i)->getMemoryPtr();
             srcMemPtrs[i] = memPtr;
-            start_offset_in[i] =  memPtr->GetDescWithType<BlockedMemoryDesc>()->getOffsetPadding() * dataSize;
+            const auto offsetPadding = memPtr->GetDescWithType<BlockedMemoryDesc>()->getOffsetPadding();
+            start_offset_in[i] = offsetPadding * inDataSize;
         }
 
         const size_t outputNum = config.outConfs.size();
@@ -312,7 +358,7 @@ void MKLDNNSnippetNode::define_schedule() {
             offsets_out[i].resize(tensorRank, 1);
             offset_calculation(offsets_out[i], dims_out[i], exec_domain);
             for (size_t j = 0; j < tensorRank; j++) {
-                offsets_out[i][j] *= dataSize;
+                offsets_out[i][j] *= outDataSize;
             }
         }
 
@@ -321,7 +367,7 @@ void MKLDNNSnippetNode::define_schedule() {
         for (size_t i = 0; i < outputNum; i++) {
             const auto memPtr = getChildEdgeAt(i)->getMemoryPtr();
             dstMemPtrs[i] = memPtr;
-            start_offset_out[i] = memPtr->GetDescWithType<BlockedMemoryDesc>()->getOffsetPadding() * dataSize;
+            start_offset_out[i] = memPtr->GetDescWithType<BlockedMemoryDesc>()->getOffsetPadding() * outDataSize;
         }
     };
 
@@ -371,7 +417,8 @@ void MKLDNNSnippetNode::define_schedule() {
         return collapsedDims;
     };
 
-    auto initSchedulingInfo = [this, dataSize]() -> void {
+
+    auto initSchedulingInfo = [this, inDataSize, outDataSize]() -> void {
         // initialize scheduling information
         sch_offsets_in.resize(offsets_in.size(), 0);
         sch_offsets_out.resize(offsets_out.size(), 0);
@@ -386,16 +433,16 @@ void MKLDNNSnippetNode::define_schedule() {
             // update offsets for tile 2D because loaders have ptr shifts in some cases and stores have always ptrs shifts
             for (size_t i = 0; i < offsets_in.size(); i++) {
                 int64_t offset = offsets_in[i][tensorRank - 2];
-                if ((offset > dataSize) || (offset == 0 && dims_in[i].back() != 1)) {
-                    sch_offsets_in[i] = offset - exec_domain.back() * dataSize;
-                } else if (offset == dataSize) {
+                if ((offset > inDataSize) || (offset == 0 && dims_in[i].back() != 1)) {
+                    sch_offsets_in[i] = offset - exec_domain.back() * inDataSize;
+                } else if (offset == inDataSize) {
                     sch_offsets_in[i] = offset;
                 }
             }
 
             for (size_t i = 0; i < offsets_out.size(); i++) {
                 int64_t offset = offsets_out[i][tensorRank - 2];
-                sch_offsets_out[i] = offset - exec_domain.back() * dataSize;
+                sch_offsets_out[i] = offset - exec_domain.back() * outDataSize;
             }
         }
     };

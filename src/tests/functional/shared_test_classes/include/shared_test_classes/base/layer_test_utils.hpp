@@ -95,6 +95,9 @@ public:
     // get runtime precision by operation friendly name which can be fused
     std::string getRuntimePrecisionByFusedName(const std::string& layerName);
 
+    // get execution graph as map: key is operation friendly name, value is node type
+    std::map<std::string, std::string> getExecGraphInfoAsMap();
+
     std::map<std::string, ngraph::Node::RTMap> getRuntimeInfo();
 
 #ifndef NDEBUG

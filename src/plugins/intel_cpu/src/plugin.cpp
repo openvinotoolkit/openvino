@@ -83,6 +83,7 @@
 #include <transformations/op_conversions/fq_decomposition.hpp>
 #include <transformations/utils/utils.hpp>
 #include <snippets/pass/collapse_subgraph.hpp>
+#include <snippets/pass/adopt_convert.hpp>
 #include "ngraph_transformations/snippets_mark_skipped.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
@@ -490,8 +491,11 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     postLPTPassManager.register_pass<ReshapePRelu>();
 
     postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::FakeQuantizeDecomposition>([](const_node_ptr &node) -> bool {
-        std::string errMsg;
-        return MKLDNNFakeQuantizeNode::isSupportedOperation(node, errMsg);
+        // TODO: uncomment
+        //std::string errMsg;
+        //return MKLDNNFakeQuantizeNode::isSupportedOperation(node, errMsg);
+
+        return false;
     });
     postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::UnrollTensorIterator>([](const_node_ptr &node) -> bool {
         // UnrollTI transformation is disabled by default, is turned on by LowLatency transformation
@@ -510,9 +514,10 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     postLPTPassManager.register_pass<ngraph::pass::ConstantFolding>();
     postLPTPassManager.run_passes(nGraphFunc);
 
-    if (!useLpt && _enableSnippets && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
+    if (_enableSnippets && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
         ngraph::pass::Manager tokenization_manager;
         //tokenization_manager.register_pass<SnippetsMarkSkipped>();
+        tokenization_manager.register_pass<ngraph::snippets::pass::AdoptConvert>(std::vector<ov::element::Type>{ov::element::f32});
         tokenization_manager.register_pass<ngraph::snippets::pass::EnumerateNodes>();
         tokenization_manager.register_pass<ngraph::snippets::pass::TokenizeSnippets>();
         tokenization_manager.get_pass_config()->set_callback<ngraph::snippets::pass::TokenizeSnippets>(

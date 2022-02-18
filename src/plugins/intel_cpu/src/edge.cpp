@@ -446,6 +446,13 @@ void MKLDNNEdge::init() {
     if (status != Status::NeedAllocation && status != Status::Uninitialized)
         return;
     MKLDNNEdgePtr edgePtr = getBaseEdge();
+    const auto& parent = edgePtr->getParent();
+    const auto& child = edgePtr->getChild();
+
+    // TODO: workaround
+    changeStatus(Status::NeedAllocation);
+    return;
+
     if (edgePtr.get() == this) {
         changeStatus(Status::NeedAllocation);
     } else {
