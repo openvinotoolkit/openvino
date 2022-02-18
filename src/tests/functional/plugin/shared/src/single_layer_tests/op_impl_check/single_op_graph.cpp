@@ -192,6 +192,31 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::ReverseSeq
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{params[0], seq_length[0]}, "ReverseSequenceGraph");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v7::Roll> &node) {
+    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{4, 2, 3}});
+    const auto shift = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {3}, {2, 1, 3});
+    const auto axes = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {3}, {0, 1, 2});
+    auto Node = std::make_shared<ov::op::v7::Roll>(params[0], shift, axes);
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(Node)};
+    return std::make_shared<ngraph::Function>(results, params, "RollGraph");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v5::Round> &node) {
+    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{10}});
+    auto Node = std::make_shared<ov::op::v5::Round>(params[0], op::v5::Round::RoundMode::HALF_TO_EVEN);
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(Node)};
+    return std::make_shared<ngraph::Function>(results, params, "RoundGraph");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v3::ScatterElementsUpdate> &node) {
+    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 2}, {2, 2}});
+    const auto indices = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {2, 2}, {1, 1, 0, 0});
+    const auto axis = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {1}, {0});
+    auto Node = std::make_shared<ov::op::v3::ScatterElementsUpdate>(params[0], indices, params[1], axis);
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(Node)};
+    return std::make_shared<ngraph::Function>(results, params, "ScatterElementsUpdateGraph");
+}
+
 std::shared_ptr<ov::Model> generateBinaryEltwise(const std::shared_ptr<ov::op::Op> &node) {
     const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{1, 2},
                                                                               {1, 2}});
