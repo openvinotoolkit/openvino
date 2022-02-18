@@ -16,7 +16,7 @@ The **runtime package** includes the following components installed by default:
 
 | Component                                                                                           | Description                                                                                                                                                                                                                                                                                                   |  
 |-----------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [Inference Engine](../OV_Runtime_UG/OpenVINO_Runtime_User_Guide.md)                            | This is the engine that runs the deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                                                                                |
+| [OpenVINO™ Runtime](../OV_Runtime_UG/OpenVINO_Runtime_User_Guide.md)                            | This is the engine that runs the deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                                                                                |
 
 ## System Requirements
 
@@ -81,7 +81,7 @@ Now you can start developing your application.
 - Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit).
 - OpenVINO™ toolkit online documentation: [https://docs.openvino.ai](https://docs.openvino.ai).
 - [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
-- [Inference Engine Developer Guide](../OV_Runtime_UG/OpenVINO_Runtime_User_Guide.md).
+- [OpenVINO™ Runtime User Guide](../OV_Runtime_UG/OpenVINO_Runtime_User_Guide.md).
 - For more information on Sample Applications, see the [Inference Engine Samples Overview](../OV_Runtime_UG/Samples_Overview.md).
 - Intel® Distribution of OpenVINO™ toolkit Anaconda* home page: [https://anaconda.org/intel/openvino-ie4py](https://anaconda.org/intel/openvino-ie4py)
 

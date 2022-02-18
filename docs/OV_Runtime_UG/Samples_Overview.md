@@ -270,4 +270,4 @@ sample, read the sample documentation by clicking the sample name in the samples
 list above.
 
 ## See Also
-* [Inference Engine Developer Guide](OpenVINO_Runtime_User_Guide.md)
+* [OpenVINO™ Runtime User Guide](OpenVINO_Runtime_User_Guide.md)

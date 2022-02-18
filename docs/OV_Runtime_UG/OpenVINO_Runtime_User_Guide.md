@@ -14,20 +14,15 @@
    ngraph_transformation
    openvino_docs_deployment_optimization_guide_dldt_optimization_guide
    openvino_docs_IE_DG_Device_Plugins
-   Direct ONNX Format Support <openvino_docs_IE_DG_ONNX_Support>
-   openvino_docs_IE_DG_Paddle_Support
    openvino_docs_IE_DG_Int8Inference
    openvino_docs_IE_DG_Bfloat16Inference
    openvino_docs_IE_DG_DynamicBatching
    openvino_docs_IE_DG_ShapeInference
    openvino_docs_IE_DG_Model_caching_overview
    openvino_docs_IE_DG_Extensibility_DG_Intro
-   openvino_docs_IE_DG_Memory_primitives
    openvino_docs_IE_DG_network_state_intro   
-   openvino_docs_IE_DG_API_Changes
-   openvino_docs_IE_DG_Known_Issues_Limitations
-   openvino_docs_IE_DG_Glossary
-      
+   openvino_docs_OV_Runtime_API_Changes
+
 @endsphinxdirective
 
 ## Introduction

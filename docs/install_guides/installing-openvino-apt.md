@@ -21,7 +21,7 @@ The following components are installed with the OpenVINO runtime package:
 
 | Component | Description|
 |-----------|------------|
-| [Inference Engine](../OV_Runtime_UG/OpenVINO_Runtime_User_Guide.md)| The engine that runs a deep learning model. It includes a set of libraries for an easy inference integration into your applications. |
+| [OpenVINO™ Runtime](../OV_Runtime_UG/OpenVINO_Runtime_User_Guide.md)| The engine that runs a deep learning model. It includes a set of libraries for an easy inference integration into your applications. |
 | [OpenCV*](https://docs.opencv.org/master/) | OpenCV* community version compiled for Intel® hardware. |
 | Deep Learning Streamer (DL Streamer) | Streaming analytics framework, based on GStreamer, for constructing graphs of media analytics components. For the DL Streamer documentation, see [DL Streamer Samples](@ref gst_samples_README), [API Reference](https://openvinotoolkit.github.io/dlstreamer_gst/), [Elements](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/Elements), [Tutorial](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/DL-Streamer-Tutorial). |
 
@@ -32,7 +32,7 @@ The following components are installed with the OpenVINO developer package:
 | Component | Description|
 |-----------|------------|
 | [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) | This tool imports, converts, and optimizes models that were trained in popular frameworks to a format usable by Intel tools, especially the Inference Engine. <br>Popular frameworks include Caffe\*, TensorFlow\*, MXNet\*, and ONNX\*. |
-| [Inference Engine](../OV_Runtime_UG/OpenVINO_Runtime_User_Guide.md) | The engine that runs a deep learning model. It includes a set of libraries for an easy inference integration into your applications.|
+| [OpenVINO™ Runtime](../OV_Runtime_UG/OpenVINO_Runtime_User_Guide.md) | The engine that runs a deep learning model. It includes a set of libraries for an easy inference integration into your applications.|
 | [OpenCV*](https://docs.opencv.org/master/) | OpenCV\* community version compiled for Intel® hardware |
 | [Sample Applications](../OV_Runtime_UG/Samples_Overview.md)           | A set of simple console applications demonstrating how to use the Inference Engine in your applications. |
 | [Demo Applications](@ref omz_demos) | A set of console applications that demonstrate how you can use the Inference Engine in your applications to solve specific use cases. |
@@ -158,7 +158,7 @@ sudo apt autoremove intel-openvino-<PACKAGE_TYPE>-ubuntu<OS_VERSION>-<VERSION>.<
 - Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit).
 - OpenVINO™ toolkit online documentation: [https://docs.openvino.ai](https://docs.openvino.ai).
 - [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
-- [Inference Engine Developer Guide](../OV_Runtime_UG/OpenVINO_Runtime_User_Guide.md).
+- [OpenVINO™ Runtime User Guide](../OV_Runtime_UG/OpenVINO_Runtime_User_Guide.md).
 - For more information on Sample Applications, see the [Inference Engine Samples Overview](../OV_Runtime_UG/Samples_Overview.md).
 - For IoT Libraries & Code Samples see the [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).
 

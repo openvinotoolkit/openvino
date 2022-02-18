@@ -48,7 +48,7 @@ PyTorch* framework is supported through export to ONNX\* format. A summary of th
 1. [Configure the Model Optimizer](../../Deep_Learning_Model_Optimizer_DevGuide.md) for ONNX\*.
 2. [Export PyTorch model to ONNX\*](#export-to-onnx).
 3. [Convert an ONNX\* model](Convert_Model_From_ONNX.md) to produce an optimized [Intermediate Representation (IR)](../../IR_and_opsets.md) of the model based on the trained network topology, weights, and biases values.
-4. Test the model in the Intermediate Representation format using the [Inference Engine](../../../OV_Runtime_UG/OpenVINO_Runtime_User_Guide.md) in the target environment via provided [sample applications](../../../OV_Runtime_UG/Samples_Overview.md).
+4. Test the model in the Intermediate Representation format using the [OpenVINO™ Runtime](../../../OV_Runtime_UG/OpenVINO_Runtime_User_Guide.md) in the target environment via provided [sample applications](../../../OV_Runtime_UG/Samples_Overview.md).
 5. [Integrate](../../../OV_Runtime_UG/Samples_Overview.md) the Inference Engine in your application to deploy the model in the target environment.
 
 ## Export PyTorch\* Model to ONNX\* Format <a name="export-to-onnx"></a>
