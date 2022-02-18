@@ -35,11 +35,13 @@ generateVector(size_t vec_len,
             res[i] = static_cast<dataType>(dist(gen));
         }
         return res;
-    } else {
-        if (std::is_same<bool, dataType>()) {
-            startFrom = 0;
-            upTo = 1;
+    } else if (std::is_same<bool, dataType>()) {
+        std::bernoulli_distribution dist;
+        for (size_t i = 0; i < vec_len; i++) {
+            res[i] = static_cast<dataType>(dist(gen));
         }
+        return res;
+    } else {
         // chose values between this range to avoid type overrun (e.g. in case of I8 precision)
         std::uniform_int_distribution<long> dist(static_cast<long>(startFrom), static_cast<long>(upTo));
         // explicitly include data range borders to avoid missing the corner values while data generation
