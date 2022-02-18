@@ -123,12 +123,16 @@ bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ngraph::
         return false;
     }
 
-    const auto channelsDimension = partialShape[1];
+    const auto channelsDimension = partialShape[partialShape.size() > 1ul ? 1ul : 0ul];
     if (channelsDimension.is_dynamic()) {
         return false;
     }
 
     const size_t channelsShapeVal = channelsDimension.get_length();
+    if (constShape.size() == 1ul) {
+        return constShape[0] == channelsShapeVal;
+    }
+
     const size_t rank = partialShape.rank().get_length();
     if (constShape.size() == rank) {
         if ((constShape[0] != 1ul) || (constShape[1] != channelsShapeVal)) {

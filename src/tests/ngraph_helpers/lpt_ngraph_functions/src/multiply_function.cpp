@@ -24,20 +24,6 @@ struct BranchNodes {
 };
 
 BranchNodes getBranch(const MultiplyBranch& branch) {
-    if (!branch.constant.empty()) {
-        if (branch.inputShape != branch.constant.shape) {
-            std::ostringstream message;
-            message << "shapes are not equals: " << branch.inputShape << " & " << branch.constant.shape;
-            throw std::runtime_error(message.str());
-        }
-
-        if (branch.precisionBeforeDequantization != branch.constant.outPrecision) {
-            std::ostringstream message;
-            message << "precisions are not equals: " << branch.precisionBeforeDequantization << " & " << branch.constant.outPrecision;
-            throw std::runtime_error(message.str());
-        }
-    }
-
     const std::shared_ptr<Node> parent = branch.constant.empty() ?
         std::make_shared<ngraph::opset1::Parameter>(branch.precisionBeforeDequantization, branch.inputShape) :
         std::dynamic_pointer_cast<Node>(std::make_shared<ngraph::opset1::Constant>(
