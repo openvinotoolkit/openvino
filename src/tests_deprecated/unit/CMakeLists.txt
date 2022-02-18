@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -28,7 +28,7 @@ if (ENABLE_INTEL_GNA AND BUILD_SHARED_LIBS)
             )
     source_group("gna" FILES ${GNA_TESTS})
     list(APPEND TEST_SRC ${GNA_TESTS})
-    list(APPEND TEST_DEPS ov_intel_gna_plugin_test_static)
+    list(APPEND TEST_DEPS openvino_intel_gna_plugin_test_static)
 
     if(SUGGEST_OVERRIDE_SUPPORTED)
         set_source_files_properties(engines/gna/graph_tools/graph_copy_tests.cpp
@@ -53,7 +53,7 @@ if (ENABLE_INTEL_GNA AND BUILD_SHARED_LIBS)
     endif()
 endif()
 
-if (ENABLE_INTEL_VPU)
+if (ENABLE_INTEL_MYRIAD)
     include(${XLINK_DIR}/XLink.cmake)
 
     if(SUGGEST_OVERRIDE_SUPPORTED)
@@ -72,12 +72,12 @@ if (ENABLE_INTEL_VPU)
             engines/vpu/myriad_tests/*cpp
             engines/vpu/myriad_tests/helpers/*cpp
             engines/vpu/myriad_tests/helpers/*h
-            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_vpu/myriad_plugin/*.cpp
-            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_vpu/myriad_plugin/configuration/*.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_myriad/myriad_plugin/*.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_myriad/myriad_plugin/configuration/*.cpp
             )
     include_directories(
             engines/vpu/myriad_tests/helpers
-            $<TARGET_PROPERTY:ov_intel_vpu_plugin,SOURCE_DIR>
+            $<TARGET_PROPERTY:openvino_intel_myriad_plugin,SOURCE_DIR>
             ${XLINK_INCLUDE}
             ${XLINK_PLATFORM_INCLUDE})
 
@@ -107,7 +107,7 @@ endif()
 target_compile_options(${TARGET_NAME} PRIVATE $<$<CXX_COMPILER_ID:Clang>: -Wno-error=inconsistent-missing-override >)
 target_compile_options(${TARGET_NAME} PRIVATE $<$<CXX_COMPILER_ID:AppleClang>: -Wno-error=inconsistent-missing-override >)
 
-if (ENABLE_INTEL_VPU)
+if (ENABLE_INTEL_MYRIAD)
     target_compile_definitions(${TARGET_NAME} PRIVATE __PC__)
     target_link_libraries(${TARGET_NAME} PRIVATE mvnc vpu_graph_transformer_test_static)
 endif ()

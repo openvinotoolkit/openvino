@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,25 +16,25 @@ std::string OVInferRequestCancellationTests::getTestCaseName(const testing::Test
 }
 
 TEST_P(OVInferRequestCancellationTests, canCancelAsyncRequest) {
-    runtime::InferRequest req;
+    ov::InferRequest req;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     OV_ASSERT_NO_THROW(req.start_async());
     OV_ASSERT_NO_THROW(req.cancel());
     try {
         req.wait();
-    } catch (const ov::runtime::Cancelled&) {
+    } catch (const ov::Cancelled&) {
         SUCCEED();
     }
 }
 
 TEST_P(OVInferRequestCancellationTests, CanResetAfterCancelAsyncRequest) {
-    runtime::InferRequest req;
+    ov::InferRequest req;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     OV_ASSERT_NO_THROW(req.start_async());
     OV_ASSERT_NO_THROW(req.cancel());
     try {
         req.wait();
-    } catch (const ov::runtime::Cancelled&) {
+    } catch (const ov::Cancelled&) {
         SUCCEED();
     }
     OV_ASSERT_NO_THROW(req.start_async());
@@ -42,13 +42,13 @@ TEST_P(OVInferRequestCancellationTests, CanResetAfterCancelAsyncRequest) {
 }
 
 TEST_P(OVInferRequestCancellationTests, canCancelBeforeAsyncRequest) {
-    runtime::InferRequest req;
+    ov::InferRequest req;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     OV_ASSERT_NO_THROW(req.cancel());
 }
 
 TEST_P(OVInferRequestCancellationTests, canCancelInferRequest) {
-    runtime::InferRequest req;
+    ov::InferRequest req;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     auto infer = std::async(std::launch::async, [&req]{req.infer();});
     while (!req.wait_for({})) {
@@ -56,7 +56,7 @@ TEST_P(OVInferRequestCancellationTests, canCancelInferRequest) {
     OV_ASSERT_NO_THROW(req.cancel());
     try {
         infer.get();
-    } catch (const ov::runtime::Cancelled&) {
+    } catch (const ov::Cancelled&) {
         SUCCEED();
     }
 }

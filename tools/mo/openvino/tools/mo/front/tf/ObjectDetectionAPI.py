@@ -1,11 +1,11 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """
 The file contains necessary transformations to convert models created with a TensorFlow Object Detection framework from
 the https://github.com/tensorflow/models/blob/master/research/object_detection/ repository. There is a dedicated
 OpenVINO document describing overall procedure of conversion these models with the Model Optimizer:
-https://docs.openvinotoolkit.org/latest/openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models.html
+https://docs.openvino.ai/latest/openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models.html
 
 Conversion of most of the TF OD API models requires execution of several transformations defined in this file. The list
 of transformations to be executed for a particular model type (meta-architecture) is defined in the transformation
@@ -28,7 +28,8 @@ from openvino.tools.mo.front.TransposeOrderNormalizer import TransposeOrderNorma
 from openvino.tools.mo.front.split_normalizer import SqueezeAxis
 from openvino.tools.mo.front.tf.CropAndResizeReplacement import CropAndResizeReplacement
 from openvino.tools.mo.front.tf.FakeQuantWithMinMaxVars import FakeQuantWithMinMaxVarsToQuantize
-from openvino.tools.mo.front.tf.MapFNTransformation import MapFNInputSlicing, MapFNOutputConcatenation
+from openvino.tools.mo.front.tf.MapFNTransformation import MapFNInputSlicing, MapFNOutputConcatenation,\
+    TensorListOutputConcatenation
 from openvino.tools.mo.front.tf.TFSliceToSlice import TFSliceToSliceReplacer
 from openvino.tools.mo.front.tf.pad_tf_to_pad import PadTFToPad
 from openvino.tools.mo.middle.InsertLayoutPropagationTransposes import mark_as_correct_data_layout, \
@@ -594,7 +595,7 @@ class ObjectDetectionAPITransformationsFinish(FrontReplacementPattern):
 
     def run_before(self):
         return [Pack, TransposeOrderNormalizer, PadTFToPad, SqueezeAxis, TFSliceToSliceReplacer, MapFNInputSlicing,
-                MapFNOutputConcatenation, CropAndResizeReplacement]
+                MapFNOutputConcatenation, TensorListOutputConcatenation, CropAndResizeReplacement]
 
     def find_and_replace_pattern(self, graph: Graph):
         pass
@@ -651,7 +652,15 @@ def get_preprocessing_ops(graph: Graph, start_node_id_suffix: str, end_node_id_s
     if len(preprocessing_nodes) == 0:
         preprocessing_nodes = get_specific_ops_with_const_inputs(end_node, allowed_ops, True)
         trailing = True
-    return preprocessing_nodes, trailing
+
+    # try to detect floating-point casting inside the body graph
+    # that also needs to stay in the resulted graph
+    casting = False
+    cast_nodes = backward_bfs_for_operation(start_node, ['Cast'])
+    if len(cast_nodes) == 1 and cast_nodes[0].dst_type == np.float32:
+        casting = True
+
+    return preprocessing_nodes, trailing, casting
 
 
 """ 
@@ -848,11 +857,11 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
             # we stick to the nodes with ids 'map/while/Preprocessor/unstack' and 'map/while/Preprocessor/stack' as they
             # "wrap" nodes performing image resize. The scale/mean values nodes are located strictly before or after
             # them
-            pre_processing_ops, trailing = get_preprocessing_ops(body_graph,
+            pre_processing_ops, trailing, casting = get_preprocessing_ops(body_graph,
                                                                  'map/while/Preprocessor/unstack',
                                                                  'map/while/Preprocessor/stack')
         else:
-            pre_processing_ops, trailing = get_preprocessing_ops(graph, start_node.id, end_node.id)
+            pre_processing_ops, trailing, casting = get_preprocessing_ops(graph, start_node.id, end_node.id)
 
         mean_scale_kept = True
         if len(pre_processing_ops):
@@ -863,6 +872,12 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
             if pre_processing_in_loop:  # case 4 and 5
                 # build a sub-graph containing a sequence of pre_processing_ops if they came from the Loop
                 new_preprocessing_ops = []
+
+                # cast data before start pre-processing with mean/scale values
+                if casting:
+                    cast_node = Cast(graph, {'dst_type': np.float32}).create_node()
+                    new_preprocessing_ops.append(cast_node)
+
                 ops_mapping = {'Add': Add, 'Div': Div, 'Mul': Mul, 'Sub': Sub}
                 for idx in range(len(pre_processing_ops)):
                     origin_node, const_port_ind, value = pre_processing_ops[idx]
@@ -1191,6 +1206,12 @@ class ObjectDetectionAPIMaskRCNNSigmoidReplacement(FrontReplacementFromConfigFil
             if last_node.name.startswith(masks_node_prefix_name):
                 sigmoid_node = Sigmoid(graph, dict(name='masks')).create_node()
                 op_output.in_port(0).get_connection().insert_node(sigmoid_node)
+
+                # the line below is needed to keep layout as is, istead of default NCHW->NHWC changing
+                sigmoid_node['nchw_layout'] = True
+
+                # adding op name to tensor names list is needed for compatiblity with old api configs
+                op_output.in_port(0).get_connection().get_source().add_tensor_names([sigmoid_node['name']])
 
         log.error('The predicted masks are produced by the "masks" layer for each bounding box generated with a '
                   '"detection_output" operation.\n Refer to operation specification in the documentation for the '

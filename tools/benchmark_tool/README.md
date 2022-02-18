@@ -5,11 +5,6 @@ Performance can be measured for two inference modes: latency- and throughput-ori
 
 > **NOTE**: This topic describes usage of Python implementation of the Benchmark Tool. For the C++ implementation, refer to [Benchmark C++ Tool](../../samples/cpp/benchmark_app/README.md).
 
-> **TIP**: You can quick start with the Benchmark Tool inside the OpenVINO™ [Deep Learning Workbench](@ref openvino_docs_get_started_get_started_dl_workbench) (DL Workbench).
-> [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is the OpenVINO™ toolkit UI you to 
-> import a model, analyze its performance and accuracy, visualize the outputs, optimize and prepare the model for 
-> deployment on various Intel® platforms.
-
 ## How It Works
 Upon start-up, the application reads command-line parameters and loads a network and inputs (images/binary files) to the specified device.
 Device-specific execution parameters (number of streams, threads, and so on) can be either explicitly specified through the command line
@@ -65,7 +60,7 @@ Notice that the benchmark_app usually produces optimal performance for any devic
 python3 benchmark_app.py -m <model> -i <input> -d CPU
 ```
 
-But it is still may be sub-optimal for some cases, especially for very small networks. More details can read in [Introduction to Performance Topics](../../docs/IE_DG/Intro_to_Performance.md).
+But it is still may be sub-optimal for some cases, especially for very small networks. More details can read in [Performance Optimization Guide](../../docs/optimization_guide/dldt_optimization_guide.md).
 
 Running the application with the `-h` or `--help`' option yields the following usage message:
 
@@ -104,11 +99,15 @@ Options:
   -c PATH_TO_CLDNN_CONFIG, --path_to_cldnn_config PATH_TO_CLDNN_CONFIG
                         Optional. Required for GPU custom kernels. Absolute
                         path to an .xml file with the kernels description.
-  -hint {throughput, latency}, --perf_hint {throughput, latency}
-                        Optional. Performance hint (optimize for latency or throughput).
-                        The hint allows the OpenVINO device to select the right network-specific settings,
-                        as opposite to defining specific values like  \nstreams\ from the command line.
-                        So you can specify just the hint without adding explicit device-specific options.
+  -hint {throughput, latency, none}, --perf_hint {throughput, latency, none}
+                        Optional. Performance hint (latency or throughput or
+                        none). Performance hint allows the OpenVINO device to
+                        select the right network-specific settings.
+                        'throughput': device performance mode will be set to
+                        THROUGHPUT. 'latency': device performance mode will be
+                        set to LATENCY. 'none': no device performance mode
+                        will be set. Using explicit 'nstreams' or other
+                        device-specific options, please set hint to 'none'
   -api {sync,async}, --api_type {sync,async}
                         Optional. Enable using sync/async API. Default value
                         is async.
@@ -228,6 +227,6 @@ Below are fragments of sample output for CPU and GPU devices:
    ```
 
 ## See Also
-* [Using Inference Engine Samples](../../docs/IE_DG/Samples_Overview.md)
+* [Using Inference Engine Samples](../../docs/OV_Runtime_UG/Samples_Overview.md)
 * [Model Optimizer](../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 * [Model Downloader](@ref omz_tools_downloader)

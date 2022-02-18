@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,25 @@
 #include "threading/ie_cpu_streams_executor.hpp"
 
 namespace InferenceEngine {
+namespace {
+class ExecutorManagerImpl : public ExecutorManager {
+public:
+    ITaskExecutor::Ptr getExecutor(const std::string& id) override;
+    IStreamsExecutor::Ptr getIdleCPUStreamsExecutor(const IStreamsExecutor::Config& config) override;
+    size_t getExecutorsNumber() const override;
+    size_t getIdleCPUStreamsExecutorsNumber() const override;
+    void clear(const std::string& id = {}) override;
 
-ITaskExecutor::Ptr ExecutorManagerImpl::getExecutor(std::string id) {
+private:
+    std::unordered_map<std::string, ITaskExecutor::Ptr> executors;
+    std::vector<std::pair<IStreamsExecutor::Config, IStreamsExecutor::Ptr>> cpuStreamsExecutors;
+    mutable std::mutex streamExecutorMutex;
+    mutable std::mutex taskExecutorMutex;
+};
+
+}  // namespace
+
+ITaskExecutor::Ptr ExecutorManagerImpl::getExecutor(const std::string& id) {
     std::lock_guard<std::mutex> guard(taskExecutorMutex);
     auto foundEntry = executors.find(id);
     if (foundEntry == executors.end()) {
@@ -45,13 +62,13 @@ IStreamsExecutor::Ptr ExecutorManagerImpl::getIdleCPUStreamsExecutor(const IStre
     return newExec;
 }
 
-// for tests purposes
-size_t ExecutorManagerImpl::getExecutorsNumber() {
+size_t ExecutorManagerImpl::getExecutorsNumber() const {
+    std::lock_guard<std::mutex> guard(taskExecutorMutex);
     return executors.size();
 }
 
-// for tests purposes
-size_t ExecutorManagerImpl::getIdleCPUStreamsExecutorsNumber() {
+size_t ExecutorManagerImpl::getIdleCPUStreamsExecutorsNumber() const {
+    std::lock_guard<std::mutex> guard(streamExecutorMutex);
     return cpuStreamsExecutors.size();
 }
 
@@ -73,65 +90,14 @@ void ExecutorManagerImpl::clear(const std::string& id) {
     }
 }
 
-std::mutex ExecutorManager::_mutex;
-ExecutorManager* ExecutorManager::_instance = nullptr;
+ExecutorManager::Ptr executorManager() {
+    static auto manager = std::make_shared<ExecutorManagerImpl>();
+    return manager;
+}
 
 ExecutorManager* ExecutorManager::getInstance() {
-    /*
-     * 1) We do not use singleton implementation via STATIC LOCAL object like
-     *
-     *   getInstance() {
-     *       static ExecutorManager _instance;
-     *       return &instance;
-     *   }
-     *
-     * Because of problem with destruction order on program exit.
-     * Some IE classes like MKLDNN::Engine use this singleton in destructor.
-     * But they has no direct dependency from c++ runtime point of view and
-     * it's possible that _instance local static variable  will be destroyed
-     * before MKLDNN::~Engine call. Any further manipulation with destroyed
-     * object will lead to exception or crashes.
-     *
-     * 2) We do not use singleton implementation via STATIC object like:
-     *
-     *   ExecutorManager ExecutorManager::_instance;
-     *   getInstance() {
-     *       return &instance;
-     *   }
-     *
-     * Because of problem with double destruction. In some test cases we use
-     * double link with IE module via static and dynamic version. Both modules
-     * have static object with same export name and it leads to double construction
-     * and double destruction of that object. For some c++ compilers (ex gcc 5.4)
-     * it lead to crash with "double free".
-     *
-     * That's why we use manual allocation of singleton instance on heap.
-     */
-    std::lock_guard<std::mutex> guard(_mutex);
-    if (_instance == nullptr) {
-        _instance = new ExecutorManager();
-    }
-    return _instance;
-}
-
-ITaskExecutor::Ptr ExecutorManager::getExecutor(std::string id) {
-    return _impl.getExecutor(id);
-}
-
-size_t ExecutorManager::getExecutorsNumber() {
-    return _impl.getExecutorsNumber();
-}
-
-size_t ExecutorManager::getIdleCPUStreamsExecutorsNumber() {
-    return _impl.getIdleCPUStreamsExecutorsNumber();
-}
-
-void ExecutorManager::clear(const std::string& id) {
-    _impl.clear(id);
-}
-
-IStreamsExecutor::Ptr ExecutorManager::getIdleCPUStreamsExecutor(const IStreamsExecutor::Config& config) {
-    return _impl.getIdleCPUStreamsExecutor(config);
+    static auto ptr = executorManager().get();
+    return ptr;
 }
 
 }  // namespace InferenceEngine

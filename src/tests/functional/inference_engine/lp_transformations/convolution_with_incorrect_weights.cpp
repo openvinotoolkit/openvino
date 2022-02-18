@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -95,7 +95,7 @@ TEST_P(ConvolutionWithIncorrectWeightsTransformation, CompareFunctions) {
     ngraph::pass::InitNodeInfo().run_on_model(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
 
-    auto res = compare_functions(referenceFunction, actualFunction, true);
+    auto res = compare_functions(actualFunction, referenceFunction, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 

@@ -15,7 +15,7 @@ Engine concepts: plugin creation, multiple executable networks support, multiple
 
     - From the declaration of convolution test class we can see that it's a parametrized GoogleTest based class with the `convLayerTestParamsSet` tuple of parameters:
 
-    @snippet single_layer_tests/convolution.hpp test_convolution:definition
+    @snippet single_layer/convolution.hpp test_convolution:definition
 
     - Based on that, define a set of parameters for `Template` plugin functional test instantiation:
 

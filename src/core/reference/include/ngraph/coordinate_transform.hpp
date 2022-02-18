@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -77,7 +77,7 @@ public:
     /// \param c tensor element coordinate
     /// \deprecated
     NGRAPH_DEPRECATED("This method is deprecated and will be removed soon.")
-    size_t index(const Coordinate& c) const noexcept;
+    size_t index(const Coordinate& c) const;
 
     /// \brief Returns an iterator to the first coordinate of the tensor.
     CoordinateIterator begin() const noexcept;

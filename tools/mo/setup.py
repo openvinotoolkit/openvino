@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -42,15 +42,15 @@ py_modules.append(prefix.replace('/', '.') + '__main__')
 # Minimal set of dependencies
 deps_whitelist = ['networkx', 'defusedxml', 'numpy', 'openvino-telemetry']
 
-# for py37 and less on Windows need importlib-metadata in order to use entry_point *.exe files
-if sys.platform == 'win32' and sys.version_info[1] < 8:
-    deps_whitelist.append('importlib-metadata')
-
 deps = []
 with open('requirements.txt', 'rt') as req_file:
     for line in req_file.read().split('\n'):
         if line.startswith(tuple(deps_whitelist)):
             deps.append(line)
+
+# for py37 and less on Windows need importlib-metadata in order to use entry_point *.exe files
+if sys.platform == 'win32' and sys.version_info[1] < 8:
+    deps.append('importlib-metadata')
 
 
 class InstallCmd(install):

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from collections import defaultdict
@@ -31,15 +31,18 @@ class IteratorGetNextCut(FrontReplacementPattern):
         iter_get_next_shapes = defaultdict(list)
         for iter_get_next in graph.get_op_nodes(op='IteratorGetNext'):
             iter_get_next_name = iter_get_next.soft_get('name', iter_get_next.id)
-            for port in iter_get_next.out_ports():
-                if not np_data_type_to_precision(iter_get_next.types[port]) in SUPPORTED_DATA_TYPES:
+            for port_idx, port in iter_get_next.out_ports().items():
+                if port.disconnected():
+                    continue
+
+                if not np_data_type_to_precision(iter_get_next.types[port_idx]) in SUPPORTED_DATA_TYPES:
                     raise Error("In IteratorGetNext node '{}' data type '{}' is not supported".format(
-                        iter_get_next_name, iter_get_next.types[port]))
+                        iter_get_next_name, iter_get_next.types[port_idx]))
 
                 iter_get_next_shapes[iter_get_next_name].append(dict(
-                    shape=iter_get_next.shapes[port],
-                    out=port,
-                    data_type=iter_get_next.types[port]
+                    shape=iter_get_next.shapes[port_idx],
+                    out=port_idx,
+                    data_type=iter_get_next.types[port_idx]
                 ))
 
         add_input_ops(graph, iter_get_next_shapes, True)

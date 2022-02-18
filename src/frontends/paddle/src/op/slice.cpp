@@ -1,12 +1,11 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <limits.h>
 
-#include <node_context.hpp>
-
 #include "default_opset.hpp"
+#include "openvino/frontend/paddle/node_context.hpp"
 
 namespace ov {
 namespace frontend {
@@ -14,12 +13,12 @@ namespace paddle {
 namespace op {
 using namespace default_opset;
 NamedOutputs slice(const NodeContext& node) {
-    auto data = node.get_ng_input("Input");
+    auto data = node.get_input("Input");
     auto axes = node.get_attribute<std::vector<int32_t>>("axes");
     Output<Node> start_idx_node, end_idx_node;
-    if (node.has_ng_input("StartsTensor")) {
-        start_idx_node = node.get_ng_input("StartsTensor");
-    } else if (node.has_ng_input("StartsTensorList")) {
+    if (node.has_input("StartsTensor")) {
+        start_idx_node = node.get_input("StartsTensor");
+    } else if (node.has_input("StartsTensorList")) {
         auto inputs = node.get_ng_inputs("StartsTensorList");
         start_idx_node = std::make_shared<Concat>(inputs, 0);
     } else {
@@ -27,9 +26,9 @@ NamedOutputs slice(const NodeContext& node) {
         start_idx_node = Constant::create(element::i32, {starts.size()}, starts);
     }
 
-    if (node.has_ng_input("EndsTensor")) {
-        end_idx_node = node.get_ng_input("EndsTensor");
-    } else if (node.has_ng_input("EndsTensorList")) {
+    if (node.has_input("EndsTensor")) {
+        end_idx_node = node.get_input("EndsTensor");
+    } else if (node.has_input("EndsTensorList")) {
         auto inputs = node.get_ng_inputs("EndsTensorList");
         end_idx_node = std::make_shared<Concat>(inputs, 0);
     } else {

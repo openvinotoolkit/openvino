@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,8 @@
  *
  */
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MemoryDesc;
 
@@ -58,9 +59,21 @@ public:
 
     virtual MemoryDescPtr clone() const = 0;
 
-    // clone descriptor with new dims. Throws an exception if some of the new dims conflicts with the internal shape (i.e. its defined dims ,rank, upper bounds)
-    MemoryDescPtr cloneWithNewDims(const VectorDims& dims) const {
-        if (!getShape().isCompatible(dims)) {
+    /**
+     * @brief Clone descriptor with new dims.
+     * Throws an exception if relaxedCheck is false and some of the new dims conflicts with the internal shape (i.e. its defined dims ,rank, upper bounds)
+     * or if internal shape and dims have different ranks
+     * @param dims new dims
+     * @param relaxedCheck flag which defined must we check dims with internal desc on compatibility
+     * @return MemoryDescPtr with new dims
+     */
+    MemoryDescPtr cloneWithNewDims(const VectorDims& dims, bool relaxedCheck = false) const {
+        if (relaxedCheck) {
+            if (getShape().getRank() != dims.size()) {
+                IE_THROW(ParameterMismatch) << "Can not clone with new dims, ranks mistmatch. Descriptor's rank: " << getShape().getRank() <<
+                                               " is incompatible with provided rank of dimensions: " << dims.size() << ".";
+            }
+        } else if (!getShape().isCompatible(dims)) {
             IE_THROW(ParameterMismatch) << "Can not clone with new dims. Descriptor's shape: " << getShape().toString() <<
                                            " is incompatible with provided dimensions: " << MemoryDescUtils::dims2str(dims) << ".";
         }
@@ -163,4 +176,5 @@ protected:
     friend class MKLDNNSplitNode;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

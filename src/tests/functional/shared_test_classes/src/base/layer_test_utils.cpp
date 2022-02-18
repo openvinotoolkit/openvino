@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -324,9 +324,7 @@ void LayerTestsCommon::Compare(const InferenceEngine::TensorDesc &actualDesc, co
 
 void LayerTestsCommon::ConfigureNetwork() {
     for (const auto &in : cnnNetwork.getInputsInfo()) {
-        if (inLayout != InferenceEngine::Layout::ANY &&
-            // cannot setLayout for fully-dynamic network
-            !in.second->getPartialShape().rank().is_dynamic()) {
+        if (inLayout != InferenceEngine::Layout::ANY) {
             in.second->setLayout(inLayout);
         }
         if (inPrc != InferenceEngine::Precision::UNSPECIFIED) {
@@ -335,9 +333,7 @@ void LayerTestsCommon::ConfigureNetwork() {
     }
 
     for (const auto &out : cnnNetwork.getOutputsInfo()) {
-        if (outLayout != InferenceEngine::Layout::ANY &&
-            // cannot setLayout for fully-dynamic network
-            !out.second->getPartialShape().rank().is_dynamic()) {
+        if (outLayout != InferenceEngine::Layout::ANY) {
             out.second->setLayout(outLayout);
         }
         if (outPrc != InferenceEngine::Precision::UNSPECIFIED) {

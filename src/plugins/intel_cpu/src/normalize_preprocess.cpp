@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include "nodes/common/cpu_memcpy.h"
 #include "utils/general_utils.h"
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 NormalizePreprocess::NormalizePreprocess() : meanBuffer(nullptr) {
@@ -45,7 +45,7 @@ void NormalizePreprocess::Load(const Shape& inputShape, InputInfo::Ptr inputInfo
             auto meanWidth = pp[0]->meanData->getTensorDesc().getDims()[pp[0]->meanData->getTensorDesc().getDims().size() - 1];
             auto meanHeight = pp[0]->meanData->getTensorDesc().getDims()[pp[0]->meanData->getTensorDesc().getDims().size() - 2];
 
-            TensorDesc desc(Precision::FP32, {inChannels, meanHeight, meanWidth}, Layout::CHW);
+            TensorDesc desc(Precision::FP32, {inChannels, meanHeight, meanWidth}, InferenceEngine::Layout::CHW);
 
             meanBuffer = make_shared_blob<float>(desc);
 

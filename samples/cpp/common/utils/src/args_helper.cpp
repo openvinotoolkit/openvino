@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -250,15 +250,29 @@ bool isMatchLayoutToDims(InferenceEngine::Layout layout, size_t dimension) {
 
 void printInputAndOutputsInfoShort(const ov::Model& network) {
     std::cout << "Network inputs:" << std::endl;
-    for (auto&& param : network.get_parameters()) {
-        auto l = param->get_layout();
-        std::cout << "    " << param->get_friendly_name() << " : " << param->get_element_type() << " / "
-                  << param->get_layout().to_string() << std::endl;
+    for (auto&& input : network.inputs()) {
+        std::cout << "    " << input.get_any_name() << " (node: " << input.get_node()->get_friendly_name()
+                  << ") : " << input.get_element_type() << " / " << ov::layout::get_layout(input).to_string()
+                  << std::endl;
     }
+
     std::cout << "Network outputs:" << std::endl;
-    for (auto&& result : network.get_results()) {
-        std::cout << "    " << result->get_friendly_name() << " : " << result->get_element_type() << " / "
-                  << result->get_layout().to_string() << std::endl;
+    for (auto&& output : network.outputs()) {
+        std::string out_name = "***NO_NAME***";
+        std::string node_name = "***NO_NAME***";
+
+        // Workaround for "tensor has no name" issue
+        try {
+            out_name = output.get_any_name();
+        } catch (const ov::Exception&) {
+        }
+        try {
+            node_name = output.get_node()->get_input_node_ptr(0)->get_friendly_name();
+        } catch (const ov::Exception&) {
+        }
+
+        std::cout << "    " << out_name << " (node: " << node_name << ") : " << output.get_element_type() << " / "
+                  << ov::layout::get_layout(output).to_string() << std::endl;
     }
 }
 

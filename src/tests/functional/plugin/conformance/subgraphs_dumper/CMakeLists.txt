@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -18,8 +18,8 @@ addIeTargetTest(
         ADD_CPPLINT
 )
 
-if(TARGET ov_ir_frontend)
-    add_dependencies(${TARGET_NAME} ov_ir_frontend)
+if(TARGET openvino_ir_frontend)
+    add_dependencies(${TARGET_NAME} openvino_ir_frontend)
 endif()
 
 ie_faster_build(${TARGET_NAME} UNITY)

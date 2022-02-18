@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 
-NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::MoveEltwiseUpThroughDataMov, "MoveEltwiseUpThroughDataMov", 0);
+NGRAPH_RTTI_DEFINITION(ov::intel_cpu::MoveEltwiseUpThroughDataMov, "MoveEltwiseUpThroughDataMov", 0);
 
 namespace {
     bool is_data_movement_operation(const std::shared_ptr<ngraph::Node>& node) {
@@ -39,7 +39,7 @@ namespace {
     }
 } // namespace
 
-MKLDNNPlugin::MoveEltwiseUpThroughDataMov::MoveEltwiseUpThroughDataMov() {
+ov::intel_cpu::MoveEltwiseUpThroughDataMov::MoveEltwiseUpThroughDataMov() {
     auto eltwise_pattern = ngraph::pattern::wrap_type<ngraph::op::util::UnaryElementwiseArithmetic,
                                                       ngraph::op::util::BinaryElementwiseArithmetic>(ngraph::pattern::has_static_rank());
 

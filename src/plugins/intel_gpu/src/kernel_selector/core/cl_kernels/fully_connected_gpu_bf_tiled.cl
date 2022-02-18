@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -70,7 +70,7 @@
 #   if OUTPUT_3D
 #       define MAIN_LOOP_ELEMENTS_COUNT  (INPUT0_SIZE_Y - 1)
 #   else
-#       define MAIN_LOOP_ELEMENTS_COUNT (INPUT0_ELEMENTS_COUNT - 1)
+#       define MAIN_LOOP_ELEMENTS_COUNT  (INPUT0_ELEMENTS_COUNT - 1)
 #   endif
 #endif
 
@@ -93,10 +93,11 @@ KERNEL(fc)(
 #endif
 ) {
     uint gid = (uint)get_group_id(0);
+    uint sglid = (uint)get_sub_group_local_id();
 
     // Dispatch as bs_fs_bsv_fsv, where bsv = DISPATCH_BSV and fsv = DISPATCH_FSV.
     // This allows more fine grained control over dispatch order than using work-groups and
-    // avoids requirement of threads being availiable for whole work-group.
+    // avoids requirement of threads being available for whole work-group.
     // It could hovewer have some drawbacks like not providing physical locality or not using
     // full dispatch pipeline.
     uint feature_mini_block = gid % DISPATCH_FSV;
@@ -217,10 +218,9 @@ KERNEL(fc)(
         BIAS_VEC_TYPE bias = 0;
         __attribute__((opencl_unroll_hint))
         for (uint fi = 0; fi < TILE_OFM; ++fi) {
-            ((BIAS_TYPE*)(&bias))[fi] = biases[out_f + get_sub_group_local_id() + fi * SIMD];
+            ((BIAS_TYPE*)(&bias))[fi] = biases[out_f + sglid + fi * SIMD];
         }
     #endif
-
     __attribute__((opencl_unroll_hint))
     for (uint bi = 0; bi < TILE_B; ++bi) {
         activated[bi] += TO_ACTIVATION_VEC_TYPE(bias);
@@ -229,11 +229,18 @@ KERNEL(fc)(
 
     OUTPUT_VEC_TYPE result[TILE_B] = { };
 #if HAS_FUSED_OPS
-    FUSED_OPS_PRELOAD;
     __attribute__((opencl_unroll_hint))
     for (uint bi = 0; bi < TILE_B; ++bi) {
-        FUSED_OPS_CALC;
-        result[bi] = FUSED_OPS_RESULT;
+    #if TILE_OFM > 1
+        __attribute__((opencl_unroll_hint))
+        for (uint fi = 0; fi < TILE_OFM; ++fi) {
+            FUSED_OPS_VEC;
+            result[bi][fi] = FUSED_OPS_RESULT_VEC;
+        }
+    #else
+        FUSED_OPS_SCALAR;
+        result[bi] = FUSED_OPS_RESULT_SCALAR;
+    #endif // TILE_OFM > 1
     }
 #else
     __attribute__((opencl_unroll_hint))
@@ -254,13 +261,13 @@ KERNEL(fc)(
         CONST_LOOP(TILE_B, WRITE_OUTPUT);
         #undef WRITE_OUTPUT
     } else {
-        output_offset += get_sub_group_local_id();
+        output_offset += sglid;
 
         // TODO: Investigate why below code doesn't compile and check how it affects performance.
         //#define WRITE_OUTPUT_FEATURE(fi) do {                                                   \
         //        const bool should_write =                                                       \
         //            TILE_OUT_F_NUM %  (TILE_OFM * SIMD) == 0 ||                                 \
-        //            out_f + (fi) * SIMD + get_sub_group_local_id() < TILE_OUT_F_NUM;            \
+        //            out_f + (fi) * SIMD + sglid < TILE_OUT_F_NUM;                               \
         //        if (should_write) {                                                             \
         //            output[output_offset] = result[out_bi][fi];                                 \
         //        }                                                                               \
@@ -281,7 +288,7 @@ KERNEL(fc)(
             for (uint fi = 0; fi < TILE_OFM; ++fi) {
                 const bool should_write =
                     TILE_OUT_F_NUM % (TILE_OFM * SIMD) == 0 ||
-                    out_f + fi * SIMD + get_sub_group_local_id() < TILE_OUT_F_NUM;
+                    out_f + fi * SIMD + sglid < TILE_OUT_F_NUM;
                 if (should_write) {
                     output[output_offset] = ((OUTPUT_TYPE*)(&result[bi]))[fi];
                 }

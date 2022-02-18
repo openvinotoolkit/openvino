@@ -6,44 +6,9 @@
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_with_New_Primitives
    openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers
-   openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_with_New_Primitives
-   openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Legacy_Mode_for_Caffe_Custom_Layers
 
 @endsphinxdirective
-
-- <a href="#model-representation-in-memory">Model Representation in Memory</a>
-- <a href="#model-conversion-pipeline">Model Conversion Pipeline</a>
-  - <a href="#model-loading">Model Loading</a>
-  - <a href="#operations-attributes-extracting">Operations Attributes Extracting</a>
-  - <a href="#front-phase">Front Phase</a>
-  - <a href="#partial-inference">Partial Inference</a>
-  - <a href="#middle-phase">Middle Phase</a>
-  - <a href="#layout-change">NHWC to NCHW Layout Change</a>
-  - <a href="#back-phase">Back Phase</a>
-  - <a href="#ir-emitting">Intermediate Representation Emitting</a>
-- <a href="#graph-ports-and-conneсtions">Graph Traversal and Modification Using <code>Port</code>s and <code>Connection</code>s</a>
-  - <a href="#intro-ports">Ports</a>
-  - <a href="#intro-conneсtions">Connections</a>
-- <a href="#extensions">Model Optimizer Extensions</a>
-  - <a href="#operation">Model Optimizer Operation</a>
-  - <a href="#extension-extractor">Operation Extractor</a>
-  - <a href="#graph-transformations">Graph Transformation Extensions</a>
-    - <a href="#front-phase-transformations">Front Phase Transformations</a>
-      - <a href="#pattern-defined-front-phase-transformations">Pattern-Defined Front Phase Transformations</a>
-      - <a href="#specific-operation-front-phase-transformations">Specific Operation Front Phase Transformations</a>
-      - <a href="#generic-front-phase-transformations">Generic Front Phase Transformations</a>
-      - <a href="#node-name-pattern-front-phase-transformations">Node Name Pattern Front Phase Transformations</a>
-      - <a href="#start-end-points-front-phase-transformations">Front Phase Transformations Using Start and End Points</a>
-      - <a href="#generic-transformations-config-front-phase-transformations">Generic Front Phase Transformations Enabled with Transformations Configuration File</a>
-    - <a href="#middle-phase-transformations">Middle Phase Transformations</a>
-      - <a href="#pattern-defined-middle-phase-transformations">Pattern-Defined Middle Phase Transformations</a>
-      - <a href="#generic-middle-phase-transformations">Generic Middle Phase Transformations</a>
-    - <a href="#back-phase-transformations">Back Phase Transformations</a>
-      - <a href="#pattern-defined-back-phase-transformations">Pattern-Defined Back Phase Transformations</a>
-      - <a href="#generic-back-phase-transformations">Generic Back Phase Transformations</a>
-- <a href="#see-also">See Also</a>
 
 <a name="model-optimizer-extensibility"></a>Model Optimizer extensibility mechanism enables support of new operations and custom transformations to generate the optimized intermediate representation (IR) as described in the 
 [Deep Learning Network Intermediate Representation and Operation Sets in OpenVINO™](../../IR_and_opsets.md). This
@@ -148,10 +113,6 @@ operation to trigger the extracting function for and the value is the function. 
 to extract attributes from. This is a legacy and non-extensible approach so it should be avoided. This mechanism will be
 removed in future versions of the Model Optimizer.
 
-3.  Caffe specific extractor using the `CustomLayersMapping.xml` described in the
-[Legacy Mode for Caffe\* Custom Layers](Legacy_Mode_for_Caffe_Custom_Layers.md). This approach is deprecated and will be
-removed in future versions of the Model Optimizer.
-
 The extractors execution order is the following:
 * `CustomLayersMapping.xml` (for Caffe models only).
 * Model Optimizer extension.
@@ -196,7 +157,7 @@ the following (for the case when `axis` is not equal to 0 and 1):
 4. Use the concatenated value as the second input to the `Reshape` operation.
 
 It is highly recommended that you write shape-agnostic transformations to avoid model reshape-ability issues. Refer to
-[Using Shape Inference](../../../IE_DG/ShapeInference.md) for more information related to the reshaping of a model.
+[Using Shape Inference](../../../OV_Runtime_UG/ShapeInference.md) for more information related to the reshaping of a model.
 
 More information on how to develop front phase transformations and dedicated API description is provided in the
 [Front Phase Transformations](#front-phase-transformations).
@@ -210,7 +171,7 @@ defined as a mathematical expression using the [ShapeOf](../../../ops/shape/Shap
 
 > **NOTE**: Model Optimizer does not fold sub-graphs starting from the [ShapeOf](../../../ops/shape/ShapeOf_3.md)
 > operation by default because this leads to a model non-reshape-ability (the command line parameter `--static_shape`
-> can override this behavior). Refer to [Using Shape Inference](../../../IE_DG/ShapeInference.md) for more information
+> can override this behavior). Refer to [Using Shape Inference](../../../OV_Runtime_UG/ShapeInference.md) for more information
 > related to reshaping of a model.
 
 Model Optimizer calculates output shapes for all operations in a model to write them to Intermediate Representation
@@ -546,7 +507,7 @@ There are a number of common attributes used in the operations. Here is the list
 Model Optimizer operations this attribute should be set to `None`. The model conversion fails if an operation with
 `type` equal to `None` comes to the IR emitting phase. **Mandatory**.
 * `version` — the operation set (opset) name the operation belongs to. If not specified, the Model Optimizer sets it
-equal to `experimental`. Refer to [nGraph Basic Concepts](@ref openvino_docs_nGraph_DG_basic_concepts) for more
+equal to `experimental`. Refer to [OpenVINO Model Representation](@ref openvino_docs_OV_Runtime_UG_Model_Representation) for more
 information about operation sets. **Mandatory**.
 * `op` — Model Optimizer type of the operation. In many cases, the value of `type` is equal to the value of `op`. But
 when the Model Optimizer cannot instantiate the opset operation during model loading, it creates an instance of an internal
@@ -638,10 +599,6 @@ There are several types of Model Optimizer extractor extensions:
 1. The generic one, which is described in this section.
 2. The special extractor for Caffe\* models with Python layers. This kind of extractor is described in the
 [Extending the Model Optimizer with Caffe* Python Layers](Extending_Model_Optimizer_with_Caffe_Python_Layers.md).
-3. The special extractor for MXNet\* models with custom operations. This kind of extractor is described in the
-[Extending the Model Optimizer for Custom MXNet* Operations](Extending_MXNet_Model_Optimizer_with_New_Primitives.md).
-4. The special extractor and fallback to Caffe\* for shape inference is described in the
-[Legacy Mode for Caffe* Custom Layers](Legacy_Mode_for_Caffe_Custom_Layers.md).
 
 This chapter is focused on the option #1, which provides a generic mechanism for the operation extractor applicable for
 all frameworks. Model Optimizer provides the `mo.front.extractor.FrontExtractorOp` class as a base class to implement the
@@ -1302,8 +1259,6 @@ Refer to the `extensions/back/GatherNormalizer.py` for the example of a such typ
 ## See Also <a name="see-also"></a>
 * [Deep Learning Network Intermediate Representation and Operation Sets in OpenVINO™](../../IR_and_opsets.md)
 * [Converting a Model to Intermediate Representation (IR)](../convert_model/Converting_Model.md)
-* [nGraph Basic Concepts](@ref openvino_docs_nGraph_DG_basic_concepts)
-* [Inference Engine Extensibility Mechanism](../../../IE_DG/Extensibility_DG/Intro.md)
+* [OpenVINO Model Representation](../../../OV_Runtime_UG/model_representation.md)
+* [Inference Engine Extensibility Mechanism](../../../OV_Runtime_UG/Extensibility_DG/Intro.md)
 * [Extending the Model Optimizer with Caffe* Python Layers](Extending_Model_Optimizer_with_Caffe_Python_Layers.md)
-* [Extending the Model Optimizer for Custom MXNet* Operations](Extending_MXNet_Model_Optimizer_with_New_Primitives.md)
-* [Legacy Mode for Caffe* Custom Layers](Legacy_Mode_for_Caffe_Custom_Layers.md)

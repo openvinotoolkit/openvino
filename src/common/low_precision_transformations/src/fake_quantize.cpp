@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,12 +34,8 @@ FakeQuantizeTransformation::FakeQuantizeTransformation(const Params& params) : L
 }
 
 bool FakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
-    std::shared_ptr<opset1::FakeQuantize> layer = std::dynamic_pointer_cast<opset1::FakeQuantize>(m.get_match_root());
-    if (!QuantizationDetails::outputLayoutIsSupported(layer)) {
-        return false;
-    }
-
-    if (NetworkHelper::isFQByDynamicDimension(layer)) {
+    const auto layer = ov::as_type_ptr<opset1::FakeQuantize>(m.get_match_root());
+    if (!layer || !QuantizationDetails::outputLayoutIsSupported(layer)) {
         return false;
     }
 
@@ -108,11 +104,7 @@ bool FakeQuantizeTransformation::checkElementwise(const std::shared_ptr<Node>& e
             return false;
         }
 
-        if ((eltwiseOutputPShape.rank().get_length() - shape.size()) > 1) {
-            return false;
-        }
-
-        if ((eltwiseOutputPShape.rank().get_length() - shape.size()) == 1ul) {
+        while (eltwiseOutputPShape.size() > shape.size()) {
             shape.insert(shape.begin(), 1ul);
         }
 

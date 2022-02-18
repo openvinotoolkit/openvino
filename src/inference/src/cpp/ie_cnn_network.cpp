@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -124,14 +124,6 @@ ICNNNetwork::InputShapes CNNNetwork::getInputShapes() const {
 }
 
 void CNNNetwork::reshape(const ICNNNetwork::InputShapes& inputShapes) {
-    CALL_STATUS_FNC(reshape, inputShapes);
-}
-
-void CNNNetwork::reshape(const std::initializer_list<ICNNNetwork::InputShapes::value_type>& inputShapes) {
-    return reshape(ICNNNetwork::InputShapes(inputShapes));
-}
-
-void CNNNetwork::reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes) {
     CALL_STATUS_FNC(reshape, inputShapes);
 }
 

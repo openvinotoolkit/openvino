@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,4 +62,10 @@ TEST(ONNXReader_ModelUnsupported, unknown_wire_type) {
     // in this model the graph key contains wire type 7 encoded in it - this value is incorrect
     EXPECT_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("unsupported/unknown_wire_type.onnx")),
                  InferenceEngine::NetworkNotRead);
+}
+
+TEST(ONNXReader_ModelUnsupported, duplicate_fields) {
+    // the model contains the IR_VERSION field twice - this is not correct
+    EXPECT_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("unsupported/duplicate_onnx_fields.onnx")),
+                 std::exception);
 }

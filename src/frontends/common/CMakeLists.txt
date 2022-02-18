@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -38,6 +38,8 @@ if(NOT BUILD_SHARED_LIBS)
 endif()
 
 target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::util ov_core_dev)
+set_target_properties(${TARGET_NAME}_obj PROPERTIES
+    INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 
 set_property(SOURCE
             ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_loader.cpp
@@ -68,7 +70,6 @@ openvino_developer_export_targets(COMPONENT core_legacy TARGETS ${TARGET_NAME})
 install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/openvino
         DESTINATION ${FRONTEND_INSTALL_INCLUDE}
         COMPONENT core_dev)
-
 
 # Shutdown protobuf library
 if(Protobuf_IN_FRONTEND AND BUILD_SHARED_LIBS)

@@ -1,7 +1,7 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import shape_array
 from openvino.tools.mo.graph.graph import Node
 
 
@@ -12,6 +12,6 @@ def multi_box_prior_infer_mxnet(node: Node):
     num_ratios = len(node.aspect_ratio)
     num_priors = len(node.min_size) + num_ratios - 1
     if v10:
-        node.out_node(0).shape = int64_array([2, data_H * data_W * num_priors * 4])
+        node.out_node(0).shape = shape_array([2, data_H * data_W * num_priors * 4])
     else:
-        node.out_node(0).shape = int64_array([1, 2, data_H * data_W * num_priors * 4])
+        node.out_node(0).shape = shape_array([1, 2, data_H * data_W * num_priors * 4])

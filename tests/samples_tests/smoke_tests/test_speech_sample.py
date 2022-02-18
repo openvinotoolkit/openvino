@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2021 Intel Corporation
+ Copyright (C) 2018-2022 Intel Corporation
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -22,11 +22,14 @@ log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=s
 
 test_data = get_tests(cmd_params={'i': [os.path.join('ark', 'dev93_10.ark')],
                                            'm': [os.path.join('wsj', 'FP32', 'wsj_dnn5b.xml')],
+                                           'layout': ["[NC]"],
                                            'bs': [1, 2],
                                            'o': ['res_output.ark'],
                                            'r': [os.path.join('ark', 'dev93_scores_10.ark')],
                                            'qb': [8, 16],
-                                           'd': ['GNA_SW']},
+                                           'sf': ["Parameter:2175.43", "2175.43"],
+                                           'q': ["static", "user"],
+                                           'd': ['GNA_SW_EXACT']},
                                use_device=False
                                )
 

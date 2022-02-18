@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -117,7 +117,7 @@ TEST(replace_node, simple_node_replacement) {
     new_relu->output(0).get_tensor().set_names({"f"});
     replace_node(relu, new_relu);
 
-    ASSERT_EQ(new_relu->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"c", "d"}));
+    ASSERT_EQ(new_relu->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"c", "d", "f"}));
 }
 
 TEST(replace_node, node_elimination) {
@@ -133,6 +133,52 @@ TEST(replace_node, node_elimination) {
     ASSERT_EQ(param->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"a", "b"}));
 }
 
+TEST(replace_node, node_elimination_1) {
+    auto param = std::make_shared<op::Parameter>(element::i64, Shape{3, 64});
+    auto split = std::make_shared<op::v1::Split>(param, op::Constant::create(element::i64, Shape{}, {0}), 3);
+    auto relu1 = std::make_shared<op::Relu>(split->output(2));
+    auto relu2 = std::make_shared<op::Relu>(relu1);
+    auto result2 = std::make_shared<op::Result>(relu2);
+
+    // relu1 can be removed because we don't have to preserve name
+    ASSERT_TRUE(replace_output_update_name(relu1->output(0), relu1->input_value(0)));
+
+    // relu2 can't be removed because we have to preserve name and Split has more than one output port
+    ASSERT_FALSE(replace_output_update_name(relu2->output(0), relu2->input_value(0)));
+}
+
+TEST(replace_node, node_elimination_2) {
+    auto param = std::make_shared<op::Parameter>(element::i64, Shape{3, 64});
+    auto relu1 = std::make_shared<op::Relu>(param);
+    auto result1 = std::make_shared<op::Result>(relu1);
+    auto relu2 = std::make_shared<op::Relu>(relu1);
+    auto result2 = std::make_shared<op::Result>(relu2);
+
+    // relu2 can't be removed because relu1 has Result as consumer
+    ASSERT_FALSE(replace_output_update_name(relu2->output(0), relu2->input_value(0)));
+}
+
+TEST(replace_node, node_elimination_3) {
+    auto param = std::make_shared<op::Parameter>(element::i64, Shape{3, 64});
+    auto relu1 = std::make_shared<op::Relu>(param);
+    auto relu2 = std::make_shared<op::Relu>(relu1);
+    auto relu3 = std::make_shared<op::Relu>(relu1);
+    auto result2 = std::make_shared<op::Result>(relu3);
+
+    // relu3 can be removed because relu1 has no Result as consumer
+    ASSERT_TRUE(replace_output_update_name(relu3->output(0), relu3->input_value(0)));
+}
+
+TEST(replace_node, node_elimination_4) {
+    auto param = std::make_shared<op::Parameter>(element::i64, Shape{3, 64});
+    auto relu1 = std::make_shared<op::Relu>(param);
+    auto split = std::make_shared<op::v1::Split>(relu1, op::Constant::create(element::i64, Shape{}, {0}), 3);
+    auto relu2 = std::make_shared<op::Relu>(split->output(2));
+    auto result2 = std::make_shared<op::Result>(relu2);
+
+    ASSERT_TRUE(replace_output_update_name(split->output(2), split->input_value(0)));
+}
+
 TEST(replace_node, output_replacement) {
     auto param = std::make_shared<op::Parameter>(element::i64, Shape{1, 64});
     param->output(0).get_tensor().set_names({"a", "b"});
@@ -144,7 +190,7 @@ TEST(replace_node, output_replacement) {
 
     relu->output(0).replace(new_relu->output(0));
 
-    ASSERT_EQ(new_relu->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"c", "d"}));
+    ASSERT_EQ(new_relu->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"c", "d", "f"}));
 }
 
 TEST(replace_node, source_replacement) {

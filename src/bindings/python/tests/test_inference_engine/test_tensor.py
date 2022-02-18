@@ -1,12 +1,18 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import os
+import subprocess
+import sys
+
 import numpy as np
+
+import openvino.runtime as ov
+from openvino.runtime import Tensor
+
 import pytest
 
 from ..conftest import read_image
-from openvino.runtime import Tensor
-import openvino.runtime as ov
 
 
 @pytest.mark.parametrize("ov_type, numpy_dtype", [
@@ -33,6 +39,13 @@ def test_init_with_ngraph(ov_type, numpy_dtype):
     assert np.all(ov_tensor.element_type == ov_type for ov_tensor in ov_tensors)
     assert np.all(ov_tensor.data.dtype == numpy_dtype for ov_tensor in ov_tensors)
     assert np.all(ov_tensor.data.shape == (1, 3, 32, 32) for ov_tensor in ov_tensors)
+
+
+def test_subprocess():
+    args = [sys.executable, os.path.join(os.path.dirname(__file__), "subprocess_test_tensor.py")]
+
+    status = subprocess.run(args, env=os.environ)
+    assert not status.returncode
 
 
 @pytest.mark.parametrize("ov_type, numpy_dtype", [
@@ -93,6 +106,13 @@ def test_init_with_numpy_shared_memory(ov_type, numpy_dtype):
     assert np.array_equal(ov_tensor.data, arr)
     assert ov_tensor.size == arr.size
     assert ov_tensor.byte_size == arr.nbytes
+
+    assert tuple(ov_tensor.get_shape()) == shape
+    assert ov_tensor.get_element_type() == ov_type
+    assert ov_tensor.data.dtype == numpy_dtype
+    assert ov_tensor.data.shape == shape
+    assert ov_tensor.get_size() == arr.size
+    assert ov_tensor.get_byte_size() == arr.nbytes
 
 
 @pytest.mark.parametrize("ov_type, numpy_dtype", [
@@ -185,13 +205,21 @@ def test_set_shape(ov_type, numpy_dtype):
     ref_shape = ov.Shape([1, 3, 48, 48])
     ref_shape_np = [1, 3, 28, 28]
     ov_tensor = Tensor(ov_type, shape)
+
+    ov_tensor.set_shape(ref_shape)
+    assert list(ov_tensor.shape) == list(ref_shape)
     ov_tensor.shape = ref_shape
     assert list(ov_tensor.shape) == list(ref_shape)
+
     ones_arr = np.ones(list(ov_tensor.shape), numpy_dtype)
     ov_tensor.data[:] = ones_arr
     assert np.array_equal(ov_tensor.data, ones_arr)
+
+    ov_tensor.set_shape(ref_shape_np)
+    assert list(ov_tensor.shape) == ref_shape_np
     ov_tensor.shape = ref_shape_np
     assert list(ov_tensor.shape) == ref_shape_np
+
     zeros = np.zeros(ref_shape_np, numpy_dtype)
     ov_tensor.data[:] = zeros
     assert np.array_equal(ov_tensor.data, zeros)

@@ -1,16 +1,17 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "mkldnn_node.h"
+#include <node.h>
 
 #include <memory>
 #include <vector>
 
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class TileBroadcastCommon {
 protected:
@@ -41,4 +42,5 @@ private:
     } optimizedParams;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

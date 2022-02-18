@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -19,14 +19,14 @@ file(GLOB SHARED_TESTS_SRC
 
 add_library(${TARGET_NAME} STATIC ${SHARED_TESTS_SRC})
 
-add_dependencies(${TARGET_NAME} inference_engine_preproc mock_engine)
+add_dependencies(${TARGET_NAME} openvino_gapi_preproc mock_engine)
 
 if(ENABLE_AUTO OR ENABLE_MULTI)
-    add_dependencies(${TARGET_NAME} ov_auto_plugin)
+    add_dependencies(${TARGET_NAME} openvino_auto_plugin)
 endif()
 
 if(ENABLE_AUTO_BATCH)
-    add_dependencies(${TARGET_NAME} ov_auto_batch_plugin)
+    add_dependencies(${TARGET_NAME} openvino_auto_batch_plugin)
 endif()
 
 set_ie_threading_interface_for(${TARGET_NAME})
@@ -61,7 +61,7 @@ endif()
 target_link_libraries(${TARGET_NAME} PUBLIC ${SHARED_LIBRARIES})
 
 if(ENABLE_HETERO)
-    add_dependencies(${TARGET_NAME} ov_hetero_plugin)
+    add_dependencies(${TARGET_NAME} openvino_hetero_plugin)
 endif()
 
 # developer package

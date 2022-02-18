@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -137,8 +137,8 @@ public:
     }
 
     void compare(
-            const std::vector<ov::runtime::Tensor>& expectedTensors,
-            const std::vector<ov::runtime::Tensor>& actualTensors) override {
+            const std::vector<ov::Tensor>& expectedTensors,
+            const std::vector<ov::Tensor>& actualTensors) override {
         ASSERT_EQ(expectedTensors.size(), actualTensors.size());
 
         for (auto i = 0; i < expectedTensors.size(); ++i) {

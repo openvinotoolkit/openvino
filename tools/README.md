@@ -4,7 +4,7 @@
 OpenVINO includes following tools:
 * openvino.tools.benchmark
 
-Please, refer to https://docs.openvinotoolkit.org for details.
+Please, refer to https://docs.openvino.ai for details.
 
 ## Installation
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,8 @@
 #include <chrono>
 #include <ratio>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class PerfCount {
     uint64_t total_duration;
@@ -48,7 +49,8 @@ public:
     ~PerfHelper() { counter.finish_itr(); }
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov
 
 #define GET_PERF(_node) std::unique_ptr<PerfHelper>(new PerfHelper(_node->PerfCounter()))
 #define PERF(_node, _need) auto pc = _need ? GET_PERF(_node) : nullptr;

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ public:
 
 protected:
     std::vector<Extension::Ptr> m_loaded_extensions;
-    std::vector<std::pair<std::shared_ptr<DecoderTransformationExtension>, std::string>> m_target_extensions;
+    std::vector<std::pair<DecoderTransformationExtension::Ptr, std::string>> m_target_extensions;
 };
 }  // namespace frontend
 }  // namespace ov

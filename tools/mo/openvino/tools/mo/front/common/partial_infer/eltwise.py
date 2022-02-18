@@ -1,13 +1,15 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension, dynamic_dimension_value
+from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension, dynamic_dimension_value, \
+    undefined_shape_of_rank, compatible_shapes, compatible_dims
+from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.utils.error import Error
 
 
-def eltwise_infer(node, op=None, **kwargs):
+def eltwise_infer(node: Node, op=None, **kwargs):
     def broadcast_dims(dim1, dim2):
         if dim1 is not dynamic_dimension and dim2 is not dynamic_dimension:
             mind = min(dim1, dim2)
@@ -80,8 +82,86 @@ def eltwise_infer(node, op=None, **kwargs):
             node.out_port(0).data.set_value(op(node.out_node().value, values[i + 1]))
 
 
+def eltwise_reverse_infer(node: Node):
+    input_1_shape = node.in_port(0).data.get_shape()
+    input_2_shape = node.in_port(1).data.get_shape()
+    if input_1_shape is not None and input_2_shape is not None:
+        return
+
+    output_shape = node.out_port(0).data.get_shape()
+    node_name = node.soft_get('name', node.id)
+
+    if node['auto_broadcast'] is 'none':
+        # input_1, input_2 and output shapes must match
+        # therefore undefined partial shapes can be exactly defined from output shape
+        if output_shape is not None:
+            most_defined_shape = output_shape
+
+            # if out_shape = [4, dyn] and input_1_shape = [dyn, 13]
+            # then missing shape must be [4, 13]
+            if input_1_shape is not None and not compatible_shapes(output_shape, input_1_shape):
+                raise Error("shapes are not compatible for node '{}'".format(node_name))
+            elif input_1_shape is not None:
+                most_defined_shape = find_common_partial_shape(output_shape, input_1_shape)
+
+            if input_2_shape is not None and not compatible_shapes(output_shape, input_2_shape):
+                raise Error("shapes are not compatible for node '{}'".format(node_name))
+            elif input_2_shape is not None:
+                most_defined_shape = find_common_partial_shape(most_defined_shape, input_2_shape)
+
+            if input_1_shape is None:
+                node.in_port(0).data.set_shape(most_defined_shape)
+            if input_2_shape is None:
+                node.in_port(1).data.set_shape(most_defined_shape)
+    elif node['auto_broadcast'] == 'numpy':
+        if output_shape is not None:
+            out_rank = len(output_shape)
+            deduced_in_shape = undefined_shape_of_rank(out_rank)
+
+            if input_1_shape is not None and input_2_shape is None and out_rank > len(input_1_shape):
+                in_port_to_update = 1
+                defined_in_shape = input_1_shape
+            elif input_2_shape is not None and input_1_shape is None and out_rank > len(input_2_shape):
+                in_port_to_update = 0
+                defined_in_shape = input_2_shape
+            else:
+                return
+            defined_in_rank = len(defined_in_shape)
+
+            for i in range(-1, -defined_in_rank - 1, -1):
+                assert defined_in_shape[i] == 1 or np.ma.is_masked(defined_in_shape[i]) \
+                       or compatible_dims(defined_in_shape[i], output_shape[i]), \
+                    "Shapes of Elementwise node '{}' are not compatible for reverse_infer.".format(node_name)
+
+                # if defined_input_shape = [1] and output_shape = [N, 400, 400, 3]
+                # partial shape information about sizes should not be lost
+                if defined_in_shape[i] == 1 or output_shape[i] == 1:
+                    deduced_in_shape[i] = output_shape[i]
+            deduced_in_shape[:-defined_in_rank] = output_shape[:-defined_in_rank]
+
+            node.in_port(in_port_to_update).data.set_shape(deduced_in_shape)
+
+
 def bias_add_infer(node, op):
     if node.in_port(0).data.get_value() is not None and node.in_port(1).data.get_value() is not None and op is not None:
         node.out_port(0).data.set_value(op(node.in_port(0).data.get_value(), node.in_port(1).data.get_value()))
     else:
         node.out_port(0).data.set_shape(node.in_port(0).data.get_shape())
+
+
+def find_common_partial_shape(shape1, shape2):
+    """
+    Extracts maximum information from partially defined shapes.
+
+    For example, if shape_1 = [4, dyn] and shape_2 = [dyn, 13]
+    then resulting shape will be [4, 13]
+    :param shape1: partially defined shape
+    :param shape2: partially defined shape
+    :return:
+    """
+    assert compatible_shapes(shape1, shape2), 'shapes must be compatible'
+    res = shape1.copy()
+    for i, (d1, d2) in enumerate(zip(shape1, shape2)):
+        if np.ma.is_masked(res[i]):
+            res[i] = d2
+    return res

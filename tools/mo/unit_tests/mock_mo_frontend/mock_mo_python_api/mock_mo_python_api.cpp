@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "../ov_mock_mo_frontend/mock_mo_frontend.hpp"
+#include "../mock_mo_frontend/mock_mo_frontend.hpp"
 
 namespace py = pybind11;
 using namespace ngraph;

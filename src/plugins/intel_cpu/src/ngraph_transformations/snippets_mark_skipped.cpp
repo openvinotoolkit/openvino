@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "snippets_mark_skipped.hpp"
@@ -7,10 +7,13 @@
 #include <utils/general_utils.h>
 #include <utils/cpu_utils.hpp>
 
-NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::SnippetsMarkSkipped, "SnippetsMarkSkipped", 0);
+NGRAPH_RTTI_DEFINITION(ov::intel_cpu::SnippetsMarkSkipped, "SnippetsMarkSkipped", 0);
 
 using namespace ngraph;
-namespace MKLDNNPlugin {
+
+namespace ov {
+namespace intel_cpu {
+
 namespace {
 NodeFusingType GetNodeFusingType(const std::shared_ptr<const Node> &node) {
     auto &rt = node->get_rt_info();
@@ -349,4 +352,6 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
     }
     return true;
 }
-}  // namespace MKLDNNPlugin
+
+}   // namespace intel_cpu
+}   // namespace ov

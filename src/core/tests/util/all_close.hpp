@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -127,10 +127,7 @@ namespace test {
 /// \param atol Absolute tolerance
 /// Returns true if shapes match and for all elements, |a_i-b_i| <= atol + rtol*|b_i|.
 template <typename T>
-::testing::AssertionResult all_close(const ov::runtime::Tensor& a,
-                                     const ov::runtime::Tensor& b,
-                                     T rtol = 1e-5f,
-                                     T atol = 1e-8f) {
+::testing::AssertionResult all_close(const ov::Tensor& a, const ov::Tensor& b, T rtol = 1e-5f, T atol = 1e-8f) {
     auto a_t = std::make_shared<ngraph::runtime::HostTensor>(a.get_element_type(), a.get_shape(), a.data());
     auto b_t = std::make_shared<ngraph::runtime::HostTensor>(b.get_element_type(), b.get_shape(), b.data());
 
@@ -143,9 +140,6 @@ template <typename T>
 /// \param rtol Relative tolerance
 /// \param atol Absolute tolerance
 /// Returns true if shapes match and for all elements, |a_i-b_i| <= atol + rtol*|b_i|.
-::testing::AssertionResult all_close(const ov::runtime::Tensor& a,
-                                     const ov::runtime::Tensor& b,
-                                     float rtol = 1e-5f,
-                                     float atol = 1e-8f);
+::testing::AssertionResult all_close(const ov::Tensor& a, const ov::Tensor& b, float rtol = 1e-5f, float atol = 1e-8f);
 }  // namespace test
 }  // namespace ov

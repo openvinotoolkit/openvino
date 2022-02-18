@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import networkx as nx
@@ -6,21 +6,21 @@ from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.middle.passes.infer import type_infer
 
 from . import editor as ge, builder as gb
-from .nx_model import NXModel
+from .nx_model import CompressedModel
 from .passes import compress_weights
 from ..utils.utils import convert_output_key
 
 
 def load_model(model_config, target_device='ANY'):
     """ Loads model from specified path
-    :return NXModel instance
+    :return CompressedModel instance
     """
-    return NXModel(config=model_config, target_device=target_device)
+    return CompressedModel(config=model_config, target_device=target_device)
 
 
-def save_model(model: NXModel, save_path, model_name=None, for_stat_collection=False):
+def save_model(model: CompressedModel, save_path, model_name=None, for_stat_collection=False):
     """ Save model as IR in specified path
-    :param model: NXModel instance to save
+    :param model: CompressedModel instance to save
     :param save_path: path to save the model
     :param model_name: name under which the model will be saved
     :param for_stat_collection: whether model is saved to be used
@@ -52,16 +52,16 @@ def add_outputs(models, node_names):
     return outputs_per_model
 
 
-def compress_model_weights(model: NXModel):
+def compress_model_weights(model: CompressedModel):
     """Apply transformations to save model weights to INT8."""
     for model_dict in model.models:
         compress_weights(model_dict['model'])
 
 
 # TODO: set recursively = True to enable subgraphs quantization
-def get_nodes_by_type(model: NXModel, types: list, recursively: bool = False):
+def get_nodes_by_type(model: CompressedModel, types: list, recursively: bool = False):
     """ Returns all nodes with type from types collection
-    :param model: NXModel model
+    :param model: CompressedModel model
     :param types: list of required types
     :param recursively: whether return all nodes from the model
     and each subgraph or only from the external model
@@ -71,9 +71,9 @@ def get_nodes_by_type(model: NXModel, types: list, recursively: bool = False):
             for node in ge.get_nodes_by_type(model_dict['model'], types, recursively)]
 
 
-def get_node_by_name(model: NXModel, name: str) -> Node:
+def get_node_by_name(model: CompressedModel, name: str) -> Node:
     """ Returns node by name found in the graph and each subgraph
-    :param model: NXModel model
+    :param model: CompressedModel model
     :param name: name of the node
     :return node from model (of type Node or None if there's no such node)
     """
@@ -87,9 +87,9 @@ def get_node_by_name(model: NXModel, name: str) -> Node:
 
 
 # TODO: set recursively = True to enable subgraphs quantization
-def get_all_operation_nodes(model: NXModel, recursively: bool = False):
+def get_all_operation_nodes(model: CompressedModel, recursively: bool = False):
     """ Returns sequence of all nodes in all graphs
-    :param model: NXModel model
+    :param model: CompressedModel model
     :param recursively: whether return all nodes from the model
     and each subgraph or only from the external model
     :return list of all nodes
@@ -100,16 +100,16 @@ def get_all_operation_nodes(model: NXModel, recursively: bool = False):
 
 def build_model_for_node(nx_model, input_name, input_shape, node, remove_bias=False,
                          remove_fake_quantize=False, target_device='ANY'):
-    """ Build Model containing Subgraph of NXModel (input - node - output).
+    """ Build Model containing Subgraph of CompressedModel (input - node - output).
     The Convolution, FullyConnected node types are supported.
-    :param nx_model: NXModel model
+    :param nx_model: CompressedModel model
     :param input_name: name of the input node in the generated graph
     :param input_shape: shape of the input node in the generated graph
     :param node: node for which graph (input - node - output) will be generated
     :param remove_bias: remove bias in the generated graph
     :param remove_fake_quantize: remove fake quantize nodes in the generated graph
     :param target_device: device for processing
-    :return: generated NXModel instance.
+    :return: generated CompressedModel instance.
     """
     candidates = [model_dict['model'] for model_dict in nx_model.models
                   if ge.get_node_by_name(model_dict['model'], input_name)]
@@ -117,12 +117,12 @@ def build_model_for_node(nx_model, input_name, input_shape, node, remove_bias=Fa
         raise RuntimeError('Name collision: {}'.format(input_name))
     model = candidates[0]
     op_graph = gb.build_graph_for_node(model, input_name, input_shape, node, remove_bias, remove_fake_quantize)
-    return NXModel(graph=op_graph, target_device=target_device)
+    return CompressedModel(graph=op_graph, target_device=target_device)
 
 
 def models_union(first_model, second_model):
-    """ Return the union of NXModel models
-    :return NXModel instance - union of first_model and second_model
+    """ Return the union of CompressedModel models
+    :return CompressedModel instance - union of first_model and second_model
     """
     union = first_model
     union_models = union.models
@@ -135,7 +135,7 @@ def models_union(first_model, second_model):
     return union
 
 def nx_type_infer(model):
-    """ Apply type_infer for each model in NXModel wrapper
+    """ Apply type_infer for each model in CompressedModel wrapper
     """
     for model_dict in model.models:
         type_infer(model_dict['model'])

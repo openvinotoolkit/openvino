@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,13 +27,13 @@ struct BucketizeParams {
 
     element::Type input_type;
     PartialShape input_pshape;
-    runtime::Tensor input;
+    ov::Tensor input;
     element::Type bucket_type;
     PartialShape bucket_pshape;
-    runtime::Tensor buckets;
+    ov::Tensor buckets;
     bool with_right_bound;
     element::Type output_type;
-    runtime::Tensor expected_output;
+    ov::Tensor expected_output;
 };
 
 class ReferenceBucketizeLayerTest : public testing::TestWithParam<BucketizeParams>, public CommonReferenceTest {

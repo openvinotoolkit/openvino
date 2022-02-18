@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,8 +16,8 @@ namespace op {
 OutputVector translate_avg_pool_op(const NodeContext& node) {
     Output<Node> ng_input = node.get_input(0);
 
-    auto tf_strides = node.get_attribute<std::vector<int32_t>>("strides");
-    auto tf_ksize = node.get_attribute<std::vector<int32_t>>("ksize");
+    auto tf_strides = node.get_attribute<std::vector<int64_t>>("strides");
+    auto tf_ksize = node.get_attribute<std::vector<int64_t>>("ksize");
     auto tf_padding_type = node.get_attribute<std::string>("padding");
     auto tf_data_format = node.get_attribute<std::string>("data_format");
 

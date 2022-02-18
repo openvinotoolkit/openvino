@@ -1,9 +1,8 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <node_context.hpp>
-
+#include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset6.hpp"
 
 namespace ov {
@@ -11,7 +10,7 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs dropout(const NodeContext& node) {
-    auto data = node.get_ng_input("X");
+    auto data = node.get_input("X");
     auto dropout_implementation = node.get_attribute<std::string>("dropout_implementation");
     PADDLE_OP_CHECK(node,
                     (dropout_implementation == "downgrade_in_infer" || dropout_implementation == "upscale_in_train"),

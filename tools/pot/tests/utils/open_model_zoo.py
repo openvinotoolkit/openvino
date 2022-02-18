@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import sys
@@ -71,7 +71,7 @@ def command_line_for_convert(config):
     )
     if not is_platform_windows:
         return 'PYTHONPATH={path}:$PYTHONPATH '.format(path=python_path) + script_launch_cli
-    return 'cmd /C "set PYTHONPATH={path}:$PYTHONPATH && {script_launch_cli}"'.format(
+    return 'cmd /C "set PYTHONPATH={path};%PYTHONPATH% && {script_launch_cli}"'.format(
         path=python_path,
         script_launch_cli=script_launch_cli,
     )
@@ -100,7 +100,7 @@ def download_engine_config(model_name):
                 engine_conf_.network_info = model_.network_info
 
             for launcher in model_.launchers:
-                if launcher.framework == 'dlsdk':
+                if launcher.framework == 'openvino':
                     engine_conf_.launchers = list()
                     engine_launcher = {'framework': launcher.framework}
                     if launcher.adapter:

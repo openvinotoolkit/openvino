@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -104,7 +104,7 @@ TEST_P(SplitTransformation, CompareFunctions) {
     InitNodeInfo().run_on_model(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
 
-    auto res = compare_functions(referenceFunction, actualFunction, true, false);
+    auto res = compare_functions(actualFunction, referenceFunction, true, false);
     ASSERT_TRUE(res.first) << res.second;
 
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
@@ -137,7 +137,7 @@ const std::vector<SplitTransformationTestValues> testValues = {
         }
     },
     {
-        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() }, std::int64_t{2}, size_t{2},
+        { -1, -1, -1, -1 }, std::int64_t{2}, size_t{2},
         LayerTransformation::createParamsU8I8(),
         // ActualValues
         {
@@ -212,7 +212,7 @@ const std::vector<SplitTransformationTestValues> testValues = {
     },
     // U8 per channel quantization with different values and dynamic shapes
     {
-        { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() }, std::int64_t{1}, size_t{3},
+        { -1, 3, -1, -1 }, std::int64_t{1}, size_t{3},
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
@@ -233,7 +233,7 @@ const std::vector<SplitTransformationTestValues> testValues = {
     },
     // U8 per channel quantization with different values and dynamic shapes (dynamic channels)
     {
-        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() }, std::int64_t{1}, size_t{3},
+        { -1, -1, -1, -1 }, std::int64_t{1}, size_t{3},
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
@@ -243,11 +243,13 @@ const std::vector<SplitTransformationTestValues> testValues = {
         },
         {
             ngraph::element::u8,
-            {{ngraph::element::f32},
-            {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
-            {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}},
-            ngraph::element::f32,
-            {}
+            {},
+            ngraph::element::u8,
+            {
+                {{ngraph::element::f32}, {1.f}, {11.f}},
+                {{ngraph::element::f32}, {2.f}, {22.f}},
+                {{ngraph::element::f32}, {3.f}, {33.f}},
+            }
         }
     },
     // U8 per channel quantization with different values (constants without batch)
@@ -423,7 +425,7 @@ const std::vector<SplitTransformationTestValues> testValues = {
     },
     // U8 without subtract, dynamic shape
     {
-        { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() },
+        { -1, 3, -1, -1 },
         std::int64_t{-3}, size_t{3},
         LayerTransformation::createParamsU8I8(),
         {
@@ -445,7 +447,7 @@ const std::vector<SplitTransformationTestValues> testValues = {
     },
     // U8 without subtract, dynamic shape (dynamic channels)
     {
-        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+        { -1, -1, -1, -1 },
         std::int64_t{-3}, size_t{3},
         LayerTransformation::createParamsU8I8(),
         {
@@ -456,11 +458,13 @@ const std::vector<SplitTransformationTestValues> testValues = {
         },
         {
             ngraph::element::u8,
-            {{ngraph::element::f32},
             {},
-            {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}},
-            ngraph::element::f32,
-            {}
+            ngraph::element::u8,
+            {
+                {{ngraph::element::f32}, {}, {11.f}},
+                {{ngraph::element::f32}, {}, {22.f}},
+                {{ngraph::element::f32}, {}, {33.f}},
+            }
         }
     },
     // I8 without subtract
@@ -558,7 +562,7 @@ const std::vector<SplitTransformationTestValues> testValues = {
     },
     // issue #56781: unsupported Concat after Split, dynamic channels
     {
-        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+        { -1, -1, -1, -1 },
         std::int64_t{2}, size_t{3},
         LayerTransformation::createParamsU8I8(),
         {

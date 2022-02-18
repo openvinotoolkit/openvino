@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -13,8 +13,10 @@ import openvino.runtime as ov
 
 def get_test_function():
     param = ov.opset8.parameter(PartialShape([1, 3, 22, 22]), name="parameter")
+    param.get_output_tensor(0).set_names({"parameter"})
     relu = ov.opset8.relu(param)
     res = ov.opset8.result(relu, name="result")
+    res.get_output_tensor(0).set_names({"result"})
     return Model([res], [param], "test")
 
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -210,10 +210,11 @@ ngraph::pass::TransposeFQReduction::TransposeFQReduction() {
         auto &pattern_to_output = m.get_pattern_value_map();
 
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
+        if (!transpose) return false;
+
         auto transpose_order = std::dynamic_pointer_cast<opset6::Constant>(transpose->get_input_node_shared_ptr(1));
         auto fq = pattern_to_output.at(fq_label).get_node_shared_ptr();
-        if (!transpose || !transpose_order || !fq)
-            return false;
+        if (!transpose_order || !fq) return false;
 
         ngraph::NodeVector new_ops;
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -127,7 +127,7 @@ TEST_F(DeterministicityTest, IRInputsOrder) {
 
     auto model = std::make_shared<Model>(NodeVector{res}, ParameterVector{a, b, c});
 
-    runtime::Core core;
+    ov::Core core;
     auto serialize = pass::Serialize(m_out_xml_path, m_out_bin_path);
     serialize.run_on_function(model);
     auto serialized_func = core.read_model(m_out_xml_path);
@@ -157,7 +157,7 @@ TEST_F(DeterministicityTest, IROutputsOrder) {
 
     auto model = std::make_shared<Model>(NodeVector{res1, res2, res3}, ParameterVector{a});
 
-    runtime::Core core;
+    ov::Core core;
     auto serialize = pass::Serialize(m_out_xml_path, m_out_bin_path);
     serialize.run_on_function(model);
     auto serialized_func = core.read_model(m_out_xml_path);

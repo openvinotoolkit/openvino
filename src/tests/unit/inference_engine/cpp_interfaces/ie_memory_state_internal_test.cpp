@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ class InferRequestVariableStateTests : public ::testing::Test {
     shared_ptr<MockIVariableStateInternal> mockVariableStateInternal;
     MockIInferencePlugin*                           mockIPlugin;
     InferencePlugin                                 plugin;
-    ov::runtime::SoPtr<IExecutableNetworkInternal>  net;
+    ov::SoPtr<IExecutableNetworkInternal>  net;
     IInferRequestInternal::Ptr                      req;
 
     void SetUp() override {

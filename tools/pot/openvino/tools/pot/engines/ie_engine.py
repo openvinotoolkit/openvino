@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import multiprocessing
@@ -7,11 +7,12 @@ from time import time
 
 import copy
 import numpy as np
-from openvino.runtime import Core, AsyncInferQueue   # pylint: disable=E0611,E0401
+from openvino.runtime import Core, AsyncInferQueue, Shape   # pylint: disable=E0611,E0401
 
 from .utils import append_stats, process_accumulated_stats, \
     restore_original_node_names, align_stat_names_with_results, \
-    add_tensor_names, cast_friendly_names, collect_model_outputs
+    add_tensor_names, cast_friendly_names, collect_model_outputs, \
+    process_raw_output, get_clean_name
 from ..api.engine import Engine
 from ..graph.model_utils import save_model
 from ..samplers.batch_sampler import BatchSampler
@@ -37,18 +38,18 @@ class IEEngine(Engine):
 
     def set_model(self, model):
         """ Loads NetworkX model into InferenceEngine and stores it in Engine class
-        :param model: NXModel instance
+        :param model: CompressedModel instance
         """
         if model.is_cascade:
             raise Exception('Cascade models are not supported in current engine')
 
         # save NetworkX graph to IR and use it to initialize IE Network
         self._model = self._set_model(model)[0]['model']
-        self._output_layers = [output.get_node().friendly_name for output in self._model.outputs]
+        self._output_layers = [get_clean_name(output.get_node().friendly_name) for output in self._model.outputs]
 
     def _set_model(self, model):
-        """Creates IENetwork instances from NetworkX models in NXModel.
-        :param: model: NXModel instance
+        """Creates IENetwork instances from NetworkX models in CompressedModel.
+        :param: model: CompressedModel instance
         :return: list of dictionaries:
                  [
                     {
@@ -181,13 +182,14 @@ class IEEngine(Engine):
                                      annotations=batch_annotations)
 
         # Postprocess network output
-        output = predictions[self._output_layers[0]]
-        predictions[self._output_layers[0]] = self.postprocess_output(output, batch_meta)
+        outputs = process_raw_output(predictions)
+        output = outputs[self._output_layers[0]]
+        outputs[self._output_layers[0]] = self.postprocess_output(output, batch_meta)
 
         # Update metrics
         if batch_annotations:
             # TODO: Create some kind of an order for the correct metric calculation
-            logits = [predictions[name] for name in self._output_layers]  # output_layers are in a random order
+            logits = [outputs[name] for name in self._output_layers]  # output_layers are in a random order
             self._update_metrics(output=logits, annotations=batch_annotations,
                                  need_metrics_per_sample=need_metrics_per_sample)
 
@@ -198,7 +200,7 @@ class IEEngine(Engine):
         :param annotations: list of annotations [(img_id, annotation)]
         """
         dataset_index = annotations[0][0] if annotations is not None and annotations[0][0] else 0
-        append_stats(self._accumulated_layer_stats, stats_layout, outputs, dataset_index)
+        append_stats(self._accumulated_layer_stats, stats_layout, outputs, dataset_index, self.inference_for_shape)
 
     def _update_metrics(self, output, annotations, need_metrics_per_sample=False):
         """ Updates metrics.
@@ -224,14 +226,26 @@ class IEEngine(Engine):
         :param model: IENetwork instance
         :param image_batch: list of ndarray images or list with a dictionary of inputs mapping
         """
-        if isinstance(image_batch[0], dict):
-            return image_batch[0]
-
         input_info = model.inputs
+
+        if isinstance(image_batch[0], dict):
+            feed_dict = {}
+            input_blobs = {get_clean_name(in_node.get_node().friendly_name): in_node for in_node in input_info}
+            for input_name in image_batch[0].keys():
+                input_blob = input_blobs[input_name]
+                input_blob_name = self._get_input_any_name(input_blob)
+                feed_dict[input_blob_name] = np.reshape(image_batch[0][input_name], input_blob.shape)
+            return feed_dict
+
         if len(input_info) == 1:
             input_blob = next(iter(input_info))
             input_blob_name = self._get_input_any_name(input_blob)
-            return {input_blob_name: np.stack(image_batch, axis=0)}
+            image_batch = {input_blob_name: np.reshape(image_batch, input_blob.shape)}
+            if Shape(image_batch[input_blob_name].shape) != input_info[0].shape:
+                raise ValueError(f"Incompatible input shapes. "
+                                 f"Cannot infer {Shape(image_batch[input_blob_name].shape)} into {input_info[0].shape}."
+                                 f"Try to specify the layout of the model.")
+            return image_batch
 
         if len(input_info) == 2:
             image_info_nodes = list(filter(
@@ -246,7 +260,11 @@ class IEEngine(Engine):
                 lambda x: x.get_any_name() != image_info_name, input_info)))
             image_tensor_name = image_tensor_node.get_any_name()
 
-            image_tensor = (image_tensor_name, np.stack(image_batch, axis=0))
+            image_tensor = (image_tensor_name, np.reshape(image_batch, input_blob.shape))
+            if Shape(image_tensor[1].shape) != image_tensor_node.shape:
+                raise ValueError(f"Incompatible input shapes. "
+                                 f"Cannot infer {Shape(image_tensor[1].shape)} into {image_tensor_node.shape}."
+                                 f"Try to specify the layout of the model.")
 
             ch, height, width = image_batch[0].shape
             image_info = (image_info_name,
@@ -288,7 +306,7 @@ class IEEngine(Engine):
         """
 
         def completion_callback(request, user_data):
-            start_time, batch_id = user_data
+            start_time, batch_id, batch_annotations, batch_meta = user_data
             predictions = request.results
             self._process_infer_output(stats_layout, predictions,
                                        batch_annotations, batch_meta,
@@ -301,12 +319,18 @@ class IEEngine(Engine):
                 start_time = time()
 
         progress_log_fn = logger.info if print_progress else logger.debug
-        self._ie.set_config({'CPU_THROUGHPUT_STREAMS': 'CPU_THROUGHPUT_AUTO', 'CPU_BIND_THREAD': 'YES'}, self._device)
-
+        try:
+            self._ie.set_property(self._device,
+                                  {'CPU_THROUGHPUT_STREAMS': 'CPU_THROUGHPUT_AUTO', 'CPU_BIND_THREAD': 'YES'})
+        except AttributeError:
+            self._ie.set_config({'CPU_THROUGHPUT_STREAMS': 'CPU_THROUGHPUT_AUTO', 'CPU_BIND_THREAD': 'YES'},
+                                self._device)
         # Load model to the plugin
         compiled_model = self._ie.compile_model(model=self._model, device_name=self._device)
-
-        optimal_requests_num = compiled_model.get_metric('OPTIMAL_NUMBER_OF_INFER_REQUESTS')
+        try:
+            optimal_requests_num = compiled_model.get_property('OPTIMAL_NUMBER_OF_INFER_REQUESTS')
+        except AttributeError:
+            optimal_requests_num = compiled_model.get_metric('OPTIMAL_NUMBER_OF_INFER_REQUESTS')
         requests_num = optimal_requests_num if requests_num == 0 else requests_num
         logger.debug('Async mode requests number: %d', requests_num)
         infer_queue = AsyncInferQueue(compiled_model, requests_num)
@@ -319,7 +343,8 @@ class IEEngine(Engine):
         infer_queue.set_callback(completion_callback)
         for batch_id, data_batch in sampler_iter:
             batch_annotations, image_batch, batch_meta = self._process_batch(data_batch)
-            infer_queue.start_async(self._fill_input(compiled_model, image_batch), (start_time, batch_id))
+            user_data = (start_time, batch_id, batch_annotations, batch_meta)
+            infer_queue.start_async(self._fill_input(compiled_model, image_batch), user_data)
         infer_queue.wait_all()
         progress_log_fn('Inference finished')
 

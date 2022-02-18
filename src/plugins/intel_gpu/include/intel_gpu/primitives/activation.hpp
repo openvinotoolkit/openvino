@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,6 +60,7 @@ enum class activation_func {
     hswish,                    // val * min(max(0, val + 3), 6) / 6
     mish,                      // val*tanh(ln(1 + exp(val)))
     gelu,                      // (0.5*val*(1 + erf(val / sqrt(2)))
+    gelu_tanh,                 // x⋅0.5⋅(1+tanh[sqrt(2/pi)*val(1 + 0.044715⋅val^2)])
     round_half_to_even,        // round halfs to the nearest even integer
     round_half_away_from_zero  // round the number so it's further away from zero
 };

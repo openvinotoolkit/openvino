@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ public:
         _progressEnabled = progressEnabled;
     }
 
-    void addProgress(size_t num) {
+    void add_progress(size_t num) {
         _isFinished = false;
         if (_progressEnabled) {
             _bar->addProgress(num);
@@ -27,7 +27,7 @@ public:
 
     void finish(size_t num = 0) {
         if (num > 0) {
-            addProgress(num);
+            add_progress(num);
         }
         _isFinished = true;
         _bar->finish();
@@ -36,7 +36,7 @@ public:
         }
     }
 
-    void newBar(size_t totalNum) {
+    void new_bar(size_t totalNum) {
         if (_isFinished) {
             _bar.reset(new ConsoleProgress(totalNum, _streamOutput));
         } else {

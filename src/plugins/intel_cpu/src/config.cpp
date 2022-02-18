@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,12 @@
 #include "ie_system_conf.h"
 
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
+#include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/runtime/properties.hpp"
+#include <cpu/x64/cpu_isa_traits.hpp>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 using namespace InferenceEngine;
 
@@ -40,9 +44,10 @@ Config::Config() {
         }
     #endif
 
-    if (!with_cpu_x86_bfloat16())
+    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
         enforceBF16 = false;
 
+    CPU_DEBUG_CAP_ENABLE(readDebugCapsProperties());
     updateProperties();
 }
 
@@ -102,7 +107,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 IE_THROW() << "Wrong value for property key " << PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE;
         } else if (key == PluginConfigParams::KEY_ENFORCE_BF16) {
             if (val == PluginConfigParams::YES) {
-                if (with_cpu_x86_avx512_core()) {
+                if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
                     enforceBF16 = true;
                     manualEnforceBF16 = true;
                 } else {
@@ -114,6 +119,21 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             } else {
                 IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_ENFORCE_BF16
                     << ". Expected only YES/NO";
+            }
+        } else if (key == ov::hint::inference_precision.name()) {
+            if (val == "bf16") {
+                if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
+                    enforceBF16 = true;
+                    manualEnforceBF16 = true;
+                } else {
+                    IE_THROW() << "Platform doesn't support BF16 format";
+                }
+            } else if (val == "f32") {
+                enforceBF16 = false;
+                manualEnforceBF16 = false;
+            } else {
+                IE_THROW() << "Wrong value for property key " << ov::hint::inference_precision.name()
+                    << ". Supported values: bf16, f32";
             }
         } else if (key == PluginConfigParams::KEY_CACHE_DIR) {
             cache_dir = val;
@@ -131,57 +151,116 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
         } else {
             IE_THROW(NotFound) << "Unsupported property " << key << " by CPU plugin";
         }
-        _config.clear();
     }
+
+    if (!prop.empty())
+        _config.clear();
+
     if (exclusiveAsyncRequests)  // Exclusive request feature disables the streams
         streamExecutorConfig._streams = 1;
 
+    CPU_DEBUG_CAP_ENABLE(readDebugCapsProperties());
     updateProperties();
 }
-void Config::updateProperties() {
-    if (!_config.size()) {
-        switch (streamExecutorConfig._threadBindingType) {
-            case IStreamsExecutor::ThreadBindingType::NONE:
-                _config.insert({ PluginConfigParams::KEY_CPU_BIND_THREAD, PluginConfigParams::NO });
-            break;
-            case IStreamsExecutor::ThreadBindingType::CORES:
-                _config.insert({ PluginConfigParams::KEY_CPU_BIND_THREAD, PluginConfigParams::YES });
-            break;
-            case IStreamsExecutor::ThreadBindingType::NUMA:
-                _config.insert({ PluginConfigParams::KEY_CPU_BIND_THREAD, PluginConfigParams::NUMA });
-            break;
-            case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
-                _config.insert({ PluginConfigParams::KEY_CPU_BIND_THREAD, PluginConfigParams::HYBRID_AWARE });
-            break;
-        }
-        if (collectPerfCounters == true)
-            _config.insert({ PluginConfigParams::KEY_PERF_COUNT, PluginConfigParams::YES });
-        else
-            _config.insert({ PluginConfigParams::KEY_PERF_COUNT, PluginConfigParams::NO });
-        if (exclusiveAsyncRequests == true)
-            _config.insert({ PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, PluginConfigParams::YES });
-        else
-            _config.insert({ PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, PluginConfigParams::NO });
-        if (enableDynamicBatch == true)
-            _config.insert({ PluginConfigParams::KEY_DYN_BATCH_ENABLED, PluginConfigParams::YES });
-        else
-            _config.insert({ PluginConfigParams::KEY_DYN_BATCH_ENABLED, PluginConfigParams::NO });
 
-        _config.insert({ PluginConfigParams::KEY_DYN_BATCH_LIMIT, std::to_string(batchLimit) });
-        _config.insert({ PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, std::to_string(streamExecutorConfig._streams) });
-        _config.insert({ PluginConfigParams::KEY_CPU_THREADS_NUM, std::to_string(streamExecutorConfig._threads) });
-        IE_SUPPRESS_DEPRECATED_START
-        _config.insert({ PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT, dumpToDot });
-        IE_SUPPRESS_DEPRECATED_END
-        if (enforceBF16)
-            _config.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES });
-        else
-            _config.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO });
-        _config.insert({ PluginConfigParams::KEY_PERFORMANCE_HINT, perfHintsConfig.ovPerfHint });
-        _config.insert({ PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS,
-                         std::to_string(perfHintsConfig.ovPerfHintNumRequests) });
-        _config.insert({PluginConfigParams::KEY_CACHE_DIR, cache_dir});
+void Config::updateProperties() {
+    if (!_config.empty())
+        return;
+
+    switch (streamExecutorConfig._threadBindingType) {
+    case IStreamsExecutor::ThreadBindingType::NONE:
+        _config.insert({ PluginConfigParams::KEY_CPU_BIND_THREAD, PluginConfigParams::NO });
+        break;
+    case IStreamsExecutor::ThreadBindingType::CORES:
+        _config.insert({ PluginConfigParams::KEY_CPU_BIND_THREAD, PluginConfigParams::YES });
+        break;
+    case IStreamsExecutor::ThreadBindingType::NUMA:
+        _config.insert({ PluginConfigParams::KEY_CPU_BIND_THREAD, PluginConfigParams::NUMA });
+        break;
+    case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
+        _config.insert({ PluginConfigParams::KEY_CPU_BIND_THREAD, PluginConfigParams::HYBRID_AWARE });
+        break;
     }
+    if (collectPerfCounters == true)
+        _config.insert({ PluginConfigParams::KEY_PERF_COUNT, PluginConfigParams::YES });
+    else
+        _config.insert({ PluginConfigParams::KEY_PERF_COUNT, PluginConfigParams::NO });
+    if (exclusiveAsyncRequests == true)
+        _config.insert({ PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, PluginConfigParams::YES });
+    else
+        _config.insert({ PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, PluginConfigParams::NO });
+    if (enableDynamicBatch == true)
+        _config.insert({ PluginConfigParams::KEY_DYN_BATCH_ENABLED, PluginConfigParams::YES });
+    else
+        _config.insert({ PluginConfigParams::KEY_DYN_BATCH_ENABLED, PluginConfigParams::NO });
+
+    _config.insert({ PluginConfigParams::KEY_DYN_BATCH_LIMIT, std::to_string(batchLimit) });
+
+    _config.insert({ PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, std::to_string(streamExecutorConfig._streams) });
+
+    _config.insert({ PluginConfigParams::KEY_CPU_THREADS_NUM, std::to_string(streamExecutorConfig._threads) });
+
+    IE_SUPPRESS_DEPRECATED_START
+        _config.insert({ PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT, dumpToDot });
+    IE_SUPPRESS_DEPRECATED_END;
+    if (enforceBF16) {
+        _config.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES });
+    } else {
+        _config.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO });
+    }
+    _config.insert({ PluginConfigParams::KEY_PERFORMANCE_HINT, perfHintsConfig.ovPerfHint });
+    _config.insert({ PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS,
+            std::to_string(perfHintsConfig.ovPerfHintNumRequests) });
+    _config.insert({PluginConfigParams::KEY_CACHE_DIR, cache_dir});
 }
 
-}  // namespace MKLDNNPlugin
+#ifdef CPU_DEBUG_CAPS
+void Config::readDebugCapsProperties() {
+    auto readEnv = [](const char* envVar) {
+        return std::getenv(envVar);
+    };
+
+    auto parseDumpFormat = [](const std::string& format) {
+        if (format == "BIN")
+            return FORMAT::BIN;
+        else if (format == "TEXT")
+            return FORMAT::TEXT;
+        else
+            IE_THROW() << "readDebugCapsProperties: Unknown dump format";
+    };
+
+    const char* envVarValue = nullptr;
+
+    if (envVarValue = readEnv("OV_CPU_EXEC_GRAPH_PATH"))
+        execGraphPath = envVarValue;
+
+    if (envVarValue = readEnv("OV_CPU_VERBOSE"))
+        verbose = envVarValue;
+
+    if (envVarValue = readEnv("OV_CPU_BLOB_DUMP_DIR"))
+        blobDumpDir = envVarValue;
+
+    if (envVarValue = readEnv("OV_CPU_BLOB_DUMP_FORMAT"))
+        blobDumpFormat = parseDumpFormat(envVarValue);
+
+    if (envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_EXEC_ID"))
+        blobDumpFilters[BY_EXEC_ID] = envVarValue;
+
+    if (envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_PORTS"))
+        blobDumpFilters[BY_PORTS] = envVarValue;
+
+    if (envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_TYPE"))
+        blobDumpFilters[BY_TYPE] = envVarValue;
+
+    if (envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_NAME"))
+        blobDumpFilters[BY_NAME] = envVarValue;
+
+    // always enable perf counters for verbose mode
+    if (!verbose.empty())
+        collectPerfCounters = true;
+}
+#endif // CPU_DEBUG_CAPS
+
+}   // namespace intel_cpu
+}   // namespace ov
+

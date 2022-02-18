@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -227,4 +227,12 @@ bool op::v0::Convert::evaluate_lower(const HostTensorVector& output_values) cons
 
 bool op::v0::Convert::evaluate_upper(const HostTensorVector& output_values) const {
     return convert::evaluate_bound(this, output_values, true);
+}
+
+bool op::v0::Convert::evaluate_label(TensorLabelVector& output_labels) const {
+    const auto input_labels = get_input_tensor(0).get_value_label();
+    if (input_labels.empty())
+        return false;
+    output_labels[0] = input_labels;
+    return true;
 }

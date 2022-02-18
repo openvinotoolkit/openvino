@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,8 +53,8 @@ bool SqueezeTransformation::transform(TransformationContext& context, ngraph::pa
         return dequantizationOpConstant;
     };
 
-    const std::shared_ptr<Node> squeeze = NetworkHelper::separateInStandaloneBranch(m.get_match_root());
-    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(squeeze);
+    const std::shared_ptr<Node> squeeze = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
+    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(squeeze, defaultPrecisions);
 
     if (dequantization.multiply != nullptr) {
         auto newConstant = squeezeOnConstant(squeeze, dequantization.multiplyConstant, dequantization.data.get_partial_shape());
@@ -66,7 +66,7 @@ bool SqueezeTransformation::transform(TransformationContext& context, ngraph::pa
         replace_node(dequantization.subtractConstant, newConstant);
     }
 
-    moveDequantizationAfter(context, squeeze, NetworkHelper::getDequantization(squeeze), false);
+    moveDequantizationAfter(context, squeeze, NetworkHelper::getDequantization(squeeze, defaultPrecisions), false);
     return true;
 }
 
@@ -75,7 +75,7 @@ bool SqueezeTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) co
 }
 
 bool SqueezeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    return (!NetworkHelper::getDequantization(layer).empty()) && LayerTransformation::canBeTransformed(context, layer);
+    return (!NetworkHelper::getDequantization(layer, defaultPrecisions).empty()) && LayerTransformation::canBeTransformed(context, layer);
 }
 
 } // namespace low_precision

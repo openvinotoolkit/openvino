@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -86,18 +86,6 @@ Data::Data(const std::string& name, const TensorDesc& desc) : name(name), userOb
     _impl->pShape = ngraph::PartialShape(desc.getDims());
 }
 
-Data::Data(const std::string& name, Precision _precision, const ngraph::PartialShape& shape, Layout layout)
-    : name(name),
-      userObject({0}),
-      tensorDesc(_precision,
-                 shape.is_static()
-                     ? shape.to_shape()
-                     : shape.rank().is_static() ? SizeVector(shape.rank().get_length(), 0) : SizeVector(1, 0),
-                 layout) {
-    _impl = std::make_shared<Impl>();
-    _impl->pShape = shape;
-}
-
 const Precision& Data::getPrecision() const {
     return tensorDesc.getPrecision();
 }
@@ -114,37 +102,6 @@ void Data::setDims(const SizeVector& a_dims) {
     tensorDesc.setDims(a_dims);
     _impl->pShape = ngraph::PartialShape(a_dims);
 }
-
-IE_SUPPRESS_DEPRECATED_START
-
-bool Data::isDynamic() const {
-    return isInitialized() && _impl->pShape.is_dynamic();
-}
-
-const ngraph::PartialShape& Data::getPartialShape() const {
-    return _impl->pShape;
-}
-
-void Data::reshape(const std::initializer_list<size_t>& dims, Layout layout) {
-    reshape(SizeVector(dims), layout);
-}
-
-void Data::reshape(const ngraph::PartialShape& dims, Layout layout) {
-    if (dims.is_static()) {
-        reshape(SizeVector(dims.to_shape()), layout);
-    } else {
-        SizeVector d;
-        if (dims.rank().is_static()) {
-            d = SizeVector(dims.rank().get_length(), 0);
-        } else {
-            d = SizeVector{0};
-        }
-        tensorDesc = TensorDesc(tensorDesc.getPrecision(), d, layout);
-        _impl->pShape = dims;
-    }
-}
-
-IE_SUPPRESS_DEPRECATED_END
 
 void Data::setLayout(Layout layout) {
     tensorDesc.setLayout(layout);
@@ -197,10 +154,8 @@ void Data::setPrecision(const Precision& precision) {
 }
 
 const SizeVector& Data::getDims() const {
-    IE_SUPPRESS_DEPRECATED_START
-    if (isDynamic())
+    if (_impl->pShape.is_dynamic())
         IE_THROW() << "Cannot return dims for Data with dynamic shapes!";
-    IE_SUPPRESS_DEPRECATED_END
     if (tensorDesc.getDims().empty() && tensorDesc.getLayout() != SCALAR) {
         tensorDesc.setDims(_impl->pShape.to_shape());
     }

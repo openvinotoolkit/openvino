@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -8,6 +8,7 @@ import pytest
 import torch
 import torch.nn as nn
 from common.layer_test_class import CommonLayerTest, check_ir_version
+
 from unit_tests.utils.graph import build_graph
 
 
@@ -27,7 +28,8 @@ class EmbeddingBagModel(torch.nn.Module):
     def __init__(self, n, m, indices_shape=None, per_sample_weights=False, mode="sum"):
         super(EmbeddingBagModel, self).__init__()
         EE = nn.EmbeddingBag(n, m, mode=mode, sparse=True)
-        self.W = np.random.uniform(low=-np.sqrt(1 / n), high=np.sqrt(1 / n), size=(n, m)).astype(np.float32)
+        self.W = np.random.uniform(low=-np.sqrt(1 / n), high=np.sqrt(1 / n), size=(n, m)).astype(
+            np.float32)
         EE.weight.data = torch.tensor(self.W, requires_grad=True)
         self.embedding_bag = EE
         if per_sample_weights:
@@ -52,7 +54,8 @@ class TestPytorchEmbeddingBag(PytorchLayerTest):
 
         """
         #   Create Pytorch model
-        EE = EmbeddingBagModel(n, m, indices_shape=[emb_batch_size], per_sample_weights=per_sample_weights)
+        EE = EmbeddingBagModel(n, m, indices_shape=[emb_batch_size],
+                               per_sample_weights=per_sample_weights)
 
         ref_net = None
         if check_ir_version(10, None, ir_version):
@@ -113,7 +116,9 @@ class TestPytorchEmbeddingBag(PytorchLayerTest):
                         torch.from_numpy(np.array(offsets)).long())
         else:
             self.var = (
-                torch.from_numpy(np.random.choice(n, emb_batch_size).reshape(int(emb_batch_size / 2), 2)).long(),)
+                torch.from_numpy(
+                    np.random.choice(n, emb_batch_size).reshape(int(emb_batch_size / 2),
+                                                                2)).long(),)
         return EE, ref_net
 
     test_data = [
@@ -127,5 +132,6 @@ class TestPytorchEmbeddingBag(PytorchLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_pytorch_embedding_bag(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params), ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_pytorch_embedding_bag(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net(**params), ie_device, precision, ir_version, temp_dir=temp_dir,
+                   api_2=api_2)

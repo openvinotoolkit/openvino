@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,6 +63,7 @@ protected:
 
         StaticShapeBroadcastParam shapes;
         std::tie(shapes, inPrc, targetDevice) = this->GetParam();
+        outPrc = inPrc;
 
         const auto inputShape = std::get<0>(shapes);
         const auto targetShape = std::get<1>(shapes);
@@ -122,6 +123,9 @@ std::vector<StaticShapeBroadcastParam> broadcastParam = {
 std::vector<InferenceEngine::Precision> broadcastPrecisions = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::I32,
+        InferenceEngine::Precision::U32,
+        InferenceEngine::Precision::I64,
+        InferenceEngine::Precision::U64,
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_accuracy, StaticShapeBroadcastLayerTest,

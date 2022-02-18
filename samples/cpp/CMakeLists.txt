@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -230,6 +230,10 @@ macro(ie_add_sample)
 
     if(COMMAND add_clang_format_target AND NOT IE_SAMPLE_EXCLUDE_CLANG_FORMAT)
         add_clang_format_target(${IE_SAMPLE_NAME}_clang FOR_SOURCES ${IE_SAMPLE_SOURCES} ${IE_SAMPLE_HEADERS})
+    endif()
+    if(COMMAND ov_ncc_naming_style AND NOT c_sample)
+        ov_ncc_naming_style(FOR_TARGET "${IE_SAMPLE_NAME}"
+                    SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
     endif()
 endmacro()
 

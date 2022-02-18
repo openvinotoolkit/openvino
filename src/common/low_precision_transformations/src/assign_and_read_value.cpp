@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,8 +57,8 @@ bool AssignAndReadValueTransformation::transform(TransformationContext& context,
     const auto readValue = oldAssign->get_control_dependencies()[0];
     oldAssign->remove_control_dependency(readValue);
 
-    const auto assign = NetworkHelper::separateInStandaloneBranch(oldAssign);
-    const auto dequantization = NetworkHelper::getDequantization(assign);
+    const auto assign = NetworkHelper::separateInStandaloneBranch(oldAssign, defaultPrecisions);
+    const auto dequantization = NetworkHelper::getDequantization(assign, defaultPrecisions);
 
     auto oldVar = ov::as_type_ptr<op::ReadValueBase>(readValue)->get_variable();
     auto variableInfo = oldVar->get_info();
@@ -119,7 +119,7 @@ bool AssignAndReadValueTransformation::canBeTransformed(const TransformationCont
         return false;
     }
 
-    const auto dequantization = NetworkHelper::getDequantization(op);
+    const auto dequantization = NetworkHelper::getDequantization(op, defaultPrecisions);
     return dequantization.subtract == nullptr && dequantization.multiply != nullptr;
 }
 

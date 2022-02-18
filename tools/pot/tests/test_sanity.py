@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -23,7 +23,7 @@ from .utils.config import get_engine_config, merge_configs, \
     get_dataset_info, PATHS2DATASETS_CONFIG, make_algo_config
 
 TEST_MODELS = [
-    ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'performance', 300, {'accuracy@top1': 0.733,
+    ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'performance', 300, {'accuracy@top1': 0.731,
                                                                                     'accuracy@top5': 0.907},
      {}, 'CPU'),
 
@@ -31,31 +31,30 @@ TEST_MODELS = [
                                                                               'accuracy@top5': 0.906},
      {}, 'CPU'),
 
-    ('mobilenet-v1-1.0-224-tf', 'tf', 'DefaultQuantization', 'performance', 100, {'accuracy@top1': 0.721,
-                                                                                  'accuracy@top5': 0.907},
+    ('mobilenet-v1-1.0-224-tf', 'tf', 'DefaultQuantization', 'performance', 100, {'accuracy@top1': 0.728,
+                                                                                  'accuracy@top5': 0.909},
      {'use_fast_bias': False}, 'CPU'),
 
     ('mobilenet-v1-1.0-224-tf', 'tf', 'DefaultQuantization', 'performance', 100, {'accuracy@top1': 0.728,
                                                                                   'accuracy@top5': 0.911},
      {}, 'CPU'),
 
-    # ('mobilenet-ssd', 'caffe', 'AccuracyAwareQuantization', 'performance', 300, {'map': 0.7215},
-    #  {'metric_subset_ratio': 1.0, 'max_iter_num': 1, 'metrics': [{'name': 'map', 'baseline_value': 0.7311}]}, 'CPU'),
+    ('mobilenet-ssd', 'caffe', 'AccuracyAwareQuantization', 'performance', 300, {'map': 0.674},
+     {'metric_subset_ratio': 1.0, 'max_iter_num': 1, 'metrics': [{'name': 'map', 'baseline_value': 0.669}]}, 'CPU'),
 
-    # ('mobilenet-ssd', 'caffe', 'AccuracyAwareQuantization', 'performance', 300, {'map': 0.7215},
-    #  {'metric_subset_ratio': 1.0, 'max_iter_num': 1, 'tune_hyperparams': True,
-    #   'metrics': [{'name': 'map', 'baseline_value': 0.7311}]}, 'CPU'),
+    ('mobilenet-ssd', 'caffe', 'AccuracyAwareQuantization', 'performance', 300, {'map': 0.674},
+     {'metric_subset_ratio': 1.0, 'max_iter_num': 1, 'tune_hyperparams': True,
+      'metrics': [{'name': 'map', 'baseline_value': 0.669}]}, 'CPU'),
 
     # ('mobilenet-v1-0.25-128', 'tf', 'AccuracyAwareQuantization', 'performance', 100,
     # {'accuracy@top1': 0.424, 'accuracy@top5': 0.65},
     # {'drop_type': 'relative', 'max_iter_num': 1, 'accuracy_drop': 0.005, 'metrics': [
     #     {'name': 'accuracy@top1', 'baseline_value': 0.431}]}, 'GNA'),
 
-    # This test is not able to run due to OV API problem
-    # ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 1, {'recall': 0.76, 'map': 0.6844}, {}, 'CPU'),
+    ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 1, {'recall': 0.76, 'map': 0.6844}, {}, 'CPU'),
 
-    # ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 2, {'recall': 0.8, 'map': 0.7445},
-    #  {'use_fast_bias': False}, 'CPU')
+    ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 2, {'recall': 0.76, 'map': 0.6638},
+     {'use_fast_bias': False}, 'CPU')
 ]
 CASCADE_MAP = Dict({
     'mtcnn': {
@@ -114,8 +113,7 @@ def test_compression(_params, tmp_path, models):
 
 
 TEST_SAMPLE_MODELS = [
-    # This test is not able to run due to NHWC shape that is not supported
-    # ('mobilenet-v2-1.0-224', 'tf', 'DefaultQuantization', 'performance', {'accuracy@top1': 0.71})
+    ('mobilenet-v2-1.0-224', 'tf', 'DefaultQuantization', 'performance', {'accuracy@top1': 0.716})
 ]
 
 
@@ -221,6 +219,24 @@ def test_simplified_mode(tmp_path, models):
     assert metrics == pytest.approx(expected_accuracy, abs=0.006)
 
 
+DATAFREE_TEST_MODELS = [
+    ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'performance',
+     {'accuracy@top1': 0.679, 'accuracy@top5': 0.888})
+]
+
+
+def test_datafree_mode(tmp_path, models):
+    engine_config = Dict({'type': 'data_free',
+                          'data_source': os.path.join(tmp_path, 'pot_dataset'),
+                          'generate_data': 'True',
+                          'subset_size': 30,
+                          'device': 'CPU'})
+
+    _, _, _, _, expected_accuracy = DATAFREE_TEST_MODELS[0]
+    metrics = launch_simplified_mode(tmp_path, models, engine_config)
+    assert metrics == pytest.approx(expected_accuracy, abs=0.06)
+
+
 def test_frame_extractor_tool():
     # hack due to strange python imports (same as in sample test)
     pot_dir = Path(__file__).parent.parent
@@ -254,8 +270,6 @@ TEST_MULTIPLE_OUT_PORTS = [('multiple_out_ports_net', 'tf')]
     'model_name, model_framework', TEST_MULTIPLE_OUT_PORTS,
     ids=['{}_{}'.format(m[0], m[1]) for m in TEST_MULTIPLE_OUT_PORTS])
 def test_multiport_outputs_model(tmp_path, models, model_name, model_framework):
-    # TODO: Enable these tests after solving IRReader problem
-    pytest.skip()
     test_dir = Path(__file__).parent
     # one image as dataset
     data_source = (test_dir / 'data/image_data/').as_posix()

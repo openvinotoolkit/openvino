@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,8 @@
 #include <functional>
 #include "lru_cache.h"
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class CacheEntryBase {
 public:
@@ -68,4 +69,6 @@ public:
 public:
     ImplType _impl;
 };
-}// namespace MKLDNNPlugin
+
+}   // namespace intel_cpu
+}   // namespace ov

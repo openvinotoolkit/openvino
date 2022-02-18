@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -120,9 +120,7 @@ protected:
             auto state = query_state.GetState();
             auto state_data = state->cbuffer().as<int16_t *>();
             for (int i = 0; i < state->size(); i++) {
-                float elem = state_data[i];
-                std::cout << elem << " " << i << std::endl;
-                EXPECT_NEAR(0, elem, 1e-5);
+                EXPECT_NEAR(0, state_data[i], 1e-5);
             }
         }
     }

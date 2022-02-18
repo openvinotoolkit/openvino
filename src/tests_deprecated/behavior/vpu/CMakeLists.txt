@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -14,7 +14,7 @@ function(enable_vpu TARGET_NAME FLAG_NAME PLUGIN_NAME)
             )
 
     # Tests for Myriad plugin
-    if (ENABLE_INTEL_VPU)
+    if (ENABLE_INTEL_MYRIAD)
         file(GLOB_RECURSE TEST_INCLUDE myriad_tests/*.hpp)
         file(GLOB_RECURSE VPU_TESTS myriad_tests/*.cpp)
         if (NOT ENABLE_MYRIAD_NO_BOOT)
@@ -50,7 +50,7 @@ function(enable_vpu TARGET_NAME FLAG_NAME PLUGIN_NAME)
     target_include_directories(${TARGET_NAME} PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/plugin_tests)
 
-    if (ENABLE_INTEL_VPU)
+    if (ENABLE_INTEL_MYRIAD)
         include(${XLINK_DIR}/XLink.cmake)
 
         target_compile_definitions(${TARGET_NAME} PRIVATE __PC__)
@@ -75,7 +75,7 @@ function(enable_vpu TARGET_NAME FLAG_NAME PLUGIN_NAME)
     add_dependencies(${TARGET_NAME} ${DEPENDENCIES})
 endfunction(enable_vpu)
 
-if (ENABLE_INTEL_VPU)
+if (ENABLE_INTEL_MYRIAD)
     set(MYRIAD_TARGET_NAME MyriadBehaviorTests)
-    enable_vpu(${MYRIAD_TARGET_NAME} USE_MYRIAD ov_intel_vpu_plugin)
+    enable_vpu(${MYRIAD_TARGET_NAME} USE_MYRIAD openvino_intel_myriad_plugin)
 endif()

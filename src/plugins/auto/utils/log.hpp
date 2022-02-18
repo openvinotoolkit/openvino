@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -241,10 +241,17 @@ inline void Log::doLog(bool on, bool isTraceCallStack, LogLevel level, const cha
         stream << '[' << tag << ']';
     }
     char buffer[255];
-    checkFormat(fmt);
-    std::string compatibleString =  "%s" + std::string(fmt);
-    std::snprintf(&buffer[0], sizeof(buffer), compatibleString.c_str(), "", args...);
-    stream << ' ' << buffer << suffix << colorEnd(level);
+    std::string compatibleString;
+
+    try {
+        checkFormat(fmt);
+        compatibleString =  "%s" + std::string(fmt);
+        std::snprintf(&buffer[0], sizeof(buffer), compatibleString.c_str(), "", args...);
+        stream << ' ' << buffer << suffix << colorEnd(level);
+    } catch (std::runtime_error& err) {
+        stream << ' ' << err.what() << colorEnd(level);
+    }
+
     std::lock_guard<std::mutex> autoLock(mutex);
     print(stream);
 }

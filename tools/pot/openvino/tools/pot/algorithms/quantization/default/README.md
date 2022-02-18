@@ -2,7 +2,7 @@
 
 ## Overview
 DefaultQuantization algorithm is designed to perform a fast and in many cases accurate 8-bits quantization of NNs.
-![](../../../../docs/images/default_quantization_pipeline.png)
+![](../../../../../../docs/images/default_quantization_pipeline.png)
 The algorithm consists of three methods that are sequentially applied to a model:
 *  ActivationChannelAlignment - Used as a preliminary step before quantization and allows you to align ranges of output activations of Convolutional layers in order to reduce the quantization error.
 *  MinMaxQuantization - This is a vanilla quantization method that automatically inserts [FakeQuantize](@ref openvino_docs_ops_quantization_FakeQuantize_1) operations into the model graph based on the specified  target hardware and initializes them

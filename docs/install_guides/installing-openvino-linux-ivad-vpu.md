@@ -1,4 +1,10 @@
-# Configuration Guide for the Intel® Distribution of OpenVINO™ toolkit and the Intel® Vision Accelerator Design with Intel® Movidius™ VPUs on Linux* {#openvino_docs_install_guides_installing_openvino_linux_ivad_vpu}
+# Set Up Intel® Vision Accelerator Design with Intel® Movidius™ VPUs for Use with Intel® Distribution of OpenVINO™ toolkit {#openvino_docs_install_guides_installing_openvino_linux_ivad_vpu}
+
+@sphinxdirective
+
+.. _vpu guide:
+
+@endsphinxdirective
 
 > **NOTES**: 
 > - These steps are only required if you want to perform inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.
@@ -31,8 +37,6 @@ Now the dependencies are installed and you are ready to use the Intel® Vision A
 ## Optional Steps
 
 * For advanced configuration steps for your **IEI Mustang-V100-MX8-R10** accelerator, see [Intel® Movidius™ VPUs Setup Guide for Use with Intel® Distribution of OpenVINO™ toolkit](movidius-setup-guide.md). **IEI Mustang-V100-MX8-R11** accelerator doesn't require any additional steps. 
-
-* After you've configured your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, see [Intel® Movidius™ VPUs Programming Guide for Use with Intel® Distribution of OpenVINO™ toolkit](movidius-programming-guide.md) to learn how to distribute a model across all 8 VPUs to maximize performance.
 
 ## Troubleshooting
 

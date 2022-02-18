@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,8 +32,9 @@ GroupConvolutionTransformation::GroupConvolutionTransformation(const Params& par
     this->register_matcher(m, callback);
 }
 
-bool GroupConvolutionTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const {
-    return GroupConvolutionTransformation::isQuantizedStatic(layer);
+bool GroupConvolutionTransformation::isQuantized(const std::shared_ptr<const Node>& layer,
+    const std::vector<ngraph::element::Type>& defaultPrecisions) const {
+    return GroupConvolutionTransformation::isQuantizedStatic(layer, defaultPrecisions);
 }
 
 bool GroupConvolutionTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) {
@@ -47,8 +48,16 @@ bool GroupConvolutionTransformation::transform(TransformationContext &context, n
     return true;
 }
 
-bool GroupConvolutionTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer) {
-    return WeightableLayerTransformation::isQuantizedStatic(layer, true);
+bool GroupConvolutionTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer,
+    const std::vector<ngraph::element::Type>& defaultPrecisions) {
+    return WeightableLayerTransformation::isQuantizedStatic(layer, true, defaultPrecisions);
+}
+
+size_t GroupConvolutionTransformation::getInputChannels(const std::shared_ptr<ngraph::Node> conv) const {
+    const auto groups = conv->get_input_partial_shape(1)[0];
+    const auto channels = conv->get_input_partial_shape(1)[2];
+    assert(channels.is_static() && groups.is_static());
+    return channels.get_length() * groups.get_length();
 }
 
 } // namespace low_precision

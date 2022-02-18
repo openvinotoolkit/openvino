@@ -1,13 +1,14 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "mkldnn_memory.h"
-#include "mkldnn_primitive.h"
+#include <cpu_memory.h>
+#include <primitive.h>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class DnnlExecutor {
     protected:
@@ -26,6 +27,7 @@ class DnnlExecutor {
 
     public:
         void exec(std::unordered_map<int, mkldnn::memory> primArgs, mkldnn::stream strm);
+        bool needReordering() const;
         virtual ~DnnlExecutor() = default;
 
     protected:
@@ -36,4 +38,5 @@ class DnnlExecutor {
         std::unordered_map<int, IntermReorder> outputReorders;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

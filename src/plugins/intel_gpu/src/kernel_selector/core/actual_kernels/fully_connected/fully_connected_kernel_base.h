@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,6 +62,7 @@ protected:
 
     // Fused ops
     virtual JitConstants GetFusedPrimitivesJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const;
+    Datatype GetAccumulatorType(const fully_connected_params& params) const;
     Datatype GetActivationType(const fully_connected_params& params) const;
     // --Fused ops
 

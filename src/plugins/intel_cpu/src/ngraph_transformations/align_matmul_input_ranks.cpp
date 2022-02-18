@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,9 +13,9 @@
 
 #include <algorithm>
 
-NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::AlignMatMulInputRanks, "AlignMatMulInputRanks", 0);
+NGRAPH_RTTI_DEFINITION(ov::intel_cpu::AlignMatMulInputRanks, "AlignMatMulInputRanks", 0);
 
-MKLDNNPlugin::AlignMatMulInputRanks::AlignMatMulInputRanks() {
+ov::intel_cpu::AlignMatMulInputRanks::AlignMatMulInputRanks() {
     ngraph::OutputVector twoInputs = {
         ngraph::pattern::any_input(ngraph::pattern::has_static_rank()),
         ngraph::pattern::any_input(ngraph::pattern::has_static_rank())

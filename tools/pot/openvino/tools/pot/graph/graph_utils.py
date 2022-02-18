@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -47,11 +47,17 @@ def load_graph(model_config, target_device='ANY'):
         raise RuntimeError('Input model bin should link to an existing file. Please, provide a correct path.')
 
     graph_from_ir, meta_data = stdout_redirect(restore_graph_from_ir, xml_path, bin_path)
+
+    if graph_from_ir.graph['ir_version'] == 10:
+        raise AssertionError(
+            'POT does not support version 10 of IR.'
+            'Please convert the model with the newer version of OpenVINO '
+            'or use the POT from OpenVINO 2021.4.2 to work with version 10 of IR.')
+
     orig_graph_from_ir, meta_data = stdout_redirect(restore_graph_from_ir, model_config.model, model_config.weights)
 
     meta_data['quantization_parameters'] = model_config.quantization_info
     graph_from_ir.meta_data = meta_data
-    graph_from_ir.ir_v10 = True
     graph_from_ir.graph['cmd_params'] = orig_graph_from_ir.graph['cmd_params']
     remove_converts(graph_from_ir)
     model_preprocessing(graph_from_ir)

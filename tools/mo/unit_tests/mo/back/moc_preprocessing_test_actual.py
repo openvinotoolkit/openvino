@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from argparse import Namespace
@@ -434,13 +434,9 @@ class TestPreprocessingMOC(UnitTestWithMockedTelemetry):
                                         'input2a': { 'source_layout': 'nchw' }
                                         })
         function = create_function2(shape1=[1, 224, 224, 4], shape2=[1, 4, 224, 224])
-        process_function(ov_function=function, argv=argv)
-        # In future, consider using mock PrePostProcessor to verify that 'reverse_channels' was not called
-        # Verify that reverse_channels are not applied.
-        op_node0 = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
-        self.assertTrue(op_node0.get_type_name() == 'Relu')
-        op_node1 = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
-        self.assertTrue(op_node1.get_type_name() == 'Relu')
+        # no suitable inputs
+        with self.assertRaises(Exception):
+            process_function(ov_function=function, argv=argv)
 
     def test_reverse_input_channels_3d(self):
         argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None,
@@ -457,23 +453,17 @@ class TestPreprocessingMOC(UnitTestWithMockedTelemetry):
         argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None,
                          layout_values=None)
         function = create_function2(shape1=[4, 4, 4, 4, 4, 3], shape2=[4, 3, 4, 4, 4, 4])
-        process_function(ov_function=function, argv=argv)
-        # Verify that reverse_channels are NOT applied.
-        op_node0 = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
-        self.assertTrue(op_node0.get_type_name() == 'Relu')
-        op_node1 = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
-        self.assertTrue(op_node1.get_type_name() == 'Relu')
+        # no suitable inputs
+        with self.assertRaises(Exception):
+            process_function(ov_function=function, argv=argv)
 
     def test_reverse_input_channels_dynamic(self):
         argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None,
                          layout_values=None)
         function = create_function2(shape1=[1, -1, 5, 5], shape2=[-1, -1, -1, -1])
-        process_function(ov_function=function, argv=argv)
-        # Verify that reverse_channels are NOT applied.
-        op_node0 = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
-        self.assertTrue(op_node0.get_type_name() == 'Relu')
-        op_node1 = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
-        self.assertTrue(op_node1.get_type_name() == 'Relu')
+        # no suitable inputs
+        with self.assertRaises(Exception):
+            process_function(ov_function=function, argv=argv)
 
     def test_reverse_input_channels_dynamic_layout(self):
         argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None,
@@ -551,12 +541,10 @@ class TestPreprocessingMOC(UnitTestWithMockedTelemetry):
         with self.assertRaisesRegex(Error, '.*2.*inputs.*input1.*input2.*'):
             process_function(ov_function=function, argv=argv)
 
-    def test_reverse_channels_bad_layout(self):
-        argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None)
+    def test_incompatible_layout(self):
         function = create_function2(shape1=[1, 224, 224, 3], shape2=[1, 4, 224, 224])
-        function.get_parameters()[0].layout = Layout("NDHWC")
-        with self.assertRaisesRegex(Error, '.*input1.*'):
-            process_function(ov_function=function, argv=argv)
+        with self.assertRaisesRegex(Exception, '.*input1.*'):
+            function.get_parameters()[0].layout = Layout("NDHWC")
 
     def test_guess_layout_reverse_channels_dont_apply_to_4(self):
         argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None)
@@ -584,34 +572,25 @@ class TestPreprocessingMOC(UnitTestWithMockedTelemetry):
         function = create_function2(shape1=[1, 224, 224, 3], shape2=[1, 3, 224, 224])
         function.get_parameters()[0].layout = Layout("NHW?")
         function.get_parameters()[1].layout = Layout("N?HW")
-        process_function(ov_function=function, argv=argv)
-        # Nothing has applied
-        op_node0 = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
-        self.assertTrue(op_node0.get_type_name() == 'Relu')
-        op_node1 = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
-        self.assertTrue(op_node1.get_type_name() == 'Relu')
+        # no suitable inputs
+        with self.assertRaises(Exception):
+            process_function(ov_function=function, argv=argv)
 
     def test_guess_layout_reverse_channels_incorrect_pos(self):
         argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None)
         function = create_function2(shape1=[1, 4, 224, 224], shape2=[1, 224, 224, 2])
         function.get_parameters()[0].layout = Layout("NCHW")
         function.get_parameters()[1].layout = Layout("NHWC")
-        process_function(ov_function=function, argv=argv)
-        # Nothing has applied
-        op_node0 = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
-        self.assertTrue(op_node0.get_type_name() == 'Relu')
-        op_node1 = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
-        self.assertTrue(op_node1.get_type_name() == 'Relu')
+        # no suitable inputs
+        with self.assertRaises(Exception):
+            process_function(ov_function=function, argv=argv)
 
     def test_no_reverse_channels_even_with_layout(self):
         argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None)
         function = create_function2(shape1=[3, 4, 224, 224], shape2=[1, 224, 3, 224])
-        process_function(ov_function=function, argv=argv)
-        # Nothing has applied
-        op_node0 = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
-        self.assertTrue(op_node0.get_type_name() == 'Relu')
-        op_node1 = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
-        self.assertTrue(op_node1.get_type_name() == 'Relu')
+        # no suitable inputs
+        with self.assertRaises(Exception):
+            process_function(ov_function=function, argv=argv)
 
     def test_reverse_channels_and_mean_scale(self):
         argv = Namespace(reverse_input_channels=True, mean_scale_values={

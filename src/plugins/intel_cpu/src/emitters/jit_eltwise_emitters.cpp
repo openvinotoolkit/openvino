@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "jit_eltwise_emitters.hpp"
 #include <cpu/x64/jit_uni_eltwise.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include <nodes/mkldnn_eltwise_node.h>
+#include <nodes/eltwise.h>
 
 using namespace InferenceEngine;
 using namespace mkldnn::impl::utils;
@@ -13,7 +13,8 @@ using namespace mkldnn::impl;
 using namespace mkldnn::impl::cpu::x64;
 using namespace Xbyak;
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 /// ADD ///
 jit_add_emitter::jit_add_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
@@ -1776,4 +1777,5 @@ size_t jit_erf_emitter::aux_vecs_count() const {
     return 5ul;
 }
 
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

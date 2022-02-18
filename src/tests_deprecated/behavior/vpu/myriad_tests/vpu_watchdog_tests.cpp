@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -127,7 +127,7 @@ TEST_P(MYRIADWatchdog, canDisableWatchdog) {
     ASSERT_GE(startup_devices.unbooted, 1);
 
     auto ctime = Time::now();
-    std::shared_ptr<void> myriadPlg = ov::util::load_shared_object(make_plugin_name("ov_intel_vpu_plugin").c_str());
+    std::shared_ptr<void> myriadPlg = ov::util::load_shared_object(make_plugin_name("openvino_intel_myriad_plugin").c_str());
     void *p = ov::util::get_symbol(myriadPlg, create_plugin_function);
 
     bootOneDevice(0,  p);
@@ -160,7 +160,7 @@ TEST_P(MYRIADWatchdog, canDetectWhenHostSiteStalled) {
 
     auto ctime = Time::now();
 
-    std::shared_ptr<void> myriadPlg = ov::util::load_shared_object(make_plugin_name("ov_intel_vpu_plugin").c_str());
+    std::shared_ptr<void> myriadPlg = ov::util::load_shared_object(make_plugin_name("openvino_intel_myriad_plugin").c_str());
     void *p = ov::util::get_symbol(myriadPlg, create_plugin_function);
 
     bootOneDevice(20000, p);

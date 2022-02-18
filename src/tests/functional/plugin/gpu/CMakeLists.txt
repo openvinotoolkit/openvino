@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -12,7 +12,7 @@ addIeTargetTest(
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDENCIES
-            ov_intel_gpu_plugin
+            openvino_intel_gpu_plugin
         LINK_LIBRARIES
             funcSharedTests
             OpenCL

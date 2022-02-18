@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.runtime import Core, PartialShape  # pylint: disable=E0611,E0401
@@ -26,7 +26,7 @@ class IELauncher:
 
     def set_model(self, model, output_names=None, md_shapes=None):
         """ Set/reset model to instance of engine class
-         :param model: NXModel instance for inference
+         :param model: CompressedModel instance for inference
         """
         if model.is_cascade:
             raise Exception('Cascade models are not supported in current launcher')
