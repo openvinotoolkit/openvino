@@ -37,11 +37,87 @@ namespace reference {
 namespace {
 using complex_type = std::complex<float>;
 
+// To simplify calculation of strides for all axes of 'shape' of some complex
+// tensor, we reverse numbers in 'shape'. Because we have no native support for
+// complex numbers in tensors, we interpret FFT input tensors of the shape
+// [N_0, ..., N_{r - 1}, 2] as a complex tensor with the shape
+// [N_0, ..., N_{r - 1}]. Hence, we convert 'shape=[N_0, ..., N_{r - 1}, 2]'
+// into [N_{r - 1}, ..., N_0].
+std::vector<int64_t> reverse_shape(const Shape& shape) {
+    size_t complex_data_rank = shape.size() - 1;
+
+    std::vector<int64_t> reversed_shape(complex_data_rank);
+    for (size_t i = 0; i < complex_data_rank; ++i) {
+        reversed_shape[i] = static_cast<int64_t>(shape[complex_data_rank - i - 1]);
+    }
+    return reversed_shape;
+}
+
+// Calculates strides for all axes.
+std::vector<int64_t> compute_strides(const std::vector<int64_t>& v) {
+    std::vector<int64_t> strides(v.size() + 1);
+    int64_t stride = 1;
+    for (size_t i = 0; i < v.size(); ++i) {
+        strides[i] = stride;
+        stride *= v[i];
+    }
+    strides.back() = stride;
+    return strides;
+}
+
+// Calculating coordinates c_0, ..., c_{k - 1} from the index of the form
+// c_0 * strides[0] + ... c_{k - 1} * strides[k - 1]
+// where k is the number of strides.
+std::vector<int64_t> coords_from_index(int64_t index, const std::vector<int64_t>& strides) {
+    int64_t num_of_axes = static_cast<int64_t>(strides.size()) - 1;
+    if (num_of_axes == 0) {
+        return std::vector<int64_t>{};
+    }
+    std::vector<int64_t> coords(num_of_axes);
+    int64_t curr = index;
+    for (int64_t j = num_of_axes - 1; j >= 1; --j) {
+        coords[j] = curr / strides[j];
+        curr %= strides[j];
+    }
+    coords[0] = curr;
+    return coords;
+}
+
+// Calculates offset of value using corresponding coordinates and strides.
+int64_t offset_from_coords_and_strides(const std::vector<int64_t>& coords, const std::vector<int64_t>& strides) {
+    int64_t offset = 0;
+    int64_t num_of_axes = coords.size();
+    for (int64_t i = 0; i < num_of_axes; ++i) {
+        offset += coords[i] * strides[i];
+    }
+    return offset;
+}
+
+// This function clips transformed axes and writes the result into output
 void clip_and_write_result(const std::vector<int64_t>& axes_data,
                            const std::vector<float>& fft_result,
                            const Shape& output_fft_shape,
                            float* rdft_result)
 {
+    auto rdft_result_shape = output_fft_shape;
+    for (const auto axis : axes_data) {
+        rdft_result_shape[axis] = rdft_result_shape[axis] / 2 + 1;
+    }
+
+    const auto reversed_rdft_result_shape = reverse_shape(rdft_result_shape);
+    const auto rdft_output_strides = compute_strides(reversed_rdft_result_shape);
+
+    const auto reversed_output_fft_shape = reverse_shape(output_fft_shape);
+    const auto output_fft_strides = compute_strides(reversed_output_fft_shape);
+    const auto rdft_output_size = rdft_output_strides.back();
+
+    complex_type* complex_output_ptr = reinterpret_cast<complex_type*>(rdft_result);
+    const complex* complex_input_ptr = reinterpret_cast<const complex_type*>(fft_result.data());
+    for (int64_t i = 0; i < rdft_output_size; ++i) {
+        const auto coords = coords_from_index(i, rdft_output_strides);
+        const int64_t input_offset = offset_from_coords_and_strides(coords, output_fft_strides);
+        complex_output_ptr[i] = complex_input_ptr[input_offset];
+    }
 }
 }  // namespace
 
