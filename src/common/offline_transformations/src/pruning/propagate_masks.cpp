@@ -63,11 +63,17 @@ public:
             auto a_mask = getMask(m_a);
             auto b_mask = getMask(m_b);
 
-            if (!a_mask || !b_mask) {
+            if (!a_mask && !b_mask) {
                 NGRAPH_DEBUG << "No mask for any input of " << m_matmul.get_node()->get_friendly_name() << "\n";
                 return false;
             }
-            auto a_mask_row = a_mask.get();
+            if (!b_mask) {
+                NGRAPH_DEBUG << "No mask for input b of " << m_matmul.get_node()->get_friendly_name() << "\n";
+                return false;
+            }
+            Mask* a_mask_row = nullptr;
+            if (a_mask)
+                a_mask_row = a_mask.get();
             auto b_mask_row = b_mask.get();
 
             const auto matmul_op = std::dynamic_pointer_cast<opset6::MatMul>(m_matmul.get_node_shared_ptr());
@@ -90,30 +96,40 @@ public:
             const auto matmul_rows_dim = matmul_range - 2;
 
             const auto matmul_callback = [=](Mask::Ptr cur_mask) -> bool {
-                cur_mask->at(matmul_rows_dim) = a_mask_row->at(a_outer_dim);
                 cur_mask->at(matmul_cols_dim) = b_mask_row->at(b_outer_dim);
-                if (a_mask_row->at(a_inner_dim) != b_mask_row->at(b_inner_dim))
-                    cur_mask->initialize_dependencies();
+                if (a_mask_row) {
+                    cur_mask->at(matmul_rows_dim) = a_mask_row->at(a_outer_dim);
+                    if (a_mask_row->at(a_inner_dim) != b_mask_row->at(b_inner_dim))
+                        cur_mask->initialize_dependencies();
+                }
                 return true;
             };
             // Connect a with matmul mask
-            matmul_mask->add_callback(matmul_callback, a_mask);
-            a_mask->add_callback([=](Mask::Ptr cur_mask) -> bool {
-                cur_mask->at(a_inner_dim) = b_mask_row->at(b_inner_dim);
-                cur_mask->at(a_outer_dim) = matmul_mask_row->at(matmul_rows_dim);
-                return true;
-            }, matmul_mask);
+            if (a_mask) {
+                matmul_mask->add_callback(matmul_callback, a_mask);
+                a_mask->add_callback([=](Mask::Ptr cur_mask) -> bool {
+                    cur_mask->at(a_inner_dim) = b_mask_row->at(b_inner_dim);
+                    cur_mask->at(a_outer_dim) = matmul_mask_row->at(matmul_rows_dim);
+                    return true;
+                }, matmul_mask);
+            }
             // connect b with matmul mask
             matmul_mask->add_callback(matmul_callback, b_mask);
             b_mask->add_callback([=](Mask::Ptr cur_mask) -> bool {
-                cur_mask->at(b_inner_dim) = a_mask_row->at(a_inner_dim);
+                if (a_mask_row)
+                    cur_mask->at(b_inner_dim) = a_mask_row->at(a_inner_dim);
                 cur_mask->at(b_outer_dim) = matmul_mask_row->at(matmul_cols_dim);
                 return true;
             }, matmul_mask);
 
-            if (!matmul_mask->apply_callback(a_mask)) {
+            bool status;
+            if (a_mask)
+                status = matmul_mask->apply_callback(a_mask);
+            else
+                status = matmul_mask->apply_callback(b_mask);
+
+            if (!status)
                 return false;
-            }
 
             setMask(m_matmul, matmul_mask);
             return true;
