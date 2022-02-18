@@ -4,7 +4,7 @@
 
 ### Addressing particular input/output
 
-If your model has only one input, then simple `PrePostProcessor::input()` will get a reference to preprocessing builder for this input (tensor, steps, model):
+If your model has only one input, then simple <code>ov::preprocess::PrePostProcessor::input()</code> will get a reference to preprocessing builder for this input (tensor, steps, model):
 
 @sphinxdirective
 
@@ -59,8 +59,16 @@ Or by it's index
 
 @endsphinxdirective
 
+C++ references:
+  * <code>ov::preprocess::InputTensorInfo</code>
+  * <code>ov::preprocess::OutputTensorInfo</code>
+  * <code>ov::preprocess::PrePostProcessor</code>
+
 
 ### Supported preprocessing operations
+
+C++ references:
+* <code>ov::preprocess::PreProcessSteps</code>
 
 #### Mean/Scale normalization
 
@@ -101,6 +109,10 @@ In Computer Vision area normalization is usually done separately for R, G, B val
 
 @endsphinxdirective
 
+C++ references:
+* <code>ov::preprocess::PreProcessSteps::mean()</code>
+* <code>ov::preprocess::PreProcessSteps::scale()</code>
+
 
 #### Convert precision
 
@@ -124,6 +136,10 @@ To integrate precision conversion into execution graph as a preprocessing step, 
 
 @endsphinxdirective
 
+C++ references:
+  * <code>ov::preprocess::PreProcessSteps::convert_element_type()</code>
+
+
 #### Convert layout (transpose)
 
 Transposing of matrices/tensors is a typical operation in Deep Learning - you may have a BMP image 640x480 which is an array of `{480, 640, 3}` elements, but Deep Learning model can require input with shape `{1, 3, 480, 640}`
@@ -131,7 +147,6 @@ Transposing of matrices/tensors is a typical operation in Deep Learning - you ma
 Using [layout](./layout_overview.md) of user's tensor and layout of original model conversion can be done implicitly
 
 @sphinxdirective
-
 .. tab:: C++
 
       .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
@@ -166,6 +181,12 @@ Or if you prefer manual transpose of axes without usage of [layout](./layout_ove
 @endsphinxdirective
 
 It performs the same transpose, but we believe that approach using source and destination layout can be easier to read and understand
+
+C++ references:
+  * <code>ov::preprocess::PreProcessSteps::convert_layout()</code>
+  * <code>ov::preprocess::InputTensorInfo::set_layout()</code>
+  * <code>ov::preprocess::InputModelInfo::set_layout()</code>
+  * <code>ov::Layout</code>
 
 #### Resize image
 
@@ -206,6 +227,10 @@ Or in case if original model has known spatial dimensions (widht+height), target
          :fragment: [ov:preprocess:resize_2]
 
 @endsphinxdirective
+
+C++ references:
+* <code>ov::preprocess::PreProcessSteps::resize()</code>
+* <code>ov::preprocess::ResizeAlgorithm</code>
 
 
 #### Color conversion
@@ -250,6 +275,11 @@ In advanced cases such YUV images can be splitted into separate planes, e.g. for
 
 In this example, original `input` is being split to `input/y` and `input/uv` inputs. You can fill `input/y` from one source, and `input/uv` from another source. Color conversion to `RGB` will be performed using these sources, it is more optimal as there will be no additional copies of NV12 buffers.
 
+C++ references:
+* <code>ov::preprocess::ColorFormat</code>
+* <code>ov::preprocess::PreProcessSteps::convert_color</code>
+
+
 ### Custom operations
 
 Preprocessing API also allows adding custom preprocessing steps into execution graph. Custom step is a function which accepts current 'input' node and returns new node after adding preprocessing step
@@ -273,6 +303,10 @@ If there is a need to insert some additional operations to execution graph right
          :fragment: [ov:preprocess:custom]
 
 @endsphinxdirective
+
+C++ references:
+* <code>ov::preprocess::PreProcessSteps::custom()</code>
+* [Available Operations Sets](../ops/opset.md)
 
 ## Postprocessing
 
@@ -304,3 +338,8 @@ Usage of these operations is similar to Preprocessing. Some example is shown bel
          :fragment: [ov:preprocess:postprocess]
 
 @endsphinxdirective
+
+C++ references:
+* <code>ov::preprocess::PostProcessSteps</code>
+* <code>ov::preprocess::OutputModelInfo</code>
+* <code>ov::preprocess::OutputTensorInfo</code>

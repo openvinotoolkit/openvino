@@ -16,12 +16,12 @@
 
 namespace ov {
 
-/// \brief ov::Layout represents the text information of tensor's dimensions/axes. E.g. layout "NCHW" means that 4D
-/// tensor {-1, 3, 480, 640} will have:
+/// \brief ov::Layout represents the text information of tensor's dimensions/axes. E.g. layout `NCHW` means that 4D
+/// tensor `{-1, 3, 480, 640}` will have:
 /// - 0: `N = -1`: batch dimension is dynamic
 /// - 1: `C = 3`: number of channels is '3'
-/// - 2: 'H = 480': image height is 480
-/// - 3: 'W = 640': image width is 640
+/// - 2: `H = 480`: image height is 480
+/// - 3: `W = 640`: image width is 640
 ///
 /// Examples: `ov::Layout` can be specified for:
 /// - Preprocessing purposes. E.g.
@@ -32,7 +32,7 @@ namespace ov {
 /// - To set/get model's batch (see `ov::get_batch`/`ov::set_batch') it is required in general to specify 'N' dimension
 /// in layout for appropriate inputs
 ///
-/// Refer also to 'ov::layout' namespace for various additional helper functions of `ov::Layout`
+/// Refer also to `ov::layout` namespace for various additional helper functions of `ov::Layout`
 class OPENVINO_API Layout {
 public:
     /// \brief Constructs a dynamic Layout with no layout information.

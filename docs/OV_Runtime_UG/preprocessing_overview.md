@@ -7,6 +7,7 @@
    :hidden:
 
    openvino_docs_OV_Runtime_UG_Preprocessing_Details
+   openvino_docs_OV_Runtime_UG_Layout_Overview
 
 @endsphinxdirective
 
@@ -164,3 +165,5 @@ After this, `model` will accept U8 input with `{1, 480, 640, 3}` shape, with `BG
 ## See Also
 
 * [Preprocessing Details](./preprocessing_details.md)
+* [Layout API overview](./layout_overview.md)
+* <code>ov::preprocess::PrePostProcessor</code> C++ class documentation

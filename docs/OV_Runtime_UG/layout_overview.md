@@ -1,4 +1,4 @@
-# Overview of Layout API {#openvino_docs_OV_Runtime_UG_Layout_Overview}
+# Layout API overview {#openvino_docs_OV_Runtime_UG_Layout_Overview}
 
 ## Introduction
 
@@ -28,6 +28,7 @@ The easiest way is to fully specify each dimension with one alphabetical letter
          :language: cpp
          :fragment: [ov:layout:simple]
 
+      See also: `ov::Layout`
 .. tab:: Python
 
       .. doxygensnippet:: docs/snippets/ov_layout.py
@@ -127,7 +128,7 @@ These names are used in [PreProcessing API](./preprocessing_overview.md) and the
 
 ### Equality
 
-Layout names are case-insensitive, which means that `Layout('NCHW') == Layout('nChW') == Layout('[N,c,H,w]')`
+Layout names are case-insensitive, which means that ```Layout("NCHW") == Layout("nChW") == Layout("[N,c,H,w]")```
 
 ### Dump layout
 
@@ -148,3 +149,7 @@ Layout can be converted to string in advanced syntax format. Can be useful for d
          :fragment: [ov:layout:dump]
 
 @endsphinxdirective
+
+## See also
+
+* <code>ov::Layout</code> C++ class documentation
