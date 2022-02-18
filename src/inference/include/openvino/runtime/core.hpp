@@ -43,14 +43,17 @@ class OPENVINO_RUNTIME_API Core {
     std::shared_ptr<Impl> _impl;
 
 public:
-    /** @brief Constructs an OpenVINO Core instance using the XML configuration file with
-     * devices and their plugins description.
+    /** @brief Constructs an OpenVINO Core instance with devices
+     * and their plugins description.
      *
-     * See Core::register_plugins for more details.
+     * There are two ways how to configure device plugins:
+     * 1. (default) Use XML configuration file in case of dynamic libraries build;
+     * 2. Use strictly defined configuration in case of static libraries build.
      *
      * @param xml_config_file Path to the .xml file with plugins to load from. If the XML configuration file is not
-     * specified, default OpenVINO Runtime plugins are loaded from the default `plugin.xml` file located in the same
-     * folder as OpenVINO runtime shared library.
+     * specified, default OpenVINO Runtime plugins are loaded from:
+     * 1. (dynamic build) default `plugins.xml` file located in the same folder as OpenVINO runtime shared library;
+     * 2. (static build) statically defined configuration. In this case path to the .xml file is ignored.
      */
     explicit Core(const std::string& xml_config_file = {});
 

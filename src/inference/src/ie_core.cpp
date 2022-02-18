@@ -453,9 +453,9 @@ public:
 #ifdef OPENVINO_STATIC_LIBRARY
 
     /**
-     * @brief Register plugins for devices which are located in .xml configuration file.
+     * @brief Register plugins for devices using statically defined configuration
      * @note The function supports UNICODE path
-     * @param xmlConfigFile An .xml configuraion with device / plugin information
+     * @param static_registry a statically defined configuration with device / plugin information
      */
     void RegisterPluginsInRegistry(const decltype(::getStaticPluginsRegistry())& static_registry) {
         std::lock_guard<std::mutex> lock(pluginsMutex);
