@@ -14,7 +14,7 @@ usually, the resulting values are not very performance-portable,
 so the values from one machine or device are not necessarily optimal for another.
 From this perspective, the most portable way is experimenting only the performance hints. To learn more, refer to the section below.
 
-> **NOTE**: By default, Inference Engine samples, tools and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model to Intermediate Representation (IR)](../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
+> **NOTE**: By default, OpenVINO samples, tools and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model to Intermediate Representation (IR)](../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 
 ### Latency and Throughput-focused Inference Modes
 In many cases the primary performance metric is the time (in milliseconds) for an individual inference request.
@@ -219,7 +219,7 @@ If a model has mixed input types, input folder should contain all required files
 
 To run the tool, you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
 
-> **NOTE**: Before running the tool with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> **NOTE**: Before running the tool with a trained model, make sure the model is converted to the OpenVINO format (\*.xml + \*.bin) using the [Model Optimizer tool](../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 
 ## Examples of Running the Tool
 
@@ -234,7 +234,7 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
    ```sh
    python3 downloader.py --name googlenet-v1 -o <models_dir>
    ```
-2. Convert the model to the Inference Engine IR format. Run Model Optimizer with the path to the model, model format (which must be FP32 for CPU and FPG) and output directory to generate the IR files:
+2. Convert the model to the OpenVINO IR format. Run Model Optimizer with the path to the model, model format (which must be FP32 for CPU and FPG) and output directory to generate the IR files:
    ```sh
    mo --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP32 --output_dir <ir_dir>
    ```
@@ -298,6 +298,6 @@ Below are fragments of sample output for static and dynamic models:
    ```
 
 ## See Also
-* [Using Inference Engine Samples](../../docs/OV_Runtime_UG/Samples_Overview.md)
+* [Using OpenVINO Samples](../../docs/OV_Runtime_UG/Samples_Overview.md)
 * [Model Optimizer](../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 * [Model Downloader](@ref omz_tools_downloader)
