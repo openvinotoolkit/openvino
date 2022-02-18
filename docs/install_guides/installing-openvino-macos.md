@@ -2,7 +2,7 @@
 
 > **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. These tools are now only available on [pypi.org](https://pypi.org/project/openvino-dev/).
 
-> **NOTE**: The Intel® Distribution of OpenVINO™ is supported on macOS version 10.15.x with Intel® processor-based machines.
+> **NOTE**: The Intel® Distribution of OpenVINO™ toolkit is supported on macOS version 10.15 with Intel® processor-based machines.
 
 ## System Requirements
 
@@ -88,9 +88,9 @@ If you have more than one OpenVINO™ version on your machine, you can easily sw
 
 The environment variables are set. Continue to the next section if you want to download any additional components.
 
-## <a name="model-optimizer"></a>Step 3 (Optional): Download additional components
+## <a name="model-optimizer"></a>Step 3 (Optional): Download Additional Components
 
-> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. The OpenVINO™ Development Tools can only be installed via PyPI now. See [Install OpenVINO™ Development Tools](@ref installing-model-dev-tools) for detailed steps. 
+> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. The OpenVINO™ Development Tools can only be installed via PyPI now. See [Install OpenVINO™ Development Tools](installing-model-dev-tools.md) for detailed steps. 
 
 @sphinxdirective
 

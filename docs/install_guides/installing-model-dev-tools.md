@@ -1,6 +1,6 @@
 # Install OpenVINO™ Development Tools {#openvino_docs_install_guides_install_dev_tools}
 
-If you are planning to develop your own inference solutions, install OpenVINO™ Development Tools, which provides the following tools:
+If you want to download, convert, optimize and tune pre-trained deep learning models, install OpenVINO™ Development Tools, which provides the following tools:
 
 * Model Optimizer
 * Benchmark Tool
