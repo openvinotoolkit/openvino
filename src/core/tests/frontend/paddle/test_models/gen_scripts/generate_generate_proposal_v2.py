@@ -95,10 +95,27 @@ if __name__ == "__main__":
                                         [4, 4, 3, 4]).astype('float32')
     input_data["variances"] = np.ones((4, 4, 3, 4)).astype('float32')
 
-    attr["pre_nms_top_n"] = 40
-    attr["post_nms_top_n"] = 35
-    attr["nms_thresh"] = 0.5
-    attr["min_size"] = 3
+    #test_data = np.load('/home/iot/Downloads/tmp/paddle.npy', allow_pickle=True)
+    ##print(test_data)
+    #input_data["scores"] = test_data.item().get('conv2d_100.tmp_1_slice_0')
+    #input_data["bbox_deltas"] = test_data.item().get('conv2d_101.tmp_1_slice_0')
+    ##input_data["anchors"] = np.reshape(test_data.item().get('reshape2_4.tmp_0'), [38, 38, 15, 4])
+    #input_data["anchors"] = test_data.item().get('reshape2_4.tmp_0')
+    #input_data["im_shape"] = test_data.item().get('im_shape_slice_0')
+    #input_data["variances"] = np.ones((38, 38, 15, 4)).astype('float32')
+    ## A = 15, H = 38, W = 38
+    #print(input_data["scores"].shape)
+    #print(input_data["bbox_deltas"].shape)
+    #print(input_data["anchors"].shape)
+    #print(input_data["im_shape"].shape)
+    ##print(input_data["bbox_deltas"])
+
+    ##print(input_data["scores"])
+
+    attr["pre_nms_top_n"] = 6000
+    attr["post_nms_top_n"] = 1000
+    attr["nms_thresh"] = 0.699999988079071
+    attr["min_size"] = 0
     attr["pixel_offset"] = False
 
     generate_proposals_v2(input_name, input_data, attr)

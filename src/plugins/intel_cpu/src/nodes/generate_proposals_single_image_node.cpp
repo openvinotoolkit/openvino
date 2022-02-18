@@ -372,8 +372,8 @@ void MKLDNNGenerateProposalsSingleImageNode::execute(mkldnn::stream strm) {
         // scale factor for height & width
 
         // minimum box width & height
-        const float min_box_H = min_size_;
-        const float min_box_W = min_size_;
+        const float min_box_H = std::max(min_size_, 1.0f);
+        const float min_box_W = std::max(min_size_, 1.0f);
 
         // number of all proposals = num_anchors * H * W
         const int num_proposals = anchors_num * bottom_H * bottom_W;

@@ -46,7 +46,11 @@ NamedOutputs generate_proposals_v2(const NodeContext& node)
     auto single_im_shape = get_one_batch(node, im_shape, 2);
     auto single_scores = get_one_batch(node, scores, 4);
 
-    check_rank(node, anchors, 4);
+    //check_rank(node, anchors, 0);
+    auto anchors_rank = anchors.get_partial_shape().rank();
+    PADDLE_OP_CHECK(node, anchors_rank.is_static(), "generate proposals: anchors rank must be static!");
+    PADDLE_OP_CHECK(node, (anchors_rank == Dimension(2)) || (anchors_rank == Dimension(4)),
+                    "generate proposals: anchors rank must be 2 or 4");
 
     // attribute
     ov::op::v9::GenerateProposalsSingleImage::Attributes attrs;
