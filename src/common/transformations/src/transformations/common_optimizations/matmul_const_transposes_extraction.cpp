@@ -7,6 +7,7 @@
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/validation_util.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MatMulConstTransposesExtraction, "MatMulConstTransposesExtraction", 0);
 
