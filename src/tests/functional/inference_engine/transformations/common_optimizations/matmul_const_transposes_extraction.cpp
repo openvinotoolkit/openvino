@@ -25,9 +25,8 @@ TEST_F(TransformationTestsF, MatMulConstTransposesExtractionConstantWeights) {
 
     {
         auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 4});
-        auto weights = opset8::Constant::create(element::f32, Shape{1, 3, 2}, {1, 2, 3, 4, 5, 6});
-        auto transpose = std::make_shared<opset8::Transpose>(weights, op::Constant::create(element::i32, Shape{3}, {0, 2, 1}));
-        auto matmul = std::make_shared<opset8::MatMul>(data, transpose, true, true);
+        auto weights = opset8::Constant::create(element::f32, Shape{1, 2, 3}, {1, 3, 5, 2, 4, 6});
+        auto matmul = std::make_shared<opset8::MatMul>(data, weights, true, true);
         function_ref = std::make_shared<Function>(matmul, ParameterVector{data});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);

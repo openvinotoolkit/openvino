@@ -8,7 +8,7 @@ using namespace SubgraphTestsDefinitions;
 
 namespace {
 std::vector<MatMulConstTransposesExtractionTestShapeParams> shape_params = {
-    {{2, 2}, {2, 2}, false},
+    {{2, 2}, {2, 3}, false},
     {{5}, {5, 1}, false},
     {{5}, {5, 3}, false},
     {{5, 10}, {10, 7}, false},
