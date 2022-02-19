@@ -228,52 +228,44 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
 
     auto functionToProcess = ov::clone_model(*functionRefs);
     //TODO: remove this conversions as soon as function interpreter fully support bf16 and f16
-    bool f32_exist = false;
-    for (size_t i = 0; i < functionRefs->get_parameters().size(); ++i) {
-        auto el_type = functionRefs->get_parameters()[i]->get_element_type();
-        if (el_type == element::f32) {
-            f32_exist = true;
-            break;
+    static const precisions_array precisions = {
+            { ngraph::element::bf16, ngraph::element::f32 },
+            { ngraph::element::f16, ngraph::element::f32}
+    };
+
+    pass::Manager manager;
+    manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
+    manager.run_passes(functionToProcess);
+    functionToProcess->validate_nodes_and_infer_types();
+
+    ov::preprocess::PrePostProcessor p(functionToProcess);
+    const auto& inputNodes = functionToProcess->inputs();
+    for (size_t i = 0; i < inputNodes.size(); ++i) {
+        auto itr = std::find_if(inputs.begin(), inputs.end(),
+                                [&](const InputsMap::value_type& item) {
+                                    return item.first->get_friendly_name() == inputNodes[i].get_node_shared_ptr()->get_friendly_name();
+                                });
+        if (itr != inputs.end()) {
+            auto elementType = itr->second.get_element_type();
+            if (inputNodes[i].get_element_type() != elementType) {
+                p.input(i).tensor().set_element_type(elementType);
+            }
+        } else {
+            std::stringstream errMsg;
+            errMsg << "Couldn't find input with name " << inputNodes[i].get_node_shared_ptr()->get_friendly_name();
+            errMsg << " in the inputs map";
+            throw std::runtime_error(errMsg.str());
         }
     }
-    if (true) {
-        static const precisions_array precisions = {
-                {ngraph::element::bf16, ngraph::element::f32},
-                {ngraph::element::f16,  ngraph::element::f32}
-        };
-        pass::Manager manager;
-        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
-        manager.run_passes(functionToProcess);
-        functionToProcess->validate_nodes_and_infer_types();
 
-        ov::preprocess::PrePostProcessor p(functionToProcess);
-        const auto& inputNodes = functionToProcess->inputs();
-        for (size_t i = 0; i < inputNodes.size(); ++i) {
-            auto itr = std::find_if(inputs.begin(), inputs.end(),
-                                    [&](const InputsMap::value_type& item) {
-                                        return item.first->get_friendly_name() == inputNodes[i].get_node_shared_ptr()->get_friendly_name();
-                                    });
-            if (itr != inputs.end()) {
-                auto elementType = itr->second.get_element_type();
-                if (inputNodes[i].get_element_type() != elementType) {
-                    p.input(i).tensor().set_element_type(elementType);
-                }
-            } else {
-                std::stringstream errMsg;
-                errMsg << "Couldn't find input with name " << inputNodes[i].get_node_shared_ptr()->get_friendly_name();
-                errMsg << " in the inputs map";
-                throw std::runtime_error(errMsg.str());
-            }
+    const auto& outputs = functionToProcess->outputs();
+    for (size_t i = 0; i < outputs.size(); ++i) {
+        if (outType != ElementType::undefined && outType != outputs[i].get_element_type()) {
+            p.output(i).tensor().set_element_type(outType);
         }
-        const auto& outputs = functionToProcess->outputs();
-        for (size_t i = 0; i < outputs.size(); ++i) {
-            if (outType != ElementType::undefined && outType != outputs[i].get_element_type()) {
-                p.output(i).tensor().set_element_type(outType);
-            }
-        }
-
-        functionToProcess = p.build();
     }
+
+    functionToProcess = p.build();
 
     return ngraph::helpers::interpretFunction(functionToProcess, inputs);
 }
