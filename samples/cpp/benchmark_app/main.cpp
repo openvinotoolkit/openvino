@@ -402,6 +402,8 @@ int main(int argc, char* argv[]) {
                 setThroughputStreams();
             } else if (device.find("GNA") != std::string::npos) {
                 set_infer_precision();
+            } else if (device.find("AUTO") != std::string::npos) {
+                device_nstreams.erase(device);
             }
         }
 
