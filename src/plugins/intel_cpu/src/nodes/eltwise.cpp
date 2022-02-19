@@ -2071,7 +2071,6 @@ void MKLDNNEltwiseNode::appendPostOpsImpl(mkldnn::post_ops& ops, const VectorDim
         }
     } else {
         const size_t chIdx = postOpDims.size() > 1 ? getFusingAxis() : 0;
-        constexpr int bufferAlignment = 16; // always align for legacy scale/shift post ops
         // since legacy depthwise post ops mechanism requires broadcasted data we need to reinitilize it in case of changed shape
         if (depthwiseData.empty() || depthwiseDataSize != 2 * postOpDims[chIdx]) {
             depthwiseData.clear();
@@ -2094,7 +2093,10 @@ void MKLDNNEltwiseNode::appendPostOpsImpl(mkldnn::post_ops& ops, const VectorDim
             }
             depthwiseDataSize = 2 * postOpDims[chIdx];
 
-            depthwiseData.resize(rnd_up(depthwiseData.size(), bufferAlignment), 0);
+            // always align for legacy scale/shift post ops
+            constexpr int bufferAlignment = 16;
+            int bufferPaddingSize = rnd_up(postOpDims[chIdx], bufferAlignment) - postOpDims[chIdx];
+            depthwiseData.resize(depthwiseDataSize + bufferPaddingSize, 0);
         }
 
         if (depthwiseData.empty())
