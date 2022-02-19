@@ -187,7 +187,8 @@ class SegmentationEngine(IEEngine):
         """
         Processes model raw output for future metric and loss calculation.
         Uses image metadata that can be passed using dataloader.
-        :param outputs: network infer result in the format of dictionary  numpy ndarray by layer name (batch x image shape)
+        :param outputs: network infer result in the format of dictionary numpy ndarray 
+                        by layer name (batch x image shape)
         :param metadata: dictionary of image metadata
         :return: processed numpy ndarray with the same shape as the original output
         """
