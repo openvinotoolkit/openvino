@@ -14,8 +14,10 @@ ngraph::pass::MatMulConstTransposesExtraction::MatMulConstTransposesExtraction()
     auto data_pattern = pattern::any_input();
     auto weights_pattern = pattern::wrap_type<opset8::Constant,
                                               opset8::FakeQuantize>([](Output<Node> node) -> bool {
-                                                                        const auto& rank = node.get_partial_shape().rank();
-                                                                        return rank.is_static() && rank.get_length() >= 2;
+                                                                        const auto& pshape = node.get_partial_shape();
+                                                                        const auto& rank = pshape.rank();
+                                                                        return rank.is_static() && rank.get_length() >= 2 &&
+                                                                               std::count(pshape.begin(), pshape.end(), 1) >= rank.get_length() - 2;
                                                                    });
     auto matmul_pattern = pattern::wrap_type<opset8::MatMul>({data_pattern, weights_pattern});
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
