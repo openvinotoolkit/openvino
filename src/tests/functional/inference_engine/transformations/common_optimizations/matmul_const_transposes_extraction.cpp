@@ -78,3 +78,12 @@ TEST_F(TransformationTestsF, NegativeMatMulConstTransposesExtractionTransposeBSe
     manager.register_pass<pass::MatMulConstTransposesExtraction>();
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
+
+TEST_F(TransformationTestsF, NegativeMatMulConstTransposesExtractionNonUnitDims) {
+    auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 4});
+    auto weights = opset8::Constant::create(element::f32, Shape{2, 3, 2}, {1, 2, 3, 4, 5, 6, 2, 3, 4, 5, 6, 7});
+    auto matmul = std::make_shared<opset8::MatMul>(data, weights, true);
+    function = std::make_shared<Function>(matmul, ParameterVector{data});
+    manager.register_pass<pass::MatMulConstTransposesExtraction>();
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
