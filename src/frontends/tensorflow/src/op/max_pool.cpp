@@ -25,7 +25,7 @@ OutputVector translate_max_pool_op(const NodeContext& node) {
     bool is_nhwc = (tf_data_format == "NHWC") || (tf_data_format == "NDHWC");
 
     int N = 2;
-    if (node.get_name() == "MaxPool3D") {
+    if (node.get_op_type() == "MaxPool3D") {
         N = 3;
     }
     Strides ng_strides(N);
