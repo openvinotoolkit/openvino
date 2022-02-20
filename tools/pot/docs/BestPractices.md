@@ -10,7 +10,7 @@ we suggest reading the following [POT documentation](../README.md).
 > floating-point model is a prerequisite for model optimization. 
 > It is also worth mentioning that in the case of 8-bit quantization it is recommended to run POT on the same CPU
 > architecture when optimizing for CPU or VNNI-based CPU when quantizing for a non-CPU device, such as GPU, VPU, or GNA.
-> It should help to avoid the impact of the saturation issue that occurs on AVX and SSE based CPU devices. 
+> It should help to avoid the impact of the [saturation issue](@ref pot_saturation_issue) that occurs on AVX and SSE based CPU devices. 
 
 ## Get Started with Post-Training Quantization
 

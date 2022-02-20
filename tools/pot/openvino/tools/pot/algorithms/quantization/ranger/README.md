@@ -1,4 +1,4 @@
-# Experimental: Deep neural network protection through range supervision ("Ranger")
+# Experimental: Deep neural network protection through range supervision ("Ranger") {#pot_ranger_README}
 
 # Overview
 
@@ -14,7 +14,7 @@ where $`T_{low}`$ and $`T_{up}`$ are the lower and upper bounds for the particul
 The process flow follows the diagram [Fig 1](#Schematic). Starting from the internal representation (IR) of an OpenVINO model, the POT Ranger algorithm is called to **add protection layers into the model graph**. This step requires **appropriate threshold values that are automatically extracted from a specified test dataset**. The result is an IR representation of the model with additional "Ranger" layers after each supported activation layer. The original and the modified model can be called in the same way through the OpenVINO inference engine to evaluate the impact on accuracy, performance, and dependability in the presence of potential soft errors (for example using the *benchmark_app* and *accuracy_checker* functions). **The algorithm is designed to provide efficient protection at negligible performance overhead or accuracy impact in the absence of faults.** Bound extraction is a one-time effort and the protected IR model returned by the Ranger algorithm can be used independently from there on. No changes in the learned parameters of the network are needed.
 
 
-![Schematic](../../../../docs/ranger/images/scheme3.png)
+![Schematic](../../../../../../docs/ranger/images/scheme3.png)
 
 *Fig 1: Schematic of Ranger process flow.*
 
@@ -22,7 +22,7 @@ The process flow follows the diagram [Fig 1](#Schematic). Starting from the inte
 The following example shows a traffic camera image and predicted objects using a Yolov3 pretrained on the Coco dataset. A single weight fault was injected in a randomly chosen convolution layer of Yolo, flipping the most significant bit of the selected network parameter. If range supervision is applied, the original network performance is recovered despite the presence of the fault.
 
 
-![](../../../../docs/ranger/images/img_combined_2.png)
+![](../../../../../../docs/ranger/images/img_combined_2.png)
 
 *Fig 2: Example of fault mitigation via range supervision.*
 

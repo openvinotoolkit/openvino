@@ -112,81 +112,30 @@ mode on the existing HW.
             - `"outlier_prob"` - outlier probability used in the "quantile" estimator
 - `"use_layerwise_tuning"` - enables layer-wise fine-tuning of model parameters (biases, Convolution/MatMul weights and FakeQuantize scales) by minimizing the mean squared error between original and quantized layer outputs.
 Enabling this option may increase compressed model accuracy, but will result in increased execution time and memory consumption.
-            
- Below is a fragment of the configuration file that shows overall structure of parameters for this algorithm.
 
-```
-"compression": {
-    "model_type": "None",   //  An optional parameter, needed for additional patterns in the model, 
-                                default value is None (supported only "Transformer" now)
-    "inplace_statistic": true, // An optional parameter, needed for change method collect statistics,
-                                    reduces the amount of memory consumed, but increases the calibration time
-    "algorithms": [
-        "name": "DefaultQuantization", // optimization algorithm name
-        "params": {
-                /* Preset is a collection of optimization algorithm parameters that will specify to the algorithm
-                to improve which metric the algorithm needs to concentrate. Each optimization algorithm supports
-                [performance, mixed, accuracy] presets which control the quantization mode (symmetric, mixed(weights symmetric and activations asymmetric), and fully asymmetric respectively)*/
-                "preset": "mixed",
-                "stat_subset_size": 300, // Size of subset to calculate activations statistics that can be used
-                                         // For quantization parameters calculation.
-                "ignored": {
-                    "scope": [
-                        "<NODE_NAME>" // List of nodes that are excluded from optimization
-                    ],
-                    "operations": [ // List of types that are excluded from optimization
-                        {
-                            "type": "<NODE_TYPE>", // Type of ignored operation
-                            "attributes": { // If attributes are defined they will be considered during the ignorance
-                                "<NAME>": "<VALUE>" // Lists of values to filter by
-                            }
-                        }
-                    ]
-                },
-                /* Manually specified quantization parameters */
-                /* Quantization parameters for weights */
-                "weights": {  // Weights quantization parameters used by MinMaxAlgorithm
-                    "bits": 8, // Bit-width, default is 8
-                    "mode": "symmetric", // Quantization mode, default is "symmetric"
-                    "level_low": 0,      // Minimum level in the integer range in which we quantize to, default is 0 for unsigned range, -2^(bit-1) - for signed
-                    "level_high": 255,   // Maximum level in the integer range in which we quantize to, default is 2^bits-1 for unsigned range, 2^(bit-1)-1 - for signed
-                    "granularity": "perchannel", // Quantization scale granularity: ["pertensor" (default), "perchannel"]
-                    "range_estimator": {         // Range estimator that is used to get the quantization ranges and filter outliers based on the statistics
-                        "max": {                 // Parameters to estimate top quantization border
-                            "type": "quantile",    // Estimator type: ["max" (default), "quantile"]
-                            "outlier_prob": 0.0001 // Outlier probability used in the "quantile" estimator
-                        },
-                        "min": {                   // Parameters to estimate bottom quantization border (used only in asymmetric mode)
-                            "type": "quantile",    // Estimator type: ["max" (default), "quantile"]
-                            "outlier_prob": 0.0001 // Outlier probability used in the "quantile" estimator
-                        }
-        
-                    }
-                },
-                /* Quantization parameters for activations */
-                "activations": {
-                    "bits": 8, // Number of quantization bits
-                    "mode": "symmetric", // Quantization mode
-                    "granularity": "pertensor", // Granularity: one scale for output tensor
-                    "range_estimator": {           // Range estimator that is used to get the quantization ranges and filter outliers based on the statistics
-                        "preset": "quantile",
-                        /* OR */
-                        /* minimum of quantization range */
-                        /* maximum of quantization range */
-                        "max": {                   // Parameters to estimate top quantization border
-                            "aggregator": "mean",  // Batch aggregation type: ["mean" (default), "max", "min", "median", "mean_no_outliers", "median_no_outliers", "hl_estimator"]
-                            "type": "quantile",    // Estimator type: ["max" (default), "quantile"]
-                            "outlier_prob": 0.0001 // Outlier probability used in the "quantile" estimator
-                        },
-                        "min": {                   // Parameters to estimate top quantization border
-                            "aggregator": "mean",  // Batch aggregation type: ["mean" (default), "max", "min", "median", "mean_no_outliers", "median_no_outliers", "hl_estimator"]
-                            "type": "quantile",    // Estimator type [min, max, abs_max, quantile, abs_quantile]
-                            "outlier_prob": 0.0001 // Outlier probability used in the "quantile" estimator
-                        }
-                    }
-                }
-                "use_layerwise_tuning": false // An optional parameter, enables layer-wise fine-tuning, false by default
-            }
-        ]
-    }
-```
+## Examples
+            
+ A template and full specification for DefaultQuantization algorithm can be found:
+ * [Template](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/default_quantization_template.json)
+ * [Full specification](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/default_quantization_spec.json)
+
+Command-line example:
+* [Quantization of Image Classification model](https://docs.openvino.ai/latest/pot_configs_examples_README.html) 
+
+API tutorials:
+* [Quantization of Image Classification model](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/301-tensorflow-training-openvino)
+* [Quantization of Object Detection model from Model Zoo](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/111-detection-quantization)
+* [Quantization of Segmentation model for mediacal data](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/110-ct-segmentation-quantize)
+* [Quantization of BERT for Text Classification](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/105-language-quantize-bert)
+
+API examples:
+* [Quantization of 3D segmentation model](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/3d_segmentation)
+* [Quantization of Face Detection model](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/face_detection)
+* [Speech example for GNA device](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/speech)
+
+## See also
+* [Optimization with Simplified mode](@ref pot_docs_simplified_mode)
+* [Use POT Command-line for Model Zoo models](@ref pot_compression_cli_README)
+* [POT API](@ref pot_compression_api_README)
+* [Post-Training Optimization Best Practices](@ref pot_docs_BestPractices)
+
