@@ -2,6 +2,8 @@
 
 @sphinxdirective
 
+.. _convert model mxnet:
+
 .. toctree::
    :maxdepth: 1
    :hidden:
@@ -15,8 +17,8 @@ A summary of the steps for optimizing and deploying a model that was trained wit
 
 1. [Configure the Model Optimizer](../../Deep_Learning_Model_Optimizer_DevGuide.md) for MXNet* (MXNet was used to train your model)
 2. [Convert a MXNet model](#ConvertMxNet) to produce an optimized [Intermediate Representation (IR)](../../IR_and_opsets.md) of the model based on the trained network topology, weights, and biases values
-3. Test the model in the Intermediate Representation format using the [Inference Engine](../../../OV_Runtime_UG/Deep_Learning_Inference_Engine_DevGuide.md) in the target environment via provided Inference Engine [sample applications](../../../OV_Runtime_UG/Samples_Overview.md)
-4. [Integrate](../../../OV_Runtime_UG/Samples_Overview.md) the [Inference Engine](../../../OV_Runtime_UG/Deep_Learning_Inference_Engine_DevGuide.md) in your application to deploy the model in the target environment
+3. Test the model in the Intermediate Representation format using the [OpenVINO™ Runtime](../../../OV_Runtime_UG/OpenVINO_Runtime_User_Guide.md) in the target environment via provided Inference Engine [sample applications](../../../OV_Runtime_UG/Samples_Overview.md)
+4. [Integrate](../../../OV_Runtime_UG/Samples_Overview.md) the [OpenVINO™ Runtime](../../../OV_Runtime_UG/OpenVINO_Runtime_User_Guide.md) in your application to deploy the model in the target environment
 
 ## Supported Topologies
 

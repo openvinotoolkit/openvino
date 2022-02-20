@@ -90,7 +90,7 @@ bool VerifyReshape(const ngraph::Output<ngraph::Node>& reshape_out) {
 
 bool VerifyConcat(const ngraph::Output<ngraph::Node>& node) {
     auto concat_node = std::dynamic_pointer_cast<ngraph::opset8::Concat>(node.get_node_shared_ptr());
-    return (concat_node->get_axis() == 0);
+    return concat_node && (concat_node->get_axis() == 0);
 }
 
 } // namespace

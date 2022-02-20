@@ -29,6 +29,7 @@
 #include <transformations/rt_info/fused_names_attribute.hpp>
 
 #include "openvino/pass/serialize.hpp"
+#include <openvino/util/common_util.hpp>
 
 #include "intel_gpu/runtime/device_query.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
@@ -159,12 +160,15 @@ auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
         auto input_precision = ii.second->getTensorDesc().getPrecision();
         if (input_precision != InferenceEngine::Precision::FP16 &&
             input_precision != InferenceEngine::Precision::FP32 &&
+            input_precision != InferenceEngine::Precision::FP64 &&
             input_precision != InferenceEngine::Precision::U8 &&
             input_precision != InferenceEngine::Precision::I8 &&
             input_precision != InferenceEngine::Precision::I16 &&
             input_precision != InferenceEngine::Precision::U16 &&
             input_precision != InferenceEngine::Precision::I32 &&
+            input_precision != InferenceEngine::Precision::U32 &&
             input_precision != InferenceEngine::Precision::I64 &&
+            input_precision != InferenceEngine::Precision::U64 &&
             input_precision != InferenceEngine::Precision::BOOL) {
             IE_THROW(NotImplemented)
                 << "Input image format " << input_precision << " is not supported yet...";
@@ -214,14 +218,14 @@ std::map<std::string, std::string> Plugin::ConvertPerfHintsToConfig(
                                : plugin_config.perfHintsConfig.ovPerfHint;
         //checking streams (to avoid overriding what user might explicitly set in the incoming config or previously via SetConfig)
         const auto streams = config.find(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS) == config.end() &&
-                             config.find(ov::streams::num.name()) == config.end();
+                             config.find(ov::num_streams.name()) == config.end();
         if (streams && !streamsSet) {
             if (mode_name == CONFIG_VALUE(LATENCY)) {
                 config[PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS] = std::to_string(1);
-                config[ov::streams::num.name()] = std::to_string(1);
+                config[ov::num_streams.name()] = std::to_string(1);
             } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
                 config[PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS] = CONFIG_VALUE(GPU_THROUGHPUT_AUTO);
-                config[ov::streams::num.name()] = std::to_string(ov::streams::AUTO);
+                config[ov::num_streams.name()] = ov::util::to_string(ov::streams::AUTO);
                 //disabling the throttling temporarily to set the validation (that is switching to the hints) perf baseline
                 //checking throttling (to avoid overriding what user might explicitly set in the incoming config or previously via SetConfig)
                 // const auto bInConfig = config.find(GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE) != config.end() ||
@@ -337,7 +341,7 @@ InferenceEngine::RemoteContext::Ptr Plugin::GetDefaultContext(const AnyMap& para
 
 void Plugin::SetConfig(const std::map<std::string, std::string> &config) {
     streamsSet = config.find(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS) != config.end() ||
-                 config.find(ov::streams::num.name()) != config.end();
+                 config.find(ov::num_streams.name()) != config.end();
     throttlingSet = config.find(GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE) != config.end() ||
                     config.find(CLDNNConfigParams::KEY_CLDNN_PLUGIN_THROTTLE) != config.end() ||
                     config.find(ov::intel_gpu::hint::queue_throttle.name()) != config.end();
@@ -543,28 +547,28 @@ Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string,
             if (name == ov::enable_profiling) {
                 return val == PluginConfigParams::YES ? true : false;
             } else if (name == ov::hint::model_priority) {
-                return InferenceEngine::util::string_to_property(val, ov::hint::model_priority);
+                return ov::util::from_string(val, ov::hint::model_priority);
             } else if (name == ov::intel_gpu::hint::host_task_priority) {
-                return InferenceEngine::util::string_to_property(val, ov::intel_gpu::hint::host_task_priority);
+                return ov::util::from_string(val, ov::intel_gpu::hint::host_task_priority);
             } else if (name == ov::intel_gpu::hint::queue_priority) {
-                return InferenceEngine::util::string_to_property(val, ov::intel_gpu::hint::queue_priority);
+                return ov::util::from_string(val, ov::intel_gpu::hint::queue_priority);
             } else if (name == ov::intel_gpu::hint::queue_throttle) {
-                return InferenceEngine::util::string_to_property(val, ov::intel_gpu::hint::queue_throttle);
+                return ov::util::from_string(val, ov::intel_gpu::hint::queue_throttle);
             } else if (name == ov::intel_gpu::enable_loop_unrolling) {
                 return val == PluginConfigParams::YES ? true : false;
             } else if (name == ov::cache_dir) {
-                return InferenceEngine::util::string_to_property(val, ov::cache_dir);
+                return ov::util::from_string(val, ov::cache_dir);
             } else if (name == ov::hint::performance_mode) {
-                return InferenceEngine::util::string_to_property(val, ov::hint::performance_mode);
+                return ov::util::from_string(val, ov::hint::performance_mode);
             } else if (name == ov::compilation_num_threads) {
-                return InferenceEngine::util::string_to_property(val, ov::compilation_num_threads);
-            } else if (name == ov::streams::num) {
-                return InferenceEngine::util::string_to_property(val, ov::streams::num);
+                return ov::util::from_string(val, ov::compilation_num_threads);
+            } else if (name == ov::num_streams) {
+                return ov::util::from_string(val, ov::num_streams);
             } else if (name == ov::hint::num_requests) {
-                auto temp = InferenceEngine::util::string_to_property(val, ov::hint::num_requests);;
+                auto temp = ov::util::from_string(val, ov::hint::num_requests);;
                 return temp;
             } else if (name == ov::device::id) {
-                return InferenceEngine::util::string_to_property(val, ov::device::id);
+                return ov::util::from_string(val, ov::device::id);
             } else {
                 return val;
             }
@@ -687,7 +691,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             ov::PropertyName{ov::cache_dir.name(), PropertyMutability::RW},
             ov::PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RW},
             ov::PropertyName{ov::compilation_num_threads.name(), PropertyMutability::RW},
-            ov::PropertyName{ov::streams::num.name(), PropertyMutability::RW},
+            ov::PropertyName{ov::num_streams.name(), PropertyMutability::RW},
             ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RW},
             ov::PropertyName{ov::device::id.name(), PropertyMutability::RW},
         };
@@ -899,18 +903,17 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         }
 
         auto it_streams = options.find("GPU_THROUGHPUT_STREAMS") != options.end() ? options.find("GPU_THROUGHPUT_STREAMS") :
-                          options.find(ov::streams::num.name()) != options.end() ? options.find(ov::streams::num.name()) :
+                          options.find(ov::num_streams.name()) != options.end() ? options.find(ov::num_streams.name()) :
                           options.end();
         if (it_streams != options.end()) {
             if (it_streams->second.is<int32_t>()) {
                 n_streams = it_streams->second.as<int32_t>();
-                if (n_streams == ov::streams::AUTO)
-                    n_streams = config.GetDefaultNStreamsForThroughputMode();
             } else if (it_streams->second.is<uint32_t>()) {
                 n_streams = it_streams->second.as<uint32_t>();
             } else if (it_streams->second.is<std::string>()) {
                 std::string n_streams_str = it_streams->second.as<std::string>();
-                if (n_streams_str != CONFIG_VALUE(GPU_THROUGHPUT_AUTO)) {
+                if (n_streams_str != CONFIG_VALUE(GPU_THROUGHPUT_AUTO) &&
+                    n_streams_str != util::to_string(ov::streams::AUTO)) {
                     IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: GPU_THROUGHPUT_STREAMS should be either of uint32_t type or \"GPU_THROUGHPUT_AUTO\"";
                 }
                 n_streams = config.GetDefaultNStreamsForThroughputMode();

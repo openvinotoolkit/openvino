@@ -9,7 +9,6 @@
 
   * Ubuntu 18.04.x long-term support (LTS), 64-bit
   * Ubuntu 20.04.x long-term support (LTS), 64-bit
-  * Red Hat Enterprise Linux 8.x, 64-bit
 
   .. note::
      Since the OpenVINO™ 2022.1 release, CentOS 7.6, 64-bit is not longer supported.
@@ -56,7 +55,7 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
 
 ## <a name="install-openvino"></a>Step 1: Install the Intel® Distribution of OpenVINO™ Toolkit
 
-1. Select and download the Intel® Distribution of OpenVINO™ toolkit installer file from [Intel® Distribution of OpenVINO™ toolkit for Linux*](https://software.intel.com/en-us/openvino-toolkit/choose-download).
+1. Select and download the Intel® Distribution of OpenVINO™ toolkit installer file from [Intel® Distribution of OpenVINO™ toolkit for Linux](https://software.intel.com/en-us/openvino-toolkit/choose-download).
 2. Open a command prompt terminal window. You can use the keyboard shortcut: Ctrl+Alt+T
 3. Change directories to where you downloaded the Intel Distribution of OpenVINO™ toolkit for Linux file.<br>
    If you downloaded the starter script to the current user's `Downloads` directory:
@@ -105,7 +104,7 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
 
    <br>For simplicity, a symbolic link to the latest installation is also created: `/opt/intel/openvino_2022/` or `/home/<USER>/intel/openvino_2022/`.
 
-To check **Release Notes** please visit: [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes)
+To check **Release Notes** please visit: [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes).
 
 The core components are now installed. Continue to the next section to install additional dependencies.
 
@@ -140,7 +139,20 @@ The environment variables are set. Next, you can download some additional tools.
 
 ## <a name="model-optimizer">Step 4 (Optional): Download additional components
 
-> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. The OpenVINO™ Model Development Tools can only be installed via PyPI now. See [Install OpenVINO™ Model Development Tools](@ref installing_model_dev_tools) for detailed steps.
+> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. The OpenVINO™ Development Tools can only be installed via PyPI now. See [Install OpenVINO™ Development Tools](installing-model-dev-tools.md) for detailed steps.
+
+@sphinxdirective
+
+.. dropdown:: OpenCV
+
+   OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples and demos also use OpenCV as a dependency. The Intel® Distribution of OpenVINO™ provides a script to install OpenCV: ``<INSTALL_DIR>/extras/scripts/download_opencv.sh``.
+
+   .. note::
+      Make sure you have 2 prerequisites installed: ``curl`` and ``tar``.
+
+   Depending on how you have installed the Intel® Distribution of OpenVINO™, the script should be run either as root or regular user. After the execution of the script, you will find OpenCV extracted to ``<INSTALL_DIR>/extras/opencv``.
+
+@endsphinxdirective
 
 ## <a name="optional-steps"></a>Step 5 (Optional): Configure Inference on non-CPU Devices
 
@@ -182,58 +194,46 @@ Developing in C++:
 
 To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalling-openvino.md).
 
-## Troubleshooting
 @sphinxdirective
-.. raw:: html
 
-   <div class="collapsible-section">
+.. dropdown:: Troubleshooting
 
-@endsphinxdirective
-PRC developers might encounter pip errors during Intel® Distribution of OpenVINO™ installation. To resolve the issues, try one of the following options:
-* Add the download source using the `-i` parameter with the Python `pip` command. For example: 
-
-   ```
-   pip install openvino-dev -i https://mirrors.aliyun.com/pypi/simple/
-   ```
-Use the `--trusted-host` parameter if the URL above is `http` instead of `https`.
-
-* If you run into incompatibility issues between components after installing new Intel® Distribution of OpenVINO™ version, try running `requirements.txt` with the following command:
-
-   ```
-   pip install -r <INSTALL_DIR>/tools/requirements.txt
-   ```
-
-@sphinxdirective
-.. raw:: html
-
-   </div>
-
-@endsphinxdirective
-
-## Additional Resources
-@sphinxdirective
-.. raw:: html
-
-   <div class="collapsible-section">
-
-@endsphinxdirective
-   - Convert models for use with OpenVINO™: [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
-   - Write your own OpenVINO™ applications: [Inference Engine Developer Guide](../OV_Runtime_UG/Deep_Learning_Inference_Engine_DevGuide.md)
-   - Information on sample applications: [Inference Engine Samples Overview](../OV_Runtime_UG/Samples_Overview.md)
-   - Information on a supplied set of models: [Overview of OpenVINO™ Toolkit Pre-Trained Models](../model_zoo.md)
-   - IoT libraries and code samples in the GitHUB repository: [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit)
+   PRC developers might encounter pip errors during Intel® Distribution of OpenVINO™ installation. To resolve the issues, try one of the following options:
    
+   * Add the download source using the ``-i`` parameter with the Python ``pip`` command. For example: 
+
+   .. code-block:: sh
+
+      pip install openvino-dev -i https://mirrors.aliyun.com/pypi/simple/
+
+   Use the ``--trusted-host`` parameter if the URL above is ``http`` instead of ``https``.
+   
+   * If you run into incompatibility issues between components after installing new Intel® Distribution of OpenVINO™ version, try running ``requirements.txt`` with the following command:
+
+   .. code-block:: sh
+
+      pip install -r <INSTALL_DIR>/tools/requirements.txt
+
+@endsphinxdirective
+
+@sphinxdirective
+
+.. dropdown:: Additional Resources
+      
+   * Convert models for use with OpenVINO™: :ref:`Model Optimizer Developer Guide <deep learning model optimizer>`
+   * Write your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning inference engine>`
+   * Information on sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
+   * Information on a supplied set of models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
+   * IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit`_ 
+      
    To learn more about converting models from specific frameworks, go to:
-   
-   - [Convert Your Caffe Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_Caffe.md)
-   - [Convert Your TensorFlow Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_TensorFlow.md)
-   - [Convert Your MXNet Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_MxNet.md)
-   - [Convert Your Kaldi Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_Kaldi.md)
-   - [Convert Your ONNX Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_ONNX.md)
-
-@sphinxdirective
-.. raw:: html
-
-   </div>
+      
+   * :ref:`Convert Your Caffe Model <convert model caffe>`
+   * :ref:`Convert Your TensorFlow Model <convert model tf>`
+   * :ref:`Convert Your MXNet Modele <convert model mxnet>`
+   * :ref:`Convert Your Kaldi Model <convert model kaldi>`
+   * :ref:`Convert Your ONNX Model <convert model onnx>`
+      
+   .. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
 
 @endsphinxdirective

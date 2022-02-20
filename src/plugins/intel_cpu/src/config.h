@@ -11,7 +11,8 @@
 #include <string>
 #include <map>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 struct Config {
     Config();
@@ -67,6 +68,9 @@ struct Config {
 
     void readDebugCapsProperties();
 #endif
+
+    bool isNewApi = true;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

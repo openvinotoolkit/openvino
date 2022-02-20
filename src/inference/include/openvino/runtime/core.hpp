@@ -42,17 +42,18 @@ class OPENVINO_RUNTIME_API Core {
     class Impl;
     std::shared_ptr<Impl> _impl;
 
-    void get_property(const std::string& device_name, const std::string& name, const AnyMap& arguments, Any& to) const;
-
 public:
-    /** @brief Constructs an OpenVINO Core instance using the XML configuration file with
-     * devices and their plugins description.
+    /** @brief Constructs an OpenVINO Core instance with devices
+     * and their plugins description.
      *
-     * See Core::register_plugins for more details.
+     * There are two ways how to configure device plugins:
+     * 1. (default) Use XML configuration file in case of dynamic libraries build;
+     * 2. Use strictly defined configuration in case of static libraries build.
      *
      * @param xml_config_file Path to the .xml file with plugins to load from. If the XML configuration file is not
-     * specified, default OpenVINO Runtime plugins are loaded from the default `plugin.xml` file located in the same
-     * folder as OpenVINO runtime shared library.
+     * specified, default OpenVINO Runtime plugins are loaded from:
+     * 1. (dynamic build) default `plugins.xml` file located in the same folder as OpenVINO runtime shared library;
+     * 2. (static build) statically defined configuration. In this case path to the .xml file is ignored.
      */
     explicit Core(const std::string& xml_config_file = {});
 
@@ -531,9 +532,7 @@ public:
      */
     template <typename T, PropertyMutability M>
     T get_property(const std::string& deviceName, const ov::Property<T, M>& property) const {
-        auto to = Any::make<T>();
-        get_property(deviceName, property.name(), {}, to);
-        return to.template as<T>();
+        return get_property(deviceName, property.name(), {}).template as<T>();
     }
 
     /**
@@ -551,9 +550,7 @@ public:
      */
     template <typename T, PropertyMutability M>
     T get_property(const std::string& deviceName, const ov::Property<T, M>& property, const AnyMap& arguments) const {
-        auto to = Any::make<T>();
-        get_property(deviceName, property.name(), arguments, to);
-        return to.template as<T>();
+        return get_property(deviceName, property.name(), arguments).template as<T>();
     }
 
     /**
@@ -574,9 +571,7 @@ public:
     util::EnableIfAllStringAny<T, Args...> get_property(const std::string& deviceName,
                                                         const ov::Property<T, M>& property,
                                                         Args&&... args) const {
-        auto to = Any::make<T>();
-        get_property(deviceName, property.name(), AnyMap{std::forward<Args>(args)...}, to);
-        return to.template as<T>();
+        return get_property(deviceName, property.name(), AnyMap{std::forward<Args>(args)...}).template as<T>();
     }
 
     /**

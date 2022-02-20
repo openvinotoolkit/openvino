@@ -75,22 +75,27 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
     };
     auto shape = output.get_partial_shape();
     auto rank = shape.rank().is_static() ? shape.rank().get_length() : -1;
+    SizeVector dims(1, 0);
+    if (shape.is_static()) {
+        dims = output.get_shape();
+    } else if (rank >= 0) {
+        dims = SizeVector(rank, 0);
+    }
+    // query shape from ngraph::Parameter output shape and check there are no zeros in it
     for (const auto& dim : shape) {
         if (dim.is_static() && dim.get_length() == 0)
             IE_THROW() << outName << " has zero dimension which is not allowed";
     }
 
-    IE_SUPPRESS_DEPRECATED_START
     const Layout rankLayout = rank < 0 ? Layout::BLOCKED : TensorDesc::getLayoutByRank(rank);
     if (ptr) {
         const auto origLayout = ptr->getTensorDesc().getLayout();
         const auto layout = isCompatible(rank, origLayout) ? origLayout : rankLayout;
-        ptr->reshape(shape, layout);
+        ptr->reshape(dims, layout);
     } else {
         const auto precision = details::convertPrecision(output.get_element_type());
-        ptr.reset(new Data(outName, precision, shape, rankLayout));
+        ptr.reset(new Data(outName, {precision, dims, rankLayout}));
     }
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 void CNNNetworkNGraphImpl::validateFunctionNames() const {
@@ -218,18 +223,12 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
         InputInfo::Ptr info = std::make_shared<InputInfo>();
         const auto& name = inputInfo.second->getInputData()->getName();
         const auto& inData = inputInfo.second->getInputData();
-        IE_SUPPRESS_DEPRECATED_START
-        DataPtr input =
-            std::make_shared<Data>(name, inData->getPrecision(), inData->getPartialShape(), inData->getLayout());
-        IE_SUPPRESS_DEPRECATED_END
+        DataPtr input = std::make_shared<Data>(name, inData->getTensorDesc());
         _data[name] = input;
         info->setInputData(input);
         info->getPreProcess() = inputInfo.second->getPreProcess();
         info->setPrecision(inputInfo.second->getPrecision());
-        IE_SUPPRESS_DEPRECATED_START
-        if (!inData->isDynamic())
-            info->setLayout(inputInfo.second->getLayout());
-        IE_SUPPRESS_DEPRECATED_END
+        info->setLayout(inputInfo.second->getLayout());
         _inputData[name] = info;
     }
 }
@@ -258,7 +257,7 @@ void CNNNetworkNGraphImpl::getInputsInfo(InputsDataMap& inputs) const noexcept {
     inputs = _inputData;
 }
 
-size_t CNNNetworkNGraphImpl::layerCount() const noexcept {
+size_t CNNNetworkNGraphImpl::layerCount() const {
     return _ngraph_function->get_ops().size();
 }
 
@@ -329,7 +328,7 @@ void CNNNetworkNGraphImpl::addOutput(const ::ngraph::Output<::ngraph::Node>& out
     }
 }
 
-size_t CNNNetworkNGraphImpl::getBatchSize() const noexcept {
+size_t CNNNetworkNGraphImpl::getBatchSize() const {
     // TODO Provide adequate implementation.
     // The original code from CNNNetworkImpl just gets the first input and returns the first dimension.
     // This is not correct in general. We can follow the same semantics, but order of inputs should be

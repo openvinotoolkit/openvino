@@ -15,27 +15,6 @@
 namespace InferenceEngine {
 
 /**
- * @brief A namespace with helper functions
- * @ingroup ie_dev_api_plugin_api
- */
-namespace util {
-template <typename T, ov::PropertyMutability M>
-inline T string_to_property(const std::string& val, const ov::util::BaseProperty<T, M>& property) {
-    std::stringstream ss(val);
-    T value;
-    ss >> value;
-    return value;
-}
-
-template <typename T>
-inline std::string property_to_string(const T& property) {
-    std::stringstream ss;
-    ss << property;
-    return ss.str();
-}
-}  // namespace util
-
-/**
  * @brief A namespace with internal plugin configuration keys
  * @ingroup ie_dev_api_plugin_api
  */

@@ -71,7 +71,16 @@ def import_core_modules(silent: bool, path_to_module: str):
         print("{}: \t{}".format("Model Optimizer version", mo_version))
 
         versions_mismatch = False
-        if mo_version != ie_version:
+
+        mo_hash = v.extract_hash_from_version(mo_version)
+        ie_hash = v.extract_hash_from_version(ie_version)
+
+        if mo_hash is not None and ie_hash is not None:
+            min_length = min(len(mo_hash), len(ie_hash))
+            mo_hash = mo_hash[:min_length]
+            ie_hash = ie_hash[:min_length]
+
+        if mo_hash != ie_hash or mo_hash is None or ie_hash is None:
             versions_mismatch = True
             extracted_mo_release_version = v.extract_release_version(mo_version)
             mo_is_custom = extracted_mo_release_version == (None, None)
