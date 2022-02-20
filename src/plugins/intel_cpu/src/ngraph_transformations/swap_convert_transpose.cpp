@@ -8,9 +8,9 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::SwapConvertTranspose, "SwapConvertTranspose", 0);
+NGRAPH_RTTI_DEFINITION(ov::intel_cpu::SwapConvertTranspose, "SwapConvertTranspose", 0);
 
-MKLDNNPlugin::SwapConvertTranspose::SwapConvertTranspose() {
+ov::intel_cpu::SwapConvertTranspose::SwapConvertTranspose() {
     ngraph::element::TypeVector param_precisions{ ngraph::element::i8, ngraph::element::u8 };
     auto input_m = ngraph::pattern::wrap_type<ngraph::opset1::Parameter>(ngraph::pattern::type_matches_any(param_precisions));
     auto convert_m = ngraph::pattern::wrap_type<ngraph::opset1::Convert>({input_m}, ngraph::pattern::type_matches(ngraph::element::f32));

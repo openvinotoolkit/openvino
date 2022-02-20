@@ -6,7 +6,8 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class SwapConvertTranspose : public ngraph::pass::MatcherPass {
 public:
@@ -14,4 +15,5 @@ public:
     SwapConvertTranspose();
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

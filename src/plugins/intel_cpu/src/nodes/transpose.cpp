@@ -14,6 +14,32 @@ using namespace mkldnn;
 using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
+namespace {
+struct TransposeKey {
+    mkldnn::memory::desc src;
+    mkldnn::memory::desc dest;
+    size_t hash() const;
+    bool operator==(const TransposeKey& rhs) const;
+};
+
+size_t TransposeKey::hash() const {
+    using namespace dnnl::impl;
+    using namespace dnnl::impl::primitive_hashing;
+
+    size_t seed = 0;
+    seed = hash_combine(seed, get_md_hash(src.data));
+    seed = hash_combine(seed, get_md_hash(dest.data));
+
+    return seed;
+}
+
+bool TransposeKey::operator==(const TransposeKey& rhs) const {
+    bool retVal = true;
+    retVal = src == rhs.src && dest == rhs.dest;
+    return retVal;
+}
+}  // namespace
+
 bool MKLDNNTransposeNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!one_of(op->get_type_info(),
@@ -153,7 +179,13 @@ void MKLDNNTransposeNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Preferable primitive descriptor was not set.";
 
-    if (getParentEdgeAt(INPUT_DATA_IDX)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp) &&
+    auto childNode = getChildEdgeAt(0)->getChild();
+      if (getParentEdgeAt(INPUT_DATA_IDX)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp) &&
+        order == std::vector<size_t>{0, 3, 1, 2}) {
+        createReorderPrimitive(dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc(),
+                               srcMemPtr->GetData(), dstMemPtr->GetData(), true);
+        return;
+    } else if (getParentEdgeAt(INPUT_DATA_IDX)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp) &&
             std::find(optimizedOrders.begin(), optimizedOrders.end(), order) != optimizedOrders.end()) {
         isOptimized = true;
         execPtr = std::make_shared<TransposeRefExecutor>();
@@ -172,6 +204,55 @@ void MKLDNNTransposeNode::createPrimitive() {
         prepareParams();
         updateLastInputDims();
     }
+}
+
+void MKLDNNTransposeNode::createReorderPrimitive(const mkldnn::memory::desc& desc, void* srcPtr, void* dstPtr, bool isInput) {
+    mkldnn::primitive_attr attr;
+    const auto engine = getEngine();
+    MKLDNNMemoryPtr src_blocked = std::make_shared<MKLDNNMemory>(engine);
+    MKLDNNMemoryPtr dst_blocked = std::make_shared<MKLDNNMemory>(engine);
+
+    if (isInput) {
+        dst_blocked->Create(MKLDNNExtensionUtils::makeDescriptor(desc), dstPtr, false);
+
+        const auto newDims = dst_blocked->getStaticDims();
+        auto newDesc = mkldnn::memory::desc(MKLDNNExtensionUtils::convertToDnnlDims(newDims),
+                                               dst_blocked->GetDataType(), memory::format_tag::acdb);
+        src_blocked->Create(MKLDNNExtensionUtils::makeDescriptor(newDesc), srcPtr, false);
+    } else {
+        src_blocked->Create(MKLDNNExtensionUtils::makeDescriptor(desc), srcPtr, false);
+
+        const auto newDims = src_blocked->getStaticDims();
+        auto newDesc = mkldnn::memory::desc(MKLDNNExtensionUtils::convertToDnnlDims(newDims),
+                                               src_blocked->GetDataType(), memory::format_tag::acdb);
+        dst_blocked->Create(MKLDNNExtensionUtils::makeDescriptor(newDesc), dstPtr, false);
+    }
+
+    impl_desc_type impl_type;
+    TransposeKey key = {src_blocked->GetPrimitive().get_desc(), dst_blocked->GetPrimitive().get_desc()};
+    auto builder = [&engine, &impl_type](const TransposeKey& key) -> std::shared_ptr<mkldnn::primitive> {
+        mkldnn::primitive_attr attr;
+        reorder::primitive_desc pd = mkldnn::reorder::primitive_desc(engine, key.src, engine, key.dest, attr, true);
+
+        if (!pd)
+            return nullptr;
+        auto info = pd.impl_info_str();
+        impl_type = parse_impl_name(info);
+        return std::make_shared<mkldnn::reorder>(pd);
+    };
+
+    auto cache = getRuntimeCache();
+    auto result = cache->getOrCreate(key, builder);
+
+    if (!result.first) {
+        IE_THROW() << "Reorder primitive descriptor was not found for Transpose node " << getName() << ".";
+    }
+
+    prim = result.first;
+
+    supportedPrimitiveDescriptors[0].setImplementationType(impl_type);
+    primArgs = {{DNNL_ARG_SRC, getParentEdgesAtPort(INPUT_DATA_IDX)[0]->getMemoryPtr()->GetPrimitive()},
+                {DNNL_ARG_DST, getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive()}};
 }
 
 template <typename T>
@@ -276,7 +357,9 @@ void MKLDNNTransposeNode::optimizedExecute(const int MB, const MKLDNNMemoryPtr& 
 }
 
 void MKLDNNTransposeNode::execute(mkldnn::stream strm) {
-    if (execPtr) {
+    if (prim) {
+        (*prim).execute(strm, primArgs);
+    } else if (execPtr) {
         auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
         auto &srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
 

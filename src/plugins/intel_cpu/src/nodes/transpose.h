@@ -92,6 +92,8 @@ private:
 
     static constexpr size_t INPUT_DATA_IDX = 0lu;
     static constexpr size_t INPUT_ORDER_IDX = 1lu;
+
+    void createReorderPrimitive(const mkldnn::memory::desc &desc, void* srcPtr, void* dstPtr, bool isInput);
 };
 
 }   // namespace intel_cpu
