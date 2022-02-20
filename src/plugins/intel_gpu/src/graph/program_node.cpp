@@ -3,7 +3,6 @@
 //
 
 #include "program_node.h"
-#include "intel_gpu/graph/program.hpp"
 #include "program_helpers.h"
 #include "primitive_inst.h"
 

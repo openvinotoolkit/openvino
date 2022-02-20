@@ -7,6 +7,7 @@
 #include "intel_gpu/primitives/primitive.hpp"
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/implementation_desc.hpp"
+#include "intel_gpu/graph/program.hpp"
 
 #include "kernel_selector_helper.h"
 #include "meta_utils.h"
@@ -351,10 +352,18 @@ public:
     bool need_lockable_memory() const;
 
     std::string get_unique_id() const { return unique_id; }
-    void set_unique_id(std::string id) { unique_id = id; }
+    void set_unique_id(std::string id) {
+        unique_id = id;
+        if (myprog.get_parent_primitive() != "") {
+            auto loop_prim = myprog.get_parent_primitive();
+            std::replace(loop_prim.begin(), loop_prim.end(), '/', '_');
+            std::replace(loop_prim.begin(), loop_prim.end(), ':', '_');
+            unique_id = loop_prim + "_" + unique_id;
+        }
+    }
 
 protected:
-    std::string unique_id;
+    std::string unique_id = "";
 
     std::shared_ptr<primitive> desc;
     program& myprog;
