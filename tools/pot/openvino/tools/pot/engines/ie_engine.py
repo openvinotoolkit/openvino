@@ -143,8 +143,12 @@ class IEEngine(Engine):
 
     @staticmethod
     def postprocess_output(outputs, _metadata):
-        """ Processes raw model output using the image metadata obtained during data loading """
-        return outputs
+        """ Processes model output data using the image metadata obtained during data loading
+        :param outputs: dictionary of output data per output name
+        :param _metadata: metadata obtained during data loading
+        :return: list of the output data in an order expected by the accuracy metric if any is used
+        """
+        return list(outputs.values())
 
     def _reset(self):
         """ Resets collected statistics """
@@ -182,14 +186,12 @@ class IEEngine(Engine):
                                      annotations=batch_annotations)
 
         # Postprocess network output
-        outputs = process_raw_output(predictions)
-        output = outputs[self._output_layers[0]]
-        outputs[self._output_layers[0]] = self.postprocess_output(output, batch_meta)
+        processed_outputs = process_raw_output(predictions)
+        outputs = {name: processed_outputs[name] for name in self._output_layers}
+        logits = self.postprocess_output(outputs, batch_meta)
 
         # Update metrics
         if batch_annotations:
-            # TODO: Create some kind of an order for the correct metric calculation
-            logits = [outputs[name] for name in self._output_layers]  # output_layers are in a random order
             self._update_metrics(output=logits, annotations=batch_annotations,
                                  need_metrics_per_sample=need_metrics_per_sample)
 
