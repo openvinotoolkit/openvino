@@ -628,7 +628,7 @@ static void* eventReader(void* ctx)
 
     mvLog(MVLOG_INFO,"eventReader thread started");
 
-    while (!curr->resetXLink) {
+    while (1) {
         int sc = glControlFunc->eventReceive(&event);
 
         mvLog(MVLOG_DEBUG,"Reading %s (scheduler %d, fd %p, event id %d, event stream_id %u, event size %u)\n",
@@ -648,8 +648,8 @@ static void* eventReader(void* ctx)
 #ifdef __PC__
         // Stop receiving events when receive confirmation that the device acknowledged the reset request
         if (event.header.type == XLINK_RESET_RESP) {
-            curr->resetXLink = 1;
             mvLog(MVLOG_DEBUG,"Read XLINK_RESET_RESP, stopping eventReader thread.");
+            break;
         }
 #else
         // Stop receiving events from remote when receive a XLINK_RESET_REQ
