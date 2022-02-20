@@ -214,7 +214,7 @@ onnx_size_op_single
 onnx_size_op_graph_end
 onnx_size_op_graph_middle
 
-# /openvino/src/plugins/intel_cpu/mkldnn_graph.cpp:747
+# /openvino/src/plugins/intel_cpu/graph.cpp:747
 # Output blob byte size is not equal network output byte size (64!=216)." thrown in the test body.
 onnx_model_quant_conv_linear_3d
 
@@ -819,10 +819,6 @@ matmul_0x2_2x0
 matmul_3x2_2x0
 matmul_2x3_3x3_int64
 
-onnx_bool_const_op
-onnx_bool_init_and
-onnx_bool_input_or
-onnx_bool_init_raw
 shape_of_scalar_v0
 shape_of_scalar_v3
 shape_of_vector_v0
@@ -1418,11 +1414,6 @@ onnx_controlflow_loop_2d_both_cond_and_trip_count_as_inputs
 onnx_controlflow_loop_no_variadic_inputs_and_outputs
 onnx_controlflow_loop_power
 onnx_if_dynamic_inputs
-onnx_if_branches_with_same_inputs
-onnx_if_branches_with_different_inputs
-onnx_if_branches_without_inputs
-onnx_if_inside_if
-onnx_if_branches_with_multiple_outputs
 
 # Input body shape is changed during Loop iterations
 # Exception is throw during Loop shape inference
