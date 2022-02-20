@@ -11,7 +11,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "transformations/utils/utils.hpp"
 
-NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::MarkupOptimalBS, "MarkupOptimalBS", 0);
+NGRAPH_RTTI_DEFINITION(ov::intel_cpu::MarkupOptimalBS, "MarkupOptimalBS", 0);
 
 namespace {
 size_t get_hueristic_optimal_batch(const std::shared_ptr<ov::Node>& node) {
@@ -47,20 +47,20 @@ size_t get_hueristic_optimal_batch(const std::shared_ptr<ov::Node>& node) {
 }
 }
 
-MKLDNNPlugin::MarkupOptimalBS::MarkupOptimalBS() {
+ov::intel_cpu::MarkupOptimalBS::MarkupOptimalBS() {
     auto has_static_batch = [](const ov::Output<ov::Node>& output) {
         return ngraph::pattern::has_static_rank()(output) && output.get_partial_shape()[0].is_static();
     };
     auto conv_m = ngraph::pattern::wrap_type<ngraph::opset1::Convolution,
                                              ngraph::opset1::ConvolutionBackpropData,
-                                             MKLDNNPlugin::FullyConnectedNode>(has_static_batch);
+                                             ov::intel_cpu::FullyConnectedNode>(has_static_batch);
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto node = m.get_match_root();
         const size_t optimal_bs = get_hueristic_optimal_batch(node);
 
         //if (optimal_bs > 0) {
-            MKLDNNPlugin::set_optimal_bs(node, optimal_bs);
+            ov::intel_cpu::set_optimal_bs(node, optimal_bs);
         //}
         return false;
     };

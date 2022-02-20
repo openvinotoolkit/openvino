@@ -127,9 +127,9 @@ struct Subgraph {
 };
 } // namespace
 
-NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::SwitchAffinity, "SwitchAffinity", 0);
+NGRAPH_RTTI_DEFINITION(ov::intel_cpu::SwitchAffinity, "SwitchAffinity", 0);
 
-bool MKLDNNPlugin::SwitchAffinity::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ov::intel_cpu::SwitchAffinity::run_on_function(std::shared_ptr<ngraph::Function> f) {
     std::unordered_map<size_t, Subgraph> subgraphs;
     bool rewritten = false;
 
@@ -196,6 +196,6 @@ bool MKLDNNPlugin::SwitchAffinity::run_on_function(std::shared_ptr<ngraph::Funct
     return rewritten;
 }
 
-MKLDNNPlugin::SwitchAffinity::SwitchAffinity(const bool share_constants)
+ov::intel_cpu::SwitchAffinity::SwitchAffinity(const bool share_constants)
     : ngraph::pass::FunctionPass(),
       share_constants(share_constants) {}

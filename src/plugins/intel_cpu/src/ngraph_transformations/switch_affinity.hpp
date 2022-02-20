@@ -6,7 +6,8 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 class SwitchAffinity: public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
@@ -16,4 +17,5 @@ public:
 private:
     bool share_constants;
 };
-}  // namespace MKLDNNPlugin
+}  // namespace intel_cpu
+}  // namespace ov

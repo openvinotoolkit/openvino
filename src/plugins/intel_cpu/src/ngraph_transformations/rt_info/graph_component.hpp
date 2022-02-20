@@ -5,7 +5,8 @@
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 bool has_graph_component(const std::shared_ptr<ov::Node>& node);
 size_t get_graph_component(const std::shared_ptr<ov::Node>& node);
 void set_graph_component(const std::shared_ptr<ov::Node>& node, const size_t graph_component);
@@ -23,4 +24,5 @@ public:
 private:
     size_t value = 0;
 };
-}  // namespace MKLDNNPlugin
+}  // namespace intel_cpu
+}  // namespace ov

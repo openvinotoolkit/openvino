@@ -119,9 +119,9 @@ bool switchToImageAffinity(std::shared_ptr<ngraph::Node> start,
 }
 } // namespace
 
-NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::AffinitySwitcher, "AffinitySwitcher", 0);
+NGRAPH_RTTI_DEFINITION(ov::intel_cpu::AffinitySwitcher, "AffinitySwitcher", 0);
 
-bool MKLDNNPlugin::AffinitySwitcher::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ov::intel_cpu::AffinitySwitcher::run_on_function(std::shared_ptr<ngraph::Function> f) {
     NodeMap constants;
     bool rewritten = false;
     std::shared_ptr<Node> start, end;
@@ -154,6 +154,6 @@ bool MKLDNNPlugin::AffinitySwitcher::run_on_function(std::shared_ptr<ngraph::Fun
     return rewritten;
 }
 
-MKLDNNPlugin::AffinitySwitcher::AffinitySwitcher(const bool share_constants)
+ov::intel_cpu::AffinitySwitcher::AffinitySwitcher(const bool share_constants)
     : ngraph::pass::FunctionPass(),
       share_constants(share_constants) {}

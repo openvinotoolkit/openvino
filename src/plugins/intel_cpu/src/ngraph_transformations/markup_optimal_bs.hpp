@@ -6,7 +6,8 @@
 
 #include <openvino/pass/graph_rewrite.hpp>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MarkupOptimalBS: public ov::pass::MatcherPass {
 public:
@@ -14,4 +15,5 @@ public:
     MarkupOptimalBS();
 };
 
-}  // namespace MKLDNNPlugin
+}  // namespace intel_cpu
+}  // namespace ov

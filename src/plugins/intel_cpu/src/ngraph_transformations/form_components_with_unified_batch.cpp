@@ -11,10 +11,10 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "transformations/utils/utils.hpp"
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 NGRAPH_RTTI_DEFINITION(FormComponentsWithUnifiedBatch, "FormComponentsWithUnifiedBatch", 0);
 
-MKLDNNPlugin::FormComponentsWithUnifiedBatch::FormComponentsWithUnifiedBatch() {
+ov::intel_cpu::FormComponentsWithUnifiedBatch::FormComponentsWithUnifiedBatch() {
     auto root = ngraph::pattern::any_input();
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
