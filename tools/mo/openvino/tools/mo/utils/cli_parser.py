@@ -366,8 +366,8 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'where [args] is key=value pairs separated by semicolon. ' +
                                    'Examples: "--transform LowLatency2" or ' +
                                    '          "--transform LowLatency2[use_const_initializer=False]" or ' +
-                                   '          "--transform MakeStateful[param_res_names='
-                                   '{\'input_name_1\':\'output_name_1\',\'input_name_2\':\'output_name_2\'}]" ' +
+                                   '          "--transform \"MakeStateful[param_res_names='
+                                   '{\'input_name_1\':\'output_name_1\',\'input_name_2\':\'output_name_2\'}]\"" ' +
                                    'Available transformations: "LowLatency2", "MakeStateful"',
                               default="")
     common_group.add_argument('--disable_fusing',
