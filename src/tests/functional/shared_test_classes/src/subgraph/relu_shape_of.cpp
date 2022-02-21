@@ -6,7 +6,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-    std::string ReluShapeOfSubgraphTest::getTestCaseName(const testing::TestParamInfo<LayerTestsDefinitions::shapeOfParams>& obj) {
+    std::string ReluShapeOfSubgraphTest::getTestCaseName(const testing::TestParamInfo<LayerTestsDefinitions::shapeOfParamsCommon>& obj) {
         InferenceEngine::SizeVector inputShapes;
         InferenceEngine::Precision inputPrecision;
         std::string targetDevice;

@@ -332,7 +332,7 @@ DEFINE_string(data_shape, "", data_shape_message);
 DEFINE_string(layout, "", layout_message);
 
 /// @brief Define flag for inference precision
-DEFINE_string(infer_precision, "f32", inference_precision_message);
+DEFINE_string(infer_precision, "", inference_precision_message);
 
 /// @brief Specify precision for all input layers of the network
 DEFINE_string(ip, "", inputs_precision_message);

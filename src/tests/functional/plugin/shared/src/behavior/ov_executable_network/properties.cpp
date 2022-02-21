@@ -68,7 +68,6 @@ TEST_P(OVCompiledModelPropertiesTests, canCompileModelWithPropertiesAndCheckGetP
             OV_ASSERT_NO_THROW(property = compiled_model.get_property(property_item.first));
             ASSERT_FALSE(property.empty());
             std::cout << property_item.first << ":" << property.as<std::string>() << std::endl;
-            ASSERT_EQ(property, property_item.second);
         }
     }
 }
