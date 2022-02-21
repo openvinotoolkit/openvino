@@ -58,7 +58,8 @@
 #include <transformations/common_optimizations/nearest_neighbor_upsampling_fusion.hpp>
 #include <transformations/common_optimizations/ric_fusion.hpp>
 #include <transformations/common_optimizations/matmul_multiply_fusion.hpp>
-#include "transformations/common_optimizations/align_eltwise_input_ranks.hpp"
+#include <transformations/common_optimizations/align_eltwise_input_ranks.hpp>
+#include <transformations/common_optimizations/matmul_const_transposes_extraction.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MOCTransformations, "MOCTransformations", 0);
 
@@ -155,6 +156,7 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
     common_fusions->add_matcher<ngraph::pass::SubtractFusion>();
     common_fusions->add_matcher<ngraph::pass::TransposeToReshape>();
     common_fusions->add_matcher<ngraph::pass::ReshapeSequenceFusion>(m_use_shapes);
+    common_fusions->add_matcher<ngraph::pass::MatMulConstTransposesExtraction>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
     manager.register_pass<ngraph::pass::BinarizeWeights>();
