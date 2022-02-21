@@ -42,7 +42,7 @@ should be implemented according to the custom DL model:
 The pipeline with implemented model specific interfaces such as `Engine`, `DataLoader` and `Metric` we will call the custom 
 optimization pipeline (see the picture below that shows relationships between classes).
 
-![](./custom_optimization_pipeline.png)
+![](../../../../docs/images/api.png)
 
 ## Use Cases
 Before diving into the Python* POT API, it is highly recommended to read [Best Practices](@ref pot_docs_BestPractices) document where various 
@@ -54,6 +54,17 @@ The POT Python* API for model optimization can be used in the following cases:
 accuracy in this mode.
 - You already have the Python* script to validate the accuracy of the model using the [OpenVINO&trade; Runtime](@ref openvino_docs_OV_Runtime_User_Guide).  
 
+## Examples
+
+* API tutorials:
+  * [Quantization of Image Classification model](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/301-tensorflow-training-openvino)
+  * [Quantization of Object Detection model from Model Zoo](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/111-detection-quantization)
+  * [Quantization of BERT for Text Classification](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/105-language-quantize-bert)
+* API examples:
+  * [Quantization of 3D segmentation model](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/3d_segmentation)
+  * [Quantization of Face Detection model](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/face_detection)
+  * [Speech example for GNA device](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/speech)
+
 ## API Description
 
 Below is a detailed explanation of POT Python* APIs which should be implemented in order to create a custom optimization
@@ -62,7 +73,7 @@ pipeline.
 ### DataLoader
 
 ```
-class openvino.tools.pot.api.DataLoader(config)
+class openvino.tools.pot.DataLoader(config)
 ```
 The base class for all DataLoaders.
 
@@ -75,7 +86,7 @@ which supports integer indexing in range of 0 to `len(self)`
 ### Metric
 
 ```
-class openvino.tools.pot.api.Metric()
+class openvino.tools.pot.Metric()
 ```
 An abstract class representing an accuracy metric.
 
@@ -98,7 +109,7 @@ All subclasses should override the following methods:
 ### Engine
 
 ```
-class openvino.tools.pot.api.Engine(config, data_loader=None, metric=None)
+class openvino.tools.pot.Engine(config, data_loader=None, metric=None)
 ```
 Base class for all Engines.
 
@@ -112,7 +123,7 @@ The engine provides model inference, statistics collection for activations and c
 All subclasses should override the following methods:
 - `set_model(model)` - sets/resets a model.<br><br>
   *Parameters*
-  - `model` - `CompressedModel` instance for inference (see details below).
+  - `model` - `CompressedModel` instance for inference.
 
 - `predict(stats_layout=None, sampler=None, metric_per_sample=False, print_progress=False)` - performs model inference 
 on the specified subset of data.<br><br>
@@ -157,6 +168,46 @@ on the specified subset of data.<br><br>
   }
   ```
 
+### Pipeline
+
+```
+class openvino.tools.pot.Pipeline(engine)
+```
+Pipeline class represents the optimization pipeline.
+
+*Parameters* 
+- `engine` - instance of `Engine` class for model inference.
+
+The pipeline can be applied to the DL model by calling `run(model)` method where `model` is the `NXModel` instance.
+
+#### Create a pipeline
+
+The POT Python* API provides the utility function to create and configure the pipeline:
+```
+openvino.tools.pot.create_pipeline(algo_config, engine)
+```
+*Parameters* 
+- `algo_config` - a list defining optimization algorithms and their parameters included in the optimization pipeline. 
+  The order in which they are applied to the model in the optimization pipeline is determined by the order in the list. 
+
+  Example of the algorithm configuration of the pipeline:
+  ``` 
+  algo_config = [
+      {
+          'name': 'DefaultQuantization',
+          'params': {
+              'preset': 'performance',
+              'stat_subset_size': 500
+          }
+       },
+      ...
+  ]
+  ```
+- `engine` - instance of `Engine` class for model inference.
+
+*Returns*
+- instance of the `Pipeline` class.
+
 ## Helpers and Internal Model Representation
 In order to simplify implementation of optimization pipelines we provide a set of ready-to-use helpers. Here we also 
 describe internal representation of the DL model and how to work with it.
@@ -164,21 +215,20 @@ describe internal representation of the DL model and how to work with it.
 ### IEEngine
 
 ```
-class openvino.tools.pot.engines.ie_engine.IEEngine(config, data_loader=None, metric=None)
+class openvino.tools.pot.IEEngine(config, data_loader=None, metric=None)
 ```
 IEEngine is a helper which implements Engine class based on [OpenVINO&trade; Inference Engine Python* API](ie_python_api/api.html).
 This class support inference in synchronous and asynchronous modes and can be reused as-is in the custom pipeline or 
 with some modifications, e.g. in case of custom post-processing of inference results.
 
 The following methods can be overridden in subclasses:
-- `postprocess_output(outputs, metadata)` - processes raw model output using the image metadata obtained during 
-data loading.<br><br>
+- `postprocess_output(outputs, metadata)` - Processes model output data using the image metadata obtained during data loading.<br><br>
   *Parameters*
-  - `outputs` - raw output of the model.
+  - `outputs` - dictionary of output data per output name.
   - `metadata` - information about the data used for inference.
   
   *Return*
-  - post-processed model output
+  - list of the output data in an order expected by the accuracy metric if any is used
   
 `IEEngine` supports data returned by `DataLoader` in the format:
 ```
@@ -216,11 +266,11 @@ represented as an instance of this class. The cascaded model is stored as a list
 - `models` - list of models of the cascaded model.
 - `is_cascade` - returns True if the loaded model is cascaded model.
   
-#### Loading model from IR
+### Read model from OpenVINO IR
 
 The Python* POT API provides the utility function to load model from the OpenVINO&trade; Intermediate Representation (IR):
 ```
-openvino.tools.pot.graph.model_utils.load_model(model_config)
+openvino.tools.pot.load_model(model_config)
 ```
 *Parameters*
 - `model_config` - dictionary describing a model that includes the following attributes:
@@ -263,10 +313,10 @@ openvino.tools.pot.graph.model_utils.load_model(model_config)
 *Returns*
 - `CompressedModel` instance
 
-#### Saving model to IR
+#### Save model to IR
 The Python* POT API provides the utility function to save model in the OpenVINO&trade; Intermediate Representation (IR):
 ```
-openvino.tools.pot.graph.model_utils.save_model(model, save_path, model_name=None, for_stat_collection=False)
+openvino.tools.pot.save_model(model, save_path, model_name=None, for_stat_collection=False)
 ```
 *Parameters*
 - `model` - `CompressedModel` instance.
@@ -314,94 +364,3 @@ class openvino.tools.pot.samplers.batch_sampler.BatchSampler(data_loader, batch_
 Sampler provides an iterable over the dataset subset if `subset_indices` is specified or over the whole dataset with 
 given `batch_size`. Returns a list of data items.
 
-## Pipeline
-
-```
-class openvino.tools.pot.pipeline.pipeline.Pipeline(engine)
-```
-Pipeline class represents the optimization pipeline.
-
-*Parameters* 
-- `engine` - instance of `Engine` class for model inference.
-
-The pipeline can be applied to the DL model by calling `run(model)` method where `model` is the `CompressedModel` instance.
-
-#### Create a pipeline
-
-The POT Python* API provides the utility function to create and configure the pipeline:
-```
-openvino.tools.pot.pipeline.initializer.create_pipeline(algo_config, engine)
-```
-*Parameters* 
-- `algo_config` - a list defining optimization algorithms and their parameters included in the optimization pipeline. 
-  The order in which they are applied to the model in the optimization pipeline is determined by the order in the list. 
-
-  Example of the algorithm configuration of the pipeline:
-  ``` 
-  algo_config = [
-      {
-          'name': 'DefaultQuantization',
-          'params': {
-              'preset': 'performance',
-              'stat_subset_size': 500
-          }
-       },
-      ...
-  ]
-  ```
-- `engine` - instance of `Engine` class for model inference.
-
-*Returns*
-- instance of the `Pipeline` class.
-
-## Usage Example
-Before running the optimization tool it's highly recommended to make sure that
-- The model was converted to the OpenVINO&trade; Intermediate Representation (IR) from the source framework using [Model Optimizer](@ref openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide).
-- The model can be successfully inferred with OpenVINO&trade; Inference Engine in floating-point precision.
-- The model achieves the same accuracy as in the original training framework.
-
-As was described above, `DataLoader`, `Metric` and `Engine` interfaces should be implemented in order to create 
-the custom optimization pipeline for your model. There might be a case you have the Python* validation script for your 
-model using the [OpenVINO&trade; Runtime](@ref openvino_docs_OV_Runtime_User_Guide),
-which in practice includes loading a dataset, model inference, and calculating the accuracy metric.
-So you just need to wrap the existing functions of your validation script in `DataLoader`, `Metric` and `Engine` interfaces. 
-In another case, you need to implement interfaces from scratch. 
-
-For facilitation of using Python* POT API, we implemented `IEEngine` class providing the model inference of the most models 
-from the Vision Domain which can be reused for an arbitrary model.      
-
-After `YourDataLoader`, `YourMetric`, `YourEngine` interfaces are implemented, the custom optimization pipeline can be 
-created and applied to the model as follows:
- 
-```
-# Step 1: Load the model.
-model_config = {
-        'model_name': 'your_model',
-        'model': <PATH_TO_MODEL>/your_model.xml,
-        'weights': <PATH_TO_WEIGHTS/your_model.bin>
-}
-model = load_model(model_config)
-
-# Step 2: Initialize the data loader.
-dataset_config = {} # dictionary with the dataset parameters 
-data_loader = YourDataLoader(dataset_config)
-
-# Step 3 (Optional. Required for AccuracyAwareQuantization): Initialize the metric.
-metric = YourMetric()
-
-# Step 4: Initialize the engine for metric calculation and statistics collection.
-engine_config = {} # dictionary with the engine parameters
-engine = YourEngine(engine_config, data_loader, metric)
-
-# Step 5: Create a pipeline of compression algorithms.
-pipeline = create_pipeline(algorithms, engine)
-
-# Step 6: Execute the pipeline.
-compressed_model = pipeline.run(model)
-
-# Step 7: Save the compressed model.
-save_model(compressed_model, "path_to_save_model")
-```
-
-For in-depth examples of using Python* POT API, browse the samples included into the OpenVINO&trade; toolkit installation 
-and available in the `<POT_DIR>/api/samples` directory. There are currently five samples that demonstrate the implementation of `Engine`, `Metric` and `DataLoader` interfaces for classification, detection and segmentation tasks.

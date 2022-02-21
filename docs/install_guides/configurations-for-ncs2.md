@@ -1,4 +1,4 @@
-# Intel® Neural Compute Stick 2 (NCS2) Setup Guide for Use with Intel® Distribution of OpenVINO™ toolkit {#openvino_docs_install_guides_ncs2_setup_guide}
+# Configurations for Intel® Neural Compute Stick 2 {#openvino_docs_install_guides_configurations_for_ncs2}
 
 @sphinxdirective
 
@@ -91,4 +91,4 @@ brew install libusb
 ```
 
 You've completed all required configuration steps to perform inference on your Intel® Neural Compute Stick 2.
-Proceed to the <a href="#get-started">Start Using the Toolkit</a> section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.
+Proceed to the <a href="openvino_docs_install_guides_installing_openvino_macos.html#get-started">Start Using the Toolkit</a> section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.
