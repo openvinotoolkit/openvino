@@ -1223,7 +1223,8 @@ bool are_equal(const HostTensorPtr& lhs, const HostTensorPtr& rhs, size_t max_el
         return false;
     auto mask = std::make_shared<HostTensor>(element::boolean, lhs_shape);
     const auto& param = std::make_shared<op::Parameter>(lhs_et, lhs_shape);
-    op::v1::Equal(param, param, ngraph::op::AutoBroadcastType::NUMPY).evaluate({mask}, {lhs, rhs});
+    bool eval_status = op::v1::Equal(param, param, ngraph::op::AutoBroadcastType::NUMPY).evaluate({mask}, {lhs, rhs});
+    OPENVINO_ASSERT(eval_status);
     auto equal = op::Constant(mask).cast_vector<bool>();
     return std::all_of(equal.begin(), equal.end(), [](bool i) {
         return i;
