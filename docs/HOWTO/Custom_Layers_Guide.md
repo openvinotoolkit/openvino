@@ -39,7 +39,7 @@ To see the operations that are supported by each device plugin for the Inference
 [Supported Devices](../OV_Runtime_UG/supported_plugins/Supported_Devices.md).
 
 > **NOTE**: If a device doesn't support a particular operation, an alternative to creating a new operation is to target
-> an additional device using the HETERO plugin. The [Heterogeneous Plugin](../OV_Runtime_UG/supported_plugins/HETERO.md) may be
+> an additional device using the HETERO plugin. The [Heterogeneous Plugin](../OV_Runtime_UG/hetero_execution.md) may be
 > used to run an inference model on multiple devices allowing the unsupported operations on one device to "fallback" to
 > run on another device (e.g., CPU) that does support those operations.
 

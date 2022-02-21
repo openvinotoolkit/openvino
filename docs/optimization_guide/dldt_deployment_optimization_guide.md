@@ -199,7 +199,7 @@ Intel&reg; Vision Accelerator Design with Intel&reg; Movidius&trade; VPUs requir
 
 ## Heterogeneity <a name="heterogeneity"></a>
 
-Heterogeneous execution (constituted by the dedicated Inference Engine [“Hetero” plugin](../OV_Runtime_UG/supported_plugins/HETERO.md)) enables to schedule a network inference to the multiple devices.
+Heterogeneous execution (constituted by the dedicated Inference Engine [“Hetero” plugin](../OV_Runtime_UG/hetero_execution.md)) enables to schedule a network inference to the multiple devices.
 
 ### Typical Heterogeneous Scenarios of Concern <a name="heterogeneous-scenarios-of-concern"></a>
 
@@ -231,7 +231,7 @@ Similarly, if there are too much subgraphs, the synchronization and data transfe
 
 The general affinity “rule of thumb” is to keep computationally-intensive kernels on the accelerator, and "glue" or helper  kernels on the CPU. Notice that this includes the granularity considerations. For example, running some custom activation (that comes after every accelerator-equipped convolution) on the CPU might result in performance degradation due to too much data type and/or layout conversions, even though the activation itself can be extremely fast. In this case, it might make sense to consider implementing the kernel for the accelerator (see <a href="#optimizing-custom-kernels">Optimizing Custom Kernels</a>). The conversions typically manifest themselves as outstanding (comparing to CPU-only execution) 'Reorder' entries (see <a href="#performance-counters">Internal Inference Performance Counters</a>).
 
-For general details on the heterogeneous plugin, refer to the [corresponding section in the Inference Engine Developer Guide](../OV_Runtime_UG/supported_plugins/HETERO.md).
+For general details on the heterogeneous plugin, refer to the [corresponding section in the Inference Engine Developer Guide](../OV_Runtime_UG/hetero_execution.md).
 
 ### Trying the Heterogeneous Plugin with Inference Engine Samples <a name="heterogeneous-plugin-with-samples"></a>
 
@@ -270,7 +270,7 @@ The following tips are provided to give general guidance on optimizing execution
 
 ### Analyzing Heterogeneous Execution <a name="analyzing-heterogeneous-execution"></a>
 
-There is a dedicated configuration option that enables dumping the visualization of the subgraphs created by the heterogeneous plugin, please see code example in the [HETERO plugin documentation](../OV_Runtime_UG/supported_plugins/HETERO.md)
+There is a dedicated configuration option that enables dumping the visualization of the subgraphs created by the heterogeneous plugin, please see code example in the [HETERO plugin documentation](../OV_Runtime_UG/hetero_execution.md)
 
 After enabling the configuration key, the heterogeneous plugin generates two files:
 
@@ -279,7 +279,7 @@ After enabling the configuration key, the heterogeneous plugin generates two fil
 
 You can use GraphViz\* utility or `.dot` converters (for example, to `.png` or `.pdf`), like xdot\*, available on Linux\* OS with `sudo apt-get install xdot`. 
 
-You can also use performance data (in the [Benchmark App](../../samples/cpp/benchmark_app/README.md), it is an option `-pc`) to get performance data on each subgraph. Again, refer to the [HETERO plugin documentation](../OV_Runtime_UG/supported_plugins/HETERO.md) and to <a href="#performance-counters">Internal Inference Performance Counters</a> for a general counters information.
+You can also use performance data (in the [Benchmark App](../../samples/cpp/benchmark_app/README.md), it is an option `-pc`) to get performance data on each subgraph. Again, refer to the [HETERO plugin documentation](../OV_Runtime_UG/hetero_execution.md) and to <a href="#performance-counters">Internal Inference Performance Counters</a> for a general counters information.
 
 ## Multi-Device Execution <a name="multi-device-optimizations"></a>
 OpenVINO&trade; toolkit supports automatic multi-device execution, please see [MULTI-Device plugin description](../OV_Runtime_UG/supported_plugins/MULTI.md).
