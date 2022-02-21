@@ -44,8 +44,8 @@ OutputVector translate_crop_and_resize_op(const NodeContext& node) {
     auto image_depth = spatial_shape[3];
 
     auto const_boxes = dynamic_pointer_cast<Constant>(ng_boxes.get_node_shared_ptr());
-    auto const_box_ind = dynamic_pointer_cast<Constant>(ng_boxes.get_node_shared_ptr());
-    auto const_crop_size = dynamic_pointer_cast<Constant>(ng_boxes.get_node_shared_ptr());
+    auto const_box_ind = dynamic_pointer_cast<Constant>(ng_box_ind.get_node_shared_ptr());
+    auto const_crop_size = dynamic_pointer_cast<Constant>(ng_size.get_node_shared_ptr());
 
     TENSORFLOW_OP_VALIDATION(node,
                              const_boxes && const_box_ind && const_crop_size,

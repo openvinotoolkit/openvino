@@ -284,4 +284,11 @@ void regclass_CompiledModel(py::module m) {
                 :return: A compiled model output.
                 :rtype: openvino.runtime.ConstOutput
             )");
+
+    cls.def("__repr__", [](const ov::CompiledModel& self) {
+        auto inputs_str = Common::docs::container_to_string(self.inputs(), ",\n");
+        auto outputs_str = Common::docs::container_to_string(self.outputs(), ",\n");
+
+        return "<CompiledModel:\ninputs[\n" + inputs_str + "\n]\noutputs[\n" + outputs_str + "\n]>";
+    });
 }
