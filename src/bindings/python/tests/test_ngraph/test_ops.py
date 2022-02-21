@@ -482,6 +482,30 @@ def test_constant():
     assert np.allclose(result, expected)
 
 
+def test_constant_opset_ov_type():
+    parameter_list = []
+    function = Model([ov.constant(np.arange(9).reshape(3, 3), Type.f32)], parameter_list, "test")
+
+    runtime = get_runtime()
+    computation = runtime.computation(function, *parameter_list)
+    result = computation()[0]
+
+    expected = np.arange(9).reshape(3, 3)
+    assert np.allclose(result, expected)
+
+
+def test_constant_opset_numpy_type():
+    parameter_list = []
+    function = Model([ov.constant(np.arange(9).reshape(3, 3), np.float32)], parameter_list, "test")
+
+    runtime = get_runtime()
+    computation = runtime.computation(function, *parameter_list)
+    result = computation()[0]
+
+    expected = np.arange(9).reshape(3, 3)
+    assert np.allclose(result, expected)
+
+
 def test_concat():
 
     element_type = Type.f32
