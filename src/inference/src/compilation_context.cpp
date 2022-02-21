@@ -120,7 +120,54 @@ std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
         seed = hash_combine(seed, as_int32_t(info->getPrecision()));
         seed = hash_combine(seed, as_int32_t(info->getLayout()));
     }
+    return std::to_string(seed);
+}
 
+std::string NetworkCompilationContext::computeFasterHash(const CNNNetwork& network,
+                                                         const std::map<std::string, std::string>& compileOptions) {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::computeFasterHash - CNN");
+
+    IE_ASSERT(network.getFunction());
+
+    uint64_t seed = 0;
+    // 1. Calculate hash on function
+    CNNNetwork net(network);
+    ov::pass::Manager m;
+    m.register_pass<ov::pass::FasterHash>(seed);
+    m.run_passes(net.getFunction());
+
+    // 2. Compute hash on serialized data and options
+    for (const auto& kvp : compileOptions) {
+        seed = hash_combine(seed, kvp.first + kvp.second);
+    }
+
+    // 3. Add inputs info
+    for (const auto& input : network.getInputsInfo()) {
+        InputInfo::Ptr info = input.second;
+        seed = hash_combine(seed, as_int32_t(info->getPrecision()));
+        seed = hash_combine(seed, as_int32_t(info->getLayout()));
+
+        const InferenceEngine::PreProcessInfo& preproc = info->getPreProcess();
+        seed = hash_combine(seed, as_int32_t(preproc.getMeanVariant()));
+
+        if (preproc.getMeanVariant() == MeanVariant::MEAN_VALUE) {
+            seed = hash_combine(seed, preproc.getNumberOfChannels());
+            for (size_t c = 0; c < preproc.getNumberOfChannels(); ++c) {
+                const PreProcessChannel::Ptr& channelInfo = preproc[c];
+                seed = hash_combine(seed, channelInfo->stdScale);
+                seed = hash_combine(seed, channelInfo->meanValue);
+            }
+        } else if (preproc.getMeanVariant() == MeanVariant::MEAN_IMAGE) {
+            // TODO: think if we need to compute hash for mean image if it exists
+        }
+    }
+
+    // 4. Add outputs info
+    for (const auto& output : network.getOutputsInfo()) {
+        DataPtr info = output.second;
+        seed = hash_combine(seed, as_int32_t(info->getPrecision()));
+        seed = hash_combine(seed, as_int32_t(info->getLayout()));
+    }
     return std::to_string(seed);
 }
 

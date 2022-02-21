@@ -18,6 +18,9 @@ struct NetworkCompilationContext final {
 
     static std::string computeHash(const CNNNetwork& network, const std::map<std::string, std::string>& compileOptions);
 
+    static std::string computeFasterHash(const CNNNetwork& network,
+                                         const std::map<std::string, std::string>& compileOptions);
+
     static std::string computeHash(const std::string& modelName,
                                    const std::map<std::string, std::string>& compileOptions);
 };

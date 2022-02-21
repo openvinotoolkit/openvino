@@ -16,6 +16,7 @@
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 #include "cpp/ie_cnn_network.h"
+#include "transformations/hash.hpp"
 
 #include "common_test_utils/test_constants.hpp"
 
@@ -178,22 +179,32 @@ static void checkCustomRt(const std::function<void(Node::RTMap&)>& emptyCb,
     emptyCb(op2);
     ASSERT_NE(NetworkCompilationContext::computeHash(net1, {}),
               NetworkCompilationContext::computeHash(net2, {}));
+    ASSERT_NE(NetworkCompilationContext::computeFasterHash(net1, {}),
+              NetworkCompilationContext::computeFasterHash(net2, {}));
 
     emptyCb(op1);
     ASSERT_EQ(NetworkCompilationContext::computeHash(net1, {}),
               NetworkCompilationContext::computeHash(net2, {}));
+    ASSERT_EQ(NetworkCompilationContext::computeFasterHash(net1, {}),
+              NetworkCompilationContext::computeFasterHash(net2, {}));
 
     nameCb(op1, "test");
     ASSERT_NE(NetworkCompilationContext::computeHash(net1, {}),
               NetworkCompilationContext::computeHash(net2, {}));
+    ASSERT_NE(NetworkCompilationContext::computeFasterHash(net1, {}),
+              NetworkCompilationContext::computeFasterHash(net2, {}));
 
     nameCb(op2, "test");
     ASSERT_EQ(NetworkCompilationContext::computeHash(net1, {}),
               NetworkCompilationContext::computeHash(net2, {}));
+    ASSERT_EQ(NetworkCompilationContext::computeFasterHash(net1, {}),
+              NetworkCompilationContext::computeFasterHash(net2, {}));
 
     nameCb(op1, "test2");
     ASSERT_NE(NetworkCompilationContext::computeHash(net1, {}),
               NetworkCompilationContext::computeHash(net2, {}));
+    ASSERT_NE(NetworkCompilationContext::computeFasterHash(net1, {}),
+              NetworkCompilationContext::computeFasterHash(net2, {}));
 }
 
 TEST(NetworkContext_CNNNetwork, HashOfSame) {
@@ -201,6 +212,8 @@ TEST(NetworkContext_CNNNetwork, HashOfSame) {
     auto net2 = createNetwork();
     ASSERT_EQ(NetworkCompilationContext::computeHash(net1, {}),
               NetworkCompilationContext::computeHash(net2, {}));
+    ASSERT_EQ(NetworkCompilationContext::computeFasterHash(net1, {}),
+              NetworkCompilationContext::computeFasterHash(net2, {}));
 }
 
 TEST(NetworkContext_CNNNetwork, HashWithConfig) {
@@ -208,8 +221,12 @@ TEST(NetworkContext_CNNNetwork, HashWithConfig) {
     auto net2 = createNetwork();
     ASSERT_NE(NetworkCompilationContext::computeHash(net1, {{"key", "value"}}),
               NetworkCompilationContext::computeHash(net2, {}));
+    ASSERT_NE(NetworkCompilationContext::computeFasterHash(net1, {{"key", "value"}}),
+              NetworkCompilationContext::computeFasterHash(net2, {}));
     ASSERT_EQ(NetworkCompilationContext::computeHash(net1, {{"key", "value"}}),
               NetworkCompilationContext::computeHash(net2, {{"key", "value"}}));
+    ASSERT_EQ(NetworkCompilationContext::computeFasterHash(net1, {{"key", "value"}}),
+              NetworkCompilationContext::computeFasterHash(net2, {{"key", "value"}}));
 }
 
 TEST(NetworkContext_CNNNetwork, HashWithPrimitivesPriority) {
@@ -217,16 +234,21 @@ TEST(NetworkContext_CNNNetwork, HashWithPrimitivesPriority) {
     auto net2 = createNetwork();
     auto net3 = createNetwork();
     auto & op2 = net2.getFunction()->get_ops().front()->get_rt_info();
+    ov::getPrimitivesPriority(nullptr);
     op2[ov::PrimitivesPriority::get_type_info_static()] = ov::PrimitivesPriority("testPriority");
 
     auto & op3 = net3.getFunction()->get_ops().front()->get_rt_info();
-    op3["PrimitivesPriority"] = "testPriority";
+    op3[ov::PrimitivesPriority::get_type_info_static()] = ov::PrimitivesPriority("testPriority");
 
     ASSERT_NE(NetworkCompilationContext::computeHash(net1, {}),
               NetworkCompilationContext::computeHash(net2, {}));
+    ASSERT_NE(NetworkCompilationContext::computeFasterHash(net1, {}),
+              NetworkCompilationContext::computeFasterHash(net2, {}));
 
     ASSERT_EQ(NetworkCompilationContext::computeHash(net2, {}),
               NetworkCompilationContext::computeHash(net3, {}));
+    ASSERT_EQ(NetworkCompilationContext::computeFasterHash(net2, {}),
+              NetworkCompilationContext::computeFasterHash(net3, {}));
 }
 
 TEST(NetworkContext_CNNNetwork, HashWithFusedNames) {
@@ -261,9 +283,13 @@ TEST(NetworkContext_CNNNetwork, HashWithAffinity) {
 
     ASSERT_NE(NetworkCompilationContext::computeHash(net1, {}),
               NetworkCompilationContext::computeHash(net2, {}));
+    ASSERT_NE(NetworkCompilationContext::computeFasterHash(net1, {}),
+              NetworkCompilationContext::computeFasterHash(net2, {}));
 
     ASSERT_EQ(NetworkCompilationContext::computeHash(net2, {}),
               NetworkCompilationContext::computeHash(net3, {}));
+    ASSERT_EQ(NetworkCompilationContext::computeFasterHash(net2, {}),
+              NetworkCompilationContext::computeFasterHash(net3, {}));
 }
 
 TEST(NetworkContext_CNNNetwork, HashWithFutureRt_string) {
@@ -282,9 +308,13 @@ TEST(NetworkContext_CNNNetwork, HashWithFutureRt_string) {
 
     ASSERT_EQ(NetworkCompilationContext::computeHash(net1, {}),
               NetworkCompilationContext::computeHash(net2, {}));
+    ASSERT_EQ(NetworkCompilationContext::computeFasterHash(net1, {}),
+              NetworkCompilationContext::computeFasterHash(net2, {}));
 
     ASSERT_NE(NetworkCompilationContext::computeHash(net2, {}),
               NetworkCompilationContext::computeHash(net3, {}));
+    ASSERT_EQ(NetworkCompilationContext::computeFasterHash(net1, {}),
+              NetworkCompilationContext::computeFasterHash(net2, {}));
 }
 
 TEST(NetworkContext_CNNNetwork, HashWithFutureRt_int64) {
@@ -303,9 +333,38 @@ TEST(NetworkContext_CNNNetwork, HashWithFutureRt_int64) {
 
     ASSERT_EQ(NetworkCompilationContext::computeHash(net1, {}),
               NetworkCompilationContext::computeHash(net2, {}));
+    ASSERT_EQ(NetworkCompilationContext::computeFasterHash(net1, {}),
+              NetworkCompilationContext::computeFasterHash(net2, {}));
 
     ASSERT_NE(NetworkCompilationContext::computeHash(net2, {}),
               NetworkCompilationContext::computeHash(net3, {}));
+    ASSERT_NE(NetworkCompilationContext::computeFasterHash(net2, {}),
+              NetworkCompilationContext::computeFasterHash(net3, {}));
+}
+
+TEST(NetworkContext_CNNNetwork, HashWithFutureRt_vector) {
+    auto net1 = createNetwork();
+    auto net2 = createNetwork();
+    auto net3 = createNetwork();
+
+    auto & op1 = net1.getFunction()->get_ops().front()->get_rt_info();
+    op1["someFutureKey"] = std::vector<std::string>{"a", "b", "c"};
+
+    auto & op2 = net2.getFunction()->get_ops().front()->get_rt_info();
+    op2["someFutureKey"] = std::vector<std::string>{"a", "b", "c"};
+
+    auto & op3 = net3.getFunction()->get_ops().front()->get_rt_info();
+    op3["someFutureKey"] = std::vector<std::string>{"a", "b", "d"};
+
+    ASSERT_EQ(NetworkCompilationContext::computeHash(net1, {}),
+              NetworkCompilationContext::computeHash(net2, {}));
+    ASSERT_EQ(NetworkCompilationContext::computeFasterHash(net1, {}),
+              NetworkCompilationContext::computeFasterHash(net2, {}));
+
+    ASSERT_NE(NetworkCompilationContext::computeHash(net2, {}),
+              NetworkCompilationContext::computeHash(net3, {}));
+    ASSERT_NE(NetworkCompilationContext::computeFasterHash(net2, {}),
+              NetworkCompilationContext::computeFasterHash(net3, {}));
 }
 
 TEST(NetworkContext_CNNNetwork, HashWithLayout) {
@@ -323,18 +382,28 @@ TEST(NetworkContext_CNNNetwork, HashWithLayout) {
 
     EXPECT_EQ(NetworkCompilationContext::computeHash(net1, {}),
               NetworkCompilationContext::computeHash(net2, {}));
+    EXPECT_EQ(NetworkCompilationContext::computeFasterHash(net1, {}),
+              NetworkCompilationContext::computeFasterHash(net2, {}));
 
     EXPECT_NE(NetworkCompilationContext::computeHash(net2, {}),
               NetworkCompilationContext::computeHash(net3, {}));
+    EXPECT_NE(NetworkCompilationContext::computeFasterHash(net2, {}),
+              NetworkCompilationContext::computeFasterHash(net3, {}));
 
     EXPECT_NE(NetworkCompilationContext::computeHash(net3, {}),
               NetworkCompilationContext::computeHash(net3_1, {}));
+    EXPECT_NE(NetworkCompilationContext::computeFasterHash(net3, {}),
+              NetworkCompilationContext::computeFasterHash(net3_1, {}));
 
     EXPECT_NE(NetworkCompilationContext::computeHash(net3, {}),
               NetworkCompilationContext::computeHash(net4, {}));
+    EXPECT_NE(NetworkCompilationContext::computeFasterHash(net3, {}),
+              NetworkCompilationContext::computeFasterHash(net4, {}));
 
     EXPECT_EQ(NetworkCompilationContext::computeHash(net4, {}),
               NetworkCompilationContext::computeHash(net5, {}));
+    EXPECT_EQ(NetworkCompilationContext::computeFasterHash(net4, {}),
+              NetworkCompilationContext::computeFasterHash(net5, {}));
 }
 
 TEST(NetworkContext_CNNNetwork, HashWithTensorNames) {
@@ -363,9 +432,13 @@ TEST(NetworkContext_CNNNetwork, HashWithTensorNames) {
 
     ASSERT_EQ(NetworkCompilationContext::computeHash(net1, {}),
               NetworkCompilationContext::computeHash(net2, {}));
+    ASSERT_EQ(NetworkCompilationContext::computeFasterHash(net1, {}),
+              NetworkCompilationContext::computeFasterHash(net2, {}));
 
     ASSERT_NE(NetworkCompilationContext::computeHash(net2, {}),
               NetworkCompilationContext::computeHash(net3, {}));
+    ASSERT_NE(NetworkCompilationContext::computeFasterHash(net2, {}),
+              NetworkCompilationContext::computeFasterHash(net3, {}));
 }
 
 TEST(NetworkContext_CNNNetwork, HashWithDifferentResults) {
@@ -376,8 +449,123 @@ TEST(NetworkContext_CNNNetwork, HashWithDifferentResults) {
     net3.getFunction()->remove_result(net3.getFunction()->get_results().front());
     ASSERT_NE(NetworkCompilationContext::computeHash(net1, {}),
               NetworkCompilationContext::computeHash(net2, {}));
+    ASSERT_NE(NetworkCompilationContext::computeFasterHash(net1, {}),
+              NetworkCompilationContext::computeFasterHash(net2, {}));
     ASSERT_EQ(NetworkCompilationContext::computeHash(net2, {}),
               NetworkCompilationContext::computeHash(net3, {}));
+    ASSERT_EQ(NetworkCompilationContext::computeFasterHash(net2, {}),
+              NetworkCompilationContext::computeFasterHash(net3, {}));
+}
+
+
+TEST(NetworkContext_CNNNetwork, HashSpeed_10kNodes) {
+    auto param = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
+    std::shared_ptr<Node> data = param;
+    data->set_friendly_name("Parameter");
+    data->get_output_tensor(0).set_names({"parameter"});
+
+    for (int i = 0; i < 10000; i++) {
+        data = std::make_shared<ngraph::opset6::Relu>(data);
+    }
+    auto result = std::make_shared<ngraph::opset6::Result>(data);
+    auto func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param});
+    CNNNetwork net(func);
+
+    using namespace std::chrono;
+    auto duration_sec = 10;
+    auto start = steady_clock::now();
+    int cnt = 0;
+    while (duration_cast<seconds>(steady_clock::now() - start).count() < duration_sec) {
+        auto hash = NetworkCompilationContext::computeHash(net, {});
+        cnt += !hash.empty() ? 1 : 0;
+    }
+    std::cout << "10k Relu: Regular: " << static_cast<float>(cnt) / duration_sec << " FPS \n";
+    start = steady_clock::now();
+    cnt = 0;
+    while (duration_cast<seconds>(steady_clock::now() - start).count() < duration_sec) {
+        auto hash = NetworkCompilationContext::computeFasterHash(net, {});
+        cnt += !hash.empty() ? 1 : 0;
+    }
+    std::cout << "10k Relu: Faster: " << static_cast<float>(cnt) / duration_sec << " FPS \n";
+}
+
+TEST(NetworkContext_CNNNetwork, HashSpeed_100k_rt_infos) {
+    auto param = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
+    std::shared_ptr<Node> data = param;
+    data->set_friendly_name("Parameter");
+    data->get_output_tensor(0).set_names({"parameter"});
+
+    for (int i = 0; i < 20; i++) {
+        data = std::make_shared<ngraph::opset6::Relu>(data);
+        for (int j = 0; j < 500; j++) {
+            data->get_rt_info()[std::to_string(j) + "0"] = true;
+            data->get_rt_info()[std::to_string(j) + "1"] = std::to_string(j);
+            data->get_rt_info()[std::to_string(j) + "2"] = static_cast<int64_t>(j);
+            data->get_rt_info()[std::to_string(j) + "3"] = static_cast<uint64_t>(j);
+            data->get_rt_info()[std::to_string(j) + "4"] = static_cast<float>(j);
+            data->get_rt_info()[std::to_string(j) + "5"] = static_cast<double>(j);
+            data->get_rt_info()[std::to_string(j) + "6"] = std::vector<std::string>{"a", "b", "c"};
+            data->get_rt_info()[std::to_string(j) + "7"] = std::vector<int>{1, 2, 3};
+            data->get_rt_info()[std::to_string(j) + "8"] = std::vector<double>{1, 2, 3};
+            data->get_rt_info()[std::to_string(j) + "9"] = std::vector<int64_t>{1, 2, 3};
+            data->get_rt_info()[std::to_string(j) + "10"] = std::vector<uint64_t>{1, 2, 3};
+        }
+    }
+    auto result = std::make_shared<ngraph::opset6::Result>(data);
+    auto func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param});
+    CNNNetwork net(func);
+
+    using namespace std::chrono;
+    auto duration_sec = 10;
+    auto start = steady_clock::now();
+    int cnt = 0;
+    while (duration_cast<seconds>(steady_clock::now() - start).count() < duration_sec) {
+        auto hash = NetworkCompilationContext::computeHash(net, {});
+        cnt += !hash.empty() ? 1 : 0;
+    }
+    std::cout << "100k_rt_infos: Regular: " << static_cast<float>(cnt) / duration_sec << " FPS \n";
+    start = steady_clock::now();
+    cnt = 0;
+    while (duration_cast<seconds>(steady_clock::now() - start).count() < duration_sec) {
+        auto hash = NetworkCompilationContext::computeFasterHash(net, {});
+        cnt += !hash.empty() ? 1 : 0;
+    }
+    std::cout << "100k_rt_infos: Faster: " << static_cast<float>(cnt) / duration_sec << " FPS \n";
+}
+
+
+TEST(NetworkContext_CNNNetwork, HashSpeed_400MB_Weights) {
+    auto param = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{1000, 1000});
+    std::shared_ptr<Node> data = param;
+    data->set_friendly_name("Parameter");
+    data->get_output_tensor(0).set_names({"parameter"});
+
+    float* buffer = static_cast<float*>(malloc(1000*1000*100*sizeof(float)));
+    for (int i = 0; i < 100; i++) {
+        auto c = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{1000, 1000}, buffer + i * 1000 * 1000);
+        data = std::make_shared<ngraph::opset6::Add>(data, c);
+    }
+    auto result = std::make_shared<ngraph::opset6::Result>(data);
+    auto func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param});
+    CNNNetwork net(func);
+
+    using namespace std::chrono;
+    auto duration_sec = 10;
+    auto start = steady_clock::now();
+    int cnt = 0;
+    while (duration_cast<seconds>(steady_clock::now() - start).count() < duration_sec) {
+        auto hash = NetworkCompilationContext::computeHash(net, {});
+        cnt += !hash.empty() ? 1 : 0;
+    }
+    std::cout << "400MB: Regular: " << static_cast<float>(cnt) / duration_sec << " FPS \n";
+    start = steady_clock::now();
+    cnt = 0;
+    while (duration_cast<seconds>(steady_clock::now() - start).count() < duration_sec) {
+        auto hash = NetworkCompilationContext::computeFasterHash(net, {});
+        cnt += !hash.empty() ? 1 : 0;
+    }
+    std::cout << "400MB: Faster: " << static_cast<float>(cnt) / duration_sec << " FPS \n";
+    free(buffer);
 }
 
 TEST(NetworkContext_CNNNetwork, HashWithDifferentMeanValues) {
@@ -399,8 +587,12 @@ TEST(NetworkContext_CNNNetwork, HashWithDifferentMeanValues) {
     updatePreprocess(net3);
     ASSERT_NE(NetworkCompilationContext::computeHash(net1, {}),
               NetworkCompilationContext::computeHash(net2, {}));
+    ASSERT_NE(NetworkCompilationContext::computeFasterHash(net1, {}),
+              NetworkCompilationContext::computeFasterHash(net2, {}));
     ASSERT_EQ(NetworkCompilationContext::computeHash(net2, {}),
               NetworkCompilationContext::computeHash(net3, {}));
+    ASSERT_EQ(NetworkCompilationContext::computeFasterHash(net2, {}),
+              NetworkCompilationContext::computeFasterHash(net3, {}));
 }
 
 // Verify all internal hash calculations are thread-safe (like ngraph::function serialization)
@@ -416,7 +608,9 @@ TEST(NetworkContext_CNNNetwork, HashOfSameMultiThreading) {
             count++;
             auto hash1 = NetworkCompilationContext::computeHash(net1, {});
             auto hash2 = NetworkCompilationContext::computeHash(net2, {});
-            if (hash1 != hash2) {
+            auto hash1_f = NetworkCompilationContext::computeFasterHash(net1, {});
+            auto hash2_f = NetworkCompilationContext::computeFasterHash(net2, {});
+            if (hash1 != hash2 || hash1_f != hash2_f) {
                 fail = true;
                 break;
             }

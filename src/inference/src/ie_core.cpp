@@ -359,7 +359,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                                      const ov::InferencePlugin& plugin,
                                      const std::map<std::string, std::string>& config) const {
         auto compileConfig = CreateCompileConfig(plugin, deviceFamily, config);
-        return ie::NetworkCompilationContext::computeHash(network, compileConfig);
+        return ie::NetworkCompilationContext::computeFasterHash(network, compileConfig);
     }
 
     std::string CalculateFileHash(const std::string& modelName,
