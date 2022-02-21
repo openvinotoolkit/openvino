@@ -23,7 +23,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::PriorBox> 
     const auto IS = ngraph::builder::makeConstant<int32_t>(ov::element::i32, {2}, {10, 10});
     auto Node = std::make_shared<ov::op::v0::PriorBox>(LS, IS, attrs);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(Node)};
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{}, "PrioBoxGraph");
+    return std::make_shared<ngraph::Function>(results, ov::ParameterVector{}, "PrioBoxGraph");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v8::PriorBox> &node) {
@@ -37,7 +37,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v8::PriorBox> 
     const auto IS = ngraph::builder::makeConstant<int32_t>(ov::element::i32, {2}, {10, 10});
     auto Node = std::make_shared<ov::op::v8::PriorBox>(LS, IS, attrs);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(Node)};
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{}, "PrioBoxGraph");
+    return std::make_shared<ngraph::Function>(results, ov::ParameterVector{}, "PrioBoxGraph");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::PriorBoxClustered> &node) {
@@ -49,7 +49,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::PriorBoxCl
     const auto IS = ngraph::builder::makeConstant<int32_t>(ov::element::i32, {2}, {10, 10});
     auto Node = std::make_shared<ov::op::v0::PriorBoxClustered>(LS, IS, attrs);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(Node)};
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{}, "PrioBoxClustedGraph");
+    return std::make_shared<ngraph::Function>(results, ov::ParameterVector{}, "PrioBoxClustedGraph");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Proposal> &node) {
@@ -127,7 +127,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v8::RandomUnif
     const auto max_value = ngraph::builder::makeConstant<float>(ov::element::f32, {}, {1.f});
     auto Node = std::make_shared<ov::op::v8::RandomUniform>(out_shape_, min_value, max_value, ov::element::f32, 10, 10);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(Node)};
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{}, "RandomUniformGraph");
+    return std::make_shared<ngraph::Function>(results, ov::ParameterVector{}, "RandomUniformGraph");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Range> &node) {
@@ -136,7 +136,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Range> &no
     const auto step = ngraph::builder::makeConstant<float>(ov::element::f32, {}, {1.f});
     auto Node = std::make_shared<ov::op::v0::Range>(start, stop, step);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(Node)};
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{}, "RangeGraph");
+    return std::make_shared<ngraph::Function>(results, ov::ParameterVector{}, "RangeGraph");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v4::Range> &node) {
@@ -145,7 +145,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v4::Range> &no
     const auto step = ngraph::builder::makeConstant<float>(ov::element::f32, {}, {1.f});
     auto Node = std::make_shared<ov::op::v4::Range>(start, stop, step, ov::element::f32);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(Node)};
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{}, "RangeGraph");
+    return std::make_shared<ngraph::Function>(results, ov::ParameterVector{}, "RangeGraph");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::RegionYolo> &node) {
@@ -189,7 +189,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::ReverseSeq
     const auto seq_length = ngraph::builder::makeDynamicParams(ov::element::i32, {{3}});
     auto Node = std::make_shared<ov::op::v0::ReverseSequence>(params[0], seq_length[0], 0, 1);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(Node)};
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{params[0], seq_length[0]}, "ReverseSequenceGraph");
+    return std::make_shared<ngraph::Function>(results, ov::ParameterVector{params[0], seq_length[0]}, "ReverseSequenceGraph");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v7::Roll> &node) {
@@ -222,7 +222,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::Select> &n
     const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 2, 2}, {2, 2, 2}});
     auto Node = std::make_shared<ov::op::v1::Select>(cond[0], params[0], params[1], op::AutoBroadcastType::NONE);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(Node)};
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{cond[0], params[0], params[1]}, "SelectGraph");
+    return std::make_shared<ngraph::Function>(results, ov::ParameterVector{cond[0], params[0], params[1]}, "SelectGraph");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Selu> &node) {
@@ -341,6 +341,91 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v4::Swish> &no
     auto Node = std::make_shared<ov::op::v4::Swish>(params[0], beta);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(Node)};
     return std::make_shared<ngraph::Function>(results, params, "SwishGraph");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::TensorIterator> &node) {
+    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{1, 2}, {2, 1}, {1, 1}});
+    const auto params_body = ngraph::builder::makeDynamicParams(ov::element::f32, {{1, 2}, {2, 1}, {1, 1}});
+    const auto body_condition = ngraph::builder::makeConstant<bool>(ov::element::boolean, ov::Shape{1}, {true});
+    const auto exec_condition = ngraph::builder::makeConstant<bool>(ov::element::boolean, ov::Shape{1}, {true});
+    // Body
+    auto sum = std::make_shared<ov::op::v1::Add>(params_body[0], params_body[1]);
+    auto Zo = std::make_shared<ov::op::v1::Multiply>(sum, params_body[2]);
+    auto body = std::make_shared<ov::Model>(ov::OutputVector{body_condition, Zo}, params_body);
+
+    auto tensor_iterator = std::make_shared<ov::op::v0::TensorIterator>();
+    tensor_iterator->set_function(body);
+
+    tensor_iterator->set_sliced_input(params_body[0], params[0], 0, 1, 1, -1, 1);
+    tensor_iterator->set_sliced_input(params_body[1], params[1], 0, 1, 1, -1, 0);
+    tensor_iterator->set_merged_input(params_body[2], params[2], Zo);
+
+    // Output 0 is last Zo
+    auto out1 = tensor_iterator->get_iter_value(Zo, -1);
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(out1)};
+    return std::make_shared<ngraph::Function>(results, params, "TensorIteratorGraph");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Tile> &node) {
+    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 1, 3}});
+    const auto repeats = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {2}, {2, 1});
+    auto Node = std::make_shared<ov::op::v0::Tile>(params[0], repeats);
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(Node)};
+    return std::make_shared<ngraph::Function>(results, params, "TileGraph");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::TopK> &node) {
+    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 3, 2}});
+    const auto k = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {}, {3});
+    auto Node = std::make_shared<ov::op::v1::TopK>(params[0],
+                                                   k,
+                                                   1,
+                                                   ov::op::v1::TopK::Mode::MAX,
+                                                   ov::op::v1::TopK::SortType::SORT_VALUES);
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(Node->output(0)),
+                                 std::make_shared<ngraph::opset1::Result>(Node->output(1))};
+    return std::make_shared<ngraph::Function>(results, params, "TopKGraph");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v3::TopK> &node) {
+    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 3, 2}});
+    const auto k = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {}, {3});
+    auto Node = std::make_shared<ov::op::v3::TopK>(params[0],
+                                                   k,
+                                                   1,
+                                                   ov::op::v3::TopK::Mode::MAX,
+                                                   ov::op::v3::TopK::SortType::SORT_VALUES);
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(Node->output(0)),
+                                 std::make_shared<ngraph::opset1::Result>(Node->output(1))};
+    return std::make_shared<ngraph::Function>(results, params, "TopKGraph");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::Transpose> &node) {
+    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 2, 3}});
+    const auto inputOrder = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {3}, {2, 1, 0});
+    auto Node = std::make_shared<ov::op::v1::Transpose>(params[0], inputOrder);
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(Node)};
+    return std::make_shared<ngraph::Function>(results, params, "TransposeGraph");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Unsqueeze> &node) {
+    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{4, 2}});
+    const auto axes = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {2}, {1, -1});
+    auto Node = std::make_shared<ov::op::v0::Unsqueeze>(params[0], axes);
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(Node)};
+    return std::make_shared<ngraph::Function>(results, params, "UnsqueezeGraph");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::VariadicSplit> &node) {
+    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 8, 2, 2}});
+    const auto axis = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {1}, {1});
+    const auto splitLengths = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {4}, {1, 3, 2, 2});
+    auto Node = std::make_shared<ov::op::v1::VariadicSplit>(params[0], axis, splitLengths);
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(Node->output(0)),
+                                 std::make_shared<ngraph::opset1::Result>(Node->output(1)),
+                                 std::make_shared<ngraph::opset1::Result>(Node->output(2)),
+                                 std::make_shared<ngraph::opset1::Result>(Node->output(3))};
+    return std::make_shared<ngraph::Function>(results, params, "VariadicSplitGraph");
 }
 
 std::shared_ptr<ov::Model> generateBinaryEltwise(const std::shared_ptr<ov::op::Op> &node) {
@@ -561,7 +646,7 @@ std::shared_ptr<ov::Model> generateRNNCellBase(const std::shared_ptr<ov::op::Op>
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode->output(0)),
                                      std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode->output(1)),
                                      std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode->output(2))};
-        return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{params[0], params[1], params[2], params_seqLength[0]}, "RNNCellBaseGraph");
+        return std::make_shared<ngraph::Function>(results, ov::ParameterVector{params[0], params[1], params[2], params_seqLength[0]}, "RNNCellBaseGraph");
     } else if (ov::is_type<ov::op::v0::RNNCell>(node)) {
         const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 3}, {2, 3}});
         const auto W = ngraph::builder::makeConstant<float>(ov::element::f32, {3, 3}, {}, true);
@@ -581,7 +666,7 @@ std::shared_ptr<ov::Model> generateRNNCellBase(const std::shared_ptr<ov::op::Op>
                                                                     W, R, B, 3, ov::op::RecurrentSequenceDirection::FORWARD);
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode->output(0)),
                                      std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode->output(1))};
-        return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{params[0], params[1], params_seqLength[0]}, "RNNCellBaseGraph");
+        return std::make_shared<ngraph::Function>(results, ov::ParameterVector{params[0], params[1], params_seqLength[0]}, "RNNCellBaseGraph");
     } else {
         return nullptr;
     }
