@@ -292,7 +292,10 @@ void MKLDNNEdge::externalAllocate(MKLDNNWeightsSharing::Ptr weightsCache) {
     if (status != Status::NeedAllocation)
         return;
 
-    if (weightsCache) {
+    bool isTheOnlyChildEdge = getParent()->getChildEdges().size() == 1;
+    bool isConcurrentUpdatePossible = getParent()->isInPlace() || getChild()->isInPlace() || !isTheOnlyChildEdge;
+
+    if (weightsCache && !isConcurrentUpdatePossible) {
         auto alloc = [this] () {
             allocate();
             return memoryPtr;
