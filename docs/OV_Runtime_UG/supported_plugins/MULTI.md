@@ -32,7 +32,7 @@ Following the OpenVINO™ convention of labeling devices, the Multi-Device plugi
 | "MULTI_DEVICE_PRIORITIES" | comma-separated device names with no spaces | N/A | Prioritized list of devices |
 
 You can set the configuration directly as a string, or use the metric key `MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES from the `multi/multi_device_config.hpp` file, which defines the same string.
- 
+
 Basically, there are three ways to specify the devices to be use by the "MULTI":
 
 @snippet snippets/MULTI0.cpp part0
@@ -86,7 +86,7 @@ Note that while the performance of accelerators combines really well with Multi-
 See the [Using the Multi-Device with OpenVINO samples and benchmarking the performance](#using-the-multi-device-with-openvino-samples-and-benchmarking-the-performance) section below.
 
 ### Querying the Optimal Number of Inference Requests
-You can use the new GetMetric API to query the optimal number of requests. Similarly, when using the Multi-Device you don't need to sum over included devices yourself, you can query metric directly:
+You can use the [Properties API](../PropertiesAPI.md) API to query the optimal number of requests. Similarly, when using the Multi-Device you don't need to sum over included devices yourself, you can query property directly:
 
 @snippet snippets/MULTI5.cpp part5
 

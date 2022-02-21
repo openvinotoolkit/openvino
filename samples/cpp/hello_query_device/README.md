@@ -1,6 +1,6 @@
 # Hello Query Device C++ Sample {#openvino_inference_engine_samples_hello_query_device_README}
 
-This sample demonstrates how to execute an query OpenVINO™ Runtime devices, prints their metrics and default configuration values, using [Query Device API feature](../../../docs/OV_Runtime_UG/InferenceEngine_QueryAPI.md).
+This sample demonstrates how to execute an query OpenVINO™ Runtime devices, prints their metrics and default configuration values, using [Properties API](../../../docs/OV_Runtime_UG/PropertiesAPI.md).
 
 The following C++ API is used in the application:
 
