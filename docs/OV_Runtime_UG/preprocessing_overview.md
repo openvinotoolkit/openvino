@@ -38,7 +38,7 @@ Intuitively, Preprocessing API consists of the following parts:
  2. 	**Steps:** Describe sequence of preprocessing steps which need to be applied to user's data
  3. 	**Model:** Specify Model's data format. Usually, precision and shape are already known for model, only additional information, like [layout](./layout_overview.md) can be specified
 
->**Note:** All model's graph modification shall be performed after model is read from disk and **before** it is being loaded on actual device. See also [OpenVINO™ Common Inference pipeline](../migration_ov_2_0/docs/common_inference_pipeline.md)
+> **Note:** All model's graph modification shall be performed after model is read from disk and **before** it is being loaded on actual device. See also [Integrate OpenVINO™ into your application](./Integrate_with_customer_application.md)
 
 ### PrePostProcessor object
 
@@ -62,7 +62,7 @@ Intuitively, Preprocessing API consists of the following parts:
 
 ### Declare user's data format
 
-To address particular input of model/preprocessor, use `PrePostProcessor::input(input_name)` method
+To address particular input of model/preprocessor, use `ov::preprocess::PrePostProcessor::input(input_name)` method
 
 @sphinxdirective
 
@@ -133,7 +133,7 @@ Now we can define sequence of preprocessing steps:
 Here:
  - Convert U8 to FP32 precision
  - Convert current color format (BGR) to RGB
- - Resize to model's height/width. **Note** that if model accepts dynamic size, e.g. {?, 3, ?, ?}, `resize` will not know how to resize the picture, so in this case you should specify target height/width on this step. See also [TBD]
+ - Resize to model's height/width. **Note** that if model accepts dynamic size, e.g. {?, 3, ?, ?}, `resize` will not know how to resize the picture, so in this case you should specify target height/width on this step. See also <code>ov::preprocess::PreProcessSteps::resize()</code>
  - Subtract mean from each channel. On this step, color format is RGB already, so `100.5` will be subtracted from each Red component, and `101.5` will be subtracted from `Blue` one.
  - Divide each pixel data to appropriate scale value. In this example each `Red` component will be divided by 50, `Green` by 51, `Blue` by 52 respectively
  - **Note:** last `convert_layout` step is commented out as it is not necessary to specify last layout conversion. PrePostProcessor will do such conversion automatically

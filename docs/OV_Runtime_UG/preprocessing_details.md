@@ -22,7 +22,7 @@ If your model has only one input, then simple <code>ov::preprocess::PrePostProce
 
 @endsphinxdirective
 
-In general, when model has multiple inputs/outputs, each one can be addressed by name
+In general, when model has multiple inputs/outputs, each one can be addressed by tensor name
 
 @sphinxdirective
 
@@ -193,7 +193,7 @@ C++ references:
 
 Resizing of image is a typical preprocessing step for computer vision tasks. With preprocessing API this step can also be integrated into execution graph and performed on target device.
 
-To resize the input image, it is needed to define 'H' and 'W' dimensions of [layout](./layout_overview.md)
+To resize the input image, it is needed to define `H` and `W` dimensions of [layout](./layout_overview.md)
 
 @sphinxdirective
 
@@ -285,7 +285,7 @@ C++ references:
 
 Preprocessing API also allows adding custom preprocessing steps into execution graph. Custom step is a function which accepts current 'input' node and returns new node after adding preprocessing step
 
->**Note:** Custom preprocessing function shall only insert node(s) after input, it will be done during model compilation. This function will NOT be called during execution phase. This may look not trivial and require some knowledge of [OpenVINO™ operations](../ops/opset.md)
+> **Note:** Custom preprocessing function shall only insert node(s) after input, it will be done during model compilation. This function will NOT be called during execution phase. This may look not trivial and require some knowledge of [OpenVINO™ operations](../ops/opset.md)
 
 If there is a need to insert some additional operations to execution graph right after input, like some specific crops and/or resizes - Preprocessing API can be a good choice to implement this
 
