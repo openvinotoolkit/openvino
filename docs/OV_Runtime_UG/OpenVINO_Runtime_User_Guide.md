@@ -24,23 +24,24 @@
    openvino_docs_IE_DG_network_state_intro
    openvino_2_0_transition_guide
    <!-- remove parts below -->
-   openvino_docs_deployment_optimization_guide_dldt_optimization_guide
-   openvino_docs_IE_DG_Model_caching_overview
-   openvino_docs_IE_DG_Extensibility_DG_Intro
-   openvino_docs_IE_DG_Int8Inference
-   openvino_docs_IE_DG_Bfloat16Inference
-   ngraph_transformation
+   <!-- openvino_docs_deployment_optimization_guide_dldt_optimization_guide -->
+   <!-- openvino_docs_IE_DG_Model_caching_overview -->
+   <!-- openvino_docs_IE_DG_Extensibility_DG_Intro -->
+   <!-- openvino_docs_IE_DG_Int8Inference -->
+   <!-- openvino_docs_IE_DG_Bfloat16Inference -->
+   <!-- ngraph_transformation -->
    openvino_docs_OV_Runtime_API_Changes
 
 @endsphinxdirective
 
 ## Introduction
-Inference Engine is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions on the platform of your choice. Use the Inference Engine API to read the Intermediate Representation (IR), ONNX and execute the model on devices.
+OpenVINO Runtime is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions on the platform of your choice. Use the OpenVINO Runtime API to read the Intermediate Representation (IR), ONNX, PDPD file formats and execute the model on devices.
 
-Inference Engine uses a plugin architecture. Inference Engine plugin is a software component that contains complete implementation for inference on a certain Intel® hardware device: CPU, GPU, VPU, etc. Each plugin implements the unified API and provides additional hardware-specific APIs.
- 
+OpenVINO runtime uses a plugin architecture. Inference plugin is a software component that contains complete implementation for inference on a certain Intel® hardware device: CPU, GPU, VPU, GNA, etc. Each plugin implements the unified API and provides additional hardware-specific APIs to configure device or interoperability API between OpenVINO Runtime and underlaying plugin backend.
+
 The scheme below illustrates the typical workflow for deploying a trained deep learning model: 
 
+<!-- TODO: need to update the picture below with PDPD files -->
 ![](img/BASIC_FLOW_IE_C.svg)
 
 
