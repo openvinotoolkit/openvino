@@ -22,7 +22,7 @@ The `ov::Core` class provides the following API to query device information, set
 The `ov::CompiledModel` class is also extended to support the Properties API:
 
 * `ov::CompiledModel::get_property`
-* `ov::CompiledModel::set)property`
+* `ov::CompiledModel::set_property`
 
 ### Properties API in the Core Class
 
