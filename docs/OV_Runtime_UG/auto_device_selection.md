@@ -1,4 +1,4 @@
-# Auto-Device Plugin {#openvino_docs_IE_DG_supported_plugins_AUTO}
+# Automatic device selection {#openvino_docs_IE_DG_supported_plugins_AUTO}
 
 ## Auto-Device Plugin Execution (C++)
 
