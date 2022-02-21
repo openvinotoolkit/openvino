@@ -15,16 +15,13 @@ NGRAPH_RTTI_DEFINITION(ov::intel_cpu::MarkupOptimalBS, "MarkupOptimalBS", 0);
 
 namespace {
 size_t get_hueristic_optimal_batch(const std::shared_ptr<ov::Node>& node) {
-    std::set<std::string> batch1{"resnet_model/conv2d/Conv2D", "resnet_model/conv2d_2/Conv2D", "resnet_model/conv2d_1/Conv2D"};
-    std::set<std::string> batch2{"resnet_model/conv2d_6/Conv2D",};
-
-    //std::set<std::string> batch1{"resnet_model/conv2d_5/Conv2D",
-    //                            "resnet_model/conv2d_9/Conv2D"};
-    //std::set<std::string> batch2{};
-
-    //std::set<std::string> batch1{"resnet_model/conv2d/Conv2D",
-    //                             "resnet_model/conv2d_3/Conv2D"};
-    //std::set<std::string> batch2{"resnet_model/conv2d_2/Conv2D"};
+    std::set<std::string> batch1{"resnet_model/conv2d/Conv2D",
+                                 "resnet_model/conv2d_2/Conv2D",
+                                 "resnet_model/conv2d_1/Conv2D"};
+    std::set<std::string> batch2{"resnet_model/conv2d_6/Conv2D",
+                                 "resnet_model/conv2d_14/Conv2D",
+                                 "resnet_model/conv2d_11/Conv2D",
+                                 "resnet_model/conv2d_15/Conv2D"};
 
     const auto name = node->get_friendly_name();
     if (batch1.count(name)) {
@@ -35,7 +32,7 @@ size_t get_hueristic_optimal_batch(const std::shared_ptr<ov::Node>& node) {
     }
     return 0;
 }
-}
+}  // namespace
 
 ov::intel_cpu::MarkupOptimalBS::MarkupOptimalBS() {
     auto has_static_batch = [](const ov::Output<ov::Node>& output) {
