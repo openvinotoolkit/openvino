@@ -122,6 +122,23 @@ Also InferRequest provides an functionality which allows to avoid a call of `ov:
 
 @endsphinxdirective
 
+You can use `ov::InferRequest::cancel()` method in case if you want to cancel the current inference request:
+
+@sphinxdirective
+
+.. tab:: C++
+
+    .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
+       :language: cpp
+       :fragment: [cancel]
+
+.. tab:: Python
+
+    .. doxygensnippet:: docs/snippets/ov_infer_request.py
+       :language: python
+       :fragment: [cancel]
+
+
 ## Working with Input and Output tensors
 
 `ov::InferRequest` allows to get input/output tensors by friendly name, index and without any arguments in case if model has only one input or output.

@@ -43,6 +43,10 @@ infer_request.set_callback([&](std::exception_ptr ex_ptr) {
 });
 //! [set_callback]
 
+//! [cancel]
+infer_request.cancel();
+//! [cancel]
+
 {
 //! [get_set_one_tensor]
 auto input_tensor = infer_request.get_input_tensor();

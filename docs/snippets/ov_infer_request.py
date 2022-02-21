@@ -37,6 +37,10 @@ def callback(request):
 infer_request.set_callback(callback)
 #! [set_callback]
 
+#! [cancel]
+infer_request.cancel()
+#! [cancel]
+
 #! [get_set_one_tensor]
 input_tensor = infer_request.get_input_tensor()
 output_tensor = infer_request.get_output_tensor()
