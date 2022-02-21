@@ -18,6 +18,7 @@
 #include <memory>
 #include <list>
 #include <algorithm>
+#include <thread>
 
 namespace cldnn {
 
@@ -107,6 +108,12 @@ struct program_node {
     virtual ~program_node() = default;
 
 public:
+    static size_t unique_id_gen() {
+        return cur_id++;
+    }
+    static void reset_unique_id() {
+        cur_id = 0;
+    }
     virtual const primitive_id& id() const { return desc->id; }
     virtual primitive_type_id type() const { return desc->type; }
     virtual std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const { return nullptr; }
@@ -351,19 +358,14 @@ public:
 
     bool need_lockable_memory() const;
 
-    std::string get_unique_id() const { return unique_id; }
-    void set_unique_id(std::string id) {
-        unique_id = id;
-        if (myprog.get_parent_primitive() != "") {
-            auto loop_prim = myprog.get_parent_primitive();
-            std::replace(loop_prim.begin(), loop_prim.end(), '/', '_');
-            std::replace(loop_prim.begin(), loop_prim.end(), ':', '_');
-            unique_id = loop_prim + "_" + unique_id;
-        }
+    size_t get_unique_id() const { return unique_id; }
+    void set_unique_id() {
+        unique_id = unique_id_gen();
     }
 
 protected:
-    std::string unique_id = "";
+    size_t unique_id = 0;
+    static thread_local size_t cur_id;
 
     std::shared_ptr<primitive> desc;
     program& myprog;
