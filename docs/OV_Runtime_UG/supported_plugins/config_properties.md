@@ -15,7 +15,7 @@ static constexpr Property<std::vector<std::string>, PropertyMutability::RO> avai
 ```
 represents a read-only property with C++ name `ov::available_devices`, string name `AVAILABLE_DEVICES` and type `std::vector<std::string>`.
 
-Refer to the [Hello Query Device С++ Sample](../../samples/cpp/hello_query_device/README.md) sources and the [Multi-Device execution](../multi_device.md) documentation for examples of using setting and getting properties in user applications.
+Refer to the [Hello Query Device С++ Sample](../../../samples/cpp/hello_query_device/README.md) sources and the [Multi-Device execution](../multi_device.md) documentation for examples of using setting and getting properties in user applications.
 
 ### Get a set of available devices
 
