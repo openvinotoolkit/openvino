@@ -88,9 +88,9 @@ def run(args):
                         logger.warning(f"No device {device} performance hint is set.")
                         args.perf_hint = ""
                 else:
+                    args.perf_hint = "THROUGHPUT" if benchmark.api_type == "async" else "LATENCY"
                     logger.warning(f"PerformanceMode was not explicitly specified in command line. " +
-                    f"Device {device} performance hint will be set to THROUGHPUT.")
-                    args.perf_hint = "throughput"
+                    f"Device {device} performance hint will be set to " + args.perf_hint + ".")
             else:
                 logger.warning(f"Device {device} does not support performance hint property(-hint).")
 

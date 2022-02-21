@@ -246,6 +246,8 @@ def can_measure_as_static(app_input_info):
 def parse_devices(device_string):
     if device_string in ['MULTI', 'HETERO']:
         return list()
+    if device_string.find("AUTO") != -1:
+        return ['AUTO']
     devices = device_string
     if ':' in devices:
         devices = devices.partition(':')[2]
