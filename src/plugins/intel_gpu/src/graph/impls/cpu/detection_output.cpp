@@ -268,7 +268,7 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
 
         const auto& args = instance.argument;
         // Per image -> For each label: Pair (score, prior index)
-        std::vector<std::vector<std::vector<std::pair<float, int>>>> final_detections;
+        std::vector<std::map<int, std::vector<std::pair<float, int>>>> final_detections;
         for (int image = 0; image < num_of_images; ++image) {
             const std::vector<std::vector<bounding_box>>& bboxes_per_image = all_bboxes[image];
             std::vector<std::vector<std::pair<float, int>>>& conf_per_image = confidences[image];
@@ -323,15 +323,15 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
                           comp_score_descend<std::pair<int, int>>);
                 score_index_pairs.resize(args.keep_top_k);
 
-                std::vector<std::vector<std::pair<float, int>>> new_indices(args.num_classes);
+                std::map<int, std::vector<std::pair<float, int>>> new_indices;
                 for (int j = 0; j < static_cast<int>(score_index_pairs.size()); ++j) {
                     int label = score_index_pairs[j].second.first;
                     int idx = score_index_pairs[j].second.second;
-                    new_indices[label].emplace_back(score_index_pairs[j].first, idx);
+                    new_indices[label].push_back(std::make_pair(score_index_pairs[j].first, idx));
                 }
-                final_detections.emplace_back(new_indices);
+                final_detections.push_back(new_indices);
             } else {
-                std::vector<std::vector<std::pair<float, int>>> new_indices(args.num_classes);
+                std::map<int, std::vector<std::pair<float, int>>> new_indices;
                 for (auto it = indices.begin(); it != indices.end(); ++it) {
                     int label = it->first;
                     const std::vector<int>& labelIndices = it->second;
@@ -340,23 +340,23 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
                         int idx = labelIndices[j];
                         for (const auto& s : scores) {
                             if (s.second == idx) {
-                                new_indices[label].emplace_back(s.first, idx);
+                                new_indices[label].push_back(std::make_pair(s.first, idx));
                             }
                         }
                     }
                 }
-                final_detections.emplace_back(new_indices);
+                final_detections.push_back(new_indices);
             }
         }
 
         int count = 0;
         for (int image = 0; image < num_of_images; ++image) {
             const std::vector<std::vector<bounding_box>>& bboxes_per_image = all_bboxes[image];
-            auto& final_detections_per_image = final_detections[image];
-            for (int label = 0; label < static_cast<int>(final_detections_per_image.size()); ++label) {
+            for (auto it = final_detections[image].begin(); it != final_detections[image].end(); ++it) {
+                int label = it->first;
                 int loc_label = args.share_location ? 0 : label;
                 const std::vector<bounding_box>& bboxes = bboxes_per_image[loc_label];
-                const std::vector<std::pair<float, int>>& label_detections = final_detections_per_image[label];
+                std::vector<std::pair<float, int>>& label_detections = it->second;
                 for (std::pair<float, int> score_prior : label_detections) {
                     out_ptr[count * DETECTION_OUTPUT_ROW_SIZE] = (dtype)static_cast<float>(image);
                     out_ptr[count * DETECTION_OUTPUT_ROW_SIZE + 1] =
@@ -609,7 +609,7 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
                                              const int num_of_priors,
                                              std::vector<std::vector<std::pair<float, std::pair<int, int>>>>& scoreIndexPairs) {
         const int num_classes = instance.argument.num_classes;
-
+        const int background_label_id = instance.argument.background_label_id;
         const int num_of_images = static_cast<int>(confidences.size());
         auto input_confidence = instance.confidence_memory();
         const float confidence_threshold = instance.argument.confidence_threshold;
@@ -645,10 +645,14 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
                 confidence_ptr_float += idx;
                 __m128 threshold = _mm_load_ps1(&confidence_threshold);
                 for (int prior = 0; prior < num_of_priors; ++prior) {
-                    int cls = 0;
+                    int idx_start = (background_label_id == 0 ? 1 : 0);
+                    int cls = idx_start;
                     float max_score = 0;
                     int max_cls = 0;
                     for (; cls + 3 < num_classes; cls += 4) {
+                        if ((background_label_id == 0) && (cls == idx_start)) {
+                            confidence_ptr_float += 1;
+                        }
                         __m128 scores = _mm_loadu_ps(confidence_ptr_float);
                         confidence_ptr_float += 4;
                         __m128i mask128 = _mm_castps_si128(_mm_cmpgt_ps(scores, threshold));
@@ -657,9 +661,10 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
                         }
                         int mask = _mm_movemask_ps(_mm_castsi128_ps(mask128));
                         if (mask & 1) {
-                            label_to_scores[cls + 0].emplace_back(_mm_cvtss_f32(scores), prior);
-                            if (_mm_cvtss_f32(scores) > max_score && cls + 0 != 0) {
-                                max_score = _mm_cvtss_f32(scores); max_cls = cls + 0;
+                            float s = _mm_cvtss_f32(scores);
+                            label_to_scores[cls + 0].emplace_back(s, prior);
+                            if ((cls == idx_start) || (s > max_score)) {
+                                max_score = s; max_cls = cls + 0;
                             }
                         }
                         if (mask & 2) {
