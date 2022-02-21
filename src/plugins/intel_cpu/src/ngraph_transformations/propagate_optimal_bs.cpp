@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "form_components_with_unified_batch.hpp"
+#include "propagate_optimal_bs.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
@@ -12,9 +12,9 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::intel_cpu;
-NGRAPH_RTTI_DEFINITION(FormComponentsWithUnifiedBatch, "FormComponentsWithUnifiedBatch", 0);
+NGRAPH_RTTI_DEFINITION(PropagateOptimalBS, "PropagateOptimalBS", 0);
 
-ov::intel_cpu::FormComponentsWithUnifiedBatch::FormComponentsWithUnifiedBatch() {
+ov::intel_cpu::PropagateOptimalBS::PropagateOptimalBS() {
     auto root = ngraph::pattern::any_input();
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
@@ -41,6 +41,6 @@ ov::intel_cpu::FormComponentsWithUnifiedBatch::FormComponentsWithUnifiedBatch() 
         return false;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(root, "FormComponentsWithUnifiedBatch");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(root, "PropagateOptimalBS");
     this->register_matcher(m, callback);
 }

@@ -19,12 +19,7 @@
 #include "transformations/utils/utils.hpp"
 #include "rnn_sequences_optimization.hpp"
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
-#include "switch_affinity.hpp"
-
-#include "markup_optimal_bs.hpp"
-#include "form_components_with_unified_batch.hpp"
-
-#include <transformations/serialize.hpp>
+#include "mixed_affinity.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -46,12 +41,7 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     manager.register_pass<ngraph::pass::ReshapeSequenceFusion>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::i64, ngraph::element::i32 }});
-    //manager.register_pass<ngraph::pass::Serialize>("C://models//test.xml", "C://models//test.bin");
-    manager.register_pass<MarkupOptimalBS>();
-    manager.register_pass<FormComponentsWithUnifiedBatch>();
-    // TODO: remove 'share_constants' parameter
-    manager.register_pass<SwitchAffinity>(false);
-    //manager.register_pass<ngraph::pass::Serialize>("C://models//affinity.xml", "C://models//affinity.bin");
+    manager.register_pass<MixedAffinity>();
 
     manager.run_passes(nGraphFunc);
 }

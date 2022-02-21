@@ -16,8 +16,6 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "transformations/utils/utils.hpp"
 
-#include <transformations/serialize.hpp>
-
 namespace {
 using namespace ngraph;
 
@@ -120,63 +118,12 @@ bool switchToImageAffinity(const std::set<ov::Input<ov::Node>>& starts,
     }
     return true;
 }
-
-struct Subgraph {
-    std::set<ov::Input<ov::Node>> starts;
-    std::set<ov::Output<ov::Node>> ends;
-};
 } // namespace
 
 NGRAPH_RTTI_DEFINITION(ov::intel_cpu::SwitchAffinity, "SwitchAffinity", 0);
 
 bool ov::intel_cpu::SwitchAffinity::run_on_model(const std::shared_ptr<ov::Model>& m) {
-    std::unordered_map<size_t, Subgraph> subgraphs;
     bool rewritten = false;
-
-    auto optimal_bs_is_equal = [](const std::shared_ptr<ov::Node>& node, const size_t value) {
-        return has_optimal_bs(node) && get_optimal_bs(node) == value;
-    };
-
-    auto add_start = [&subgraphs](const ov::Input<ov::Node>& start, const size_t opt_bs) {
-        if (subgraphs.count(opt_bs)) {
-            subgraphs[opt_bs].starts.insert(start);
-        } else {
-            subgraphs[opt_bs] = Subgraph{{start}, {}};
-        }
-    };
-
-    auto add_end = [&subgraphs](const ov::Output<ov::Node>& end, const size_t opt_bs) {
-        if (subgraphs.count(opt_bs)) {
-            subgraphs[opt_bs].ends.insert(end);
-        } else {
-            subgraphs[opt_bs] = Subgraph{{}, {end}};
-        }
-    };
-
-    for (const auto& node : m->get_ordered_ops()) {
-        if (!has_optimal_bs(node))
-            continue;
-
-        const size_t opt_bs = get_optimal_bs(node);
-        if (opt_bs == 0)
-            continue;
-
-        for (const auto& input : node->inputs()) {
-            const auto node = input.get_source_output().get_node_shared_ptr();
-
-            if (!ov::is_type<ngraph::opset1::Constant>(node) && !optimal_bs_is_equal(node, opt_bs))
-                add_start(input, opt_bs);
-        }
-
-        for (const auto& output : node->outputs()) {
-            for (const auto& target_input : output.get_target_inputs()) {
-                const auto node = target_input.get_node()->shared_from_this();
-
-                if (!ov::is_type<ngraph::opset1::Constant>(node) && !optimal_bs_is_equal(node, opt_bs))
-                    add_end(output, opt_bs);
-            }
-        }
-    }
 
     for (const auto& subgraph : subgraphs) {
         std::cout << "SUBGRAPH" << std::endl;
@@ -196,6 +143,8 @@ bool ov::intel_cpu::SwitchAffinity::run_on_model(const std::shared_ptr<ov::Model
     return rewritten;
 }
 
-ov::intel_cpu::SwitchAffinity::SwitchAffinity(const bool share_constants)
+ov::intel_cpu::SwitchAffinity::SwitchAffinity(const std::unordered_map<size_t, Subgraph>& subgraphs,
+                                              const bool share_constants)
     : ngraph::pass::FunctionPass(),
+      subgraphs(subgraphs),
       share_constants(share_constants) {}

@@ -9,10 +9,10 @@
 namespace ov {
 namespace intel_cpu {
 
-class FormComponentsWithUnifiedBatch : public ov::pass::MatcherPass {
+class PropagateOptimalBS : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    FormComponentsWithUnifiedBatch();
+    PropagateOptimalBS();
 };
 
 }  // namespace intel_cpu
