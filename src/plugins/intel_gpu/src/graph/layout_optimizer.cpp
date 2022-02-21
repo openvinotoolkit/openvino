@@ -1687,6 +1687,9 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         if (node.get_dependencies().size() == 1 && node.get_dependencies().front()->is_type<convolution>()) {
             auto& conv_node = node.get_dependencies().front()->as<convolution>();
             const auto& fmt = get_preferred_format(conv_node);
+            // if the preferred format of the previous conv of permute is fs_b_yx_fsv32,
+            // it is better to set to b_fs_yx_fsv32 that supports tiled permute (permute_tile_8x8_4x4_fsv)
+            // because fs_b_yx_fsv32 is only supported by permute_ref.
             if (node.as<permute>().is_rotating_except_batch() && fmt == format::fs_b_yx_fsv32) {
                 expected = format::b_fs_yx_fsv32;
             }
