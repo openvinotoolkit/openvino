@@ -10,7 +10,6 @@
    
    openvino_docs_Integrate_OV_into_customer_application
    openvino_2_0_transition_guide
-   openvino_docs_OV_Runtime_UG_Model_Representation
    ngraph_transformation
    openvino_docs_deployment_optimization_guide_dldt_optimization_guide
    openvino_docs_IE_DG_Device_Plugins

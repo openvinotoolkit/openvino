@@ -1,5 +1,16 @@
 # Integrate OpenVINO™ into your application {#openvino_docs_Integrate_OV_into_customer_application}
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   openvino_docs_OV_Runtime_UG_Model_Representation
+   openvino_docs_OV_Runtime_UG_Infer_request
+
+@endsphinxdirective
+
 The following diagram illustrates usual application development workflow:
 
 ![ie_api_flow_cpp]
@@ -67,7 +78,7 @@ Use the following code to create OpenVINO™ Core to manage available devices an
 
 ### Step 2. Compile the Model
 
-`ov::CompiledModel` class represents device specific compiled model.
+`ov::CompiledModel` class represents device specific compiled model. `ov::CompiledModel` allows to get information inputs or output ports by tensor name or index.
 
 Compile the model to the device using `ov::Core::compile_model()`:
 
@@ -129,6 +140,7 @@ Compile the model to the device using `ov::Core::compile_model()`:
 
 It creates a compiled model from a model object. The compiled model is associated with single hardware device.
 It is possible to create as many compiled models as needed and to use them simultaneously (up to the limitation of the hardware resources).
+Please read article about [OpenVINO™ Device Properties API](InferenceEngine_QueryAPI.md) to understand how device configuration can be changed.
 
 ### Step 3. Create an Inference Request
 
@@ -232,7 +244,7 @@ The example uses CMake for project configuration.
        ├── CMakeLists.txt  - CMake file to build
        ├── ...             - Additional folders like includes/
        └── src/            - source folder
-           └── main.cpp
+           ├── main.cpp
            └── main.py
    build/                  - build directory
        ...      
@@ -268,39 +280,6 @@ To run compiled applications on Microsoft* Windows* OS, make sure that Microsoft
 application folder or accessible via `%PATH%` environment variable.
 
 ## FAQ
-
- - Can I change device configuration?
-
-    @sphinxdirective
-    .. raw:: html
-
-        <div class="collapsible-section">
-    @endsphinxdirective
-
-    Third parameter of `ov::Core::compile_model()` method allows to set a configuration for device. It is list of properties which affects device behavior.
-    [Supported devices](supported_plugins/Supported_Devices.md) page for more details about supported configuration parameters.
-
-    @sphinxdirective
-
-    .. tab:: C++
-
-        .. doxygensnippet:: docs/snippets/src/main.cpp
-           :language: cpp
-           :fragment: [part5]
-
-    .. tab:: Python
-
-        .. doxygensnippet:: docs/snippets/src/main.py
-           :language: python
-           :fragment: [part5]
-
-    @endsphinxdirective
-
-    @sphinxdirective
-    .. raw:: html
-
-        </div>
-    @endsphinxdirective
 
  - How can I use tensor name to get or set tensor?
 
@@ -432,7 +411,7 @@ application folder or accessible via `%PATH%` environment variable.
 
 ## See also
 
- - [OpenVINO™ Runtime PrePostProcessor]()
+ - [OpenVINO™ Runtime Preprocessing API]()
 
 [ie_api_flow_cpp]: img/BASIC_IE_API_workflow_Cpp.svg
 [ie_api_use_cpp]: img/IMPLEMENT_PIPELINE_with_API_C.svg
