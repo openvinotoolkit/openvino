@@ -195,6 +195,7 @@ class SegmentationEngine(IEEngine):
         processed_outputs = []
         for output, meta in zip(outputs.values(), metadata):
             # Resize to bounding box size and extend to mask size
+            output = output[0]
             low = meta['bbox'][0]
             high = meta['bbox'][1]
             box_shape = tuple((high - low).astype(np.int32))
