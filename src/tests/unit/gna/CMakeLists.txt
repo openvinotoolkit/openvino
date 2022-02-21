@@ -17,7 +17,7 @@ addIeTargetTest(
             PRIVATE
                 ngraphFunctions
             gmock
-            commonTestUtils_s
+            commonTestUtils
             openvino_intel_gna_plugin_test_static
             engines_test_util
         ADD_CPPLINT
