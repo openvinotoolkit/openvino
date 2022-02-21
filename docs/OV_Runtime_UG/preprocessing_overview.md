@@ -38,7 +38,7 @@ Intuitively, Preprocessing API consists of the following parts:
  2. 	**Steps:** Describe sequence of preprocessing steps which need to be applied to user's data
  3. 	**Model:** Specify Model's data format. Usually, precision and shape are already known for model, only additional information, like [layout](./layout_overview.md) can be specified
 
-> **Note:** All model's graph modification shall be performed after model is read from disk and **before** it is being loaded on actual device. See also [Integrate OpenVINO™ into your application](./Integrate_with_customer_application.md)
+> **Note:** All model's graph modification shall be performed after model is read from disk and **before** it is being loaded on actual device.
 
 ### PrePostProcessor object
 
