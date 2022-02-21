@@ -19,7 +19,6 @@
 #include "transformations/utils/utils.hpp"
 #include "rnn_sequences_optimization.hpp"
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
-#include "affinity_switcher.hpp"
 #include "switch_affinity.hpp"
 
 #include "markup_optimal_bs.hpp"
@@ -50,15 +49,9 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     //manager.register_pass<ngraph::pass::Serialize>("C://models//test.xml", "C://models//test.bin");
     manager.register_pass<MarkupOptimalBS>();
     manager.register_pass<FormComponentsWithUnifiedBatch>();
-    //manager.register_pass<ngraph::pass::VisualizeTree>("C://models//model//test.before");
     // TODO: remove 'share_constants' parameter
     manager.register_pass<SwitchAffinity>(false);
-    //manager.register_pass<ngraph::pass::Serialize>("C://models//affinity.xml",
-    //                                               "C://models//affinity.bin");
-    //manager.register_pass<ngraph::pass::VisualizeTree>("C://models//model//test.after");
-    manager.get_pass_config()->set_callback<SwitchAffinity>([](const std::shared_ptr<const ov::Node>& n) -> bool {
-        return n->get_friendly_name() == "resnet_model/conv2d/Conv2D";
-    });
+    //manager.register_pass<ngraph::pass::Serialize>("C://models//affinity.xml", "C://models//affinity.bin");
 
     manager.run_passes(nGraphFunc);
 }
