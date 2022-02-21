@@ -352,8 +352,8 @@ void regclass_graph_Model(py::module m) {
             The allowed types of values in the `partial_shapes` are:
 
             (1) `openvino.runtime.PartialShape`
-            (2) `list`
-            (3) `tuple`
+            (2) `list` consisting of dimensions
+            (3) `tuple` consisting of dimensions
             (4) `str`
 
             To define a single dimension in the list use:
