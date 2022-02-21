@@ -90,7 +90,7 @@ postNodesMgr::addPostOps(const ngraph::element::Type &ngPrc, ngraph::ParameterVe
     postNodeConfig cfg{lastNode, tmpNode, ngPrc, params};
 
     for (const auto& postNode : _postNodes) {
-        cfg.inputNode = tmpNode;
+        cfg.input = tmpNode;
         tmpNode = postNode.makeNode(cfg);
     }
     return tmpNode;
