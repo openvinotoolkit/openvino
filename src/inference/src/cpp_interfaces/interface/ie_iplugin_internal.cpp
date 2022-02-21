@@ -20,6 +20,7 @@
 #include "cnn_network_ngraph_impl.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "exec_graph_info.hpp"
+#include "ie_algorithm.hpp"
 #include "ie_api.h"
 #include "ie_icore.hpp"
 #include "ie_iextension.h"
@@ -298,6 +299,23 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
     bool newAPI = core && core->isNewAPI();
     InferenceEngine::SetExeNetworkInfo(exeNetwork, function, newAPI);
     exeNetwork->SetPointerToPlugin(shared_from_this());
+}
+
+std::unordered_set<std::string> IInferencePlugin::GetRemovedNodes(const CNNNetwork& originalNetwork,
+                                                                  const CNNNetwork& transformedNetwork) const {
+    std::unordered_set<std::string> result = {};
+    std::unordered_set<std::string> transformedNodeNames = {};
+
+    for (auto&& node : transformedNetwork.getFunction()->get_ops()) {
+        transformedNodeNames.emplace(node->get_friendly_name());
+    }
+
+    for (auto&& originalNode : originalNetwork.getFunction()->get_ops()) {
+        if (!InferenceEngine::details::contains(transformedNodeNames, originalNode->get_friendly_name()))
+            result.emplace(originalNode->get_friendly_name());
+    }
+
+    return result;
 }
 
 void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,

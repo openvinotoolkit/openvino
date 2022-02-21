@@ -47,6 +47,9 @@ InferenceEngine::QueryNetworkResult getQueryNetwork(const InferenceEngine::CNNNe
         }
     };
 
+
+    bool isSupported = false;
+    bool wasNodeAlreadyChecked = false;
     for (InferenceEngine::details::CNNNetworkIterator itLayer{convertedNetwork};
             itLayer != InferenceEngine::details::CNNNetworkIterator();
             itLayer++) {
@@ -55,9 +58,24 @@ InferenceEngine::QueryNetworkResult getQueryNetwork(const InferenceEngine::CNNNe
             continue;
         }
 
+        wasNodeAlreadyChecked = false;
+        if (InferenceEngine::details::contains(originalOps, fusedNode->get_friendly_name())) {
+            isSupported = isLayerSupported(itLayer);
+            wasNodeAlreadyChecked = true;
+            if (isSupported) {
+                supported.emplace(fusedNode->get_friendly_name());
+            } else {
+                unsupported.emplace(fusedNode->get_friendly_name());
+            }
+        }
+
         for (auto& fusedLayerName : ngraph::getFusedNamesVector(fusedNode)) {
             if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
-                if (isLayerSupported(itLayer)) {
+                if (!wasNodeAlreadyChecked) {
+                    isSupported = isLayerSupported(itLayer);
+                    wasNodeAlreadyChecked = true;
+                }
+                if (isSupported) {
                     supported.emplace(fusedLayerName);
                 } else {
                     unsupported.emplace(fusedLayerName);

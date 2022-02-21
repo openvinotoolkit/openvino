@@ -458,7 +458,16 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
     bool isSupported = false;
     for (auto&& op : ops) {
         wasNodeAlreadyChecked = false;
-        isSupported = false;
+        if (InferenceEngine::details::contains(originalOpNames, op->get_friendly_name())) {
+            isSupported = layerIsSupported(op);
+            wasNodeAlreadyChecked = true;
+            if (isSupported) {
+                supported.emplace(op->get_friendly_name());
+            } else {
+                unsupported.emplace(op->get_friendly_name());
+            }
+        }
+
         for (auto&& fusedLayerName : ngraph::getFusedNamesVector(op)) {
             if (InferenceEngine::details::contains(originalOpNames, fusedLayerName)) {
                 if (!wasNodeAlreadyChecked) {
@@ -528,6 +537,10 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
             }
         }
     }
+
+    //Mark removed nodes as supported
+    auto removedNodeNames = GetRemovedNodes(network, clonedNetwork);
+    supported.insert(removedNodeNames.begin(), removedNodeNames.end());
 
     for (auto&& layerName : supported) {
         res.supportedLayersMap.emplace(layerName, GetName());

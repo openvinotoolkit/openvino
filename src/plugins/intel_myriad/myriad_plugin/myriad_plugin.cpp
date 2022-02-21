@@ -183,6 +183,12 @@ QueryNetworkResult Engine::QueryNetwork(
             auto convertedNetwork = vpu::FrontEnd::convertNetwork(clonedNetwork);
 
             QueryNetworkResult supportedRes = getQueryNetwork(clonedNetwork, function, GetName(), supportedLayers);
+            auto removedNodeNames = GetRemovedNodes(supportedNetwork, clonedNetwork);
+
+            for (const auto& layer : removedNodeNames) {
+                res.supportedLayersMap.emplace(layer, GetName());
+            }
+
             for (const auto& layer : supportedRes.supportedLayersMap) {
                 res.supportedLayersMap.insert(layer);
             }

@@ -924,19 +924,38 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
         auto ops = clonedNetwork.getFunction()->get_ordered_ops();
         std::unordered_set<std::string> supported;
         std::unordered_set<std::string> unsupported;
+
+        auto layerIsSupported = [&](std::shared_ptr<ngraph::Node> op) {
+            std::unique_ptr<Node> ptr;
+            try {
+                ptr.reset(Node::factory().create(op, {mkldnn::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
+            } catch (InferenceEngine::Exception&) {
+                return false;
+            }
+            return true;
+        };
+
+        bool isSupported = false;
+        bool wasNodeAlreadyChecked = false;
         for (auto op : ops) {
-            auto layerIsSupported = [&] {
-                std::unique_ptr<Node> ptr;
-                try {
-                    ptr.reset(Node::factory().create(op, {mkldnn::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
-                } catch (InferenceEngine::Exception&) {
-                    return false;
+            wasNodeAlreadyChecked = false;
+            if (InferenceEngine::details::contains(originalOps, op->get_friendly_name())) {
+                isSupported = layerIsSupported(op);
+                wasNodeAlreadyChecked = true;
+                if (isSupported) {
+                    supported.emplace(op->get_friendly_name());
+                } else {
+                    unsupported.emplace(op->get_friendly_name());
                 }
-                return true;
-            } ();
+            }
+
             for (auto&& fusedLayerName : ngraph::getFusedNamesVector(op)) {
                 if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
-                    if (layerIsSupported) {
+                    if (!wasNodeAlreadyChecked) {
+                        isSupported = layerIsSupported(op);
+                        wasNodeAlreadyChecked = true;
+                    }
+                    if (isSupported) {
                         supported.emplace(fusedLayerName);
                     } else {
                         unsupported.emplace(fusedLayerName);
@@ -973,6 +992,9 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
                 }
             }
         }
+
+        auto removedNodeNames = GetRemovedNodes(network, clonedNetwork);
+        supported.insert(removedNodeNames.begin(), removedNodeNames.end());
 
         for (auto&& layerName : supported) {
             res.supportedLayersMap.emplace(layerName, GetName());
