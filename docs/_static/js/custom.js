@@ -48,7 +48,7 @@ function getPageUrlWithVersion(version) {
 function updateTitleTag() {
     var title = $('title');
     var currentVersion = getCurrentVersion();
-    var newTitle = title.text() + ' — Version(' + currentVersion + ')'.replace(/\s+/g, ' ').trim();
+    var newTitle = (title.text() + ' — Version(' + currentVersion + ')').replace(/\s+/g, ' ').trim();
     title.text(newTitle);
 }
 
