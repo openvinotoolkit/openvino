@@ -204,7 +204,8 @@ bool Validator_35::ValidatePooling2D(std::string name,
 }
 
 std::unique_ptr<AbstractValidator> AbstractValidator::Create(const std::string& target) {
-    if (target == InferenceEngine::GNAConfigParams::GNA_TARGET_3_5 ||
+    if (target == InferenceEngine::GNAConfigParams::GNA_TARGET_3_6 ||
+        target == InferenceEngine::GNAConfigParams::GNA_TARGET_3_5 ||
         target == InferenceEngine::GNAConfigParams::GNA_TARGET_3_1) {
         return make_unique<Validator_35>();
     } else if (target == InferenceEngine::GNAConfigParams::GNA_TARGET_3_0) {

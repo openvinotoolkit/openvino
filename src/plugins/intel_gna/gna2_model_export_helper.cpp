@@ -73,6 +73,7 @@ Gna2DeviceVersion getEmbeddedTargetFromCompileTarget(const std::string compileTa
     const std::map<std::string, Gna2DeviceVersion> targetMap = {
         {InferenceEngine::GNAConfigParams::GNA_TARGET_3_1, Gna2DeviceVersionEmbedded3_1},
         {InferenceEngine::GNAConfigParams::GNA_TARGET_3_5, Gna2DeviceVersionEmbedded3_5},
+        {InferenceEngine::GNAConfigParams::GNA_TARGET_3_6, Gna2DeviceVersionEmbedded3_6},
     };
     auto found = targetMap.find(compileTarget);
     if (found == targetMap.end()) {
@@ -86,6 +87,7 @@ Gna2DeviceVersion getTlvTargetFromCompileTarget(const std::string compileTarget)
     const std::set<Gna2DeviceVersion> supportedTargets = {
         Gna2DeviceVersionEmbedded3_1,
         Gna2DeviceVersionEmbedded3_5,
+        Gna2DeviceVersionEmbedded3_6,
     };
     const auto found = supportedTargets.count(target) > 0;
     if (!found) {
