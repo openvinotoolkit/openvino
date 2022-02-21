@@ -94,13 +94,13 @@ program::program(engine& engine_ref,
                  build_options const& options,
                  bool is_internal,
                  bool no_optimizations,
-                 primitive_id parent_id)
+                 bool is_body_program)
     : _engine(engine_ref),
       _stream(_engine.create_stream()),
       options(options),
       processing_order(),
       tuning_cache(nullptr),
-      parent_primitive(parent_id) {
+      is_body_program(is_body_program) {
     init_primitives();
     set_options();
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
@@ -181,8 +181,8 @@ program::ptr program::build_program(engine& engine,
                                     const build_options& options,
                                     bool is_internal,
                                     bool no_optimizations,
-                                    primitive_id parent_id) {
-    return std::make_shared<program>(engine, topology, options, is_internal, no_optimizations, parent_id);
+                                    bool is_body_program) {
+    return std::make_shared<program>(engine, topology, options, is_internal, no_optimizations, is_body_program);
 }
 
 program::ptr program::build_program(engine& engine,
