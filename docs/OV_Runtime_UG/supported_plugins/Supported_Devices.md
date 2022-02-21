@@ -13,7 +13,7 @@ The Inference Engine provides unique capabilities to infer deep learning models 
 |[CPU plugin](CPU.md)              |Intel&reg; Xeon&reg; with Intel® Advanced Vector Extensions 2 (Intel® AVX2), Intel® Advanced Vector Extensions 512 (Intel® AVX-512), and AVX512_BF16, Intel&reg; Core&trade; Processors with Intel&reg; AVX2, Intel&reg; Atom&reg; Processors with Intel® Streaming SIMD Extensions (Intel® SSE) |
 |[VPU plugins](VPU.md) (available in the Intel® Distribution of OpenVINO™ toolkit)            |Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X, Intel® Vision Accelerator Design with Intel® Movidius™ VPUs                                                                                           |
 |[GNA plugin](GNA.md) (available in the Intel® Distribution of OpenVINO™ toolkit)              |Intel&reg; Speech Enabling Developer Kit, Amazon Alexa* Premium Far-Field Developer Kit, Intel&reg; Pentium&reg; Silver J5005 Processor, Intel&reg; Pentium&reg; Silver N5000 Processor, Intel&reg; Celeron&reg; J4005 Processor, Intel&reg; Celeron&reg; J4105 Processor, Intel&reg; Celeron&reg; Processor N4100, Intel&reg; Celeron&reg; Processor N4000, Intel&reg; Core&trade; i3-8121U Processor, Intel&reg; Core&trade; i7-1065G7 Processor, Intel&reg; Core&trade; i7-1060G7 Processor, Intel&reg; Core&trade; i5-1035G4 Processor, Intel&reg; Core&trade; i5-1035G7 Processor, Intel&reg; Core&trade; i5-1035G1 Processor, Intel&reg; Core&trade; i5-1030G7 Processor, Intel&reg; Core&trade; i5-1030G4 Processor, Intel&reg; Core&trade; i3-1005G1 Processor, Intel&reg; Core&trade; i3-1000G1 Processor, Intel&reg; Core&trade; i3-1000G4 Processor|
-|[Multi-Device plugin](../multi_device.md) |Multi-Device plugin enables simultaneous inference of the same model on several devices in parallel    |   
+|[Multi-Device execution](../multi_device.md) |Multi-Device execution enables simultaneous inference of the same model on several devices in parallel    |   
 |[Auto-Device plugin](../auto_device_selection.md) |Auto-Device plugin enables selecting Intel&reg; device for inference automatically |   
 |[Heterogeneous plugin](../hetero_execution.md) |Heterogeneous execution enables automatic inference splitting between several devices (for example if a device doesn't [support certain operation](#supported-layers)).                                                           |
 
@@ -75,7 +75,7 @@ For example, the CHW value at index (c,h,w) is physically located at index (c\*H
 |VPU plugins   |Not supported           |Supported               |Not supported           |
 |GNA plugin    |Supported               |Supported               |Not supported           |
 <br>\* - currently, only limited set of topologies might benefit from enabling I8 model on GPU<br>
-For [Multi-Device](../multi_device.md) and [Heterogeneous](../hetero_execution.md) execution
+For [Multi-Device](../multi_device.md) and [Heterogeneous](../hetero_execution.md) executions
 the supported models formats depends on the actual underlying devices. _Generally, FP16 is preferable as it is most ubiquitous and performant_.
 
 ### Supported Input Precision
@@ -88,7 +88,7 @@ the supported models formats depends on the actual underlying devices. _Generall
 |GNA plugin    |Supported |Not supported  |Supported      |Not supported  |Supported     |Supported      |
 
 <br>\* - Supported via `SetBlob` only, `GetBlob` returns FP32<br>
-For [Multi-Device](../multi_device.md) and [Heterogeneous](../hetero_execution.md) execution
+For [Multi-Device](../multi_device.md) and [Heterogeneous](../hetero_execution.md) executions
 the supported input precision  depends on the actual underlying devices. _Generally, U8 is preferable as it is most ubiquitous_.
 
 ### Supported Output Precision
@@ -99,7 +99,7 @@ the supported input precision  depends on the actual underlying devices. _Genera
 |GPU plugin    |Supported |Supported     |
 |VPU plugins   |Supported |Supported     |
 |GNA plugin    |Supported |Not supported |
-For [Multi-Device](../multi_device.md) and [Heterogeneous](../hetero_execution.md) execution
+For [Multi-Device](../multi_device.md) and [Heterogeneous](../hetero_execution.md) executions
 the supported output precision  depends on the actual underlying devices. _Generally, FP32 is preferable as it is most ubiquitous_.
 
 ### Supported Input Layout

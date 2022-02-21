@@ -138,7 +138,7 @@ In a perfect pipeline this time should be near zero, which means that the data w
 
 **Get the following message when running inference with the VPU plugin: "[VPU] Cannot convert layer <layer_name> due to unsupported layer type <layer_type>"**
 
-This means that your topology has a layer that is unsupported by your target VPU plugin. To resolve this issue, you can implement the custom layer for the target device using the [Inference Engine Extensibility mechanism](../Extensibility_DG/Intro.md). Or, to quickly get a working prototype, you can use the heterogeneous scenario with the default fallback policy (see the [HETERO Plugin](../hetero_execution.md) section). Use the HETERO plugin with a fallback device that supports this layer, for example, CPU: `HETERO:MYRIAD,CPU`.
+This means that your topology has a layer that is unsupported by your target VPU plugin. To resolve this issue, you can implement the custom layer for the target device using the [Inference Engine Extensibility mechanism](../Extensibility_DG/Intro.md). Or, to quickly get a working prototype, you can use the heterogeneous scenario with the default fallback policy (see the [Heterogeneous execution](../hetero_execution.md) section). Use the HETERO mode with a fallback device that supports this layer, for example, CPU: `HETERO:MYRIAD,CPU`.
 For a list of VPU-supported layers, see the Supported Layers section of the [Supported Devices](Supported_Devices.md) page.
 
 ## Known Layers Limitations

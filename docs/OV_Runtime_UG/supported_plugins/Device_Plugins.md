@@ -27,7 +27,7 @@ OpenVINO runtime also has several execution capabilities which work on top of ot
 
 | Capability                                   | Description                                                                                                                                                |
 |------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|[Multi-Device inference](../multi_device.md) |Multi-Device enables simultaneous inference of the same model on several devices in parallel    |
+|[Multi-Device execution](../multi_device.md) |Multi-Device enables simultaneous inference of the same model on several devices in parallel    |
 |[Auto-Device selection](../auto_device_selection.md) |Auto-Device selection enables selecting Intel&reg; device for inference automatically |
 |[Heterogeneous execution](../hetero_execution.md) |Heterogeneous execution enables automatic inference splitting between several devices (for example if a device doesn't [support certain operation](#supported-layers)).                                                           |
 
