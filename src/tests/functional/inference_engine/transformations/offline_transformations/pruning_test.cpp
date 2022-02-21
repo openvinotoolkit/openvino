@@ -32,6 +32,10 @@ void compare_masks(const Mask & mask, const Mask & ref_mask) {
     ASSERT_EQ(mask, ref_mask);
 }
 
+void check_mask_is_not_exist(const Mask::Ptr mask) {
+    ASSERT_TRUE(!mask);
+}
+
 Output<Node> create_constant_with_zeros(const Shape & shape, const Mask & mask) {
     std::vector<double> values(shape_size(shape), 1);
     for (size_t dim = 0; dim < mask.size(); ++dim) {
@@ -2861,17 +2865,10 @@ TEST_F(TransformationTestsF, PropagateFlattenUp) {
 
 
 TEST_F(TransformationTestsF, PropagateMasksTranspose) {
-    // Propagate Flatten down is the same as in
-    // PruneLinearIsClosingAndInGroup test
-    using nested_vector = std::vector<std::set<uint64_t>>;
     Shape input_shape{1, 8};
-    //Shape start_mul_weights_shape{8, 8};
     Shape weights_shape{5, 8};
 
     auto input = std::make_shared<opset5::Parameter>(element::f32, input_shape);
-
-    //auto start_mul_weights = create_constant_with_zeros(start_mul_weights_shape, {{}, {}});
-    //auto start_mul = std::make_shared<opset5::MatMul>(input, start_mul_weights);
 
     auto weights = create_constant_with_zeros(weights_shape, {{1, 2, 3}, {}});
     auto transpose_const = opset5::Constant::create(element::i64, {2}, {1, 0});
@@ -2886,9 +2883,6 @@ TEST_F(TransformationTestsF, PropagateMasksTranspose) {
     function = std::make_shared<Function>(NodeVector{last_mul}, ParameterVector{input});
     {
         auto input = std::make_shared<opset5::Parameter>(element::f32, input_shape);
-
-        //auto start_mul_weights = create_constant_with_zeros({start_mul_weights_shape[0], start_mul_weights_shape[1] - 3}, {{}, {}});
-        //auto start_mul = std::make_shared<opset5::MatMul>(input, start_mul_weights);
 
         auto weights = create_constant_with_zeros({weights_shape[0] - 3, weights_shape[1]}, {{}, {}});
         auto transpose_const = opset5::Constant::create(element::i64, {2}, {1, 0});
@@ -2909,9 +2903,8 @@ TEST_F(TransformationTestsF, PropagateMasksTranspose) {
         m.register_pass<pass::PropagateMasks>();
         m.run_passes(function);
     }
-    //compare_masks(*getMask(start_mul_weights.get_node_shared_ptr()->output(0)),  Mask({{}, {1, 2, 3}}));
-    //compare_masks(*getMask(start_mul->output(0)), Mask({{}, {1, 2, 3}}));
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)),  Mask({{1, 2, 3}, {}}));
+    compare_masks(*getMask(transpose->output(0)),  Mask({{}, {1, 2, 3}}));
     compare_masks(*getMask(mul->output(0)), Mask({{}, {1, 2, 3}}));
     compare_masks(*getMask(relu->output(0)), Mask({{}, {1, 2, 3}}));
     compare_masks(*getMask(last_mul->output(0)), Mask{{}, {}});
@@ -2922,4 +2915,46 @@ TEST_F(TransformationTestsF, PropagateMasksTranspose) {
     }
     disable_rt_info_check();
     enable_accuracy_check();
+}
+
+
+TEST(TransformationTests, PropagateMasksTransposeStop) {
+    Shape input_shape{1, 8};
+    Shape weights_shape{5, 8, 2, 3};
+    Shape last_mul_shape{2, 3, 5, 8};
+
+    auto input = std::make_shared<opset5::Parameter>(element::f32, input_shape);
+
+    auto weights = create_constant_with_zeros(weights_shape, {{1, 2, 3}, {}, {}, {}});
+    auto transpose_const = opset5::Constant::create(element::i64, {4}, {2, 3, 1, 0});
+    auto transpose = std::make_shared<opset5::Transpose>(weights, transpose_const);
+
+    auto shape_of = std::make_shared<opset5::ShapeOf>(transpose);
+    auto reshape = std::make_shared<opset5::Reshape>(transpose, shape_of, true);
+
+    auto mul = std::make_shared<opset5::MatMul>(input, reshape);
+    auto relu = std::make_shared<opset5::Relu>(mul);
+
+    auto last_mul_weights = create_constant_with_zeros(last_mul_shape, {{}, {}, {}, {1, 2, 3}});
+    auto last_mul = std::make_shared<opset5::MatMul>(relu, last_mul_weights);
+
+    auto  function = std::make_shared<Function>(NodeVector{last_mul}, ParameterVector{input});
+    if (VISUALIZE_TESTS_TREE)
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksTransposeStop.svg").run_on_function(function);
+    {
+        pass::Manager m;
+        m.register_pass<pass::InitMasks>();
+        m.register_pass<pass::PropagateMasks>();
+        m.run_passes(function);
+    }
+    check_mask_is_not_exist(getMask(weights.get_node_shared_ptr()->output(0)));
+    check_mask_is_not_exist(getMask(transpose->output(0)));
+    check_mask_is_not_exist(getMask(mul->output(0)));
+    check_mask_is_not_exist(getMask(relu->output(0)));
+    compare_masks(*getMask(last_mul->output(0)), Mask{{}, {}, {}, {}});
+    {
+        pass::Manager m;
+        m.register_pass<pass::ShrinkWeights>();
+        m.run_passes(function);
+    }
 }

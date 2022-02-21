@@ -92,21 +92,15 @@ public:
                     auto new_order = std::vector<size_t>();
                     for (auto& i : dim_order) {
                         const auto dim = std::find(forward_order_vec.begin(), forward_order_vec.end(), i) - forward_order_vec.begin();
-                        if (dim == input_size) {
-                            NGRAPH_DEBUG << "Transpose which removing any of dimension is not supported yet.";
-                            return false;
-                        }
+                        // Dim should be valid because of transpose operation input_order input restrictions
                         new_order.push_back(dim);
                     }
                     dim_order = new_order;
-                }
-                if (ngraph::is_type<opset6::Reshape>(cur_node)) {
-                    const auto input = cur_node->get_input_node_shared_ptr(0);
-                    if (!input->output(0).get_partial_shape().is_static()) return false;
-                    if (input->get_shape().size() != input_size) {
+                } else {
+                    if (ngraph::is_type<opset6::Reshape>(cur_node) || ngraph::is_type<opset6::MatMul>(cur_node)) {
                         NGRAPH_DEBUG << "Can't init mask for MatMul: " <<
-                        matmul->get_friendly_name() << " because of reshape node" <<
-                        cur_node->get_friendly_name() <<std::endl;
+                        matmul->get_friendly_name() << " because of node " <<
+                        cur_node->get_friendly_name() << " in the way from weights to Matmul" << std::endl;
                         return false;
                     }
                 }

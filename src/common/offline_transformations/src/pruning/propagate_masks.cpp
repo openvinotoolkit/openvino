@@ -959,10 +959,7 @@ public:
             auto backward_order = std::vector<int64_t>();
             for (size_t i = 0; i < input_mask->size(); i++) {
                 const auto dim = std::find(forward_order.begin(), forward_order.end(), i) - forward_order.begin();
-                if (dim == input_mask->size()) {
-                    NGRAPH_DEBUG << "Transpose which removing any of dimension is not supported yet.";
-                    return false;
-                }
+                // Dim should be valid because of transpose operation input_order input restrictions
                 backward_order.push_back(dim);
             }
             auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
