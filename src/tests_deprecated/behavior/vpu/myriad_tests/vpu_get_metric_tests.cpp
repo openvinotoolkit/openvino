@@ -4,7 +4,6 @@
 
 #include <gtest/gtest.h>
 #include <inference_engine.hpp>
-#include <vpu/vpu_plugin_config.hpp>
 #include "behavior_test_plugin.h"
 
 class VPUGetMetric : public testing::Test {

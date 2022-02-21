@@ -11,6 +11,7 @@
 
 #include "cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "threading/ie_cpu_streams_executor.hpp"
 
 namespace InferenceEngine {

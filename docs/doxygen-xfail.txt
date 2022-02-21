@@ -59,7 +59,5 @@ openvino_docs_ie_dg_lpt_updatesharedprecisionpreserved.rst
 openvino_docs_ie_dg_lpt_variadicsplittransformation.rst
 openvino_docs_ie_plugin_dg_lp_representation.rst
 openvino_docs_ie_dg_lpt.rst
-omz_models_model_age_gender_recognition_retail_0013.rst
-omz_models_model_emotions_recognition_retail_0003.rst
-ngraph_transformation.rst
 notebooks/notebook_utils-with-output.rst
+api/api_reference.rst

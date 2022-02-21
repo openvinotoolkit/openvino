@@ -204,12 +204,12 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
             updatedOutputHighValue);
 
         if ((updatePrecisions == false) && (dequantizationMul == 1.f) && (dequantizationSub == 0.f)) {
-            std::make_tuple(nullptr, nullptr);
+            return std::make_tuple(nullptr, nullptr);
         }
 
         //TODO: pass min levels as a parameter?
         if (levels < 2ul) {
-            std::make_tuple(nullptr, nullptr);
+            return std::make_tuple(nullptr, nullptr);
         }
 
         // 2. update FakeQuantize - one time action
@@ -258,7 +258,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
 
         const auto newFakeQuantize = std::get<0>(QDQ);
         if (newFakeQuantize == nullptr) {
-            std::make_tuple(nullptr, nullptr);
+            return std::make_tuple(nullptr, nullptr);
         }
         matcherPass->register_new_node(newFakeQuantize);
         dequantize = std::get<1>(QDQ);
@@ -273,7 +273,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
 
 bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
     auto layer = ov::as_type_ptr<opset1::FakeQuantize>(m.get_match_root());
-    if (!NetworkHelper::isQuantizeSupported(layer)) {
+    if (!layer || !NetworkHelper::isQuantizeSupported(layer)) {
         return false;
     }
 
@@ -300,7 +300,7 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
             return false;
         }
 
-        layer = NetworkHelper::composeFakeQuantize(layer);
+        layer = NetworkHelper::composeFakeQuantize(layer, defaultPrecisions);
         if (layer == nullptr) {
             return false;
         }
@@ -316,7 +316,7 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
 
     DataPrecision dataPrecision = fq_decomposition::getDataPrecisionByOutputPort(layer);
 
-    PrecisionsAttribute precisionsAttribute(getDefaultPrecisions());
+    PrecisionsAttribute precisionsAttribute(defaultPrecisions);
     {
         // TODO: LPT: return attribute (not wrapper)
         auto attributeWrapper = getAttributeFromOutput<PrecisionsAttribute>(layer->output(0));

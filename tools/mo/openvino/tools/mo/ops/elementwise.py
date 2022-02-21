@@ -234,3 +234,14 @@ class Negative(UnaryElementwise):
     op = 'Negative'
     op_type = 'Negative'
     operation = staticmethod(lambda a: -a)
+
+
+class Sqrt(UnaryElementwise):
+    op = 'Sqrt'
+    op_type = 'Sqrt'
+
+    @staticmethod
+    def operation(a):
+        if np.issubdtype(a.dtype, np.signedinteger):
+            return float32_array(a.astype(np.float32) ** 0.5)
+        return a ** 0.5

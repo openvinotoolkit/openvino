@@ -91,6 +91,42 @@ def create_onnx_model_with_custom_attributes():
     return make_model(graph, producer_name="ngraph ONNX Importer")
 
 
+def create_onnx_model_for_op_extension():
+    # operation with double attribute
+    elu = onnx.helper.make_node("Elu", alpha=1.0, inputs=["x"], outputs=["elu"])
+
+    # operation with vector<size_t>, enum, bool attributes
+    avg_pool = onnx.helper.make_node("AveragePool", kernel_shape=[2, 2], auto_pad="SAME_LOWER",
+                                     strides=[2, 2],
+                                     inputs=["elu"], outputs=["avg_pool"])
+
+    # operation with no attributes
+    floor = onnx.helper.make_node("Floor", inputs=["avg_pool"], outputs=["floor"])
+
+    # operation with int64_t attribute
+    concat = onnx.helper.make_node("Concat", axis=0, inputs=["floor", "avg_pool"], outputs=["concat"])
+
+    const_tensor = onnx.helper.make_tensor("const_tensor",
+                                           onnx.TensorProto.FLOAT,
+                                           [1],
+                                           [0.5])
+
+    const_node = onnx.helper.make_node("Constant", [], outputs=["const_node"],
+                                       value=const_tensor, name="const_node")
+    # operation with enum attribute
+    mul = onnx.helper.make_node("Mul", inputs=["concat", "const_node"], outputs=["mul"])
+
+    # operation with element::type (class) attribute
+    cast = onnx.helper.make_node("Cast", to=int(onnx.TensorProto.FLOAT), inputs=["mul"], outputs=["out"])
+    input_tensors = [
+        make_tensor_value_info("x", onnx.TensorProto.FLOAT, (1, 3, 32, 32)),
+    ]
+    output_tensors = [make_tensor_value_info("out", onnx.TensorProto.FLOAT, (3, 3, 32, 32))]
+    graph = make_graph([const_node, elu, avg_pool, floor, concat, mul, cast], "graph",
+                       input_tensors, output_tensors)
+    return make_model(graph, producer_name="ngraph ONNX Importer")
+
+
 def run_function(function, *inputs, expected):
     runtime = get_runtime()
     computation = runtime.computation(function)
@@ -106,6 +142,7 @@ fem = FrontEndManager()
 onnx_model_filename = "model.onnx"
 onnx_model_with_custom_attributes_filename = "model_custom_attributes.onnx"
 onnx_model_with_subgraphs_filename = "model_subgraphs.onnx"
+onnx_model_for_op_extension_test = "model_op_extension.onnx"
 ONNX_FRONTEND_NAME = "onnx"
 
 
@@ -114,12 +151,14 @@ def setup_module():
     onnx.save_model(create_onnx_model_with_custom_attributes(),
                     onnx_model_with_custom_attributes_filename)
     onnx.save_model(create_onnx_model_with_subgraphs(), onnx_model_with_subgraphs_filename)
+    onnx.save_model(create_onnx_model_for_op_extension(), onnx_model_for_op_extension_test)
 
 
 def teardown_module():
     os.remove(onnx_model_filename)
     os.remove(onnx_model_with_custom_attributes_filename)
     os.remove(onnx_model_with_subgraphs_filename)
+    os.remove(onnx_model_for_op_extension_test)
 
 
 def skip_if_onnx_frontend_is_disabled():
@@ -423,3 +462,134 @@ def test_onnx_conversion_extension():
     model = fe.convert(input_model)
     assert model
     assert invoked
+
+
+@pytest.mark.parametrize("opset_prefix", ["opset1.", "opset1::", "opset8.", "opset8::", ""])
+def test_op_extension_specify_opset(opset_prefix):
+    skip_if_onnx_frontend_is_disabled()
+
+    # use specific (openvino.frontend.onnx) import here
+    from openvino.frontend.onnx import OpExtension
+    from openvino.runtime import Core
+
+    ie = Core()
+
+    # check the model is valid
+    model = ie.read_model(onnx_model_for_op_extension_test)
+    assert model
+
+    # add extensions
+    fw_operation = "Floor"
+    ov_operation = opset_prefix + fw_operation
+    ie.add_extension(OpExtension(ov_operation, fw_operation))
+
+    model = ie.read_model(onnx_model_for_op_extension_test)
+    assert model
+
+
+@pytest.mark.parametrize("opset_prefix", ["opset1..", "opset1:::", "opset.", "opset::", "wrong"])
+def test_op_extension_specify_wrong_opset(opset_prefix):
+    skip_if_onnx_frontend_is_disabled()
+
+    # use specific (openvino.frontend.onnx) import here
+    from openvino.frontend.onnx import OpExtension
+    from openvino.runtime import Core
+
+    ie = Core()
+
+    # add extensions
+    fw_operation = "Floor"
+    ov_operation = opset_prefix + fw_operation
+    ie.add_extension(OpExtension(ov_operation, fw_operation))
+
+    with pytest.raises(Exception):
+        ie.read_model(onnx_model_for_op_extension_test)
+
+
+def test_op_extension_via_onnx_extension_set_attrs_values():
+    skip_if_onnx_frontend_is_disabled()
+
+    # use specific (openvino.frontend.onnx) import here
+    from openvino.frontend.onnx import OpExtension
+    from openvino.runtime import Core
+
+    ie = Core()
+
+    # check the model is valid
+    model = ie.read_model(onnx_model_for_op_extension_test)
+    assert model
+
+    # add extensions
+    ie.add_extension(OpExtension("Multiply", "Mul", {}, {"auto_broadcast": "numpy"}))
+    ie.add_extension(OpExtension("Elu", {}, {"alpha": 1.}))
+    ie.add_extension(OpExtension("Floor"))
+    ie.add_extension(OpExtension("Concat", {}, {"axis": 0}))
+    ie.add_extension(OpExtension("Convert", "Cast", {}, {"destination_type": "i64"}))
+    ie.add_extension(OpExtension("AvgPool", "AveragePool", {}, {"kernel": [2, 2],
+                                                                "strides": [2, 2],
+                                                                "pads_begin": [0, 0],
+                                                                "pads_end": [1, 1],
+                                                                "exclude-pad": True,
+                                                                "auto_pad": "same_upper",
+                                                                "rounding_type": "floor"}))
+
+    model = ie.read_model(onnx_model_for_op_extension_test)
+    assert model
+
+
+def test_op_extension_via_frontend_extension_set_attrs_values():
+    skip_if_onnx_frontend_is_disabled()
+
+    # use common (openvino.frontend) import here
+    from openvino.frontend import OpExtension
+    from openvino.runtime import Core
+
+    ie = Core()
+    # check the model is valid
+    model = ie.read_model(onnx_model_for_op_extension_test)
+    assert model
+
+    # add extensions
+    ie.add_extension(OpExtension("Multiply", "Mul", {}, {"auto_broadcast": "numpy"}))
+    ie.add_extension(OpExtension("Elu", "Elu", {}, {"alpha": 1.}))
+    ie.add_extension(OpExtension("Floor"))
+    ie.add_extension(OpExtension("Concat", {}, {"axis": 0}))
+    ie.add_extension(OpExtension("Convert", "Cast", {}, {"destination_type": "i64"}))
+    ie.add_extension(OpExtension("AvgPool", "AveragePool", {}, {"kernel": [2, 2],
+                                                                "strides": [2, 2],
+                                                                "pads_begin": [0, 0],
+                                                                "pads_end": [1, 1],
+                                                                "exclude-pad": True,
+                                                                "auto_pad": "same_upper",
+                                                                "rounding_type": "floor"}))
+
+    model = ie.read_model(onnx_model_for_op_extension_test)
+    assert model
+
+
+def test_op_extension_via_frontend_extension_map_attributes():
+    skip_if_onnx_frontend_is_disabled()
+
+    # use common (openvino.frontend) import here
+    from openvino.frontend import OpExtension
+    from openvino.runtime import Core
+
+    ie = Core()
+    # check the model is valid
+    model = ie.read_model(onnx_model_for_op_extension_test)
+    assert model
+
+    # add extensions
+    ie.add_extension(OpExtension("Elu", "Elu", {"alpha": "alpha"}))
+    ie.add_extension(OpExtension("Concat", {"axis": "axis"}, {"axis": 0}))
+
+    ie.add_extension(OpExtension("AvgPool", "AveragePool", {"kernel": "kernel_shape",
+                                                            "strides": "strides",
+                                                            "auto_pad": "auto_pad"},
+                                 {"pads_begin": [0, 0],
+                                  "pads_end": [1, 1],
+                                  "exclude-pad": True,
+                                  "rounding_type": "floor"}))
+
+    model = ie.read_model(onnx_model_for_op_extension_test)
+    assert model

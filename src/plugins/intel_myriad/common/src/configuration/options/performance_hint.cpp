@@ -7,6 +7,8 @@
 #include "vpu/utils/containers.hpp"
 #include "vpu/configuration/plugin_configuration.hpp"
 #include <ie_plugin_config.hpp>
+#include <openvino/runtime/properties.hpp>
+#include <sstream>
 
 namespace vpu {
 
@@ -17,7 +19,7 @@ void PerformanceHintOption::validate(const PluginConfiguration& configuration) {
 }
 
 std::string PerformanceHintOption::key() {
-    return CONFIG_KEY(PERFORMANCE_HINT);
+    return ov::hint::performance_mode.name();
 }
 
 details::Access PerformanceHintOption::access() {
@@ -33,11 +35,19 @@ std::string PerformanceHintOption::defaultValue() {
 }
 
 PerformanceHintOption::value_type PerformanceHintOption::parse(const std::string& value) {
-    if (value == CONFIG_VALUE(LATENCY) || value == CONFIG_VALUE(THROUGHPUT) || value == "") {
+    std::string latencyValue;
+    std::string throughputValue;
+    std::stringstream latencySs;
+    std::stringstream throughputSs;
+    latencySs << ov::hint::PerformanceMode::LATENCY;
+    latencyValue = latencySs.str();
+    throughputSs << ov::hint::PerformanceMode::THROUGHPUT;
+    throughputValue = throughputSs.str();
+    if (value == latencyValue || value == throughputValue || value == "") {
         return value;
     } else {
         VPU_THROW_EXCEPTION << "Wrong value for property key " << CONFIG_KEY(PERFORMANCE_HINT) << ". Expected only "
-                            << CONFIG_VALUE(LATENCY) << "/" << CONFIG_VALUE(THROUGHPUT);
+                            << CONFIG_VALUE(LATENCY) << "/" << CONFIG_VALUE(THROUGHPUT) << ", but provided: " << value;
     }
 }
 

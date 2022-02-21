@@ -5,6 +5,7 @@
 
 import re
 import sys
+from io import BytesIO
 from timeit import default_timer
 from typing import Dict
 
@@ -16,8 +17,8 @@ from arg_parser import parse_args
 from file_options import read_utterance_file, write_utterance_file
 from utils import (GNA_ATOM_FREQUENCY, GNA_CORE_FREQUENCY,
                    compare_with_reference, get_scale_factor, log,
-                   parse_outputs_from_args, parse_scale_factors,
-                   set_scale_factors)
+                   parse_input_layouts, parse_outputs_from_args,
+                   parse_scale_factors, set_scale_factors)
 
 
 def do_inference(data: Dict[str, np.ndarray], infer_request: InferRequest, cw_l: int = 0, cw_r: int = 0) -> np.ndarray:
@@ -25,7 +26,7 @@ def do_inference(data: Dict[str, np.ndarray], infer_request: InferRequest, cw_l:
     frames_to_infer = {}
     result = {}
 
-    batch_size = infer_request.get_input_tensor(0).shape[0]
+    batch_size = infer_request.model_inputs[0].shape[0]
     num_of_frames = next(iter(data.values())).shape[0]
 
     for output in infer_request.model_outputs:
@@ -82,24 +83,32 @@ def main():
             output_layer_names, output_layer_ports = parse_outputs_from_args(args)
             model.add_outputs(list(zip(output_layer_names, output_layer_ports)))
 
+        if args.layout:
+            layouts = parse_input_layouts(args, model.inputs)
+
         ppp = PrePostProcessor(model)
 
         for i in range(len(model.inputs)):
-            ppp.input(i).tensor() \
-                .set_element_type(Type.f32) \
-                .set_layout(Layout('NC'))  # noqa: N400
+            ppp.input(i).tensor().set_element_type(Type.f32)
 
-            ppp.input(i).model().set_layout(Layout('NC'))
+            input_name = model.input(i).get_any_name()
+
+            if args.layout and input_name in layouts.keys():
+                ppp.input(i).tensor().set_layout(Layout(layouts[input_name]))
+                ppp.input(i).model().set_layout(Layout(layouts[input_name]))
 
         for i in range(len(model.outputs)):
             ppp.output(i).tensor().set_element_type(Type.f32)
 
         model = ppp.build()
 
-        if args.context_window_left == args.context_window_right == 0:
-            set_batch(model, args.batch_size)
-        else:
-            set_batch(model, 1)
+        if args.batch_size:
+            batch_size = args.batch_size if args.context_window_left == args.context_window_right == 0 else 1
+
+            if any([not _input.node.layout.empty for _input in model.inputs]):
+                set_batch(model, batch_size)
+            else:
+                log.warning('Layout is not set for any input, so custom batch size is not set')
 
 # ---------------------------Step 4. Configure plugin ---------------------------------------------------------
     devices = args.device.replace('HETERO:', '').split(',')
@@ -148,12 +157,16 @@ def main():
     if args.model:
         compiled_model = core.compile_model(model, device_str, plugin_config)
     else:
-        compiled_model = core.import_model(args.import_gna_model, device_str, plugin_config)
+        with open(args.import_gna_model, 'rb') as f:
+            buf = BytesIO(f.read())
+            compiled_model = core.import_model(buf, device_str, plugin_config)
 
 # --------------------------- Exporting GNA model using InferenceEngine AOT API ---------------------------------------
     if args.export_gna_model:
         log.info(f'Writing GNA Model to {args.export_gna_model}')
-        compiled_model.export_model(args.export_gna_model)
+        user_stream = compiled_model.export_model()
+        with open(args.export_gna_model, 'wb') as f:
+            f.write(user_stream)
         return 0
 
     if args.export_embedded_gna_model:
@@ -170,7 +183,7 @@ def main():
     input_file_names = re.split(', |,', args.input)
 
     if len(input_layer_names) != len(input_file_names):
-        log.error(f'Number of network inputs ({len(compiled_model.inputs)}) is not equal '
+        log.error(f'Number of model inputs ({len(compiled_model.inputs)}) is not equal '
                   f'to number of ark files ({len(input_file_names)})')
         sys.exit(-3)
 
@@ -196,14 +209,14 @@ def main():
         output_file_names = re.split(', |,', args.output)
 
         if len(output_layer_names) != len(output_file_names):
-            log.error('The number of output files is not equal to the number of network outputs.')
+            log.error('The number of output files is not equal to the number of model outputs.')
             sys.exit(-6)
 
     if args.reference:
         reference_file_names = re.split(', |,', args.reference)
 
         if len(output_layer_names) != len(reference_file_names):
-            log.error('The number of reference files is not equal to the number of network outputs.')
+            log.error('The number of reference files is not equal to the number of model outputs.')
             sys.exit(-5)
 
         reference_file_data = [read_utterance_file(file_name) for file_name in reference_file_names]

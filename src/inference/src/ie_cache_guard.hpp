@@ -82,7 +82,6 @@ private:
 class CacheGuard {
 public:
     CacheGuard() = default;
-    ~CacheGuard();
 
     /**
      * @brief Gets a lock for a specific cache entry identified by it's hash value

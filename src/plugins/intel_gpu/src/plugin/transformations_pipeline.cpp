@@ -94,8 +94,10 @@ namespace {
 template<typename T>
 static bool disableReduceDecomposition(const std::shared_ptr<const ngraph::Node> node) {
     if (auto op = std::dynamic_pointer_cast<const T>(node)) {
-        bool fp16_batch_not_1 = op->get_element_type() == ngraph::element::f16 && op->input(0).get_shape()[0] != 1;
-        return !fp16_batch_not_1;
+        if (op->input(0).get_partial_shape()[0].is_static()) {
+            bool fp16_batch_not_1 = op->get_element_type() == ngraph::element::f16 && op->input(0).get_partial_shape()[0] != 1;
+            return !fp16_batch_not_1;
+        }
     }
     return false;
 }
@@ -109,11 +111,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply");
     using const_node_ptr = const std::shared_ptr<const ngraph::Node>;
 
-    bool use_onednn = false;
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    use_onednn = device_info.supports_immad;
-#endif
-
+    const auto defaultPrecisions = ngraph::pass::low_precision::precision_set::int8_support;
     bool enableInt8;
     {
         ngraph::pass::Manager manager;
@@ -178,8 +176,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->set_callback<ngraph::pass::ConvertSpaceToDepth,
                                   ngraph::pass::ConvertDepthToSpace>(
                 [](const_node_ptr &node) -> bool {
-                    return node->input_value(0).get_shape().size() <= 5lu &&
-                        node->input_value(0).get_shape().size() == node->get_output_shape(0).size();
+                    return node->input_value(0).get_partial_shape().size() <= 5lu &&
+                        node->input_value(0).get_partial_shape().size() == node->get_output_partial_shape(0).size();
                 });
 
         pass_config->set_callback<ngraph::pass::ConvertBatchToSpace,
@@ -274,7 +272,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 if (mvn != nullptr && node->get_input_size() == 2) {
                     if (auto axesNode = dynamic_cast<ngraph::op::v0::Constant*>(mvn->get_input_node_ptr(1))) {
                         auto axesVal = axesNode->cast_vector<int>();
-                        auto& mvnShape = mvn->get_output_shape(0);
+                        auto& mvnShape = mvn->get_output_partial_shape(0);
                         for (int32_t& axis : axesVal)
                             axis = axis < 0 ? axis + mvnShape.size() : axis;
                         std::sort(axesVal.begin(), axesVal.end());
@@ -322,12 +320,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
 
         if (enableInt8) {
-            pass_config->set_callback<ngraph::pass::ConvertQuantizeDequantize>([](const_node_ptr &node) -> bool {
-                return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(node);
+            pass_config->set_callback<ngraph::pass::ConvertQuantizeDequantize>([&defaultPrecisions](const_node_ptr &node) -> bool {
+                return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(node, defaultPrecisions);
             });
 
-            pass_config->set_callback<ngraph::pass::ConvertSubtract>([](const_node_ptr &node) -> bool {
-                return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForSubtract(node);
+            pass_config->set_callback<ngraph::pass::ConvertSubtract>([&defaultPrecisions](const_node_ptr &node) -> bool {
+                return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForSubtract(node, defaultPrecisions);
             });
         }
 
@@ -375,8 +373,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
             return false;
         });
-        lptPassConfig->set_callback<ConvolutionBackpropDataTransformation>([](const_node_ptr& node) -> bool {
-            auto fillStaticChannel = [](const ngraph::PartialShape& shape, size_t& channel) -> bool {
+        lptPassConfig->set_callback<ConvolutionBackpropDataTransformation>([func, defaultPrecisions](const_node_ptr& node) -> bool {
+            auto fillStaticChannel = [func](const ngraph::PartialShape& shape, size_t& channel) -> bool {
                 const auto rank = shape.rank();
                 if (rank.is_dynamic()) {
                     return false;
@@ -407,19 +405,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return true;
             }
 
-            return LayerTransformation::isAsymmetricQuantization(node) || WeightableLayerTransformation::isAsymmetricOnWeights(node);
+            return LayerTransformation::isAsymmetricQuantization(node, defaultPrecisions)
+                || WeightableLayerTransformation::isAsymmetricOnWeights(node, defaultPrecisions);
         });
-
-        if (!use_onednn) {
-            lptPassConfig->set_callback<MatMulTransformation>([](const_node_ptr& node) -> bool {
-                return MatMulTransformation::is3DTensorOnActivations(node);
-            });
-        }
 
         lptPassConfig->set_callback<MultiplyToGroupConvolutionTransformation>([&](const_node_ptr& node) -> bool {
             // disable MultiplyToGroupConvolution if Multiply with Constant can be fused
 
-            const auto dequantization = NetworkHelper::getDequantization(node, 0, true);
+            const auto dequantization = NetworkHelper::getDequantization(node, defaultPrecisions, 0, true);
             std::shared_ptr<ov::Node> parent = dequantization.empty() ? nullptr : dequantization.data.get_node()->shared_from_this();
             if (parent == nullptr) {
                 const auto constantNode = NetworkHelper::getConstantInput(node);
@@ -448,7 +441,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             return false;
         });
 
-        auto params = LayerTransformation::Params(true, element::f32, true);
+        auto params = LayerTransformation::Params(true, element::f32, defaultPrecisions, true);
         lptManager.register_pass<LowPrecision>(supportedPrecisions, perTensorQuantization, params);
         lptManager.run_passes(func);
     }

@@ -118,24 +118,21 @@ Stage StageBuilder::addPermuteStage(
     return stage;
 }
 
-Stage StageBuilder::addReorderStage(
-        const Model& model,
-        const std::string& name,
-        const ie::CNNLayerPtr& layer,
-        const Data& input,
-        const Data& output) {
+Stage StageBuilder::addReorderStage(const Model& model,
+                                    const std::string& name,
+                                    const ie::CNNLayerPtr& layer,
+                                    const Data& input,
+                                    const Data& output) {
     const auto* env = CompileEnv::getOrNull();
-    VPU_THROW_UNLESS(
-        env == nullptr || !env->config.get<DisableReorderOption>(),
-        "Tried to add Reorder Stage %v, while DISABLE_REORDER option was set",
-        name);
-
+    VPU_THROW_UNLESS(env == nullptr || !env->config.get<DisableReorderOption>(),
+                     "Tried to add Reorder Stage %v, while DISABLE_REORDER option was set",
+                     name);
     for (const auto& p : input->desc().dims()) {
         IE_ASSERT(p.second == output->desc().dim(p.first));
     }
 
     PermutationDimsMap permutationMap;
-    for (const auto & dim : output->desc().dimsOrder().toPermutation()) {
+    for (const auto& dim : output->desc().dimsOrder().toPermutation()) {
         permutationMap.set(dim, dim);
     }
 

@@ -15,7 +15,6 @@
 #include <ie_common.h>
 #include <thread>
 
-#include <vpu/vpu_plugin_config.hpp>
 #include <vpu/utils/logger.hpp>
 #include <vpu/utils/profiling.hpp>
 
@@ -37,7 +36,6 @@
 
 using namespace vpu::MyriadPlugin;
 using namespace InferenceEngine;
-using namespace InferenceEngine::VPUConfigParams;
 using namespace std;
 using namespace vpu;
 

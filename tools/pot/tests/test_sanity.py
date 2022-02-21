@@ -51,10 +51,9 @@ TEST_MODELS = [
     # {'drop_type': 'relative', 'max_iter_num': 1, 'accuracy_drop': 0.005, 'metrics': [
     #     {'name': 'accuracy@top1', 'baseline_value': 0.431}]}, 'GNA'),
 
-    #TODO: Enable after the problem with the shapes will be fixed
-    # ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 1, {'recall': 0.76, 'map': 0.6844}, {}, 'CPU'),
+    ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 1, {'recall': 0.76, 'map': 0.6844}, {}, 'CPU'),
 
-    ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 2, {'recall': 0.8, 'map': 0.7445},
+    ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 2, {'recall': 0.76, 'map': 0.6638},
      {'use_fast_bias': False}, 'CPU')
 ]
 CASCADE_MAP = Dict({
@@ -114,8 +113,7 @@ def test_compression(_params, tmp_path, models):
 
 
 TEST_SAMPLE_MODELS = [
-    # This test is not able to run due to NHWC shape that is not supported
-    # ('mobilenet-v2-1.0-224', 'tf', 'DefaultQuantization', 'performance', {'accuracy@top1': 0.71})
+    ('mobilenet-v2-1.0-224', 'tf', 'DefaultQuantization', 'performance', {'accuracy@top1': 0.716})
 ]
 
 
@@ -272,8 +270,6 @@ TEST_MULTIPLE_OUT_PORTS = [('multiple_out_ports_net', 'tf')]
     'model_name, model_framework', TEST_MULTIPLE_OUT_PORTS,
     ids=['{}_{}'.format(m[0], m[1]) for m in TEST_MULTIPLE_OUT_PORTS])
 def test_multiport_outputs_model(tmp_path, models, model_name, model_framework):
-    # This test is not able to run due to NHWC shape that is not supported
-    pytest.skip()
     test_dir = Path(__file__).parent
     # one image as dataset
     data_source = (test_dir / 'data/image_data/').as_posix()

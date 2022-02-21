@@ -5,9 +5,9 @@
 #include "blocked_memory_desc.h"
 #include "utils/general_utils.h"
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 
-bool BlockedMemoryDesc::isCompatible(const BlockedMemoryDesc &rhs) const {
+bool BlockedMemoryDesc::isCompatibleInternal(const BlockedMemoryDesc &rhs, CmpMask cmpMask) const {
     if (this->getShape() != rhs.getShape() || this->getPrecision() != rhs.getPrecision())
         return false;
 
@@ -19,15 +19,26 @@ bool BlockedMemoryDesc::isCompatible(const BlockedMemoryDesc &rhs) const {
         return false;
     }
 
-    if (!dimsEqualWeak(this->getStrides(), rhs.getStrides())) {
+    auto& thisStrides = this->getStrides();
+    auto& rhsStrides = rhs.getStrides();
+
+    if (thisStrides.size() != rhsStrides.size())
         return false;
+
+    for (size_t i = 0; i < thisStrides.size(); i++) {
+        if (cmpMask.test(i) && !dimsEqualWeak(thisStrides[i], rhsStrides[i]))
+            return false;
     }
 
     if (!dimsEqualWeak(this->getOrder(), rhs.getOrder())) {
         return false;
     }
 
-    return dimsEqualWeak(this->getOffsetPadding(), rhs.getOffsetPadding());
+    if (cmpMask.test(BLOCKED_DESC_OFFSET_MASK_POS)) {
+        return dimsEqualWeak(this->getOffsetPadding(), rhs.getOffsetPadding());
+    }
+
+    return true;
 }
 
 std::string BlockedMemoryDesc::serializeFormat() const {

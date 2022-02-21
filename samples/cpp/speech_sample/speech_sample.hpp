@@ -90,7 +90,8 @@ static const char quantization_bits_message[] = "Optional. Weight bits for quant
 static const char scale_factor_message[] =
     "Optional. User-specified input scale factor for quantization (use with -q user). "
     "If the network contains multiple inputs, provide scale factors by separating them with "
-    "commas.";
+    "commas. "
+    "For example: <input_name1>:<sf1>,<input_name2>:<sf2> or just <sf> to be applied to all inputs";
 
 /// @brief message for batch size argument
 static const char batch_size_message[] = "Optional. Batch size 1-8 (default 1)";
@@ -120,6 +121,11 @@ static const char output_layer_names_message[] = "Optional. Layer names for outp
 static const char input_layer_names_message[] = "Optional. Layer names for input blobs. "
                                                 "The names are separated with \",\" "
                                                 "Example: Input1,Input2 ";
+/// @brief message for inputs layer names
+static const char layout_message[] =
+    "Optional. Prompts how network layouts should be treated by application. "
+    "For example, \"input1[NCHW],input2[NC]\" or \"[NCHW]\" in case of one input size.";
+;
 
 /// @brief message for PWL max error percent
 static const char pwl_max_error_percent_message[] = "Optional. The maximum percent of error for PWL function."
@@ -175,8 +181,8 @@ DEFINE_int32(qb, 16, quantization_bits_message);
 /// @brief Scale factor for quantization
 DEFINE_string(sf, "", scale_factor_message);
 
-/// @brief Batch size (default 1)
-DEFINE_int32(bs, 1, batch_size_message);
+/// @brief Batch size (default 0)
+DEFINE_int32(bs, 0, batch_size_message);
 
 /// @brief Number of threads to use for inference on the CPU (also affects Hetero cases)
 DEFINE_int32(nthreads, 1, infer_num_threads_message);
@@ -192,6 +198,9 @@ DEFINE_string(oname, "", output_layer_names_message);
 
 /// @brief Input layer name
 DEFINE_string(iname, "", input_layer_names_message);
+
+/// @brief Input layer name
+DEFINE_string(layout, "", layout_message);
 
 /// @brief PWL max error percent
 DEFINE_double(pwl_me, 1.0, pwl_max_error_percent_message);
@@ -222,6 +231,7 @@ static void show_usage() {
     std::cout << "    -cw_r \"<integer>\"          " << context_window_message_r << std::endl;
     std::cout << "    -oname \"<string>\"          " << output_layer_names_message << std::endl;
     std::cout << "    -iname \"<string>\"          " << input_layer_names_message << std::endl;
+    std::cout << "    -layout \"<string>\"         " << layout_message << std::endl;
     std::cout << "    -pwl_me \"<double>\"         " << pwl_max_error_percent_message << std::endl;
     std::cout << "    -exec_target \"<string>\"    " << execution_target_message << std::endl;
     std::cout << "    -compile_target \"<string>\" " << compile_target_message << std::endl;
@@ -281,7 +291,7 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
     }
 
     uint32_t batchSize = (uint32_t)FLAGS_bs;
-    if ((batchSize < 1) || (batchSize > 8)) {
+    if (batchSize && ((batchSize < 1) || (batchSize > 8))) {
         throw std::logic_error("Batch size out of range (1..8).");
     }
 

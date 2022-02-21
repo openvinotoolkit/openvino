@@ -152,6 +152,8 @@ namespace {
                 gnn_sequence->get_activations_beta(),
                 gnn_sequence->get_clip(),
                 gnn_sequence->get_linear_before_reset());
+        } else {
+            return false;
         }
 
         ngraph::ParameterVector body_params;

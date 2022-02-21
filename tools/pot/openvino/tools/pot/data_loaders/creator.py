@@ -10,7 +10,7 @@ def create_data_loader(config, model):
     """
     Factory to create instance of engine class based on config
     :param config: engine config section from toolkit config file
-    :param model: NXModel instance to find out input shape
+    :param model: CompressedModel instance to find out input shape
     :return: instance of DataLoader descendant class
     """
 
@@ -32,8 +32,6 @@ def create_data_loader(config, model):
             elif config.type == 'data_free':
                 if not config.shape:
                     config.shape = in_node.shape
-                if not config.layout:
-                    config.layout = in_node.graph.graph.get('layout', None)
                 data_loader = SyntheticImageLoader(config)
             return data_loader
 

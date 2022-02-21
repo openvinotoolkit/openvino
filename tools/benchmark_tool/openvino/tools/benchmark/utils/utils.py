@@ -246,6 +246,8 @@ def can_measure_as_static(app_input_info):
 def parse_devices(device_string):
     if device_string in ['MULTI', 'HETERO']:
         return list()
+    if device_string.find("AUTO") != -1:
+        return ['AUTO']
     devices = device_string
     if ':' in devices:
         devices = devices.partition(':')[2]
@@ -449,7 +451,7 @@ class AppInputInfo:
     def is_image_info(self):
         if str(self.layout) != "[N,C]":
             return False
-        return self.channels.relaxes(Dimension(2))
+        return len(self.channels) >= 2 if self.channels.is_static else self.channels.relaxes(Dimension(2))
 
     def getDimentionByLayout(self, character):
         if self.layout.has_name(character):

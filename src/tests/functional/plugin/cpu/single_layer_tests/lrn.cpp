@@ -66,7 +66,7 @@ TEST_P(LRNLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckPluginRelatedResults(executableNetwork, "LRN");
+    CheckPluginRelatedResults(compiledModel, "LRN");
 }
 
 const std::vector<ElementType> inputPrecisions = {
@@ -98,6 +98,12 @@ const std::vector<InputShape> inputShapes = {
         {{1, 15}, {3, 10}, {3, 7}, {5, 8}},
         // static
         {{15, 5, 7, 8}, {10, 10, 3, 8}, {1, 3, 5, 5}, {10, 10, 3, 8}}
+    },
+    InputShape{
+        // dynamic
+        {{1, 15}, 3, 5, 5},
+        // static
+        {{2, 3, 5, 5}, {1, 3, 5, 5}, {3, 3, 5, 5}}
     },
 };
 

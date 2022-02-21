@@ -135,13 +135,13 @@ public:
     void add_expected_output(const Shape& expected_shape, const std::vector<T>& values) {
         const auto results = m_function->get_results();
 
-        NGRAPH_CHECK(m_output_index < results.size(), "All function results already have expected outputs.");
+        NGRAPH_CHECK(m_output_index < results.size(), "All model results already have expected outputs.");
 
         const auto& output_pshape = results.at(m_output_index)->get_output_partial_shape(0);
         NGRAPH_CHECK(output_pshape.compatible(expected_shape),
                      "Provided expected output shape ",
                      expected_shape,
-                     " is not compatible with nGraph function's output shape ",
+                     " is not compatible with OpenVINO model's output shape ",
                      output_pshape,
                      " for output ",
                      m_output_index);
@@ -158,7 +158,7 @@ public:
     void add_expected_output(const std::vector<T>& values) {
         const auto results = m_function->get_results();
 
-        NGRAPH_CHECK(m_output_index < results.size(), "All function results already have expected outputs.");
+        NGRAPH_CHECK(m_output_index < results.size(), "All model results already have expected outputs.");
 
         const auto shape = results.at(m_output_index)->get_shape();
         add_expected_output<T>(shape, values);
@@ -191,6 +191,8 @@ public:
         m_input_index = 0;
         m_output_index = 0;
 
+        m_expected_outputs.clear();
+
         EXPECT_TRUE(res);
     }
 
@@ -204,6 +206,8 @@ public:
 
         m_input_index = 0;
         m_output_index = 0;
+
+        m_expected_outputs.clear();
 
         EXPECT_TRUE(res);
     }

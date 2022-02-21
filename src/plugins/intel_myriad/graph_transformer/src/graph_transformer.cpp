@@ -52,6 +52,7 @@
 #include <vpu/configuration/options/number_of_cmx_slices.hpp>
 #include <vpu/configuration/options/vpu_scales_option.hpp>
 #include <vpu/configuration/options/performance_hint.hpp>
+#include <vpu/configuration/options/ov_throughput_streams.hpp>
 
 namespace vpu {
 
@@ -92,6 +93,8 @@ void CompileEnv::init(const PluginConfiguration& config, const Logger::Ptr& log)
     int numExecutors = 0;
     if (config.get<ThroughputStreamsOption>().hasValue()) {
         numExecutors = config.get<ThroughputStreamsOption>().get();
+    } else if (config.get<OvThroughputStreamsOption>().hasValue()) {
+        numExecutors = config.get<OvThroughputStreamsOption>().get();
     } else if (!config.get<PerformanceHintOption>().empty()) {
         numExecutors = config.get<PerformanceHintOption>() == CONFIG_VALUE(LATENCY) ? 1 : 2;
     }
@@ -232,7 +235,7 @@ CompiledGraph::Ptr compileSubNetwork(const ie::CNNNetwork& network, const Plugin
     const auto& env = CompileEnv::get();
 
     auto prevConfig = env.config;
-    AutoScope autoRecover([prevConfig]() {
+    AutoScope autoRecover([&prevConfig]() {
         CompileEnv::updateConfig(prevConfig);
     });
 

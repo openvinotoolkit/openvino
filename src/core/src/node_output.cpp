@@ -5,6 +5,7 @@
 #include "openvino/core/node_output.hpp"
 
 #include "ngraph/log.hpp"
+#include "ngraph/rt_info.hpp"
 #include "ngraph/variant.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/parameter.hpp"
@@ -84,6 +85,8 @@ void Output<Node>::replace(const Output<Node>& replacement) {
         replacement.get_tensor_ptr()->set_name(get_tensor_ptr()->get_name());
     }
     NGRAPH_SUPPRESS_DEPRECATED_END
+
+    ngraph::copy_output_runtime_info({*this, replacement}, {replacement});
 }
 
 RTMap& Output<Node>::get_rt_info() {

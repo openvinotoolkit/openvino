@@ -129,22 +129,7 @@ TEST_F(AnyTests, AnyAsStringInLine) {
     Any p = "test";
     ASSERT_TRUE(p.is<std::string>());
     std::string test = p.as<std::string>();
-    ;
     ASSERT_EQ("test", test);
-}
-
-TEST_F(AnyTests, IntAnyAsString) {
-    Any p = 4;
-    ASSERT_TRUE(p.is<int>());
-    ASSERT_FALSE(p.is<std::string>());
-    ASSERT_THROW(std::string test = p.as<std::string>(), ov::Exception);
-}
-
-TEST_F(AnyTests, StringAnyAsInt) {
-    Any p = "4";
-    ASSERT_FALSE(p.is<int>());
-    ASSERT_TRUE(p.is<std::string>());
-    ASSERT_THROW((void)p.as<int>(), ov::Exception);
 }
 
 TEST_F(AnyTests, AnyAsInts) {
@@ -312,7 +297,7 @@ void PrintTo(const Any& object, std::ostream* stream) {
     object.print(*stream);
 }
 
-TEST_F(AnyTests, PrintToEmptyAnyDoesNothing) {
+TEST_F(AnyTests, PrintToEmpty) {
     Any p;
     std::stringstream stream;
     ASSERT_NO_THROW(p.print(stream));
@@ -368,49 +353,50 @@ TEST_F(AnyTests, PrintToStringAny) {
     ASSERT_EQ(stream.str(), value);
 }
 
-TEST_F(AnyTests, PrintToVectorOfIntsAnyDoesNothing) {
+TEST_F(AnyTests, PrintToVectorOfInts) {
     Any p = std::vector<int>{-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5};
     std::stringstream stream;
     ASSERT_NO_THROW(p.print(stream));
-    ASSERT_EQ(stream.str(), std::string{});
+    ASSERT_EQ(stream.str(), std::string{"-5 -4 -3 -2 -1 0 1 2 3 4 5"});
 }
 
-TEST_F(AnyTests, PrintToVectorOfUIntsAnyDoesNothing) {
+TEST_F(AnyTests, PrintToVectorOfUInts) {
     Any p = std::vector<unsigned int>{0, 1, 2, 3, 4, 5};
     std::stringstream stream;
     ASSERT_NO_THROW(p.print(stream));
-    ASSERT_EQ(stream.str(), std::string{});
+    ASSERT_EQ(stream.str(), std::string{"0 1 2 3 4 5"});
 }
 
-TEST_F(AnyTests, PrintToVectorOfSize_tAnyDoesNothing) {
-    Any p = std::vector<std::size_t>{0, 1, 2, 3, 4, 5};
-    std::stringstream stream;
-    ASSERT_NO_THROW(p.print(stream));
-    ASSERT_EQ(stream.str(), std::string{});
+TEST_F(AnyTests, PrintToVectorOfFloats) {
+    auto ref_vec = std::vector<float>{0.0f, 1.1f, 2.2f, 3.3f, 4.4f, 5.5f};
+    {
+        Any p = std::vector<float>{0.0f, 1.1f, 2.2f, 3.3f, 4.4f, 5.5f};
+        ASSERT_EQ(p.as<std::string>(), std::string{"0 1.1 2.2 3.3 4.4 5.5"});
+    }
+
+    {
+        Any p = "0 1.1 2.2 3.3 4.4 5.5";
+        ASSERT_EQ((p.as<std::vector<float>>()), ref_vec);
+    }
 }
 
-TEST_F(AnyTests, PrintToVectorOfFloatsAnyDoesNothing) {
-    Any p = std::vector<float>{0.0f, 1.1f, 2.2f, 3.3f, 4.4f, 5.5f};
-    std::stringstream stream;
-    ASSERT_NO_THROW(p.print(stream));
-    ASSERT_EQ(stream.str(), std::string{});
-}
-
-TEST_F(AnyTests, PrintToVectorOfStringsAnyDoesNothing) {
+TEST_F(AnyTests, PrintToVectorOfStrings) {
     Any p = std::vector<std::string>{"zero", "one", "two", "three", "four", "five"};
     std::stringstream stream;
     ASSERT_NO_THROW(p.print(stream));
-    ASSERT_EQ(stream.str(), std::string{});
+    ASSERT_EQ(stream.str(), std::string{"zero one two three four five"});
 }
 
-TEST_F(AnyTests, PrintToMapOfAnysDoesNothing) {
+TEST_F(AnyTests, PrintToMapOfAnys) {
     std::map<std::string, Any> refMap;
     refMap["testParamInt"] = 4;
     refMap["testParamString"] = "test";
-    Any p = refMap;
     std::stringstream stream;
-    ASSERT_NO_THROW(p.print(stream));
-    ASSERT_EQ(stream.str(), std::string{});
+    {
+        Any p = refMap;
+        ASSERT_NO_THROW(p.print(stream));
+        ASSERT_EQ(stream.str(), std::string{"testParamInt 4 testParamString test"});
+    }
 }
 
 TEST_F(AnyTests, constructFromVariantImpl) {
@@ -510,4 +496,47 @@ TEST_F(AnyTests, accessUsingWrongBaseReference) {
     ASSERT_FALSE(p.is<WrongBase>());
     ASSERT_NO_THROW(p.as<WrongDerived>());
     ASSERT_THROW(p.as<WrongBase>(), ov::Exception);
+}
+
+TEST_F(AnyTests, ToString) {
+    Any p = 42;
+    ASSERT_TRUE(p.is<int>());
+    ASSERT_EQ("42", p.as<std::string>());
+}
+
+TEST_F(AnyTests, FromString) {
+    Any p = "42";
+    ASSERT_TRUE(p.is<std::string>());
+    ASSERT_EQ(42, p.as<int>());
+}
+
+TEST_F(AnyTests, BoolFromString) {
+    {
+        Any p = "YES";
+        ASSERT_TRUE(p.is<std::string>());
+        ASSERT_EQ(true, p.as<bool>());
+    }
+    {
+        Any p = "NO";
+        ASSERT_TRUE(p.is<std::string>());
+        ASSERT_EQ(false, p.as<bool>());
+    }
+    {
+        Any p = "Some";
+        ASSERT_TRUE(p.is<std::string>());
+        ASSERT_THROW(p.as<bool>(), ov::Exception);
+    }
+}
+
+TEST_F(AnyTests, NotIntFromStringThrow) {
+    Any p = "not42";
+    ASSERT_TRUE(p.is<std::string>());
+    ASSERT_THROW(p.as<int>(), ov::Exception);
+}
+
+TEST_F(AnyTests, AddressofNoThrow) {
+    Any p;
+    ASSERT_EQ(nullptr, p.addressof());
+    p = 42;
+    ASSERT_NE(nullptr, p.addressof());
 }

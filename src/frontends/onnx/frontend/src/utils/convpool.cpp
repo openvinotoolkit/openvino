@@ -82,6 +82,7 @@ ngraph::op::PadType get_auto_pad(const Node& node) {
             {"SAME_UPPER", ngraph::op::PadType::SAME_UPPER},
             {"SAME_LOWER", ngraph::op::PadType::SAME_LOWER},
             {"NOTSET", ngraph::op::PadType::NOTSET},
+            {"", ngraph::op::PadType::NOTSET},  // empty string considered as undefined attribute
         };
 
         const std::string& pad_str{node.get_attribute_value<std::string>("auto_pad", "NOTSET")};
