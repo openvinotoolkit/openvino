@@ -57,11 +57,9 @@ AutoBatchInferRequest::AutoBatchInferRequest(const std::vector<std::shared_ptr<c
                                              const std::vector<std::shared_ptr<const ov::Node>>& outputs,
                                              AutoBatchExecutableNetwork::WorkerInferRequest& workerRequest,
                                              int batch_id,
-                                             int num_batch,
-                                             bool needPerfCounters)
+                                             int num_batch)
     : IInferRequestInternal(inputs, outputs),
       _myBatchedRequestWrapper(workerRequest),
-      _needPerfCounters(needPerfCounters),
       _batchId(batch_id),
       _batchSize(num_batch) {
     ShareBlobsWithBatchRequest();
@@ -71,11 +69,9 @@ AutoBatchInferRequest::AutoBatchInferRequest(const InputsDataMap& networkInputs,
                                              const OutputsDataMap& networkOutputs,
                                              AutoBatchExecutableNetwork::WorkerInferRequest& workerRequest,
                                              int batch_id,
-                                             int num_batch,
-                                             bool needPerfCounters)
+                                             int num_batch)
     : IInferRequestInternal(networkInputs, networkOutputs),
       _myBatchedRequestWrapper(workerRequest),
-      _needPerfCounters(needPerfCounters),
       _batchId(batch_id),
       _batchSize(num_batch) {
     ShareBlobsWithBatchRequest();
@@ -316,13 +312,8 @@ void AutoBatchInferRequest::CopyOutputsIfNeeded() {
     }
 }
 
-std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> AutoBatchInferRequest::GetPerformanceCounts() const {
-    return _perfMap;
-}
-
 AutoBatchAsyncInferRequest::AutoBatchAsyncInferRequest(
     const AutoBatchInferRequest::Ptr& inferRequest,
-    const bool needPerfCounters,
     InferenceEngine::SoIInferRequestInternal& inferRequestWithoutBatch,
     const ITaskExecutor::Ptr& callbackExecutor)
     : AsyncInferRequestThreadSafeDefault(inferRequest, nullptr, callbackExecutor),
@@ -345,27 +336,26 @@ AutoBatchAsyncInferRequest::AutoBatchAsyncInferRequest(
         };
         AutoBatchAsyncInferRequest* _this = nullptr;
     };
-    _pipeline = {
-        {/*TaskExecutor*/ std::make_shared<ThisRequestExecutor>(this), /*task*/ [this, needPerfCounters] {
-             if (this->_inferRequest->_exceptionPtr)  // if the exception happened in the batch1 fallback
-                 std::rethrow_exception(this->_inferRequest->_exceptionPtr);
-             auto& batchReq = this->_inferRequest->_myBatchedRequestWrapper;
-             if (batchReq._exceptionPtr)  // when the batchN execution failed
-                 std::rethrow_exception(batchReq._exceptionPtr);
-             // in the case of non-batched execution the blobs were set explicitly
-             if (AutoBatchInferRequest::eExecutionFlavor::BATCH_EXECUTED == this->_inferRequest->_wasBatchedRequestUsed)
-                 this->_inferRequest->CopyOutputsIfNeeded();
-             if (needPerfCounters) {
-                 try {
-                     if (AutoBatchInferRequest::eExecutionFlavor::BATCH_EXECUTED ==
-                         this->_inferRequest->_wasBatchedRequestUsed)
-                         this->_inferRequest->_perfMap = batchReq._inferRequestBatched->GetPerformanceCounts();
-                     else
-                         this->_inferRequest->_perfMap = this->_inferRequestWithoutBatch->GetPerformanceCounts();
-                 } catch (...) {
-                 }
-             }
-         }}};
+    _pipeline = {{/*TaskExecutor*/ std::make_shared<ThisRequestExecutor>(this), /*task*/ [this] {
+                      if (this->_inferRequest->_exceptionPtr)  // if the exception happened in the batch1 fallback
+                          std::rethrow_exception(this->_inferRequest->_exceptionPtr);
+                      auto& batchReq = this->_inferRequest->_myBatchedRequestWrapper;
+                      if (batchReq._exceptionPtr)  // when the batchN execution failed
+                          std::rethrow_exception(batchReq._exceptionPtr);
+                      // in the case of non-batched execution the blobs were set explicitly
+                      if (AutoBatchInferRequest::eExecutionFlavor::BATCH_EXECUTED ==
+                          this->_inferRequest->_wasBatchedRequestUsed)
+                          this->_inferRequest->CopyOutputsIfNeeded();
+                  }}};
+}
+
+std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> AutoBatchAsyncInferRequest::GetPerformanceCounts()
+    const {
+    CheckState();
+    if (AutoBatchInferRequest::eExecutionFlavor::BATCH_EXECUTED == _inferRequest->_wasBatchedRequestUsed)
+        return _inferRequest->_myBatchedRequestWrapper._inferRequestBatched->GetPerformanceCounts();
+    else
+        return _inferRequestWithoutBatch->GetPerformanceCounts();
 }
 
 void AutoBatchAsyncInferRequest::Infer_ThreadUnsafe() {
@@ -381,14 +371,12 @@ AutoBatchExecutableNetwork::AutoBatchExecutableNetwork(
     const InferenceEngine::SoExecutableNetworkInternal& networkWithBatch,
     const InferenceEngine::SoExecutableNetworkInternal& networkWithoutBatch,
     const DeviceInformation& networkDevice,
-    const std::unordered_map<std::string, InferenceEngine::Parameter>& config,
-    const bool needPerfCounters)
+    const std::unordered_map<std::string, InferenceEngine::Parameter>& config)
     : InferenceEngine::ExecutableNetworkThreadSafeDefault(nullptr,
                                                           std::make_shared<InferenceEngine::ImmediateExecutor>()),
       _network{networkWithBatch},
       _networkWithoutBatch{networkWithoutBatch},
-      _config{config},
-      _needPerfCounters{needPerfCounters} {
+      _config{config} {
     // WA for gcc 4.8 ( fails compilation with member init-list)
     _device = networkDevice;
     auto time_out = config.find(CONFIG_KEY(AUTO_BATCH_TIMEOUT));
@@ -423,8 +411,7 @@ InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateIn
                                                    networkOutputs,
                                                    workerRequestPtrAndId.first,
                                                    workerRequestPtrAndId.second,
-                                                   _device.batchForDevice,
-                                                   _needPerfCounters);
+                                                   _device.batchForDevice);
 }
 
 InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateInferRequestImpl(
@@ -440,8 +427,7 @@ InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateIn
                                                    outputs,
                                                    workerRequestPtrAndId.first,
                                                    workerRequestPtrAndId.second,
-                                                   _device.batchForDevice,
-                                                   _needPerfCounters);
+                                                   _device.batchForDevice);
 }
 
 std::pair<AutoBatchExecutableNetwork::WorkerInferRequest&, int> AutoBatchExecutableNetwork::GetWorkerInferRequest() {
@@ -537,7 +523,6 @@ InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateIn
                                                                          _networkWithoutBatch._so};
     return std::make_shared<AutoBatchAsyncInferRequest>(
         std::static_pointer_cast<AutoBatchInferRequest>(syncRequestImpl),
-        _needPerfCounters,
         inferRequestWithoutBatch,
         _callbackExecutor);
 }
@@ -827,7 +812,6 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
 
     if (!metaDevice.batchForDevice) {
         unsigned int requests = 0;
-        unsigned int optimalBatchSize = 0;
         // batch size is not set explicitly via device name e.g. BATCH:GPU(4)
         // let's query the optimal batch size
         std::map<std::string, InferenceEngine::Parameter> options;
@@ -839,18 +823,13 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         if (reqs != config.end())
             requests = static_cast<unsigned int>(PerfHintsConfig::CheckPerformanceHintRequestValue(reqs->second));
         if (requests)
-            optBatchSize = std::max(1u, std::min(requests, optimalBatchSize));
+            optBatchSize = std::max(1u, std::min(requests, optBatchSize));
         if (optBatchSize > 2)  // batching is usually in-efficient for batch<4 (as batch1 kernels are heavily optimized)
             metaDevice.batchForDevice = optBatchSize;
         else
             metaDevice.batchForDevice = 1;
     }
 
-    const auto perfConfig = fullConfig.find(PluginConfigParams::KEY_PERF_COUNT);
-    const auto perfConfigInTargetPlugin =
-        core->GetConfig(deviceName, PluginConfigParams::KEY_PERF_COUNT).as<std::string>() == PluginConfigParams::YES;
-    const bool enablePerfCounters = perfConfigInTargetPlugin || ((fullConfig.end() != perfConfig) &&
-                                                                 (perfConfig->second == PluginConfigParams::YES));
     auto report_footprint = [](std::shared_ptr<ICore> pCore, std::string device) -> size_t {
         size_t footprint = 0;
         // TODO: use the per-network metric (22.2) rather than plugin-level
@@ -902,8 +881,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     return std::make_shared<AutoBatchExecutableNetwork>(executableNetworkWithBatch,
                                                         executableNetworkWithoutBatch,
                                                         metaDevice,
-                                                        networkConfig,
-                                                        enablePerfCounters);
+                                                        networkConfig);
 }
 
 InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadExeNetworkImpl(
