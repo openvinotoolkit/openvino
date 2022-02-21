@@ -18,7 +18,7 @@ namespace internal {
 
 class TRANSFORMATIONS_API NonMaxSuppressionIEInternal : public Op {
 public:
-    OPENVINO_OP("NonMaxSuppressionIEInternal", "util");
+    OPENVINO_OP("NonMaxSuppressionIEInternal", "ie_internal_opset");
     BWDCMP_RTTI_DECLARATION;
 
     NonMaxSuppressionIEInternal() = default;

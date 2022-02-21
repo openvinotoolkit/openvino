@@ -655,6 +655,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     }
 
     auto config = orig_config;
+
     CNNNetwork clonedNetwork = InferenceEngine::details::cloneNetwork(network);
     const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
     const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
@@ -822,7 +823,8 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
                                                     RO_property(ov::range_for_async_infer_requests.name()),
                                                     RO_property(ov::range_for_streams.name()),
                                                     RO_property(ov::device::full_name.name()),
-                                                    RO_property(ov::device::capabilities.name())
+                                                    RO_property(ov::device::capabilities.name()),
+                                                    RO_property(ov::cache_dir.name())   // WA Can be removed after implementing snippet serialization.
         };
         // the whole config is RW before network is loaded.
         std::vector<ov::PropertyName> rwProperties {RW_property(ov::num_streams.name()),
