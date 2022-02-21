@@ -192,7 +192,7 @@ TEST_P(LSTMSequenceCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckPluginRelatedResults(executableNetwork, "RNNSeq");
+    CheckPluginRelatedResults(compiledModel, "RNNSeq");
 }
 
 namespace {
