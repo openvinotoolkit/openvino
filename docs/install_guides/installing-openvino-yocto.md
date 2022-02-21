@@ -16,10 +16,10 @@ The following Git repositories are required to build a Yocto image:
 
 Clone these Git repositories to your host machine: 
 ```sh
-git clone https://git.yoctoproject.org/git/poky
-git clone https://git.yoctoproject.org/git/meta-intel
-git clone https://git.openembedded.org/meta-openembedded
-git clone https://github.com/kraj/meta-clang.git
+git clone https://git.yoctoproject.org/git/poky --branch honister
+git clone https://git.yoctoproject.org/git/meta-intel --branch honister
+git clone https://git.openembedded.org/meta-openembedded --branch honister
+git clone https://github.com/kraj/meta-clang.git --branch honister
 ```
 
 ### Set up BitBake Layers
