@@ -554,13 +554,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto fc_supports_fusings = [](fully_connected_node& node) -> bool {
-            auto out_fmt = node.get_output_layout().format;
-            auto in_l = node.get_dependency(0).get_output_layout();
-            auto in_dt = in_l.data_type;
-            auto in_b = in_l.size.batch[0];
+            auto in_dt = node.get_dependency(0).get_output_layout().data_type;
 
-            return (data_type_traits::is_i8_u8(in_dt) || (data_type_traits::is_floating_point(in_dt) && in_b > 1)) &&
-                   out_fmt != format::yxfb;
+            return data_type_traits::is_i8_u8(in_dt);
         };
 
         auto gemm_supports_fusings = [](gemm_node& node) -> bool {

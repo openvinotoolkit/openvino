@@ -359,9 +359,9 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_scale_activation_quantize_i8, ::te
     fully_connected_test_params{ CASE_FC_U8S8_3D_2, 2, 5 },
     fully_connected_test_params{ CASE_FC_U8S8_3D_3, 2, 5 },
 
-    fully_connected_test_params{ CASE_FC_FP32_3D_1, 2, 5 },
-    fully_connected_test_params{ CASE_FC_FP32_3D_2, 2, 5 },
-    fully_connected_test_params{ CASE_FC_FP32_3D_3, 2, 5 },
+    fully_connected_test_params{ CASE_FC_FP32_3D_1, 3, 5 },
+    fully_connected_test_params{ CASE_FC_FP32_3D_2, 3, 5 },
+    fully_connected_test_params{ CASE_FC_FP32_3D_3, 3, 5 },
 }));
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
