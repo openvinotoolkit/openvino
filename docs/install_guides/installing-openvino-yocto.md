@@ -1,7 +1,7 @@
 # Create a Yocto* Image with OpenVINO™ toolkit {#openvino_docs_install_guides_installing_openvino_yocto}
 This document provides instructions for creating a Yocto* image with OpenVINO™ toolkit.
 
-Instructions were validated and tested for [Yocto OpenVINO 2021.3 release](https://git.yoctoproject.org/cgit/cgit.cgi/meta-intel/tree/dynamic-layers/openembedded-layer/recipes-support/opencv).
+Instructions were validated and tested for [Yocto OpenVINO 2021.3 release](https://git.yoctoproject.org/meta-intel/tree/dynamic-layers/openembedded-layer/recipes-support/opencv?h=hardknott).
 
 ## System Requirements
 Use the [Yocto Project* official documentation](https://docs.yoctoproject.org/brief-yoctoprojectqs/index.html#compatible-linux-distribution) to set up and configure your host machine to be compatible with BitBake*.
@@ -18,10 +18,10 @@ The following Git repositories are required to build a Yocto image:
 
 Clone these Git repositories to your host machine: 
 ```sh
-git clone https://git.yoctoproject.org/git/poky
-git clone https://git.yoctoproject.org/git/meta-intel
-git clone https://git.openembedded.org/meta-openembedded
-git clone https://github.com/kraj/meta-clang.git
+git clone https://git.yoctoproject.org/git/poky --branch hardknott
+git clone https://git.yoctoproject.org/git/meta-intel --branch hardknott
+git clone https://git.openembedded.org/meta-openembedded --branch hardknott
+git clone https://github.com/kraj/meta-clang.git --branch hardknott
 ```
 
 ### Set up BitBake* Layers
