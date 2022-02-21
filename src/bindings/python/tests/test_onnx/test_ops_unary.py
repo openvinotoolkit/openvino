@@ -7,7 +7,7 @@ import onnx.mapping
 import pytest
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
 
-from openvino.runtime.exceptions import NgraphTypeError
+from openvino.runtime.exceptions import OVTypeError
 from tests.runtime import get_runtime
 from tests.test_onnx.utils import get_node_model, import_onnx_model, run_model, run_node
 
@@ -425,7 +425,7 @@ def test_cast_errors():
 
     graph = make_graph([node], "compute_graph", input_tensors, output_tensors)
     model = make_model(graph, producer_name="NgraphBackend")
-    with pytest.raises((RuntimeError, NgraphTypeError)):
+    with pytest.raises((RuntimeError, OVTypeError)):
         import_onnx_model(model)
 
     # unsupported output tensor data type:
