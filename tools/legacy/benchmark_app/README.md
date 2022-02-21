@@ -1,4 +1,4 @@
-# Benchmark C++ Tool {#openvino_inference_engine_legacy_benchmark_app_README}
+# Benchmark C++ Tool
 
 This topic demonstrates how to use the Benchmark C++ Tool to estimate deep learning inference performance on supported devices. Performance can be measured for two inference modes: synchronous (latency-oriented) and asynchronous (throughput-oriented).
 
@@ -42,7 +42,7 @@ The application also saves executable graph information serialized to an XML fil
 `-exec_graph_path` parameter.
 
 ## Building
-This tools can be built as part of OpenVINO building process. More information about building OpenVINO can be found here[Build OpenVINO Inference Engine](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode)
+This tools can be built as part of OpenVINO, during standard building process. More information about building OpenVINO can be found here[Build OpenVINO Inference Engine](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode)
 
 ## Run the Tool
 
