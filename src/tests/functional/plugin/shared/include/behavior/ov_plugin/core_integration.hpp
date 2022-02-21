@@ -59,7 +59,7 @@ using DevicePriorityParams = std::tuple<
         ov::AnyMap              // Configuration key and its default value
 >;
 
-class OVClassSetDevicePriorityConfigTest : public ::testing::Test, public ::testing::WithParamInterface<DevicePriorityParams> {
+class OVClassCorrectConfigTest : public ::testing::Test, public ::testing::WithParamInterface<DevicePriorityParams> {
 protected:
     std::string deviceName;
     ov::AnyMap configuration;
@@ -332,24 +332,6 @@ TEST(OVClassBasicTest, smoke_SetConfigAutoNoThrows) {
     OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::HIGH)));
     OV_ASSERT_NO_THROW(value = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority));
     EXPECT_EQ(value, ov::hint::Priority::HIGH);
-
-    // performance hint config test
-    ov::hint::PerformanceMode mode;
-    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
-    OV_ASSERT_NO_THROW(mode = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::hint::performance_mode));
-    EXPECT_EQ(mode, ov::hint::PerformanceMode::LATENCY);
-
-    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)));
-    OV_ASSERT_NO_THROW(mode = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::hint::performance_mode));
-    EXPECT_EQ(mode, ov::hint::PerformanceMode::THROUGHPUT);
-
-    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_MULTI, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
-    OV_ASSERT_NO_THROW(mode = ie.get_property(CommonTestUtils::DEVICE_MULTI, ov::hint::performance_mode));
-    EXPECT_EQ(mode, ov::hint::PerformanceMode::LATENCY);
-
-    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_MULTI, ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)));
-    OV_ASSERT_NO_THROW(mode = ie.get_property(CommonTestUtils::DEVICE_MULTI, ov::hint::performance_mode));
-    EXPECT_EQ(mode, ov::hint::PerformanceMode::THROUGHPUT);
 }
 
 TEST_P(OVClassSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {
@@ -391,12 +373,15 @@ TEST_P(OVClassSetModelPriorityConfigTest, SetConfigNoThrow) {
     EXPECT_EQ(value, ov::hint::Priority::HIGH);
 }
 
-TEST_P(OVClassSetDevicePriorityConfigTest, SetConfigNoThrow) {
+TEST_P(OVClassCorrectConfigTest, SetConfigAndCheckGetConfigNoThrow) {
     ov::Core ie = createCoreWithTemplate();
-    std::string devicePriority;
-    OV_ASSERT_NO_THROW(ie.set_property(deviceName, configuration));
-    OV_ASSERT_NO_THROW(devicePriority = ie.get_property(deviceName, ov::device::priorities));
-    ASSERT_EQ(devicePriority, configuration[ov::device::priorities.name()].as<std::string>());
+    EXPECT_NO_THROW(ie.set_property(deviceName, configuration));
+    for (const auto& configItem : configuration) {
+        ov::Any param;
+        EXPECT_NO_THROW(param = ie.get_property(deviceName, configItem.first));
+        EXPECT_FALSE(param.empty());
+        EXPECT_EQ(param, configItem.second);
+    }
 }
 
 TEST_P(OVClassSetLogLevelConfigTest, SetConfigNoThrow) {

@@ -91,7 +91,7 @@ const std::vector<ov::AnyMap> multiConfigs = {
         {ov::device::priorities(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU)}};
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassSetDevicePriorityConfigTest, OVClassSetDevicePriorityConfigTest,
+        smoke_OVClassCorrectConfigTest, OVClassCorrectConfigTest,
         ::testing::Combine(::testing::Values("MULTI", "AUTO"),
                            ::testing::ValuesIn(multiConfigs)));
 //
