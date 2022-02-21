@@ -1,4 +1,4 @@
-# VPU Plugins {#openvino_docs_IE_DG_supported_plugins_VPU}
+# VPU devices {#openvino_docs_IE_DG_supported_plugins_VPU}
 
 @sphinxdirective
 

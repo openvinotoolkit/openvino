@@ -10,7 +10,7 @@ OpenVINO runtime has two types of properties:
 - Mutable properties which are primarily used to configure ov::Core::compile_model process and affect final inference on the specific set of devices. Such properties can be set globally per device via ov::Core::set_property or locally for particular model in ov::Core::compile_model and ov::Core::query_model calls.
 
 OpenVINO property is represented as a named constexpr variable with a given string name and type (see ). Example:
-```c++
+```
 static constexpr Property<std::vector<std::string>, PropertyMutability::RO> available_devices{"AVAILABLE_DEVICES"};
 ```
 represents a read-only property with C++ name `ov::available_devices`, string name `AVAILABLE_DEVICES` and type `std::vector<std::string>`.
@@ -67,7 +67,7 @@ The `ov::CompiledModel` class is also extended to support the properties:
 
 For documentation about OpenVINO common device-independent properties, refer to `openvino/runtime/properties.hpp`. Device specific configuration keys can be found in corresponding device folders (for example, `openvino/runtime/intel_gpu/properties.hpp`).
 
-### Working with properties via ov::Core
+### Working with properties via Core
 
 #### Getting device properties
 
@@ -97,7 +97,9 @@ To extract device properties such as available devices (`ov::available_devices`)
 
 A returned value appears as follows: `Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz`.
 
-#### Configure process of working with model
+> **NOTE**: In order to understand a list of supported properties on `ov::Core` or `ov::CompiledModel` levels, use `ov::supported_properties` which contains a vector of supported property names. Properties which can be changed, has `ov::PropertyName::is_mutable` returning the `true` value. Most of the properites which are changable on ov::Core level, cannot be changed once the model is compiled, so it becomes immutable read-only property.
+
+#### Configure a work with a model
 
 `ov::Core` methods like:
 
@@ -127,7 +129,7 @@ The example below specifies hints that a model should be compiled to be inferenc
 
 #### Setting properties globally
 
-`ov::Core::set_property` with a given device name should be used to set global configuration properties which are the same accross multiple `ov::Core::compile_model`, `ov::Core::query_model`, etc calls, while setting property on the specific `ov::Core::compile_model` call applies properties only for current call:
+`ov::Core::set_property` with a given device name should be used to set global configuration properties which are the same accross multiple `ov::Core::compile_model`, `ov::Core::query_model`, etc. calls, while setting property on the specific `ov::Core::compile_model` call applies properties only for current call:
 
 @sphinxdirective
 
@@ -149,7 +151,7 @@ The example below specifies hints that a model should be compiled to be inferenc
 
 #### Getting property
 
-The `ov::CompiledModel::get_property` method is used to get property values the compiled model has been created with or compiled model specific property such as `ov::optimal_number_of_infer_requests`:
+The `ov::CompiledModel::get_property` method is used to get property values the compiled model has been created with or a compiled model level property such as `ov::optimal_number_of_infer_requests`:
 
 @sphinxdirective
 
@@ -205,7 +207,7 @@ Or the number of threads that would be used for inference on `CPU` device:
 
 #### Setting properties for compiled model
 
-The only device that supports this method is [Multi-Device execution](../multi_device.md):
+The only mode that supports this method is [Multi-Device execution](../multi_device.md):
 
 @sphinxdirective
 
