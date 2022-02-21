@@ -122,7 +122,7 @@ protected:
 TEST_P(ScatterElementsUpdateLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    CheckPluginRelatedResults(executableNetwork, "ScatterUpdate");
+    CheckPluginRelatedResults(compiledModel, "ScatterUpdate");
 }
 
 const std::vector<std::int64_t> axes = { -3, -2, -1, 0, 1, 2 };

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/preprocessing/preprocessing.hpp"
+#include "behavior/plugin/preprocessing.hpp"
 
 #ifdef ENABLE_GAPI_PREPROCESSING
 

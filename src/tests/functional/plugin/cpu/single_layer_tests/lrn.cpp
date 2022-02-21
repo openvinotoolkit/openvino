@@ -66,7 +66,7 @@ TEST_P(LRNLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckPluginRelatedResults(executableNetwork, "LRN");
+    CheckPluginRelatedResults(compiledModel, "LRN");
 }
 
 const std::vector<ElementType> inputPrecisions = {

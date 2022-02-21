@@ -76,7 +76,7 @@ TEST_P(ShuffleChannelsLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckPluginRelatedResults(executableNetwork, "ShuffleChannels");
+    CheckPluginRelatedResults(compiledModel, "ShuffleChannels");
 }
 
 namespace {

@@ -97,5 +97,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*RangeLayerTest.*)",
             // Issue: 76197
             R"(.*registerPluginsXMLUnicodePath.*)",
+            // Not supported yet
+            R"(.*CompileModelCacheTestBase.*)",
     };
 }

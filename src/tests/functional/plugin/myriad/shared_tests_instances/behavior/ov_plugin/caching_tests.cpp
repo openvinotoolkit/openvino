@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/caching/caching_tests.hpp"
+#include "behavior/ov_plugin/caching_tests.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace ov::test::behavior;
 
 namespace {
     static const std::vector<ngraph::element::Type> nightly_precisionsMyriad = {
@@ -23,27 +23,27 @@ namespace {
             1, 2
     };
 
-    static std::vector<nGraphFunctionWithName> smoke_functions() {
-        auto funcs = LoadNetworkCacheTestBase::getStandardFunctions();
+    static std::vector<ovModelWithName> smoke_functions() {
+        auto funcs = CompileModelCacheTestBase::getStandardFunctions();
         if (funcs.size() > 1) {
             funcs.erase(funcs.begin() + 1, funcs.end());
         }
         return funcs;
     }
 
-    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_Myriad, LoadNetworkCacheTestBase,
+    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_Myriad, CompileModelCacheTestBase,
                             ::testing::Combine(
                                     ::testing::ValuesIn(smoke_functions()),
                                     ::testing::ValuesIn(smoke_precisionsMyriad),
                                     ::testing::ValuesIn(batchSizesMyriad),
                                     ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
-                            LoadNetworkCacheTestBase::getTestCaseName);
+                            CompileModelCacheTestBase::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(nightly_CachingSupportCase_Myriad, LoadNetworkCacheTestBase,
+    INSTANTIATE_TEST_SUITE_P(nightly_CachingSupportCase_Myriad, CompileModelCacheTestBase,
                             ::testing::Combine(
-                                    ::testing::ValuesIn(LoadNetworkCacheTestBase::getStandardFunctions()),
+                                    ::testing::ValuesIn(CompileModelCacheTestBase::getStandardFunctions()),
                                     ::testing::ValuesIn(nightly_precisionsMyriad),
                                     ::testing::ValuesIn(batchSizesMyriad),
                                     ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
-                            LoadNetworkCacheTestBase::getTestCaseName);
+                            CompileModelCacheTestBase::getTestCaseName);
 } // namespace

@@ -85,7 +85,7 @@ TEST_P(TransposeLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckPluginRelatedResults(executableNetwork, "Transpose");
+    CheckPluginRelatedResults(compiledModel, "Transpose");
 }
 
 namespace {

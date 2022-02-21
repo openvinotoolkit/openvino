@@ -172,7 +172,7 @@ protected:
 TEST_P(CTCGreedyDecoderSeqLenLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
-    CheckPluginRelatedResults(executableNetwork, "CTCGreedyDecoderSeqLen");
+    CheckPluginRelatedResults(compiledModel, "CTCGreedyDecoderSeqLen");
 }
 
 namespace {

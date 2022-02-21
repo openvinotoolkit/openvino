@@ -91,7 +91,7 @@ TEST_P(ConcatLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckPluginRelatedResults(executableNetwork, "Concatenation");
+    CheckPluginRelatedResults(compiledModel, "Concatenation");
 }
 
 namespace {

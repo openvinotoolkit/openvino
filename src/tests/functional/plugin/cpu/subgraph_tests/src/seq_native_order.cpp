@@ -249,8 +249,8 @@ TEST_P(SequenceCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckNumberOfNodesWithType(executableNetwork, "RNNSeq", 1);
-    CheckNumberOfNodesWithType(executableNetwork, "Transpose", 0);
+    CheckNumberOfNodesWithType(compiledModel, "RNNSeq", 1);
+    CheckNumberOfNodesWithType(compiledModel, "Transpose", 0);
 }
 
 const std::vector<SEQ_TYPE> nodeType = {

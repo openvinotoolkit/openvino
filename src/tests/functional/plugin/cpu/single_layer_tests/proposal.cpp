@@ -194,7 +194,7 @@ TEST_P(ProposalLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckPluginRelatedResults(executableNetwork, "Proposal");
+    CheckPluginRelatedResults(compiledModel, "Proposal");
 }
 
 namespace {

@@ -183,7 +183,7 @@ TEST_P(ReduceCPULayerTest, CompareWithRefs) {
 
     run();
 
-    CheckPluginRelatedResults(executableNetwork, "Reduce");
+    CheckPluginRelatedResults(compiledModel, "Reduce");
 }
 namespace {
 const std::vector<ElementType> inpOutPrc = {ElementType::bf16, ElementType::f32};

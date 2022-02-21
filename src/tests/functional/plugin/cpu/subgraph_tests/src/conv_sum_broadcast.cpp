@@ -114,7 +114,7 @@ TEST_P(ConcatConvSumInPlaceTest, CompareWithRefs) {
 
     run();
 
-    CheckPluginRelatedResults(executableNetwork, "Convolution");
+    CheckPluginRelatedResults(compiledModel, "Convolution");
 }
 
 namespace {

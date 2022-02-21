@@ -154,7 +154,7 @@ protected:
 TEST_P(PriorBoxLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    CheckPluginRelatedResults(executableNetwork, "PriorBox");
+    CheckPluginRelatedResults(compiledModel, "PriorBox");
 }
 
 namespace {

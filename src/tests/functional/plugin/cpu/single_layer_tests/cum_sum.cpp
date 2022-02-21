@@ -70,7 +70,7 @@ TEST_P(CumSumLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckPluginRelatedResults(executableNetwork, "CumSum");
+    CheckPluginRelatedResults(compiledModel, "CumSum");
 }
 
 const ngraph::element::TypeVector inputPrecision = {

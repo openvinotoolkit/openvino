@@ -96,7 +96,7 @@ TEST_P(ReshapeFcCPUTest, CompareWithRefs) {
    SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
    run();
-   CheckPluginRelatedResults(executableNetwork, "FullyConnected");
+   CheckPluginRelatedResults(compiledModel, "FullyConnected");
 }
 
 const std::vector<ReshapeFcSpecParams> reshFcParams = {

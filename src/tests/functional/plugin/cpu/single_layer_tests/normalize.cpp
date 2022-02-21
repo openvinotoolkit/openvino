@@ -101,7 +101,7 @@ TEST_P(NormalizeL2LayerCPUTest, CompareWithRefs) {
 
     run();
 
-    CheckPluginRelatedResults(executableNetwork, "NormalizeL2");
+    CheckPluginRelatedResults(compiledModel, "NormalizeL2");
 }
 
 namespace {

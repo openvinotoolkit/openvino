@@ -81,7 +81,7 @@ TEST_P(DepthToSpaceLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckPluginRelatedResults(executableNetwork, "DepthToSpace");
+    CheckPluginRelatedResults(compiledModel, "DepthToSpace");
 }
 
 namespace {
