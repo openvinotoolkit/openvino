@@ -100,7 +100,7 @@ private:
     const int step = vlen / sizeof(float);
 
     Vmm vmm_mask = Vmm(0);
-    Vmm vmm_zero = Vmm(0);
+    Vmm vmm_zero = Vmm(2); // avoid using xmm0 (reserved as mask reg in sse41-instruction blendvps)
 
     Xmm xmm_yf = Xmm(0);
     Vmm vmm_yf = Vmm(0);
