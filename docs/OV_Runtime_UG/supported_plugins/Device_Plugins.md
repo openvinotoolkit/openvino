@@ -11,9 +11,6 @@
    openvino_docs_IE_DG_supported_plugins_GPU
    openvino_docs_IE_DG_supported_plugins_VPU
    openvino_docs_IE_DG_supported_plugins_GNA
-   openvino_docs_IE_DG_supported_plugins_AUTO
-   openvino_docs_IE_DG_supported_plugins_HETERO
-   openvino_docs_IE_DG_supported_plugins_MULTI
 
 @endsphinxdirective
 
