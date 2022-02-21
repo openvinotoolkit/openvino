@@ -921,7 +921,9 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
         num_data_bytes_in = num_rows * num_columns * inputs->getPrecision().size();
     }
 
-    connectInput(layer, ptr_inputs, num_data_bytes_in);
+    auto fused_to_layer = connectInput(layer, ptr_inputs, num_data_bytes_in);
+    // Pooling will be fused with the previous layer and we need to use it's order id
+    layer->userValue.v_int = fused_to_layer.input->userValue.v_int;
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
 }
 
@@ -2056,7 +2058,9 @@ case name:\
         ptr_outputs,
         ptr_pwl_segments_target);
 
-    connectInput(layer, ptr_inputs, num_data_bytes_in);
+    auto fused_to_layer = connectInput(layer, ptr_inputs, num_data_bytes_in);
+    // PWL will be fused with the previous layer and we need to use it's order id
+    layer->userValue.v_int = fused_to_layer.input->userValue.v_int;
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
     if (ptr_pwl_segments_target != nullptr) {

@@ -856,7 +856,12 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     std::vector<CNNLayerPtr> sortedNoMem;
     std::unordered_map<std::string, std::vector<InferenceEngine::CNNLayerPtr>> memoryPairs;
     // find all memory layers pairs and mark which one used as outputs
+    uint16_t id = 0;
     for (auto &layer : sortedNet) {
+        // set order id for layers to use it in compact mode
+        IE_SUPPRESS_DEPRECATED_START
+        layer->userValue.v_int = id++;
+        IE_SUPPRESS_DEPRECATED_END
         auto generic = dynamic_cast<GenericLayer *>(layer.get());
         if (generic == nullptr) {
             sortedNoMem.push_back(layer);
@@ -909,11 +914,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     }
 
     // Creating Layer primitives
-    uint16_t id = 0;
     for (auto & layer : sortedNoMem) {
-        IE_SUPPRESS_DEPRECATED_START
-        layer->userValue.v_int = id++;
-        IE_SUPPRESS_DEPRECATED_END
         graphCompiler.CreateLayerPrimitive(layer);
     }
 
