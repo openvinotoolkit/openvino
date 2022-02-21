@@ -354,13 +354,14 @@ void regclass_graph_Model(py::module m) {
             (1) `openvino.runtime.PartialShape`
             (2) `list` consisting of dimensions
             (3) `tuple` consisting of dimensions
-            (4) `str`
+            (4) `str`, string representation of `openvino.runtime.PartialShape`
 
-            To define a single dimension in the list use:
+            When list or tuple are used to describe dimensions, each dimension can be written in form:
 
-            (1) `int`
-            (2) `[min, max]`
-            (3) `(min, max)`
+            (1) non-negative `int` which means static value for the dimension
+            (2) `[min, max]`, dynamic dimension where `min` specifies lower bound and `max` specifies upper bound; the range includes both `min` and `max`; using `-1` for `min` or `max` means no known bound
+            (3) `(min, max)`, the same as above
+            (4) `-1` is a dynamic dimension without known bounds
             (4) `openvino.runtime.Dimension`
             (5) `str` using next syntax:
                 '?' - to define fully dinamic dimension
