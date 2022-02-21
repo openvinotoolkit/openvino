@@ -114,7 +114,7 @@ Inference precision directly affects the performance.
 
 Model Optimizer can produce an IR with different precision. For example, an FP16 IR initially targets VPU and GPU devices, while, for example, for the CPU, an FP16 IR is    typically up-scaled to the regular FP32 automatically upon loading. But notice that further device-specific inference precision settings are available, 
 for example, [8-bit integer](../OV_Runtime_UG/Int8Inference.md) or [bfloat16](../OV_Runtime_UG/Bfloat16Inference.md), which is specific to the CPU inference, below.
-Note that for the [MULTI device](../OV_Runtime_UG/supported_plugins/MULTI.md) plugin that supports automatic inference on multiple devices in parallel, you can use an FP16 IR (no need for FP32).
+Note that for the [MULTI device](../OV_Runtime_UG/multi_device.md) plugin that supports automatic inference on multiple devices in parallel, you can use an FP16 IR (no need for FP32).
 You can find more information, including preferred data types for specific devices, in the
 [Supported Devices](../OV_Runtime_UG/supported_plugins/Supported_Devices.md) document.
 
@@ -282,7 +282,7 @@ You can use GraphViz\* utility or `.dot` converters (for example, to `.png` or `
 You can also use performance data (in the [Benchmark App](../../samples/cpp/benchmark_app/README.md), it is an option `-pc`) to get performance data on each subgraph. Again, refer to the [HETERO plugin documentation](../OV_Runtime_UG/hetero_execution.md) and to <a href="#performance-counters">Internal Inference Performance Counters</a> for a general counters information.
 
 ## Multi-Device Execution <a name="multi-device-optimizations"></a>
-OpenVINO&trade; toolkit supports automatic multi-device execution, please see [MULTI-Device plugin description](../OV_Runtime_UG/supported_plugins/MULTI.md).
+OpenVINO&trade; toolkit supports automatic multi-device execution, please see [MULTI-Device plugin description](../OV_Runtime_UG/multi_device.md).
 In the next chapter you can find the device-specific tips, while this section covers few recommendations 
 for the multi-device execution:
 -	MULTI usually performs best when the fastest device is specified first in the list of the devices. 

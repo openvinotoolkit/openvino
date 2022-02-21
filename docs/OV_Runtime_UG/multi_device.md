@@ -1,4 +1,4 @@
-# Multi-Device Plugin {#openvino_docs_IE_DG_supported_plugins_MULTI}
+# Running on multiple device simultaneously {#openvino_docs_OV_UG_Running_on_multiple_devices}
 
 ## Introducing the Multi-Device Plugin (C++)
 
@@ -86,7 +86,7 @@ Note that while the performance of accelerators combines really well with Multi-
 See the [Using the Multi-Device with OpenVINO samples and benchmarking the performance](#using-the-multi-device-with-openvino-samples-and-benchmarking-the-performance) section below.
 
 ### Querying the Optimal Number of Inference Requests
-You can use the [Properties API](../PropertiesAPI.md) API to query the optimal number of requests. Similarly, when using the Multi-Device you don't need to sum over included devices yourself, you can query property directly:
+You can use the [Properties API](../config_properties.md) API to query the optimal number of requests. Similarly, when using the Multi-Device you don't need to sum over included devices yourself, you can query property directly:
 
 @snippet snippets/MULTI5.cpp part5
 

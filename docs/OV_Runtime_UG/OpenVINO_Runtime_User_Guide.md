@@ -12,14 +12,14 @@
    openvino_docs_OV_Runtime_UG_Model_Representation
    <!-- rename to "Changing input shapes" -->
    openvino_docs_IE_DG_ShapeInference
-   openvino_docs_IE_DG_Device_Plugins
+   openvino_docs_OV_UG_Working_with_devices
    <!-- insert here preprocessing -->
    <!-- generalize dyn batch to "Working with dynamic shapes" -->
    openvino_docs_IE_DG_DynamicBatching
    <!-- rename MULTI to "Automatic device selection" -->
    openvino_docs_IE_DG_supported_plugins_AUTO
    <!-- rename MULTI to "Running on multiple device simultaneously" -->
-   openvino_docs_IE_DG_supported_plugins_MULTI
+   openvino_docs_OV_UG_Running_on_multiple_devices
    openvino_docs_OV_UG_Hetero_execution
    openvino_docs_IE_DG_network_state_intro
    openvino_2_0_transition_guide
