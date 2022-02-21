@@ -75,6 +75,13 @@ def visualize_example(m : ov.Model):
     pass_manager.run_passes(m)
 # ! [ov:visualize]
 
+def model_inputs_outputs(model : ov.Model):
+    #! [all_inputs_ouputs]
+    inputs = model.inputs
+    outputs = model.outputs
+    #! [all_inputs_ouputs]
+
+
 if __name__ == '__main__':
     ov_api_examples()
     create_simple_model()

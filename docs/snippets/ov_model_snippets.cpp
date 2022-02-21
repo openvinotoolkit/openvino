@@ -100,3 +100,13 @@ void visualize_example(const std::shared_ptr<ov::Model>& m) {
     manager.run_passes(m);
 }
 // ! [ov:visualize]
+
+void model_inputs() {
+std::shared_ptr<ov::Model> model;
+//! [all_inputs_ouputs]
+/* Take information about all topology inputs */
+auto inputs = model->inputs();
+/* Take information about all topology outputs */
+auto outputs = model->outputs();
+//! [all_inputs_ouputs]
+}
