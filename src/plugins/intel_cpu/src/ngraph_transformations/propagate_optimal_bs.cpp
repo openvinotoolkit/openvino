@@ -7,7 +7,6 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 #include "rt_info/optimal_batch_size.hpp"
-#include "rt_info/graph_component.hpp"
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "transformations/utils/utils.hpp"
 
