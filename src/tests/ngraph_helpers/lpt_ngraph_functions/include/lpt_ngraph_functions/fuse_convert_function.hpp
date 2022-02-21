@@ -20,6 +20,7 @@ public:
             const ngraph::PartialShape& inputShape,
             const ngraph::element::Type inputPrecision,
             const ngraph::builder::subgraph::DequantizationOperations& dequantization,
+            const ngraph::builder::subgraph::FakeQuantizeOnData& fakeQuantize,
             const bool constInput);
 
     static std::shared_ptr<ngraph::Function> getWithFQ(
