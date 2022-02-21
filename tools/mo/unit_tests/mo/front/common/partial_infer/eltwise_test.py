@@ -180,7 +180,7 @@ class TestElementwiseReverseInfer(unittest.TestCase):
 
     def test_reverse_infer_6(self):
         # both output and input has the same rank, cannot deduce other inputs rank
-        with self.assertRaisesRegex(Error, "Reverse infer couldn't calculate"):
+        with self.assertRaisesRegex(Error, "Model Optimizer is unable to deduce input shapes"):
             self.build_and_test_reverse_inference(inp_shape_1=[dyn, dyn, dyn, dyn],
                                                   inp_shape_2=None,
                                                   out_shape=[dyn, dyn, 4, 1],
