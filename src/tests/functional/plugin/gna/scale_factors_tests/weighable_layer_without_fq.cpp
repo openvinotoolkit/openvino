@@ -56,8 +56,9 @@ protected:
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        auto relu = std::make_shared<ngraph::opset8::Relu>(params[0]);
         auto fq1 = std::make_shared<ngraph::opset8::FakeQuantize>(
-            params[0],
+            relu,
             ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {-10.}),
             ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {10.}),
             ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {-10.}),
@@ -91,7 +92,7 @@ const std::vector<std::vector<size_t>> inputShapes = {
 };
 
 const std::vector<std::vector<size_t>> constantShapes = {
-    {{1, 5}}
+    {{1, 16}}
 };
 
 const std::vector<std::map<std::string, std::string>> configs = {

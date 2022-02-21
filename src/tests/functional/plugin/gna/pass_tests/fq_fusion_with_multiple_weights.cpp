@@ -118,7 +118,7 @@ const std::vector<std::map<std::string, std::string>> configs = {
 };
 
 const std::vector<std::vector<size_t>> inputShape = {
-    {1, 1, 1, 128}
+    {1, 8, 1, 128}
 };
 
 const std::vector<std::pair<float, float>> weightsMinMax = {
