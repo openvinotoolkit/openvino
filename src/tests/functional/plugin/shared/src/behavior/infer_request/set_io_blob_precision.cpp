@@ -3,7 +3,6 @@
 //
 
 #include "behavior/infer_request/set_io_blob_precision.hpp"
-#include "common_test_utils/test_constants.hpp"
 #include "ngraph_functions/builders.hpp"
 
 using namespace InferenceEngine;
