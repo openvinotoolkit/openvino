@@ -11,6 +11,7 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/parameter.hpp"  // ov::op::v0::Parameter
 #include "openvino/op/sink.hpp"
+#include "pyopenvino/core/common.hpp"
 #include "pyopenvino/core/tensor.hpp"
 #include "pyopenvino/graph/ops/result.hpp"
 #include "pyopenvino/graph/ops/util/variable.hpp"
@@ -595,17 +596,17 @@ void regclass_graph_Model(py::module m) {
             :type evaluation_context: PyRTMap
             :rtype: bool
         )");
+
     function.def("__repr__", [](const ov::Model& self) {
         std::string class_name = py::cast(self).get_type().attr("__name__").cast<std::string>();
-        std::stringstream shapes_ss;
-        for (size_t i = 0; i < self.get_output_size(); ++i) {
-            if (i > 0) {
-                shapes_ss << ", ";
-            }
-            shapes_ss << self.get_output_partial_shape(i);
-        }
-        return "<" + class_name + ": '" + self.get_friendly_name() + "' (" + shapes_ss.str() + ")>";
+
+        auto inputs_str = Common::docs::container_to_string(self.inputs(), ",\n");
+        auto outputs_str = Common::docs::container_to_string(self.outputs(), ",\n");
+
+        return "<" + class_name + ": '" + self.get_friendly_name() + "'\ninputs[\n" + inputs_str + "\n]\noutputs[\n" +
+               outputs_str + "\n]>";
     });
+
     function.def_static("from_capsule", [](py::object* capsule) {
         // get the underlying PyObject* which is a PyCapsule pointer
         auto* pybind_capsule_ptr = capsule->ptr();

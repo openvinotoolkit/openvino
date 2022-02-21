@@ -49,7 +49,7 @@ install(PROGRAMS "${_setupvars_file}"
 
 # install install_dependencies
 
-if(UNIX)
+if(LINUX)
     ie_cpack_add_component(install_dependencies REQUIRED)
     install(DIRECTORY install_dependencies/
             DESTINATION install_dependencies

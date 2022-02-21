@@ -46,4 +46,9 @@ protected:
     void CreateGraph() override;
 };
 
+class FuseTransposeAndReorderTest3 : public FuseTransposeAndReorderTest {
+protected:
+    void CreateGraph() override;
+};
+
 } // namespace SubgraphTestsDefinitions

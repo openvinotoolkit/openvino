@@ -73,7 +73,9 @@ def get_configs(args):
         'exec_log_dir': args.output
     }
     engine_config = {
-        'device': 'CPU'
+        'device': 'CPU',
+        'stat_requests_number': 1,
+        'eval_requests_number': 1
     }
     dataset_config = {
         'data_source': os.path.expanduser(args.dataset),
