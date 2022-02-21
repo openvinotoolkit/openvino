@@ -624,7 +624,8 @@ std::shared_ptr<ov::Model> generateRNNCellBase(const std::shared_ptr<ov::op::Op>
                                                                  W, R, B, P, 3);
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode->output(0)),
                                      std::make_shared<ngraph::opset1::Result>(RNNCellBaseNode->output(1))};
-        return std::make_shared<ngraph::Function>(results, params, "RNNCellBaseGraph");
+        //return std::make_shared<ngraph::Function>(results, params, "RNNCellBaseGraph");
+        return nullptr; // Temporary nullptr return due to crash in mkldnn
     } else if (ov::is_type<ov::op::v4::LSTMCell>(node)) {
         const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 3}, {2, 3}, {2, 3}});
         const auto W = ngraph::builder::makeConstant<float>(ov::element::f32, {12, 3}, {}, true);
