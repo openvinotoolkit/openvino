@@ -129,7 +129,7 @@ struct Subgraph {
 
 NGRAPH_RTTI_DEFINITION(ov::intel_cpu::SwitchAffinity, "SwitchAffinity", 0);
 
-bool ov::intel_cpu::SwitchAffinity::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ov::intel_cpu::SwitchAffinity::run_on_model(const std::shared_ptr<ov::Model>& m) {
     std::unordered_map<size_t, Subgraph> subgraphs;
     bool rewritten = false;
 
@@ -153,7 +153,7 @@ bool ov::intel_cpu::SwitchAffinity::run_on_function(std::shared_ptr<ngraph::Func
         }
     };
 
-    for (const auto& node : f->get_ordered_ops()) {
+    for (const auto& node : m->get_ordered_ops()) {
         if (!has_optimal_bs(node))
             continue;
 
@@ -190,7 +190,7 @@ bool ov::intel_cpu::SwitchAffinity::run_on_function(std::shared_ptr<ngraph::Func
             std::cout << end.get_node_shared_ptr() << std::endl;
         }
         std::cout << "\n\n" << std::endl;
-        switchToImageAffinity(subgraph.second.starts, subgraph.second.ends, subgraph.first, share_constants, f);
+        switchToImageAffinity(subgraph.second.starts, subgraph.second.ends, subgraph.first, share_constants, m);
     }
 
     return rewritten;

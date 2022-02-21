@@ -4,15 +4,15 @@
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 
 namespace ov {
 namespace intel_cpu {
-class AffinitySwitcher : public ngraph::pass::FunctionPass {
+class AffinitySwitcher : public ov::pass::ModelPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     AffinitySwitcher(const bool share_constants = true);
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:
     bool share_constants;
