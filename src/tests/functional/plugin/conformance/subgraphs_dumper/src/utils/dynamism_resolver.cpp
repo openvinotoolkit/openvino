@@ -6,7 +6,7 @@
 
 namespace SubgraphsDumper {
 
-bool has_dynamic_output(std::shared_ptr<ngraph::Node> n) {
+bool has_dynamic_output(std::shared_ptr<ov::Node> n) {
     for (size_t i = 0; i < n->get_output_size(); i++) {
         if (n->get_output_partial_shape(i).is_dynamic()) {
             return true;
@@ -15,14 +15,14 @@ bool has_dynamic_output(std::shared_ptr<ngraph::Node> n) {
     return false;
 }
 
-void resolve_dynamic_shapes(const std::shared_ptr<ngraph::Function>& f) {
+void resolve_dynamic_shapes(const std::shared_ptr<ov::Model>& f) {
     const auto & f_ops = f->get_ordered_ops();
     if (std::all_of(f_ops.begin(), f_ops.end(),
-                    [](std::shared_ptr<ngraph::Node> results) {
+                    [](std::shared_ptr<ov::Node> results) {
                         return !results->is_dynamic() && !has_dynamic_output(results); })) {
         return;
     }
-    auto f_clone = ngraph::clone_function(*f);
+    auto f_clone = ov::clone_model(*f);
     const auto & f_clone_ops = f_clone->get_ordered_ops();
     NGRAPH_CHECK(f_ops.size() == f_clone_ops.size(), "Unexpected get_ordered_ops method behaviour");
 
@@ -30,7 +30,7 @@ void resolve_dynamic_shapes(const std::shared_ptr<ngraph::Function>& f) {
         auto & op = f_ops[id];
         auto & clone_op = f_clone_ops[id];
 
-        if (auto op_subgraph = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(op)) {
+        if (auto op_subgraph = std::dynamic_pointer_cast<ov::op::util::SubGraphOp>(op)) {
             resolve_dynamic_shapes(op_subgraph->get_function());
         }
 
@@ -39,22 +39,22 @@ void resolve_dynamic_shapes(const std::shared_ptr<ngraph::Function>& f) {
 
         // dynamic_to_static function converts dynamic dimensions to static using
         // upperbound (get_max_length) dimension value.
-        auto dynamic_to_static = [&op](const ngraph::PartialShape & shape) -> ngraph::PartialShape {
+        auto dynamic_to_static = [&op](const ov::PartialShape & shape) -> ov::PartialShape {
             if (shape.is_static() || shape.rank().is_dynamic()) {
                 return shape;
             }
-            std::vector<ngraph::Dimension> out_shape;
+            std::vector<ov::Dimension> out_shape;
             std::transform(std::begin(shape), std::end(shape),
                            std::back_inserter(out_shape),
-                           [](const ngraph::Dimension& d) -> ngraph::Dimension {
+                           [](const ov::Dimension& d) -> ov::Dimension {
                                return d.get_max_length();
                            });
-            NGRAPH_CHECK(ngraph::PartialShape(out_shape).is_static(),
+            NGRAPH_CHECK(ov::PartialShape(out_shape).is_static(),
                          "Dynamic dimension cannot be resolved in ", op);
             return out_shape;
         };
 
-        ngraph::OutputVector replacements(clone_op->get_output_size());
+        ov::OutputVector replacements(clone_op->get_output_size());
         if (!clone_op->constant_fold(replacements, clone_op->input_values())) {
             for (size_t output_id = 0; output_id < clone_op->get_output_size(); ++output_id) {
                 clone_op->set_output_type(output_id, clone_op->output(output_id).get_element_type(),

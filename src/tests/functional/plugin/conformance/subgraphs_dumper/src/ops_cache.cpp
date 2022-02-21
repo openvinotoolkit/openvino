@@ -13,7 +13,7 @@
 
 using namespace SubgraphsDumper;
 
-void OPCache::update_ops_cache(const std::shared_ptr<ngraph::Node> &op,
+void OPCache::update_ops_cache(const std::shared_ptr<ov::Node> &op,
                                const std::string &source_model) {
     const bool op_found = [&] {
         for (auto &&it : m_ops_cache) {
@@ -28,7 +28,7 @@ void OPCache::update_ops_cache(const std::shared_ptr<ngraph::Node> &op,
         const auto &clone_fn = SubgraphsDumper::ClonersMap::cloners.at(op->get_type_info());
         LayerTestsUtils::OPInfo meta(source_model);
         try {
-            const std::shared_ptr<ngraph::Node> op_clone = clone_fn(op, meta);
+            const std::shared_ptr<ov::Node> op_clone = clone_fn(op, meta);
             op_clone->set_friendly_name(op_clone->get_friendly_name() + "_cached");
             m_ops_cache.emplace_back(std::make_pair(op_clone, meta));
         } catch (std::exception &e) {
@@ -37,33 +37,33 @@ void OPCache::update_ops_cache(const std::shared_ptr<ngraph::Node> &op,
     }
 }
 
-void OPCache::update_ops_cache(const std::shared_ptr<ngraph::Function> &func, const bool extract_body, const std::string &source_model) {
+void OPCache::update_ops_cache(const std::shared_ptr<ov::Model> &func, const bool extract_body, const std::string &source_model) {
     size_t cached_ops_count = m_ops_cache.size();
     for (const auto &op : func->get_ordered_ops()) {
-        if (ngraph::is_type<ngraph::op::Parameter>(op) ||
-            ngraph::is_type<ngraph::op::Constant>(op) ||
-            ngraph::is_type<ngraph::op::Result>(op) ||
+        if (ov::is_type<ov::op::v0::Parameter>(op) ||
+            ov::is_type<ov::op::v0::Constant>(op) ||
+            ov::is_type<ov::op::v0::Result>(op) ||
             // ReadValue and Assign have to be handled in pair
             // Will be handled as part of 48838
-            ngraph::is_type<ngraph::op::AssignBase>(op) ||
-            ngraph::is_type<ngraph::op::ReadValueBase>(op)
+            ov::is_type<ov::op::util::AssignBase>(op) ||
+            ov::is_type<ov::op::util::ReadValueBase>(op)
                     ) {
             continue;
         }
         if (extract_body) {
-            if (ngraph::is_type<ngraph::op::v8::If>(op)) {
-                auto if_op = std::dynamic_pointer_cast<ngraph::op::v8::If>(op);
-                std::vector<std::shared_ptr<ngraph::Function>> bodies;
+            if (ov::is_type<ov::op::v8::If>(op)) {
+                auto if_op = std::dynamic_pointer_cast<ov::op::v8::If>(op);
+                std::vector<std::shared_ptr<ov::Model>> bodies;
                 for (size_t i = 0; i < if_op->get_internal_subgraphs_size(); i++) {
                     auto if_body = if_op->get_function(i);
                     update_ops_cache(if_body, extract_body, source_model);
                 }
-            } else if (ngraph::is_type<ngraph::op::v5::Loop>(op)) {
-                auto loop = std::dynamic_pointer_cast<ngraph::op::v5::Loop>(op);
+            } else if (ov::is_type<ov::op::v5::Loop>(op)) {
+                auto loop = std::dynamic_pointer_cast<ov::op::v5::Loop>(op);
                 auto loop_body = loop->get_function();
                 update_ops_cache(loop_body, extract_body, source_model);
-            } else if (ngraph::is_type<ngraph::op::v0::TensorIterator>(op)) {
-                auto ti = std::dynamic_pointer_cast<ngraph::op::v0::TensorIterator>(op);
+            } else if (ov::is_type<ov::op::v0::TensorIterator>(op)) {
+                auto ti = std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(op);
                 auto ti_body = ti->get_body();
                 update_ops_cache(ti_body, extract_body, source_model);
             }
@@ -123,10 +123,10 @@ float OPCache::get_size_of_cached_ops() {
     float size = 0;
     for (const auto &op : m_ops_cache) {
         for (size_t i = 0; i < op.first->get_input_size(); ++i) {
-            const auto constant = std::dynamic_pointer_cast<ngraph::opset6::Constant>(
+            const auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(
                     op.first->get_input_node_shared_ptr(i));
             if (constant != nullptr) {
-                size += static_cast<float>(ngraph::shape_size(constant->get_shape()) *
+                size += static_cast<float>(ov::shape_size(constant->get_shape()) *
                                            constant->get_element_type().size()) / (1024 * 1024);
             }
         }
@@ -135,7 +135,7 @@ float OPCache::get_size_of_cached_ops() {
 }
 
 OPCache::SerializationStatus
-OPCache::serialize_function(const std::pair<std::shared_ptr<ngraph::Node>, LayerTestsUtils::OPInfo> &op,
+OPCache::serialize_function(const std::pair<std::shared_ptr<ov::Node>, LayerTestsUtils::OPInfo> &op,
                             const std::string &serialization_dir) {
     try {
         if (op.first->get_friendly_name() == "Relu_8793_cached") {
@@ -144,19 +144,19 @@ OPCache::serialize_function(const std::pair<std::shared_ptr<ngraph::Node>, Layer
         std::cout << "Serializing function wrapping op " << op.first << std::endl;
         std::cout << "Taken from model: " << op.second.source_model << std::endl;
 
-        ngraph::ParameterVector params;
+        ov::ParameterVector params;
         for (size_t i = 0; i < op.first->get_input_size(); ++i) {
-            if (ngraph::op::is_parameter(op.first->get_input_node_ptr(i))) {
-                auto param = std::dynamic_pointer_cast<ngraph::op::Parameter>(
+            if (ov::op::util::is_parameter(op.first->get_input_node_ptr(i))) {
+                auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(
                         op.first->get_input_node_shared_ptr(i));
                 params.push_back(param);
             }
         }
-        ngraph::ResultVector results;
+        ov::ResultVector results;
         for (auto &out : op.first->outputs()) {
-            results.push_back(std::make_shared<ngraph::op::Result>(out));
+            results.push_back(std::make_shared<ov::op::v0::Result>(out));
         }
-        auto function = std::make_shared<ngraph::Function>(results, params);
+        auto function = std::make_shared<ov::Model>(results, params);
 
         // TODO: How to define element type for multi-output ops
         auto op_el_type = op.first->get_output_element_type(0).get_type_name();

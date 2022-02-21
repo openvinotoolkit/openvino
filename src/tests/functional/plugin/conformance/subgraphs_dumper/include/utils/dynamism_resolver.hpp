@@ -8,6 +8,6 @@
 
 namespace SubgraphsDumper {
 // Copy from serialization transformation pass
-void resolve_dynamic_shapes(const std::shared_ptr<ngraph::Function>& f);
+void resolve_dynamic_shapes(const std::shared_ptr<ov::Model>& f);
 
 } // namespace SubgraphsDumper
