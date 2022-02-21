@@ -345,8 +345,8 @@ void regclass_graph_Model(py::module m) {
 
             The allowed types of keys in the `partial_shapes` dictionary are:
 
-            (1) `int'
-            (2) `str`
+            (1) `int`, input index
+            (2) `str`, input tensor name
             (3) `openvino.runtime.Output`
 
             The allowed types of values in the `partial_shapes` are:
