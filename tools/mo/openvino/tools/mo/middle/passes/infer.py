@@ -353,3 +353,8 @@ def reverse_infer(graph: Graph, nodes: list):
                 log.debug('Inputs:')
                 log_debug_dict(node.in_nodes(), 'inputs')
 
+    for node in graph.get_op_nodes(op='Parameter'):
+        name = node.soft_get('name', node.id)
+        if not node.has_valid('shape'):
+            raise Error("Reverse infer couldn't calculate partial shape of Parameter node '{}'. "
+                        "Please use cli options --input or --input_shape to set model input shape.".format(name))
