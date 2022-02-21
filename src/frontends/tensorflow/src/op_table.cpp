@@ -157,6 +157,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"ArgMax", translate_arg_max_op},
         {"ArgMin", translate_arg_min_op},
         {"AvgPool", translate_avg_pool_op},
+        {"AvgPool3D", translate_avg_pool_op},
         {"BatchToSpaceND", translate_batch_nd_and_space_nd_op},
         {"BiasAdd", translate_bias_add_op},
         {"Cast", translate_cast_op},
