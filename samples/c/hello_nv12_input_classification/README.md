@@ -25,7 +25,7 @@ image in the NV12 color format to an Inference Engine plugin. Then, the sample c
 application outputs data to the standard output stream.
 
 You can see the explicit description of
-each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application.md) section of "Integrate OpenVINO™ Runtime with Your Application" guide.
+each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/integrate_with_customer_application.md) section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
 ## Building
 
@@ -107,7 +107,7 @@ This sample is an API example, for any performance measurements please use the d
 
 ## See Also
 
-- [Integrate the OpenVINO™ into Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application.md)
+- [Integrate the OpenVINO™ into Your Application](../../../docs/OV_Runtime_UG/integrate_with_customer_application.md)
 - [Using OpenVINO™ Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)

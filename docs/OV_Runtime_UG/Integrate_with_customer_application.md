@@ -145,6 +145,7 @@ Please read article about [OpenVINO™ Device Properties API](InferenceEngine_Qu
 ### Step 3. Create an Inference Request
 
 `ov::InferRequest` class provides methods for inference model inside the OpenVINO™ runtime.
+Here only simple pipeline is demonstrated, to get more information about other use cases please read extended [InferRequest documentation](./ov_infer_request.md).
 Create an infer request using the following code:
 
 @sphinxdirective
@@ -234,7 +235,7 @@ Go over the output tensors and process the inference results.
 
 @endsphinxdirective
 
-## Link with OpenVINO™ Runtime (for C++)
+## Link and build your C++ application with OpenVINO™ Runtime
 
 The example uses CMake for project configuration.
 
@@ -254,12 +255,6 @@ The example uses CMake for project configuration.
 
    @snippet snippets/CMakeLists.txt cmake:integration_example
 
-
-## Build Your C++ Application
-
-For details about building your application, refer to the CMake files for the sample applications.
-All samples source code is located in the `<INSTALL_DIR>/samples` directory, where `INSTALL_DIR` is the OpenVINO™ installation directory.
-
 To build your project using CMake with the default build tools currently available on your machine, execute the following commands:
 
 > **NOTE**: Make sure you set environment variables first by running `<INSTALL_DIR>/setupvars.sh` (or `setupvars.bat` for Windows). Otherwise the `OpenVINO_DIR` variable won't be configured properly to pass `find_package` calls.
@@ -273,141 +268,7 @@ It's allowed to specify additional build options (e.g. to build CMake project on
 
 ## Run Your Application
 
-> **NOTE**: Before running, make sure you completed **Set the Environment Variables** section in [OpenVINO Installation](../../samples/cpp/hello_nv12_input_classification/README.md) document so that the application can find the libraries.
-
-To run compiled applications on Microsoft* Windows* OS, make sure that Microsoft* Visual C++ 2019 is installed and
-`<INSTALL_DIR>/bin/intel64/Release/*.dll` files are placed to the
-application folder or accessible via `%PATH%` environment variable.
-
-## FAQ
-
- - How can I use tensor name to get or set tensor?
-
-    @sphinxdirective
-    .. raw:: html
-
-        <div class="collapsible-section">
-    @endsphinxdirective
-
-    To use tensor name in order to get or set tensor you can use `ov::InferRequest::get_tensor()` or `ov::InferRequest::set_tensor()` methods respectively:
-
-    @sphinxdirective
-
-    .. tab:: C++
-
-        .. doxygensnippet:: docs/snippets/src/main.cpp
-           :language: cpp
-           :fragment: [faq:get_set_tensor]
-
-    .. tab:: Python
-
-        .. doxygensnippet:: docs/snippets/src/main.py
-           :language: python
-           :fragment: [faq:get_set_tensor]
-
-    @endsphinxdirective
-
-    @sphinxdirective
-    .. raw:: html
-
-        </div>
-    @endsphinxdirective
-
- - Can I use use output tensor of one model as input for other model?
-    @sphinxdirective
-    .. raw:: html
-
-        <div class="collapsible-section">
-    @endsphinxdirective
-
-    Get output tensor from the first request using `ov::InferRequest::get_tensor()` and set it as input for the second request using `ov::InferRequest::set_tensor()`. But be careful, shared tensors across compiled models can be rewritten by the first model if the first infer request is run once again, while the second model has not started yet.
-
-    @sphinxdirective
-
-    .. tab:: C++
-
-        .. doxygensnippet:: docs/snippets/src/main.cpp
-           :language: cpp
-           :fragment: [faq:cascade_models]
-
-    .. tab:: Python
-
-        .. doxygensnippet:: docs/snippets/src/main.py
-           :language: python
-           :fragment: [faq:cascade_models]
-
-    @endsphinxdirective
-
-    @sphinxdirective
-    .. raw:: html
-
-        </div>
-    @endsphinxdirective
-
- - Can I create ROI tensor?
-
-    @sphinxdirective
-    .. raw:: html
-
-        <div class="collapsible-section">
-    @endsphinxdirective
-
-    It is possible to re-use shared input by several models. You do not need to allocate separate input tensor for a model if it processes a ROI object located inside of already allocated input of a previous model. For instance, when first model detects objects on a video frame (stored as input tensor) and second model accepts detected bounding boxes (ROI inside of the frame) as input. In this case, it is allowed to re-use pre-allocated input tensor (used by first model) by second model and just crop ROI without allocation of new memory using `ov::Tensor()` with passing of `ov::Tensor` and `ov::Coordinate` as parameters.
-
-
-    @sphinxdirective
-
-    .. tab:: C++
-
-        .. doxygensnippet:: docs/snippets/src/main.cpp
-           :language: cpp
-           :fragment: [faq:roi_tensor]
-
-    .. tab:: Python
-
-        .. doxygensnippet:: docs/snippets/src/main.py
-           :language: python
-           :fragment: [faq:roi_tensor]
-
-    @endsphinxdirective
-
-    @sphinxdirective
-    .. raw:: html
-
-        </div>
-    @endsphinxdirective
-
- - How can I run inference in the synchronous mode?
-
-    @sphinxdirective
-    .. raw:: html
-
-        <div class="collapsible-section">
-    @endsphinxdirective
-
-    Run inference in the synchronous mode:
-
-    @sphinxdirective
-
-    .. tab:: C++
-
-        .. doxygensnippet:: docs/snippets/src/main.cpp
-           :language: cpp
-           :fragment: [faq:sync_infer]
-
-    .. tab:: Python
-
-        .. doxygensnippet:: docs/snippets/src/main.py
-           :language: python
-           :fragment: [faq:sync_infer]
-
-    @endsphinxdirective
-
-    @sphinxdirective
-    .. raw:: html
-
-        </div>
-    @endsphinxdirective
+Congratulations, you have made your first application with OpenVINO™ toolkit, now you may run it.
 
 ## See also
 

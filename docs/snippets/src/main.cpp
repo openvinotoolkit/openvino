@@ -60,49 +60,5 @@ auto output = infer_request.get_output_tensor();
 const float *output_buffer = output.data<const float>();
 /* output_buffer[] - accessing output tensor data */
 //! [part6]
-
-// ======= FAQ =======
-
-{
-//! [faq:get_set_tensor]
-auto tensor1 = infer_request.get_tensor("tensor_name1");
-ov::Tensor tensor2;
-infer_request.set_tensor("tensor_name2", tensor2);
-//! [faq:get_set_tensor]
-
-auto infer_request1 = compiled_model.create_infer_request();
-auto infer_request2 = compiled_model.create_infer_request();
-
-//! [faq:cascade_models]
-auto output = infer_request1.get_output_tensor(0);
-infer_request2.set_input_tensor(0, output);
-//! [faq:cascade_models]
-
-//! [faq:roi_tensor]
-/** input_tensor points to input of a previous network and
-    cropROI contains coordinates of output bounding box **/
-ov::Tensor input_tensor;
-ov::Coordinate begin;
-ov::Coordinate end;
-//...
-
-/** roi_tensor uses shared memory of input_tensor and describes cropROI
-    according to its coordinates **/
-ov::Tensor roi_tensor(input_tensor, begin, end);
-infer_request2.set_tensor("input_name", roi_tensor);
-//! [faq:roi_tensor]
-
-//! [faq:sync_infer]
-infer_request.infer();
-//! [faq:sync_infer]
-}
-
-//! [faq:all_inputs_ouputs]
-/* Take information about all topology inputs */
-auto inputs = model->inputs();
-/* Take information about all topology outputs */
-auto outputs = model->outputs();
-//! [faq:all_inputs_ouputs]
-
-    return 0;
+return 0;
 }

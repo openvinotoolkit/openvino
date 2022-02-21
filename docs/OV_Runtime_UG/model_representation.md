@@ -131,18 +131,11 @@ The following code creates a model with several outputs:
 
 @endsphinxdirective
 
-## FAQ
+## Model debug capabilities
 
-- Does OpenVINO™ Runtime provide any capabilities to debug the model structure and model modification?
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="collapsible-section">
-@endsphinxdirective
-
+OpenVINO™ provides several debug capabilities:
    - To receive additional messages about applied graph modifications, rebuild the OpenVINO™ Runtime library with the `-DENABLE_OPENVINO_DEBUG=ON` option.
-   - A model can be visualized to image from the xDot format:
+   - Model can be visualized to image from the xDot format:
 
     @sphinxdirective
 
@@ -160,7 +153,7 @@ The following code creates a model with several outputs:
 
     @endsphinxdirective
 
-   - A model can be serialized to IR:
+   - Also model can be serialized to IR:
 
     @sphinxdirective
 
@@ -177,30 +170,9 @@ The following code creates a model with several outputs:
            :fragment: [ov:serialize]
 
     @endsphinxdirective
-
-@sphinxdirective
-.. raw:: html
-
-    </div>
-@endsphinxdirective
-
-- How can I develop my own transformation pass?
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="collapsible-section">
-@endsphinxdirective
-
-   See the [Transformations Developer Guide](./nGraphTransformation.md).
-
-@sphinxdirective
-.. raw:: html
-
-    </div>
-@endsphinxdirective
 
 ## See Also
 
 * [Available Operation Sets](../ops/opset.md)
 * [OpenVINO™ Runtime Extensibility Developer Guide](../OV_Runtime_UG/Extensibility_DG/Intro.md)
+* [Transformations Developer Guide](./nGraphTransformation.md).

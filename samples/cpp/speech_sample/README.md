@@ -31,7 +31,7 @@ At startup, the sample application reads command-line parameters, loads a specif
 If the `-r` option is given, error statistics are provided for each speech utterance as shown above.
 
 You can see the explicit description of
-each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application.md) section of "Integrate OpenVINO™ Runtime with Your Application" guide.
+each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/integrate_with_customer_application.md) section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
 ### GNA-specific details
 
@@ -237,7 +237,7 @@ All of mentioned files can be downloaded from [https://storage.openvinotoolkit.o
 
 ## See Also
 
-- [Integrate the OpenVINO™ Runtime with Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application.md)
+- [Integrate the OpenVINO™ Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_customer_application.md)
 - [Using OpenVINO™ Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
