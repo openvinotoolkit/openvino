@@ -1,18 +1,18 @@
 # Create a Yocto* Image with OpenVINO™ toolkit {#openvino_docs_install_guides_installing_openvino_yocto}
 This document provides instructions for creating a Yocto* image with OpenVINO™ toolkit.
 
-Instructions were validated and tested for [Yocto OpenVINO 2020.4 release](http://git.yoctoproject.org/cgit/cgit.cgi/meta-intel).
+Instructions were validated and tested for [Yocto OpenVINO 2021.3 release](https://git.yoctoproject.org/cgit/cgit.cgi/meta-intel/tree/dynamic-layers/openembedded-layer/recipes-support/opencv).
 
 ## System Requirements
-Use the [Yocto Project* official documentation](https://www.yoctoproject.org/docs/latest/mega-manual/mega-manual.html#brief-compatible-distro) to set up and configure your host machine to be compatible with BitBake*.
+Use the [Yocto Project* official documentation](https://docs.yoctoproject.org/brief-yoctoprojectqs/index.html#compatible-linux-distribution) to set up and configure your host machine to be compatible with BitBake*.
 
 ## Setup 
 
 ### Set up Git repositories
 The following Git repositories are required to build a Yocto image:
 
-- [Poky](https://www.yoctoproject.org/docs/latest/mega-manual/mega-manual.html#poky)
-- [Meta-intel](http://git.yoctoproject.org/cgit/cgit.cgi/meta-intel/tree/README)
+- [Poky](https://git.yoctoproject.org/poky)
+- [Meta-intel](https://git.yoctoproject.org/meta-intel/tree/README)
 - [Meta-openembedded](http://cgit.openembedded.org/meta-openembedded/tree/README)
 - <a href="https://github.com/kraj/meta-clang/blob/master/README.md">Meta-clang</a>
 
@@ -69,7 +69,7 @@ CORE_IMAGE_EXTRA_INSTALL_append = " openvino-model-optimizer"
 
 ## Build a Yocto Image with OpenVINO Packages
 
-Run BitBake to build the minimal image with OpenVINO packages: 
+Run BitBake to build your image with OpenVINO packages. To build the minimal image, for example, run:
 ```sh
 bitbake core-image-minimal
 ```
