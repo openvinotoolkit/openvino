@@ -1,13 +1,7 @@
-# IEI Mustang-V100-MX8-R10 card Setup Guide for Use with Intel® Distribution of OpenVINO™ toolkit {#openvino_docs_install_guides_movidius_setup_guide}
+# Configurations for IEI Mustang-V100-MX8-R10 card {#openvino_docs_install_guides_movidius_setup_guide}
 
-> **NOTE**: These steps are only required for **IEI Mustang-V100-MX8-R10** card. **IEI Mustang-V100-MX8-R11** card doesn't require any additional steps and it's completely configured using the [general guidance](installing-openvino-linux-ivad-vpu.md).      
+> **NOTE**: These steps are only required for **IEI Mustang-V100-MX8-R10** card. **IEI Mustang-V100-MX8-R11** card doesn't require any additional steps and it's completely configured using the [general guidance](installing-openvino-config-ivad-vpu.md).      
 
-## See Also
-
-- [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs HAL Configuration Guide](/downloads/595850_Intel_Vision_Accelerator_Design_with_Intel_Movidius_VPUs-HAL Configuration Guide_rev1.3.pdf)
-- [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs Workload Distribution User Guide](/downloads/613514_Intel Vision Accelerator Design with Intel Movidius VPUs Workload Distribution_UG_r0.9.pdf)
-- [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs Scheduler User Guide](/downloads/613759_Intel Vision Accelerator Design with Intel Movidius VPUs Scheduler_UG_r0.9.pdf)
-- [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs Errata](/downloads/Intel Vision Accelerator Design with Intel Movidius VPUs Errata.pdf)
 
 The IEI Mustang-V100-MX8 is an OEM version of the Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.
 This guide assumes you have installed the [Mustang-V100-MX8](https://download.ieiworld.com/) and the [Intel® Distribution of OpenVINO™ Toolkit](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html).
@@ -130,8 +124,12 @@ This setting reports the total FPS for the dispatching hddl_service (which will 
 (default: `"true"`)
 
 
-## Additional Resources
+## Additional resources
 
 - [Intel Distribution of OpenVINO Toolkit home page](https://software.intel.com/en-us/openvino-toolkit)
-
 - [Intel Distribution of OpenVINO Toolkit documentation](https://docs.openvino.ai)
+- [Troubleshooting Guide](troubleshooting.md)
+- [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs HAL Configuration Guide](/downloads/595850_Intel_Vision_Accelerator_Design_with_Intel_Movidius_VPUs-HAL Configuration Guide_rev1.3.pdf)
+- [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs Workload Distribution User Guide](/downloads/613514_Intel Vision Accelerator Design with Intel Movidius VPUs Workload Distribution_UG_r0.9.pdf)
+- [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs Scheduler User Guide](/downloads/613759_Intel Vision Accelerator Design with Intel Movidius VPUs Scheduler_UG_r0.9.pdf)
+- [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs Errata](/downloads/Intel Vision Accelerator Design with Intel Movidius VPUs Errata.pdf)
