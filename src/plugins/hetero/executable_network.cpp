@@ -39,6 +39,7 @@
 #include "plugin.hpp"
 #include <ie_algorithm.hpp>
 
+#include <ngraph/pass/manager.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/variant.hpp>
 #include <ngraph/graph_util.hpp>
@@ -47,6 +48,7 @@
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
+#include <ngraph/pass/constant_folding.hpp>
 // clang-format on
 
 using namespace InferenceEngine;
@@ -68,6 +70,11 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
       _config{config} {
     auto function = network.getFunction();
     IE_ASSERT(function != nullptr);
+
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.run_passes(std::const_pointer_cast<ov::Model>(function));
+
     auto clonedFunction = ngraph::clone_function(*function);
     bool dumpDotFile = false;
     if (std::getenv("OPENVINO_HETERO_VISUALIZE")) {
