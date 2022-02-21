@@ -1,14 +1,12 @@
-# Create a Yocto* Image with OpenVINO™ toolkit {#openvino_docs_install_guides_installing_openvino_yocto}
-This document provides instructions for creating a Yocto* image with OpenVINO™ toolkit.
-
-Instructions were validated and tested for [Yocto OpenVINO 2021.4 release](https://git.yoctoproject.org/cgit/cgit.cgi/meta-intel/tree/dynamic-layers/openembedded-layer/recipes-support/opencv).
+# Create a Yocto Image with Intel® Distribution of OpenVINO™ toolkit {#openvino_docs_install_guides_installing_openvino_yocto}
+This document provides instructions for creating a Yocto image with Intel® Distribution of OpenVINO™ toolkit.
 
 ## System Requirements
-Use the [Yocto Project* official documentation](https://docs.yoctoproject.org/brief-yoctoprojectqs/index.html#compatible-linux-distribution) to set up and configure your host machine to be compatible with BitBake*.
+Use the [Yocto Project official documentation](https://docs.yoctoproject.org/brief-yoctoprojectqs/index.html#compatible-linux-distribution) to set up and configure your host machine to be compatible with BitBake.
 
-## Setup 
+## Step 1: Set Up Environment
 
-### Set up Git repositories
+### Set Up Git Repositories
 The following Git repositories are required to build a Yocto image:
 
 - [Poky](https://git.yoctoproject.org/poky)
@@ -24,7 +22,7 @@ git clone https://git.openembedded.org/meta-openembedded
 git clone https://github.com/kraj/meta-clang.git
 ```
 
-### Set up BitBake* Layers
+### Set up BitBake Layers
 
 ```sh
 source poky/oe-init-build-env
@@ -36,7 +34,7 @@ bitbake-layers add-layer ../meta-clang
 
 ### Set up BitBake Configurations
 
-Include extra configuration in conf/local.conf in your build directory as required.
+Include extra configuration in `conf/local.conf` in your build directory as required.
 
 ```sh
 # Build with SSE4.2, AVX2 etc. extensions
@@ -67,22 +65,22 @@ CORE_IMAGE_EXTRA_INSTALL_append = " openvino-inference-engine-vpu-firmware"
 CORE_IMAGE_EXTRA_INSTALL_append = " openvino-model-optimizer"
 ```
 
-## Build a Yocto Image with OpenVINO Packages
+## Step 2: Build a Yocto Image with OpenVINO Packages
 
 Run BitBake to build your image with OpenVINO packages. To build the minimal image, for example, run:
 ```sh
 bitbake core-image-minimal
 ```
 
-## Verify the Created Yocto Image with OpenVINO Packages
+## Step 3: Verify the Yocto Image with OpenVINO Packages
 
 Verify that OpenVINO packages were built successfully.
-Run 'oe-pkgdata-util list-pkgs | grep openvino' command.
+Run the following command:
 ```sh
 oe-pkgdata-util list-pkgs | grep openvino
 ```
 
-Verify that it returns the list of packages below:
+If the image was built successfully, it will return the list of packages as below:
 ```sh
 openvino-inference-engine
 openvino-inference-engine-dbg
