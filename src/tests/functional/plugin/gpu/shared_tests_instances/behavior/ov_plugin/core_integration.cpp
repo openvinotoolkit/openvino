@@ -672,6 +672,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassQueryNetworkTest, OVClassQueryNetworkTest,
 // IE Class Load network
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassLoadNetworkTest, OVClassLoadNetworkTest, ::testing::Values("GPU"));
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassLoadNetworkWithAutoBatchingTest, OVClassLoadNetworkWithAutoBatchingTest, ::testing::Values("GPU"));
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassHeteroExecutableNetworkGetMetricTest,
         OVClassLoadNetworkAfterCoreRecreateTest,

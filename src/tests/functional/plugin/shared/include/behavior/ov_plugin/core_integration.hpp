@@ -96,6 +96,7 @@ using OVClassSetModelPriorityConfigTest = OVClassBaseTestP;
 using OVClassSetLogLevelConfigTest = OVClassBaseTestP;
 using OVClassSpecificDeviceTestSetConfig = OVClassBaseTestP;
 using OVClassSpecificDeviceTestGetConfig = OVClassBaseTestP;
+using OVClassLoadNetworkWithAutoBatchingTest = OVClassBaseTestP;
 
 class OVClassSeveralDevicesTest : public OVClassNetworkTest,
                                   public ::testing::WithParamInterface<std::vector<std::string>> {
@@ -992,6 +993,27 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkWithBigDeviceIDThrows) {
     } else {
         GTEST_SKIP();
     }
+}
+
+TEST_P(OVClassLoadNetworkWithAutoBatchingTest, LoadNetworkWithAutoBatchingNoThrows) {
+    ov::Core ie = createCoreWithTemplate();
+
+    // Disable Auto Batching
+    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, deviceName, {
+        ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
+        ov::hint::allow_auto_batching(false)
+    }));
+
+    ASSERT_THROW(ie.get_property(CommonTestUtils::DEVICE_BATCH, CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)), ov::Exception);
+
+    // Enable Auto Batching
+    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, deviceName, {
+        ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
+        ov::hint::allow_auto_batching(true)
+    }));
+
+    std::string targetDevice;
+    OV_ASSERT_NO_THROW(targetDevice = ie.get_property(CommonTestUtils::DEVICE_BATCH, CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)).as<std::string>());
 }
 
 TEST_P(OVClassLoadNetworkTest, LoadNetworkWithInvalidDeviceIDThrows) {
