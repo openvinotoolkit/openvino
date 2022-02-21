@@ -50,7 +50,7 @@ The Auto-device plugin supports query device optimization capabilities in metric
 ### Enumerating Devices and Selection Logic
 
 The Inference Engine now features a dedicated API to enumerate devices and their capabilities. 
-See [Hello Query Device C++ Sample](../../../samples/cpp/hello_query_device/README.md).
+See [Hello Query Device C++ Sample](../../samples/cpp/hello_query_device/README.md).
 This is the example output from the sample (truncated to device names only):
 
 ```sh
@@ -208,7 +208,7 @@ The Auto-device plugin supports query device optimization capabilities in metric
 
 ### Enumerating Devices and Selection Logic
 
-The Inference Engine now features a dedicated API to enumerate devices and their capabilities. See the [Hello Query Device Python Sample](../../../inference_engine/ie_bridges/python/sample_hello_query_device_README.html) for code.
+The Inference Engine now features a dedicated API to enumerate devices and their capabilities. See the [Hello Query Device Python Sample](../../samples/python/hello_query_device/README.md) for code.
 
 This is the example output from the sample (truncated to device names only):
 
