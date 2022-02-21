@@ -121,7 +121,7 @@ bool switchToImageAffinity(std::shared_ptr<ngraph::Node> start,
 
 NGRAPH_RTTI_DEFINITION(ov::intel_cpu::AffinitySwitcher, "AffinitySwitcher", 0);
 
-bool ov::intel_cpu::AffinitySwitcher::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ov::intel_cpu::AffinitySwitcher::run_on_model(const std::shared_ptr<ov::Model>& f) {
     NodeMap constants;
     bool rewritten = false;
     std::shared_ptr<Node> start, end;
