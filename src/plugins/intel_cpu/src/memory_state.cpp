@@ -11,7 +11,7 @@ using namespace InferenceEngine;
 namespace ov {
 namespace intel_cpu {
 
-void  MKLDNNVariableState::Reset() {
+void VariableState::Reset() {
     std::memset(state->buffer(), 0, state->byteSize());
 }
 

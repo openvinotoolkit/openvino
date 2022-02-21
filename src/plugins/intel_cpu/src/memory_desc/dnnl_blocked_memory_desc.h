@@ -40,7 +40,7 @@ public:
     }
 
     size_t getOffsetPadding() const override {
-        return MKLDNNExtensionUtils::convertToDim(desc.data.offset0);
+        return ExtensionUtils::convertToDim(desc.data.offset0);
     }
 
     const VectorDims& getStrides() const override {
@@ -93,8 +93,8 @@ private:
 
     void recomputeDefaultStrides();
 
-    friend DnnlMemoryDescPtr MKLDNNExtensionUtils::makeDescriptor(const mkldnn::memory::desc &desc);
-    friend std::shared_ptr<DnnlBlockedMemoryDesc> MKLDNNExtensionUtils::makeUndefinedDesc(const mkldnn::memory::desc &desc, const Shape& shape);
+    friend DnnlMemoryDescPtr ExtensionUtils::makeDescriptor(const mkldnn::memory::desc &desc);
+    friend std::shared_ptr<DnnlBlockedMemoryDesc> ExtensionUtils::makeUndefinedDesc(const mkldnn::memory::desc &desc, const Shape& shape);
     friend class MemoryDescUtils;
 };
 

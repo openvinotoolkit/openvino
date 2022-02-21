@@ -13,14 +13,15 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNDeconvolutionNode : public MKLDNNNode {
+class Deconvolution : public Node {
     using DefaultDeconvDescs = std::pair<std::shared_ptr<mkldnn::convolution_backward_data::desc>,
                                          std::shared_ptr<mkldnn::convolution_forward::primitive_desc>>;
     using Int8DeconvDesc = std::shared_ptr<mkldnn::deconvolution_forward::desc>;
 
 public:
-    MKLDNNDeconvolutionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    Deconvolution(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
@@ -33,7 +34,7 @@ public:
         return false;
     }
 
-    size_t descInputNumbers(MKLDNNDescriptor desc) override {
+    size_t descInputNumbers(Descriptor desc) override {
         return static_cast<size_t>(getParentEdges().size());
     }
 
@@ -43,7 +44,7 @@ public:
     InferenceEngine::Precision getRuntimePrecision() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
-    bool canFuse(const MKLDNNNodePtr& node) const override;
+    bool canFuse(const NodePtr& node) const override;
 
     const VectorDims& getWeightDims() const { return getInputShapeAtPort(1).getStaticDims(); }
     const std::vector<ptrdiff_t>& getStride() const { return stride; }
@@ -121,18 +122,18 @@ private:
     Int8DeconvDesc createDescriptorInternalInt8(const mkldnn::memory::desc& in_candidate,
                                                 const mkldnn::memory::desc& wgh_candidate,
                                                 const mkldnn::memory::desc& out_candidate) const;
-    std::shared_ptr<MKLDNNDescriptor> createDefaultMkldnnDeconvDesc(const mkldnn::memory::desc& srcDesc,
+    std::shared_ptr<Descriptor> createDefaultMkldnnDeconvDesc(const mkldnn::memory::desc& srcDesc,
                                                                     const mkldnn::memory::desc& wghDesc,
                                                                     const mkldnn::memory::desc& dstDesc,
                                                                     bool isWinograd) const;
-    std::shared_ptr<MKLDNNDescriptor> createInt8MkldnnDeconvDesc(const mkldnn::memory::desc& srcDesc,
+    std::shared_ptr<Descriptor> createInt8MkldnnDeconvDesc(const mkldnn::memory::desc& srcDesc,
                                                                  const mkldnn::memory::desc& wghDesc,
                                                                  const mkldnn::memory::desc& dstDesc) const;
 
-    void createDeconvPrim(std::shared_ptr<MKLDNNDescriptor> desc,
-                          MKLDNNMemoryPtr srcMemPtr,
-                          MKLDNNMemoryPtr wghMemPtr,
-                          MKLDNNMemoryPtr dstMemPtr,
+    void createDeconvPrim(std::shared_ptr<Descriptor> desc,
+                          MemoryPtr srcMemPtr,
+                          MemoryPtr wghMemPtr,
+                          MemoryPtr dstMemPtr,
                           AttrPtr attr,
                           impl_desc_type selectedImpl);
 
@@ -142,5 +143,6 @@ private:
     InferenceEngine::Blob::Ptr createWeiBlobAsIO(InferenceEngine::SizeVector dims);
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

@@ -26,9 +26,12 @@
 #include <transformations/utils/utils.hpp>
 #include <ie_ngraph_utils.hpp>
 
-void ov::intel_cpu::MKLDNNInferRequestBase::CreateInferRequest() {
+namespace ov {
+namespace intel_cpu {
+
+void InferRequestBase::CreateInferRequest() {
     auto id = (execNetwork->_numRequests)++;
-    profilingTask = openvino::itt::handle("MKLDNN_INFER_" + execNetwork->_name + "_" + std::to_string(id));
+    profilingTask = openvino::itt::handle("INTEL_CPU_INFER_" + execNetwork->_name + "_" + std::to_string(id));
 
     if (execNetwork->_graphs.size() == 0)
         IE_THROW() << "No graph was found";
@@ -40,10 +43,10 @@ void ov::intel_cpu::MKLDNNInferRequestBase::CreateInferRequest() {
     // of MemoryLayer implementation. It uses output edge of MemoryLayer
     // producer as storage for tensor to keep it between infer calls.
     for (auto& node : graph->GetNodes()) {
-        if (node->getType() == MemoryInput) {
-            auto memoryNode = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
+        if (node->getType() == Type::MemoryInput) {
+            auto memoryNode = dynamic_cast<node::MemoryInput*>(node.get());
             if (!memoryNode) {
-                IE_THROW() << "Cannot cast " << node->getName() << " to MKLDNNMemoryInputNode";
+                IE_THROW() << "Cannot cast " << node->getName() << " to MemoryInput";
             }
             auto state_store = memoryNode->getStore();
             auto state_name = memoryNode->getId();
@@ -53,16 +56,16 @@ void ov::intel_cpu::MKLDNNInferRequestBase::CreateInferRequest() {
             if (suffix_idx != std::string::npos)
                 state_name = state_name.substr(0, suffix_idx);
 
-            memoryStates.emplace_back(new MKLDNNVariableState(state_name, state_store));
+            memoryStates.emplace_back(new VariableState(state_name, state_store));
         }
     }
 }
 
-ov::intel_cpu::MKLDNNInferRequestBase::~MKLDNNInferRequestBase() {
+InferRequestBase::~InferRequestBase() {
     --(execNetwork->_numRequests);
 }
 
-void ov::intel_cpu::MKLDNNInferRequestBase::pushInput(const std::string& inputName, InferenceEngine::Blob::Ptr& inputBlob, InferenceEngine::Precision inPrec) {
+void InferRequestBase::pushInput(const std::string& inputName, InferenceEngine::Blob::Ptr& inputBlob, InferenceEngine::Precision inPrec) {
     auto& tensorDesc = inputBlob->getTensorDesc();
     bool needConvert = inPrec != tensorDesc.getPrecision();
 
@@ -89,12 +92,12 @@ void ov::intel_cpu::MKLDNNInferRequestBase::pushInput(const std::string& inputNa
     graph->PushInputData(inputName, needConvert ? iconv : inputBlob);
 }
 
-void ov::intel_cpu::MKLDNNInferRequestBase::PushStates() {
+void InferRequestBase::PushStates() {
     for (auto &node : graph->GetNodes()) {
-        if (node->getType() == MemoryInput) {
-            auto cur_node = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
+        if (node->getType() == Type::MemoryInput) {
+            auto cur_node = dynamic_cast<node::MemoryInput*>(node.get());
             if (!cur_node) {
-                IE_THROW() << "Cannot cast " << node->getName() << " to MKLDNNMemoryInputNode";
+                IE_THROW() << "Cannot cast " << node->getName() << " to MemoryInput";
             }
             auto cur_id = cur_node->getId();
             for (const auto& state : memoryStates) {
@@ -111,12 +114,12 @@ void ov::intel_cpu::MKLDNNInferRequestBase::PushStates() {
     }
 }
 
-void ov::intel_cpu::MKLDNNInferRequestBase::PullStates() {
+void InferRequestBase::PullStates() {
     for (auto &node : graph->GetNodes()) {
-        if (node->getType() == MemoryInput) {
-            auto cur_node = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
+        if (node->getType() == Type::MemoryInput) {
+            auto cur_node = dynamic_cast<node::MemoryInput*>(node.get());
             if (!cur_node) {
-                IE_THROW() << "Cannot cast " << node->getName() << " to MKLDNNMemoryInputNode";
+                IE_THROW() << "Cannot cast " << node->getName() << " to MemoryInput";
             }
             auto cur_id = cur_node->getId();
             for (const auto& state : memoryStates) {
@@ -133,7 +136,7 @@ void ov::intel_cpu::MKLDNNInferRequestBase::PullStates() {
     }
 }
 
-void ov::intel_cpu::MKLDNNInferRequestBase::redefineMemoryForInputNodes() {
+void InferRequestBase::redefineMemoryForInputNodes() {
     const auto cpuInputNodes = graph->GetInputNodesMap();
 
     for (const auto &blob : _inputs) {
@@ -146,7 +149,7 @@ void ov::intel_cpu::MKLDNNInferRequestBase::redefineMemoryForInputNodes() {
     }
 }
 
-void ov::intel_cpu::MKLDNNInferRequestBase::InferImpl() {
+void InferRequestBase::InferImpl() {
     using namespace openvino::itt;
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, profilingTask);
     auto graphLock = execNetwork->GetGraph();
@@ -184,7 +187,7 @@ void ov::intel_cpu::MKLDNNInferRequestBase::InferImpl() {
     graph->PullOutputData(_outputs);
 }
 
-std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> ov::intel_cpu::MKLDNNInferRequestBase::GetPerformanceCounts() const {
+std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> InferRequestBase::GetPerformanceCounts() const {
     if (!graph || !graph->IsReady())
         IE_THROW() << "Graph is not ready!";
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap;
@@ -192,16 +195,16 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> ov::intel_cpu
     return perfMap;
 }
 
-static inline void changeEdgePtr(const ov::intel_cpu::MKLDNNEdgePtr &edge, void *newPtr) {
+static inline void changeEdgePtr(const EdgePtr &edge, void *newPtr) {
     edge->getMemoryPtr()->setDataHandle(newPtr);
 }
 
-void ov::intel_cpu::MKLDNNInferRequestBase::changeDefaultPtr() {
+void InferRequestBase::changeDefaultPtr() {
     for (auto& it : externalPtr) {
         const auto& inputNodesMap = graph->GetInputNodesMap();
         auto input = inputNodesMap.find(it.first);
         if (input != inputNodesMap.end()) {
-            MKLDNNNodePtr inputNodePtr = input->second;
+            NodePtr inputNodePtr = input->second;
             if (inputNodePtr->getChildEdgeAt(0)->getMemory().GetData() == it.second)
                 continue;
             auto& childEdges = inputNodePtr->getChildEdges();
@@ -219,8 +222,8 @@ void ov::intel_cpu::MKLDNNInferRequestBase::changeDefaultPtr() {
                     break;
                 }
 
-                if (child->getType() == Concatenation) {
-                    auto concat = dynamic_cast<MKLDNNConcatNode*>(child.get());
+                if (child->getType() == Type::Concatenation) {
+                    auto concat = dynamic_cast<node::Concat*>(child.get());
                     if (concat && concat->isOptimized()) {
                         canBeInPlace = false;
                         break;
@@ -228,7 +231,7 @@ void ov::intel_cpu::MKLDNNInferRequestBase::changeDefaultPtr() {
                 }
 
                 // Cannot be in-place before split because split is using different ptrs without offsets
-                if (child->getType() == Split) {
+                if (child->getType() == Type::Split) {
                     canBeInPlace = false;
                     break;
                 }
@@ -277,7 +280,7 @@ void ov::intel_cpu::MKLDNNInferRequestBase::changeDefaultPtr() {
             void* defaultPtr = parentEdge->getMemory().GetData();
             // Cannot be in-place after concat because concat is using different ptrs without offsets
             auto parent = parentEdge->getParent();
-            MKLDNNNodePtr previousParent;
+            NodePtr previousParent;
             do {
                 previousParent = parent;
                 if (parent->getChildEdges().size() != 1 || parent->isConstant() || parent->isInPlace()) {
@@ -305,22 +308,22 @@ void ov::intel_cpu::MKLDNNInferRequestBase::changeDefaultPtr() {
     }
 }
 
-std::vector<InferenceEngine::IVariableStateInternal::Ptr> ov::intel_cpu::MKLDNNInferRequestBase::QueryState() {
+std::vector<InferenceEngine::IVariableStateInternal::Ptr> InferRequestBase::QueryState() {
     return memoryStates;
 }
 
-void ov::intel_cpu::MKLDNNInferRequestBase::SetAsyncRequest(MKLDNNAsyncInferRequest* asyncRequest) {
+void InferRequestBase::SetAsyncRequest(AsyncInferRequest* asyncRequest) {
     _asyncRequest = asyncRequest;
 }
 
-void ov::intel_cpu::MKLDNNInferRequestBase::ThrowIfCanceled() const {
+void InferRequestBase::ThrowIfCanceled() const {
     if (_asyncRequest != nullptr) {
         _asyncRequest->ThrowIfCanceled();
     }
 }
 
 InferenceEngine::Precision
-ov::intel_cpu::MKLDNNInferRequestBase::normToInputSupportedPrec(const std::pair<const std::string, InferenceEngine::Blob::Ptr>& input) const {
+InferRequestBase::normToInputSupportedPrec(const std::pair<const std::string, InferenceEngine::Blob::Ptr>& input) const {
     const auto& inputTensorDesc = input.second->getTensorDesc();
     auto inPrec = inputTensorDesc.getPrecision();
     if (graph->hasMeanImageFor(input.first) && one_of(inPrec, InferenceEngine::Precision::U8, InferenceEngine::Precision::BOOL)) {
@@ -336,24 +339,24 @@ ov::intel_cpu::MKLDNNInferRequestBase::normToInputSupportedPrec(const std::pair<
     return inPrec;
 }
 
-/* ========================================== MKLDNNLegacyInferRequest ========================================== */
-ov::intel_cpu::MKLDNNLegacyInferRequest::MKLDNNLegacyInferRequest(InferenceEngine::InputsDataMap networkInputs,
-                                                                 InferenceEngine::OutputsDataMap networkOutputs,
-                                                                 std::shared_ptr<MKLDNNExecNetwork> execNetwork)
-: MKLDNNInferRequestBase(networkInputs, networkOutputs, execNetwork) {
+/* ========================================== LegacyInferRequest ========================================== */
+LegacyInferRequest::LegacyInferRequest(InferenceEngine::InputsDataMap networkInputs,
+                                       InferenceEngine::OutputsDataMap networkOutputs,
+                                       std::shared_ptr<ExecNetwork> execNetwork)
+    : InferRequestBase(networkInputs, networkOutputs, execNetwork) {
     CreateInferRequest();
 }
 
-void ov::intel_cpu::MKLDNNLegacyInferRequest::initBlobs() {
+void LegacyInferRequest::initBlobs() {
     for (const auto& it : _networkInputs) {
-        MKLDNNLegacyInferRequest::GetBlob(it.first);
+        LegacyInferRequest::GetBlob(it.first);
     }
     for (const auto& it : _networkOutputs) {
-        MKLDNNLegacyInferRequest::GetBlob(it.first);
+        LegacyInferRequest::GetBlob(it.first);
     }
 }
 
-void ov::intel_cpu::MKLDNNLegacyInferRequest::SetBatch(int new_batch) {
+void LegacyInferRequest::SetBatch(int new_batch) {
     if (!graph->getProperty().enableDynamicBatch)
         IE_THROW() << "Dynamic batch is not enabled.";
 
@@ -369,7 +372,7 @@ void ov::intel_cpu::MKLDNNLegacyInferRequest::SetBatch(int new_batch) {
     }
 }
 
-void ov::intel_cpu::MKLDNNLegacyInferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) {
+void LegacyInferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "SetBlobLegacy");
     if (name.empty()) {
         IE_THROW(NotFound) << "Failed to set blob with empty name";
@@ -479,7 +482,7 @@ void ov::intel_cpu::MKLDNNLegacyInferRequest::SetBlob(const std::string& name, c
     }
 }
 
-InferenceEngine::Blob::Ptr ov::intel_cpu::MKLDNNLegacyInferRequest::GetBlob(const std::string& name) {
+InferenceEngine::Blob::Ptr LegacyInferRequest::GetBlob(const std::string& name) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "GetBlobLegacy");
 
     if (!graph || !graph->IsReady())
@@ -595,7 +598,7 @@ InferenceEngine::Blob::Ptr ov::intel_cpu::MKLDNNLegacyInferRequest::GetBlob(cons
     return data;
 }
 
-void ov::intel_cpu::MKLDNNLegacyInferRequest::PushInputData() {
+void LegacyInferRequest::PushInputData() {
     for (auto input : _inputs) {
         auto inputName = input.first;
         if (!_networkInputs[inputName]) {
@@ -613,11 +616,11 @@ void ov::intel_cpu::MKLDNNLegacyInferRequest::PushInputData() {
     }
 }
 
-/* ========================================== MKLDNNInferRequest ========================================== */
-ov::intel_cpu::MKLDNNInferRequest::MKLDNNInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-                                                                 const std::vector<std::shared_ptr<const ov::Node>>& outputs,
-                                                                 MKLDNNExecNetwork::Ptr execNetwork)
-: MKLDNNInferRequestBase(inputs, outputs, execNetwork) {
+/* ========================================== InferRequest ========================================== */
+InferRequest::InferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                           const std::vector<std::shared_ptr<const ov::Node>>& outputs,
+                           ExecNetwork::Ptr execNetwork)
+: InferRequestBase(inputs, outputs, execNetwork) {
     for (const std::shared_ptr<const ov::Node>& in : inputs) {
         modelInputsMap[ngraph::op::util::get_ie_output_name(ngraph::Output<const ngraph::Node>(in))] = in;
     }
@@ -628,16 +631,16 @@ ov::intel_cpu::MKLDNNInferRequest::MKLDNNInferRequest(const std::vector<std::sha
     CreateInferRequest();
 }
 
-void ov::intel_cpu::MKLDNNInferRequest::initBlobs() {
+void InferRequest::initBlobs() {
     for (const auto& it : modelInputsMap) {
-        MKLDNNInferRequest::GetBlob(it.first);
+        InferRequest::GetBlob(it.first);
     }
     for (const auto& it : modelOutputsMap) {
-        MKLDNNInferRequest::GetBlob(it.first);
+        InferRequest::GetBlob(it.first);
     }
 }
 
-void ov::intel_cpu::MKLDNNInferRequest::SetBatch(int new_batch) {
+void InferRequest::SetBatch(int new_batch) {
     if (!graph->getProperty().batchLimit || modelInputsMap.begin()->second->get_output_partial_shape(0).is_static()) {
         IE_THROW() << "Can't SetBatch for model that can't be executed via legacy dynamic batch or for static model";
     }
@@ -653,7 +656,7 @@ void ov::intel_cpu::MKLDNNInferRequest::SetBatch(int new_batch) {
     }
 }
 
-void ov::intel_cpu::MKLDNNInferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) {
+void InferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "SetBlob");
     if (name.empty()) {
         IE_THROW(NotFound) << "Failed to set blob with empty name";
@@ -751,7 +754,7 @@ void ov::intel_cpu::MKLDNNInferRequest::SetBlob(const std::string& name, const I
     }
 }
 
-InferenceEngine::Blob::Ptr ov::intel_cpu::MKLDNNInferRequest::GetBlob(const std::string& name) {
+InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "GetBlob");
 
     if (!graph || !graph->IsReady())
@@ -790,7 +793,7 @@ InferenceEngine::Blob::Ptr ov::intel_cpu::MKLDNNInferRequest::GetBlob(const std:
                     externalPtr[name] = _inputs[name]->buffer();
                 }
             } else {
-                IE_THROW() << "Blob with name: " << name << " exists in MKLDNN graph, but absents in network inputs";
+                IE_THROW() << "Blob with name: " << name << " exists in graph, but absents in network inputs";
             }
         }
         data = _inputs[name];
@@ -839,7 +842,7 @@ InferenceEngine::Blob::Ptr ov::intel_cpu::MKLDNNInferRequest::GetBlob(const std:
                     externalPtr[name] = data->buffer();
                 }
             } else {
-                IE_THROW() << "Blob with name: " << name << " exists in MKLDNN graph, but absents in network outputs";
+                IE_THROW() << "Blob with name: " << name << " exists in graph, but absents in network outputs";
             }
         }
         data = _outputs[name];
@@ -852,7 +855,7 @@ InferenceEngine::Blob::Ptr ov::intel_cpu::MKLDNNInferRequest::GetBlob(const std:
     return data;
 }
 
-void ov::intel_cpu::MKLDNNInferRequest::PushInputData() {
+void InferRequest::PushInputData() {
     for (auto input : _inputs) {
         auto inputName = input.first;
         if (!modelInputsMap[inputName]) {
@@ -862,3 +865,6 @@ void ov::intel_cpu::MKLDNNInferRequest::PushInputData() {
         pushInput(inputName, input.second, normToInputSupportedPrec(input));
     }
 }
+
+}   // namespace intel_cpu
+}   // namespace ov

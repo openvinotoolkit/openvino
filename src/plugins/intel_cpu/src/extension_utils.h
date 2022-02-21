@@ -18,7 +18,7 @@ namespace intel_cpu {
 
 class DnnlMemoryDesc;
 
-class MKLDNNExtensionUtils {
+class ExtensionUtils {
 public:
     static uint8_t sizeOfDataType(mkldnn::memory::data_type dataType);
     static mkldnn::memory::data_type IEPrecisionToDataType(const InferenceEngine::Precision& prec);

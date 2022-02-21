@@ -12,10 +12,11 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNFullyConnectedNode : public MKLDNNNode {
+class FullyConnected : public Node {
 public:
-    MKLDNNFullyConnectedNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    FullyConnected(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const Shape &dims) const override;
     void getSupportedDescriptors() override;
@@ -34,7 +35,7 @@ public:
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
 
-    size_t descInputNumbers(MKLDNNDescriptor desc) override {
+    size_t descInputNumbers(Descriptor desc) override {
         return static_cast<size_t>(getOriginalInputsNumber());
     }
 
@@ -44,7 +45,7 @@ public:
 
     InferenceEngine::Precision getRuntimePrecision() const override;
 
-    bool canFuse(const MKLDNNNodePtr& node) const override;
+    bool canFuse(const NodePtr& node) const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
@@ -75,5 +76,6 @@ private:
     static const size_t BIAS_ID = 2;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

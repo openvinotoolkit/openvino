@@ -31,7 +31,6 @@
 #include "utils/cpu_utils.hpp"
 
 using namespace mkldnn;
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 using namespace mkldnn::impl;
 using namespace mkldnn::impl::cpu;
@@ -41,6 +40,10 @@ using namespace Xbyak;
 
 
 #define GET_OFF(field) offsetof(jit_interpolate_call_args, field)
+
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 template <cpu_isa_t isa>
 struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, public jit_generator {
@@ -1614,7 +1617,7 @@ private:
 
 namespace {
 struct InterpolateKey {
-    MKLDNNInterpolateNode::InterpolateAttrs nodeAttrs;
+    Interpolate::InterpolateAttrs nodeAttrs;
     VectorDims srcDims;
     VectorDims dstDims;
     std::vector<float> dataScales;
@@ -1730,7 +1733,7 @@ using ngInterpCoordTransf = ngraph::opset4::Interpolate::CoordinateTransformMode
 using ngInterpNearMode = ngraph::opset4::Interpolate::NearestMode;
 using ngInterpShapeCalcMode = ngraph::opset4::Interpolate::ShapeCalcMode;
 
-bool MKLDNNInterpolateNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool Interpolate::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto interp = std::dynamic_pointer_cast<const ngraph::opset4::Interpolate>(op);
         if (!interp) {
@@ -1793,8 +1796,8 @@ bool MKLDNNInterpolateNode::isSupportedOperation(const std::shared_ptr<const ngr
     return true;
 }
 
-MKLDNNInterpolateNode::MKLDNNInterpolateNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(op, eng, cache) {
+Interpolate::Interpolate(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache)
+        : Node(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Interpolate node with name '" + getName() + "'";
@@ -1907,7 +1910,7 @@ MKLDNNInterpolateNode::MKLDNNInterpolateNode(const std::shared_ptr<ngraph::Node>
     }
 }
 
-void MKLDNNInterpolateNode::getSupportedDescriptors() {
+void Interpolate::getSupportedDescriptors() {
     if (getParentEdges().size() != 3 && getParentEdges().size() != 4)
         // data, target_shape, scale, axis(optional).
         IE_THROW() << errorPrefix << " has incorrect number of input edges";
@@ -1951,7 +1954,7 @@ void MKLDNNInterpolateNode::getSupportedDescriptors() {
     }
 }
 
-void MKLDNNInterpolateNode::initSupportedPrimitiveDescriptors() {
+void Interpolate::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -2028,8 +2031,8 @@ void MKLDNNInterpolateNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-bool MKLDNNInterpolateNode::needShapeInfer() const {
-    if (MKLDNNNode::inputShapesModified()) {
+bool Interpolate::needShapeInfer() const {
+    if (Node::inputShapesModified()) {
         return true;
     }
     if (shapeCalcMode == InterpolateShapeCalcMode::scales) {
@@ -2056,12 +2059,12 @@ bool MKLDNNInterpolateNode::needShapeInfer() const {
     return false;
 }
 
-std::vector<VectorDims> MKLDNNInterpolateNode::shapeInfer() const {
+std::vector<VectorDims> Interpolate::shapeInfer() const {
     const size_t port = shapeCalcMode == InterpolateShapeCalcMode::sizes ? TARGET_SHAPE_ID : SCALES_ID;
     return shapeInferGeneric(PortMask(port, AXES_ID));
 }
 
-void MKLDNNInterpolateNode::executeDynamicImpl(mkldnn::stream strm) {
+void Interpolate::executeDynamicImpl(mkldnn::stream strm) {
     execute(strm);
 
     const size_t port = shapeCalcMode == InterpolateShapeCalcMode::sizes ? TARGET_SHAPE_ID : SCALES_ID;
@@ -2075,11 +2078,11 @@ void MKLDNNInterpolateNode::executeDynamicImpl(mkldnn::stream strm) {
     }
 }
 
-bool MKLDNNInterpolateNode::needPrepareParams() const {
+bool Interpolate::needPrepareParams() const {
     return (inputShapesModified() || lastOutputDims != getChildEdgesAtPort(0)[0]->getMemory().getStaticDims());
 }
 
-void MKLDNNInterpolateNode::prepareParams() {
+void Interpolate::prepareParams() {
     if (!shapesDefined()) {
         IE_THROW() << "Can't prepare params for Interpolate node with name: " << getName() << ", because input/output dims aren't defined";
     }
@@ -2149,7 +2152,7 @@ void MKLDNNInterpolateNode::prepareParams() {
     lastOutputDims = dstDims;
 }
 
-void MKLDNNInterpolateNode::createPrimitive() {
+void Interpolate::createPrimitive() {
     auto& srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
     auto& dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
     if (!srcMemPtr || !srcMemPtr->isAllocated())
@@ -2184,18 +2187,18 @@ static inline float triangleCoeff(float x) {
     return (std::max)(0.0f, 1 - std::abs(x));
 }
 
-void MKLDNNInterpolateNode::setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims) {
+void Interpolate::setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims) {
     mkldnn::post_ops ops;
 
     postOpsDataPtrs.clear();
     for (auto &node : fusedWith) {
-        auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
+        auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(node.get());
         if (fakeQuantizeNode) {
             fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs);
             continue;
         }
 
-        auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
+        auto* eltwiseNode = dynamic_cast<Eltwise *>(node.get());
         if (eltwiseNode) {
             eltwiseNode->appendPostOps(ops, dims, postOpsDataPtrs);
             continue;
@@ -2207,7 +2210,7 @@ void MKLDNNInterpolateNode::setPostOps(mkldnn::primitive_attr &attr, const Vecto
     attr.set_post_ops(ops);
 }
 
-SizeVector MKLDNNInterpolateNode::getPaddedInputShape(const VectorDims &srcDims,
+SizeVector Interpolate::getPaddedInputShape(const VectorDims &srcDims,
                                                       const std::vector<int> &padBegin,
                                                       const std::vector<int> &padEnd) {
     SizeVector paddedShape;
@@ -2222,7 +2225,7 @@ SizeVector MKLDNNInterpolateNode::getPaddedInputShape(const VectorDims &srcDims,
 // if "scale" version: set scales with input scales, 1.f for other dims not in axis
 // if "size" version: scales = shape[target] / shape[input].pad, 1.f for other dims not in axis
 // scales is a required input, but should not use input scales when "size" case, which may added eps that lead to inaccurate result, recalculate scales instead.
-std::vector<float> MKLDNNInterpolateNode::getScales(const VectorDims &srcDimPad, const VectorDims &dstDim) {
+std::vector<float> Interpolate::getScales(const VectorDims &srcDimPad, const VectorDims &dstDim) {
     const size_t dataRank = getInputShapeAtPort(DATA_ID).getRank();
     std::vector<float> fullScales(dataRank, 1.f);
     const size_t axesRank = axes.size();
@@ -2234,7 +2237,7 @@ std::vector<float> MKLDNNInterpolateNode::getScales(const VectorDims &srcDimPad,
     return fullScales;
 }
 
-void MKLDNNInterpolateNode::execute(mkldnn::stream strm) {
+void Interpolate::execute(mkldnn::stream strm) {
     if (!execPtr) {
         IE_THROW() << "Can't execute Interpolate node. Primitive didn't created";
     }
@@ -2322,7 +2325,7 @@ void MKLDNNInterpolateNode::execute(mkldnn::stream strm) {
 
 // for ndhwc and nCdhw8c[16c]
 // input may be f32/bf16/int8, fused->output varies
-void MKLDNNInterpolateNode::InterpolateJitExecutor::NNCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
+void Interpolate::InterpolateJitExecutor::NNCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
                                                                 int B, int C, int ID, int IH, int IW, int OD, int OH, int OW) {
     int *index_d = static_cast<int*>(&indexTable[0]);
     int *index_h = static_cast<int*>(&indexTable[OD]);
@@ -2378,7 +2381,7 @@ void MKLDNNInterpolateNode::InterpolateJitExecutor::NNCGathered(const uint8_t *i
     }  // batch end
 }
 
-void MKLDNNInterpolateNode::InterpolateJitExecutor::NNPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
+void Interpolate::InterpolateJitExecutor::NNPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
                                                              int B, int C, int ID, int IH, int IW, int OD, int OH, int OW) {
     int *index_d = static_cast<int*>(&indexTable[0]);
     int *index_h = static_cast<int*>(&indexTable[OD]);
@@ -2409,7 +2412,7 @@ void MKLDNNInterpolateNode::InterpolateJitExecutor::NNPlanar(const uint8_t *in_p
     });
 }
 
-void MKLDNNInterpolateNode::InterpolateJitExecutor::linearOnnxPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_, int B, int C,
+void Interpolate::InterpolateJitExecutor::linearOnnxPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_, int B, int C,
                                                                      int ID, int IH, int IW, int OD, int OH, int OW) {
     // FrontTopLeft:0, FrontTopRight:1, FrontBottomLeft:2, FrontBottomRight:3, EndTopLeft:4,   EndTopRight:5,   EndBottomLeft:6,   EndBottomRight:7
     // weight: Left:0, ritht:1, top:2, bottom:3, front:4, end:5
@@ -2433,7 +2436,7 @@ void MKLDNNInterpolateNode::InterpolateJitExecutor::linearOnnxPlanar(const uint8
     });
 }
 
-void MKLDNNInterpolateNode::InterpolateJitExecutor::linearOnnxCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
+void Interpolate::InterpolateJitExecutor::linearOnnxCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
                                                                         int B, int C, int ID, int IH, int IW, int OD, int OH, int OW) {
     // left:OW right:OW Top:OH Bottom:OH Front:OD End:OD
     std::vector<int*> indexPtr(MAX_INPUT_INTERPOLATE, 0);
@@ -2505,7 +2508,7 @@ void MKLDNNInterpolateNode::InterpolateJitExecutor::linearOnnxCGathered(const ui
     });
 }
 
-void MKLDNNInterpolateNode::InterpolateJitExecutor::cubicCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
+void Interpolate::InterpolateJitExecutor::cubicCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
                                                                    int B, int C, int IH, int IW, int OH, int OW) {
     const int idxNum = 1;
     int *xOrigin = static_cast<int*>(&indexTable[0]);
@@ -2552,7 +2555,7 @@ void MKLDNNInterpolateNode::InterpolateJitExecutor::cubicCGathered(const uint8_t
     });
 }
 
-void MKLDNNInterpolateNode::InterpolateJitExecutor::cubicPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
+void Interpolate::InterpolateJitExecutor::cubicPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
                                                                 int B, int C, int IH, int IW, int OH, int OW) {
     int tblAdvance = 0;
     int *xOrigin = static_cast<int*>(&indexTable[tblAdvance]);
@@ -2591,7 +2594,7 @@ void MKLDNNInterpolateNode::InterpolateJitExecutor::cubicPlanar(const uint8_t *i
 // =====================================================================================================================
 // index layout:
 // d_0............d_OD-1, h_0..............h_OH-1, w_0................w_OW-1
-void MKLDNNInterpolateNode::InterpolateExecutor::buildTblNN(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d,
+void Interpolate::InterpolateExecutor::buildTblNN(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d,
                                         const std::vector<float>& dataScales, InterpolateLayoutType layout, InterpolateNearestMode nearestMode) {
     const int dimSize = dataRank;
     float fz = (dimSize == 5) ? dataScales[dimSize - 3] : 1.f;
@@ -2624,7 +2627,7 @@ void MKLDNNInterpolateNode::InterpolateExecutor::buildTblNN(const SizeVector& sr
 // scale is float(outShape) / float(inShape)
 // strictly consistent with onnx calc manner(div scale, not multiply inverse), given this is done offline
 // the slight precison diff can produce obvious wrong value due to "nearest round" behavior for NN mode
-float MKLDNNInterpolateNode::InterpolateExecutor::coordTransToInput(int outCoord, float scale, int inShape, int outShape) const {
+float Interpolate::InterpolateExecutor::coordTransToInput(int outCoord, float scale, int inShape, int outShape) const {
     if (scale == 1.0f || (inShape == outShape)) {
         return outCoord;
     }
@@ -2662,7 +2665,7 @@ float MKLDNNInterpolateNode::InterpolateExecutor::coordTransToInput(int outCoord
     }
 }
 
-int MKLDNNInterpolateNode::InterpolateExecutor::nearestRound(float originCoord, bool isDownsample, InterpolateNearestMode nearestMode) const {
+int Interpolate::InterpolateExecutor::nearestRound(float originCoord, bool isDownsample, InterpolateNearestMode nearestMode) const {
     switch (nearestMode) {
         case InterpolateNearestMode::round_prefer_floor: {
             if (originCoord == (static_cast<int>(originCoord) + 0.5f))
@@ -2696,7 +2699,7 @@ int MKLDNNInterpolateNode::InterpolateExecutor::nearestRound(float originCoord, 
     }
 }
 
-void MKLDNNInterpolateNode::InterpolateExecutor::linearOnnxCF(int outCoord, float scale, int inShape, int outShape,
+void Interpolate::InterpolateExecutor::linearOnnxCF(int outCoord, float scale, int inShape, int outShape,
                 int& index0, int& index1, float& weight0, float& weight1) {
     float inCoord = coordTransToInput(outCoord, scale, inShape, outShape);
     inCoord = std::max(0.0f, std::min(inCoord, static_cast<float>(inShape - 1)));
@@ -2711,7 +2714,7 @@ void MKLDNNInterpolateNode::InterpolateExecutor::linearOnnxCF(int outCoord, floa
     }
 }
 
-void MKLDNNInterpolateNode::InterpolateExecutor::buildTblLinearOnnx(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d,
+void Interpolate::InterpolateExecutor::buildTblLinearOnnx(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d,
                                                 const std::vector<float>& dataScales, InterpolateLayoutType layout) {
     int dimSize = dataRank;
     float fz = (spatialDimSize > 2) ? dataScales[dimSize - 3] : 1.f;
@@ -2824,7 +2827,7 @@ void MKLDNNInterpolateNode::InterpolateExecutor::buildTblLinearOnnx(const SizeVe
 // wd .........wd, wh............wh, ww.............ww, id...........id, ih............ih, iw..............iw
 //                        |                                                      |
 //                   wh0.....wh_diameter                                    ih0.....ih_diameter
-void MKLDNNInterpolateNode::InterpolateExecutor::buildTblLinear(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d,
+void Interpolate::InterpolateExecutor::buildTblLinear(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d,
                                             const std::vector<float>& dataScales, int kernel_width, bool antialias) {
     int dimSize = dataRank;
     float fz = (dimSize == 5) ? dataScales[dimSize - 3] : 1.f;
@@ -2901,7 +2904,7 @@ void MKLDNNInterpolateNode::InterpolateExecutor::buildTblLinear(const SizeVector
     }
 }
 
-std::vector<float> MKLDNNInterpolateNode::InterpolateExecutor::getCubicCoeffs(float mantissa, float a) {
+std::vector<float> Interpolate::InterpolateExecutor::getCubicCoeffs(float mantissa, float a) {
     float m = std::fabs(mantissa);
     std::vector<float> coeffs(4, 0.f);
 
@@ -2915,7 +2918,7 @@ std::vector<float> MKLDNNInterpolateNode::InterpolateExecutor::getCubicCoeffs(fl
 // table layout:
 // OW      OW         OW         OW         OW          OH       OH           OH           OH           OH
 // x_idx   x_weight0  x_weight1  x_weight2  x_weight3   y_idx    y_weight0    y_weight1    y_weight2    y_weight3
-void MKLDNNInterpolateNode::InterpolateExecutor::buildTblCubic(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales,
+void Interpolate::InterpolateExecutor::buildTblCubic(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales,
                                         float cubicCoeff, InterpolateLayoutType layout) {
     int dimSize = dataRank;
     float fy = dataScales[dimSize - 2];
@@ -2980,7 +2983,7 @@ void MKLDNNInterpolateNode::InterpolateExecutor::buildTblCubic(const SizeVector&
     }
 }
 
-void MKLDNNInterpolateNode::InterpolateRefExecutor::NNRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW,
+void Interpolate::InterpolateRefExecutor::NNRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW,
                                                           int OD, int OH, int OW) {
     int *index_d = static_cast<int*>(&indexTable[0]);
     int *index_h = static_cast<int*>(&indexTable[OD]);
@@ -3002,7 +3005,7 @@ void MKLDNNInterpolateNode::InterpolateRefExecutor::NNRef(const uint8_t *in_ptr_
     });
 }
 
-void MKLDNNInterpolateNode::InterpolateRefExecutor::linearOnnxRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW,
+void Interpolate::InterpolateRefExecutor::linearOnnxRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW,
                                                                   int OD, int OH, int OW) {
     std::vector<int*> indexPtr(MAX_INPUT_INTERPOLATE, 0);
     std::vector<float*> weightPtr(MAX_INPUT_INTERPOLATE, 0);
@@ -3100,7 +3103,7 @@ void MKLDNNInterpolateNode::InterpolateRefExecutor::linearOnnxRef(const uint8_t 
     });
 }
 
-void MKLDNNInterpolateNode::InterpolateRefExecutor::cubicRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW) {
+void Interpolate::InterpolateRefExecutor::cubicRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW) {
     const int idxNum = 1;
     int *xOrigin = static_cast<int*>(&indexTable[0]);
     float *xFactor = reinterpret_cast<float*>(&indexTable[OW]);
@@ -3132,7 +3135,7 @@ void MKLDNNInterpolateNode::InterpolateRefExecutor::cubicRef(const uint8_t *in_p
     });
 }
 
-float MKLDNNInterpolateNode::InterpolateRefExecutor::getValue(const uint8_t *base, size_t offset, InferenceEngine::Precision prec) {
+float Interpolate::InterpolateRefExecutor::getValue(const uint8_t *base, size_t offset, InferenceEngine::Precision prec) {
     const uint8_t *baseOffset = base + offset;
     switch (prec) {
         case Precision::U8: {
@@ -3161,7 +3164,7 @@ float MKLDNNInterpolateNode::InterpolateRefExecutor::getValue(const uint8_t *bas
     }
 }
 
-void MKLDNNInterpolateNode::InterpolateRefExecutor::setValue(uint8_t *base, size_t offset, float value, InferenceEngine::Precision prec) {
+void Interpolate::InterpolateRefExecutor::setValue(uint8_t *base, size_t offset, float value, InferenceEngine::Precision prec) {
     uint8_t *baseOffset = base + offset;
     switch (prec) {
         case Precision::U8: {
@@ -3190,7 +3193,7 @@ void MKLDNNInterpolateNode::InterpolateRefExecutor::setValue(uint8_t *base, size
     }
 }
 
-void MKLDNNInterpolateNode::InterpolateRefExecutor::linearInterpolation(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW,
+void Interpolate::InterpolateRefExecutor::linearInterpolation(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW,
                                           float fx, float fy, float fz, int OD, int OH, int OW, int kernel_width, bool antialias) {
     if (IW == OW && IH == OH && ID == OD) {
         size_t spatialDimSize = IW * IH * ID;
@@ -3307,7 +3310,7 @@ void MKLDNNInterpolateNode::InterpolateRefExecutor::linearInterpolation(const ui
     });
 }
 
-MKLDNNInterpolateNode::InterpolateExecutor::InterpolateExecutor(const InterpolateAttrs& interpAttrs,
+Interpolate::InterpolateExecutor::InterpolateExecutor(const InterpolateAttrs& interpAttrs,
                                                                 const VectorDims &srcDims,
                                                                 const VectorDims &dstDims,
                                                                 const std::vector<float> &dataScales) :
@@ -3345,7 +3348,7 @@ MKLDNNInterpolateNode::InterpolateExecutor::InterpolateExecutor(const Interpolat
     }
 }
 
-MKLDNNInterpolateNode::InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAttrs& interpAttrs,
+Interpolate::InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAttrs& interpAttrs,
                                                                       const VectorDims &srcDims,
                                                                       const VectorDims &dstDims,
                                                                       const std::vector<float> &dataScales,
@@ -3353,10 +3356,10 @@ MKLDNNInterpolateNode::InterpolateJitExecutor::InterpolateJitExecutor(const Inte
         InterpolateExecutor(interpAttrs, srcDims, dstDims, dataScales) {
     auto jcp = jit_interpolate_config_params();
     jcp.mode = mode;
-    jcp.src_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(interpAttrs.inPrc);
-    jcp.dst_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(interpAttrs.outPrc);
-    jcp.src_data_size = MKLDNNExtensionUtils::sizeOfDataType(jcp.src_dt);
-    jcp.dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(jcp.dst_dt);
+    jcp.src_dt = ExtensionUtils::IEPrecisionToDataType(interpAttrs.inPrc);
+    jcp.dst_dt = ExtensionUtils::IEPrecisionToDataType(interpAttrs.outPrc);
+    jcp.src_data_size = ExtensionUtils::sizeOfDataType(jcp.src_dt);
+    jcp.dst_data_size = ExtensionUtils::sizeOfDataType(jcp.dst_dt);
     jcp.indices_size = sizeof(int);
     jcp.OW = dstDim5d[4];
     jcp.OH = dstDim5d[3];
@@ -3387,7 +3390,7 @@ MKLDNNInterpolateNode::InterpolateJitExecutor::InterpolateJitExecutor(const Inte
     }
 }
 
-void MKLDNNInterpolateNode::InterpolateJitExecutor::exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) {
+void Interpolate::InterpolateJitExecutor::exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) {
     size_t N = srcDimPad5d[0], C = srcDimPad5d[1], ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
     size_t OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
 
@@ -3425,7 +3428,7 @@ void MKLDNNInterpolateNode::InterpolateJitExecutor::exec(const uint8_t *in_ptr_,
     }
 }
 
-void MKLDNNInterpolateNode::InterpolateRefExecutor::exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) {
+void Interpolate::InterpolateRefExecutor::exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) {
     size_t N = srcDimPad5d[0], C = srcDimPad5d[1], ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
     size_t OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
 
@@ -3458,7 +3461,7 @@ void MKLDNNInterpolateNode::InterpolateRefExecutor::exec(const uint8_t *in_ptr_,
     }
 }
 
-size_t MKLDNNInterpolateNode::getSpatialDimsNum(const Dim rank) {
+size_t Interpolate::getSpatialDimsNum(const Dim rank) {
     switch (rank) {
         case 1:
         case 3:
@@ -3473,7 +3476,7 @@ size_t MKLDNNInterpolateNode::getSpatialDimsNum(const Dim rank) {
     }
 }
 
-bool MKLDNNInterpolateNode::canFuse(const MKLDNNNodePtr& node) const {
+bool Interpolate::canFuse(const NodePtr& node) const {
     if (!mayiuse(cpu::x64::sse41) || interpAttrs.mode == InterpolateMode::linear) {
         return false;
     }
@@ -3481,8 +3484,10 @@ bool MKLDNNInterpolateNode::canFuse(const MKLDNNNodePtr& node) const {
     return canFuseSimpleOperation(node);
 }
 
-bool MKLDNNInterpolateNode::created() const {
-    return getType() == Interpolate;
+bool Interpolate::created() const {
+    return getType() == Type::Interpolate;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNInterpolateNode, Interpolate);
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

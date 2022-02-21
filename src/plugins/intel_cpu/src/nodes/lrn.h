@@ -12,15 +12,16 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNLrnNode : public MKLDNNNode {
+class Lrn : public Node {
 public:
-    MKLDNNLrnNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    Lrn(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
-    size_t descInputNumbers(MKLDNNDescriptor desc) override {
+    size_t descInputNumbers(Descriptor desc) override {
         return static_cast<size_t>(getOriginalInputsNumber());
     }
     std::shared_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
@@ -45,5 +46,6 @@ private:
     std::string errorPrefix;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

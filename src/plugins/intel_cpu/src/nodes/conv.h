@@ -13,12 +13,13 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNEltwiseNode;
+class Eltwise;
 
-class MKLDNNConvolutionNode : public MKLDNNNode {
+class Convolution : public Node {
 public:
-    MKLDNNConvolutionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    Convolution(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
@@ -38,7 +39,7 @@ public:
     mkldnn::memory getWeights() const;
     mkldnn::memory getBias() const;
 
-    size_t descInputNumbers(MKLDNNDescriptor desc) override {
+    size_t descInputNumbers(Descriptor desc) override {
         return getOriginalInputsNumber();
     }
 
@@ -55,7 +56,7 @@ public:
     const std::vector<ptrdiff_t> &getPaddingL() { return paddingL; }
     const std::vector<ptrdiff_t> &getPaddingR() { return paddingR; }
 
-    bool canFuse(const MKLDNNNodePtr& node) const override;
+    bool canFuse(const NodePtr& node) const override;
     bool isDepthWise() const {
         return isGrouped && 1 == groupOC && 1 == groupIC;
     }
@@ -65,9 +66,9 @@ public:
     void setDynamicBatchLim(int lim) override;
 
 protected:
-    InferenceEngine::Precision fusedEltwisePrecision(const MKLDNNNodePtr& fusingNode) const;
+    InferenceEngine::Precision fusedEltwisePrecision(const NodePtr& fusingNode) const;
     void redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) override;
-    void addFusedNode(const MKLDNNNodePtr &fusingNode) override;
+    void addFusedNode(const NodePtr &fusingNode) override;
 
 private:
     class FusedSubgraph;
@@ -91,13 +92,13 @@ private:
     void addZeroPoints(mkldnn::primitive_attr& attr);
     void setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims, bool initWeights);
     void filterSupportedDescriptors();
-    bool isPossibleToSkipInitConfig(MKLDNNDescriptor &desc) const;
+    bool isPossibleToSkipInitConfig(Descriptor &desc) const;
     bool isNspcAvailable() const;
     InferenceEngine::Blob::Ptr createInternalBlob(InferenceEngine::SizeVector dims, size_t edgeNum, bool isGrouped = false);
 
     void updatePadding();
     MemoryDescPtr getSumMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it);
-    MKLDNNMemoryPtr getOutputMemory() const;
+    MemoryPtr getOutputMemory() const;
 
     void appendZeroPointsArgs();
 
@@ -135,12 +136,13 @@ private:
     AttrPtr pAttr;
     bool autoPadding = false;
     FusedSubgraphPtr subgraph;
-    std::unordered_map<MKLDNNNodePtr, std::vector<MKLDNNNodePtr>> fusedConstNodes;
+    std::unordered_map<NodePtr, std::vector<NodePtr>> fusedConstNodes;
 
-    MKLDNNMemoryPtr inputZeroPointsMemPtr;
-    MKLDNNMemoryPtr weightsZeroPointsMemPtr;
-    MKLDNNMemoryPtr outputCompensationMemPtr;
+    MemoryPtr inputZeroPointsMemPtr;
+    MemoryPtr weightsZeroPointsMemPtr;
+    MemoryPtr outputCompensationMemPtr;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

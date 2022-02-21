@@ -24,6 +24,7 @@ using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
 static rnn_direction ieDirection2dnnl(const std::shared_ptr<const ov::Node>& op) {
     ov::op::RecurrentSequenceDirection direction = ov::op::RecurrentSequenceDirection::FORWARD;
@@ -103,7 +104,7 @@ inline bool haveCellState(const mkldnn::algorithm& alg) {
     return alg == mkldnn::algorithm::vanilla_lstm;
 }
 
-const std::map<Precision, Precision> MKLDNNRNN::weightsByLayerPrec {
+const std::map<Precision, Precision> RNN::weightsByLayerPrec {
     // layer precision,                weights precision
     {Precision::FP32, Precision::FP32},
     {Precision::BF16, Precision::BF16},
@@ -167,7 +168,7 @@ bool RNNKey::operator==(const RNNKey& rhs) const {
     return true;
 }
 
-bool MKLDNNRNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!one_of(op->get_type_info(),
                 ov::op::v3::GRUCell::get_type_info_static(),
@@ -244,21 +245,21 @@ bool MKLDNNRNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
     return true;
 }
 
-MKLDNNRNN::MKLDNNRNN(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(op, eng, cache) {
+RNN::RNN(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache) :
+        Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
 
     internalBlobDesc.emplace_back([&](primitive_desc_iterator& primitive_desc_it, size_t idx) -> DnnlMemoryDescPtr {
-        return MKLDNNExtensionUtils::makeDescriptor(primitive_desc_it.weights_desc(0));
+        return ExtensionUtils::makeDescriptor(primitive_desc_it.weights_desc(0));
     });
     internalBlobDesc.emplace_back([&](primitive_desc_iterator& primitive_desc_it, size_t idx) -> DnnlMemoryDescPtr {
-        return MKLDNNExtensionUtils::makeDescriptor(primitive_desc_it.weights_desc(1));
+        return ExtensionUtils::makeDescriptor(primitive_desc_it.weights_desc(1));
     });
     internalBlobDesc.emplace_back([&](primitive_desc_iterator& primitive_desc_it, size_t idx) -> DnnlMemoryDescPtr {
-        return MKLDNNExtensionUtils::makeDescriptor(primitive_desc_it.weights_desc(2));
+        return ExtensionUtils::makeDescriptor(primitive_desc_it.weights_desc(2));
     });
 
     is_cell = one_of(op->get_type_info(),
@@ -312,18 +313,18 @@ MKLDNNRNN::MKLDNNRNN(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& 
     }
 }
 
-bool MKLDNNRNN::created() const {
-    return getType() == (is_cell ? RNNCell : RNNSeq);
+bool RNN::created() const {
+    return getType() == (is_cell ? Type::RNNCell : Type::RNNSeq);
 }
 
-void MKLDNNRNN::getSupportedDescriptors() {
+void RNN::getSupportedDescriptors() {
     if (is_cell)
         fillCellDesc();
     else
         fillSequenceDesc();
 }
 
-void MKLDNNRNN::initCell() {
+void RNN::initCell() {
     if (getInputShapeAtPort(0).getRank() != 2lu || getInputShapeAtPort(1).getRank() != 2lu)
         THROW_ERROR << "has incorrect input ranks. Data rank: " << getInputShapeAtPort(0).getRank() <<
                 "; Hidden state rank: " << getInputShapeAtPort(1).getRank();
@@ -351,8 +352,8 @@ void MKLDNNRNN::initCell() {
     }
 }
 
-void MKLDNNRNN::fillCellDesc() {
-    const auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(0));
+void RNN::fillCellDesc() {
+    const auto dataType = ExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(0));
     const Shape shapeS_4D = MemoryDescUtils::makeDummyShape({{L, D, N.minVal, SC}, {L, D, N.maxVal, SC}}),
             inShape = MemoryDescUtils::makeDummyShape({{T.minVal, N.minVal, DC}, {T.maxVal, N.maxVal, DC}}),
             outShape = MemoryDescUtils::makeDummyShape({{T.minVal, N.minVal, SC}, {T.maxVal, N.maxVal, SC}});
@@ -397,7 +398,7 @@ void MKLDNNRNN::fillCellDesc() {
     createDescriptor(inCandidate, outCandidate);
 }
 
-void MKLDNNRNN::initSequence() {
+void RNN::initSequence() {
     const auto& inDataShape = getInputShapeAtPort(0);
     const auto& outDataShape = getOutputShapeAtPort(0);
 
@@ -421,8 +422,8 @@ void MKLDNNRNN::initSequence() {
     outDataDescs.reserve(S + 1);
 }
 
-void MKLDNNRNN::fillSequenceDesc() {
-    const auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(0));
+void RNN::fillSequenceDesc() {
+    const auto dataType = ExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(0));
     const Shape shapeS_4D = MemoryDescUtils::makeDummyShape({{L, D, N.minVal, SC}, {L, D, N.maxVal, SC}}),
             inShape = MemoryDescUtils::makeDummyShape({{T.minVal, N.minVal, DC}, {T.maxVal, N.maxVal, DC}}),
             outShape = MemoryDescUtils::makeDummyShape({{T.minVal, N.minVal, SC}, {T.maxVal, N.maxVal, SC}}),
@@ -505,14 +506,14 @@ void MKLDNNRNN::fillSequenceDesc() {
     createDescriptor(inCandidate, outCandidate);
 }
 
-bool MKLDNNRNN::verifyWeightsPrecision(const Precision &layerPrec, const Precision &weightsPrec) {
+bool RNN::verifyWeightsPrecision(const Precision &layerPrec, const Precision &weightsPrec) {
     if (!weightsByLayerPrec.count(layerPrec))
         THROW_ERROR << "has unsupported layer precision " << layerPrec;
     return weightsPrec == weightsByLayerPrec.at(layerPrec);
 }
 
 template <typename Prec>
-void MKLDNNRNN::fillWeights(const int *gate_map, const size_t wIdx, const size_t rIdx) {
+void RNN::fillWeights(const int *gate_map, const size_t wIdx, const size_t rIdx) {
     const auto& dataPrecision = getOriginalInputPrecisionAtPort(0);
     const auto& weightPrec = getOriginalInputPrecisionAtPort(wIdx);
     if (!verifyWeightsPrecision(dataPrecision, weightPrec) && dataPrecision != Precision::BF16 && weightPrec != Precision::FP32) {
@@ -538,10 +539,10 @@ void MKLDNNRNN::fillWeights(const int *gate_map, const size_t wIdx, const size_t
     const size_t ie_w_vec_size = getInputShapeAtPort(wIdx).getElementsCount();
     const size_t ie_r_vec_size = getInputShapeAtPort(rIdx).getElementsCount();
 
-    auto *wInputNode = dynamic_cast<MKLDNNInputNode *>(getParentEdgesAtPort(wIdx)[0]->getParent().get());
+    auto *wInputNode = dynamic_cast<Input *>(getParentEdgesAtPort(wIdx)[0]->getParent().get());
     auto wConstBlob = wInputNode->getMemoryPtr();
 
-    auto *rInputNode = dynamic_cast<MKLDNNInputNode *>(getParentEdgesAtPort(rIdx)[0]->getParent().get());
+    auto *rInputNode = dynamic_cast<Input *>(getParentEdgesAtPort(rIdx)[0]->getParent().get());
     auto rConstBlob = rInputNode->getMemoryPtr();
 
     std::vector<Prec> ie_w_vec(ie_w_vec_size), ie_r_vec(ie_r_vec_size);
@@ -576,7 +577,7 @@ void MKLDNNRNN::fillWeights(const int *gate_map, const size_t wIdx, const size_t
 }
 
 template <Precision::ePrecision Prec>
-void MKLDNNRNN::fillBiases(const int *gate_map) {
+void RNN::fillBiases(const int *gate_map) {
     using dataType = typename PrecisionTrait<Prec>::value_type;
 
     if (getOriginalInputPrecisionAtPort(bIdx) != Precision::FP32) {
@@ -591,14 +592,14 @@ void MKLDNNRNN::fillBiases(const int *gate_map) {
     if (b_ptr == nullptr)
         IE_THROW(NotAllocated) << "Internal blob was not allocated for node " << getName() << ".";
 
-    auto *constInputNode = dynamic_cast<MKLDNNInputNode *>(getParentEdgesAtPort(bIdx)[0]->getParent().get());
+    auto *constInputNode = dynamic_cast<Input *>(getParentEdgesAtPort(bIdx)[0]->getParent().get());
     auto constBlob = constInputNode->getMemoryPtr();
     auto const elementsCount = constBlob->GetSize() / constBlob->getDesc().getPrecision().size();
 
     std::vector<dataType> ie_b_vec(elementsCount);
     cpu_convert(constBlob->GetPtr(),
                 &ie_b_vec[0],
-                MKLDNNExtensionUtils::DataTypeToIEPrecision(constBlob->GetDataType()),
+                ExtensionUtils::DataTypeToIEPrecision(constBlob->GetDataType()),
                 Prec,
                 elementsCount);
 
@@ -610,7 +611,7 @@ void MKLDNNRNN::fillBiases(const int *gate_map) {
     internalBlobs.push_back(w_bias_data_mem);
 }
 
-void MKLDNNRNN::copyWeightsData() {
+void RNN::copyWeightsData() {
     /* Copy Weight data
      * IE format:
      *   W - [gates, out_state_size, in_data_size]
@@ -680,12 +681,12 @@ void MKLDNNRNN::copyWeightsData() {
         fillBiases<Precision::FP32>(gate_map);
 }
 
-void MKLDNNRNN::fillDescs() {
+void RNN::fillDescs() {
     descs.clear();
 
     switch (cell_type) {
         case mkldnn::algorithm::vanilla_rnn: {
-            MKLDNNDescriptor desc(std::make_shared<vanilla_rnn_forward::desc>(
+            Descriptor desc(std::make_shared<vanilla_rnn_forward::desc>(
                                         prop_kind::forward_scoring,
                                         cell_act,
                                         direction,
@@ -699,7 +700,7 @@ void MKLDNNRNN::fillDescs() {
             descs.push_back(desc);
         } break;
         case mkldnn::algorithm::vanilla_gru: {
-            MKLDNNDescriptor desc(std::make_shared<gru_forward::desc>(
+            Descriptor desc(std::make_shared<gru_forward::desc>(
                                         prop_kind::forward_scoring,
                                         direction,
                     /* In Data       */ inDataDescs[RNNInOutKind::Layer]->getDnnlDesc(),
@@ -712,7 +713,7 @@ void MKLDNNRNN::fillDescs() {
             descs.push_back(desc);
         } break;
         case mkldnn::algorithm::lbr_gru: {
-            MKLDNNDescriptor desc(std::make_shared<lbr_gru_forward::desc>(
+            Descriptor desc(std::make_shared<lbr_gru_forward::desc>(
                                         prop_kind::forward_scoring,
                                         direction,
                     /* In Data       */ inDataDescs[RNNInOutKind::Layer]->getDnnlDesc(),
@@ -725,7 +726,7 @@ void MKLDNNRNN::fillDescs() {
             descs.push_back(desc);
         } break;
         case mkldnn::algorithm::vanilla_lstm: {
-            MKLDNNDescriptor desc(std::make_shared<lstm_forward::desc>(
+            Descriptor desc(std::make_shared<lstm_forward::desc>(
                                         prop_kind::forward_scoring,
                                         direction,
                     /* In Data       */ inDataDescs[RNNInOutKind::Layer]->getDnnlDesc(),
@@ -744,17 +745,17 @@ void MKLDNNRNN::fillDescs() {
     }
 }
 
-void MKLDNNRNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
+void RNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
                                  const std::vector<MemoryDescPtr> &outputDesc) {
     if (descs.empty()) {
         wDescs.resize(3);
         const auto& dataPrecision = getOriginalInputPrecisionAtPort(0);
-        auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(dataPrecision);
-        auto weightsDims = MKLDNNExtensionUtils::convertToDnnlDims(VectorDims{ L, D, DC, G, SC });
+        auto dataType = ExtensionUtils::IEPrecisionToDataType(dataPrecision);
+        auto weightsDims = ExtensionUtils::convertToDnnlDims(VectorDims{ L, D, DC, G, SC });
         wDescs[0] = mkldnn::memory::desc(weightsDims, dataType, wFormat);
-        auto statesDims = MKLDNNExtensionUtils::convertToDnnlDims(VectorDims{ L, D, SC, G, SC });
+        auto statesDims = ExtensionUtils::convertToDnnlDims(VectorDims{ L, D, SC, G, SC });
         wDescs[1] = mkldnn::memory::desc(statesDims, dataType, wFormat);
-        auto biasDims = MKLDNNExtensionUtils::convertToDnnlDims(VectorDims{ L, D, Gb, SC });
+        auto biasDims = ExtensionUtils::convertToDnnlDims(VectorDims{ L, D, Gb, SC });
         wDescs[2] = mkldnn::memory::desc(biasDims, memory::data_type::f32, memory::format_tag::ldgo);
 
         fillDescs();
@@ -782,7 +783,7 @@ void MKLDNNRNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
     supportedPrimitiveDescriptors.emplace_back(config, ref_any);
 }
 
-void MKLDNNRNN::prepareParams() {
+void RNN::prepareParams() {
     for (size_t i = 0; i < wIdx; i++) {
         auto memPtr = getParentEdgesAtPort(i).front()->getMemoryPtr();
         if (!memPtr || !memPtr->isAllocated())
@@ -790,7 +791,7 @@ void MKLDNNRNN::prepareParams() {
     }
 
     const auto& dataPrecision = getOriginalInputPrecisionAtPort(0);
-    const auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(dataPrecision);
+    const auto dataType = ExtensionUtils::IEPrecisionToDataType(dataPrecision);
 
     auto dataMemPtr = getParentEdgesAtPort(0).front()->getMemoryPtr();
     const size_t B = dataMemPtr->GetShape().getStaticDims()[0];
@@ -820,9 +821,9 @@ void MKLDNNRNN::prepareParams() {
         wFormatWasChanged = true;
     }
     if (wFormatWasChanged) {
-        auto weightsDims = MKLDNNExtensionUtils::convertToDnnlDims(VectorDims{ L, D, DC, G, SC });
+        auto weightsDims = ExtensionUtils::convertToDnnlDims(VectorDims{ L, D, DC, G, SC });
         wDescs[0] = mkldnn::memory::desc(weightsDims, dataType, wFormat);
-        auto statesDims = MKLDNNExtensionUtils::convertToDnnlDims(VectorDims{ L, D, SC, G, SC });
+        auto statesDims = ExtensionUtils::convertToDnnlDims(VectorDims{ L, D, SC, G, SC });
         wDescs[1] = mkldnn::memory::desc(statesDims, dataType, wFormat);
     }
 
@@ -864,15 +865,15 @@ void MKLDNNRNN::prepareParams() {
     }
 }
 
-std::shared_ptr<MemoryDesc> MKLDNNRNN::getSrcMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) {
+std::shared_ptr<MemoryDesc> RNN::getSrcMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) {
     return supportedPrimitiveDescriptors[0].getConfig().inConfs[idx].getMemDesc();
 }
 
-std::shared_ptr<MemoryDesc> MKLDNNRNN::getDstMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) {
+std::shared_ptr<MemoryDesc> RNN::getDstMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) {
     return supportedPrimitiveDescriptors[0].getConfig().outConfs[idx].getMemDesc();
 }
 
-void MKLDNNRNN::execute(mkldnn::stream strm) {
+void RNN::execute(mkldnn::stream strm) {
     if (!prim)
         THROW_ERROR << "does not have initialized primitive to execute.";
 
@@ -913,25 +914,25 @@ void MKLDNNRNN::execute(mkldnn::stream strm) {
     (*prim).execute(strm, args);
 }
 
-void MKLDNNRNN::executeDynamicImpl(mkldnn::stream strm) {
+void RNN::executeDynamicImpl(mkldnn::stream strm) {
     execute(strm);
 }
 
-std::vector<VectorDims> MKLDNNRNN::shapeInfer() const {
+std::vector<VectorDims> RNN::shapeInfer() const {
     if ((is_cell && DC != getParentEdgesAtPort(0)[0]->getMemory().getDesc().getShape().getStaticDims()[1]) ||
             (!is_cell && DC != getParentEdgesAtPort(0)[0]->getMemory().getDesc().getShape().getStaticDims()[2]))
         THROW_ERROR << "has incorrect input size value in the first input.";
 
-    auto originOutputShapes = MKLDNNNode::shapeInfer();
+    auto originOutputShapes = Node::shapeInfer();
 
     // Graph optimizer makes the same optimization. So this is required to make shapes compatible.
-    if (getType() == RNNSeq && originOutputShapes[0].size() == 4lu && originOutputShapes[0][1] == 1lu) {
+    if (getType() == Type::RNNSeq && originOutputShapes[0].size() == 4lu && originOutputShapes[0][1] == 1lu) {
         originOutputShapes[0].erase(originOutputShapes[0].begin() + 1);
     }
     return originOutputShapes;
 }
 
-void MKLDNNRNN::cleanup() {
+void RNN::cleanup() {
     if (!isDynamicNode()) {
         internalBlobs.clear();
     }
@@ -945,8 +946,6 @@ void MKLDNNRNN::cleanup() {
     }
 }
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov
-
-REG_MKLDNN_PRIM_FOR(MKLDNNRNN, RNNCell);
-REG_MKLDNN_PRIM_FOR(MKLDNNRNN, RNNSeq);
