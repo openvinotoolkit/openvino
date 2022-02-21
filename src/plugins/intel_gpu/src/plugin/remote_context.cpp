@@ -310,13 +310,13 @@ ExecutionContextImpl::ExecutionContextImpl(const std::shared_ptr<IInferencePlugi
     }
 
     // TODO: Parameterize this based on plugin config and compilation options
-#ifdef GPU_ENABLE_ZE_BACKEND
+//#ifdef GPU_ENABLE_ZE_BACKEND
     auto engine_type = cldnn::engine_types::ze;
     auto runtime_type = cldnn::runtime_types::ze;
-#else
+/*#else
     auto engine_type = cldnn::engine_types::ocl;
     auto runtime_type = cldnn::runtime_types::ocl;
-#endif
+#endif*/
     // Use actual runtime and engine types
     cldnn::device_query device_query(engine_type, runtime_type, _context_id, _va_device, ctx_device_id, target_tile_id);
     auto device_map = device_query.get_available_devices();

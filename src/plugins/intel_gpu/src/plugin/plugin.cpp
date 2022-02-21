@@ -125,7 +125,12 @@ Plugin::Plugin() : m_defaultContext(nullptr) {
     // try loading gpu engine and get info from it
     {
         // Set OCL runtime which should be always available
+//#ifdef GPU_ENABLE_ZE_BACKEND
+        //cldnn::device_query device_query(cldnn::engine_types::ze, cldnn::runtime_types::ze);
         cldnn::device_query device_query(cldnn::engine_types::ocl, cldnn::runtime_types::ocl);
+/*#else
+        cldnn::device_query device_query(cldnn::engine_types::ocl, cldnn::runtime_types::ocl);
+#endif*/
         device_map = device_query.get_available_devices();
 
         // Set default configs for each device

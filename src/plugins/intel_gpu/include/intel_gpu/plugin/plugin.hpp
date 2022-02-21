@@ -74,13 +74,13 @@ public:
     static PluginParams GetParams(const Config& config, const cldnn::device::ptr& dev,
                                   InferenceEngine::gpu_handle_param external_queue = nullptr) {
         PluginParams params;
-#ifdef GPU_ENABLE_ZE_BACKEND
+//#ifdef GPU_ENABLE_ZE_BACKEND
         params.engine_type = cldnn::engine_types::ze;
         params.runtime_type = cldnn::runtime_types::ze;
-#else
+/*#else
         params.engine_type = cldnn::engine_types::ocl;
         params.runtime_type = cldnn::runtime_types::ocl;
-#endif
+#endif*/
         if (external_queue) {
             params.queue_type = cldnn::stream::detect_queue_type(params.engine_type, external_queue);
         } else if (dev->get_info().supports_immad) {

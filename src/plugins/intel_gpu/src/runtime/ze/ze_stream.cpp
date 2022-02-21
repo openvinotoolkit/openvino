@@ -107,18 +107,16 @@ void set_arguments_impl(ze_kernel_handle_t kernel,
                     auto ptr = std::dynamic_pointer_cast<const ze::gpu_usm>(data.weights_zero_points)->get_buffer().get();
                     status = zeKernelSetArgumentValue(kernel, i, sizeof(void*), &ptr);
                     ZE_CHECK(status);
-                }
-                else {
+                } else {
                     throw std::runtime_error("WEIGHTS_ZERO_POINTS");
                 }
                 break;
             case args_t::ACTIVATIONS_ZERO_POINTS:
                 if (data.activations_zero_points) {
-                    if (memory_capabilities::is_usm_type(data.activations_zero_points->get_allocation_type())){
+                    if (memory_capabilities::is_usm_type(data.activations_zero_points->get_allocation_type())) {
                         auto ptr = std::dynamic_pointer_cast<const ze::gpu_usm>(data.activations_zero_points)->get_buffer().get();
                         status = zeKernelSetArgumentValue(kernel, i, sizeof(void*), &ptr);
-                    }
-                    else {
+                    } else {
                         throw std::runtime_error("ACTIVATIONS_ZERO_POINTS");
                     }
                     ZE_CHECK(status);
@@ -129,8 +127,7 @@ void set_arguments_impl(ze_kernel_handle_t kernel,
                     if (memory_capabilities::is_usm_type(data.compensation->get_allocation_type())) {
                         auto ptr = std::dynamic_pointer_cast<const ze::gpu_usm>(data.compensation)->get_buffer().get();
                         status = zeKernelSetArgumentValue(kernel, i, sizeof(void*), &ptr);
-                    }
-                    else {
+                    } else {
                         throw std::runtime_error("COMPENSATION");
                     }
                     ZE_CHECK(status);
@@ -141,8 +138,7 @@ void set_arguments_impl(ze_kernel_handle_t kernel,
                     if (memory_capabilities::is_usm_type(data.scale_table->get_allocation_type())) {
                         auto ptr = std::dynamic_pointer_cast<const ze::gpu_usm>(data.scale_table)->get_buffer().get();
                         status = zeKernelSetArgumentValue(kernel, i, sizeof(void*), &ptr);
-                    }
-                    else {
+                    } else {
                         throw std::runtime_error("SCALE_TABLE");
                     }
                     ZE_CHECK(status);
@@ -153,8 +149,7 @@ void set_arguments_impl(ze_kernel_handle_t kernel,
                     if (memory_capabilities::is_usm_type(data.slope->get_allocation_type())) {
                         auto ptr = std::dynamic_pointer_cast<const ze::gpu_usm>(data.slope)->get_buffer().get();
                         status = zeKernelSetArgumentValue(kernel, i, sizeof(void*), &ptr);
-                    }
-                    else {
+                    } else {
                         throw std::runtime_error("SLOPE");
                     }
                     ZE_CHECK(status);
@@ -210,12 +205,10 @@ void set_arguments_impl(ze_kernel_handle_t kernel,
                 if (data.recurrent) {
                     if (data.recurrent->get_layout().format.is_image_2d()) {
                         throw std::runtime_error("RECURRENT 1");
-                    }
-                    else if (memory_capabilities::is_usm_type(data.recurrent->get_allocation_type())) {
+                    } else if (memory_capabilities::is_usm_type(data.recurrent->get_allocation_type())) {
                         auto ptr = dynamic_cast<const ze::gpu_usm&>(*data.recurrent).get_buffer().get();
                         status = zeKernelSetArgumentValue(kernel, i, sizeof(void*), &ptr);
-                    }
-                    else {
+                    } else {
                         throw std::runtime_error("RECURRENT 2");
                     }
                     ZE_CHECK(status);
@@ -225,12 +218,10 @@ void set_arguments_impl(ze_kernel_handle_t kernel,
                 if (data.hidden) {
                     if (data.hidden->get_layout().format.is_image_2d()) {
                         throw std::runtime_error("HIDDEN 1");
-                    }
-                    else if (memory_capabilities::is_usm_type(data.hidden->get_allocation_type())) {
+                    } else if (memory_capabilities::is_usm_type(data.hidden->get_allocation_type())) {
                         auto ptr = dynamic_cast<const ze::gpu_usm&>(*data.hidden).get_buffer().get();
                         status = zeKernelSetArgumentValue(kernel, i, sizeof(void*), &ptr);
-                    }
-                    else {
+                    } else {
                         throw std::runtime_error("HIDDEN 2");
                     }
                     ZE_CHECK(status);
@@ -240,12 +231,10 @@ void set_arguments_impl(ze_kernel_handle_t kernel,
                 if (data.cell) {
                     if (data.cell->get_layout().format.is_image_2d()) {
                         throw std::runtime_error("CELL 1");
-                    }
-                    else if (memory_capabilities::is_usm_type(data.cell->get_allocation_type())) {
+                    } else if (memory_capabilities::is_usm_type(data.cell->get_allocation_type())) {
                         auto ptr = dynamic_cast<const ze::gpu_usm&>(*data.cell).get_buffer().get();
                         status = zeKernelSetArgumentValue(kernel, i, sizeof(void*), &ptr);
-                    }
-                    else {
+                    } else {
                         throw std::runtime_error("CELL 2");
                     }
                     ZE_CHECK(status);
@@ -256,7 +245,6 @@ void set_arguments_impl(ze_kernel_handle_t kernel,
         }
         if (status != ZE_RESULT_SUCCESS) {
             throw std::runtime_error("Error set arg " + std::to_string(i) + ", error code: " + std::to_string(status) + "\n");
-            //std::cout << "Error set arg " + std::to_string(i)  + " " + std::to_string(int(args[i].t)) + " error code: " + std::to_string(status) + "\n" << std::endl;
         }
     }
 }
@@ -325,7 +313,6 @@ ze_stream::ze_stream(const ze_engine& engine)
     command_queue_desc.ordinal = 0;
     command_queue_desc.mode = config.queue_type == queue_types::out_of_order ? ZE_COMMAND_QUEUE_MODE_ASYNCHRONOUS : ZE_COMMAND_QUEUE_MODE_SYNCHRONOUS;
     command_queue_desc.priority = ZE_COMMAND_QUEUE_PRIORITY_NORMAL;
-    
     ZE_CHECK(zeCommandListCreateImmediate(context, device, &command_queue_desc, &_command_list));
 #else
     ze_command_list_desc_t command_list_desc = {};
