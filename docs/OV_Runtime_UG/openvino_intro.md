@@ -9,6 +9,7 @@
    :hidden:
 
    openvino_docs_IE_DG_Integrate_with_customer_application_new_API
+   <!-- should be a part of Integrate OV in user application -->
    openvino_docs_OV_Runtime_UG_Model_Representation
    openvino_docs_IE_DG_ShapeInference
    openvino_docs_OV_UG_Working_with_devices

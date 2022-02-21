@@ -9,7 +9,7 @@
 @endsphinxdirective
 
 The OpenVINO™ toolkit supports inferencing with several types of devices (processors or accelerators).
-This section provides a high-level description of the process of querying of different device properties and configuration values at runtime. Refer to the [Hello Query Device С++ Sample](../../samples/cpp/hello_query_device/README.md) sources and the [Multi-Device Plugin documentation](multi_device.md) for examples of using the OpenVINO™ Properties API in user applications.
+This section provides a high-level description of the process of querying of different device properties and configuration values at runtime. Refer to the [Hello Query Device С++ Sample](../../samples/cpp/hello_query_device/README.md) sources and the [Multi-Device Plugin documentation](../multi_device.md) for examples of using the OpenVINO™ Properties API in user applications.
 
 ### Using the OpenVINO™ Properties API in Your Code
 
@@ -94,7 +94,7 @@ Or the number of threads that would be used for inference in `CPU` device:
 
 #### set_property()
 
-The only device that supports this method is [Multi-Device](multi_device.md).
+The only device that supports this method is [Multi-Device](../multi_device.md).
 
 ## OpenVINO™ Properties API (Python)
 
@@ -104,7 +104,7 @@ The only device that supports this method is [Multi-Device](multi_device.md).
     <div id="switcher-python" class="switcher-anchor">Python</div>
 @endsphinxdirective
 
-This section provides a high-level description of the process of querying of different device properties and configuration values. Refer to the [Hello Properties Device Python Sample](../../samples/python/hello_query_device/README.md) sources and the [Multi-Device Plugin documentation](multi_device.md) for examples of using the OpenVINO™ Properties API in user applications.
+This section provides a high-level description of the process of querying of different device properties and configuration values. Refer to the [Hello Properties Device Python Sample](../../samples/python/hello_query_device/README.md) sources and the [Multi-Device Plugin documentation](../multi_device.md) for examples of using the OpenVINO™ Properties API in user applications.
 
 ### Using the OpenVINO™ Properties API in Your Code
 
@@ -240,4 +240,4 @@ Use `exec_net.get_property("SUPPORTED_CONFIG_KEYS")`  to list all supported conf
 
 #### Set Configuration
 
-The only device that supports this method in the CompiledModel class is the [Multi-Device](multi_device.md), where you can change the priorities of the devices for the Multi plugin in real time: `exec_net.set_config({{"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}})`. See the Multi-Device documentation for more details.
+The only device that supports this method in the CompiledModel class is the [Multi-Device](../multi_device.md), where you can change the priorities of the devices for the Multi plugin in real time: `exec_net.set_config({{"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}})`. See the Multi-Device documentation for more details.
