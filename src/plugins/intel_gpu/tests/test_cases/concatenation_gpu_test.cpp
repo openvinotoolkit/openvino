@@ -1107,6 +1107,11 @@ public:
     }
 
     void test(format::type fmt) {
+        auto& engine = get_onednn_test_engine();
+        if (!engine.get_device_info().supports_immad) {
+            // This case is only for device that uses onednn.
+            return;
+        }
         auto input = generate_input();
 
         // implicit concat
