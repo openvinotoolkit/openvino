@@ -3,7 +3,7 @@
 //
 
 #include <base/behavior_test_utils.hpp>
-#include "behavior/preprocessing/set_preprocess.hpp"
+#include "behavior/plugin/set_preprocess.hpp"
 
 #ifdef ENABLE_GAPI_PREPROCESSING
 
