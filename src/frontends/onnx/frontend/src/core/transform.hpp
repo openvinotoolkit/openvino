@@ -22,7 +22,6 @@ void update_external_data_paths(ONNX_NAMESPACE::ModelProto& model_proto, const s
 
 static const std::vector<std::string> onnx_functions_to_expand = {"Bernoulli",
                                                                   "Celu",
-                                                                  "DynamicQuantizeLinear",
                                                                   "GreaterOrEqual",
                                                                   "LessOrEqual",
                                                                   "NegativeLogLikelihoodLoss",
