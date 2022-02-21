@@ -1862,9 +1862,26 @@ void MKLDNNGraphOptimizer::MergeTransposeAndReorder(MKLDNNGraph &graph) {
     auto& graphNodes = graph.GetNodes();
 
     auto isSuitableParentNode = [](MKLDNNNodePtr node) {
+        // WA: to avoid broken memory pointer for conv + sum
+        auto prevNodeIsConvSum = [](MKLDNNNodePtr node) -> bool {
+            const auto parent = node->getParentEdgesAtPort(0)[0]->getParent();
+            if (parent->getType() == Convolution) {
+                for (const auto& fusedNode : parent->getFusedWith()) {
+                    if (fusedNode->getAlgorithm() == EltwiseAdd) {
+                        const auto addNode = std::dynamic_pointer_cast<MKLDNNEltwiseNode>(fusedNode);
+                        if (addNode && addNode->isSpecialConvolutionAddFusing()) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        };
+
         return node->getType() == Transpose
                 && node->getChildEdges().size() == 1
-                && !node->isDynamicNode();   // TODO [DS]: enable for dynamic shapes when inPlace in the dynamic case is available (CVS-74863)
+                && !node->isDynamicNode() // TODO [DS]: enable for dynamic shapes when inPlace in the dynamic case is available (CVS-74863)
+                && !prevNodeIsConvSum(node);
     };
 
     auto isSuitableChildNode = [](MKLDNNNodePtr node) {
