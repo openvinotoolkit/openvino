@@ -94,8 +94,10 @@ namespace {
 template<typename T>
 static bool disableReduceDecomposition(const std::shared_ptr<const ngraph::Node> node) {
     if (auto op = std::dynamic_pointer_cast<const T>(node)) {
-        bool fp16_batch_not_1 = op->get_element_type() == ngraph::element::f16 && op->input(0).get_shape()[0] != 1;
-        return !fp16_batch_not_1;
+        if (op->input(0).get_partial_shape()[0].is_static()) {
+            bool fp16_batch_not_1 = op->get_element_type() == ngraph::element::f16 && op->input(0).get_partial_shape()[0] != 1;
+            return !fp16_batch_not_1;
+        }
     }
     return false;
 }
@@ -174,8 +176,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->set_callback<ngraph::pass::ConvertSpaceToDepth,
                                   ngraph::pass::ConvertDepthToSpace>(
                 [](const_node_ptr &node) -> bool {
-                    return node->input_value(0).get_shape().size() <= 5lu &&
-                        node->input_value(0).get_shape().size() == node->get_output_shape(0).size();
+                    return node->input_value(0).get_partial_shape().size() <= 5lu &&
+                        node->input_value(0).get_partial_shape().size() == node->get_output_partial_shape(0).size();
                 });
 
         pass_config->set_callback<ngraph::pass::ConvertBatchToSpace,
@@ -270,7 +272,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 if (mvn != nullptr && node->get_input_size() == 2) {
                     if (auto axesNode = dynamic_cast<ngraph::op::v0::Constant*>(mvn->get_input_node_ptr(1))) {
                         auto axesVal = axesNode->cast_vector<int>();
-                        auto& mvnShape = mvn->get_output_shape(0);
+                        auto& mvnShape = mvn->get_output_partial_shape(0);
                         for (int32_t& axis : axesVal)
                             axis = axis < 0 ? axis + mvnShape.size() : axis;
                         std::sort(axesVal.begin(), axesVal.end());
