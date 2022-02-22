@@ -54,7 +54,7 @@ void refine_boxes(const float* boxes,
         const float ctr_x = x0 + 0.5f * ww;
         const float ctr_y = y0 + 0.5f * hh;
 
-        for (int class_idx = 1; class_idx < classes_num; ++class_idx) {
+        for (int class_idx = 0; class_idx < classes_num; ++class_idx) {
             const int64_t deltas_base_offset = classes_num * 4 * roi_idx + 4 * class_idx;
             const float dx = deltas[deltas_base_offset + 0] / weights[0];
             const float dy = deltas[deltas_base_offset + 1] / weights[1];
@@ -255,7 +255,7 @@ void experimental_detectron_detection_output(const float* boxes,
     std::vector<int64_t> detections_per_class(classes_num, 0);
     int64_t total_detections_num = 0;
 
-    for (int64_t class_idx = 1; class_idx < classes_num; ++class_idx) {
+    for (int64_t class_idx = 0; class_idx < classes_num; ++class_idx) {
         nms_cf(&refined_scores[rois_num * class_idx],
                &refined_boxes[rois_num * 4 * class_idx],
                &refined_boxes_areas[rois_num * class_idx],
