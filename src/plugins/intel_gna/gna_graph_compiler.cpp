@@ -1524,7 +1524,15 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
     size_t num_data_bytes_in = num_columns_in * (num_rows_in + num_padding) * inputs->getPrecision().size();
 
     auto connectionInfo = connectInput(layer, useBiasConnection ? ptr_biases : ptr_inputs, num_data_bytes_in);
-    connectOutput(layer, ptr_outputs, num_data_bytes_out);
+
+
+    // if the nest layer is activation we dont need to allocate for outputs
+    // in the GNA mode
+    // TODO: we have to allocate in the GNA_SW_FP32 mode
+    const auto nextLayers = getInputTo(layer->outData.front());
+    if (nextLayers.size() != 1 || !LayerInfo(nextLayers.begin()->second).isActivation()) {
+        connectOutput(layer, ptr_outputs, num_data_bytes_out);
+    }
 
     auto transpose = false;
     auto transposedRows = 0;
