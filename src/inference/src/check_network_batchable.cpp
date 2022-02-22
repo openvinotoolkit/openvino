@@ -49,29 +49,27 @@ NetworkBatchAbility isNetworkBatchable(const CNNNetwork& orig_network,
     if (!any_batched_inputs)
         return NetworkBatchAbility::NO;
 
-    const std::string detectionOutputOpName = ov::op::v0::DetectionOutput::get_type_info_static().name;
-    const std::string resultOpName = ngraph::op::Result::get_type_info_static().name;
+    for (auto&& node : orig_network.getFunction()->get_ops())
+        node->get_rt_info()["affinity"] = "BATCH";  // default affinity (ignored if HETERO is not triggered)
     // have to execute the DetectionOutput separately (without batching)
-    // as this layer mix-in the values from the different inputs (batch id)
+    // as this layer does mix-in the values from the different inputs (batch id)
     bool bDetectionOutput = false;
-    for (auto&& node : orig_network.getFunction()->get_ops()) {
-        auto isDetectionOutputParent = [&detectionOutputOpName](decltype(node)& nd) {
-            for (size_t n = 0; n < nd->get_input_size(); n++) {
-                // the code below doesn't need to separate the versions (opsets) of the DetectionOutput
-                // so type_info name check is enough
-                // (if in a future there will be a new ver that doesn't mix the batch, this will be new op)
-                if (detectionOutputOpName == nd->get_input_node_ptr(n)->get_type_info().name)
-                    return true;
-            }
-            return false;
-        };
-
-        if ((detectionOutputOpName == node->get_type_info().name) ||
-            ((resultOpName == node->get_type_info().name) && isDetectionOutputParent(node))) {
-            node->get_rt_info()["affinity"] = deviceNameWithoutBatch;
+    for (auto& result_node : orig_network.getFunction()->get_results()) {
+        auto do_node = result_node->input_value(0).get_node_shared_ptr();
+        std::shared_ptr<ov::Node> convert_node;
+        if (ov::is_type<ov::opset1::Convert>(do_node)) {  // cases with do->convert->result
+            convert_node = do_node;
+            do_node = convert_node->get_input_node_shared_ptr(0);
+        }
+        // the code below doesn't need to separate the versions (opsets) of the DetectionOutput
+        // so base class  check is enough
+        auto detectionOutputBase = std::dynamic_pointer_cast<ov::op::util::DetectionOutputBase>(do_node);
+        if (detectionOutputBase) {
+            result_node->get_rt_info()["affinity"] = deviceNameWithoutBatch;
+            do_node->get_rt_info()["affinity"] = deviceNameWithoutBatch;
+            if (convert_node)
+                convert_node->get_rt_info()["affinity"] = deviceNameWithoutBatch;
             bDetectionOutput = true;
-        } else {
-            node->get_rt_info()["affinity"] = "BATCH";
         }
     }
     return bDetectionOutput ? NetworkBatchAbility::WITH_HETERO : NetworkBatchAbility::AS_IS;
