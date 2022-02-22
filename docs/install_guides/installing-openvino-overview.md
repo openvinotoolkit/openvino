@@ -32,6 +32,6 @@ For C++ developers, you may choose one of the following installation options to 
 * macOS: You can install OpenVINO Runtime using an [Installer](installing-openvino-macos.md) or [Anaconda Cloud](installing-openvino-conda.md).
 * [Raspbian OS](installing-openvino-raspbian.md).
 
-> **NOTE**: From the 2022.1 release, the OpenVINO Development Tools can **only** be installed via PyPI. See [Install OpenVINO Development Tools](installing-model-dev-tools.md) for detailed steps.
+> **NOTE**: From the 2022.1 release, OpenVINO Development Tools can **only** be installed via PyPI. See [Install OpenVINO Development Tools](installing-model-dev-tools.md) for detailed steps.
 
 Besides, the open source version is also available in the [OpenVINO™ toolkit GitHub repository](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode). You can build it for supported platforms using the Inference Engine Build Instructions.
