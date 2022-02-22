@@ -98,7 +98,6 @@ class IEEngine(Engine):
                 insert_statistic(copy.deepcopy(self._nx_model),
                                  stats_layout, stat_aliases)
             self.set_model(model_with_stat_op)
-
             nodes_names_map = nodes_names_map[self._model.friendly_name]
             nodes_name = list(nodes_names_map.keys())
             cast_friendly_names(self._model.outputs)
