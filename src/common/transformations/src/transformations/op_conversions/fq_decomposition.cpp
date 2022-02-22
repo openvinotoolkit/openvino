@@ -10,6 +10,7 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/builder/autobroadcast.hpp>
+#include <transformations/utils/utils.hpp>
 
 #include <numeric>
 
@@ -80,21 +81,30 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
         const auto subInHighLow = std::make_shared<ngraph::opset1::Subtract>(input_high, input_low);
         // (levels-1) / (input_high - input_low)
         const auto isc = std::make_shared<ngraph::opset1::Divide>(levels_minus_one, subInHighLow);
+
         // input_low * (levels-1) / (input_high - input_low)
-        const auto ish = std::make_shared<ngraph::opset1::Multiply>(input_low, isc);
+        const std::shared_ptr<ngraph::Node> ish = op::util::constantIsEqualTo(as_type_ptr<ngraph::opset1::Constant>(input_low.get_node_shared_ptr()), 0.f) ?
+            nullptr :
+            std::make_shared<ngraph::opset1::Multiply>(input_low, isc);
+        if (ish != nullptr) {
+            decomp_ops.push_back(ish);
+        }
+
         decomp_ops.push_back(subInHighLow);
         decomp_ops.push_back(isc);
-        decomp_ops.push_back(ish);
 
         // x * (levels-1) / (input_high - input_low)
         const auto after_isc_apply = std::make_shared<ngraph::opset1::Multiply>(min, isc);
-        // x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low)
-        const auto after_ish_apply = std::make_shared<ngraph::opset1::Subtract>(after_isc_apply, ish);
         decomp_ops.push_back(after_isc_apply);
-        decomp_ops.push_back(after_ish_apply);
+
+        // x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low)
+        const std::shared_ptr<Node> after_ish_apply = ish == nullptr ? nullptr : std::make_shared<ngraph::opset1::Subtract>(after_isc_apply, ish);
+        if (after_ish_apply != nullptr) {
+            decomp_ops.push_back(after_ish_apply);
+        }
 
         // round(x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low))
-        const auto round = std::make_shared<ngraph::opset5::Round>(after_ish_apply, ngraph::opset5::Round::RoundMode::HALF_TO_EVEN);
+        const auto round = std::make_shared<ngraph::opset5::Round>(after_ish_apply ? after_ish_apply : min, ngraph::opset5::Round::RoundMode::HALF_TO_EVEN);
         decomp_ops.push_back(round);
 
         // (output_high - output_low)
