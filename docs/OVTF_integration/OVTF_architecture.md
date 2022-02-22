@@ -1,7 +1,7 @@
 # Architecture {#ovtf_architecture}
 
 
-This document describes a high-level architecture of **OpenVINO™ integration with TensorFlow**. This capability is registered as a graph optimization pass in TensorFlow and optimizes the execution of supported operator clusters using OpenVINO™ runtime. Unsupported operators fall back on native TensorFlow runtime.
+This document describes a high-level architecture of **OpenVINO™ integration with TensorFlow**. This capability is registered as a graph optimization pass in TensorFlow and optimizes the execution of supported operator clusters using OpenVINO™ Runtime. Unsupported operators fall back on native TensorFlow runtime.
 
 ## Architecture Diagram
 
