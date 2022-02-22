@@ -154,4 +154,4 @@ where:
 You can point more than two devices: `-d HETERO:MYRIAD,GPU,CPU`
 
 ### See Also
-[Supported Devices](Supported_Devices.md)
+[Supported Devices](supported_plugins/Supported_Devices.md)

@@ -13,6 +13,10 @@
 #include "openvino/runtime/properties.hpp"
 
 namespace ov {
+
+/**
+ * @brief Namespace with Intel GPU specific properties
+ */
 namespace intel_gpu {
 
 /**

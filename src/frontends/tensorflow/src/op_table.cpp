@@ -33,6 +33,7 @@ OP_CONVERTER(translate_const_op);
 OP_CONVERTER(translate_conv_2d_op);
 OP_CONVERTER(translate_conv_2d_backprop_input_op);
 OP_CONVERTER(translate_conv_3d_op);
+OP_CONVERTER(translate_conv_3d_backprop_input_v2_op);
 OP_CONVERTER(translate_cumsum_op);
 OP_CONVERTER(translate_crop_and_resize_op);
 OP_CONVERTER(translate_depth_to_space_op);
@@ -73,6 +74,7 @@ OP_CONVERTER(translate_reverse_op);
 OP_CONVERTER(translate_roll_op);
 OP_CONVERTER(translate_round_op);
 OP_CONVERTER(translate_rsqrt_op);
+OP_CONVERTER(translate_scatter_nd_op);
 OP_CONVERTER(translate_select_op);
 OP_CONVERTER(translate_shape_op);
 OP_CONVERTER(translate_size_op);
@@ -167,6 +169,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Conv2D", translate_conv_2d_op},
         {"Conv2DBackpropInput", translate_conv_2d_backprop_input_op},
         {"Conv3D", translate_conv_3d_op},
+        {"Conv3DBackpropInputV2", translate_conv_3d_backprop_input_v2_op},
         {"CropAndResize", translate_crop_and_resize_op},
         {"Cumsum", translate_cumsum_op},
         {"DepthToSpace", translate_depth_to_space_op},
@@ -220,6 +223,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Roll", translate_roll_op},
         {"Round", translate_round_op},
         {"Rsqrt", translate_rsqrt_op},
+        {"ScatterNd", translate_scatter_nd_op},
         {"Select", translate_select_op},
         {"SelectV2", translate_select_op},
         {"Shape", translate_shape_op},
