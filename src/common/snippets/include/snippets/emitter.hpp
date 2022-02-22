@@ -48,6 +48,7 @@ public:
      */
     virtual void emit_data() const {
     }
+    virtual ~Emitter() = default;
 };
 
 } // namespace snippets
