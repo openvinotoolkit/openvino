@@ -16,7 +16,6 @@
 #include <cpp/ie_cnn_network.h>
 #include "gtest/gtest.h"
 #include "common_test_utils/test_common.hpp"
-#include "common_test_utils/crash_handler.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/precision_utils.hpp"
 #include <ie_core.hpp>

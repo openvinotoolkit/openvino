@@ -7,7 +7,6 @@
 #endif
 
 #include "single_layer_tests/op_impl_check/op_impl_check.hpp"
-#include "common_test_utils/crash_handler.hpp"
 
 namespace ov {
 namespace test {
@@ -17,26 +16,21 @@ void OpImplCheckTest::run() {
     if (function == nullptr) {
         GTEST_FAIL() << "Target function is empty!";
     }
+    auto crashHandler = [](int errCode) {
+        auto& s = LayerTestsUtils::Summary::getInstance();
+        s.saveReport();
+        std::cerr << "Unexpected application crash with code: " << errCode << std::endl;
+        std::abort();
+    };
+    signal(SIGSEGV, crashHandler);
 
-    // in case of crash jump will be made and work will be continued
-    auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
-
-    // place to jump in case of a crash
-#ifdef _WIN32
-    if (setjmp(CommonTestUtils::env) == 0) {
-#else
-    if (sigsetjmp(CommonTestUtils::env, 1) == 0) {
-#endif
-        summary.setDeviceName(targetDevice);
-        try {
-            auto executableNetwork = core->compile_model(function, targetDevice, configuration);
-            summary.updateOPsImplStatus(function, true);
-        } catch (...) {
-            summary.updateOPsImplStatus(function, false);
-            GTEST_FAIL() << "Error in the LoadNetwork!";
-        }
-    } else {
-        IE_THROW() << "Crash happens";
+    summary.setDeviceName(targetDevice);
+    try {
+        auto executableNetwork = core->compile_model(function, targetDevice, configuration);
+        summary.updateOPsImplStatus(function, true);
+    } catch (...) {
+        summary.updateOPsImplStatus(function, false);
+        GTEST_FAIL() << "Error in the LoadNetwork!";
     }
 }
 

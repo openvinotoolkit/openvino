@@ -30,45 +30,40 @@ void LayerTestsCommon::Run() {
         functionRefs = ngraph::clone_function(*function);
         functionRefs->set_friendly_name("refFunction");
     }
-
-    // in case of crash jump will be made and work will be continued
-    auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
-
-    // place to jump in case of a crash
-#ifdef _WIN32
-    if (setjmp(CommonTestUtils::env) == 0) {
-#else
-    if (sigsetjmp(CommonTestUtils::env, 1) == 0) {
-#endif
+    auto crashHandler = [](int errCode) {
         auto &s = Summary::getInstance();
-        s.setDeviceName(targetDevice);
+        s.saveReport();
+        std::cout << "Unexpected application crash!" << std::endl;
+        std::abort();
+    };
+    signal(SIGSEGV, crashHandler);
 
-        if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
-            s.updateOPsStats(functionRefs, PassRate::Statuses::SKIPPED);
-            GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
-        } else {
-            s.updateOPsStats(functionRefs, PassRate::Statuses::CRASHED);
-        }
+    auto &s = Summary::getInstance();
+    s.setDeviceName(targetDevice);
 
-        try {
-            LoadNetwork();
-            GenerateInputs();
-            Infer();
-            Validate();
-            s.updateOPsStats(functionRefs, PassRate::Statuses::PASSED);
-        }
-        catch (const std::runtime_error &re) {
-            s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
-            GTEST_FATAL_FAILURE_(re.what());
-        } catch (const std::exception &ex) {
-            s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
-            GTEST_FATAL_FAILURE_(ex.what());
-        } catch (...) {
-            s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
-            GTEST_FATAL_FAILURE_("Unknown failure occurred.");
-        }
+    if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+        s.updateOPsStats(functionRefs, PassRate::Statuses::SKIPPED);
+        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
     } else {
-        IE_THROW() << "Crash happens";
+        s.updateOPsStats(functionRefs, PassRate::Statuses::CRASHED);
+    }
+
+    try {
+        LoadNetwork();
+        GenerateInputs();
+        Infer();
+        Validate();
+        s.updateOPsStats(functionRefs, PassRate::Statuses::PASSED);
+    }
+    catch (const std::runtime_error &re) {
+        s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
+        GTEST_FATAL_FAILURE_(re.what());
+    } catch (const std::exception &ex) {
+        s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
+        GTEST_FATAL_FAILURE_(ex.what());
+    } catch (...) {
+        s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
+        GTEST_FATAL_FAILURE_("Unknown failure occurred.");
     }
 }
 
