@@ -25,6 +25,11 @@ class InstallCmd(install):
             # install requires
             self.do_egg_install()
 
+        def_quant_path = os.path.join("configs", "default_quantization_template.json")
+        aa_quant_path = os.path.join("configs", "accuracy_aware_quantization_template.json")
+        copyfile(def_quant_path, os.path.join(self.install_purelib, prefix, "pot", def_quant_path))
+        copyfile(aa_quant_path, os.path.join(self.install_purelib, prefix, "pot", aa_quant_path))
+
         version_txt = os.path.join(prefix, "pot", "version.txt")
         if os.path.exists(version_txt):
             copyfile(os.path.join(version_txt),
