@@ -1,4 +1,4 @@
-# CPU Plugin {#openvino_docs_IE_DG_supported_plugins_CPU}
+# CPU device {#openvino_docs_OV_UG_supported_plugins_CPU}
 
 
 ## Introducing the CPU Plugin

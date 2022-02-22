@@ -644,23 +644,23 @@ public:
      * @brief Creates a new remote shared context object on the specified accelerator device
      * using specified plugin-specific low-level device API parameters (device handle, pointer, context, etc.).
      * @param device_name Name of a device to create a new shared context on.
-     * @param properties Map of device-specific shared context properties.
+     * @param remote_properties Map of device-specific shared context remote properties.
      * @return Reference to a created remote context.
      */
-    RemoteContext create_context(const std::string& device_name, const AnyMap& properties);
+    RemoteContext create_context(const std::string& device_name, const AnyMap& remote_properties);
 
     /**
      * @brief Creates a new shared context object on specified accelerator device
      * using specified plugin-specific low level device API properties (device handle, pointer, etc.)
      * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
      * @param device_name Name of a device to create new shared context on.
-     * @param properties Pack of device-specific shared context properties.
+     * @param remote_properties Pack of device-specific shared context remote properties.
      * @return A shared pointer to a created remote context.
      */
     template <typename... Properties>
     util::EnableIfAllStringAny<RemoteContext, Properties...> create_context(const std::string& device_name,
-                                                                            Properties&&... properties) {
-        return create_context(device_name, AnyMap{std::forward<Properties>(properties)...});
+                                                                            Properties&&... remote_properties) {
+        return create_context(device_name, AnyMap{std::forward<Properties>(remote_properties)...});
     }
 
     /**

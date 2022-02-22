@@ -1,4 +1,4 @@
-# GNA Plugin {#openvino_docs_IE_DG_supported_plugins_GNA}
+# GNA device {#openvino_docs_OV_UG_supported_plugins_GNA}
 ## Introducing the GNA Plugin
 
 The Intel® Gaussian & Neural Accelerator is a low-power neural coprocessor for continuous inference at the edge.

@@ -220,6 +220,9 @@ static constexpr Property<std::string, PropertyMutability::RO> model_name{"NETWO
 static constexpr Property<uint32_t, PropertyMutability::RO> optimal_number_of_infer_requests{
     "OPTIMAL_NUMBER_OF_INFER_REQUESTS"};
 
+/**
+ * @brief Namespace with hint properties
+ */
 namespace hint {
 
 /**
@@ -345,6 +348,9 @@ static constexpr Property<bool, PropertyMutability::RW> allow_auto_batching{"ALL
  */
 static constexpr Property<bool> enable_profiling{"PERF_COUNT"};
 
+/**
+ * @brief Namespace with log level property and its possible values
+ */
 namespace log {
 
 /**
@@ -468,6 +474,9 @@ static constexpr Property<uint32_t, PropertyMutability::RO> max_batch_size{"MAX_
 static constexpr Property<std::tuple<unsigned int, unsigned int, unsigned int>, PropertyMutability::RO>
     range_for_async_infer_requests{"RANGE_FOR_ASYNC_INFER_REQUESTS"};
 
+/**
+ * @brief Namespace with device properties
+ */
 namespace device {
 
 /**
@@ -616,6 +625,10 @@ static constexpr Property<float, PropertyMutability::RO> thermal{"DEVICE_THERMAL
  * @brief Read-only property to get a std::vector<std::string> of capabilities options per device.
  */
 static constexpr Property<std::vector<std::string>, PropertyMutability::RO> capabilities{"OPTIMIZATION_CAPABILITIES"};
+
+/**
+ * @brief Namespace with possible values for ov::device::capabilities property
+ */
 namespace capability {
 constexpr static const auto FP32 = "FP32";                    //!< Device supports fp32 inference
 constexpr static const auto BF16 = "BF16";                    //!< Device supports bf16 inference
@@ -626,8 +639,12 @@ constexpr static const auto BIN = "BIN";                      //!< Device suppor
 constexpr static const auto WINOGRAD = "WINOGRAD";            //!< Device supports winograd optimization
 constexpr static const auto EXPORT_IMPORT = "EXPORT_IMPORT";  //!< Device supports compiled model export and import
 }  // namespace capability
+
 }  // namespace device
 
+/**
+ * @brief Namespace for streams in streams executor
+ */
 namespace streams {
 /**
  * @brief Class to represent number of streams in streams executor

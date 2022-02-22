@@ -8,7 +8,12 @@
 #include <string>
 
 namespace ov {
+
+/**
+ * @brief Namespace with Intel MYRIAD specific properties
+ */
 namespace intel_myriad {
+
 /**
  * @brief Turn on HW stages usage (applicable for MyriadX devices only).
  */
@@ -126,4 +131,4 @@ inline std::istream& operator>>(std::istream& is, DDRType& ddrType) {
 
 static constexpr Property<DDRType, PropertyMutability::RW> ddr_type{"MYRIAD_DDR_TYPE"};
 }  // namespace intel_myriad
-};  // namespace ov
+}  // namespace ov

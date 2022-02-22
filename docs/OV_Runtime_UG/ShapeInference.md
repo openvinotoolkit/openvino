@@ -1,4 +1,4 @@
-# Using the Reshape Inference Feature {#openvino_docs_IE_DG_ShapeInference}
+# Changing input shapes {#openvino_docs_IE_DG_ShapeInference}
 
 ## Introduction (C++)
 
