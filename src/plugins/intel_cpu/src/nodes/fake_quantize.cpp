@@ -1791,7 +1791,9 @@ void MKLDNNFakeQuantizeNode::initializePostOpDataLegacy(const VectorDims &dims, 
         quantizationData.insert(quantizationData.end(), outputScale.begin(), outputScale.end());
         quantizationData.insert(quantizationData.end(), outputShift.begin(), outputShift.end());
         quantizationDataSize = quantizationData.size();
-        quantizationData.resize(rnd_up(quantizationData.size(), bufferAlignment), 0);
+
+        int bufferPaddingSize = rnd_up(outputShift.size(), bufferAlignment) - outputShift.size();
+        quantizationData.resize(quantizationDataSize + bufferPaddingSize, 0);
     }
 
     isPostOpDataInitialized = true;
