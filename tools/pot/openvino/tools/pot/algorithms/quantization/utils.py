@@ -293,7 +293,8 @@ def get_tensor_statistics(range_estimator_config, for_weights, **kwargs):
         stat_mod_name = get_stat_name_by_config(range_estimator_config, stats_name)
         if fn_type in ['quantile', 'abs_quantile']:
             q_value = range_estimator_config[stats_name]['outlier_prob']
-            ts_args['inplace_statistics'] = False
+            if not for_weights:
+                ts_args['inplace_statistics'] = False
             if stats_name == 'max':
                 q_value = 1 - q_value
             ts_args.update({'q': q_value})
