@@ -196,6 +196,9 @@ void GNAPlugin::ExportScores(void *ptr_dst,
                   uint32_t num_vector_stride,
                   Precision precision_in,
                   Precision precision_out) {
+    if (ptr_src == nullptr || ptr_dst == nullptr) {
+        THROW_GNA_EXCEPTION << "Received null pointer arguments";
+    }
     if (precision_out != Precision::I32 && precision_out != Precision::FP32) {
         THROW_GNA_EXCEPTION << "Unsupported target precision for infer : " << precision_out.name();
     }

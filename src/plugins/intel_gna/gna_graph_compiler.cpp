@@ -2392,6 +2392,9 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
     auto prevLayer = CNNNetPrevLayerSkipCertain(layer, idx, [](CNNLayerPtr l) {
         return LayerInfo(l).isNonFunctional();
     });
+    if (!prevLayer) {
+        THROW_GNA_EXCEPTION << "Input layer was not found";
+    }
 
     gnalog() << "Connecting input " << layer->name << " to " << prevLayer->name << " ...\n";
 
