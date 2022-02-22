@@ -20,9 +20,8 @@ using namespace cldnn;
 
 void compile_graph::run(program& p) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "CLDNN::pass::CompileGraph");
-    size_t order_idx = 0;
     for (auto& node : p.get_processing_order()) {
-        node->set_unique_id(std::to_string(order_idx++));
+        node->set_unique_id();
         if (!node->is_type<data>()) {
             node->get_output_layout();
         }
