@@ -26,12 +26,6 @@ public:
     virtual void serialize();
     virtual void query_model();
 
-    void TearDown() override {
-        if (!configuration.empty()) {
-            ov::test::utils::PluginCache::get().core().reset();
-        }
-    }
-
 protected:
     virtual void compare(const std::vector<ov::Tensor> &expected,
                          const std::vector<ov::Tensor> &actual);

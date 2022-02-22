@@ -8,17 +8,9 @@
 #include <base/behavior_test_utils.hpp>
 #include "behavior/plugin/life_time.hpp"
 
-#ifndef _WIN32
-    #include <signal.h>
-    #include <setjmp.h>
-#endif
+#include <setjmp.h>
 
 namespace BehaviorTestsDefinitions {
-
-#ifndef _WIN32
-    static jmp_buf env;
-#endif
-
     std::string HoldersTest::getTestCaseName(testing::TestParamInfo<HoldersParams> obj) {
         std::string targetDevice;
         std::vector<int> order;
@@ -38,19 +30,6 @@ namespace BehaviorTestsDefinitions {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         std::tie(targetDevice, order) = this->GetParam();
         function = ngraph::builder::subgraph::makeConvPoolRelu();
-
-#ifndef _WIN32
-        // configure handling of crash
-        auto crashHandler = [](int errCode) {
-            std::cerr << "Unexpected application crash with code: " << errCode << std::endl;
-            siglongjmp(env, 1);
-        };
-        struct sigaction act;
-        act.sa_handler = crashHandler;
-        sigemptyset(&act.sa_mask);
-        act.sa_flags = 0;
-        sigaction(SIGSEGV, &act, 0);
-#endif
     }
 
     void release_order_test(std::vector<int> order, const std::string &deviceName,
@@ -90,29 +69,35 @@ namespace BehaviorTestsDefinitions {
     }
 
     TEST_P(HoldersTest, Orders) {
+        // in case of crash jump will be made and work will be continued
+        auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
+
         // Test failed if crash happens
 #ifdef _WIN32
-        EXPECT_NO_THROW(release_order_test(order, targetDevice, function));
+        if (setjmp(CommonTestUtils::env) == 0) {
 #else
-        if (sigsetjmp(env, 1) == 0) {
-            release_order_test(order, targetDevice, function);
+        if (sigsetjmp(CommonTestUtils::env, 1) == 0) {
+#endif
+            EXPECT_NO_THROW(release_order_test(order, targetDevice, function));
         } else {
             IE_THROW() << "Crash happens";
         }
-#endif
     }
 
     TEST_P(HoldersTestImportNetwork, Orders) {
+        // in case of crash jump will be made and work will be continued
+        auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
+
         // Test failed if crash happens
 #ifdef _WIN32
-        EXPECT_NO_THROW(release_order_test(order, targetDevice, function));
+        if (setjmp(CommonTestUtils::env) == 0) {
 #else
-        if (sigsetjmp(env, 1) == 0) {
-            release_order_test(order, targetDevice, function);
+        if (sigsetjmp(CommonTestUtils::env, 1) == 0) {
+#endif
+            EXPECT_NO_THROW(release_order_test(order, targetDevice, function));
         } else {
             IE_THROW() << "Crash happens";
         }
-#endif
     }
 
     std::string HoldersTestOnImportedNetwork::getTestCaseName(testing::TestParamInfo<std::string> obj) {
