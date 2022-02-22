@@ -369,17 +369,26 @@ struct num_of_lambda_args<R (C::*)(Args...) const> {
 };
 
 template <typename ACT, typename... T, size_t N_ARGS = num_of_lambda_args<ACT>::value>
-typename std::enable_if<N_ARGS == sizeof...(T) + 2, void>::type call_with_args(const ACT& body, size_t g_id, size_t iwork, T... arg) {
+typename std::enable_if<N_ARGS == sizeof...(T) + 2, void>::type call_with_args(const ACT& body,
+                                                                               size_t g_id,
+                                                                               size_t iwork,
+                                                                               T... arg) {
     body(g_id, iwork, arg...);
 }
 
 template <typename ACT, typename... T, size_t N_ARGS = num_of_lambda_args<ACT>::value>
-typename std::enable_if<N_ARGS == sizeof...(T) + 1, void>::type call_with_args(const ACT& body, size_t g_id, size_t iwork, T... arg) {
+typename std::enable_if<N_ARGS == sizeof...(T) + 1, void>::type call_with_args(const ACT& body,
+                                                                               size_t g_id,
+                                                                               size_t iwork,
+                                                                               T... arg) {
     body(g_id, arg...);
 }
 
 template <typename ACT, typename... T, size_t N_ARGS = num_of_lambda_args<ACT>::value>
-typename std::enable_if<N_ARGS == sizeof...(T), void>::type call_with_args(const ACT& body, size_t g_id, size_t iwork, T... arg) {
+typename std::enable_if<N_ARGS == sizeof...(T), void>::type call_with_args(const ACT& body,
+                                                                           size_t g_id,
+                                                                           size_t iwork,
+                                                                           T... arg) {
     body(arg...);
 }
 }  // namespace details
