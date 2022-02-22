@@ -190,7 +190,8 @@ class CompiledModel(CompiledModelBase):
     def __call__(self, inputs: Union[dict, list] = None) -> dict:
         """Callable infer wrapper for CompiledModel.
 
-        Take a look at `infer_new_request` for reference."""
+        Take a look at `infer_new_request` for reference.
+        """
         return self.infer_new_request(inputs)
 
 
