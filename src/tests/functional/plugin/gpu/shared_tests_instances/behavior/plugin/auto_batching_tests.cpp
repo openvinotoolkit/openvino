@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "auto_batching/auto_batching_tests.hpp"
+#include "behavior/plugin/auto_batching_tests.hpp"
 #include "behavior/plugin/configuration_tests.hpp"
 
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "stress_tests/stress_tests.hpp"
+#include "behavior/plugin/stress_tests.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 
 namespace LayerTestsDefinitions {
