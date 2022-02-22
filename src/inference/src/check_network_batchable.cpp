@@ -18,7 +18,7 @@ NetworkBatchAbility isNetworkBatchable(const CNNNetwork& orig_network, const std
     // find the batch dim
     ov::pass::Manager m;
     m.register_pass<ngraph::pass::InitNodeInfo>();
-    m.register_pass<ov::pass::FindBatch>();  // TODO: disable DetectionOutput
+    m.register_pass<ov::pass::FindBatch>(true, true);
     m.run_passes(function);
     bool any_batched_inputs = false;
     // do not reshape/re-batch originally batched networks and when there are no inputs with the N* layouts
