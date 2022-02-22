@@ -7,8 +7,6 @@
    :hidden:
 
    openvino_docs_Extensibility_UG_add_openvino_ops
-   openvino_docs_Extensibility_UG_Extension
-   openvino_docs_Extensibility_UG_Building
 
 @endsphinxdirective
 
@@ -26,14 +24,10 @@ There are two steps to support inference of a model with custom operation(s):
 the Model Optimizer can generate the IR with the operation.
 2. Create a custom operation in it as described in the [Custom Operation](add_openvino_ops.md).
 
-To load the Extensibility library to the `ov::Core` object, use the `ov::Core::add_extension` method.
+## OpenVINO™ Extensions
 
-## OpenVINO™ Extension Library
+An OpenVINO™ provides extensions for:
 
-An OpenVINO™ Extension dynamic library contains the following components:
-
- * [Extension Library](Extension.md):
-    - Contains custom operation
  * [Custom OpenVINO™ Operation](add_openvino_ops.md):
     - Enables the use of `ov::Core::read_model` to read Intermediate Representation (IR) with unsupported operations
     - Enables the creation of `ov::Model` with unsupported operations
@@ -42,8 +36,46 @@ An OpenVINO™ Extension dynamic library contains the following components:
 
 > **NOTE**: This documentation is written based on the [Template extension](https://github.com/openvinotoolkit/openvino/tree/master/docs/template_extension/new), which demonstrates extension development details. You can review the complete code, which is fully compilable and up-to-date, to see how it works.
 
+## Load extensions to OpenVINO™ Runtime
+
+To load the extensions to the `ov::Core` object, use the `ov::Core::add_extension` method, this method allows to load library with extensions or extensions from the code.
+
+### Load extensions to core
+
+Extensions can be loaded from code with `ov::Core::add_extension` method:
+
+@snippet docs/snippets/ov_extensions.cpp add_extension
+
+### Create library with extensions
+
+First of all, entry point for extension library is needed, OpenVINO™ provides an `OPENVINO_CREATE_EXTENSIONS()` macro, which allows to define an entry point to a library with OpenVINO™ Extensions.
+This macro should have a vector of all OpenVINO™ Extensions as an argument.
+
+Based on that, the declaration of an extension class can look as follows:
+
+@snippet template_extension/new/ov_extension.cpp ov_extension:entry_point
+
+To configure the build of your extension library, use the following CMake script:
+
+@snippet template_extension/new/CMakeLists.txt cmake:extension
+
+This CMake script finds the OpenVINO™ using the `find_package` CMake command.
+
+To build the extension library, run the commands below:
+
+```sh
+$ cd docs/template_extension/new
+$ mkdir build
+$ cd build
+$ cmake -DOpenVINO_DIR=<OpenVINO_DIR> ../
+$ cmake --build .
+```
+
+After the build you can use path to your extension library to load your extensions to OpenVINO™ Runtime:
+
+@snippet docs/snippets/ov_extensions.cpp add_extension_lib
+
 ## See Also
 
-* [Build an extension library using CMake*](Building.md)
 * [Using Inference Engine Samples](../OV_Runtime_UG/Samples_Overview.md)
 * [Hello Shape Infer SSD sample](../../samples/cpp/hello_reshape_ssd/README.md)
