@@ -88,13 +88,19 @@ INSTANTIATE_TEST_SUITE_P(
 const std::vector<ov::AnyMap> multiConfigs = {
         {ov::device::priorities(CommonTestUtils::DEVICE_CPU)},
         {ov::device::priorities(CommonTestUtils::DEVICE_GPU)},
-        {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
-        {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
-        {ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)},
         {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)},
         {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
         {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
-        {ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_GPU)}};
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU),
+            ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)
+        },
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU),
+            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)
+        },
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU),
+            ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)
+        }
+};
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassCorrectConfigTest, OVClassCorrectConfigTest,

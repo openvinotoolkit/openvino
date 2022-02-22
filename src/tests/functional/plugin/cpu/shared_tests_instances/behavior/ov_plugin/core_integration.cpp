@@ -82,9 +82,6 @@ INSTANTIATE_TEST_SUITE_P(
 
 const std::vector<ov::AnyMap> multiConfigs = {
         {ov::device::priorities(CommonTestUtils::DEVICE_CPU)},
-        {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
-        {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
-        {ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)},
         {ov::device::priorities(CommonTestUtils::DEVICE_CPU), ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)},
         {ov::device::priorities(CommonTestUtils::DEVICE_CPU), ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
         {ov::device::priorities(CommonTestUtils::DEVICE_CPU), ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}
