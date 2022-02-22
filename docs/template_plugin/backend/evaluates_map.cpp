@@ -402,42 +402,38 @@ bool evaluate(const shared_ptr<op::v1::DeformableConvolution>& op,
 }
 
 template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v1::Greater>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
+bool evaluate(const shared_ptr<op::v1::Greater>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     const auto in0_data_ptr = inputs[0]->get_data_ptr<ET>();
     const auto in1_data_ptr = inputs[1]->get_data_ptr<ET>();
     const auto out_data_ptr = outputs[0]->get_data_ptr<element::Type_t::boolean>();
     const auto in0_shape = inputs[0]->get_shape();
     const auto in1_shape = inputs[1]->get_shape();
     const auto broadcast_spec = op->get_autob();
-    runtime::reference::greater<typename element_type_traits<ET>::value_type, typename element_type_traits<element::Type_t::boolean>::value_type>(
-            in0_data_ptr,
-            in1_data_ptr,
-            out_data_ptr,
-            in0_shape,
-            in1_shape,
-            broadcast_spec);
+    runtime::reference::greater<typename element_type_traits<ET>::value_type,
+                                typename element_type_traits<element::Type_t::boolean>::value_type>(in0_data_ptr,
+                                                                                                    in1_data_ptr,
+                                                                                                    out_data_ptr,
+                                                                                                    in0_shape,
+                                                                                                    in1_shape,
+                                                                                                    broadcast_spec);
     return true;
 }
 
 template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v1::Equal>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
+bool evaluate(const shared_ptr<op::v1::Equal>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     const auto in0_data_ptr = inputs[0]->get_data_ptr<ET>();
     const auto in1_data_ptr = inputs[1]->get_data_ptr<ET>();
     const auto out_data_ptr = outputs[0]->get_data_ptr<element::Type_t::boolean>();
     const auto in0_shape = inputs[0]->get_shape();
     const auto in1_shape = inputs[1]->get_shape();
     const auto broadcast_spec = op->get_autob();
-    runtime::reference::equal<typename element_type_traits<ET>::value_type, typename element_type_traits<element::Type_t::boolean>::value_type>(
-            in0_data_ptr,
-            in1_data_ptr,
-            out_data_ptr,
-            in0_shape,
-            in1_shape,
-            broadcast_spec);
+    runtime::reference::equal<typename element_type_traits<ET>::value_type,
+                              typename element_type_traits<element::Type_t::boolean>::value_type>(in0_data_ptr,
+                                                                                                  in1_data_ptr,
+                                                                                                  out_data_ptr,
+                                                                                                  in0_shape,
+                                                                                                  in1_shape,
+                                                                                                  broadcast_spec);
     return true;
 }
 
@@ -529,7 +525,7 @@ bool call(const HostTensorVector& func_outputs,
                 return false;
             }
         }
-                OPENVINO_SUPPRESS_DEPRECATED_END
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
     return true;
 }
@@ -607,8 +603,7 @@ void if_reference(const std::vector<std::shared_ptr<Function>>& bodies,
         out[out_descr->m_output_index]->write(res->get_data_ptr(), res->get_size_in_bytes());
     }
 }
-}
-
+}  // namespace if_op
 
 template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v8::If>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
