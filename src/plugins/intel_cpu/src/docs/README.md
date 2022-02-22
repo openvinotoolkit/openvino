@@ -6,3 +6,4 @@ Use the following cmake option to enable debug capabilities:
 * [Verbose mode](verbose.md)
 * [Blob dumping](blob_dumping.md)
 * [Graph serialization](graph_serialization.md)
+* [Graph transformation disabling](graph_transformation_disabling.md)

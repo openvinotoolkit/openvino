@@ -9,6 +9,7 @@
 #include "extension.h"
 #include "itt.h"
 #include "serialize.h"
+#include "utils/ngraph_transformation.hpp"
 
 #include <threading/ie_executor_manager.hpp>
 #include <memory>
@@ -171,260 +172,303 @@ Engine::~Engine() {
     executorManager()->clear("CPUCallbackExecutor");
 }
 
-static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function> nGraphFunc, const bool _enableLPT,
-                                               const bool _enableSnippets, const bool isLegacyApi) {
-    ngraph::pass::Manager manager;
-    manager.set_per_pass_validation(false);
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
+class Transformations {
+public:
+    Transformations(const std::shared_ptr<ngraph::Function>& ngraphFunction
+                    CPU_DEBUG_CAP_ENABLE(, const Config& config))
+        : nGraphFunc(ngraphFunction) CPU_DEBUG_CAP_ENABLE(, config(config)) {}
 
-    const bool useLpt =
-            _enableLPT &&
-        ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(nGraphFunc);
-    auto defaultPrecisions = useLpt ? ngraph::pass::low_precision::precision_set::int8_support : std::vector<ov::element::Type>{};
-    bool hasINT16orINT32Levels = false;
-    if (useLpt) {
-        hasINT16orINT32Levels = ngraph::pass::low_precision::LowPrecision::isFQLevelsPresent(
+    Transformations(const std::shared_ptr<ngraph::Function>& ngraphFunction,
+                    const bool enableLpt, const bool enableSnippets, const bool isLegacyApi
+                    CPU_DEBUG_CAP_ENABLE(, const Config& config))
+        : Transformations(ngraphFunction CPU_DEBUG_CAP_ENABLE(, config)) {
+        upToCpuSpecificOpSet(enableLpt, enableSnippets, isLegacyApi);
+        cpuSpecificOpSet();
+    }
+
+    void upToCpuSpecificOpSet(const bool enableLpt, const bool enableSnippets, const bool isLegacyApi) {
+        const bool useLpt = enableLpt &&
+                            ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(nGraphFunc);
+
+        std::vector<ov::element::Type> defaultPrecisions;
+        bool hasINT16orINT32Levels = false;
+        if (useLpt) {
+            hasINT16orINT32Levels = ngraph::pass::low_precision::LowPrecision::isFQLevelsPresent(
                 nGraphFunc,
                 {ngraph::pass::low_precision::levels::int16, ngraph::pass::low_precision::levels::int16_narrow_range,
                  ngraph::pass::low_precision::levels::int32, ngraph::pass::low_precision::levels::int32_narrow_range});
-        if (hasINT16orINT32Levels) {
-            defaultPrecisions = ngraph::pass::low_precision::precision_set::int8_int16_int32_support;
+            defaultPrecisions = hasINT16orINT32Levels ?
+                                ngraph::pass::low_precision::precision_set::int8_int16_int32_support :
+                                ngraph::pass::low_precision::precision_set::int8_support;
         }
-        manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(defaultPrecisions);
+
+        upToCpuSpecificOpSet_preLpt(defaultPrecisions, isLegacyApi);
+
+        if (useLpt)
+            upToCpuSpecificOpSet_lpt(hasINT16orINT32Levels, defaultPrecisions);
+
+        upToCpuSpecificOpSet_postLpt();
+
+        if (!useLpt && enableSnippets)
+            upToCpuSpecificOpSet_snippets();
     }
-    auto get_convert_precisions = []() {
-        precisions_array array = {
-            {ngraph::element::i64,     ngraph::element::i32},
-            {ngraph::element::u64,     ngraph::element::i32},
-            {ngraph::element::i16,     ngraph::element::i32},
-            {ngraph::element::u16,     ngraph::element::i32},
-            {ngraph::element::u32,     ngraph::element::i32},
-            {ngraph::element::f64,     ngraph::element::f32},
-            {ngraph::element::f16,     ngraph::element::f32},
-            {ngraph::element::boolean, ngraph::element::u8},
-            {ngraph::element::i4,      ngraph::element::i8},
-            {ngraph::element::u4,      ngraph::element::u8}
+
+    void cpuSpecificOpSet(void) {
+        CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(Specific);
+
+        ConvertToCPUSpecificOpset(nGraphFunc);
+    }
+
+private:
+    const std::shared_ptr<ngraph::Function>& nGraphFunc;
+    using const_node_ptr = const std::shared_ptr<const ngraph::Node>;
+    CPU_DEBUG_CAP_ENABLE(const Config& config);
+
+    void upToCpuSpecificOpSet_preLpt(const std::vector<ov::element::Type>& defaultPrecisions, const bool isLegacyApi) {
+        CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(PreLpt);
+
+        ngraph::pass::Manager manager;
+        manager.set_per_pass_validation(false);
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+
+        const bool useLpt = !defaultPrecisions.empty();
+        if (useLpt) {
+            manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(defaultPrecisions);
+        }
+
+        auto get_convert_precisions = []() {
+            precisions_array array = {
+                {ngraph::element::i64,     ngraph::element::i32},
+                {ngraph::element::u64,     ngraph::element::i32},
+                {ngraph::element::i16,     ngraph::element::i32},
+                {ngraph::element::u16,     ngraph::element::i32},
+                {ngraph::element::u32,     ngraph::element::i32},
+                {ngraph::element::f64,     ngraph::element::f32},
+                {ngraph::element::f16,     ngraph::element::f32},
+                {ngraph::element::boolean, ngraph::element::u8},
+                {ngraph::element::i4,      ngraph::element::i8},
+                {ngraph::element::u4,      ngraph::element::u8}
+            };
+
+            if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
+                array.push_back({ngraph::element::bf16, ngraph::element::f32});
+
+            return array;
+        };
+        static const auto precisions = get_convert_precisions();
+
+        manager.register_pass<ngraph::pass::CommonOptimizations>();
+        manager.register_pass<ngraph::pass::WrapInterpolateIntoTransposes>();
+        manager.register_pass<ngraph::pass::TransposeSinking>();
+        manager.register_pass<ngraph::pass::ConvertSequenceToTensorIterator>();
+        manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
+        manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+        manager.register_pass<ngraph::pass::ConvertTensorIteratorToSequence>();
+        manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
+        manager.register_pass<ngraph::pass::GRUCellDecomposition>();
+        manager.register_pass<ngraph::pass::RNNCellDecomposition>();
+        manager.register_pass<ngraph::pass::ConvertNMS1ToNMS5>();
+        manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
+        manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
+        manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
+        manager.register_pass<ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
+        manager.register_pass<ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>();
+        manager.register_pass<ngraph::pass::TransposeMatMul>();
+        manager.register_pass<ngraph::pass::ConstantFolding>();
+
+        if (useLpt) {
+            manager.register_pass<ngraph::pass::low_precision::ConvertSubtractConstant>(defaultPrecisions);
+        }
+        manager.register_pass<ngraph::pass::Validate>();
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
+        manager.register_pass<ngraph::pass::EliminateConvert>();
+
+        auto pass_config = manager.get_pass_config();
+
+        // SpaceToDepth/ DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
+        pass_config->set_callback<ngraph::pass::ConvertSpaceToDepth,
+                ngraph::pass::ConvertDepthToSpace>(
+                [](const_node_ptr &node) -> bool {
+                    return node->input_value(0).get_shape().size() <= 5lu &&
+                        node->input_value(0).get_shape().size() == node->get_output_shape(0).size();
+                });
+
+        pass_config->set_callback<ngraph::pass::ConvertBatchToSpace,
+                                ngraph::pass::ConvertSpaceToBatch>(
+                [](const_node_ptr &node) -> bool {
+                    const auto & rank = node->input(0).get_partial_shape().rank().get_length();
+                    return rank == 4lu || rank == 5lu;
+                });
+
+        auto isCellPrimitiveSupported = [](const_node_ptr &node) -> bool {
+            if (const auto &rnn_cell = std::dynamic_pointer_cast<const ngraph::opset4::RNNCell>(node)) {
+                return rnn_cell->get_clip() == 0.0f;
+            } else if (const auto &gru_cell = std::dynamic_pointer_cast<const ngraph::opset4::GRUCell>(
+                    node)) {
+                return gru_cell->get_clip() == 0.0f
+                    && gru_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh"};
+            } else if (const auto &lstm_cell = std::dynamic_pointer_cast<const ngraph::opset4::LSTMCell>(
+                    node)) {
+                return lstm_cell->get_clip() == 0.0f &&
+                    lstm_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
+            } else if (const auto &lstm_cell_v1 = std::dynamic_pointer_cast<const ngraph::opset1::LSTMCell>(
+                    node)) {
+                return lstm_cell_v1->get_clip() == 0.0f &&
+                    lstm_cell_v1->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
+            }
+            return false;
         };
 
-        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
-            array.push_back({ngraph::element::bf16, ngraph::element::f32});
-
-        return array;
-    };
-
-    static const auto precisions = get_convert_precisions();
-
-    manager.register_pass<ngraph::pass::CommonOptimizations>();
-    manager.register_pass<ngraph::pass::WrapInterpolateIntoTransposes>();
-    manager.register_pass<ngraph::pass::TransposeSinking>();
-    manager.register_pass<ngraph::pass::ConvertSequenceToTensorIterator>();
-    manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
-    manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
-    manager.register_pass<ngraph::pass::ConvertTensorIteratorToSequence>();
-    manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
-    manager.register_pass<ngraph::pass::GRUCellDecomposition>();
-    manager.register_pass<ngraph::pass::RNNCellDecomposition>();
-    manager.register_pass<ngraph::pass::ConvertNMS1ToNMS5>();
-    manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
-    manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
-    manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
-    manager.register_pass<ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
-    manager.register_pass<ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>();
-    manager.register_pass<ngraph::pass::TransposeMatMul>();
-    manager.register_pass<ngraph::pass::ConstantFolding>();
-
-    if (useLpt) {
-        manager.register_pass<ngraph::pass::low_precision::ConvertSubtractConstant>(defaultPrecisions);
-    }
-    manager.register_pass<ngraph::pass::Validate>();
-    manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
-    manager.register_pass<ngraph::pass::EliminateConvert>();
-
-    auto pass_config = manager.get_pass_config();
-
-    using const_node_ptr = const std::shared_ptr<const ngraph::Node>;
-
-    // SpaceToDepth/ DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
-    pass_config->set_callback<ngraph::pass::ConvertSpaceToDepth,
-            ngraph::pass::ConvertDepthToSpace>(
-            [](const_node_ptr &node) -> bool {
-                return node->input_value(0).get_shape().size() <= 5lu &&
-                       node->input_value(0).get_shape().size() == node->get_output_shape(0).size();
-            });
-
-    pass_config->set_callback<ngraph::pass::ConvertBatchToSpace,
-                              ngraph::pass::ConvertSpaceToBatch>(
-            [](const_node_ptr &node) -> bool {
-                const auto & rank = node->input(0).get_partial_shape().rank().get_length();
-                return rank == 4lu || rank == 5lu;
-            });
-
-    auto isCellPrimitiveSupported = [](const_node_ptr &node) -> bool {
-        if (const auto &rnn_cell = std::dynamic_pointer_cast<const ngraph::opset4::RNNCell>(node)) {
-            return rnn_cell->get_clip() == 0.0f;
-        } else if (const auto &gru_cell = std::dynamic_pointer_cast<const ngraph::opset4::GRUCell>(
-                node)) {
-            return gru_cell->get_clip() == 0.0f
-                   && gru_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh"};
-        } else if (const auto &lstm_cell = std::dynamic_pointer_cast<const ngraph::opset4::LSTMCell>(
-                node)) {
-            return lstm_cell->get_clip() == 0.0f &&
-                   lstm_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
-        } else if (const auto &lstm_cell_v1 = std::dynamic_pointer_cast<const ngraph::opset1::LSTMCell>(
-                node)) {
-            return lstm_cell_v1->get_clip() == 0.0f &&
-                   lstm_cell_v1->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
-        }
-        return false;
-    };
-
-    // Sequences supported by the plugin shouldn't be converted to TensorIterator.
-    // sequence_length input is not supported in all Sequences, so if is_seq_len_provided() == true, we
-    // should always convert to TensorIterator.
-    // RNN/GRU/LSTM Sequences are supported with clip == 0, and with default activations.
-    auto isSequencePrimitiveSupported = [](const_node_ptr &node) -> bool {
-        const auto& data = node->input(0);
-        const auto& data_pshape = data.get_partial_shape();
-        if (data_pshape.rank().is_static() && data_pshape.rank().get_length() > 1 && !data_pshape[1].is_static())
+        // Sequences supported by the plugin shouldn't be converted to TensorIterator.
+        // sequence_length input is not supported in all Sequences, so if is_seq_len_provided() == true, we
+        // should always convert to TensorIterator.
+        // RNN/GRU/LSTM Sequences are supported with clip == 0, and with default activations.
+        auto isSequencePrimitiveSupported = [](const_node_ptr &node) -> bool {
+            const auto& data = node->input(0);
+            const auto& data_pshape = data.get_partial_shape();
+            if (data_pshape.rank().is_static() && data_pshape.rank().get_length() > 1 && !data_pshape[1].is_static())
+                return false;
+            auto max_seq_len = data.get_shape().at(1);
+            if (const auto &rnn_seq = std::dynamic_pointer_cast<const ngraph::opset6::RNNSequence>(node)) {
+                return rnn_seq->get_clip() == 0.0f &&
+                    !ngraph::op::util::is_seq_len_provided(rnn_seq->get_input_node_shared_ptr(2),
+                                                            max_seq_len);
+            } else if (const auto &gru_seq = std::dynamic_pointer_cast<const ngraph::opset6::GRUSequence>(
+                    node)) {
+                return gru_seq->get_clip() == 0.0f &&
+                    gru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} &&
+                    !ngraph::op::util::is_seq_len_provided(gru_seq->get_input_node_shared_ptr(2),
+                                                            max_seq_len);
+            } else if (const auto &lstm_seq = std::dynamic_pointer_cast<const ngraph::opset6::LSTMSequence>(
+                    node)) {
+                return lstm_seq->get_clip() == 0.0f &&
+                    lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
+                    !ngraph::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(3),
+                                                            max_seq_len);
+            }
             return false;
-        auto max_seq_len = data.get_shape().at(1);
-        if (const auto &rnn_seq = std::dynamic_pointer_cast<const ngraph::opset6::RNNSequence>(node)) {
-            return rnn_seq->get_clip() == 0.0f &&
-                   !ngraph::op::util::is_seq_len_provided(rnn_seq->get_input_node_shared_ptr(2),
-                                                          max_seq_len);
-        } else if (const auto &gru_seq = std::dynamic_pointer_cast<const ngraph::opset6::GRUSequence>(
-                node)) {
-            return gru_seq->get_clip() == 0.0f &&
-                   gru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} &&
-                   !ngraph::op::util::is_seq_len_provided(gru_seq->get_input_node_shared_ptr(2),
-                                                          max_seq_len);
-        } else if (const auto &lstm_seq = std::dynamic_pointer_cast<const ngraph::opset6::LSTMSequence>(
-                node)) {
-            return lstm_seq->get_clip() == 0.0f &&
-                   lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
-                   !ngraph::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(3),
-                                                          max_seq_len);
+        };
+
+        pass_config->set_callback<ngraph::pass::ConvertRNNSequenceToTensorIterator,
+                                ngraph::pass::ConvertGRUSequenceToTensorIterator,
+                                ngraph::pass::ConvertLSTMSequenceToTensorIterator>(
+                [isSequencePrimitiveSupported](const_node_ptr &node) -> bool {
+                    return isSequencePrimitiveSupported(node);
+                });
+
+        pass_config->set_callback<ngraph::pass::RNNCellDecomposition, ngraph::pass::GRUCellDecomposition,
+                ngraph::pass::LSTMCellDecomposition>(
+                [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
+                    return isCellPrimitiveSupported(node);
+                });
+
+        pass_config->set_callback<ngraph::pass::ConvertTensorIteratorToRNNSequence,
+                                ngraph::pass::ConvertTensorIteratorToLSTMSequence,
+                                ngraph::pass::ConvertTensorIteratorToGRUSequence>(
+                [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
+                    if (const auto& ti_op = std::dynamic_pointer_cast<const ngraph::op::TensorIterator>(node)) {
+                        size_t count_rnn = 0;
+                        for (const auto &op : ti_op->get_body()->get_ops())
+                            count_rnn += isCellPrimitiveSupported(op);
+                        return count_rnn != 1;
+                    }
+                    return true;
+                });
+
+        pass_config->set_callback<ngraph::pass::MVN6Decomposition>(
+                [](const_node_ptr &node) -> bool {
+                    std::string errorMessage;
+                    return MKLDNNMVNNode::isSupportedOperation(node, errorMessage);
+                });
+
+        pass_config->set_callback<ngraph::pass::NormalizeL2Decomposition>(
+                [](const_node_ptr &node) -> bool {
+                    std::string errorMsg;
+                    return MKLDNNNormalizeL2Node::isSupportedOperation(node, errorMsg);
+                });
+
+        pass_config->enable<ngraph::pass::SoftmaxDecomposition>();
+        pass_config->set_callback<ngraph::pass::SoftmaxDecomposition>(
+                [](const_node_ptr &node) -> bool {
+                    return node->input_value(0).get_partial_shape().rank().get_length() <= 5;
+                });
+
+        if (!isLegacyApi) {
+            auto nmsCallback = [](const_node_ptr &node) -> bool {
+                                    for (size_t i = 0; i < node->get_output_size(); i++) {
+                                        const auto outputs = node->get_output_target_inputs(i);
+                                        for (const auto &out : outputs) {
+                                            if (!ngraph::op::is_output(out.get_node())) {
+                                                return false;
+                                            }
+                                        }
+                                    }
+                                    return true;
+                                };
+
+            pass_config->set_callback<ngraph::pass::ConvertNMSToNMSIEInternal>(nmsCallback);
+            pass_config->set_callback<ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>(nmsCallback);
+            pass_config->set_callback<ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>(nmsCallback);
         }
-        return false;
-    };
 
-    pass_config->set_callback<ngraph::pass::ConvertRNNSequenceToTensorIterator,
-                              ngraph::pass::ConvertGRUSequenceToTensorIterator,
-                              ngraph::pass::ConvertLSTMSequenceToTensorIterator>(
-            [isSequencePrimitiveSupported](const_node_ptr &node) -> bool {
-                return isSequencePrimitiveSupported(node);
+        // List of enabled/disabled transformations
+
+        // Allow FP16 Converts to be folded and FP16 constants to be upgraded to FP32 data type
+        pass_config->disable<ov::pass::DisableDecompressionConvertConstantFolding>();
+        pass_config->disable<ov::pass::ConvertCompressedOnlyToLegacy>();
+
+        pass_config->disable<ngraph::pass::ConvertGELU>();
+        pass_config->disable<ngraph::pass::ConvertShuffleChannels3>();
+        pass_config->disable<ngraph::pass::Gelu7Downgrade>();
+        pass_config->disable<ngraph::pass::HSwishDecomposition>();
+        pass_config->disable<ngraph::pass::ReduceL1Decomposition>();
+        pass_config->disable<ngraph::pass::ReduceL2Decomposition>();
+        pass_config->disable<ngraph::pass::SoftPlusDecomposition>();
+        pass_config->disable<ngraph::pass::HSigmoidDecomposition>();
+        pass_config->disable<ngraph::pass::ConvertMod>();
+        pass_config->disable<ngraph::pass::LogSoftmaxDecomposition>();
+        pass_config->disable<ngraph::pass::ConvertShuffleChannels3>();
+        pass_config->disable<ngraph::pass::WeightsDequantizeToFakeQuantize>();
+        pass_config->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
+        pass_config->disable<ngraph::pass::ConvertGather7ToGather1>();
+        pass_config->disable<ngraph::pass::ConvertGather8ToGather7>();
+        pass_config->disable<ngraph::pass::ConvertMinimum>();
+        pass_config->disable<ngraph::pass::ConvertBroadcastToTiles>();
+        pass_config->disable<ngraph::pass::ConvertReduceMeanToPooling>();
+        pass_config->disable<ngraph::pass::ConvertReduceMaxToPooling>();
+        pass_config->disable<ngraph::pass::ConvertReduceSumToPooling>();
+        pass_config->disable<ngraph::pass::SliceToStridedSlice>();
+        pass_config->disable<ngraph::pass::ConvertDetectionOutput8ToDetectionOutput1>();
+
+        pass_config->enable<ngraph::pass::NormalizeL2Decomposition>();
+        pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
+        pass_config->enable<ngraph::pass::ConvertGather1ToGather7>();
+        pass_config->enable<ngraph::pass::ConvertDetectionOutput1ToDetectionOutput8>();
+
+        if (useLpt) {
+            pass_config->set_callback<ngraph::pass::AddFakeQuantizeFusion,
+                                    ngraph::pass::MulFakeQuantizeFusion,
+                                    ngraph::pass::FakeQuantizeMulFusion>([](const_node_ptr &node) -> bool {
+                std::string errMsg;
+                return !MKLDNNFakeQuantizeNode::isSupportedOperation(node, errMsg);
             });
 
-    pass_config->set_callback<ngraph::pass::RNNCellDecomposition, ngraph::pass::GRUCellDecomposition,
-            ngraph::pass::LSTMCellDecomposition>(
-            [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
-                return isCellPrimitiveSupported(node);
+            pass_config->set_callback<ngraph::pass::ConvertQuantizeDequantize>([&defaultPrecisions](const_node_ptr &node) -> bool {
+                return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(node, defaultPrecisions);
             });
 
-    pass_config->set_callback<ngraph::pass::ConvertTensorIteratorToRNNSequence,
-                              ngraph::pass::ConvertTensorIteratorToLSTMSequence,
-                              ngraph::pass::ConvertTensorIteratorToGRUSequence>(
-            [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
-                if (const auto& ti_op = std::dynamic_pointer_cast<const ngraph::op::TensorIterator>(node)) {
-                    size_t count_rnn = 0;
-                    for (const auto &op : ti_op->get_body()->get_ops())
-                        count_rnn += isCellPrimitiveSupported(op);
-                    return count_rnn != 1;
-                }
-                return true;
+            pass_config->set_callback<ngraph::pass::ConvertSubtract>([&defaultPrecisions](const_node_ptr &node) -> bool {
+                return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForSubtract(node, defaultPrecisions);
             });
+        }
 
-    pass_config->set_callback<ngraph::pass::MVN6Decomposition>(
-            [](const_node_ptr &node) -> bool {
-                std::string errorMessage;
-                return MKLDNNMVNNode::isSupportedOperation(node, errorMessage);
-            });
-
-    pass_config->set_callback<ngraph::pass::NormalizeL2Decomposition>(
-            [](const_node_ptr &node) -> bool {
-                std::string errorMsg;
-                return MKLDNNNormalizeL2Node::isSupportedOperation(node, errorMsg);
-            });
-
-    pass_config->enable<ngraph::pass::SoftmaxDecomposition>();
-    pass_config->set_callback<ngraph::pass::SoftmaxDecomposition>(
-            [](const_node_ptr &node) -> bool {
-                return node->input_value(0).get_partial_shape().rank().get_length() <= 5;
-            });
-
-    if (!isLegacyApi) {
-        auto nmsCallback = [](const_node_ptr &node) -> bool {
-                               for (size_t i = 0; i < node->get_output_size(); i++) {
-                                   const auto outputs = node->get_output_target_inputs(i);
-                                   for (const auto &out : outputs) {
-                                       if (!ngraph::op::is_output(out.get_node())) {
-                                           return false;
-                                       }
-                                   }
-                               }
-                               return true;
-                           };
-
-        pass_config->set_callback<ngraph::pass::ConvertNMSToNMSIEInternal>(nmsCallback);
-        pass_config->set_callback<ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>(nmsCallback);
-        pass_config->set_callback<ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>(nmsCallback);
+        manager.run_passes(nGraphFunc);
     }
 
-    // List of enabled/disabled transformations
+    void upToCpuSpecificOpSet_lpt(const bool hasINT16orINT32Levels, const std::vector<ov::element::Type>& defaultPrecisions) {
+        CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(Lpt);
 
-    // Allow FP16 Converts to be folded and FP16 constants to be upgraded to FP32 data type
-    pass_config->disable<ov::pass::DisableDecompressionConvertConstantFolding>();
-    pass_config->disable<ov::pass::ConvertCompressedOnlyToLegacy>();
-
-    pass_config->disable<ngraph::pass::ConvertGELU>();
-    pass_config->disable<ngraph::pass::ConvertShuffleChannels3>();
-    pass_config->disable<ngraph::pass::Gelu7Downgrade>();
-    pass_config->disable<ngraph::pass::HSwishDecomposition>();
-    pass_config->disable<ngraph::pass::ReduceL1Decomposition>();
-    pass_config->disable<ngraph::pass::ReduceL2Decomposition>();
-    pass_config->disable<ngraph::pass::SoftPlusDecomposition>();
-    pass_config->disable<ngraph::pass::HSigmoidDecomposition>();
-    pass_config->disable<ngraph::pass::ConvertMod>();
-    pass_config->disable<ngraph::pass::LogSoftmaxDecomposition>();
-    pass_config->disable<ngraph::pass::ConvertShuffleChannels3>();
-    pass_config->disable<ngraph::pass::WeightsDequantizeToFakeQuantize>();
-    pass_config->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
-    pass_config->disable<ngraph::pass::ConvertGather7ToGather1>();
-    pass_config->disable<ngraph::pass::ConvertGather8ToGather7>();
-    pass_config->disable<ngraph::pass::ConvertMinimum>();
-    pass_config->disable<ngraph::pass::ConvertBroadcastToTiles>();
-    pass_config->disable<ngraph::pass::ConvertReduceMeanToPooling>();
-    pass_config->disable<ngraph::pass::ConvertReduceMaxToPooling>();
-    pass_config->disable<ngraph::pass::ConvertReduceSumToPooling>();
-    pass_config->disable<ngraph::pass::SliceToStridedSlice>();
-    pass_config->disable<ngraph::pass::ConvertDetectionOutput8ToDetectionOutput1>();
-
-    pass_config->enable<ngraph::pass::NormalizeL2Decomposition>();
-    pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
-    pass_config->enable<ngraph::pass::ConvertGather1ToGather7>();
-    pass_config->enable<ngraph::pass::ConvertDetectionOutput1ToDetectionOutput8>();
-
-    if (useLpt) {
-        pass_config->set_callback<ngraph::pass::AddFakeQuantizeFusion,
-                                  ngraph::pass::MulFakeQuantizeFusion,
-                                  ngraph::pass::FakeQuantizeMulFusion>([](const_node_ptr &node) -> bool {
-            std::string errMsg;
-            return !MKLDNNFakeQuantizeNode::isSupportedOperation(node, errMsg);
-        });
-
-        pass_config->set_callback<ngraph::pass::ConvertQuantizeDequantize>([&defaultPrecisions](const_node_ptr &node) -> bool {
-            return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(node, defaultPrecisions);
-        });
-
-        pass_config->set_callback<ngraph::pass::ConvertSubtract>([&defaultPrecisions](const_node_ptr &node) -> bool {
-            return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForSubtract(node, defaultPrecisions);
-        });
-    }
-
-    manager.run_passes(nGraphFunc);
-
-    using namespace ngraph::pass::low_precision;
-    if (useLpt) {
+        using namespace ngraph::pass::low_precision;
         OV_ITT_SCOPE(FIRST_INFERENCE, ov::intel_cpu::itt::domains::intel_cpu_LT, "LowPrecisionTransformations");
 
         auto supportedPrecisions = std::vector<OperationPrecisionRestriction>({
@@ -484,66 +528,67 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         lptManager.run_passes(nGraphFunc);
     }
 
-    ngraph::pass::Manager postLPTPassManager;
-    postLPTPassManager.register_pass<ngraph::pass::FakeQuantizeDecomposition>();
-    postLPTPassManager.register_pass<ngraph::pass::UnrollTensorIterator>();
-    postLPTPassManager.register_pass<ReshapePRelu>();
+    void upToCpuSpecificOpSet_postLpt() {
+        CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(PostLpt);
 
-    postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::FakeQuantizeDecomposition>([](const_node_ptr &node) -> bool {
-        std::string errMsg;
-        return MKLDNNFakeQuantizeNode::isSupportedOperation(node, errMsg);
-    });
-    postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::UnrollTensorIterator>([](const_node_ptr &node) -> bool {
-        // UnrollTI transformation is disabled by default, is turned on by LowLatency transformation
-        return node->get_rt_info().count("UNROLL_TI") == 0;
-    });
+        ngraph::pass::Manager postLPTPassManager;
+        postLPTPassManager.register_pass<ngraph::pass::FakeQuantizeDecomposition>();
+        postLPTPassManager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        postLPTPassManager.register_pass<ReshapePRelu>();
 
+        postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::FakeQuantizeDecomposition>([](const_node_ptr &node) -> bool {
+            std::string errMsg;
+            return MKLDNNFakeQuantizeNode::isSupportedOperation(node, errMsg);
+        });
+        postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::UnrollTensorIterator>([](const_node_ptr &node) -> bool {
+            // UnrollTI transformation is disabled by default, is turned on by LowLatency transformation
+            return node->get_rt_info().count("UNROLL_TI") == 0;
+        });
 
-    postLPTPassManager.register_pass<MoveEltwiseUpThroughDataMov>();
-    postLPTPassManager.get_pass_config()->set_callback<MoveEltwiseUpThroughDataMov>([](const std::shared_ptr<const ngraph::Node>& node) -> bool {
-        if (node->get_input_size() >= 2) {
-            return node->get_input_element_type(1) == ngraph::element::i8 || node->get_input_element_type(1) == ngraph::element::u8;
-        }
-        return false;
-    });
+        postLPTPassManager.register_pass<MoveEltwiseUpThroughDataMov>();
+        postLPTPassManager.get_pass_config()->set_callback<MoveEltwiseUpThroughDataMov>([](const std::shared_ptr<const ngraph::Node>& node) -> bool {
+            if (node->get_input_size() >= 2) {
+                return node->get_input_element_type(1) == ngraph::element::i8 || node->get_input_element_type(1) == ngraph::element::u8;
+            }
+            return false;
+        });
 
-    postLPTPassManager.register_pass<ngraph::pass::ConstantFolding>();
-    postLPTPassManager.run_passes(nGraphFunc);
-
-    if (!useLpt && _enableSnippets && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
-        ngraph::pass::Manager tokenization_manager;
-        tokenization_manager.register_pass<SnippetsMarkSkipped>();
-        tokenization_manager.register_pass<ngraph::snippets::pass::EnumerateNodes>();
-        tokenization_manager.register_pass<ngraph::snippets::pass::TokenizeSnippets>();
-        tokenization_manager.get_pass_config()->set_callback<ngraph::snippets::pass::TokenizeSnippets>(
-                [](const std::shared_ptr<const ov::Node>& n) -> bool {
-                    const auto& inputs = n->inputs();
-                    // todo: clarify whether we can evaluate snippets on const paths
-                    const bool has_only_const_inputs = std::all_of(inputs.begin(), inputs.end(),
-                                [](const ov::Input<const ov::Node> &in) {
-                                        return ov::is_type<ov::op::v0::Constant>(in.get_source_output().get_node_shared_ptr());
-                                      });
-                    // todo: clarify whether we can evaluate snippets on inputs with larger ranks
-                    auto rank_is_too_large = [](const ov::descriptor::Tensor& t ) {
-                        // callback is called has_supported_in_out(), so it's safe to assume that the shapes are static
-                        return t.get_partial_shape().rank().get_length() > 6;
-                    };
-                    const bool bad_input_rank = std::any_of(inputs.begin(), inputs.end(),
-                                                            [&](const ov::Input<const ov::Node>& in) {return  rank_is_too_large(in.get_tensor());});
-                    const auto& outputs = n->outputs();
-                    const bool bad_output_rank = std::any_of(outputs.begin(), outputs.end(),
-                                                             [&](const ov::Output<const ov::Node>& out) {return  rank_is_too_large(out.get_tensor());});
-                    return has_only_const_inputs || bad_input_rank || bad_output_rank;
-                });
-        tokenization_manager.run_passes(nGraphFunc);
+        postLPTPassManager.register_pass<ngraph::pass::ConstantFolding>();
+        postLPTPassManager.run_passes(nGraphFunc);
     }
-}
 
-static void Transformation(CNNNetwork& clonedNetwork, const bool _enableLPT, const bool _enableSnippets, const bool isLegacyApi) {
-    auto nGraphFunc = clonedNetwork.getFunction();
-    TransformationUpToCPUSpecificOpSet(nGraphFunc, _enableLPT, _enableSnippets, isLegacyApi);
-    ConvertToCPUSpecificOpset(nGraphFunc);
-}
+    void upToCpuSpecificOpSet_snippets(void) {
+        CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(Snippets);
+
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
+            ngraph::pass::Manager tokenization_manager;
+            tokenization_manager.register_pass<SnippetsMarkSkipped>();
+            tokenization_manager.register_pass<ngraph::snippets::pass::EnumerateNodes>();
+            tokenization_manager.register_pass<ngraph::snippets::pass::TokenizeSnippets>();
+            tokenization_manager.get_pass_config()->set_callback<ngraph::snippets::pass::TokenizeSnippets>(
+                    [](const std::shared_ptr<const ov::Node>& n) -> bool {
+                        const auto& inputs = n->inputs();
+                        // todo: clarify whether we can evaluate snippets on const paths
+                        const bool has_only_const_inputs = std::all_of(inputs.begin(), inputs.end(),
+                                    [](const ov::Input<const ov::Node> &in) {
+                                            return ov::is_type<ov::op::v0::Constant>(in.get_source_output().get_node_shared_ptr());
+                                        });
+                        // todo: clarify whether we can evaluate snippets on inputs with larger ranks
+                        auto rank_is_too_large = [](const ov::descriptor::Tensor& t ) {
+                            // callback is called has_supported_in_out(), so it's safe to assume that the shapes are static
+                            return t.get_partial_shape().rank().get_length() > 6;
+                        };
+                        const bool bad_input_rank = std::any_of(inputs.begin(), inputs.end(),
+                                                                [&](const ov::Input<const ov::Node>& in) {return  rank_is_too_large(in.get_tensor());});
+                        const auto& outputs = n->outputs();
+                        const bool bad_output_rank = std::any_of(outputs.begin(), outputs.end(),
+                                                                [&](const ov::Output<const ov::Node>& out) {return  rank_is_too_large(out.get_tensor());});
+                        return has_only_const_inputs || bad_input_rank || bad_output_rank;
+                    });
+            tokenization_manager.run_passes(nGraphFunc);
+        }
+    }
+ };
 
 static bool streamsSet(const std::map<std::string, std::string>& config) {
     return config.count(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) ||
@@ -673,12 +718,12 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     const bool enableDynamicBatch = (dynamicBatchProp != config.end() && dynamicBatchProp->second == PluginConfigParams::YES)
             || engConfig.enableDynamicBatch;
     const bool enableSnippets = !(enableModelCache || enableDynamicBatch || enableBF16);
+
     auto nGraphFunc = clonedNetwork.getFunction();
-    TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT, enableSnippets, isLegacyAPI());
-
+    Transformations transformations(nGraphFunc CPU_DEBUG_CAP_ENABLE(, engConfig));
+    transformations.upToCpuSpecificOpSet(enableLPT, enableSnippets, isLegacyAPI());
     ApplyPerformanceHints(config, nGraphFunc);
-
-    ConvertToCPUSpecificOpset(nGraphFunc);
+    transformations.cpuSpecificOpSet();
 
     // update the props after the perf mode translated to configs
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
@@ -903,7 +948,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
                                || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
         const bool enableSnippets = !(conf.cache_dir.empty() || conf.enableDynamicBatch || (conf.enforceBF16
                 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)));
-        Transformation(clonedNetwork, enableLPT, enableSnippets, isLegacyAPI());
+        Transformations(clonedNetwork.getFunction(), enableLPT, enableSnippets, isLegacyAPI() CPU_DEBUG_CAP_ENABLE(, engConfig));
         auto ops = clonedNetwork.getFunction()->get_ordered_ops();
         std::unordered_set<std::string> supported;
         std::unordered_set<std::string> unsupported;

@@ -23,7 +23,7 @@
 namespace ov {
 namespace intel_cpu {
 
-inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphFunc) {
+inline void ConvertToCPUSpecificOpset(const std::shared_ptr<ngraph::Function>& nGraphFunc) {
     ngraph::pass::Manager manager;
     manager.register_pass<ConvertMatMulToFC>();
     manager.register_pass<AlignMatMulInputRanks>();
