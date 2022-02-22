@@ -26,7 +26,7 @@ There are two ways to check if CPU device can support bfloat16 computations for 
 1. Query the instruction set using one of these system commands:
    * `lscpu | grep avx512_bf16`
    * `cat /proc/cpuinfo | grep avx512_bf16`
-2. Use the [Query API](InferenceEngine_QueryAPI.md) with `METRIC_KEY(OPTIMIZATION_CAPABILITIES)`, which should return `BF16` in the list of CPU optimization options:
+2. Use the [Properties API](PropertiesAPI.md) with `METRIC_KEY(OPTIMIZATION_CAPABILITIES)`, which should return `BF16` in the list of CPU optimization options:
 
 @snippet snippets/Bfloat16Inference0.cpp part0
 
