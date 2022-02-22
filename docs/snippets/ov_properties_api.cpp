@@ -32,9 +32,9 @@ auto nireq = compiled_model.get_property(ov::optimal_number_of_infer_requests);
 {
 //! [core_set_property_then_compile]
 // set letency hint is a default for CPU
-core.set_properties("CPU", ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
+core.set_property("CPU", ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
 // compiled with latency configuration hint
-auto compiled_model_latency = core.compile_model(model, "CPU"));
+auto compiled_model_latency = core.compile_model(model, "CPU");
 // compiled with overriden ov::hint::performance_mode value
 auto compiled_model_thrp = core.compile_model(model, "CPU",
     ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT));
