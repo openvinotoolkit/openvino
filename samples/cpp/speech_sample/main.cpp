@@ -178,19 +178,22 @@ int main(int argc, char* argv[]) {
         }
         if (FLAGS_q.compare("user") == 0) {
             if (!FLAGS_rg.empty()) {
-                slog::warn << "Custom scale factor will be used for imported gna model: " << FLAGS_rg << slog::endl;
-            }
-            auto scale_factors_per_input = parse_scale_factors(model->inputs(), FLAGS_sf);
-            if (numInputFiles != scale_factors_per_input.size()) {
-                std::string errMessage(
-                    "Incorrect command line for multiple inputs: " + std::to_string(scale_factors_per_input.size()) +
-                    " scale factors provided for " + std::to_string(numInputFiles) + " input files.");
+                std::string errMessage("Custom scale factor can not be set for imported gna model: " + FLAGS_rg);
                 throw std::logic_error(errMessage);
+            } else {
+                auto scale_factors_per_input = parse_scale_factors(model->inputs(), FLAGS_sf);
+                if (numInputFiles != scale_factors_per_input.size()) {
+                    std::string errMessage("Incorrect command line for multiple inputs: " +
+                                           std::to_string(scale_factors_per_input.size()) +
+                                           " scale factors provided for " + std::to_string(numInputFiles) +
+                                           " input files.");
+                    throw std::logic_error(errMessage);
+                }
+                for (auto&& sf : scale_factors_per_input) {
+                    slog::info << "For input " << sf.first << " using scale factor of " << sf.second << slog::endl;
+                }
+                gnaPluginConfig[ov::intel_gna::scale_factors_per_input.name()] = scale_factors_per_input;
             }
-            for (auto&& sf : scale_factors_per_input) {
-                slog::info << "For input " << sf.first << " using scale factor of " << sf.second << slog::endl;
-            }
-            gnaPluginConfig[ov::intel_gna::scale_factors_per_input.name()] = scale_factors_per_input;
         } else {
             // "static" quantization with calculated scale factor
             if (!FLAGS_rg.empty()) {
