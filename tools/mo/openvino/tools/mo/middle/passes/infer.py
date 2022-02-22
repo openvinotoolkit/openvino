@@ -353,3 +353,20 @@ def reverse_infer(graph: Graph, nodes: list):
                 log.debug('Inputs:')
                 log_debug_dict(node.in_nodes(), 'inputs')
 
+    parameters_with_no_shape = []
+    for node in graph.get_op_nodes(op='Parameter'):
+        if not node.has_valid('shape'):
+            parameters_with_no_shape.append(node)
+
+    if len(parameters_with_no_shape) == 0:
+        return
+
+    parameters_names = ''
+    for idx, node in enumerate(parameters_with_no_shape):
+        parameters_names += "'{}'".format(node.soft_get('name', node.id))
+        if idx < len(parameters_with_no_shape) - 1:
+            parameters_names += ', '
+
+    if len(parameters_with_no_shape) > 0:
+        raise Error("Model Optimizer is unable to deduce input shapes for the following Parameter nodes: {}. "
+                    "Please use cli options --input or --input_shape to set model input shape.".format(parameters_names))
