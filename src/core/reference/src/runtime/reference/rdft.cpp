@@ -97,8 +97,7 @@ int64_t offset_from_coords_and_strides(const std::vector<int64_t>& coords, const
 void clip_and_write_result(const std::vector<int64_t>& axes_data,
                            const std::vector<float>& fft_result,
                            const Shape& output_fft_shape,
-                           float* rdft_result)
-{
+                           float* rdft_result) {
     auto rdft_result_shape = output_fft_shape;
     for (const auto axis : axes_data) {
         rdft_result_shape[axis] = rdft_result_shape[axis] / 2 + 1;
@@ -125,8 +124,7 @@ void rdft(const std::vector<float>& input_data,
           const Shape& input_data_shape,
           const std::vector<int64_t>& axes_data,
           const Shape& output_fft_shape,
-          float* rdft_result)
-{
+          float* rdft_result) {
     // Converting input data to complex type and calculation of DFT with such data.
     size_t input_data_size = input_data.size();
     std::vector<complex_type> complex_data(input_data_size);
