@@ -64,9 +64,6 @@ class ImageLoader(DataLoader):
             layout_from_ir = get_layout_values(input_node.graph.meta_data.get('layout', None))
             if layout_from_ir is not None:
                 layout_from_ir = layout_from_ir[next(iter(layout_from_ir))].get('source_layout', None)
-                # SyntheticImageLoader uses only H,W,C dimensions
-                if self._shape is not None and 'N' in layout_from_ir and len(self._shape) == 3:
-                    layout_from_ir = layout_from_ir[1:]
                 self._layout = Layout(layout_from_ir)
                 return
 
