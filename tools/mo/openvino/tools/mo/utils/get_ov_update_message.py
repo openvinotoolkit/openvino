@@ -17,9 +17,10 @@ def get_ov_update_message():
 
 
 def get_ov_api20_message():
-    link = "https://docs.openvino.ai/latest/documentation.html"
-    message = '[ INFO ] Starting from 2022.1 release the Model Optimizer generates IR in a format compatible with OpenVINO(TM) API 2.0. ' \
-              'OpenVINO(TM) API 2.0 provides better alignment with original frameworks such as model inputs and outputs format. ' \
-              'For more information about OpenVINO(TM) API 2.0 please follow: {}'. format(link)
+    link = "https://docs.openvino.ai"
+    message = '[ INFO ] The model was converted to IR v11, the latest model format that aligns best with the source DL framework. ' \
+              'While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) ' \
+              'to take advantage of the latest improvements in IR v11.\n' \
+              'Find more information about API v2.0 and IR v11 at {}'.format(link)
 
     return message
