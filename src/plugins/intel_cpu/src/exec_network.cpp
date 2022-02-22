@@ -26,6 +26,7 @@
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_icore.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/util/common_util.hpp"
 
 #include <algorithm>
 #include <unordered_set>
@@ -310,7 +311,8 @@ InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string &name)
 
     if (name == ov::model_name) {
         // @todo Does not seem ok to 'dump()' the whole graph everytime in order to get a name
-        return graph.dump()->get_friendly_name();
+        const std::string modelName = graph.dump()->get_friendly_name();
+        return decltype(ov::model_name)::value_type(modelName);
     } else if (name == ov::optimal_number_of_infer_requests) {
         const auto streams = config.streamExecutorConfig._streams;
         return decltype(ov::optimal_number_of_infer_requests)::value_type(streams); // ov::optimal_number_of_infer_requests has no negative values
@@ -332,19 +334,20 @@ InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string &name)
         return ov::Affinity::NONE;
     } else if (name == ov::inference_num_threads) {
         const auto num_threads = config.streamExecutorConfig._threads;
-        return num_threads;
+        return decltype(ov::inference_num_threads)::value_type(num_threads);
     } else if (name == ov::enable_profiling.name()) {
         const bool perfCount = config.collectPerfCounters;
-        return perfCount ? "YES" : "NO";
+        return decltype(ov::enable_profiling)::value_type(perfCount);
     } else if (name == ov::hint::inference_precision) {
         const auto enforceBF16 = config.enforceBF16;
-        return enforceBF16 ? ov::element::bf16 : ov::element::f32;
+        const auto inference_precision = enforceBF16 ? ov::element::bf16 : ov::element::f32;
+        return decltype(ov::hint::inference_precision)::value_type(inference_precision);
     } else if (name == ov::hint::performance_mode) {
-        const auto perfHint = config.perfHintsConfig.ovPerfHint;
+        const auto perfHint = ov::util::from_string(config.perfHintsConfig.ovPerfHint, ov::hint::performance_mode);
         return perfHint;
     } else if (name == ov::hint::num_requests) {
         const auto perfHintNumRequests = config.perfHintsConfig.ovPerfHintNumRequests;
-        return perfHintNumRequests;
+        return decltype(ov::hint::num_requests)::value_type(perfHintNumRequests);
     }
     /* Internally legacy parameters are used with new API as part of migration procedure.
      * This fallback can be removed as soon as migration completed */
