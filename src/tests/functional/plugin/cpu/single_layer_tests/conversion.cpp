@@ -75,7 +75,7 @@ TEST_P(ConvertCPULayerTest, CompareWithRefs) {
 
     run();
 
-    CheckPluginRelatedResults(executableNetwork, "Convert");
+    CheckPluginRelatedResults(compiledModel, "Convert");
 }
 
 std::vector<InputShape> inShapes_4D = {
