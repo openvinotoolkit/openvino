@@ -30,7 +30,7 @@
    openvino_docs_IE_DG_Extensibility_DG_Intro
    openvino_docs_IE_DG_Int8Inference
    openvino_docs_IE_DG_Bfloat16Inference
-   ngraph_transformation
+   openvino_docs_transformations
    openvino_docs_OV_Runtime_API_Changes
 
 @endsphinxdirective
