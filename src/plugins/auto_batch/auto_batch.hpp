@@ -49,7 +49,9 @@ public:
         const InferenceEngine::SoExecutableNetworkInternal& networkForDevice,
         const InferenceEngine::SoExecutableNetworkInternal& networkForDeviceWithoutBatch,
         const DeviceInformation& networkDevices,
-        const std::unordered_map<std::string, InferenceEngine::Parameter>& config);
+        const std::unordered_map<std::string, InferenceEngine::Parameter>& config,
+        const std::set<std::string>& batchedIntputs,
+        const std::set<std::string>& batchedOutputs);
 
     void SetConfig(const std::map<std::string, InferenceEngine::Parameter>& config) override;
     InferenceEngine::Parameter GetConfig(const std::string& name) const override;
@@ -80,6 +82,9 @@ protected:
     bool _needPerfCounters = false;
     std::atomic_size_t _numRequestsCreated = {0};
     std::atomic_int _timeOut = {0};  // in ms
+
+    const std::set<std::string> _batchedInputs;
+    const std::set<std::string> _batchedOutputs;
 };
 
 class AutoBatchInferRequest : public InferenceEngine::IInferRequestInternal {
@@ -89,12 +94,16 @@ public:
                                    const InferenceEngine::OutputsDataMap& networkOutputs,
                                    AutoBatchExecutableNetwork::WorkerInferRequest& workerRequestPtr,
                                    int batch_id,
-                                   int num_batch);
+                                   int num_batch,
+                                   const std::set<std::string>& batchedIntputs,
+                                   const std::set<std::string>& batchedOutputs);
     explicit AutoBatchInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                    const std::vector<std::shared_ptr<const ov::Node>>& outputs,
                                    AutoBatchExecutableNetwork::WorkerInferRequest& workerRequestPtr,
                                    int batch_id,
-                                   int num_batch);
+                                   int num_batch,
+                                   const std::set<std::string>& batchedIntputs,
+                                   const std::set<std::string>& batchedOutputs);
 
     // Batch-Device impl specific: sets the data (blobs from the device request to the batched device request)
     void SetBlobsToAnotherRequest(InferenceEngine::SoIInferRequestInternal& req);
@@ -110,7 +119,8 @@ public:
 
 protected:
     void CopyBlobIfNeeded(InferenceEngine::Blob::CPtr src, InferenceEngine::Blob::Ptr dst, bool bInput);
-    void ShareBlobsWithBatchRequest();
+    void ShareBlobsWithBatchRequest(const std::set<std::string>& batchedIntputs,
+                                    const std::set<std::string>& batchedOutputs);
     size_t _batchId;
     size_t _batchSize;
 };
