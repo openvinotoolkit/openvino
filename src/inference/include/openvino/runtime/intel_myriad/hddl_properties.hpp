@@ -8,8 +8,14 @@
 
 namespace ov {
 namespace intel_myriad {
+
+/**
+ * @brief Namespace with Intel HDDL specific properties
+ */
 namespace hddl {
+
 //    RO properties
+
 /**
  * @brief Property to get a int of the device number
  */
@@ -169,6 +175,7 @@ static constexpr Property<bool, PropertyMutability::RW> use_sgad{"HDDL_USE_SGAD"
  * Each device has their own group id. Device in one group shares same group id.
  */
 static constexpr Property<std::string, PropertyMutability::RW> group_device{"HDDL_GROUP_DEVICE"};
+
 }  // namespace hddl
 }  // namespace intel_myriad
-};  // namespace ov
+}  // namespace ov
