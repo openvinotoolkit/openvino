@@ -96,7 +96,6 @@ ov::intel_cpu::MoveEltwiseUpThroughDataMov::MoveEltwiseUpThroughDataMov() {
         eltwiseInputs[0] = child->input_value(0);
         auto newEltwise = eltwise->clone_with_new_inputs(eltwiseInputs);
         ngraph::copy_runtime_info(eltwise, newEltwise);
-        newEltwise->set_friendly_name(eltwise->get_friendly_name());
 
         ngraph::OutputVector childInputs = child->input_values();
         childInputs[0] = newEltwise;

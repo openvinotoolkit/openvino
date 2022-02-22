@@ -204,6 +204,10 @@ void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc& srcDe
                                                void* srcPtr,
                                                const mkldnn::memory::desc& dstDesc,
                                                void* dstPtr) {
+    auto selectedPD = getSelectedPrimitiveDescriptor();
+    if (!selectedPD)
+        IE_THROW() << "Preferable primitive descriptor is not set.";
+
     const auto engine = getEngine();
     src_blocked = std::make_shared<MKLDNNMemory>(engine);
     src_blocked->Create(MKLDNNExtensionUtils::makeDescriptor(srcDesc), srcPtr, false);
@@ -211,7 +215,7 @@ void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc& srcDe
     dst_blocked = std::make_shared<MKLDNNMemory>(engine);
     dst_blocked->Create(MKLDNNExtensionUtils::makeDescriptor(dstDesc), dstPtr, false);
 
-    impl_desc_type impl_type;
+    impl_desc_type impl_type = selectedPD->getImplementationType();
     ReorderKey key = {src_blocked->GetPrimitive().get_desc(), dst_blocked->GetPrimitive().get_desc()};
 
     auto builder = [&engine, &impl_type](const ReorderKey& key) -> std::shared_ptr<mkldnn::primitive> {
