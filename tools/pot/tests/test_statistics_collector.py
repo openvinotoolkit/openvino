@@ -62,7 +62,7 @@ def test_statistics_collector_subsets(tmp_path, models, model_name, model_framew
     for algo_name, algo_val in out.items():
         for node_name, node_val in algo_val.items():
             for stats_name, stats_val in node_val.items():
-                if stats_name == 'batch_mean_param_in':
+                if stats_name == 'batch_mean_param_in' or stats_name == 'shape':
                     continue
                 ref_stats_vals = refs[algo_name][node_name][stats_name]
                 for ref_vals, vals in zip(ref_stats_vals, stats_val):

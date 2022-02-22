@@ -39,10 +39,10 @@ TEST_MODELS = [
                                                                                   'accuracy@top5': 0.911},
      {}, 'CPU'),
 
-    ('mobilenet-ssd', 'caffe', 'AccuracyAwareQuantization', 'performance', 300, {'map': 0.674},
+    ('mobilenet-ssd', 'caffe', 'AccuracyAwareQuantization', 'performance', 300, {'map': 0.6801},
      {'metric_subset_ratio': 1.0, 'max_iter_num': 1, 'metrics': [{'name': 'map', 'baseline_value': 0.669}]}, 'CPU'),
 
-    ('mobilenet-ssd', 'caffe', 'AccuracyAwareQuantization', 'performance', 300, {'map': 0.674},
+    ('mobilenet-ssd', 'caffe', 'AccuracyAwareQuantization', 'performance', 300, {'map': 0.6801},
      {'metric_subset_ratio': 1.0, 'max_iter_num': 1, 'tune_hyperparams': True,
       'metrics': [{'name': 'map', 'baseline_value': 0.669}]}, 'CPU'),
 
@@ -51,9 +51,9 @@ TEST_MODELS = [
     # {'drop_type': 'relative', 'max_iter_num': 1, 'accuracy_drop': 0.005, 'metrics': [
     #     {'name': 'accuracy@top1', 'baseline_value': 0.431}]}, 'GNA'),
 
-    ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 1, {'recall': 0.76, 'map': 0.6844}, {}, 'CPU'),
+    ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 1, {'recall': 0.76, 'map': 0.6618}, {}, 'CPU'),
 
-    ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 2, {'recall': 0.76, 'map': 0.6638},
+    ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 2, {'recall': 0.68, 'map': 0.4406},
      {'use_fast_bias': False}, 'CPU')
 ]
 CASCADE_MAP = Dict({
