@@ -22,7 +22,6 @@ namespace {
 std::shared_ptr<ngraph::Node> find_min_value(const ov::Output<ov::Node>& input) {
     const auto& zero_node = default_opset::Constant::create(element::i64, Shape{}, {0});
     const auto& one_node = default_opset::Constant::create(element::i64, Shape{}, {1});
-    const auto& two_node = default_opset::Constant::create(element::i64, Shape{}, {2});
 
     const auto& input_shape = std::make_shared<default_opset::ShapeOf>(input);
     const auto& input_rank = std::make_shared<default_opset::ShapeOf>(input_shape);
@@ -40,7 +39,6 @@ std::shared_ptr<ngraph::Node> find_min_value(const ov::Output<ov::Node>& input) 
 std::shared_ptr<ngraph::Node> find_max_value(const ov::Output<ov::Node>& input) {
     const auto& zero_node = default_opset::Constant::create(element::i64, Shape{}, {0});
     const auto& one_node = default_opset::Constant::create(element::i64, Shape{}, {1});
-    const auto& two_node = default_opset::Constant::create(element::i64, Shape{}, {2});
 
     const auto& input_shape = std::make_shared<default_opset::ShapeOf>(input);
     const auto& input_rank = std::make_shared<default_opset::ShapeOf>(input_shape);
@@ -78,8 +76,6 @@ namespace set_1 {
 OutputVector dynamic_quantize_linear(const Node& node) {
     const OutputVector& inputs = node.get_ng_inputs();
     const auto& x = inputs.at(0);
-
-    const auto& zero = default_opset::Constant::create(element::f32, Shape{}, {0});
 
     // quantization range in case of uint8 is [0, 255]
     const auto& quant_range_min = default_opset::Constant::create(element::f32, Shape{}, {0});
