@@ -775,10 +775,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         // find the batch dim
         ov::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        if (check_dims)
-            m.register_pass<ov::pass::FindBatch>();
-        else
-            m.register_pass<ov::pass::FindBatchDontTrack>();
+        m.register_pass<ov::pass::FindBatch>(true, check_dims);
         m.run_passes(function);
         // do not reshape/re-batch originally batched networks and when there are no inputs with the N* layouts
         // input(s) should have the batch dim as the first dim or none (current limitation of the auto-batching impl)
