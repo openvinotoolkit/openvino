@@ -810,16 +810,14 @@ void MKLDNNRNN::prepareParams() {
 
     bool wFormatWasChanged = false;
     // WA To avoid different weights layer and iter formats in FP32 case.
-    if (dataPrecision == Precision::FP32) {
-        if (SL != 1 || B < optimalBatchSize) {
-            if (wFormat != mkldnn::memory::format_tag::ldigo) {
-                wFormat = mkldnn::memory::format_tag::ldigo;
-                wFormatWasChanged = true;
-            }
-        } else if (wFormat != mkldnn::memory::format_tag::any) {
-            wFormat = mkldnn::memory::format_tag::any;
+    if (SL != 1 || B < optimalBatchSize) {
+        if (wFormat != mkldnn::memory::format_tag::ldigo) {
+            wFormat = mkldnn::memory::format_tag::ldigo;
             wFormatWasChanged = true;
         }
+    } else if (wFormat != mkldnn::memory::format_tag::any) {
+        wFormat = mkldnn::memory::format_tag::any;
+        wFormatWasChanged = true;
     }
     if (wFormatWasChanged) {
         auto weightsDims = MKLDNNExtensionUtils::convertToDnnlDims(VectorDims{ L, D, DC, G, SC });

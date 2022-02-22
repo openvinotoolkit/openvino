@@ -88,9 +88,9 @@ def run(args):
                         logger.warning(f"No device {device} performance hint is set.")
                         args.perf_hint = ""
                 else:
+                    args.perf_hint = "THROUGHPUT" if benchmark.api_type == "async" else "LATENCY"
                     logger.warning(f"PerformanceMode was not explicitly specified in command line. " +
-                    f"Device {device} performance hint will be set to THROUGHPUT.")
-                    args.perf_hint = "throughput"
+                    f"Device {device} performance hint will be set to " + args.perf_hint + ".")
             else:
                 logger.warning(f"Device {device} does not support performance hint property(-hint).")
 
@@ -388,11 +388,6 @@ def run(args):
         elif benchmark.inference_only and not allow_inference_only_or_sync:
             raise Exception("Benchmarking dynamic model available with input filling in measurement loop only!")
 
-        if benchmark.inference_only:
-            logger.info("Benchmarking in inference only mode (inputs filling are not included in measurement loop).")
-        else:
-            logger.info("Benchmarking in full mode (inputs filling are included in measurement loop).")
-
         # update batch size in case dynamic network with one data_shape
         if benchmark.inference_only and batch_size.is_dynamic:
             batch_size = Dimension(data_queue.batch_sizes[data_queue.current_group_id])
@@ -441,6 +436,12 @@ def run(args):
         output_string = process_help_inference_string(benchmark, device_number_streams)
 
         next_step(additional_info=output_string)
+
+        if benchmark.inference_only:
+            logger.info("Benchmarking in inference only mode (inputs filling are not included in measurement loop).")
+        else:
+            logger.info("Benchmarking in full mode (inputs filling are included in measurement loop).")
+
         progress_bar_total_count = 10000
         if benchmark.niter and not benchmark.duration_seconds:
             progress_bar_total_count = benchmark.niter

@@ -375,23 +375,11 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
             return true;
 
         if (next.is_type<permute>()) {
-            auto is_rotating_except_batch = [](const std::vector<uint16_t>& order) {
-                // Target transform: Rotate feature dim to back to be taken as inner-most axis
-                // ex) 0(b), 4(f), 1(z), 2(y), 3(x)
-                // ex) 0(b), 3(f), 1(y), 2(x)
-                if ((int32_t) order[1] != order.size() - 1) return false;
-                if ((int32_t) order[0] != 0) return false;
-                for (int32_t i = 2; i < (int32_t) order.size(); ++i) {
-                    if ((int32_t)order[i] !=  (i - 1)) return false;
-                }
-                return true;
-            };
-
             auto& permute_order = next.as<permute>().get_primitive()->permute_order;
             if ((fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::b_fs_yx_fsv32 || fmt_prev == format::b_fs_zyx_fsv32 ||
                 fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_zyx_fsv16 || fmt_prev == format::bs_fs_yx_bsv16_fsv16)
                 && permute_order[1] == 2
-                && (!is_rotating_except_batch(permute_order))) {
+                && (!next.as<permute>().is_rotating_except_batch())) {
                     return false;
             }
             return true;
@@ -439,23 +427,11 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
         return true;
 
     if (prev.is_type<permute>()) {
-        auto is_rotating_except_batch = [](const std::vector<uint16_t>& order) {
-            // Target transform: Rotate feature dim to back to be taken as inner-most axis
-            // ex) 0(b), 4(f), 1(z), 2(y), 3(x)
-            // ex) 0(b), 3(f), 1(y), 2(x)
-            if ((int32_t) order[1] != order.size() - 1) return false;
-            if ((int32_t) order[0] != 0) return false;
-            for (int32_t i = 2; i < (int32_t) order.size(); ++i) {
-                if ((int32_t)order[i] !=  (i - 1)) return false;
-            }
-            return true;
-        };
-
         auto& permute_order = prev.as<permute>().get_primitive()->permute_order;
         if ((fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::b_fs_yx_fsv32 || fmt_prev == format::b_fs_zyx_fsv32 ||
          fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_zyx_fsv16 || fmt_prev == format::bs_fs_yx_bsv16_fsv16)
          && permute_order[1] == 2
-         && (!is_rotating_except_batch(permute_order))) {
+         && (!prev.as<permute>().is_rotating_except_batch())) {
             return false;
         }
         return true;
@@ -1525,6 +1501,12 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
                         impl_candidate = impl_types::ocl;
                         break;
                     }
+
+                    if (fo.node->as<eltwise>().get_primitive()->mode == eltwise_mode::sum &&
+                        program_helpers::needs_onednn_sum_post_op(fo.node->as<eltwise>(), in_layout)) {
+                        impl_candidate = impl_types::ocl;
+                        break;
+                    }
                 // Gemm checkings
                 // TODO: investigate why currently onednn gemm has some "sum" post-op restrictions
                 // which don't correlate with fc checkings in the code above
@@ -1707,6 +1689,17 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         } else {
             expected = format::any;
         }
+    } else if (node.is_type<permute>()) {
+        if (node.get_dependencies().size() == 1 && node.get_dependencies().front()->is_type<convolution>()) {
+            auto& conv_node = node.get_dependencies().front()->as<convolution>();
+            const auto& fmt = get_preferred_format(conv_node);
+            // if the preferred format of the previous conv of permute is fs_b_yx_fsv32,
+            // it is better to set to b_fs_yx_fsv32 that supports tiled permute (permute_tile_8x8_4x4_fsv)
+            // because fs_b_yx_fsv32 is only supported by permute_ref.
+            if (node.as<permute>().is_rotating_except_batch() && fmt == format::fs_b_yx_fsv32) {
+                expected = format::b_fs_yx_fsv32;
+            }
+        }
     }
 
     return expected;
@@ -1716,21 +1709,8 @@ bool layout_optimizer::all_users_simple_format_until_output(program_node& origin
     if (cur_node.is_output()) return true;
     if (cur_depth > max_depth) return false;
 
-    auto is_rotating_except_batch = [](const std::vector<uint16_t>& order) {
-        // Target transform: Rotate feature dim to back to be taken as inner-most axis
-        // ex) 0(b), 4(f), 1(z), 2(y), 3(x)
-        // ex) 0(b), 3(f), 1(y), 2(x)
-        if ((int32_t) order[1] != order.size() - 1) return false;
-        if ((int32_t) order[0] != 0) return false;
-        for (int32_t i = 2; i < (int32_t) order.size(); ++i) {
-            if ((int32_t)order[i] !=  (i - 1)) return false;
-        }
-        return true;
-    };
-
     if (cur_node.is_type<permute>()) {
-        auto& permute_order = cur_node.as<permute>().get_primitive()->permute_order;
-        if (!is_rotating_except_batch(permute_order))
+        if (!cur_node.as<permute>().is_rotating_except_batch())
             return false;
     }
 

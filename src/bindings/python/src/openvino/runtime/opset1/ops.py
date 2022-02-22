@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all openvino ops."""
-from typing import Callable, Iterable, List, Optional, Set, Union
+from typing import List, Optional, Union
 
 import numpy as np
 from functools import partial
 
-from openvino.runtime import Node, PartialShape, Shape
+from openvino.runtime import Node, PartialShape, Type
 from openvino.runtime.op import Constant, Parameter, tensor_iterator
 from openvino.runtime.opset_utils import _get_node_factory
 from openvino.runtime.utils.decorators import binary_op, nameable_op, unary_op
@@ -312,7 +312,11 @@ def concat(nodes: List[NodeInput], axis: int, name: Optional[str] = None) -> Nod
 
 
 @nameable_op
-def constant(value: NumericData, dtype: NumericType = None, name: Optional[str] = None) -> Constant:
+def constant(
+    value: NumericData,
+    dtype: Union[NumericType, Type] = None,
+    name: Optional[str] = None,
+) -> Constant:
     """Create a Constant node from provided value.
 
     :param value: One of: array of values or scalar to initialize node with.
@@ -1544,7 +1548,6 @@ def matmul(
     :param transpose_b: should the second matrix be transposed
     returns MatMul operation node
     """
-    print("transpose_a", transpose_a, "transpose_b", transpose_b)
     return _get_node_factory_opset1().create(
         "MatMul", as_nodes(data_a, data_b), {"transpose_a": transpose_a, "transpose_b": transpose_b}
     )
@@ -1792,11 +1795,13 @@ def pad(
 
 @nameable_op
 def parameter(
-    shape: TensorShape, dtype: NumericType = np.float32, name: Optional[str] = None
+    shape: TensorShape, dtype: Union[NumericType, Type] = np.float32, name: Optional[str] = None
 ) -> Parameter:
     """Return an openvino Parameter object."""
-    element_type = get_element_type(dtype)
-    return Parameter(element_type, PartialShape(shape))
+    return Parameter(get_element_type(dtype)
+                     if isinstance(dtype, (type, np.dtype))
+                     else dtype,
+                     PartialShape(shape))
 
 
 @binary_op
