@@ -526,28 +526,66 @@ int main(int argc, char* argv[]) {
                                     sum_performance_counters(callPerfMap, utterancePerfMap, totalNumberOfRunsOnHw);
                                 }
                             }
+                            // -----------------------------------------------------------------------------------------------------
+                        }
+                        if (frameIndex == numFrames) {
+                            inferRequest.frameIndex = -1;
+                            continue;
+                        }
+                        ptrInputBlobs.clear();
+                        if (FLAGS_iname.empty()) {
+                            for (auto& input : cInputInfo) {
+                                ptrInputBlobs.push_back(inferRequest.inferRequest.get_tensor(input));
+                            }
+                        } else {
+                            std::vector<std::string> inputNameBlobs = convert_str_to_vector(FLAGS_iname);
+                            for (const auto& input : inputNameBlobs) {
+                                ov::Tensor blob = inferRequests.begin()->inferRequest.get_tensor(input);
+                                if (!blob) {
+                                    std::string errMessage("No blob with name : " + input);
+                                    throw std::logic_error(errMessage);
+                                }
+                                ptrInputBlobs.push_back(blob);
+                            }
+                        }
+
+                        /** Iterate over all the input blobs **/
+                        for (size_t i = 0; i < numInputFiles; ++i) {
+                            ov::Tensor minput = ptrInputBlobs[i];
+                            if (!minput) {
+                                std::string errMessage("We expect ptrInputBlobs[" + std::to_string(i) +
+                                                       "] to be inherited from Tensor, " +
+                                                       "but in fact we were not able to cast input to Tensor");
+                                throw std::logic_error(errMessage);
+                            }
+                            memcpy(minput.data<float>(), inputFrame[i], minput.get_byte_size());
+                            // Used to infer fewer frames than the batch size
+                            if (batchSize != numFramesThisBatch) {
+                                memset(minput.data<float>() + numFramesThisBatch * numFrameElementsInput[i],
+                                       0,
+                                       (batchSize - numFramesThisBatch) * numFrameElementsInput[i]);
+                            }
+                        }
                         // -----------------------------------------------------------------------------------------------------
-                    }
-                    if (frameIndex == numFrames) {
-                        inferRequest.frameIndex = -1;
-                        continue;
-                    }
-                    // -----------------------------------------------------------------------------------------------------
-                    int index = static_cast<int>(frameIndex) - (FLAGS_cw_l + FLAGS_cw_r);
-                    for (int i = 0; i < executableNet.inputs().size(); i++) {
-                        inferRequest.inferRequest.set_input_tensor(
-                            i,
-                            ov::Tensor(ov::element::f32, executableNet.inputs()[i].get_shape(), inputFrame[i]));
-                    }
-                    /* Starting inference in asynchronous mode*/
-                    inferRequest.inferRequest.start_async();
-                    inferRequest.frameIndex = index < 0 ? -2 : index;
-                    inferRequest.numFramesThisBatch = numFramesThisBatch;
-                    frameIndex += numFramesThisBatch;
-                    for (size_t j = 0; j < inputFiles.size(); j++) {
-                        if (FLAGS_cw_l > 0 || FLAGS_cw_r > 0) {
-                            int idx = frameIndex - FLAGS_cw_l;
-                            if (idx > 0 && idx < static_cast<int>(numFramesFile)) {
+                        int index = static_cast<int>(frameIndex) - (FLAGS_cw_l + FLAGS_cw_r);
+                        /* Starting inference in asynchronous mode*/
+                        inferRequest.inferRequest.start_async();
+                        inferRequest.frameIndex = index < 0 ? -2 : index;
+                        inferRequest.numFramesThisBatch = numFramesThisBatch;
+                        frameIndex += numFramesThisBatch;
+                        for (size_t j = 0; j < inputFiles.size(); j++) {
+                            if (FLAGS_cw_l > 0 || FLAGS_cw_r > 0) {
+                                int idx = frameIndex - FLAGS_cw_l;
+                                if (idx > 0 && idx < static_cast<int>(numFramesFile)) {
+                                    inputFrame[j] += sizeof(float) * numFrameElementsInput[j] * numFramesThisBatch;
+                                } else if (idx >= static_cast<int>(numFramesFile)) {
+                                    inputFrame[j] = &ptrUtterances[j].front() + (numFramesFile - 1) * sizeof(float) *
+                                                                                    numFrameElementsInput[j] *
+                                                                                    numFramesThisBatch;
+                                } else if (idx <= 0) {
+                                    inputFrame[j] = &ptrUtterances[j].front();
+                                }
+                            } else {
                                 inputFrame[j] += sizeof(float) * numFrameElementsInput[j] * numFramesThisBatch;
                             } else if (idx >= static_cast<int>(numFramesFile)) {
                                 inputFrame[j] = &ptrUtterances[j].front() + (numFramesFile - 1) * sizeof(float) *

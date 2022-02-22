@@ -27,6 +27,7 @@ var wapSection = 'openvinotoolkit';
 
 $(document).ready(function () {
     createVersions();
+    updateTitleTag();
     init_col_sections();
     init_switchers();
     handleSwitcherParam();
@@ -42,6 +43,13 @@ function getPageUrlWithVersion(version) {
     var currentURL = window.location.href;
     var newURL = currentURL.replace(getCurrentVersion(), version);
     return encodeURI(newURL);
+}
+
+function updateTitleTag() {
+    var title = $('title');
+    var currentVersion = getCurrentVersion();
+    var newTitle = (title.text() + ' — Version(' + currentVersion + ')').replace(/\s+/g, ' ').trim();
+    title.text(newTitle);
 }
 
 function getCurrentVersion() {
