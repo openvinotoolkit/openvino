@@ -871,6 +871,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         for (size_t output_id = 0; output_id < results.size(); output_id++) {
             const auto& output = results[output_id];
             const auto& shape = output->get_output_partial_shape(0);
+            if (shape.is_dynamic())
+                IE_THROW(NotImplemented) << "Auto-batching does not support dynamic networks!";
             // check the batch dim: either 0th (and the original batch size of 1) or none
             if (shape.size() && ov::DimensionTracker::get_label(shape[0])) {
                 if (shape[0] != 1)
