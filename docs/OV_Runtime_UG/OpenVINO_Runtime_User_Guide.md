@@ -27,7 +27,6 @@
    <!-- remove parts below -->
    openvino_docs_deployment_optimization_guide_dldt_optimization_guide
    openvino_docs_IE_DG_Model_caching_overview
-   openvino_docs_IE_DG_Extensibility_DG_Intro
    openvino_docs_IE_DG_Int8Inference
    openvino_docs_IE_DG_Bfloat16Inference
    ngraph_transformation
