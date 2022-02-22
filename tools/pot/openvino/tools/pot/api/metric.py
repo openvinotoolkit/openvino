@@ -14,6 +14,8 @@ class Metric(ABC):
     @property
     def value(self):
         """ Returns accuracy metric value for the last model output. """
+        raise NotImplementedError('The value() property should be implemented to use this metric '
+                                  'with AccuracyAwareQuantization algorithm!')
 
     @property
     @abstractmethod
