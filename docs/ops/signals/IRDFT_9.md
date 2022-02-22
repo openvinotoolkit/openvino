@@ -47,7 +47,7 @@ Next, put
 for all indices `j_0,...,j_{k+q-1}`, where `i` is an imaginary unit, that is `X` is a complex tensor.
 
 Define the complex tensor `F` with the shape `[B_0, ..., B_{k-1}, 2 * (M_0 - 1), ..., 2 * (M_{q-1} - 1)]` using the formula
-\f[F[j_0,\dots,j_{k-1},j_k,\dots,j_p,\dots,j_{k+q-1}] = \begin{cases}X[j_0,\dots,j_{k-1},j_k,\dots,j_p,\dots,j_{k+q-1}],\text{ when }j_p=0,\dots,M_p;\\ \overline{X[j_0,\dots,j_{k-1},j_k,\dots,2(M_{p-1} - 1) - j_p,\dots,j_{k+q-1}]},\text{ otherwise.}\end{cases}\f]
+\f[F[j_0,\dots,j_{k-1},j_k,\dots,j_p,\dots,j_{k+q-1}] = \begin{cases}X[j_0,\dots,j_{k-1},j_k,\dots,j_p,\dots,j_{k+q-1}],\text{ when }j_p=0,\dots,M_p-1;\\ \overline{X[j_0,\dots,j_{k-1},j_k,\dots,2(M_{p-1} - 1) - j_p,\dots,j_{k+q-1}]},\text{ otherwise.}\end{cases}\f]
 
 Construct the complex tensor `G` with the shape `[B_0, ..., B_{k-1}, S_0, ..., S_{q-1}]` by the following way. If `S_a > 2 * (M_a - 1)`, then the axis `k + a` of `F` will be padded by zeros; if `S_a < 2 * (M_a - 1)`, then the axis `k + a` of `F` will be trimmed, that is, we will consider only the slice `0: S_a` of this axis; finally, if `S_a = 2 * (M_a - 1)`, then we consider the full axis `k + a` of `F`.
 
