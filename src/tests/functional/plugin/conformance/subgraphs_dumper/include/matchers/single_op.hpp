@@ -17,24 +17,24 @@ class SingleOpMatcher : public Matcher {
 public:
     SingleOpMatcher();
 
-    bool match(const std::shared_ptr<ngraph::Node> &node,
-               const std::shared_ptr<ngraph::Node> &ref,
+    bool match(const std::shared_ptr<ov::Node> &node,
+               const std::shared_ptr<ov::Node> &ref,
                const LayerTestsUtils::OPInfo &op_info) const override;
-    bool same_op_type(const std::shared_ptr<ngraph::Node> &node,
-                      const std::shared_ptr<ngraph::Node> &ref,
+    bool same_op_type(const std::shared_ptr<ov::Node> &node,
+                      const std::shared_ptr<ov::Node> &ref,
                       const LayerTestsUtils::OPInfo &op_info) const;
 
-    virtual bool match_inputs(const std::shared_ptr<ngraph::Node> &node,
-                      const std::shared_ptr<ngraph::Node> &ref,
+    virtual bool match_inputs(const std::shared_ptr<ov::Node> &node,
+                      const std::shared_ptr<ov::Node> &ref,
                       const LayerTestsUtils::OPInfo &op_info) const;
-    bool match_outputs(const std::shared_ptr<ngraph::Node> &node,
-                       const std::shared_ptr<ngraph::Node> &ref,
+    bool match_outputs(const std::shared_ptr<ov::Node> &node,
+                       const std::shared_ptr<ov::Node> &ref,
                        const LayerTestsUtils::OPInfo &op_info) const;
-    bool same_attrs(const std::shared_ptr<ngraph::Node> &node,
-                    const std::shared_ptr<ngraph::Node> &ref,
+    bool same_attrs(const std::shared_ptr<ov::Node> &node,
+                    const std::shared_ptr<ov::Node> &ref,
                     const LayerTestsUtils::OPInfo &op_info) const;
-    bool match_ports(const std::shared_ptr<ngraph::Node> &node,
-                     const std::shared_ptr<ngraph::Node> &ref,
+    bool match_ports(const std::shared_ptr<ov::Node> &node,
+                     const std::shared_ptr<ov::Node> &ref,
                      const LayerTestsUtils::OPInfo &op_info) const;
 
 protected:
