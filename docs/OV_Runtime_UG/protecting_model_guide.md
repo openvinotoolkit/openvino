@@ -54,7 +54,7 @@ should be called with `weights` passed as an empty `Blob`.
 - Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)
 - OpenVINO™ toolkit online documentation: [https://docs.openvino.ai](https://docs.openvino.ai)
 - Model Optimizer Developer Guide: [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
-- [OpenVINO™ runTime User Guide](OpenVINO_Runtime_User_Guide.md)
+- [OpenVINO™ runTime User Guide](openvino_intro.md)
 - For more information on Sample Applications, see the [Inference Engine Samples Overview](Samples_Overview.md)
 - For information on a set of pre-trained models, see the [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_group_intel)
 - For IoT Libraries and Code Samples see the [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).

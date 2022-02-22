@@ -88,11 +88,10 @@ protected:
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
         if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
-            inType = outType = ElementType::bf16;
+            selectedType = makeSelectedTypeStr(selectedType, ElementType::bf16);
         } else {
-            inType = outType = netPrecision;
+            selectedType = makeSelectedTypeStr(selectedType, netPrecision);
         }
-        selectedType = makeSelectedTypeStr(selectedType, outType);
 
         auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
         std::vector<ngraph::Shape> WRB = {{3 * hiddenSize, inputSize}, {3 * hiddenSize, hiddenSize}, {(linearBeforeReset ? 4 : 3) * hiddenSize}};

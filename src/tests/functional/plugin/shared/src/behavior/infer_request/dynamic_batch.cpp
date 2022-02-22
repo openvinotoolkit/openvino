@@ -12,7 +12,7 @@
 #include "ie_transformations.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "blob_tests/dynamic_batch.hpp"
+#include "behavior/infer_request/dynamic_batch.hpp"
 
 #include "ngraph_functions/subgraph_builders.hpp"
 

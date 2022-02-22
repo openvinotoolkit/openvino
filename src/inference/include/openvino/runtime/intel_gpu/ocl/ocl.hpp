@@ -21,6 +21,10 @@
 
 namespace ov {
 namespace intel_gpu {
+
+/**
+ * @brief Namespace with Intel GPU OpenCL specific remote objects
+ */
 namespace ocl {
 
 /**
