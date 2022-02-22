@@ -78,7 +78,7 @@ TEST_P(PadLayerCPUTest, CompareWithRefs) {
 
     run();
 
-    CheckPluginRelatedResults(executableNetwork, "Pad");
+    CheckPluginRelatedResults(compiledModel, "Pad");
 }
 
 namespace {
