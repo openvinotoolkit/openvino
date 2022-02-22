@@ -10,11 +10,11 @@
 namespace ov {
 namespace op {
 namespace v0 {
-/// \brief A function parameter.
+/// \brief A model parameter.
 ///
 /// Parameters are nodes that represent the arguments that will be passed to
-/// user-defined functions. Function creation requires a sequence of parameters.
-/// Basic graph operations do not need parameters attached to a function.
+/// user-defined models. Model creation requires a sequence of parameters.
+/// Basic graph operations do not need parameters attached to a model.
 class OPENVINO_API Parameter : public op::Op {
 public:
     OPENVINO_OP("Parameter", "opset1");

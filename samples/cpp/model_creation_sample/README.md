@@ -1,8 +1,8 @@
-# nGraph Function Creation C++ Sample {#openvino_inference_engine_samples_ngraph_function_creation_sample_README}
+# Model Creation C++ Sample {#openvino_inference_engine_samples_model_creation_sample_README}
 
 This sample demonstrates how to execute an synchronous inference using [model](../../../docs/OV_Runtime_UG/model_representation.md) built on the fly which uses weights from LeNet classification model, which is known to work well on digit classification tasks.
 
-You do not need an XML file to create a model. The API of ngraph::Function allows creating a model on the fly from the source code.
+You do not need an XML file to create a model. The API of ov::Model allows creating a model on the fly from the source code.
 
 The following C++ API is used in the application:
 
@@ -13,7 +13,7 @@ The following C++ API is used in the application:
 | Tensor Operations | `ov::Tensor::get_byte_size`, `ov::Tensor:data` | Get tensor byte size and its data |
 | Model Operations | `ov::set_batch` | Operate with model batch size |
 | Infer Request Operations | `ov::InferRequest::get_input_tensor` | Get a input tensor |
-| nGraph Functions | `ov::opset8::Parameter`, `ov::Node::output`, `ov::opset8::Constant`, `ov::opset8::Convolution`, `ov::opset8::Add`, `ov::opset1::MaxPool`, `ov::opset8::Reshape`, `ov::opset8::MatMul`, `ov::opset8::Relu`, `ov::opset8::Softmax`, `ov::descriptor::Tensor::set_names`, `ov::opset8::Result`, `ov::Model`, `ov::ParameterVector::vector` | Used to construct an nGraph function |
+| Model creation objects | `ov::opset8::Parameter`, `ov::Node::output`, `ov::opset8::Constant`, `ov::opset8::Convolution`, `ov::opset8::Add`, `ov::opset1::MaxPool`, `ov::opset8::Reshape`, `ov::opset8::MatMul`, `ov::opset8::Relu`, `ov::opset8::Softmax`, `ov::descriptor::Tensor::set_names`, `ov::opset8::Result`, `ov::Model`, `ov::ParameterVector::vector` | Used to construct an OpenVINO model |
 
 Basic OpenVINO™ Runtime API is covered by [Hello Classification C++ sample](../hello_classification/README.md).
 
@@ -23,7 +23,7 @@ Basic OpenVINO™ Runtime API is covered by [Hello Classification C++ sample](..
 | Model Format | model weights file (\*.bin) |
 | Validated images | single-channel `MNIST ubyte` images |
 | Supported devices | [All](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
-| Other language realization | [Python](../../../samples/python/ngraph_function_creation_sample/README.md) |
+| Other language realization | [Python](../../../samples/python/model_creation_sample/README.md) |
 
 ## How It Works
 
@@ -42,7 +42,7 @@ To build the sample, please use instructions available at [Build the Sample Appl
 ## Running
 
 ```
-ngraph_function_creation_sample <path_to_lenet_weights> <device>
+model_creation_sample <path_to_lenet_weights> <device>
 ```
 
 > **NOTES**:
@@ -56,7 +56,7 @@ ngraph_function_creation_sample <path_to_lenet_weights> <device>
 You can do inference of an image using a pre-trained model on a GPU using the following command:
 
 ```
-ngraph_function_creation_sample lenet.bin GPU
+model_creation_sample lenet.bin GPU
 ```
 
 ## Sample Output
@@ -175,10 +175,6 @@ classid probability label
     <td>December 1, 2020</td>
   </tr>
 </table>
-
-*Starting with the OpenVINO™ toolkit 2020.2 release, all of the features previously available through nGraph have been merged into the OpenVINO™ toolkit. As a result, all the features previously available through ONNX RT Execution Provider for nGraph have been merged with ONNX RT Execution Provider for OpenVINO™ toolkit.*
-
-*Therefore, ONNX RT Execution Provider for nGraph will be deprecated starting June 1, 2020 and will be completely removed on December 1, 2020. Users are recommended to migrate to the ONNX RT Execution Provider for OpenVINO™ toolkit as the unified solution for all AI inferencing on Intel® hardware.*
 
 ## See Also
 

@@ -7,4 +7,3 @@ The sections below contain detailed list of changes made to the OpenVINO™ Runt
 ### New API
 
 * The OpenVINO™ 2.0 API was introduced.
-
