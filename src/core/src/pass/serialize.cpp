@@ -568,9 +568,7 @@ const std::vector<Edge> create_edge_mapping(const std::unordered_map<ngraph::Nod
 
 std::string get_opset_name(const ngraph::Node* n, const std::map<std::string, ngraph::OpSet>& custom_opsets) {
     OPENVINO_ASSERT(n != nullptr);
-    if (n->get_type_info().version_id != nullptr) {
-        return n->get_type_info().version_id;
-    }
+
     // Try to find opset name from RT info
     auto opset_it = n->get_rt_info().find("opset");
     if (opset_it != n->get_rt_info().end()) {
@@ -580,6 +578,10 @@ std::string get_opset_name(const ngraph::Node* n, const std::map<std::string, ng
                 return opset_name;
             }
         }
+    }
+
+    if (n->get_type_info().version_id != nullptr) {
+        return n->get_type_info().version_id;
     }
 
     for (const auto& custom_opset : custom_opsets) {
