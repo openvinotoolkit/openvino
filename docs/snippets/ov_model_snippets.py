@@ -14,10 +14,10 @@ def create_simple_model():
     # Parameter--->Multiply--->Add--->Result
     #    Constant---'          /
     #              Constant---'
-    data = ov.opset8.parameter(ov.Shape([3, 1, 2]), ov.Type.f32)
-    mul_constant = ov.opset8.constant(ov.Type.f32, ov.Shape({1}), [1.5])
+    data = ov.opset8.parameter([3, 1, 2], ov.Type.f32)
+    mul_constant = ov.opset8.constant([1.5], ov.Type.f32)
     mul = ov.opset8.multiply(data, mul_constant)
-    add_constant = ov.opset8.constant(ov.Type.f32, ov.Shape({1}), [0.5])
+    add_constant = ov.opset8.constant([0.5], ov.Type.f32)
     add = ov.opset8.add(mul, add_constant)
     res = ov.opset8.result(add)
     return ov.Model([res], [data], "model")
