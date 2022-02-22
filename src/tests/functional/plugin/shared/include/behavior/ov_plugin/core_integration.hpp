@@ -380,7 +380,7 @@ TEST_P(OVClassCorrectConfigTest, SetConfigAndCheckGetConfigNoThrow) {
         ov::Any param;
         EXPECT_NO_THROW(param = ie.get_property(deviceName, configItem.first));
         EXPECT_FALSE(param.empty());
-        EXPECT_EQ(param, configItem.second);
+        EXPECT_EQ(param.as<std::string>(), configItem.second.as<std::string>());
     }
 }
 
