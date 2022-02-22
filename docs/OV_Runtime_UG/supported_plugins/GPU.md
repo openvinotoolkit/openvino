@@ -149,9 +149,3 @@ See [RemoteBlob API of GPU Plugin](GPU_RemoteBlob_API.md)
 
 ## See Also
 * [Supported Devices](Supported_Devices.md)
-
-[conv_simple_01]: ../img/conv_simple_01.png
-[pooling_fakequant_01]: ../img/pooling_fakequant_01.png
-[fullyconnected_activation_01]: ../img/fullyconnected_activation_01.png
-[group_convolutions_01]: ../img/group_convolutions_01.png
-[conv_sum_relu_01]: ../img/conv_sum_relu_01.png
