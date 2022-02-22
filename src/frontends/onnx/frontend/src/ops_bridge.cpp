@@ -330,7 +330,7 @@ void OperatorsBridge::_load_initial_state() {
     REGISTER_OPERATOR("Dropout", 1, dropout);
     REGISTER_OPERATOR("Dropout", 7, dropout);
     REGISTER_OPERATOR("Dropout", 12, dropout);
-    REGISTER_OPERATOR("DynamicQuantizeLinear", 11, dynamic_quantize_linear);
+    REGISTER_OPERATOR("DynamicQuantizeLinear", 1, dynamic_quantize_linear);
     REGISTER_OPERATOR("Einsum", 1, einsum);
     REGISTER_OPERATOR("Elu", 1, elu);
     REGISTER_OPERATOR("Equal", 1, equal);
