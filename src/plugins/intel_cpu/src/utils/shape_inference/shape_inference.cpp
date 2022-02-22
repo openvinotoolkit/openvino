@@ -252,7 +252,7 @@ public:
             if (partial_shape.is_dynamic()) {
                 std::ostringstream errorMessage;
                 errorMessage << "Can't compute static output shape on " << i
-                             << " port for node with name: " << op->get_name();
+                             << " port for " << op->get_type_name() << " node with name: " << op->get_name();
                 errorMessage << ". Input shapes = ( ";
                 for (size_t in = 0; in < op->get_input_size(); in++) {
                     errorMessage << in << " port = " << op->get_input_partial_shape(in) << ", ";
