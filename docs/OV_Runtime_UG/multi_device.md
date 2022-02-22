@@ -1,4 +1,4 @@
-# Multi-Device Plugin {#openvino_docs_IE_DG_supported_plugins_MULTI}
+# Running on multiple device simultaneously {#openvino_docs_OV_UG_Running_on_multiple_devices}
 
 ## Introducing the Multi-Device Plugin (C++)
 
@@ -44,7 +44,7 @@ Notice that the priorities of the devices can be changed in real time for the ex
 Finally, there is a way to specify number of requests that the Multi-Device will internally keep for each device. Suppose your original app was running 4 cameras with 4 inference requests. You would probably want to share these 4 requests between 2 devices used in MULTI. The easiest way is to specify a number of requests for each device using parentheses: "MULTI:CPU(2),GPU(2)" and use the same 4 requests in your app. However, such an explicit configuration is not performance-portable and hence not recommended. Instead, the better way is to configure the individual devices and query the resulting number of requests to be used at the application level (see [Configuring the Individual Devices and Creating the Multi-Device On Top](#configuring-the-individual-devices-and-creating-the-multi-device-on-top)).
 
 ### Enumerating Available Devices
-The Inference Engine features a dedicated API to enumerate devices and their capabilities. See the [Hello Query Device C++ Sample](../../../samples/cpp/hello_query_device/README.md). This is example output from the sample (truncated to device names only):
+The Inference Engine features a dedicated API to enumerate devices and their capabilities. See the [Hello Query Device C++ Sample](../../samples/cpp/hello_query_device/README.md). This is example output from the sample (truncated to device names only):
 
 ```sh
   ./hello_query_device
@@ -86,13 +86,13 @@ Note that while the performance of accelerators combines really well with Multi-
 See the [Using the Multi-Device with OpenVINO samples and benchmarking the performance](#using-the-multi-device-with-openvino-samples-and-benchmarking-the-performance) section below.
 
 ### Querying the Optimal Number of Inference Requests
-You can use the [Properties API](../PropertiesAPI.md) API to query the optimal number of requests. Similarly, when using the Multi-Device you don't need to sum over included devices yourself, you can query property directly:
+You can use the [configure devices](supported_plugins/config_properties.md) to query the optimal number of requests. Similarly, when using the Multi-Device you don't need to sum over included devices yourself, you can query property directly:
 
 @snippet snippets/MULTI5.cpp part5
 
 ### Using the Multi-Device with OpenVINO Samples and Benchmarking the Performance
 
-Every OpenVINO sample that supports the `-d` (which stands for "device") command-line option transparently accepts Multi-Device. The [Benchmark Application](../../../samples/cpp/benchmark_app/README.md) is the best reference for the optimal usage of Multi-Device. As discussed earlier, you do not need to set up the number of requests, CPU streams or threads because the application provides optimal performance out of the box. Below is an example command to evaluate HDDL+GPU performance with that:
+Every OpenVINO sample that supports the `-d` (which stands for "device") command-line option transparently accepts Multi-Device. The [Benchmark Application](../../samples/cpp/benchmark_app/README.md) is the best reference for the optimal usage of Multi-Device. As discussed earlier, you do not need to set up the number of requests, CPU streams or threads because the application provides optimal performance out of the box. Below is an example command to evaluate HDDL+GPU performance with that:
 
 ```sh
 ./benchmark_app –d MULTI:HDDL,GPU –m <model> -i <input> -niter 1000
@@ -110,7 +110,7 @@ The Multi-Device plugin supports FP16 IR files. The CPU plugin automatically upc
 @endsphinxdirective
 
 ### See Also
-[Supported Devices](Supported_Devices.md)
+[Supported Devices](supported_plugins/Supported_Devices.md)
 
 ## Introducing the Multi-Device Plugin (Python)
 
@@ -182,7 +182,7 @@ You can set the configuration directly as a string, or use the metric key `MULTI
 
 
 ### Enumerating Available Devices
-The Inference Engine features a dedicated API to enumerate devices and their capabilities. See the [Hello Query Device Python Sample](../../../samples/python/hello_query_device/README.md). This is example output from the sample (truncated to device names only):
+The Inference Engine features a dedicated API to enumerate devices and their capabilities. See the [Hello Query Device Python Sample](../../samples/python/hello_query_device/README.md). This is example output from the sample (truncated to device names only):
 
 ```sh
   ./hello_query_device
@@ -268,7 +268,7 @@ Note that while the performance of accelerators works well with Multi-Device, th
 
 ### Using the Multi-Device with OpenVINO Samples and Benchmarking the Performance
 
-Every OpenVINO sample that supports the `-d` (which stands for "device") command-line option transparently accepts Multi-Device. The [Benchmark application](../../../tools/benchmark_tool/README.md) is the best reference for the optimal usage of Multi-Device. As discussed earlier, you do not need to set up the number of requests, CPU streams or threads because the application provides optimal performance out of the box. Below is an example command to evaluate CPU+GPU performance with the Benchmark application:
+Every OpenVINO sample that supports the `-d` (which stands for "device") command-line option transparently accepts Multi-Device. The [Benchmark application](../../tools/benchmark_tool/README.md) is the best reference for the optimal usage of Multi-Device. As discussed earlier, you do not need to set up the number of requests, CPU streams or threads because the application provides optimal performance out of the box. Below is an example command to evaluate CPU+GPU performance with the Benchmark application:
 
 ```sh
 ./benchmark_app.py –d MULTI:CPU,GPU –m <model>
@@ -289,4 +289,4 @@ The Multi-Device plugin supports FP16 IR files. The CPU plugin automatically upc
 @endsphinxdirective
 
 ### See Also
-[Supported Devices](Supported_Devices.md)
+[Supported Devices](supported_plugins/Supported_Devices.md)
