@@ -19,8 +19,8 @@
    openvino_inference_engine_ie_bridges_c_samples_hello_nv12_input_classification_README
    openvino_inference_engine_samples_hello_query_device_README
    openvino_inference_engine_ie_bridges_python_sample_hello_query_device_README
-   openvino_inference_engine_samples_ngraph_function_creation_sample_README
-   openvino_inference_engine_ie_bridges_python_sample_ngraph_function_creation_sample_README
+   openvino_inference_engine_samples_model_creation_sample_README
+   openvino_inference_engine_ie_bridges_python_sample_model_creation_sample_README
    openvino_inference_engine_samples_speech_sample_README
    openvino_inference_engine_ie_bridges_python_sample_speech_sample_README
    openvino_inference_engine_samples_benchmark_app_README
@@ -59,9 +59,9 @@ OpenVINO sample applications include the following:
 - **Image Classification Sample Async** – Inference of image classification networks like AlexNet and GoogLeNet using Asynchronous Inference Request API (the sample supports only images as inputs).
    - [Image Classification Async C++ Sample](../../samples/cpp/classification_sample_async/README.md)
    - [Image Classification Async Python* Sample](../../samples/python/classification_sample_async/README.md)
-- **OpenVINO Model Creation Sample** – Construction of the LeNet network using the OpenVINO model creation sample.
-   - [OpenVINO Model Creation C++ Sample](../../samples/cpp/ngraph_function_creation_sample/README.md)
-   - [OpenVINO Model Creation Python Sample](../../samples/python/ngraph_function_creation_sample/README.md)
+- **OpenVINO Model Creation Sample** – Construction of the LeNet model using the OpenVINO model creation sample.
+   - [OpenVINO Model Creation C++ Sample](../../samples/cpp/model_creation_sample/README.md)
+   - [OpenVINO Model Creation Python Sample](../../samples/python/model_creation_sample/README.md)
 
 > **NOTE**: All C++ samples support input paths containing only ASCII characters, except the Hello Classification Sample, that supports Unicode.
 
