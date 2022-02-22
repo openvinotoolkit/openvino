@@ -52,20 +52,18 @@ std::shared_ptr<ngraph::Node> find_max_value(const ov::Output<ov::Node>& input) 
     const auto& input_max = std::make_shared<default_opset::ReduceMax>(input, reduce_axes);
 
     const auto& zero_node_u8 = default_opset::Constant::create(element::f32, Shape{}, {0});
-    return  std::make_shared<default_opset::Maximum>(zero_node_u8, input_max);
+    return std::make_shared<default_opset::Maximum>(zero_node_u8, input_max);
 }
 
 std::shared_ptr<ngraph::Node> quantize_linear(Output<ngraph::Node> x,
-                             Output<ngraph::Node> x_span,
-                             Output<ngraph::Node> quant_range_span,
-                             Output<ngraph::Node> y_zero_point) {
+                                              Output<ngraph::Node> x_span,
+                                              Output<ngraph::Node> quant_range_span,
+                                              Output<ngraph::Node> y_zero_point) {
+    const auto& x_scaled =
+        std::make_shared<default_opset::Divide>(std::make_shared<default_opset::Multiply>(x, quant_range_span), x_span);
 
-    const auto& x_scaled = std::make_shared<default_opset::Divide>(
-                                std::make_shared<default_opset::Multiply>(x, quant_range_span),
-                                x_span);
-
-    const auto& x_rounded = std::make_shared<default_opset::Round>(x_scaled,
-                                ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
+    const auto& x_rounded =
+        std::make_shared<default_opset::Round>(x_scaled, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
 
     const auto& y_zero_point_f32 = std::make_shared<default_opset::Convert>(y_zero_point, ov::element::f32);
 
@@ -74,11 +72,11 @@ std::shared_ptr<ngraph::Node> quantize_linear(Output<ngraph::Node> x,
 
     return std::make_shared<default_opset::Convert>(result_clamped, ov::element::u8);
 }
-}
+}  // namespace
 namespace op {
-namespace set_11 {
-OutputVector dynamic_quantize_linear(const Node& node){
-    const OutputVector  & inputs = node.get_ng_inputs();
+namespace set_1 {
+OutputVector dynamic_quantize_linear(const Node& node) {
+    const OutputVector& inputs = node.get_ng_inputs();
     const auto& x = inputs.at(0);
 
     const auto& zero = default_opset::Constant::create(element::f32, Shape{}, {0});
@@ -99,15 +97,15 @@ OutputVector dynamic_quantize_linear(const Node& node){
         std::make_shared<default_opset::Round>(std::make_shared<default_opset::Divide>(x_min_shifted, y_scale),
                                                ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
 
-    const auto& y_zero_point =
-        std::make_shared<default_opset::Convert>(std::make_shared<default_opset::Clamp>(intermediate_zero_point, 0, 255),
-                                                 ov::element::u8);
+    const auto& y_zero_point = std::make_shared<default_opset::Convert>(
+        std::make_shared<default_opset::Clamp>(intermediate_zero_point, 0, 255),
+        ov::element::u8);
 
     const auto& y = quantize_linear(x, x_span, quant_range_span, y_zero_point);
 
     return {y, y_scale, y_zero_point};
 }
-}  // namespace set_11
+}  // namespace set_1
 }  // namespace op
 }  // namespace onnx_import
 }  // namespace ngraph
