@@ -12,13 +12,15 @@
 namespace InferenceEngine {
 namespace details {
 
-NetworkBatchAbility isNetworkBatchable(const CNNNetwork& orig_network, const std::string& deviceNameWithoutBatch) {
+NetworkBatchAbility isNetworkBatchable(const CNNNetwork& orig_network,
+                                       const std::string& deviceNameWithoutBatch,
+                                       bool strictly_track_dims) {
     CNNNetwork clonedNetwork(cloneNetwork(orig_network));
     auto function = clonedNetwork.getFunction();
     // find the batch dim
     ov::pass::Manager m;
     m.register_pass<ngraph::pass::InitNodeInfo>();
-    m.register_pass<ov::pass::FindBatch>(true, true);
+    m.register_pass<ov::pass::FindBatch>(true, strictly_track_dims);
     m.run_passes(function);
     bool any_batched_inputs = false;
     // do not reshape/re-batch originally batched networks and when there are no inputs with the N* layouts

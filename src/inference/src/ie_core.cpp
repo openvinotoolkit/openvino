@@ -558,6 +558,8 @@ public:
                            std::string& deviceName,
                            std::map<std::string, std::string>& config) {
         std::string deviceNameWithBatchSize, deviceNameWithoutBatch;
+        // fully strict dims tracking by default (Auto-Batching is enabled implicitly)
+        bool strictly_check_dims = true;
         if (deviceName.find("BATCH") != std::string::npos) {
             // explicitly enabled Auto-Batching
             auto pos = deviceName.find_first_of(":");
@@ -565,6 +567,9 @@ public:
                 return;  // BATCH device is already configured via the config
             deviceNameWithBatchSize = deviceName.substr(pos + 1);
             deviceNameWithoutBatch = DeviceIDParser::getBatchDevice(deviceNameWithBatchSize);
+            // when user sets the BATCH device explicitly, we may check the dims less strictly
+            // as the result is being checked by the user
+            strictly_check_dims = false;
         } else {
             // check whether the Auto-Batching is disabled explicitly
             const auto& batch_mode = config.find(ov::hint::allow_auto_batching.name());
@@ -596,7 +601,7 @@ public:
                 return;
         }
         auto batchConfig = deviceNameWithBatchSize.empty() ? deviceNameWithoutBatch : deviceNameWithBatchSize;
-        auto res = InferenceEngine::details::isNetworkBatchable(network, deviceNameWithoutBatch);
+        auto res = InferenceEngine::details::isNetworkBatchable(network, deviceNameWithoutBatch, strictly_check_dims);
         switch (res) {
         case InferenceEngine::details::NetworkBatchAbility::NO:
             return;
