@@ -1,7 +1,16 @@
 # GNA device {#openvino_docs_OV_UG_supported_plugins_GNA}
-## Introducing the GNA Plugin
 
-The Intel® Gaussian & Neural Accelerator is a low-power neural coprocessor for continuous inference at the edge.
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   openvino_docs_OV_UG_supported_plugins_GNA_2d_layers         
+@endsphinxdirective
+
+
+The Intel® Gaussian & Neural Accelerator (GNA) is a low-power neural coprocessor for continuous inference at the edge.
 
 Intel® GNA is not intended to replace typical inference devices such as the
 CPU, graphics processing unit (GPU), or vision processing unit (VPU). It is designed for offloading
