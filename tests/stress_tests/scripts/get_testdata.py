@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """ Script to acquire model IRs for stress tests.
@@ -146,9 +146,8 @@ def main():
     if not args.no_venv:
         Venv = VirtualEnv("./.stress_venv")
         requirements = [
-            args.mo_tool.parent / "requirements.txt",
+            args.mo_tool.parents[3] / "requirements.txt",
             omz_path / "tools" / "model_tools" / "requirements.in",
-            omz_path / "tools" / "model_tools" / "requirements-caffe2.in",
             omz_path / "tools" / "model_tools" / "requirements-pytorch.in"
         ]
         Venv.create_n_install_requirements(*requirements)
@@ -165,7 +164,7 @@ def main():
         precision = model_rec.attrib["precision"]
 
         info_dumper_path = omz_path / "tools" / "model_tools" / "info_dumper.py"
-        cmd = '"{executable}" "{info_dumper_path}" --name {model_name}'.format(executable=sys.executable,
+        cmd = '"{executable}" "{info_dumper_path}" --name {model_name}'.format(executable=python_executable,
                                                                                info_dumper_path=info_dumper_path,
                                                                                model_name=model_name)
         try:

@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import random
@@ -125,7 +125,7 @@ class LayerwiseModelFinetuning(Algorithm):
                     logger.warning('Undefined parameter found: {}'.format(name))
                     continue
         else:
-            logger.warning('Was not able to wrap layer {} with PyTorch'.format(op_node.name))
+            logger.warning('Was not able to wrap layer {} with PyTorch'.format(op_node.fullname))
         return wrapped_op, params
 
     def _fine_tuning_loop(
@@ -285,7 +285,7 @@ class LayerwiseModelFinetuning(Algorithm):
         base_algo.register_statistics(self._original_model, self.algo_collector)
         collect_statistics(self._engine, self._original_model, [base_algo])
         base_model = base_algo.run(deepcopy(self._original_model))
-        output_node_name = nu.get_node_input(self._original_model.get_final_output_nodes()[0], 0).name
+        output_node_name = nu.get_node_input(self._original_model.get_final_output_nodes()[0], 0).fullname
 
         stats_layout = {output_node_name: {'output_logits': TensorStatistic(lambda logits: logits)}}
         metric_subset_size = int(self._dataset_size * self._metric_subset_ratio)
@@ -344,9 +344,9 @@ class LayerwiseModelFinetuning(Algorithm):
                 fp_model_callbacks[input_node_name] = {'output': lambda tensor: tensor}
             else:
                 modified_model_callbacks[input_node_name] = {'output': lambda tensor: tensor}
-            fp_model_callbacks[output_node.name] = {'output': lambda tensor: tensor}
+            fp_model_callbacks[output_node.fullname] = {'output': lambda tensor: tensor}
             self._nodes_to_tune_input[op_name] = input_node_name
-            self._nodes_to_tune_output[op_name] = output_node.name
+            self._nodes_to_tune_output[op_name] = output_node.fullname
 
         return fp_model_callbacks, modified_model_callbacks
 

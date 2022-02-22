@@ -1,14 +1,9 @@
-resources:
-  repositories:
-  - repository: openvino_contrib
-    type: github
-    endpoint: openvinotoolkit
-    name: openvinotoolkit/openvino_contrib
-
-  - repository: testdata
-    type: github
-    endpoint: openvinotoolkit
-    name: openvinotoolkit/testdata
+#resources:
+#  repositories:
+#  - repository: testdata
+#    type: github
+#    endpoint: openvinotoolkit
+#    name: openvinotoolkit/testdata
 
 jobs:
 - job: Lin_lohika
@@ -20,160 +15,66 @@ jobs:
 
   variables:
     system.debug: true
-    VSTS_HTTP_RETRY: 5
-    VSTS_HTTP_TIMEOUT: 200
-    BUILD_TYPE: Release
-    REPO_DIR: $(Build.Repository.LocalPath)
-    OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)/../openvino_contrib
-    MODELS_PATH: $(REPO_DIR)/../testdata
-    WORK_DIR: $(Pipeline.Workspace)/_w
-    BUILD_DIR: $(WORK_DIR)/build
-    BUILD_SAMPLES_DIR: $(WORK_DIR)/build_samples
-    BUILD_LAYER_TESTS_DIR: $(WORK_DIR)/build_layer_tests
-    INSTALL_DIR: $(WORK_DIR)/install_pkg
-    INSTALL_TEST_DIR: $(INSTALL_DIR)/tests
-    LAYER_TESTS_DIR: $(INSTALL_TEST_DIR)/layer_tests
-    SETUPVARS: $(INSTALL_DIR)/setupvars.sh
+#    VSTS_HTTP_RETRY: 5
+#    VSTS_HTTP_TIMEOUT: 200
+#    BUILD_TYPE: Release
+#    REPO_DIR: $(Build.Repository.LocalPath)
+#    MODELS_PATH: $(REPO_DIR)/../testdata
+#    WORK_DIR: $(Pipeline.Workspace)/_w
+#    BUILD_DIR: $(WORK_DIR)/build
 
   steps:
-  - script: |
-      curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
-      whoami
-      uname -a
-      echo Python3 info ; which python3 ; python3 --version
-      echo Python info ; which python ; python --version
-      echo Java info ; which java ; java -version
-      echo gcc info ; which gcc ; gcc --version
-      echo cmake info ; which cmake ; cmake --version
-      lsb_release
-      env
-      cat /proc/cpuinfo
-      cat /proc/meminfo
-      cat /etc/fstab
-      vmstat -s
-      df
-      lsblk -o NAME,HCTL,SIZE,MOUNTPOINT | grep -i "sd"
-      free -h
-    displayName: 'System info'
+  - script: git -C ~/work/openvino fetch origin $(Build.SourceBranch)
+    displayName: fetch
 
-  - script: |
-      rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
-      rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
-      rm -rf $(BUILD_SAMPLES_DIR) ; mkdir $(BUILD_SAMPLES_DIR)
-      echo TargetBranch: $(System.PullRequest.TargetBranch)
-      echo SourceBranch: $(Build.SourceBranch)
-    displayName: 'Make dir'
+#  - checkout: self
+#    clean: true
+#    lfs: false
+#    submodules: recursive
+#    path: openvino
 
-  - checkout: self
-    clean: true
-    lfs: false
-    submodules: recursive
-    path: openvino
+  - checkout: none
 
-  - checkout: openvino_contrib
-    clean: true
-    lfs: false
-    submodules: recursive
-    path: openvino_contrib
-
-  - script: |
-      set -e
-      $(REPO_DIR)/install_build_dependencies.sh
-      # Move jdk into contrib
-      sudo apt --assume-yes install openjdk-11-jdk
-      # For opencv-python: python3-setuptools and pip upgrade
-      python3 -m pip install --upgrade pip
-      python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/requirements.txt
-      python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/wheel/requirements-dev.txt
-      # For running Python API tests
-      python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/src/requirements-dev.txt
-      # For running PaddlePaddle frontend unit tests
-      python3 -m pip install -r $(REPO_DIR)/ngraph/test/frontend/paddlepaddle/requirements_dev.txt
-      # For running ONNX frontend unit tests
-      python3 -m pip install -r $(REPO_DIR)/ngraph/test/requirements_test_onnx.txt
-      # For MO unit tests
-      python3 -m pip install -r $(REPO_DIR)/model-optimizer/requirements.txt
-      python3 -m pip install -r $(REPO_DIR)/model-optimizer/requirements_dev.txt
-      # Speed up build
-      wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
-      unzip ninja-linux.zip
-      sudo cp -v ninja /usr/local/bin/
-      # Speed up tests
-      git clone https://github.com/google/gtest-parallel.git
-    workingDirectory: $(WORK_DIR)
-    displayName: 'Install dependencies'
+  - script: git -C ~/work/openvino checkout -m $(Build.SourceVersion) && git -C ~/work/openvino submodule update --init --recursive
+    displayName: checkout
 
     # Should be after 'Install dependencies' because Git lfs is not installed
-  - checkout: testdata
-    clean: true
-    lfs: true
-    path: testdata
+#  - checkout: testdata
+#    clean: true
+#    lfs: true
+#    path: testdata
 
-  - task: CMake@1
-    inputs:
-      # CMake must get Python 3.x version by default
-      cmakeArgs: >
-        -GNinja
-        -DVERBOSE_BUILD=ON
-        -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
-        -DENABLE_PYTHON=ON
-        -DPYTHON_EXECUTABLE=/usr/bin/python3.8
-        -DENABLE_WHEEL=ON
-        -DENABLE_TESTS=ON
-        -DNGRAPH_ONNX_FRONTEND_ENABLE=ON
-        -DENABLE_FASTER_BUILD=ON
-        -DENABLE_STRICT_DEPENDENCIES=OFF
-        -DENABLE_REQUIREMENTS_INSTALL=OFF
-        -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
-        $(REPO_DIR)
-      workingDirectory: $(BUILD_DIR)
+  - script: env -C ~/work ./configreleasenolto.sh
+    displayName: CMake
 
-  - script: ls -alR $(REPO_DIR)/inference-engine/temp/
-    displayName: 'List temp SDKs'
+#  - task: CMake@1
+#    inputs:
+#      # CMake must get Python 3.x version by default
+#      cmakeArgs: >
+#        -GNinja
+#        -DVERBOSE_BUILD=ON
+#        -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
+#        -DENABLE_PYTHON=ON
+#        -DPYTHON_EXECUTABLE=/usr/bin/python3.8
+#        -DENABLE_WHEEL=ON
+#        -DENABLE_TESTS=ON
+#        -DENABLE_OV_ONNX_FRONTEND=ON
+#        -DENABLE_FASTER_BUILD=ON
+#        -DENABLE_STRICT_DEPENDENCIES=OFF
+#        -DENABLE_REQUIREMENTS_INSTALL=OFF
+#        -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
+#        $(REPO_DIR)
+#      workingDirectory: $(BUILD_DIR)
 
-  - script: ninja
-    workingDirectory: $(BUILD_DIR)
-    displayName: 'Build Lin'
+  - script: >
+      env -C ~/work
+      ./buildreleasenolto.sh
+      libopenvino_gapi_preproc.so
+      openvino_intel_cpu_plugin
+      openvino_intel_gpu_plugin
+      clDNN_unit_tests64
+      gpuFuncTests
+    displayName: Build Lin
 
-  - script: ls -alR $(REPO_DIR)/bin/
-    displayName: 'List bin files'
-
-  - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
-    workingDirectory: $(BUILD_DIR)
-    displayName: 'Install'
-
-  - script: ls -alR $(INSTALL_DIR)
-    displayName: 'List install files'
-
-  - script: |
-      set -e
-      mkdir $(INSTALL_DIR)/opencv/
-      cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P cmake_install.cmake
-      cp -R $(REPO_DIR)/inference-engine/temp/opencv_4.5.2_ubuntu20/opencv/* $(INSTALL_DIR)/opencv/
-    workingDirectory: $(BUILD_DIR)
-    displayName: 'Install tests'
-
-  - script: ls -alR $(INSTALL_DIR)
-    displayName: 'List install files'
-
-  - script: rm -fr $(BUILD_DIR)
-    displayName: 'Clean build dir'
-    continueOnError: false
-
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
-    workingDirectory: $(INSTALL_TEST_DIR)
-    displayName: 'nGraph UT'
-    continueOnError: false
-
-  - task: PublishTestResults@2
-    condition: always()
-    inputs:
-      testResultsFormat: 'JUnit' # Options: JUnit, NUnit, VSTest, xUnit, cTest
-      testResultsFiles: '**/TEST-*.xml'
-      #searchFolder: '$(BUILD_DIR)'
-      mergeTestResults: false # Optional
-      #failTaskOnFailedTests: false # Optional
-      #testRunTitle: 'Pre/Post-Commit' # Optional
-      buildPlatform: 'x64' # Optional
-      buildConfiguration: 'Linux' # Optional
-      #publishRunAttachments: true # Optional
+  - script: ~/work/testreleasenolto.sh
+    displayName: cldnn tests

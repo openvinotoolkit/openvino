@@ -1,11 +1,34 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 
 from common.layer_test_class import CommonLayerTest
-
 from common.utils.tf_utils import summarize_graph
+
+
+def transpose_nchw_to_nhwc(data, use_new_frontend, api_2):
+    if use_new_frontend or api_2:
+        return data
+
+    if len(data.shape) == 4:  # reshaping for 4D tensors
+        return data.transpose(0, 2, 3, 1)
+    elif len(data.shape) == 5:  # reshaping for 5D tensors
+        return data.transpose(0, 2, 3, 4, 1)
+    else:
+        return data
+
+
+def transpose_nhwc_to_nchw(data, use_new_frontend, api_2):
+    if use_new_frontend or api_2:
+        return data
+
+    if len(data.shape) == 4:  # reshaping for 4D tensors
+        return data.transpose(0, 3, 1, 2)  # 2, 0, 1
+    elif len(data.shape) == 5:  # reshaping for 5D tensors
+        return data.transpose(0, 4, 1, 2, 3)  # 3, 0, 1, 2
+    else:
+        return data
 
 
 def save_to_pb(tf_model, path_to_saved_tf_model):
@@ -39,23 +62,20 @@ class CommonTFLayerTest(CommonLayerTest):
                 tf.compat.v1.import_graph_def(graph_def, name='')
 
                 input = dict()
-                for key in inputs_dict.keys():
-                    data = inputs_dict.get(key)
-                    if len(data.shape) == 4:        # reshaping for 4D tensors
-                        input[key+':0'] = data.transpose(0, 2, 3, 1)
-                    elif len(data.shape) == 5:      # reshaping for 5D tensors
-                        input[key+':0'] = data.transpose(0, 2, 3, 4, 1)
-                    else:
-                        input[key+':0'] = data
+                if self.api_2:
+                    input.update(inputs_dict)
+                else:
+                    for key in inputs_dict.keys():
+                        data = inputs_dict.get(key)
+                        if not self.api_2:
+                            key += ':0'
+                        input[key] = transpose_nchw_to_nhwc(data, self.use_new_frontend, self.api_2)
+
                 tf_res = sess.run([out + ":0" for out in outputs_list], input)
 
                 result = dict()
                 for i, output in enumerate(outputs_list):
                     _tf_res = tf_res[i]
-                    if len(_tf_res.shape) == 4:      # reshaping for 4D tensors
-                        result[output] = _tf_res.transpose(0, 3, 1, 2) # 2, 0, 1
-                    elif len(_tf_res.shape) == 5:    # reshaping for 5D tensors
-                        result[output] = _tf_res.transpose(0, 4, 1, 2, 3)  # 3, 0, 1, 2
-                    else:
-                        result[output] = _tf_res
+                    result[output] = transpose_nhwc_to_nchw(_tf_res, self.use_new_frontend,
+                                                            self.api_2)
                 return result

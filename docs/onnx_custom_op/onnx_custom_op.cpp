@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,68 +8,6 @@
 // ngraph/opsets/opset5.hpp provides the declaration of predefined nGraph operator set
 #include <ngraph/opsets/opset5.hpp>
 //! [onnx_custom_op:headers]
-
-
-std::string custom_relu_model() {
-    return
-//! [onnx_custom_op:model]
-R"ONNX(
-ir_version: 3
-producer_name: "nGraph ONNX Importer"
-graph {
-  node {
-    input: "in"
-    output: "out"
-    name: "customrelu"
-    op_type: "CustomRelu"
-    domain: "com.example"
-    attribute {
-        name: "alpha"
-        type: FLOAT
-        f: 2
-    }
-    attribute {
-        name: "beta"
-        type: FLOAT
-        f: 3
-    }
-  }
-  name: "custom relu graph"
-  input {
-    name: "in"
-    type {
-      tensor_type {
-        elem_type: 1
-        shape {
-          dim {
-            dim_value: 8
-          }
-        }
-      }
-    }
-  }
-  output {
-    name: "out"
-    type {
-      tensor_type {
-        elem_type: 1
-        shape {
-          dim {
-            dim_value: 8
-          }
-        }
-      }
-    }
-  }
-}
-opset_import {
-  domain: "com.example"
-  version: 1
-}
-)ONNX";
-//! [onnx_custom_op:model]
-}
-
 
 void register_custom_relu_operator() {
     // CustomRelu is defined as follows:

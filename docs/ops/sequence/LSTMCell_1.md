@@ -1,4 +1,4 @@
-## LSTMCell <a name="LSTMCell"></a> {#openvino_docs_ops_sequence_LSTMCell_1}
+# LSTMCell  {#openvino_docs_ops_sequence_LSTMCell_1}
 
 **Versioned name**: *LSTMCell-1*
 
@@ -6,21 +6,20 @@
 
 **Short description**: *LSTMCell* operation represents a single LSTM cell. It computes the output using the formula described in the original paper [Long Short-Term Memory](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.676.4320&rep=rep1&type=pdf).
 
-**Detailed description**
+**Detailed description**: *LSTMCell* computes the output *Ht* and *ot* for current time step based on the following formula:
 
 ```
 Formula:
-  *  - matrix mult
- (.) - eltwise mult
+  *  - matrix multiplication
+ (.) - Hadamard product (element-wise)
  [,] - concatenation
-sigm - 1/(1 + e^{-x})
-tanh - (e^{2x} - 1)/(e^{2x} + 1)
-   f = sigm(Wf*[Hi, X] + Bf)
-   i = sigm(Wi*[Hi, X] + Bi)
-   c = tanh(Wc*[Hi, X] + Bc)
-   o = sigm(Wo*[Hi, X] + Bo)
-  Co = f (.) Ci + i (.) c
-  Ho = o (.) tanh(Co)
+ f, g, h - are activation functions.
+     it = f(Xt*(Wi^T) + Ht-1*(Ri^T) + Wbi + Rbi)
+     ft = f(Xt*(Wf^T) + Ht-1*(Rf^T) + Wbf + Rbf)
+     ct = g(Xt*(Wc^T) + Ht-1*(Rc^T) + Wbc + Rbc)
+     Ct = ft (.) Ct-1 + it (.) ct
+     ot = f(Xt*(Wo^T) + Ht-1*(Ro^T) + Wbo + Rbo)
+     Ht = ot (.) h(Ct)
 ```
 
 **Attributes**
@@ -37,7 +36,7 @@ tanh - (e^{2x} - 1)/(e^{2x} + 1)
   * **Description**: *activations* specifies activation functions for gates, there are three gates, so three activation functions should be specified as a value for this attributes
   * **Range of values**: any combination of *relu*, *sigmoid*, *tanh*
   * **Type**: a list of strings
-  * **Default value**: *sigmoid,tanh,tanh*
+  * **Default value**: *sigmoid* for f, *tanh* for g, *tanh* for h
   * **Required**: *no*
 
 * *activations_alpha, activations_beta*
@@ -68,7 +67,7 @@ tanh - (e^{2x} - 1)/(e^{2x} + 1)
 
 * **5**: `R` - 2D tensor of type *T* `[4 * hidden_size, hidden_size]`, the recurrence weights for matrix multiplication, gate order: fico. **Required.**
 
-* **6**: `B` 1D tensor of type *T* `[4 * hidden_size]`, the sum of biases (weights and recurrence weights). **Required.**
+* **6**: `B` 1D tensor of type *T* `[4 * hidden_size]`, the sum of biases (weights and recurrence weights), if not specified - assumed to be 0. **optional.**
 
 
 **Outputs**

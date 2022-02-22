@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <ie_parameter.hpp>
 #include <map>
+#include <openvino/runtime/properties.hpp>
 #include <string>
 #include <threading/ie_istreams_executor.hpp>
 
@@ -32,6 +33,7 @@ struct Configuration {
     int deviceId = 0;
     bool perfCount = true;
     InferenceEngine::IStreamsExecutor::Config _streamsExecutorConfig;
+    ov::hint::PerformanceMode performance_mode = ov::hint::PerformanceMode::UNDEFINED;
 };
 // ! [configuration:header]
 

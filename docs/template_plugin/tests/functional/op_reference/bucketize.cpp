@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,13 +27,13 @@ struct BucketizeParams {
 
     element::Type input_type;
     PartialShape input_pshape;
-    runtime::Tensor input;
+    ov::Tensor input;
     element::Type bucket_type;
     PartialShape bucket_pshape;
-    runtime::Tensor buckets;
+    ov::Tensor buckets;
     bool with_right_bound;
     element::Type output_type;
-    runtime::Tensor expected_output;
+    ov::Tensor expected_output;
 };
 
 class ReferenceBucketizeLayerTest : public testing::TestWithParam<BucketizeParams>, public CommonReferenceTest {
@@ -59,12 +59,12 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const element::Type& input_type, const PartialShape& input_pshape,
+    static std::shared_ptr<Model> CreateFunction(const element::Type& input_type, const PartialShape& input_pshape,
                                                     const element::Type& bucket_type, const PartialShape& bucket_pshape,
                                                     const bool with_right_bound, const element::Type& output_type) {
         auto data = std::make_shared<op::v0::Parameter>(input_type, input_pshape);
         auto buckets = std::make_shared<op::v0::Parameter>(bucket_type, bucket_pshape);
-        return std::make_shared<Function>(std::make_shared<op::v3::Bucketize>(data, buckets, output_type, with_right_bound),
+        return std::make_shared<Model>(std::make_shared<op::v3::Bucketize>(data, buckets, output_type, with_right_bound),
                                               ParameterVector {data, buckets});
     }
 };

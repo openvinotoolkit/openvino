@@ -96,13 +96,13 @@ python3 export_rnnt_to_onnx.py
 
 After completing this step, the files `rnnt_encoder.onnx`, `rnnt_prediction.onnx`, and `rnnt_joint.onnx` will be saved in the current directory. 
 
-**Step 6**. Run the conversion command:
+**Step 6**. Run the conversion commands:
 
-```bash
-python3 {path_to_openvino}/mo.py --input_model rnnt_encoder.onnx --input "input[157 1 240],feature_length->157"
-python3 {path_to_openvino}/mo.py --input_model rnnt_prediction.onnx --input "symbol[1 1],hidden_in_1[2 1 320],hidden_in_2[2 1 320]"
-python3 {path_to_openvino}/mo.py --input_model rnnt_joint.onnx --input "0[1 1 1024],1[1 1 320]"
+```sh
+mo --input_model rnnt_encoder.onnx --input "input[157 1 240],feature_length->157"
+mo --input_model rnnt_prediction.onnx --input "symbol[1 1],hidden_in_1[2 1 320],hidden_in_2[2 1 320]"
+mo --input_model rnnt_joint.onnx --input "0[1 1 1024],1[1 1 320]"
 ```
 Please note that hardcoded value for sequence length = 157 was taken from the MLCommons but conversion to IR preserves 
-network [reshapeability](../../../../IE_DG/ShapeInference.md), this means you can change input shapes manually to any value either during conversion or 
+network [reshapeability](../../../../OV_Runtime_UG/ShapeInference.md), this means you can change input shapes manually to any value either during conversion or 
 inference.

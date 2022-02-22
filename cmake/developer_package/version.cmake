@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -44,12 +44,12 @@ macro(ie_parse_ci_build_number)
             return()
         endif()
 
-        set(ie_version_hpp "${OpenVINO_SOURCE_DIR}/inference-engine/src/inference_engine/include/ie/ie_version.hpp")
+        set(ie_version_hpp "${OpenVINO_SOURCE_DIR}/src/inference/include/ie/ie_version.hpp")
         if(NOT EXISTS ${ie_version_hpp})
             message(FATAL_ERROR "File ie_version.hpp with IE_VERSION definitions is not found")
         endif()
 
-        set(ov_version_hpp "${OpenVINO_SOURCE_DIR}/ngraph/core/include/openvino/core/version.hpp")
+        set(ov_version_hpp "${OpenVINO_SOURCE_DIR}/src/core/include/openvino/core/version.hpp")
         if(NOT EXISTS ${ov_version_hpp})
             message(FATAL_ERROR "File openvino/core/version.hpp with OPENVINO_VERSION definitions is not found")
         endif()

@@ -1,11 +1,11 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
-
 from common.layer_test_class import check_ir_version
 from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+
 from unit_tests.utils.graph import build_graph
 
 
@@ -213,56 +213,71 @@ class TestGather(OnnxRuntimeLayerTest):
         return onnx_net, ref_net
 
     test_data_precommit = [
-        dict(shape=[6, 8, 10, 12], axis=2, indices=[[0, 2, 4], [5, 7, 9]], output_shape=[6, 8, 2, 3, 12]),
+        dict(shape=[6, 8, 10, 12], axis=2, indices=[[0, 2, 4], [5, 7, 9]],
+             output_shape=[6, 8, 2, 3, 12]),
         dict(shape=[4, 6, 8, 10, 12], axis=1, indices=[2, 5], output_shape=[4, 2, 8, 10, 12]),
         dict(shape=[4, 6, 8, 10, 12], axis=-1, indices=[5, 8], output_shape=[4, 6, 8, 10, 2]),
-        dict(shape=[6, 8, 10, 12], axis=-1, indices=[[[2, -1], [3, 2]], [[5, -1], [3, -2]]], output_shape=[6, 8, 10, 2, 2, 2])
+        dict(shape=[6, 8, 10, 12], axis=-1, indices=[[[2, -1], [3, 2]], [[5, -1], [3, -2]]],
+             output_shape=[6, 8, 10, 2, 2, 2])
     ]
 
     test_data = [dict(shape=[10, 12], axis=0, indices=[3, 6], output_shape=[2, 12]),
                  dict(shape=[10, 12], axis=-1, indices=[4, 7], output_shape=[10, 2]),
-                 dict(shape=[10, 12], axis=None, indices=[[0, 1, 3, 4], [5, 6, 8, 9]], output_shape=[2, 4, 12]),
-                 dict(shape=[10, 12], axis=1, indices=[[0, 1, 3, 4, 5], [6, 7, 9, 10, 11]], output_shape=[10, 2, 5]),
+                 dict(shape=[10, 12], axis=None, indices=[[0, 1, 3, 4], [5, 6, 8, 9]],
+                      output_shape=[2, 4, 12]),
+                 dict(shape=[10, 12], axis=1, indices=[[0, 1, 3, 4, 5], [6, 7, 9, 10, 11]],
+                      output_shape=[10, 2, 5]),
                  dict(shape=[8, 10, 12], axis=0, indices=[3, 6], output_shape=[2, 10, 12]),
                  dict(shape=[8, 10, 12], axis=-1, indices=[5, 8], output_shape=[8, 10, 2]),
-                 dict(shape=[8, 10, 12], axis=None, indices=[[0, 1], [3, 4], [6, 7]], output_shape=[3, 2, 10, 12]),
-                 dict(shape=[8, 10, 12], axis=1, indices=[[0, 2, 4], [5, 7, 9]], output_shape=[8, 2, 3, 12]),
+                 dict(shape=[8, 10, 12], axis=None, indices=[[0, 1], [3, 4], [6, 7]],
+                      output_shape=[3, 2, 10, 12]),
+                 dict(shape=[8, 10, 12], axis=1, indices=[[0, 2, 4], [5, 7, 9]],
+                      output_shape=[8, 2, 3, 12]),
                  dict(shape=[6, 8, 10, 12], axis=-1, indices=[5, 8], output_shape=[6, 8, 10, 2]),
-                 dict(shape=[6, 8, 10, 12], axis=None, indices=[[0, 1, 2], [3, 4, 5]], output_shape=[2, 3, 8, 10, 12]),
-                 dict(shape=[6, 8, 10, 12], axis=2, indices=[[0, 2, 4], [5, 7, 9]], output_shape=[6, 8, 2, 3, 12]),
-                 dict(shape=[4, 6, 8, 10, 12], axis=0, indices=[1, 3], output_shape=[2, 6, 8, 10, 12]),
-                 dict(shape=[4, 6, 8, 10, 12], axis=1, indices=[2, 5], output_shape=[4, 2, 8, 10, 12]),
-                 dict(shape=[4, 6, 8, 10, 12], axis=-1, indices=[5, 8], output_shape=[4, 6, 8, 10, 2])]
+                 dict(shape=[6, 8, 10, 12], axis=None, indices=[[0, 1, 2], [3, 4, 5]],
+                      output_shape=[2, 3, 8, 10, 12]),
+                 dict(shape=[6, 8, 10, 12], axis=2, indices=[[0, 2, 4], [5, 7, 9]],
+                      output_shape=[6, 8, 2, 3, 12]),
+                 dict(shape=[4, 6, 8, 10, 12], axis=0, indices=[1, 3],
+                      output_shape=[2, 6, 8, 10, 12]),
+                 dict(shape=[4, 6, 8, 10, 12], axis=1, indices=[2, 5],
+                      output_shape=[4, 2, 8, 10, 12]),
+                 dict(shape=[4, 6, 8, 10, 12], axis=-1, indices=[5, 8],
+                      output_shape=[4, 6, 8, 10, 2])]
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
-    def test_gather(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_gather(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_gather(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_gather(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_gather_const(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net_const(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_gather_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net_const(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
-    test_data_negative_indices = [dict(shape=[10, 12], axis=0, indices=[3, -1, -4], output_shape=[3, 12]),
-                                  dict(shape=[6, 10, 14, 12], axis=1, indices=[[0, -1, 3, -4], [-5, 6, -7, 8]],
-                                       output_shape=[6, 2, 4, 14, 12]),
-                                  dict(shape=[8, 10, 14, 12], axis=1, indices=[[-2, 2, -4], [5, -7, 9]],
-                                       output_shape=[8, 2, 3, 14, 12]),
-                                  dict(shape=[6, 8, 10, 12], axis=-1, indices=[[[2, -1], [3, 2]], [[5, -1], [3, -2]]],
-                                       output_shape=[6, 8, 10, 2, 2, 2])]
+    test_data_negative_indices = [
+        dict(shape=[10, 12], axis=0, indices=[3, -1, -4], output_shape=[3, 12]),
+        dict(shape=[6, 10, 14, 12], axis=1, indices=[[0, -1, 3, -4], [-5, 6, -7, 8]],
+             output_shape=[6, 2, 4, 14, 12]),
+        dict(shape=[8, 10, 14, 12], axis=1, indices=[[-2, 2, -4], [5, -7, 9]],
+             output_shape=[8, 2, 3, 14, 12]),
+        dict(shape=[6, 8, 10, 12], axis=-1, indices=[[[2, -1], [3, 2]], [[5, -1], [3, -2]]],
+             output_shape=[6, 8, 10, 2, 2, 2])]
 
-    @pytest.mark.xfail(reason='negative indices are not yet implemented on CPU: xxx-54630')
     @pytest.mark.parametrize("params", test_data_negative_indices)
     @pytest.mark.nightly
-    def test_gather_nightly_negative_indices(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_gather_nightly_negative_indices(self, params, ie_device, precision, ir_version,
+                                             temp_dir, api_2):
         self._test(*self.create_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)

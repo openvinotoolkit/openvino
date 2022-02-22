@@ -1,11 +1,8 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <string>
-
-std::string custom_relu_model();
 void register_custom_relu_operator();
 void unregister_custom_relu_operator();

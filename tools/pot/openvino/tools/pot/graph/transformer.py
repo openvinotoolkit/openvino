@@ -1,6 +1,9 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from openvino.tools.mo.middle.passes.infer import type_infer
+
+from .editor import add_fullname_for_nodes
 from .special_operations import QUANTIZE_AGNOSTIC_OPERATIONS
 from .passes import InsertFakeQuantize, FakeQuantizePropagation, FakeQuantizeOptimization, RemoveFakeQuantize, \
     SpecialBlocksMarker, FakeQuantizeNameSwapper
@@ -45,6 +48,8 @@ class GraphTransformer:
         self.nodes_marker.mark_ignored_blocks(graph, self.target_device)
         graph.clean_up()
 
+        type_infer(graph)
+
         self.fq_insertion.find_and_replace_pattern(graph)
         graph.clean_up()
 
@@ -54,10 +59,13 @@ class GraphTransformer:
         self.fq_optimization.find_and_replace_pattern(graph)
         graph.clean_up()
 
-        self.fq_propagation.find_nodes_fq_int(graph)
+        self.fq_propagation.delete_fq_non_quantizable_node_precision(graph)
         graph.clean_up()
 
         self.fq_name_swapper.rename_fqs_in_the_end(graph)
+        graph.clean_up()
+
+        self.fq_removal.optimize_for_gp_hw(graph, self.target_device)
         graph.clean_up()
 
         return graph
@@ -68,6 +76,10 @@ class GraphTransformer:
             self.fq_insertion.ignored_params = ignored_params_[model_dict['name']] if model.is_cascade \
                 else ignored_params_
             self._insert_fake_quantize(model_dict['model'])
+            # TODO: Uncomment to enable subgraphs quantization
+            # from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
+            # for_graph_and_each_sub_graph_recursively(model_dict['model'], self._insert_fake_quantize)
+            add_fullname_for_nodes(model_dict['model'])
         return model
 
     def _remove_fq_nodes(self, graph, node_names, force=False):

@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -93,8 +93,8 @@ class FakeQuantize(torch.nn.Module):
         scale = self.scale.exp()
         s = self.val_h * scale.reciprocal()
         x = x - self.min
-        x = x.clamp(max=self.val_h, min=self.val_l)
         x = x * s
+        x = x.clamp(max=self.val_h, min=self.val_l)
         x = STERound.apply(x, self.val_l, self.val_h)
         x = x * s.reciprocal() + self.min
         return x

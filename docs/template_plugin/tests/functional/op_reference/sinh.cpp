@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,8 @@ namespace reference_tests {
 namespace {
 
 struct SinhParams {
-    Tensor input;
-    Tensor expected;
+    reference_tests::Tensor input;
+    reference_tests::Tensor expected;
 };
 
 struct Builder : ParamsBuilder<SinhParams> {
@@ -39,10 +39,10 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const Shape& shape, const element::Type& type) {
+    static std::shared_ptr<Model> CreateFunction(const Shape& shape, const element::Type& type) {
         const auto in = std::make_shared<op::v0::Parameter>(type, shape);
         const auto Sinh = std::make_shared<op::v0::Sinh>(in);
-        return std::make_shared<ov::Function>(NodeVector {Sinh}, ParameterVector {in});
+        return std::make_shared<ov::Model>(NodeVector {Sinh}, ParameterVector {in});
     }
 };
 

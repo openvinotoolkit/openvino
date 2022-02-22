@@ -1,4 +1,4 @@
-## EmbeddingBagOffsetsSum <a name="EmbeddingBagOffsetsSum"></a> {#openvino_docs_ops_sparse_EmbeddingBagOffsetsSum_3}
+# EmbeddingBagOffsetsSum {#openvino_docs_ops_sparse_EmbeddingBagOffsetsSum_3}
 
 **Versioned name**: *EmbeddingBagOffsetsSum-3*
 
@@ -7,6 +7,8 @@
 **Short description**: Computes sums of "bags" of embeddings, without instantiating the intermediate embeddings.
 
 **Detailed description**: This is the second case of the PyTorch [EmbeddingBag](https://pytorch.org/docs/stable/nn.html#embeddingbag), it has indices in two 1D tensors provided as 2nd and 3rd inputs. For each index in `indices` this operator gets values from `data` embedding table and sums all values belonging to each bag. Values in `offsets` define starting index in `indices` tensor of each "bag", e.g. `offsets` with value `[0,3,4,4,6]` define 5 "bags" containing `[3,1,0,2,n-6]` elements.
+
+**Attributes**: EmbeddingBagOffsetsSum operation has no attributes.
 
 **Inputs**:
 
@@ -42,7 +44,7 @@
         <port id="1">     <!-- indices value is: [0, 2, 3, 4] -->
             <dim>4</dim>
         </port>
-        <port id="2">     <!-- offsets value is: [0, 2, 2] - second "bag" is empty -->
+        <port id="2">     <!-- offsets value is: [0, 2, 2] - 3 "bags" containing [2,0,4-2] elements, second "bag" is empty -->
             <dim>3</dim>
         </port>
         <port id="3"/>    <!-- default_index value is: 0 -->

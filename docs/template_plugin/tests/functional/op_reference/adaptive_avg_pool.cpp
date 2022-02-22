@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,8 +35,8 @@ struct AdaptiveAvgPoolParams {
     Shape m_output_shape;
     element::Type m_input_type;
     element::Type m_output_type;
-    runtime::Tensor m_input_data;
-    runtime::Tensor m_expected_data;
+    ov::Tensor m_input_data;
+    ov::Tensor m_expected_data;
     Shape m_adaptive_shape;
     std::vector<int64_t> m_adaptive_values;
 };
@@ -64,14 +64,14 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const Shape& input_shape,
+    static std::shared_ptr<Model> CreateFunction(const Shape& input_shape,
                                                     const element::Type& input_type,
                                                     const Shape& adaptive_shape,
                                                     const std::vector<int64_t> adaptive_values) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto out = op::v0::Constant::create<int64_t>(element::Type_t::i64, adaptive_shape, adaptive_values);
         const auto adaptive_avg_pool = std::make_shared<op::v8::AdaptiveAvgPool>(in, out);
-        return std::make_shared<Function>(NodeVector{adaptive_avg_pool}, ParameterVector{in});
+        return std::make_shared<Model>(NodeVector{adaptive_avg_pool}, ParameterVector{in});
     }
 };
 

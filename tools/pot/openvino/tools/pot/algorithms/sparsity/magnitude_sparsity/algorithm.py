@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from copy import deepcopy
@@ -58,7 +58,7 @@ class MagnitudeSparsity(Algorithm):
                 self._safety_eps_variance_factor,
             )
             conv_node = get_node_output(node, 0)[0]
-            self.sparsity_levels_per_layer[conv_node.name] = node_sparsity_mask.mean()
+            self.sparsity_levels_per_layer[conv_node.fullname] = node_sparsity_mask.mean()
 
         self.statistics_table = self._sparsity_statistics(model)
         return model
@@ -87,7 +87,7 @@ class MagnitudeSparsity(Algorithm):
 
         if self.ignored_scope is not None:
             all_nodes_with_weights = [node for node in all_nodes_with_weights
-                                      if node.name not in self.ignored_scope]
+                                      if node.fullname not in self.ignored_scope]
 
         for node in all_nodes_with_weights:
             if model.is_node_ignored(self.ignored_params, node, skipped=False):
@@ -166,8 +166,8 @@ class MagnitudeSparsity(Algorithm):
             weight_tensor = self._get_weights_value(node)
             drow['Weight tensor shape'] = list(weight_tensor.shape)
             conv_node = get_node_output(node, 0)[0]
-            drow['Layer name'] = conv_node.name
-            drow['Sparsity rate'] = 100 * self.sparsity_levels_per_layer[conv_node.name]
+            drow['Layer name'] = conv_node.fullname
+            drow['Sparsity rate'] = 100 * self.sparsity_levels_per_layer[conv_node.fullname]
             row = [drow[h] for h in header]
             data.append(row)
 

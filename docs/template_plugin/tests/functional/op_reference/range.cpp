@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,8 +38,8 @@ struct RangeParams {
     element::Type inType;
     element::Type outType;
     element::Type nodeType;
-    runtime::Tensor inData;
-    runtime::Tensor outData;
+    ov::Tensor inData;
+    ov::Tensor outData;
     float start;
     float stop;
     float step;
@@ -103,7 +103,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(Shape& ishape,
+    static std::shared_ptr<Model> CreateFunction(Shape& ishape,
                                                     Shape& oshape,
                                                     element::Type& itype,
                                                     element::Type& otype,
@@ -115,7 +115,7 @@ private:
         auto stop = CreateConstant(ishape, ntype, fstop);
         auto step = CreateConstant(ishape, ntype, fstep);
         auto range = std::make_shared<op::v0::Range>(start, stop, step);
-        return std::make_shared<Function>(NodeVector{range}, ParameterVector{});
+        return std::make_shared<Model>(NodeVector{range}, ParameterVector{});
     }
 };
 
@@ -146,7 +146,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(Shape& ishape,
+    static std::shared_ptr<Model> CreateFunction(Shape& ishape,
                                                     Shape& oshape,
                                                     element::Type& itype,
                                                     element::Type& otype,
@@ -158,7 +158,7 @@ private:
         auto stop = CreateConstant(ishape, ntype, fstop);
         auto step = CreateConstant(ishape, ntype, fstep);
         auto range = std::make_shared<op::v4::Range>(start, stop, step, otype);
-        return std::make_shared<Function>(NodeVector{range}, ParameterVector{});
+        return std::make_shared<Model>(NodeVector{range}, ParameterVector{});
     }
 };
 

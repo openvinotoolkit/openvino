@@ -1,4 +1,4 @@
-## GatherND <a name="GatherND"></a> {#openvino_docs_ops_movement_GatherND_8}
+# GatherND {#openvino_docs_ops_movement_GatherND_8}
 
 **Versioned name**: *GatherND-8*
 
@@ -153,7 +153,7 @@ output  = [[[ 2  5],
 ```
 
 ```xml
-<layer id="1" type="GatherND">
+<layer id="1" type="GatherND" version="opset8">
     <data batch_dims="0" />
     <input>
         <port id="0">
@@ -179,7 +179,7 @@ output  = [[[ 2  5],
 ```
 
 ```xml
-<layer id="1" type="GatherND">
+<layer id="1" type="GatherND" version="opset8">
     <data batch_dims="2" />
     <input>
         <port id="0">
@@ -197,7 +197,8 @@ output  = [[[ 2  5],
     </input>
     <output>
         <port id="3">
-            <dim>60</dim>
+            <dim>30</dim>
+            <dim>2</dim>
             <dim>3</dim>
             <dim>35</dim>
         </port>
@@ -206,7 +207,7 @@ output  = [[[ 2  5],
 ```
 
 ```xml
-<layer id="1" type="GatherND">
+<layer id="1" type="GatherND" version="opset8">
     <data batch_dims="3" />
     <input>
         <port id="0">

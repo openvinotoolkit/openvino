@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 # Target system specific flags
@@ -61,3 +61,5 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
 else()
     set(OV_COMPILER_IS_CLANG OFF)
 endif()
+
+get_property(OV_GENERATOR_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)

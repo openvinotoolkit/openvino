@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -50,9 +50,9 @@ endfunction()
 
 set(VALIDATED_LIBRARIES "" CACHE INTERNAL "")
 
-function(_ie_add_api_validator_post_build_step)
+function(_ov_add_api_validator_post_build_step)
     if(NOT BUILD_SHARED_LIBS)
-        # since _ie_add_api_validator_post_build_step
+        # since _ov_add_api_validator_post_build_step
         # is currently run only on shared libraries, we have nothing to test
         return()
     endif()
@@ -79,8 +79,20 @@ function(_ie_add_api_validator_post_build_step)
     _ie_add_api_validator_post_build_step_recursive(TARGET ${API_VALIDATOR_TARGET})
 
     # remove targets which were tested before
-
-    foreach(item IN LISTS VALIDATED_LIBRARIES)
+    foreach(target IN LISTS API_VALIDATOR_TARGETS)
+        list(FIND VALIDATED_LIBRARIES ${target} index)
+        if (NOT index EQUAL -1)
+            list(APPEND VALIDATED_TARGETS ${target})
+        endif()
+        if(TARGET "${target}")
+            get_target_property(orig_target ${target} ALIASED_TARGET)
+            list(FIND VALIDATED_LIBRARIES ${orig_target} index)
+            if (NOT index EQUAL -1)
+                list(APPEND VALIDATED_TARGETS ${target})
+            endif()
+        endif()
+    endforeach()
+    foreach(item IN LISTS VALIDATED_TARGETS)
         list(REMOVE_ITEM API_VALIDATOR_TARGETS ${item})
     endforeach()
 
@@ -96,7 +108,7 @@ function(_ie_add_api_validator_post_build_step)
         get_target_property(IS_IMPORTED ${target} IMPORTED)
         get_target_property(orig_target ${target} ALIASED_TARGET)
         if(IS_IMPORTED)
-            get_target_property(target_location ${target} LOCATION)  
+            get_target_property(target_location ${target} LOCATION)
             get_filename_component(target_name "${target_location}" NAME_WE)
         elseif(TARGET "${orig_target}")
             set(target_name ${orig_target})
@@ -107,10 +119,14 @@ function(_ie_add_api_validator_post_build_step)
 
     foreach(target IN LISTS API_VALIDATOR_TARGETS)
         api_validator_get_target_name()
-        set(output_file "${CMAKE_BINARY_DIR}/api_validator/${target_name}.txt")
+        if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.21 AND OV_GENERATOR_MULTI_CONFIG)
+            set(output_file "${CMAKE_BINARY_DIR}/api_validator/$<CONFIG>/${target_name}.txt")
+        else()
+            set(output_file "${CMAKE_BINARY_DIR}/api_validator/${target_name}.txt")
+        endif()
 
         add_custom_command(TARGET ${API_VALIDATOR_TARGET} POST_BUILD
-            COMMAND ${CMAKE_COMMAND}
+            COMMAND ${CMAKE_COMMAND} --config $<CONFIG>
                 -D UWP_API_VALIDATOR=${UWP_API_VALIDATOR}
                 -D UWP_API_VALIDATOR_TARGET=$<TARGET_FILE:${target}>
                 -D UWP_API_VALIDATOR_APIS=${UWP_API_VALIDATOR_APIS}
@@ -133,5 +149,5 @@ endfunction()
 # ie_add_api_validator_post_build_step(TARGET <name>)
 #
 macro(ie_add_api_validator_post_build_step)
-    _ie_add_api_validator_post_build_step(${ARGV})
+    _ov_add_api_validator_post_build_step(${ARGV})
 endmacro()

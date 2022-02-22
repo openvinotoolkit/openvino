@@ -1,6 +1,6 @@
 # API usage sample for speech task on GNA {#pot_sample_speech_README}
 
-This sample demonstrates the use of the [Post-training Optimization Tool API](@ref pot_compression_api_README) for the task of quantizing a speech model for [GNA](@ref openvino_docs_IE_DG_supported_plugins_GNA) device. 
+This sample demonstrates the use of the [Post-training Optimization Tool API](@ref pot_compression_api_README) for the task of quantizing a speech model for [GNA](@ref openvino_docs_OV_UG_supported_plugins_GNA) device. 
 Quantization for GNA is different from CPU quantization due to device specific: GNA supports quantized inputs in INT16 and INT32 (for activations) precision and quantized weights in INT8 and INT16 precision.
 
 This sample contains pre-selected quantization options based on the DefaultQuantization algorithm and created for models from [Kaldi](http://kaldi-asr.org/doc/) framework, and its data format.
@@ -8,7 +8,7 @@ A custom `ArkDataLoader` is created to load the dataset from files with .ark ext
 
 ## How to prepare the data
 
-To run this sample, you will need to use the .ark files for each model input from your \<DATA_FOLDER\>.
+To run this sample, you will need to use the .ark files for each model input from your `<DATA_FOLDER>`.
 For generating data from original formats to .ark, please, follow the [Kaldi data preparation tutorial](https://kaldi-asr.org/doc/data_prep.html).
 
 ## How to Run the Sample

@@ -1,16 +1,14 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from pathlib import Path
 
-import mo
+from openvino.tools.mo import mo
 
 
 TEST_ROOT = Path(__file__).parent.parent.absolute()
-PROJECT_ROOT = TEST_ROOT.parent
-LIBS_ROOT = PROJECT_ROOT / 'thirdparty'
-MO_PATH = Path(mo.__file__).parent.parent
-AC_PATH = LIBS_ROOT / 'open_model_zoo' / 'tools' / 'accuracy_checker'
+LIBS_ROOT = Path(__file__).resolve().parents[4] / 'thirdparty'
+MO_PATH = Path(mo.__file__).parent
 
 MODELS_PATH = TEST_ROOT / 'data' / 'models'
 REFERENCE_MODELS_PATH = TEST_ROOT / 'data' / 'reference_models'

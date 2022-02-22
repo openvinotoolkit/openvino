@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -12,8 +12,10 @@ class TestConvTranspose(OnnxRuntimeLayerTest):
             inputs_dict[input] = np.random.randn(*inputs_dict[input]).astype(np.float32)
         return inputs_dict
 
-    def create_conv_transpose(self, ir_version, input_shape, output_shape, kernel_shape, strides, group=1,
-                              dilations=None, pads=None, force_output_shape=False, output_padding=None, bias=False,
+    def create_conv_transpose(self, ir_version, input_shape, output_shape, kernel_shape, strides,
+                              group=1,
+                              dilations=None, pads=None, force_output_shape=False,
+                              output_padding=None, bias=False,
                               auto_pad=None):
         #
         #   Create ONNX model
@@ -120,7 +122,8 @@ class TestConvTranspose(OnnxRuntimeLayerTest):
                           kernel_shape=[3, 3, 2, 2], strides=[1, 1], dilations=[2, 2]),
                      marks=pytest.mark.skip(reason="Skipped until fixed")),
         pytest.param(dict(input_shape=[1, 2, 20, 20], output_shape=[1, 2, 85, 85],
-                          kernel_shape=[2, 1, 8, 8], strides=[4, 4], group=2, output_padding=[1, 1]),
+                          kernel_shape=[2, 1, 8, 8], strides=[4, 4], group=2,
+                          output_padding=[1, 1]),
                      marks=pytest.mark.skip(reason="Skipped until fixed"))
     ]
 
@@ -141,9 +144,11 @@ class TestConvTranspose(OnnxRuntimeLayerTest):
         dict(input_shape=[1, 2, 20, 20], output_shape=[1, 2, 80, 80],
              kernel_shape=[2, 1, 8, 8], strides=[4, 4], group=2, pads=[2, 2, 2, 2]),
         dict(input_shape=[1, 2, 20, 20], output_shape=[1, 2, 87, 87],
-             kernel_shape=[2, 1, 8, 8], strides=[4, 4], group=2, pads=[2, 2, 2, 2], dilations=[2, 2]),
+             kernel_shape=[2, 1, 8, 8], strides=[4, 4], group=2, pads=[2, 2, 2, 2],
+             dilations=[2, 2]),
         dict(input_shape=[1, 2, 20, 20], output_shape=[1, 2, 80, 80],
-             kernel_shape=[2, 1, 8, 8], strides=[4, 4], group=2, pads=[2, 2, 2, 2], force_output_shape=True),
+             kernel_shape=[2, 1, 8, 8], strides=[4, 4], group=2, pads=[2, 2, 2, 2],
+             force_output_shape=True),
     ]
 
     valid_auto_pad_tests_4D = common_tests_4D + [
@@ -178,38 +183,46 @@ class TestConvTranspose(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("bias", [False, True])
     @pytest.mark.parametrize("auto_pad", ["NOTSET"])
     @pytest.mark.precommit
-    def test_conv_transpose_4D_precommit(self, params, bias, ie_device, precision, ir_version, auto_pad, temp_dir):
+    def test_conv_transpose_4D_precommit(self, params, bias, ie_device, precision, ir_version,
+                                         auto_pad, temp_dir, api_2):
         if ie_device == 'GPU' and 'dilations' in params:
             pytest.xfail('dilations are not supported on GPU')
-        self._test(*self.create_conv_transpose(**params, ir_version=ir_version, bias=bias, auto_pad=auto_pad),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+        self._test(*self.create_conv_transpose(**params, ir_version=ir_version, bias=bias,
+                                               auto_pad=auto_pad),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", explicit_pads_tests_4D)
     @pytest.mark.parametrize("bias", [False, True])
     @pytest.mark.parametrize("auto_pad", ["NOTSET"])
     @pytest.mark.nightly
-    def test_conv_transpose_4D(self, params, bias, ie_device, precision, ir_version, auto_pad, temp_dir):
+    def test_conv_transpose_4D(self, params, bias, ie_device, precision, ir_version, auto_pad,
+                               temp_dir, api_2):
         if ie_device == 'GPU' and 'dilations' in params:
             pytest.xfail('dilations are not supported on GPU')
-        self._test(*self.create_conv_transpose(**params, ir_version=ir_version, bias=bias, auto_pad=auto_pad),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+        self._test(*self.create_conv_transpose(**params, ir_version=ir_version, bias=bias,
+                                               auto_pad=auto_pad),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", valid_auto_pad_tests_4D)
     @pytest.mark.parametrize("bias", [False, True])
     @pytest.mark.parametrize("auto_pad", ["VALID"])
     @pytest.mark.nightly
-    def test_conv_transpose_valid_auto_pad_4D(self, params, bias, ie_device, precision, ir_version, auto_pad, temp_dir):
+    def test_conv_transpose_valid_auto_pad_4D(self, params, bias, ie_device, precision, ir_version,
+                                              auto_pad, temp_dir, api_2):
         if ie_device == 'GPU' and 'dilations' in params:
             pytest.xfail('dilations are not supported on GPU')
-        self._test(*self.create_conv_transpose(**params, ir_version=ir_version, bias=bias, auto_pad=auto_pad),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+        self._test(*self.create_conv_transpose(**params, ir_version=ir_version, bias=bias,
+                                               auto_pad=auto_pad),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", same_auto_pad_tests_4D)
     @pytest.mark.parametrize("bias", [False, True])
     @pytest.mark.parametrize("auto_pad", ["SAME_UPPER", "SAME_LOWER"])
     @pytest.mark.nightly
-    def test_conv_transpose_same_auto_pad_4D(self, params, bias, ie_device, precision, ir_version, auto_pad, temp_dir):
+    def test_conv_transpose_same_auto_pad_4D(self, params, bias, ie_device, precision, ir_version,
+                                             auto_pad, temp_dir, api_2):
         if ie_device == 'GPU' and 'dilations' in params:
             pytest.xfail('dilations are not supported on GPU')
-        self._test(*self.create_conv_transpose(**params, ir_version=ir_version, bias=bias, auto_pad=auto_pad),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+        self._test(*self.create_conv_transpose(**params, ir_version=ir_version, bias=bias,
+                                               auto_pad=auto_pad),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)

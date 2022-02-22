@@ -1,9 +1,9 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import shutil
 
-from mo.utils.ir_engine.ir_engine import IREngine
+from openvino.tools.mo.utils.ir_engine.ir_engine import IREngine
 from openvino.tools.pot.graph.graph_utils import save_graph
 from tests.utils.path import REFERENCE_MODELS_PATH
 

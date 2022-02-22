@@ -1,7 +1,0 @@
-# TensorFlow 1.x and 2.x are incompatible, use separate virtual environments for each version
-tensorflow~=1.15.5
-networkx~=2.5
-numpy>=1.16.6,<1.19
-defusedxml>=0.7.1
-requests>=2.25.1
-fastjsonschema~=2.15.1

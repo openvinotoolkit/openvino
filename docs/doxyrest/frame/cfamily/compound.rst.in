@@ -1,0 +1,144 @@
+%{
+--------------------------------------------------------------------------------
+--
+--  This file is part of the Doxyrest toolkit.
+--
+--  Doxyrest is distributed under the MIT license.
+--  For details see accompanying license.txt file,
+--  the public copy of which is also available at:
+--  http://tibbo.com/downloads/archive/doxyrest/license.txt
+--
+--------------------------------------------------------------------------------
+
+local argArray = table.pack(...)
+local compound = argArray[1]
+
+local variableSectionName
+local functionSectionName
+local prevGetItemName = getItemName
+local prevCompoundId = g_currentCompoundId
+local indent
+
+if compound.compoundKind == "namespace" or compound.compoundKind == "group" then
+	variableSectionName = "Global Variables"
+	functionSectionName = "Global Functions"
+	indent = ""
+else
+	variableSectionName = "Fields"
+	functionSectionName = "Methods"
+	indent = "\t"
+end
+
+if compound.compoundKind == "group" then
+	getItemName = getItemQualifiedName
+else
+	getItemName = getItemSimpleName
+	g_currentCompoundId = compound.id
+end
+
+local compoundStats = prepareCompound(compound)
+}
+$(getCompoundTocTree(compound))
+
+%{
+local hasDetails =
+	compoundStats.hasDocumentedItems or
+	compoundStats.hasBriefDocumentation and compoundStats.hasDetailedDocumentation
+
+if hasDetails then
+}
+Overview
+~~~~~~~~
+
+$(getItemBriefDocumentation(compound))
+
+%{
+else
+}
+$(getItemDetailedDocumentation(compound))
+
+%{
+end -- if
+
+if #compound.groupArray > 0 or compound.hasGlobalNamespace then
+	local groupTree = ""
+
+	for i = 1, #compound.groupArray do
+		local item = compound.groupArray[i]
+		local targetFileName = getItemFileName(item)
+
+		generateFile(targetFileName, "group.rst.in", item)
+		groupTree = groupTree .. getGroupTree(item)
+	end -- for
+
+	if compound.hasGlobalNamespace then
+		groupTree = groupTree .. getGroupTree(g_globalNamespace)
+	end
+}
+$groupTree
+
+%{
+end -- if
+
+if compoundStats.hasItems or
+	compound.baseCompound or
+	compound.derivedTypeArray and #compound.derivedTypeArray > 0 then
+
+	includeFile("overview_compound.rst.in", compound, variableSectionName, functionSectionName)
+end
+
+if hasDetails then
+}
+.. _details-$(compound.id):
+
+Detailed Documentation
+~~~~~~~~~~~~~~~~~~~~~~
+
+$(getItemDetailedDocumentation(compound))
+
+%{
+end -- if
+
+if compoundStats.hasDocumentedUnnamedEnumValues then
+	includeFile("details_unnamed_enum_values.rst.in", compound)
+end
+
+if compoundStats.hasDocumentedTypedefs then
+	includeFile("details_typedefs.rst.in", compound)
+end
+
+if compoundStats.hasDocumentedVariables then
+	includeFile("details_variables.rst.in", compound, variableSectionName)
+end
+
+if compoundStats.hasDocumentedProperties then
+	includeFile("details_properties.rst.in", compound)
+end
+
+if compoundStats.hasDocumentedEvents then
+	includeFile("details_events.rst.in", compound)
+end
+
+if compoundStats.hasDocumentedConstruction then
+	includeFile("details_construction.rst.in", compound)
+end
+
+if compoundStats.hasDocumentedFunctions then
+	includeFile("details_functions.rst.in", compound, functionSectionName)
+end
+
+if compoundStats.hasDocumentedAliases then
+	includeFile("details_aliases.rst.in", compound)
+end
+
+if compoundStats.hasDocumentedDefines then
+	includeFile("details_defines.rst.in", compound)
+end
+
+if #compound.footnoteArray > 0 then
+	includeFile("footnotes.rst.in", compound)
+end
+
+getItemName = prevGetItemName
+g_currentCompoundId = prevCompoundId
+}

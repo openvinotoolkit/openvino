@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from collections import deque, defaultdict
@@ -7,10 +7,11 @@ from copy import deepcopy
 from .range_estimator import get_range_estimator_config
 from .utils import get_hardware_config_operation_type, load_hardware_config
 from ...graph.special_operations import QUANTIZE_AGNOSTIC_OPERATIONS, CONCAT_UNIFY_OUTPUTS, CONCAT_UNIFY_INPUTS
-from ...graph.utils import find_operation_matches, get_operation_list
+from ...graph.utils import find_operation_matches, get_operation_list, is_data_type_quantizable
 from ...graph.model_utils import get_nodes_by_type, get_node_by_name
 from ...graph.node_utils import get_input_shape, get_all_node_outputs,\
-    get_node_input, get_node_inputs
+get_node_input, get_node_inputs, get_node_data_type, check_const_input
+
 from ...utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -105,51 +106,10 @@ def read_all_fake_quantize_configurations(config, hardware_config, model):
     every fake quantize node based on toolkit config file and sub graph of every fake quantize node
     :param config: dictionary with compression section from toolkit config file
     :param hardware_config: dictionary with hardware config
-    :param model: NXModel instance to quantize
+    :param model: CompressedModel instance to quantize
     :return dictionary with fake quantize names as keys and
      list of corresponding configurations as values
      """
-
-    def _fake_quantize_to_types():
-        """ Helper function to bypass graph and get fake quantize node
-         children nodes with predefined types
-        :return dictionary with fake quantize node name as a key and tuple with list of
-         its quantizable descendant types and boolean specifying if fake quantize node is weights
-        """
-
-        def _is_quantizable(node):
-            return not find_operation_matches(quantize_agnostic_ops, node)
-
-        def _get_node_valuable_descendant(node):
-            descendants = []
-            queue = deque([node])
-            while queue:
-                current = queue.popleft()
-                children = get_all_node_outputs(current)
-                for child in children:
-                    if not _is_quantizable(child):
-                        queue.append(child)
-                    elif child.type not in descendants:
-                        descendants.append((child.name,
-                                            get_hardware_config_operation_type(child, available_types)))
-                    if current.type == 'Split' \
-                            and child.type == 'Concat' \
-                            and len({child_.name for child_ in children}) == 1:
-                        break
-            return descendants
-
-        hw_ops = get_operation_list(hardware_config)
-        quantize_agnostic_ops = [op[1] for op in
-                                 find_operation_matches(QUANTIZE_AGNOSTIC_OPERATIONS, hw_ops)]
-
-        out = {}
-        available_types = [layer['type'] for layer in hardware_config]
-        for fq in get_nodes_by_type(model, ['FakeQuantize']):
-            node_input = get_node_input(fq, 0)
-            out[fq.name] = (_get_node_valuable_descendant(fq), node_input.type == 'Const')
-
-        return out
-
     def _is_subset(left: dict, right: dict):
         """ Checks that x is a subset of y
         :param left: supposed to be subset of set 'right'
@@ -181,7 +141,7 @@ def read_all_fake_quantize_configurations(config, hardware_config, model):
     q_config = get_fake_quantize_configuration(config)
 
     res_fq_to_hw_conf = {}
-    for fq_name, (types, is_weights) in _fake_quantize_to_types().items():
+    for fq_name, (types, is_weights) in _fake_quantize_to_types(model, hardware_config).items():
         fq_type = 'weights' if is_weights else 'activations'
         res_fq_to_hw_conf[fq_name] = {fq_type: []}
         for type_ in types:
@@ -208,7 +168,7 @@ def add_range_estimator_configs(fq_to_hw_confs, config):
 def get_configurations_by_preset(config, model, fq_to_hw_confs):
     """ Choose fake quantize configuration by preset
     :param config: dictionary with params algo section from toolkit config
-    :param model: NXModel instance
+    :param model: CompressedModel instance
     :param fq_to_hw_confs: dictionary with fake quantize names as keys and
      list of its configurations as values (read_all_fake_quantize_configurations(..) return value)
     :return dictionary with fake quantize nodes names as keys and
@@ -320,7 +280,7 @@ def find_fqs_to_unify(model, config):
             'Concat': _is_concat_unify_condition
         }
         if node.type in check_map:
-            logger.debug('Checking {} node with {} type'.format(node.name, node.type))
+            logger.debug('Checking {} node with {} type'.format(node.fullname, node.type))
             return check_map[node.type](node)
         return True
 
@@ -331,7 +291,7 @@ def find_fqs_to_unify(model, config):
             elif input_node.type in [n['type'] for n in CONCAT_UNIFY_OUTPUTS]:
                 concat_stack.clear()
                 logger.debug('Found %s %s as Concat %s output',
-                             input_node.type, input_node.name, node.name)
+                             input_node.type, input_node.fullname, node.fullname)
                 return True
             return False
 
@@ -340,7 +300,7 @@ def find_fqs_to_unify(model, config):
         for concat_input in concat_inputs:
             if concat_input.type not in [n['type'] for n in CONCAT_UNIFY_INPUTS]:
                 logger.debug('Concat %s without FQ or Concat as input will not unified',
-                             node.name)
+                             node.fullname)
                 return res
         concat_stack = [node]
         while concat_stack:
@@ -363,22 +323,24 @@ def find_fqs_to_unify(model, config):
         return 'Const' in [parent.type for parent in get_node_inputs(layer) if parent]
 
     def _process_node(node_, stack_, visited_, to_unify_):
-        visited_[node_.name] = True
+        visited_[node_.fullname] = True
         if _is_unified_scales_op(node_) or _is_agnostic_branching_op(node_):
             if not _has_const_input(node_):
-                to_unify_[0].append(node_.name)
+                to_unify_[0].append(node_.fullname)
         elif node_.type == 'FakeQuantize' and get_node_input(node_, 0).type != 'Const':
-            to_unify_[1].append(node_.name)
+            to_unify_[1].append(node_.fullname)
         # traverse down
         if node_.type == 'FakeQuantize' or _is_quantize_agnostic_op(node_):
             for child in get_all_node_outputs(node_):
-                if not visited_[child.name] and \
+                node_data_type = get_node_data_type(child)
+                if not visited_[child.fullname] and is_data_type_quantizable(node_data_type) and \
                         (_is_quantize_agnostic_op(child) or _is_unified_scales_op(child)):
                     stack_.append(child)
         # traverse up
         if node_.type != 'FakeQuantize':
             for parent in get_node_inputs(node_):
-                if parent and not visited_[parent.name] and \
+                node_data_type = get_node_data_type(parent)
+                if parent and not visited_[parent.fullname] and is_data_type_quantizable(node_data_type) and \
                         (parent.type == 'FakeQuantize' or _is_quantize_agnostic_op(parent)):
                     stack_.append(parent)
 
@@ -394,7 +356,7 @@ def find_fqs_to_unify(model, config):
     if model is None:
         return fqs_to_unify
     for fq in get_nodes_by_type(model, ['FakeQuantize']):
-        if not visited[fq.name] and get_node_input(fq, 0).type != 'Const':
+        if not visited[fq.fullname] and get_node_input(fq, 0).type != 'Const':
             stack = [fq]
             to_unify = [[], []]
             while stack:
@@ -414,3 +376,68 @@ def find_fqs_to_unify(model, config):
     logger.debug('')
 
     return fqs_to_unify
+
+
+def _fake_quantize_to_types(model, hardware_config):
+    """ Helper function to bypass graph and get fake quantize node
+    children nodes with predefined types
+    :return dictionary with fake quantize node name as a key and tuple with list of
+    its quantizable descendant types and boolean specifying if fake quantize node is weights
+    """
+
+    def _is_quantizable(node):
+        return not find_operation_matches(quantize_agnostic_ops, node)
+
+    def _get_node_valuable_descendant(node):
+        descendants = []
+        queue = deque([node])
+        while queue:
+            current = queue.popleft()
+            children = get_all_node_outputs(current)
+            for child in children:
+                if not _is_quantizable(child):
+                    queue.append(child)
+                elif child.type not in descendants:
+                    descendants.append((child.fullname,
+                                        get_hardware_config_operation_type(child, available_types)))
+                if current.type == 'Split' \
+                        and child.type == 'Concat' \
+                        and len({child_.fullname for child_ in children}) == 1:
+                    break
+        return descendants
+
+    hw_ops = get_operation_list(hardware_config)
+    quantize_agnostic_ops = [op[1] for op in
+                             find_operation_matches(QUANTIZE_AGNOSTIC_OPERATIONS, hw_ops)]
+
+    out = {}
+    available_types = [layer['type'] for layer in hardware_config]
+    for fq in get_nodes_by_type(model, ['FakeQuantize']):
+        node_input = get_node_input(fq, 0)
+        out[fq.fullname] = (_get_node_valuable_descendant(fq), node_input.type == 'Const')
+
+    return out
+
+
+def change_configurations_by_model_type(model, config, fq_configuration, hardware_config):
+    if config['model_type'] == 'transformer' and config['target_device'] in ['ANY', 'CPU', 'GPU']:
+        change_configurations_by_model_type_transformer(model, fq_configuration, hardware_config)
+
+
+def change_configurations_by_model_type_transformer(model, fq_configuration, hardware_config):
+    fq_types = _fake_quantize_to_types(model, hardware_config)
+    for fq in get_nodes_by_type(model, ['FakeQuantize']):
+        node_creator_fq, is_weights = fq_types[fq.name]
+        node_name = None
+        for name, type_node in node_creator_fq:
+            if type_node == 'MatMul':
+                node_name = name
+
+        if node_name is None or is_weights:
+            continue
+
+        node = get_node_by_name(model, node_name)
+
+        if not check_const_input(node):
+            fq_configuration[fq.name]['activations'] = deepcopy(fq_configuration[fq.name]['activations'])
+            fq_configuration[fq.name]['activations']['mode'] = 'symmetric'

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -50,7 +50,10 @@ endif()
 #
 
 function(set_temp_directory temp_variable source_tree_dir)
-    if (DEFINED ENV{DL_SDK_TEMP} AND NOT $ENV{DL_SDK_TEMP} STREQUAL "")
+    if(DEFINED OV_TEMP)
+        message(STATUS "OV_TEMP cmake variable is set : ${OV_TEMP}")
+        file(TO_CMAKE_PATH ${OV_TEMP} temp)
+    elseif (DEFINED ENV{DL_SDK_TEMP} AND NOT $ENV{DL_SDK_TEMP} STREQUAL "")
         message(STATUS "DL_SDK_TEMP environment is set : $ENV{DL_SDK_TEMP}")
         file(TO_CMAKE_PATH $ENV{DL_SDK_TEMP} temp)
     else ()
@@ -103,17 +106,11 @@ else()
     set(BIN_FOLDER "bin/${ARCH_FOLDER}")
 endif()
 
-if(NOT DEFINED CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
-    message(STATUS "CMAKE_BUILD_TYPE not defined, 'Release' will be used")
-    set(CMAKE_BUILD_TYPE "Release")
-else()
-    set(RELEASE_TYPES "Debug" "Release" "RelWithDebInfo" "MinSizeRel")
-    list(FIND RELEASE_TYPES ${CMAKE_BUILD_TYPE} INDEX_FOUND)
-    if (INDEX_FOUND EQUAL -1)
-        message(FATAL_ERROR "CMAKE_BUILD_TYPE must be one of Debug, Release, RelWithDebInfo, or MinSizeRel")
-    endif()
+set(CMAKE_BUILD_TYPE "Release" CACHE STRING "CMake build type")
+set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Release;Debug;RelWithDebInfo;MinSizeRel")
+if(CMAKE_GENERATOR MATCHES "^Ninja Multi-Config$")
+    set(CMAKE_DEFAULT_BUILD_TYPE "Release" CACHE STRING "CMake default build type")
 endif()
-message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 
 if(USE_BUILD_TYPE_SUBFOLDER)
     set(BIN_FOLDER "${BIN_FOLDER}/${CMAKE_BUILD_TYPE}")
@@ -132,7 +129,7 @@ set(IE_DEBUG_POSTFIX_WIN "d")
 set(IE_RELEASE_POSTFIX_WIN "")
 set(IE_DEBUG_POSTFIX_LIN "")
 set(IE_RELEASE_POSTFIX_LIN "")
-set(IE_DEBUG_POSTFIX_MAC "")
+set(IE_DEBUG_POSTFIX_MAC "d")
 set(IE_RELEASE_POSTFIX_MAC "")
 
 if(WIN32)
@@ -149,8 +146,8 @@ endif()
 set(CMAKE_DEBUG_POSTFIX ${IE_DEBUG_POSTFIX})
 set(CMAKE_RELEASE_POSTFIX ${IE_RELEASE_POSTFIX})
 
-if (MSVC OR CMAKE_GENERATOR STREQUAL "Xcode")
-    # Support CMake multiconfiguration for Visual Studio or Xcode build
+# Support CMake multi-configuration for Visual Studio / Ninja or Xcode build
+if (OV_GENERATOR_MULTI_CONFIG)
     set(IE_BUILD_POSTFIX $<$<CONFIG:Debug>:${IE_DEBUG_POSTFIX}>$<$<CONFIG:Release>:${IE_RELEASE_POSTFIX}>)
 else ()
     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -159,19 +156,24 @@ else ()
         set(IE_BUILD_POSTFIX ${IE_RELEASE_POSTFIX})
     endif()
 endif()
-
 add_definitions(-DIE_BUILD_POSTFIX=\"${IE_BUILD_POSTFIX}\")
 
+macro(ov_set_if_not_defined var value)
+    if(NOT DEFINED ${var})
+        set(${var} ${value})
+    endif()
+endmacro()
+
 if(NOT UNIX)
-    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
-    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
+    ov_set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
+    ov_set_if_not_defined(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 else()
-    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/lib)
-    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/lib)
+    ov_set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/lib)
+    ov_set_if_not_defined(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/lib)
 endif()
-set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
-set(CMAKE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
+ov_set_if_not_defined(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
+ov_set_if_not_defined(CMAKE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
+ov_set_if_not_defined(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 
 if(APPLE)
     set(CMAKE_MACOSX_RPATH ON)
@@ -208,6 +210,13 @@ endif()
 
 # General flags
 
+macro(ov_install_static_lib target comp)
+    if(NOT BUILD_SHARED_LIBS)
+        install(TARGETS ${target} EXPORT OpenVINOTargets
+                ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${comp} ${ARGN})
+    endif()
+endmacro()
+
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
@@ -225,6 +234,7 @@ include(api_validator/api_validator)
 
 include(vs_version/vs_version)
 include(plugins/plugins)
+include(frontends/frontends)
 include(add_ie_target)
 include(CMakePackageConfigHelpers)
 
@@ -235,7 +245,11 @@ endif()
 # macro to mark target as conditionally compiled
 
 function(ie_mark_target_as_cc TARGET_NAME)
-    target_link_libraries(${TARGET_NAME} PRIVATE openvino::conditional_compilation)
+    set(cc_library openvino::conditional_compilation)
+    if(TARGET IE::conditional_compilation)
+        set(cc_library IE::conditional_compilation)
+    endif()
+    target_link_libraries(${TARGET_NAME} PRIVATE ${cc_library})
 
     if(NOT (SELECTIVE_BUILD STREQUAL "ON"))
         return()
@@ -247,6 +261,10 @@ function(ie_mark_target_as_cc TARGET_NAME)
 
     get_target_property(sources ${TARGET_NAME} SOURCES)
     set_source_files_properties(${sources} PROPERTIES OBJECT_DEPENDS ${GENERATED_HEADER})
+endfunction()
+
+function(ov_mark_target_as_cc)
+    ie_mark_target_as_cc(${ARGN})
 endfunction()
 
 # check python package

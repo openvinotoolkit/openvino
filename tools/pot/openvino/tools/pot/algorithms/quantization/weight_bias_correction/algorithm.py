@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -35,7 +35,7 @@ class WeightBiasCorrection(Algorithm):
         for fq in mu.get_nodes_by_type(model, ['FakeQuantize']):
             node_input = nu.get_node_input(fq, 0)
             if node_input.type == 'Const':
-                quantized_weights_layout[fq.name] = {'tensor': lambda tensor: tensor}
+                quantized_weights_layout[fq.fullname] = {'tensor': lambda tensor: tensor}
 
         self._engine.set_model(model)
         _, quantized_weights = self._engine.predict(quantized_weights_layout, range(1))
@@ -61,7 +61,7 @@ class WeightBiasCorrection(Algorithm):
         fq_weights_node = nu.get_node_input(op_node, 1)
         weights_node = nu.get_node_input(fq_weights_node, 0)
         fp32_weights = weights_node.value * first_conv_scaling_factor
-        int_weights = quantized_weights[fq_weights_node.name]['tensor'][0]
+        int_weights = quantized_weights[fq_weights_node.fullname]['tensor'][0]
         axis = tuple(range(1, len(fp32_weights.shape)))
         variance_per_channel_shift = np.std(fp32_weights, axis=axis) / (
             np.std(int_weights, axis=axis) + safety_eps

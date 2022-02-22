@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2021 Intel Corporation
+# Copyright 2017-2022 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,13 +26,16 @@
 #
 # Frontends:
 #
-#   ngraph::frontend_manager               - nGraph frontend manager
+#   ngraph_onnx_frontend_FOUND             - True if the system has ngraph::onnx_frontend library
+#   ngraph::onnx_frontend                  - ONNX FrontEnd target (optional)
 #
-#   ngraph_onnx_ngraph_frontend_FOUND      - True if the system has onnx_ngraph_frontend library
-#   ngraph::onnx_ngraph_frontend           - ONNX FrontEnd target (optional)
+#   ngraph_paddle_frontend_FOUND           - True if the system has Paddle frontend
+#   ngraph::paddle_frontend                - nGraph Paddle frontend (optional)
 #
-#   ngraph_paddlepaddle_frontend_FOUND     - True if the system has PDPD frontend
-#   ngraph::paddlepaddle_ngraph_frontend   - nGraph PDPD frontend (optional)
+#   ngraph_ir_frontend_FOUND               - True if the system has OpenVINO IR frontend
+#
+#   ngraph_tensorflow_frontend_FOUND       - True if the system has TensorFlow frontend
+#   ngraph::tensorflow_frontend       - nGraph TensorFlow frontend (optional)
 #
 
 @PACKAGE_INIT@
@@ -46,55 +49,52 @@ find_dependency(OpenVINO
                 NO_DEFAULT_PATH)
 
 # create targets with old names for compatibility
-if(TARGET openvino::core AND NOT TARGET ngraph::ngraph)
+if(TARGET openvino::runtime AND NOT TARGET ngraph::ngraph)
     add_library(ngraph::ngraph INTERFACE IMPORTED)
     set_target_properties(ngraph::ngraph PROPERTIES
-        INTERFACE_LINK_LIBRARIES openvino::core)
+        INTERFACE_LINK_LIBRARIES openvino::runtime)
 endif()
 
-if(TARGET openvino::frontend::manager AND NOT TARGET ngraph::frontend_manager)
-    add_library(ngraph::frontend_manager INTERFACE IMPORTED)
-    set_target_properties(ngraph::frontend_manager PROPERTIES
-        INTERFACE_LINK_LIBRARIES openvino::frontend::manager)
-endif()
-
-if(TARGET openvino::frontend::onnx AND NOT TARGET ngraph::onnx_ngraph_frontend)
-    add_library(ngraph::onnx_ngraph_frontend INTERFACE IMPORTED)
-    set_target_properties(ngraph::onnx_ngraph_frontend PROPERTIES
+if(TARGET openvino::frontend::onnx AND NOT TARGET ngraph::onnx_frontend)
+    add_library(ngraph::onnx_frontend INTERFACE IMPORTED)
+    set_target_properties(ngraph::onnx_frontend PROPERTIES
         INTERFACE_LINK_LIBRARIES openvino::frontend::onnx)
 endif()
 
-if(TARGET openvino::frontend::paddlepaddle AND NOT TARGET ngraph::paddlepaddle_ngraph_frontend)
-    add_library(ngraph::paddlepaddle_ngraph_frontend INTERFACE IMPORTED)
-    set_target_properties(ngraph::paddlepaddle_ngraph_frontend PROPERTIES
-        INTERFACE_LINK_LIBRARIES openvino::frontend::paddlepaddle)
+if(TARGET openvino::frontend::paddle AND NOT TARGET ngraph::paddle_frontend)
+    add_library(ngraph::paddle_frontend INTERFACE IMPORTED)
+    set_target_properties(ngraph::paddle_frontend PROPERTIES
+        INTERFACE_LINK_LIBRARIES openvino::frontend::paddle)
 endif()
 
-if(TARGET openvino::frontend::tensorflow AND NOT TARGET ngraph::tensorflow_ngraph_frontend)
-    add_library(ngraph::tensorflow_ngraph_frontend INTERFACE IMPORTED)
-    set_target_properties(ngraph::tensorflow_ngraph_frontend PROPERTIES
+if(TARGET openvino::frontend::tensorflow AND NOT TARGET ngraph::tensorflow_frontend)
+    add_library(ngraph::tensorflow_frontend INTERFACE IMPORTED)
+    set_target_properties(ngraph::tensorflow_frontend PROPERTIES
         INTERFACE_LINK_LIBRARIES openvino::frontend::tensorflow)
 endif()
 
 set(ngraph_ngraph_FOUND ON)
 set(NGRAPH_LIBRARIES ngraph::ngraph)
 
-set(ngraph_onnx_ngraph_frontend_FOUND ${OpenVINO_Frontend_ONNX_FOUND})
+set(ngraph_onnx_frontend_FOUND ${OpenVINO_Frontend_ONNX_FOUND})
+set(ngraph_tensorflow_frontend_FOUND ${OpenVINO_Frontend_TensorFlow_FOUND})
+set(ngraph_paddle_frontend_FOUND ${OpenVINO_Frontend_Paddle_FOUND})
 set(ngraph_onnx_importer_FOUND ${OpenVINO_Frontend_ONNX_FOUND})
 
 if(ngraph_onnx_importer_FOUND)
-    set(ONNX_IMPORTER_LIBRARIES ngraph::onnx_ngraph_frontend)
+    set(ONNX_IMPORTER_LIBRARIES ngraph::onnx_frontend)
     # ngraph::onnx_importer target and variables are deprecated
     # but need to create a dummy target for BW compatibility
     if(NOT TARGET ngraph::onnx_importer)
         add_library(ngraph::onnx_importer INTERFACE IMPORTED)
         set_target_properties(ngraph::onnx_importer PROPERTIES
-            INTERFACE_LINK_LIBRARIES ngraph::onnx_ngraph_frontend)
+            INTERFACE_LINK_LIBRARIES ngraph::onnx_frontend)
     endif()
 endif()
 
-set(ngraph_paddlepaddle_frontend_FOUND ${OpenVINO_Frontend_PaddlePaddle_FOUND})
+set(ngraph_paddle_frontend_FOUND ${OpenVINO_Frontend_Paddle_FOUND})
 set(ngraph_tensorflow_frontend_FOUND ${OpenVINO_Frontend_TensorFlow_FOUND})
+set(ngraph_onnx_frontend_FOUND ${OpenVINO_Frontend_ONNX_FOUND})
 set(ngraph_ir_frontend_FOUND ${OpenVINO_Frontend_IR_FOUND})
 
 check_required_components(ngraph)

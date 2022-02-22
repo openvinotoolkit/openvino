@@ -1,9 +1,10 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import json
 import os
 
+from copy import deepcopy
 import numpy as np
 import pytest
 from addict import Dict
@@ -124,8 +125,7 @@ def test_activation_scales(tmp_path, models, preset, bits, stats_path, clipping_
     nodes = normalize(get_fq_nodes_stats_algo(model, preset, bits, False,
                                               clipping_value=clipping_value))
     local_path = os.path.join(tmp_path, '{}.json'.format(stats_path.split("_")[-2]))
-    local_file = open(local_path, 'w')
-    json.dump(nodes, local_file)
+    dump_intermediate_scales(local_path, nodes)
 
     assert len(ref_nodes) == len(nodes)
     processed_nodes = []
@@ -152,9 +152,7 @@ def test_weights_scales(tmp_path, models):
     ref_weights = get_ref_stats(path_to_weights)
     weights = get_fq_nodes_stats_algo(model, False, 8, True)
     local_path = os.path.join(tmp_path, '{}.json'.format('mv2_weights'))
-    dumped = json.dumps(weights, cls=NumpyEncoder)
-    local_file = open(local_path, 'w')
-    json.dump(dumped, local_file)
+    dump_intermediate_scales(local_path, weights)
 
     for fq_name in weights:
         item_min, item_max = weights[fq_name]['low_level'], weights[fq_name]['high_level']
@@ -359,3 +357,9 @@ def _get_tf_accuracy_checker_config(path_to_dataset):
                             }]
                 }
             ]}]})
+
+
+def dump_intermediate_scales(local_path, data):
+    data = json.dumps(deepcopy(data), cls=NumpyEncoder)
+    local_file = open(local_path, 'w')
+    json.dump(data, local_file)

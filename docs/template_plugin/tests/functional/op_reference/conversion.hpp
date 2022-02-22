@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,8 +27,8 @@ struct ConvertParams {
     ov::PartialShape pshape;
     ov::element::Type inType;
     ov::element::Type outType;
-    ov::runtime::Tensor inputData;
-    ov::runtime::Tensor refData;
+    ov::Tensor inputData;
+    ov::Tensor refData;
 };
 
 class ReferenceConversionLayerTest : public testing::TestWithParam<ConvertParams>, public CommonReferenceTest {
@@ -51,12 +51,12 @@ public:
     }
 
 private:
-    static std::shared_ptr<ov::Function> CreateFunction(const ov::PartialShape& input_shape, const ov::element::Type& input_type,
+    static std::shared_ptr<ov::Model> CreateFunction(const ov::PartialShape& input_shape, const ov::element::Type& input_type,
                                                         const ov::element::Type& expected_output_type,
                                                         const ngraph::helpers::ConversionTypes& conversion_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto convert = ngraph::builder::makeConversion(in, expected_output_type, conversion_type);
-        return std::make_shared<ov::Function>(ov::NodeVector {convert}, ov::ParameterVector {in});
+        return std::make_shared<ov::Model>(ov::NodeVector {convert}, ov::ParameterVector {in});
     }
 };
 } // namespace ConversionOpsRefTestDefinitions

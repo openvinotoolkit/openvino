@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,25 +7,22 @@
 #include "single_layer_tests/softmax.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace ov::test::subgraph;
 
 namespace {
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
+const std::vector<ov::test::ElementType> netPrecisions = {
+        ov::element::f32,
+        ov::element::f16,
 };
 
-const std::vector<InferenceEngine::Layout> inputLayouts2D = {
-        InferenceEngine::Layout::NC,
+const std::vector<ov::Shape> inputStaticShape2D = {
+        {1, 100},
+        {100, 1},
+        {10, 10},
 };
 
-const std::vector<std::pair<ngraph::PartialShape, std::vector<ngraph::Shape>>> inputStaticShape2D = {
-        {{}, {{1, 100}}},
-        {{}, {{100, 1}}},
-        {{}, {{10, 10}}},
-};
-
-const std::vector<std::pair<ngraph::PartialShape, std::vector<ngraph::Shape>>> inputDynamicShape2D = {
+const std::vector<ov::test::InputShape> inputDynamicShape2D = {
         {{ngraph::Dimension::dynamic(), 10}, {{1, 10}, {2, 10}, {10, 10}}},
         {{ngraph::Dimension(1, 10), 10}, {{1, 10}, {2, 10}, {10, 10}}},
         {{10, ngraph::Dimension::dynamic()}, {{10, 1}, {10, 5}, {10, 10}}},
@@ -38,26 +35,22 @@ const std::vector<size_t> axis2D = {
 
 const auto params2D_static = testing::Combine(
         testing::ValuesIn(netPrecisions),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::ValuesIn(inputLayouts2D),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::ValuesIn(inputStaticShape2D),
+        ::testing::Values(ov::element::undefined),
+        ::testing::Values(ov::element::undefined),
+        testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputStaticShape2D)),
         testing::ValuesIn(axis2D),
         testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
-        testing::Values(std::map<std::string, std::string>())
+        testing::Values(ov::AnyMap())
 );
 
 const auto params2D_dynamic = testing::Combine(
         testing::ValuesIn(netPrecisions),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::ValuesIn(inputLayouts2D),
-        testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(ov::element::undefined),
+        ::testing::Values(ov::element::undefined),
         testing::ValuesIn(inputDynamicShape2D),
         testing::ValuesIn(axis2D),
         testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
-        testing::Values(std::map<std::string, std::string>())
+        testing::Values(ov::AnyMap())
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -74,13 +67,13 @@ INSTANTIATE_TEST_SUITE_P(
         SoftMaxLayerTest::getTestCaseName
 );
 
-const std::vector<std::pair<ngraph::PartialShape, std::vector<ngraph::Shape>>> inputStaticShape4D = {
-        {{}, {{1, 100, 1, 1}}},
-        {{}, {{50, 100, 4, 1}}},
-        {{}, {{2, 100, 10, 1}}},
+const std::vector<ov::Shape> inputStaticShape4D = {
+        {1, 100, 1, 1},
+        {50, 100, 4, 1},
+        {2, 100, 10, 1},
 };
 
-const std::vector<std::pair<ngraph::PartialShape, std::vector<ngraph::Shape>>> inputDynamicShape4D = {
+const std::vector<ov::test::InputShape> inputDynamicShape4D = {
         {{ngraph::Dimension::dynamic(), 100, ngraph::Dimension(1, 10), 1}, {{1, 100, 1, 1}, {100, 100, 5, 1}}},
         {{ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic()},
                                                                            {{1, 100, 1, 1}, {50, 100, 4, 1}, {2, 100, 10, 1}}},
@@ -90,26 +83,22 @@ const std::vector<size_t> axis4D = {0, 1, 2, 3};
 
 const auto params4Dstatic = testing::Combine(
         testing::ValuesIn(netPrecisions),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::NCHW),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::ValuesIn(inputStaticShape4D),
+        ::testing::Values(ov::element::undefined),
+        ::testing::Values(ov::element::undefined),
+        testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputStaticShape4D)),
         testing::ValuesIn(axis4D),
         testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
-        testing::Values(std::map<std::string, std::string>())
+        testing::Values(ov::AnyMap())
 );
 
 const auto params4Ddynamic = testing::Combine(
         testing::ValuesIn(netPrecisions),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::NCHW),
-        testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(ov::element::undefined),
+        ::testing::Values(ov::element::undefined),
         testing::ValuesIn(inputDynamicShape4D),
         testing::ValuesIn(axis4D),
         testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
-        testing::Values(std::map<std::string, std::string>())
+        testing::Values(ov::AnyMap())
 );
 
 INSTANTIATE_TEST_SUITE_P(

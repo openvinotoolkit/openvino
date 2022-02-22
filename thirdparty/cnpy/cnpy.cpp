@@ -170,7 +170,8 @@ void cnpy::parse_npy_header(FILE* fp, size_t& word_size, std::vector<size_t>& sh
 void cnpy::parse_zip_footer(FILE* fp, uint16_t& nrecs, size_t& global_header_size, size_t& global_header_offset)
 {
     std::vector<char> footer(22);
-    fseek(fp,-22,SEEK_END);
+    if(fseek(fp,-22,SEEK_END) != 0)
+        throw std::runtime_error("parse_zip_footer: failed fseek");
     size_t res = fread(&footer[0],sizeof(char),22,fp);
     if(res != 22)
         throw std::runtime_error("parse_zip_footer: failed fread");
@@ -195,7 +196,7 @@ cnpy::NpyArray load_the_npy_file(FILE* fp) {
     size_t word_size = 0;
     bool fortran_order = false;
     cnpy::parse_npy_header(fp,word_size,shape,fortran_order);
-    if (word_size >= 0 && word_size < ULLONG_MAX) {
+    if (word_size > 0 && word_size < ULLONG_MAX) {
         cnpy::NpyArray arr(shape, word_size, fortran_order);
         size_t nread = fread(arr.data<char>(), 1, arr.num_bytes(), fp);
         if (nread != arr.num_bytes())
@@ -223,6 +224,8 @@ cnpy::NpyArray load_the_npz_array(FILE* fp, uint32_t compr_bytes, uint32_t uncom
     d_stream.opaque = Z_NULL;
     d_stream.avail_in = 0;
     d_stream.next_in = Z_NULL;
+    d_stream.total_in = 0;
+    d_stream.total_out = 0;
     err = inflateInit2(&d_stream, -MAX_WBITS);
 
     d_stream.avail_in = compr_bytes;
@@ -237,7 +240,7 @@ cnpy::NpyArray load_the_npz_array(FILE* fp, uint32_t compr_bytes, uint32_t uncom
     size_t word_size = 0;
     bool fortran_order = false;
     cnpy::parse_npy_header(&buffer_uncompr[0],word_size,shape,fortran_order);
-    if (word_size >= 0 && word_size < ULLONG_MAX) {
+    if (word_size > 0 && word_size < ULLONG_MAX) {
         cnpy::NpyArray array(shape, word_size, fortran_order);
 
         size_t offset = uncompr_bytes - array.num_bytes();
@@ -330,8 +333,8 @@ cnpy::NpyArray cnpy::npz_load(std::string fname, std::string varname) {
 
         //read in the extra field
         uint16_t extra_field_len = *(uint16_t*) &local_header[28];
-        fseek(fp,extra_field_len,SEEK_CUR); //skip past the extra field
-        
+        if (fseek(fp,extra_field_len,SEEK_CUR) != 0) //skip past the extra field
+            throw std::runtime_error("npz_load: failed fseek");
         uint16_t compr_method = *reinterpret_cast<uint16_t*>(&local_header[0]+8);
         uint32_t compr_bytes = *reinterpret_cast<uint32_t*>(&local_header[0]+18);
         uint32_t uncompr_bytes = *reinterpret_cast<uint32_t*>(&local_header[0]+22);
@@ -344,7 +347,8 @@ cnpy::NpyArray cnpy::npz_load(std::string fname, std::string varname) {
         else {
             //skip past the data
             uint32_t size = *(uint32_t*) &local_header[22];
-            fseek(fp,size,SEEK_CUR);
+            if (fseek(fp,size,SEEK_CUR) !=0)
+                throw std::runtime_error("npz_load: failed fseek");
         }
     }
 
@@ -370,5 +374,3 @@ cnpy::NpyArray cnpy::npy_load(std::string fname) {
     }
 
 }
-
-

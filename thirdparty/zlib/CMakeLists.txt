@@ -1,11 +1,12 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 project(zlib)
 
 if(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  /wd4996  /W3")
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4996 /W3")
+    set (CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /wd4995 /wd4996")
 else()
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-all")
     if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")

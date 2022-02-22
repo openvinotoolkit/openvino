@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -147,21 +147,25 @@ class TestTopK(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_topk_opset6(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, opset=6, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_topk_opset6(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net(**params, opset=6, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_topk_opset10(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, opset=10, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_topk_opset10(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net(**params, opset=10, ir_version=ir_version), ie_device,
+                   precision, ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("largest", [1, 0, None])
     @pytest.mark.parametrize("sorted", [1, 0, None])
     @pytest.mark.nightly
-    def test_topk_opset11(self, params, ie_device, precision, ir_version, largest, sorted, temp_dir):
+    def test_topk_opset11(self, params, ie_device, precision, ir_version, largest, sorted, temp_dir,
+                          api_2):
         self._test(*self.create_net(**params, largest=largest, sorted=sorted,
-                                    opset=11, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+                                    opset=11, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, api_2=api_2)

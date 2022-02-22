@@ -1,3 +1,10 @@
+resources:
+  repositories:
+  - repository: openvino_contrib
+    type: github
+    endpoint: openvinotoolkit
+    name: openvinotoolkit/openvino_contrib
+
 jobs:
 - job: Lin
   # About 150% of total time
@@ -12,6 +19,7 @@ jobs:
     VSTS_HTTP_TIMEOUT: 200
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
+    OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)/../openvino_contrib
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
     BUILD_SAMPLES_DIR: $(WORK_DIR)/build_samples
@@ -43,8 +51,6 @@ jobs:
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
       rm -rf $(BUILD_SAMPLES_DIR) ; mkdir $(BUILD_SAMPLES_DIR)
-      echo TargetBranch: $(System.PullRequest.TargetBranch)
-      echo SourceBranch: $(Build.SourceBranch)
     displayName: 'Make dir'
 
   - checkout: self
@@ -53,9 +59,17 @@ jobs:
     submodules: recursive
     path: openvino
 
+  - checkout: openvino_contrib
+    clean: true
+    lfs: false
+    submodules: recursive
+    path: openvino_contrib
+
   - script: |
       set -e
       $(REPO_DIR)/install_build_dependencies.sh
+      # Move jdk into contrib
+      sudo apt --assume-yes install openjdk-11-jdk
       # Speed up build
       wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
       unzip ninja-linux.zip
@@ -65,17 +79,19 @@ jobs:
 
   - task: CMake@1
     inputs:
+      # Coverity has too many PARSE_ERROR errors with ENABLE_FASTER_BUILD=ON. Disabling FASTER_BUILD.
       cmakeArgs: >
         -GNinja
         -DVERBOSE_BUILD=ON
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
-        -DENABLE_FASTER_BUILD=ON
+        -DENABLE_FASTER_BUILD=OFF
         -DENABLE_STRICT_DEPENDENCIES=OFF
         -DENABLE_REQUIREMENTS_INSTALL=OFF
+        -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
         $(REPO_DIR)
       workingDirectory: $(BUILD_DIR)
 
-  - script: ls -alR $(REPO_DIR)/inference-engine/temp/
+  - script: ls -alR $(REPO_DIR)/temp/
     displayName: 'List temp SDKs'
 
   - script: |
@@ -89,18 +105,13 @@ jobs:
   - script: $(WORK_DIR)/cov-analysis*/bin/cov-build --dir $(BUILD_DIR)/cov-int ninja
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Lin with Coverity'
-  
+
   - script: ls -alR $(REPO_DIR)/bin/
     displayName: 'List bin files'
 
   - script: tar -C $(BUILD_DIR) -czvf openvino.tgz cov-int
     workingDirectory: $(BUILD_DIR)
     displayName: 'Pack cov-int folder for submission'
-
-  - publish: $(BUILD_DIR)/openvino.tgz
-    artifact: openvino.tgz
-    continueOnError: true
-    displayName: 'Publish submission'
 
   - script: |
         curl --form token=$(COVERITY_TOKEN) \

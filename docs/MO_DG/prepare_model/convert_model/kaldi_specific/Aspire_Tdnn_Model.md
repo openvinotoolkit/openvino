@@ -7,14 +7,14 @@ for the ASpIRE Chain Time Delay Neural Network (TDNN) from the Kaldi* project of
 
 To generate the Intermediate Representation (IR) of the model, run the Model Optimizer with the following parameters:
 ```sh
-python3 ./mo_kaldi.py --input_model exp/chain/tdnn_7b/final.mdl --output output
+ mo --input_model exp/chain/tdnn_7b/final.mdl --output output
 ```
 
 The IR will have two inputs: `input` for data and `ivector` for ivectors. 
 
 ## Example: Run ASpIRE Chain TDNN Model with the Speech Recognition Sample
 
-These instructions show how to run the converted model with the [Speech Recognition sample](../../../../../inference-engine/samples/speech_sample/README.md).
+These instructions show how to run the converted model with the [Speech Recognition sample](../../../../../samples/cpp/speech_sample/README.md).
 In this example, the input data contains one utterance from one speaker. 
 
 To follow the steps described below, you must first do the following: 
@@ -109,4 +109,4 @@ speech_sample -i feats.ark,ivector_online_ie.ark -m final.xml -d CPU -o predicti
 ```
 
 Results can be decoded as described in "Use of Sample in Kaldi* Speech Recognition Pipeline" chapter 
-in [the Speech Recognition Sample description](../../../../../inference-engine/samples/speech_sample/README.md).
+in [the Speech Recognition Sample description](../../../../../samples/cpp/speech_sample/README.md).

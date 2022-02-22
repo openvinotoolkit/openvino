@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import sys
@@ -13,7 +13,6 @@ from openvino.tools.pot.data_loaders.creator import create_data_loader
 from openvino.tools.pot.engines.creator import create_engine
 from openvino.tools.pot.graph import load_model, save_model
 from openvino.tools.pot.graph.model_utils import compress_model_weights
-from openvino.tools.pot.optimization.optimizer_selector import OPTIMIZATION_ALGORITHMS
 from openvino.tools.pot.pipeline.initializer import create_pipeline
 from openvino.tools.pot.utils.logger import init_logger, get_logger
 from openvino.tools.pot.utils.telemetry import start_session_telemetry, end_session_telemetry
@@ -36,11 +35,19 @@ def app(argv):
         _update_config_path(args)
 
     config = Config.read_config(args.config)
+
+    if args.engine:
+        config.engine['type'] = args.engine if args.engine else 'accuracy_checker'
+    if 'data_source' not in config.engine:
+        if args.data_source is None and config.engine.type == 'data_free':
+            args.data_source = 'pot_dataset'
+        config.engine['data_source'] = args.data_source
+
     config.configure_params(args.ac_config)
     config.update_from_args(args)
 
-    if config.engine.type == 'simplified' and args.evaluate:
-        raise Exception('Can not make evaluation in simplified mode')
+    if config.engine.type != 'accuracy_checker' and args.evaluate:
+        raise Exception('Can not make evaluation in simplified or data_free mode')
 
     log_dir = _create_log_path(config)
     init_logger(level=args.log_level,
@@ -80,16 +87,6 @@ def _update_config_path(args):
             args.config = os.path.join(config_template_folder, 'accuracy_aware_quantization_template.json')
 
 
-def print_optimizer_config(config):
-    # log algorithms settings
-    optimizer_string = 'Optimizer: {}'.format(config.name)
-    optimizer_string += '\n Parameters:'
-    for name, value in config.params.items():
-        optimizer_string += '\n\t{: <27s}: {}'.format(name, value)
-    optimizer_string += '\n {}'.format('=' * 75)
-    logger.info(optimizer_string)
-
-
 def print_algo_configs(config):
     # log algorithms settings
     configs_string = 'Creating pipeline:'
@@ -121,12 +118,7 @@ def optimize(config):
     pipeline = create_pipeline(
         config.compression.algorithms, engine, 'CLI')
 
-    if 'optimizer' in config:
-        print_optimizer_config(config.optimizer)
-        optimizer = OPTIMIZATION_ALGORITHMS.get(config.optimizer.name)(config.optimizer, pipeline, engine)
-        compressed_model = optimizer.run(model)
-    else:
-        compressed_model = pipeline.run(model)
+    compressed_model = pipeline.run(model)
 
     if not config.model.keep_uncompressed_weights:
         compress_model_weights(compressed_model)

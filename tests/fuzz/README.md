@@ -42,7 +42,7 @@ You should use the same compiler as was used for the openvino build.
 ```bash
 (\
 mkdir -p tests/fuzz/build && cd tests/fuzz/build && \
-CC=clang CXX=clang++ cmake .. -DENABLE_FUZZING=ON -DENABLE_SANITIZER=ON -DTREAT_WARNING_AS_ERROR=OFF -DInferenceEngine_DIR=$(pwd)/../../../build && \
+CC=clang CXX=clang++ cmake .. -DENABLE_FUZZING=ON -DENABLE_SANITIZER=ON -DTREAT_WARNING_AS_ERROR=OFF -DOpenVINO_DIR=$(pwd)/../../../build && \
 cmake --build . \
 )
 ```
@@ -64,7 +64,7 @@ https://wiki.ith.intel.com/x/2N42bg.
 ./read_network-fuzzer -max_total_time=600 ./read_network-corpus
 ```
 Consider adding those useful command line options:
-- `-jobs=$(nproc)` runs multiple fuzzing jobs in parallel.
+- `-jobs=$(nproc)` runs multiple fuzzing jobs in parallel. Note: configuring code coverage profiling with environment variable `LLVM_PROFILE_FILE=deafult-%p.profraw` is required.
 - `-rss_limit_mb=0` to ignore out-of-memory issues.
 
 ## Analyzing fuzzing quality
@@ -75,7 +75,7 @@ To build coverage report after fuzz test execution run:
 
 ```
 llvm-profdata merge -sparse *.profraw -o default.profdata && \
-llvm-cov show ./read_network-fuzzer -instr-profile=default.profdata -format=html -output-dir=read_network-coverage
+llvm-cov show ./read_network-fuzzer -object=lib/libopenvino.so -instr-profile=default.profdata -format=html -output-dir=read_network-coverage
 ```
 
 ## Reproducing findings

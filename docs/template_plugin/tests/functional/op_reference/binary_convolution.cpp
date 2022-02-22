@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,9 +47,9 @@ struct BinaryConvolutionParams {
     PartialShape outputShape;
     ov::element::Type inType;
     ov::element::Type outType;
-    ov::runtime::Tensor inputData;
+    ov::Tensor inputData;
     std::vector<uint8_t> filterData;
-    ov::runtime::Tensor refData;
+    ov::Tensor refData;
     ov::Strides strides;
     ov::CoordinateDiff padBegin;
     ov::CoordinateDiff padEnd;
@@ -89,7 +89,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const BinaryConvolutionParams& params, const std::vector<uint8_t>& filterData) {
+    static std::shared_ptr<Model> CreateFunction(const BinaryConvolutionParams& params, const std::vector<uint8_t>& filterData) {
         const op::PadType auto_pad{op::PadType::EXPLICIT};
         const auto in = std::make_shared<op::v0::Parameter>(params.inType, params.inputShape);
         auto filter = std::make_shared<opset8::Constant>(ov::element::u1, params.filterShape, &filterData[0]);
@@ -102,7 +102,7 @@ private:
                                                                        params.mode,
                                                                        params.padValue,
                                                                        auto_pad);
-        return std::make_shared<ov::Function>(NodeVector {BinaryConvolution}, ParameterVector {in});
+        return std::make_shared<ov::Model>(NodeVector {BinaryConvolution}, ParameterVector {in});
     }
 };
 
