@@ -103,6 +103,9 @@ public:
                     cur_mask->at(matmul_rows_dim) = a_mask_row->at(a_outer_dim);
                     if (a_mask_row->at(a_inner_dim) != b_mask_row->at(b_inner_dim))
                         cur_mask->initialize_dependencies();
+                } else {
+                    if (b_mask_row->at(b_inner_dim).size())
+                        cur_mask->initialize_dependencies();
                 }
                 return true;
             };
@@ -120,6 +123,8 @@ public:
             b_mask->add_callback([=](Mask::Ptr cur_mask) -> bool {
                 if (a_mask_row)
                     cur_mask->at(b_inner_dim) = a_mask_row->at(a_inner_dim);
+                else
+                    cur_mask->at(b_inner_dim).clear();
                 cur_mask->at(b_outer_dim) = matmul_mask_row->at(matmul_cols_dim);
                 return true;
             }, matmul_mask);
@@ -837,8 +842,7 @@ public:
 
                     input_mask->add_callback([weights_mask_row, not_reshaped_dims, elems_per_ch](Mask::Ptr cur_mask) -> bool {
                         for (size_t dim = 0; dim < not_reshaped_dims; ++dim)
-                            if (dim < not_reshaped_dims)
-                                cur_mask->at(dim) = weights_mask_row->at(dim);
+                            cur_mask->at(dim) = weights_mask_row->at(dim);
 
                         bool should_init_dep;
                         std::set<uint64_t> updated_mask;
@@ -852,9 +856,9 @@ public:
                     weights_mask->add_callback([input_mask_row, not_reshaped_dims, elems_per_ch](Mask::Ptr cur_mask) -> bool {
                         // Propagate masks down through dimension only if this dimension isn't reshaped
                         for (size_t dim = 0; dim < not_reshaped_dims; ++dim)
-                            if (dim < not_reshaped_dims)
-                                cur_mask->at(dim) = input_mask_row->at(dim);
+                            cur_mask->at(dim) = input_mask_row->at(dim);
                         // Flat the last mask
+                        cur_mask->at(not_reshaped_dims).clear();
                         for (auto &ch : input_mask_row->at(not_reshaped_dims))
                             for (auto idx = ch * elems_per_ch; idx < (ch + 1) * elems_per_ch; ++idx)
                                 cur_mask->at(not_reshaped_dims).insert(idx);
@@ -869,8 +873,7 @@ public:
                     weights_mask->add_callback([output_mask_row, not_reshaped_dims, elems_per_ch](Mask::Ptr cur_mask) -> bool {
                         // Propagate masks up through dimension only if this dimension isn't reshaped
                         for (size_t dim = 0; dim < not_reshaped_dims; ++dim)
-                            if (dim < not_reshaped_dims)
-                                cur_mask->at(dim) = output_mask_row->at(dim);
+                            cur_mask->at(dim) = output_mask_row->at(dim);
                         // For the last dimension keep only those zeros which completely
                         // covering a channel
                         bool should_init_dep;
@@ -881,35 +884,83 @@ public:
                         if (should_init_dep) cur_mask->initialize_dependencies();
                         return true;
                     }, output_mask);
-                } else {
-                    input_mask->add_callback([weights_mask_row](Mask::Ptr cur_mask) -> bool {
-                        cur_mask->copy_value_from_mask(weights_mask_row);
-                        return true;
-                    }, weights_mask);
-                    weights_mask->add_callback([input_mask_row, not_reshaped_dims](Mask::Ptr cur_mask) -> bool{
-                        // Propagate masks down through dimension only if this dimension isn't reshaped
-                        for (size_t dim = 0; dim < std::min(cur_mask->size(), input_mask_row->size()); ++dim)
-                            if (dim < not_reshaped_dims)
+                }  else {
+                    // Reverse flatten case
+                    if (input_shape.size() == not_reshaped_dims + 1) {
+                        const size_t elems_per_ch = std::accumulate(output_shape.begin() + not_reshaped_dims + 1,
+                                                                    output_shape.end(), 1, std::multiplies<size_t>());
+
+                        input_mask->add_callback([weights_mask_row, not_reshaped_dims, elems_per_ch](Mask::Ptr cur_mask) -> bool {
+                            // Propagate masks down through dimension only if this dimension isn't reshaped
+                            for (size_t dim = 0; dim < not_reshaped_dims; ++dim)
+                                cur_mask->at(dim) = weights_mask_row->at(dim);
+                        // Flat the last mask
+                            cur_mask->at(not_reshaped_dims).clear();
+                            for (auto &ch : weights_mask_row->at(not_reshaped_dims))
+                                for (auto idx = ch * elems_per_ch; idx < (ch + 1) * elems_per_ch; ++idx)
+                                    cur_mask->at(not_reshaped_dims).insert(idx);
+                            return true;
+                        }, weights_mask);
+
+                        weights_mask->add_callback([input_mask_row, not_reshaped_dims, elems_per_ch](Mask::Ptr cur_mask) -> bool {
+                            for (size_t dim = 0; dim < not_reshaped_dims; ++dim)
                                 cur_mask->at(dim) = input_mask_row->at(dim);
-                            else if (cur_mask->at(dim) != input_mask_row->at(dim))
-                                cur_mask->initialize_dependencies();
-                        return true;
-                    }, input_mask);
 
-                    output_mask->add_callback([weights_mask_row](Mask::Ptr cur_mask) -> bool {
-                        cur_mask->copy_value_from_mask(weights_mask_row);
-                        return true;
-                    }, weights_mask);
+                            bool should_init_dep;
+                            std::set<uint64_t> updated_mask;
+                            std::tie(updated_mask, should_init_dep) = squeeze_mask(input_mask_row->at(not_reshaped_dims), elems_per_ch, true);
 
-                    weights_mask->add_callback([output_mask_row, not_reshaped_dims](Mask::Ptr cur_mask) -> bool {
-                        // Propagate masks up through dimension only if this dimension isn't reshaped
-                        for (size_t dim = 0; dim < std::min(cur_mask->size(), output_mask_row->size()); ++dim)
-                            if (dim < not_reshaped_dims)
-                                cur_mask->at(dim) = output_mask_row->at(dim);
-                            else if (cur_mask->at(dim) != output_mask_row->at(dim))
-                                cur_mask->initialize_dependencies();
-                        return true;
-                    }, output_mask);
+                            cur_mask->at(not_reshaped_dims) = updated_mask;
+                            if (should_init_dep) cur_mask->initialize_dependencies();
+                            return true;
+                        }, input_mask);
+
+                        output_mask->add_callback([weights_mask_row](Mask::Ptr cur_mask) -> bool {
+                            cur_mask->copy_value_from_mask(weights_mask_row);
+                            return true;
+                        }, weights_mask);
+
+                        weights_mask->add_callback([output_mask_row, not_reshaped_dims, elems_per_ch](Mask::Ptr cur_mask) -> bool {
+                            // Propagate masks up through dimension only if this dimension isn't reshaped
+                            // or dim == not_reshaped_dims
+                            for (size_t dim = 0; dim < std::min(cur_mask->size(), output_mask_row->size()); ++dim)
+                                if (dim <= not_reshaped_dims)
+                                    cur_mask->at(dim) = output_mask_row->at(dim);
+                                else if (cur_mask->at(dim) != output_mask_row->at(dim))
+                                    cur_mask->initialize_dependencies();
+                            return true;
+                        }, output_mask);
+
+                    } else {
+                        input_mask->add_callback([weights_mask_row](Mask::Ptr cur_mask) -> bool {
+                            cur_mask->copy_value_from_mask(weights_mask_row);
+                            return true;
+                        }, weights_mask);
+                        weights_mask->add_callback([input_mask_row, not_reshaped_dims](Mask::Ptr cur_mask) -> bool{
+                            // Propagate masks down through dimension only if this dimension isn't reshaped
+                            for (size_t dim = 0; dim < std::min(cur_mask->size(), input_mask_row->size()); ++dim)
+                                if (dim < not_reshaped_dims)
+                                    cur_mask->at(dim) = input_mask_row->at(dim);
+                                else if (cur_mask->at(dim) != input_mask_row->at(dim))
+                                    cur_mask->initialize_dependencies();
+                            return true;
+                        }, input_mask);
+
+                        output_mask->add_callback([weights_mask_row](Mask::Ptr cur_mask) -> bool {
+                            cur_mask->copy_value_from_mask(weights_mask_row);
+                            return true;
+                        }, weights_mask);
+
+                        weights_mask->add_callback([output_mask_row, not_reshaped_dims](Mask::Ptr cur_mask) -> bool {
+                            // Propagate masks up through dimension only if this dimension isn't reshaped
+                            for (size_t dim = 0; dim < std::min(cur_mask->size(), output_mask_row->size()); ++dim)
+                                if (dim < not_reshaped_dims)
+                                    cur_mask->at(dim) = output_mask_row->at(dim);
+                                else if (cur_mask->at(dim) != output_mask_row->at(dim))
+                                    cur_mask->initialize_dependencies();
+                            return true;
+                        }, output_mask);
+                    }
                 }
 
                 weights_mask->apply_callback(input_mask);
