@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.pot.samplers.sampler import Sampler
-from .utils import format_input_batch
 
 
 class IndexSampler(Sampler):
@@ -18,6 +17,4 @@ class IndexSampler(Sampler):
             yield idx
 
     def __getitem__(self, idx):
-        data_batch = self._subset_indices[idx]
-        formatted_batch = data_batch if isinstance(data_batch, dict) else format_input_batch(data_batch, idx)
-        return formatted_batch
+        return self._subset_indices[idx]
