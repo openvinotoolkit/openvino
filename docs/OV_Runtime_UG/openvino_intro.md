@@ -20,17 +20,7 @@
    openvino_docs_OV_UG_Hetero_execution
    openvino_docs_IE_DG_network_state_intro
    openvino_2_0_transition_guide
-<<<<<<< HEAD:docs/OV_Runtime_UG/OpenVINO_Runtime_User_Guide.md
-   <!-- remove parts below -->
-   openvino_docs_deployment_optimization_guide_dldt_optimization_guide
-   openvino_docs_IE_DG_Model_caching_overview
-   openvino_docs_IE_DG_Extensibility_DG_Intro
-   openvino_docs_IE_DG_Int8Inference
-   openvino_docs_IE_DG_Bfloat16Inference
-   openvino_docs_transformations
-=======
    openvino_docs_OV_Should_be_in_performance
->>>>>>> upstream/master:docs/OV_Runtime_UG/openvino_intro.md
    openvino_docs_OV_Runtime_API_Changes
 
 @endsphinxdirective
