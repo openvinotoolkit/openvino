@@ -39,17 +39,32 @@ size_t hash_combine(const void* v, int64_t size) {
     constexpr auto cel_size = sizeof(size_t);
     auto seed = static_cast<size_t>(size);
     const auto data = static_cast<const size_t*>(v);
-    const auto d_end = std::next(data, size / cel_size);
-    size_t sum = 0;
-    // Just calculate sum of buffer elements, as it is ~2 times faster than
-    for (auto d = data; d != d_end; ++d) {
-        // Let it be a non-trivial sum just to avoid situations when sum of weights is normalized
-        // This reduces hash calculation speed by ~5-7%, but seems a bit stronger than simple sum
-        sum = (sum << 1) ^ *d;
-        // This is ~2 times slower than sum of items
-        //sum ^= *d + 0x9e3779b9 + (sum << 6) + (sum >> 2);
+    const auto steps = size / cel_size;
+    const auto d_end = std::next(data, steps);
+    // Slower version: this is > ~2 times slower than calculation of separate 4 sums
+    //    for (auto d = data; d < d_end; ++d) {
+    //        sum ^= *d + 0x9e3779b9 + (sum << 6) + (sum >> 2);
+    //    }
+
+    // ---- Faster version ---
+    // Calculate 4 separate independent hash sums within one cycle
+    constexpr auto fast_step = 4;
+    size_t sum[fast_step] = {0};
+    const auto fast_step_cnt = steps / fast_step;
+    const auto d_end_fast = std::next(data, fast_step_cnt * fast_step);
+    for (auto d = data; d < d_end_fast; d += fast_step) {
+        // This appears to be almost 2 times faster to calculate separate sums than do it with step=1
+        for (auto i = 0; i < fast_step; i++) {
+            sum[i] = d[i] + 0x9e3779b9 + (sum[i] << 6) + (sum[i] >> 2);
+        }
     }
-    seed = hash_combine(seed, sum);
+    for (auto i = 0; i < steps % fast_step; i++) {
+        seed = hash_combine(seed, d_end_fast[i]);
+    }
+    for (auto i = 0; i < fast_step; i++) {
+        seed = hash_combine(seed, sum[i]);
+    }
+    // ---- End Faster version ----
     size_t last_bytes{0};
     std::memcpy(&last_bytes, d_end, size % cel_size);
     seed ^= last_bytes + 0x9e3779b9 + (seed << 6) + (seed >> 2);
@@ -144,38 +159,8 @@ std::unordered_map<ngraph::Node*, int> create_layer_ids(const std::vector<std::s
 class HashSerializer : public ngraph::AttributeVisitor {
     size_t& m_hash;
 
-    template <typename T>
-    std::string create_atribute_list(ngraph::ValueAccessor<std::vector<T>>& adapter) {
-        return join(adapter.get());
-    }
-
-//    std::vector<std::string> map_type_from_body(const pugi::xml_node& xml_node,
-//                                                const std::string& map_type,
-//                                                int64_t ir_version,
-//                                                const std::string& body_name = "body") {
-//        std::vector<std::string> output;
-//        for (pugi::xml_node node : xml_node.child(body_name.c_str()).child("layers")) {
-//            if (map_type == node.attribute("type").value()) {
-//                output.emplace_back(node.attribute("id").value());
-//            }
-//        }
-//
-//        if (ir_version < 11) {
-//            // ops for serialized body function are provided in reversed order
-//            std::reverse(output.begin(), output.end());
-//        }
-//
-//        return output;
-//    }
-
     void input_descriptions_on_adapter(
-            const std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>>& input_descriptions,
-            const std::vector<std::string>& parameter_mapping,
-            const std::vector<std::string>& result_mapping,
-            const std::string& portmap_name) {
-        m_hash = hash_combine(m_hash, portmap_name);
-        join_hash(m_hash, parameter_mapping);
-        join_hash(m_hash, result_mapping);
+            const std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>>& input_descriptions) {
         for (const auto& input_description : input_descriptions) {
             m_hash = hash_combine(m_hash, input_description->m_input_index);
             m_hash = hash_combine(m_hash, input_description->m_body_parameter_index);
@@ -194,16 +179,7 @@ class HashSerializer : public ngraph::AttributeVisitor {
     }
 
     void output_descriptions_on_adapter(
-            const std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>>& output_descriptions,
-            const uint32_t& input_count,
-            const std::vector<std::string>& result_mapping,
-            const std::string& portmap_name) {
-        NGRAPH_CHECK(!result_mapping.empty(), "No results found in body Model.");
-
-        m_hash = hash_combine(m_hash, input_count);
-        m_hash = hash_combine(m_hash, portmap_name);
-        join_hash(m_hash, result_mapping);
-
+            const std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>>& output_descriptions) {
         for (const auto& output_description : output_descriptions) {
             m_hash = hash_combine(m_hash, output_description->m_output_index);
             m_hash = hash_combine(m_hash, output_description->m_body_value_index);
@@ -219,12 +195,7 @@ class HashSerializer : public ngraph::AttributeVisitor {
         }
     }
 
-    void special_body_ports_on_adapter(const ngraph::op::v5::Loop::SpecialBodyPorts& special_body_ports,
-                                       const std::vector<std::string>& parameter_mapping,
-                                       const std::vector<std::string>& result_mapping) {
-        join_hash(m_hash, parameter_mapping);
-        join_hash(m_hash, result_mapping);
-
+    void special_body_ports_on_adapter(const ngraph::op::v5::Loop::SpecialBodyPorts& special_body_ports) {
         if (special_body_ports.current_iteration_input_idx != -1) {
             m_hash = hash_combine(m_hash, special_body_ports.current_iteration_input_idx);
         }
@@ -242,12 +213,12 @@ public:
         using BodyTargetNames = std::tuple<std::string, std::string, std::vector<std::string>>;
         m_hash = hash_combine(m_hash, name);
 
-        const std::vector<BodyTargetNames> body_names = {
-                BodyTargetNames{"body", "port_map", {"input_descriptions", "output_descriptions", "special_body_ports"}},
-                BodyTargetNames{"then_body", "then_port_map", {"then_inputs", "then_outputs"}},
-                BodyTargetNames{"else_body", "else_port_map", {"else_inputs", "else_outputs"}}};
-        BodyTargetNames bnames;
-        bool is_body_target = false;
+//        const std::vector<BodyTargetNames> body_names = {
+//                BodyTargetNames{"body", "port_map", {"input_descriptions", "output_descriptions", "special_body_ports"}},
+//                BodyTargetNames{"then_body", "then_port_map", {"then_inputs", "then_outputs"}},
+//                BodyTargetNames{"else_body", "else_port_map", {"else_inputs", "else_outputs"}}};
+//        BodyTargetNames bnames;
+//        bool is_body_target = false;
 //        for (const auto& _body_target : body_names) {
 //            if (m_xml_node.parent().child(std::get<0>(_body_target).c_str())) {
 //                auto vec_names = std::get<2>(_body_target);
@@ -259,43 +230,45 @@ public:
 //                }
 //            }
 //        }
-        if (is_body_target) {
+//        if (is_body_target) {
 //            auto body_name = std::get<0>(bnames);
 //            auto portmap_name = std::get<1>(bnames);
-//            std::vector<std::string> result_mapping =
-//                    map_type_from_body(m_xml_node.parent(), "Result", m_version, body_name);
-//            std::vector<std::string> parameter_mapping =
-//                    map_type_from_body(m_xml_node.parent(), "Parameter", m_version, body_name);
-//
-//            // Bodies can be without parameters(dependig on constants), but can not be without results
-//            NGRAPH_CHECK(!result_mapping.empty(), "No results found in body Model.");
-//            // TI, Loop do not have attributtes as regular ops, it is necessary to append "port_map" and
-//            // "back_edges" to layer above (m_xml_node.parent()) as in ngfunction_2_ir() layer (here "m_xml_node")
-//            // with empty attributes is removed.
+            // TI, Loop do not have attributtes as regular ops, it is necessary to append "port_map" and
+            // "back_edges" to layer above (m_xml_node.parent()) as in ngfunction_2_ir() layer (here "m_xml_node")
+            // with empty attributes is removed.
 //            if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<
 //                    std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>>>>(&adapter)) {
-//                input_descriptions_on_adapter(a->get(), parameter_mapping, result_mapping, port_map, portmap_name);
+//                input_descriptions_on_adapter(a->get());
 //            } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<
 //                    std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>>>>(
 //                    &adapter)) {
 //                uint32_t op_input_count = 0;
-//                for (auto c = m_xml_node.parent().child("input").first_child(); !c.empty(); c = c.next_sibling()) {
-//                    op_input_count++;
-//                }
-//                output_descriptions_on_adapter(a->get(), op_input_count, result_mapping, port_map, portmap_name);
+////                for (auto c = m_xml_node.parent().child("input").first_child(); !c.empty(); c = c.next_sibling()) {
+////                    op_input_count++;
+////                }
+//                output_descriptions_on_adapter(a->get());
 //            } else if (const auto& a =
 //                    ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>>(
 //                            &adapter)) {
-//                special_body_ports_on_adapter(a->get(), parameter_mapping, result_mapping, port_map);
+//                special_body_ports_on_adapter(a->get());
 //            }
+        if (const auto& a_id = ngraph::as_type<ngraph::AttributeAdapter<
+                std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>>>>(&adapter)) {
+            input_descriptions_on_adapter(a_id->get());
+        } else if (const auto& a_od = ngraph::as_type<ngraph::AttributeAdapter<
+                std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>>>>(
+                &adapter)) {
+            output_descriptions_on_adapter(a_od->get());
+        } else if (const auto& a_ports =
+                ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>>(
+                        &adapter)) {
+            special_body_ports_on_adapter(a_ports->get());
         } else if (const auto& a_v =
                 ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
-            m_hash = hash_combine(m_hash, name);
             m_hash = hash_combine(m_hash, a_v->get()->get_info().variable_id);
         } else if (const auto& a_ab =
                 ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
                         &adapter)) {
-            m_hash = hash_combine(m_hash, name);
             m_hash = hash_combine(m_hash, hash_combine(a_ab->get()->get_ptr(), a_ab->get()->size()));
         } else if (const auto& a_fn =
                 ngraph::as_type<ngraph::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
