@@ -31,6 +31,7 @@ elseif(SELECTIVE_BUILD STREQUAL "ON")
         target_compile_options(${TARGET_NAME} INTERFACE
                                 -Wno-unused-function
                                 -Wno-unused-parameter
+                                -Wno-maybe-uninitialized
                                 -Wno-unused-local-typedefs)
     endif()
 
