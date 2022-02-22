@@ -33,6 +33,12 @@ ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape);
 
 ov::Tensor tensor_from_numpy(py::array& array, bool shared_memory);
 
+ov::PartialShape partial_shape_from_list(const py::list& shape);
+
+ov::PartialShape partial_shape_from_str(const std::string& value);
+
+ov::Dimension dimension_from_str(const std::string& value);
+
 py::array as_contiguous(py::array& array, ov::element::Type type);
 
 const ov::Tensor& cast_to_tensor(const py::handle& tensor);

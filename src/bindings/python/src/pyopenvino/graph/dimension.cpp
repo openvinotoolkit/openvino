@@ -11,6 +11,7 @@
 #include <sstream>
 #include <string>
 
+#include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/dimension.hpp"
 
 namespace py = pybind11;
@@ -40,6 +41,10 @@ void regclass_graph_Dimension(py::module m) {
                 :param max_dimension: The upper inclusive limit for the dimension.
                 :type max_dimension: int
             )");
+
+    dim.def(py::init([](const std::string& value) {
+        return Common::dimension_from_str(value);
+    }));
 
     dim.def_static("dynamic", &ov::Dimension::dynamic);
 
