@@ -146,10 +146,10 @@ std::vector<ExperimentalDOParams> generateExperimentalDOFloatParams() {
                                              1.0f, 1.0f, 1.0f, 1.0f,   1.0f, 1.0f, 1.0f, 1.0f,
                                              1.0f, 1.0f, 1.0f, 1.0f,   1.0f, 1.0f, 1.0f, 1.0f},
 
-                              std::vector<T>{1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                                             1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                                             1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                                             1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f},
+                              std::vector<T>{0.8f, 0.9f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f,
+                                             0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f,
+                                             0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f,
+                                             0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f},
                               std::vector<T>{16.0f, 12.0f, 1.0f},
                               std::vector<T>{4.8929863f, 0.892986298f, 12.0f, 12.1070137f,
                                              0.0f, 0.892986298f, 10.1070137f, 12.1070137f,
@@ -157,7 +157,7 @@ std::vector<ExperimentalDOParams> generateExperimentalDOFloatParams() {
                                              0.0f, 0.0f, 0.0f, 0.0f,
                                              0.0f, 0.0f, 0.0f, 0.0f},
                               std::vector<int32_t>{0, 1, 0, 0, 0},
-                              std::vector<T>{1.0f, 1.0f, 0.0f, 0.0f, 0.0f}),
+                              std::vector<T>{0.8f, 0.9f, 0.0f, 0.0f, 0.0f}),
     };
     return experimentalDOParams;
 }
