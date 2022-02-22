@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "any_copy.hpp"
+#include "check_network_batchable.hpp"
 #include "cnn_network_ngraph_impl.hpp"
 #include "compilation_context.hpp"
 #include "cpp/ie_cnn_network.h"
@@ -557,6 +558,8 @@ public:
                            std::string& deviceName,
                            std::map<std::string, std::string>& config) {
         std::string deviceNameWithBatchSize, deviceNameWithoutBatch;
+        // fully strict dims tracking by default (Auto-Batching is enabled implicitly)
+        bool strictly_check_dims = true;
         if (deviceName.find("BATCH") != std::string::npos) {
             // explicitly enabled Auto-Batching
             auto pos = deviceName.find_first_of(":");
@@ -564,6 +567,9 @@ public:
                 return;  // BATCH device is already configured via the config
             deviceNameWithBatchSize = deviceName.substr(pos + 1);
             deviceNameWithoutBatch = DeviceIDParser::getBatchDevice(deviceNameWithBatchSize);
+            // when user sets the BATCH device explicitly, we may check the dims less strictly
+            // as the result is being checked by the user
+            strictly_check_dims = false;
         } else {
             // check whether the Auto-Batching is disabled explicitly
             const auto& batch_mode = config.find(ov::hint::allow_auto_batching.name());
@@ -594,38 +600,18 @@ public:
             if (bExclReqsEnabled || (!bTputInPlg && !bTputInLoadCfg))
                 return;
         }
-        auto function = network.getFunction();
-        // have to execute the DetectionOutput separately (without batching)
-        // as this layer mix-in the values from the different inputs (batch id)
-        bool bDetectionOutput = false;
-        const std::string detectionOutputOpName = ngraph::op::DetectionOutput::get_type_info_static().name;
-        const std::string resultOpName = ngraph::op::Result::get_type_info_static().name;
-        for (auto&& node : function->get_ops()) {
-            auto isDetectionOutputParent = [&detectionOutputOpName](decltype(node)& nd) {
-                for (size_t n = 0; n < nd->get_input_size(); n++) {
-                    // the code below doesn't need to separate the versions (opsets) of the DetectionOutput
-                    // so type_info name check is enough
-                    // (if in a future there will be a new ver that doesn't mix the batch, this will be new op)
-                    if (detectionOutputOpName == nd->get_input_node_ptr(n)->get_type_info().name)
-                        return true;
-                }
-                return false;
-            };
-
-            if ((detectionOutputOpName == node->get_type_info().name) ||
-                ((resultOpName == node->get_type_info().name) && isDetectionOutputParent(node))) {
-                node->get_rt_info()["affinity"] = deviceNameWithoutBatch;
-                bDetectionOutput = true;
-            } else {
-                node->get_rt_info()["affinity"] = "BATCH";
-            }
-        }
         auto batchConfig = deviceNameWithBatchSize.empty() ? deviceNameWithoutBatch : deviceNameWithBatchSize;
-        if (bDetectionOutput) {
+        auto res = InferenceEngine::details::isNetworkBatchable(network, deviceNameWithoutBatch, strictly_check_dims);
+        switch (res) {
+        case InferenceEngine::details::NetworkBatchAbility::NO:
+            return;
+        case InferenceEngine::details::NetworkBatchAbility::AS_IS:
+            deviceName = "BATCH:" + batchConfig;
+            break;
+        case InferenceEngine::details::NetworkBatchAbility::WITH_HETERO:
             deviceName = "HETERO:BATCH," + deviceNameWithoutBatch;
             config[CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)] = batchConfig;
-        } else {
-            deviceName = "BATCH:" + batchConfig;
+            break;
         }
     }
 
