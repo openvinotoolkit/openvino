@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "blob_tests/detect_network_batch_test.hpp"
+#include "detect_network_batch_test.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "ngraph_functions/builders.hpp"
 
@@ -78,3 +78,19 @@ TEST_P(DetectNetworkBatch, InferWithMultipleInputs_SameDims) {
 };
 
 } // namespace LayerTestsDefinitions
+
+using namespace LayerTestsDefinitions;
+
+const std::vector<unsigned int> batchSizes = {
+        2,
+        4,
+        8,
+};
+
+namespace {
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, DetectNetworkBatch,
+                         ::testing::Combine(
+                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
+                                 ::testing::ValuesIn(batchSizes)),
+                         DetectNetworkBatch::getTestCaseName);
+}  // namespace
