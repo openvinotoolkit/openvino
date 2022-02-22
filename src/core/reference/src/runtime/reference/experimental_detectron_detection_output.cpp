@@ -76,10 +76,10 @@ void refine_boxes(const float* boxes,
             float y1_new = pred_ctr_y + 0.5f * pred_h - coordinates_offset;
 
             // adjust new corner locations to be within the image region,
-            x0_new = std::max<float>(0.0f, x0_new);
-            y0_new = std::max<float>(0.0f, y0_new);
-            x1_new = std::max<float>(0.0f, x1_new);
-            y1_new = std::max<float>(0.0f, y1_new);
+            x0_new = std::min(std::max(0.0f, x0_new), img_W);
+            y0_new = std::min(std::max(0.0f, y0_new), img_H);
+            x1_new = std::min(std::max(0.0f, x1_new), img_W);
+            y1_new = std::min(std::max(0.0f, y1_new), img_H);
 
             // recompute new width & height
             const float box_w = x1_new - x0_new + coordinates_offset;
