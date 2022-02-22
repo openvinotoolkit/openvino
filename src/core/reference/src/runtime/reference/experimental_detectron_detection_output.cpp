@@ -214,6 +214,7 @@ void experimental_detectron_detection_output(const float* boxes,
                                              const float* input_deltas,
                                              const float* input_scores,
                                              const float* input_im_info,
+                                             size_t roi_count,
                                              const op::v6::ExperimentalDetectronDetectionOutput::Attributes& attrs,
                                              float* output_boxes,
                                              float* output_scores,
@@ -221,7 +222,7 @@ void experimental_detectron_detection_output(const float* boxes,
     const float img_H = input_im_info[0];
     const float img_W = input_im_info[1];
     const int64_t classes_num = attrs.num_classes;
-    const int64_t rois_num = static_cast<int64_t>(attrs.max_detections_per_image);
+    const int64_t rois_num = static_cast<int64_t>(roi_count);
     const int64_t max_detections_per_image = static_cast<int64_t>(attrs.max_detections_per_image);
     const int64_t max_detections_per_class = attrs.post_nms_count;
     const float score_threshold = attrs.score_threshold;
