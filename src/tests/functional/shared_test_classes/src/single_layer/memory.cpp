@@ -183,6 +183,7 @@ namespace LayerTestsDefinitions {
         auto assign = std::make_shared<Assign>(add, variable);
         auto res = std::make_shared<Result>(add);
         function = std::make_shared<Function>(ResultVector{res}, SinkVector{assign}, param, "TestMemory");
+        Serialize();
     }
 
     void MemoryTest::ApplyLowLatency() {

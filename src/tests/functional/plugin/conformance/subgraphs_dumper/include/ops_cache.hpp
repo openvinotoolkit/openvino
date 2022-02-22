@@ -25,6 +25,10 @@ public:
 
     void update_ops_cache(const std::shared_ptr<ov::Node> &op, const std::string &source_model = {});
 
+    void update_model_cache(const std::shared_ptr<ov::Model> &func, const std::string &source_model = {});
+
+    std::shared_ptr<ov::Model> get_sub_model(const std::shared_ptr<ov::Model> &func, int opsIndex);
+
     void update_ops_cache(const std::shared_ptr<ov::Model> &func, const bool extract_body = true, const std::string &source_model = {});
 
     void serialize_cached_ops(const std::string &serialization_dir);
@@ -37,6 +41,7 @@ public:
 
 protected:
     std::map<std::shared_ptr<ov::Node>, LayerTestsUtils::OPInfo> m_ops_cache;
+    std::map<std::shared_ptr<ov::Model>, LayerTestsUtils::OPInfo> m_model_cache;
     MatchersManager manager;
     size_t num_neighbours_to_cache = 0;
     enum SerializationStatus {
@@ -45,6 +50,8 @@ protected:
         RETRY = 2,
     };
     SerializationStatus serialize_function(const std::pair<std::shared_ptr<ov::Node>, LayerTestsUtils::OPInfo> &op_info,
+                            const std::string &serialization_dir);
+    SerializationStatus serialize_function(const std::pair<std::shared_ptr<ov::Model>, LayerTestsUtils::OPInfo> &function,
                             const std::string &serialization_dir);
 };
 }  // namespace SubgraphsDumper

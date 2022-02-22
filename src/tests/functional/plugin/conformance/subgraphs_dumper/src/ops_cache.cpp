@@ -37,16 +37,109 @@ void OPCache::update_ops_cache(const std::shared_ptr<ov::Node> &op,
     }
 }
 
+void OPCache::update_model_cache(const std::shared_ptr<ov::Model> &func,
+                                 const std::string &source_model) {
+    const bool op_found = [&] {
+        // for (auto &&it : m_ops_cache) {
+        //     if (manager.match_any(it.first, func, it.second)) {
+        //         it.second.found_in_models[source_model] += 1;
+        //         return true;
+        //     }
+        // }
+        return false;
+    }();
+    if (!op_found) {
+        try {
+            LayerTestsUtils::OPInfo meta(source_model);
+            const std::shared_ptr<ov::Model> model_clone = ov::clone_model(*func.get());
+            m_model_cache.insert({model_clone, meta});
+        } catch (std::exception &e) {
+            std::cout << e.what() << std::endl;
+        }
+    }
+}
+
+std::shared_ptr<ov::Model> OPCache::get_sub_model(const std::shared_ptr<ov::Model> &func, int opsIndex) {
+    ov::ParameterVector params;
+    ov::ResultVector results;
+    ov::SinkVector sinks;
+
+    std::vector<std::shared_ptr<ov::Node>> ordered_ops = func->get_ordered_ops();
+    auto op = ordered_ops.at(opsIndex);
+    std::shared_ptr<ngraph::opset6::ReadValue> readNode = std::dynamic_pointer_cast<ngraph::opset6::ReadValue>(op);
+
+    try {
+        for (const auto &opReadValue :  std::vector<std::shared_ptr<ov::Node>>(ordered_ops.cbegin() + opsIndex, ordered_ops.cend())) {
+            for (size_t i = 0; i < opReadValue->get_input_size(); ++i) {
+                if (ov::op::util::is_parameter(opReadValue->get_input_node_ptr(i))) {
+                    auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(
+                            opReadValue->get_input_node_shared_ptr(i));
+                    if (std::find(params.begin(), params.end(), param) == params.end()) {
+                        params.push_back(param);
+                    }
+                }
+            }
+
+            if (ngraph::is_type<ov::op::v6::Assign>(opReadValue)) {
+                std::shared_ptr<ov::op::v6::Assign> sink = std::dynamic_pointer_cast<ov::op::v6::Assign>(opReadValue);
+                sinks.push_back(sink);
+                if (sink->get_variable() == readNode->get_variable()) {
+                    for (size_t i = 0; i < opReadValue->get_input_size(); ++i) {
+                        auto result = opReadValue->get_input_node_shared_ptr(i);
+                        for (auto &out : result->outputs()) {
+                            results.push_back(std::make_shared<ov::op::v0::Result>(out));
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+        if (sinks.empty()) {
+            params = {};
+            results = {};
+            std::cout << "\t" << "ERROR: Assign is not found, but ReadValue exists " << std::endl;
+        }
+    } catch (std::exception &e) {
+        std::cout << e.what() << std::endl;
+    }
+
+    return std::make_shared<ov::Model>(results, sinks, params);
+}
+
 void OPCache::update_ops_cache(const std::shared_ptr<ov::Model> &func, const bool extract_body, const std::string &source_model) {
     size_t cached_ops_count = m_ops_cache.size();
+    size_t cached_model_count = m_model_cache.size();
+    std::cout << "SOURCE MODEL " << source_model << std::endl;
+    int opsIndex = 0;
+    std::vector<std::shared_ptr<ov::op::util::VariableExtension>> variables;
     for (const auto &op : func->get_ordered_ops()) {
-        if (ov::is_type<ov::op::v0::Parameter>(op) ||
-            ov::is_type<ov::op::v0::Constant>(op) ||
-            ov::is_type<ov::op::v0::Result>(op) ||
-            // ReadValue and Assign have to be handled in pair
-            // Will be handled as part of 48838
-            ov::is_type<ov::op::util::AssignBase>(op) ||
-            ov::is_type<ov::op::util::ReadValueBase>(op)
+        opsIndex++;
+        if (ngraph::is_type<ngraph::op::ReadValueBase>(op)) {
+            variables.push_back(std::dynamic_pointer_cast<ov::op::util::VariableExtension>(op));
+            std::shared_ptr<ov::Model> sub_model = get_sub_model(func, opsIndex - 1);
+            if (!sub_model->get_sinks().empty()) {
+                sub_model->set_friendly_name("ReadValue_Assign_Model");
+                update_model_cache(sub_model, source_model);
+            }
+            continue;
+        }
+        if (ngraph::is_type<ov::op::v6::Assign>(op)) {
+            auto assignVar = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(op);
+            bool readValFound = false;
+            for (const auto &var : variables) {
+                if (assignVar->get_variable() == var->get_variable()) {
+                    readValFound = true;
+                    break;
+                }
+            }
+            if (!readValFound) {
+                std::cout << "\t" << "ERROR: Assign is found, but ReadValue is not exists " << std::endl;
+            }
+            continue;
+        }
+        if (ngraph::is_type<ngraph::op::Parameter>(op) ||
+            ngraph::is_type<ngraph::op::Constant>(op) ||
+            ngraph::is_type<ngraph::op::Result>(op)
                     ) {
             continue;
         }
@@ -71,6 +164,7 @@ void OPCache::update_ops_cache(const std::shared_ptr<ov::Model> &func, const boo
         update_ops_cache(op, source_model);
     }
     std::cout << "\t" << m_ops_cache.size() - cached_ops_count << " new OPs were cached." << std::endl;
+    std::cout << "\t" << m_model_cache.size() - cached_model_count << " new Models were cached." << std::endl;
 }
 
 void OPCache::serialize_cached_ops(const std::string &serialization_dir) {
@@ -85,6 +179,20 @@ void OPCache::serialize_cached_ops(const std::string &serialization_dir) {
             for (size_t i = 1; i <= 5; ++i) {
                 std::cout << "Serialization retry #" << i << std::endl;
                 res = serialize_function(op, serialization_dir);
+                if (res != OPCache::SerializationStatus::RETRY) {
+                    break;
+                }
+            }
+        }
+    }
+    for (const auto &m : m_model_cache) {
+        auto res = serialize_function(m, serialization_dir);
+        if (res != OPCache::SerializationStatus::RETRY) {
+            continue;
+        } else {
+            for (size_t i = 1; i <= 5; ++i) {
+                std::cout << "Serialization retry #" << i << std::endl;
+                res = serialize_function(m, serialization_dir);
                 if (res != OPCache::SerializationStatus::RETRY) {
                     break;
                 }
@@ -132,6 +240,42 @@ float OPCache::get_size_of_cached_ops() {
         }
     }
     return size;
+}
+
+OPCache::SerializationStatus
+OPCache::serialize_function(const std::pair<std::shared_ptr<ov::Model>, LayerTestsUtils::OPInfo> &function,
+                            const std::string &serialization_dir) {
+    try {
+        std::cout << "Serializing sub model " << function.first->get_name() << std::endl;
+        // std::cout << "Taken from model: " << func << std::endl;
+
+        // TODO: How to define element type for multi-output ops
+        auto op_el_type = function.first->get_output_element_type(0).get_type_name();
+        auto current_op_folder = serialization_dir + CommonTestUtils::FileSeparator +
+                                 function.first->get_friendly_name() + CommonTestUtils::FileSeparator + op_el_type;
+        std::cout << current_op_folder << std::endl;
+        if (!CommonTestUtils::directoryExists(current_op_folder)) {
+            CommonTestUtils::createDirectoryRecursive(current_op_folder);
+        }
+        auto func_name = function.first->get_name();
+        std::replace(func_name.begin(), func_name.end(), '/', '_');
+        std::replace(func_name.begin(), func_name.end(), '\\', '_');
+        // TODO: Possible names collision
+        auto xml_path = current_op_folder + CommonTestUtils::FileSeparator + func_name + ".xml";
+        auto bin_path = current_op_folder + CommonTestUtils::FileSeparator + func_name + ".bin";
+        auto meta_info = current_op_folder + CommonTestUtils::FileSeparator + func_name + ".meta";
+        auto cnn_net = InferenceEngine::CNNNetwork(function.first);
+        cnn_net.serialize(xml_path, bin_path);
+        serialize_meta_info(function.second, meta_info);
+        return OPCache::SerializationStatus::OK;
+    } catch (std::exception &e) {
+        std::cout << "Failed to serialize function related to op" << function.first->get_friendly_name() << std::endl
+                  << "Exception occurred: " << e.what() << std::endl;
+        if (std::string(e.what()).find("Can't open") != std::string::npos) {
+            return OPCache::SerializationStatus::RETRY;
+        }
+        return OPCache::SerializationStatus::FAILED;
+    }
 }
 
 OPCache::SerializationStatus

@@ -101,6 +101,7 @@ int main(int argc, char *argv[]) {
         showUsage();
         return 0;
     }
+
     SubgraphsDumper::ClonersMap::constant_size_threshold_mb = FLAGS_constants_size_threshold;
 
     std::vector<std::string> local_cache_dirs = CommonTestUtils::splitStringByDelimiter(FLAGS_local_cache);
