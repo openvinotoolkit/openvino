@@ -614,8 +614,9 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
             info_map[name] = info;
         }
 
-        if (batch_size && !is_there_at_least_one_batch_dim) {
-            throw std::runtime_error("-b option is provided in command line, but there's no inputs with batch(B) dimension in input layout, so batch cannot be set. "
+        if (batch_size > 1 && !is_there_at_least_one_batch_dim) {
+            throw std::runtime_error("-b option is provided in command line, but there's no inputs with batch(B) "
+                                     "dimension in input layout, so batch cannot be set. "
                                      "You may specify layout explicitly using -layout option.");
         }
 
