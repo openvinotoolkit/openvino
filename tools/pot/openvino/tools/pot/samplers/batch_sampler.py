@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.pot.samplers.sampler import Sampler
+from .utils import format_input_batch
 
 
 class BatchSampler(Sampler):
@@ -17,7 +18,9 @@ class BatchSampler(Sampler):
     def __iter__(self):
         batch = []
         for idx in self._subset_indices:
-            batch.append(self._data_loader[idx])
+            data_batch = self._data_loader[idx]
+            formatted_batch = data_batch if isinstance(data_batch, dict) else format_input_batch(data_batch, idx)
+            batch.append(formatted_batch)
             if len(batch) == self.batch_size:
                 yield batch
                 batch = []

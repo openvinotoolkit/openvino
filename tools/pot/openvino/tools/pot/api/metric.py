@@ -12,7 +12,6 @@ class Metric(ABC):
         self.reset()
 
     @property
-    @abstractmethod
     def value(self):
         """ Returns accuracy metric value for the last model output. """
 
