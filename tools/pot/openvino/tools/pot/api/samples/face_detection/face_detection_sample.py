@@ -6,12 +6,18 @@ from argparse import ArgumentParser
 from functools import partial
 from time import time
 
+import copy
 import cv2
 import numpy as np
 
+from openvino.runtime import PartialShape    # pylint: disable=E0611,E0401
 from openvino.tools.pot import Metric, DataLoader, IEEngine, \
     load_model, compress_model_weights, create_pipeline
 from openvino.tools.pot.graph.model_utils import add_outputs
+from openvino.tools.pot.samplers.batch_sampler import BatchSampler
+from openvino.tools.pot.engines.utils import process_accumulated_stats, \
+    restore_original_node_names, align_stat_names_with_results, \
+    add_tensor_names, collect_model_outputs
 from openvino.tools.pot.utils.logger import init_logger, get_logger
 from openvino.tools.pot.api.samples.face_detection import utils
 
@@ -98,14 +104,68 @@ class MTCNNEngine(IEEngine):
         self._model = self._set_model(model)
         self._output_layers = {}
         stage_names = ['pnet', 'rnet', 'onet']
-        for stage, model_dict in enumerate(model.models):
+        for stage, _ in enumerate(model.models):
             self._output_layers[stage_names[stage]] = {
-                'probabilities': model_dict['name'] + '_' + self.config['outputs']['probabilities'][stage],
-                'regions': model_dict['name'] + '_' + self.config['outputs']['regions'][stage],
+                'probabilities':  self.config['outputs']['probabilities'][stage],
+                'regions':  self.config['outputs']['regions'][stage],
             }
 
     def _add_outputs(self, nodes_name):
         return add_outputs(self._model, nodes_name)
+
+    def predict(self, stats_layout=None, sampler=None, stat_aliases=None,
+                metric_per_sample=False, print_progress=False):
+        stat_names_aliases = None
+        if sampler is None:
+            sampler = BatchSampler(self.data_loader)
+        if stats_layout:
+            model_with_stat_op, nodes_names_map, output_to_node_names = self._statistic_graph_builder. \
+                insert_statistic(copy.deepcopy(self._nx_model),
+                                 stats_layout, stat_aliases)
+            self.set_model(model_with_stat_op)
+
+            nodes_name = []
+            for names_map in nodes_names_map.values():
+                nodes_name.extend(list(names_map.keys()))
+
+            outputs = self._add_outputs(nodes_names_map)
+            for model_name, outputs_data in outputs.items():
+                add_tensor_names(outputs_data, nodes_names_map[model_name].keys())
+
+            model_output_names = []
+            for model in self._model:
+                model_output_names.extend(collect_model_outputs(model['model']))
+
+            align_stat_names_with_results(model_output_names,
+                                          nodes_name,
+                                          output_to_node_names,
+                                          stats_layout,
+                                          stat_aliases)
+
+            # Creating statistics layout with IE-like names
+            stats_layout, stat_names_aliases = self._convert_stats_names(stats_layout)
+
+        self._predict(stats_layout=stats_layout,
+                      sampler=sampler,
+                      print_progress=print_progress,
+                      need_metrics_per_sample=metric_per_sample)
+
+        accumulated_stats = \
+            process_accumulated_stats(stat_names_aliases=stat_names_aliases,
+                                      accumulated_stats=self._accumulated_layer_stats)
+
+        if stats_layout:
+            restore_original_node_names(output_to_node_names, accumulated_stats, stats_layout, stat_aliases)
+
+        metrics = None
+        if self._metric:
+            metrics = self._metric.avg_value
+            if metric_per_sample:
+                metrics = (sorted(self._per_sample_metrics, key=lambda i: i['sample_id']), metrics)
+
+        self._reset()
+
+        return metrics, accumulated_stats
 
     def _predict(self, stats_layout, sampler, print_progress=False,
                  need_metrics_per_sample=False):
@@ -142,12 +202,12 @@ class MTCNNEngine(IEEngine):
         progress_log_fn('Inference finished')
 
     def _infer(self, data, ie_network, stats_collect_callback=None):
+        ie_network.reshape(PartialShape(data.shape))
         filled_input = self._fill_input(ie_network, data)
-        input_shapes = {layer_name: data.shape for layer_name, data in filled_input.items()}
-        ie_network.reshape(input_shapes)
-        exec_model = self._ie.load_network(network=ie_network,
-                                           device_name=self.config.device)
-        result = exec_model.infer(filled_input)
+        compiled_model = self._ie.compile_model(model=ie_network,
+                                                device_name=self.config.device)
+        infer_request = compiled_model.create_infer_request()
+        result = infer_request.infer(filled_input)
         # Collect statistics
         if stats_collect_callback:
             stats_collect_callback(self._transform_for_callback(result))
@@ -173,9 +233,12 @@ class MTCNNEngine(IEEngine):
             total_boxes = np.zeros((0, 9), np.float)
             for idx, outputs in enumerate(output):
                 scales = input_meta['scales'][idx]
+                mapping = outputs[[i for i, _ in outputs.items()
+                                   if i.any_name == self._output_layers['pnet']['probabilities']][0]][0, 1]
 
-                mapping = outputs[self._output_layers['pnet']['probabilities']][0, 1]
-                regions = outputs[self._output_layers['pnet']['regions']][0]
+                regions = outputs[[i for i, _ in outputs.items()
+                                   if i.any_name == self._output_layers['pnet']['regions']][0]][0]
+
                 boxes = utils.generate_bounding_box(mapping, regions, scales, 0.6)
                 if len(boxes) != 0:
                     pick = utils.nms(boxes, 0.5)
@@ -207,8 +270,9 @@ class MTCNNEngine(IEEngine):
             return np.transpose(img, [0, 3, 2, 1])
 
         def postprocess(output):
-            score = output[self._output_layers['rnet']['probabilities']][:, 1]
-            regions = output[self._output_layers['rnet']['regions']]
+            score = output[[i for i, _ in output.items()
+                            if i.any_name == self._output_layers['rnet']['probabilities']][0]][:, 1]
+            regions = output[[i for i, _ in output.items() if i.any_name == self._output_layers['rnet']['regions']][0]]
             return utils.calibrate_bboxes(prev_stage_output, score, regions, nms_type='union')
 
         ie_network = self._model[1]['model']
@@ -223,8 +287,9 @@ class MTCNNEngine(IEEngine):
             return np.transpose(img, [0, 3, 2, 1])
 
         def postprocess(output):
-            score = output[self._output_layers['onet']['probabilities']][:, 1]
-            regions = output[self._output_layers['onet']['regions']]
+            score = output[[i for i, _ in output.items()
+                            if i.any_name == self._output_layers['onet']['probabilities']][0]][:, 1]
+            regions = output[[i for i, _ in output.items() if i.any_name == self._output_layers['onet']['regions']][0]]
             bboxes = utils.calibrate_bboxes(prev_stage_output, score, regions)
             pick = utils.nms(bboxes, 0.7, 'min')
             bboxes_to_remove = np.setdiff1d(np.arange(len(bboxes)), pick)
