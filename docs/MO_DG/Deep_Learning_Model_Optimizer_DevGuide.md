@@ -2,6 +2,8 @@
 
 @sphinxdirective
 
+.. _deep learning model optimizer:
+
 .. toctree::
    :maxdepth: 1
    :hidden:
@@ -20,7 +22,7 @@
 
 Model Optimizer is a cross-platform command-line tool that facilitates the transition between the training and deployment environment, performs static model analysis, and adjusts deep learning models for optimal execution on end-point target devices.
 
-Model Optimizer process assumes you have a network model trained using supported deep learning frameworks: Caffe*, TensorFlow*, Kaldi*, MXNet* or converted to the ONNX* format. Model Optimizer produces an Intermediate Representation (IR) of the network, which can be inferred with the [Inference Engine](../OV_Runtime_UG/Deep_Learning_Inference_Engine_DevGuide.md).
+Model Optimizer process assumes you have a network model trained using supported deep learning frameworks: Caffe*, TensorFlow*, Kaldi*, MXNet* or converted to the ONNX* format. Model Optimizer produces an Intermediate Representation (IR) of the network, which can be inferred with the [OpenVINO™ Runtime](../OV_Runtime_UG/OpenVINO_Runtime_User_Guide.md).
 
 > **NOTE**: Model Optimizer does not infer models. Model Optimizer is an offline tool that runs before the inference takes place.
 

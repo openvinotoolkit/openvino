@@ -108,6 +108,12 @@ repositories = {
         'github_repo': 'open_model_zoo',
         'github_version': 'master',
         'host_url': 'https://github.com'
+    },
+    'ovms': {
+        'github_user': 'openvinotoolkit',
+        'github_repo': 'model_server',
+        'github_version': 'main',
+        'host_url': 'https://github.com'
     }
 }
 

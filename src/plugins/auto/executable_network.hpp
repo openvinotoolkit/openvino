@@ -18,6 +18,7 @@
 #include "threading/ie_executor_manager.hpp"
 #include "ie_icore.hpp"
 #include <ie_performance_hints.hpp>
+#include "openvino/runtime/properties.hpp"
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
@@ -40,6 +41,7 @@ struct DeviceInformation {
     int numRequestsPerDevices;
     std::string defaultDeviceID;
     DeviceName uniqueName;
+    unsigned int devicePriority;
 };
 
 struct AutoContext {

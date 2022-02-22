@@ -32,7 +32,6 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 63469
         R"(.*ConversionLayerTest.*ConvertLike.*)",
         // TODO: Issue: 34055
-        R"(.*ShapeOfLayerTest.*)",
         R"(.*ReluShapeOfSubgraphTest.*)",
         // TODO: Issue: 43314
         R"(.*Broadcast.*mode=BIDIRECTIONAL.*inNPrec=BOOL.*)",
@@ -144,9 +143,6 @@ std::vector<std::string> disabledTestPatterns() {
             *IS=_TS=\(\(4\.5\.6\.7\)\)_RS=\(\(1\.1\.6\.1\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.1\.1\.1\)\)_\(\(1\.1\.6\.1\)\).*)",
         // Issue: 69222
         R"(.*smoke_PriorBoxClustered.*PriorBoxClusteredLayerCPUTest.*_netPRC=f16_.*)",
-        // TODO : CVS-69533
-        R"(.*ConvolutionLayerCPUTest.*IS=\{.+\}.*_Fused=.*Add\(Parameters\).*)",
-        R"(.*GroupConvolutionLayerCPUTest.*IS=\{.+\}.*_Fused=.*Add\(Parameters\).*)",
         // Issue: 74817
         // Sporadic failings with NAN on Dynamic shape cases with jit implementation
         R"(.*DefConvLayoutTest7.*)",
@@ -160,6 +156,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*CTCLossLayerCPUTest.*ctcMergeRepeated=1.*)",
         // Issue: 71756
         R"(.*Deconv_.*D_(Blocked|DW|1x1)_.*DeconvolutionLayerCPUTest\.CompareWithRefs.*inFmts=(nChw16c|nCdhw16c)_outFmts=(nChw16c|nCdhw16c)_primitive=jit_avx512_.*Fused=Multiply\(PerChannel\)\.Add\(PerChannel\).*)",
+        R"(.*Deconv_.*D_(Blocked|DW|1x1)_.*DeconvolutionLayerCPUTest\.CompareWithRefs.*inFmts=(nChw8c|nCdhw8c)_outFmts=(nChw8c|nCdhw8c)_primitive=jit_avx2_.*Fused=Multiply\(PerChannel\)\.Add\(PerChannel\).*)",
+        R"(.*Deconv_.*D_(Blocked|1x1)_.*DeconvolutionLayerCPUTest\.CompareWithRefs.*inFmts=(nChw8c|nCdhw8c)_outFmts=(nChw8c|nCdhw8c)_primitive=jit_avx2.*)",
         R"(.*smoke_GroupDeconv_(2|3)D_Blocked_BF16.*S=(\(2\.2\)|\(2\.2\.2\))_PB=(\(0\.0\)|\(0\.0\.0\))_PE=(\(0\.0\)|\(0\.0\.0\))_D=(\(1\.1\)|\(1\.1\.1\))_.*_O=64_G=4.*)",
         // Issue: 59594
         R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*BOOL.*)",
@@ -184,6 +182,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*LoopLayerCPUTest.*trip_count=0.*)",
         R"(.*LoopForDiffShapesLayerCPUTest.*exec_cond=0.*)",
         R"(.*LoopForDiffShapesLayerCPUTest.*trip_count=0.*)",
+        // [ INFO ] Can't compile network without cache for ..  with precision ..
+        R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*KSOFunction.*)",
+        R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*NonMaxSuppression.*)",
+        R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*Nms.*)",
     };
 
 #define FIX_62820 0
