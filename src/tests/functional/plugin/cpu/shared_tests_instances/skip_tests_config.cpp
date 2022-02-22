@@ -182,6 +182,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*LoopLayerCPUTest.*trip_count=0.*)",
         R"(.*LoopForDiffShapesLayerCPUTest.*exec_cond=0.*)",
         R"(.*LoopForDiffShapesLayerCPUTest.*trip_count=0.*)",
+        // [ INFO ] Can't compile network without cache for ..  with precision ..
+        R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*KSOFunction.*)",
+        R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*NonMaxSuppression.*)",
+        R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*Nms.*)",
     };
 
 #define FIX_62820 0
