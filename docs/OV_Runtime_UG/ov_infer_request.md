@@ -141,7 +141,7 @@ You can use `ov::InferRequest::cancel()` method in case if you want to cancel th
 
 ## Working with Input and Output tensors
 
-`ov::InferRequest` allows to get input/output tensors by friendly name, index and without any arguments in case if model has only one input or output.
+`ov::InferRequest` allows to get input/output tensors by tensor name, index, port and without any arguments in case if model has only one input or output.
 
   * `ov::InferRequest::get_input_tensor()`, `ov::InferRequest::set_input_tensor()`, `ov::InferRequest::get_output_tensor()`, `ov::InferRequest::set_output_tensor()` methods without arguments can be used to get or set input/output tensor for model with only one input/output:
     @sphinxdirective
@@ -191,6 +191,23 @@ You can use `ov::InferRequest::cancel()` method in case if you want to cancel th
         .. doxygensnippet:: docs/snippets/ov_infer_request.py
            :language: python
            :fragment: [get_set_tensor]
+
+    @endsphinxdirective
+
+  * `ov::InferRequest::get_tensor()`, `ov::InferRequest::set_tensor()` methods can be used to get or set input/output tensor by port:
+    @sphinxdirective
+
+    .. tab:: C++
+
+        .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
+           :language: cpp
+           :fragment: [get_set_tensor_by_port]
+
+    .. tab:: Python
+
+        .. doxygensnippet:: docs/snippets/ov_infer_request.py
+           :language: python
+           :fragment: [get_set_tensor_by_port]
 
     @endsphinxdirective
 

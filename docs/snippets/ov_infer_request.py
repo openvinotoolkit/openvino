@@ -7,8 +7,8 @@ import openvino.runtime as ov
 #! [import]
 
 core = ov.Core()
-model = ov.Model()
-compiled_model = ov.CompiledModel()
+model = core.read_mode("model.xml")
+compiled_model = core.compile_model(model, "AUTO")
 
 #! [create_infer_request]
 infer_request = compiled_model.create_infer_request()
@@ -61,6 +61,14 @@ tensor1 = infer_request.get_tensor("tensor_name1")
 tensor2 = ov.Tensor()
 infer_request.set_tensor("tensor_name2", tensor2)
 #! [get_set_tensor]
+
+#! [get_set_tensor_by_port]
+input_port = model.input(0)
+output_port = model.input("tensor_name")
+input_tensor = ov.Tensor()
+infer_request.set_tensor(input_port, input_tensor)
+output_tensor = infer_request.get_tensor(output_port)
+#! [get_set_tensor_by_port]
 
 infer_request1 = compiled_model.create_infer_request()
 infer_request2 = compiled_model.create_infer_request()

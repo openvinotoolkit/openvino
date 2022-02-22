@@ -67,6 +67,16 @@ ov::Tensor tensor2;
 infer_request.set_tensor("tensor_name2", tensor2);
 //! [get_set_tensor]
 
+{
+//! [get_set_tensor_by_port]
+auto input_port = model->input(0);
+auto output_port = model->output("tensor_name");
+ov::Tensor input_tensor;
+infer_request.set_tensor(input_port, input_tensor);
+auto output_tensor = infer_request.get_tensor(output_port);
+//! [get_set_tensor_by_port]
+}
+
 auto infer_request1 = compiled_model.create_infer_request();
 auto infer_request2 = compiled_model.create_infer_request();
 

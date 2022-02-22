@@ -8,9 +8,11 @@ import openvino.runtime as ov
 
 #! [part1]
 core = ov.Core()
-model = ov.Model()
-compiled_model = ov.CompiledModel()
+#  model is ov.Model
+#  compiled_model is ov.CompiledModel
 #! [part1]
+
+model = core.read_model("model.xml")
 
 #! [part2_1]
 compiled_model = core.compile_model("model.xml", "AUTO")
@@ -31,8 +33,6 @@ infer_request = compiled_model.create_infer_request()
 
 memory = np.array([1, 2, 3, 4])
 #! [part4]
-# Get input port for model with one input
-input_port = model.input();
 # Create tensor from external memory
 input_tensor = ov.Tensor(array=memory, shared_memory=True)
 # Set input tensor for model with one input
