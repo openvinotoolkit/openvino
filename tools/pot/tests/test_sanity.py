@@ -219,24 +219,6 @@ def test_simplified_mode(tmp_path, models):
     assert metrics == pytest.approx(expected_accuracy, abs=0.006)
 
 
-DATAFREE_TEST_MODELS = [
-    ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'performance',
-     {'accuracy@top1': 0.679, 'accuracy@top5': 0.888})
-]
-
-
-def test_datafree_mode(tmp_path, models):
-    engine_config = Dict({'type': 'data_free',
-                          'data_source': os.path.join(tmp_path, 'pot_dataset'),
-                          'generate_data': 'True',
-                          'subset_size': 30,
-                          'device': 'CPU'})
-
-    _, _, _, _, expected_accuracy = DATAFREE_TEST_MODELS[0]
-    metrics = launch_simplified_mode(tmp_path, models, engine_config)
-    assert metrics == pytest.approx(expected_accuracy, abs=0.06)
-
-
 def test_frame_extractor_tool():
     # hack due to strange python imports (same as in sample test)
     pot_dir = Path(__file__).parent.parent

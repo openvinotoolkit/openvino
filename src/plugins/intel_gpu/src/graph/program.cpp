@@ -107,6 +107,7 @@ program::program(engine& engine_ref,
     prepare_nodes(topology);
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
+    program_node::reset_unique_id();
     if (no_optimizations) {
         init_graph();
     } else {

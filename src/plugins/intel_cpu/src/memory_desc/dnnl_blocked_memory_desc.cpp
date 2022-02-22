@@ -6,7 +6,7 @@
 #include <dnnl_types.h>
 #include <common/memory_desc_wrapper.hpp>
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const VectorDims& strides)

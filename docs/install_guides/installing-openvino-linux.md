@@ -1,4 +1,4 @@
-# Install and Configure Intel® Distribution of OpenVINO™ toolkit for Linux {#openvino_docs_install_guides_installing_openvino_linux}
+# Install and Configure Intel® Distribution of OpenVINO™ Toolkit for Linux {#openvino_docs_install_guides_installing_openvino_linux}
 
 > **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. These tools are now only available on [pypi.org](https://pypi.org/project/openvino-dev/).
 
@@ -7,8 +7,8 @@
 @sphinxdirective
 .. tab:: Operating Systems
 
-  * Ubuntu 18.04.x long-term support (LTS), 64-bit
-  * Ubuntu 20.04.x long-term support (LTS), 64-bit
+  * Ubuntu 18.04 long-term support (LTS), 64-bit
+  * Ubuntu 20.04 long-term support (LTS), 64-bit
 
   .. note::
      Since the OpenVINO™ 2022.1 release, CentOS 7.6, 64-bit is not longer supported.
@@ -139,7 +139,7 @@ The environment variables are set. Next, you can download some additional tools.
 
 ## <a name="model-optimizer">Step 4 (Optional): Download additional components
 
-> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. The OpenVINO™ Model Development Tools can only be installed via PyPI now. See [Install OpenVINO™ Model Development Tools](@ref installing_model_dev_tools) for detailed steps.
+> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. The OpenVINO™ Development Tools can only be installed via PyPI now. See [Install OpenVINO™ Development Tools](installing-model-dev-tools.md) for detailed steps.
 
 @sphinxdirective
 

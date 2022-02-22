@@ -32,14 +32,14 @@ There are three steps to support inference of a model with custom operation(s):
 the Model Optimizer can generate the IR with the operation.
 2. Create an operation set and implement a custom nGraph operation in it as described in the
 [Custom nGraph Operation](../OV_Runtime_UG/Extensibility_DG/AddingNGraphOps.md).
-3. Implement a customer operation in one of the [Inference Engine](../OV_Runtime_UG/Deep_Learning_Inference_Engine_DevGuide.md)
+3. Implement a customer operation in one of the [OpenVINO™ Runtime](../OV_Runtime_UG/openvino_intro.md)
 plugins to support inference of this operation using a particular target hardware (CPU, GPU or VPU).
 
 To see the operations that are supported by each device plugin for the Inference Engine, refer to the
 [Supported Devices](../OV_Runtime_UG/supported_plugins/Supported_Devices.md).
 
 > **NOTE**: If a device doesn't support a particular operation, an alternative to creating a new operation is to target
-> an additional device using the HETERO plugin. The [Heterogeneous Plugin](../OV_Runtime_UG/supported_plugins/HETERO.md) may be
+> an additional device using the HETERO device. The [Heterogeneous execution](../OV_Runtime_UG/hetero_execution.md) may be
 > used to run an inference model on multiple devices allowing the unsupported operations on one device to "fallback" to
 > run on another device (e.g., CPU) that does support those operations.
 

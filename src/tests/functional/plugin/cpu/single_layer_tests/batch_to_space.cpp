@@ -87,7 +87,7 @@ TEST_P(BatchToSpaceCPULayerTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckPluginRelatedResults(executableNetwork, "BatchToSpace");
+    CheckPluginRelatedResults(compiledModel, "BatchToSpace");
 };
 
 namespace {
