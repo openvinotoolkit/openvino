@@ -111,7 +111,7 @@ void clip_and_write_result(const std::vector<int64_t>& axes_data,
     const auto rdft_output_size = rdft_output_strides.back();
 
     complex_type* complex_output_ptr = reinterpret_cast<complex_type*>(rdft_result);
-    const complex* complex_input_ptr = reinterpret_cast<const complex_type*>(fft_result.data());
+    const complex_type* complex_input_ptr = reinterpret_cast<const complex_type*>(fft_result.data());
     for (int64_t i = 0; i < rdft_output_size; ++i) {
         const auto coords = coords_from_index(i, rdft_output_strides);
         const int64_t input_offset = offset_from_coords_and_strides(coords, output_fft_strides);
