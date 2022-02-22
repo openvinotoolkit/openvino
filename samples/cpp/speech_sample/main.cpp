@@ -178,7 +178,8 @@ int main(int argc, char* argv[]) {
         }
         if (FLAGS_q.compare("user") == 0) {
             if (!FLAGS_rg.empty()) {
-                slog::warn << "Custom scale factor will be used for imported gna model: " << FLAGS_rg << slog::endl;
+                std::string errMessage("Custom scale factor can be set for imported gna model: " + FLAGS_rg);
+                throw std::logic_error(errMessage);
             }
             auto scale_factors_per_input = parse_scale_factors(model->inputs(), FLAGS_sf);
             if (numInputFiles != scale_factors_per_input.size()) {
