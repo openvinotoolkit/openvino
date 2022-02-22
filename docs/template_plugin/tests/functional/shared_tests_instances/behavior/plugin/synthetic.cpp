@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "hetero/synthetic.hpp"
+#include "behavior/plugin/hetero_synthetic.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 
