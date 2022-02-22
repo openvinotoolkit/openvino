@@ -4,6 +4,7 @@
 from abc import ABC, abstractmethod
 
 
+#pylint: disable=W0223
 class Metric(ABC):
     """An abstract class representing an accuracy metric. """
 
