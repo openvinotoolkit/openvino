@@ -92,6 +92,8 @@ private:
 
     static constexpr size_t INPUT_DATA_IDX = 0lu;
     static constexpr size_t INPUT_ORDER_IDX = 1lu;
+
+    bool performAsReorder = false;
 };
 
 }   // namespace intel_cpu
