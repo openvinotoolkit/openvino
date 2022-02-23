@@ -338,6 +338,7 @@ set(SRC
     visitors/op/matrix_nms.cpp
     visitors/op/max_pool.cpp
     visitors/op/maximum.cpp
+    visitors/op/memory.cpp
     visitors/op/minimum.cpp
     visitors/op/mish.cpp
     visitors/op/mod.cpp
