@@ -343,29 +343,6 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v4::Swish> &no
     return std::make_shared<ov::Model>(results, params, "SwishGraph");
 }
 
-std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::TensorIterator> &node) {
-    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{1, 2}, {2, 1}, {1, 1}});
-    const auto params_body = ngraph::builder::makeDynamicParams(ov::element::f32, {{1, 2}, {2, 1}, {1, 1}});
-    const auto body_condition = ngraph::builder::makeConstant<bool>(ov::element::boolean, ov::Shape{1}, {true});
-    const auto exec_condition = ngraph::builder::makeConstant<bool>(ov::element::boolean, ov::Shape{1}, {true});
-    // Body
-    auto sum = std::make_shared<ov::op::v1::Add>(params_body.at(0), params_body.at(1));
-    auto Zo = std::make_shared<ov::op::v1::Multiply>(sum, params_body.at(2));
-    auto body = std::make_shared<ov::Model>(ov::OutputVector{body_condition, Zo}, params_body);
-
-    auto tensor_iterator = std::make_shared<ov::op::v0::TensorIterator>();
-    tensor_iterator->set_function(body);
-
-    tensor_iterator->set_sliced_input(params_body.at(0), params.at(0), 0, 1, 1, -1, 1);
-    tensor_iterator->set_sliced_input(params_body.at(1), params.at(1), 0, 1, 1, -1, 0);
-    tensor_iterator->set_merged_input(params_body.at(2), params.at(2), Zo);
-
-    // Output 0 is last Zo
-    auto out1 = tensor_iterator->get_iter_value(Zo, -1);
-    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(out1)};
-    return std::make_shared<ov::Model>(results, params, "TensorIteratorGraph");
-}
-
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Tile> &node) {
     const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 1, 3}});
     const auto repeats = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {2}, {2, 1});
@@ -672,6 +649,46 @@ std::shared_ptr<ov::Model> generateRNNCellBase(const std::shared_ptr<ov::op::Op>
         return nullptr;
     }
 }
+
+std::shared_ptr<ov::Model> generateSubGraphOp(const std::shared_ptr<ov::op::Op> &node) {
+    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 2}, {2, 2}, {2, 2}});
+    const auto params_body = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 2}, {2, 2}, {2, 2}});
+    const auto body_condition = ngraph::builder::makeConstant<bool>(ov::element::boolean, ov::Shape{1}, {true});
+    const auto trip_count = ngraph::builder::makeConstant<int64_t>(ngraph::element::i64, ov::Shape{1}, {3});
+    const auto exec_condition = ngraph::builder::makeConstant<bool>(ov::element::boolean, ov::Shape{1}, {true});
+    // Body
+    auto sum = std::make_shared<ov::op::v1::Add>(params_body.at(0), params_body.at(1));
+    auto Zo = std::make_shared<ov::op::v1::Multiply>(sum, params_body.at(2));
+    auto body = std::make_shared<ov::Model>(ov::OutputVector{body_condition, Zo}, params_body);
+
+    ov::Output<ov::Node> SubGraphOpNode;
+    if (ov::is_type<ov::op::v0::TensorIterator>(node)) {
+        auto tensor_iterator = std::make_shared<ov::op::v0::TensorIterator>();
+        tensor_iterator->set_function(body);
+
+        tensor_iterator->set_sliced_input(params_body.at(0), params.at(0), 0, 1, 1, -1, 1);
+        tensor_iterator->set_sliced_input(params_body.at(1), params.at(1), 0, 1, 1, -1, 0);
+        tensor_iterator->set_merged_input(params_body.at(2), params.at(2), Zo);
+
+        // Output 0 is last Zo
+        SubGraphOpNode = tensor_iterator->get_iter_value(Zo, -1);
+    } else if (ov::is_type<ov::op::v5::Loop>(node)) {
+        auto loop = std::make_shared<ov::op::v5::Loop>(trip_count, exec_condition);
+        loop->set_function(body);
+
+        loop->set_invariant_input(params_body.at(0), params.at(0));
+        loop->set_invariant_input(params_body.at(1), params.at(1));
+        loop->set_merged_input(params_body.at(2), params.at(2), Zo);
+
+        loop->set_special_body_ports(ov::op::v5::Loop::SpecialBodyPorts{-1, 0});
+        SubGraphOpNode = loop->get_iter_value(Zo, -1);
+    } else {
+        return nullptr;
+    }
+
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(SubGraphOpNode)};
+    return std::make_shared<ov::Model>(results, params, "SubGraphOpGraph");
+}
 } // namespace
 
 template <typename T>
@@ -695,6 +712,8 @@ std::shared_ptr<ov::Model> generateGraph() {
         return generateGatherNDBase(node);
     } else if (ov::is_type<ov::op::util::RNNCellBase>(node)) {
         return generateRNNCellBase(node);
+    } else if (ov::is_type<ov::op::util::SubGraphOp>(node)) {
+        return generateSubGraphOp(node);
     }
     return generate(node);
 }
