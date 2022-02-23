@@ -404,7 +404,8 @@ class IEEngine(Engine):
                                'Some items contain annotation, and some do not.')
 
         if not all([isinstance(item[0], tuple) for item in batch]):
-            images, image_annotation = [list(data[0]) for data in batch], [list((idx, data[1])) for idx, data in enumerate(batch)]
+            images, image_annotation = [list(data[0]) for data in batch], [
+                list((idx, data[1])) for idx, data in enumerate(batch)]
         else:
             images, image_annotation = [list(data[1]) for data in batch], [list(data[0]) for data in batch]
 
