@@ -340,7 +340,8 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     }
 
     if (GNAConvolutionLayer::isConv2D(in_height, in_width, in_channels, convolution._kernel_y, convolution._kernel_x) ||
-        in_height != 1) {
+        in_height != 1 ||
+        out_channels < GNALimitations::convMinFiltersNum) {
         // TensorFlow default layout is NHWC
         // OpenVino Default layout is   NCHW
         // GNA Convolution input is     NHCW (old) or NHWC (new)
