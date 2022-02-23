@@ -116,10 +116,35 @@ protected:
                                               ngraph::ParameterVector &params,
                                               const std::shared_ptr<ngraph::Node> &lastNode) override {
         auto retNode = CpuTestWithFusing::modifyGraph(ngPrc, params, lastNode);
-        for (size_t i = targetStaticShapes.front().size(); i < params.size(); ++i) {
-            const auto& shape = params[i]->get_output_partial_shape(0);
-            if (shape.is_static()) {
-                targetStaticShapes.front().push_back(shape.get_shape());
+        std::shared_ptr<ngraph::Node> opToShapeInfer = nullptr;
+        for (auto& targetShapes : targetStaticShapes) {
+            for (size_t i = targetShapes.size(); i < params.size(); ++i) {
+                const auto &shape = params[i]->get_output_partial_shape(0);
+                if (shape.is_static()) {
+                    targetShapes.push_back(shape.get_shape());
+                } else {
+                    // It is assumed that in such tests we have second parameter only if sum fusion is tested.
+                    // Considering this fact, we need to set the appropriate static shape for the second term of the sum operation, and
+                    // it has to match the convolution output shape. So the most suitable solution here is to perform shape inference on the
+                    // convolution node
+                    if (!opToShapeInfer) {
+                        ngraph::OutputVector inputsForShapeInfer;
+                        for (size_t j = 0; j < lastNode->get_input_size(); j++) {
+                            if (ngraph::is_type<ngraph::opset1::Constant>(lastNode->get_input_node_ptr(j))) {
+                                inputsForShapeInfer.push_back(lastNode->get_input_node_shared_ptr(j));
+                            } else {
+                                inputsForShapeInfer.push_back(std::make_shared<ngraph::opset1::Parameter>(lastNode->get_input_element_type(j),
+                                                                                                          lastNode->get_input_partial_shape(j)));
+                            }
+                        }
+                        opToShapeInfer = lastNode->clone_with_new_inputs(inputsForShapeInfer);
+                    }
+
+                    std::vector<ov::Shape> secondParameterShapes;
+                    opToShapeInfer->get_input_tensor(0).set_partial_shape(targetShapes.front());
+                    opToShapeInfer->validate_and_infer_types();
+                    targetShapes.push_back(opToShapeInfer->get_output_shape(0));
+                }
             }
         }
         return retNode;
@@ -191,9 +216,9 @@ TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
     run();
 
     if (isBias) {
-        checkBiasFusing(executableNetwork);
+        checkBiasFusing(compiledModel);
     }
-    CheckPluginRelatedResults(executableNetwork, "Convolution");
+    CheckPluginRelatedResults(compiledModel, "Convolution");
 }
 
 namespace {
@@ -1128,6 +1153,20 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_3D_FP32, ConvolutionLayerCPUTest,
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_3D)),
                                  ::testing::ValuesIn(fusingParamsSet),
+                                 ::testing::Values(cpuEmptyPluginConfig)),
+                         ConvolutionLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_3D_FP32_fusingScaleShiftAndFakeQuantizePerChannel, ConvolutionLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::Combine(
+                                         convParams_ExplicitPadding_3D,
+                                         ::testing::Values(ElementType::f32),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::ValuesIn(inputShapes3d),
+                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_3D)),
+                                 ::testing::Values(fusingScaleShiftAndFakeQuantizePerChannel),
                                  ::testing::Values(cpuEmptyPluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
 

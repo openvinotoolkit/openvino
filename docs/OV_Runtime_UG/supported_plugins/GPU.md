@@ -1,4 +1,4 @@
-# GPU Plugin {#openvino_docs_IE_DG_supported_plugins_GPU}
+# GPU device {#openvino_docs_OV_UG_supported_plugins_GPU}
 
 @sphinxdirective
 
@@ -6,7 +6,7 @@
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_IE_DG_supported_plugins_GPU_RemoteBlob_API
+   openvino_docs_OV_UG_supported_plugins_GPU_RemoteBlob_API
 
 
 @endsphinxdirective

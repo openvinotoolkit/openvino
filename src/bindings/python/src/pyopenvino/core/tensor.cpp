@@ -228,4 +228,12 @@ void regclass_Tensor(py::module m) {
         R"(
             Tensor's shape get/set.
         )");
+
+    cls.def("__repr__", [](const ov::Tensor& self) {
+        std::stringstream ss;
+
+        ss << "shape" << self.get_shape() << " type: " << self.get_element_type();
+
+        return "<Tensor: " + ss.str() + ">";
+    });
 }

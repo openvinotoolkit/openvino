@@ -215,7 +215,7 @@ def get_binary_tensors(binary_paths, info, batch_sizes):
             logger.info("Prepare binary file " + binary_filename)
 
             binary_file_size = os.path.getsize(binary_filename)
-            blob_size = dtype().nbytes * int(np.prod(shape))
+            blob_size = dtype.itemsize * int(np.prod(shape))
             if blob_size != binary_file_size:
                 raise Exception(
                     f"File {binary_filename} contains {binary_file_size} bytes but network expects {blob_size}")

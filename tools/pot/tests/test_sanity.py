@@ -51,10 +51,9 @@ TEST_MODELS = [
     # {'drop_type': 'relative', 'max_iter_num': 1, 'accuracy_drop': 0.005, 'metrics': [
     #     {'name': 'accuracy@top1', 'baseline_value': 0.431}]}, 'GNA'),
 
-    #TODO: Enable after the problem with the shapes will be fixed
-    # ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 1, {'recall': 0.76, 'map': 0.6844}, {}, 'CPU'),
+    ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 1, {'recall': 0.76, 'map': 0.6844}, {}, 'CPU'),
 
-    ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 2, {'recall': 0.8, 'map': 0.7445},
+    ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 2, {'recall': 0.76, 'map': 0.6638},
      {'use_fast_bias': False}, 'CPU')
 ]
 CASCADE_MAP = Dict({
@@ -218,24 +217,6 @@ def test_simplified_mode(tmp_path, models):
     _, _, _, _, expected_accuracy = SIMPLIFIED_TEST_MODELS[0]
     metrics = launch_simplified_mode(tmp_path, models, engine_config)
     assert metrics == pytest.approx(expected_accuracy, abs=0.006)
-
-
-DATAFREE_TEST_MODELS = [
-    ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'performance',
-     {'accuracy@top1': 0.679, 'accuracy@top5': 0.888})
-]
-
-
-def test_datafree_mode(tmp_path, models):
-    engine_config = Dict({'type': 'data_free',
-                          'data_source': os.path.join(tmp_path, 'pot_dataset'),
-                          'generate_data': 'True',
-                          'subset_size': 30,
-                          'device': 'CPU'})
-
-    _, _, _, _, expected_accuracy = DATAFREE_TEST_MODELS[0]
-    metrics = launch_simplified_mode(tmp_path, models, engine_config)
-    assert metrics == pytest.approx(expected_accuracy, abs=0.06)
 
 
 def test_frame_extractor_tool():
