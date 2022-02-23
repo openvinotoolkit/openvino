@@ -1,4 +1,4 @@
-# Using Dynamic Batching {#openvino_docs_IE_DG_DynamicBatching}
+# Working with dynamic shapes {#openvino_docs_IE_DG_DynamicBatching}
 
 ## Using Dynamic Batching (C++)
 

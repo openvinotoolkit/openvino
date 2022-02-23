@@ -2,18 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "template_function_transformation.hpp"
+#include "template_model_transformation.hpp"
 
-#include <openvino/cc/ngraph/itt.hpp>
+#include <openvino/cc/pass/itt.hpp>
 
-using namespace ngraph;
-
-// ! [function_pass:template_transformation_cpp]
+// ! [model_pass:template_transformation_cpp]
 // template_function_transformation.cpp
-NGRAPH_RTTI_DEFINITION(ngraph::pass::MyFunctionTransformation, "MyFunctionTransformation", 0);
 
-bool pass::MyFunctionTransformation::run_on_model(const std::shared_ptr<ov::Model>& f) {
-    RUN_ON_FUNCTION_SCOPE(MyFunctionTransformation);
+bool ov::pass::MyFunctionTransformation::run_on_model(const std::shared_ptr<ov::Model>& f) {
+    RUN_ON_MODEL_SCOPE(MyFunctionTransformation);
     // Example transformation code
     NodeVector nodes;
 
@@ -40,4 +37,4 @@ bool pass::MyFunctionTransformation::run_on_model(const std::shared_ptr<ov::Mode
     // Return false because we didn't change nGraph Function
     return false;
 }
-// ! [function_pass:template_transformation_cpp]
+// ! [model_pass:template_transformation_cpp]

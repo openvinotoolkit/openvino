@@ -1,84 +1,42 @@
-# Overview of Transformations API {#ngraph_transformation}
+# Overview of Transformations API {#openvino_docs_transformations}
 
-This guide contains all necessary information that you need to start implementing nGraph transformations.
-
-## Prerequisites
-Before creating a transformation, do the following:
-
-* Make sure that there is no transformation with the same functionality in the [Transformation Library](group__ie__transformation__api.html)
-* Learn how the [Transformation Library](group__ie__transformation__api.html) is structured and how transformations are organized
-* Understand where to put your transformation code
-
-### Transformation Library Structure
-OpenVINO transformations are located in the `src/common/transformations` directory.
-
-Transformations root directory contains two folders:
-* `ngraph_ops` - Contains internal opset operations that are common for plugins.
-* `transformations` - Includes all transformations, utils, runtime info attributes, and pass managers.
-
-All internal operations and transformations located inside the [Transformation Library](group__ie__transformation__api.html) can be used inside plugins.
-All legacy operations and transformations were moved to a legacy library and are not recommended to be used.
-
-### Transformation Flow Layers
-Transformation flow in the transformation library has several layers:
-
-1. Pass managers - Execute any type of transformations and provide additional debug capabilities.
-2. Transformations - Perform a particular transformation algorithm on `ngraph::Function`.
-3. Low-level functions - Take a set of nodes and perform some transformation action.
-They are not mandatory and all transformation code can be located inside the transformation.
-But if some transformation parts can potentially be reused in other transformations, we suggest keeping them as separate functions.
-
-### Location for Your Transformation Code
-To decide where to store your transformation code, please follow these rules:
-
-1. If it is a plugin-specific transformation and cannot be reused by other plugins, keep source code inside plugin.
-2. If this transformation relates to opset operation conversion or optimization, keep sources inside the transformation library.
-
-After you decide where to store your transformation code, you can start developing your own nGraph transformation.
-
-## ngraph::Function and graph representation <a name="ngraph_function"></a>
-
-nGraph function is a very simple thing: it stores shared pointers to `ngraph::op::Parameter`, `ngraph::op::Result` and  `ngraph::op::Sink` operations that are inputs, outputs and sinks of the graph.
-Sinks of the graph have no consumers and not included into results vector. All other operations hold each other via shared pointers: child operation holds its parent (hard link). If operation has no consumers and it's not Result or Sink operation
-(shared pointer counter is zero) then it will be destructed and won't be accessible anymore. Each operation in `ngraph::Function` has a `std::shared_ptr<ngraph::Node>` type.
-
-For examples of how to build an nGraph function, see the [Build nGraph Function](./model_representation.md) page.
+This guide contains all necessary information that you need to start implementing OpenVINO™ transformations.
 
 ## Transformations types <a name="transformations_types"></a>
 
-nGraph has three main transformation types:
+OpenVINO™ Runtime has three main transformation types:
 
-* `ngraph::pass::FunctionPass` - straightforward way to work with `ngraph::Function` directly
-* `ngraph::pass::MatcherPass` - pattern-based transformation approach
-* `ngraph::pass::GraphRewrite` - container for matcher passes needed for efficient execution
+* `ov::pass::ModelPass` - straightforward way to work with `ov::Model` directly
+* `ov::pass::MatcherPass` - pattern-based transformation approach
+* `ov::pass::GraphRewrite` - container for matcher passes needed for efficient execution
 
 ![transformations_structure]
 
-### ngraph::pass::FunctionPass <a name="function_pass"></a>
+### ov::pass::ModelPass <a name="model_pass"></a>
 
-`ngraph::pass::FunctionPass` is used for transformations that take entire `ngraph::Function` as an input and process it.
+`ov::pass::ModelPass` is used for transformations that take entire `ov::Model` as an input and process it.
 
 Template for FunctionPass transformation class
 
-@snippet src/transformations/template_function_transformation.hpp function_pass:template_transformation_hpp
+@snippet src/transformations/template_model_transformation.hpp model_pass:template_transformation_hpp
 
-@snippet src/transformations/template_function_transformation.cpp function_pass:template_transformation_cpp
+@snippet src/transformations/template_model_transformation.cpp model_pass:template_transformation_cpp
 
-Using `ngraph::FunctionPass`, you need to override the `run_on_function` method where you will write the transformation code.
+Using `ov::pass::ModelPass`, you need to override the `run_on_model` method where you will write the transformation code.
 Return value is `true` if the original function has changed during transformation (new operation was added, or operations replacement was made, or node attributes were changed); otherwise, it is `false`.
-For transformation API, please follow the [working with ngraph::Function](#working_with_ngraph_function) section.
-Also `ngraph::FunctionPass` based transformations can be executed via `pass::Manager`. See the examples in the [Using pass manager](#using_pass_manager) section.
+For transformation API, please follow the [working with ov::Model](#working_with_ov_model) section.
+Also `ov::pass::ModelPass` based transformations can be executed via `ov::pass::Manager`. See the examples in the [Using pass manager](#using_pass_manager) section.
 
-### ngraph::pass::MatcherPass <a name="matcher_pass"></a>
+### ov::pass::MatcherPass <a name="matcher_pass"></a>
 
-`ngraph::pass::MatcherPass` is used for pattern-based transformations.
+`ov::pass::MatcherPass` is used for pattern-based transformations.
 
 Template for MatcherPass transformation class
 @snippet src/transformations/template_pattern_transformation.hpp graph_rewrite:template_transformation_hpp
 
 @snippet src/transformations/template_pattern_transformation.cpp graph_rewrite:template_transformation_cpp
 
-To use `ngraph::pass::MatcherPass`, you need to complete these steps:
+To use `ov::pass::MatcherPass`, you need to complete these steps:
 1. Create a pattern
 2. Implement a callback
 3. Register the pattern and Matcher
@@ -87,7 +45,7 @@ To use `ngraph::pass::MatcherPass`, you need to complete these steps:
 So let's go through each of these steps.
 
 ### Create a pattern
-Pattern is a single root `ngraph::Function`. But the only difference is that you do not need to create a function object, you just need to create and connect opset or special pattern operations.
+Pattern is a single root `ov::Model`. But the only difference is that you do not need to create a function object, you just need to create and connect opset or special pattern operations.
 Then you need to take the last created operation and put it as a root of the pattern. This root node will be used as a root node in pattern matching.
 > **NOTE**: Any nodes in a pattern that have no consumers and are not registered as root will not be used in pattern matching.
 
@@ -186,7 +144,7 @@ This example shows how to use predicate to construct a pattern. Also it shows ho
 
 > **NOTE**: Be careful with manual matching because Matcher object holds matched nodes. To clear a match, use the m->clear_state() method.
 
-## Working with ngraph::Function <a name="working_with_ngraph_function"></a>
+## Working with ngraph::Function <a name="working_with_ov_model"></a>
 
 In this chapter we will review nGraph API that allows us to manipulate with `ngraph::Function`.
 
