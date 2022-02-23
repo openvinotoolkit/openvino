@@ -1,4 +1,4 @@
-Remote Blob API of GPU Plugin {#openvino_docs_IE_DG_supported_plugins_GPU_RemoteBlob_API}
+Remote Blob API of GPU Plugin {#openvino_docs_OV_UG_supported_plugins_GPU_RemoteBlob_API}
 ================================
 
 The GPU plugin implementation of the `RemoteContext` and `RemoteBlob` interfaces supports GPU
