@@ -7,6 +7,7 @@
 #include "intel_gpu/primitives/primitive.hpp"
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/implementation_desc.hpp"
+#include "intel_gpu/graph/program.hpp"
 
 #include "kernel_selector_helper.h"
 #include "meta_utils.h"
@@ -17,6 +18,7 @@
 #include <memory>
 #include <list>
 #include <algorithm>
+#include <thread>
 
 namespace cldnn {
 
@@ -350,11 +352,19 @@ public:
 
     bool need_lockable_memory() const;
 
-    std::string get_unique_id() const { return unique_id; }
-    void set_unique_id(std::string id) { unique_id = id; }
+    size_t get_unique_id() const { return unique_id; }
+
+    void set_unique_id() {
+        unique_id = cur_id++;
+    }
+
+    static void reset_unique_id() {
+        cur_id = 0;
+    }
 
 protected:
-    std::string unique_id;
+    size_t unique_id = 0;
+    static thread_local size_t cur_id;
 
     std::shared_ptr<primitive> desc;
     program& myprog;
