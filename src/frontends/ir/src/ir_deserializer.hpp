@@ -187,7 +187,7 @@ private:
     std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& m_variables;
 
     ///
-    /// store information about parameters/results order during function creation
+    /// store information about parameters/results order during a model creation
     /// it will be used during Inputs/Outputs Description creation in SubGraph processing
     ///
     IoMap io_map;

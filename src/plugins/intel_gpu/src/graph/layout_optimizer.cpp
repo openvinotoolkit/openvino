@@ -765,16 +765,6 @@ static bool is_node_for_onednn(deconvolution_node const& node) {
 
     auto spatial_dims_num = input_layout.get_spatial_rank();
 
-    // oneDNN doesn't support sum post ops for deconvolutions
-    for (auto& fused_op : node.get_fused_primitives()) {
-        if (fused_op.node->is_type<eltwise>() && fused_op.deps.size() == 1) {
-            auto eltw_in_layout = node.get_dependency(fused_op.dep_start_idx).get_output_layout();
-            if (program_helpers::needs_onednn_sum_post_op(fused_op.node->as<eltwise>(), eltw_in_layout)) {
-                return false;
-            }
-        }
-    }
-
     return onednn_valid_dt && onednn_valid_params && spatial_dims_num <= 3;
 }
 
