@@ -23,7 +23,7 @@ class ImageLoader(DataLoader):
         self._crop_central_fraction = config.get('central_fraction', None)
 
     def __getitem__(self, idx):
-        return self._read_and_preproc_image(self._img_files[idx]), None
+        return self._read_and_preproc_image(self._img_files[idx])
 
     def __len__(self):
         return len(self._img_files)

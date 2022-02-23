@@ -18,9 +18,7 @@ class BatchSampler(Sampler):
     def __iter__(self):
         batch = []
         for idx in self._subset_indices:
-            data_batch = self._data_loader[idx]
-            formatted_batch = data_batch if isinstance(data_batch, dict) else format_input_batch(data_batch, idx)
-            batch.append(formatted_batch)
+            batch.append(self._data_loader[idx])
             if len(batch) == self.batch_size:
                 yield batch
                 batch = []
