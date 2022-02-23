@@ -14,8 +14,8 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
-TEST(attributes, assign_readvalue_v3_op) {
-    NodeBuilder::get_ops().register_factory<opset3::ReadValue>();
+TEST(attributes, assign_v3_op) {
+    NodeBuilder::get_ops().register_factory<opset3::Assign>();
     const auto in = make_shared<op::Parameter>(element::f32, Shape{1});
     const string variable_id = "v0";
     const auto read_value = make_shared<opset3::ReadValue>(in, variable_id);
@@ -27,12 +27,11 @@ TEST(attributes, assign_readvalue_v3_op) {
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 }
 
-TEST(attributes, assign_readvalue_v6_op) {
-    NodeBuilder::get_ops().register_factory<opset6::ReadValue>();
+TEST(attributes, readvalue_v3_op) {
+    NodeBuilder::get_ops().register_factory<opset3::ReadValue>();
     const auto in = make_shared<op::Parameter>(element::f32, Shape{1});
-    const auto variable_id = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "v0"});
-    const auto read_value = make_shared<opset6::ReadValue>(in, variable_id);
-    const auto assign = make_shared<opset6::Assign>(read_value, variable_id);
+    const string variable_id = "v0";
+    const auto read_value = make_shared<opset3::ReadValue>(in, variable_id);
     NodeBuilder builder(read_value);
 
     // attribute count

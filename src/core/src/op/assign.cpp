@@ -84,8 +84,7 @@ shared_ptr<Node> op::v6::Assign::clone_with_new_inputs(const OutputVector& new_a
 
 bool op::v6::Assign::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v6_Assign_visit_attributes);
-    const string& variable_id = get_variable_id();
-    visitor.on_attribute("variable_id", const_cast<string&>(variable_id));
+    visitor.on_attribute("variable_id", m_variable);
     return true;
 }
 
