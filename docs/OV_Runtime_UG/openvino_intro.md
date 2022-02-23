@@ -26,10 +26,10 @@
 @endsphinxdirective
 
 ## Introduction
-OpenVINO Runtime is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions on the platform of your choice. Use the OpenVINO Runtime API to read the Intermediate Representation (IR), ONNX, PDPD file formats and execute the model on devices.
+OpenVINO Runtime is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions on the platform of your choice. Use the OpenVINO Runtime API to read an Intermediate Representation (IR), ONNX, or PaddlePaddle model and execute it on preferred devices.
 
-OpenVINO runtime uses a plugin architecture. Inference plugin is a software component that contains complete implementation for inference on a certain Intel® hardware device: CPU, GPU, VPU, GNA, etc. Each plugin implements the unified API and provides additional hardware-specific APIs to configure device or interoperability API between OpenVINO Runtime and underlaying plugin backend.
-
+OpenVINO Runtime uses a plugin architecture. Its plugins are software components that contain complete implementation for inference on a particular Intel® hardware device: CPU, GPU, VPU, etc. Each plugin implements the unified API and provides additional hardware-specific APIs, for configuring devices, or API interoperability between OpenVINO Runtime and underlying plugin backend.
+ 
 The scheme below illustrates the typical workflow for deploying a trained deep learning model: 
 
 <!-- TODO: need to update the picture below with PDPD files -->

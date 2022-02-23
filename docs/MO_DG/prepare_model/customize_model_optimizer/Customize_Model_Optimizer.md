@@ -257,11 +257,13 @@ More information on how to develop middle transformations and dedicated API desc
 [Middle Phase Transformations](#middle-phase-transformations).
 
 ### NHWC to NCHW Layout Change <a name="layout-change"></a>
-There are several middle transformations responsible for changing model layout from NHWC to NCHW. These transformations
-are triggered by default for TensorFlow\* models only because it is the only framework with Convolution operations in
-NHWC layout. This layout change is disabled if the model does not have operations that OpenVINO&trade needs to execute in
-NCHW layout, for example, Convolutions in NHWC layout. It is still possible to force Model Optimizer to do layout change
-using `--disable_nhwc_to_nchw` command-line parameter.
+
+There are several middle transformations responsible for changing model layout from NHWC to NCHW. These transformations are triggered by default for TensorFlow models as TensorFlow supports Convolution operations in the NHWC layout.
+
+This layout change is disabled automatically if the model does not have operations that OpenVINO&trade needs to execute in the NCHW layout, for example, Convolutions in NHWC layout. 
+
+It is still possible to force Model Optimizer to do layout change, using `--disable_nhwc_to_nchw` command-line parameter, although it is not advised.
+
 
 The layout change is a complex problem and detailed explanation of it is out of this document scope. A very brief
 explanation of this process is provided below:
@@ -741,8 +743,7 @@ sub-graph of the original graph isomorphic to the specified pattern.
 2. [Specific Operation Front Phase Transformations](#specific-operation-front-phase-transformations) triggered for the
 node with a specific `op` attribute value.
 3. [Generic Front Phase Transformations](#generic-front-phase-transformations).
-4. Manually enabled transformation defined with a JSON configuration file (for TensorFlow\*, ONNX\* and MXNet\* models
-only) specified using the `--transformations_config` command line parameter:
+4. Manually enabled transformation defined with a JSON configuration file (for TensorFlow, ONNX, MXNet, and PaddlePaddle models) specified using the `--transformations_config` command line parameter:
     1. [Node Name Pattern Front Phase Transformations](#node-name-pattern-front-phase-transformation).
     2. [Front Phase Transformations Using Start and End Points](#start-end-points-front-phase-transformations).
     3. [Generic Front Phase Transformations Enabled with Transformations Configuration File](#generic-transformations-config-front-phase-transformations).
