@@ -24,8 +24,8 @@ TEST_MODELS = [
     ('mobilenetv2_ssd_example', 'pytorch', 'ANY'),
     ('densenet121_example', 'pytorch', 'ANY'),
     ('multiple_out_ports_net', 'tf', 'ANY'),
-    ('lstm_example', 'pytorch', 'GNA'),
-    ('multiple_outputs_net_example', 'dldt', 'GNA'),
+    # ('lstm_example', 'pytorch', 'GNA'),
+    #('multiple_outputs_net_example', 'tf', 'GNA'),
     ('resnet_example', 'pytorch', 'CPU_SPR'),
     #('tensor_iterator_example', 'tf', 'ANY'),
 ]
@@ -210,10 +210,10 @@ TEST_MODELS_WITH_PATTERNS = [
     ('efficientnet_b0_example', 'pytorch'),
     ('mobilenet_v3_small_example', 'pytorch'),
     # ('image-retrieval-0001', 'dldt'),
-    ('scaleshift_fuse', 'dldt'),
-    ('scaleshift_no_fuse_1', 'dldt'),
-    ('scaleshift_no_fuse_2', 'dldt'),
-    ('matmul_divide_const', 'dldt')
+    ('scaleshift_fuse', 'pytorch'),
+    ('scaleshift_no_fuse_1', 'pytorch'),
+    ('scaleshift_no_fuse_2', 'pytorch'),
+    ('matmul_divide_const', 'tf')
 ]
 
 

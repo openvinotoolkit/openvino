@@ -149,15 +149,6 @@ void regclass_CompiledModel(py::module m) {
             :rtype: None
         )");
 
-    // todo: remove after Accuracy Checker migration to set/get_property API
-    cls.def(
-        "get_config",
-        [](ov::CompiledModel& self, const std::string& name) -> py::object {
-            PyErr_WarnEx(PyExc_DeprecationWarning, "get_config() is deprecated, use get_property() instead.", 1);
-            return Common::from_ov_any(self.get_property(name)).as<py::object>();
-        },
-        py::arg("name"));
-
     cls.def(
         "get_property",
         [](ov::CompiledModel& self, const std::string& name) -> py::object {
@@ -171,15 +162,6 @@ void regclass_CompiledModel(py::module m) {
             :type name: str
             :rtype: Any
         )");
-
-    // todo: remove after Accuracy Checker migration to set/get_property API
-    cls.def(
-        "get_metric",
-        [](ov::CompiledModel& self, const std::string& name) -> py::object {
-            PyErr_WarnEx(PyExc_DeprecationWarning, "get_metric() is deprecated, use get_property() instead.", 1);
-            return Common::from_ov_any(self.get_property(name)).as<py::object>();
-        },
-        py::arg("name"));
 
     cls.def("get_runtime_model",
             &ov::CompiledModel::get_runtime_model,
@@ -284,4 +266,11 @@ void regclass_CompiledModel(py::module m) {
                 :return: A compiled model output.
                 :rtype: openvino.runtime.ConstOutput
             )");
+
+    cls.def("__repr__", [](const ov::CompiledModel& self) {
+        auto inputs_str = Common::docs::container_to_string(self.inputs(), ",\n");
+        auto outputs_str = Common::docs::container_to_string(self.outputs(), ",\n");
+
+        return "<CompiledModel:\ninputs[\n" + inputs_str + "\n]\noutputs[\n" + outputs_str + "\n]>";
+    });
 }

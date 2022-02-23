@@ -9,6 +9,7 @@
 #include <pybind11/stl.h>
 
 #include "openvino/core/node_output.hpp"
+#include "pyopenvino/core/common.hpp"
 
 namespace py = pybind11;
 
@@ -34,8 +35,8 @@ void regclass_graph_Output(py::module m, std::string typestring)
     output.def(py::self == py::self);
     output.def(py::self != py::self);
 
-    output.def("__hash__", [](ov::Output<VT>& port) {
-        return std::hash<VT*>()(port.get_node()) + port.get_index();
+    output.def("__hash__", [](ov::Output<VT>& self) {
+        return std::hash<VT*>()(self.get_node()) + self.get_index();
     });
 
     output.def("get_node",
@@ -128,6 +129,14 @@ void regclass_graph_Output(py::module m, std::string typestring)
                 :rtype: openvino.runtime.RTMap
              )");
 
+    output.def("__repr__", [typestring](const ov::Output<VT>& self) {
+        std::stringstream shape_type_ss;
+
+        auto names_str = Common::docs::container_to_string(self.get_names(), ", ");
+        shape_type_ss << " shape" << self.get_partial_shape() << " type: " << self.get_element_type();
+
+        return "<" + typestring + "Output: names[" + names_str + "]" + shape_type_ss.str() + ">";
+    });
 
     output.def_property_readonly("node", &ov::Output<VT>::get_node_shared_ptr);
     output.def_property_readonly("index", &ov::Output<VT>::get_index);

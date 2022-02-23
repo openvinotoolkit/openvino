@@ -191,6 +191,8 @@ public:
         m_input_index = 0;
         m_output_index = 0;
 
+        m_expected_outputs.clear();
+
         EXPECT_TRUE(res);
     }
 
@@ -204,6 +206,8 @@ public:
 
         m_input_index = 0;
         m_output_index = 0;
+
+        m_expected_outputs.clear();
 
         EXPECT_TRUE(res);
     }

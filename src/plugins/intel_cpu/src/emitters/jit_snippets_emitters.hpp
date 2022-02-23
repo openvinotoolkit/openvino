@@ -8,8 +8,11 @@
 #include <ngraph/variant.hpp>
 
 #include "jit_emitter.hpp"
+
 using namespace Xbyak;
-namespace MKLDNNPlugin {
+
+namespace ov {
+namespace intel_cpu {
 
 #define SNIPPETS_MAX_SNIPPETS_DIMS 7
 #define SNIPPETS_MAX_HARNESS_DIMS 5
@@ -96,7 +99,7 @@ private:
                    const std::vector<size_t>& out,
                    const std::vector<size_t>& pool,
                    const std::vector<size_t>& gpr,
-                   const MKLDNNPlugin::emitter_context *emit_context) const override {
+                   const ov::intel_cpu::emitter_context *emit_context) const override {
         const size_t num_inputs = in[0];
         const size_t num_outputs = in[1];
         const size_t num_params = num_inputs + num_outputs;
@@ -197,7 +200,7 @@ private:
                    const std::vector<size_t>& out,
                    const std::vector<size_t>& pool,
                    const std::vector<size_t>& gpr,
-                   const MKLDNNPlugin::emitter_context *emit_context) const override {
+                   const ov::intel_cpu::emitter_context *emit_context) const override {
         const size_t inc = in[0];
         const size_t previous_inc = in[1]; // increment of a previous tile in the same dim (0 if the first tile in the dim)
         const size_t num_params = in[2];
@@ -306,7 +309,7 @@ private:
                    const std::vector<size_t>& out,
                    const std::vector<size_t>& pool,
                    const std::vector<size_t>& gpr,
-                   const MKLDNNPlugin::emitter_context *emit_context) const override {
+                   const ov::intel_cpu::emitter_context *emit_context) const override {
     }
 };
 
@@ -328,7 +331,7 @@ private:
               const std::vector<size_t>& out,
               const std::vector<size_t>& pool,
               const std::vector<size_t>& gpr,
-              const MKLDNNPlugin::emitter_context *emit_context) const override {
+              const ov::intel_cpu::emitter_context *emit_context) const override {
         if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
             emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
         } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -377,7 +380,7 @@ private:
               const std::vector<size_t>& out,
               const std::vector<size_t>& pool,
               const std::vector<size_t>& gpr,
-              const MKLDNNPlugin::emitter_context *emit_context) const override {
+              const ov::intel_cpu::emitter_context *emit_context) const override {
         if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
             emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
         } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -447,7 +450,7 @@ private:
               const std::vector<size_t>& out,
               const std::vector<size_t>& pool,
               const std::vector<size_t>& gpr,
-              const MKLDNNPlugin::emitter_context *emit_context) const override {
+              const ov::intel_cpu::emitter_context *emit_context) const override {
         if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
             emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
         } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -483,7 +486,7 @@ private:
               const std::vector<size_t>& out,
               const std::vector<size_t>& pool,
               const std::vector<size_t>& gpr,
-              const MKLDNNPlugin::emitter_context *emit_context) const override {
+              const ov::intel_cpu::emitter_context *emit_context) const override {
         if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
             emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
         } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -519,7 +522,7 @@ private:
               const std::vector<size_t>& out,
               const std::vector<size_t>& pool,
               const std::vector<size_t>& gpr,
-              const MKLDNNPlugin::emitter_context *emit_context) const override {
+              const ov::intel_cpu::emitter_context *emit_context) const override {
         if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
             emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
         } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -560,7 +563,7 @@ private:
               const std::vector<size_t>& out,
               const std::vector<size_t>& pool,
               const std::vector<size_t>& gpr,
-              const MKLDNNPlugin::emitter_context *emit_context) const override {
+              const ov::intel_cpu::emitter_context *emit_context) const override {
         if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
             emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
         } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -597,7 +600,7 @@ private:
               const std::vector<size_t>& out,
               const std::vector<size_t>& pool,
               const std::vector<size_t>& gpr,
-              const MKLDNNPlugin::emitter_context *emit_context) const override {
+              const ov::intel_cpu::emitter_context *emit_context) const override {
         if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
             emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
         } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -627,4 +630,5 @@ private:
     bool shouldPostIncrement;
 };
 
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

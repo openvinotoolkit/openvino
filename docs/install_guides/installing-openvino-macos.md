@@ -2,7 +2,7 @@
 
 > **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. These tools are now only available on [pypi.org](https://pypi.org/project/openvino-dev/).
 
-> **NOTE**: The Intel® Distribution of OpenVINO™ is supported on macOS version 10.15.x with Intel® processor-based machines.
+> **NOTE**: The Intel® Distribution of OpenVINO™ toolkit is supported on macOS version 10.15 with Intel® processor-based machines.
 
 ## System Requirements
 
@@ -21,7 +21,7 @@
   * Intel® Neural Compute Stick 2
   
   .. note::
-    The current version of the Intel® Distribution of OpenVINO™ toolkit for macOS* supports inference on Intel CPUs and Intel® Neural Compute Stick 2 devices only.
+    The current version of the Intel® Distribution of OpenVINO™ toolkit for macOS supports inference on Intel CPUs and Intel® Neural Compute Stick 2 devices only.
 
 .. tab:: Software Requirements
 
@@ -66,10 +66,13 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
 
    By default, the Intel® Distribution of OpenVINO™ is installed in the following directory, referred to as `<INSTALL_DIR>` elsewhere in the documentation:
 
-   * For root or administrator: `/opt/intel/openvino_<version>/`
-   * For regular users: `~/intel/openvino_<version>/`
+   `/opt/intel/openvino_<version>/`
 
-   For simplicity, a symbolic link to the latest installation is also created: `/opt/intel/openvino_2022/` or `~/intel/openvino_2022/`.
+   For simplicity, a symbolic link to the latest installation is also created: `/opt/intel/openvino_2022/`.
+
+To check **Release Notes** please visit: [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes).
+
+The core components are now installed. Continue to the next section to configure environment.
 
 ## <a name="set-the-environment-variables"></a>Step 2: Configure the Environment
 
@@ -85,9 +88,22 @@ If you have more than one OpenVINO™ version on your machine, you can easily sw
 
 The environment variables are set. Continue to the next section if you want to download any additional components.
 
-## <a name="model-optimizer"></a>Step 3 (Optional): Download additional components
+## <a name="model-optimizer"></a>Step 3 (Optional): Download Additional Components
 
-> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. The OpenVINO™ Model Development Tools can only be installed via PyPI now. See [Install OpenVINO™ Model Development Tools](@ref installing_model_dev_tools) for detailed steps. 
+> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. The OpenVINO™ Development Tools can only be installed via PyPI now. See [Install OpenVINO™ Development Tools](installing-model-dev-tools.md) for detailed steps. 
+
+@sphinxdirective
+
+.. dropdown:: OpenCV
+
+   OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples and demos also use OpenCV as a dependency. The Intel® Distribution of OpenVINO™ provides a script to install OpenCV: ``<INSTALL_DIR>/extras/scripts/download_opencv.sh``.
+
+   .. note::
+      Make sure you have 2 prerequisites installed: ``curl`` and ``tar``.
+
+   Depending on how you have installed the Intel® Distribution of OpenVINO™, the script should be run either as root or regular user. After the execution of the script, you will find OpenCV extracted to ``<INSTALL_DIR>/extras/opencv``.
+
+@endsphinxdirective
 
 ## <a name="configure-ncs2"></a>Step 4 (Optional): Configure the Intel® Neural Compute Stick 2 
 
@@ -122,30 +138,24 @@ To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalli
 
 @endsphinxdirective
 
-## Additional Resources
 @sphinxdirective
-.. raw:: html
 
-   <div class="collapsible-section">
-
-@endsphinxdirective
-   - Convert models for use with OpenVINO™: [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
-   - Write your own applications with OpenVINO™: [OpenVINO™ Runtime User Guide](../OV_Runtime_UG/Deep_Learning_Inference_Engine_DevGuide.md)
-   - Information on sample applications: [OpenVINO™ Toolkit Samples Overview](../OV_Runtime_UG/Samples_Overview.md)
-   - Information on a supplied set of models: [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_group_intel)
-   - IoT libraries and code samples in the GitHUB repository: [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit)
-   
+.. dropdown:: Additional Resources
+      
+   * Convert models for use with OpenVINO™: :ref:`Model Optimizer Developer Guide <deep learning model optimizer>`
+   * Write your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning inference engine>`
+   * Information on sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
+   * Information on a supplied set of models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
+   * IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit`_ 
+      
    To learn more about converting models from specific frameworks, go to:
-   
-   - [Convert Your Caffe Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_Caffe.md)
-   - [Convert Your TensorFlow Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_TensorFlow.md)
-   - [Convert Your MXNet Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_MxNet.md)
-   - [Convert Your Kaldi Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_Kaldi.md)
-   - [Convert Your ONNX Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_ONNX.md)
-
-@sphinxdirective
-.. raw:: html
-
-   </div>
+      
+   * :ref:`Convert Your Caffe Model <convert model caffe>`
+   * :ref:`Convert Your TensorFlow Model <convert model tf>`
+   * :ref:`Convert Your MXNet Modele <convert model mxnet>`
+   * :ref:`Convert Your Kaldi Model <convert model kaldi>`
+   * :ref:`Convert Your ONNX Model <convert model onnx>`
+      
+   .. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
 
 @endsphinxdirective

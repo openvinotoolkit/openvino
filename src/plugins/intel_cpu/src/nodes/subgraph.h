@@ -10,12 +10,13 @@
 #include <cpu/x64/jit_generator.hpp>
 #include "emitters/jit_snippets_emitters.hpp"
 
-#include "mkldnn_node.h"
+#include <node.h>
 #include "snippets/op/subgraph.hpp"
 
 #include <array>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 /// MKLDNNSnippetNode represents subgraph node in MKLDNN plugin
 /// potentially, snippet can be placed as a postop to any support operation while it doesn't support postops itself
@@ -32,6 +33,7 @@ public:
     // Here we convert to canonical for & jit everything
     void createPrimitive() override;
 
+    bool canBeInPlace() const override;
     bool created() const override;
 
     // if generator is set, it would execute generated code otherwise it would fallback to nGraph reference
@@ -88,4 +90,5 @@ private:
     bool canUseOptimizedImpl = true;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

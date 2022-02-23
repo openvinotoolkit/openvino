@@ -61,6 +61,7 @@ public:
     bool has(const ngraph::DiscreteTypeInfo type) const {
         return jitters.find(type) != jitters.end();
     }
+    virtual ~TargetMachine() = default;
 
 protected:
     std::map<const ngraph::DiscreteTypeInfo, std::function<std::shared_ptr<Emitter>(std::shared_ptr<ngraph::Node>)>> jitters;

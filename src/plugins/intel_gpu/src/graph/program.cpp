@@ -107,6 +107,7 @@ program::program(engine& engine_ref,
     prepare_nodes(topology);
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
+    program_node::reset_unique_id();
     if (no_optimizations) {
         init_graph();
     } else {
@@ -1482,14 +1483,17 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
             continue;
         }
         #ifdef __unix__
-        // Check whether the host mem allocation might exceed avialalbe system VRAM
+        // Check whether the host mem allocation might exceed avialalbe system VRAM or physical memory
+        // Temporal solution for linux OoO memory killer
+        // TODO: Ultimate solution will be the "estimation without actual allocation" mechanism for this issue,
+        // which is also expected for better estimation performance
+        int64_t max_global_mem_size = engine.get_device_info().max_global_mem_size;
         int64_t total_host_alloc_size = out_size + host_alloc + engine.get_used_device_memory(allocation_type::usm_host);
         if (engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu)
             total_host_alloc_size += engine.get_used_device_memory(allocation_type::usm_device);
-
-        if (cur_vmem != -1 && total_host_alloc_size > cur_vmem) {
+        if ((cur_vmem != -1 && total_host_alloc_size > cur_vmem * 0.5) || (total_host_alloc_size >= max_global_mem_size)) {
             GPU_DEBUG_IF(debug_config->verbose >= 1) {
-                GPU_DEBUG_COUT << "Estimated mem usage calculated with default base batch size(16) exceeds the available virtual memory ("
+                GPU_DEBUG_COUT << "Estimated host mem usage calculated with default base batch size(16) exceeds the available memory ("
                     << cur_vmem << ")" << std::endl;
             }
             return {-1L, -1L};

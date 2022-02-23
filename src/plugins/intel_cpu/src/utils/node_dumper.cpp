@@ -5,20 +5,20 @@
 
 #include "node_dumper.h"
 
-#include "mkldnn_node.h"
+#include <node.h>
+#include "ie_common.h"
 #include "utils/blob_dump.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include <openvino/util/file_util.hpp>
 
 #include <regex>
 #include <sstream>
 #include <string>
 
-#include <ie/ie_common.h>
-#include <openvino/util/file_util.hpp>
-
 using namespace InferenceEngine;
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 static bool shouldBeDumped(const MKLDNNNodePtr& node, const Config& config, const std::string& portsKind) {
     const auto& dumpFilters = config.blobDumpFilters;
@@ -175,5 +175,7 @@ void dumpOutputBlobs(const MKLDNNNodePtr& node, const Config& config, int count)
     }
 }
 
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov
+
 #endif // CPU_DEBUG_CAPS

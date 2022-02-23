@@ -8,7 +8,7 @@
     <div id="switcher-cpp" class="switcher-anchor">C++</div>
 @endsphinxdirective
 
-As described in the [Inference Engine Developer Guide](Deep_Learning_Inference_Engine_DevGuide.md), a common application flow consists of the following steps:
+As described in the [OpenVINO™ Runtime User Guide](openvino_intro.md), a common application flow consists of the following steps:
 
 1. **Create an Inference Engine Core object**: First step to manage available devices and read network objects
 

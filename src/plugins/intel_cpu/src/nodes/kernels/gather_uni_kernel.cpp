@@ -7,7 +7,8 @@
 
 using namespace dnnl::impl::cpu;
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 const unsigned jitGatherKernelBase::shufMask8bitUni[16]  = {0x0C080400, 0x80808080, 0x80808080, 0x80808080, 0x0C080400, 0x80808080, 0x80808080, 0x80808080,
                                                             0x0C080400, 0x80808080, 0x80808080, 0x80808080, 0x0C080400, 0x80808080, 0x80808080, 0x80808080};
@@ -74,29 +75,40 @@ void jitUniGatherKernel<isa>::generate() {
         mov(regAux1, ptr[regParams + GET_OFF(specIndicesSize)]);
         uni_vpbroadcastd(vmmSpecIdxSizeB, ptr[regAux1]);
         uni_vpslld(vmmSpecIdxSizeB, vmmSpecIdxSizeB, idxTypeShift); // multiply by indices type size.
-        if (jcp.afterAxisSize == 1lu) { // Elementwise case.
-            uni_vmovd(reg32SpecIdxSizeB, xmmSpecIdxSizeB);
-            mov(regAux1, ptr[regParams + GET_OFF(axisAndAfterAxisSizeB)]);
-            uni_vpbroadcastd(vmmAxisAndAfterAxisSizeB, ptr[regAux1]);
 
-            mov(regAux1, ptr[regParams + GET_OFF(specIdxB)]);
-            uni_vmovups(vmmSpecIdxB, ptr[regAux1]);
-            mov(regAux1, ptr[regParams + GET_OFF(idxBatchSumB)]);
-            uni_vmovups(vmmIdxBatchSumB, ptr[regAux1]);
+        mov(regAux1, ptr[regParams + GET_OFF(specIdxB)]);
+        uni_vmovups(vmmSpecIdxB, ptr[regAux1]);
+
+        if (jcp.beforeAxisSize != 1lu) {
             mov(regAux1, ptr[regParams + GET_OFF(dataBeforeAxisSumB)]);
             uni_vmovups(vmmSrcBeforeAxisSumB, ptr[regAux1]);
+        }
+
+        if (jcp.afterAxisSize == 1lu) { // Elementwise case.
+            uni_vmovd(reg32SpecIdxSizeB, xmmSpecIdxSizeB);
+            if (jcp.beforeAxisSize != 1lu) {
+                mov(regAux1, ptr[regParams + GET_OFF(axisAndAfterAxisSizeB)]);
+                uni_vpbroadcastd(vmmAxisAndAfterAxisSizeB, ptr[regAux1]);
+            }
+
+            mov(regAux1, ptr[regParams + GET_OFF(idxBatchSumB)]);
+            uni_vmovups(vmmIdxBatchSumB, ptr[regAux1]);
 
             mov(regAux1, ptr[regParams + GET_OFF(betweenBatchAndAxisSize)]);
             mov(regBetweenBatchAndAxisSize, ptr[regAux1]);
             mov(regBetweenBatchAndAxisIter, ptr[regParams + GET_OFF(betweenBatchAndAxisIter)]);
 
             if (jcp.specIdxSize < idxElPerVec) { // Short case.
-                mov(regAux1, ptr[regParams + GET_OFF(permIdxMask)]);
-                uni_vmovups(vmmPermIdxMask, ptr[regAux1]);
-                mov(regAux1, ptr[regParams + GET_OFF(beforeAxisDiff)]);
-                uni_vmovups(vmmBeforeAxDiffB, ptr[regAux1]);
-                if (jcp.dataTypeSize != 1)
-                    uni_vpslld(vmmBeforeAxDiffB, vmmBeforeAxDiffB, dataTypeShift); // multiply by data type size
+                if (jcp.specIdxSize != 1 && jcp.specIdxSize != 2 && jcp.specIdxSize != 4 && jcp.specIdxSize != 8 && jcp.specIdxSize != 16) {
+                    mov(regAux1, ptr[regParams + GET_OFF(permIdxMask)]);
+                    uni_vmovups(vmmPermIdxMask, ptr[regAux1]);
+                }
+                if (jcp.beforeAxisSize != 1lu) {
+                    mov(regAux1, ptr[regParams + GET_OFF(beforeAxisDiff)]);
+                    uni_vmovups(vmmBeforeAxDiffB, ptr[regAux1]);
+                    if (jcp.dataTypeSize != 1)
+                        uni_vpslld(vmmBeforeAxDiffB, vmmBeforeAxDiffB, dataTypeShift); // multiply by data type size
+                }
                 if (jcp.batchDims > 0lu) {
                     mov(regAux1, ptr[regParams + GET_OFF(srcAfterBatchSizeB)]);
                     uni_vpbroadcastd(vmmSrcAfterBatchSizeB, ptr[regAux1]);
@@ -117,16 +129,12 @@ void jitUniGatherKernel<isa>::generate() {
                 uni_vmovups(vmmAfterAxisPermMask, ptr[regAux1]);
                 mov(regAux1, ptr[regParams + GET_OFF(specIdxDiff)]);
                 uni_vmovups(vmmSpecIdxDiff, ptr[regAux1]);
-                mov(regAux1, ptr[regParams + GET_OFF(specIdxB)]);
-                uni_vmovups(vmmSpecIdxB, ptr[regAux1]);
                 mov(regAux1, ptr[regParams + GET_OFF(srcAfterBatchSizeB)]);
                 uni_vpbroadcastd(vmmSrcAfterBatchSizeB, ptr[regAux1]);
                 mov(regAux1, ptr[regParams + GET_OFF(afterAxisSize)]);
                 uni_vpbroadcastd(vmmAfterAxisSize, ptr[regAux1]);
 
                 if (jcp.beforeAxisSize != 1lu) {
-                    mov(regAux1, ptr[regParams + GET_OFF(dataBeforeAxisSumB)]);
-                    uni_vmovups(vmmSrcBeforeAxisSumB, ptr[regAux1]);
                     mov(rSpecIdxAndAfterAxIterB, ptr[regParams + GET_OFF(specIdxAndAfterAxIterB)]);
                     mov(rSpecIdxAndAfterAxSizeB, ptr[regParams + GET_OFF(specIdxAndAfterAxSizeB)]);
                     if (jcp.specIdxSize * jcp.afterAxisSize < idxElPerVec) {
@@ -136,8 +144,12 @@ void jitUniGatherKernel<isa>::generate() {
                         mov(regAux1, ptr[regParams + GET_OFF(axisAndAfterAxisSizeB)]);
                         uni_vpbroadcastd(vmmAxisAndAfterAxisSizeB, ptr[regAux1]);
                     }
-                    mov(regAux1, ptr[regParams + GET_OFF(beforeAxisPermMask)]);
-                    uni_vmovups(vmmBeforeAxPermMask, ptr[regAux1]);
+                    const uint64_t specIdxAndAfterAxisSize = jcp.specIdxSize * jcp.afterAxisSize;
+                    if (specIdxAndAfterAxisSize != 1 && specIdxAndAfterAxisSize != 2 && specIdxAndAfterAxisSize != 4 &&
+                            specIdxAndAfterAxisSize != 8 && specIdxAndAfterAxisSize != 16) {
+                        mov(regAux1, ptr[regParams + GET_OFF(beforeAxisPermMask)]);
+                        uni_vmovups(vmmBeforeAxPermMask, ptr[regAux1]);
+                    }
                 }
 
                 process(true, true);
@@ -177,12 +189,14 @@ void jitUniGatherKernel<isa>::generate() {
 
         mov(regAux1, ptr[regParams + GET_OFF(axisAndAfterAxisSizeB)]);
         uni_vpbroadcastd(vmmAxisAndAfterAxisSizeB, ptr[regAux1]);
-        uni_vpmulld(vmmSrcBeforeAxisSumB, vmmSrcBeforeAxisSumB, vmmAxisAndAfterAxisSizeB);
-        mov(regAux1, ptr[regParams + GET_OFF(srcAfterBatchSizeB)]);
-        uni_vpbroadcastd(vAux0, ptr[regAux1]);
-        uni_vpmulld(vAux0, vAux0, vmmIdxBatchSumB);
         // Formula: srcBeforeAxisSum = ((start / specIndicesSize) % betweenBatchAndAxis) * axisAndAfterAxisSize + srcAfterBatchSize * idxBatchSum
-        uni_vpaddd(vmmSrcBeforeAxisSumB, vmmSrcBeforeAxisSumB, vAux0);
+        if (jcp.beforeAxisSize != 1lu) {
+            uni_vpmulld(vmmSrcBeforeAxisSumB, vmmSrcBeforeAxisSumB, vmmAxisAndAfterAxisSizeB);
+            mov(regAux1, ptr[regParams + GET_OFF(srcAfterBatchSizeB)]);
+            uni_vpbroadcastd(vAux0, ptr[regAux1]);
+            uni_vpmulld(vAux0, vAux0, vmmIdxBatchSumB);
+            uni_vpaddd(vmmSrcBeforeAxisSumB, vmmSrcBeforeAxisSumB, vAux0);
+        }
 
         // Formula: idxBatchSum = specIdxSize * (start / afterBatchSize)
         uni_vpmulld(vmmIdxBatchSumB, vmmIdxBatchSumB, vmmSpecIdxSizeB);
@@ -204,10 +218,12 @@ void jitUniGatherKernel<isa>::generate() {
             L(lLessThanVector1);
                 mov(regAux1, ptr[regParams + GET_OFF(permIdxMask)]);
                 uni_vmovups(vmmPermIdxMask, ptr[regAux1]);
-                mov(regAux1, ptr[regParams + GET_OFF(beforeAxisDiff)]);
-                uni_vmovups(vmmBeforeAxDiffB, ptr[regAux1]);
-                if (jcp.dataTypeSize != 1)
-                    uni_vpslld(vmmBeforeAxDiffB, vmmBeforeAxDiffB, dataTypeShift); // multiply by data type size
+                if (jcp.beforeAxisSize != 1lu) {
+                    mov(regAux1, ptr[regParams + GET_OFF(beforeAxisDiff)]);
+                    uni_vmovups(vmmBeforeAxDiffB, ptr[regAux1]);
+                    if (jcp.dataTypeSize != 1)
+                        uni_vpslld(vmmBeforeAxDiffB, vmmBeforeAxDiffB, dataTypeShift); // multiply by data type size
+                }
                 mov(regAux1, ptr[regParams + GET_OFF(srcAfterBatchSizeB)]);
                 uni_vpbroadcastd(vmmSrcAfterBatchSizeB, ptr[regAux1]);
 
@@ -524,8 +540,8 @@ void jitUniGatherKernel<isa>::calcSrcShiftShort(Vmm* vAuxPool, bool shiftFirst) 
     if (shiftFirst) {
         if (jcp.beforeAxisSize != 1lu)
             uni_vpaddd(vmmSrcBeforeAxisSumB, vmmSrcBeforeAxisSumB, vmmBeforeAxDiffB);
-        // No sense to permute if specIdxSize is one of {1, 2, 4, 8}.
-        if (jcp.specIdxSize != 1 && jcp.specIdxSize != 2 && jcp.specIdxSize != 4 && jcp.specIdxSize != 8) {
+        // No sense to permute if specIdxSize is one of {1, 2, 4, 8, 16}. 0 is reserved for dynamic case.
+        if (jcp.specIdxSize != 1 && jcp.specIdxSize != 2 && jcp.specIdxSize != 4 && jcp.specIdxSize != 8 && jcp.specIdxSize != 16) {
             vpermd(vmmSpecIdxB, vmmPermIdxMask, vmmSpecIdxB);
             if (jcp.beforeAxisSize != 1lu)
                 vpermd(vmmBeforeAxDiffB, vmmPermIdxMask, vmmBeforeAxDiffB);
@@ -571,8 +587,8 @@ void jitUniGatherKernel<isa>::calcSrcShiftShortBlock(Vmm* vAuxPool, bool shiftFi
             uni_vpaddd(vmmSpecIdxB, vmmSpecIdxB, vmmSpecIdxDiff);
             normWithUpperBound(vmmSpecIdxB, vmmSpecIdxSizeB, kAuxMask0);
         }
-        // No sense to permute if afterAxisSize is one of {1, 2, 4, 8}.
-        if (jcp.afterAxisSize != 1 && jcp.afterAxisSize != 2 && jcp.afterAxisSize != 4 && jcp.afterAxisSize % 8 != 0) {
+        // No sense to permute if afterAxisSize is one of {1, 2, 4, 8, 16}. 0 is reserved for dynamic case.
+        if (jcp.afterAxisSize != 1 && jcp.afterAxisSize != 2 && jcp.afterAxisSize != 4 && jcp.afterAxisSize != 8 && jcp.afterAxisSize != 16) {
             vpermd(vmmAfterAxisIdxB, vmmAfterAxisPermMask, vmmAfterAxisIdxB);
             if (jcp.specIdxSize != 1)
                 vpermd(vmmSpecIdxDiff, vmmAfterAxisPermMask, vmmSpecIdxDiff);
@@ -584,7 +600,7 @@ void jitUniGatherKernel<isa>::calcSrcShiftShortBlock(Vmm* vAuxPool, bool shiftFi
                     uni_vpaddd(vmmSrcBeforeAxisSumB, vmmSrcBeforeAxisSumB, vmmBeforeAxDiffB);
                     uni_vmovups(vAux1, vmmSrcBeforeAxisSumB);
                     if (specIdxAndAfterAxisSize != 1 && specIdxAndAfterAxisSize != 2 && specIdxAndAfterAxisSize != 4 &&
-                            specIdxAndAfterAxisSize % 8 != 0)
+                            specIdxAndAfterAxisSize != 8 && specIdxAndAfterAxisSize != 16)
                         vpermd(vmmBeforeAxDiffB, vmmBeforeAxPermMask, vmmBeforeAxDiffB);
                 } else {
                     Xbyak::Label lBeforeAxStep, lBeforeAxStepEnd;
@@ -1025,4 +1041,5 @@ bool jitUniGatherKernel<isa>::isSupportedConfiguration(uint64_t afterAxisSize) {
 template struct jitUniGatherKernel<x64::avx2>;
 template struct jitUniGatherKernel<x64::avx512_common>;
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

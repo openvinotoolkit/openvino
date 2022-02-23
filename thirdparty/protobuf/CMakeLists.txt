@@ -16,6 +16,11 @@ if(OV_COMPILER_IS_CLANG)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-inconsistent-missing-override")
 endif()
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # protobuf\src\google\protobuf\descriptor.cc(822) : error C4703: potentially uninitialized local pointer variable 'to_use' used
+    add_definitions("/wd4703")
+endif()
+
 set(protobuf_VERBOSE ON)
 set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests" FORCE)
 set(protobuf_BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libs" FORCE)
