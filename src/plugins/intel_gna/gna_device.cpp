@@ -28,7 +28,7 @@
 #include "layers/gna_convolution_layer.hpp"
 #include "memory/gna_mem_requests.hpp"
 
-//#define MODEL_DUMP
+#define MODEL_DUMP
 
 std::mutex GNADeviceHelper::acrossPluginsSync{};
 
