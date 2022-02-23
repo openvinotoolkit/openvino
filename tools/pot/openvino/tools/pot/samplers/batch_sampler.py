@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.pot.samplers.sampler import Sampler
-from .utils import format_input_batch
 
 
 class BatchSampler(Sampler):
