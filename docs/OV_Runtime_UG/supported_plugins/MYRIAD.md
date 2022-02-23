@@ -8,6 +8,10 @@ The Inference Engine MYRIAD plugin has been developed for inference of neural ne
 
 To configure your Intel® Vision Accelerator Design With Intel® Movidius™ on supported operating systemss, refer to the Steps for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs section in the installation guides for [Linux](../../install_guides/installing-openvino-linux.md) or [Windows](../../install_guides/installing-openvino-windows.md).
 
+ **NOTE**: The HDDL and MYRIAD plugins may cause conflicts when used at the same time.
+> To ensure proper operation in such a case, the number of booted devices needs to be limited in the 'hddl_autoboot.config' file.
+> Otherwise, the HDDL plugin will boot all available myriadx devices.
+
 ## Supported Configuration Parameters
 
 See VPU common configuration parameters for the [VPU Plugins](VPU.md).

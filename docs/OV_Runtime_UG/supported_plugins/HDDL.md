@@ -8,6 +8,10 @@ The Inference Engine HDDL plugin was developed for inference with neural network
 
 To configure your Intel® Vision Accelerator Design With Intel® Movidius™ on supported operating systems, refer to the Steps for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs section in the installation guides for [Linux](../../install_guides/installing-openvino-linux.md) or [Windows](../../install_guides/installing-openvino-windows.md).
 
+> **NOTE**: The HDDL and Myriad plugins may cause conflicts when used at the same time.
+> To ensure proper operation in such a case, the number of booted devices needs to be limited in the 'hddl_autoboot.config' file.
+> Otherwise, the HDDL plugin will boot all available myriadx devices.
+
 ## Supported networks
 
 To see the list of supported networks for the HDDL plugin, refer to the list on the [MYRIAD Plugin page](MYRIAD.md).
