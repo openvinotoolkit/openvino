@@ -20,7 +20,8 @@
  *
  */
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MemoryDesc;
 
@@ -175,4 +176,5 @@ protected:
     friend class MKLDNNSplitNode;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

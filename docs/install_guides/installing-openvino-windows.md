@@ -72,7 +72,7 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
    @endsphinxdirective
    
 3. Follow the instructions on your screen. During the installation you will be asked to accept the license agreement. The acceptance is required to continue. Check out the installation process in the image below:<br>
-   ![](../img/openvino-install-win-run-boostrapper-script-2.gif)
+   ![](../img/openvino-install-win-run-boostrapper-script.gif)
    Click on the image to see the details.
    <br>
    <br>By default, the Intel® Distribution of OpenVINO™ is installed to the following directory, referred to as `<INSTALL_DIR>` elsewhere in the documentation: `C:\Program Files (x86)\Intel\openvino_<version>/`.
@@ -101,7 +101,7 @@ The environment variables are set. Next, you can download some additional tools.
 
 ## <a name="model-optimizer">Step 3 (Optional): Download additional components
 
-> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. The OpenVINO™ Model Development Tools can only be installed via PyPI now. See [Install OpenVINO™ Model Development Tools](@ref installing_model_dev_tools) for detailed steps.
+> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. The OpenVINO™ Development Tools can only be installed via PyPI now. See [Install OpenVINO™ Development Tools](installing-model-dev-tools.md) for detailed steps.
 
 @sphinxdirective
 

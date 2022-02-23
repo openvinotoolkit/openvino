@@ -34,7 +34,7 @@ from openvino.tools.mo.utils.cli_parser import check_available_transforms, get_c
     get_placeholder_shapes, get_tf_cli_options, get_tuple_values, parse_transform, parse_tuple_pairs
 from openvino.tools.mo.utils.error import Error, FrameworkError
 from openvino.tools.mo.utils.find_ie_version import find_ie_version
-from openvino.tools.mo.utils.get_ov_update_message import get_ov_update_message
+from openvino.tools.mo.utils.get_ov_update_message import get_ov_update_message, get_ov_api20_message
 from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_namespace
 from openvino.tools.mo.utils.logger import init_logger, progress_printer
 from openvino.tools.mo.utils.model_analysis import AnalysisResults
@@ -523,11 +523,15 @@ def main(cli_parser: argparse.ArgumentParser, fem: FrontEndManager, framework: s
         argv.feManager = fem
 
         ov_update_message = None
+        ov_api20_message = None
         if not hasattr(argv, 'silent') or not argv.silent:
             ov_update_message = get_ov_update_message()
+            ov_api20_message = get_ov_api20_message()
         ret_code = driver(argv)
         if ov_update_message:
             print(ov_update_message)
+        if ov_api20_message and ret_code == 0:
+            print(ov_api20_message)
         telemetry.send_event('mo', 'conversion_result', 'success')
         telemetry.end_session('mo')
         telemetry.force_shutdown(1.0)

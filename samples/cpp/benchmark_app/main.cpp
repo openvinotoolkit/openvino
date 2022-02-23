@@ -124,10 +124,12 @@ ov::hint::PerformanceMode get_performance_hint(const std::string& device, const 
                 ov_perf_hint = ov::hint::PerformanceMode::UNDEFINED;
             }
         } else {
-            slog::warn << "PerformanceMode was not explicitly specified in command line. "
+            ov_perf_hint =
+                FLAGS_api == "sync" ? ov::hint::PerformanceMode::LATENCY : ov::hint::PerformanceMode::THROUGHPUT;
+
+            slog::warn << "Performance hint was not explicitly specified in command line. "
                           "Device("
-                       << device << ") performance hint will be set to THROUGHPUT." << slog::endl;
-            ov_perf_hint = ov::hint::PerformanceMode::THROUGHPUT;
+                       << device << ") performance hint will be set to " << ov_perf_hint << "." << slog::endl;
         }
     } else {
         if (FLAGS_hint != "") {
@@ -329,7 +331,7 @@ int main(int argc, char* argv[]) {
                         } else if (supported(ov::num_streams.name())) {
                             // Use API 2.0 key for streams
                             key = ov::num_streams.name();
-                            device_config[key] = ov::NumStreams::AUTO;
+                            device_config[key] = ov::streams::AUTO;
                         }
                     }
                 }
@@ -390,10 +392,10 @@ int main(int argc, char* argv[]) {
 
                 if ((device_name.find("MULTI") != std::string::npos) &&
                     (device_name.find("CPU") != std::string::npos)) {
-                    slog::warn << "Turn on GPU throttling. Multi-device execution with "
+                    slog::warn << "GPU throttling is turned on. Multi-device execution with "
                                   "the CPU + GPU performs best with GPU throttling hint, "
                                << "which releases another CPU thread (that is otherwise "
-                                  "used by the GPU driver for active polling)"
+                                  "used by the GPU driver for active polling)."
                                << slog::endl;
                     device_config[GPU_CONFIG_KEY(PLUGIN_THROTTLE)] = "1";
                 }
@@ -402,6 +404,8 @@ int main(int argc, char* argv[]) {
                 setThroughputStreams();
             } else if (device.find("GNA") != std::string::npos) {
                 set_infer_precision();
+            } else if (device.find("AUTO") != std::string::npos) {
+                device_nstreams.erase(device);
             }
         }
 
@@ -1061,8 +1065,7 @@ int main(int argc, char* argv[]) {
                      StatisticsVariant("Percentile boundary", "percentile_boundary", FLAGS_latency_percentile),
                      StatisticsVariant("Average latency (ms)", "latency_avg", generalLatency.avg),
                      StatisticsVariant("Min latency (ms)", "latency_min", generalLatency.min),
-                     StatisticsVariant("Max latency (ms)", "latency_max", generalLatency.max),
-                     StatisticsVariant("throughput", "throughput", fps)});
+                     StatisticsVariant("Max latency (ms)", "latency_max", generalLatency.max)});
 
                 if (FLAGS_pcseq && app_inputs_info.size() > 1) {
                     for (size_t i = 0; i < groupLatencies.size(); ++i) {
@@ -1072,6 +1075,8 @@ int main(int argc, char* argv[]) {
                     }
                 }
             }
+            statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                       {StatisticsVariant("throughput", "throughput", fps)});
         }
         progressBar.finish();
 

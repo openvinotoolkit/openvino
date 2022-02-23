@@ -50,7 +50,7 @@ def get_common_argument_parser():
 
     parser.add_argument(
         '--engine',
-        choices=['accuracy_checker', 'data_free', 'simplified'],
+        choices=['accuracy_checker', 'simplified'],
         type=str,
         help='Engine type. Default: `accuracy_checker`')
 
@@ -114,35 +114,7 @@ def get_common_argument_parser():
 
     parser.add_argument(
         '--data-source',
-        help='Valid for DataFree and Simplified modes. For Simplified mode path to dataset dir is required. '
-             'For DataFree mode specify path to directory '
-             'where syntetic dataset is located or will be generated and saved. '
-             'For DataFree mode default: `./pot_dataset`')
-
-    data_free_opt = parser.add_argument_group('DataFree mode options')
-
-    data_free_opt.add_argument(
-        '--shape',
-        type=str,
-        help='Required for models with dynamic shapes. '
-             'Input shape that should be fed to an input node of the model. '
-             'Shape is defined as a comma-separated list of integer numbers enclosed in '
-             'parentheses or square brackets, for example [1,3,227,227] or (1,227,227,3), where '
-             'the order of dimensions depends on the framework input layout of the model.')
-
-    data_free_opt.add_argument(
-        '--data-type',
-        type=str,
-        default='image',
-        choices=['image'],
-        help='Type of data for generation. Dafault: `image`')
-
-    data_free_opt.add_argument(
-        '--generate-data',
-        action='store_true',
-        default=False,
-        help='If specified, generate synthetic data and store to `data-source`. '
-             'Otherwise, the dataset from `--data-source` will be used')
+        help='Valid only for Simplified modes. Path to dataset dir is required.')
 
     return parser
 
@@ -160,7 +132,7 @@ def check_dependencies(args):
             (args.engine == 'accuracy_checker' or args.engine is None)):
         raise ValueError(
             '--quantize option requires AC config to be specified '
-            'or --engine should be `data_free` or `simplified`.')
+            'or --engine should be `simplified`.')
     if args.quantize == 'accuracy_aware' and args.max_drop is None:
         raise ValueError('For AccuracyAwareQuantization --max-drop should be specified')
     if args.config is None and args.engine == 'simplified' and args.data_source is None:
