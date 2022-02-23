@@ -138,7 +138,7 @@ class Property : public util::BaseProperty<T, mutability_> {
     template <typename V>
     struct Forward {
         template <typename U,
-                  typename std::enable_if<std::is_same<U, const std::string&>::value &&
+                  typename std::enable_if<std::is_same<typename std::decay<U>::type, std::string>::value &&
                                               std::is_convertible<V, std::string>::value,
                                           bool>::type = true>
         explicit operator U() {
@@ -146,15 +146,15 @@ class Property : public util::BaseProperty<T, mutability_> {
         }
 
         template <typename U,
-                  typename std::enable_if<std::is_same<U, const std::string&>::value &&
+                  typename std::enable_if<std::is_same<typename std::decay<U>::type, std::string>::value &&
                                               !std::is_convertible<V, std::string>::value,
                                           bool>::type = true>
         explicit operator U() {
-            return Any{value}.as<std::string>();
+            return Any{value}.as<U>();
         }
 
         template <typename U,
-                  typename std::enable_if<!std::is_same<U, const std::string&>::value &&
+                  typename std::enable_if<!std::is_same<typename std::decay<U>::type, std::string>::value &&
                                               std::is_convertible<V, std::string>::value,
                                           bool>::type = true>
         explicit operator U() {
@@ -162,7 +162,7 @@ class Property : public util::BaseProperty<T, mutability_> {
         }
 
         template <typename U,
-                  typename std::enable_if<!std::is_same<U, const std::string&>::value &&
+                  typename std::enable_if<!std::is_same<typename std::decay<U>::type, std::string>::value &&
                                               !std::is_convertible<V, std::string>::value,
                                           bool>::type = true>
         explicit operator U() {
