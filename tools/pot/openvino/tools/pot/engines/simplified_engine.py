@@ -14,7 +14,7 @@ class SimplifiedEngine(IEEngine):
                  a list with input data  [image]
                  None as meta_data
         """
-        return None, batch, None
+        return None, [data[1] for data in batch], None
 
     def _process_infer_output(self, stats_layout, predictions,
                               batch_annotations, batch_meta, need_metrics_per_sample):
