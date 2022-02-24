@@ -37,6 +37,7 @@ Framework-specific parameters for:
 * [TensorFlow](Convert_Model_From_TensorFlow.md)
 * [MXNet](Convert_Model_From_MxNet.md)
 * [ONNX](Convert_Model_From_ONNX.md)
+* [PaddlePaddle](Convert_Model_From_Paddle.md)
 * [Kaldi](Convert_Model_From_Kaldi.md)
 
 

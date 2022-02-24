@@ -11,7 +11,7 @@
 @endsphinxdirective
 
 The Intel® Distribution of OpenVINO™ toolkit supports neural network models trained with multiple frameworks including
-TensorFlow*, Caffe*, MXNet*, Kaldi* and ONNX* file format. The list of supported operations is different for
+TensorFlow, Caffe, MXNet, Kaldi, PaddlePaddle, and ONNX. The list of supported operations (layers) is different for
 each of the supported frameworks. To see the operations supported by your framework, refer to
 [Supported Framework Operations](../MO_DG/prepare_model/Supported_Frameworks_Layers.md).
 

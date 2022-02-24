@@ -83,7 +83,7 @@ The following code creates a model with several outputs:
     @snippet example_ngraph_utils.cpp ov:serialize
 
 ### How can I develop my own transformation pass?
-   See the [Transformations Developer Guide](./nGraphTransformation.md).
+   See the [Transformations Developer Guide](./ov_transformations.md).
 
 ## See Also
 
