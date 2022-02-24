@@ -996,8 +996,12 @@ def parse_layouts_by_destination(s: str, parsed: dict, dest: str = None) -> None
             elif m2:
                 found_g = m2.groups()
             else:
-                raise Error("Invalid usage of --layout parameter. Please use following syntax:\n name(nchw)\n "
-                            "name(nhwc->nchw)\n name[nchw]\n name[nhwc->nchw]\n")
+                raise Error("Invalid usage of --{}layout parameter. Please use following syntax for each tensor or "
+                            "operation name:\n"
+                            "  name(nchw)\n"
+                            "  name(nhwc->[n,h,w,c])\n"
+                            "  name[n,c,h,w]\n"
+                            "  name[n,h,w,c]->[n,c,h,w]\n".format(dest + '_' if dest else ''))
             write_found_layout(found_g[0], found_g[1], parsed, dest)
 
 
