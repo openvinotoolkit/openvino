@@ -3,6 +3,7 @@
 //
 
 #include "test_extension.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 #include <openvino/core/core.hpp>
 
@@ -27,6 +28,11 @@ ov::OutputVector CustomTranslatorTensorflow(const ov::frontend::NodeContext& nod
 
 ov::OutputVector CustomTranslatorONNX(const ov::frontend::NodeContext& node) {
     return ov::OutputVector();
+}
+
+ov::OutputVector ReluToSwishTranslatorONNX(const ov::frontend::NodeContext& node) {
+    auto swish = std::make_shared<ov::opset8::Swish>(node.get_input(0));
+    return {swish};
 }
 
 std::map<std::string, ov::OutputVector> CustomTranslatorPaddle(const ov::frontend::NodeContext& node) {

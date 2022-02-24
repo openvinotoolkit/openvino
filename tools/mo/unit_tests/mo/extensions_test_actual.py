@@ -1,0 +1,105 @@
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+import pytest
+import unittest
+from unittest.mock import Mock
+import onnx
+from onnx.helper import make_graph, make_model, make_tensor_value_info
+import os
+from os import path
+import json
+import argparse
+from openvino.tools.mo.main import prepare_ir
+from openvino.frontend import FrontEndManager # pylint: disable=no-name-in-module,import-error
+
+try:
+    import openvino_telemetry as tm
+except ImportError:
+    import openvino.tools.mo.utils.telemetry_stub as tm
+
+def base_args_config():
+    args = argparse.Namespace()
+    args.feManager = FrontEndManager()
+    args.extensions = None
+    args.use_legacy_frontend = False
+    args.use_new_frontend = True
+    args.framework = 'onnx'
+    args.model_name = None
+    args.input_model = None
+    args.silent = True
+    args.transform=[]
+    args.legacy_ir_generation = False
+    args.scale = None
+    args.output=None
+    args.input=None
+    args.input_shape=None
+    args.batch=None
+    args.mean_values=None
+    args.scale_values=None
+    args.output_dir=os.getcwd()
+    args.freeze_placeholder_with_value = None
+    args.transformations_config = None
+    args.disable_fusing = None
+    args.finegrain_fusing = None
+    args.disable_gfusing = None
+    args.disable_resnet_optimization = None
+    args.enable_concat_optimization = None
+    args.static_shape = None
+    args.disable_weights_compression = None
+    args.reverse_input_channels = None
+    args.data_type = None
+    args.layout = None
+    args.source_layout = None
+    args.target_layout = None
+    return args
+
+
+def get_builtin_extensions_path():
+    import openvino.frontend
+    python_frontend_path = openvino.frontend.__path__[0]
+    lib_folder_pos = python_frontend_path.rfind("lib/")
+    if lib_folder_pos != -1:
+        lib_folder_path = python_frontend_path[:lib_folder_pos+4]
+        for file in os.listdir(lib_folder_path):
+            if file == "libtest_builtin_extensions_1.so" or file == "libtest_builtin_extensions_1.dll":
+                return path.join(lib_folder_path, file)
+    return ""
+
+
+class TestMoFallback(unittest.TestCase):
+    def setUp(self):
+        tm.Telemetry.__init__ = Mock(return_value=None)
+        tm.Telemetry.send_event = Mock()
+
+        self.models = {}
+        relu = onnx.helper.make_node("Relu", inputs=["in"], outputs=["out"])
+        input_tensors = [
+            make_tensor_value_info("in", onnx.TensorProto.FLOAT, (1, 2)),
+        ]
+        output_tensors = [
+            make_tensor_value_info("out", onnx.TensorProto.FLOAT, (1, 2)),
+        ]
+        graph = make_graph([relu], "test_graph", input_tensors, output_tensors)
+        model = make_model(graph, producer_name="MO tests",
+                                                opset_imports=[onnx.helper.make_opsetid("", 13)])
+        self.models["test_model.onnx"] = model
+
+        for name, model in self.models.items():
+            onnx.save(model, name)
+
+    def tearDown(self):
+        for name in self.models.keys():
+            os.remove(name)
+
+
+    @pytest.mark.skipif(len(get_builtin_extensions_path()) == 0, reason="The extension library path was not found")
+    def test_if_transformation_was_applied(self):
+        args = base_args_config()
+        args.input_model = "test_model.onnx"
+        args.extensions = get_builtin_extensions_path()
+
+        graph, ngraph_function, _ = prepare_ir(args)
+
+        assert any(op.get_type_name() == "Swish" for op in ngraph_function.get_ops())
+        assert all(op.get_type_name() != "Relu" for op in ngraph_function.get_ops())
