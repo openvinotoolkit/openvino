@@ -89,7 +89,7 @@ std::vector<int64_t> coords_from_index(int64_t index, const std::vector<int64_t>
     coords[0] = curr;
     return coords;
 }
-}
+}  // namespace
 
 void irdft(const std::vector<float>& input_data,
            const Shape& input_data_shape,
@@ -110,8 +110,8 @@ void irdft(const std::vector<float>& input_data,
     const int64_t extended_input_data_size = shape_size(reversed_extended_input_data_shape);
     std::vector<complex_type> extended_input_data(extended_input_data_size);
 
-//    const complex_type* complex_input_data_ptr = reinterpret_cast<const complex_type*>(input_data.data());
-//    complex_type* extended_data_ptr = extended_input_data.data();
+    //    const complex_type* complex_input_data_ptr = reinterpret_cast<const complex_type*>(input_data.data());
+    //    complex_type* extended_data_ptr = extended_input_data.data();
 
     for (int64_t i = 0; i < extended_input_data_size; ++i) {
         const auto coords = coords_from_index(i, extended_input_data_strides);
