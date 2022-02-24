@@ -7,8 +7,9 @@
 
 #ifdef ENABLE_OV_ONNX_FRONTEND
 #    include <openvino/frontend/onnx/extension/conversion.hpp>
-#    define ONNX_EXT std::make_shared<ov::frontend::onnx::ConversionExtension>("NewCustomOp_3", CustomTranslatorONNX), \
-                     std::make_shared<ov::frontend::onnx::ConversionExtension>("Relu", ReluToSwishTranslatorONNX),
+#    define ONNX_EXT                                                                                      \
+        std::make_shared<ov::frontend::onnx::ConversionExtension>("NewCustomOp_3", CustomTranslatorONNX), \
+            std::make_shared<ov::frontend::onnx::ConversionExtension>("Relu", ReluToSwishTranslatorONNX),
 #else
 #    define ONNX_EXT
 #endif
@@ -35,5 +36,4 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>(
     {std::make_shared<TestExtension1>(),
      std::make_shared<ov::frontend::ConversionExtension>("NewCustomOp_1", CustomTranslatorCommon_1),
      std::make_shared<ov::frontend::ConversionExtension>("NewCustomOp_2", CustomTranslatorCommon_2),
-     ONNX_EXT PADDLE_EXT TF_EXT
-     }));
+     ONNX_EXT PADDLE_EXT TF_EXT}));

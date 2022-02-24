@@ -3,9 +3,10 @@
 //
 
 #include "test_extension.hpp"
-#include "openvino/opsets/opset8.hpp"
 
 #include <openvino/core/core.hpp>
+
+#include "openvino/opsets/opset8.hpp"
 
 bool TestExtension1::transform(const std::shared_ptr<ov::Model>& function, const std::string& config) const {
     function->set_friendly_name("TestFunction");
