@@ -111,7 +111,8 @@ int main(int argc, char* argv[]) {
             model = core.read_model(FLAGS_m);
             if (!outputs.empty()) {
                 for (size_t i = 0; i < outputs.size(); i++) {
-                    model->add_output(outputs[i], ports[i]);
+                    auto output = model->add_output(outputs[i], ports[i]);
+                    output.set_names({outputs[i] + ":" + std::to_string(ports[i])});
                 }
             }
             check_number_of_inputs(model->inputs().size(), numInputFiles);
