@@ -68,6 +68,7 @@ def main():
     expand_v2("expand_v2", data, [2, 3, -1])
     expand_v2_tensor("expand_v2_tensor", data, [2, 3, -1], False)
     expand_v2_tensor("expand_v2_tensor_list", data, [2, 3, -1], True)
+    expand_v2_tensor("expand_v2_tensor_list2", data, [2, 2, 2, 3, -1], True)
 
 
 if __name__ == "__main__":
