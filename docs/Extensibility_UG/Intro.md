@@ -62,7 +62,7 @@ Extensions can be loaded from code with `ov::Core::add_extension` method:
 
 ### Create library with extensions
 
-You need to create extension library in folowing cases:
+You need to create extension library in following cases:
  - Load extensions to Model Optimizer
  - Load extensions to Python application
 
