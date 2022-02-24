@@ -140,13 +140,9 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
 
 > **NOTE**: The Internet access is required to execute the following steps successfully. If you have access to the Internet through the proxy server only, please make sure that it is configured in your OS environment.
 
-1. Download the model. Go to the the Model Downloader directory and run the `downloader.py` script with specifying the model name and directory to download the model to:
+1. Download the model. Install openvino-dev package into Python virtual environment from PyPi and run omz_downloader:
    ```sh
-   cd <INSTAL_DIR>/extras/open_model_zoo/tools/model_tools
-   ```
-   ```sh
-   python3 downloader.py --name googlenet-v1 -o <models_dir>
-   ```
+   omz_downloader --name googlenet-v1 -o <models_dir>
 2. Convert the model to the Inference Engine IR format. Run the Model Optimizer using the `mo` command with the path to the model, model format (which must be FP32 for CPU and FPG) and output directory to generate the IR files:
    ```sh
    mo --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP32 --output_dir <ir_dir>
