@@ -1076,7 +1076,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                     (!(user->is_type<eltwise>() && user->get_primitive()->input.size() == 2 &&
                                         (std::find(supported_modes.begin(), supported_modes.end(),
                                         (user->as<eltwise>()).get_primitive()->mode) != supported_modes.end())) &&
-                                    !(user->is_type<activation>() && user->get_primitive()->input.size() == 1)));
+                                    !(user->is_type<activation>() && user->get_dependency(0).get_users().size() == 1)));
                     });
 
                     if (invalid_user_iter != curr_users.end()) {
