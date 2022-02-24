@@ -1,13 +1,13 @@
-# nGraph Function Creation Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_ngraph_function_creation_sample_README}
+# Model Creation Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_model_creation_sample_README}
 
-This sample demonstrates how to run inference using a [model](../../../docs/OV_Runtime_UG/model_representation.md) built on the fly that uses weights from the LeNet classification model, which is known to work well on digit classification tasks. You do not need an XML file, the model is created from the source code on the fly.  
+This sample demonstrates how to run inference using a [model](../../../docs/OV_Runtime_UG/model_representation.md) built on the fly that uses weights from the LeNet classification model, which is known to work well on digit classification tasks. You do not need an XML file, the model is created from the source code on the fly.
 
-The following Python API is used in the application:
+The following OpenVINO Python API is used in the application:
 
 | Feature          | API                                                                                                                                                                                                                                                                                                               | Description                                             |
 | :--------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------ |
 | Model Operations | [openvino.runtime.Model], [openvino.runtime.set_batch], [openvino.runtime.Model.input]                                                                                                                                                                                                                            | Managing of model                                       |
-| nGraph Functions | [openvino.runtime.op.Parameter], [openvino.runtime.op.Constant], [openvino.runtime.opset8.convolution], [openvino.runtime.opset8.add], [openvino.runtime.opset1.max_pool], [openvino.runtime.opset8.reshape], [openvino.runtime.opset8.matmul], [openvino.runtime.opset8.relu], [openvino.runtime.opset8.softmax] | Description of a model topology using nGraph Python API |
+| Opset operations | [openvino.runtime.op.Parameter], [openvino.runtime.op.Constant], [openvino.runtime.opset8.convolution], [openvino.runtime.opset8.add], [openvino.runtime.opset1.max_pool], [openvino.runtime.opset8.reshape], [openvino.runtime.opset8.matmul], [openvino.runtime.opset8.relu], [openvino.runtime.opset8.softmax] | Description of a model topology using OpenVINO Python API |
 
 Basic OpenVINO™ Runtime API is covered by [Hello Classification Python* Sample](../hello_classification/README.md).
 
@@ -16,7 +16,7 @@ Basic OpenVINO™ Runtime API is covered by [Hello Classification Python* Sample
 | Validated Models           | LeNet                                                                 |
 | Model Format               | Model weights file (\*.bin)                                         |
 | Supported devices          | [All](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md)     |
-| Other language realization | [C++](../../../samples/cpp/ngraph_function_creation_sample/README.md) |
+| Other language realization | [C++](../../../samples/cpp/model_creation_sample/README.md) |
 
 ## How It Works
 
@@ -35,7 +35,7 @@ each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/integrate_wi
 To run the sample, you need to specify model weights and device.
 
 ```
-python ngraph_function_creation_sample.py <path_to_model> <device_name>
+python model_creation_sample.py <path_to_model> <device_name>
 ```
 
 > **NOTE**:
@@ -49,7 +49,7 @@ python ngraph_function_creation_sample.py <path_to_model> <device_name>
 For example:
 
 ```
-python ngraph_function_creation_sample.py lenet.bin GPU
+python model_creation_sample.py lenet.bin GPU
 ```
 
 ## Sample Output

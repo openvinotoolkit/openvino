@@ -15,7 +15,7 @@ The section additionally provides small examples of stateful network and code to
  between data portions should be addressed. For that, networks save some data between inferences - state. When one dependent sequence is over,
  state should be reset to initial value and new sequence can be started.
  
- Several frameworks have special API for states in networks. For example, Keras have special option for RNNs `stateful` that turns on saving state 
+ Several frameworks have special API for states in networks. For example, Keras has special option for RNNs `stateful` that turns on saving state 
  between inferences. Kaldi contains special specifier `Offset` to define time offset in a network. 
  
  OpenVINO also contains special API to simplify work with networks with states. State is automatically saved between inferences, 
@@ -196,9 +196,7 @@ sink from `ngraph::Function` after deleting the node from graph with the `delete
 
 Let's take an IR from the previous section example. The example below demonstrates inference of two independent sequences of data. State should be reset between these sequences.
 
-One infer request and one thread 
-will be used in this example. Using several threads is possible if you have several independent sequences. Then each sequence can be processed in its own infer 
-request. Inference of one sequence in several infer requests is not recommended. In one infer request state will be saved automatically between inferences, but 
+One infer request and one thread will be used in this example. Using several threads is possible if you have several independent sequences. Then each sequence can be processed in its own infer request. Inference of one sequence in several infer requests is not recommended. In one infer request state will be saved automatically between inferences, but 
 if the first step is done in one infer request and the second in another, state should be set in new infer request manually (using `IVariableState::SetState` method).
 
 @snippet openvino/docs/snippets/InferenceEngine_network_with_state_infer.cpp part1
@@ -213,7 +211,7 @@ Decsriptions can be found in [Samples Overview](./Samples_Overview.md)
 
 If the original framework does not have a special API for working with states, after importing the model, OpenVINO representation will not contain Assign/ReadValue layers. For example, if the original ONNX model contains RNN operations, IR will contain TensorIterator operations and the values will be obtained only after execution of the whole TensorIterator primitive. Intermediate values from each iteration will not be available. To enable you to work with these intermediate values of each iteration and receive them with a low latency after each infer request, special LowLatency and LowLatency2 transformations were introduced.
 
-### How to get TensorIterator/Loop operaions from different frameworks via ModelOptimizer.
+### How to get TensorIterator/Loop operations from different frameworks via ModelOptimizer.
 
 **ONNX and frameworks supported via ONNX format:** *LSTM, RNN, GRU* original layers are converted to the TensorIterator operation. TensorIterator body contains LSTM/RNN/GRU Cell. Peepholes, InputForget modifications are not supported, sequence_lengths optional input is supported.
 *ONNX Loop* layer is converted to the OpenVINO Loop operation.

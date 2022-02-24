@@ -140,7 +140,7 @@ Compile the model to the device using `ov::Core::compile_model()`:
 
 It creates a compiled model from a model object. The compiled model is associated with single hardware device.
 It is possible to create as many compiled models as needed and to use them simultaneously (up to the limitation of the hardware resources).
-Please read article about [OpenVINO™ Device Properties API](PropertiesAPI.md) to understand how device configuration can be changed.
+Please read article about [Query device properties](./supported_plugins/config_properties.md) to understand how device configuration can be changed.
 
 ### Step 3. Create an Inference Request
 
