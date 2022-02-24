@@ -121,6 +121,7 @@ public:
     bool shape_changed() const { return _shape_changed; }
     void reset_output_change() { _output_changed = false; }
     void reset_shape_change() { _shape_changed = false; }
+    void set_shape_change() { _shape_changed = true; }
 
     void build_deps();
 

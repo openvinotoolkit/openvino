@@ -15,10 +15,45 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
 };
 
+
+/**
+ * 3D permute tests
+ */
+const std::vector<std::vector<size_t>> inputShapes3D = {
+        std::vector<size_t>{1, 3, 100},
+        std::vector<size_t>{2, 8, 64},
+        std::vector<size_t>{2, 5, 64},
+};
+
+const std::vector<std::vector<size_t>> inputOrder3D = {
+        std::vector<size_t>{0, 2, 1},
+        std::vector<size_t>{},
+        std::vector<size_t>{0, 1, 2},
+        std::vector<size_t>{2, 0, 1},
+};
+
+const auto params3D = testing::Combine(
+        testing::ValuesIn(inputOrder3D),
+        testing::ValuesIn(netPrecisions),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::ValuesIn(inputShapes3D),
+        testing::Values(CommonTestUtils::DEVICE_GPU)
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Transpose3D,
+        TransposeLayerTest,
+        params3D,
+        TransposeLayerTest::getTestCaseName
+);
+
 /**
  * 4D permute tests
  */
-const std::vector<std::vector<size_t>> inputShapes = {
+const std::vector<std::vector<size_t>> inputShapes4D = {
         std::vector<size_t>{1, 3, 100, 100},
         // use permute_8x8_4x4 kernel
         std::vector<size_t>{2, 8, 64, 64},
@@ -27,7 +62,7 @@ const std::vector<std::vector<size_t>> inputShapes = {
         std::vector<size_t>{2, 5, 64, 5},
 };
 
-const std::vector<std::vector<size_t>> inputOrder = {
+const std::vector<std::vector<size_t>> inputOrder4D = {
         // use permute_ref
         std::vector<size_t>{0, 3, 2, 1},
         std::vector<size_t>{},
@@ -35,21 +70,21 @@ const std::vector<std::vector<size_t>> inputOrder = {
         std::vector<size_t>{0, 2, 3, 1},
 };
 
-const auto params = testing::Combine(
-        testing::ValuesIn(inputOrder),
+const auto params4D = testing::Combine(
+        testing::ValuesIn(inputOrder4D),
         testing::ValuesIn(netPrecisions),
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(InferenceEngine::Layout::ANY),
-        testing::ValuesIn(inputShapes),
+        testing::ValuesIn(inputShapes4D),
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_Transpose,
+        smoke_Transpose4D,
         TransposeLayerTest,
-        params,
+        params4D,
         TransposeLayerTest::getTestCaseName
 );
 

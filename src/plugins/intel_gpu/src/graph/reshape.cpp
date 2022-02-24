@@ -7,6 +7,7 @@
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "json_object.h"
 #include <string>
 
@@ -24,7 +25,6 @@ layout reshape_inst::calc_output_layout(reshape_node const& node) {
     auto input_layout = node.input().get_non_padded_output_layout();
 
     if (input_layout.is_static() && (node.get_dependencies().size() == 2 && node.get_shape_ready())) {
-        std::cerr << "reshape_inst::calc_output_layout: shape is static or prepared from second buffer" << std::endl;
         auto sizes = prim->output_shape;
         auto input_sizes = input_layout.get_dims();
         int64_t need_recalc = -1;
@@ -38,9 +38,6 @@ layout reshape_inst::calc_output_layout(reshape_node const& node) {
                 need_recalc = i;
                 continue;
             }
-            if (sizes[i] == 0) {
-                sizes[i] = input_sizes[i];
-            }
             shape_count *= sizes[i].get_length();
         }
         if (need_recalc >= 0)
@@ -48,12 +45,8 @@ layout reshape_inst::calc_output_layout(reshape_node const& node) {
 
         node.reset_shape_ready();
 
-        std::cerr << "in shape: " << input_layout.size << std::endl;
-        std::cerr << "out shape: " << sizes << std::endl;
-
         return layout{input_layout.data_type, input_layout.format, sizes};
     } else {
-        std::cerr << "reshape_inst::calc_output_layout: shape is dynamic or not ready" << std::endl;
         return layout{input_layout.data_type, input_layout.format, prim->output_shape};
     }
 }
@@ -119,20 +112,27 @@ void reshape_inst::update_shape() {
     auto& node = const_cast<reshape_node&>(dynamic_cast<const reshape_node&>(_node));
     if (_node.get_dependencies().size() == 2) {
         auto shape_mem = _network.get_output_memory(_node.get_dependency(1).id());
+        // TODO: usm_device is copied to host on lock(), but we need to ensure that this is better, then
+        // keeping such constants on host (i.e. modifying transfer_memory_to_device)
         // if (shape_mem->get_allocation_type() == allocation_type::usm_device) {
         //     IE_THROW() << " lockable memory is required to update shape for reshape prim\n";
         // }
         auto reshape_prim = std::static_pointer_cast<reshape>(std::const_pointer_cast<primitive>(_node.get_primitive()));
         reshape_prim->output_shape = ov::PartialShape(read_vector(shape_mem, _network.get_stream()));
         node.set_shape_ready();
-
-        std::cerr << node.id() << " reshape on_execute: read shapes from the second output and update prim: " << reshape_prim->output_shape << std::endl;
     }
 
+    GPU_DEBUG_GET_INSTANCE(debug_config);
     auto new_layout = _node.type()->calc_output_layout(_node);
-    // TODO: Get rid of this const_cast ASAP
+    auto out_layout = _node.is_valid_output_layout() ? _node.get_output_layout() : layout(data_types::f32, format::any, tensor{});
+    auto out_layout_str = _node.is_valid_output_layout() ? out_layout.to_string() : "invalid";
+    GPU_DEBUG_IF(debug_config->verbose >= 4) {
+        GPU_DEBUG_COUT << id() << " update shape: was: " << out_layout_str << " now: " << new_layout.to_string() << std::endl;
+    }
+    if (!_node.is_valid_output_layout() || _node.get_output_layout() != new_layout)
+        set_shape_change();
+    // TODO: Get rid of this const_cast
     node.set_output_layout(new_layout);
-    reset_shape_change();
 }
 
 void reshape_inst::on_execute() {

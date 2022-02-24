@@ -30,7 +30,6 @@ layout one_hot_inst::calc_output_layout(one_hot_node const& node) {
                             "Incorrect parameters configuration: one_hot_axis should be less or equal to 4.");
     }
 
-    std::cerr << "one hot out shape ref: " << desc->shape << std::endl;
     {
         ov::op::v1::OneHot op;
         try {
@@ -40,7 +39,6 @@ layout one_hot_inst::calc_output_layout(one_hot_node const& node) {
             op.set_axis(desc->one_hot_axis);
         } catch (...) {}
 
-        std::cerr << " axis: " << op.get_axis() << " vs " << desc->one_hot_axis << std::endl;
         std::vector<ov::PartialShape> output_shapes = { ov::PartialShape::dynamic() };
         std::vector<ov::PartialShape> input_shapes = {
             input_layout.size,
@@ -49,9 +47,6 @@ layout one_hot_inst::calc_output_layout(one_hot_node const& node) {
             ov::PartialShape{}
         };
 
-        for (auto& in_shape : input_shapes) {
-            std::cerr << "one hot input shape: " << in_shape << std::endl;
-        }
         int64_t depth = desc->depth;
 
         auto depth_tensor = std::make_shared<ngraph::runtime::HostTensor>(ov::element::i64, ov::Shape{1}, static_cast<void*>(&depth));
@@ -59,7 +54,6 @@ layout one_hot_inst::calc_output_layout(one_hot_node const& node) {
             {1, depth_tensor}
         };
         ov::op::v1::shape_infer(&op, input_shapes, output_shapes, const_data);
-        std::cerr << "one hot out shape after infer: " << output_shapes[0] << std::endl;
         return {dt, layout::get_default_format(output_shapes[0].size()), output_shapes[0]};
     }
 }

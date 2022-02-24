@@ -16,8 +16,6 @@
 #include <functional>
 #include <set>
 
-#define USE_PARTIAL_SHAPE 1
-
 #include <openvino/core/partial_shape.hpp>
 
 namespace cldnn {
@@ -358,7 +356,6 @@ struct layout {
     }
 
     friend bool operator<(const layout& lhs, const layout& rhs) {
-#if USE_PARTIAL_SHAPE
         if (lhs.data_type != rhs.data_type)
             return (lhs.data_type < rhs.data_type);
         if (lhs.format != rhs.format)
@@ -366,15 +363,6 @@ struct layout {
         if (lhs.count() < rhs.count())
             return (lhs.count() < rhs.count());
         return (lhs.data_padding < rhs.data_padding);
-#else
-        if (lhs.data_type != rhs.data_type)
-            return (lhs.data_type < rhs.data_type);
-        if (lhs.format != rhs.format)
-            return (lhs.format < rhs.format);
-        if (lhs.size < rhs.size)
-            return (lhs.size < rhs.size);
-        return (lhs.data_padding < rhs.data_padding);
-#endif
     }
 
     /// Number of elements to be stored in this memory layout
@@ -402,11 +390,7 @@ struct layout {
     cldnn::format format;
 
     /// The size of the @ref memory (excluding padding)
-#ifdef USE_PARTIAL_SHAPE
     ov::PartialShape size;
-#else
-    tensor size;
-#endif
 
     /// Explicit padding of the @ref memory
     padding data_padding;

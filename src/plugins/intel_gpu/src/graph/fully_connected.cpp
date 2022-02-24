@@ -113,8 +113,6 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
             output_size = ov::PartialShape{batch, feature, 1, weights_layout.batch()};
         }
 
-        std::cerr << "FC output shape: " << output_size << std::endl;
-
         return layout(output_type, output_format, output_size);
     } else {
         auto output_size = tensor(input_layout.batch(), weights_layout.batch(), 1, 1);

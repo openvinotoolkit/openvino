@@ -865,12 +865,10 @@ void network::allocate_primitive_instance(program_node const& node) {
     if (_primitives.count(node.id()))
         return;
 
-    std::cerr << "allocate instance for " << node.id() << std::endl;
-    std::string deps = "";
-    for (auto& dep : node.get_dependencies()) {
-        deps += dep->id() + "; ";
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->verbose >= 4) {
+        GPU_DEBUG_COUT << "allocate instance for " << node.id() << std::endl;
     }
-    std::cerr << "deps of " << node.id() << ": " << deps << std::endl;
 
     auto inst = node.type()->create_instance(*this, node);
 

@@ -24,22 +24,22 @@ layout permute_inst::calc_output_layout(permute_node const& node) {
            "Output data type forcing is not supported for permute_node!");
     auto input_layout = node.input().get_output_layout();
     auto permute_order = node.get_primitive()->permute_order;
-    std::vector<tensor::value_type> output_shape;
+    ov::PartialShape output_shape;
 
-    auto input_shape = input_layout.get_dims();
+    auto input_shape = input_layout.size;
 
     for (size_t x = 0; x < permute_order.size(); x++) {
         output_shape.push_back(input_shape[permute_order[x]]);
     }
 
-    auto output_size = tensor(layout::get_default_format(input_layout.get_rank()), output_shape);
+
     auto op = node.get_primitive()->output_padding;
 
     if (node.has_fused_primitives()) {
         input_layout.data_type = node.get_fused_output_layout().data_type;
     }
 
-    return layout(input_layout.data_type, input_layout.format, output_size, op);
+    return layout(input_layout.data_type, input_layout.format, output_shape, op);
 }
 
 std::string permute_inst::to_string(permute_node const& node) {
@@ -73,7 +73,7 @@ permute_inst::typed_primitive_inst(network& network, permute_node const& node) :
                           "Permute order size",
                           permute_order.size(),
                           "minimum order size",
-                          4,
+                          node.get_dependency(0).get_output_layout().size.size(),
                           "Permute order size needs to be at least 4.");
 
     auto required_order_values_size = static_cast<uint32_t>(permute_order.size());

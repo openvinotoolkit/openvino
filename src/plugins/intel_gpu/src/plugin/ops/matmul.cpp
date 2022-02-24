@@ -110,9 +110,6 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
             std::iota(transpose_order.begin(), transpose_order.end(), 0);
             std::swap(*(transpose_order.end() - 1), *(transpose_order.end() - 2));
 
-            for (auto o = transpose_order.size(); o < 4; o++)
-                transpose_order.push_back((uint16_t)o);
-
             auto permuteName = op->get_friendly_name() + "/transpose_b";
             auto permutePrim = cldnn::permute(permuteName,
                                               weightsName,
@@ -128,9 +125,6 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
             std::vector<uint16_t> transpose_order(shape_a.size());
             std::iota(transpose_order.begin(), transpose_order.end(), 0);
             std::swap(*(transpose_order.end() - 1), *(transpose_order.end() - 2));
-
-            for (auto o = transpose_order.size(); o < 4; o++)
-                transpose_order.push_back((uint16_t)o);
 
             auto permuteName = op->get_friendly_name() + "/transpose_a";
             auto permutePrim = cldnn::permute(permuteName,

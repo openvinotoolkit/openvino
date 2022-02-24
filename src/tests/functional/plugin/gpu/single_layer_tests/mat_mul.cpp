@@ -82,8 +82,6 @@ public:
     }
 
 protected:
-     std::string cpuNodeType;
-
     template<typename T>
     void transpose(T& shape) {
         IE_ASSERT(shape.size() > 1);

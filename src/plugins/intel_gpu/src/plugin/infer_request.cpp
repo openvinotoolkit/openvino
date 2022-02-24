@@ -550,11 +550,6 @@ void InferRequest::enqueue() {
         }
     }
 
-    for (auto& item : _outputs) {
-        std::string outputName = item.first;
-        Blob::Ptr& outputBlob = item.second;
-        prepare_output(outputName, outputBlob);
-    }
 
     internal_outputs.clear();
     internal_outputs = m_graph->GetNetwork()->execute(dependencies);
@@ -576,7 +571,6 @@ void InferRequest::wait() {
     if (internal_outputs.empty()) {
         IE_THROW() << "Inference was not started!\n";
     }
-
     // wait for completion & collect outputs as requested by the model
     for (auto& no : _networkOutputs) {
         std::string outputID = m_graph->MapOutputName(no.first);
