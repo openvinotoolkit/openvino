@@ -37,8 +37,8 @@ namespace reference {
 void irdft(const std::vector<float>& input_data,
            const Shape& input_data_shape,
            const std::vector<int64_t>& axes_data,
-           const Shape& output_shape,
-           float* rdft_result);
+           const Shape& output_ifft_shape,
+           float* irdft_result);
 }  // namespace reference
 }  // namespace runtime
 }  // namespace ngraph

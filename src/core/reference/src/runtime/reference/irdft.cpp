@@ -66,10 +66,12 @@ std::vector<int64_t> compute_strides(const std::vector<int64_t>& v) {
 }
 
 // When we reverted shape, we need to revert FFT axes.
-void reverse_fft_axes(std::vector<int64_t>& axes, int64_t complex_data_rank) {
-    for (int64_t& axis : axes) {
+std::vector<int64_t> reverse_fft_axes(const std::vector<int64_t>& axes, int64_t complex_data_rank) {
+    auto result = axes;
+    for (int64_t& axis : result) {
         axis = complex_data_rank - 1 - axis;
     }
+    return result;
 }
 
 // Calculating coordinates c_0, ..., c_{k - 1} from the index of the form
@@ -89,13 +91,23 @@ std::vector<int64_t> coords_from_index(int64_t index, const std::vector<int64_t>
     coords[0] = curr;
     return coords;
 }
+
+// Calculates offset of value using corresponding coordinates and strides.
+int64_t offset_from_coords_and_strides(const std::vector<int64_t>& coords, const std::vector<int64_t>& strides) {
+    int64_t offset = 0;
+    int64_t num_of_axes = coords.size();
+    for (int64_t i = 0; i < num_of_axes; ++i) {
+        offset += coords[i] * strides[i];
+    }
+    return offset;
+}
 }  // namespace
 
 void irdft(const std::vector<float>& input_data,
            const Shape& input_data_shape,
            const std::vector<int64_t>& axes_data,
-           const Shape& output_shape,
-           float* rdft_result) {
+           const Shape& output_ifft_shape,
+           float* irdft_result) {
     auto shape_of_extended_input_data = input_data_shape;
     for (const auto axis : axes_data) {
         shape_of_extended_input_data[axis] = 2 * (input_data_shape[axis] - 1);
@@ -110,11 +122,47 @@ void irdft(const std::vector<float>& input_data,
     const int64_t extended_input_data_size = shape_size(reversed_extended_input_data_shape);
     std::vector<complex_type> extended_input_data(extended_input_data_size);
 
-    //    const complex_type* complex_input_data_ptr = reinterpret_cast<const complex_type*>(input_data.data());
-    //    complex_type* extended_data_ptr = extended_input_data.data();
+    const int64_t complex_data_rank = static_cast<int64_t>(reversed_extended_input_data_shape.size());
+    const auto reversed_axes = reverse_fft_axes(axes_data, complex_data_rank);
+
+    const complex_type* complex_input_data_ptr = reinterpret_cast<const complex_type*>(input_data.data());
+    complex_type* extended_data_ptr = extended_input_data.data();
 
     for (int64_t i = 0; i < extended_input_data_size; ++i) {
         const auto coords = coords_from_index(i, extended_input_data_strides);
+
+        bool need_conj = false;
+        auto coords_to_read = coords;
+        for (const auto a : reversed_axes) {
+            if (coords[a] >= reversed_input_data_shape[a]) {
+                need_conj = true;
+                coords_to_read[a] = reversed_extended_input_data_shape[a] - coords[a];
+            }
+        }
+
+        const int64_t offset_to_read = offset_from_coords_and_strides(coords_to_read, input_data_strides);
+
+        if (need_conj) {
+            extended_data_ptr[i] = std::conj(complex_input_data_ptr[offset_to_read]);
+        } else {
+            extended_data_ptr[i] = complex_input_data_ptr[offset_to_read];
+        }
+    }
+
+    const size_t size_of_ifft_result = shape_size(output_ifft_shape);
+    std::vector<complex_type> ifft_result(size_of_ifft_result);
+
+    // Here calculation of IDFT
+    fft(reinterpret_cast<const float*>(extended_input_data.data()),
+        shape_of_extended_input_data,
+        axes_data.data(),
+        Shape{axes_data.size()},
+        reinterpret_cast<float*>(ifft_result.data()),
+        output_ifft_shape,
+        FFTKind::Inverse);
+
+    for (size_t i = 0; i < size_of_ifft_result; ++i) {
+        irdft_result[i] = std::real(ifft_result[i]);
     }
 }
 }  // namespace reference
