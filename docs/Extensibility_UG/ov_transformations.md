@@ -148,7 +148,7 @@ This example shows how to use predicate to construct a pattern. Also it shows ho
 
 ## Working with ov::Function <a name="working_with_ov_model"></a>
 
-In this chapter extends the [model representation guide](./model_representation.md) and shows an API that allows us to manipulate with `ov::Model`.
+In this chapter extends the [model representation guide](../OV_Runtime_UG/model_representation.md) and shows an API that allows us to manipulate with `ov::Model`.
 
 ### ov::Node input and output ports
 
