@@ -112,7 +112,7 @@ To keep the model valid after the reshape, choose a new input shape that satisfi
 For details, refer to the <a href="_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models.html#tf_od_custom_input_shape">Tensorflow Object Detection API models resizing techniques</a>.
 
 ### Extensibility
-The Inference Engine provides a special mechanism that allows adding support of shape inference for custom operations. This mechanism is described in the [Extensibility documentation](Extensibility_DG/Intro.md)
+The Inference Engine provides a special mechanism that allows adding support of shape inference for custom operations. This mechanism is described in the [Extensibility documentation](../Extensibility_UG/Intro.md)
 
 ## Introduction (Python)
 
@@ -218,7 +218,7 @@ exec_net = ie.load_network(network=net, device_name="CPU")
 ```
 
 ### Extensibility
-The Inference Engine provides a special mechanism that allows adding support of shape inference for custom operations. This mechanism is described in the [Extensibility documentation](Extensibility_DG/Intro.md)
+The Inference Engine provides a special mechanism that allows adding support of shape inference for custom operations. This mechanism is described in the [Extensibility documentation](../Extensibility_UG/Intro.md)
 
 ### See Also:
 
