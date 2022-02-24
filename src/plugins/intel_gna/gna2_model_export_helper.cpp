@@ -69,6 +69,19 @@ TlvFloatRecord GetFloatInTLV(Gna2TlvType type, float value) {
     return r;
 }
 
+#define Gna2TlvTypeOVString GNA2_TLV_IMPL_CHAR_TO_TYPE("OVSS")
+
+std::vector<uint8_t> GetStringAsTlv(Gna2TlvType type, const std::string& s) {
+    std::vector<uint8_t> record(sizeof(Gna2TlvRecord));
+    reinterpret_cast<Gna2TlvRecord*>(record.data())->type = type;
+
+    std::vector<uint8_t> vs(s.begin(), s.end());
+    vs.resize(vs.size() + (4 - vs.size() % 4) % 4, 0);
+    reinterpret_cast<Gna2TlvRecord*>(record.data())->length = vs.size();
+    record.insert(record.end(), vs.begin(), vs.end());
+    return record;
+}
+
 Gna2DeviceVersion getEmbeddedTargetFromCompileTarget(const std::string compileTarget) {
     const std::map<std::string, Gna2DeviceVersion> targetMap = {
         {InferenceEngine::GNAConfigParams::GNA_TARGET_3_1, Gna2DeviceVersionEmbedded3_1},
@@ -100,8 +113,17 @@ template <class T>
 void WriteAllEndpoints(std::ostream& outStream, const T container, bool isInput) {
     const auto sfTlvType = isInput ? Gna2TlvTypeOVInputScaleFactor : Gna2TlvTypeOVOutputScaleFactor;
     for (const auto& endpoint : container) {
+        auto d = GetStringAsTlv(Gna2TlvTypeOVString, endpoint.name);
+        outStream.write((char*)d.data(), d.size());
         auto tlvScaleFactor = GetFloatInTLV(sfTlvType, endpoint.scaleFactor);
         outStream.write(tlvScaleFactor.data(), tlvScaleFactor.size());
+
+        // TODO Change pointer into offset
+        std::stringstream stream;
+        stream << std::hex << "ptr=[" << endpoint.gnaPointer << "]";
+        std::string result(stream.str());
+        d = GetStringAsTlv(Gna2TlvTypeOVString, result);
+        outStream.write((char*)d.data(), d.size());
     }
 }
 

@@ -17,6 +17,7 @@ struct GnaEndpoint {
     uint32_t offset = 0;
     uint32_t numberOfBytesPerElement = 0;
     float scaleFactor = 0;
+    void* gnaPointer = nullptr;
 
     template <class T>
     static uint32_t GetTotalByteSize(const T& container) {
@@ -29,9 +30,13 @@ struct GnaEndpoint {
     static GnaEndpoint CreateFromDescriptor(const T& descriptor) {
         GnaEndpoint e;
         e.scaleFactor = descriptor.scale_factor;
-        // optionally descriptor.get_allocated_size()
+        //  optionally descriptor.get_allocated_size()
         e.byteSize = descriptor.get_required_size();
         e.name = descriptor.name;
+        e.numberOfBytesPerElement = static_cast<uint32_t>(descriptor.tensor_precision.size());
+        if (!descriptor.ptrs.empty()) {
+            e.gnaPointer = descriptor.ptrs.front();
+        }
         return e;
     }
 
