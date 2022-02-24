@@ -1011,8 +1011,9 @@ TEST_P(OVClassLoadNetworkWithAutoBatchingTest, LoadNetworkWithAutoBatchingNoThro
         ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
         ov::hint::allow_auto_batching(true)
     }));
-
-    OV_ASSERT_NO_THROW(deviceName = model.get_property(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)).as<std::string>());
+    std::string targetDevice;
+    OV_ASSERT_NO_THROW(targetDevice = model.get_property(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)).as<std::string>());
+    ASSERT_EQ(deviceName, targetDevice);
 }
 
 TEST_P(OVClassLoadNetworkTest, LoadNetworkWithInvalidDeviceIDThrows) {
