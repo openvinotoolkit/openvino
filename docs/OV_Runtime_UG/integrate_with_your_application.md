@@ -1,4 +1,4 @@
-# Integrate OpenVINO™ into your application {#openvino_docs_Integrate_OV_into_customer_application}
+# Integrate OpenVINO™ with Your Application {#openvino_docs_Integrate_OV_with_your_application}
 
 @sphinxdirective
 
@@ -11,7 +11,7 @@
 
 @endsphinxdirective
 
-The following diagram illustrates usual application development workflow:
+The following diagram illustrates the typical application development workflow:
 
 ![ie_api_flow_cpp]
 
@@ -98,13 +98,13 @@ Compile the model to the device using `ov::Core::compile_model()`:
            :language: cpp
            :fragment: [part2_2]
 
-    .. tab:: Paddle
+    .. tab:: PaddlePaddle
 
         .. doxygensnippet:: docs/snippets/src/main.cpp
            :language: cpp
            :fragment: [part2_3]
 
-    .. tab:: OpenVINO™ Model
+    .. tab:: ov::Model
 
         .. doxygensnippet:: docs/snippets/src/main.cpp
            :language: cpp
@@ -124,13 +124,13 @@ Compile the model to the device using `ov::Core::compile_model()`:
            :language: python
            :fragment: [part2_2]
 
-    .. tab:: Paddle
+    .. tab:: PaddlePaddle
 
         .. doxygensnippet:: docs/snippets/src/main.py
            :language: python
            :fragment: [part2_3]
 
-    .. tab:: OpenVINO™ Model
+    .. tab:: ov::Model
 
         .. doxygensnippet:: docs/snippets/src/main.py
            :language: python
@@ -144,7 +144,7 @@ Please read article about [Query device properties](./supported_plugins/config_p
 
 ### Step 3. Create an Inference Request
 
-`ov::InferRequest` class provides methods for inference model inside the OpenVINO™ runtime.
+`ov::InferRequest` class provides methods for model inference in the OpenVINO™ Runtime.
 Here only simple pipeline is demonstrated, to get more information about other use cases please read extended [InferRequest documentation](./ov_infer_request.md).
 Create an infer request using the following code:
 
@@ -213,7 +213,7 @@ Both requests are thread-safe: can be called from different threads without fear
 Multiple requests for single `CompiledModel` are executed sequentially one by one in FIFO order.
 
 While request is ongoing, all its methods except `ov::InferRequest::wait` or `ov::InferRequest::wait_for` would throw
-the ov::Busy exception that request is busy with computations.
+the `ov::Busy` exception that request is busy with computations.
 
 ### Step 6. Process the Inference Results 
 
@@ -235,7 +235,7 @@ Go over the output tensors and process the inference results.
 
 @endsphinxdirective
 
-## Link and build your C++ application with OpenVINO™ Runtime
+## Link and Build Your C++ Application with OpenVINO™ Runtime
 
 The example uses CMake for project configuration.
 

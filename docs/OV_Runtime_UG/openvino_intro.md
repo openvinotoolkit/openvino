@@ -8,7 +8,7 @@
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_Integrate_OV_into_customer_application
+   openvino_docs_Integrate_OV_with_your_application
    <!-- should be a part of Integrate OV in user application -->
    openvino_docs_OV_Runtime_UG_Model_Representation
    openvino_docs_IE_DG_ShapeInference
