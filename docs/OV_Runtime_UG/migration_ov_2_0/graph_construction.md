@@ -1,12 +1,16 @@
-# OpenVINO™ graph construction {#openvino_graph_construction}
+# Model creation {#openvino_2_0_model_creation}
 
-OpenVINO™ 2.0 includes nGraph engine in a common part. The `ngraph` namespace was changed to `ov`.
-Code snippets below show how application code should be changed for migration to OpenVINO™ 2.0.
+OpenVINO™ Runtime API 2.0 includes nGraph engine as a common part. The `ngraph` namespace was changed to `ov`, all other ngraph API is preserved as is.
+Code snippets below show how application code should be changed for migration to OpenVINO™ Runtime API 2.0.
 
 nGraph API:
 
 @snippet snippets/ngraph.cpp ngraph:graph
 
-OpenVINO™ 2.0 API:
+OpenVINO™ Runtime API 2.0:
 
 @snippet snippets/ov_graph.cpp ov:graph
+
+See also:
+[Hello Model Creation C++ Sample](../../../samples/cpp/model_creation_sample/README.md)
+[Hello Model Creation Python Sample](../../../samples/python/model_creation_sample/README.md)

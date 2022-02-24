@@ -6,8 +6,10 @@
    :maxdepth: 1
    :hidden:
    
-   openvino_inference_pipeline
-   openvino_graph_construction
+   openvino_2_0_inference_pipeline
+   openvino_2_0_configure_devices
+   openvino_2_0_preprocessing
+   openvino_2_0_model_creation
       
 @endsphinxdirective
 
@@ -73,8 +75,8 @@ The table below demonstrates which behavior **old** or **new** is used depending
 |OpenVINO Runtime API 2.0 | Old | New | New | New |
 
 Please look at next transition guides to understand how migrate Inference Engine-based application to OpenVINO™ Runtime API 2.0:
- - [OpenVINO™ Graph Construction](graph_construction.md)
  - [OpenVINO™ Common Inference pipeline](common_inference_pipeline.md)
- - [Preprocess your model](TODO)
- - [Configure device](TODO)
+ - [Preprocess your model](./preprocessing.md)
+ - [Configure device](./configure_devices.md)
+ - [OpenVINO™ Model Creation](graph_construction.md)
  - [OMZ, POT APIs migration ?? ]

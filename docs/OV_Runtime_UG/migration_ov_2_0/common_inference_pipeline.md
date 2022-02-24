@@ -1,16 +1,16 @@
-# OpenVINO™ Inference Pipeline {#openvino_inference_pipeline}
+# Inference Pipeline {#openvino_2_0_inference_pipeline}
 
-Usually to inference network with the OpenVINO™ toolkit users need to do next steps:
- 1. Create Core
+Usually to inference model with the OpenVINO™ Runtime an user needs to do the following steps in the application pipeline:
+ 1. Create Core object
  2. (Optional) Read model from the disk
-     2.1. Configure Input and Output of the Model
- 3. Load the Model to the Device
- 4. Create an Inference Request
- 5. Prepare Input
- 6. Start Inference
- 7. Process the Inference Results
+      2.1. (Optional) Model preprocessing
+ 3. Load the model to the device
+ 4. Create an inference request
+ 5. Fill input tensors with data
+ 6. Start inference
+ 7. Process the inference results
 
-Code snippets below cover these steps and show how application code should be changed for migration to OpenVINO™ 2.0.
+Code snippets below cover these steps and show how application code should be changed for migration to OpenVINO™ Runtime 2.0.
 
 ## 1. Create Core
 
@@ -18,7 +18,7 @@ Inference Engine API:
 
 @snippet snippets/ie_common.cpp ie:create_core
 
-OpenVINO™ 2.0 API:
+OpenVINO™ Runtime API 2.0:
 
 @snippet snippets/ov_common.cpp ov_api_2_0:create_core
 
@@ -28,21 +28,15 @@ Inference Engine API:
 
 @snippet snippets/ie_common.cpp ie:read_model
 
-OpenVINO™ 2.0 API:
+OpenVINO™ Runtime API 2.0:
 
 @snippet snippets/ov_common.cpp ov_api_2_0:read_model
 
-Read model has the same structure as in the example from [OpenVINO™ Graph Construction](@ref openvino_graph_construction) guide.
+Read model has the same structure as in the example from [Model Creation](./graph_construction.md) guide.
 
-### 2.1 Configure Input and Output of the Model
+### 2.1 (Optional) Model preprocessing
 
-Inference Engine API:
-
-@snippet snippets/ie_common.cpp ie:get_inputs_outputs
-
-OpenVINO™ 2.0 API:
-
-@snippet snippets/ov_common.cpp ov_api_2_0:get_inputs_outputs
+See detailed guide [how to migrate preprocessing in OpenVINO Runtime API 2.0](./preprocessing.md)
 
 ## 3. Load the Model to the Device
 
@@ -50,7 +44,7 @@ Inference Engine API:
 
 @snippet snippets/ie_common.cpp ie:compile_model
 
-OpenVINO™ 2.0 API:
+OpenVINO™ Runtime API 2.0:
 
 @snippet snippets/ov_common.cpp ov_api_2_0:compile_model
 
@@ -60,51 +54,71 @@ Inference Engine API:
 
 @snippet snippets/ie_common.cpp ie:create_infer_request
 
-OpenVINO™ 2.0 API:
+OpenVINO™ Runtime API 2.0:
 
 @snippet snippets/ov_common.cpp ov_api_2_0:create_infer_request
 
-## 5. Prepare input
-
-### IR v10
+## 5. Fill input tensors
 
 Inference Engine API:
 
-@snippet snippets/ie_common.cpp ie:get_input_tensor
+@sphinxdirective
 
-OpenVINO™ 2.0 API:
+.. tab:: IR v10
 
-@snippet snippets/ov_common.cpp ov_api_2_0:get_input_tensor_v10
+    .. doxygensnippet:: snippets/ie_common.cpp
+       :language: cpp
+       :fragment: [ie:get_input_tensor]
 
-### IR v11
+.. tab:: IR v11
 
-Inference Engine API:
+    .. doxygensnippet:: snippets/ie_common.cpp
+       :language: cpp
+       :fragment: [ie:get_input_tensor]
+       
+.. tab:: ONNX
 
-@snippet snippets/ie_common.cpp ie:get_input_tensor
+    .. doxygensnippet:: snippets/ie_common.cpp
+       :language: cpp
+       :fragment: [ie:get_input_tensor]
+       
+.. tab:: Model created in code
 
-OpenVINO™ 2.0 API:
+    .. doxygensnippet:: snippets/ie_common.cpp
+       :language: cpp
+       :fragment: [ie:get_input_tensor]
 
-@snippet snippets/ov_common.cpp ov_api_2_0:get_input_tensor_aligned
+@endsphinxdirective
 
-### ONNX
+OpenVINO™ Runtime API 2.0:
 
-Inference Engine API:
+@sphinxdirective
 
-@snippet snippets/ie_common.cpp ie:get_input_tensor
+.. tab:: IR v10
 
-OpenVINO™ 2.0 API:
+    .. doxygensnippet:: snippets/ov_common.cpp
+       :language: cpp
+       :fragment: [ov_api_2_0:get_input_tensor_v10]
 
-@snippet snippets/ov_common.cpp ov_api_2_0:get_input_tensor_aligned
+.. tab:: IR v11
 
-### From Function
+    .. doxygensnippet:: snippets/ov_common.cpp
+       :language: cpp
+       :fragment: [ov_api_2_0:get_input_tensor_aligned]
+       
+.. tab:: ONNX
 
-Inference Engine API:
+    .. doxygensnippet:: snippets/ov_common.cpp
+       :language: cpp
+       :fragment: [ov_api_2_0:get_input_tensor_aligned]
+       
+.. tab:: Model created in code
 
-@snippet snippets/ie_common.cpp ie:get_input_tensor
+    .. doxygensnippet:: snippets/ov_common.cpp
+       :language: cpp
+       :fragment: [ov_api_2_0:get_input_tensor_aligned]
 
-OpenVINO™ 2.0 API:
-
-@snippet snippets/ov_common.cpp ov_api_2_0:get_input_tensor_aligned
+@endsphinxdirective
 
 ## 6. Start Inference
 
@@ -112,50 +126,68 @@ Inference Engine API:
 
 @snippet snippets/ie_common.cpp ie:inference
 
-OpenVINO™ 2.0 API:
+OpenVINO™ Runtime API 2.0:
 
 @snippet snippets/ov_common.cpp ov_api_2_0:inference
 
-
 ## 7. Process the Inference Results
 
-### IR v10
-
 Inference Engine API:
 
-@snippet snippets/ie_common.cpp ie:get_output_tensor
+@sphinxdirective
 
-OpenVINO™ 2.0 API:
+.. tab:: IR v10
 
-@snippet snippets/ov_common.cpp ov_api_2_0:get_output_tensor_v10
+    .. doxygensnippet:: snippets/ie_common.cpp
+       :language: cpp
+       :fragment: [ie:get_output_tensor]
 
-### IR v11
+.. tab:: IR v11
 
-Inference Engine API:
+    .. doxygensnippet:: snippets/ie_common.cpp
+       :language: cpp
+       :fragment: [ie:get_output_tensor]
+       
+.. tab:: ONNX
 
-@snippet snippets/ie_common.cpp ie:get_output_tensor
+    .. doxygensnippet:: snippets/ie_common.cpp
+       :language: cpp
+       :fragment: [ie:get_output_tensor]
+       
+.. tab:: Model created in code
 
-OpenVINO™ 2.0 API:
+    .. doxygensnippet:: snippets/ie_common.cpp
+       :language: cpp
+       :fragment: [ie:get_output_tensor]
 
-@snippet snippets/ov_common.cpp ov_api_2_0:get_output_tensor_aligned
+@endsphinxdirective
 
-### ONNX
+OpenVINO™ Runtime API 2.0:
 
-Inference Engine API:
+@sphinxdirective
 
-@snippet snippets/ie_common.cpp ie:get_output_tensor
+.. tab:: IR v10
 
-OpenVINO™ 2.0 API:
+    .. doxygensnippet:: snippets/ov_common.cpp
+       :language: cpp
+       :fragment: [ov_api_2_0:get_output_tensor_v10]
 
-@snippet snippets/ov_common.cpp ov_api_2_0:get_output_tensor_aligned
+.. tab:: IR v11
 
-### From Function
+    .. doxygensnippet:: snippets/ov_common.cpp
+       :language: cpp
+       :fragment: [ov_api_2_0:get_output_tensor_aligned]
+       
+.. tab:: ONNX
 
-Inference Engine API:
+    .. doxygensnippet:: snippets/ov_common.cpp
+       :language: cpp
+       :fragment: [ov_api_2_0:get_output_tensor_aligned]
+       
+.. tab:: Model created in code
 
-@snippet snippets/ie_common.cpp ie:get_output_tensor
+    .. doxygensnippet:: snippets/ov_common.cpp
+       :language: cpp
+       :fragment: [ov_api_2_0:get_output_tensor_aligned]
 
-OpenVINO™ 2.0 API:
-
-@snippet snippets/ov_common.cpp ov_api_2_0:get_output_tensor_aligned
-
+@endsphinxdirective
