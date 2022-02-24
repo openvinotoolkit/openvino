@@ -11,4 +11,4 @@ The OpenVINO™ Python\* package includes the following sub-packages:
  - `openvino.tools.benchmark` - Measure latency and throughput.
 
 ## See Also
-* [Integrate with Customer Application New API](integrate_with_customer_application.md)
+* [Integrate with Customer Application New API](integrate_with_your_application.md)
