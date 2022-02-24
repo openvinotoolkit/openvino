@@ -11,7 +11,7 @@
     
 @endsphinxdirective
 
-This chapter provides information on the Inference Engine plugins that enable inference of deep learning models on the supported VPU devices:
+This chapter provides information on the OpenVINO Runtime plugins that enable inference of deep learning models on the supported VPU devices:
 
 * Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X — Supported by the [MYRIAD Plugin](MYRIAD.md)
 * Intel® Vision Accelerator Design with Intel® Movidius™ VPUs — Supported by the [HDDL Plugin](HDDL.md)

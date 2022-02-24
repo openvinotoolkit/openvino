@@ -1,11 +1,11 @@
 Supported Devices {#openvino_docs_IE_DG_supported_plugins_Supported_Devices}
 ==================
 
-The Inference Engine can infer models in different formats with various input and output formats. This section provides supported and optimal configurations per device. In OpenVINO™ documentation, "device" refers to an Intel® processors used for inference, which can be a supported CPU, GPU, VPU (vision processing unit), or GNA (Gaussian neural accelerator coprocessor), or a combination of those devices.
+The OpenVINO Runtime can infer models in different formats with various input and output formats. This section provides supported and optimal configurations per device. In OpenVINO™ documentation, "device" refers to an Intel® processors used for inference, which can be a supported CPU, GPU, VPU (vision processing unit), or GNA (Gaussian neural accelerator coprocessor), or a combination of those devices.
 
 > **NOTE**: With OpenVINO™ 2020.4 release, Intel® Movidius™ Neural Compute Stick is no longer supported.
 
-The Inference Engine provides unique capabilities to infer deep learning models on the following device types with corresponding plugins:
+The OpenVINO Runtime provides unique capabilities to infer deep learning models on the following device types with corresponding plugins:
 
 | Plugin                                   | Device types                                                                                                                                                |
 |------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -35,7 +35,7 @@ The table below shows the plugin libraries and additional dependencies for Linux
 
 ## Supported Configurations
 
-The Inference Engine can inference models in different formats with various input and output formats.
+The OpenVINO Runtime can inference models in different formats with various input and output formats.
 This page shows supported and optimal configurations for each plugin.
 
 ### Terminology
