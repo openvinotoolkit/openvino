@@ -8,8 +8,6 @@
 #include <onnx_import/onnx_utils.hpp>
 #include <file_utils.h>
 #include <common_test_utils/test_assertions.hpp>
-#include <onnx_custom_op.hpp>
-
 
 class CustomAbsKernel : public InferenceEngine::ILayerExecImpl {
 public:
@@ -292,16 +290,4 @@ TEST(Extension, OnnxModelWithExtensionFromDSO) {
     ie.AddExtension(std::make_shared<InferenceEngine::Extension>(get_extension_path()));
     auto network = ie.ReadNetwork(model_full_path("func_tests/models/custom_template_op.onnx"));
     infer_model(ie, network, input_values, expected);
-}
-
-
-TEST(Extension, OnnxModelWithCustomReluDocsExample) {
-    std::vector<float> input_values{0, -1, 2, -3, 4, -5, 6, -7};
-    std::vector<float> expected{0, -3, 4, -9, 8, -15, 12, -21};
-
-    register_custom_relu_operator();
-    InferenceEngine::Core ie;
-    auto network = ie.ReadNetwork(model_full_path("docs/models/custom_relu_model.onnx"));
-    infer_model(ie, network, input_values, expected);
-    unregister_custom_relu_operator();
 }
