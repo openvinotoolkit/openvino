@@ -841,7 +841,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         // find the batch dim
         ov::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ov::pass::FindBatch>(true, check_dims);
+        m.register_pass<ov::pass::FindBatch>(false, check_dims);
         m.run_passes(function);
         // do not reshape/re-batch originally batched networks and when there are no inputs with the N* layouts
         // input(s) should have the batch dim as the first dim (current limitation of the auto-batching impl)
@@ -871,6 +871,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         for (size_t output_id = 0; output_id < results.size(); output_id++) {
             const auto& output = results[output_id];
             const auto& shape = output->get_output_partial_shape(0);
+            if (shape.is_dynamic())
+                IE_THROW(NotImplemented) << "Auto-batching does not support dynamic networks!";
             // check the batch dim: either 0th (and the original batch size of 1) or none
             if (shape.size() && ov::DimensionTracker::get_label(shape[0])) {
                 if (shape[0] != 1)

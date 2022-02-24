@@ -99,7 +99,7 @@ public:
             const std::string& target_name = p_name != m_attr_names_map.end() ? p_name->second : name;
             try {
                 adapter.set_as_any(m_context.get_attribute_as_any(target_name));
-            } catch (::ov::AssertFailure ex) {
+            } catch (::ov::AssertFailure& ex) {
                 OPENVINO_ASSERT(false,
                                 ex.what(),
                                 "\nValue for attribute \"",
