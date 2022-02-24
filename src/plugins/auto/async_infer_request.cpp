@@ -12,6 +12,7 @@
 #include <ie_icore.hpp>
 #include <ie_metric_helpers.hpp>
 #include <ie_plugin_config.hpp>
+#include "utils/log_util.hpp"
 
 namespace MultiDevicePlugin {
     using namespace InferenceEngine;
@@ -71,6 +72,9 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
          /*TaskExecutor*/ _multiDeviceExecutableNetwork, /*task*/ [this] {
                _workerInferRequest = MultiDeviceExecutableNetwork::_thisWorkerInferRequest;
                _inferRequest->SetBlobsToAnotherRequest(_workerInferRequest->_inferRequest);
+               INFO_RUN([this]() {
+                   _workerInferRequest->_times.push_back(std::move(std::chrono::steady_clock::now()));
+               });
         }},
         // final task in the pipeline:
         { /*TaskExecutor*/std::make_shared<ThisRequestExecutor>(this), /*task*/ [this] {
@@ -79,7 +83,6 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
               }
               if (_needPerfCounters)
                   _perfMap = _workerInferRequest->_inferRequest->GetPerformanceCounts();
-              _workerInferRequest->_inferCount++;
         }}
     };
 }
