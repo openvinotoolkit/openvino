@@ -1001,7 +1001,7 @@ def parse_layouts_by_destination(s: str, parsed: dict, dest: str = None) -> None
                             "  name(nchw)\n"
                             "  name(nhwc->[n,h,w,c])\n"
                             "  name[n,c,h,w]\n"
-                            "  name[n,h,w,c]->[n,c,h,w]\n".format(dest + '_' if dest else ''))
+                            "  name[n,h,w,c]->[n,c,h,w]".format(dest + '_' if dest else ''))
             write_found_layout(found_g[0], found_g[1], parsed, dest)
 
 
