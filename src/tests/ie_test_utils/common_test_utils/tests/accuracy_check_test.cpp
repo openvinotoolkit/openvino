@@ -6,6 +6,7 @@
 #include <common_test_utils/graph_comparator.hpp>
 
 TEST(GraphComparatorTests, PositiveCheck) {
+    FunctionsComparator comparator(FunctionsComparator::no_default());
     std::shared_ptr<ov::Model> function, function_ref;
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ngraph::element::i64, ov::Shape{1});
@@ -19,10 +20,13 @@ TEST(GraphComparatorTests, PositiveCheck) {
         auto add = std::make_shared<ov::opset8::Add>(input, constant);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add}, ngraph::ParameterVector{ input });
     }
-    ASSERT_NO_THROW(accuracy_check(function_ref, function));
+    comparator.enable(FunctionsComparator::ACCURACY);
+    auto res = comparator.compare(function, function_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 TEST(GraphComparatorTests, NegativeCheck) {
+    FunctionsComparator comparator(FunctionsComparator::no_default());
     std::shared_ptr<ov::Model> function, function_ref;
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ngraph::element::i64, ov::Shape{1});
@@ -36,10 +40,13 @@ TEST(GraphComparatorTests, NegativeCheck) {
         auto add = std::make_shared<ov::opset8::Add>(input, constant);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add}, ngraph::ParameterVector{ input });
     }
-    ASSERT_ANY_THROW(accuracy_check(function_ref, function));
+    comparator.enable(FunctionsComparator::ACCURACY);
+    auto res = comparator.compare(function, function_ref);
+    ASSERT_FALSE(res.valid) << res.message;
 }
 
 TEST(GraphComparatorTests, CheckConvNegative) {
+    FunctionsComparator comparator(FunctionsComparator::no_default());
     std::shared_ptr<ov::Model> function, function_ref;
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{ 1, 3, 12, 12 });
@@ -59,7 +66,7 @@ TEST(GraphComparatorTests, CheckConvNegative) {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{ 1, 3, 12, 12 });
         auto const_weights = ov::opset8::Constant::create(ov::element::f16,
                                                           ov::Shape{ 1, 3, 3, 3 },
-                                                          { 1, 9, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 9, 5, 6, 7, 8, 9, 1, 2, 3, 4, 9, 6, 7, 8, 9 });
+                                                          { 1, 9, 3, 4, 5, 6, 7, 8, 9, 1, 12, 3, 9, 5, 0, 7, 8, 9, 1, 2, 12, 4, 9, 6, 7, 8, 9 });
         auto convert_ins1 = std::make_shared<ov::opset8::Convert>(const_weights, ov::element::f32);
         auto conv = std::make_shared<ov::opset8::Convolution>(input,
                                                               convert_ins1,
@@ -69,6 +76,7 @@ TEST(GraphComparatorTests, CheckConvNegative) {
                                                               ov::Strides{ 1, 1 });
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ conv }, ngraph::ParameterVector{ input });
     }
-    ASSERT_ANY_THROW(accuracy_check(function_ref, function));
+    auto res = comparator.compare(function, function_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 

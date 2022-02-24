@@ -26,6 +26,7 @@ public:
         PRECISIONS = 1 << 3,
         ATTRIBUTES = 1 << 4,
         TENSOR_NAMES = 1 << 5,
+        ACCURACY = 1 << 6
     };
 
     struct Result {
@@ -978,5 +979,10 @@ Comparator::Result compare(ngraph::Node* node1, ngraph::Node* node2, Comparator:
 
 }  // namespace attributes
 
-void accuracy_check(const std::shared_ptr<ov::Model>& ref_function,
+struct AccuracyCheckResult {
+    bool status;
+    std::string message;
+};
+
+AccuracyCheckResult accuracy_check(const std::shared_ptr<ov::Model>& ref_function,
                     const std::shared_ptr<ov::Model>& cur_function);
