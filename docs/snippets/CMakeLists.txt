@@ -35,6 +35,7 @@ list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/dldt_optimization_guide2.c
 # create a static library
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
+target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../template_extension/new/")
 
 if(CLDNN__IOCL_ICD_INCDIRS)
     target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${CLDNN__IOCL_ICD_INCDIRS})

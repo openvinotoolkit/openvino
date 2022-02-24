@@ -271,6 +271,6 @@ The following layers are supported by the plugins and by [Shape Inference featur
 
 \*- support is limited to the specific parameters. Refer to "Known Layers Limitation" section for the device [from the list of supported](Supported_Devices.md).
 
-\*\*- support is implemented via [Extensibility mechanism](../Extensibility_DG/Intro.md).
+\*\*- support is implemented via [Extensibility mechanism](../../Extensibility_UG/Intro.md).
 
 \*\*\*- supports NCDHW layout.

@@ -269,7 +269,7 @@ mo --input_model bvlc_alexnet.caffemodel --reverse_input_channels --mean_values 
 ```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with extensions listed in specified directories, specified mean_images binaryproto 
- file. For more information about extensions, please refer to  the [Custom Layers Guide](../../../HOWTO/Custom_Layers_Guide.md).
+ file. For more information about extensions, please refer to the [OpenVINO™ Extensibility Mechanism](../../../Extensibility_UG/Intro.md).
 ```sh
 mo --input_model bvlc_alexnet.caffemodel --extensions /home/,/some/other/path/ --mean_file /path/to/binaryproto --output_dir <OUTPUT_MODEL_DIR>
 ```

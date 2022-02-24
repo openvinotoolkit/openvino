@@ -8,7 +8,6 @@
    :hidden:
 
    openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide
-   openvino_docs_HOWTO_Custom_Layers_Guide
    omz_tools_downloader
 
 
@@ -68,9 +67,10 @@
 
 .. toctree::
    :maxdepth: 1
-   :caption: Developing Inference Engine Plugins 
+   :caption: OpenVINO Extensibility
    :hidden:
 
+   openvino_docs_Extensibility_UG_Intro
    Inference Engine Plugin Developer Guide <openvino_docs_ie_plugin_dg_overview>
    groupie_dev_api
    Plugin Transformation Pipeline <openvino_docs_IE_DG_plugin_transformation_pipeline>
