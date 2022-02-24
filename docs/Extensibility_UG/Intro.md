@@ -44,9 +44,27 @@ To load the extensions to the `ov::Core` object, use the `ov::Core::add_extensio
 
 Extensions can be loaded from code with `ov::Core::add_extension` method:
 
-@snippet docs/snippets/ov_extensions.cpp add_extension
+@sphinxdirective
+
+.. tab:: C++
+
+    .. doxygensnippet:: docs/snippets/ov_extensions.cpp
+       :language: cpp
+       :fragment: add_extension
+
+.. tab:: Python
+
+    .. doxygensnippet:: docs/snippets/ov_extensions.py
+       :language: python
+       :fragment: add_extension
+
+@endsphinxdirective
 
 ### Create library with extensions
+
+You need to create extension library in folowing cases:
+ - Load extensions to Model Optimizer
+ - Load extensions to Python application
 
 If you want to create an extension library, for example in order to load these extensions to the Model Optimizer, you need to do next steps:
 Create an entry point for extension library. OpenVINO™ provides an `OPENVINO_CREATE_EXTENSIONS()` macro, which allows to define an entry point to a library with OpenVINO™ Extensions.
@@ -74,7 +92,21 @@ $ cmake --build .
 
 After the build you can use path to your extension library to load your extensions to OpenVINO™ Runtime:
 
-@snippet docs/snippets/ov_extensions.cpp add_extension_lib
+@sphinxdirective
+
+.. tab:: C++
+
+    .. doxygensnippet:: docs/snippets/ov_extensions.cpp
+       :language: cpp
+       :fragment: add_extension_lib
+
+.. tab:: Python
+
+    .. doxygensnippet:: docs/snippets/ov_extensions.py
+       :language: python
+       :fragment: add_extension_lib
+
+@endsphinxdirective
 
 ## See Also
 
