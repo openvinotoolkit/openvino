@@ -235,24 +235,23 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
 
     auto functionToProcess = ov::clone_model(*functionRefs);
     //TODO: remove this conversions as soon as function interpreter fully support bf16 and f16
-    static precisions_array precisions = {
+    static const precisions_array precisions = {
             { ngraph::element::bf16, ngraph::element::f32 },
+            { ngraph::element::f16, ngraph::element::f32}
     };
-    auto f16ParamExist = false;
-    for (auto param : functionRefs->get_parameters()) {
-        if (param->get_element_type() == element::f16) {
-            f16ParamExist = true;
-            break;
-        }
-    }
-    if (f16ParamExist) {
-        precisions.push_back({ ngraph::element::f16, ngraph::element::f32});
-    }
 
-    pass::Manager manager;
-    manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
-    manager.run_passes(functionToProcess);
-    functionToProcess->validate_nodes_and_infer_types();
+    std::vector <ov::element::Type> param_types;
+    for (const auto& param : functionRefs->get_parameters()) {
+        param_types.push_back(param->get_element_type());
+    }
+    auto itr_bf16 = std::find(param_types.begin(), param_types.end(), ov::element::bf16);
+    auto itr_f16 = std::find(param_types.begin(), param_types.end(), ov::element::f16);
+    if (itr_bf16 != param_types.end() || itr_f16 != param_types.end()) {
+        pass::Manager manager;
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
+        manager.run_passes(functionToProcess);
+        functionToProcess->validate_nodes_and_infer_types();
+    }
 
     ov::preprocess::PrePostProcessor p(functionToProcess);
     const auto& inputNodes = functionToProcess->inputs();
