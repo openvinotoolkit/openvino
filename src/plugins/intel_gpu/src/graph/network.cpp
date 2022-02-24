@@ -38,6 +38,11 @@
 #include <map>
 #include <functional>
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include "fully_connected_inst.h"
+#include <impls/onednn/utils.hpp>
+#endif
+
 #ifdef GPU_DEBUG_CONFIG
 #include <iomanip>
 #include <fstream>
@@ -555,6 +560,20 @@ void network::allocate_primitives() {
                         eltw_dep = fused_op.dep_start_idx;
                         can_reuse_eltwise_mem = true;
                     }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+                    if (node->is_type<fully_connected>()) {
+                        auto new_layout = out_layout;
+                        onednn::combine_bf_with_first_spatial_dim(new_layout);
+                        if (program_helpers::are_layouts_identical_for_onednn_sum_post_op(eltw_in_layout, new_layout)) {
+                            if (eltw_dep > 0)
+                            throw std::runtime_error("Unsupported multiple full size tensors.");
+
+                            eltw_dep = fused_op.dep_start_idx;
+                            can_reuse_eltwise_mem = true;
+                        }
+                    }
+#endif
 
                     if (!can_reuse_eltwise_mem) {
                         if (_primitives.find(eltw_in.id()) != _primitives.end() && _primitives.find(node->id()) != _primitives.end()) {

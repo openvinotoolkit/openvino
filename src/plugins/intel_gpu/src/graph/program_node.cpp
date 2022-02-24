@@ -7,6 +7,7 @@
 #include "primitive_inst.h"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+#include "fully_connected_inst.h"
 #include "convolution_inst.h"
 #include "quantize_inst.h"
 #include "reorder_inst.h"
@@ -830,11 +831,11 @@ void program_node::init_onednn_primitive_attributes() {
 
             if (e_node.get_primitive()->mode == eltwise_mode::sum) {
                 if (program_helpers::needs_onednn_sum_post_op(e_node, in)) {
-                    if (is_type<convolution>()) {
+                    if (this->is_type<fully_connected>())
+                        post_ops.append_sum(1.0f, dnnl::memory::data_type::undef);
+                    else
                         post_ops.append_sum(1.0f, onednn::convert_data_type(in.data_type));
-                    } else {
-                        post_ops.append_sum(1.0f);
-                    }
+
                     update_onednn_post_op_list(onednn_post_op_type::sum, dep_idx);
                 } else {
                     dnnl::memory::desc in_desc = onednn::layout_to_memory_desc(in);
