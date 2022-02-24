@@ -15,9 +15,9 @@ TensorFlow, Caffe, MXNet, Kaldi, PaddlePaddle, and ONNX. The list of supported o
 each of the supported frameworks. To see the operations supported by your framework, refer to
 [Supported Framework Operations](../MO_DG/prepare_model/Supported_Frameworks_Layers.md).
 
-Custom operations, that is those not included in the list, are not recognized by Model Optimizer out-of-the-box. Therefore, creating Intermediate Representation (IR) for a model using them requires additional steps. This guide illustrates the workflow for running inference on topologies featuring custom operations, allowing you to plug in your own implementation for existing or completely new operations.
+Custom operations, that is those not included in the list, are not recognized by OpenVINO™ out-of-the-box. Therefore, creating Intermediate Representation (IR) for a model using them requires additional steps. This guide illustrates the workflow for running inference on topologies featuring custom operations, allowing you to plug in your own implementation for existing or completely new operations.
 
-If your model contains operations not normally supported by OpenVINO™, the OpenVINO™ Extensibility API lets you add support for those custom operations in a library containing custom operation and use one implementation for Model Optimizer and OpenVINO™ Runtime.
+If your model contains operations not normally supported by OpenVINO™, the OpenVINO™ Extensibility API lets you add support for those custom operations and use one implementation for Model Optimizer and OpenVINO™ Runtime.
 
 There are two steps to support inference of a model with custom operation(s):
 1. Add support for a [custom operation in the Model Optimizer](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md) so
@@ -29,8 +29,8 @@ the Model Optimizer can generate the IR with the operation.
 An OpenVINO™ provides extensions for:
 
  * [Custom OpenVINO™ Operation](add_openvino_ops.md):
-    - Enables the use of `ov::Core::read_model` to read Intermediate Representation (IR) with unsupported operations
-    - Enables the creation of `ov::Model` with unsupported operations
+    - Enables the creation of unsupported operations
+    - Enables the use of `ov::Core::read_model` to read models with unsupported operations
     - Provides a shape inference mechanism for custom operations
     - Provides an evaluate method which allow to support the operation on CPU or perform constant folding
 
@@ -48,7 +48,8 @@ Extensions can be loaded from code with `ov::Core::add_extension` method:
 
 ### Create library with extensions
 
-First of all, entry point for extension library is needed, OpenVINO™ provides an `OPENVINO_CREATE_EXTENSIONS()` macro, which allows to define an entry point to a library with OpenVINO™ Extensions.
+If you want to create an extension library, for example in order to load these extensions to the Model Optimizer, you need to do next steps:
+Create an entry point for extension library. OpenVINO™ provides an `OPENVINO_CREATE_EXTENSIONS()` macro, which allows to define an entry point to a library with OpenVINO™ Extensions.
 This macro should have a vector of all OpenVINO™ Extensions as an argument.
 
 Based on that, the declaration of an extension class can look as follows:
