@@ -72,11 +72,8 @@ Framework-agnostic parameters:
                         (1,227,227,3), where the order of dimensions depends
                         on the framework input layout of the model. For
                         example, [N,C,H,W] is used for Caffe* models and
-                        [N,H,W,C] for TensorFlow* models. Model Optimizer
-                        performs necessary transformations to convert the
-                        shape to the layout required by Inference Engine
-                        (N,C,H,W). The shape should not contain undefined
-                        dimensions (? or -1) and should fit the dimensions
+                        [N,H,W,C] for TensorFlow* models. The shape can contain 
+                        undefined dimensions (? or -1) and should fit the dimensions
                         defined in the input operation of the graph. Boundaries 
                         of undefined dimension can be specified with ellipsis, 
                         for example [1,1..10,128,128]. One boundary can be undefined, 
@@ -218,7 +215,9 @@ There is no a universal recipe for determining the mean/scale values for a parti
 * Open the model in a visualization tool and check for layers performing subtraction or multiplication (like `Sub`, `Mul`, `ScaleShift`, `Eltwise` etc) of the input data. If such layers exist, pre-processing is probably part of the model.
 
 ## When to Specify Input Shapes <a name="when_to_specify_input_shapes"></a>
-There are situations when the input data shape for the model is not fixed, like for the fully-convolutional neural networks. In this case, for example, TensorFlow\* models contain `-1` values in the `shape` attribute of the `Placeholder` operation. Inference Engine does not support input layers with undefined size, so if the input shapes are not defined in the model, the Model Optimizer fails to convert the model. The solution is to provide the input shape(s) using the `--input` or `--input_shape` command line parameter for all input(s) of the model or provide the batch size using the `-b` command line parameter if the model contains just one input with undefined batch size only. In the latter case, the `Placeholder` shape for the TensorFlow\* model looks like this `[-1, 224, 224, 3]`. 
+There are situations when Model Optimizer is unable to deduce input shapes of the model, for example, in case of model pruning due to unsupported operations
+or the model includes inputs of a dynamic rank. The solution is to provide input shapes of a static rank that can contain undefined dimensions `-1`
+determined by model characteristics.
 
 ## When to Reverse Input Channels <a name="when_to_reverse_input_channels"></a>
 Input data for your application can be of RGB or BRG color input order. For example, Inference Engine samples load input images in the BGR channels order. However, the model may be trained on images loaded with the opposite order (for example, most TensorFlow\* models are trained with images in RGB order). In this case, inference results using the Inference Engine samples may be incorrect. The solution is to provide `--reverse_input_channels` command line parameter. Taking this parameter, the Model Optimizer performs first convolution or other channel dependent operation weights modification so these operations output will be like the image is passed with RGB channels order.
