@@ -1,8 +1,8 @@
 # Neural Network Compression Framework {#docs_nncf_introduction}
-This document describes Neural Network Compression Framework (NNCF) which is being developed as a separate project outside of OpenVINO&trade; but it is highly aligned with OpenVINO&trade; in terms of the supported optimization features and models. It is open-sourced and available on [GitHub](https://github.com/openvinotoolkit/nncf).
+This document describes the Neural Network Compression Framework (NNCF) which is being developed as a separate project outside of OpenVINO&trade; but it is highly aligned with OpenVINO&trade; in terms of the supported optimization features and models. It is open-sourced and available on [GitHub](https://github.com/openvinotoolkit/nncf).
 
 ## Introduction
- Neural Network Compression Framework (NNCF) is aimed at optimizing Deep Neural Network (DNN) by applying optimization methods, such as quantization, pruning, etc., to the original framework model. It mostly provides in-training optimization capabilities which means that optimization methods require model fine-tuning during and after optimization. The diagramm below shows the model optimization workflow using NNCF.
+ Neural Network Compression Framework (NNCF) is aimed at optimizing Deep Neural Network (DNN) by applying optimization methods, such as quantization, pruning, etc., to the original framework model. It mostly provides in-training optimization capabilities which means that optimization methods require model fine-tuning during and after optimization. The diagram below shows the model optimization workflow using NNCF.
  ![](../img/nncf_workflow.png)
 
  ### Features
@@ -19,11 +19,11 @@ This document describes Neural Network Compression Framework (NNCF) which is bei
   
  
 
-- Stacking of optimization methods, for example, 8-bit quatization + Filter Pruning.
+- Stacking of optimization methods. For example: 8-bit quaNtization + Filter Pruning.
 - Support for [Accuracy-Aware model training](https://github.com/openvinotoolkit/nncf/blob/develop/docs/Usage.md#accuracy-aware-model-training) pipelines via the [Adaptive Compression Level Training](https://github.com/openvinotoolkit/nncf/tree/develop/docs/accuracy_aware_model_training/AdaptiveCompressionLevelTraining.md) and [Early Exit Training](https://github.com/openvinotoolkit/nncf/tree/develop/docs/accuracy_aware_model_training/EarlyExitTrainig.md).
 - Automatic, configurable model graph transformation to obtain the compressed model.
-  > **NOTE**: Limited support for TensorFlow models. The models created using Sequential or Keras Functional API are only supported.
-- GPU-accelerated layers for faster compressed model fine-tuning.
+  > **NOTE**: Limited support for TensorFlow models. Only the models created, using Sequential or Keras Functional API, are supported.
+- GPU-accelerated layers for the faster compressed model fine-tuning.
 - Distributed training support.
 - Configuration file examples for each supported compression algorithm.
 - Exporting PyTorch compressed models to ONNX\* checkpoints and TensorFlow compressed models to SavedModel or Frozen Graph format, ready to use with [OpenVINO&trade; toolkit](https://github.com/openvinotoolkit/).
@@ -31,13 +31,13 @@ This document describes Neural Network Compression Framework (NNCF) which is bei
 
 ## Get started
 ### Installation
-NNCF provides the packages available for installation through the PyPI repository. To install the latest version via pip manager run the follwoing comman:
+NNCF provides the packages available for installation through the PyPI repository. To install the latest version via pip manager run the following command:
 ```
 pip install nncf
 ```
 
 ### Usage examples
-NNCF provides various examples and tutorials that demonstrates usage of optimization methods.
+NNCF provides various examples and tutorials that demonstrate usage of optimization methods.
 
 ### Tutorials
 - [Quantization-aware training of PyTorch model](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/302-pytorch-quantization-aware-training)
