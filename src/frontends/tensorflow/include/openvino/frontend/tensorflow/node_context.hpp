@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,7 +48,6 @@ public:
 
     ov::Any get_attribute_as_any(const std::string& name) const override {
         auto res = m_decoder.get_attribute(name);
-        FRONT_END_GENERAL_CHECK(!res.empty(), "Attribute with name '", name, "' does not exist");
         return res;
     }
 

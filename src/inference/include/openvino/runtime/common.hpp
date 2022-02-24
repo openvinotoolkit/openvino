@@ -3,7 +3,7 @@
 //
 
 /**
- * @brief This is a header file for the OpenVINO Runtime common aliases and data types
+ * @brief A header file for the OpenVINO Runtime common aliases and data types.
  *
  * @file openvino/runtime/common.hpp
  */
@@ -30,7 +30,7 @@
 
 /**
  * @def OPENVINO_PLUGIN_API
- * @brief Defines OpenVINO Runtime Plugin API method
+ * @brief Defines the OpenVINO Runtime Plugin API method.
  */
 
 #ifdef IMPLEMENT_INFERENCE_ENGINE_PLUGIN
@@ -50,9 +50,5 @@ namespace ie = InferenceEngine;
  *   - `value` means device name supporting this operation
  */
 using SupportedOpsMap = std::map<std::string, std::string>;
-
-namespace runtime {
-using ov::SupportedOpsMap;
-}  // namespace runtime
 
 }  // namespace ov

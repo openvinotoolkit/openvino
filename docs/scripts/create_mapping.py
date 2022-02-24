@@ -9,8 +9,11 @@ from pathlib import Path
 
 REPOSITORIES = [
     'openvino',
-    'omz'
+    'omz',
+    'pot'
+    'ovms'
 ]
+
 
 def create_mapping(xml_input: Path, output_dir: Path, strip_path: Path):
     """
@@ -21,6 +24,7 @@ def create_mapping(xml_input: Path, output_dir: Path, strip_path: Path):
     strip_path = strip_path.resolve()
     mapping = {
         'get_started': 'openvino/docs/get_started.md',
+        'ovsa_get_started': 'openvino/docs/ovsa/ovsa_get_started.md',
         'documentation': 'openvino/docs/documentation.md',
         'index': 'openvino/docs/index.rst',
         'model_zoo': 'openvino/docs/model_zoo.md',

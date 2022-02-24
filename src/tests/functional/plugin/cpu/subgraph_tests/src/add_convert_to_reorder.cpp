@@ -69,8 +69,8 @@ TEST_F(AddConvertToReorderTest, smoke_TestAddReorder_CPU) {
 
     BuildGraph(ngraph::element::i8);
     Run();
-    CheckNodeOfTypeCount(executableNetwork, "Convert", 0);
-    CheckNodeOfTypeCount(executableNetwork, "Reorder", 1);
+    CheckNumberOfNodesWithType(executableNetwork, "Convert", 0);
+    CheckNumberOfNodesWithType(executableNetwork, "Reorder", 1);
 }
 } // namespace
 } // namespace LayerTestsDefinitions

@@ -44,24 +44,3 @@ def test_layout():
 
 def test_initialized():
     assert layer_out_data().initialized, "Incorrect value for initialized property for layer 'fc_out'"
-
-
-@pytest.mark.skip(reason="Old Python API seg faults during dynamic shape inference")
-def test_is_dynamic():
-    function = create_relu([-1, 3, 20, 20])
-    net = ng.function_to_cnn(function)
-    assert net.input_info["data"].input_data.is_dynamic
-    assert net.outputs["out"].is_dynamic
-    p_shape = ng.partial_shape_from_data(net.input_info["data"].input_data)
-    assert isinstance(p_shape, ng.impl.PartialShape)
-    p_shape = ng.partial_shape_from_data(net.outputs["out"])
-    assert isinstance(p_shape, ng.impl.PartialShape)
-    with pytest.raises(RuntimeError) as e:
-        net.input_info["data"].input_data.shape
-    assert  "Cannot return dims for Data with dynamic shapes!" in str(e.value)
-    ie = IECore()
-    ie.register_plugin("ov_template_plugin", "TEMPLATE")
-    exec_net = ie.load_network(net, "TEMPLATE")
-    assert exec_net.input_info["data"].input_data.is_dynamic
-    p_shape = ng.partial_shape_from_data(exec_net.input_info["data"].input_data)
-    assert isinstance(p_shape, ng.impl.PartialShape)

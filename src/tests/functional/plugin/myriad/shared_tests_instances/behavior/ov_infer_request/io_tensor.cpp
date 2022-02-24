@@ -14,11 +14,11 @@ const std::vector<ov::AnyMap> configs = {
 };
 
 const std::vector<ov::AnyMap> Multiconfigs = {
-        {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_MYRIAD}}
+        {ov::device::priorities(CommonTestUtils::DEVICE_MYRIAD)}
 };
 
 const std::vector<ov::AnyMap> Autoconfigs = {
-        {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_MYRIAD}}
+        {ov::device::priorities(CommonTestUtils::DEVICE_MYRIAD)}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestIOTensorTest,
@@ -78,5 +78,27 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestIOTensorSetPrec
                                  ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                  ::testing::ValuesIn(Autoconfigs)),
                          OVInferRequestIOTensorSetPrecisionTest::getTestCaseName);
+
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestCheckTensorPrecision,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(prcs),
+                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
+                                 ::testing::ValuesIn(configs)),
+                         OVInferRequestCheckTensorPrecision::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestCheckTensorPrecision,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(prcs),
+                                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                                 ::testing::ValuesIn(Multiconfigs)),
+                         OVInferRequestCheckTensorPrecision::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestCheckTensorPrecision,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(prcs),
+                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                 ::testing::ValuesIn(Autoconfigs)),
+                         OVInferRequestCheckTensorPrecision::getTestCaseName);
 
 }  // namespace

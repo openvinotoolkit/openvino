@@ -8,7 +8,7 @@ addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDENCIES
-            ov_intel_gna_plugin
+            openvino_intel_gna_plugin
         LINK_LIBRARIES
             funcSharedTests
         ADD_CPPLINT

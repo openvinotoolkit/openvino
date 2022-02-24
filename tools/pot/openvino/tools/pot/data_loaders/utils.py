@@ -35,15 +35,18 @@ def crop(image, central_fraction):
     return image[start_height:start_height + dst_height, start_width:start_width + dst_width]
 
 
-def prepare_image(image, layout, dst_shape, central_fraction=None):
+def prepare_image(image, layout, dst_shape, central_fraction=None, grayscale=False):
     if central_fraction:
         image = crop(image, central_fraction)
 
+    image = cv.resize(image, dst_shape[::-1])
+    if grayscale:
+        image = np.expand_dims(image, 2)
+
     if layout == Layout('NCHW') or layout == Layout('CHW'):
-        image = cv.resize(image, dst_shape[::-1])
         return image.transpose(2, 0, 1)
 
-    return cv.resize(image, dst_shape[::-1])
+    return image
 
 
 def collect_img_files(data_source):

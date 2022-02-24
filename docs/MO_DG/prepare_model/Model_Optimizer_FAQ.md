@@ -214,7 +214,7 @@ One of the layers in the specified topology might not have inputs or values. Ple
 
 #### 24. What does the message "Part of the nodes was not translated to IE. Stopped" mean? <a name="question-24"></a>
 
-Some of the layers are not supported by the Inference Engine and cannot be translated to an Intermediate Representation. You can extend the Model Optimizer by allowing generation of new types of layers and implement these layers in the dedicated Inference Engine plugins. For more information, refer to the [Custom Layers Guide](../../HOWTO/Custom_Layers_Guide.md) and [Inference Engine Extensibility Mechanism](../../IE_DG/Extensibility_DG/Intro.md)
+Some of the layers are not supported by the Inference Engine and cannot be translated to an Intermediate Representation. You can extend the Model Optimizer by allowing generation of new types of layers and implement these layers in the dedicated Inference Engine plugins. For more information, refer to the [Custom Layers Guide](../../HOWTO/Custom_Layers_Guide.md) and [Inference Engine Extensibility Mechanism](../../OV_Runtime_UG/Extensibility_DG/Intro.md)
 
 #### 25. What does the message "While creating an edge from .. to .. : node name is undefined in the graph. Check correctness of the input model" mean? <a name="question-25"></a>
 

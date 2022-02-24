@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "ov_intel_gpu_runtime")
+set(TARGET_NAME "openvino_intel_gpu_runtime")
 
 file(GLOB LIBRARY_SOURCES_MAIN
     "${CMAKE_CURRENT_SOURCE_DIR}/*.h"

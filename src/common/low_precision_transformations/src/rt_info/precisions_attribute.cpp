@@ -25,8 +25,7 @@ ov::Any PrecisionsAttribute::create(
     const std::shared_ptr<ngraph::Node>& node,
     const AttributeParameters& params) {
     auto& rt = ov::is_type<opset1::FakeQuantize>(node) ? node->output(0).get_rt_info() : node->get_rt_info();
-    return (rt[PrecisionsAttribute::get_type_info_static()] = PrecisionsAttribute(
-        ngraph::pass::low_precision::LayerTransformation::getDefaultPrecisions()));
+    return (rt[PrecisionsAttribute::get_type_info_static()] = PrecisionsAttribute(params.defaultPrecisions));
 }
 
 void PrecisionsAttribute::merge(std::vector<ov::Any>& attributes) {

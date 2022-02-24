@@ -10,7 +10,8 @@
 #include <ngraph/partial_shape.hpp>
 #include "cpu_types.h"
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class Shape {
 public:
@@ -214,4 +215,6 @@ private:
     VectorDims maxDims;
     VectorDims dims;
 };
-}  // namespace MKLDNNPlugin
+
+}   // namespace intel_cpu
+}   // namespace ov

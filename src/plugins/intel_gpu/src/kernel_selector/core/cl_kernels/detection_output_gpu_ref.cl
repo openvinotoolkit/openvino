@@ -241,9 +241,10 @@ KERNEL (detection_output_stage_0_scores_caffe)(__global INPUT1_TYPE* input_confi
     __local char4 bit_mask[NUM_BIT_MASK];
     __local int4 block_num[NUM_PRIOR_BLOCKS];
 
-    block_num[box_gid] = (int4)(0, 0, 0, 0);
-
     {
+        // to prevent access array out of range
+        if (start_bid < end_bid)
+            block_num[box_gid] = (int4)(0, 0, 0, 0);
         int mask_id = start_bid / 8;
         for (int i = start_bid; i < end_bid; i += 8) {
             bit_mask[mask_id] = (char4)(0, 0, 0, 0);
@@ -277,10 +278,12 @@ KERNEL (detection_output_stage_0_scores_caffe)(__global INPUT1_TYPE* input_confi
             }
         }
     }
-    barrier(CLK_LOCAL_MEM_FENCE);
+    barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
 
     {
-        int4 write_offsets = block_num[box_gid];
+        int4 write_offsets = (int4)(0, 0, 0, 0);
+        if (start_bid < end_bid)
+            write_offsets = block_num[box_gid];
         int mask_id = start_bid >> 3;
         for (int i = start_bid; i < end_bid; i += 8) {
             for (int bi = 0; bi < 8; bi++) {
@@ -319,9 +322,10 @@ KERNEL (detection_output_stage_0_scores_caffe)(__global INPUT1_TYPE* input_confi
     __local char bit_mask[NUM_BIT_MASK];
     __local int block_num[NUM_PRIOR_BLOCKS];
 
-    block_num[box_gid] = 0;
-
     {
+        // to prevent access array out of range
+        if (start_bid < end_bid)
+            block_num[box_gid] = 0;
         int mask_id = start_bid / 8;
         for (int i = start_bid; i < end_bid; i += 8) {
             bit_mask[mask_id] = 0;
@@ -336,7 +340,6 @@ KERNEL (detection_output_stage_0_scores_caffe)(__global INPUT1_TYPE* input_confi
             mask_id++;
         }
     }
-
     barrier(CLK_LOCAL_MEM_FENCE);
 
     {
@@ -350,11 +353,12 @@ KERNEL (detection_output_stage_0_scores_caffe)(__global INPUT1_TYPE* input_confi
             buffer1[batchId * NUM_CLASSES_ACC + classId] = acc_num;
         }
     }
-
-    barrier(CLK_LOCAL_MEM_FENCE);
+    barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
 
     {
-        int write_offset = block_num[box_gid];
+        int write_offset = 0;
+        if (start_bid < end_bid)
+            write_offset = block_num[box_gid];
         int mask_id = start_bid >> 3;
         for (int i = start_bid; i < end_bid; i += 8) {
             for (int bi = 0; bi < 8; bi++) {

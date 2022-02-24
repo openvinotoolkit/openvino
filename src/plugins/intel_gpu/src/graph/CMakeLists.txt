@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "ov_intel_gpu_graph")
+set(TARGET_NAME "openvino_intel_gpu_graph")
 
 file(GLOB_RECURSE LIBRARY_SRC
     "${INCLUDE_DIR}/*.h"
@@ -34,8 +34,8 @@ target_compile_options(${TARGET_NAME} PRIVATE
   $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
 
 target_link_libraries(${TARGET_NAME} PUBLIC OpenCL)
-target_link_libraries(${TARGET_NAME} PRIVATE ov_intel_gpu_kernels
-                                             ov_intel_gpu_runtime
+target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_kernels
+                                             openvino_intel_gpu_runtime
                                              openvino::itt
                                              openvino::runtime::dev
                                              openvino::runtime)

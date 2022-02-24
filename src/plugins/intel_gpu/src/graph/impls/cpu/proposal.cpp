@@ -31,7 +31,7 @@ inline const float& clamp(const float& v, const float& lower, const float& upper
 }
 
 inline bool hasSingleBatchOutput(const program_node& node) {
-    const auto& batch = node.get_output_layout().size.batch;
+    const auto batch = node.get_output_layout().size.batch;
 
     return batch.empty() || (batch.size() == 1 && batch[0] == 1);
 }

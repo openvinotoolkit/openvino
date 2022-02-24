@@ -9,7 +9,6 @@ include(CMakeFindDependencyMacro)
 # TODO: remove after changing [private plugins]
 set_and_check(OpenVINO_SOURCE_DIR "@OpenVINO_SOURCE_DIR@") # KMB
 set_and_check(OpenVINO_MAIN_SOURCE_DIR "@OpenVINO_SOURCE_DIR@") # KMB
-set_and_check(IE_MAIN_SOURCE_DIR "@IE_MAIN_SOURCE_DIR@") # HDDL
 
 # Variables to export in plugin's projects
 

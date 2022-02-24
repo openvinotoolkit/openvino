@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import hashlib
+import os
 
 import defusedxml.ElementTree as ET
 from defusedxml import defuse_stdlib
@@ -408,12 +409,22 @@ def add_quantization_info_section(net: Element, meta_info: dict):
         cli_params.set('value', parameters['cli_params'])
 
 
-def add_meta_data(net: Element, meta_info: dict):
+def add_meta_data(net: Element, meta_info: dict, legacy_path: bool):
     if meta_info == {}:
         log.warning('`meta_info` is not provided, IR will not contain appropriate section.')
     else:
         meta = SubElement(net, 'meta_data')
         SubElement(meta, 'MO_version').set('value', get_version())
+
+        try:
+            from openvino.runtime import get_version as get_rt_version  # pylint: disable=import-error,no-name-in-module
+
+            SubElement(meta, 'Runtime_version').set('value', get_rt_version())
+        except Exception as e:
+            SubElement(meta, 'Runtime_version').set('value', 'Not found')
+
+        SubElement(meta, 'legacy_path').set('value', str(legacy_path))
+
         parameters = SubElement(meta, 'cli_parameters')
         if 'inputs_list' in meta_info:
             del meta_info['inputs_list']
@@ -466,6 +477,12 @@ def find_result_node_by_name(output_name, result_nodes, result_names_to_tensor_n
 
     return None
 
+def check_and_add_result_name(result_name:str, ordered_results:list):
+    if result_name in ordered_results:
+        log.warning("Result node with name {} has at least two tensor names corresponding "
+                    "to different original results.".format(result_name))
+    else:
+        ordered_results.append(result_name)
 
 def serialize_network(graph, net_element, unsupported):
     layers = SubElement(net_element, 'layers')
@@ -488,7 +505,7 @@ def serialize_network(graph, net_element, unsupported):
             found_result_name = find_result_node_by_name(output_name, result_nodes, result_names_to_tensor_names)
 
             if found_result_name is not None:
-                ordered_results.append(found_result_name)
+                check_and_add_result_name(found_result_name, ordered_results)
             else:
                 log.warning("Output node with name {} is not found in graph.".format(output_name))
             continue
@@ -496,7 +513,7 @@ def serialize_network(graph, net_element, unsupported):
 
         # In this case Result node has the same name as output tensor
         if node.soft_get('type') == 'Result':
-            ordered_results.append(node.soft_get('name'))
+            check_and_add_result_name(node.soft_get('name'), ordered_results)
             continue
 
         # Here output data node count is checked. Each port cannot have more than one data node.
@@ -511,7 +528,7 @@ def serialize_network(graph, net_element, unsupported):
         for op_node in data_node.out_nodes():
             if op_node.soft_get('type') == 'Result':
                 found_result = True
-                ordered_results.append(op_node.soft_get('name'))
+                check_and_add_result_name(op_node.soft_get('name'), ordered_results)
                 break
 
         if not found_result:
@@ -588,7 +605,7 @@ def generate_ie_ir(graph: Graph, file_name: str, input_names: tuple = (), mean_o
 
     serialize_network(graph, net, unsupported)
     add_quantization_statistics(graph, net)
-    add_meta_data(net, meta_info)
+    add_meta_data(net, meta_info, legacy_path=True)
     add_quantization_info_section(net, meta_info)
     xml_string = tostring(net)
     xml_doc = parseString(xml_string)
@@ -615,7 +632,11 @@ def port_renumber(graph: Graph):
             base += 1
 
 
-def append_ir_info(file: str, meta_info: dict = dict(), mean_data: [list, None] = None, input_names: list = None):
+def append_ir_info(file: str,
+                   meta_info: dict = dict(),
+                   mean_data: [list, None] = None,
+                   input_names: list = None,
+                   legacy_path: bool = True):
     path_to_xml = file + ".xml"
     path_to_bin = file + ".bin"
 
@@ -626,7 +647,7 @@ def append_ir_info(file: str, meta_info: dict = dict(), mean_data: [list, None] 
         mean_offset, mean_size = serialize_mean_image(path_to_bin, mean_data=mean_data)
         create_pre_process_block_for_image(net, input_names, mean_offset, mean_size)
 
-    add_meta_data(net, meta_info)
+    add_meta_data(net, meta_info, legacy_path)
 
     for elem in et.iter():
         if elem.text:

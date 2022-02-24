@@ -66,7 +66,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake -DENABLE_INTEL_VPU=OFF ..
+          cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF ..
 
       - name: ShellCheck
         run: cmake --build . --target ie_shellcheck -j8
@@ -82,6 +82,7 @@ jobs:
       - name: Install Clang dependency
         run: |
           sudo apt update
+          sudo apt --assume-yes remove clang-7 clang-8 clang-9 clang-10 clang-11
           sudo apt --assume-yes install libclang-12-dev
 
       - name: Install Python-based dependencies
@@ -91,7 +92,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake -DENABLE_INTEL_VPU=OFF ..
+          cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF ..
 
       - name: Naming convention check
         run: cmake --build . --target ncc_all -j8

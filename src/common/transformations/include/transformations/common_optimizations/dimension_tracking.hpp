@@ -24,7 +24,10 @@ class TRANSFORMATIONS_API FindBatch;
 class ov::pass::FindBatch: public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("FindBatch");
+    FindBatch(bool detach_detection_output = false, bool track = true) : track(track), detach_do(detach_detection_output) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+protected:
+    bool track = true, detach_do = false;
 };
 
 namespace ov {
@@ -39,5 +42,6 @@ namespace batch_util {
             const std::map<std::shared_ptr<ov::opset1::Parameter>, ov::PartialShape>& parameter_to_shape, bool leave_batch_dynamic = true);
     bool check_batch_tracks_through_all_the_nodes(const std::shared_ptr<ov::Model>& m);
     P2Btype find_batch(const std::shared_ptr<ov::Model> &m);
+    bool detach_detection_output(const std::shared_ptr<ov::Model>& f);
 } // namespace batch_util
 } // namespace ov

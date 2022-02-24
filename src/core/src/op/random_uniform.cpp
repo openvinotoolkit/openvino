@@ -119,12 +119,10 @@ bool op::v8::RandomUniform::visit_attributes(AttributeVisitor& visitor) {
 shared_ptr<Node> op::v8::RandomUniform::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v8_RandomUniform_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<v8::RandomUniform>(new_args[0],
-                                          new_args[1],
-                                          new_args[2],
-                                          m_output_type,
-                                          m_global_seed,
-                                          m_op_seed);
+    auto ru_copy =
+        make_shared<v8::RandomUniform>(new_args[0], new_args[1], new_args[2], m_output_type, m_global_seed, m_op_seed);
+    ru_copy->m_state = this->m_state;
+    return ru_copy;
 }
 
 bool op::v8::RandomUniform::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

@@ -6,7 +6,7 @@ disable_deprecated_warnings()
 
 add_subdirectory(shared_tests)
 
-if (ENABLE_INTEL_VPU)
+if (ENABLE_INTEL_MYRIAD)
     add_subdirectory(vpu)
 endif()
 

@@ -24,14 +24,14 @@ set(LINK_LIBRARIES
 set(DEPENDENCIES
     mock_engine
     template_extension
-    ov_template_extension
+    openvino_template_extension
     lptNgraphFunctions
     sharedTestClasses
     test_model_zoo
 )
 
 if(ENABLE_OV_IR_FRONTEND)
-    list(APPEND DEPENDENCIES ov_ir_frontend)
+    list(APPEND DEPENDENCIES openvino_ir_frontend)
 endif()
 
 if(ENABLE_IR_V7_READER)
@@ -39,15 +39,15 @@ if(ENABLE_IR_V7_READER)
 endif()
 
 if(ENABLE_HETERO)
-    list(APPEND DEPENDENCIES ov_hetero_plugin)
+    list(APPEND DEPENDENCIES openvino_hetero_plugin)
 endif()
 
 if(ENABLE_AUTO OR ENABLE_MULTI)
-    list(APPEND DEPENDENCIES ov_auto_plugin)
+    list(APPEND DEPENDENCIES openvino_auto_plugin)
 endif()
 
 if(ENABLE_AUTO_BATCH)
-    list(APPEND DEPENDENCIES ov_auto_batch_plugin)
+    list(APPEND DEPENDENCIES openvino_auto_batch_plugin)
 endif()
 
 if (NOT ENABLE_OV_ONNX_FRONTEND)
@@ -76,13 +76,13 @@ if(ENABLE_OV_ONNX_FRONTEND)
     target_compile_definitions(${TARGET_NAME} PRIVATE
         ENABLE_OV_ONNX_FRONTEND
         ONNX_TEST_MODELS="${TEST_MODEL_ZOO}/onnx_reader/models/")
-    add_dependencies(${TARGET_NAME} ov_onnx_frontend)
+    add_dependencies(${TARGET_NAME} openvino_onnx_frontend)
 endif()
 
 if(ENABLE_OV_PADDLE_FRONTEND)
     target_compile_definitions(${TARGET_NAME} PRIVATE
             PADDLE_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/paddle_reader/models/")
-    add_dependencies(${TARGET_NAME} ov_paddle_frontend)
+    add_dependencies(${TARGET_NAME} openvino_paddle_frontend)
 endif()
 
 ie_faster_build(${TARGET_NAME}
@@ -92,7 +92,7 @@ ie_faster_build(${TARGET_NAME}
 # CVS-55343
 
 file(GLOB_RECURSE legacy_tests
-    "${CMAKE_CURRENT_SOURCE_DIR}/transformations/*.cpp" # CVS-55385
+    "${CMAKE_CURRENT_SOURCE_DIR}/transformations/legacy/*.cpp" # CVS-55385
     "${CMAKE_CURRENT_SOURCE_DIR}/ngraph_reader/*.cpp" # CVS-55365
     "${CMAKE_CURRENT_SOURCE_DIR}/cnn_network/cnn_ngraph_impl_tests.cpp" # CVS-55375
     )
@@ -196,7 +196,7 @@ function(ie_headers_compilation_with_custom_flags)
     target_compile_definitions(${target_name} PRIVATE $<TARGET_PROPERTY:inference_engine,INTERFACE_COMPILE_DEFINITIONS>)
 
     if(IE_TEST_PLUGIN_API)
-        # ngraph, pugixml::static, openvino::itt, inference_engine_preproc headers
+        # ngraph, pugixml::static, openvino::itt, openvino_gapi_preproc headers
         target_include_directories(${target_name} SYSTEM PRIVATE
             $<TARGET_PROPERTY:pugixml::static,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)

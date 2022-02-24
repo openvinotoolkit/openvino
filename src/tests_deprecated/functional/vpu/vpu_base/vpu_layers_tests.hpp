@@ -12,7 +12,6 @@
 #include <ie_version.hpp>
 #include <precision_utils.h>
 
-#include <vpu/vpu_plugin_config.hpp>
 #include <vpu/private_plugin_config.hpp>
 #include <vpu/utils/enums.hpp>
 #include <vpu/utils/ie_helpers.hpp>

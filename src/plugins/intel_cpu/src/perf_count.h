@@ -15,8 +15,11 @@
 #include <cassert>
 #endif // CPU_DEBUG_CAPS
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
+
 #ifndef CPU_DEBUG_CAPS
+
 class PerfCount {
     uint64_t total_duration;
     uint32_t num;
@@ -53,6 +56,7 @@ public:
 };
 
 #else // CPU_DEBUG_CAPS
+
 typedef size_t PerfKey;
 
 class PerfCount {
@@ -165,6 +169,7 @@ class MKLDNNGraph;
 PerfKey perfGetKey(MKLDNNGraph& graph);
 class MKLDNNExecNetwork;
 void perfDump(const MKLDNNExecNetwork& execNet);
+
 #endif // CPU_DEBUG_CAPS
 
 #define GET_PERF(_helper, ...) std::unique_ptr<_helper>(new _helper(__VA_ARGS__))
@@ -179,6 +184,6 @@ void perfDump(const MKLDNNExecNetwork& execNet);
 #define PERF_SHAPE_INFER(_node)
 #define PERF_PREPARE_PARAMS(_node)
 #endif // CPU_DEBUG_CAPS
-}  // namespace MKLDNNPlugin
 
-
+}   // namespace intel_cpu
+}   // namespace ov

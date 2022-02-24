@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "any_copy.hpp"
+#include "check_network_batchable.hpp"
 #include "cnn_network_ngraph_impl.hpp"
 #include "compilation_context.hpp"
 #include "cpp/ie_cnn_network.h"
@@ -37,6 +38,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "so_extension.hpp"
@@ -218,32 +220,26 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         return DeviceSupportsImportExport(plugin);
     }
 
+    bool DeviceSupportsConfigKey(const ov::InferencePlugin& plugin, const std::string& key) const {
+        return util::contains(plugin.get_property(ov::supported_properties), key);
+    }
+
     bool DeviceSupportsImportExport(const ov::InferencePlugin& plugin) const {
         auto supportedMetricKeys = plugin.get_metric(METRIC_KEY(SUPPORTED_METRICS), {}).as<std::vector<std::string>>();
         auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(), METRIC_KEY(IMPORT_EXPORT_SUPPORT));
         auto supported =
             (it != supportedMetricKeys.end()) && plugin.get_metric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), {}).as<bool>();
+        if (!supported) {
+            if (DeviceSupportsConfigKey(plugin, ov::device::capabilities.name())) {
+                supported = util::contains(plugin.get_property(ov::device::capabilities),
+                                           ov::device::capability::EXPORT_IMPORT);
+            }
+        }
         return supported;
     }
 
     bool DeviceSupportsCacheDir(const ov::InferencePlugin& plugin) const {
-        return DeviceSupportsConfigKey(plugin, CONFIG_KEY(CACHE_DIR));
-    }
-
-    bool DeviceSupportsConfigKey(const ov::InferencePlugin& plugin, const std::string& key) const {
-        bool supported = false;
-        std::vector<std::string> supportedMetricKeys;
-        try {
-            // If plugin doesn't support 'SUPPORTED_METRICS' - treat it as config is not supported as well
-            supportedMetricKeys = plugin.get_metric(METRIC_KEY(SUPPORTED_METRICS), {}).as<std::vector<std::string>>();
-        } catch (...) {
-        }
-        auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(), METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-        if (it != supportedMetricKeys.end()) {
-            auto configKeys = plugin.get_metric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), {})->as<std::vector<std::string>>();
-            supported = std::find(configKeys.begin(), configKeys.end(), key) != configKeys.end();
-        }
-        return supported;
+        return util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir);
     }
 
     ov::SoPtr<ie::IExecutableNetworkInternal> compile_model_impl(const InferenceEngine::CNNNetwork& network,
@@ -328,34 +324,33 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     std::map<std::string, std::string> CreateCompileConfig(const ov::InferencePlugin& plugin,
                                                            const std::string& deviceFamily,
                                                            const std::map<std::string, std::string>& origConfig) const {
-        std::map<std::string, ie::Parameter> getMetricConfig;
+        std::map<std::string, Any> getMetricConfig;
         auto compileConfig = origConfig;
 
         // 0. Remove TARGET_FALLBACK key, move it to getMetricConfig
         auto targetFallbackIt = compileConfig.find("TARGET_FALLBACK");
+        if (targetFallbackIt == compileConfig.end()) {
+            targetFallbackIt = compileConfig.find(ov::device::priorities.name());
+        }
         if (targetFallbackIt != compileConfig.end()) {
             getMetricConfig[targetFallbackIt->first] = targetFallbackIt->second;
             compileConfig.erase(targetFallbackIt);
         }
 
         // 1. remove DEVICE_ID key
-        auto deviceIt = compileConfig.find(CONFIG_KEY(DEVICE_ID));
+        auto deviceIt = compileConfig.find(ov::device::id.name());
         if (deviceIt != compileConfig.end()) {
             getMetricConfig[deviceIt->first] = deviceIt->second;
             compileConfig.erase(deviceIt);
         }
 
         // 2. replace it with DEVICE_ARCHITECTURE value
-        auto supportedMetricKeys =
-            plugin.get_metric(METRIC_KEY(SUPPORTED_METRICS), getMetricConfig)->as<std::vector<std::string>>();
-        auto archIt =
-            std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(), METRIC_KEY(DEVICE_ARCHITECTURE));
-        if (archIt != supportedMetricKeys.end()) {
-            auto value = plugin.get_metric(METRIC_KEY(DEVICE_ARCHITECTURE), getMetricConfig);
-            compileConfig[METRIC_KEY(DEVICE_ARCHITECTURE)] = value->as<std::string>();
+        if (DeviceSupportsConfigKey(plugin, ov::device::architecture.name())) {
+            compileConfig[ov::device::architecture.name()] =
+                plugin.get_property(ov::device::architecture, getMetricConfig);
         } else {
             // Take device name if device does not support DEVICE_ARCHITECTURE metric
-            compileConfig[METRIC_KEY(DEVICE_ARCHITECTURE)] = deviceFamily;
+            compileConfig[ov::device::architecture.name()] = deviceFamily;
         }
         return compileConfig;
     }
@@ -459,9 +454,9 @@ public:
 #ifdef OPENVINO_STATIC_LIBRARY
 
     /**
-     * @brief Register plugins for devices which are located in .xml configuration file.
+     * @brief Register plugins for devices using statically defined configuration
      * @note The function supports UNICODE path
-     * @param xmlConfigFile An .xml configuraion with device / plugin information
+     * @param static_registry a statically defined configuration with device / plugin information
      */
     void RegisterPluginsInRegistry(const decltype(::getStaticPluginsRegistry())& static_registry) {
         std::lock_guard<std::mutex> lock(pluginsMutex);
@@ -495,6 +490,28 @@ public:
 
     bool isNewAPI() const override {
         return newAPI;
+    }
+
+    static std::tuple<bool, std::string> CheckStatic(const ie::CNNNetwork& network) {
+        bool res = true;
+        std::stringstream errMsg;
+        auto model = network.getFunction();
+        if (model) {
+            for (const auto& input : model->inputs()) {
+                if (input.get_partial_shape().is_dynamic()) {
+                    errMsg << "{ input:'";
+                    for (const auto& name : input.get_names()) {
+                        errMsg << name << ",";
+                    }
+                    if (auto node = input.get_node_shared_ptr()) {
+                        errMsg << node->get_friendly_name();
+                    }
+                    errMsg << "', shape=" << input.get_partial_shape() << "} ";
+                    res = false;
+                }
+            }
+        }
+        return {res, errMsg.str()};
     }
 
     ie::RemoteContext::Ptr GetDefaultContext(const std::string& deviceName) override {
@@ -541,6 +558,8 @@ public:
                            std::string& deviceName,
                            std::map<std::string, std::string>& config) {
         std::string deviceNameWithBatchSize, deviceNameWithoutBatch;
+        // fully strict dims tracking by default (Auto-Batching is enabled implicitly)
+        bool strictly_check_dims = true;
         if (deviceName.find("BATCH") != std::string::npos) {
             // explicitly enabled Auto-Batching
             auto pos = deviceName.find_first_of(":");
@@ -548,9 +567,12 @@ public:
                 return;  // BATCH device is already configured via the config
             deviceNameWithBatchSize = deviceName.substr(pos + 1);
             deviceNameWithoutBatch = DeviceIDParser::getBatchDevice(deviceNameWithBatchSize);
+            // when user sets the BATCH device explicitly, we may check the dims less strictly
+            // as the result is being checked by the user
+            strictly_check_dims = false;
         } else {
             // check whether the Auto-Batching is disabled explicitly
-            const auto& batch_mode = config.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
+            const auto& batch_mode = config.find(ov::hint::allow_auto_batching.name());
             if (batch_mode != config.end()) {
                 const auto disabled = batch_mode->second == CONFIG_VALUE(NO);
                 // virtual plugins like AUTO/MULTI will need the config
@@ -578,38 +600,18 @@ public:
             if (bExclReqsEnabled || (!bTputInPlg && !bTputInLoadCfg))
                 return;
         }
-        auto function = network.getFunction();
-        // have to execute the DetectionOutput separately (without batching)
-        // as this layer mix-in the values from the different inputs (batch id)
-        bool bDetectionOutput = false;
-        const std::string detectionOutputOpName = ngraph::op::DetectionOutput::get_type_info_static().name;
-        const std::string resultOpName = ngraph::op::Result::get_type_info_static().name;
-        for (auto&& node : function->get_ops()) {
-            auto isDetectionOutputParent = [&detectionOutputOpName](decltype(node)& nd) {
-                for (size_t n = 0; n < nd->get_input_size(); n++) {
-                    // the code below doesn't need to separate the versions (opsets) of the DetectionOutput
-                    // so type_info name check is enough
-                    // (if in a future there will be a new ver that doesn't mix the batch, this will be new op)
-                    if (detectionOutputOpName == nd->get_input_node_ptr(n)->get_type_info().name)
-                        return true;
-                }
-                return false;
-            };
-
-            if ((detectionOutputOpName == node->get_type_info().name) ||
-                ((resultOpName == node->get_type_info().name) && isDetectionOutputParent(node))) {
-                node->get_rt_info()["affinity"] = deviceNameWithoutBatch;
-                bDetectionOutput = true;
-            } else {
-                node->get_rt_info()["affinity"] = "BATCH";
-            }
-        }
         auto batchConfig = deviceNameWithBatchSize.empty() ? deviceNameWithoutBatch : deviceNameWithBatchSize;
-        if (bDetectionOutput) {
+        auto res = InferenceEngine::details::isNetworkBatchable(network, deviceNameWithoutBatch, strictly_check_dims);
+        switch (res) {
+        case InferenceEngine::details::NetworkBatchAbility::NO:
+            return;
+        case InferenceEngine::details::NetworkBatchAbility::AS_IS:
+            deviceName = "BATCH:" + batchConfig;
+            break;
+        case InferenceEngine::details::NetworkBatchAbility::WITH_HETERO:
             deviceName = "HETERO:BATCH," + deviceNameWithoutBatch;
             config[CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)] = batchConfig;
-        } else {
-            deviceName = "BATCH:" + batchConfig;
+            break;
         }
     }
 
@@ -650,7 +652,8 @@ public:
 
     ie::SoExecutableNetworkInternal LoadNetwork(const std::string& modelPath,
                                                 const std::string& deviceName,
-                                                const std::map<std::string, std::string>& config) override {
+                                                const std::map<std::string, std::string>& config,
+                                                const std::function<void(const CNNNetwork&)>& val = nullptr) override {
         OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::LoadNetwork::Path");
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         auto plugin = GetCPPPluginByName(parsed._deviceName);
@@ -663,12 +666,19 @@ public:
             res = LoadNetworkFromCache(cacheManager, hash, plugin, parsed._config, nullptr, loadedFromCache, modelPath);
             if (!loadedFromCache) {
                 auto cnnNetwork = ReadNetwork(modelPath, std::string());
+                if (val) {
+                    val(cnnNetwork);
+                }
                 res = compile_model_impl(cnnNetwork, plugin, parsed._config, nullptr, hash, modelPath);
             }
         } else if (cacheManager) {
+            // TODO: 'validation' for dynamic API doesn't work for this case, as it affects a lot of plugin API
             res = plugin.compile_model(modelPath, parsed._config);
         } else {
             auto cnnNetwork = ReadNetwork(modelPath, std::string());
+            if (val) {
+                val(cnnNetwork);
+            }
             res = compile_model_impl(cnnNetwork, plugin, parsed._config, nullptr, {}, modelPath);
         }
         return {res._ptr, res._so};
@@ -679,53 +689,6 @@ public:
                                                   const std::map<std::string, std::string>& config) override {
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         auto exec = GetCPPPluginByName(parsed._deviceName).import_model(networkModel, parsed._config);
-
-        if (isNewAPI()) {
-            // create getInputs() based on GetInputsInfo()
-            using namespace InferenceEngine::details;
-
-            if (exec->getInputs().empty()) {
-                const auto& inputsInfo = exec->GetInputsInfo();
-                OPENVINO_ASSERT(!inputsInfo.empty(), "inputsInfo is empty after network import");
-
-                std::vector<std::shared_ptr<const ov::Node>> params;
-                params.reserve(inputsInfo.size());
-                for (auto&& input : inputsInfo) {
-                    auto param = std::make_shared<ov::op::v0::Parameter>(
-                        convertPrecision(input.second->getPrecision()),
-                        ov::PartialShape(input.second->getTensorDesc().getDims()));
-                    param->set_friendly_name(input.first);
-                    param->get_output_tensor(0).add_names({input.first});
-                    params.emplace_back(std::move(param));
-                }
-
-                exec->setInputs(params);
-            }
-
-            if (exec->getOutputs().empty()) {
-                const auto& outputsInfo = exec->GetOutputsInfo();
-                OPENVINO_ASSERT(!outputsInfo.empty(), "outputsInfo is empty after network import");
-
-                std::vector<std::shared_ptr<const ov::Node>> results;
-                results.reserve(outputsInfo.size());
-                for (auto&& output : outputsInfo) {
-                    auto fake_param = std::make_shared<ov::op::v0::Parameter>(
-                        convertPrecision(output.second->getPrecision()),
-                        ov::PartialShape(output.second->getTensorDesc().getDims()));
-                    fake_param->set_friendly_name(output.first);
-                    auto result = std::make_shared<ov::op::v0::Result>(fake_param);
-                    result->get_output_tensor(0).add_names({output.first});
-                    results.emplace_back(std::move(result));
-                }
-                exec->setOutputs(results);
-            }
-
-            // but for true support plugins need:
-            // 1. ensure order or parameters and results as in ov::Model
-            // 2. provide tensor names for inputs and outputs
-            // 3. precisions for getInputs and getOutputs should be taken from GetInputsInfo / GetOutputsInfo
-            //    not from ngraph. Plugins should use SetExeNetworkInfo
-        }
 
         return {exec._ptr, exec._so};
     }
@@ -807,6 +770,36 @@ public:
         }
 
         return GetCPPPluginByName(parsed._deviceName).get_metric(name, parsed._config);
+    }
+
+    void set_property(const std::string& device_name, const AnyMap& properties) override {
+        OPENVINO_ASSERT(device_name.find("HETERO:") != 0,
+                        "set_property is supported only for HETERO itself (without devices). "
+                        "You can configure the devices with set_property before creating the HETERO on top.");
+        OPENVINO_ASSERT(device_name.find("MULTI:") != 0,
+                        "set_property is supported only for MULTI itself (without devices). "
+                        "You can configure the devices with set_property before creating the MULTI on top.");
+        OPENVINO_ASSERT(device_name.find("AUTO:") != 0,
+                        "set_property is supported only for AUTO itself (without devices). "
+                        "You can configure the devices with set_property before creating the AUTO on top.");
+
+        ExtractAndSetDeviceConfig(properties);
+        SetConfigForPlugins(any_copy(properties), device_name);
+    }
+
+    Any get_property(const std::string& deviceName, const std::string& name, const AnyMap& arguments) const override {
+        OPENVINO_ASSERT(deviceName.find("HETERO:") != 0,
+                        "You can only get_config of the HETERO itself (without devices). "
+                        "get_config is also possible for the individual devices before creating the HETERO on top.");
+        OPENVINO_ASSERT(deviceName.find("MULTI:") != 0,
+                        "You can only get_config of the MULTI itself (without devices). "
+                        "get_config is also possible for the individual devices before creating the MULTI on top.");
+        OPENVINO_ASSERT(deviceName.find("AUTO:") != 0,
+                        "You can only get_config of the AUTO itself (without devices). "
+                        "get_config is also possible for the individual devices before creating the AUTO on top.");
+
+        auto parsed = parseDeviceNameIntoConfig(deviceName, arguments);
+        return GetCPPPluginByName(parsed._deviceName).get_property(name, parsed._config);
     }
 
     Any GetConfig(const std::string& deviceName, const std::string& name) const override {
@@ -1136,7 +1129,20 @@ public:
 
     std::map<std::string, std::string> GetSupportedConfig(const std::string& deviceName,
                                                           const std::map<std::string, std::string>& configs) override {
-        std::vector<std::string> supportedConfigKeys = GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+        std::vector<std::string> supportedConfigKeys;
+        try {
+            supportedConfigKeys =
+                GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
+        } catch (ov::Exception&) {
+        }
+        try {
+            for (auto&& property : ICore::get_property(deviceName, ov::supported_properties)) {
+                if (property.is_mutable()) {
+                    supportedConfigKeys.emplace_back(std::move(property));
+                }
+            }
+        } catch (ov::Exception&) {
+        }
         std::map<std::string, std::string> supportedConfig;
         for (auto&& key : supportedConfigKeys) {
             auto itKey = configs.find(key);
@@ -1147,12 +1153,12 @@ public:
         for (auto&& config : configs) {
             auto parsed = parseDeviceNameIntoConfig(config.first);
             if (deviceName.find(parsed._deviceName) != std::string::npos) {
-                std::string key, value;
                 std::stringstream strm(config.second);
-                while (strm >> key >> value) {
-                    if (supportedConfigKeys.end() !=
-                        std::find(supportedConfigKeys.begin(), supportedConfigKeys.end(), key)) {
-                        supportedConfig[key] = value;
+                std::map<std::string, std::string> device_configs;
+                util::Read<std::map<std::string, std::string>>{}(strm, device_configs);
+                for (auto&& device_config : device_configs) {
+                    if (util::contains(supportedConfigKeys, device_config.first)) {
+                        supportedConfig[device_config.first] = device_config.second;
                     }
                 }
                 for (auto&& config : parsed._config) {
@@ -1176,6 +1182,11 @@ public:
         std::lock_guard<std::mutex> lock(pluginsMutex);
         for (const auto& ext : extensions) {
             ov_extensions.emplace_back(ext);
+            if (auto op_base_ext = std::dynamic_pointer_cast<BaseOpExtension>(ext)) {
+                for (const auto& attached_ext : op_base_ext->get_attached_extensions()) {
+                    ov_extensions.emplace_back(attached_ext);
+                }
+            }
         }
     }
 
@@ -1396,6 +1407,11 @@ ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network, const std::map<st
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
                                     const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) {
+    auto valid = ov::CoreImpl::CheckStatic(network);
+    OPENVINO_ASSERT(std::get<0>(valid),
+                    "InferenceEngine::Core::LoadNetwork doesn't support inputs having dynamic shapes. ",
+                    "Use ov::Core::compile_model API instead. Dynamic inputs are :",
+                    std::get<1>(valid));
     auto exec = _impl->LoadNetwork(network, deviceName, config);
     return {exec._ptr, exec._so};
 }
@@ -1403,6 +1419,11 @@ ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
                                     RemoteContext::Ptr context,
                                     const std::map<std::string, std::string>& config) {
+    auto valid = ov::CoreImpl::CheckStatic(network);
+    OPENVINO_ASSERT(std::get<0>(valid),
+                    "InferenceEngine::Core::LoadNetwork doesn't support inputs having dynamic shapes. ",
+                    "Use ov::Core::compile_model API instead. Dynamic inputs are :",
+                    std::get<1>(valid));
     auto exec = _impl->LoadNetwork(network, std::dynamic_pointer_cast<RemoteContext>(context), config);
     return {exec._ptr, exec._so};
 }
@@ -1410,7 +1431,13 @@ ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
 ExecutableNetwork Core::LoadNetwork(const std::string& modelPath,
                                     const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) {
-    auto exec = _impl->LoadNetwork(modelPath, deviceName, config);
+    auto exec = _impl->LoadNetwork(modelPath, deviceName, config, [](const CNNNetwork& network) {
+        auto valid = ov::CoreImpl::CheckStatic(network);
+        OPENVINO_ASSERT(std::get<0>(valid),
+                        "InferenceEngine::Core::LoadNetwork doesn't support inputs having dynamic shapes. ",
+                        "Use ov::Core::compile_model API instead. Dynamic inputs are :",
+                        std::get<1>(valid));
+    });
     return {exec._ptr, exec._so};
 }
 
@@ -1514,6 +1541,12 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
 QueryNetworkResult Core::QueryNetwork(const CNNNetwork& network,
                                       const std::string& deviceName,
                                       const std::map<std::string, std::string>& config) const {
+    auto valid = ov::CoreImpl::CheckStatic(network);
+    OPENVINO_ASSERT(std::get<0>(valid),
+                    "InferenceEngine::Core::QueryNetwork doesn't support inputs having dynamic shapes. ",
+                    "Use ov::Core::compile_model API instead. Dynamic inputs are :",
+                    std::get<1>(valid));
+
     return _impl->QueryNetwork(network, deviceName, config);
 }
 
@@ -1760,74 +1793,20 @@ SupportedOpsMap Core::query_model(const std::shared_ptr<const ov::Model>& model,
     });
 }
 
-void Core::set_property(const AnyMap& config) {
-    OV_CORE_CALL_STATEMENT({
-        _impl->ExtractAndSetDeviceConfig(config);
-        _impl->SetConfigForPlugins(any_copy(config), {});
-    });
+void Core::set_property(const AnyMap& properties) {
+    OV_CORE_CALL_STATEMENT(return _impl->set_property({}, properties););
 }
 
-void Core::set_property(const std::string& deviceName, const AnyMap& config) {
-    OPENVINO_ASSERT(deviceName.find("HETERO:") != 0,
-                    "set_property is supported only for HETERO itself (without devices). "
-                    "You can configure the devices with set_property before creating the HETERO on top.");
-    OPENVINO_ASSERT(deviceName.find("MULTI:") != 0,
-                    "set_property is supported only for MULTI itself (without devices). "
-                    "You can configure the devices with set_property before creating the MULTI on top.");
-    OPENVINO_ASSERT(deviceName.find("AUTO:") != 0,
-                    "set_property is supported only for AUTO itself (without devices). "
-                    "You can configure the devices with set_property before creating the AUTO on top.");
-
-    OV_CORE_CALL_STATEMENT({
-        _impl->ExtractAndSetDeviceConfig(config);
-        _impl->SetConfigForPlugins(any_copy(config), deviceName);
-    });
+void Core::set_property(const std::string& device_name, const AnyMap& properties) {
+    OV_CORE_CALL_STATEMENT(return _impl->set_property(device_name, properties););
 }
 
 Any Core::get_property(const std::string& deviceName, const std::string& name) const {
-    OPENVINO_ASSERT(deviceName.find("HETERO:") != 0,
-                    "You can only get_config of the HETERO itself (without devices). "
-                    "get_config is also possible for the individual devices before creating the HETERO on top.");
-    OPENVINO_ASSERT(deviceName.find("MULTI:") != 0,
-                    "You can only get_config of the MULTI itself (without devices). "
-                    "get_config is also possible for the individual devices before creating the MULTI on top.");
-    OPENVINO_ASSERT(deviceName.find("AUTO:") != 0,
-                    "You can only get_config of the AUTO itself (without devices). "
-                    "get_config is also possible for the individual devices before creating the AUTO on top.");
-
-    OV_CORE_CALL_STATEMENT({
-        auto parsed = parseDeviceNameIntoConfig(deviceName);
-        if (ov::supported_properties == name) {
-            try {
-                return _impl->GetCPPPluginByName(parsed._deviceName).get_metric(name, parsed._config);
-            } catch (ie::Exception&) {
-                auto ro_properties = _impl->GetCPPPluginByName(parsed._deviceName)
-                                         .get_metric(METRIC_KEY(SUPPORTED_METRICS), parsed._config)
-                                         .as<std::vector<std::string>>();
-                auto rw_properties = _impl->GetCPPPluginByName(parsed._deviceName)
-                                         .get_metric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), parsed._config)
-                                         .as<std::vector<std::string>>();
-                std::vector<ov::PropertyName> supported_properties;
-                for (auto&& ro_property : ro_properties) {
-                    supported_properties.emplace_back(ro_property, PropertyMutability::RO);
-                }
-                for (auto&& rw_property : rw_properties) {
-                    supported_properties.emplace_back(rw_property, PropertyMutability::RW);
-                }
-                supported_properties.emplace_back(ov::supported_properties.name(), PropertyMutability::RO);
-                return supported_properties;
-            }
-        }
-        try {
-            return _impl->GetCPPPluginByName(parsed._deviceName).get_metric(name, parsed._config);
-        } catch (ie::Exception&) {
-            return _impl->GetCPPPluginByName(parsed._deviceName).get_config(name, parsed._config);
-        }
-    });
+    OV_CORE_CALL_STATEMENT(return _impl->get_property(deviceName, name, {}););
 }
 
-void Core::get_property(const std::string& deviceName, const std::string& name, ov::Any& to) const {
-    any_lexical_cast(get_property(deviceName, name), to);
+Any Core::get_property(const std::string& deviceName, const std::string& name, const AnyMap& arguments) const {
+    OV_CORE_CALL_STATEMENT(return _impl->get_property(deviceName, name, arguments););
 }
 
 std::vector<std::string> Core::get_available_devices() const {

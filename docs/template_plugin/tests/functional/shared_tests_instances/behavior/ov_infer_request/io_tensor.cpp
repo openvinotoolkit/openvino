@@ -41,11 +41,10 @@ std::vector<ov::element::Type> prcs = {
 const std::vector<ov::AnyMap> emptyConfigs = {{}};
 
 const std::vector<ov::AnyMap> HeteroConfigs = {
-            {{"TARGET_FALLBACK", CommonTestUtils::DEVICE_TEMPLATE}}};
+            {ov::device::priorities(CommonTestUtils::DEVICE_TEMPLATE)}};
 
 const std::vector<ov::AnyMap> Multiconfigs = {
-        {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_TEMPLATE}}
-};
+        {ov::device::priorities(CommonTestUtils::DEVICE_TEMPLATE)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestCheckTensorPrecision,
                          ::testing::Combine(

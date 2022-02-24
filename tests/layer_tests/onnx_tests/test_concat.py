@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-
 from common.layer_test_class import check_ir_version
 from common.onnx_layer_test_class import Caffe2OnnxLayerTest
+
 from unit_tests.utils.graph import build_graph
 
 
@@ -140,7 +140,6 @@ class TestConcat(Caffe2OnnxLayerTest):
         import onnx
         from onnx import helper
         from onnx import TensorProto
-        import numpy as np
 
         shape = input_shape
         inputs_list = []
@@ -253,36 +252,39 @@ class TestConcat(Caffe2OnnxLayerTest):
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
-    def test_concat_3D_const(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_concat_net_const(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_concat_3D_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_concat_net_const(**params, ir_version=ir_version), ie_device,
+                   precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_4D_precommit)
     @pytest.mark.precommit
-    def test_concat_4D_const_precommit(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_concat_net_const(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_concat_4D_const_precommit(self, params, ie_device, precision, ir_version, temp_dir,
+                                       api_2):
+        self._test(*self.create_concat_net_const(**params, ir_version=ir_version), ie_device,
+                   precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
-    def test_concat_4D_const(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_concat_net_const(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_concat_4D_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_concat_net_const(**params, ir_version=ir_version), ie_device,
+                   precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_5D_precommit)
     @pytest.mark.nightly
-    def test_concat_5D_const_precommit(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_concat_net_const(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_concat_5D_const_precommit(self, params, ie_device, precision, ir_version, temp_dir,
+                                       api_2):
+        self._test(*self.create_concat_net_const(**params, ir_version=ir_version), ie_device,
+                   precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
-    def test_concat_5D_const(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_concat_net_const(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_concat_5D_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_concat_net_const(**params, ir_version=ir_version), ie_device,
+                   precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_concat_inputs_order_params)
     @pytest.mark.nightly
-    def test_concat_inputs_order(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_concat_net(**params, ir_version=ir_version), ie_device=ie_device, precision=precision,
-                   ir_version=ir_version, temp_dir=temp_dir, input_names=params['input_names'])
+    def test_concat_inputs_order(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_concat_net(**params, ir_version=ir_version), ie_device=ie_device,
+                   precision=precision, ir_version=ir_version, temp_dir=temp_dir,
+                   input_names=params['input_names'], api_2=api_2)

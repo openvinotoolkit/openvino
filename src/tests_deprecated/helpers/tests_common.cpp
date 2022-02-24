@@ -65,11 +65,11 @@ void TestsCommon::SetUp() {
     if (memsize != 0) {
         std::cout << "\nMEM_USAGE=" << getVmSizeInKB() << "KB\n";
     }
-    InferenceEngine::ExecutorManager::getInstance()->clear();
+    InferenceEngine::executorManager()->clear();
 }
 
 void TestsCommon::TearDown() {
-    InferenceEngine::ExecutorManager::getInstance()->clear();
+    InferenceEngine::executorManager()->clear();
 }
 
 /**

@@ -10,7 +10,7 @@
    
    Release Notes <https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html>
    openvino_docs_IE_DG_supported_plugins_Supported_Devices
-   openvino_docs_IE_DG_Glossary
+   openvino_docs_OV_Glossary
    openvino_docs_Legal_Information
 
 
@@ -39,7 +39,7 @@ This section includes a variety of reference information in three broad categori
 ### Additional Resources
 [Release Notes](https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html) contains change logs and notes for each OpenVINO release.
 
-[Supported Devices](IE_DG/supported_plugins/Supported_Devices.md) is compatibility information about supported hardware accelerators.
+[Supported Devices](OV_Runtime_UG/supported_plugins/Supported_Devices.md) is compatibility information about supported hardware accelerators.
 
 [Legal Information](Legal_Information.md) has trademark information and other legal statements.
 
@@ -47,8 +47,6 @@ This section includes a variety of reference information in three broad categori
 [Available Operation Sets](ops/opset.md) is a list of supported operations and explanation of supported capabilities.
 
 [Broadcast Rules for Elementwise Operations](ops/broadcast_rules.md) explains the rules used for to support an arbitrary number of dimensions in neural nets.
-
-[Operation Specifications](IE_DG/Operations_specifications.md) is a detailed reference of supported operations.
 
 ### Case Studies
 Links to [articles](https://www.intel.com/openvino-success-stories) about real-world examples of OpenVINO™ usage.

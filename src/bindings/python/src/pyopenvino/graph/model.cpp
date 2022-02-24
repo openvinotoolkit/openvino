@@ -11,6 +11,7 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/parameter.hpp"  // ov::op::v0::Parameter
 #include "openvino/op/sink.hpp"
+#include "pyopenvino/core/common.hpp"
 #include "pyopenvino/core/tensor.hpp"
 #include "pyopenvino/graph/ops/result.hpp"
 #include "pyopenvino/graph/ops/util/variable.hpp"
@@ -63,19 +64,14 @@ void regclass_graph_Model(py::module m) {
                  R"(
                     Create user-defined Model which is a representation of a model.
 
-                    Parameters
-                    ----------
-                    results : List[op.Result]
-                        List of results.
-
-                    sinks : List[Node]
-                        List of Nodes to be used as Sinks (e.g. Assign ops).
-
-                    parameters : List[op.Parameter]
-                        List of parameters.
-
-                    name : str
-                        String to set as function's friendly name.
+                    :param results: List of results.
+                    :type results: List[op.Result]
+                    :param sinks: List of Nodes to be used as Sinks (e.g. Assign ops).
+                    :type sinks: List[Node]
+                    :param parameters: List of parameters.
+                    :type parameters: List[op.Parameter]
+                    :param name: String to set as function's friendly name.
+                    :type name: str
                  )");
 
     function.def(py::init([](const std::vector<std::shared_ptr<ov::Node>>& results,
@@ -90,16 +86,12 @@ void regclass_graph_Model(py::module m) {
                  R"(
                     Create user-defined Model which is a representation of a model.
 
-                    Parameters
-                    ----------
-                    results : List[Node]
-                        List of Nodes to be used as results.
-
-                    parameters : List[op.Parameter]
-                        List of parameters.
-
-                    name : str
-                        String to set as function's friendly name.
+                    :param results: List of Nodes to be used as results.
+                    :type results: List[Node]
+                    :param parameters: List of parameters.
+                    :type parameters:  List[op.Parameter]
+                    :param name: String to set as function's friendly name.
+                    :type name: str
                  )");
 
     function.def(py::init([](const std::shared_ptr<ov::Node>& result,
@@ -114,16 +106,12 @@ void regclass_graph_Model(py::module m) {
                  R"(
                     Create user-defined Model which is a representation of a model.
 
-                    Parameters
-                    ----------
-                    result : Node
-                        Node to be used as result.
-
-                    parameters : List[op.Parameter]
-                        List of parameters.
-
-                    name : str
-                        String to set as function's friendly name.
+                    :param result: Node to be used as result.
+                    :type result: Node
+                    :param parameters: List of parameters.
+                    :type parameters: List[op.Parameter]
+                    :param name: String to set as function's friendly name.
+                    :type name: str
                  )");
 
     function.def(
@@ -137,16 +125,12 @@ void regclass_graph_Model(py::module m) {
         R"(
             Create user-defined Model which is a representation of a model
 
-            Parameters
-            ----------
-            results : List[Output]
-                List of outputs.
-
-            parameters : List[op.Parameter]
-                List of parameters.
-
-            name : str
-                String to set as function's friendly name.
+            :param results: List of outputs.
+            :type results: List[Output]
+            :param parameters: List of parameters.
+            :type parameters: List[op.Parameter]
+            :param name: String to set as function's friendly name.
+            :type name: str
         )");
 
     function.def(py::init([](const ov::OutputVector& results,
@@ -164,19 +148,12 @@ void regclass_graph_Model(py::module m) {
                  R"(
             Create user-defined Model which is a representation of a model
 
-            Parameters
-            ----------
-            results : List[Output]
-                List of outputs.
-
-            sinks : List[Node]
-                List of Nodes to be used as Sinks (e.g. Assign ops).
-
-            parameters : List[op.Parameter]
-                List of parameters.
-
-            name : str
-                String to set as function's friendly name.
+            :param results: List of outputs.
+            :type results: List[Output]
+            :param sinks: List of Nodes to be used as Sinks (e.g. Assign ops).
+            :type sinks: List[Node]
+            :param name: String to set as function's friendly name.
+            :type name: str
             )");
     function.def(py::init([](const ov::ResultVector& results,
                              const std::vector<std::shared_ptr<ov::Node>>& nodes,
@@ -195,22 +172,16 @@ void regclass_graph_Model(py::module m) {
                  R"(
             Create user-defined Model which is a representation of a model
 
-            Parameters
-            ----------
-            results : List[op.Result]
-                List of results.
-
-            sinks : List[Node]
-                List of Nodes to be used as Sinks (e.g. Assign ops).
-
-            parameters : List[op.Parameter]
-                List of parameters.
-
-            variables : List[op.util.Variable]
-                List of variables.
-
-            name : str
-                String to set as function's friendly name.
+            :param results: List of results.
+            :type results: List[op.Result]
+            :param sinks: List of Nodes to be used as Sinks (e.g. Assign ops).
+            :type sinks: List[Node]
+            :param parameters: List of parameters.
+            :type parameters: List[op.Parameter]
+            :param variables: List of variables.
+            :type variables: List[op.util.Variable]
+            :param name: String to set as function's friendly name.
+            :type name: str
             )");
 
     function.def(py::init([](const ov::OutputVector& results,
@@ -230,22 +201,14 @@ void regclass_graph_Model(py::module m) {
                  R"(
             Create user-defined Model which is a representation of a model
 
-            Parameters
-            ----------
-            results : List[Output]
-                List of results.
-
-            sinks : List[Node]
-                List of Nodes to be used as Sinks (e.g. Assign ops).
-
-            parameters : List[op.Parameter]
-                List of parameters.
-
-            variables : List[op.util.Variable]
-                List of variables.
-
-            name : str
-                String to set as function's friendly name.
+            :param results: List of results.
+            :type results: List[Output]
+            :param sinks: List of Nodes to be used as Sinks (e.g. Assign ops).
+            :type sinks: List[Node]
+            :param variables: List of variables.
+            :type variables: List[op.util.Variable]
+            :param name: String to set as function's friendly name.
+            :type name: str
         )");
 
     function.def(py::init([](const ov::ResultVector& results,
@@ -262,19 +225,14 @@ void regclass_graph_Model(py::module m) {
                  R"(
             Create user-defined Model which is a representation of a model
 
-            Parameters
-            ----------
-            results : List[op.Result]
-                List of results.
-
-            parameters : List[op.Parameter]
-                List of parameters.
-
-            variables : List[op.util.Variable]
-                List of variables.
-
-            name : str
-                String to set as function's friendly name.
+            :param results: List of results.
+            :type results: List[op.Result]
+            :param parameters: List of parameters.
+            :type parameters: List[op.Parameter]
+            :param variables: List of variables.
+            :type variables: List[op.util.Variable]
+            :param name: String to set as function's friendly name.
+            :type name: str
         )");
 
     function.def(py::init([](const ov::OutputVector& results,
@@ -291,19 +249,12 @@ void regclass_graph_Model(py::module m) {
                  R"(
             Create user-defined Model which is a representation of a model
 
-            Parameters
-            ----------
-            results : List[Output]
-                List of results.
-
-            parameters : List[op.Parameter]
-                List of parameters.
-
-            variables : List[op.util.Variable]
-                List of variables.
-
-            name : str
-                String to set as function's friendly name.
+            :param results: List of results.
+            :type results: List[Output]
+            :param parameters: List of parameters.
+            :type parameters: List[op.Parameter]
+            :param name: String to set as function's friendly name.
+            :type name: str
         )");
 
     function.def("validate_nodes_and_infer_types", &ov::Model::validate_nodes_and_infer_types);
@@ -313,98 +264,138 @@ void regclass_graph_Model(py::module m) {
         [](ov::Model& self, const ov::PartialShape& partial_shape) {
             self.reshape(partial_shape);
         },
-        py::arg("partial_shapes"),
+        py::arg("partial_shape"),
         R"(
-                Parameters
-                ----------
-                partial_shapes : PartialShape
-                    Index of Output.
-
-                Returns
-                ----------
-                reshape : void
+                :param partial_shape: New shape.
+                :type partial_shape: PartialShape
+                :return : void
              )");
 
     function.def(
         "reshape",
-        [](ov::Model& self, const std::map<size_t, ov::PartialShape>& partial_shapes) {
-            self.reshape(partial_shapes);
+        [](ov::Model& self, const py::list& partial_shape) {
+            self.reshape(Common::partial_shape_from_list(partial_shape));
         },
-        py::arg("partial_shapes"),
+        py::arg("partial_shape"),
         R"(
-                Parameters
-                ----------
-                partial_shapes : Dict[int, PartialShape]
-                    Index of Output.
-
-                Returns
-                ----------
-                reshape : void
+                :param partial_shape: New shape.
+                :type partial_shape: list
+                :return : void
              )");
 
     function.def(
         "reshape",
-        [](ov::Model& self, const std::map<std::string, ov::PartialShape>& partial_shapes) {
-            self.reshape(partial_shapes);
+        [](ov::Model& self, const py::tuple& partial_shape) {
+            self.reshape(Common::partial_shape_from_list(partial_shape.cast<py::list>()));
         },
-        py::arg("partial_shapes"),
+        py::arg("partial_shape"),
         R"(
-                Parameters
-                ----------
-                partial_shapes : Dict[string, PartialShape]
-                    Index of Output.
-
-                Returns
-                ----------
-                reshape : void
+                :param partial_shape: New shape.
+                :type partial_shape: tuple
+                :return : void
              )");
 
     function.def(
         "reshape",
-        [](ov::Model& self, const std::map<ov::Output<ov::Node>, ov::PartialShape>& partial_shapes) {
-            self.reshape(partial_shapes);
+        [](ov::Model& self, const std::string& partial_shape) {
+            self.reshape(Common::partial_shape_from_str(partial_shape));
+        },
+        py::arg("partial_shape"),
+        R"(
+                :param partial_shape: New shape.
+                :type partial_shape: str
+                :return : void
+             )");
+
+    function.def(
+        "reshape",
+        [](ov::Model& self, const py::dict& partial_shapes) {
+            std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
+            for (const auto& item : partial_shapes) {
+                std::pair<ov::Output<ov::Node>, ov::PartialShape> new_shape;
+                // check keys
+                if (py::isinstance<py::int_>(item.first)) {
+                    new_shape.first = self.input(item.first.cast<size_t>());
+                } else if (py::isinstance<py::str>(item.first)) {
+                    new_shape.first = self.input(item.first.cast<std::string>());
+                } else if (py::isinstance<ov::Output<ov::Node>>(item.first)) {
+                    new_shape.first = item.first.cast<ov::Output<ov::Node>>();
+                } else {
+                    throw py::type_error("Incorrect key type " + std::string(item.first.get_type().str()) +
+                                         " to reshape a model, expected keys as openvino.runtime.Output, int or str.");
+                }
+                // check values
+                if (py::isinstance<ov::PartialShape>(item.second)) {
+                    new_shape.second = item.second.cast<ov::PartialShape>();
+                } else if (py::isinstance<py::list>(item.second) || py::isinstance<py::tuple>(item.second)) {
+                    new_shape.second = Common::partial_shape_from_list(item.second.cast<py::list>());
+                } else if (py::isinstance<py::str>(item.second)) {
+                    new_shape.second = Common::partial_shape_from_str(item.second.cast<std::string>());
+                } else {
+                    throw py::type_error(
+                        "Incorrect value type " + std::string(item.second.get_type().str()) +
+                        " to reshape a model, expected values as openvino.runtime.PartialShape, str, list or tuple.");
+                }
+                new_shapes.insert(new_shape);
+            }
+            self.reshape(new_shapes);
         },
         py::arg("partial_shapes"),
-        R"(
-                Parameters
-                ----------
-                partial_shapes : Dict[Output, PartialShape]
-                    Index of Output.
+        R"( Reshape model inputs.
 
-                Returns
-                ----------
-                reshape : void
-             )");
+            The allowed types of keys in the `partial_shapes` dictionary are:
+
+            (1) `int`, input index
+            (2) `str`, input tensor name
+            (3) `openvino.runtime.Output`
+
+            The allowed types of values in the `partial_shapes` are:
+
+            (1) `openvino.runtime.PartialShape`
+            (2) `list` consisting of dimensions
+            (3) `tuple` consisting of dimensions
+            (4) `str`, string representation of `openvino.runtime.PartialShape`
+
+            When list or tuple are used to describe dimensions, each dimension can be written in form:
+
+            (1) non-negative `int` which means static value for the dimension
+            (2) `[min, max]`, dynamic dimension where `min` specifies lower bound and `max` specifies upper bound; the range includes both `min` and `max`; using `-1` for `min` or `max` means no known bound
+            (3) `(min, max)`, the same as above
+            (4) `-1` is a dynamic dimension without known bounds
+            (4) `openvino.runtime.Dimension`
+            (5) `str` using next syntax:
+                '?' - to define fully dinamic dimension
+                '1' - to define dimension which length is 1
+                '1..10' - to define bounded dimension
+                '..10' or '1..' to define dimension with only lower or only upper limit
+
+            :param partial_shapes: New shapes.
+            :type partial_shapes: Dict[keys, values]
+        )");
 
     function.def("get_output_size",
                  &ov::Model::get_output_size,
                  R"(
                     Return the number of outputs for the function.
 
-                    Returns
-                    ----------
-                    get_output_size : int
-                        Number of outputs.
+                    :return: Number of outputs.
+                    :rtype: int
                  )");
     function.def("get_ops",
                  &ov::Model::get_ops,
                  R"(
                     Return ops used in the function.
 
-                    Returns
-                    ----------
-                    get_ops : List[Node]
-                        List of Nodes representing ops used in function.
+                    :return: List of Nodes representing ops used in function.
+                    :rtype: List[Node]
                  )");
     function.def("get_ordered_ops",
                  &ov::Model::get_ordered_ops,
                  R"(
                     Return ops used in the function in topological order.
 
-                    Returns
-                    ----------
-                    get_ordered_ops : List[Node]
-                        List of sorted Nodes representing ops used in function.
+                    :return: List of sorted Nodes representing ops used in function.
+                    :rtype: List[Node]
                  )");
     function.def("get_output_op",
                  &ov::Model::get_output_op,
@@ -412,15 +403,10 @@ void regclass_graph_Model(py::module m) {
                  R"(
                     Return the op that generates output i
 
-                    Parameters
-                    ----------
-                    index : int
-                        output index
-
-                    Returns
-                    ----------
-                    get_output_op : Node
-                        Node object that generates output i
+                    :param index: output index
+                    :type index: output index
+                    :return: Node object that generates output i
+                    :rtype: Node
                 )");
     function.def("get_output_element_type",
                  &ov::Model::get_output_element_type,
@@ -428,15 +414,10 @@ void regclass_graph_Model(py::module m) {
                  R"(
                     Return the element type of output i
 
-                    Parameters
-                    ----------
-                    index : int
-                        output index
-
-                    Returns
-                    ----------
-                    get_output_op : Type
-                        Type object of output i
+                    :param index: output index
+                    :type index: int
+                    :return: Type object of output i
+                    :rtype: Type
                  )");
     function.def("get_output_shape",
                  &ov::Model::get_output_shape,
@@ -444,15 +425,10 @@ void regclass_graph_Model(py::module m) {
                  R"(
                     Return the shape of element i
 
-                    Parameters
-                    ----------
-                    index : int
-                        element index
-
-                    Returns
-                    ----------
-                    get_output_shape : Shape
-                        Shape object of element i
+                    :param index: element index
+                    :type index: int
+                    :return: Shape object of element i
+                    :rtype: Shape
                  )");
     function.def("get_output_partial_shape",
                  &ov::Model::get_output_partial_shape,
@@ -460,45 +436,34 @@ void regclass_graph_Model(py::module m) {
                  R"(
                     Return the partial shape of element i
 
-                    Parameters
-                    ----------
-                    index : int
-                        element index
-
-                    Returns
-                    ----------
-                    get_output_partial_shape : PartialShape
-                        PartialShape object of element i
+                    :param index: element index
+                    :type index: int
+                    :return: PartialShape object of element i
+                    :rtype: PartialShape
                  )");
     function.def("get_parameters",
                  &ov::Model::get_parameters,
                  R"(
                     Return the function parameters.
-
-                    Returns
-                    ----------
-                    get_parameters : ParameterVector
-                        ParameterVector containing function parameters.
+                    
+                    :return: ParameterVector containing function parameters.
+                    :rtype: ParameterVector
                  )");
     function.def("get_results",
                  &ov::Model::get_results,
                  R"(
                     Return a list of function outputs.
 
-                    Returns
-                    ----------
-                    get_results : ResultVector
-                        ResultVector containing function parameters.
+                    :return: ResultVector containing function parameters.
+                    :rtype: ResultVector
                  )");
     function.def("get_result",
                  &ov::Model::get_result,
                  R"(
                     Return single result.
 
-                    Returns
-                    ----------
-                    get_result : Node
-                        Node object representing result.
+                    :return: Node object representing result.
+                    :rtype: Node
                  )");
     function.def("get_result_index",
                  (int64_t(ov::Model::*)(const ov::Output<ov::Node>&) const) & ov::Model::get_result_index,
@@ -508,15 +473,10 @@ void regclass_graph_Model(py::module m) {
 
                     Return -1 if `value` not matched.
 
-                    Parameters
-                    ----------
-                    value : Output
-                        Output containing Node
-
-                    Returns
-                    ----------
-                    get_result_index : int
-                        Index for value referencing it.
+                    :param value: Output containing Node
+                    :type value: Output
+                    :return: Index for value referencing it.
+                    :rtype: int
                  )");
     function.def("get_result_index",
                  (int64_t(ov::Model::*)(const ov::Output<const ov::Node>&) const) & ov::Model::get_result_index,
@@ -526,15 +486,10 @@ void regclass_graph_Model(py::module m) {
 
                     Return -1 if `value` not matched.
 
-                    Parameters
-                    ----------
-                    value : Output
-                        Output containing Node
-
-                    Returns
-                    ----------
-                    get_result_index : int
-                        Index for value referencing it.
+                    :param value: Output containing Node
+                    :type value: Output
+                    :return: Index for value referencing it.
+                    :rtype: int
                  )");
 
     function.def("get_name",
@@ -542,10 +497,8 @@ void regclass_graph_Model(py::module m) {
                  R"(
                     Get the unique name of the function.
 
-                    Returns
-                    ----------
-                    get_name : str
-                        String with a name of the function.
+                    :return: String with a name of the function.
+                    :rtype: str
                  )");
     function.def("get_friendly_name",
                  &ov::Model::get_friendly_name,
@@ -554,10 +507,8 @@ void regclass_graph_Model(py::module m) {
                     friendly name has been set via set_friendly_name
                     then the function's unique name is returned.
 
-                    Returns
-                    ----------
-                    get_friendly_name : str
-                        String with a friendly name of the function.
+                    :return: String with a friendly name of the function.
+                    :rtype: str
                  )");
     function.def("set_friendly_name",
                  &ov::Model::set_friendly_name,
@@ -568,10 +519,8 @@ void regclass_graph_Model(py::module m) {
                     is retrieved via get_friendly_name(). Used mainly
                     for debugging.
 
-                    Parameters
-                    ----------
-                    name : str
-                        String to set as the friendly name.
+                    :param name: String to set as the friendly name.
+                    :type name: str
                  )");
     function.def("is_dynamic",
                  &ov::Model::is_dynamic,
@@ -579,9 +528,7 @@ void regclass_graph_Model(py::module m) {
                     Returns true if any of the op's defined in the function
                     contains partial shape.
 
-                    Returns
-                    ----------
-                    is_dynamic : bool
+                    :rtype: bool
                  )");
     function.def("input", (ov::Output<ov::Node>(ov::Model::*)()) & ov::Model::input);
 
@@ -664,17 +611,15 @@ void regclass_graph_Model(py::module m) {
                  py::arg("parameter_index"),
                  py::arg("parameter"),
                  R"(
-                    Replace the `parameter_index`th parameter of the function with `parameter`.
+                    Replace the `parameter_index` parameter of the function with `parameter`
 
-                    All users of the `parameter_index`th parameter are redirected to `parameter`, and the
-                    `parameter_index`th entry in the function parameter list is replaced with `parameter`.
+                    All users of the `parameter_index` parameter are redirected to `parameter` , and the
+                    `parameter_index` entry in the function parameter list is replaced with `parameter`
 
-                    Parameters
-                    ----------
-                    parameter_index : int
-                        The index of the parameter to replace.
-                    parameter: op.Parameter
-                        The parameter to substitute for the `parameter_index`th parameter.
+                    :param parameter_index: The index of the parameter to replace.
+                    :type parameter_index: int
+                    :param parameter: The parameter to substitute for the `parameter_index` parameter.
+                    :type parameter: op.Parameter
         )");
 
     function.def(
@@ -682,18 +627,14 @@ void regclass_graph_Model(py::module m) {
         (int64_t(ov::Model::*)(const std::shared_ptr<ov::op::v0::Parameter>&) const) & ov::Model::get_parameter_index,
         py::arg("parameter"),
         R"(
-                    Return the index position of `parameter`.
+                    Return the index position of `parameter`
 
                     Return -1 if parameter not matched.
 
-                    Parameters
-                    ----------
-                    parameter : op.Parameter
-
-                    Returns
-                    ----------
-                    get_parameter_index : int
-                        Index for parameter
+                    :param parameter: Parameter which index is to be found.
+                    :type parameter: op.Parameter
+                    :return: Index for parameter
+                    :rtype: int
                  )");
 
     function.def(
@@ -710,32 +651,27 @@ void regclass_graph_Model(py::module m) {
         R"(
             Evaluate the function on inputs, putting results in outputs
 
-            Parameters
-            ----------
-            output_tensors : List[op.Tensor]
-                Tensors for the outputs to compute. One for each result
-            input_tensors : List[op.Tensor]
-                Tensors for the inputs. One for each inputs.
-            evaluation_context: PyRTMap
-                Storage of additional settings and attributes that can be used
-                when evaluating the function. This additional information can be shared across nodes.
-
-            Returns
-            ----------
-            evaluate : bool
-
+            :param output_tensors: Tensors for the outputs to compute. One for each result
+            :type output_tensors: List[op.Tensor]
+            :param input_tensors: Tensors for the inputs. One for each inputs.
+            :type input_tensors: List[op.Tensor]
+            :param evaluation_context: Storage of additional settings and attributes that can be used
+                                       when evaluating the function. This additional information can be
+                                       shared across nodes.
+            :type evaluation_context: PyRTMap
+            :rtype: bool
         )");
+
     function.def("__repr__", [](const ov::Model& self) {
         std::string class_name = py::cast(self).get_type().attr("__name__").cast<std::string>();
-        std::stringstream shapes_ss;
-        for (size_t i = 0; i < self.get_output_size(); ++i) {
-            if (i > 0) {
-                shapes_ss << ", ";
-            }
-            shapes_ss << self.get_output_partial_shape(i);
-        }
-        return "<" + class_name + ": '" + self.get_friendly_name() + "' (" + shapes_ss.str() + ")>";
+
+        auto inputs_str = Common::docs::container_to_string(self.inputs(), ",\n");
+        auto outputs_str = Common::docs::container_to_string(self.outputs(), ",\n");
+
+        return "<" + class_name + ": '" + self.get_friendly_name() + "'\ninputs[\n" + inputs_str + "\n]\noutputs[\n" +
+               outputs_str + "\n]>";
     });
+
     function.def_static("from_capsule", [](py::object* capsule) {
         // get the underlying PyObject* which is a PyCapsule pointer
         auto* pybind_capsule_ptr = capsule->ptr();

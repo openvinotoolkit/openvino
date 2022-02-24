@@ -81,7 +81,7 @@ TEST_P(SpaceToBatchCPULayerTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CPUTestsBase::CheckPluginRelatedResults(executableNetwork, "SpaceToBatch");
+    CPUTestsBase::CheckPluginRelatedResults(compiledModel, "SpaceToBatch");
 };
 
 namespace {

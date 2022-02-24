@@ -6,6 +6,7 @@
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/pattern/matcher.hpp>
+#include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <transformations/smart_reshape/proposal_scales_stridedslice.hpp>
@@ -15,8 +16,8 @@
 namespace {
 
 bool crop_scales_for_proposal(const ngraph::pattern::PatternValueMap& pattern_to_output,
-                              std::shared_ptr<ngraph::Node> parameter_label,
-                              std::shared_ptr<ngraph::Node> proposal_label) {
+                              const std::shared_ptr<ngraph::Node>& parameter_label,
+                              const std::shared_ptr<ngraph::Node>& proposal_label) {
     const auto& parameter = pattern_to_output.at(parameter_label);
     const auto& proposal = pattern_to_output.at(proposal_label).get_node_shared_ptr();
 
@@ -46,8 +47,11 @@ ngraph::pass::Proposal1Scales::Proposal1Scales() {
         return shape.rank().is_static() && shape.rank().get_length() == 2 && shape[1].is_static() &&
                (shape[1].get_length() == 3 || shape[1].get_length() == 4);
     });
+    auto convert_label = ngraph::pattern::wrap_type<opset5::Convert>({parameter_label});
+    auto param_or_convert = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{parameter_label,
+                                                                                           convert_label});
     auto reshape_label = ngraph::pattern::wrap_type<opset5::Reshape>(
-        {parameter_label, ngraph::pattern::wrap_type<opset5::Constant>()},
+        {param_or_convert, ngraph::pattern::wrap_type<opset5::Constant>()},
         [](const Output<Node>& output) {
             return output.get_partial_shape().rank().is_static() && output.get_partial_shape().rank().get_length() == 1;
         });
@@ -71,8 +75,11 @@ ngraph::pass::Proposal4Scales::Proposal4Scales() {
         return shape.rank().is_static() && shape.rank().get_length() == 2 && shape[1].is_static() &&
                (shape[1].get_length() == 3 || shape[1].get_length() == 4);
     });
+    auto convert_label = ngraph::pattern::wrap_type<opset5::Convert>({parameter_label});
+    auto param_or_convert = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{parameter_label,
+                                                                                           convert_label});
     auto reshape_label = ngraph::pattern::wrap_type<opset5::Reshape>(
-        {parameter_label, ngraph::pattern::wrap_type<opset5::Constant>()},
+        {param_or_convert, ngraph::pattern::wrap_type<opset5::Constant>()},
         [](const Output<Node>& output) {
             return output.get_partial_shape().rank().is_static() && output.get_partial_shape().rank().get_length() == 1;
         });

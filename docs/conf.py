@@ -85,7 +85,9 @@ html_theme_options = {
 
 html_context = {
     'current_language': 'English',
-    'languages': (('English', '/latest'), ('Chinese', '/cn/latest'))
+    'languages': (('English', '/latest'), ('Chinese', '/cn/latest')),
+    'doxygen_mapping_file': '@DOXYGEN_MAPPING_FILE@',
+    'doxygen_snippet_root': '@OpenVINO_SOURCE_DIR@'
 }
 
 repositories = {
@@ -95,10 +97,22 @@ repositories = {
         'github_version': 'master',
         'host_url': 'https://github.com'
     },
+    'pot': {
+        'github_user': 'openvinotoolkit',
+        'github_repo': 'openvino',
+        'github_version': 'master',
+        'host_url': 'https://github.com'
+    },
     'open_model_zoo': {
         'github_user': 'openvinotoolkit',
         'github_repo': 'open_model_zoo',
         'github_version': 'master',
+        'host_url': 'https://github.com'
+    },
+    'ovms': {
+        'github_user': 'openvinotoolkit',
+        'github_repo': 'model_server',
+        'github_version': 'main',
         'host_url': 'https://github.com'
     }
 }

@@ -7,7 +7,8 @@
 
 #include "cache/cache_entry.h"
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 struct VerboseNodeStorage {
     void cleanup() {
@@ -23,7 +24,8 @@ struct VerboseNodeStorage {
 
 #define VERBOSE_HELPER_NODE_PREPARE_PARAMS(lookUpStatus) \
     _verboseStorage.prepareParamsCacheLookUpStatus = lookUpStatus
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov
 #else
 #define VERBOSE_HELPER_NODE_PREPARE_PARAMS(lookUpStatus)
 #endif // CPU_DEBUG_CAPS

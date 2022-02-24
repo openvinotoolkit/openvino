@@ -68,6 +68,6 @@ class TestMeanVarianceNormalization(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_mvn(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_mvn(self, params, ie_device, precision, ir_version, temp_dir, api_2):
         self._test(*self.create_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)

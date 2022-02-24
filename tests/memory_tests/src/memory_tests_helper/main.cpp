@@ -14,25 +14,25 @@ int runPipeline(const std::string &model, const std::string &device);
  * @brief Parses command line and check required arguments
  */
 bool parseAndCheckCommandLine(int argc, char **argv) {
-  gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
-  if (FLAGS_help || FLAGS_h) {
-    showUsage();
-    return false;
-  }
+    gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
+    if (FLAGS_help || FLAGS_h) {
+        showUsage();
+        return false;
+    }
 
-  if (FLAGS_m.empty())
-    throw std::logic_error(
-        "Model is required but not set. Please set -m option.");
+    if (FLAGS_m.empty())
+        throw std::logic_error(
+                "Model is required but not set. Please set -m option.");
 
-  if (FLAGS_d.empty())
-    throw std::logic_error(
-        "Device is required but not set. Please set -d option.");
+    if (FLAGS_d.empty())
+        throw std::logic_error(
+                "Device is required but not set. Please set -d option.");
 
-  if (FLAGS_s.empty())
-    throw std::logic_error(
-        "Statistics file path is required but not set. Please set -s option.");
+    if (FLAGS_s.empty())
+        throw std::logic_error(
+                "Statistics file path is required but not set. Please set -s option.");
 
-  return true;
+    return true;
 }
 
 /**
@@ -48,11 +48,11 @@ int _runPipeline() {
  * @brief Main entry point
  */
 int main(int argc, char **argv) {
-  if (!parseAndCheckCommandLine(argc, argv))
-    return -1;
+    if (!parseAndCheckCommandLine(argc, argv))
+        return -1;
 
-  auto status =  _runPipeline();
-  StatisticsWriter::Instance().setFile(FLAGS_s);
-  StatisticsWriter::Instance().write();
-  return status;
+    auto status = _runPipeline();
+    StatisticsWriter::Instance().setFile(FLAGS_s);
+    StatisticsWriter::Instance().write();
+    return status;
 }

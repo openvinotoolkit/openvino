@@ -11,7 +11,7 @@ addIeTargetTest(
             gtest
             gtest_main
             commonTestUtils
-            ov_onnx_frontend
+            openvino_onnx_frontend
             openvino::util
         DEFINES
             ONNX_MODELS_DIR=\"${TEST_MODEL_ZOO}/onnx_import\"

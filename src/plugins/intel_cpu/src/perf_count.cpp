@@ -1,22 +1,23 @@
 // Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #ifdef CPU_DEBUG_CAPS
 
 #include "perf_count.h"
-#include "mkldnn_exec_network.h"
+#include "exec_network.h"
 #include <fstream>
 #include <iomanip>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
-double perfAvg(const uint64_t sum, const uint64_t num);
-double perfAvg(const double sum, const uint64_t num);
-double perfPercent(const uint64_t val, const uint64_t total);
-double perfDeviationPercent(const std::vector<double>& values, const double sum);
-void perfShapeToStr(const VectorDims& shape, std::string& str);
-void perfDumpNodes(const std::string& path, const std::vector<MKLDNNNodePtr>& nodes, const std::vector<std::string>& modelInputShapes);
-
+static double perfAvg(const uint64_t sum, const uint64_t num);
+static double perfAvg(const double sum, const uint64_t num);
+static double perfPercent(const uint64_t val, const uint64_t total);
+static double perfDeviationPercent(const std::vector<double>& values, const double sum);
+static void perfShapeToStr(const VectorDims& shape, std::string& str);
+static void perfDumpNodes(const std::string& path, const std::vector<MKLDNNNodePtr>& nodes, const std::vector<std::string>& modelInputShapes);
 
 void PerfCount::finish_itr(const PerfKey itrKey, PerfData::PerfNodeShape&& itrNodeShape) {
     finish_itr();
@@ -57,34 +58,6 @@ PerfHelper::~PerfHelper() {
     }
 }
 
-double perfAvg(const uint64_t sum, const uint64_t num) {
-    return num ? sum / static_cast<double>(num) : 0;
-}
-double perfAvg(const double sum, const uint64_t num) {
-    return num ? sum / num : 0;
-}
-
-double perfPercent(const uint64_t val, const uint64_t total) {
-    return val ? static_cast<double>(val) / total * 100 : 0;
-}
-
-double perfDeviationPercent(const std::vector<double>& values, const double sum) {
-    if (values.size() == 0 || sum == 0)
-        return 0;
-
-    const double n = static_cast<double>(values.size());
-    const double avg = sum / n;
-    double variance = 0;
-
-    for (double val : values) {
-        val -= avg;
-        variance += val * val;
-    }
-    variance /= n;
-
-    return std::sqrt(variance) / avg * 100;
-}
-
 PerfKey perfGetKey(MKLDNNGraph& graph) {
     if (graph.config.perfTablesPath.empty() || !graph.config.collectPerfCounters)
         return std::numeric_limits<PerfKey>::max();
@@ -95,16 +68,6 @@ PerfKey perfGetKey(MKLDNNGraph& graph) {
         modelInputDims.push_back(input.second->getChildEdgeAt(0)->getMemory().getStaticDims());
     }
     return graph.perfKeysMap.emplace(std::move(modelInputDims), graph.perfKeysMap.size()).first->second;
-}
-
-void perfShapeToStr(const VectorDims& shape, std::string& str) {
-    str.push_back('{');
-    for (auto i = 0; i < shape.size(); i++) {
-        if (i)
-            str.push_back(',');
-        str.append(std::to_string(shape[i]));
-    }
-    str.push_back('}');
 }
 
 void perfDump(const MKLDNNExecNetwork& execNet) {
@@ -157,7 +120,45 @@ void perfDump(const MKLDNNExecNetwork& execNet) {
     perfDumpNodes(graph.config.perfTablesPath, graph.executableGraphNodes, modelInputs);
 }
 
-void perfDumpNodes(const std::string& path, const std::vector<MKLDNNNodePtr>& nodes,
+static double perfAvg(const uint64_t sum, const uint64_t num) {
+    return num ? sum / static_cast<double>(num) : 0;
+}
+static double perfAvg(const double sum, const uint64_t num) {
+    return num ? sum / num : 0;
+}
+
+static double perfPercent(const uint64_t val, const uint64_t total) {
+    return val ? static_cast<double>(val) / total * 100 : 0;
+}
+
+static double perfDeviationPercent(const std::vector<double>& values, const double sum) {
+    if (values.size() == 0 || sum == 0)
+        return 0;
+
+    const double n = static_cast<double>(values.size());
+    const double avg = sum / n;
+    double variance = 0;
+
+    for (double val : values) {
+        val -= avg;
+        variance += val * val;
+    }
+    variance /= n;
+
+    return std::sqrt(variance) / avg * 100;
+}
+
+static void perfShapeToStr(const VectorDims& shape, std::string& str) {
+    str.push_back('{');
+    for (auto i = 0; i < shape.size(); i++) {
+        if (i)
+            str.push_back(',');
+        str.append(std::to_string(shape[i]));
+    }
+    str.push_back('}');
+}
+
+static void perfDumpNodes(const std::string& path, const std::vector<MKLDNNNodePtr>& nodes,
                    const std::vector<std::string>& modelInputShapes) {
     assert(modelInputShapes.size());
     const std::string pathPrefix(path + "perf_");
@@ -448,5 +449,7 @@ void perfDumpNodes(const std::string& path, const std::vector<MKLDNNNodePtr>& no
         finalizeNodeTypeCsv(csv, total, aggregateNodeTypesMap.size());
     }
 }
-} // namespace MKLDNNPlugin
+
+}   // namespace intel_cpu
+}   // namespace ov
 #endif // CPU_DEBUG_CAPS

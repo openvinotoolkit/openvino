@@ -10,12 +10,13 @@
 #include <cpu/x64/jit_generator.hpp>
 #include "emitters/jit_snippets_emitters.hpp"
 
-#include "mkldnn_node.h"
+#include <node.h>
 #include "snippets/op/subgraph.hpp"
 
 #include <array>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 /// MKLDNNSnippetNode represents subgraph node in MKLDNN plugin
 /// potentially, snippet can be placed as a postop to any support operation while it doesn't support postops itself
@@ -32,6 +33,7 @@ public:
     // Here we convert to canonical for & jit everything
     void createPrimitive() override;
 
+    bool canBeInPlace() const override;
     bool created() const override;
 
     // if generator is set, it would execute generated code otherwise it would fallback to nGraph reference
@@ -61,7 +63,7 @@ private:
 
     // Holds index of output used as in execution domain
     // it should be compatible with a schedule's work size
-    size_t max_rank_out_desc_idx = 0;
+    std::vector<size_t> exec_domain = {};
 
     /// scheduling info
     size_t batchDimIdx = 0;
@@ -74,13 +76,13 @@ private:
     std::vector<MKLDNNMemoryPtr> srcMemPtrs = {};
     std::vector<MKLDNNMemoryPtr> dstMemPtrs = {};
 
-    std::vector<std::vector<int64_t>> dims_in = {};
-    std::vector<std::vector<int64_t>> offsets_in = {};
+    std::vector<std::vector<size_t>> dims_in = {};
+    std::vector<std::vector<size_t>> offsets_in = {};
     std::vector<ptrdiff_t> start_offset_in = {};
     std::vector<ptrdiff_t> start_offset_out = {};
 
-    std::vector<std::vector<int64_t>> dims_out = {};
-    std::vector<std::vector<int64_t>> offsets_out = {};
+    std::vector<std::vector<size_t>> dims_out = {};
+    std::vector<std::vector<size_t>> offsets_out = {};
 
     std::vector<int64_t> sch_dims = {};
     std::vector<int64_t> sch_offsets_in = {};
@@ -88,4 +90,5 @@ private:
     bool canUseOptimizedImpl = true;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

@@ -59,7 +59,7 @@ inline size_t getVmSizeInKB() {
 }
 
 TestsCommon::~TestsCommon() {
-    InferenceEngine::ExecutorManager::getInstance()->clear();
+    InferenceEngine::executorManager()->clear();
 }
 
 TestsCommon::TestsCommon() {
@@ -67,7 +67,7 @@ TestsCommon::TestsCommon() {
     if (memsize != 0) {
         std::cout << "\nMEM_USAGE=" << memsize << "KB\n";
     }
-    InferenceEngine::ExecutorManager::getInstance()->clear();
+    InferenceEngine::executorManager()->clear();
 }
 
 std::string TestsCommon::GetTimestamp() {

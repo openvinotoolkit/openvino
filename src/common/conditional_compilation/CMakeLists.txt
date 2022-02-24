@@ -31,7 +31,7 @@ elseif(SELECTIVE_BUILD STREQUAL "ON")
         target_compile_options(${TARGET_NAME} INTERFACE
                                 -Wno-unused-function
                                 -Wno-unused-parameter
-                                -Wunused-local-typedefs)
+                                -Wno-unused-local-typedefs)
     endif()
 
     set(GENERATED_HEADER ${CMAKE_CURRENT_BINARY_DIR}/conditional_compilation_gen.h CACHE FILEPATH "")

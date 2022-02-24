@@ -57,6 +57,12 @@ py::array _cast_vector(const ov::op::v0::Constant& self) {
     return py::array(vec.size(), vec.data());
 }
 
+template <>
+py::array _cast_vector<ov::float16>(const ov::op::v0::Constant& self) {
+    auto vec = self.cast_vector<ov::float16>();
+    return py::array(py::dtype("float16"), vec.size(), vec.data());
+}
+
 void regclass_graph_op_Constant(py::module m) {
     py::class_<ov::op::v0::Constant, std::shared_ptr<ov::op::v0::Constant>, ov::Node> constant(m,
                                                                                                "Constant",

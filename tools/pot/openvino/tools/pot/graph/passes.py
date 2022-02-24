@@ -938,16 +938,18 @@ def find_shape_subgraph_endpoints(out_ports: List[Port], visited: set = None) ->
 
 
 def remove_converts(graph: Graph):
-    for op in graph.get_op_nodes(type='Convert'):
-        source_op = op.in_port(0).get_source().node
-        if source_op.type == 'Const' and source_op.data_type == np.float16:
-            # Get access to data node after Convert operation and set Insert_Convert_operation_after
-            # to restore Convert operation later
-            op.out_node(0)['Insert_Convert_operation_after'] = True
-            # Mark Const and Convert operation to fold them
-            source_op['need_shape_inference'] = True
-            op['stop_value_propagation'] = False
-            op['need_shape_inference'] = True
+    for op in graph.get_op_nodes():
+        if op.type == 'Convert':
+            source_op = op.in_port(0).get_source().node
+            if source_op.type == 'Const' and source_op.data_type == np.float16:
+                # Get access to data node after Convert operation and set Insert_Convert_operation_after
+                # to restore Convert operation later
+                op.out_node(0)['Insert_Convert_operation_after'] = True
+                # Mark Const and Convert operation to fold them
+                source_op['need_shape_inference'] = True
+                op.out_node(0)['old_rt_info'] = op['rt_info']
+                op['stop_value_propagation'] = False
+        op['need_shape_inference'] = True
     graph.clean_up()
 
 
@@ -974,6 +976,7 @@ def add_removed_converts(graph: Graph):
         # Insert Convert operation after Const operation
         const_op.out_port(0).get_connection().insert_node(convert_op)
         convert_op.out_node().value = None
+        convert_op['rt_info'] = data_node['old_rt_info']
 
         # Convert Const value to FP16 to make types in graph consistent
         const_op.value, _, _ = convert_blob(const_op.value, np.float16)

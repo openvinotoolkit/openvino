@@ -157,7 +157,7 @@ the following (for the case when `axis` is not equal to 0 and 1):
 4. Use the concatenated value as the second input to the `Reshape` operation.
 
 It is highly recommended that you write shape-agnostic transformations to avoid model reshape-ability issues. Refer to
-[Using Shape Inference](../../../IE_DG/ShapeInference.md) for more information related to the reshaping of a model.
+[Using Shape Inference](../../../OV_Runtime_UG/ShapeInference.md) for more information related to the reshaping of a model.
 
 More information on how to develop front phase transformations and dedicated API description is provided in the
 [Front Phase Transformations](#front-phase-transformations).
@@ -171,7 +171,7 @@ defined as a mathematical expression using the [ShapeOf](../../../ops/shape/Shap
 
 > **NOTE**: Model Optimizer does not fold sub-graphs starting from the [ShapeOf](../../../ops/shape/ShapeOf_3.md)
 > operation by default because this leads to a model non-reshape-ability (the command line parameter `--static_shape`
-> can override this behavior). Refer to [Using Shape Inference](../../../IE_DG/ShapeInference.md) for more information
+> can override this behavior). Refer to [Using Shape Inference](../../../OV_Runtime_UG/ShapeInference.md) for more information
 > related to reshaping of a model.
 
 Model Optimizer calculates output shapes for all operations in a model to write them to Intermediate Representation
@@ -257,11 +257,13 @@ More information on how to develop middle transformations and dedicated API desc
 [Middle Phase Transformations](#middle-phase-transformations).
 
 ### NHWC to NCHW Layout Change <a name="layout-change"></a>
-There are several middle transformations responsible for changing model layout from NHWC to NCHW. These transformations
-are triggered by default for TensorFlow\* models only because it is the only framework with Convolution operations in
-NHWC layout. This layout change is disabled if the model does not have operations that OpenVINO&trade needs to execute in
-NCHW layout, for example, Convolutions in NHWC layout. It is still possible to force Model Optimizer to do layout change
-using `--disable_nhwc_to_nchw` command-line parameter.
+
+There are several middle transformations responsible for changing model layout from NHWC to NCHW. These transformations are triggered by default for TensorFlow models as TensorFlow supports Convolution operations in the NHWC layout.
+
+This layout change is disabled automatically if the model does not have operations that OpenVINO&trade needs to execute in the NCHW layout, for example, Convolutions in NHWC layout. 
+
+It is still possible to force Model Optimizer to do layout change, using `--disable_nhwc_to_nchw` command-line parameter, although it is not advised.
+
 
 The layout change is a complex problem and detailed explanation of it is out of this document scope. A very brief
 explanation of this process is provided below:
@@ -507,7 +509,7 @@ There are a number of common attributes used in the operations. Here is the list
 Model Optimizer operations this attribute should be set to `None`. The model conversion fails if an operation with
 `type` equal to `None` comes to the IR emitting phase. **Mandatory**.
 * `version` — the operation set (opset) name the operation belongs to. If not specified, the Model Optimizer sets it
-equal to `experimental`. Refer to [nGraph Basic Concepts](@ref openvino_docs_nGraph_DG_basic_concepts) for more
+equal to `experimental`. Refer to [OpenVINO Model Representation](@ref openvino_docs_OV_Runtime_UG_Model_Representation) for more
 information about operation sets. **Mandatory**.
 * `op` — Model Optimizer type of the operation. In many cases, the value of `type` is equal to the value of `op`. But
 when the Model Optimizer cannot instantiate the opset operation during model loading, it creates an instance of an internal
@@ -741,8 +743,7 @@ sub-graph of the original graph isomorphic to the specified pattern.
 2. [Specific Operation Front Phase Transformations](#specific-operation-front-phase-transformations) triggered for the
 node with a specific `op` attribute value.
 3. [Generic Front Phase Transformations](#generic-front-phase-transformations).
-4. Manually enabled transformation defined with a JSON configuration file (for TensorFlow\*, ONNX\* and MXNet\* models
-only) specified using the `--transformations_config` command line parameter:
+4. Manually enabled transformation defined with a JSON configuration file (for TensorFlow, ONNX, MXNet, and PaddlePaddle models) specified using the `--transformations_config` command line parameter:
     1. [Node Name Pattern Front Phase Transformations](#node-name-pattern-front-phase-transformation).
     2. [Front Phase Transformations Using Start and End Points](#start-end-points-front-phase-transformations).
     3. [Generic Front Phase Transformations Enabled with Transformations Configuration File](#generic-transformations-config-front-phase-transformations).
@@ -1259,6 +1260,6 @@ Refer to the `extensions/back/GatherNormalizer.py` for the example of a such typ
 ## See Also <a name="see-also"></a>
 * [Deep Learning Network Intermediate Representation and Operation Sets in OpenVINO™](../../IR_and_opsets.md)
 * [Converting a Model to Intermediate Representation (IR)](../convert_model/Converting_Model.md)
-* [nGraph Basic Concepts](../../../nGraph_DG/nGraph_basic_concepts.md)
-* [Inference Engine Extensibility Mechanism](../../../IE_DG/Extensibility_DG/Intro.md)
+* [OpenVINO Model Representation](../../../OV_Runtime_UG/model_representation.md)
+* [Inference Engine Extensibility Mechanism](../../../OV_Runtime_UG/Extensibility_DG/Intro.md)
 * [Extending the Model Optimizer with Caffe* Python Layers](Extending_Model_Optimizer_with_Caffe_Python_Layers.md)

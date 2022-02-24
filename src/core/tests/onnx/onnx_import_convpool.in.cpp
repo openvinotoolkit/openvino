@@ -324,6 +324,32 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_average_pool_2d_pads) {
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_average_pool_empty_auto_pad) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/average_pool_empty_auto_pad.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>({1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f});
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 3, 3},
+        {1.3333333f, 2.3333333f, 1.7777777f, 3.0f, 5.0f, 3.6666666f, 2.6666666f, 4.3333333f, 3.1111111f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_empty_auto_pad) {
+    const auto model =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_empty_auto_pad.onnx"));
+
+    for (const auto& op : model->get_ops()) {
+        if (const auto max_pool = std::dynamic_pointer_cast<op::v8::MaxPool>(op)) {
+            EXPECT_EQ(max_pool->get_auto_pad(), op::PadType::EXPLICIT);
+            return;
+        }
+    }
+
+    FAIL() << "MaxPool op not found in the imported model";
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_2d_pads) {
     // Pooling with strides=2 and padding=1
     auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_2d_pads.onnx"));

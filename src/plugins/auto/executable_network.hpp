@@ -18,6 +18,7 @@
 #include "threading/ie_executor_manager.hpp"
 #include "ie_icore.hpp"
 #include <ie_performance_hints.hpp>
+#include "openvino/runtime/properties.hpp"
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
@@ -40,6 +41,7 @@ struct DeviceInformation {
     int numRequestsPerDevices;
     std::string defaultDeviceID;
     DeviceName uniqueName;
+    unsigned int devicePriority;
 };
 
 struct AutoContext {
@@ -84,6 +86,7 @@ public:
         InferenceEngine::SoIInferRequestInternal  _inferRequest;
         InferenceEngine::Task                     _task;
         std::exception_ptr                        _exceptionPtr = nullptr;
+        unsigned int                              _inferCount = 0;
         int                                       _index = 0;
     };
     using NotBusyWorkerRequests = InferenceEngine::ThreadSafeBoundedPriorityQueue<std::pair<int, WorkerInferRequest*>>;
@@ -157,6 +160,7 @@ private:
     mutable std::mutex                                                  _confMutex;
     bool                                                                _exitFlag = {false};
     const InferenceEngine::CNNNetwork                                   _network;
+    int                                                                 _cpuHelpInferCount = 0;
 };
 
 }  // namespace MultiDevicePlugin
