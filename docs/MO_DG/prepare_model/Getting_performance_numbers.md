@@ -3,11 +3,11 @@
 
 ## Tip 1. Measure the Proper Set of Operations 
 
-When evaluating performance of your model with the Inference Engine, you must measure the proper set of operations. To do so, consider the following tips: 
+When evaluating performance of your model with the OpenVINO Runtime, you must measure the proper set of operations. To do so, consider the following tips: 
 
 - Avoid including one-time costs like model loading.
 
-- Track separately the operations that happen outside the Inference Engine, like video decoding. 
+- Track separately the operations that happen outside the OpenVINO Runtime, like video decoding. 
 
 > **NOTE**: Some image pre-processing can be baked into the IR and accelerated. For more information, refer to [Model Optimizer Knobs Related to Performance](Additional_Optimizations.md)
 
@@ -18,7 +18,7 @@ You need to build your performance conclusions on reproducible data. Do the perf
 -	If the warm-up run does not help or execution time still varies, you can try running a large number of iterations and then average or find a mean of the results.
 -	 For time values that range too much, use geomean.
 
-Refer to the [Inference Engine Samples](../../OV_Runtime_UG/Samples_Overview.md) for code examples for the performance measurements. Almost every sample, except interactive demos, has a `-ni` option to specify the number of iterations.
+Refer to the [OpenVINO Samples](../../OV_Runtime_UG/Samples_Overview.md) for code examples for the performance measurements. Almost every sample, except interactive demos, has a `-ni` option to specify the number of iterations.
 
 ## Getting performance numbers using OpenVINO tool 
 
@@ -45,16 +45,16 @@ Instead, it is possible to keep a separate infer request per camera or another s
 
 ## Comparing Performance with Native/Framework Code 
 
-When comparing the Inference Engine performance with the framework or another reference code, make sure that both versions are as similar as possible:
+When comparing the OpenVINO Runtime performance with the framework or another reference code, make sure that both versions are as similar as possible:
 
--	Wrap exactly the inference execution (refer to the [Inference Engine Samples](../../OV_Runtime_UG/Samples_Overview.md) for examples).
+-	Wrap exactly the inference execution (refer to the [OpenVINO Samples](../../OV_Runtime_UG/Samples_Overview.md) for examples).
 -	Do not include model loading time.
--	Ensure the inputs are identical for the Inference Engine and the framework. For example, Caffe\* allows to auto-populate the input with random values. Notice that it might give different performance than on real images.
--	Similarly, for correct performance comparison, make sure the access pattern, for example, input layouts, is optimal for Inference Engine (currently, it is NCHW).
+-	Ensure the inputs are identical for the OpenVINO Runtime and the framework. For example, Caffe\* allows to auto-populate the input with random values. Notice that it might give different performance than on real images.
+-	Similarly, for correct performance comparison, make sure the access pattern, for example, input layouts, is optimal for OpenVINO Runtime (currently, it is NCHW).
 -	Any user-side pre-processing should be tracked separately.
--	Make sure to try the same environment settings that the framework developers recommend, for example, for TensorFlow*. In many cases, things that are more machine friendly, like respecting NUMA (see <a href="#cpu-checklist">CPU Checklist</a>), might work well for the Inference Engine as well.
--	If applicable, use batching with the Inference Engine.
--	If possible, demand the same accuracy. For example, TensorFlow allows `FP16` support, so when comparing to that, make sure to test the Inference Engine with the `FP16` as well.
+-	Make sure to try the same environment settings that the framework developers recommend, for example, for TensorFlow*. In many cases, things that are more machine friendly, like respecting NUMA (see <a href="#cpu-checklist">CPU Checklist</a>), might work well for the OpenVINO Runtime as well.
+-	If applicable, use batching.
+-	If possible, demand the same accuracy. For example, TensorFlow allows `FP16` support, so when comparing to that, make sure to test the OpenVINO Runtime with the `FP16` as well.
 
 ## Using Tools <a name="using-tools"></a>
 
@@ -64,7 +64,7 @@ Alternatively, you can gather the raw profiling data that samples report, the se
 
 ### Internal Inference Performance Counters <a name="performance-counters"></a>
 
-Almost every sample (inspect command-line options for a specific sample with `-h`) supports a `-pc` command that outputs internal execution breakdown. Refer to the [samples code](../../OV_Runtime_UG/Samples_Overview.md) for the actual Inference Engine API behind that.
+Almost every sample (inspect command-line options for a specific sample with `-h`) supports a `-pc` command that outputs internal execution breakdown. Refer to the [OpenVINO Samples](../../OV_Runtime_UG/Samples_Overview.md) for the actual OpenVINO Runtime API behind that.
 
 Below is example of CPU plugin output for a network (since the device is CPU, the layers wall clock `realTime` and the `cpu` time are the same):
 

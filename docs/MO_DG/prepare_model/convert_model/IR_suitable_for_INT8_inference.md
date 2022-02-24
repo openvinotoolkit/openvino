@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Inference Engine CPU and GPU plugin can infer models in the low precision. 
+OpenVINO Runtime CPU and GPU devices can infer models in the low precision. 
 For details, refer to [Low Precision Inference on the CPU](../../../OV_Runtime_UG/Int8Inference.md).
 
 Intermediate Representation (IR) should be specifically formed to be suitable for low precision inference. 

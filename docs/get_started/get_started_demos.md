@@ -39,15 +39,15 @@ To build OpenVINO samples:
 @sphinxdirective
 .. tab:: Linux
 
-   Go to the :doc:`Inference Engine Samples page <openvino_docs_IE_DG_Samples_Overview>` and see the "Build the Sample Applications on Linux*" section.
+   Go to the :doc:`OpenVINO Samples page <openvino_docs_IE_DG_Samples_Overview>` and see the "Build the Sample Applications on Linux*" section.
 
 .. tab:: Windows
 
-   Go to the :doc:`Inference Engine Samples page <openvino_docs_IE_DG_Samples_Overview>` and see the "Build the Sample Applications on Microsoft Windows* OS" section.
+   Go to the :doc:`OpenVINO Samples page <openvino_docs_IE_DG_Samples_Overview>` and see the "Build the Sample Applications on Microsoft Windows* OS" section.
 
 .. tab:: macOS
 
-   Go to the :doc:`Inference Engine Samples page <openvino_docs_IE_DG_Samples_Overview>` and see the "Build the Sample Applications on macOS*" section. 
+   Go to the :doc:`OpenVINO Samples page <openvino_docs_IE_DG_Samples_Overview>` and see the "Build the Sample Applications on macOS*" section. 
 
 @endsphinxdirective
 
@@ -358,9 +358,9 @@ Your screen looks similar to this after the download:
 
 ## <a name="convert-models-to-intermediate-representation"></a>Step 2: Convert the Model with Model Optimizer
 
-In this step, your trained models are ready to run through the Model Optimizer to convert them to the IR (Intermediate Representation) format. For most model types, this is required before using the Inference Engine with the model.
+In this step, your trained models are ready to run through the Model Optimizer to convert them to the IR (Intermediate Representation) format. For most model types, this is required before using the OpenVINO Runtime with the model.
 
-Models in the IR format always include an `.xml` and `.bin` file and may also include other files such as `.json` or `.mapping`. Make sure you have these files together in a single directory so the Inference Engine can find them.
+Models in the IR format always include an `.xml` and `.bin` file and may also include other files such as `.json` or `.mapping`. Make sure you have these files together in a single directory so the OpenVINO Runtime can find them.
 
 REQUIRED: `model_name.xml`
 REQUIRED: `model_name.bin`
@@ -393,7 +393,7 @@ Create an `<ir_dir>` directory to contain the model's Intermediate Representatio
 
 @endsphinxdirective
 
-The Inference Engine can perform inference on different precision formats, such as FP32, FP16, or INT8. To generate an IR with a specific precision, run the Model Optimizer with the appropriate `--data_type` option.
+The OpenVINO Runtime can perform inference on different precision formats, such as FP32, FP16, or INT8. To generate an IR with a specific precision, run the Model Optimizer with the appropriate `--data_type` option.
 
 Generic Model Optimizer script:
 

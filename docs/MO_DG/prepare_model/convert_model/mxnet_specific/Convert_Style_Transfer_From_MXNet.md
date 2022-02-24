@@ -114,4 +114,4 @@ cp models/13_decoder_auxs.nd nst_model
 ```sh
 mo --input_symbol <path/to/nst_model>/nst_vgg19-symbol.json --framework mxnet --output_dir <path/to/output_dir> --input_shape [1,3,224,224] --nd_prefix_name 13_decoder --pretrained_model <path/to/nst_model>/vgg19-0000.params
 ```
-4. The IR is generated (`.bin`, `.xml` and `.mapping` files) in the specified output directory and ready to be consumed by the Inference Engine. 
+4. The IR is generated (`.bin`, `.xml` and `.mapping` files) in the specified output directory and ready to be consumed by the OpenVINO Runtime. 

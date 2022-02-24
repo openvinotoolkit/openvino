@@ -39,7 +39,7 @@ There are two ways to use Auto-device:
 
 Both methods allow limiting the list of device candidates for the AUTO plugin.
 
-> **NOTE**: The Inference Engine lets you use "GPU" as an alias for "GPU.0" in function calls. 
+> **NOTE**: The OpenVINO Runtime lets you use "GPU" as an alias for "GPU.0" in function calls. 
 
 The Auto-device plugin supports query device optimization capabilities in metric.
 
@@ -49,7 +49,7 @@ The Auto-device plugin supports query device optimization capabilities in metric
 
 ### Enumerating Devices and Selection Logic
 
-The Inference Engine now features a dedicated API to enumerate devices and their capabilities. 
+The OpenVINO Runtime API now features a dedicated methods to enumerate devices and their capabilities. 
 See [Hello Query Device C++ Sample](../../samples/cpp/hello_query_device/README.md).
 This is the example output from the sample (truncated to device names only):
 
@@ -85,7 +85,7 @@ For example, CPU, dGPU and iGPU can support the following precision and optimiza
 
 In cases when loading the network to dGPU or iGPU fails, CPU is the fall-back choice.
 
-According to the Auto-device selection logic from the previous section, tell the Inference Engine 
+According to the Auto-device selection logic from the previous section, tell the OpenVINO Runtime 
 to use the most suitable device from available devices as follows:
 
 @snippet snippets/AUTO2.cpp part2
@@ -208,7 +208,7 @@ The Auto-device plugin supports query device optimization capabilities in metric
 
 ### Enumerating Devices and Selection Logic
 
-The Inference Engine now features a dedicated API to enumerate devices and their capabilities. See the [Hello Query Device Python Sample](../../samples/python/hello_query_device/README.md) for code.
+The OpenVINO Runtime API now features a dedicated methods to enumerate devices and their capabilities. See the [Hello Query Device Python Sample](../../samples/python/hello_query_device/README.md) for code.
 
 This is the example output from the sample (truncated to device names only):
 

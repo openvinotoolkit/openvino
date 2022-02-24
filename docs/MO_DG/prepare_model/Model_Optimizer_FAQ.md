@@ -158,7 +158,7 @@ However, if your model contains more than one input, the Model Optimizer is able
 
 #### 9. What does the message "Mean file for topologies with multiple inputs is not supported" mean? <a name="question-9"></a>
 
-Model Optimizer does not support mean file processing for topologies with more than one input. In this case, you need to perform preprocessing of the inputs for a generated Intermediate Representation in the Inference Engine to perform subtraction for every input of your multi-input model.
+Model Optimizer does not support mean file processing for topologies with more than one input. In this case, you need to perform preprocessing of the inputs for a generated Intermediate Representation in the OpenVINO Runtime to perform subtraction for every input of your multi-input model, see [Overview of Preprocessing](../../OV_Runtime_UG/preprocessing_overview.md) for details.
 
 #### 10. What does the message "Cannot load or process mean file: value error" mean? <a name="question-10"></a>
 
@@ -214,7 +214,7 @@ One of the layers in the specified topology might not have inputs or values. Ple
 
 #### 24. What does the message "Part of the nodes was not translated to IE. Stopped" mean? <a name="question-24"></a>
 
-Some of the layers are not supported by the Inference Engine and cannot be translated to an Intermediate Representation. You can extend the Model Optimizer by allowing generation of new types of layers and implement these layers in the dedicated Inference Engine plugins. For more information, refer to the [OpenVINO™ Extensibility Mechanism](../../Extensibility_UG/Intro.md)
+Some of the operations are not supported by the OpenVINO Runtime and cannot be translated to an Intermediate Representation. You can extend the Model Optimizer by allowing generation of new types of operations and implement these operations in the dedicated OpenVINO plugins. For more information, refer to the [OpenVINO™ Extensibility Mechanism](../../Extensibility_UG/Intro.md)
 
 #### 25. What does the message "While creating an edge from .. to .. : node name is undefined in the graph. Check correctness of the input model" mean? <a name="question-25"></a>
 
@@ -572,7 +572,7 @@ file is not available or does not exist. Also refer to FAQ [#90](#question-90).
 This message means that if you have model with custom layers and its json file has been generated with MXNet version
 lower than 1.0.0, Model Optimizer does not support such topologies. If you want to convert it you have to rebuild 
 MXNet with unsupported layers or generate new json with MXNet version 1.0.0 and higher. Also you need to implement 
-Inference Engine extension for used custom layers.
+OpenVINO extension for used custom layers.
 For more information, refer to the [OpenVINO™ Extensibility Mechanism](../../Extensibility_UG/Intro.md).
 
 #### 97. What does the message "Graph contains a cycle. Can not proceed .." mean?  <a name="question-97"></a>

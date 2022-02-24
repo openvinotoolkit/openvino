@@ -157,7 +157,7 @@ The script successfully completes, and the deployment package is generated in th
 
 After the Deployment Manager has successfully completed, you can find the generated `.tar.gz` (for Linux or macOS) or `.zip` (for Windows) package in the output directory you specified. 
 
-To deploy the Inference Engine components from the development machine to the target system, perform the following steps:
+To deploy the OpenVINO Runtime components from the development machine to the target system, perform the following steps:
 
 1. Copy the generated archive to the target system using your preferred method.
 
@@ -223,4 +223,4 @@ The package is unpacked to the destination directory and the following files and
      
    @endsphinxdirective
 
-You have now finished the deployment of the Inference Engine components to the target system.
+You have now finished the deployment of the OpenVINO Runtime components to the target system.

@@ -10,5 +10,5 @@ You may install Intel® Distribution of OpenVINO™ toolkit from images and repo
 * [Yocto](installing-openvino-yocto.md)
 * [PyPI](installing-openvino-pip.md)
 
-The open source version is available in the [OpenVINO™ toolkit GitHub repository](https://github.com/openvinotoolkit/openvino) and you can build it for supported platforms using the <a href="https://github.com/openvinotoolkit/openvino/wiki/BuildingCode">Inference Engine Build Instructions</a>.
+The open source version is available in the [OpenVINO™ toolkit GitHub repository](https://github.com/openvinotoolkit/openvino) and you can build it for supported platforms using the <a href="https://github.com/openvinotoolkit/openvino/wiki/BuildingCode">OpenVINO Build Instructions</a>.
 

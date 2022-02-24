@@ -177,9 +177,9 @@ defined as a mathematical expression using the [ShapeOf](../../../ops/shape/Shap
 Model Optimizer calculates output shapes for all operations in a model to write them to Intermediate Representation
 files.
 
-> **NOTE**: This is a legacy requirement because starting from IR version 10 Inference Engine needs to know shapes of
+> **NOTE**: This is a legacy requirement because starting from IR version 10 OpenVINO Runtime needs to know shapes of
 > the [Const](../../../ops/infrastructure/Constant_1.md) and the [Parameter](../../../ops/infrastructure/Parameter_1.md)
-> operations only. The nGraph component of the Inference Engine calculates output shapes for all operations in a model
+> operations only. The OpenVINO Runtime calculates output shapes for all operations in a model
 > using shapes of [Parameter](../../../ops/infrastructure/Parameter_1.md) and
 > [Const](../../../ops/infrastructure/Constant_1.md) operations defined with respective operation attributes.
 
@@ -303,7 +303,7 @@ The last phase of a model conversion is the Intermediate Representation emitting
 steps:
 
 1. Iterates over all operation nodes in the graph and checks that all nodes have the `type` attribute set. This attribute
-defines the operation type and is used in the Inference Engine to instantiate proper operation from the
+defines the operation type and is used in the OpenVINO to instantiate proper operation from the
 [opset](@ref openvino_docs_ops_opset) specified in the `version` attribute of the node. If some node does not have
 attribute `type` or its values is equal to `None`, the Model Optimizer exits with an error.
 2. Performs type inference of graph operations similar to the shape inference. Inferred data types are saved to a port

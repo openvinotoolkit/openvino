@@ -2,7 +2,7 @@
 
 ## Introducing MYRIAD Plugin
 
-The Inference Engine MYRIAD plugin has been developed for inference of neural networks on Intel&reg; Neural Compute Stick 2.
+The OpenVINO Runtime MYRIAD plugin has been developed for inference of neural networks on Intel&reg; Neural Compute Stick 2.
 
 ## Configuring the MYRIAD Plugin
 

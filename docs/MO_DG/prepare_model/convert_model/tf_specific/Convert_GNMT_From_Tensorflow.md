@@ -244,7 +244,7 @@ python3 benchmark_app.py -m <path to the generated GNMT IR> -d CPU
 ```
 
 
-2. With Inference Engine Python API:
+2. With OpenVINO Runtime Python API:
 
 > **NOTE**: Before running the example, insert a path to your GNMT `.xml` and `.bin` files into `MODEL_PATH` and `WEIGHTS_PATH`, and fill `input_data_tensor` and `seq_lengths` tensors according to your input data.
 
@@ -274,4 +274,4 @@ exec_net = ie.load_network(network=net, device_name="CPU")
 result_ie = exec_net.infer(input_data)
 ```
 
-For more information about Python API, refer to [Inference Engine Python API](ie_python_api/api.html).
+For more information about Python API, refer to [OpenVINO Runtime Python API](ie_python_api/api.html).

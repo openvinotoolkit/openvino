@@ -45,23 +45,23 @@ MACHINE = "intel-skylake-64"
 # and is not enabled by default.
 PACKAGECONFIG_append_pn-openvino-inference-engine = " opencl"
 
-# Enable building inference engine python API.
+# Enable building OpenVINO Python API.
 # This requires meta-python layer to be included in bblayers.conf.
 PACKAGECONFIG_append_pn-openvino-inference-engine = " python3"
 
-# This adds inference engine related libraries in the target image.
+# This adds OpenVINO related libraries in the target image.
 CORE_IMAGE_EXTRA_INSTALL_append = " openvino-inference-engine"
 
-# This adds inference engine samples in the target image.
+# This adds OpenVINO samples in the target image.
 CORE_IMAGE_EXTRA_INSTALL_append = " openvino-inference-engine-samples"
 
-# Include inference engine python API package in the target image.
+# Include OpenVINO Python API package in the target image.
 CORE_IMAGE_EXTRA_INSTALL_append = " openvino-inference-engine-python3"
 
 # Enable MYRIAD plugin
 CORE_IMAGE_EXTRA_INSTALL_append = " openvino-inference-engine-vpu-firmware"
 
-# Include model optimizer in the target image.
+# Include Model Optimizer in the target image.
 CORE_IMAGE_EXTRA_INSTALL_append = " openvino-model-optimizer"
 ```
 
