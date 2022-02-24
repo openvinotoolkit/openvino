@@ -41,10 +41,6 @@ To use these tests for your own plugin development, link the `IE::funcSharedTest
 To build test binaries together with other build artifacts, use the `make all` command. For details, see
 [Build Plugin Using CMake*](@ref openvino_docs_ie_plugin_dg_plugin_build).
 
-### Tests for plugin-specific OpenVINO™ transformations
-
-Please, refer to [Transformation testing](@ref openvino_docs_transformations) guide.
-
 ### How to Extend Inference Engine Plugin Tests
 
 Inference Engine Plugin tests are open for contribution.
