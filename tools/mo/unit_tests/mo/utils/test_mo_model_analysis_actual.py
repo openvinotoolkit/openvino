@@ -29,7 +29,6 @@ def base_args_config():
     args.input_model = None
     args.silent = True
     args.transform=[]
-    args.legacy_ir_generation = False
     args.scale = None
     args.output=None
     args.input=None

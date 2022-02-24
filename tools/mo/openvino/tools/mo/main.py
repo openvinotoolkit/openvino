@@ -245,9 +245,6 @@ def arguments_post_parsing(argv: argparse.Namespace):
     # This is just to check that transform key is valid and transformations are available
     check_available_transforms(parse_transform(argv.transform))
 
-    if argv.legacy_ir_generation and len(argv.transform) != 0:
-        raise Error("--legacy_ir_generation and --transform keys can not be used at the same time.")
-
     # For C++ frontends there are no specific Python installation requirements, check only generic ones
     if moc_front_end:
         ret_code = check_requirements()
@@ -434,13 +431,12 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
 
         return_code = "not executed"
         try:
-            if not argv.legacy_ir_generation:
-                from openvino.tools.mo.back.offline_transformations import apply_offline_transformations
-                apply_offline_transformations(orig_model_name, argv)
-                if "compress_fp16" in argv and argv.compress_fp16:
-                    # restore data_type cmd parameter
-                    argv.data_type = 'FP16'
-                return_code = 0
+            from openvino.tools.mo.back.offline_transformations import apply_offline_transformations
+            apply_offline_transformations(orig_model_name, argv)
+            if "compress_fp16" in argv and argv.compress_fp16:
+                # restore data_type cmd parameter
+                argv.data_type = 'FP16'
+            return_code = 0
         except Exception as e:
             return_code = "failed"
             log.error(e)
