@@ -143,7 +143,8 @@ P2Btype ov::batch_util::find_batch(const std::shared_ptr<ov::Model>& f) {
             for (const auto& output : curr_node->outputs()) {
                 // we do not need to walk through shape-of sub-graphs
                 for (const auto& t_input : output.get_target_inputs()) {
-                    if (ov::is_type<ov::opset1::ShapeOf>(t_input.get_node()) ||
+                    if (ov::is_type<ov::opset1::ConvertLike>(t_input.get_node()) ||
+                        ov::is_type<ov::opset1::ShapeOf>(t_input.get_node()) ||
                         ov::is_type<ov::opset3::ShapeOf>(t_input.get_node()))
                         continue;
                     nodes.push_back(t_input.get_node());
@@ -206,7 +207,7 @@ bool ov::batch_util::check_batch_tracks_through_all_the_nodes(const std::shared_
             all_outputs_has_batch &= name_stays;  // && others_are_static;
         }
         if (any_input_has_batch && !all_outputs_has_batch && !ov::is_type<ov::opset3::ShapeOf>(node) &&
-            !ov::is_type<ov::opset1::ShapeOf>(node)) {
+            !ov::is_type<ov::opset1::ShapeOf>(node) && !ov::is_type<ov::opset1::ConvertLike>(node)) {
             failed_to_propagate_batch = true;
             node->validate_and_infer_types();
         }
