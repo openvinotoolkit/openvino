@@ -132,14 +132,6 @@ private:
     void run(program& p) override;
 };
 
-class handle_permute : public base_pass {
-public:
-    handle_permute() : base_pass("handle_permute") {}
-
-private:
-    void run(program& p) override;
-};
-
 class mark_nodes : public base_pass {
 public:
     mark_nodes() : base_pass("analyzed_graph") {}

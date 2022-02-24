@@ -483,8 +483,6 @@ void program::pre_optimize_graph(bool is_internal) {
     // handle symmetric and asymmetric padding for input
     apply_opt_pass<handle_input_padding>();
 
-    apply_opt_pass<handle_permute>();
-
     processing_order.calculate_BFS_processing_order();  // this method makes sense only for OOOQ (out of order execution queue)
 
     apply_opt_pass<reverse_optional_nodes_outputs>();
