@@ -82,8 +82,8 @@ std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const n
             precisions_array{{ngraph::element::f16, ngraph::element::f32}});
     }
     // Example: register plugin specific transformation
-    passManager.register_pass<ngraph::pass::DecomposeDivideMatcher>();
-    passManager.register_pass<ngraph::pass::ReluReluFusionMatcher>();
+    passManager.register_pass<ov::pass::DecomposeDivideMatcher>();
+    passManager.register_pass<ov::pass::ReluReluFusionMatcher>();
     // Register any other transformations
     // ..
 
