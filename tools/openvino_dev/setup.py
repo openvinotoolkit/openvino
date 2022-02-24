@@ -215,7 +215,7 @@ setup(
     url=os.getenv('WHEEL_URL', 'https://docs.openvino.ai/latest/index.html'),
     download_url=os.getenv('WHEEL_DOWNLOAD_URL', 'https://github.com/openvinotoolkit/openvino/tags'),
     description=os.getenv('WHEEL_DESC', 'OpenVINO(TM) Development Tools'),
-    long_description=get_description(os.getenv('WHEEL_REQUIREMENTS', SCRIPT_DIR.parents[1] / 'docs/install_guides/pypi-openvino-dev.md')),
+    long_description=get_description(os.getenv('WHEEL_OVERVIEW', SCRIPT_DIR.parents[1] / 'docs/install_guides/pypi-openvino-dev.md')),
     long_description_content_type='text/markdown',
     classifiers=[
         'Programming Language :: Python :: 3',
