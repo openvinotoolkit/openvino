@@ -153,13 +153,11 @@ Framework-agnostic parameters:
                         original model is in FP32 and --data_type=FP16 is
                         specified, all model weights and biases are compressed
                         to FP16.
-  --disable_fusing      Turn off fusing of linear operations to Convolution
   --disable_resnet_optimization
-                        Turn off resnet optimization
+                        [DEPRECATED] Turn off resnet optimization
   --finegrain_fusing FINEGRAIN_FUSING
-                        Regex for layers/operations that won't be fused.
+                        [DEPRECATED] Regex for layers/operations that won't be fused.
                         Example: --finegrain_fusing Convolution1,.*Scale.*
-  --disable_gfusing     Turn off fusing of grouped convolutions
   --enable_concat_optimization
                         Turn on Concat optimization.
   --extensions EXTENSIONS
@@ -184,7 +182,7 @@ Framework-agnostic parameters:
                         to `Constant`). Changing model input shape using
                         the Inference Engine API in runtime may fail for such an IR.
   --disable_weights_compression
-                        Disable compression and store weights with original
+                        [DEPRECATED] Disable compression and store weights with original
                         precision.
   --progress            Enable model conversion progress display.
   --stream_output       Switch model conversion progress display to a
@@ -256,10 +254,6 @@ mo --input_model bvlc_alexnet.caffemodel --input data,rois --mean_values data[59
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with specified input layer, overridden input shape, scale 5, batch 8 and specified name of an output operation:
 ```sh
 mo --input_model bvlc_alexnet.caffemodel --input "data[1 3 224 224]" --output pool5 -s 5 -b 8 --output_dir <OUTPUT_MODEL_DIR>
-```
-Launch the Model Optimizer for the Caffe bvlc_alexnet model with disabled fusing for linear operations to Convolution and grouped convolutions:
-```sh
-mo --input_model bvlc_alexnet.caffemodel --disable_fusing --disable_gfusing --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with reversed input channels order between RGB and BGR, specified mean values to be used for the input image per channel and specified data type for input tensor values:
