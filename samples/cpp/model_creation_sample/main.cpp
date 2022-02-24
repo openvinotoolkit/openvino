@@ -21,7 +21,7 @@
 #include "samples/classification_results.h"
 #include "samples/slog.hpp"
 
-#include "ngraph_function_creation_sample.hpp"
+#include "model_creation_sample.hpp"
 // clang-format on
 
 constexpr auto N_TOP_RESULTS = 1;
@@ -214,10 +214,7 @@ std::shared_ptr<ov::Model> create_model(const std::string& path_to_weights) {
 }
 
 /**
- * @brief The entry point for inference engine automatic ov::Model
- * creation sample
- * @file ngraph_function_creation_sample/main.cpp
- * @example ngraph_function_creation_sample/main.cpp
+ * @brief The entry point for OpenVINO ov::Model creation sample
  */
 int main(int argc, char* argv[]) {
     try {

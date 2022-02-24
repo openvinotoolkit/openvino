@@ -166,7 +166,7 @@ To feed input data of a shape that is different from the model input shape, resh
 
 Once the input shape of IENetwork is set, call the `IECore.load_network` method to get an ExecutableNetwork object for inference with updated shapes.
 
-There are other approaches to reshape the model during the stage of IR generation or [nGraph function](https://docs.openvino.ai/latest/openvino_docs_nGraph_DG_PythonAPI.html#create_an_ngraph_function_from_a_graph) creation.
+There are other approaches to reshape the model during the stage of IR generation or [OpenVINO model](https://docs.openvino.ai/latest/openvino_docs_nGraph_DG_PythonAPI.html#create_an_ngraph_function_from_a_graph) creation.
 
 Practically, some models are not ready to be reshaped. In this case, a new input shape cannot be set with the Model Optimizer or the `IENetwork.reshape` method.
 
