@@ -508,7 +508,7 @@ bool GNAPlugin::TryToInitOutput(const std::string &portName, InferenceEngine::CN
     });
     if (irLayerAvatar != graphCompiler.dnnComponents.components.end()) {
         initOutput(irLayerAvatar->dnnComponent.orientation_out, irLayerAvatar->dnnComponent.num_bytes_per_output,
-                   irLayerAvatar->dnnComponent.num_rows_out, &irLayerAvatar->dnnComponent.ptr_outputs);
+                   irLayerAvatar->dnnComponent.GetNumberOfOutputs(), &irLayerAvatar->dnnComponent.ptr_outputs);
         return true;
     }
 

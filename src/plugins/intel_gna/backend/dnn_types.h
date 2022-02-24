@@ -280,6 +280,12 @@ struct intel_dnn_component_t {
     float output_scale_factor;
     float input_scale_factor;
     const char * original_layer_name = nullptr;
+    uint32_t GetNumberOfOutputs() const {
+        if (operation == intel_dnn_operation_t::kDnnMaxPoolOp) {
+            return op.maxpool.outCHW[0] * op.maxpool.outCHW[1] * op.maxpool.outCHW[2];
+        }
+        return num_rows_out;
+    }
 };
 
 struct intel_score_error_t {
