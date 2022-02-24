@@ -59,7 +59,7 @@ using DevicePriorityParams = std::tuple<
         ov::AnyMap              // Configuration key and its default value
 >;
 
-class OVClassCorrectConfigTest : public ::testing::Test, public ::testing::WithParamInterface<DevicePriorityParams> {
+class OVClassSetDevicePriorityConfigTest : public ::testing::Test, public ::testing::WithParamInterface<DevicePriorityParams> {
 protected:
     std::string deviceName;
     ov::AnyMap configuration;
@@ -373,15 +373,12 @@ TEST_P(OVClassSetModelPriorityConfigTest, SetConfigNoThrow) {
     EXPECT_EQ(value, ov::hint::Priority::HIGH);
 }
 
-TEST_P(OVClassCorrectConfigTest, SetConfigAndCheckGetConfigNoThrow) {
+TEST_P(OVClassSetDevicePriorityConfigTest, SetConfigAndCheckGetConfigNoThrow) {
     ov::Core ie = createCoreWithTemplate();
-    EXPECT_NO_THROW(ie.set_property(deviceName, configuration));
-    for (const auto& configItem : configuration) {
-        ov::Any param;
-        EXPECT_NO_THROW(param = ie.get_property(deviceName, configItem.first));
-        EXPECT_FALSE(param.empty());
-        EXPECT_EQ(param.as<std::string>(), configItem.second.as<std::string>());
-    }
+    std::string devicePriority;
+    OV_ASSERT_NO_THROW(ie.set_property(deviceName, configuration));
+    OV_ASSERT_NO_THROW(devicePriority = ie.get_property(deviceName, ov::device::priorities));
+    ASSERT_EQ(devicePriority, configuration[ov::device::priorities.name()].as<std::string>());
 }
 
 TEST_P(OVClassSetLogLevelConfigTest, SetConfigNoThrow) {

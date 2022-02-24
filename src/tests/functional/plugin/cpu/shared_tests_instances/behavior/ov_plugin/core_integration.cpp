@@ -81,14 +81,11 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values("MULTI", "AUTO"));
 
 const std::vector<ov::AnyMap> multiConfigs = {
-        {ov::device::priorities(CommonTestUtils::DEVICE_CPU)},
-        {ov::device::priorities(CommonTestUtils::DEVICE_CPU), ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)},
-        {ov::device::priorities(CommonTestUtils::DEVICE_CPU), ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
-        {ov::device::priorities(CommonTestUtils::DEVICE_CPU), ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}
 };
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassCorrectConfigTest, OVClassCorrectConfigTest,
+        smoke_OVClassSetDevicePriorityConfigTest, OVClassSetDevicePriorityConfigTest,
         ::testing::Combine(::testing::Values("MULTI", "AUTO"),
                            ::testing::ValuesIn(multiConfigs)));
 //
