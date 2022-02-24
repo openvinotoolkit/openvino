@@ -43,23 +43,9 @@ TEST_P(Basic_LSTM_S, CompareWithRefImpl_LowLatencyTransformation) {
 
     // Generate inputs
     GenerateInputs();
-    std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> referenceOutputs;
-    auto gna_mode = configuration.find("GNA_DEVICE_MODE");
-
-    if (gna_mode != configuration.end() && gna_mode->second != "GNA_SW_EXACT") {
-        functionRefs = ngraph::clone_function(*function);
-        LoadNetwork();
-        referenceOutputs = CalculateRefs();
-    } else {
-        // Calculate References for the network before transformation passes
-        referenceOutputs = CalculateRefsExact();
-
-        // Apply LowLatency and UnrollTensorIterator transformations
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::LowLatency2>(); // LowLatency enables UnrollTI
-        manager.run_passes(function);
-        LoadNetwork();
-    }
+    functionRefs = ngraph::clone_function(*function);
+    LoadNetwork();
+    auto referenceOutputs = CalculateRefs();
     auto states = inferRequest.QueryState();
     for (auto& state : states) {
         auto name = state.GetName();

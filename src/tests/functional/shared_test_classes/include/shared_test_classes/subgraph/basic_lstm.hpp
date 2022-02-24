@@ -46,7 +46,7 @@ protected:
     std::vector<float> hidden_memory_init;
     std::vector<float> cell_memory_init;
     void SetUp() override;
-    std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> CalculateRefsExact();
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override;
 };
 
 }  // namespace SubgraphTestsDefinitions
