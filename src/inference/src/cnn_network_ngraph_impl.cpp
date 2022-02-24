@@ -441,7 +441,7 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
 
     {
         shared_ptr<Function> specialized_ngraph_function = nullptr;
-        if (outputs_are_static || _new_api) {
+        if (outputs_are_static) {
             specialized_ngraph_function = _ngraph_function;
         } else {
             specialized_ngraph_function = ngraph::clone_function(*_ngraph_function);
