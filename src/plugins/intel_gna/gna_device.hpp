@@ -177,9 +177,18 @@ public:
         std::ostream & outStream,
         Gna2DeviceVersion targetDeviceVersion);
 
+    template <class T>
     void dumpTLVForDeviceVersion(const uint32_t modelId, std::ostream& outStream,
-        uint32_t input_size, uint32_t output_size,
-        float inSF, float outSF);
+        const T& inputsContainer, const T& outputsContainer) {
+        const auto compileTarget = GetCompileTarget();
+        ExportTlvModel(modelId,
+                       nGnaDeviceIndex,
+                       outStream,
+                       compileTarget,
+                       inputsContainer,
+                       outputsContainer);
+    }
+
 
     void free(void * ptr);
 

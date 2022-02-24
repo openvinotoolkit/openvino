@@ -13,6 +13,7 @@
 
 #include <gna2-tlv-writer.h>
 
+#include <numeric>
 #include <cstdint>
 #include <fstream>
 
@@ -93,14 +94,21 @@ Gna2DeviceVersion getTlvTargetFromCompileTarget(const std::string compileTarget)
     return target;
 }
 
+template <class T>
+void WriteAllEndpoints(std::ostream& outStream, const T container, bool isInput) {
+    const auto sfTlvType = isInput ? Gna2TlvTypeOVInputScaleFactor : Gna2TlvTypeOVOutputScaleFactor;
+    for (const auto& endpoint : container) {
+        auto tlvScaleFactor = GetFloatInTLV(sfTlvType, endpoint.scaleFactor);
+        outStream.write(tlvScaleFactor.data(), tlvScaleFactor.size());
+    }
+}
+
 void ExportTlvModel(uint32_t modelId,
     uint32_t deviceIndex,
     std::ostream& outStream,
     std::string compileTarget,
-    uint32_t input_size,
-    uint32_t output_size,
-    float inputSF,
-    float outputSF) {
+    const std::vector<GnaEndpoint>& allInputs,
+    const std::vector<GnaEndpoint>& allOutputs) {
     const auto deviceVersionToExport = getTlvTargetFromCompileTarget(compileTarget);
 
     uint32_t exportConfig;
@@ -175,6 +183,10 @@ void ExportTlvModel(uint32_t modelId,
     const auto gnaLibraryVersion = GNADeviceHelper::GetGnaLibraryVersion();
     const char* userData = nullptr;
     uint32_t userDataSize = 0;
+
+    const auto totalInputSize = GnaEndpoint::GetTotalByteSize(allInputs);
+    const auto totalOutputSize = GnaEndpoint::GetTotalByteSize(allOutputs);
+
     auto tlv_status = Gna2ExportTlv(
         deviceVersionToExport,
         gnaUserAllocator,
@@ -187,18 +199,16 @@ void ExportTlvModel(uint32_t modelId,
         (const char*)bufferStateRWData,
         sizeOfStateRWData,
         sizeOfScratchRWData,
-        input_size,
-        output_size,
+        totalInputSize,
+        totalOutputSize,
         gnaLibraryVersion.c_str(),
         userData,
         userDataSize);
 
     if (Gna2TlvStatusSuccess == tlv_status) {
         outStream.write(outTlv, outTlvSize);
-        auto tlvInSF = GetFloatInTLV(Gna2TlvTypeOVInputScaleFactor, inputSF);
-        auto tlvOutSF = GetFloatInTLV(Gna2TlvTypeOVOutputScaleFactor, outputSF);
-        outStream.write(tlvInSF.data(), tlvInSF.size());
-        outStream.write(tlvOutSF.data(), tlvOutSF.size());
+        WriteAllEndpoints(outStream, allInputs, true);
+        WriteAllEndpoints(outStream, allOutputs, false);
     }
 
     gnaUserFree(outTlv);

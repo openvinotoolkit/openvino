@@ -544,13 +544,6 @@ void GNADeviceHelper::dumpXnnForDeviceVersion(
     outStream.write(reinterpret_cast<const char*>(&sueHeader), sizeof(sueHeader));
 }
 
-void GNADeviceHelper::dumpTLVForDeviceVersion(const uint32_t modelId, std::ostream& outStream,
-    uint32_t input_size, uint32_t output_size,
-    float inSF, float outSF) {
-    const auto compileTarget = GetCompileTarget();
-    ExportTlvModel(modelId, nGnaDeviceIndex, outStream, compileTarget, input_size, output_size, inSF, outSF);
-}
-
 void GNADeviceHelper::createVirtualDevice(Gna2DeviceVersion devVersion, std::string purpose) {
     const auto status = Gna2DeviceCreateForExport(devVersion, &nGnaDeviceIndex);
     GNADeviceHelper::checkGna2Status(status, "Gna2DeviceCreateForExport(" + std::to_string(devVersion) + ")" + purpose);

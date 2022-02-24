@@ -39,6 +39,7 @@
 #include "gna_graph_patterns.hpp"
 #include "gna_tensor_tools.hpp"
 #include "gna_itt.hpp"
+#include "gna2_model_export_helper.hpp"
 
 #include <ngraph/pass/manager.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
@@ -1173,16 +1174,9 @@ void GNAPlugin::DumpXNNToFile() const {
         dumpStream.write(reinterpret_cast<char*>(&dump.header), sizeof(Gna2ModelSueCreekHeader));
         dumpStream.write(reinterpret_cast<char*>(dump.model.get()), dump.header.ModelSize);
     } else {
-        uint32_t input_size = 0;
-        uint32_t output_size = 0;
-        for (auto i : inputsDesc)
-            input_size += i.get_allocated_size();
-        for (auto o : outputsDesc)
-            output_size += o.get_required_size();
-        auto inSF = inputsDesc.begin()->scale_factor;
-        auto outSF = outputsDesc.front().scale_factor;
-        gnadevice->dumpTLVForDeviceVersion(modelId, dumpStream,
-            input_size, output_size, inSF, outSF);
+        const auto inputsForTlv = GnaEndpoint::CreateFromDescriptorContainer(inputsDesc);
+        const auto outputsForTlv = GnaEndpoint::CreateFromDescriptorContainer(outputsDesc);
+        gnadevice->dumpTLVForDeviceVersion(modelId, dumpStream, inputsForTlv, outputsForTlv);
     }
     gnadevice->releaseModel(modelId);
 }
