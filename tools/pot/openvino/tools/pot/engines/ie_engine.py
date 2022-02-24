@@ -411,7 +411,7 @@ class IEEngine(Engine):
         if all([len(item) == 2 for item in batch]):
             meta_data = [{}]*len(images)
         elif all([len(item) == 3 for item in batch]):
-            meta_data = [list(data[2]) for data in batch]
+            meta_data = [data[2] for data in batch]
         else:
             raise RuntimeError('Inconsistent data in the batch. '
                                'Some items contain meta data, and some do not.')
