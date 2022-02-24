@@ -16,7 +16,7 @@ $(document).ready(function () {
     function getChartOptions(title, displayLabels) {
         return {
             responsive: false,
-            maintainAspectRatio:false,
+            maintainAspectRatio: false,
             legend: { display: true, position: 'bottom' },
             title: {
                 display: true,
@@ -52,13 +52,11 @@ $(document).ready(function () {
         }
     }
 
-
     function getChartData(data) {
-
         function getDataset(data, col, label, color) {
             return {
                 label: label,
-                data: data.map(function(item) {
+                data: data.map(function (item) {
                     return item[col]
                 }),
                 backgroundColor: color,
@@ -66,7 +64,6 @@ $(document).ready(function () {
                 barThickness: 12
             }
         }
-
         return {
             labels: getLabels(data),
             datasets: [getDataset(data, 2, 'openvino', '#00C7FD'), getDataset(data, 3, 'TF', '#8F5DA2')]
@@ -78,7 +75,6 @@ $(document).ready(function () {
             var data = result.data;
             // remove col names
             data.shift(0);
-
             var chartName = data[1][0];
             var chartSlug = chartName.replace(')', '').replace(' (', '-');
             var graphContainer = $('<div>');
@@ -90,7 +86,6 @@ $(document).ready(function () {
             chartWrap.addClass('chart-wrap');
             chartWrap.addClass('container');
             chartContainer.append(chartWrap);
-            
             var chart = $('<div>');
             chart.addClass('chart');
             chart.addClass('col-md-12');
@@ -107,7 +102,6 @@ $(document).ready(function () {
                 data: getChartData(data),
                 options: getChartOptions(chartTitle, true)
             });
-
             chartContainer.append(container);
             currentChart.append(chartContainer);
         }
