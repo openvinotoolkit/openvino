@@ -1,4 +1,4 @@
-# OpenVINO™ Runtime API 2.0 Transition Guide {#openvino_2_0_transition_guide}
+# OpenVINO™ 2.0 Transition Guide {#openvino_2_0_transition_guide}
 
 @sphinxdirective
 
@@ -15,7 +15,7 @@
 
 ## Introduction
 
-The OpenVINO™ 2.0 introduced to simplify migration of user applications from the frameworks like TensorFlow, PyTorch, ONNX, etc to OpenVINO runtime and make the OpenVINO™ API more user-friendly. This includes changes in several OpenVINO components:
+The OpenVINO™ 2.0 is introduced to simplify migration of user applications from the frameworks like TensorFlow, PyTorch, ONNX, etc to OpenVINO runtime and make the OpenVINO™ API more user-friendly. This includes changes in several OpenVINO components:
 
 - Previous versions of Model Optimizer were allowed to change the original input format of framework models:
   - Applying input precision changes for some types of models. For example, neural langauge processing models with `I64` input are becoming to have `I32` input element type.
@@ -70,7 +70,7 @@ The table below demonstrates which behavior **old** or **new** is used depending
 
 
 | API  | IR v10  | IR v11  | ONNX file | Model created in code |
-|------|-----------------------------------|
+|------|---------|---------|-----------|-----------------------|
 |Inference Engine / ngraph APIs | Old || Old | Old | Old |
 |OpenVINO Runtime API 2.0 | Old | New | New | New |
 
