@@ -611,16 +611,14 @@ std::shared_ptr<ov::Model> generateBinaryEltwiseLogical(const std::shared_ptr<ov
 
 std::shared_ptr<ov::Model> generateBroadcast(const std::shared_ptr<ov::op::Op> &node) {
     const ov::Shape input_shape{};
-    const ov::Shape output_shape{5, 4, 3, 2};
-    const size_t output_size = output_shape.size();
-    const auto params = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
+    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {input_shape});
     const auto shape_const =
-        ngraph::builder::makeConstant<uint64_t>(ov::element::u64, {output_size}, output_shape);
+        ngraph::builder::makeConstant<uint64_t>(ov::element::u64, {4}, {5, 4, 3, 2});
     std::shared_ptr<ov::Node> broadcast;
     if (ov::is_type<ov::op::v1::Broadcast>(node)) {
-        broadcast = std::make_shared<ov::op::v1::Broadcast>(params, shape_const);
+        broadcast = std::make_shared<ov::op::v1::Broadcast>(params[0], shape_const);
     } else if (ov::is_type<ov::op::v3::Broadcast>(node)) {
-        broadcast = std::make_shared<ov::op::v3::Broadcast>(params, shape_const);
+        broadcast = std::make_shared<ov::op::v3::Broadcast>(params[0], shape_const);
     } else {
         return nullptr;
     }
