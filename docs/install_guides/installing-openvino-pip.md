@@ -37,5 +37,5 @@ For system requirements and more detailed steps, see <https://pypi.org/project/o
 
 - [Intel® Distribution of OpenVINO™ toolkit](https://software.intel.com/en-us/openvino-toolkit)
 - [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
-- [OpenVINO™ Runtime User Guide](../OV_Runtime_UG/OpenVINO_Runtime_User_Guide.md)
+- [OpenVINO™ Runtime User Guide](../OV_Runtime_UG/openvino_intro.md)
 - [Inference Engine Samples Overview](../OV_Runtime_UG/Samples_Overview.md)

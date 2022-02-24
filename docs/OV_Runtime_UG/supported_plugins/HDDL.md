@@ -1,4 +1,4 @@
-# HDDL Plugin {#openvino_docs_IE_DG_supported_plugins_HDDL}
+# HDDL device {#openvino_docs_OV_UG_supported_plugins_HDDL}
 
 ## Introducing the HDDL Plugin
 

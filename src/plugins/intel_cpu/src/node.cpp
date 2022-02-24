@@ -1263,11 +1263,12 @@ MKLDNNNode* MKLDNNNode::NodesFactory::create(const std::shared_ptr<ngraph::Node>
 }
 
 bool MKLDNNNode::canBePerformedAsScaleShift(const MKLDNNNode *parentNode) const {
-    size_t fusingPort = 0;
-    // @todo graph optimizer can provide parentNode as nullptr. Should be avoided
-    const size_t channelAxis = parentNode ? parentNode->getFusingAxis() : MKLDNNNode::getFusingAxis();
+    IE_ASSERT(parentNode);
 
-    for (size_t i = (parentNode == nullptr ? 1 : 0); i < getParentEdges().size(); i++) {
+    size_t fusingPort = 0;
+    const size_t channelAxis = parentNode->getFusingAxis();
+
+    for (size_t i = 0; i < getParentEdges().size(); i++) {
         MKLDNNNode *node = getParentEdgesAtPort(i)[0]->getParent().get();
         if (node == nullptr) {
             IE_THROW() << "Cannot get parent node for " << getName() << " on " << i << " port";
