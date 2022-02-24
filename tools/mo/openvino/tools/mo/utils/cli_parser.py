@@ -34,6 +34,13 @@ class DeprecatedStoreTrue(argparse.Action):
         setattr(namespace, self.dest, True)
 
 
+class DeprecatedOptionCommon(argparse.Action):
+    def __call__(self, parser, args, values, option_string=None):
+       dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(option_string)
+       log.error(dep_msg, extra={'is_warning': True})
+       setattr(args, self.dest, values)
+
+
 class IgnoredAction(argparse.Action):
     def __init__(self, nargs=0, **kw):
         super().__init__(nargs=nargs, **kw)
@@ -371,23 +378,21 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'Available transformations: "LowLatency2", "MakeStateful"',
                               default="")
     common_group.add_argument('--disable_fusing',
-                              help='Turn off fusing of linear operations to Convolution',
-                              action=DeprecatedStoreTrue)
+                              help=argparse.SUPPRESS,
+                              action=IgnoredAction)
     common_group.add_argument('--disable_resnet_optimization',
-                              help='Turn off resnet optimization',
-                              action='store_true')
+                              help='[DEPRECATED] Turn off resnet optimization',
+                              action=DeprecatedStoreTrue, default=False)
     common_group.add_argument('--finegrain_fusing',
-                              help='Regex for layers/operations that won\'t be fused. ' +
-                                   'Example: --finegrain_fusing Convolution1,.*Scale.*')
+                              help='[DEPRECATED] Regex for layers/operations that won\'t be fused. ' +
+                                   'Example: --finegrain_fusing Convolution1,.*Scale.*',
+                              action=DeprecatedOptionCommon)
     common_group.add_argument('--disable_gfusing',
-                              help='Turn off fusing of grouped convolutions',
-                              action=DeprecatedStoreTrue)
+                              help=argparse.SUPPRESS,
+                              action=IgnoredAction)
     common_group.add_argument('--enable_concat_optimization',
-                              help='Turn on Concat optimization.',
-                              action='store_true')
-    common_group.add_argument('--move_to_preprocess',
-                              help='Move mean values to IR preprocess section',
-                              action=DeprecatedStoreTrue)
+                              help='[DEPRECATED] Turn on Concat optimization.',
+                              action=DeprecatedStoreTrue, default=False)
     # we use CanonicalizeDirCheckExistenceAction instead of readable_dirs to handle empty strings
     common_group.add_argument("--extensions",
                               help="Directory or a comma separated list of directories with extensions. To disable all "
@@ -417,19 +422,14 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'It will be DEPRECATED in future releases. '
                                    'Use --input option to specify a value for freezing.',
                               default=None)
-    common_group.add_argument('--generate_deprecated_IR_V7',
-                              help=argparse.SUPPRESS, action=IgnoredAction, default=False)
     common_group.add_argument('--static_shape',
                               help='Enables IR generation for fixed input shape (folding `ShapeOf` operations and '
                                    'shape-calculating sub-graphs to `Constant`). Changing model input shape using '
                                    'the Inference Engine API in runtime may fail for such an IR.',
                               action='store_true', default=False)
-    common_group.add_argument('--keep_shape_ops',
-                              help=argparse.SUPPRESS,
-                              action=IgnoredAction, default=True)
     common_group.add_argument('--disable_weights_compression',
-                              help='Disable compression and store weights with original precision.',
-                              action='store_true', default=False)
+                              help='[DEPRECATED] Disable compression and store weights with original precision.',
+                              action=DeprecatedStoreTrue, default=False)
     common_group.add_argument('--progress',
                               help='Enable model conversion progress display.',
                               action='store_true', default=False)
@@ -442,8 +442,6 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'from the current directory, as absolute path or as a'
                                    'relative path from the mo root directory',
                               action=CanonicalizeTransformationPathCheckExistenceAction)
-    common_group.add_argument('--legacy_ir_generation',
-                              help=argparse.SUPPRESS, action=DeprecatedStoreTrue, default=False)
     common_group.add_argument("--use_new_frontend",
                               help="Force the usage of new frontend API for model processing",
                               action='store_true', default=False)
@@ -470,12 +468,13 @@ def get_common_cli_options(model_name):
     d['scale_values'] = ['- Scale values', lambda x: x if x else 'Not specified']
     d['scale'] = ['- Scale factor', lambda x: x if x else 'Not specified']
     d['data_type'] = ['- Precision of IR', lambda x: 'FP32' if x == 'float' else 'FP16' if x == 'half' else x]
-    d['disable_fusing'] = ['- Enable fusing', lambda x: not x]
-    d['disable_gfusing'] = ['- Enable grouped convolutions fusing', lambda x: not x]
-    d['move_to_preprocess'] = '- Move mean values to preprocess section'
+    d['transform'] = ['- User transformations', lambda x: x if x else 'Not specified']
+    d['extension'] = ['- Extensions', lambda x: x if x else 'Not specified']
     d['reverse_input_channels'] = '- Reverse input channels'
-    d['use_legacy_frontend'] = '- Use legacy API for model processing'
+    d['static_shapes'] = '- Enable IR generation for fixed input shape'
     d['transformations_config'] = '- Use the transformations config file'
+    d['use_legacy_frontend'] = '- Force the usage of legacy API for model processing'
+    d['use_new_frontend'] = '- Force the usage of new frontend API for model processing'
     return d
 
 
@@ -657,7 +656,7 @@ def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
     tf_group.add_argument('--disable_nhwc_to_nchw',
                           help='[DEPRECATED] Disables the default translation from NHWC to NCHW. Since 2022.1 this option '
                                'is deprecated and used only to maintain backward compatibility with previous releases.',
-                          action='store_true')
+                          action=DeprecatedStoreTrue, default=False)
     return parser
 
 
