@@ -137,9 +137,7 @@ bool ov_replace_node(std::shared_ptr<ov::Node> node) {
 }
 // ! [ov:replace_node]
 
-// ! [ov:manual_replace]
 bool ov_manual_replace_node(std::shared_ptr<ov::Node> node) {
-// Step 1. Verify that node has opset8::Negative type
 auto neg = std::dynamic_pointer_cast<ov::opset8::Negative>(node);
 if (!neg) {
     return false;
