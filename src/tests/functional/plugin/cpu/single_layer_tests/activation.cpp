@@ -107,7 +107,7 @@ protected:
         auto constantsValue = activationTypeAndConstValue.second;
 
         inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrecision);
-        outType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(outPrecision);
+        outType[0] = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(outPrecision);
         selectedType = getPrimitiveType() + "_" + netPrecision.name();
 
         init_input_shapes(inputShapes);

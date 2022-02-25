@@ -59,7 +59,7 @@ protected:
         std::tie(inputShapes, netPrecision, axis) = this->GetParam();
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        inType = outType = ngPrc;
+        inType = outType[0] = ngPrc;
 
         selectedType = std::string("unknown_") + netPrecision.name();
         init_input_shapes(inputShapes);

@@ -78,7 +78,7 @@ void EltwiseLayerTest::SetUp() {
     CommonTestUtils::OpType opType;
     ngraph::helpers::EltwiseTypes eltwiseType;
     Config additional_config;
-    std::tie(shapes, eltwiseType, secondaryInputType, opType, netType, inType, outType, targetDevice, configuration) =
+    std::tie(shapes, eltwiseType, secondaryInputType, opType, netType, inType, outType[0], targetDevice, configuration) =
             this->GetParam();
 
     init_input_shapes(shapes);

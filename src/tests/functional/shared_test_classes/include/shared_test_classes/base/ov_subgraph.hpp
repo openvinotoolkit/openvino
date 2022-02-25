@@ -47,7 +47,8 @@ protected:
     std::map<std::shared_ptr<ov::Node>, ov::Tensor> inputs;
     std::vector<ov::PartialShape> inputDynamicShapes;
     std::vector<std::vector<ov::Shape>> targetStaticShapes;
-    ElementType inType = ov::element::undefined, outType = ov::element::undefined;
+    ElementType inType = ov::element::undefined;
+    std::vector<ElementType> outType = std::vector<ElementType>(1, ov::element::undefined);
 
     ov::CompiledModel compiledModel;
     ov::InferRequest inferRequest;

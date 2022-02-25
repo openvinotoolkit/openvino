@@ -184,9 +184,15 @@ void SubgraphBaseTest::configure_model() {
     // configure output precision
     {
         auto results = function->get_results();
+        size_t gapSize = results.size() - outType.size();
+        if (gapSize) {
+            for (size_t i = 0; i < gapSize; i++) {
+                outType.push_back(outType[0]);
+            }
+        }
         for (size_t i = 0; i < results.size(); i++) {
-            if (outType != ov::element::Type_t::undefined) {
-                p.output(i).tensor().set_element_type(outType);
+            if (outType[i] != ov::element::Type_t::undefined) {
+                p.output(i).tensor().set_element_type(outType[i]);
             }
         }
     }
@@ -291,8 +297,8 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
 
     const auto& outputs = functionToProcess->outputs();
     for (size_t i = 0; i < outputs.size(); ++i) {
-        if (outType != ElementType::undefined && outType != outputs[i].get_element_type()) {
-            p.output(i).tensor().set_element_type(outType);
+        if (outType[i] != ElementType::undefined && outType[i] != outputs[i].get_element_type()) {
+            p.output(i).tensor().set_element_type(outType[i]);
         }
     }
 

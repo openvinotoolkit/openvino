@@ -74,7 +74,7 @@ protected:
         convSpecificParams convParams;
         InputShape inputShape;
         auto netType = ElementType::undefined;
-        std::tie(convParams, netType, inType, outType, inputShape, targetDevice) = this->GetParam();
+        std::tie(convParams, netType, inType, outType[0], inputShape, targetDevice) = this->GetParam();
 
         init_input_shapes({inputShape});
 

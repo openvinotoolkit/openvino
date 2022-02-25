@@ -148,9 +148,15 @@ public:
         }
         {
             auto results = function->get_results();
+            size_t gapSize = results.size() - outType.size();
+            if (gapSize) {
+                for (size_t i = 0; i < gapSize; i++) {
+                    outType.push_back(outType[0]);
+                }
+            }
             for (size_t i = 0; i < results.size(); i++) {
-                if (outType != ov::element::Type_t::undefined) {
-                    p.output(i).tensor().set_element_type(outType);
+                if (outType[i] != ov::element::Type_t::undefined) {
+                    p.output(i).tensor().set_element_type(outType[i]);
                 }
             }
         }
@@ -214,10 +220,10 @@ protected:
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, outPadding) = basicParamsSet;
 
         if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
-            inType = outType = prec = ElementType::bf16;
+            inType = outType[0] = prec = ElementType::bf16;
             rel_threshold = 1e-2f;
         } else {
-            inType = outType = prec;
+            inType = outType[0] = prec;
         }
 
         selectedType = makeSelectedTypeStr(selectedType, prec);

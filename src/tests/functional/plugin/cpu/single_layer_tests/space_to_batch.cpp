@@ -61,7 +61,7 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         auto ngPrec = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        inType = outType = ngPrec;
+        inType = outType[0] = ngPrec;
         const std::vector<InputShape> inputShapesVec{inputShapes};
         init_input_shapes(inputShapesVec);
 

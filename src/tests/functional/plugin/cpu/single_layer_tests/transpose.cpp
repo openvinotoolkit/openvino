@@ -58,7 +58,7 @@ protected:
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
         inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        outType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        outType[0] = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
