@@ -6,7 +6,7 @@ Inference Engine API has preprocessing capabilities which are built on top of mo
 - Preprocessing stored in `InferenceEngine::CNNNetwork` was lost during saving back to IR file format.
 - Preprocessing operations are executed on CPU processors for most of the inference plugins. So, instead of occupying of acceleators, CPU processor is also busy with inference tasks.
 
-OpenVINO Runtime API 2.0 introduces [new way of adding preprocessing operations to the model](../preprocessing_overview.md) - each preprocessing or postprocessing operation is inserted directly to the model and compiled together with inference part of the model via a single ov::Core::compile_model call.
+OpenVINO Runtime API 2.0 introduces [new way of adding preprocessing operations to the model](../preprocessing_overview.md) - each preprocessing or postprocessing operation is integrated directly to the model and compiled together with inference part of the model via a single `ov::Core::compile_model` call.
 Having preprocessing operations as a part of official OpenVINO opset allows to read and serialize preprocessed model to the IR file format.
 
 In OpenVINO Runtime 2.0 the following new operations are introduced to be a part of OpenVINO `opset8`:
