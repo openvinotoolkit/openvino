@@ -22,11 +22,11 @@
 #include <complex>
 #include <cstring>
 #include <functional>
+#include <ngraph/runtime/reference/utils/fft_common.hpp>
 #include <utility>
 #include <vector>
 
 #include "ngraph/runtime/reference/fft.hpp"
-#include <ngraph/runtime/reference/utils/fft_common.hpp>
 #include "ngraph/shape.hpp"
 
 using namespace ngraph;

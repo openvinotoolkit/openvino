@@ -59,7 +59,7 @@ int64_t offset_from_coords_and_strides(const std::vector<int64_t>& coords, const
     }
     return offset;
 }
-}  // namespace nms_common
+}  // namespace fft_common
 }  // namespace reference
 }  // namespace runtime
 }  // namespace ngraph
