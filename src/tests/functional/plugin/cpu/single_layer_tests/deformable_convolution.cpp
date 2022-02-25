@@ -187,7 +187,7 @@ protected:
 TEST_P(DefConvLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    CheckPluginRelatedResults(executableNetwork, "DeformableConvolution");
+    CheckPluginRelatedResults(compiledModel, "DeformableConvolution");
 }
 
 namespace {

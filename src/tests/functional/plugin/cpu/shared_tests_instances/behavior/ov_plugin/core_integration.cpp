@@ -72,6 +72,21 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassGetAvailableDevices, OVClassGetAvailableDevices,
         ::testing::Values("CPU"));
 
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassSetModelPriorityConfigTest, OVClassSetModelPriorityConfigTest,
+        ::testing::Values("MULTI", "AUTO"));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassSetLogLevelConfigTest, OVClassSetLogLevelConfigTest,
+        ::testing::Values("MULTI", "AUTO"));
+
+const std::vector<ov::AnyMap> multiConfigs = {
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}};
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassSetDevicePriorityConfigTest, OVClassSetDevicePriorityConfigTest,
+        ::testing::Combine(::testing::Values("MULTI", "AUTO"),
+                           ::testing::ValuesIn(multiConfigs)));
 //
 // IE Class GetConfig
 //
@@ -111,12 +126,12 @@ TEST(OVClassBasicTest, smoke_SetConfigStreamsNum) {
     setGetProperty(value, num_streams);
     ASSERT_EQ(num_streams, value);
 
-    num_streams = ov::NumStreams::NUMA;
+    num_streams = ov::streams::NUMA;
 
     setGetProperty(value, num_streams);
     ASSERT_GT(value, 0); // value has been configured automatically
 
-    num_streams = ov::NumStreams::AUTO;
+    num_streams = ov::streams::AUTO;
 
     setGetProperty(value, num_streams);
     ASSERT_GT(value, 0); // value has been configured automatically

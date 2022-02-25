@@ -237,7 +237,7 @@ void prepare_primitive_fusing::fuse_activations(program &p) {
             if (input.is_type<eltwise>()) {
                 bool is_quantization = true;
                 for (auto& in : input.get_dependencies()) {
-                    if (in->get_output_layout().data_type != data_types::u8 && in->get_output_layout().data_type != data_types::i8)
+                    if (!data_type_traits::is_i8_u8(in->get_output_layout().data_type))
                         is_quantization = false;
                 }
 
@@ -531,10 +531,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             auto in_dt = node.get_dependency(0).get_output_layout().data_type;
 
             // TODO: check if that's enough for correct work
-            if (in_dt == data_types::u8 || in_dt == data_types::i8)
-                return true;
-
-            return false;
+            return data_type_traits::is_i8_u8(in_dt);
         };
 
         auto bin_conv_supports_eltw_fusings = [](binary_convolution_node& conv_node) -> bool {
@@ -559,10 +556,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         auto fc_supports_fusings = [](fully_connected_node& node) -> bool {
             auto in_dt = node.get_dependency(0).get_output_layout().data_type;
 
-            if (in_dt == data_types::u8 || in_dt == data_types::i8)
-                return true;
-
-            return false;
+            return data_type_traits::is_i8_u8(in_dt);
         };
 
         auto gemm_supports_fusings = [](gemm_node& node) -> bool {
@@ -576,17 +570,12 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 data_type_traits::is_floating_point(in1_dt))
                 does_support_fusings = true;
 
-            if ((in0_dt == data_types::u8 || in0_dt == data_types::i8) &&
-                (in1_dt == data_types::u8 || in1_dt == data_types::i8) &&
-                in0_fmt == format::bfyx && in1_fmt == format::bfyx) {
+            if (data_type_traits::is_i8_u8(in0_dt) && in0_fmt == format::bfyx &&
+                data_type_traits::is_i8_u8(in1_dt) && in1_fmt == format::bfyx) {
                 if (node.inputs_count() == 3) {
                     auto in2_dt = node.get_dependency(2).get_output_layout().data_type;
                     auto in2_fmt = node.get_dependency(2).get_output_layout().format;
-                    if ((in2_dt == data_types::u8 || in2_dt == data_types::i8) &&
-                        in2_fmt == format::bfyx)
-                        does_support_fusings = true;
-                    else
-                        does_support_fusings = false;
+                    does_support_fusings = data_type_traits::is_i8_u8(in2_dt) && in2_fmt == format::bfyx ? true : false;
                 } else {
                     does_support_fusings = true;
                 }
@@ -597,20 +586,12 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
         auto mvn_supports_fusings = [](mvn_node& node) -> bool {
             auto in_dt = node.get_dependency(0).get_output_layout().data_type;
-
-            if (in_dt == data_types::u8 || in_dt == data_types::i8)
-                return true;
-
-            return false;
+            return data_type_traits::is_i8_u8(in_dt);
         };
 
         auto pooling_supports_fusings = [](pooling_node& node) -> bool {
             auto pooling_mode = node.get_primitive()->mode;
-
-            if (pooling_mode != cldnn::pooling_mode::max_with_argmax)
-                return true;
-
-            return false;
+            return pooling_mode != cldnn::pooling_mode::max_with_argmax;
         };
 
         auto dts_supports_fusings = [](depth_to_space_node& node) -> bool {
@@ -709,7 +690,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (activation_node.get_dependencies().size() >= 3)
                 return;
 
-            if (!input_data_supports_fusings(input_data, activation_node.id()))
+            if (!input_data_supports_fusings(input_data, activation_node.id()) || input_data.get_dependencies().empty())
                 return;
 
             bool should_fuse = input_data.is_type<binary_convolution>();
@@ -726,9 +707,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input_data.is_type<mvn>();
 
-            should_fuse |= input_data.is_type<normalize>() &&
-                          (input_data.get_dependency(0).get_output_layout().data_type == data_types::u8 ||
-                           input_data.get_dependency(0).get_output_layout().data_type == data_types::i8);
+            should_fuse |= input_data.is_type<normalize>() && data_type_traits::is_i8_u8(input_data.get_dependency(0).get_output_layout().data_type);
 
             should_fuse |= input_data.is_type<deconvolution>();
 
@@ -778,7 +757,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 CLDNN_ERROR_MESSAGE(scale_node.id(), "scale has invalid count of dependencies");
 
             auto& input_data = scale_node.get_dependency(0);
-            if (input_data.get_users().size() != 1)
+            if (input_data.get_users().size() != 1 || input_data.get_dependencies().empty())
                 return;
 
             bool should_fuse = input_data.is_type<binary_convolution>() &&
@@ -796,9 +775,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input_data.is_type<mvn>() && mvn_supports_fusings(input_data.as<mvn>());
 
-            should_fuse |= input_data.is_type<normalize>() &&
-                          (input_data.get_dependency(0).get_output_layout().data_type == data_types::u8 ||
-                           input_data.get_dependency(0).get_output_layout().data_type == data_types::i8);
+            should_fuse |= input_data.is_type<normalize>() && data_type_traits::is_i8_u8(input_data.get_dependency(0).get_output_layout().data_type);
 
             should_fuse |= input_data.is_type<deconvolution>();
 
@@ -842,17 +819,21 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
         auto fuse_quantize_f = [&](quantize_node& quantize_node) {
             auto& input_data = quantize_node.get_dependency(0);
+            if (input_data.get_users().size() != 1 || input_data.get_dependencies().empty())
+                return;
+
             auto& input_lo = quantize_node.get_dependency(1);
             auto& input_hi = quantize_node.get_dependency(2);
 
             auto out_layout = quantize_node.get_output_layout();
             auto in_layout = input_data.get_output_layout();
-
-            if (input_data.get_users().size() != 1)
-                return;
+            auto out_dt = out_layout.data_type;
+            auto in_dt = input_data.get_dependency(0).get_output_layout().data_type;
+            auto out_dt_is_i8_u8 = data_type_traits::is_i8_u8(out_dt);
+            auto in_dt_is_i8_u8 = data_type_traits::is_i8_u8(in_dt);
 
             bool should_fuse = input_data.is_type<binary_convolution>() &&
-                               ((out_layout.data_type == data_types::bin &&
+                               ((out_dt == data_types::bin &&
                                quantize_node.get_dependencies().size() == 5 &&
                                ((in_layout.size.feature[0] == input_lo.get_output_layout().size.feature[0] &&
                                  in_layout.size.feature[0] == input_hi.get_output_layout().size.feature[0]) ||
@@ -865,33 +846,31 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input_data.is_type<convolution>() && conv_supports_fusings(input_data.as<convolution>()) &&
                            quantize_node.get_scale_shift_opt() &&
-                           ((out_layout.data_type == data_types::f32 || out_layout.data_type == data_types::f16)  ||
-                            input_data.get_output_layout().format == format::b_fs_yx_fsv16 ||
-                            input_data.get_output_layout().format == format::bs_fs_yx_bsv32_fsv16 ||
+                           ((out_dt == data_types::f32 || out_dt == data_types::f16)  ||
+                            in_layout.format == format::b_fs_yx_fsv16 ||
+                            in_layout.format == format::bs_fs_yx_bsv32_fsv16 ||
                             (_lo.should_select_b_fs_yx_fsv16_layout(input_data.as<convolution>(), input_data.get_dependency(1).get_output_layout()) &&
                              !is_grouped_conv(input_data.as<convolution>())) ||
                            // Avoid fusing to b_fs_yx_fsv16 (and similar) kernels
                            expected_format == cldnn::format::bs_fs_yx_bsv32_fsv16 /* Allow quantization fusing for onednn */ ||
-                           ((input_data.get_dependency(0).get_output_layout().data_type == data_types::u8 ||
-                           input_data.get_dependency(0).get_output_layout().data_type == data_types::i8) &&
-                           (out_layout.data_type == data_types::u8 || out_layout.data_type == data_types::i8)));
+                           (in_dt_is_i8_u8 && out_dt_is_i8_u8));
 
             should_fuse |= input_data.is_type<pooling>() && quantize_node.get_scale_shift_opt() &&
                            pooling_supports_fusings(input_data.as<pooling>());
 
             should_fuse |= input_data.is_type<fully_connected>() && fc_supports_fusings(input_data.as<fully_connected>()) &&
                            quantize_node.get_scale_shift_opt() &&
-                           (out_layout.data_type == data_types::u8 || out_layout.data_type == data_types::i8);
+                           out_dt_is_i8_u8;
 
             should_fuse |= input_data.is_type<lrn>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<gemm>() && gemm_supports_fusings(input_data.as<gemm>()) &&
                            quantize_node.get_scale_shift_opt() &&
-                           (out_layout.data_type == data_types::u8 || out_layout.data_type == data_types::i8);
+                           out_dt_is_i8_u8;
 
             should_fuse |= input_data.is_type<resample>() &&
                            quantize_node.get_scale_shift_opt() &&
-                           (out_layout.data_type == data_types::u8 || out_layout.data_type == data_types::i8);
+                           out_dt_is_i8_u8;
 
             should_fuse |= input_data.is_type<mvn>() && mvn_supports_fusings(input_data.as<mvn>()) &&
                            quantize_node.get_scale_shift_opt();
@@ -899,8 +878,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             should_fuse |= input_data.is_type<activation>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<normalize>() && quantize_node.get_scale_shift_opt() &&
-                          (input_data.get_dependency(0).get_output_layout().data_type == data_types::u8 ||
-                           input_data.get_dependency(0).get_output_layout().data_type == data_types::i8);
+                           in_dt_is_i8_u8;
 
             should_fuse |= input_data.is_type<deconvolution>() && quantize_node.get_scale_shift_opt();
 
@@ -1098,7 +1076,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                     (!(user->is_type<eltwise>() && user->get_primitive()->input.size() == 2 &&
                                         (std::find(supported_modes.begin(), supported_modes.end(),
                                         (user->as<eltwise>()).get_primitive()->mode) != supported_modes.end())) &&
-                                    !(user->is_type<activation>() && user->get_primitive()->input.size() == 1)));
+                                    !(user->is_type<activation>() && user->get_dependency(0).get_users().size() == 1)));
                     });
 
                     if (invalid_user_iter != curr_users.end()) {
@@ -1197,8 +1175,7 @@ void prepare_primitive_fusing::optimize_fused_ops(program& p) {
                 bool can_skip = activation_node.get_primitive()->activation_function == activation_func::relu &&
                                 activation_node.get_primitive()->additional_params.a == 0.0f &&
                                 fp.deps.empty() &&
-                                (quantize_node.get_output_layout().data_type == data_types::u8 ||
-                                 quantize_node.get_output_layout().data_type == data_types::i8) &&
+                                data_type_traits::is_i8_u8(quantize_node.get_output_layout().data_type) &&
                                 quantize_node.get_scale_shift_opt() &&
                                 !quantize_node.get_need_pre_shift();
 

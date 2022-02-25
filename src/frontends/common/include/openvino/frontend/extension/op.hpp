@@ -91,12 +91,22 @@ public:
 
     void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override {
         auto p_value = m_attr_values_map.find(name);
+
         if (p_value != m_attr_values_map.end()) {
             adapter.set_as_any(p_value->second);
         } else {
             auto p_name = m_attr_names_map.find(name);
             const std::string& target_name = p_name != m_attr_names_map.end() ? p_name->second : name;
-            adapter.set_as_any(m_context.get_attribute_as_any(target_name));
+            try {
+                adapter.set_as_any(m_context.get_attribute_as_any(target_name));
+            } catch (::ov::AssertFailure& ex) {
+                OPENVINO_ASSERT(false,
+                                ex.what(),
+                                "\nValue for attribute \"",
+                                target_name,
+                                "\" is not set or mapping between "
+                                "framework and openvino node attributes is incorrect.");
+            }
         }
     }
 
@@ -142,7 +152,7 @@ OpExtensionBase<BaseConversionType, void>::OpExtensionBase(const std::string& ov
                                                            const std::map<std::string, ov::Any>& attr_values_map)
     : BaseConversionType(fw_type_name,
                          OpConversionFunction(
-                             [&]() -> std::shared_ptr<ov::Node> {
+                             [=]() -> std::shared_ptr<ov::Node> {
                                  auto split = [](const std::string& s, const std::string& delimiter) {
                                      size_t pos_start = 0, pos_end, delim_len = delimiter.length();
                                      std::string token;
@@ -194,7 +204,7 @@ OpExtensionBase<BaseConversionType, void>::OpExtensionBase(const std::string& ov
                                  } else {
                                      FRONT_END_GENERAL_CHECK(
                                          false,
-                                         "Invalid OpenVINO operation format, one of the next is expected:"
+                                         "Invalid OpenVINO operation format, one of the next is expected: \n"
                                          "opsetN::OpName or opsetN.OpName or OpName. Provided operation format: ",
                                          ov_type_name);
                                  }
@@ -206,7 +216,8 @@ OpExtensionBase<BaseConversionType, void>::OpExtensionBase(const std::string& ov
                                                              "name ",
                                                              op_name);
                                  }
-                                 return opset.create(op_name)->shared_from_this();
+
+                                 return std::shared_ptr<ngraph::Node>(opset.create(op_name));
                              },
                              attr_names_map,
                              attr_values_map)) {}
