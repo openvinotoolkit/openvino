@@ -24,4 +24,8 @@ addIeTargetTest(
         ADD_CPPLINT
 )
 
+if(TARGET openvino_ir_frontend)
+    add_dependencies(${TARGET_NAME} openvino_ir_frontend)
+endif()
+
 ie_faster_build(${TARGET_NAME} UNITY)
