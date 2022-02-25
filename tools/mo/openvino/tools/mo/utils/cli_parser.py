@@ -376,10 +376,10 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'Available transformations: "LowLatency2", "MakeStateful"',
                               default="")
     common_group.add_argument('--disable_fusing',
-                              help='[DEPRECATED] Turn off fusing of linear operations to Convolution',
+                              help='[DEPRECATED] Turn off fusing of linear operations to Convolution.',
                               action=DeprecatedStoreTrue)
     common_group.add_argument('--disable_resnet_optimization',
-                              help='[DEPRECATED] Turn off resnet optimization',
+                              help='[DEPRECATED] Turn off ResNet optimization.',
                               action=DeprecatedStoreTrue, default=False)
     common_group.add_argument('--finegrain_fusing',
                               help='[DEPRECATED] Regex for layers/operations that won\'t be fused. ' +

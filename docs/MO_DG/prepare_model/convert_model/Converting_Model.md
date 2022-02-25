@@ -153,9 +153,9 @@ Framework-agnostic parameters:
                         original model is in FP32 and --data_type=FP16 is
                         specified, all model weights and biases are compressed
                         to FP16.
-  --disable_fusing      [DEPRECATED] Turn off fusing of linear operations to Convolution
+  --disable_fusing      [DEPRECATED] Turn off fusing of linear operations to Convolution.
   --disable_resnet_optimization
-                        [DEPRECATED] Turn off resnet optimization
+                        [DEPRECATED] Turn off ResNet optimization.
   --finegrain_fusing FINEGRAIN_FUSING
                         [DEPRECATED] Regex for layers/operations that won't be fused.
                         Example: --finegrain_fusing Convolution1,.*Scale.*
