@@ -27,7 +27,7 @@ void regmodule_graph_util(py::module m) {
                 :param index: Output node.
                 :type index: openvino.runtime.Output
                 :return: If it succeeded to calculate both bounds and
-                         they are the same returns Constant operation
+                         they are the same, returns Constant operation
                          from the resulting bound, otherwise Null.
                 :rtype: openvino.runtime.op.Constant or openvino.runtime.Node
             )");
