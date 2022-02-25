@@ -104,7 +104,14 @@ void str_to_set_of_strings(const std::string& value, std::set<std::string>& res)
     while (getline(ss, field, ',')) {
         if (field.empty())
             IE_THROW() << "Cannot get vector of parameters! \"" << value << "\" is incorrect";
-        res.insert(res.end(), field);
+
+        // trim leading and trailing whitespaces
+        auto strBegin = field.find_first_not_of(" ");
+        if (strBegin == std::string::npos)
+            IE_THROW() << "Cannot get vector of parameters! \"" << value << "\" is incorrect";
+        auto strRange = field.find_last_not_of(" ") - strBegin + 1;
+
+        res.insert(field.substr(strBegin, strRange));
     }
 }
 

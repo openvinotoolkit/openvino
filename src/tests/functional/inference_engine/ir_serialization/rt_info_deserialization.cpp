@@ -472,7 +472,7 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         <layer name="Round" id="1" type="Round" version="opset8">
             <data mode="half_to_even"/>
             <rt_info>
-                <attribute name="fused_names" version="0" value="Round 1,Round 2"/>
+                <attribute name="fused_names" version="0" value="Round 1  ,  Round 2  "/>
             </rt_info>
             <input>
                 <port id="1" precision="FP32">
