@@ -18,32 +18,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-std::vector<std::regex> get_regexp_by_available_frontends() {
-    std::vector<std::regex> result;
-#ifdef ENABLE_OV_IR_FRONTEND
-    result.push_back(std::regex(R"(.*\.xml)"));
-#endif
-#ifdef ENABLE_OV_PADDLE_FRONTEND
-    result.push_back(std::regex(R"(.*\.pdpd)"));
-#endif
-#ifdef ENABLE_OV_ONNX_FRONTEND
-    result.push_back(std::regex(R"(.*\.onnx)"));
-#endif
-#ifdef ENABLE_OV_TF_FRONTEND
-    result.push_back(std::regex(R"(.*\.onnx)"));
-#endif
-    return result;
-}
-
-std::vector<SubgraphsDumper::Model> findModelsInDirs(const std::vector<std::string> &dirs,
-                                                     const std::vector<std::regex>& model_patterns) {
+std::vector<SubgraphsDumper::Model> findModelsInDirs(const std::vector<std::string> &dirs) {
     std::vector<std::string> input_folder_content;
     for (const auto &dir : dirs) {
         if (!CommonTestUtils::directoryExists(dir)) {
             std::string msg = "Input directory (" + dir + ") doesn't not exist!";
             throw std::runtime_error(msg);
         }
-        const auto content = CommonTestUtils::getFileListByPatternRecursive(dirs, model_patterns);
+        const auto content = CommonTestUtils::getFileListByPatternRecursive(dirs, std::regex(R"(.*\.xml)"));
         input_folder_content.insert(input_folder_content.end(), content.begin(), content.end());
     }
     std::vector<SubgraphsDumper::Model> models;
@@ -111,10 +93,8 @@ int main(int argc, char *argv[]) {
 
     std::vector<std::string> local_cache_dirs = CommonTestUtils::splitStringByDelimiter(FLAGS_local_cache);
     std::vector<std::string> dirs = CommonTestUtils::splitStringByDelimiter(FLAGS_input_folders);
-    std::vector<std::regex> model_pattern = get_regexp_by_available_frontends();
-    // {}
-    auto cachedOps = findModelsInDirs(local_cache_dirs, {std::regex(R"(.*\.xml)")});
-    auto models = findModelsInDirs(dirs, {std::regex(R"(.*\.xml)")});
+    auto cachedOps = findModelsInDirs(local_cache_dirs);
+    auto models = findModelsInDirs(dirs);
 
     auto cache = SubgraphsDumper::OPCache::make_cache();
     if (!FLAGS_local_cache.empty()) {
