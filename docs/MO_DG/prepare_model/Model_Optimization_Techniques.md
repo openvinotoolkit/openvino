@@ -10,7 +10,7 @@ Many convolution neural networks includes `BatchNormalization` and `ScaleShift` 
 
 ### Usage
 
-In the Model Optimizer, this optimization is turned on by default.
+In the Model Optimizer, this optimization is turned on by default. To disable it, you can pass `--disable_fusing` parameter to the Model Optimizer.
 
 ### Optimization Description
 

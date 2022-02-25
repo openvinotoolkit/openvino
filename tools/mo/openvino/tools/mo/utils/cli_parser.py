@@ -376,8 +376,8 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'Available transformations: "LowLatency2", "MakeStateful"',
                               default="")
     common_group.add_argument('--disable_fusing',
-                              help=argparse.SUPPRESS,
-                              action=IgnoredAction)
+                              help='[DEPRECATED] Turn off fusing of linear operations to Convolution',
+                              action=DeprecatedStoreTrue)
     common_group.add_argument('--disable_resnet_optimization',
                               help='[DEPRECATED] Turn off resnet optimization',
                               action=DeprecatedStoreTrue, default=False)
@@ -466,6 +466,7 @@ def get_common_cli_options(model_name):
     d['scale_values'] = ['- Scale values', lambda x: x if x else 'Not specified']
     d['scale'] = ['- Scale factor', lambda x: x if x else 'Not specified']
     d['data_type'] = ['- Precision of IR', lambda x: 'FP32' if x == 'float' else 'FP16' if x == 'half' else x]
+    d['disable_fusing'] = ['- Enable fusing', lambda x: not x]
     d['transform'] = ['- User transformations', lambda x: x if x else 'Not specified']
     d['extension'] = ['- Extensions', lambda x: x if x else 'Not specified']
     d['reverse_input_channels'] = '- Reverse input channels'
