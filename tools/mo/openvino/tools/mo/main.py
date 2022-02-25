@@ -388,7 +388,7 @@ def prepare_ir(argv : argparse.Namespace):
                 for extension in argv.extensions.split(','):
                     moc_front_end.add_extension(extension)
             ngraph_function = moc_pipeline(argv, moc_front_end)
-            return graph, ngraph_function, moc_front_end
+            return graph, ngraph_function
         else: # apply fallback
             reasons_message = ", ".join(fallback_reasons)
             load_extensions(argv, *list(deduce_legacy_frontend_by_namespace(argv)))
@@ -402,7 +402,7 @@ def prepare_ir(argv : argparse.Namespace):
     t.send_event("mo", "conversion_method", "mo_legacy")
     graph = unified_pipeline(argv)
 
-    return graph, ngraph_function, moc_front_end
+    return graph, ngraph_function
 
 
 def emit_ir(graph: Graph, argv: argparse.Namespace):

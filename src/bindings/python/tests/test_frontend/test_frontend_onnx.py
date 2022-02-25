@@ -29,6 +29,18 @@ def create_onnx_model():
     return make_model(graph, producer_name="ngraph ONNX Importer")
 
 
+def create_onnx_model_2():
+    relu = onnx.helper.make_node("Relu", inputs=["in"], outputs=["out"])
+    input_tensors = [
+        make_tensor_value_info("in", onnx.TensorProto.FLOAT, (1, 2)),
+    ]
+    output_tensors = [
+        make_tensor_value_info("out", onnx.TensorProto.FLOAT, (1, 2)),
+    ]
+    graph = make_graph([relu], "test_graph", input_tensors, output_tensors)
+    return make_model(graph, producer_name="ngraph ONNX Importer")
+
+
 def create_onnx_model_with_subgraphs():
     A = onnx.helper.make_tensor_value_info("A", onnx.TensorProto.FLOAT, [3])
     B = onnx.helper.make_tensor_value_info("B", onnx.TensorProto.FLOAT, [3])
@@ -140,6 +152,7 @@ def run_function(function, *inputs, expected):
 # This is because destroy of FrontEndManager will unload all plugins, no objects shall exist after this
 fem = FrontEndManager()
 onnx_model_filename = "model.onnx"
+onnx_model_2_filename = "model2.onnx"
 onnx_model_with_custom_attributes_filename = "model_custom_attributes.onnx"
 onnx_model_with_subgraphs_filename = "model_subgraphs.onnx"
 onnx_model_for_op_extension_test = "model_op_extension.onnx"
@@ -148,6 +161,7 @@ ONNX_FRONTEND_NAME = "onnx"
 
 def setup_module():
     onnx.save_model(create_onnx_model(), onnx_model_filename)
+    onnx.save_model(create_onnx_model_2(), onnx_model_2_filename)
     onnx.save_model(create_onnx_model_with_custom_attributes(),
                     onnx_model_with_custom_attributes_filename)
     onnx.save_model(create_onnx_model_with_subgraphs(), onnx_model_with_subgraphs_filename)
@@ -156,6 +170,7 @@ def setup_module():
 
 def teardown_module():
     os.remove(onnx_model_filename)
+    os.remove(onnx_model_2_filename)
     os.remove(onnx_model_with_custom_attributes_filename)
     os.remove(onnx_model_with_subgraphs_filename)
     os.remove(onnx_model_for_op_extension_test)
@@ -593,3 +608,47 @@ def test_op_extension_via_frontend_extension_map_attributes():
 
     model = ie.read_model(onnx_model_for_op_extension_test)
     assert model
+
+
+def get_builtin_extensions_path():
+    import openvino.frontend
+    python_frontend_path = openvino.frontend.__path__[0]
+    lib_folder_pos = python_frontend_path.rfind("lib/")
+    if lib_folder_pos != -1:
+        lib_folder_path = python_frontend_path[:lib_folder_pos + 4]
+        for file in os.listdir(lib_folder_path):
+            if file == "libtest_builtin_extensions_1.so" or file == "libtest_builtin_extensions_1.dll":
+                return os.path.join(lib_folder_path, file)
+    return ""
+
+
+@pytest.mark.skipif(len(get_builtin_extensions_path()) == 0,
+                    reason="The extension library path was not found")
+def test_so_extension_via_frontend_convert_input_model():
+    skip_if_onnx_frontend_is_disabled()
+
+    def load_model():
+        fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+        fe.add_extension(get_builtin_extensions_path())
+        in_model = fe.load(onnx_model_2_filename)
+        return fe.convert(in_model)
+
+    model = load_model()  # model has longer lifetime than frontend
+
+    assert any(op.get_type_name() == "Swish" for op in model.get_ops())
+    assert all(op.get_type_name() != "Relu" for op in model.get_ops())
+
+
+@pytest.mark.skipif(len(get_builtin_extensions_path()) == 0,
+                    reason="The extension library path was not found")
+def test_so_extension_via_frontend_decode_input_model():
+    skip_if_onnx_frontend_is_disabled()
+
+    def load_decoded_model():
+        fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+        fe.add_extension(get_builtin_extensions_path())
+        in_model = fe.load(onnx_model_2_filename)
+        return fe.decode(in_model)
+
+    decoded_model = load_decoded_model()  # decoded model has longer lifetime than frontend
+    assert decoded_model
