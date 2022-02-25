@@ -52,42 +52,43 @@ OutputVector scan(const Node& node) {
     auto sum_out = body_outputs[0];
     auto scan_out = body_outputs[1];
 
-    // // Infer body inputs' element type based on carried dependencies
-    for (size_t i = 0; i < init_i.size(); i++) { // sum_in at 0, by init
-        body_inputs[i]->set_element_type(init_i[i].get_element_type());
-        body_inputs[i]->set_partial_shape(init_i[i].get_partial_shape());
-    }
+    // // // Infer body inputs' element type based on carried dependencies
+    // for (size_t i = 0; i < init_i.size(); i++) { // sum_in at 0, by init
+    //     body_inputs[i]->set_element_type(init_i[i].get_element_type());
+    //     body_inputs[i]->set_partial_shape(init_i[i].get_partial_shape());
+    // }
+
+    const int64_t concat_axis = scan_input_axes[0];
+    const auto concat_axis_const = ngraph::op::Constant::create(ngraph::element::i64, {1}, {concat_axis});
+
+    initial = std::make_shared<default_opset::Unsqueeze>(initial, concat_axis_const);
+
+    PartialShape unqueezed_shape{sum_in->get_partial_shape()};
+    unqueezed_shape.insert(unqueezed_shape.begin() + concat_axis, 1);
+    sum_in->set_partial_shape(unqueezed_shape);
+    next->set_partial_shape(unqueezed_shape);
 
     //  sequence_length = scan_1.shape[axis_1];
-    // auto sequence_length = scan_i[0].get_shape()[scan_input_axes[0]]; // TODO: Update to dynamic PartialShape
+    auto sequence_length = scan_i[0].get_shape()[scan_input_axes[0]]; // TODO: Update to dynamic PartialShape
     // auto sequence_length = x.get_shape()[scan_input_axes[0]]; // TODO: Update to dynamic PartialShape
-    auto sequence_length = 3; // Test value
+    // auto sequence_length = 3; // Test value
 
     Output<ngraph::Node> trip_count = ngraph::op::Constant::create(ngraph::element::i64, {1}, {sequence_length});
     Output<ngraph::Node> termination_cond = ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
 
-    // OV Concat op related
-    const int64_t concat_axis = 0;
-    const auto concat_axis_const = ngraph::op::Constant::create(ngraph::element::i64, {1}, {concat_axis});
-    // add dimension along which scan outputs will be concatenated
-    for (size_t i = 1; i < body_outputs.size(); ++i) {
-        body_outputs[i] = std::make_shared<default_opset::Unsqueeze>(body_outputs[i], concat_axis_const);
-    }
+    // // Loop output get_concatenated_slices related
+    // const int64_t concat_axis = 0;
+    // const auto concat_axis_const = ngraph::op::Constant::create(ngraph::element::i64, {1}, {concat_axis});
+    // // add dimension along which scan outputs will be concatenated
+    // for (size_t i = 1; i < body_outputs.size(); ++i) {
+    //     body_outputs[i] = std::make_shared<default_opset::Unsqueeze>(body_outputs[i], concat_axis_const);
+    // }
 
-    scan_out = std::make_shared<default_opset::Unsqueeze>(scan_out, concat_axis_const);
+    // scan_out = std::make_shared<default_opset::Unsqueeze>(scan_out, concat_axis_const);
 
     auto body_condition = std::make_shared<default_opset::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
     auto current_iteration = std::make_shared<default_opset::Parameter>(element::i64, Shape{});
 
-    //// Trying Slice op, (poc usage instead of set_sliced_input)
-    // const auto start = std::make_shared<default_opset::Unsqueeze>(current_iteration, concat_axis_const);
-    // const auto step = ngraph::op::Constant::create(ngraph::element::i64, {1}, {1});
-    // const auto stop = std::make_shared<default_opset::Add>(current_iteration, step);
-    // const auto axis = ngraph::op::Constant::create(ngraph::element::i64, {1}, {0});
-
-    // // auto sliced_next_param = std::make_shared<default_opset::Parameter>(element::i64, Shape{2});
-    // auto sliced_next = std::make_shared<default_opset::Slice>(x, start, stop, step, axis);
-    // auto squeezed_slice = std::make_shared<default_opset::Squeeze>(sliced_next, axis);
 
     ////
     // ParameterVector body_params{sum_in, next};
@@ -107,24 +108,18 @@ OutputVector scan(const Node& node) {
     loop->set_special_body_ports(spec_ports);
     loop->set_function(body);
 
-    OutputVector final_values;
+    // Back edge from body output to body input
     loop->set_merged_input(sum_in, initial, sum_out);
 
-    // Slice of x input per iteration, (RuntimeError: Could not create a primitive descriptor for a reorder primitive)
-    // Without, set_sliced_input all results equal 0
+    // Slice of x input per iteration
     loop->set_sliced_input(next, x, 0, 1, 1, -1, scan_input_axes[0]);
 
-    //// another tests
-    // loop->set_merged_input(next, squeezed_slice, squeezed_slice);
-    // loop->set_invariant_input(next, squeezed_slice);
-    // loop->set_invariant_input(next, x);
+    // auto y = loop->get_iter_value(sum_out, -1); // y final value
 
-    final_values.push_back(loop->get_iter_value(sum_out, -1));
+    auto y = std::make_shared<default_opset::Squeeze>(loop->get_iter_value(sum_out, -1), concat_axis_const); // y final value
+    auto z = loop->get_concatenated_slices(scan_out, 0, 1, 1, -1, concat_axis);
 
     loop->validate_and_infer_types();
-
-    auto y = loop->get_iter_value(sum_out, -1); // y final value
-    auto z = loop->get_concatenated_slices(scan_out, 0, 1, 1, -1, concat_axis);
 
     return OutputVector{y, z};
 }
