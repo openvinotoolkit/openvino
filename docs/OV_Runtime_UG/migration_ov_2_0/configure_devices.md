@@ -12,7 +12,7 @@ static constexpr Property<std::string> full_name{"FULL_DEVICE_NAME"};
 
 Which can be extracted from an inference device as:
 
-@snippet ov_properties_migration.cpp get_core_property
+@snippet ov_properties_migration.cpp core_get_ro_property
 
 The snippets below show how to migrate from Inference Engine device configuration to OpenVINO Runtime API 2.0 steps.
 
