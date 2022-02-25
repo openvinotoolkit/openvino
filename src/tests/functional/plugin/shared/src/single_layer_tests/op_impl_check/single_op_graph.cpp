@@ -14,6 +14,10 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::Op> &node) {
     return nullptr;
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Abs> &node) {
+    return nullptr;
+}
+
 std::shared_ptr<ov::Model> generateBinaryEltwise(const std::shared_ptr<ov::op::Op> &node) {
     const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{1, 2},
                                                                               {1, 2}});
