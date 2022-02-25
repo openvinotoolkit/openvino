@@ -244,6 +244,12 @@
             }
         },
         {
+            "type": "Sqrt",
+            "quantization": {
+                "activations": "q8_tn"
+            }
+        },
+        {
             "type": "AvgPool",
             "quantization": {
                 "activations": "q8_ch"

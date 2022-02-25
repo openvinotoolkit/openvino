@@ -134,7 +134,7 @@ class OutlierChannelSplitting(Algorithm):
                 nodes = self.get_absorbing_nodes(p_node)
             if nodes is not None:
                 nodes.append(node)
-        elif node.type in ['Interpolate', 'Power', 'ReduceMean']:
+        elif node.type in ['Interpolate', 'Power', 'Sqrt', 'ReduceMean']:
             p_node = nu.get_node_input(node, 0)
             nodes = self.get_absorbing_nodes(p_node)
         elif node.type == 'Const':

@@ -112,7 +112,7 @@ class InsertFakeQuantize(BackReplacementPattern):
 
     @staticmethod
     def quantize_only_input(node: Node):
-        if node.type in ['Interpolate', 'Power', 'ReduceMean', 'NormalizeL2',
+        if node.type in ['Interpolate', 'Power', 'Sqrt', 'ReduceMean', 'NormalizeL2',
                          'Assign', 'PReLU', 'ReLU', 'Sigmoid', 'Tanh', 'Clamp', 'MVN']:
             return True
         # ScaleSift case, FQ only for input

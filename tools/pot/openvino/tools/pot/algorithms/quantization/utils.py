@@ -339,7 +339,7 @@ def get_stat_name_by_config(config, stat_type):
 
 
 def get_ignored_operations(model):
-    operation = {"transformer": [{"type": "Add"}, {"type": "Power"},
+    operation = {"transformer": [{"type": "Add"}, {"type": "Power"}, {"type": "Sqrt"},
                                  {"type": "Squeeze"}, {"type": "Multiply"},
                                  {"type": "Subtract"}, {"type": "ReduceMean"},
                                  {"type": "SquaredDifference"}, {"type": "MVN"}]}

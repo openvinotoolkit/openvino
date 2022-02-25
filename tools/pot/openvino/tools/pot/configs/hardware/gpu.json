@@ -180,6 +180,12 @@
             }
         },
         {
+            "type": "Sqrt",
+            "quantization": {
+                "activations": "q8_a"
+            }
+        },
+        {
             "type": "AvgPool",
             "quantization": {
                 "activations": "q8_a"

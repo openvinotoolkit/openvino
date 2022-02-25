@@ -68,6 +68,12 @@
             }
         },
         {
+            "type": "Sqrt",
+            "quantization": {
+                "activations": "q32_a"
+            }
+        },
+        {
             "type": "AvgPool",
             "quantization": {
                 "activations": "q16_a"
