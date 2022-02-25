@@ -468,9 +468,9 @@ def get_common_cli_options(model_name):
     d['data_type'] = ['- Precision of IR', lambda x: 'FP32' if x == 'float' else 'FP16' if x == 'half' else x]
     d['disable_fusing'] = ['- Enable fusing', lambda x: not x]
     d['transform'] = ['- User transformations', lambda x: x if x else 'Not specified']
-    d['extension'] = ['- Extensions', lambda x: x if x else 'Not specified']
+    d['extensions'] = ['- Extensions', lambda x: x if x else 'Not specified']
     d['reverse_input_channels'] = '- Reverse input channels'
-    d['static_shapes'] = '- Enable IR generation for fixed input shape'
+    d['static_shape'] = '- Enable IR generation for fixed input shape'
     d['transformations_config'] = '- Use the transformations config file'
     d['use_legacy_frontend'] = '- Force the usage of legacy API for model processing'
     d['use_new_frontend'] = '- Force the usage of new frontend API for model processing'
