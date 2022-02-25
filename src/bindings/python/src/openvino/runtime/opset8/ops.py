@@ -62,7 +62,7 @@ def deformable_convolution(
     :param bilinear_interpolation_pad: The flag that determines the mode of bilinear interpolation
                                                execution.
     :param name: The optional new name for output node.
-    returns New node performing deformable convolution operation.
+    :return: New node performing deformable convolution operation.
     """
     if mask is None:
         inputs = as_nodes(data, offsets, filters)
@@ -94,7 +94,7 @@ def adaptive_avg_pool(
 
     :param data: The list of input nodes
     :param output_shape: the shape of spatial dimentions after operation
-    @return: The new node performing AdaptiveAvgPool operation on the data
+    :return: The new node performing AdaptiveAvgPool operation on the data
     """
     inputs = as_nodes(data, output_shape)
     return _get_node_factory_opset8().create("AdaptiveAvgPool", inputs)
@@ -111,7 +111,7 @@ def adaptive_max_pool(
     :param data: The list of input nodes
     :param output_shape: the shape of spatial dimentions after operation
     :param index_element_type: Type of indices output.
-    @return: The new node performing AdaptiveMaxPool operation on the data
+    :return: The new node performing AdaptiveMaxPool operation on the data
     """
     inputs = as_nodes(data, output_shape)
 
@@ -158,7 +158,7 @@ def multiclass_nms(
     :param background_class: Specifies the background class id, -1 meaning to keep all classes
     :param nms_eta: Specifies eta parameter for adpative NMS, in close range [0, 1.0]
     :param normalized: Specifies whether boxes are normalized or not
-    @return: The new node which performs MuticlassNms
+    :return: The new node which performs MuticlassNms
     """
     inputs = as_nodes(boxes, scores)
 
@@ -218,7 +218,7 @@ def matrix_nms(
     :param post_threshold: Specifies threshold to filter out boxes with low confidence score
                            after decaying
     :param normalized: Specifies whether boxes are normalized or not
-    @return: The new node which performs MatrixNms
+    :return: The new node which performs MatrixNms
     """
     inputs = as_nodes(boxes, scores)
 
@@ -253,7 +253,7 @@ def gather(
     indicate reverse indexing from the end
     :param axis:         axis along which elements are gathered
     :param batch_dims:   number of batch dimensions
-    @return:             The new node which performs Gather
+    :return:             The new node which performs Gather
     """
     inputs = as_nodes(data, indices, axis)
     attributes = {
@@ -296,7 +296,7 @@ def max_pool(
                                  starting at the provided axis. Defaults to 0.
     :param  name:                The optional name for the created output node.
 
-    returns   The new node performing max pooling operation.
+    :return:   The new node performing max pooling operation.
     """
     if auto_pad is None:
         auto_pad = "explicit"
@@ -335,7 +335,7 @@ def random_uniform(
     'i64', 'i32', 'f64', 'f32', 'f16', 'bf16'.
     :param global_seed: Specifies global seed value. Required to be a positive integer or 0.
     :param op_seed: Specifies operational seed value. Required to be a positive integer or 0.
-    returns The new node which performs generation of random values from uniform distribution.
+    :return: The new node which performs generation of random values from uniform distribution.
     """
     inputs = as_nodes(output_shape, min_val, max_val)
 
@@ -370,7 +370,7 @@ def slice(
     :param  step: The node providing step values.
     :param  axes: The optional node providing axes to slice, default [0, 1, ..., len(start)-1].
     :param  name: The optional name for the created output node.
-    returns The new node performing Slice operation.
+    :return: The new node performing Slice operation.
     """
     if axes is None:
         inputs = as_nodes(data, start, stop, step)
@@ -392,7 +392,7 @@ def gather_nd(
     :param data:       N-D tensor with data for gathering
     :param indices:    K-D tensor of tuples with indices by which data is gathered
     :param batch_dims: Scalar value of batch dimensions
-    @return: The new node which performs GatherND
+    :return: The new node which performs GatherND
     """
     inputs = as_nodes(data, indices)
 
@@ -413,7 +413,7 @@ def prior_box(
     :param  image_shape:  Shape of image to which prior boxes are scaled.
     :param  attrs:        The dictionary containing key, value pairs for attributes.
     :param  name:         Optional name for the output node.
-    returns Node representing prior box operation.
+    :return: Node representing prior box operation.
     Available attributes are:
     * min_size                      The minimum box size (in pixels).
                                     Range of values: positive floating point numbers
@@ -524,7 +524,7 @@ def i420_to_bgr(
     :param  arg_u: The node providing U plane data. Required for separate planes.
     :param  arg_v: The node providing V plane data. Required for separate planes.
     :param  name: The optional name for the created output node.
-    returns The new node performing I420toBGR operation.
+    :return: The new node performing I420toBGR operation.
     """
     if arg_u is None and arg_v is None:
         inputs = as_nodes(arg)
@@ -551,7 +551,7 @@ def i420_to_rgb(
     :param  arg_u: The node providing U plane data. Required for separate planes.
     :param  arg_v: The node providing V plane data. Required for separate planes.
     :param  name: The optional name for the created output node.
-    returns The new node performing I420toRGB operation.
+    :return: The new node performing I420toRGB operation.
     """
     if arg_u is None and arg_v is None:
         inputs = as_nodes(arg)
@@ -576,7 +576,7 @@ def nv12_to_bgr(
     :param  arg: The node providing single or Y plane data.
     :param  arg_uv: The node providing UV plane data. Required for separate planes.
     :param  name: The optional name for the created output node.
-    returns The new node performing NV12toBGR operation.
+    :return: The new node performing NV12toBGR operation.
     """
     if arg_uv is None:
         inputs = as_nodes(arg)
@@ -597,7 +597,7 @@ def nv12_to_rgb(
     :param  arg: The node providing single or Y plane data.
     :param  arg_uv: The node providing UV plane data. Required for separate planes.
     :param  name: The optional name for the created output node.
-    returns The new node performing NV12toRGB operation.
+    :return: The new node performing NV12toRGB operation.
     """
     if arg_uv is None:
         inputs = as_nodes(arg)
@@ -626,7 +626,7 @@ def detection_output(
     :param  aux_class_preds:    The 2D input tensor with additional class predictions information.
     :param  aux_box_preds:      The 2D input tensor with additional box predictions information.
     :param  name:               Optional name for the output node.
-    returns Node representing DetectionOutput operation.
+    :return: Node representing DetectionOutput operation.
      Available attributes are:
     * background_label_id   The background label id.
                             Range of values: integer value
@@ -751,6 +751,6 @@ def softmax(data: NodeInput, axis: int, name: Optional[str] = None) -> Node:
     :param data: The tensor providing input data.
     :param axis: An axis along which Softmax should be calculated. Can be positive or negative.
     :param name: Optional name for the node.
-    returns The new node with softmax operation applied on each element.
+    :return: The new node with softmax operation applied on each element.
     """
     return _get_node_factory_opset8().create("Softmax", [as_node(data)], {"axis": axis})

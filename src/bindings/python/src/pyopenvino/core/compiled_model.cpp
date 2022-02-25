@@ -53,11 +53,11 @@ void regclass_CompiledModel(py::module m) {
         py::arg("inputs"),
         R"(
             Infers specified input(s) in synchronous mode.
-            Blocks all methods of CompiledModel while request is running.
+            Blocks all methods of CompiledModel while the request is running.
 
             Method creates new temporary InferRequest and run inference on it.
-            It is advised to use dedicated InferRequest class for performance,
-            optimizing workflows and creating advanced pipelines.
+            It is advised to use a dedicated InferRequest class for performance,
+            optimizing workflows, and creating advanced pipelines.
 
             :param inputs: Data to set on input tensors.
             :type inputs: Dict[Union[int, str, openvino.runtime.ConstOutput], openvino.runtime.Tensor]
@@ -108,10 +108,10 @@ void regclass_CompiledModel(py::module m) {
         R"(
             Exports the compiled model to bytes/output stream.
 
-            Advanced version of `export_model`. It utilizes, streams from standard
+            Advanced version of `export_model`. It utilizes, streams from the standard
             Python library `io`.
 
-            Function performs flushing of the stream, writes to it and then rewinds
+            Function performs flushing of the stream, writes to it, and then rewinds
             the stream to the beginning (using seek(0)).
 
             :param model_stream: A stream object to which the model will be serialized.
@@ -168,12 +168,12 @@ void regclass_CompiledModel(py::module m) {
             R"(
                 Gets runtime model information from a device.
 
-                This object (returned model) represents the internal device specific model
-                which is optimized for particular accelerator. It contains device specific nodes,
-                runtime information and can be used only to understand how the source model
-                is optimized and which kernels, element types and layouts are selected.
+                This object (returned model) represents the internal device-specific model
+                which is optimized for the particular accelerator. It contains device-specific nodes,
+                runtime information, and can be used only to understand how the source model
+                is optimized and which kernels, element types, and layouts are selected.
 
-                :return: Model containing Executable Graph information.
+                :return: Model, containing Executable Graph information.
                 :rtype: openvino.runtime.Model
             )");
 
@@ -201,7 +201,7 @@ void regclass_CompiledModel(py::module m) {
             py::arg("index"),
             R"(
                 Gets input of a compiled model identified by an index.
-                If an input with given index is not found, this method throws an exception.
+                If the input with given index is not found, this method throws an exception.
 
                 :param index: An input index.
                 :type index: int
@@ -214,9 +214,9 @@ void regclass_CompiledModel(py::module m) {
             py::arg("tensor_name"),
             R"(
                 Gets input of a compiled model identified by a tensor_name.
-                If an input with given tensor name is not found, this method throws an exception.
+                If the input with given tensor name is not found, this method throws an exception.
 
-                :param tensor_name: An input tensor's name.
+                :param tensor_name: An input tensor name.
                 :type tensor_name: str
                 :return: A compiled model input.
                 :rtype: openvino.runtime.ConstOutput
@@ -235,7 +235,7 @@ void regclass_CompiledModel(py::module m) {
             (ov::Output<const ov::Node>(ov::CompiledModel::*)() const) & ov::CompiledModel::output,
             R"(
                 Gets a single output of a compiled model.
-                If a model has more than one output, this method throws an exception.
+                If the model has more than one output, this method throws an exception.
 
                 :return: A compiled model output.
                 :rtype: openvino.runtime.ConstOutput
@@ -246,7 +246,7 @@ void regclass_CompiledModel(py::module m) {
             py::arg("index"),
             R"(
                 Gets output of a compiled model identified by an index.
-                If an output with given index is not found, this method throws an exception.
+                If the output with given index is not found, this method throws an exception.
 
                 :param index: An output index.
                 :type index: int
@@ -259,9 +259,9 @@ void regclass_CompiledModel(py::module m) {
             py::arg("tensor_name"),
             R"(
                 Gets output of a compiled model identified by a tensor_name.
-                If an output with given tensor name is not found, this method throws an exception.
+                If the output with given tensor name is not found, this method throws an exception.
 
-                :param tensor_name: An output tensor's name.
+                :param tensor_name: An output tensor name.
                 :type tensor_name: str
                 :return: A compiled model output.
                 :rtype: openvino.runtime.ConstOutput

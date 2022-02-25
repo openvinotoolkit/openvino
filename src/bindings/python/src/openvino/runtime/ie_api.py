@@ -132,7 +132,7 @@ class InferRequest(InferRequestBase):
 
         :param inputs: Data to be set on input tensors.
         :type inputs: Union[Dict[keys, values], List[values]], optional
-        :param userdata: Any data that will be passed inside callback call.
+        :param userdata: Any data that will be passed inside the callback.
         :type userdata: Any
         """
         super().start_async(
@@ -164,8 +164,8 @@ class CompiledModel(CompiledModelBase):
         Blocks all methods of CompiledModel while request is running.
 
         Method creates new temporary InferRequest and run inference on it.
-        It is advised to use dedicated InferRequest class for performance,
-        optimizing workflows and creating advanced pipelines.
+        It is advised to use a dedicated InferRequest class for performance,
+        optimizing workflows, and creating advanced pipelines.
 
         The allowed types of keys in the `inputs` dictionary are:
 
@@ -188,7 +188,10 @@ class CompiledModel(CompiledModelBase):
         )
 
     def __call__(self, inputs: Union[dict, list] = None) -> dict:
-        """Callable infer wrapper for CompiledModel. Look at `infer_new_request` for reference."""
+        """Callable infer wrapper for CompiledModel.
+
+        Take a look at `infer_new_request` for reference.
+        """
         return self.infer_new_request(inputs)
 
 
@@ -245,7 +248,7 @@ class Core(CoreBase):
     """Core class represents OpenVINO runtime Core entity.
 
     User applications can create several Core class instances, but in this
-    case the underlying plugins are created multiple times and not shared
+    case, the underlying plugins are created multiple times and not shared
     between several Core instances. The recommended way is to have a single
     Core instance per application.
     """

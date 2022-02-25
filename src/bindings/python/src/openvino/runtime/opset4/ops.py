@@ -59,7 +59,7 @@ def ctc_loss(
     :param preprocess_collapse_repeated:  Flag for preprocessing labels before loss calculation.
     :param ctc_merge_repeated:            Flag for merging repeated characters in a potential alignment.
     :param unique:                        Flag to find unique elements in a target.
-    returns The new node which performs CTCLoss
+    :return: The new node which performs CTCLoss
     """
     if blank_index is not None:
         inputs = as_nodes(logits, logit_length, labels, label_length, blank_index)
@@ -99,7 +99,7 @@ def non_max_suppression(
     :param sort_result_descending: Flag that specifies whenever it is necessary to sort selected
                                    boxes across batches or not.
     :param output_type: Output element type.
-    returns The new node which performs NonMaxSuppression
+    :return: The new node which performs NonMaxSuppression
     """
     if max_output_boxes_per_class is None:
         max_output_boxes_per_class = make_constant_node(0, np.int64)
@@ -123,7 +123,7 @@ def softplus(data: NodeInput, name: Optional[str] = None) -> Node:
     """Apply SoftPlus operation on each element of input tensor.
 
     :param data: The tensor providing input data.
-    returns The new node with SoftPlus operation applied on each element.
+    :return: The new node with SoftPlus operation applied on each element.
     """
     return _get_node_factory_opset4().create("SoftPlus", as_nodes(data), {})
 
@@ -133,7 +133,7 @@ def mish(data: NodeInput, name: Optional[str] = None,) -> Node:
     """Return a node which performs Mish.
 
     :param data: Tensor with input data floating point type.
-    returns The new node which performs Mish
+    :return: The new node which performs Mish
     """
     return _get_node_factory_opset4().create("Mish", as_nodes(data), {})
 
@@ -143,7 +143,7 @@ def hswish(data: NodeInput, name: Optional[str] = None,) -> Node:
     """Return a node which performs HSwish (hard version of Swish).
 
     :param data: Tensor with input data floating point type.
-    returns The new node which performs HSwish
+    :return: The new node which performs HSwish
     """
     return _get_node_factory_opset4().create("HSwish", as_nodes(data), {})
 
@@ -157,7 +157,7 @@ def swish(
     """Return a node which performing Swish activation function Swish(x, beta=1.0) = x * sigmoid(x * beta)).
 
     :param data: Tensor with input data floating point type.
-    returns The new node which performs Swish
+    :return: The new node which performs Swish
     """
     if beta is None:
         beta = make_constant_node(1.0, np.float32)
@@ -170,7 +170,7 @@ def acosh(node: NodeInput, name: Optional[str] = None) -> Node:
 
     :param node: One of: input node, array or scalar.
     :param name: Optional new name for output node.
-    returns New node with arccosh operation applied on it.
+    :return: New node with arccosh operation applied on it.
     """
     return _get_node_factory_opset4().create("Acosh", [node])
 
@@ -181,7 +181,7 @@ def asinh(node: NodeInput, name: Optional[str] = None) -> Node:
 
     :param node: One of: input node, array or scalar.
     :param name: Optional new name for output node.
-    returns New node with arcsinh operation applied on it.
+    :return: New node with arcsinh operation applied on it.
     """
     return _get_node_factory_opset4().create("Asinh", [node])
 
@@ -192,7 +192,7 @@ def atanh(node: NodeInput, name: Optional[str] = None) -> Node:
 
     :param node: One of: input node, array or scalar.
     :param name: Optional new name for output node.
-    returns New node with arctanh operation applied on it.
+    :return: New node with arctanh operation applied on it.
     """
     return _get_node_factory_opset4().create("Atanh", [node])
 
@@ -292,7 +292,7 @@ def proposal(
         }
 
     Optional attributes which are absent from dictionary will be set with corresponding default.
-    returns Node representing Proposal operation.
+    :return: Node representing Proposal operation.
     """
     requirements = [
         ("base_size", True, np.unsignedinteger, is_positive_value),
@@ -328,7 +328,7 @@ def reduce_l1(
     :param reduction_axes: The axes to eliminate through mean operation.
     :param keep_dims:      If set to True it holds axes that are used for reduction
     :param name:           Optional name for output node.
-    returns The new node performing mean-reduction operation.
+    :return: The new node performing mean-reduction operation.
     """
     return _get_node_factory_opset4().create(
         "ReduceL1", as_nodes(node, reduction_axes), {"keep_dims": keep_dims}
@@ -345,7 +345,7 @@ def reduce_l2(
     :param reduction_axes: The axes to eliminate through mean operation.
     :param keep_dims:      If set to True it holds axes that are used for reduction
     :param name:           Optional name for output node.
-    returns The new node performing mean-reduction operation.
+    :return: The new node performing mean-reduction operation.
     """
     return _get_node_factory_opset4().create(
         "ReduceL2", as_nodes(node, reduction_axes), {"keep_dims": keep_dims}
@@ -382,7 +382,7 @@ def lstm_cell(
     :param clip: Specifies bound values [-C, C] for tensor clipping performed before activations.
     :param name: An optional name of the output node.
 
-    returns The new node represents LSTMCell. Node outputs count: 2.
+    :return: The new node represents LSTMCell. Node outputs count: 2.
     """
     if activations is None:
         activations = ["sigmoid", "tanh", "tanh"]
