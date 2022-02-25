@@ -244,20 +244,19 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
             { ngraph::element::f16, ngraph::element::f32}
     };
 
-    auto convertAdded = false;
-    auto inputMap = utils::getInputMap();
+    auto convert_added = false;
     for (const auto &param : function->get_parameters()) {
-        std::shared_ptr<ov::Node> inputNode = param;
         for (size_t i = 0; i < param->get_output_size(); i++) {
             for (const auto &node : param->get_output_target_inputs(i)) {
                 std::shared_ptr<ov::Node> nodePtr = node.get_node()->shared_from_this();
                 if (std::dynamic_pointer_cast<ov::op::v0::Convert>(nodePtr)) {
-                    convertAdded = true;
+                    convert_added = true;
+                    break;
                 }
             }
         }
     }
-    if (!convertAdded) {
+    if (!convert_added) {
         pass::Manager manager;
         manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
         manager.run_passes(functionToProcess);
