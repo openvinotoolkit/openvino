@@ -109,21 +109,46 @@ Gna2DeviceVersion getTlvTargetFromCompileTarget(const std::string compileTarget)
     return target;
 }
 
-template <class T>
-void WriteAllEndpoints(std::ostream& outStream, const T container, bool isInput) {
+template <class T, class A>
+void WriteAllEndpoints(std::ostream& outStream, const T container, bool isInput, const A& allAllocations) {
     const auto sfTlvType = isInput ? Gna2TlvTypeOVInputScaleFactor : Gna2TlvTypeOVOutputScaleFactor;
+    const auto tagMemory = isInput ? Gna2MemoryTagInput : Gna2MemoryTagOutput;
+    const auto f =
+        std::find_if(allAllocations.cbegin(), allAllocations.cend(), [tagMemory](const GnaAllocation& a) -> bool {
+        return a.isTag(tagMemory);
+    });
+
     for (const auto& endpoint : container) {
         auto d = GetStringAsTlv(Gna2TlvTypeOVString, endpoint.name);
         outStream.write((char*)d.data(), d.size());
         auto tlvScaleFactor = GetFloatInTLV(sfTlvType, endpoint.scaleFactor);
         outStream.write(tlvScaleFactor.data(), tlvScaleFactor.size());
 
-        // TODO Change pointer into offset
-        std::stringstream stream;
-        stream << std::hex << "ptr=[" << endpoint.gnaPointer << "]";
-        std::string result(stream.str());
-        d = GetStringAsTlv(Gna2TlvTypeOVString, result);
-        outStream.write((char*)d.data(), d.size());
+        if (f != allAllocations.cend() && endpoint.gnaPointer != nullptr) {
+            const auto gnaOffset = f->getOffset(endpoint.gnaPointer);
+            if (!gnaOffset.first) {
+                continue;
+            }
+            std::stringstream stream;
+            stream << "offset=[" << gnaOffset.second << "]";
+            std::string result(stream.str());
+            d = GetStringAsTlv(Gna2TlvTypeOVString, result);
+            outStream.write((char*)d.data(), d.size());
+        }
+        {
+            std::stringstream stream;
+            stream << "byteSize=[" << endpoint.byteSize << "]";
+            std::string result(stream.str());
+            d = GetStringAsTlv(Gna2TlvTypeOVString, result);
+            outStream.write((char*)d.data(), d.size());
+        }
+        {
+            std::stringstream stream;
+            stream << "numberOfBytesPerElement=[" << endpoint.numberOfBytesPerElement << "]";
+            std::string result(stream.str());
+            d = GetStringAsTlv(Gna2TlvTypeOVString, result);
+            outStream.write((char*)d.data(), d.size());
+        }
     }
 }
 
@@ -132,7 +157,8 @@ void ExportTlvModel(uint32_t modelId,
     std::ostream& outStream,
     std::string compileTarget,
     const std::vector<GnaEndpoint>& allInputs,
-    const std::vector<GnaEndpoint>& allOutputs) {
+    const std::vector<GnaEndpoint>& allOutputs,
+    const GnaAllAllocations& allAllocations) {
     const auto deviceVersionToExport = getTlvTargetFromCompileTarget(compileTarget);
 
     uint32_t exportConfig;
@@ -231,8 +257,8 @@ void ExportTlvModel(uint32_t modelId,
 
     if (Gna2TlvStatusSuccess == tlv_status) {
         outStream.write(outTlv, outTlvSize);
-        WriteAllEndpoints(outStream, allInputs, true);
-        WriteAllEndpoints(outStream, allOutputs, false);
+        WriteAllEndpoints(outStream, allInputs, true, allAllocations);
+        WriteAllEndpoints(outStream, allOutputs, false, allAllocations);
     }
 
     gnaUserFree(outTlv);

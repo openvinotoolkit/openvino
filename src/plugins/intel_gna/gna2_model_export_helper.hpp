@@ -4,12 +4,61 @@
 
 #pragma once
 
+#include "gna2-model-export-api.h"
 #include "gna2-common-api.h"
 #include "gna2-model-suecreek-header.h"
 
+#include <algorithm>
 #include <cstdint>
+#include <list>
+#include <map>
 #include <string>
+#include <utility>
 #include <vector>
+
+struct GnaAllocation {
+    void* ptr = nullptr;
+    size_t sizeRequested = 0;
+    size_t sizeGranted = 0;
+    void SetTag(Gna2MemoryTag in) {
+        isTagSet = true;
+        tag = in;
+    }
+    bool isTag(Gna2MemoryTag in) const {
+        return isTagSet && in == tag;
+    }
+    std::string GetTagName() const {
+        static const std::map<Gna2MemoryTag, std::string> tm = {
+            {Gna2MemoryTagReadWrite, "Gna2MemoryTagReadWrite"},
+            {Gna2MemoryTagInput, "Gna2MemoryTagInput"},
+            {Gna2MemoryTagOutput, "Gna2MemoryTagOutput"},
+            {Gna2MemoryTagReadOnly, "Gna2MemoryTagReadOnly"},
+            {Gna2MemoryTagExternalBufferInput, "Gna2MemoryTagExternalBufferInput"},
+            {Gna2MemoryTagExternalBufferOutput, "Gna2MemoryTagExternalBufferOutput"},
+            {Gna2MemoryTagScratch, "Gna2MemoryTagScratch"},
+            {Gna2MemoryTagState, "Gna2MemoryTagState"},
+        };
+        if (!isTagSet) {
+            return "Gna2MemoryTag_NotSet_";
+        }
+        auto f = tm.find(tag);
+        if (f != tm.end()) {
+            return f->second;
+        }
+        return "Gna2MemoryTag_" + std::to_string(tag) + "_";
+    }
+    std::pair<bool, size_t> getOffset(void* offset) const {
+        std::pair<bool, size_t> v;
+        v.first = offset >= ptr && offset < static_cast<uint8_t*>(ptr) + sizeGranted;
+        v.second = v.first ? static_cast<uint8_t*>(offset) - static_cast<uint8_t*>(ptr) : 0;
+        return v;
+    }
+
+private:
+    Gna2MemoryTag tag;
+    bool isTagSet = false;
+};
+typedef std::list<GnaAllocation> GnaAllAllocations;
 
 struct GnaEndpoint {
     std::string name;
@@ -67,6 +116,7 @@ void ExportTlvModel(uint32_t modelId,
     std::ostream& outStream,
     std::string compileTarget,
     const std::vector<GnaEndpoint>& inputs,
-    const std::vector<GnaEndpoint>& outputs);
+    const std::vector<GnaEndpoint>& outputs,
+    const GnaAllAllocations& allAllocation);
 
 void ExportGnaDescriptorPartiallyFilled(uint32_t numberOfLayers, std::ostream & outStream);
