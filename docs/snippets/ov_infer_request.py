@@ -7,7 +7,7 @@ import openvino.runtime as ov
 #! [import]
 
 core = ov.Core()
-model = core.read_mode("model.xml")
+model = core.read_model("model.xml")
 compiled_model = core.compile_model(model, "AUTO")
 
 #! [create_infer_request]
