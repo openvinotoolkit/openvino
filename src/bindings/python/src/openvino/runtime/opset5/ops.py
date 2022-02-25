@@ -57,7 +57,7 @@ def batch_norm_inference(
     :param epsilon: The  number to be added to the variance to avoid division
                     by zero when normalizing a value.
     :param name: The optional name of the output node.
-    @return: The new node which performs BatchNormInference.
+    :return: The new node which performs BatchNormInference.
     """
     inputs = as_nodes(data, gamma, beta, mean, variance)
     return _get_node_factory_opset5().create("BatchNormInference", inputs, {"epsilon": epsilon})
@@ -75,7 +75,7 @@ def gather_nd(
     :param data:       N-D tensor with data for gathering
     :param indices:    K-D tensor of tuples with indices by which data is gathered
     :param batch_dims: Scalar value of batch dimensions
-    @return: The new node which performs GatherND
+    :return: The new node which performs GatherND
     """
     inputs = as_nodes(data, indices)
 
@@ -92,7 +92,7 @@ def log_softmax(data: NodeInput, axis: int, name: Optional[str] = None) -> Node:
 
     :param data: The tensor providing input data.
     :param axis: An axis along which LogSoftmax should be calculated
-    @return: The new node with LogSoftmax operation applied on each element.
+    :return: The new node with LogSoftmax operation applied on each element.
     """
     return _get_node_factory_opset5().create("LogSoftmax", [as_node(data)], {"axis": axis})
 
@@ -123,7 +123,7 @@ def non_max_suppression(
     :param sort_result_descending: Flag that specifies whenever it is necessary to sort selected
                                    boxes across batches or not.
     :param output_type: Output element type.
-    @return: The new node which performs NonMaxSuppression
+    :return: The new node which performs NonMaxSuppression
     """
     if max_output_boxes_per_class is None:
         max_output_boxes_per_class = make_constant_node(0, np.int64)
@@ -158,7 +158,7 @@ def round(data: NodeInput, mode: str = "half_to_even", name: Optional[str] = Non
         integer or rounding in such a way that the result heads away from zero if `mode` attribute is
         'half_away_from_zero`.
     :param name: An optional name of the output node.
-    @return: The new node with Round operation applied on each element.
+    :return: The new node with Round operation applied on each element.
     """
     return _get_node_factory_opset5().create("Round", as_nodes(data), {"mode": mode.upper()})
 
@@ -205,7 +205,7 @@ def lstm_sequence(
     :param clip: Specifies bound values [-C, C] for tensor clipping performed before activations.
     :param name: An optional name of the output node.
 
-    @return: The new node represents LSTMSequence. Node outputs count: 3.
+    :return: The new node represents LSTMSequence. Node outputs count: 3.
     """
     if activations is None:
         activations = ["sigmoid", "tanh", "tanh"]
@@ -231,7 +231,7 @@ def hsigmoid(data: NodeInput, name: Optional[str] = None,) -> Node:
     """Return a node which performs HSigmoid.
 
     :param data: Tensor with input data floating point type.
-    @return: The new node which performs HSigmoid
+    :return: The new node which performs HSigmoid
     """
     return _get_node_factory_opset5().create("HSigmoid", as_nodes(data), {})
 
@@ -277,7 +277,7 @@ def gru_sequence(
                                 of GRU described in the formula in the ONNX documentation.
     :param name: An optional name of the output node.
 
-    @return: The new node represents GRUSequence. Node outputs count: 2.
+    :return: The new node represents GRUSequence. Node outputs count: 2.
     """
     if activations is None:
         activations = ["sigmoid", "tanh"]
@@ -337,7 +337,7 @@ def rnn_sequence(
     :param clip: Specifies bound values [-C, C] for tensor clipping performed before activations.
     :param name: An optional name of the output node.
 
-    @return: The new node represents RNNSequence. Node outputs count: 2.
+    :return: The new node represents RNNSequence. Node outputs count: 2.
     """
     if activations is None:
         activations = ["tanh"]
