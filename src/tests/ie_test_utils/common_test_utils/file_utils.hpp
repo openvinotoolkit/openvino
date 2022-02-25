@@ -201,10 +201,8 @@ inline std::vector<std::string> getFileListByPatternRecursive(const std::vector<
         CommonTestUtils::directoryFileListRecursive(folderPath, allFilePaths);
         std::set<std::string> result;
         for (auto& filePath : allFilePaths) {
-            if (CommonTestUtils::fileExists(filePath)) {
-                if (std::regex_match(filePath, pattern)) {
-                    result.insert(filePath);
-                }
+            if (CommonTestUtils::fileExists(filePath) && std::regex_match(filePath, pattern)) {
+                result.insert(filePath);
             }
         }
         return result;
