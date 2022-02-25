@@ -17,9 +17,6 @@ if(NOT ENABLE_DOCKER)
 
     add_subdirectory(snippets)
 
-    if(ENABLE_OV_ONNX_FRONTEND)
-        add_subdirectory(onnx_custom_op)
-    endif()
     add_subdirectory(template_extension)
 
     set(all_docs_targets
