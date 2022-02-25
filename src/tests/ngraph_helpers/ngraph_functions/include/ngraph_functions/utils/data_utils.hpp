@@ -54,8 +54,12 @@ generateVector(size_t vec_len,
     }
 }
 
+template<>
 std::vector<ngraph::float16> inline
-generateF16Vector(size_t vec_len, ngraph::float16 upTo = 10, ngraph::float16 startFrom = 1, int32_t seed = 1) {
+generateVector<ngraph::element::Type_t::f16>(size_t vec_len,
+                                             ngraph::float16 upTo,
+                                             ngraph::float16 startFrom,
+                                             int32_t seed) {
     std::vector<ngraph::float16> res(vec_len);
     std::mt19937 gen(seed);
     // chose values between this range to avoid type overrun (e.g. in case of I8 precision)
@@ -69,8 +73,12 @@ generateF16Vector(size_t vec_len, ngraph::float16 upTo = 10, ngraph::float16 sta
     return res;
 }
 
+template<>
 std::vector<ngraph::bfloat16> inline
-generateBF16Vector(size_t vec_len, ngraph::bfloat16 upTo = 10, ngraph::bfloat16 startFrom = 1, int32_t seed = 1) {
+generateVector<ngraph::element::Type_t::bf16>(size_t vec_len,
+                                              ngraph::bfloat16 upTo,
+                                              ngraph::bfloat16 startFrom,
+                                              int32_t seed) {
     std::vector<ngraph::bfloat16> res(vec_len);
 
     std::mt19937 gen(seed);

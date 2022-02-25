@@ -46,12 +46,16 @@ void SubgraphBaseTest::run() {
 #else
     if (sigsetjmp(CommonTestUtils::env, 1) == 0) {
 #endif
-        LayerTestsUtils::PassRate::Statuses status = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()
-                                                        ? LayerTestsUtils::PassRate::Statuses::SKIPPED
-                                                        : LayerTestsUtils::PassRate::Statuses::CRASHED;
+        bool isCurrentTestDisabled = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled();
+
+        LayerTestsUtils::PassRate::Statuses status = isCurrentTestDisabled ?
+            LayerTestsUtils::PassRate::Statuses::SKIPPED :
+            LayerTestsUtils::PassRate::Statuses::CRASHED;
         summary.setDeviceName(targetDevice);
         summary.updateOPsStats(function, status);
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+        if (isCurrentTestDisabled)
+            GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
 
         ASSERT_FALSE(targetStaticShapes.empty()) << "Target Static Shape is empty!!!";
         std::string errorMessage;
@@ -68,7 +72,7 @@ void SubgraphBaseTest::run() {
                     generate_inputs(targetStaticShapeVec);
                 } catch (const std::exception& ex) {
                     throw std::runtime_error("Incorrect target static shape: " +
-                                            CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
+                                             CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
                 }
                 infer();
                 validate();

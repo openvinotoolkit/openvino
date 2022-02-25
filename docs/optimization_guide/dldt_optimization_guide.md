@@ -15,7 +15,7 @@ Latency measures inference time (ms) required to process a single input. When it
  
 ## How to Improve Performance 
 
-> **NOTE**: Make sure that your model can be successfully inferred with OpenVINO Inference Engine. 
+> **NOTE**: Make sure that your model can be successfully inferred with OpenVINO Runtime. 
 
 Inside OpenVINO there are two ways how to get better performance number: during developing and deployment your model. **It is possible to combine both developing and deployment optimizations**. 
 
