@@ -35,7 +35,7 @@ class DeprecatedStoreTrue(argparse.Action):
 
 
 class DeprecatedOptionCommon(argparse.Action):
-    def __call__(self, parser, args, values, option_string=None):
+    def __call__(self, parser, args, values, option_string):
        dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(option_string)
        log.error(dep_msg, extra={'is_warning': True})
        setattr(args, self.dest, values)
@@ -385,9 +385,6 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               help='[DEPRECATED] Regex for layers/operations that won\'t be fused. ' +
                                    'Example: --finegrain_fusing Convolution1,.*Scale.*',
                               action=DeprecatedOptionCommon)
-    common_group.add_argument('--disable_gfusing',
-                              help=argparse.SUPPRESS,
-                              action=IgnoredAction)
     common_group.add_argument('--enable_concat_optimization',
                               help='[DEPRECATED] Turn on Concat optimization.',
                               action=DeprecatedStoreTrue, default=False)

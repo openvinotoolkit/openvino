@@ -214,7 +214,7 @@ There is no a universal recipe for determining the mean/scale values for a parti
 * Open the model in a visualization tool and check for layers performing subtraction or multiplication (like `Sub`, `Mul`, `ScaleShift`, `Eltwise` etc) of the input data. If such layers exist, pre-processing is probably part of the model.
 
 ## When to Specify Input Shapes <a name="when_to_specify_input_shapes"></a>
-There are situations when Model Optimizer is unable to deduce input shapes of the model, for example, in case of model pruning due to unsupported operations
+There are situations when Model Optimizer is unable to deduce input shapes of the model, for example, in case of model cutting due to unsupported operations
 or the model includes inputs of a dynamic rank. The solution is to provide input shapes of a static rank that can contain undefined dimensions `-1`
 determined by model characteristics.
 
