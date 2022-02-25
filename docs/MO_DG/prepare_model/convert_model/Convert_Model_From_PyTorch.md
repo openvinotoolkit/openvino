@@ -40,6 +40,8 @@ Here is the list of models that are tested and guaranteed to be supported. Howev
   instruction which is used instead of steps 2 and 3 of [regular instructions](#typical-pytorch).
 * [BERT_NER](https://github.com/kamalkraj/BERT-NER) topology can be converted using steps described in [Convert PyTorch* BERT-NER to the IR](pytorch_specific/Convert_Bert_ner.md)
   instruction which is used instead of steps 2 and 3 of [regular instructions](#typical-pytorch).
+* ResNeXt-101 from [facebookresearch/semi-supervised-ImageNet1K-models](https://github.com/facebookresearch/semi-supervised-ImageNet1K-models)
+  can be converted using [regular instructions](#typical-pytorch).
 
 ## Typical steps to convert PyTorch\* model <a name="typical-pytorch"></a>
 
