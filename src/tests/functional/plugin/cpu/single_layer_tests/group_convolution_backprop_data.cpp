@@ -149,15 +149,9 @@ public:
         }
         {
             auto results = function->get_results();
-            size_t gapSize = results.size() - outType.size();
-            if (gapSize) {
-                for (size_t i = 0; i < gapSize; i++) {
-                    outType.push_back(outType[0]);
-                }
-            }
             for (size_t i = 0; i < results.size(); i++) {
-                if (outType[i] != ov::element::Type_t::undefined) {
-                    p.output(i).tensor().set_element_type(outType[i]);
+                if (outType[0] != ov::element::Type_t::undefined) {
+                    p.output(i).tensor().set_element_type(outType[0]);
                 }
             }
         }

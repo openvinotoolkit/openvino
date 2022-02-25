@@ -48,7 +48,9 @@ protected:
     std::vector<ov::PartialShape> inputDynamicShapes;
     std::vector<std::vector<ov::Shape>> targetStaticShapes;
     ElementType inType = ov::element::undefined;
-    std::vector<ElementType> outType = std::vector<ElementType>(1, ov::element::undefined);
+    std::vector<ElementType> outType = {
+            ov::element::undefined
+    };
 
     ov::CompiledModel compiledModel;
     ov::InferRequest inferRequest;
