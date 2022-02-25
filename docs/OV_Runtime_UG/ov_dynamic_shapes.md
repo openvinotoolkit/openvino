@@ -106,5 +106,5 @@ Whether or not output has a dynamic dimension can be examined by querying output
 
 If at least one dynamic dimension exists in output of the model, shape of the corresponding output tensor is set as the result of inference call.
 Before the first inference, the output tensor memory is not allocated and has shape `[0]`.
-If user call `InferRequest::set_tensor` with pre-allocated tensor, `InferRequest::infer` calls `set_shape` as the result of its work and the initial shape is replaced by the really calculated shape.
+If user call `InferRequest::set_tensor` with pre-allocated tensor, the inference process calls `set_shape` as the result of its work and the initial shape is replaced by the really calculated shape.
 So setting shape for output tensors in this case is useful only if you want to pre-allocate enough memory for output tensor, because `Tensor::set_shape` will re-allocate memory only if new shape requires more storage.
