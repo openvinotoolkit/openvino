@@ -240,8 +240,27 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
             { ngraph::element::f16, ngraph::element::f32}
     };
 
+    {
+        std::cout << std::endl << functionToProcess->get_name() << std::endl;
+        std::cout << functionToProcess->get_parameters().size() << " params (";
+        for (const auto & param : functionToProcess->get_parameters()) {
+            std::cout << param->get_element_type() << " ";
+        }
+        std::cout << ")" << std::endl;
+        std::cout << functionToProcess->inputs().size() << " inputs (";
+        for (auto j = 0; j < functionToProcess->inputs().size(); ++j) {
+            std::cout << functionToProcess->inputs()[j].get_element_type().get_type_name() << " ";
+        }
+        std::cout << ")" << std::endl;
+        std::cout << functionToProcess->outputs().size() << " outputs (";
+        for (auto j = 0; j < functionToProcess->outputs().size(); ++j) {
+            std::cout << functionToProcess->outputs()[j].get_element_type().get_type_name() << " ";
+        }
+        std::cout << ")" << std::endl;
+    }
+
     std::vector <ov::element::Type> param_types;
-    for (const auto& param : functionRefs->get_parameters()) {
+    for (const auto& param : functionToProcess->get_parameters()) {
         param_types.push_back(param->get_element_type());
     }
     auto itr_bf16 = std::find(param_types.begin(), param_types.end(), ov::element::bf16);
