@@ -31,7 +31,7 @@ infer_request.wait_for(10)
 #! [wait_for]
 
 #! [set_callback]
-def callback(request):
+def callback(request, userdata):
     request.start_async()
 
 infer_request.set_callback(callback)
