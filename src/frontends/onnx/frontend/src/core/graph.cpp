@@ -7,6 +7,7 @@
 #include <exception>
 #include <functional>
 #include <numeric>
+#include <optional>
 #include <sstream>
 
 #include "core/value_info.hpp"
@@ -50,6 +51,14 @@ inline std::string generate_result_name(const std::string& onnx_output_name,
 static std::string get_op_domain_and_name(const ONNX_NAMESPACE::NodeProto& node_proto) {
     std::string domain = get_node_domain(node_proto);
     return (domain.empty() ? "" : domain + ".") + node_proto.op_type();
+}
+
+std::optional<std::string> maybe_get_string() {
+    if (std::rand() % 2 == 0) {
+        return "string";
+    } else {
+        return std::nullopt;
+    }
 }
 }  // namespace detail
 
@@ -149,6 +158,13 @@ void Graph::convert_to_ngraph_nodes() {
         OutputVector ng_nodes{make_ng_nodes(node)};
         ++completed;
         m_extensions.progress_reporter->report_progress(completed / total, total, completed);
+    }
+
+    const auto t = detail::maybe_get_string();
+    if (t) {
+        std::cout << "Got: " << *t << std::endl;
+    } else {
+        std::cout << "Got: nullopt" << std::endl;
     }
 }
 
