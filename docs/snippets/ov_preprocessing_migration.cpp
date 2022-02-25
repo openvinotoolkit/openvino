@@ -112,7 +112,7 @@ preProcess.setColorFormat(InferenceEngine::NV12);
     //! [image_scale]
 auto preProcess = network.getInputsInfo()["operation_name"]->getPreProcess();
 // Inference Engine supposes input for resize is always in NCHW layout
-// while for OpenVINO Runtime API 2.0 'H' and `W` dimensions must be specified
+// while for OpenVINO Runtime API 2.0 `H` and `W` dimensions must be specified
 // Also, current code snippet supposed resize from dynamic shapes
 preProcess.setResizeAlgorithm(InferenceEngine::ResizeAlgorithm::RESIZE_BILINEAR);
     //! [image_scale]
