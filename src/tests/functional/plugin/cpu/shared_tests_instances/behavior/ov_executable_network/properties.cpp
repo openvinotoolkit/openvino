@@ -86,32 +86,32 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVCompiledModelPropertiesDefaultTe
         OVCompiledModelPropertiesDefaultTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> properties = {
-        {ov::num_streams(ov::NumStreams::AUTO)},
-        {ov::num_streams(ov::NumStreams::NUMA)},
+        {ov::num_streams(ov::streams::NUMA)},
+        {ov::num_streams(ov::streams::AUTO)},
         {ov::num_streams(0), ov::inference_num_threads(1)},
         {ov::num_streams(1), ov::inference_num_threads(1)},
         {{InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}}
 };
 
 const std::vector<ov::AnyMap> hetero_properties = {
-        {ov::device::priorities(CommonTestUtils::DEVICE_CPU), ov::num_streams(ov::NumStreams::AUTO)},
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU), ov::num_streams(ov::streams::AUTO)},
         {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
          {InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}},
 };
 
 
 const std::vector<ov::AnyMap> multi_properties = {
-        {ov::device::priorities(CommonTestUtils::DEVICE_CPU), ov::num_streams(ov::NumStreams::AUTO)},
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU), ov::num_streams(ov::streams::AUTO)},
         {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
          {InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}},
 };
 
 const std::vector<ov::AnyMap> auto_batch_properties = {
-        {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , CommonTestUtils::DEVICE_CPU}, ov::num_streams(ov::NumStreams::AUTO)},
+        {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , CommonTestUtils::DEVICE_CPU}, ov::num_streams(ov::streams::AUTO)},
         {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , CommonTestUtils::DEVICE_CPU},
          {InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}},
         {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , CommonTestUtils::DEVICE_CPU},
-         {CONFIG_KEY(AUTO_BATCH_TIMEOUT) , "1"}, ov::num_streams(ov::NumStreams::AUTO)},
+         {CONFIG_KEY(AUTO_BATCH_TIMEOUT) , "1"}, ov::num_streams(ov::streams::AUTO)},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVCompiledModelPropertiesTests,
