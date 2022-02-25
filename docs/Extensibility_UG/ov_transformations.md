@@ -14,7 +14,7 @@
 
 This guide contains all necessary information that you need to start implementing OpenVINO™ transformations.
 
-## Working with ov::Model
+## Working with Model
 
 Before the moving to transformation part it is needed to say several words about functions which allow to modify `ov::Model`.
 This chapter extends the [model representation guide](../OV_Runtime_UG/model_representation.md) and shows an API that allows us to manipulate with `ov::Model`.
@@ -78,36 +78,6 @@ OpenVINO™ Runtime has three main transformation types:
 * [Graph rewrite pass](./graph_rewrite_pass.md) - container for matcher passes needed for efficient execution
 
 ![transformations_structure]
-
-## Pattern Matching <a name="pattern_matching"></a>
-
-Sometimes patterns cannot be expressed via regular operations or it is too complicated.
-For example, if you want to detect **Convolution->Add** sub-graph without specifying particular input type for Convolution operation or you want to create a pattern where some of operations can have different types.
-And for these cases OpenVINO™ provides additional helpers to construct patterns for GraphRewrite transformations.
-
-There are two main helpers:
-1. `ov::pass::pattern::any_input` - helps to express inputs if their types are undefined.
-2. `ov::pass::pattern::wrap_type<T>` - helps to express nodes of pattern without specifying node attributes.
-
-Let's go through the example to have better understanding of how it works:
-
-> **NOTE**: Node attributes do not participate in pattern matching and are needed only for operations creation. Only operation types participate in pattern matching.
-
-The example below shows basic usage of `ov::passpattern::any_input`.
-Here we construct Multiply pattern with arbitrary first input and Constant as a second input.
-Also as Multiply is commutative operation, it does not matter in which order we set inputs (any_input/Constant or Constant/any_input) because both cases will be matched.
-
-@snippet ov_model_snippets.cpp pattern:label_example
-
-This example shows how we can construct a pattern when operation has arbitrary number of inputs.
-
-@snippet ov_model_snippets.cpp pattern:concat_example
-
-This example shows how to use predicate to construct a pattern. Also it shows how to match pattern manually on given node.
-
-@snippet ov_model_snippets.cpp pattern:predicate_example
-
-> **NOTE**: Be careful with manual matching because Matcher object holds matched nodes. To clear a match, use the m->clear_state() method.
 
 ## Transformation conditional compilation
 
@@ -208,6 +178,11 @@ OV_ENABLE_VISUALIZE_TRACING=1 -  enables visualization after each transformation
 ```
 
 > **Note**: Make sure that you have dot installed on your machine; otherwise, it will silently save only dot file without svg file.
+
+## See Also
+
+* [OpenVINO™ Model Representation](../OV_Runtime_UG/model_representation.md)
+* [OpenVINO™ Extensions](./Intro.md)
 
 [ngraph_replace_node]: ./img/ngraph_replace_node.png
 [ngraph_insert_node]: ./img/ngraph_insert_node.png

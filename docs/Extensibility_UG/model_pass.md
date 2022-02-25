@@ -10,4 +10,8 @@ Template for ModelPass transformation class
 
 Using `ov::pass::ModelPass`, you need to override the `run_on_model` method where you will write the transformation code.
 Return value is `true` if the original model has changed during transformation (new operation was added, or operations replacement was made, or node attributes were changed); otherwise, it is `false`.
-Also `ov::pass::ModelPass` based transformations can be executed via `ov::pass::Manager`. See the examples in the [Using pass manager](#using_pass_manager) section.
+Also `ov::pass::ModelPass` based transformations can be executed via `ov::pass::Manager`.
+
+## See Also
+
+* [OpenVINO™ Transformations](./ov_transformations.md)

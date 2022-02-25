@@ -95,3 +95,7 @@ This example shows how to use predicate to construct a pattern. Also it shows ho
 @snippet ov_model_snippets.cpp pattern:predicate_example
 
 > **NOTE**: Be careful with manual matching because Matcher object holds matched nodes. To clear a match, use the m->clear_state() method.
+
+## See Also
+
+* [OpenVINO™ Transformations](./ov_transformations.md)
