@@ -483,7 +483,7 @@ def driver(argv: argparse.Namespace):
 
     start_time = datetime.datetime.now()
 
-    graph, ngraph_function, _ = prepare_ir(argv)
+    graph, ngraph_function = prepare_ir(argv)
     if graph is not None:
         ret_res = emit_ir(graph, argv)
     else:
