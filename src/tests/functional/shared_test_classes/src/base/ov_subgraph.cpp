@@ -240,32 +240,20 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
             { ngraph::element::f16, ngraph::element::f32}
     };
 
-    {
-        std::cout << std::endl << functionToProcess->get_name() << std::endl;
-        std::cout << functionToProcess->get_parameters().size() << " params (";
-        for (const auto & param : functionToProcess->get_parameters()) {
-            std::cout << param->get_element_type() << " ";
+    auto convertAdded = false;
+    auto inputMap = utils::getInputMap();
+    for (const auto &param : function->get_parameters()) {
+        std::shared_ptr<ov::Node> inputNode = param;
+        for (size_t i = 0; i < param->get_output_size(); i++) {
+            for (const auto &node : param->get_output_target_inputs(i)) {
+                std::shared_ptr<ov::Node> nodePtr = node.get_node()->shared_from_this();
+                if (std::dynamic_pointer_cast<ov::op::v0::Convert>(nodePtr)) {
+                    convertAdded = true;
+                }
+            }
         }
-        std::cout << ")" << std::endl;
-        std::cout << functionToProcess->inputs().size() << " inputs (";
-        for (auto j = 0; j < functionToProcess->inputs().size(); ++j) {
-            std::cout << functionToProcess->inputs()[j].get_element_type().get_type_name() << " ";
-        }
-        std::cout << ")" << std::endl;
-        std::cout << functionToProcess->outputs().size() << " outputs (";
-        for (auto j = 0; j < functionToProcess->outputs().size(); ++j) {
-            std::cout << functionToProcess->outputs()[j].get_element_type().get_type_name() << " ";
-        }
-        std::cout << ")" << std::endl;
     }
-
-    std::vector <ov::element::Type> param_types;
-    for (const auto& param : functionToProcess->get_parameters()) {
-        param_types.push_back(param->get_element_type());
-    }
-    auto itr_bf16 = std::find(param_types.begin(), param_types.end(), ov::element::bf16);
-    auto itr_f16 = std::find(param_types.begin(), param_types.end(), ov::element::f16);
-    if (itr_bf16 != param_types.end() || itr_f16 != param_types.end()) {
+    if (!convertAdded) {
         pass::Manager manager;
         manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
         manager.run_passes(functionToProcess);
