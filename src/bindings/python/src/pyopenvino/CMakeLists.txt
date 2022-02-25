@@ -7,6 +7,13 @@ if(NOT DEFINED OpenVINO_SOURCE_DIR)
     find_package(OpenVINODeveloperPackage REQUIRED)
 endif()
 
+if (DEFINED ENV{CI_BUILD_NUMBER})
+    set(CI_BUILD_NUMBER $ENV{CI_BUILD_NUMBER})
+    message(STATUS "Python CI build number: ${CI_BUILD_NUMBER}")
+else()
+    set(CI_BUILD_NUMBER "")
+endif()
+
 # PYTHON_VERSION_MAJOR and PYTHON_VERSION_MINOR are defined inside pybind11
 set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
 message(STATUS "Python version=${PYTHON_VERSION}")
@@ -77,6 +84,7 @@ endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB})
+target_compile_definitions(${PROJECT_NAME} PRIVATE CI_BUILD_NUMBER=\"${CI_BUILD_NUMBER}\")
 
 # perform copy
 if(OpenVINO_SOURCE_DIR)
