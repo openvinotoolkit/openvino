@@ -1,156 +1,25 @@
 # Overview of Transformations API {#openvino_docs_transformations}
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   openvino_docs_Extensibility_UG_model_pass
+   openvino_docs_Extensibility_UG_matcher_pass
+   openvino_docs_Extensibility_UG_graph_rewrite_pass
+
+@endsphinxdirective
+
 This guide contains all necessary information that you need to start implementing OpenVINO™ transformations.
 
-## Transformations types <a name="transformations_types"></a>
+## Working with ov::Model
 
-OpenVINO™ Runtime has three main transformation types:
+Before the moving to transformation part it is needed to say several words about functions which allow to modify `ov::Model`.
+This chapter extends the [model representation guide](../OV_Runtime_UG/model_representation.md) and shows an API that allows us to manipulate with `ov::Model`.
 
-* `ov::pass::ModelPass` - straightforward way to work with `ov::Model` directly
-* `ov::pass::MatcherPass` - pattern-based transformation approach
-* `ov::pass::GraphRewrite` - container for matcher passes needed for efficient execution
-
-![transformations_structure]
-
-### ov::pass::ModelPass <a name="model_pass"></a>
-
-`ov::pass::ModelPass` is used for transformations that take entire `ov::Model` as an input and process it.
-
-Template for FunctionPass transformation class
-
-@snippet src/transformations/template_model_transformation.hpp model_pass:template_transformation_hpp
-
-@snippet src/transformations/template_model_transformation.cpp model_pass:template_transformation_cpp
-
-Using `ov::pass::ModelPass`, you need to override the `run_on_model` method where you will write the transformation code.
-Return value is `true` if the original function has changed during transformation (new operation was added, or operations replacement was made, or node attributes were changed); otherwise, it is `false`.
-Also `ov::pass::ModelPass` based transformations can be executed via `ov::pass::Manager`. See the examples in the [Using pass manager](#using_pass_manager) section.
-
-### ov::pass::MatcherPass <a name="matcher_pass"></a>
-
-`ov::pass::MatcherPass` is used for pattern-based transformations.
-
-Template for MatcherPass transformation class
-@snippet src/transformations/template_pattern_transformation.hpp graph_rewrite:template_transformation_hpp
-
-@snippet src/transformations/template_pattern_transformation.cpp graph_rewrite:template_transformation_cpp
-
-To use `ov::pass::MatcherPass`, you need to complete these steps:
-1. Create a pattern
-2. Implement a callback
-3. Register the pattern and Matcher
-4. Execute MatcherPass
-
-So let's go through each of these steps.
-
-### Create a pattern
-
-Pattern is a single root `ov::Model`. But the only difference is that you do not need to create a function object, you just need to create and connect opset or special pattern operations.
-Then you need to take the last created operation and put it as a root of the pattern. This root node will be used as a root node in pattern matching.
-> **NOTE**: Any nodes in a pattern that have no consumers and are not registered as root will not be used in pattern matching.
-
-@snippet ov_model_snippets.cpp pattern:simple_example
-
-The `Parameter` operation in the example above has type and shape specified. These attributes are needed only to create Parameter operation class and will not be used in pattern matching.
-
-For more pattern examples, refer to the [pattern matching](#pattern_matching) section.
-
-### Implement callback
-
-Callback is an action applied to every pattern entrance. In general, callback is the lambda function that takes Matcher object with detected subgraph.
-
-@snippet ov_model_snippets.cpp pattern:callback_example
-
-The example above shows the callback structure and how Matcher can be used for accessing nodes detected by pattern.
-Callback return value is `true` if root node was replaced and another pattern cannot be applied to the same root node; otherwise, it is `false`.
-> **NOTE**: It is not recommended to manipulate with nodes that are under root node. This may affect GraphRewrite execution as it is expected that all nodes that come after root node in topological order are valid and can be used in pattern matching.
-
-MatcherPass also provides functionality that allows reporting of the newly created nodes that can be used in additional pattern matching.
-If MatcherPass was registered in `ov::pass::Manager` or `ov::pass::GraphRewrite`, these registered nodes will be added for additional pattern matching.
-That means that matcher passes registered in `ov::pass::GraphRewrite` will be applied to these nodes.
-
-The example below shows how single MatcherPass can fuse sequence of operations using the `register_new_node` method.
-
-@snippet src/transformations/template_pattern_transformation.cpp matcher_pass:relu_fusion
-
-> **NOTE**: If you register multiple nodes, please add them in topological order. We do not topologically sort these nodes as it is a time-consuming operation.
-
-### Register pattern and Matcher
-
-The last step is to register Matcher and callback inside the MatcherPass pass. To do this, call the `register_matcher` method.
-> **NOTE**: Only one matcher can be registered for a single MatcherPass class.
-
-```cpp
-// Register matcher and callback
-register_matcher(m, callback);
-```
-### Execute MatcherPass
-MatcherPass has multiple ways to be executed:
-* Run on a single node - it can be useful if you want to run MatcherPass inside another transformation.
-@snippet src/transformations/template_pattern_transformation.cpp matcher_pass:run_on_node
-* Run on `ov::Model` using GraphRewrite - this approach gives ability to run MatcherPass on whole `ov::Model`. Moreover, multiple MatcherPass transformation can be registered in a single GraphRewite to be executed in a single graph traversal.
-@snippet src/transformations/template_pattern_transformation.cpp matcher_pass:graph_rewrite
-* Run on `ov::Model` using `ov::pass::Manager` - this approach helps you to register MatcherPass for execution on `ov::Model` as another transformation types.
-@snippet src/transformations/template_pattern_transformation.cpp matcher_pass:manager
-
-
-### ov::pass::GraphRewrite <a name="graph_rewrite_pass"></a>
-
-GraphRewrite pass serves for running multiple matcher passes on `ov::Model` in a single graph traversal.
-Example:
-
-@snippet src/transformations/template_pattern_transformation.cpp matcher_pass:graph_rewrite
-
-In addition, GraphRewrite handles nodes that were registered by MatcherPasses during their execution. This nodes will be added to the beginning of the sequence with nodes for pattern matching.
-
-> **NOTE**: when using `ov::pass::Manager` temporary GraphRewrite is used to execute single MatcherPass.
-
-GraphRewrite has two algorithms for MatcherPasses execution. First algorithm is straightforward. It applies each MatcherPass in registration order to current node.
-
-![graph_rewrite_execution]
-
-But it is not really efficient when you have a lot of registered passes. So first of all GraphRewrite checks that all MatcherPass patterns has type-based root node (it means that type of this node is not hidden into predicate).
-And then creates map from registered MatcherPasses. That helps to avoid additional cost of applying each MatcherPass for each node.
-
-![graph_rewrite_efficient_search]
-
-> **NOTE**: GraphRewrite execution algorithm cannot be set manually and depends only on root nodes registered inside MatcherPasses.
-
-## Pattern Matching <a name="pattern_matching"></a>
-
-Sometimes patterns cannot be expressed via regular operations or it is too complicated.
-For example, if you want to detect Convolution->Add sub-graph without specifying particular input type for Convolution operation or you want to create a pattern where some of operations can have different types.
-And for these cases OpenVINO™ provides additional helpers to construct patterns for GraphRewrite transformations.
-
-There are two main helpers:
-1. `ov::pass::pattern::any_input` - helps to express inputs if their types are undefined.
-2. `ov::pass::pattern::wrap_type<T>` - helps to express nodes of pattern without specifying node attributes.
-
-Let's go through the example to have better understanding of how it works:
-
-> **NOTE**: Node attributes do not participate in pattern matching and are needed only for operations creation. Only operation types participate in pattern matching.
-
-The example below shows basic usage of `ov::passpattern::any_input`.
-Here we construct Multiply pattern with arbitrary first input and Constant as a second input.
-Also as Multiply is commutative operation, it does not matter in which order we set inputs (any_input/Constant or Constant/any_input) because both cases will be matched.
-
-@snippet ov_model_snippets.cpp pattern:label_example
-
-This example shows how we can construct a pattern when operation has arbitrary number of inputs.
-
-@snippet ov_model_snippets.cpp pattern:concat_example
-
-This example shows how to use predicate to construct a pattern. Also it shows how to match pattern manually on given node.
-
-@snippet ov_model_snippets.cpp pattern:predicate_example
-
-> **NOTE**: Be careful with manual matching because Matcher object holds matched nodes. To clear a match, use the m->clear_state() method.
-
-## Working with ov::Function <a name="working_with_ov_model"></a>
-
-In this chapter extends the [model representation guide](../OV_Runtime_UG/model_representation.md) and shows an API that allows us to manipulate with `ov::Model`.
-
-### ov::Node input and output ports
+### Working with node input and output ports
 
 First of all let's talk about `ov::Node` input/output ports. Each OpenVINO™ operation has input and output ports except cases when operation has `Parameter` or `Constant` type.
 
@@ -161,7 +30,7 @@ Lets look at the code example.
 
 @snippet ov_model_snippets.cpp ov:ports_example
 
-### ov::Node replacement
+### Mode replacement
 
 OpenVINO™ provides two ways for node replacement: via OpenVINO™ helper function and directly via port methods. We are going to review both of them.
 
@@ -190,7 +59,7 @@ The alternative way to the insert operation is to make a node copy and use `ov::
 
 @snippet ov_model_snippets.cpp ov:insert_node_with_copy
 
-### ov::Node elimination
+### Mode elimination
 
 Another type of node replacement is its elimination.
 
@@ -200,6 +69,45 @@ To eliminate operation, OpenVINO™ has special method that considers all limita
 
 `ov::replace_output_update_name()` in case of successful replacement it automatically preserves friendly name and runtime info.
 
+## Transformations types <a name="transformations_types"></a>
+
+OpenVINO™ Runtime has three main transformation types:
+
+* [Model pass](./model_pass.md) - straightforward way to work with `ov::Model` directly
+* [Matcher pass](./matcher_pass.md) - pattern-based transformation approach
+* [Graph rewrite pass](./graph_rewrite_pass.md) - container for matcher passes needed for efficient execution
+
+![transformations_structure]
+
+## Pattern Matching <a name="pattern_matching"></a>
+
+Sometimes patterns cannot be expressed via regular operations or it is too complicated.
+For example, if you want to detect **Convolution->Add** sub-graph without specifying particular input type for Convolution operation or you want to create a pattern where some of operations can have different types.
+And for these cases OpenVINO™ provides additional helpers to construct patterns for GraphRewrite transformations.
+
+There are two main helpers:
+1. `ov::pass::pattern::any_input` - helps to express inputs if their types are undefined.
+2. `ov::pass::pattern::wrap_type<T>` - helps to express nodes of pattern without specifying node attributes.
+
+Let's go through the example to have better understanding of how it works:
+
+> **NOTE**: Node attributes do not participate in pattern matching and are needed only for operations creation. Only operation types participate in pattern matching.
+
+The example below shows basic usage of `ov::passpattern::any_input`.
+Here we construct Multiply pattern with arbitrary first input and Constant as a second input.
+Also as Multiply is commutative operation, it does not matter in which order we set inputs (any_input/Constant or Constant/any_input) because both cases will be matched.
+
+@snippet ov_model_snippets.cpp pattern:label_example
+
+This example shows how we can construct a pattern when operation has arbitrary number of inputs.
+
+@snippet ov_model_snippets.cpp pattern:concat_example
+
+This example shows how to use predicate to construct a pattern. Also it shows how to match pattern manually on given node.
+
+@snippet ov_model_snippets.cpp pattern:predicate_example
+
+> **NOTE**: Be careful with manual matching because Matcher object holds matched nodes. To clear a match, use the m->clear_state() method.
 
 ## Transformation conditional compilation
 
@@ -279,7 +187,7 @@ In transformation development process:
 ## Using pass manager <a name="using_pass_manager"></a>
 
 `ov::pass::Manager` is a container class that can store the list of transformations and execute them. The main idea of this class is to have high-level representation for grouped list of transformations.
-It can register and apply any [transformation types](#transformations_types) on function.
+It can register and apply any [transformation pass](#transformations_types) on model.
 In addition, `ov::pass::Manager` has extended debug capabilities (find more information in the [how to debug transformations](#how_to_debug_transformations) section).
 
 The example below shows basic usage of `ov::pass::Manager`
