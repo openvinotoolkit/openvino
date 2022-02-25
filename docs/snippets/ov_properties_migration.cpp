@@ -5,12 +5,14 @@ int main_new() {
     ov::Core core;
 
 //! [core_get_ro_property]
-// 'auto' is automatically deduced as std::string since the type is stored in the property
+// 'auto' is automatically deduced as std::string
+// since the type is stored in the property
 auto full_device_name = core.get_property("CPU", ov::device::full_name);
 //! [core_get_ro_property]
 
 //! [core_get_rw_property]
-// 'auto' is automatically deduced as ov::streams::Num since the type is stored in the property
+// 'auto' is automatically deduced as ov::streams::Num
+// since the type is stored in the property
 ov::streams::Num num_streams = core.get_property("CPU", ov::streams::num);
 //! [core_get_rw_property]
 
@@ -27,7 +29,7 @@ auto compiled_model = core.compile_model(model, "MULTI",
 //! [core_compile_model]
 
 //! [compiled_model_set_property]
-// CPU is off for MULTI
+// turn CPU off for multi-device execution
 compiled_model.set_property(ov::device::priorities("GPU"));
 //! [compiled_model_set_property]
 
@@ -73,7 +75,7 @@ auto exec_network = core.LoadNetwork(model, "MULTI", {
 //! [core_load_network]
 
 //! [executable_network_set_config]
-// CPU is off
+// turn CPU off for multi-device execution
 exec_network.SetConfig({ { MULTI_CONFIG_KEY(DEVICE_PRIORITIES), "GPU" } });
 //! [executable_network_set_config]
 

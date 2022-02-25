@@ -1,6 +1,6 @@
 # Preprocessing {#openvino_2_0_preprocessing}
 
-## Introduction
+### Introduction
 
 Inference Engine API has preprocessing capabilities which are built on top of model expressed as `ngraph::Function` (now, it's `ov::Model`). One of the problems with it - preprocessing operations are not a part of the main model graph, so they are stored and executed separatelly:
 - Preprocessing stored in `InferenceEngine::CNNNetwork` was lost during saving back to IR file format.
@@ -14,11 +14,12 @@ In OpenVINO Runtime 2.0 the following new operations are introduced to be a part
 - [NV12toBGR](../../ops/image/NV12toBGR_8.md)
 - [I420toBGR](../../ops/image/I420toBGR_8.md)
 - [I420toRGB](../../ops/image/I420toRGB_8.md)
+
 All other preprocessing operations are expressed by means of existing operations and their combinations.
 
 It's also important to mention that since OpenVINO 2.0, the Runtime API does not assume any default layouts like Inference Engine did, for example `{ 1, 224, 224, 3 }` is supposed to be `NCHW` layout while it's not true. So, some preprocessing capabilities in OpenVINO Runtime API 2.0 requires explicitly set layouts, see [Layout overview](../layout_overview.md) how to do it. For example, to perform image scaling by partial dimensions `H` and `W`, preprocessing needs to know what dimensions are `H` and `W`.
 
-> **NOTE:** Use Model Optimizer preprocessing capabilities to insert and optimize preprocessing operations to the model. In this case you don't need to read model in runtime application and set preprocessing, you can use [model caching feature](../Model_caching_overview.md) to improve time to inference stage.
+> **NOTE**: Use Model Optimizer preprocessing capabilities to insert and optimize preprocessing operations to the model. In this case you don't need to read model in runtime application and set preprocessing, you can use [model caching feature](../Model_caching_overview.md) to improve time to inference stage.
 
 The steps below demonstrates how to migrate preprocessing scenarios from Inference Engine API to OpenVINO Runtime API 2.0.
 The examples below supposes we need to preprocess a model input with tensor name `tensor_name`, in Inferenece Engine API which used operation names to address the data, it's called `operation_name`.
