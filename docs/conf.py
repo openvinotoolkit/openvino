@@ -150,6 +150,7 @@ def setup(app):
     app.add_config_value('repositories', repositories, rebuild=True)
     app.add_js_file('js/custom.js')
     app.add_js_file('js/graphs.js')
+    app.add_js_file('js/graphs_ov_tf.js')
     try:
         shutil.copytree(os.path.join(app.srcdir, 'csv'), os.path.join(app.outdir, 'csv'), dirs_exist_ok=True)
     except FileNotFoundError:
