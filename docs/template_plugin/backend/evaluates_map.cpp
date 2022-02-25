@@ -47,6 +47,7 @@
 #include <ngraph/runtime/reference/hard_sigmoid.hpp>
 #include <ngraph/runtime/reference/if.hpp>
 #include <ngraph/runtime/reference/interpolate.hpp>
+#include <ngraph/runtime/reference/irdft.hpp>
 #include <ngraph/runtime/reference/log.hpp>
 #include <ngraph/runtime/reference/log_softmax.hpp>
 #include <ngraph/runtime/reference/lrn.hpp>
@@ -1984,6 +1985,74 @@ bool evaluate(const shared_ptr<op::v9::RDFT>& op, const HostTensorVector& output
 
     const auto output_type = op->get_input_element_type(0);
     runtime::reference::fft_postprocessing(outputs, output_type, rfft_result);
+    return true;
+}
+
+namespace irfft_v9 {
+struct InfoForIRFFT9 {
+    std::vector<float> input_data;
+    std::vector<int64_t> axes_data;
+    Shape input_data_shape;
+    Shape axes_data_shape;
+    Shape fft_output_shape;
+    Shape output_shape;
+};
+
+InfoForIRFFT9 get_info_for_irfft9_eval(const std::vector<std::shared_ptr<HostTensor>>& inputs) {
+    InfoForIRFFT9 result;
+
+    result.input_data_shape = inputs[0]->get_shape();
+    result.axes_data_shape = inputs[1]->get_shape();
+    result.input_data = get_floats(inputs[0], result.input_data_shape);
+    result.axes_data = get_integers(inputs[1], result.axes_data_shape);
+
+    auto fft_output_shape = result.input_data_shape;
+    auto output_shape = result.input_data_shape;
+
+    int64_t input_rank = static_cast<int64_t>(result.input_data_shape.size());
+    int64_t complex_data_rank = input_rank - 1;
+    auto canonicalized_axes =
+        runtime::reference::canonicalize_axes(result.axes_data.data(), result.axes_data_shape, complex_data_rank);
+
+    size_t num_of_axes = result.axes_data.size();
+    auto signal_size = fft_v7::get_signal_size(inputs, num_of_axes);
+
+    for (size_t i = 0; i < num_of_axes; ++i) {
+        int64_t current_axis = canonicalized_axes[i];
+        int64_t current_signal_size = signal_size[i];
+        size_t current_dim = 0;
+        if (current_signal_size != -1) {
+            current_dim = static_cast<size_t>(current_signal_size);
+        } else {
+            current_dim = 2 * (fft_output_shape[current_axis] - 1);
+        }
+        fft_output_shape[current_axis] = current_dim;
+        output_shape[current_axis] = current_dim;
+    }
+
+    output_shape.pop_back();
+
+    result.fft_output_shape = fft_output_shape;
+    result.output_shape = output_shape;
+
+    return result;
+}
+}  // namespace irfft_v9
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v9::IRDFT>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    auto info = irfft_v9::get_info_for_irfft9_eval(inputs);
+    outputs[0]->set_shape(info.output_shape);
+
+    std::vector<float> irfft_result(shape_size(info.output_shape), 0.0f);
+    runtime::reference::irdft(info.input_data,
+                              info.input_data_shape,
+                              info.axes_data,
+                              info.fft_output_shape,
+                              irfft_result.data());
+
+    const auto output_type = op->get_input_element_type(0);
+    runtime::reference::fft_postprocessing(outputs, output_type, irfft_result);
     return true;
 }
 
