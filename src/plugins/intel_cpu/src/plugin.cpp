@@ -106,6 +106,7 @@
 #include <low_precision/multiply_to_group_convolution.hpp>
 #include <low_precision/network_helper.hpp>
 #include "openvino/runtime/core.hpp"
+#include "openvino/util/common_util.hpp"
 
 #include <ie_algorithm.hpp>
 #include "performance_heuristics.hpp"
@@ -568,6 +569,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
 
     if (mode_name == CONFIG_VALUE(LATENCY)) {
         config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = CONFIG_VALUE(CPU_THROUGHPUT_NUMA);
+        config[ov::num_streams.name()] = ov::util::to_string(ov::NumStreams(ov::NumStreams::NUMA));
     } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
         const auto isa = dnnl::get_effective_cpu_isa();
         float isaSpecificThreshold = 1.0f;
@@ -625,6 +627,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
                                    engConfig.perfHintsConfig.ovPerfHintNumRequests);
         }
         config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(num_streams);
+        config[ov::num_streams.name()] = ov::util::to_string(ov::NumStreams(num_streams));
     }
 }
 
@@ -655,6 +658,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     }
 
     auto config = orig_config;
+
     CNNNetwork clonedNetwork = InferenceEngine::details::cloneNetwork(network);
     const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
     const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
@@ -744,11 +748,11 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
         return decltype(ov::enable_profiling)::value_type(perfCount);
     } else if (name == ov::hint::inference_precision) {
         const auto enforceBF16 = engConfig.enforceBF16;
-        return decltype(ov::hint::inference_precision)::value_type(
-            enforceBF16 ? ov::element::bf16 : ov::element::f32);
+        const auto inference_precision = enforceBF16 ? ov::element::bf16 : ov::element::f32;
+        return decltype(ov::hint::inference_precision)::value_type(inference_precision);
     } else if (name == ov::hint::performance_mode) {
-        const auto perfHint = engConfig.perfHintsConfig.ovPerfHint;
-        return ov::Any{perfHint}.as<decltype(ov::hint::performance_mode)::value_type>();
+        const auto perfHint = ov::util::from_string(engConfig.perfHintsConfig.ovPerfHint, ov::hint::performance_mode);
+        return perfHint;
     } else if (name == ov::hint::num_requests) {
         const auto perfHintNumRequests = engConfig.perfHintsConfig.ovPerfHintNumRequests;
         return decltype(ov::hint::num_requests)::value_type(perfHintNumRequests);
@@ -822,7 +826,8 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
                                                     RO_property(ov::range_for_async_infer_requests.name()),
                                                     RO_property(ov::range_for_streams.name()),
                                                     RO_property(ov::device::full_name.name()),
-                                                    RO_property(ov::device::capabilities.name())
+                                                    RO_property(ov::device::capabilities.name()),
+                                                    RO_property(ov::cache_dir.name())   // WA Can be removed after implementing snippet serialization.
         };
         // the whole config is RW before network is loaded.
         std::vector<ov::PropertyName> rwProperties {RW_property(ov::num_streams.name()),
@@ -838,12 +843,13 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         supportedProperties.reserve(roProperties.size() + rwProperties.size());
         supportedProperties.insert(supportedProperties.end(), roProperties.begin(), roProperties.end());
         supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
-        return supportedProperties;
+
+        return decltype(ov::supported_properties)::value_type(supportedProperties);
     } else if (name == ov::device::full_name) {
-        return deviceFullName;
+        return decltype(ov::device::full_name)::value_type(deviceFullName);
     } else if (name == ov::available_devices) {
         const std::vector<std::string> availableDevices = { "" };
-        return availableDevices;
+        return decltype(ov::available_devices)::value_type(availableDevices);
     } else if (name == ov::device::capabilities) {
         std::vector<std::string> capabilities;
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
@@ -854,14 +860,14 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         capabilities.push_back(METRIC_VALUE(FP16));
         capabilities.push_back(METRIC_VALUE(INT8));
         capabilities.push_back(METRIC_VALUE(BIN));
-        capabilities.push_back("IMPORT_EXPORT");
-        return capabilities;
+        capabilities.push_back(ov::device::capability::EXPORT_IMPORT);
+        return decltype(ov::device::capabilities)::value_type(capabilities);
     } else if (name == ov::range_for_async_infer_requests) {
         const std::tuple<unsigned int, unsigned int, unsigned int> range = std::make_tuple(1, 1, 1);
-        return range;
+        return decltype(ov::range_for_async_infer_requests)::value_type(range);
     } else if (name == ov::range_for_streams) {
         const std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, parallel_get_max_threads());
-        return range;
+        return decltype(ov::range_for_streams)::value_type(range);
     }
     /* Internally legacy parameters are used with new API as part of migration procedure.
      * This fallback can be removed as soon as migration completed */

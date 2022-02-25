@@ -1,8 +1,8 @@
-# HDDL Plugin {#openvino_docs_IE_DG_supported_plugins_HDDL}
+# HDDL device {#openvino_docs_OV_UG_supported_plugins_HDDL}
 
 ## Introducing the HDDL Plugin
 
-The Inference Engine HDDL plugin was developed for inference with neural networks on Intel&reg; Vision Accelerator Design with Intel&reg; Movidius&trade; VPUs. It is designed for use cases that require large throughput for deep learning inference, up to dozens of times more than the MYRIAD Plugin.
+The OpenVINO Runtime HDDL plugin was developed for inference with neural networks on Intel&reg; Vision Accelerator Design with Intel&reg; Movidius&trade; VPUs. It is designed for use cases that require large throughput for deep learning inference, up to dozens of times more than the MYRIAD Plugin.
 
 ## Configuring the HDDL Plugin
 
