@@ -375,63 +375,63 @@ TEST_P(XLinkOpenStreamTests, DISABLED_CannotOpenStreamsMoreThanMemoryOnDevice) {
 //------------------------------------------------------------------------------
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_XLinkCommon,
+    XLinkCommon,
     XLinkBootTests,
     Combine(Values(X_LINK_USB_VSC, X_LINK_PCIE),
             Values(X_LINK_ANY_PLATFORM)),
     XLinkBootTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_XLinkCommon,
+    XLinkCommon,
     XLinkConnectTests,
     Combine(Values(X_LINK_USB_VSC, X_LINK_PCIE),
             Values(X_LINK_ANY_PLATFORM)),
     XLinkBootTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_XLinkCommon,
+    XLinkCommon,
     XLinkFindFirstSuitableDevicePlatformTests,
     Combine(Values(X_LINK_USB_VSC),
             Values(X_LINK_MYRIAD_2, X_LINK_MYRIAD_X, X_LINK_ANY_PLATFORM)),
     XLinkBootTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_XLinkCommonPCIE,
+    XLinkCommonPCIE,
     XLinkFindFirstSuitableDevicePlatformTests,
     Combine(Values(X_LINK_PCIE),
             Values(X_LINK_ANY_PLATFORM)),
     XLinkBootTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_XLinkCommon,
+    XLinkCommon,
     XLinkFindFirstSuitableDeviceTests,
     Combine(Values(X_LINK_USB_VSC, X_LINK_PCIE),
             Values(X_LINK_ANY_PLATFORM)),
     XLinkBootTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_XLinkCommon,
+    XLinkCommon,
     XLinkFindAllSuitableDevicesTests,
     Combine(Values(X_LINK_USB_VSC, X_LINK_PCIE),
             Values(X_LINK_ANY_PLATFORM)),
     XLinkBootTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_XLinkCommon,
+    XLinkCommon,
     XLinkResetAllTests,
     Combine(Values(X_LINK_USB_VSC, X_LINK_PCIE),
             Values(X_LINK_ANY_PLATFORM)),
     XLinkBootTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_XLinkCommon,
+    XLinkCommon,
     XLinkResetRemoteTests,
     Combine(Values(X_LINK_USB_VSC, X_LINK_PCIE),
             Values(X_LINK_ANY_PLATFORM)),
     XLinkBootTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_XLinkCommon,
+    XLinkCommon,
     XLinkOpenStreamTests,
     Combine(Values(X_LINK_USB_VSC, X_LINK_PCIE),
             Values(X_LINK_ANY_PLATFORM)),
