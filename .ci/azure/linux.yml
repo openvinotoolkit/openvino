@@ -288,7 +288,7 @@ jobs:
     displayName: 'VPU UT'
     continueOnError: false
 
-  - script: . $(SETUPVARS) && $(REPO_DIR)/src/plugins/intel_myriad/third_party/tests/ --gtest_output=xml:TEST-XLinkTests.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/XLinkTests --gtest_output=xml:TEST-XLinkTests.xml
     displayName: 'XLinkTests'
     continueOnError: false
 
