@@ -1004,7 +1004,7 @@ TEST_P(OVClassLoadNetworkWithAutoBatchingTest, LoadNetworkWithAutoBatchingNoThro
         ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
         ov::hint::allow_auto_batching(false)
     }));
-    ASSERT_THROW(model.get_property(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)).as<std::string>(), ov::Exception);
+    ASSERT_THROW(model.get_property(ov::hint::auto_batching_device_config), ov::Exception);
 
     // Enable Auto Batching
     OV_ASSERT_NO_THROW(model = ie.compile_model(actualNetwork, deviceName, {
@@ -1012,7 +1012,7 @@ TEST_P(OVClassLoadNetworkWithAutoBatchingTest, LoadNetworkWithAutoBatchingNoThro
         ov::hint::allow_auto_batching(true)
     }));
     std::string targetDevice;
-    OV_ASSERT_NO_THROW(targetDevice = model.get_property(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)).as<std::string>());
+    OV_ASSERT_NO_THROW(targetDevice = model.get_property(ov::hint::auto_batching_device_config));
     ASSERT_EQ(deviceName, targetDevice);
 }
 
