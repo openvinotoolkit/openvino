@@ -6,8 +6,11 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "functional_test_utils/layer_test_utils/environment.hpp"
 
+#include "shared_test_classes/base/ov_subgraph.hpp"
+
+#include "read_ir_test/read_ir.hpp"
 #include "gflag_config.hpp"
 #include "conformance.hpp"
 
@@ -42,6 +45,13 @@ int main(int argc, char* argv[]) {
     LayerTestsUtils::Summary::setSaveReportWithUniqueName(FLAGS_report_unique_name);
     LayerTestsUtils::Summary::setOutputFolder(FLAGS_output_folder);
     LayerTestsUtils::Summary::setSaveReportTimeout(FLAGS_save_report_timeout);
+    if (FLAGS_shape_mode == std::string("static")) {
+        ov::test::subgraph::shapeMode = ov::test::subgraph::ShapeMode::STATIC;
+    } else if (FLAGS_shape_mode == std::string("dynamic")) {
+        ov::test::subgraph::shapeMode = ov::test::subgraph::ShapeMode::DYNAMIC;
+    } else if (FLAGS_shape_mode != std::string("")) {
+        throw std::runtime_error("Incorrect value for `--shape_mode`. Should be `dynamic`, `static` or ``. Current value is `" + FLAGS_shape_mode + "`");
+    }
 
     // ---------------------------Initialization of Gtest env -----------------------------------------------
     ov::test::conformance::targetDevice = FLAGS_device.c_str();
