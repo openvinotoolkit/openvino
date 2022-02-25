@@ -289,7 +289,7 @@ jobs:
     continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/XLinkTests --gtest_output=xml:TEST-XLinkTests.xml
-    displayName: 'XLinkTests'
+    displayName: 'XLink Tests'
     continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieMultiPluginUnitTests --gtest_output=xml:TEST-ieMultiPluginUnitTests.xml

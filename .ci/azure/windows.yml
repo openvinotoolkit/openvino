@@ -240,7 +240,7 @@ jobs:
     continueOnError: false
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\XLinkTests --gtest_output=xml:TEST-XLinkTests.xml
-    displayName: 'XLinkTests'
+    displayName: 'XLink Tests'
     continueOnError: false
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\onnxImporterUnitTests --gtest_output=xml:TEST-onnxImporterUnitTests.xml
