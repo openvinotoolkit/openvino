@@ -87,7 +87,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVCompiledModelPropertiesDefaultTe
 
 const std::vector<ov::AnyMap> properties = {
         {ov::num_streams(ov::streams::NUMA)},
-        {ov::num_streams(ov::streams::NUMA)},
+        {ov::num_streams(ov::streams::AUTO)},
         {ov::num_streams(0), ov::inference_num_threads(1)},
         {ov::num_streams(1), ov::inference_num_threads(1)},
         {{InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}}
