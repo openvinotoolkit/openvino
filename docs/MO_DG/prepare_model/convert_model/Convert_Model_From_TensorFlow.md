@@ -32,13 +32,13 @@ A summary of the steps for optimizing and deploying a model that was trained wit
 2. [Freeze the TensorFlow model](#freeze-the-tensorflow-model) if your model is not already frozen or skip this step and use the [instruction](#loading-nonfrozen-models) to a convert a non-frozen model.
 3. [Convert a TensorFlow\* model](#Convert_From_TF) to produce an optimized [Intermediate Representation (IR)](../../IR_and_opsets.md) of the model based on the trained network topology, weights, and biases values.
 4. Test the model in the Intermediate Representation format using the [OpenVINO™ Runtime](../../../OV_Runtime_UG/openvino_intro.md) in the target environment via provided [sample applications](../../../OV_Runtime_UG/Samples_Overview.md).
-5. [Integrate](../../../OV_Runtime_UG/Samples_Overview.md) the Inference Engine in your application to deploy the model in the target environment.
+5. [Integrate OpenVINO Runtime](../../../OV_Runtime_UG/Samples_Overview.md) in your application to deploy the model in the target environment.
 
 ## Supported Topologies
 
 **Supported Non-Frozen Topologies with Links to the Associated Slim Model Classification Download Files**
 
-Detailed information on how to convert models from the <a href="https://github.com/tensorflow/models/tree/master/research/slim/README.md">TensorFlow\*-Slim Image Classification Model Library</a> is available in the [Converting TensorFlow*-Slim Image Classification Model Library Models](tf_specific/Convert_Slim_Library_Models.md) chapter. The table below contains list of supported TensorFlow\*-Slim Image Classification Model Library models and required mean/scale values. The mean values are specified as if the input image is read in BGR channels order layout like Inference Engine classification sample does.
+Detailed information on how to convert models from the <a href="https://github.com/tensorflow/models/tree/master/research/slim/README.md">TensorFlow\*-Slim Image Classification Model Library</a> is available in the [Converting TensorFlow*-Slim Image Classification Model Library Models](tf_specific/Convert_Slim_Library_Models.md) chapter. The table below contains list of supported TensorFlow\*-Slim Image Classification Model Library models and required mean/scale values. The mean values are specified as if the input image is read in BGR channels order layout like OpenVINO classification sample does.
 
 | Model Name| Slim Model Checkpoint File| \-\-mean_values | \-\-scale|
 | ------------- | ------------ | ------------- | -----:|
