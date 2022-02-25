@@ -72,6 +72,12 @@ namespace detail {
 
 attach_cum_sum_impl::attach_cum_sum_impl() {
     implementation_map<cum_sum>::add(impl_types::ocl, cum_sum_impl::create, {
+        std::make_tuple(data_types::i32, format::bfyx),
+        std::make_tuple(data_types::i32, format::bfzyx),
+        std::make_tuple(data_types::i32, format::bfwzyx),
+        std::make_tuple(data_types::i64, format::bfyx),
+        std::make_tuple(data_types::i64, format::bfzyx),
+        std::make_tuple(data_types::i64, format::bfwzyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::f16, format::bfzyx),
         std::make_tuple(data_types::f16, format::bfwzyx),
