@@ -1,14 +1,14 @@
 # Inference Pipeline {#openvino_2_0_inference_pipeline}
 
 Usually to inference model with the OpenVINO™ Runtime an user needs to do the following steps in the application pipeline:
- 1. Create Core object
- 2. (Optional) Read model from the disk
-  2.1. (Optional) Model preprocessing
- 3. Load the model to the device
- 4. Create an inference request
- 5. Fill input tensors with data
- 6. Start inference
- 7. Process the inference results
+1. Create Core object
+2. (Optional) Read model from the disk
+ 2. 1. (Optional) Model preprocessing
+3. Load the model to the device
+4. Create an inference request
+5. Fill input tensors with data
+6. Start inference
+7. Process the inference results
 
 Code snippets below cover these steps and show how application code should be changed for migration to OpenVINO™ Runtime 2.0.
 

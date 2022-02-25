@@ -68,11 +68,10 @@ Let's define two types of behaviors:
 
 The table below demonstrates which behavior **old** or **new** is used depending on a model source, used APIs.
 
-
-| API  | IR v10  | IR v11  | ONNX file | Model created in code |
-|------|---------|---------|-----------|-----------------------|
-|Inference Engine / ngraph APIs | Old || Old | Old | Old |
-|OpenVINO Runtime API 2.0 | Old | New | New | New |
+|               API             | IR v10  | IR v11  | ONNX file | Model created in code |
+|-------------------------------|---------|---------|-----------|-----------------------|
+|Inference Engine / ngraph APIs |     Old |     Old |       Old |                   Old |
+|OpenVINO Runtime API 2.0       |     Old |     New |       New |                   New |
 
 Please look at next transition guides to understand how migrate Inference Engine-based application to OpenVINO™ Runtime API 2.0:
  - [OpenVINO™ Common Inference pipeline](common_inference_pipeline.md)
