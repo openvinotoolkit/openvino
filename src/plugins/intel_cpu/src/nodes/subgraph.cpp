@@ -58,8 +58,6 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    const Precision supportedPrecision = Precision::FP32;
-
     bool dimRanksAreEqual = true;
     for (size_t i = 0; dimRanksAreEqual && i < inputShapes.size(); i++) {
         for (size_t j = 0; dimRanksAreEqual && j < outputShapes.size(); j++) {
@@ -130,7 +128,7 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
 
             portConfig.inPlace((!i && canBeInPlace()) ? 0 : -1);
             portConfig.constant(false);
-            //const auto insPrecision = getOriginalInputPrecisionAtPort(i);
+            const auto insPrecision = getOriginalInputPrecisionAtPort(i);
             //// supported f32 & u8 only
             //portConfig.desc = createMemoryDesc(inputShapes[i], insPrecision, offset);
             if (inputShapes[i].getDims()[0] == 1) {
@@ -155,7 +153,7 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
                 //                                                         denseDesc->getOffsetPaddingToData(),
                 //                                                         strides);
             }
-            portConfig.setMemDesc(createMemoryDesc(inputShapes[i], supportedPrecision, offset), inputMask);
+            portConfig.setMemDesc(createMemoryDesc(inputShapes[i], insPrecision, offset), inputMask);
             config.inConfs[i] = portConfig;
         }
         config.outConfs.resize(outputShapes.size());
@@ -164,7 +162,7 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
             PortConfig portConfig;
             portConfig.inPlace(-1);
             portConfig.constant(false);
-            //const auto outPrecision = getOriginalOutputPrecisionAtPort(0);
+            const auto outPrecision = getOriginalOutputPrecisionAtPort(0);
             //portConfig.desc = createMemoryDesc(outputShapes[i], outPrecision, offset);
             if (outputShapes[i].getDims()[0] == 1) {
                 outputMask.reset(0); // accepts any stride on batch axis
@@ -180,7 +178,7 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
                 //                                                         denseDesc->getOffsetPaddingToData(),
                 //                                                         strides);
             }
-            portConfig.setMemDesc(createMemoryDesc(outputShapes[i], supportedPrecision, offset), outputMask);
+            portConfig.setMemDesc(createMemoryDesc(outputShapes[i], outPrecision, offset), outputMask);
             config.outConfs[i] = portConfig;
         }
 
