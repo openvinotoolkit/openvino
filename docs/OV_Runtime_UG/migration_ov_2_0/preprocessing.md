@@ -2,7 +2,7 @@
 
 ### Introduction
 
-Inference Engine API has preprocessing capabilities which are built on top of model expressed as `ngraph::Function` (now, it's `ov::Model`). One of the problems with it - preprocessing operations are not a part of the main model graph, so they are stored and executed separatelly:
+Inference Engine API has preprocessing capabilities which are built on top of model expressed as `ngraph::Function` (now, it's `ov::Model`). Before OpenVINO Runtime API 2.0 preprocessing operations were not a part of the main model graph, so they were stored and executed separately:
 - Preprocessing stored in `InferenceEngine::CNNNetwork` was lost during saving back to IR file format.
 - Preprocessing operations are executed on CPU processors for most of the inference plugins. So, instead of occupying of acceleators, CPU processor is also busy with inference tasks.
 
