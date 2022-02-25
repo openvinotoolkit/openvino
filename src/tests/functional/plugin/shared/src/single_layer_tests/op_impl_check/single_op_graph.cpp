@@ -83,7 +83,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v6::Experiment
 
 std::shared_ptr<ov::Model> generate(
     const std::shared_ptr<ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage> &node) {
-    const auto im_info = ngraph::builder::makeConstant<float>(ov::element::f32, {{3}}, {1.0f, 1.0f, 1.0f});
+    const auto im_info = ngraph::builder::makeConstant<float>(ov::element::f32, {3}, {1.0f, 1.0f, 1.0f});
     const auto anchors = ngraph::builder::makeConstant<float>(
         ov::element::f32,
         {{36, 4}},
