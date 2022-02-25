@@ -239,9 +239,11 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
 
     auto functionToProcess = ov::clone_model(*functionRefs);
     //TODO: remove this conversions as soon as function interpreter fully support bf16 and f16
-    static const precisions_array precisions = {
-            { ngraph::element::bf16, ngraph::element::f32 },
+    static const precisions_array f_precisions = {
             { ngraph::element::f16, ngraph::element::f32}
+    };
+    static const precisions_array bf_precisions = {
+            { ngraph::element::bf16, ngraph::element::f32 }
     };
 
     auto convert_added = false;
@@ -256,12 +258,14 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
             }
         }
     }
+
+    pass::Manager manager;
     if (!convert_added) {
-        pass::Manager manager;
-        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
-        manager.run_passes(functionToProcess);
-        functionToProcess->validate_nodes_and_infer_types();
+        manager.register_pass<ngraph::pass::ConvertPrecision>(f_precisions);
     }
+    manager.register_pass<ngraph::pass::ConvertPrecision>(bf_precisions);
+    manager.run_passes(functionToProcess);
+    functionToProcess->validate_nodes_and_infer_types();
 
     ov::preprocess::PrePostProcessor p(functionToProcess);
     const auto& inputNodes = functionToProcess->inputs();
