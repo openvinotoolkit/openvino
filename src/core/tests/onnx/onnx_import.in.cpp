@@ -4736,3 +4736,29 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unsqueeze_ai_onnx_domain_opset13) {
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_scan9_fixed) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/scan9_fixed.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{1, 2}, {0, 0});
+    test_case.add_input<float>(Shape{3, 2}, {1., 2., 3., 4., 5., 6});
+
+    test_case.add_expected_output<float>(Shape{1, 2}, {9, 12});
+    test_case.add_expected_output<float>(Shape{3, 1, 2}, {1, 2, 4, 6, 9, 12});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_scan9_orig) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/scan9_orig.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{2}, {0, 0});
+    test_case.add_input<float>(Shape{3, 2}, {1., 2., 3., 4., 5., 6});
+
+    test_case.add_expected_output<float>(Shape{2}, {9, 12});
+    test_case.add_expected_output<float>(Shape{3, 2}, {1, 2, 4, 6, 9, 12});
+    test_case.run();
+}

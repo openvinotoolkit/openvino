@@ -1,0 +1,167 @@
+ir_version: 8
+producer_name: "onnx-importer-test"
+graph {
+  node {
+    input: "initial"
+    input: "x"
+    output: "y"
+    output: "z"
+    op_type: "Scan"
+    attribute {
+      name: "body"
+      g {
+        node {
+          input: "sum_in"
+          input: "next"
+          output: "sum_out"
+          op_type: "Add"
+        }
+        node {
+          input: "sum_out"
+          output: "scan_out"
+          op_type: "Identity"
+        }
+        name: "scan_body"
+        input {
+          name: "sum_in"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 1
+                }
+                dim {
+                  dim_value: 2
+                }
+              }
+            }
+          }
+        }
+        input {
+          name: "next"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 1
+                }
+                dim {
+                  dim_value: 2
+                }
+              }
+            }
+          }
+        }
+        output {
+          name: "sum_out"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 1
+                }
+                dim {
+                  dim_value: 2
+                }
+              }
+            }
+          }
+        }
+        output {
+          name: "scan_out"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 1
+                }
+                dim {
+                  dim_value: 2
+                }
+              }
+            }
+          }
+        }
+      }
+      type: GRAPH
+    }
+    attribute {
+      name: "num_scan_inputs"
+      i: 1
+      type: INT
+    }
+  }
+  name: "test-model-scan"
+  input {
+    name: "initial"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "x"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "z"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 9
+}
