@@ -3,7 +3,6 @@
 //
 
 #include "program_node.h"
-#include "intel_gpu/graph/program.hpp"
 #include "program_helpers.h"
 #include "primitive_inst.h"
 
@@ -24,8 +23,10 @@
 
 using namespace cldnn;
 
+thread_local size_t program_node::cur_id = 0;
+
 program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
-    : desc(prim), myprog(prog), org_id(prim->id) {
+    : desc(prim), myprog(prog), org_id(prim ? (prim->id) : 0) {
     if (prim)
         output_layout.data_padding = prim->output_padding;
 }
@@ -387,7 +388,11 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
                 float scale;
                 dnnl::memory::data_type data_type;
                 cur_p_ops.get_params_sum(idx, scale, data_type);
-                new_p_ops.append_sum(scale, data_type);
+                if (is_type<convolution>()) {
+                    new_p_ops.append_sum(scale, data_type);
+                } else {
+                    new_p_ops.append_sum(scale);
+                }
                 break;
             }
 
@@ -489,9 +494,9 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
         auto prev_type = cur_post_ops[prev_post_op_idx].op_type;
 
         // Ignore optimized operations for "previous" operation in our operation pair
-        while (type_is_any_optimized(prev_type) && cur_post_op_idx < post_ops_size - 1) {
+        while (type_is_any_optimized(prev_type) && prev_post_op_idx < post_ops_size - 1) {
             prev_post_op_idx++;
-            if (prev_post_op_idx == cur_post_op_idx)
+            if (prev_post_op_idx == cur_post_op_idx && cur_post_op_idx < post_ops_size - 1)
                 cur_post_op_idx++;
             prev_type = cur_post_ops[prev_post_op_idx].op_type;
             cur_type = cur_post_ops[cur_post_op_idx].op_type;
@@ -664,7 +669,6 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
             } else if (sum_and_eltw) {
                 dnnl::algorithm alg;
                 float sum_scale, eltw_scale, alpha, beta;
-                dnnl::memory::data_type data_type;
 
                 dnnl::algorithm next_alg;
                 float next_scale, next_alpha, next_beta;
@@ -685,14 +689,18 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
 
                 // Try to optimize eltwise (any) + sum + eltwise_linear (with beta = 0) chain of operations
                 if (can_optimize_eltw_and_sum) {
+                    dnnl::memory::data_type data_type;
                     p_ops.get_params_sum(cur_idx, sum_scale, data_type);
                     p_ops.get_params_eltwise(prev_idx, eltw_scale, alg, alpha, beta);
 
                     dnnl::post_ops eltw_p_op_prev, sum_p_op;
 
                     eltw_p_op_prev.append_eltwise(eltw_scale * next_alpha * next_scale, alg, alpha, beta);
-                    sum_p_op.append_sum(sum_scale * next_alpha, data_type);
-
+                    if (is_type<convolution>()) {
+                        sum_p_op.append_sum(sum_scale * next_alpha, data_type);
+                    } else {
+                        sum_p_op.append_sum(sum_scale * next_alpha);
+                    }
                     add_post_op(prev_type, eltw_p_op_prev, optimized_p_ops, 0);
                     add_post_op(cur_type, sum_p_op, optimized_p_ops, 0);
 
@@ -822,7 +830,11 @@ void program_node::init_onednn_primitive_attributes() {
 
             if (e_node.get_primitive()->mode == eltwise_mode::sum) {
                 if (program_helpers::needs_onednn_sum_post_op(e_node, in)) {
-                    post_ops.append_sum(1.0f, onednn::convert_data_type(in.data_type));
+                    if (is_type<convolution>()) {
+                        post_ops.append_sum(1.0f, onednn::convert_data_type(in.data_type));
+                    } else {
+                        post_ops.append_sum(1.0f);
+                    }
                     update_onednn_post_op_list(onednn_post_op_type::sum, dep_idx);
                 } else {
                     dnnl::memory::desc in_desc = onednn::layout_to_memory_desc(in);

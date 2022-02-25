@@ -1,4 +1,4 @@
-# GNA Plugin {#openvino_docs_IE_DG_supported_plugins_GNA}
+# GNA device {#openvino_docs_OV_UG_supported_plugins_GNA}
 ## Introducing the GNA Plugin
 
 The Intel® Gaussian & Neural Accelerator is a low-power neural coprocessor for continuous inference at the edge.
@@ -242,7 +242,7 @@ For example, the Kaldi model optimizer inserts such a permute after convolution 
 
 ## Operation Precision
 
-Intel® GNA essentially operates in the low-precision mode, which represents a mix of 8-bit (`I8`), 16-bit (`I16`), and 32-bit (`I32`) integer computations. Outputs calculated using a reduced integer precision are different from the scores calculated using the floating point format, for example, `FP32` outputs calculated on CPU using the Inference Engine [CPU Plugin](CPU.md).
+Intel® GNA essentially operates in the low-precision mode, which represents a mix of 8-bit (`I8`), 16-bit (`I16`), and 32-bit (`I32`) integer computations. Outputs calculated using a reduced integer precision are different from the scores calculated using the floating point format, for example, `FP32` outputs calculated on CPU using the OpenVINO [CPU device](CPU.md).
 
 Unlike other plugins supporting low-precision execution, the GNA plugin can calculate quantization factors at the model loading time, so you can run a model without calibration using the [Post-Training Optimization Tool](@ref pot_README).
 However, this mode may not provide satisfactory accuracy because the internal quantization algorithm is based on heuristics which may or may not be efficient, depending on the model and dynamic range of input data.

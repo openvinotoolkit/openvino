@@ -158,7 +158,7 @@ However, if your model contains more than one input, the Model Optimizer is able
 
 #### 9. What does the message "Mean file for topologies with multiple inputs is not supported" mean? <a name="question-9"></a>
 
-Model Optimizer does not support mean file processing for topologies with more than one input. In this case, you need to perform preprocessing of the inputs for a generated Intermediate Representation in the Inference Engine to perform subtraction for every input of your multi-input model.
+Model Optimizer does not support mean file processing for topologies with more than one input. In this case, you need to perform preprocessing of the inputs for a generated Intermediate Representation in the OpenVINO Runtime to perform subtraction for every input of your multi-input model, see [Overview of Preprocessing](../../OV_Runtime_UG/preprocessing_overview.md) for details.
 
 #### 10. What does the message "Cannot load or process mean file: value error" mean? <a name="question-10"></a>
 
@@ -214,7 +214,7 @@ One of the layers in the specified topology might not have inputs or values. Ple
 
 #### 24. What does the message "Part of the nodes was not translated to IE. Stopped" mean? <a name="question-24"></a>
 
-Some of the layers are not supported by the Inference Engine and cannot be translated to an Intermediate Representation. You can extend the Model Optimizer by allowing generation of new types of layers and implement these layers in the dedicated Inference Engine plugins. For more information, refer to the [Custom Layers Guide](../../HOWTO/Custom_Layers_Guide.md) and [Inference Engine Extensibility Mechanism](../../OV_Runtime_UG/Extensibility_DG/Intro.md)
+Some of the operations are not supported by the OpenVINO Runtime and cannot be translated to an Intermediate Representation. You can extend the Model Optimizer by allowing generation of new types of operations and implement these operations in the dedicated OpenVINO plugins. For more information, refer to the [OpenVINO™ Extensibility Mechanism](../../Extensibility_UG/Intro.md)
 
 #### 25. What does the message "While creating an edge from .. to .. : node name is undefined in the graph. Check correctness of the input model" mean? <a name="question-25"></a>
 
@@ -268,7 +268,7 @@ Model Optimizer tried to write an event file in the specified directory but fail
 
 #### 37. What does the message "There is no registered 'infer' function for node  with op = .. . Please implement this function in the extensions" mean? <a name="question-37"></a>
 
-Most likely, you tried to extend Model Optimizer with a new primitive, but did not specify an infer function. For more information on extensions, see [Custom Layers Guide](../../HOWTO/Custom_Layers_Guide.md).
+Most likely, you tried to extend Model Optimizer with a new primitive, but did not specify an infer function. For more information on extensions, see [OpenVINO™ Extensibility Mechanism](../../Extensibility_UG/Intro.md).
 
 #### 38. What does the message "Stopped shape/value propagation at node" mean? <a name="question-38"></a>
 
@@ -300,7 +300,7 @@ Most likely, there is a problem with the specified file for model. The file exis
 
 #### 45. What does the message "Found custom layer. Model Optimizer does not support this layer. Please, register it in CustomLayersMapping.xml or implement extension" mean? <a name="question-45"></a>
 
-This means that the layer `{layer_name}` is not supported in the Model Optimizer. You can find a list of all unsupported layers in the corresponding section. You should implement the extensions for this layer ([Custom Layers Guide](../../HOWTO/Custom_Layers_Guide.md)).
+This means that the layer `{layer_name}` is not supported in the Model Optimizer. You can find a list of all unsupported layers in the corresponding section. You should implement the extensions for this layer ([OpenVINO™ Extensibility Mechanism](../../Extensibility_UG/Intro.md)).
 
 #### 46. What does the message "Custom replacement configuration file does not exist" mean? <a name="question-46"></a>
 
@@ -308,7 +308,7 @@ Path to the custom replacement configuration file was provided with the `--trans
 
 #### 47. What does the message "Extractors collection have case insensitive duplicates" mean? <a name="question-47"></a>
 
-When extending Model Optimizer with new primitives keep in mind that their names are case insensitive. Most likely, another operation with the same name is already defined. For more information, see [Custom Layers Guide](../../HOWTO/Custom_Layers_Guide.md).
+When extending Model Optimizer with new primitives keep in mind that their names are case insensitive. Most likely, another operation with the same name is already defined. For more information, see [OpenVINO™ Extensibility Mechanism](../../Extensibility_UG/Intro.md).
 
 #### 48. What does the message "Input model name is not in an expected format, cannot extract iteration number" mean? <a name="question-48"></a>
 
@@ -340,7 +340,7 @@ Please, make sure that inputs are defined and have correct shapes. You can use `
 
 #### 55. What does the message "Attempt to register of custom name for the second time as class. Note that custom names are case-insensitive" mean? <a name="question-55"></a>
 
-When extending Model Optimizer with new primitives keep in mind that their names are case insensitive. Most likely, another operation with the same name is already defined. For more information, see [Custom Layers Guide](../../HOWTO/Custom_Layers_Guide.md).
+When extending Model Optimizer with new primitives keep in mind that their names are case insensitive. Most likely, another operation with the same name is already defined. For more information, see [OpenVINO™ Extensibility Mechanism](../../Extensibility_UG/Intro.md).
 
 #### 56. What does the message "Both --input_shape and --batch were provided. Please, provide only one of them" mean? <a name="question-56"></a>
 
@@ -492,7 +492,7 @@ For more information, refer to [Converting a MXNet* Model](convert_model/Convert
 
 Model Optimizer tried to load the model that contains some unsupported operations. 
 If you want to convert model that contains unsupported operations you need to prepare extension for all such operations.
-For more information, refer to [Custom Layers Guide](../../HOWTO/Custom_Layers_Guide.md).
+For more information, refer to [OpenVINO™ Extensibility Mechanism](../../Extensibility_UG/Intro.md).
 
 #### 87. What does the message "Can not register Op ... Please, call function 'register_caffe_python_extractor' with parameter 'name'" mean? <a name="question-87"></a>
 
@@ -538,7 +538,7 @@ Note that the first call <code>register_caffe_python_extractor(ProposalPythonExa
 
 The second call prevents Model Optimizer from using this extension as if it is an extension for 
 a layer with type `Proposal`. Otherwise, this layer can be chosen as an implementation of extension that can lead to potential issues.
-For more information, refer to the [Custom Layers Guide](../../HOWTO/Custom_Layers_Guide.md).
+For more information, refer to the [OpenVINO™ Extensibility Mechanism](../../Extensibility_UG/Intro.md).
 
 #### 88. What does the message "Model Optimizer is unable to calculate output shape of Memory node .." mean? <a name="question-88"></a>
 
@@ -572,8 +572,8 @@ file is not available or does not exist. Also refer to FAQ [#90](#question-90).
 This message means that if you have model with custom layers and its json file has been generated with MXNet version
 lower than 1.0.0, Model Optimizer does not support such topologies. If you want to convert it you have to rebuild 
 MXNet with unsupported layers or generate new json with MXNet version 1.0.0 and higher. Also you need to implement 
-Inference Engine extension for used custom layers.
-For more information, refer to the [Custom Layers Guide](../../HOWTO/Custom_Layers_Guide.md).
+OpenVINO extension for used custom layers.
+For more information, refer to the [OpenVINO™ Extensibility Mechanism](../../Extensibility_UG/Intro.md).
 
 #### 97. What does the message "Graph contains a cycle. Can not proceed .." mean?  <a name="question-97"></a>
 
@@ -586,7 +586,7 @@ For Tensorflow:
 
 For all frameworks: 
 1. [Replace cycle containing Sub-graph in Model Optimizer](customize_model_optimizer/Subgraph_Replacement_Model_Optimizer.md)
-2. [Custom Layers Guide](../../HOWTO/Custom_Layers_Guide.md)
+2. [OpenVINO™ Extensibility Mechanism](../../Extensibility_UG/Intro.md)
 
 or
 * Edit network in original framework to exclude cycle.

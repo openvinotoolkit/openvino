@@ -74,7 +74,6 @@
 #include "low_precision/convert.hpp"
 #include "low_precision/fold_fake_quantize.hpp"
 #include "low_precision/fuse_convert.hpp"
-#include "low_precision/fuse_fake_quantize.hpp"
 #include "low_precision/fuse_subtract_to_fake_quantize.hpp"
 #include "low_precision/fuse_multiply_to_fake_quantize.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
@@ -104,11 +103,11 @@ void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
 
     ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher& m) {
         auto l_node = std::dynamic_pointer_cast<BaseOp>(m.get_match_root());
+        if (!l_node) {
+            THROW_TRANSFORMATION_EXCEPTION << "unexpected operation type for type relaxed conversion";
+        }
         if (std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(l_node)) {
             return false;
-        }
-        if (!l_node) {
-            THROW_IE_LPT_EXCEPTION(*l_node) << "unexpected operation type";
         }
 
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "LowPrecisionTypeRelaxedMatcher");

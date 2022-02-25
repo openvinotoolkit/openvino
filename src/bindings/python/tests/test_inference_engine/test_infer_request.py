@@ -10,7 +10,7 @@ import time
 
 import openvino.runtime.opset8 as ops
 from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model
-from openvino.runtime import Type, Shape, Layout
+from openvino.runtime import Type, PartialShape, Shape, Layout
 from openvino.preprocess import PrePostProcessor
 
 from ..conftest import model_path, read_image
@@ -58,7 +58,7 @@ def test_get_profiling_info(device):
     prof_info = request.get_profiling_info()
     soft_max_node = next(node for node in prof_info if node.node_name == "fc_out")
     assert soft_max_node.node_type == "Softmax"
-    assert soft_max_node.status == ProfilingInfo.Status.OPTIMIZED_OUT
+    assert soft_max_node.status == ProfilingInfo.Status.EXECUTED
     assert isinstance(soft_max_node.real_time, datetime.timedelta)
     assert isinstance(soft_max_node.cpu_time, datetime.timedelta)
     assert isinstance(soft_max_node.exec_type, str)
@@ -656,3 +656,20 @@ def test_invalid_inputs_container(device):
     with pytest.raises(TypeError) as e:
         request.infer(inputs)
     assert "Inputs should be either list or dict! Current type:" in str(e.value)
+
+
+def test_infer_dynamic_model(device):
+    core = Core()
+    param = ops.parameter(PartialShape([-1, -1]))
+    model = Model(ops.relu(param), [param])
+    compiled = core.compile_model(model, device)
+    assert compiled.input().partial_shape.is_dynamic
+    request = compiled.create_infer_request()
+
+    shape1 = [1, 28]
+    request.infer([np.random.normal(size=shape1)])
+    assert request.get_input_tensor().shape == Shape(shape1)
+
+    shape2 = [1, 32]
+    request.infer([np.random.normal(size=shape2)])
+    assert request.get_input_tensor().shape == Shape(shape2)

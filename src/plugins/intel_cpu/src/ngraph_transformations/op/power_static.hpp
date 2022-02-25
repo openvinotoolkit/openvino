@@ -6,7 +6,8 @@
 
 #include <ngraph/op/op.hpp>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class PowerStaticNode : public ngraph::op::Op {
 public:
@@ -32,4 +33,5 @@ private:
     ngraph::element::Type m_output_type;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov
