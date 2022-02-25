@@ -1,30 +1,28 @@
-# Create a Yocto* Image with OpenVINO™ toolkit {#openvino_docs_install_guides_installing_openvino_yocto}
-This document provides instructions for creating a Yocto* image with OpenVINO™ toolkit.
-
-Instructions were validated and tested for [Yocto OpenVINO 2020.4 release](http://git.yoctoproject.org/cgit/cgit.cgi/meta-intel).
+# Create a Yocto Image with Intel® Distribution of OpenVINO™ toolkit {#openvino_docs_install_guides_installing_openvino_yocto}
+This document provides instructions for creating a Yocto image with Intel® Distribution of OpenVINO™ toolkit.
 
 ## System Requirements
-Use the [Yocto Project* official documentation](https://www.yoctoproject.org/docs/latest/mega-manual/mega-manual.html#brief-compatible-distro) to set up and configure your host machine to be compatible with BitBake*.
+Use the [Yocto Project official documentation](https://docs.yoctoproject.org/brief-yoctoprojectqs/index.html#compatible-linux-distribution) to set up and configure your host machine to be compatible with BitBake.
 
-## Setup 
+## Step 1: Set Up Environment
 
-### Set up Git repositories
+### Set Up Git Repositories
 The following Git repositories are required to build a Yocto image:
 
-- [Poky](https://www.yoctoproject.org/docs/latest/mega-manual/mega-manual.html#poky)
-- [Meta-intel](http://git.yoctoproject.org/cgit/cgit.cgi/meta-intel/tree/README)
+- [Poky](https://git.yoctoproject.org/poky)
+- [Meta-intel](https://git.yoctoproject.org/meta-intel/tree/README)
 - [Meta-openembedded](http://cgit.openembedded.org/meta-openembedded/tree/README)
 - <a href="https://github.com/kraj/meta-clang/blob/master/README.md">Meta-clang</a>
 
 Clone these Git repositories to your host machine: 
 ```sh
-git clone https://git.yoctoproject.org/git/poky
-git clone https://git.yoctoproject.org/git/meta-intel
-git clone https://git.openembedded.org/meta-openembedded
-git clone https://github.com/kraj/meta-clang.git
+git clone https://git.yoctoproject.org/git/poky --branch hardknott
+git clone https://git.yoctoproject.org/git/meta-intel --branch hardknott
+git clone https://git.openembedded.org/meta-openembedded --branch hardknott
+git clone https://github.com/kraj/meta-clang.git --branch hardknott
 ```
 
-### Set up BitBake* Layers
+### Set up BitBake Layers
 
 ```sh
 source poky/oe-init-build-env
@@ -36,7 +34,7 @@ bitbake-layers add-layer ../meta-clang
 
 ### Set up BitBake Configurations
 
-Include extra configuration in conf/local.conf in your build directory as required.
+Include extra configuration in `conf/local.conf` in your build directory as required.
 
 ```sh
 # Build with SSE4.2, AVX2 etc. extensions
@@ -67,22 +65,22 @@ CORE_IMAGE_EXTRA_INSTALL_append = " openvino-inference-engine-vpu-firmware"
 CORE_IMAGE_EXTRA_INSTALL_append = " openvino-model-optimizer"
 ```
 
-## Build a Yocto Image with OpenVINO Packages
+## Step 2: Build a Yocto Image with OpenVINO Packages
 
-Run BitBake to build the minimal image with OpenVINO packages: 
+Run BitBake to build your image with OpenVINO packages. To build the minimal image, for example, run:
 ```sh
 bitbake core-image-minimal
 ```
 
-## Verify the Created Yocto Image with OpenVINO Packages
+## Step 3: Verify the Yocto Image with OpenVINO Packages
 
 Verify that OpenVINO packages were built successfully.
-Run 'oe-pkgdata-util list-pkgs | grep openvino' command.
+Run the following command:
 ```sh
 oe-pkgdata-util list-pkgs | grep openvino
 ```
 
-Verify that it returns the list of packages below:
+If the image was built successfully, it will return the list of packages as below:
 ```sh
 openvino-inference-engine
 openvino-inference-engine-dbg
