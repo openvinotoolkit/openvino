@@ -13,6 +13,9 @@ int main() {
     InferenceEngine::CNNNetwork network = core.ReadNetwork("model.xml");
     //! [ie:read_model]
 
+    InferenceEngine::InputsDataMap inputs = network.getInputsInfo();
+    InferenceEngine::OutputsDataMap outputs = network.getOutputsInfo();
+
     //! [ie:compile_model]
     InferenceEngine::ExecutableNetwork exec_network = core.LoadNetwork(network, "CPU");
     //! [ie:compile_model]
