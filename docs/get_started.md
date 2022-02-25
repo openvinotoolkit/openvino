@@ -41,7 +41,7 @@
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Inference Engine Code Samples
+   :caption: OpenVINO Code Samples
 
    openvino_docs_IE_DG_Samples_Overview
 
@@ -87,7 +87,7 @@
         <p>Use a web-based version of OpenVINO with a Graphical User Interface. Installing a DL Workbench container is required. </p>
      </a> 
      <a href="openvino_docs_IE_DG_Samples_Overview.html" >
-        <h4>Inference Engine samples	</h4>
+        <h4>OpenVINO samples	</h4>
         <p>See ready-made applications explaining OpenVINO features and various use-cases.		</p>
      </a> 
      <a href="openvino_docs_IE_DG_Samples_Overview.html" >
