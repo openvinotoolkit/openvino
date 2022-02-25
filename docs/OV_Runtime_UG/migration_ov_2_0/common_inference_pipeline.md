@@ -2,7 +2,7 @@
 
 Usually to inference model with the OpenVINO™ Runtime an user needs to do the following steps in the application pipeline:
 - 1. Create Core object
-- 2. (Optional) Read model from the disk
+- 2. Read model from the disk
  - 2.1. (Optional) Model preprocessing
 - 3. Load the model to the device
 - 4. Create an inference request
@@ -22,7 +22,7 @@ OpenVINO™ Runtime API 2.0:
 
 @snippet docs/snippets/ov_common.cpp ov_api_2_0:create_core
 
-## 2. (Optional) Read model from the disk
+## 2. Read model from the disk
 
 Inference Engine API:
 
@@ -32,10 +32,13 @@ OpenVINO™ Runtime API 2.0:
 
 @snippet docs/snippets/ov_common.cpp ov_api_2_0:read_model
 
-Read model has the same structure as in the example from [Model Creation](./graph_construction.md) guide.
+Read model has the same structure as in the example from [Model Creation](./graph_construction.md) migration guide.
+
+Note, you can combine read and compile model stages into a single call `ov::Core::compile_model(filename, devicename)`.
 
 ### 2.1 (Optional) Model preprocessing
 
+When application's input data doesn't perfectly match with model's input format, preprocessing steps may need to be added.
 See detailed guide [how to migrate preprocessing in OpenVINO Runtime API 2.0](./preprocessing.md)
 
 ## 3. Load the Model to the Device

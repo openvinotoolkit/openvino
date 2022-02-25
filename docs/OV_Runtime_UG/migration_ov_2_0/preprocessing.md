@@ -17,7 +17,7 @@ In OpenVINO Runtime 2.0 the following new operations are introduced to be a part
 
 All other preprocessing operations are expressed by means of existing operations and their combinations.
 
-It's also important to mention that since OpenVINO 2.0, the Runtime API does not assume any default layouts like Inference Engine did, for example `{ 1, 224, 224, 3 }` is supposed to be `NCHW` layout while it's not true. So, some preprocessing capabilities in OpenVINO Runtime API 2.0 requires explicitly set layouts, see [Layout overview](../layout_overview.md) how to do it. For example, to perform image scaling by partial dimensions `H` and `W`, preprocessing needs to know what dimensions are `H` and `W`.
+It's also important to mention that since OpenVINO 2.0, the Runtime API does not assume any default layouts like Inference Engine did, for example both `{ 1, 224, 224, 3 }` and `{ 1, 3, 224, 224 }` are supposed to have `NCHW` layout while only the last shape has `NCHW`. So, some preprocessing capabilities in OpenVINO Runtime API 2.0 requires explicitly set layouts, see [Layout overview](../layout_overview.md) how to do it. For example, to perform image scaling by partial dimensions `H` and `W`, preprocessing needs to know what dimensions are `H` and `W`.
 
 > **NOTE**: Use Model Optimizer preprocessing capabilities to insert and optimize preprocessing operations to the model. In this case you don't need to read model in runtime application and set preprocessing, you can use [model caching feature](../Model_caching_overview.md) to improve time to inference stage.
 
@@ -44,16 +44,6 @@ OpenVINO Runtime API 2.0:
 
 @snippet docs/snippets/ov_preprocessing_migration.cpp ov_conversions
 
-### Color space conversions
-
-Inference Engine API:
-
-@snippet docs/snippets/ov_preprocessing_migration.cpp color_space
-
-OpenVINO Runtime API 2.0:
-
-@snippet docs/snippets/ov_preprocessing_migration.cpp ov_color_space
-
 ### Image scaling
 
 Inference Engine API:
@@ -63,6 +53,16 @@ Inference Engine API:
 OpenVINO Runtime API 2.0:
 
 @snippet docs/snippets/ov_preprocessing_migration.cpp ov_image_scale
+
+### Color space conversions
+
+Inference Engine API:
+
+@snippet docs/snippets/ov_preprocessing_migration.cpp color_space
+
+OpenVINO Runtime API 2.0:
+
+@snippet docs/snippets/ov_preprocessing_migration.cpp ov_color_space
 
 **See also:**
 - [Preprocessing details](../preprocessing_details.md)
