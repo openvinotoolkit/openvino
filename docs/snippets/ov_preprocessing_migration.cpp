@@ -19,7 +19,7 @@ int main_new() {
 ov::preprocess::PrePostProcessor ppp(model);
 ov::preprocess::InputInfo& input = ppp.input("tensor_name");
 // we only need to know where is C dimension
-input.model().set_layout("???C");
+input.model().set_layout("...C");
 // specify scale and mean values, order of operations is important
 input.preprocess().mean(0.1f).scale({ 0.5f, 0.05f, 0.01f });
 // insert preprocessing operations to the 'model'
@@ -34,7 +34,7 @@ ov::preprocess::InputInfo& input = ppp.input("tensor_name");
 input.tensor().set_layout("NHWC").set_element_type(ov::element::u8);
 input.model().set_layout("NCHW");
 // layout and precision conversion is inserted automatically,
-// because tensor != model_input formats
+// because tensor format != model input format
 model = ppp.build();
     //! [ov_conversions]
     }
@@ -95,6 +95,7 @@ auto inputInfo = network.getInputsInfo()["operation_name"];
 inputInfo->setPrecision(InferenceEngine::Precision::U8);
 inputInfo->setLayout(InferenceEngine::Layout::NHWC);
 // model input layout is always NCHW in Inference Engine
+// for shapes with 4 dimensions
     //! [conversions]
     }
 

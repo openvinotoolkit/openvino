@@ -13,7 +13,7 @@
       
 @endsphinxdirective
 
-## Introduction
+### Introduction
 
 The OpenVINO™ 2.0 is introduced to simplify migration of user applications from the frameworks like TensorFlow, PyTorch, ONNX, etc to OpenVINO runtime and make the OpenVINO™ API more user-friendly. This includes changes in several OpenVINO components:
 
@@ -27,13 +27,13 @@ OpenVINO Runtime API 2.0 is introduced and composed of Inference Engine API used
 
 > **NOTE**: old ngraph and Inference Engine APIs are also preserved for backward compatibility and they are fully functional. The migration to OpenVINO 2.0 API is required to utilize the new OpenVINO Runtime API features like [Preprocessing](../preprocessing_overview.md) and [Dynamic shapes support](../DynamicBatching.md).
 
-## Introduce IR v11
+### Introduce IR v11
 
 As a result of changes in Model Optimizer, OpenVINO introduced IR v11. From the user's perspective, the IR v11 looks like IR v10, but it has inputs and outputs formats aligned as it would be in the original framework. So, when a user converts a model, the converted model has exactly the same input element types, order of dimensions in shapes, also a user does not have to specify input shapes during the conversion, so the resulting IR v11 contains `-1` to denote undefined dimensions (see [Working with dynamic shapes](../DynamicBatching.md) to utilize this feature).
 
 What is also important to mention - the IR v11 is fully compatible with old applications written using older versions of OpenVINO Runtime API - using Inference Engine API. This is achieved by adding additional runtime information to the IR v11 which is responsible for backwark compatible behavior. So, once the IR v11 is read by the old Inference Engine based application, it's internally converted to IR v10 to provide backward-compatible behavior.
 
-## IR v10 compatibility
+### IR v10 compatibility
 
 All user's applications written to work with IR v10 are also supported by OpenVINO Runtime API from OpenVINO 2.0. So, if a user has an IR v10, such IR v10 can be fed to OpenVINO Runtime as well (see [migration steps](./common_inference_pipeline.md)).
 
@@ -45,7 +45,7 @@ But the following OpenVINO model tools don't support IR v10 as an input, they re
 - Post Training Optimization tool
 - Deep Learning WorkBench
 
-## Differences between Inference Engine API and OpenVINO Runtime API 2.0
+### Differences between Inference Engine API and OpenVINO Runtime API 2.0
 
 The list with differences between APIs below:
 
