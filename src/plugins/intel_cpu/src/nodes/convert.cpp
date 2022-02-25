@@ -149,7 +149,8 @@ void MKLDNNConvertNode::execute(mkldnn::stream strm) {
     cpu_convert(srcPtr,
                 dstPtr,
                 parentMem.getDesc().getPrecision(),
-                origPrc,
+                //origPrc,
+                childMem.getDesc().getPrecision(),
                 childMem.getDesc().getPrecision(),
                 parentPaddElemCount);
 }
