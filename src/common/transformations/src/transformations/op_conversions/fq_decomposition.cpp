@@ -104,7 +104,9 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
         }
 
         // round(x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low))
-        const auto round = std::make_shared<ngraph::opset5::Round>(after_ish_apply ? after_ish_apply : min, ngraph::opset5::Round::RoundMode::HALF_TO_EVEN);
+        const auto round = std::make_shared<ngraph::opset5::Round>(after_ish_apply ?
+            after_ish_apply :
+            after_isc_apply, ngraph::opset5::Round::RoundMode::HALF_TO_EVEN);
         decomp_ops.push_back(round);
 
         // (output_high - output_low)
