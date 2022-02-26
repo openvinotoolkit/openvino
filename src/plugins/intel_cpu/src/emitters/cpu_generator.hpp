@@ -28,7 +28,6 @@ private:
 class CPUGenerator : public ngraph::snippets::Generator {
 public:
     CPUGenerator(dnnl::impl::cpu::x64::cpu_isa_t isa);
-    ~CPUGenerator() = default;
 };
 
 }   // namespace intel_cpu

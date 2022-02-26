@@ -18,12 +18,15 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/crash_handler.hpp"
 #include "functional_test_utils/ov_tensor_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
 #include "shared_test_classes/base/utils/compare_results.hpp"
+
+#include <setjmp.h>
 
 namespace ov {
 namespace test {
@@ -34,52 +37,60 @@ std::ostream& operator <<(std::ostream& os, const InputShape& inputShape) {
 }
 
 void SubgraphBaseTest::run() {
-    auto crashHandler = [](int errCode) {
-        auto& s = LayerTestsUtils::Summary::getInstance();
-        s.saveReport();
-        std::cerr << "Unexpected application crash with code: " << errCode << std::endl;
-        std::abort();
-    };
-    signal(SIGSEGV, crashHandler);
+    // in case of crash jump will be made and work will be continued
+    auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
 
-    LayerTestsUtils::PassRate::Statuses status = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()
-                                                     ? LayerTestsUtils::PassRate::Statuses::SKIPPED
-                                                     : LayerTestsUtils::PassRate::Statuses::CRASHED;
-    summary.setDeviceName(targetDevice);
-    summary.updateOPsStats(function, status);
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    // place to jump in case of a crash
+#ifdef _WIN32
+    if (setjmp(CommonTestUtils::env) == 0) {
+#else
+    if (sigsetjmp(CommonTestUtils::env, 1) == 0) {
+#endif
+        bool isCurrentTestDisabled = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled();
 
-    ASSERT_FALSE(targetStaticShapes.empty()) << "Target Static Shape is empty!!!";
-    std::string errorMessage;
-    try {
-        compile_model();
-        for (const auto& targetStaticShapeVec : targetStaticShapes) {
-            try {
-                if (!inputDynamicShapes.empty()) {
-                    // resize ngraph function according new target shape
-                    // Note: output shapes of some nodes depend on the input data
-                    // so for some tests we need to override this function and replace parameter with constant node to get correct output shapes
-                    init_ref_function(functionRefs, targetStaticShapeVec);
+        LayerTestsUtils::PassRate::Statuses status = isCurrentTestDisabled ?
+            LayerTestsUtils::PassRate::Statuses::SKIPPED :
+            LayerTestsUtils::PassRate::Statuses::CRASHED;
+        summary.setDeviceName(targetDevice);
+        summary.updateOPsStats(function, status);
+
+        if (isCurrentTestDisabled)
+            GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+
+        ASSERT_FALSE(targetStaticShapes.empty()) << "Target Static Shape is empty!!!";
+        std::string errorMessage;
+        try {
+            compile_model();
+            for (const auto& targetStaticShapeVec : targetStaticShapes) {
+                try {
+                    if (!inputDynamicShapes.empty()) {
+                        // resize ngraph function according new target shape
+                        // Note: output shapes of some nodes depend on the input data
+                        // so for some tests we need to override this function and replace parameter with constant node to get correct output shapes
+                        init_ref_function(functionRefs, targetStaticShapeVec);
+                    }
+                    generate_inputs(targetStaticShapeVec);
+                } catch (const std::exception& ex) {
+                    throw std::runtime_error("Incorrect target static shape: " +
+                                             CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
                 }
-                generate_inputs(targetStaticShapeVec);
-            } catch (const std::exception& ex) {
-                throw std::runtime_error("Incorrect target static shape: " +
-                                         CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
+                infer();
+                validate();
             }
-            infer();
-            validate();
+            status = LayerTestsUtils::PassRate::Statuses::PASSED;
+        } catch (const std::exception& ex) {
+            status = LayerTestsUtils::PassRate::Statuses::FAILED;
+            errorMessage = ex.what();
+        } catch (...) {
+            status = LayerTestsUtils::PassRate::Statuses::FAILED;
+            errorMessage = "Unknown failure occurred.";
         }
-        status = LayerTestsUtils::PassRate::Statuses::PASSED;
-    } catch (const std::exception& ex) {
-        status = LayerTestsUtils::PassRate::Statuses::FAILED;
-        errorMessage = ex.what();
-    } catch (...) {
-        status = LayerTestsUtils::PassRate::Statuses::FAILED;
-        errorMessage = "Unknown failure occurred.";
-    }
-    summary.updateOPsStats(function, status);
-    if (status != LayerTestsUtils::PassRate::Statuses::PASSED) {
-        GTEST_FATAL_FAILURE_(errorMessage.c_str());
+        summary.updateOPsStats(function, status);
+        if (status != LayerTestsUtils::PassRate::Statuses::PASSED) {
+            GTEST_FATAL_FAILURE_(errorMessage.c_str());
+        }
+    } else {
+        IE_THROW() << "Crash happens";
     }
 }
 
@@ -180,7 +191,7 @@ void SubgraphBaseTest::compile_model() {
     if (functionRefs == nullptr) {
         functionRefs = ov::clone_model(*function);
     }
-    executableNetwork = core->compile_model(function, targetDevice, configuration);
+    compiledModel = core->compile_model(function, targetDevice, configuration);
 }
 
 void SubgraphBaseTest::init_ref_function(std::shared_ptr<ov::Model> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes) {
@@ -216,7 +227,7 @@ void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInput
 }
 
 void SubgraphBaseTest::infer() {
-    inferRequest = executableNetwork.create_infer_request();
+    inferRequest = compiledModel.create_infer_request();
     for (const auto& input : inputs) {
         inferRequest.set_tensor(input.first, input.second);
     }
