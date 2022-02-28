@@ -105,12 +105,11 @@ class TestMoFallback(unittest.TestCase):
 
     def tearDown(self):
         for name in self.models.keys():
-            os.remove(name)
+             os.remove(name)
         for name in self.test_config_files.keys():
             os.remove(name)
 
 
-    @pytest.mark.skipif(len(get_builtin_extensions_path()) == 0, reason="The extension library path was not found")
     def test_conersion_if_extensions_is_used(self):
         args = base_args_config()
         args.input_model = "test_model.onnx"
@@ -122,7 +121,6 @@ class TestMoFallback(unittest.TestCase):
         assert all(op.get_type_name() != "Relu" for op in model.get_ops())
 
 
-    @pytest.mark.skipif(len(get_builtin_extensions_path()) == 0, reason="The extension library path was not found")
     def test_conersion_if_transformations_config_is_used(self):
         args = base_args_config()
         args.input_model = "test_model.onnx"
