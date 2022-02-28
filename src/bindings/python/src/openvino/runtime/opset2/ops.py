@@ -54,7 +54,7 @@ def batch_to_space(
     :param crops_begin: Specifies the amount to crop from the beginning along each axis of `data`.
     :param crops_end: Specifies the amount to crop from the end along each axis of `data`.
     :param name: Optional output node name.
-    returns The new node performing a BatchToSpace operation.
+    :return: The new node performing a BatchToSpace operation.
     """
     return _get_node_factory_opset2().create(
         "BatchToSpace", as_nodes(data, block_shape, crops_begin, crops_end)
@@ -73,7 +73,7 @@ def gelu(node: NodeInput, name: Optional[str] = None) -> Node:
 
     :param node: Input tensor. One of: input node, array or scalar.
     :param name: Optional output node name.
-    returns The new node performing a GELU operation on its input data element-wise.
+    :return: The new node performing a GELU operation on its input data element-wise.
     """
     return _get_node_factory_opset2().create("Gelu", [node])
 
@@ -96,9 +96,9 @@ def mvn(
     :param across_channels: Denotes if mean values are shared across channels.
     :param normalize_variance: Denotes whether to perform variance normalization.
     :param eps: The number added to the variance to avoid division by zero
-               when normalizing the value. Scalar value.
+                when normalizing the value. Scalar value.
     :param name: Optional output node name.
-    returns The new node performing a MVN operation on input tensor.
+    :return: The new node performing a MVN operation on input tensor.
     """
     return _get_node_factory_opset2().create(
         "MVN",
@@ -111,10 +111,10 @@ def mvn(
 def reorg_yolo(input: Node, stride: List[int], name: Optional[str] = None) -> Node:
     """Return a node which produces the ReorgYolo operation.
 
-    :param input:   Input data
-    :param stride:  Stride to reorganize input by
+    :param input:   Input data.
+    :param stride:  Stride to reorganize input by.
     :param name:    Optional name for output node.
-    returns ReorgYolo node
+    :return: ReorgYolo node.
     """
     return _get_node_factory_opset2().create("ReorgYolo", [input], {"stride": stride})
 
@@ -130,12 +130,12 @@ def roi_pooling(
 ) -> Node:
     """Return a node which produces an ROIPooling operation.
 
-    :param input:          Input feature map {N, C, ...}
-    :param coords:         Coordinates of bounding boxes
-    :param output_size:    Height/Width of ROI output features (shape)
-    :param spatial_scale:  Ratio of input feature map over input image size (float)
-    :param method:         Method of pooling - string: "max" or "bilinear"
-    returns               ROIPooling node
+    :param input:          Input feature map `{N, C, ...}`.
+    :param coords:         Coordinates of bounding boxes.
+    :param output_size:    Height/Width of ROI output features (shape).
+    :param spatial_scale:  Ratio of input feature map over input image size (float).
+    :param method:         Method of pooling - string: "max" or "bilinear".
+    :return:               ROIPooling node.
     """
     method = method.lower()
     return _get_node_factory_opset2().create(
@@ -164,7 +164,7 @@ def space_to_batch(
     :param pads_begin: Specifies the padding for the beginning along each axis of `data`.
     :param pads_end: Specifies the padding for the ending along each axis of `data`.
     :param name: Optional output node name.
-    returns The new node performing a SpaceToBatch operation.
+    :return: The new node performing a SpaceToBatch operation.
     """
     return _get_node_factory_opset2().create(
         "SpaceToBatch", as_nodes(data, block_shape, pads_begin, pads_end)
