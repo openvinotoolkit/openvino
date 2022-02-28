@@ -184,7 +184,7 @@ Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShape
     auto skipStartEndOnes = [](const Shape& shape) {
         auto begin = shape.begin();
         auto end = shape.end();
-        while (*begin == 1 && begin != end)
+        while (begin != end && *begin == 1)
             begin++;
         while (begin != end && *(end-1) == 1)
             end--;
