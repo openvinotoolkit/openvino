@@ -31,7 +31,12 @@ void regclass_CompiledModel(py::module m) {
     cls.def(
         "create_infer_request",
         [](ov::CompiledModel& self) {
-            return std::make_shared<InferRequestWrapper>(self.create_infer_request(), self.inputs(), self.outputs());
+            std::shared_ptr<InferRequestWrapper> request;
+            {
+                py::gil_scoped_release release;
+                request = std::make_shared<InferRequestWrapper>(self.create_infer_request(), self.inputs(), self.outputs());
+            }
+            return request;
         },
         R"(
             Creates an inference request object used to infer the compiled model.

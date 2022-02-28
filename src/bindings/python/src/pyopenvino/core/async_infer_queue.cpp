@@ -144,24 +144,25 @@ void regclass_AsyncInferQueue(py::module m) {
                 "InferRequests and provides synchronization functions to control flow of a simple pipeline.";
 
     cls.def(py::init([](ov::CompiledModel& model, size_t jobs) {
-                if (jobs == 0) {
-                    jobs = (size_t)Common::get_optimal_number_of_requests(model);
-                }
-
                 std::vector<InferRequestWrapper> requests;
                 std::queue<size_t> idle_handles;
                 std::vector<py::object> user_ids(jobs);
+                {
+                    py::gil_scoped_release release;
+                    if (jobs == 0) {
+                        jobs = (size_t)Common::get_optimal_number_of_requests(model);
+                    }
 
-                for (size_t handle = 0; handle < jobs; handle++) {
-                    auto request = InferRequestWrapper(model.create_infer_request());
-                    // Get Inputs and Outputs info from compiled model
-                    request._inputs = model.inputs();
-                    request._outputs = model.outputs();
+                    for (size_t handle = 0; handle < jobs; handle++) {
+                        auto request = InferRequestWrapper(model.create_infer_request());
+                        // Get Inputs and Outputs info from compiled model
+                        request._inputs = model.inputs();
+                        request._outputs = model.outputs();
 
-                    requests.push_back(request);
-                    idle_handles.push(handle);
+                        requests.push_back(request);
+                        idle_handles.push(handle);
+                    }
                 }
-
                 return new AsyncInferQueue(requests, idle_handles, user_ids);
             }),
             py::arg("model"),
@@ -216,9 +217,7 @@ void regclass_AsyncInferQueue(py::module m) {
 
     cls.def(
         "is_ready",
-        [](AsyncInferQueue& self) {
-            return self._is_ready();
-        },
+        &AsyncInferQueue::_is_ready,
         R"(
             One of 'flow control' functions.
             Returns True if any free request in the pool, otherwise False.
@@ -231,52 +230,46 @@ void regclass_AsyncInferQueue(py::module m) {
 
     cls.def(
         "wait_all",
-        [](AsyncInferQueue& self) {
-            return self.wait_all();
-        },
+        &AsyncInferQueue::wait_all,
         R"(
-        One of 'flow control' functions. Blocking call.
-        Waits for all InferRequests in a pool to finish scheduled work. 
+            One of 'flow control' functions. Blocking call.
+            Waits for all InferRequests in a pool to finish scheduled work.
 
-        Function releases GIL, other threads can work while this function waits.
-    )");
+            Function releases GIL, other threads can work while this function waits.
+        )");
 
     cls.def(
         "get_idle_request_id",
-        [](AsyncInferQueue& self) {
-            return self.get_idle_request_id();
-        },
+        &AsyncInferQueue::get_idle_request_id,
         R"(
-        Returns next free id of InferRequest from queue's pool.
-        Function waits for any request to complete and then returns this request's id.
+            Returns next free id of InferRequest from queue's pool.
+            Function waits for any request to complete and then returns this request's id.
 
-        Function releases GIL, other threads can work while this function waits.
+            Function releases GIL, other threads can work while this function waits.
 
-        :rtype: int
-    )");
+            :rtype: int
+        )");
 
     cls.def(
         "set_callback",
-        [](AsyncInferQueue& self, py::function callback) {
-            self.set_custom_callbacks(callback);
-        },
+        &AsyncInferQueue::set_custom_callbacks,
         R"(
-        Sets unified callback on all InferRequests from queue's pool.
-        Signature of such function should have two arguments, where
-        first one is InferRequest object and second one is userdata
-        connected to InferRequest from the AsyncInferQueue's pool.
+            Sets unified callback on all InferRequests from queue's pool.
+            Signature of such function should have two arguments, where
+            first one is InferRequest object and second one is userdata
+            connected to InferRequest from the AsyncInferQueue's pool.
 
-        .. code-block:: python
+            .. code-block:: python
 
-            def f(request, userdata):
-                result = request.output_tensors[0]
-                print(result + userdata)
+                def f(request, userdata):
+                    result = request.output_tensors[0]
+                    print(result + userdata)
 
-            async_infer_queue.set_callback(f)
+                async_infer_queue.set_callback(f)
 
-        :param callback: Any Python defined function that matches callback's requirements.
-        :type callback: function
-    )");
+            :param callback: Any Python defined function that matches callback's requirements.
+            :type callback: function
+        )");
 
     cls.def(
         "__len__",

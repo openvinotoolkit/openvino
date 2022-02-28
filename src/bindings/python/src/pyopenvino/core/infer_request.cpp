@@ -1,3 +1,4 @@
+
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
@@ -164,9 +165,12 @@ void regclass_InferRequest(py::module m) {
             // Update inputs if there are any
             Common::set_request_tensors(self._request, inputs);
             // Call Infer function
-            self._start_time = Time::now();
-            self._request.infer();
-            self._end_time = Time::now();
+            {
+                py::gil_scoped_release release;
+                self._start_time = Time::now();
+                self._request.infer();
+                self._end_time = Time::now();
+            }
             return Common::outputs_to_dict(self._outputs, self._request);
         },
         py::arg("inputs"),

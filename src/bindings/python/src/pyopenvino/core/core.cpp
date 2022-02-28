@@ -88,7 +88,12 @@ void regclass_Core(py::module m) {
            const std::shared_ptr<const ov::Model>& model,
            const std::string& device_name,
            const std::map<std::string, std::string>& properties) {
-            return self.compile_model(model, device_name, {properties.begin(), properties.end()});
+            ov::CompiledModel compiled;
+            {
+                py::gil_scoped_release release;
+                compiled = self.compile_model(model, device_name, {properties.begin(), properties.end()});
+            }
+            return compiled;
         },
         py::arg("model"),
         py::arg("device_name"),
