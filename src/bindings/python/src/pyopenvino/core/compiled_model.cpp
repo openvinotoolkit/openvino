@@ -52,7 +52,10 @@ void regclass_CompiledModel(py::module m) {
             auto request = self.create_infer_request();
             // Update inputs if there are any
             Common::set_request_tensors(request, inputs);
-            request.infer();
+            {
+                py::gil_scoped_release release;
+                request.infer();
+            }
             return Common::outputs_to_dict(self.outputs(), request);
         },
         py::arg("inputs"),
@@ -74,7 +77,10 @@ void regclass_CompiledModel(py::module m) {
         "export_model",
         [](ov::CompiledModel& self) {
             std::stringstream _stream;
-            self.export_model(_stream);
+            {
+                py::gil_scoped_release release;
+                self.export_model(_stream);
+            }
             return py::bytes(_stream.str());
         },
         R"(
@@ -104,7 +110,10 @@ void regclass_CompiledModel(py::module m) {
                                      (std::string)(py::repr(model_stream)) + "` provided");
             }
             std::stringstream _stream;
-            self.export_model(_stream);
+            {
+                py::gil_scoped_release release;
+                self.export_model(_stream);
+            }
             model_stream.attr("flush")();
             model_stream.attr("write")(py::bytes(_stream.str()));
             model_stream.attr("seek")(0);  // Always rewind stream!
@@ -187,7 +196,14 @@ void regclass_CompiledModel(py::module m) {
         py::arg("name"));
 
     cls.def("get_runtime_model",
-            &ov::CompiledModel::get_runtime_model,
+            [](ov::CompiledModel& self) {
+                std::shared_ptr<const ov::Model> model;
+                {
+                    py::gil_scoped_release release;
+                    model = self.get_runtime_model();
+                }
+                return model;
+            },
             R"(
                 Gets runtime model information from a device.
 
