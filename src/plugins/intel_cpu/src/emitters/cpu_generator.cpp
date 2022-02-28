@@ -51,7 +51,7 @@ ov::intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_
     jitters[ngraph::snippets::op::ScalarStore::get_type_info_static()] = CREATE_EMITTER(ScalarStoreEmitter);
 
     jitters[ngraph::snippets::op::Scalar::get_type_info_static()] = CREATE_EMITTER(ScalarEmitter);
-    jitters[ngraph::snippets::op::BroadcastMove::get_type_info_static()] = CREATE_EMITTER(FakeBroadcastEmitter);
+    jitters[ngraph::snippets::op::BroadcastMove::get_type_info_static()] = CREATE_EMITTER(BroadcastMoveEmitter);
     // jitters[ngraph::snippets::op::Nop::get_type_info_static()] = CREATE_EMITTER(NopEmitter); // Not supported
     // jitters[ngraph::opset1::Broadcast::get_type_info_static()] = CREATE_EMITTER(); // Not supported
 
