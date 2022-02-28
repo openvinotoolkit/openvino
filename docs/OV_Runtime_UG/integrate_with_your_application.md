@@ -186,7 +186,7 @@ You can use external memory to create `ov::Tensor` and use the `ov::InferRequest
 
 ### Step 5. Start Inference
 
-OpenVINO™ Runtime supports inference in asynchronous or synchronous mode. Async API usage can improve overall frame-rate of the application, because rather than wait for inference to complete, the app can continue doing things on the host, while accelerator is busy. You can use `ov::InferRequest::start_async()` to infer model in asynchronous mode and call `ov::InferRequest::wait()` for waiting inference results:
+OpenVINO™ Runtime supports inference in asynchronous or synchronous mode. Async API usage can improve overall frame-rate of the application, because rather than wait for inference to complete, the app can continue doing things on the host, while the accelerator is busy. You can use `ov::InferRequest::start_async()` to infer the model in the asynchronous mode and call `ov::InferRequest::wait()` to wait for the inference results:
 
 @sphinxdirective
 
