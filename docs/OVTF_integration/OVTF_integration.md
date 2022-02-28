@@ -23,7 +23,7 @@ import openvino_tensorflow
 openvino_tensorflow.set_backend('<backend_name>')
 ```
 
-This product delivers OpenVINO™ inline optimizations which enhance inferencing performance with minimal code modifications. **OpenVINO™ integration with TensorFlow** accelerates inference across many [AI models](ovms_models.md) on a variety of Intel® technologies, such as:
+This product delivers OpenVINO™ inline optimizations which enhance inferencing performance with minimal code modifications. **OpenVINO™ integration with TensorFlow** accelerates inference across many [AI models](ovtf_models.md) on a variety of Intel® technologies, such as:
 - Intel® CPUs
 - Intel® integrated GPUs
 - Intel® Movidius™ Vision Processing Units - referred to as VPU
@@ -90,7 +90,7 @@ To determine what processing units are available on your system for inference, u
 
     openvino_tensorflow.list_backends()
     
-For more API calls and environment variables, see [USAGE.md](docs/USAGE.md).
+For more API calls and environment variables, see [USAGE](ovtf_USAGE.md).
 
 **Note:** If a CUDA-capable device is present in the system then set the environment variable CUDA_VISIBLE_DEVICES to -1. 
 
