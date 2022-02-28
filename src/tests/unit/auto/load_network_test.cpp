@@ -43,12 +43,13 @@ TEST(LoadNetworkToDefaultDeviceTest, LoadNetwork) {
 
     // prepare mockicore and cnnNetwork for loading
     auto* origin_plugin = new MockMultiDeviceInferencePlugin();
+    auto plugin  = std::shared_ptr<MockMultiDeviceInferencePlugin>(origin_plugin);
     // replace core with mock Icore
     injectProxyEngine(origin_plugin);
     // ie.UnregisterPlugin("AUTO");
     // ie.RegisterPlugin(std::string("mock_engine") + IE_BUILD_POSTFIX, "AUTO");
 
-    EXPECT_CALL(*origin_plugin, LoadExeNetworkImpl(_, _))
+    EXPECT_CALL(*plugin, LoadExeNetworkImpl(_, _))
         .WillOnce([&](const InferenceEngine::CNNNetwork&,
                       const std::map<std::string, std::string>&) -> InferenceEngine::IExecutableNetworkInternal::Ptr {
             auto mockIExeNet = std::make_shared<MockIExecutableNetworkInternal>();
@@ -59,5 +60,4 @@ TEST(LoadNetworkToDefaultDeviceTest, LoadNetwork) {
     std::shared_ptr<ngraph::Function> actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
     ASSERT_NO_THROW(actualCnnNetwork = InferenceEngine::CNNNetwork(actualNetwork));
     ie.LoadNetwork(actualCnnNetwork);
-    delete origin_plugin;
 }
