@@ -206,7 +206,7 @@ OpenVINO™ Runtime supports inference in asynchronous or synchronous mode. Asyn
 
 Asynchronous mode supports two ways to wait inference results:
   * `ov::InferRequest::wait_for()` - specify maximum duration in milliseconds to block for. The method is blocked until the specified timeout has elapsed, or the result becomes available, whichever comes first.
-  * `ov::InferRequest::wait()` - waits until inference result becomes available
+  * `ov::InferRequest::wait()` - Waits until the inference result becomes available.
 
 Both requests are thread-safe: can be called from different threads without fearing corruption and failures.
 
