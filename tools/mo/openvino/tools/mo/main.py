@@ -28,7 +28,8 @@ from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_
 from openvino.tools.mo.pipeline.common import prepare_emit_ir, get_ir_version
 from openvino.tools.mo.pipeline.unified import unified_pipeline
 from openvino.tools.mo.utils import import_extensions
-from openvino.tools.mo.utils.cli_parser import check_available_transforms, get_caffe_cli_options, \
+from openvino.tools.mo.utils.cli_parser import check_available_transforms, \
+    get_advanced_cli_options, get_caffe_cli_options, \
     get_common_cli_options, get_freeze_placeholder_values, get_kaldi_cli_options, get_layout_values, \
     get_mean_scale_dictionary, get_meta_info, get_model_name, get_mxnet_cli_options, get_onnx_cli_options, \
     get_placeholder_shapes, get_tf_cli_options, get_tuple_values, parse_transform, parse_tuple_pairs
@@ -61,6 +62,7 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
     print('Model Optimizer arguments:')
     props = OrderedDict()
     props['common_args'] = get_common_cli_options(model_name)
+    props['advanced_args'] = get_advanced_cli_options()
     if is_caffe:
         props['caffe_args'] = get_caffe_cli_options()
     if is_tf:
@@ -74,6 +76,7 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
 
     framework_specifics_map = {
         'common_args': 'Common parameters:',
+        'advanced_args': 'Advanced parameters:',
         'caffe_args': 'Caffe specific parameters:',
         'tf_args': 'TensorFlow specific parameters:',
         'mxnet_args': 'MXNet specific parameters:',
@@ -390,11 +393,11 @@ def prepare_ir(argv : argparse.Namespace):
             reasons_message = ", ".join(fallback_reasons)
             load_extensions(argv, *list(deduce_legacy_frontend_by_namespace(argv)))
             t.send_event("mo", "fallback_reason", reasons_message)
-            log.warning("The IR preparation was executed by the legacy MO path. "
+            log.error("The IR preparation was executed by the legacy MO path. "
                         "This is a fallback scenario applicable only for some specific cases. "
                        f"The detailed reason why fallback was executed: not supported {reasons_message} were used. "
                         "You can specify --use_new_frontend flag to force using the Frontend MO path to avoid additional checks. " +
-                        refer_to_faq_msg(105))
+                        refer_to_faq_msg(105), extra={'is_warning': True})
 
     t.send_event("mo", "conversion_method", "mo_legacy")
     graph = unified_pipeline(argv)

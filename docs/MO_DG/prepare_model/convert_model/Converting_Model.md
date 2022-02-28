@@ -24,7 +24,7 @@
 To convert the model to the Intermediate Representation (IR), run Model Optimizer using the following command:
 
 ```sh
-mo --input_model INPUT_MODEL --output_dir <OUTPUT_MODEL_DIR>
+mo --input_model INPUT_MODEL
 ```
 
 The output directory must have write permissions, so you can run Model Optimizer from the output directory or specify an output path with the `--output_dir` option.
@@ -71,7 +71,7 @@ Framework-agnostic parameters:
                         square brackets, for example [1,3,227,227] or
                         (1,227,227,3), where the order of dimensions depends
                         on the framework input layout of the model. For
-                        example, [N,C,H,W] is used for Caffe* models and
+                        example, [N,C,H,W] is used for ONNX* models and
                         [N,H,W,C] for TensorFlow* models. The shape can contain 
                         undefined dimensions (? or -1) and should fit the dimensions
                         defined in the input operation of the graph. Boundaries 
@@ -191,8 +191,13 @@ Framework-agnostic parameters:
   --transformations_config TRANSFORMATIONS_CONFIG
                         Use the configuration file with transformations
                         description.
-  --use_new_frontend    Force the usage of new frontend API for model processing.
-  --use_legacy_frontend Force the usage of legacy API for model processing.
+  --use_new_frontend    Force the usage of new Frontend of Model Optimizer for model conversion into IR.
+                        The new Frontend is C++ based and is available for ONNX* and PaddlePaddle* models.
+                        Model optimizer uses new Frontend for ONNX* and PaddlePaddle* by default that means
+                        `--use_new_frontend` and `--use_legacy_frontend` options are not specified.
+  --use_legacy_frontend Force the usage of legacy Frontend of Model Optimizer for model conversion into IR.
+                        The legacy Frontend is Python based and is available for TensorFlow*, ONNX*, MXNet*,
+                        Caffe*, and Kaldi* models.
 ```
 
 The sections below provide details on using particular parameters and examples of CLI commands.
@@ -214,9 +219,8 @@ There is no a universal recipe for determining the mean/scale values for a parti
 * Open the model in a visualization tool and check for layers performing subtraction or multiplication (like `Sub`, `Mul`, `ScaleShift`, `Eltwise` etc) of the input data. If such layers exist, pre-processing is probably part of the model.
 
 ## When to Specify Input Shapes <a name="when_to_specify_input_shapes"></a>
-There are situations when Model Optimizer is unable to deduce input shapes of the model, for example, in case of model cutting due to unsupported operations
-or the model includes inputs of a dynamic rank. The solution is to provide input shapes of a static rank that can contain undefined dimensions `-1`
-determined by model characteristics.
+There are situations when Model Optimizer is unable to deduce input shapes of the model, for example, in case of model cutting due to unsupported operations.
+The solution is to provide input shapes of a static rank explicitly.
 
 ## When to Reverse Input Channels <a name="when_to_reverse_input_channels"></a>
 Input data for your application can be of RGB or BRG color input order. For example, OpenVINO Samples load input images in the BGR channels order. However, the model may be trained on images loaded with the opposite order (for example, most TensorFlow\* models are trained with images in RGB order). In this case, inference results using the OpenVINO samples may be incorrect. The solution is to provide `--reverse_input_channels` command line parameter. Taking this parameter, the Model Optimizer performs first convolution or other channel dependent operation weights modification so these operations output will be like the image is passed with RGB channels order.
@@ -229,50 +233,50 @@ Resulting Intermediate Representation will not be resizable with the help of Ope
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with debug log level:
 ```sh
-mo --input_model bvlc_alexnet.caffemodel --log_level DEBUG --output_dir <OUTPUT_MODEL_DIR>
+mo --input_model bvlc_alexnet.caffemodel --log_level DEBUG
 ```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with the output IR called `result.*` in the specified `output_dir`:
 ```sh
-mo --input_model bvlc_alexnet.caffemodel --model_name result --output_dir /../../models/
+mo --input_model bvlc_alexnet.caffemodel --model_name result --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with one input with scale values:
 ```sh
-mo --input_model bvlc_alexnet.caffemodel --scale_values [59,59,59] --output_dir <OUTPUT_MODEL_DIR>
+mo --input_model bvlc_alexnet.caffemodel --scale_values [59,59,59]
 ```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with multiple inputs with scale values:
 ```sh
-mo --input_model bvlc_alexnet.caffemodel --input data,rois --scale_values [59,59,59],[5,5,5] --output_dir <OUTPUT_MODEL_DIR>
+mo --input_model bvlc_alexnet.caffemodel --input data,rois --scale_values [59,59,59],[5,5,5]
 ```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with multiple inputs with scale and mean values specified for the particular nodes:
 ```sh
-mo --input_model bvlc_alexnet.caffemodel --input data,rois --mean_values data[59,59,59] --scale_values rois[5,5,5] --output_dir <OUTPUT_MODEL_DIR>
+mo --input_model bvlc_alexnet.caffemodel --input data,rois --mean_values data[59,59,59] --scale_values rois[5,5,5]
 ```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with specified input layer, overridden input shape, scale 5, batch 8 and specified name of an output operation:
 ```sh
-mo --input_model bvlc_alexnet.caffemodel --input "data[1 3 224 224]" --output pool5 -s 5 -b 8 --output_dir <OUTPUT_MODEL_DIR>
+mo --input_model bvlc_alexnet.caffemodel --input data --output pool5 -s 5 -b 8
 ```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with reversed input channels order between RGB and BGR, specified mean values to be used for the input image per channel and specified data type for input tensor values:
 ```sh
-mo --input_model bvlc_alexnet.caffemodel --reverse_input_channels --mean_values [255,255,255] --data_type FP16 --output_dir <OUTPUT_MODEL_DIR>
+mo --input_model bvlc_alexnet.caffemodel --reverse_input_channels --mean_values [255,255,255] --data_type FP16
 ```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with extensions listed in specified directories, specified mean_images binaryproto 
  file. For more information about extensions, please refer to the [OpenVINO™ Extensibility Mechanism](../../../Extensibility_UG/Intro.md).
 ```sh
-mo --input_model bvlc_alexnet.caffemodel --extensions /home/,/some/other/path/ --mean_file /path/to/binaryproto --output_dir <OUTPUT_MODEL_DIR>
+mo --input_model bvlc_alexnet.caffemodel --extensions /home/,/some/other/path/ --mean_file /path/to/binaryproto
 ```
 
 Launch the Model Optimizer for TensorFlow* FaceNet* model with a placeholder freezing value. 
 It replaces the placeholder with a constant layer that contains the passed value.
 For more information about FaceNet conversion, please refer to [this](tf_specific/Convert_FaceNet_From_Tensorflow.md) page.
 ```sh
-mo --input_model FaceNet.pb --input "phase_train->False" --output_dir <OUTPUT_MODEL_DIR>
+mo --input_model FaceNet.pb --input "phase_train->False"
 ```
 Launch the Model Optimizer for any model with a placeholder freezing tensor of values. 
 It replaces the placeholder with a constant layer that contains the passed values.
@@ -281,7 +285,7 @@ Tensor here is represented in square brackets with each value separated from ano
 If data type is set in the model, this tensor will be reshaped to a placeholder shape and casted to placeholder data type.
 Otherwise, it will be casted to data type passed to `--data_type` parameter (by default, it is FP32).
 ```sh
-mo --input_model FaceNet.pb --input "placeholder_layer_name->[0.1 1.2 2.3]" --output_dir <OUTPUT_MODEL_DIR>
+mo --input_model FaceNet.pb --input "placeholder_layer_name->[0.1 1.2 2.3]"
 ```
 
 

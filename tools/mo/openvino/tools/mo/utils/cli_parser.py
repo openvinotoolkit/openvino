@@ -261,7 +261,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'Shape is defined as a comma-separated list of integer numbers enclosed in '
                                    'parentheses or square brackets, for example [1,3,227,227] or (1,227,227,3), where '
                                    'the order of dimensions depends on the framework input layout of the model. '
-                                   'For example, [N,C,H,W] is used for Caffe* models and [N,H,W,C] for TensorFlow* '
+                                   'For example, [N,C,H,W] is used for ONNX* models and [N,H,W,C] for TensorFlow* '
                                    'models. The shape can contain undefined dimensions (? or -1) and should fit the dimensions defined in the input '
                                    'operation of the graph. Boundaries of undefined dimension can be specified with '
                                    'ellipsis, for example [1,1..10,128,128]. One boundary can be undefined, for '
@@ -420,7 +420,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     common_group.add_argument('--static_shape',
                               help='Enables IR generation for fixed input shape (folding `ShapeOf` operations and '
                                    'shape-calculating sub-graphs to `Constant`). Changing model input shape using '
-                                   'the Inference Engine API in runtime may fail for such an IR.',
+                                   'the OpenVINO Runtime API in runtime may fail for such an IR.',
                               action='store_true', default=False)
     common_group.add_argument('--disable_weights_compression',
                               help='[DEPRECATED] Disable compression and store weights with original precision.',
@@ -438,10 +438,15 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'relative path from the mo root directory',
                               action=CanonicalizeTransformationPathCheckExistenceAction)
     common_group.add_argument("--use_new_frontend",
-                              help="Force the usage of new frontend API for model processing",
+                              help='Force the usage of new Frontend of Model Optimizer for model conversion into IR. '
+                                   'The new Frontend is C++ based and is available for ONNX* and PaddlePaddle* models. '
+                                   'Model optimizer uses new Frontend for ONNX* and PaddlePaddle* by default that means '
+                                   '`--use_new_frontend` and `--use_legacy_frontend` options are not specified.',
                               action='store_true', default=False)
     common_group.add_argument("--use_legacy_frontend",
-                              help="Force the usage of legacy API for model processing",
+                              help='Force the usage of legacy Frontend of Model Optimizer for model conversion into IR. '
+                                   'The legacy Frontend is Python based and is available for TensorFlow*, ONNX*, MXNet*, '
+                                   'Caffe*, and Kaldi* models.',
                               action='store_true', default=False)
     return parser
 
@@ -468,8 +473,13 @@ def get_common_cli_options(model_name):
     d['reverse_input_channels'] = '- Reverse input channels'
     d['static_shape'] = '- Enable IR generation for fixed input shape'
     d['transformations_config'] = '- Use the transformations config file'
-    d['use_legacy_frontend'] = '- Force the usage of legacy API for model processing'
-    d['use_new_frontend'] = '- Force the usage of new frontend API for model processing'
+    return d
+
+
+def get_advanced_cli_options():
+    d = OrderedDict()
+    d['use_legacy_frontend'] = '- Force the usage of legacy Frontend of Model Optimizer for model conversion into IR'
+    d['use_new_frontend'] = '- Force the usage of new Frontend of Model Optimizer for model conversion into IR'
     return d
 
 
