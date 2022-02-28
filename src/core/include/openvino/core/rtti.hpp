@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include <vector>
+
+#include "openvino/core/extension.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/visibility.hpp"
 
@@ -20,6 +23,9 @@
     }                                                                                     \
     const ::ov::DiscreteTypeInfo& get_type_info() const override {                        \
         return get_type_info_static();                                                    \
+    }                                                                                     \
+    static void add_extension(const ::ov::Extension::Ptr& ext) {                          \
+        ::ov::get_extensions_for_type(get_type_info_static()).emplace_back(ext);          \
     }
 
 #define _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT(TYPE_NAME, VERSION_NAME, PARENT_CLASS) \
@@ -36,6 +42,9 @@
     }                                                                                                \
     const ::ov::DiscreteTypeInfo& get_type_info() const override {                                   \
         return get_type_info_static();                                                               \
+    }                                                                                                \
+    static void add_extension(const ::ov::Extension::Ptr& ext) {                                     \
+        ::ov::get_extensions_for_type(get_type_info_static()).emplace_back(ext);                     \
     }
 
 /// Helper macro that puts necessary declarations of RTTI block inside a class definition.

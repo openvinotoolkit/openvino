@@ -18,10 +18,24 @@
 #include "ngraph/op/result.hpp"
 #include "ngraph/pattern/matcher.hpp"
 #include "openvino/core/descriptor/input.hpp"
+#include "openvino/core/evaluate_extension.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "shared_node_info.hpp"
 
 using namespace std;
+
+namespace {
+
+const ov::EvaluateExtension::Ptr get_evaluate_extension(const ov::DiscreteTypeInfo& type) {
+    for (const auto ext : ov::get_extensions_for_type(type)) {
+        if (auto eval_ext = std::dynamic_pointer_cast<ov::EvaluateExtension>(ext)) {
+            return eval_ext;
+        }
+    }
+    return nullptr;
+}
+
+}  // namespace
 
 atomic<size_t> ov::Node::m_next_instance_id(0);
 
@@ -658,7 +672,8 @@ vector<ov::Output<const ov::Node>> ov::Node::outputs() const {
 }
 
 bool ov::Node::has_evaluate() const {
-    return false;
+    const auto ext = get_evaluate_extension(get_type_info());
+    return ext && ext->has_evaluate(shared_from_this());
 }
 
 OPENVINO_SUPPRESS_DEPRECATED_START
@@ -731,6 +746,10 @@ inline void update_output_tensors(ov::TensorVector& output_values, const ngraph:
 }  // namespace
 
 bool ov::Node::evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const {
+    const auto ext = get_evaluate_extension(get_type_info());
+    if (ext)
+        return ext->evaluate(shared_from_this(), output_values, input_values);
+
     HostTensorVector output = create_tmp_tensors(output_values);
     HostTensorVector input = create_tmp_tensors(input_values);
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -743,6 +762,10 @@ bool ov::Node::evaluate(ov::TensorVector& output_values, const ov::TensorVector&
 bool ov::Node::evaluate(ov::TensorVector& output_values,
                         const ov::TensorVector& input_values,
                         const ov::EvaluationContext& evaluationContext) const {
+    const auto ext = get_evaluate_extension(get_type_info());
+    if (ext)
+        return ext->evaluate(shared_from_this(), output_values, input_values, evaluationContext);
+
     HostTensorVector output = create_tmp_tensors(output_values);
     HostTensorVector input = create_tmp_tensors(input_values);
     OPENVINO_SUPPRESS_DEPRECATED_START

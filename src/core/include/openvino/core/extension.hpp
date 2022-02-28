@@ -42,6 +42,9 @@ public:
 OPENVINO_EXTENSION_C_API
 void create_extensions(std::vector<Extension::Ptr>&);
 
+OPENVINO_API
+std::vector<ov::Extension::Ptr>& get_extensions_for_type(const ov::DiscreteTypeInfo& type);
+
 }  // namespace ov
 
 /**
