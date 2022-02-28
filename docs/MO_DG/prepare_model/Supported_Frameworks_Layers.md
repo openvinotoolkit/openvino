@@ -151,7 +151,7 @@
 
 ## TensorFlow Supported Operations
 
-Some TensorFlow operations do not match to any Inference Engine layer, but are still supported by the Model Optimizer and can be used on constant propagation path. These layers are labeled 'Constant propagation' in the table.
+Some TensorFlow operations do not match to any OpenVINO operation, but are still supported by the Model Optimizer and can be used on constant propagation path. These layers are labeled 'Constant propagation' in the table.
 
 
 | Operation Name in TensorFlow | Limitations|
