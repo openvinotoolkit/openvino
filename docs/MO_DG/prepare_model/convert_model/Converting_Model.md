@@ -185,7 +185,7 @@ Framework-agnostic parameters:
   --static_shape        Enables IR generation for fixed input shape (folding
                         `ShapeOf` operations and shape-calculating sub-graphs
                         to `Constant`). Changing model input shape using
-                        the Inference Engine API in runtime may fail for such an IR.
+                        the OpenVINO Runtime API in runtime may fail for such an IR.
   --disable_weights_compression
                         Disable compression and store weights with original
                         precision.
@@ -206,7 +206,7 @@ Usually neural network models are trained with the normalized input data. This m
  * The input pre-processing operations are a part of a topology. In this case, the application that uses the framework to infer the topology does not pre-process the input.
  * The input pre-processing operations are not a part of a topology and the pre-processing is performed within the application which feeds the model with an input data.
  
-In the first case, the Model Optimizer generates the IR with required pre-processing layers and Inference Engine samples may be used to infer the model. 
+In the first case, the Model Optimizer generates the IR with required pre-processing operations and OpenVINO Samples may be used to infer the model. 
  
 In the second case, information about mean/scale values should be provided to the Model Optimizer to embed it to the generated IR. Model Optimizer provides a number of command line parameters to specify them: `--mean`, `--scale`, `--scale_values`, `--mean_values`. 
 
@@ -221,11 +221,11 @@ There is no a universal recipe for determining the mean/scale values for a parti
 There are situations when the input data shape for the model is not fixed, like for the fully-convolutional neural networks. In this case, for example, TensorFlow\* models contain `-1` values in the `shape` attribute of the `Placeholder` operation. Inference Engine does not support input layers with undefined size, so if the input shapes are not defined in the model, the Model Optimizer fails to convert the model. The solution is to provide the input shape(s) using the `--input` or `--input_shape` command line parameter for all input(s) of the model or provide the batch size using the `-b` command line parameter if the model contains just one input with undefined batch size only. In the latter case, the `Placeholder` shape for the TensorFlow\* model looks like this `[-1, 224, 224, 3]`. 
 
 ## When to Reverse Input Channels <a name="when_to_reverse_input_channels"></a>
-Input data for your application can be of RGB or BRG color input order. For example, Inference Engine samples load input images in the BGR channels order. However, the model may be trained on images loaded with the opposite order (for example, most TensorFlow\* models are trained with images in RGB order). In this case, inference results using the Inference Engine samples may be incorrect. The solution is to provide `--reverse_input_channels` command line parameter. Taking this parameter, the Model Optimizer performs first convolution or other channel dependent operation weights modification so these operations output will be like the image is passed with RGB channels order.
+Input data for your application can be of RGB or BRG color input order. For example, OpenVINO Samples load input images in the BGR channels order. However, the model may be trained on images loaded with the opposite order (for example, most TensorFlow\* models are trained with images in RGB order). In this case, inference results using the OpenVINO samples may be incorrect. The solution is to provide `--reverse_input_channels` command line parameter. Taking this parameter, the Model Optimizer performs first convolution or other channel dependent operation weights modification so these operations output will be like the image is passed with RGB channels order.
 
 ## When to Specify `--static_shape` Command Line Parameter
 If the `--static_shape` command line parameter is specified the Model Optimizer evaluates shapes of all operations in the model (shape propagation) for a fixed input(s) shape(s). During the shape propagation the Model Optimizer evaluates operations *Shape* and removes them from the computation graph. With that approach, the initial model which can consume inputs of different shapes may be converted to IR working with the input of one fixed shape only. For example, consider the case when some blob is reshaped from 4D of a shape *[N, C, H, W]* to a shape *[N, C, H \* W]*. During the model conversion the Model Optimize calculates output shape as a constant 1D blob with values *[N, C, H \* W]*. So if the input shape changes to some other value *[N,C,H1,W1]* (it is possible scenario for a fully convolutional model) then the reshape layer becomes invalid.
-Resulting Intermediate Representation will not be resizable with the help of Inference Engine.
+Resulting Intermediate Representation will not be resizable with the help of OpenVINO Runtime API.
 
 ## Examples of CLI Commands
 
@@ -269,7 +269,7 @@ mo --input_model bvlc_alexnet.caffemodel --reverse_input_channels --mean_values 
 ```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with extensions listed in specified directories, specified mean_images binaryproto 
- file. For more information about extensions, please refer to  the [Custom Layers Guide](../../../HOWTO/Custom_Layers_Guide.md).
+ file. For more information about extensions, please refer to the [OpenVINO™ Extensibility Mechanism](../../../Extensibility_UG/Intro.md).
 ```sh
 mo --input_model bvlc_alexnet.caffemodel --extensions /home/,/some/other/path/ --mean_file /path/to/binaryproto --output_dir <OUTPUT_MODEL_DIR>
 ```
