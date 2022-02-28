@@ -2783,6 +2783,85 @@ TEST(TransformationTests, PruneConvUpShort) {
     compare_masks(*getMask(last_conv->output(0)),  Mask({{}, {}, {}, {}}));
 }
 
+
+TEST_F(TransformationTestsF, MaskPropagationLinearOuterDims) {
+    auto inputShapes = PartialShape{6, 3};
+    auto weightsShape = Shape{3, 12};
+    auto EltwiseShape = Shape{6, 12};
+    auto weightsLeftShape = Shape{6, 3};
+
+    auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
+                                                            /* 1 -> 0 ch, shoudn't be pruned
+                                                               2, 3 -> 1 ch
+                                                               4, 5 -> 2 ch */
+    auto right_weights = create_constant_with_zeros(weightsShape, {{}, {1, 2, 3, 4, 5}});
+    auto mul_right = std::make_shared<opset5::MatMul>(input, right_weights);
+
+    auto eltwise_mul_const = create_constant_with_zeros(EltwiseShape, {{1}, {}});
+    auto eltwise_mul = std::make_shared<opset5::Multiply>(mul_right, eltwise_mul_const);
+
+    auto reshape_const = opset5::Constant::create(element::i64, {3}, {0, 6, 2});
+    auto reshape = std::make_shared<opset5::Reshape>(eltwise_mul, reshape_const, true);
+
+    auto transpose_const = opset5::Constant::create(element::i64, {3}, {1, 2, 0});
+    auto transpose = std::make_shared<opset5::Transpose>(reshape, transpose_const);
+
+    auto left_weights = create_constant_with_zeros(weightsLeftShape, {{}, {1, 2}});
+
+    auto mul_left = std::make_shared<opset5::MatMul>(transpose, left_weights);
+
+    auto flatten_const = opset5::Constant::create(element::i64, {2}, {1, 36});
+    auto flatten = std::make_shared<opset5::Reshape>(mul_left, flatten_const, true);
+
+    auto last_mul_const = create_constant_with_zeros({36, 2}, {{}, {0}});
+    auto last_mul = std::make_shared<opset5::MatMul>(flatten, last_mul_const);
+
+    function = std::make_shared<ngraph::Function>(OutputVector{last_mul}, ParameterVector{input});
+    {
+        auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
+        auto right_weights = create_constant_with_zeros({weightsShape[0], weightsShape[1] - 4}, {{}, {}});
+        auto mul_right = std::make_shared<opset5::MatMul>(input, right_weights);
+
+        auto reshape_const = opset5::Constant::create(element::i64, {3}, {0, 4, 2});
+        auto reshape = std::make_shared<opset5::Reshape>(mul_right, reshape_const, true);
+
+        auto transpose_const = opset5::Constant::create(element::i64, {3}, {0, 2, 1});
+        auto transpose = std::make_shared<opset5::Transpose>(reshape, transpose_const);
+
+        auto left_weights = create_constant_with_zeros({weightsLeftShape[0] - 2, weightsLeftShape[1]}, {{}, {}});
+
+        auto mul_left = std::make_shared<opset5::MatMul>(transpose, left_weights);
+        function_ref = std::make_shared<ngraph::Function>(OutputVector{mul_left}, ParameterVector{input});
+    }
+    if (VISUALIZE_TESTS_TREE)
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationLinearOuterDims.svg").run_on_function(function);
+    {
+        pass::Manager m;
+        m.register_pass<pass::InitMasks>();
+        m.register_pass<pass::PropagateMasks>();
+        m.run_passes(function);
+    }
+
+    compare_masks(*getMask(right_weights.get_node_shared_ptr()->output(0)),  Mask({{}, {2, 3, 4, 5}}));
+    compare_masks(*getMask(mul_right->output(0)),  Mask({{}, {2, 3, 4, 5}}));
+
+    compare_masks(*getMask(reshape_const->output(0)),  Mask({{}, {1, 2}, {}}));
+    compare_masks(*getMask(reshape->output(0)),  Mask({{}, {1, 2}, {}}));
+
+    compare_masks(*getMask(transpose->output(0)), Mask({{}, {}, {1, 2}}));
+
+    compare_masks(*getMask(left_weights.get_node_shared_ptr()->output(0)),  Mask({{1, 2}, {}}));
+    compare_masks(*getMask(mul_left->output(0)),  Mask({{}, {}, {}}));
+    {
+        pass::Manager m;
+        m.register_pass<pass::ShrinkWeights>();
+        m.run_passes(function);
+    }
+    disable_rt_info_check();
+    enable_accuracy_check();
+}
+
+
 TEST_F(TransformationTestsF, PruneMasksMatMulColsStopRowsUp) {
     const auto linear_input_features = 62 * 62;
     Shape input_shape{1, 3, 64, 64};

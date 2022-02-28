@@ -154,6 +154,42 @@ public:
         return result_mask;
     }
 
+    Mask::Ptr intersect_masks_reversed_with_broadcast(Mask *const mask, uint64_t shift = 2) const {
+        auto result_mask = std::make_shared<Mask>(std::max(size(), mask->size()));
+        auto result_iter = std::next(result_mask->rbegin(), shift);
+        auto mask_1_iter = std::next(rbegin(), shift);
+        auto mask_2_iter = std::next(mask->rbegin(), shift);
+
+        while (mask_1_iter != rend() ||
+               mask_2_iter != mask->rend()) {
+            if (mask_1_iter != rend() &&
+                mask_2_iter != mask->rend()) {
+                // Merge mask dimension values for both masks
+                // Example: (MaskValue[1,2,3,4], MaskValue[2,3]) -> MaskValue[2,3]
+                for (const auto & value : *mask_1_iter) {
+                    if (mask_2_iter->count(value)) {
+                        result_iter->insert(value);
+                    }
+                }
+            } else {
+                if (mask_1_iter != rend()) {
+                    for (const auto & value : *mask_1_iter)
+                        result_iter->insert(value);
+                }
+                if (mask_2_iter != mask->rend()) {
+                    for (const auto & value : *mask_2_iter)
+                        result_iter->insert(value);
+                }
+            }
+
+            result_iter++;
+            if (mask_1_iter != rend()) mask_1_iter++;
+            if (mask_2_iter != mask->rend()) mask_2_iter++;
+        }
+        return result_mask;
+    }
+
+
     bool add_callback(const std::function<bool(Mask::Ptr)> & receive_callback, Mask::Ptr mask) {
         if (m_callbacks.find(mask.get()) != m_callbacks.end())
             NGRAPH_DEBUG << "Attempt to rewrite callback, could lead to unexpected behaviour";

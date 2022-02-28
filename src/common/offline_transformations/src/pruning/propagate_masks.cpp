@@ -98,34 +98,74 @@ public:
             const auto matmul_rows_dim = matmul_range - 2;
 
             const auto matmul_callback = [=](Mask::Ptr cur_mask) -> bool {
-                cur_mask->at(matmul_cols_dim) = b_mask_row->at(b_outer_dim);
+                Mask::Ptr result_mask;
                 if (a_mask_row) {
-                    cur_mask->at(matmul_rows_dim) = a_mask_row->at(a_outer_dim);
+                    result_mask = a_mask_row->intersect_masks_reversed_with_broadcast(b_mask_row);
+                    result_mask->at(matmul_rows_dim) = a_mask_row->at(a_outer_dim);
                     if (a_mask_row->at(a_inner_dim) != b_mask_row->at(b_inner_dim))
                         cur_mask->initialize_dependencies();
                 } else {
+                    result_mask = std::make_shared<Mask>(b_mask_row->size());
+                    auto result_iter = std::next(result_mask->rbegin(), 2);
+                    auto b_mask_iter = std::next(b_mask_row->rbegin(), 2);
+                    while (b_mask_iter != b_mask_row->rend()) {
+                        for (const auto & value : *b_mask_iter) {
+                            result_iter->insert(value);
+                        }
+                        b_mask_iter++;
+                    }
                     if (b_mask_row->at(b_inner_dim).size())
                         cur_mask->initialize_dependencies();
                 }
+                result_mask->at(matmul_cols_dim) = b_mask_row->at(b_outer_dim);
+                cur_mask->copy_value_from_mask(result_mask.get());
                 return true;
             };
             // Connect a with matmul mask
             if (a_mask) {
                 matmul_mask->add_callback(matmul_callback, a_mask);
                 a_mask->add_callback([=](Mask::Ptr cur_mask) -> bool {
-                    cur_mask->at(a_inner_dim) = b_mask_row->at(b_inner_dim);
-                    cur_mask->at(a_outer_dim) = matmul_mask_row->at(matmul_rows_dim);
+                    auto result_mask = std::make_shared<Mask>(cur_mask->size());
+                    result_mask->copy_value_from_mask(matmul_mask_row); // TODO: check dims
+                    result_mask->at(a_inner_dim) = b_mask_row->at(b_inner_dim);
+                    result_mask->at(a_outer_dim) = matmul_mask_row->at(matmul_rows_dim);
+
+                    cur_mask->copy_value_from_mask(result_mask.get());
                     return true;
                 }, matmul_mask);
+                matmul_mask->add_callback([=](Mask::Ptr cur_mask) -> bool {
+                    Mask::Ptr result_mask;
+                    if (a_mask_row) {
+                        result_mask->copy_value_reversed(b_mask_row);
+                        result_mask->at(matmul_rows_dim) = a_mask_row->at(a_outer_dim);
+                        if (a_mask_row->at(a_inner_dim) != b_mask_row->at(b_inner_dim))
+                            cur_mask->initialize_dependencies();
+                    } else {
+                        result_mask = std::make_shared<Mask>(b_mask_row->size());
+                        auto result_iter = std::next(result_mask->rbegin(), 2);
+                        auto b_mask_iter = std::next(b_mask_row->rbegin(), 2);
+                        while (b_mask_iter != b_mask_row->rend()) {
+                            for (const auto & value : *b_mask_iter) {
+                                result_iter->insert(value);
+                            }
+                            b_mask_iter++;
+                        }
+                        if (b_mask_row->at(b_inner_dim).size())
+                            cur_mask->initialize_dependencies();
+                    }
+                }, a_mask);
             }
             // connect b with matmul mask
             matmul_mask->add_callback(matmul_callback, b_mask);
             b_mask->add_callback([=](Mask::Ptr cur_mask) -> bool {
+                auto result_mask = std::make_shared<Mask>(cur_mask->size());
+                result_mask->copy_value_from_mask(matmul_mask_row); // TODO: check dims
                 if (a_mask_row)
-                    cur_mask->at(b_inner_dim) = a_mask_row->at(a_inner_dim);
+                    result_mask->at(b_inner_dim) = a_mask_row->at(a_inner_dim);
                 else
-                    cur_mask->at(b_inner_dim).clear();
-                cur_mask->at(b_outer_dim) = matmul_mask_row->at(matmul_cols_dim);
+                    result_mask->at(b_inner_dim).clear();
+                result_mask->at(b_outer_dim) = matmul_mask_row->at(matmul_cols_dim);
+                cur_mask->copy_value_from_mask(result_mask.get());
                 return true;
             }, matmul_mask);
 
@@ -932,8 +972,12 @@ public:
                         }, output_mask);
 
                     } else {
-                        input_mask->add_callback([weights_mask_row](Mask::Ptr cur_mask) -> bool {
-                            cur_mask->copy_value_from_mask(weights_mask_row);
+                        input_mask->add_callback([weights_mask_row, not_reshaped_dims](Mask::Ptr cur_mask) -> bool {
+                            for (size_t dim = 0; dim < cur_mask->size(); ++dim)
+                                if (dim < not_reshaped_dims)
+                                    cur_mask->at(dim) = weights_mask_row->at(dim);
+                                else
+                                    cur_mask->at(dim).clear();
                             return true;
                         }, weights_mask);
                         weights_mask->add_callback([input_mask_row, not_reshaped_dims](Mask::Ptr cur_mask) -> bool{
@@ -941,13 +985,17 @@ public:
                             for (size_t dim = 0; dim < std::min(cur_mask->size(), input_mask_row->size()); ++dim)
                                 if (dim < not_reshaped_dims)
                                     cur_mask->at(dim) = input_mask_row->at(dim);
-                                else if (cur_mask->at(dim) != input_mask_row->at(dim))
+                                else if (!input_mask_row->at(dim).empty())
                                     cur_mask->initialize_dependencies();
                             return true;
                         }, input_mask);
 
-                        output_mask->add_callback([weights_mask_row](Mask::Ptr cur_mask) -> bool {
-                            cur_mask->copy_value_from_mask(weights_mask_row);
+                        output_mask->add_callback([weights_mask_row, not_reshaped_dims](Mask::Ptr cur_mask) -> bool {
+                            for (size_t dim = 0; dim < cur_mask->size(); ++dim)
+                                if (dim < not_reshaped_dims)
+                                    cur_mask->at(dim) = weights_mask_row->at(dim);
+                                else
+                                    cur_mask->at(dim).clear();
                             return true;
                         }, weights_mask);
 
@@ -956,7 +1004,7 @@ public:
                             for (size_t dim = 0; dim < std::min(cur_mask->size(), output_mask_row->size()); ++dim)
                                 if (dim < not_reshaped_dims)
                                     cur_mask->at(dim) = output_mask_row->at(dim);
-                                else if (cur_mask->at(dim) != output_mask_row->at(dim))
+                                else if (!output_mask_row->at(dim).empty())
                                     cur_mask->initialize_dependencies();
                             return true;
                         }, output_mask);
