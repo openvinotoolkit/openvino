@@ -30,7 +30,7 @@ OpenVINO™ Runtime allows using tensor names or indexes to work wit model input
 
 OpenVINO™ Runtime model representation uses special classes to work with model data types and shapes. For data types the `ov::element::Type` is used.
 
-## Shapes representation
+## Shapes Representation
 
 OpenVINO™ Runtime provides two types for shape representation: 
 
