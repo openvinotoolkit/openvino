@@ -326,7 +326,15 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
                 blk.inner_blks[0] == 16 && blk.inner_blks[1] == 4 && blk.inner_idxs[0] == 0 && blk.inner_idxs[1] == 1) {
                 return cldnn::format::os_is_yx_osv16_isv4;
             } else {
-                throw std::runtime_error(std::string("Unsupported onednn dnnl::memory::desc find_format"));
+                std::stringstream msg;
+                msg << "Unsupported onednn dnnl::memory::desc find_format. "
+                    << "ndims: " << desc.data.ndims
+                    << ", inner_nblks: " << desc.data.format_desc.blocking.inner_nblks
+                    << ", inner_blks: ";
+                for (int i = 0; i < desc.data.format_desc.blocking.inner_nblks; i++)
+                    msg << "(blk " << blk.inner_blks[i] << ", idx " << blk.inner_idxs[i] << ") ";
+
+                throw std::runtime_error(msg.str());
             }
         }
     }
