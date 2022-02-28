@@ -55,7 +55,8 @@ class OverflowCorrection(Algorithm):
             if weight_fq.levels <= np.iinfo(np.uint8).max:
                 logger.debug('Skipping {} due to INT8 weights quantization'.format(weighted_node.fullname))
                 continue
-            rescale_value = correct_node_overflow(weighted_node, activation_statistics[output_node_name]['max_per_tensor'])
+            rescale_value = correct_node_overflow(weighted_node,
+                                                  activation_statistics[output_node_name]['max_per_tensor'])
             if rescale_value:
                 logger.debug('Weights and scales for node {} '
                              'updated with scale coefficient: {}'.format(weighted_node.fullname, rescale_value))
