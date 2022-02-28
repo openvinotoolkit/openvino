@@ -64,9 +64,8 @@ void printInputAndOutputsInfoShort(const T& network) {
         } catch (const ov::Exception&) {
         }
 
-        std::cout << "    " << in_name << " (node: " << node_name
-                  << ") : " << input.get_element_type() << " / " << ov::layout::get_layout(input).to_string()
-                  << std::endl;
+        std::cout << "    " << in_name << " (node: " << node_name << ") : " << input.get_element_type() << " / "
+                  << ov::layout::get_layout(input).to_string() << std::endl;
     }
 
     std::cout << "Network outputs:" << std::endl;
