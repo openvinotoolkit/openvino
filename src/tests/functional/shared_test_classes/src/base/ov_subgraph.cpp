@@ -259,6 +259,8 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
     }
     pass::Manager manager;
     manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
+    manager.run_passes(functionToProcess);
+    functionToProcess->validate_nodes_and_infer_types();
 
     ov::preprocess::PrePostProcessor p(functionToProcess);
     const auto& inputNodes = functionToProcess->inputs();
