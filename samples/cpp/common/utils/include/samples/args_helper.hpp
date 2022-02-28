@@ -51,7 +51,20 @@ template <class T>
 void printInputAndOutputsInfoShort(const T& network) {
     std::cout << "Network inputs:" << std::endl;
     for (auto&& input : network.inputs()) {
-        std::cout << "    " << input.get_any_name() << " (node: " << input.get_node()->get_friendly_name()
+        std::string in_name = "***NO_NAME***";
+        std::string node_name = "***NO_NAME***";
+
+        // Workaround for "tensor has no name" issue
+        try {
+            in_name = input.get_any_name();
+        } catch (const ov::Exception&) {
+        }
+        try {
+            node_name = input.get_node()->get_friendly_name();
+        } catch (const ov::Exception&) {
+        }
+
+        std::cout << "    " << in_name << " (node: " << node_name
                   << ") : " << input.get_element_type() << " / " << ov::layout::get_layout(input).to_string()
                   << std::endl;
     }
