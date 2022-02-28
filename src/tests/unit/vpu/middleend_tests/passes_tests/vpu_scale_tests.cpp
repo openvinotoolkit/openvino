@@ -1,13 +1,15 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "graph_transformer_tests.hpp"
-#include <vpu/stages/mx_stage.hpp>
 #include <vpu/middleend/hw/utility.hpp>
-#include "ngraph_functions/subgraph_builders.hpp"
-#include "vpu/private_plugin_config.hpp"
+#include <vpu/stages/mx_stage.hpp>
+
 #include "common_test_utils/common_utils.hpp"
+#include "graph_transformer_tests.hpp"
+#include "ngraph_functions/subgraph_builders.hpp"
+#include "vpu/configuration/options/vpu_scales_option.hpp"
+#include "vpu/private_plugin_config.hpp"
 
 #if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 9) && !defined(__clang__) && !defined(IE_GCC_4_8)
 #define IE_GCC_4_8
@@ -16,9 +18,7 @@
 using namespace vpu;
 IE_SUPPRESS_DEPRECATED_START
 namespace LayerTestsDefinitions {
-typedef std::tuple<
-    std::string
-> VpuScaleParams;
+typedef std::tuple<std::string> VpuScaleParams;
 
 class VpuScaleTest : public testing::WithParamInterface<VpuScaleParams>,
                      public GraphTransformerTest {
@@ -27,12 +27,9 @@ protected:
     void Compile() {
         m_pipeline.run(m_testModel);
     }
-
-protected:
-    std::string configValue = {};
     Model m_testModel;
 
-private:
+
     void InitModel() {
         int kernelx = 16;
         int kernely = 1;
@@ -118,20 +115,21 @@ private:
 };
 
 void VpuScaleTest::SetUp() {
+}
+
+TEST_F(VpuScaleTest, IsScaleWorkCorrectly) {
+#ifdef IE_GCC_4_8
+    GTEST_SKIP();
+#endif
+    std::string configValue = "conv1:0.2; conv2:1.4";
+
     ASSERT_NO_FATAL_FAILURE(GraphTransformerTest::SetUp());
     config.set(InferenceEngine::MYRIAD_SCALES_PATTERN, configValue);
     ASSERT_NO_FATAL_FAILURE(InitCompileEnv());
     ASSERT_NO_FATAL_FAILURE(InitPipeline());
     ASSERT_NO_FATAL_FAILURE(InitModel());
-}
-
-TEST_F(VpuScaleTest, IsScaleWorkCorrectly) {
-    #ifdef IE_GCC_4_8
-        GTEST_SKIP();
-    #endif
-    configValue = "conv1:0.2; conv2:1.4";
-    SetUp();
     ASSERT_NO_THROW(Compile());
+
     for (const auto& stage : m_testModel->getStages()) {
         auto scale = stage->attrs().getOrDefault<float>("scaleFactor");
         if (stage->name() == "conv1") {
@@ -145,12 +143,18 @@ TEST_F(VpuScaleTest, IsScaleWorkCorrectly) {
 }
 
 TEST_F(VpuScaleTest, IsRegexInScaleWorksCorrectly) {
-    #ifdef IE_GCC_4_8
-        GTEST_SKIP();
-    #endif
-    configValue = "conv1:0.2";
-    SetUp();
+#ifdef IE_GCC_4_8
+    GTEST_SKIP();
+#endif
+    std::string configValue = "conv1:0.2";
+    ASSERT_NO_FATAL_FAILURE(GraphTransformerTest::SetUp());
+    config.set(InferenceEngine::MYRIAD_SCALES_PATTERN, configValue);
+
+    ASSERT_NO_FATAL_FAILURE(InitCompileEnv());
+    ASSERT_NO_FATAL_FAILURE(InitPipeline());
+    ASSERT_NO_FATAL_FAILURE(InitModel());
     ASSERT_NO_THROW(Compile());
+
     for (const auto& stage : m_testModel->getStages()) {
         auto scale = stage->attrs().getOrDefault<float>("scaleFactor");
         if (stage->name() == "conv1") {
@@ -159,4 +163,4 @@ TEST_F(VpuScaleTest, IsRegexInScaleWorksCorrectly) {
         }
     }
 }
-} // namespace LayerTestsDefinitions
+}  // namespace LayerTestsDefinitions

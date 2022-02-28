@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -199,8 +199,7 @@ bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_model(const std::shared_
             if (!valid_for_replacement) break;
         }
 
-        if (!valid_for_replacement) continue;
-        if (output_to_partition.size() < 2) continue;
+        if (!valid_for_replacement || output_to_partition.size() < 2 || axis == -1) continue;
 
         std::sort(output_to_partition.begin(), output_to_partition.end(),
                 [](OutputToPatrition lhs, OutputToPatrition rhs)
@@ -262,8 +261,8 @@ bool ngraph::pass::StridedSliceOptimization::run_on_model(const std::shared_ptr<
     bool rewritten = false;
     if (m_use_shapes) {
         rewritten = UselessStridedSliceEraser().run_on_model(f);
-        rewritten |= SharedStridedSliceEraser().run_on_model(f);
-        rewritten |= GroupedStridedSliceOptimizer().run_on_model(f);
+        rewritten = rewritten || SharedStridedSliceEraser().run_on_model(f);
+        rewritten = rewritten || GroupedStridedSliceOptimizer().run_on_model(f);
     }
     return rewritten;
 }

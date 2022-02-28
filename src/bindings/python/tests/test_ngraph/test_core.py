@@ -1,7 +1,8 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+import pytest
 
 import openvino.runtime.opset8 as ov
 from openvino.runtime import Dimension, Model, PartialShape, Shape
@@ -76,6 +77,33 @@ def test_dimension_comparisons():
     assert not d2.compatible(d1)
     assert not d2.same_scheme(d1)
 
+    d = Dimension("?")
+    assert d == Dimension()
+
+    d = Dimension("1")
+    assert d == Dimension(1)
+
+    d = Dimension("..10")
+    assert d == Dimension(-1, 10)
+
+    d = Dimension("10..")
+    assert d == Dimension(10, -1)
+
+    d = Dimension("5..10")
+    assert d == Dimension(5, 10)
+
+    with pytest.raises(RuntimeError) as e:
+        d = Dimension("C")
+    assert 'Cannot parse dimension: "C"' in str(e.value)
+
+    with pytest.raises(RuntimeError) as e:
+        d = Dimension("?..5")
+    assert 'Cannot parse min bound: "?"' in str(e.value)
+
+    with pytest.raises(RuntimeError) as e:
+        d = Dimension("5..?")
+    assert 'Cannot parse max bound: "?"' in str(e.value)
+
 
 def test_partial_shape():
     ps = PartialShape([1, 2, 3, 4])
@@ -139,6 +167,40 @@ def test_partial_shape():
     assert list(ps.get_min_shape()) == [0, 0]
     assert list(ps.get_max_shape())[0] > 1000000000
     assert repr(ps) == "<PartialShape: {?,?}>"
+
+    shape_list = [(1, 10), [2, 5], 4, Dimension(2), "..10"]
+    ref_ps = PartialShape([Dimension(1, 10), Dimension(2, 5), Dimension(4), Dimension(2), Dimension(-1, 10)])
+    assert PartialShape(shape_list) == ref_ps
+    assert PartialShape(tuple(shape_list)) == ref_ps
+
+    with pytest.raises(TypeError) as e:
+        PartialShape([(1, 2, 3)])
+    assert "Two elements are expected in tuple(lower, upper) " \
+           "for dynamic dimension, but 3 elements were given." in str(e.value)
+
+    with pytest.raises(TypeError) as e:
+        PartialShape([("?", "?")])
+    assert "Incorrect pair of types (<class 'str'>, <class 'str'>) " \
+           "for dynamic dimension, ints are expected." in str(e.value)
+
+    with pytest.raises(TypeError) as e:
+        PartialShape([range(10)])
+    assert "Incorrect type <class 'range'> for dimension. Expected types are: " \
+           "int, str, openvino.runtime.Dimension, list/tuple with lower " \
+           "and upper values for dynamic dimension." in str(e.value)
+
+    ps = PartialShape("...")
+    assert ps == PartialShape.dynamic()
+
+    ps = PartialShape("?, 3, ..224, 28..224")
+    assert ps == PartialShape([Dimension(-1), Dimension(3), Dimension(-1, 224), Dimension(28, 224)])
+
+    with pytest.raises(RuntimeError) as e:
+        ps = PartialShape("?,,3")
+    assert 'Cannot get vector of dimensions! "?,,3" is incorrect' in str(e.value)
+
+    shape = Shape()
+    assert len(shape) == 0
 
 
 def test_partial_shape_compatible():
@@ -239,7 +301,10 @@ def test_repr_dynamic_shape():
     model = parameter_a + parameter_b
     function = Model(model, [parameter_a, parameter_b], "simple_dyn_shapes_graph")
 
-    assert repr(function) == "<Model: 'simple_dyn_shapes_graph' ({?,2})>"
+    assert repr(function) == "<Model: 'simple_dyn_shapes_graph'\ninputs[" + \
+                             "\n<ConstOutput: names[A] shape{?,2} type: f32>," +\
+                             "\n<ConstOutput: names[B] shape{?,2} type: f32>\n]" + \
+                             "\noutputs[\n<ConstOutput: names[] shape{?,2} type: f32>\n]>"
 
     ops = function.get_ordered_ops()
     for op in ops:

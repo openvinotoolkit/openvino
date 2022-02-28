@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,8 @@
 #include "api_conformance_helpers.hpp"
 
 namespace {
-using namespace ov::test::conformance;
 using namespace BehaviorTestsDefinitions;
-using namespace ConformanceTests;
+using namespace ov::test::conformance;
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestCallbackTests,
                          ::testing::Combine(

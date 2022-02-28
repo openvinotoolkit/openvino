@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -243,4 +243,16 @@ void TransformationTestsF::accuracy_check(std::shared_ptr<ov::Model> ref_functio
     } catch (...) {
         GTEST_FATAL_FAILURE_("Unknown failure occurred.");
     }
+}
+
+void init_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ngraph::pass::UniqueNamesHolder>& unh) {
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
+    manager.run_passes(f);
+}
+
+void check_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ngraph::pass::UniqueNamesHolder>& unh) {
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::CheckUniqueNames>(unh, true);
+    manager.run_passes(f);
 }

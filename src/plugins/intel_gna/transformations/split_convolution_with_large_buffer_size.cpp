@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <openvino/cc/ngraph/itt.hpp>
@@ -33,9 +33,10 @@ static bool shouldSplitCnn(const ngraph::Output<ngraph::Node>& node) {
         uint32_t height = input.at(2);
         auto kH = filters.at(2);
         auto kW = filters.at(3);
+        auto sH = convolution->get_strides().at(0);
         auto sW = convolution->get_strides().at(1);
         if (GNAConvolutionLayer::isConv2D(height, width, in_channels, kH, kW) &&
-            !GNAConvolutionLayer::isMappableFrom2DTo1D(height, width, kW, sW)) {
+            !GNAConvolutionLayer::isMappableFrom2DTo1D(height, width, in_channels, kH, kW, sH, sW)) {
             return false;
         }
     }

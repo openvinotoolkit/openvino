@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "iml_type_mapper.h"
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 
-impl_desc_type MKLDNNPlugin::parse_impl_name(std::string impl_desc_name) {
+impl_desc_type ov::intel_cpu::parse_impl_name(std::string impl_desc_name) {
     impl_desc_type res = impl_desc_type::unknown;
 
 #define REPLACE_WORD(_wrd, _sub) auto pos = impl_desc_name.find(#_wrd); \
@@ -55,7 +55,7 @@ impl_desc_type MKLDNNPlugin::parse_impl_name(std::string impl_desc_name) {
     return res;
 }
 
-const char* MKLDNNPlugin::impl_type_to_string(impl_desc_type type) {
+const char* ov::intel_cpu::impl_type_to_string(impl_desc_type type) {
 #define CASE(_type) do {                    \
     if (type == _type) return #_type;       \
 } while (0)

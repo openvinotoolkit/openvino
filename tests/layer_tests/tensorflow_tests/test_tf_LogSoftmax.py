@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from distutils.version import LooseVersion
@@ -8,6 +8,7 @@ import pytest
 from common.layer_test_class import check_ir_version
 from common.tf_layer_test_class import CommonTFLayerTest
 from common.utils.tf_utils import permute_nchw_to_nhwc
+
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from unit_tests.utils.graph import build_graph
 
@@ -122,9 +123,12 @@ class TestLogSoftmax(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
-    def test_log_softmax_precommit(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
-        self._test(*self.create_log_softmax_net(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
+    def test_log_softmax_precommit(self, params, ie_device, precision, ir_version, temp_dir,
+                                   use_new_frontend, api_2):
+        self._test(*self.create_log_softmax_net(**params, ir_version=ir_version,
+                                                use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend, api_2=api_2)
 
     test_data = [dict(shape=[1], reduction_axis=-1),
                  dict(shape=[2, 5], reduction_axis=-1),
@@ -133,6 +137,9 @@ class TestLogSoftmax(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_log_softmax(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
-        self._test(*self.create_log_softmax_net(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
+    def test_log_softmax(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
+                         api_2):
+        self._test(*self.create_log_softmax_net(**params, ir_version=ir_version,
+                                                use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend, api_2=api_2)

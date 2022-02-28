@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -109,7 +109,7 @@ const ::ngraph::Node::type_info_t& NmsStaticShapeIE<BaseNmsOp>::get_type_info_st
     static const std::string name = BaseNmsOpTypeInfoPtr->name;
 
     static const ::ngraph::Node::type_info_t type_info_static{
-        name.c_str(), BaseNmsOpTypeInfoPtr->version, BaseNmsOpTypeInfoPtr};
+        name.c_str(), BaseNmsOpTypeInfoPtr->version, "ie_internal_opset", BaseNmsOpTypeInfoPtr};
     return type_info_static;
 }
 

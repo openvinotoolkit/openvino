@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -138,6 +138,8 @@ kernel_selector::data_layout to_data_layout(format f) {
             return kernel_selector::data_layout::bs_fs_yx_bsv4_fsv4;
         case format::bs_fs_yx_bsv8_fsv4:
             return kernel_selector::data_layout::bs_fs_yx_bsv8_fsv4;
+        case format::bs_fs_yx_bsv8_fsv2:
+            return kernel_selector::data_layout::bs_fs_yx_bsv8_fsv2;
         case format::bs_fs_yx_bsv4_fsv2:
             return kernel_selector::data_layout::bs_fs_yx_bsv4_fsv2;
         case format::bs_fs_yx_bsv32_fsv32:
@@ -197,6 +199,8 @@ cldnn::format from_data_layout(kernel_selector::data_layout l) {
             return cldnn::format::bs_fs_yx_bsv4_fsv4;
         case kernel_selector::data_layout::bs_fs_yx_bsv8_fsv4:
             return cldnn::format::bs_fs_yx_bsv8_fsv4;
+        case kernel_selector::data_layout::bs_fs_yx_bsv8_fsv2:
+            return cldnn::format::bs_fs_yx_bsv8_fsv2;
         case kernel_selector::data_layout::bs_fs_yx_bsv32_fsv32:
             return cldnn::format::bs_fs_yx_bsv32_fsv32;
         case kernel_selector::data_layout::nv12:
@@ -254,6 +258,8 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::os_is_zyx_osa4_isa8_osv8_isv2;
         case format::os_is_zyx_osa4_isa8_osv8_isv4:
             return kernel_selector::weights_layout::os_is_zyx_osa4_isa8_osv8_isv4;
+        case format::g_os_is_yx_osa2_isa8_osv8_isv2:
+            return kernel_selector::weights_layout::g_os_is_yx_osa2_isa8_osv8_isv2;
         case format::g_os_is_yx_osa4_isa8_osv8_isv2:
             return kernel_selector::weights_layout::g_os_is_yx_osa4_isa8_osv8_isv2;
         case format::g_os_is_yx_osa4_isa8_osv8_isv4:
@@ -452,6 +458,8 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::os_is_zyx_osa4_isa8_osv8_isv2;
         case kernel_selector::weights_layout::os_is_zyx_osa4_isa8_osv8_isv4:
             return cldnn::format::os_is_zyx_osa4_isa8_osv8_isv4;
+        case kernel_selector::weights_layout::g_os_is_yx_osa2_isa8_osv8_isv2:
+            return cldnn::format::g_os_is_yx_osa2_isa8_osv8_isv2;
         case kernel_selector::weights_layout::g_os_is_yx_osa4_isa8_osv8_isv2:
             return cldnn::format::g_os_is_yx_osa4_isa8_osv8_isv2;
         case kernel_selector::weights_layout::g_os_is_yx_osa4_isa8_osv8_isv4:
@@ -815,6 +823,8 @@ kernel_selector::activation_function get_kernel_selector_activation_param(activa
             return kernel_selector::activation_function::MISH;
         case cldnn::activation_func::gelu:
             return kernel_selector::activation_function::GELU;
+        case cldnn::activation_func::gelu_tanh:
+            return kernel_selector::activation_function::GELU_TANH;
         case cldnn::activation_func::round_half_to_even:
             return kernel_selector::activation_function::ROUND_HALF_TO_EVEN;
         case cldnn::activation_func::round_half_away_from_zero:
@@ -829,7 +839,7 @@ void set_params(const program_node& node, kernel_selector::params& params) {
     const auto& program = node.get_program();
     const auto& device_info = program.get_engine().get_device_info();
 
-    params.uniqueID = std::to_string(program.get_id()) + "_"  + node.get_unique_id();
+    params.uniqueID = std::to_string(node.get_unique_id());
     params.engineInfo.bSubGroupSupport = device_info.supports_subgroups;
     params.engineInfo.bSubGroupShortSupport = device_info.supports_subgroups_short;
     params.engineInfo.bSubGroupCharSupport = device_info.supports_subgroups_char;

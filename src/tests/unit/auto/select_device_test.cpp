@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,7 +38,9 @@ using ConfigParams = std::tuple<
         std::string,                        // netPrecision
         std::vector<DeviceInformation>,      // metaDevices for select
         DeviceInformation,                   // expect DeviceInformation
-        bool                                // throw exception
+        bool,                                // throw exception
+        bool,                                // enableDevicePriority
+        bool                                 // reverse total device
         >;
 
 const DeviceInformation CPU_INFO = {CommonTestUtils::DEVICE_CPU, {}, 2, "01", "CPU_01"};
@@ -58,6 +60,7 @@ std::map<std::string, const std::vector<DeviceInformation>> devicesMap = {{"FP32
                                                                            {"BATCHED_BLOB", batchedblobDeviceVector}
                                                                          };
 const std::vector<DeviceInformation> totalDevices = {DGPU_INFO, IGPU_INFO, MYRIAD_INFO, CPU_INFO, KEEMBAY_INFO};
+const std::vector<DeviceInformation> reverseTotalDevices = {KEEMBAY_INFO, CPU_INFO, MYRIAD_INFO, IGPU_INFO, DGPU_INFO};
 const std::vector<std::string> netPrecisions = {"FP32", "FP16", "INT8", "BIN", "BATCHED_BLOB"};
 std::vector<ConfigParams> testConfigs;
 
@@ -72,7 +75,9 @@ public:
         std::vector<DeviceInformation> devices;
         DeviceInformation expect;
         bool throwExcept;
-        std::tie(netPrecision, devices, expect, throwExcept) = obj.param;
+        bool enableDevicePriority;
+        bool reverse;
+        std::tie(netPrecision, devices, expect, throwExcept, enableDevicePriority, reverse) = obj.param;
         std::ostringstream result;
         result << "_netPrecision_" << netPrecision;
         for (auto& item : devices) {
@@ -84,19 +89,39 @@ public:
         } else {
             result << "_throwExcept_false";
         }
+
+        if (enableDevicePriority) {
+            result << "_enableDevicePriority_true";
+        } else {
+            result << "_enableDevicePriority_false";
+        }
+
+        if (reverse) {
+            result << "_reverseTotalDevice_true";
+        } else {
+            result << "_reverseTotalDevice_false";
+        }
+
         return result.str();
     }
     // combine select_num devices from devices and make them to ConfigParams
     // insert the ConfigParams into testConfigs
     static void combine_device(const std::vector<DeviceInformation>& devices, int start,
-            int* result, int result_index, const int select_num, std::string& netPrecision) {
+            int* result, int result_index, const int select_num, std::string& netPrecision,
+            bool enableDevicePriority, bool reverse) {
         int i = 0;
         for (i = start; i < devices.size() + 1 - result_index; i++) {
             result[result_index - 1] = i;
             if (result_index - 1 == 0) {
                 std::vector<DeviceInformation> metaDevices = {};
+                int devicePriority = 0;
                 for (int j = select_num - 1; j >= 0; j--) {
-                    metaDevices.push_back(devices[result[j]]);
+                    auto tmpDevInfo = devices[result[j]];
+                    if (enableDevicePriority) {
+                        tmpDevInfo.devicePriority = devicePriority;
+                        devicePriority++;
+                    }
+                    metaDevices.push_back(tmpDevInfo);
                 }
                 // Debug the combine_device
                 // for (auto& item : metaDevices) {
@@ -106,18 +131,48 @@ public:
                 auto& devicesInfo = devicesMap[netPrecision];
                 bool find = false;
                 DeviceInformation expect;
-                for (auto& item : devicesInfo) {
-                    auto device =  std::find_if(metaDevices.begin(), metaDevices.end(),
-                            [&item](const DeviceInformation& d)->bool{return d.uniqueName == item.uniqueName;});
-                    if (device != metaDevices.end()) {
-                        find = true;
-                        expect = item;
-                        break;
+                if (metaDevices.size() > 1) {
+                    if (enableDevicePriority) {
+                        std::vector<DeviceInformation> validDevices;
+                        for (auto& item : devicesInfo) {
+                            auto device =  std::find_if(metaDevices.begin(), metaDevices.end(),
+                                    [&item](const DeviceInformation& d)->bool{return d.uniqueName == item.uniqueName;});
+                            if (device != metaDevices.end()) {
+                                validDevices.push_back(*device);
+                            }
+                        }
+                        int currentDevicePriority = 100;
+                        for (auto iter = validDevices.begin(); iter != validDevices.end(); iter++) {
+                            if (iter->devicePriority < currentDevicePriority) {
+                                expect = *iter;
+                                currentDevicePriority = iter->devicePriority;
+                            }
+                        }
+                        if (currentDevicePriority != 100) {
+                            find = true;
+                        }
+                    } else {
+                        for (auto& item : devicesInfo) {
+                            auto device =  std::find_if(metaDevices.begin(), metaDevices.end(),
+                                    [&item](const DeviceInformation& d)->bool{return d.uniqueName == item.uniqueName;});
+                            if (device != metaDevices.end()) {
+                                find = true;
+                                expect = item;
+                                break;
+                            }
+                        }
                     }
+                } else if (metaDevices.size() == 1) {
+                    find = true;
+                    expect = metaDevices[0];
+                } else {
+                    find = false;
                 }
-                testConfigs.push_back(std::make_tuple(netPrecision, metaDevices, expect, !find));
+                testConfigs.push_back(std::make_tuple(netPrecision, metaDevices,
+                            expect, !find, enableDevicePriority, reverse));
             } else {
-                combine_device(devices, i + 1, result, result_index - 1, select_num, netPrecision);
+                combine_device(devices, i + 1, result, result_index - 1,
+                        select_num, netPrecision, enableDevicePriority, reverse);
             }
         }
     }
@@ -132,10 +187,31 @@ public:
         // total test config num is 32*5 = 160
         for (auto netPrecision : netPrecisions) {
             for (int i = 1; i <= totalDevices.size(); i++) {
-                combine_device(totalDevices, 0, result, i, i, netPrecision);
+                combine_device(totalDevices, 0, result, i, i, netPrecision, false, false);
             }
             // test null device
-            testConfigs.push_back(ConfigParams{netPrecision, {}, {}, true});
+            testConfigs.push_back(ConfigParams{netPrecision, {}, {}, true, false, false});
+        }
+        // reverse totalDevices for test
+        for (auto netPrecision : netPrecisions) {
+            for (int i = 1; i <= reverseTotalDevices.size(); i++) {
+                combine_device(reverseTotalDevices, 0, result, i, i, netPrecision, false, true);
+            }
+        }
+
+        // add test for enableDevicePriority
+        // test case num is 31*5 = 155
+        for (auto netPrecision : netPrecisions) {
+            for (int i = 1; i <= totalDevices.size(); i++) {
+                combine_device(totalDevices, 0, result, i, i, netPrecision, true, false);
+            }
+        }
+
+        // reverse totalDevices for test
+        for (auto netPrecision : netPrecisions) {
+            for (int i = 1; i <= reverseTotalDevices.size(); i++) {
+                combine_device(reverseTotalDevices, 0, result, i, i, netPrecision, true, true);
+            }
         }
         delete []result;
         return testConfigs;
@@ -186,7 +262,9 @@ TEST_P(SelectDeviceTest, SelectDevice) {
     std::vector<DeviceInformation> devices;
     DeviceInformation expect;
     bool throwExcept;
-    std::tie(netPrecision, devices, expect, throwExcept) = this->GetParam();
+    bool enableDevicePriority;
+    bool reverse;
+    std::tie(netPrecision, devices, expect, throwExcept, enableDevicePriority, reverse) = this->GetParam();
 
     EXPECT_CALL(*plugin, SelectDevice(_, _, _)).Times(1);
     if (devices.size() >= 1) {

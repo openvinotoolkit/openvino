@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -129,7 +129,7 @@ set(IE_DEBUG_POSTFIX_WIN "d")
 set(IE_RELEASE_POSTFIX_WIN "")
 set(IE_DEBUG_POSTFIX_LIN "")
 set(IE_RELEASE_POSTFIX_LIN "")
-set(IE_DEBUG_POSTFIX_MAC "")
+set(IE_DEBUG_POSTFIX_MAC "d")
 set(IE_RELEASE_POSTFIX_MAC "")
 
 if(WIN32)
@@ -158,16 +158,22 @@ else ()
 endif()
 add_definitions(-DIE_BUILD_POSTFIX=\"${IE_BUILD_POSTFIX}\")
 
+macro(ov_set_if_not_defined var value)
+    if(NOT DEFINED ${var})
+        set(${var} ${value})
+    endif()
+endmacro()
+
 if(NOT UNIX)
-    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
-    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
+    ov_set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
+    ov_set_if_not_defined(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 else()
-    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/lib)
-    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/lib)
+    ov_set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/lib)
+    ov_set_if_not_defined(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/lib)
 endif()
-set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
-set(CMAKE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
+ov_set_if_not_defined(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
+ov_set_if_not_defined(CMAKE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
+ov_set_if_not_defined(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 
 if(APPLE)
     set(CMAKE_MACOSX_RPATH ON)

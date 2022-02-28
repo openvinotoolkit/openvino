@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -79,6 +79,7 @@
 #include "transformations/decompose_mvn.hpp"
 #include "transformations/substitute_softsign.hpp"
 #include "transformations/convert_precision.hpp"
+#include "transformations/unfuse_reshape_and_transpose.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -193,65 +194,59 @@ void GNAPlugin::ExportScores(void *ptr_dst,
                   uint32_t num_vector_elements,
                   uint32_t num_active_elements,
                   uint32_t num_vector_stride,
-                  uint32_t num_bytes_per_element_input,
-                  uint32_t num_bytes_per_element) {
+                  Precision precision_in,
+                  Precision precision_out) {
+    if (ptr_src == nullptr || ptr_dst == nullptr) {
+        THROW_GNA_EXCEPTION << "Received null pointer arguments";
+    }
+    if (precision_out != Precision::I32 && precision_out != Precision::FP32) {
+        THROW_GNA_EXCEPTION << "Unsupported target precision for infer : " << precision_out.name();
+    }
     // source scores are possibly padded to multiple of 8 and possibly interleaved
     // rotate if necessary and only copy actual scores (not padding)
     if (orientation == kDnnInterleavedOrientation) {
-        if (num_bytes_per_element == 2) {
-            int16_t *dst = reinterpret_cast<int16_t *>(ptr_dst);
-            const int16_t *src = reinterpret_cast<const int16_t *>(ptr_src);
-            for (uint32_t i = 0; i < num_frames; i++) {
-                for (uint32_t j = 0; j < num_active_elements; j++) {
-                    dst[i * num_vector_elements + j] = src[j * num_group + i];
-                }
-                for (uint32_t j = num_active_elements; j < num_vector_elements; j++) {
-                    dst[i * num_vector_elements + j] = 0;
-                }
-            }
-        } else if (num_bytes_per_element == 4) {  // should work for both int and float
-            int32_t *dst = reinterpret_cast<int32_t *>(ptr_dst);
-            const int8_t *src = reinterpret_cast<const int8_t*>(ptr_src);
-            for (uint32_t i = 0; i < num_frames; i++) {
-                for (uint32_t j = 0; j < num_active_elements; j++) {
-                    auto input_ptr = src + (j * num_group + i) * num_bytes_per_element_input;
-                    auto dst_ptr = dst + (i * num_vector_elements + j);
+        int32_t *dst = reinterpret_cast<int32_t *>(ptr_dst);
+        const int8_t *src = reinterpret_cast<const int8_t*>(ptr_src);
+        for (uint32_t i = 0; i < num_frames; i++) {
+            for (uint32_t j = 0; j < num_active_elements; j++) {
+                auto input_ptr = src + (j * num_group + i) * precision_in.size();
+                auto dst_ptr = dst + (i * num_vector_elements + j);
 
-                    switch (num_bytes_per_element_input) {
-                        case 1: {
-                            *dst_ptr = static_cast<int32_t>(*reinterpret_cast<const int8_t*>(input_ptr));
-                            break;
-                        }
-                        case 2 : {
-                            *dst_ptr  = static_cast<int32_t>(*reinterpret_cast<const int16_t*>(input_ptr));
-                            break;
-                        }
-                        case 4 : {
-                            *dst_ptr = *reinterpret_cast<const int32_t *>(input_ptr);
-                            break;
-                        }
-                        default:
-                            THROW_GNA_EXCEPTION << "Unsupported output layer precision: " << num_bytes_per_element_input << "bytes";
+                switch (precision_in) {
+                    case Precision::I8 : {
+                        *dst_ptr = static_cast<int32_t>(*reinterpret_cast<const int8_t*>(input_ptr));
+                        break;
                     }
-                }
-                for (uint32_t j = num_active_elements; j < num_vector_elements; j++) {
-                    dst[i * num_vector_elements + j] = 0;
+                    case Precision::I16 : {
+                        *dst_ptr  = static_cast<int32_t>(*reinterpret_cast<const int16_t*>(input_ptr));
+                        break;
+                    }
+                    case Precision::I32 : {
+                        *dst_ptr = *reinterpret_cast<const int32_t *>(input_ptr);
+                        break;
+                    }
+                    default:
+                        THROW_GNA_EXCEPTION << "Unsupported output layer precision: " << precision_in.name();
                 }
             }
-        } else {
-            THROW_GNA_EXCEPTION << "Unsupported target precision for infer : " << num_bytes_per_element << "bytes";
+            for (uint32_t j = num_active_elements; j < num_vector_elements; j++) {
+                dst[i * num_vector_elements + j] = 0;
+            }
         }
     } else {
-        if (num_bytes_per_element == 2) {
-            for (uint32_t i = 0; i < num_frames; i++) {
-                auto ptr_dst_vec = reinterpret_cast<uint8_t *>(ptr_dst) + i * num_vector_elements * sizeof(int16_t);
-                auto ptr_src_vec = reinterpret_cast<const uint8_t *>(ptr_src) + i * num_vector_stride * sizeof(int16_t);
-                memset(ptr_dst_vec, 0, num_vector_elements * sizeof(int16_t));
-                ie_memcpy(ptr_dst_vec, num_active_elements * sizeof(int16_t),
-                    ptr_src_vec, num_active_elements * sizeof(int16_t));
+        switch (precision_in) {
+            case Precision::I8 :
+            case Precision::I32 : {
+                for (uint32_t i = 0; i < num_frames; i++) {
+                    void* ptr_dst_vec = reinterpret_cast<uint8_t*>(ptr_dst) + i * num_vector_elements * precision_out.size();
+                    const void* ptr_src_vec = reinterpret_cast<const uint8_t*>(ptr_src) + i * num_vector_stride * precision_in.size();
+                    memset(ptr_dst_vec, 0, num_vector_elements * precision_out.size());
+                    ie_memcpy(ptr_dst_vec, num_active_elements * precision_out.size(),
+                        ptr_src_vec, num_active_elements * precision_in.size());
+                }
+                break;
             }
-        } else if (num_bytes_per_element == 4) {  // should work for both int and float
-            if (num_bytes_per_element_input == 2) {
+            case Precision::I16 : {
                 for (uint32_t i = 0; i < num_frames; i++) {
                     auto ptr_dst_vec = reinterpret_cast<int32_t*>(ptr_dst) + i * num_vector_elements;
                     auto ptr_src_vec = reinterpret_cast<const int16_t*>(ptr_src) + i * num_vector_stride;
@@ -259,17 +254,10 @@ void GNAPlugin::ExportScores(void *ptr_dst,
                         ptr_dst_vec[j] = ptr_src_vec[j];
                     }
                 }
-            } else {
-                for (uint32_t i = 0; i < num_frames; i++) {
-                    void* ptr_dst_vec = reinterpret_cast<uint8_t*>(ptr_dst) + i * num_vector_elements * sizeof(float);
-                    const void* ptr_src_vec = reinterpret_cast<const uint8_t*>(ptr_src) + i * num_vector_stride * sizeof(float);
-                    memset(ptr_dst_vec, 0, num_vector_elements * sizeof(float));
-                    ie_memcpy(ptr_dst_vec, num_active_elements * sizeof(float),
-                        ptr_src_vec, num_active_elements * sizeof(float));
-                }
+                break;
             }
-        } else {
-            THROW_GNA_EXCEPTION << "Unsupported target precision for infer : " << num_bytes_per_element << "bytes";
+            default:
+                THROW_GNA_EXCEPTION << "Unsupported output layer precision: " << precision_in.name();
         }
     }
 }
@@ -398,9 +386,7 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network
             size_t levels = std::min(fqLayer.getLevels(), static_cast<size_t>(std::numeric_limits<uint16_t>::max() + 1));
             auto scaleInput = frontend::CalculateScaleFactorFromStats(levels, inputRange.first[0], inputRange.second[0]);
 
-            IE_ASSERT(config.inputScaleFactors.size() > inputIdx);
-
-            if (!config.inputScaleFactors.empty()) {
+            if (!config.inputScaleFactorsPerInput.empty() || !config.inputScaleFactors.empty()) {
                 gnawarn() << "WARNING: Scale factor calculated during model quantization (" << scaleInput
                     << ") will be used instead of user input (" << (*inputs_ptr_)[input.first].scale_factor << ").\n";
                 if ((*inputs_ptr_)[input.first].scale_factor < scaleInput) {
@@ -409,8 +395,7 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network
                         << "Input values will be clamped.\n";
                 }
             }
-
-            config.inputScaleFactors[inputIdx] = scaleInput;
+            config.inputScaleFactorsPerInput[input.first] = scaleInput;
             (*inputs_ptr_)[input.first].scale_factor = scaleInput;
         }
 
@@ -430,8 +415,11 @@ void GNAPlugin::UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwor
             (*inputs_ptr_)[input.first].Update(input.second);
 
             // update scale factor from config
-            if (id < config.inputScaleFactors.size()) {
-                (*inputs_ptr_)[input.first].scale_factor = config.inputScaleFactors[id];
+            if (config.inputScaleFactorsPerInput.count(input.first)) {
+                (*inputs_ptr_)[input.first].scale_factor = config.inputScaleFactorsPerInput[input.first];
+            } else if (id < config.inputScaleFactors.size()) {
+                config.inputScaleFactorsPerInput[input.first] = config.inputScaleFactors[id];
+                (*inputs_ptr_)[input.first].scale_factor = config.inputScaleFactorsPerInput[input.first];
             }
 
             id++;
@@ -491,9 +479,9 @@ bool GNAPlugin::TryToInitOutput(const std::string &portName, InferenceEngine::CN
             (intel_dnn_orientation_t orientation, size_t numBytesPerElem, size_t numElem, void* outputPtr) {
         auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
 
-        outputs_.at(portName).ptrs.resize(gnaFlags->gna_lib_async_threads_num);
+        outputs_.at(portName).ptrs.resize(gnaFlags->num_requests);
         outputs_.at(portName).orientation = orientation;
-        outputs_.at(portName).num_bytes_per_element = numBytesPerElem;
+        outputs_.at(portName).set_precision(numBytesPerElem);
         outputs_.at(portName).scale_factor = quantized != nullptr ? quantized->_dst_quant.GetScale() : GNAPluginNS::kScaleFactorDefault;
         outputs_.at(portName).num_elements = numElem;
 
@@ -698,6 +686,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<SwapInputMatMul>();
         manager.register_pass<HandleTransposesAroundMatMul>();
         manager.register_pass<InsertTransposeAfterConvOrPool>();
+        manager.register_pass<Unfuse2dto4dReshapeAndTranspose>();
+        manager.register_pass<Unfuse4dto2dReshapeAndTranspose>();
+        manager.register_pass<RemoveExtraReshapes>();
         manager.register_pass<ReorderActivationAndPooling>();
         manager.register_pass<RemoveSingleInputConcat>();
         manager.register_pass<SubstituteSoftsign>();
@@ -747,7 +738,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
     //  Check the network
     std::string error;
-    if (!GNAPluginNS::GNALimitations::AreLayersSupported(network, error, gnaFlags->log_level == PluginConfigParams::LOG_WARNING)) {
+    if (!GNAPluginNS::GNALimitations::AreLayersSupported(network, error, gnaFlags->log_level == ov::log::Level::WARNING)) {
         THROW_GNA_EXCEPTION << error.c_str();
     }
 
@@ -792,7 +783,10 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
         passes->registerPass<SubstitutePReluPass>();
 
-        passes->registerPass<ReorderMaxPoolPass>();
+        if (!isNgraphPassesUsed) {
+            passes->registerPass<ReorderMaxPoolPass>();
+        }
+
         passes->registerPass<EltwiseSplitOverChannelsPass>();
         passes->registerPass<InsertSplitAligningFilterPass>();
 
@@ -865,7 +859,12 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     std::vector<CNNLayerPtr> sortedNoMem;
     std::unordered_map<std::string, std::vector<InferenceEngine::CNNLayerPtr>> memoryPairs;
     // find all memory layers pairs and mark which one used as outputs
+    uint16_t id = 0;
     for (auto &layer : sortedNet) {
+        // set order id for layers to use it in compact mode
+        IE_SUPPRESS_DEPRECATED_START
+        layer->userValue.v_int = id++;
+        IE_SUPPRESS_DEPRECATED_END
         auto generic = dynamic_cast<GenericLayer *>(layer.get());
         if (generic == nullptr) {
             sortedNoMem.push_back(layer);
@@ -889,9 +888,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     // fill in extra storage with memory layers
     graphCompiler.fillMemoryConnections(memoryPairs);
 
-    if (!graphCompiler.memory_connection.empty() && gnaFlags->gna_lib_async_threads_num != 1) {
+    if (!graphCompiler.memory_connection.empty() && gnaFlags->num_requests != 1) {
         // TODO: check if updating the number of threads is needed for sw_fp32
-        gnaFlags->gna_lib_async_threads_num = 1;
+        gnaFlags->num_requests = 1;
         if (!gnaFlags->sw_fp32)
             InitGNADevice();
     }
@@ -914,15 +913,11 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     }
 
     for (auto && input : inputs_data_map_) {
-        inputs_ptr_->at(input.first).ptrs.resize(gnaFlags->gna_lib_async_threads_num);
+        inputs_ptr_->at(input.first).ptrs.resize(gnaFlags->num_requests);
     }
 
     // Creating Layer primitives
-    uint16_t id = 0;
     for (auto & layer : sortedNoMem) {
-        IE_SUPPRESS_DEPRECATED_START
-        layer->userValue.v_int = id++;
-        IE_SUPPRESS_DEPRECATED_END
         graphCompiler.CreateLayerPrimitive(layer);
     }
 
@@ -982,8 +977,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
     // reserving more bytes for intermediate data in parallel case - TODO: this works incorrectly in compact mode at lest
     rwSegmentSize = gnamem->getRWBytes();
-    if (gnaFlags->gna_lib_async_threads_num > 1) {
-        gnamem->reserve_ptr(nullptr, &pParallelExecutionData, gnamem->getRWBytes() * (gnaFlags->gna_lib_async_threads_num - 1), 64);
+    if (gnaFlags->num_requests > 1) {
+        gnamem->reserve_ptr(nullptr, &pParallelExecutionData, gnamem->getRWBytes() * (gnaFlags->num_requests - 1), 64);
     }
 
     gnamem->commit(gnaFlags->compact_mode);
@@ -1010,7 +1005,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     }
 
     // creating same gna RW segment for parallel infer requests
-    for (int i = 1; i != gnaFlags->gna_lib_async_threads_num; i++) {
+    for (int i = 1; i != gnaFlags->num_requests; i++) {
         gnaModels.push_back(std::make_tuple(make_shared<CPPWrapper<Gna2Model>>()));
         // this can be improved by just copy all structures, but we are too lazy
         dnn->InitGNAStruct(&std::get<0>(gnaModels.back())->obj, effectiveGnaCompileTarget);
@@ -1169,7 +1164,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
         } else {
             IE_THROW(RequestBusy)
                                << "GNA executable network has max of "
-                               << static_cast<uint32_t >(gnaFlags->gna_lib_async_threads_num)
+                               << static_cast<uint32_t >(gnaFlags->num_requests)
                                << " parallel infer requests, please sync one of already running";
         }
     }
@@ -1343,7 +1338,7 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
                 THROW_GNA_EXCEPTION << "Transposed data size (" << transposed_data_size
                                     << ") do not match output buffer length of " << elementsPerBatch;
             }
-            ConvertTensorFromNCHWToNHWC(outputDesc.num_bytes_per_element,
+            ConvertTensorFromNCHWToNHWC(outputDesc.tensor_precision.size(),
                                         batchSize,
                                         elementsPerBatch,
                                         reinterpret_cast<uint8_t*>(outputDesc.ptrs[request_idx]),
@@ -1359,8 +1354,8 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
                         elementsPerBatch,
                         elementsPerBatch,
                         elementsPerBatch,
-                        outputDesc.num_bytes_per_element,
-                        sizeof(float));
+                        outputDesc.tensor_precision,
+                        outputDesc.model_precision);
 
         if (gnadevice) {
 #ifdef PLOT
@@ -1532,9 +1527,16 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
 
     // If scale factors are defined in configuration we still need to use them instead of imported values,
     // for example to change the scale factors for the old models.
-    if (!config.inputScaleFactors.empty()) {
-        IE_ASSERT(config.inputScaleFactors.size() <= inputs_ptr_->size());
-        // TODO: config should  use the map of inputs as well
+    if (!config.inputScaleFactorsPerInput.empty()) {
+        IE_ASSERT(config.inputScaleFactorsPerInput.size() <= inputs_ptr_->size());
+        for (auto&& sf : config.inputScaleFactorsPerInput) {
+            if (sf.second != GNAPluginNS::kScaleFactorDefault) {
+                gnalog() << "[Import Network] Using input scale factor defined in configuration for input " << sf.first << std::endl;
+                (*inputs_ptr_)[sf.first].scale_factor = sf.second;
+            }
+        }
+    } else if (!config.inputScaleFactors.empty()) {
+         IE_ASSERT(config.inputScaleFactors.size() <= inputs_ptr_->size());
         for (size_t id = 0; id < config.inputScaleFactors.size(); ++id) {
             if (id < inputs_ptr_->size() && config.inputScaleFactors[id] != GNAPluginNS::kScaleFactorDefault) {
                 gnalog() << "[Import Network] Using input scale factor defined in configuration for input " << id << std::endl;

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@
 #include "common_test_utils/ngraph_test_utils.hpp"
 
 using namespace testing;
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 
 TEST(TransformationTests, ConvertToLeakyReluTest1) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
@@ -36,7 +36,7 @@ TEST(TransformationTests, ConvertToLeakyReluTest1) {
 
     {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 16, 16 });
-        auto prelu = std::make_shared<MKLDNNPlugin::LeakyReluNode>(input, -2.f, ngraph::element::f32);
+        auto prelu = std::make_shared<ov::intel_cpu::LeakyReluNode>(input, -2.f, ngraph::element::f32);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ prelu }, ngraph::ParameterVector{ input });
     }
@@ -61,7 +61,7 @@ TEST(TransformationTests, ConvertToLeakyReluTest2) {
 
     {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(4));
-        auto prelu = std::make_shared<MKLDNNPlugin::LeakyReluNode>(input, -2.f, ngraph::element::f32);
+        auto prelu = std::make_shared<ov::intel_cpu::LeakyReluNode>(input, -2.f, ngraph::element::f32);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ prelu }, ngraph::ParameterVector{ input });
     }
@@ -86,7 +86,7 @@ TEST(TransformationTests, ConvertToLeakyReluTest3) {
 
     {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
-        auto prelu = std::make_shared<MKLDNNPlugin::LeakyReluNode>(input, -2.f, ngraph::element::f32);
+        auto prelu = std::make_shared<ov::intel_cpu::LeakyReluNode>(input, -2.f, ngraph::element::f32);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ prelu }, ngraph::ParameterVector{ input });
     }
@@ -115,7 +115,7 @@ TEST(TransformationTests, ConvertToLeakyReluTest4) {
 
     {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::u8, ngraph::Shape{ 1, 3, 16, 16 });
-        auto prelu = std::make_shared<MKLDNNPlugin::LeakyReluNode>(input, -2.f, ngraph::element::f32);
+        auto prelu = std::make_shared<ov::intel_cpu::LeakyReluNode>(input, -2.f, ngraph::element::f32);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ prelu }, ngraph::ParameterVector{ input });
     }

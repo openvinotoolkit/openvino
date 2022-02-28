@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -6,9 +6,9 @@ set(VPU_DEPENDENCIES
     vpu_copy_firmware)
 
 if (ENABLE_INTEL_GPU)
-    list(APPEND VPU_DEPENDENCIES ov_intel_gpu_plugin)
+    list(APPEND VPU_DEPENDENCIES openvino_intel_gpu_plugin)
     if(ENABLE_HETERO)
-        list(APPEND VPU_DEPENDENCIES ov_hetero_plugin)
+        list(APPEND VPU_DEPENDENCIES openvino_hetero_plugin)
     endif()
 endif()
 
@@ -72,7 +72,7 @@ addIeTargetTest(
         VPUCommonTests
     DEPENDENCIES
         ${VPU_DEPENDENCIES}
-        ov_intel_vpu_plugin
+        openvino_intel_myriad_plugin
     LABELS  # Must be the last parameter. Reason: see description comment for addIeTargetTest().
         VPU
         MYRIAD

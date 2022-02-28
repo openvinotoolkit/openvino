@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@
 #include "ngraph_functions/builders.hpp"
 
 #include "ngraph_functions/pass/convert_prc.hpp"
+#include "transformations/common_optimizations/transpose_to_reshape.hpp"
 
 typedef std::tuple<
     InferenceEngine::Precision,         // Network Precision
@@ -31,7 +32,8 @@ typedef std::tuple<
     std::string,                        // Target Device
     std::map<std::string, std::string>, // Configuration
     std::vector<size_t>,                // Input shape
-    bool                                // additional bool parameter
+    bool,                               // additional bool parameter
+    bool                                // transpose to reshape
 > removePermutationsAddParamPassParams;
 
 namespace LayerTestsDefinitions {
@@ -106,7 +108,8 @@ class RemovePermutationsNHWCToNCHWPassTest : public testing::WithParamInterface<
             std::map<std::string, std::string> configuration;
             std::vector<size_t> inputShape;
             bool output1D;
-            std::tie(netPrecision, targetDevice, configuration, inputShape, output1D) = obj.param;
+            bool transpose_to_reshape;
+            std::tie(netPrecision, targetDevice, configuration, inputShape, output1D, transpose_to_reshape) = obj.param;
 
             std::ostringstream result;
             result << "netPRC=" << netPrecision.name() << "_";
@@ -116,6 +119,7 @@ class RemovePermutationsNHWCToNCHWPassTest : public testing::WithParamInterface<
             }
             result << "_IS=" << CommonTestUtils::vec2str(inputShape);
             result << "_1d_out=" << output1D;
+            result << "_transpose2reshape=" << transpose_to_reshape;
             return result.str();
         }
 
@@ -133,7 +137,8 @@ class RemovePermutationsNHWCToNCHWPassTest : public testing::WithParamInterface<
             InferenceEngine::Precision netPrecision;
             std::vector<size_t> inputShape;
             bool output1D;
-            std::tie(netPrecision, targetDevice, configuration, inputShape, output1D) = this->GetParam();
+            bool transpose_to_reshape;
+            std::tie(netPrecision, targetDevice, configuration, inputShape, output1D, transpose_to_reshape) = this->GetParam();
             auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
             size_t shape_size = inputShape.size();
@@ -158,6 +163,11 @@ class RemovePermutationsNHWCToNCHWPassTest : public testing::WithParamInterface<
 
             ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(reshape2) };
             function = std::make_shared<ngraph::Function>(results, params, "RemovePermutationsTest");
+            if (transpose_to_reshape) {
+                ngraph::pass::Manager manager;
+                manager.register_pass<ngraph::pass::TransposeToReshape>();
+                manager.run_passes(function);
+            }
         }
 };
 
@@ -212,7 +222,8 @@ class RemovePermutationsWithPoolAndActTest : public testing::WithParamInterface<
             std::map<std::string, std::string> configuration;
             std::vector<size_t> inputShape;
             bool withActivation;
-            std::tie(netPrecision, targetDevice, configuration, inputShape, withActivation) = obj.param;
+            bool transpose_to_reshape;
+            std::tie(netPrecision, targetDevice, configuration, inputShape, withActivation, transpose_to_reshape) = obj.param;
 
             std::ostringstream result;
             result << "netPRC=" << netPrecision.name() << "_";
@@ -222,6 +233,7 @@ class RemovePermutationsWithPoolAndActTest : public testing::WithParamInterface<
             }
             result << "_IS=" << CommonTestUtils::vec2str(inputShape);
             result << "_withActivation=" << withActivation;
+            result << "_transpose2reshape=" << transpose_to_reshape;
             return result.str();
         }
 
@@ -255,7 +267,8 @@ class RemovePermutationsWithPoolAndActTest : public testing::WithParamInterface<
             InferenceEngine::Precision netPrecision;
             std::vector<size_t> inputShape;
             bool withActivation;
-            std::tie(netPrecision, targetDevice, configuration, inputShape, withActivation) = this->GetParam();
+            bool transpose_to_reshape;
+            std::tie(netPrecision, targetDevice, configuration, inputShape, withActivation, transpose_to_reshape) = this->GetParam();
             auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
             size_t shape_size = inputShape.size();
@@ -280,6 +293,12 @@ class RemovePermutationsWithPoolAndActTest : public testing::WithParamInterface<
 
             ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(reshape2) };
             function = std::make_shared<ngraph::Function>(results, params, "RemovePermutationsWithPoolAndActTest");
+
+            if (transpose_to_reshape) {
+                ngraph::pass::Manager manager;
+                manager.register_pass<ngraph::pass::TransposeToReshape>();
+                manager.run_passes(function);
+            }
         }
 };
 
@@ -512,7 +531,8 @@ class RemovePermutationsWithEltwiseTest : public testing::WithParamInterface<rem
             ::testing::Values(CommonTestUtils::DEVICE_GNA),
             ::testing::ValuesIn(configs),
             ::testing::ValuesIn(inputShapes),
-            ::testing::ValuesIn(std::vector<bool>{false, true})), // with 1d output of convolution
+            ::testing::ValuesIn(std::vector<bool>{false, true}), // with 1d output of convolution
+            ::testing::ValuesIn(std::vector<bool>{false, true})),// transpose to reshape
         RemovePermutationsNHWCToNCHWPassTest::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_PermutationPass, RemovePermutationsNHWCToNCHWPassNoReshapesTest,
@@ -529,7 +549,8 @@ class RemovePermutationsWithEltwiseTest : public testing::WithParamInterface<rem
             ::testing::Values(CommonTestUtils::DEVICE_GNA),
             ::testing::ValuesIn(configs),
             ::testing::ValuesIn(inputShapes),
-            ::testing::ValuesIn(std::vector<bool>{false, true})), // with activation
+            ::testing::ValuesIn(std::vector<bool>{false, true}), // with activation
+            ::testing::ValuesIn(std::vector<bool>{false, true})),// transpose to reshape
         RemovePermutationsWithPoolAndActTest::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_PermutationPass, RemovePermutationsWithTwoConvTest,

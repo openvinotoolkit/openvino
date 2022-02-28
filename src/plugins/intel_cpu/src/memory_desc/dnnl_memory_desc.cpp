@@ -1,13 +1,14 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "dnnl_memory_desc.h"
-#include "mkldnn_extension_utils.h"
+#include <extension_utils.h>
 #include <common/memory_desc_wrapper.hpp>
 #include "mkldnn/ie_mkldnn.h"
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 DnnlMemoryDesc::DnnlMemoryDesc(const mkldnn::memory::desc& desc) :
     MemoryDesc(Shape(MKLDNNExtensionUtils::convertToVectorDims(desc.dims())), Mkldnn), desc(desc) {
@@ -82,4 +83,5 @@ MemoryDescPtr DnnlMemoryDesc::cloneWithNewPrecision(const InferenceEngine::Preci
     return newDesc;
 }
 
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

@@ -37,6 +37,7 @@ language = 'en'
 extensions = [
     'sphinx_inline_tabs',
     'sphinx_copybutton',
+    'sphinx_panels',
     'doxyrest',
     'cpplexer',
     'sphinx.ext.autodoc',
@@ -65,6 +66,8 @@ templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'openvino/inference-engine']
 
 
+panels_add_bootstrap_css = False
+
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
@@ -82,7 +85,9 @@ html_theme_options = {
 
 html_context = {
     'current_language': 'English',
-    'languages': (('English', '/latest'), ('Chinese', '/cn/latest'))
+    'languages': (('English', '/latest'), ('Chinese', '/cn/latest')),
+    'doxygen_mapping_file': '@DOXYGEN_MAPPING_FILE@',
+    'doxygen_snippet_root': '@OpenVINO_SOURCE_DIR@'
 }
 
 repositories = {
@@ -92,10 +97,22 @@ repositories = {
         'github_version': 'master',
         'host_url': 'https://github.com'
     },
+    'pot': {
+        'github_user': 'openvinotoolkit',
+        'github_repo': 'openvino',
+        'github_version': 'master',
+        'host_url': 'https://github.com'
+    },
     'open_model_zoo': {
         'github_user': 'openvinotoolkit',
         'github_repo': 'open_model_zoo',
         'github_version': 'master',
+        'host_url': 'https://github.com'
+    },
+    'ovms': {
+        'github_user': 'openvinotoolkit',
+        'github_repo': 'model_server',
+        'github_version': 'main',
         'host_url': 'https://github.com'
     }
 }
@@ -131,11 +148,9 @@ def setup(app):
     logger = logging.getLogger(__name__)
     app.add_config_value('doxygen_mapping_file', doxygen_mapping_file, rebuild=True)
     app.add_config_value('repositories', repositories, rebuild=True)
-    app.add_css_file('css/viewer.min.css')
-    app.add_css_file('css/custom.css')
-    app.add_js_file('js/viewer.min.js')
     app.add_js_file('js/custom.js')
     app.add_js_file('js/graphs.js')
+    app.add_js_file('js/graphs_ov_tf.js')
     try:
         shutil.copytree(os.path.join(app.srcdir, 'csv'), os.path.join(app.outdir, 'csv'), dirs_exist_ok=True)
     except FileNotFoundError:

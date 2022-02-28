@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include "intel_gpu/primitives/primitive.hpp"
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/implementation_desc.hpp"
+#include "intel_gpu/graph/program.hpp"
 
 #include "kernel_selector_helper.h"
 #include "meta_utils.h"
@@ -17,6 +18,7 @@
 #include <memory>
 #include <list>
 #include <algorithm>
+#include <thread>
 
 namespace cldnn {
 
@@ -64,11 +66,11 @@ struct fused_primitive_desc_onednn {
 struct fused_primitive_desc {
     std::shared_ptr<program_node> node;
     size_t dep_start_idx;
-    std::map<primitive_id, size_t> deps;
+    std::vector<std::pair<primitive_id, size_t>> deps;
     std::map<primitive_id, size_t> fused_deps;
     size_t total_num_deps = 0;
     activation_func activation;
-    activation_additional_params activation_params;
+    activation_additional_params activation_params = { 0.f, 0.f };
     layout input_layout = layout(data_types::f32, format::bfyx, tensor());
     layout output_layout = layout(data_types::f32, format::bfyx, tensor());
 };
@@ -350,11 +352,19 @@ public:
 
     bool need_lockable_memory() const;
 
-    std::string get_unique_id() const { return unique_id; }
-    void set_unique_id(std::string id) { unique_id = id; }
+    size_t get_unique_id() const { return unique_id; }
+
+    void set_unique_id() {
+        unique_id = cur_id++;
+    }
+
+    static void reset_unique_id() {
+        cur_id = 0;
+    }
 
 protected:
-    std::string unique_id;
+    size_t unique_id = 0;
+    static thread_local size_t cur_id;
 
     std::shared_ptr<primitive> desc;
     program& myprog;

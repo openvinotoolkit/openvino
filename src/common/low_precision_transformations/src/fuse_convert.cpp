@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,8 +23,14 @@ FuseConvertTransformation::FuseConvertTransformation(const Params& params) : Lay
     auto multiply = pattern::wrap_type<opset1::Multiply>({ pattern::wrap_type<opset1::Convert>(), pattern::wrap_type<opset1::Constant>() });
     auto subtract = pattern::wrap_type<opset1::Subtract>({ pattern::wrap_type<opset1::Convert>(), pattern::wrap_type<opset1::Constant>() });
     auto add = pattern::wrap_type<opset1::Add>({ pattern::wrap_type<opset1::Convert>(), pattern::wrap_type<opset1::Constant>() });
+    auto fakeQuantize = pattern::wrap_type<opset1::FakeQuantize>({
+        pattern::wrap_type<opset1::Convert>({pattern::wrap_type<opset1::Constant>()}),
+        pattern::any_input(),
+        pattern::any_input(),
+        pattern::any_input(),
+        pattern::any_input()});
     auto matcher = std::make_shared<ngraph::pattern::Matcher>(
-        std::make_shared<pattern::op::Or>(OutputVector{ multiply, subtract,  add }),
+        std::make_shared<pattern::op::Or>(OutputVector{ multiply, subtract, add, fakeQuantize }),
         "FuseConvertTransformation");
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {

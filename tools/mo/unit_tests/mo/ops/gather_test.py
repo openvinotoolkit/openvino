@@ -1,12 +1,14 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy.testing as npt
 
-from openvino.tools.mo.ops.gather import Gather
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array, strict_compare_tensors, \
+    dynamic_dimension_value
 from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.middle.passes.infer import partial_infer
+from openvino.tools.mo.ops.gather import Gather
+from openvino.tools.mo.ops.parameter import Parameter
 from openvino.tools.mo.utils.error import Error
 from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from unit_tests.utils.graph import valued_const_with_data, result, regular_op_with_empty_data, connect, \
@@ -266,3 +268,74 @@ class TestGatherPartialInfer(UnitTestWithMockedTelemetry):
                           data_shape=[3, 4, 7],
                           indices_shape=[3, 4, 2],
                           ref_shape=[3, 4, 2])
+
+
+dyn = dynamic_dimension_value
+
+
+class TestElementwiseReverseInfer(UnitTestWithMockedTelemetry):
+    @staticmethod
+    def build_and_test_reverse_inference(data_shape, indices_shape, axis, batch_dims, out_shape, ref_shape):
+        in_port_with_defined_shape = 0 if data_shape is not None else 1
+        defined_shape = shape_array(data_shape if data_shape is not None else indices_shape)
+
+        nodes = {
+            **shaped_parameter('data', data_shape, {'reverse_infer': Parameter.reverse_infer}),
+            **shaped_parameter('indices', indices_shape, {'reverse_infer': Parameter.reverse_infer}),
+            **valued_const_with_data('axis', int64_array(axis)),
+            **regular_op_with_empty_data('gather', {'op': 'Gather', 'batch_dims': batch_dims,
+                                                    'infer': Gather.infer,
+                                                    'reverse_infer': Gather.reverse_infer}),
+            **result('res'),
+        }
+
+        edges = [
+            *connect('data', '0:gather'),
+            *connect('indices', '1:gather'),
+            *connect('axis', '2:gather'),
+            *connect('gather', 'res')
+        ]
+
+        graph = build_graph(nodes, edges)
+        graph.stage = 'middle'
+
+        Node(graph, 'gather').out_port(0).data.set_shape(shape_array(out_shape))
+        Node(graph, 'gather').in_port(in_port_with_defined_shape).data.set_shape(defined_shape)
+
+        partial_infer(graph)
+        actual_shape = Node(graph, 'gather').in_port(int(not in_port_with_defined_shape)).data.get_shape()
+        assert strict_compare_tensors(actual_shape, shape_array(ref_shape))
+
+    # undefined indices pshape
+    def test_reverse_infer_1(self):
+        self.build_and_test_reverse_inference(data_shape=[dyn, dyn],
+                                              indices_shape=None,
+                                              axis=0,
+                                              batch_dims=0,
+                                              out_shape=[dyn, dyn, dyn, dyn],
+                                              ref_shape=[dyn, dyn, dyn])
+
+    def test_reverse_infer_2(self):
+        self.build_and_test_reverse_inference(data_shape=[3, 10],
+                                              indices_shape=None,
+                                              axis=1,
+                                              batch_dims=0,
+                                              out_shape=[3, 40, 50, 60],
+                                              ref_shape=[40, 50, 60])
+
+    # undefined data pshape
+    def test_reverse_infer_3(self):
+        self.build_and_test_reverse_inference(data_shape=None,
+                                              indices_shape=[4, 5],
+                                              axis=0,
+                                              batch_dims=0,
+                                              out_shape=[4, 5, 10],
+                                              ref_shape=[dyn, 10])
+
+    def test_reverse_infer_4(self):
+        self.build_and_test_reverse_inference(data_shape=None,
+                                              indices_shape=[4, 67],
+                                              axis=1,
+                                              batch_dims=0,
+                                              out_shape=[3, 4, 67, 100],
+                                              ref_shape=[3, dyn, 100])

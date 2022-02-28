@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -149,6 +149,55 @@ inline bool color_convert_nv12(const std::shared_ptr<Node>& op,
                            image_w,
                            image_w * image_h,
                            image_w * image_h / 2,
+                           type);
+    }
+    return true;
+}
+
+template <ov::element::Type_t ET>
+inline bool color_convert_i420(const std::shared_ptr<Node>& op,
+                               const ov::HostTensorVector& outputs,
+                               const ov::HostTensorVector& inputs,
+                               ov::op::util::ConvertColorI420Base::ColorConversion type) {
+    static const size_t N_DIM = 0;
+    static const size_t H_DIM = 1;
+    static const size_t W_DIM = 2;
+    NGRAPH_CHECK(op->get_input_size() == 1 || op->get_input_size() == 3,
+                 "I420 conversion shall have one or 3 inputs, but it is ",
+                 op->get_input_size());
+    auto single_plane = op->get_input_size() == 1;
+
+    const auto& y_tensor = inputs[0];
+    auto batch_size = y_tensor->get_shape()[N_DIM];
+    auto image_w = y_tensor->get_shape()[W_DIM];
+    auto image_h = y_tensor->get_shape()[H_DIM];
+    if (single_plane) {
+        image_h = image_h * 2 / 3;
+    }
+    outputs[0]->set_shape({batch_size, image_h, image_w, 3});  // 3 is RGB
+    if (single_plane) {
+        color_convert_i420(y_tensor->get_data_ptr<ET>(),
+                           y_tensor->get_data_ptr<ET>() + image_w * image_h,
+                           y_tensor->get_data_ptr<ET>() + 5 * image_w * image_h / 4,
+                           outputs[0]->get_data_ptr<ET>(),
+                           batch_size,
+                           image_h,
+                           image_w,
+                           image_w * image_h * 3 / 2,
+                           image_w * image_h * 3 / 2,
+                           type);
+    } else {
+        const auto& u_tensor = inputs[1];
+        const auto& v_tensor = inputs[2];
+        color_convert_i420(y_tensor->get_data_ptr<ET>(),
+                           u_tensor->get_data_ptr<ET>(),
+                           v_tensor->get_data_ptr<ET>(),
+                           outputs[0]->get_data_ptr<ET>(),
+                           batch_size,
+                           image_h,
+                           image_w,
+                           image_w * image_h,
+                           image_w * image_h / 4,
                            type);
     }
     return true;

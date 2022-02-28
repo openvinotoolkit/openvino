@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -85,13 +85,13 @@ void op::v5::GRUSequence::validate_and_infer_types() {
                           Dimension::merge(merged_batch_size, merged_batch_size, ht_pshape[0]) &&
                               Dimension::merge(merged_batch_size, merged_batch_size, x_pshape[0]) &&
                               Dimension::merge(merged_batch_size, merged_batch_size, sl_pshape[0]),
-                          "Parameter batch_size not matched in RNNSequence.");
+                          "Parameter batch_size not matched in GRUSequence.");
 
     // Merge hidden_size dimension across all inputs to evaluate output dimension
     NODE_VALIDATION_CHECK(this,
                           Dimension::merge(merged_hidden_size, merged_hidden_size, ht_pshape[2]) &&
                               Dimension::merge(merged_hidden_size, merged_hidden_size, r_pshape[2]),
-                          "Parameter hidden_size not matched RNNSequence.");
+                          "Parameter hidden_size not matched GRUSequence.");
 
     // Merge num_directions dimension across all inputs to evaluate output dimension
     NODE_VALIDATION_CHECK(this,
@@ -99,7 +99,27 @@ void op::v5::GRUSequence::validate_and_infer_types() {
                               Dimension::merge(merged_num_directions, merged_num_directions, w_pshape[0]) &&
                               Dimension::merge(merged_num_directions, merged_num_directions, r_pshape[0]) &&
                               Dimension::merge(merged_num_directions, merged_num_directions, b_pshape[0]),
-                          "Parameter num_directions not matched in RNNSequence.");
+                          "Parameter num_directions not matched in GRUSequence.");
+
+    auto valid_num_directions = 0;
+    if (m_direction == op::RecurrentSequenceDirection::FORWARD ||
+        m_direction == op::RecurrentSequenceDirection::REVERSE) {
+        valid_num_directions = 1;
+    } else if (m_direction == op::RecurrentSequenceDirection::BIDIRECTIONAL) {
+        valid_num_directions = 2;
+    } else {
+        // Guard for potential future extension of RecurrentSequenceDirection enum
+        NODE_VALIDATION_CHECK(this, false, "Parameter direction must be FORWARD or REVERSE or BIDIRECTIONAL.");
+    }
+
+    NODE_VALIDATION_CHECK(this,
+                          Dimension::merge(merged_num_directions, merged_num_directions, valid_num_directions),
+                          "Parameter 'num_directions' doesn't match with direction '",
+                          m_direction,
+                          "' in GRUSequence. Expected ",
+                          valid_num_directions,
+                          ", actual ",
+                          merged_num_directions);
 
     // Validate hidden_size value for W, R, B inputs
     if (merged_hidden_size.is_static()) {

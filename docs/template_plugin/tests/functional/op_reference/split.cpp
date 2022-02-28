@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,15 +13,15 @@ using namespace ov;
 
 namespace {
 struct SplitParams {
-    SplitParams(const Tensor& dataTensor, const Tensor& axisTensor, const size_t numSplits,
-                const std::vector<Tensor>& expectedTensors, const std::string& testcaseName = "") :
+    SplitParams(const reference_tests::Tensor& dataTensor, const reference_tests::Tensor& axisTensor, const size_t numSplits,
+                const std::vector<reference_tests::Tensor>& expectedTensors, const std::string& testcaseName = "") :
                 dataTensor(dataTensor), axisTensor(axisTensor), numSplits(numSplits),
                 expectedTensors(expectedTensors), testcaseName(testcaseName) {}
 
-    Tensor dataTensor;
-    Tensor axisTensor;
+    reference_tests::Tensor dataTensor;
+    reference_tests::Tensor axisTensor;
     size_t numSplits;
-    std::vector<Tensor> expectedTensors;
+    std::vector<reference_tests::Tensor> expectedTensors;
     std::string testcaseName;
 };
 
@@ -75,89 +75,89 @@ std::vector<SplitParams> generateSplitParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
     std::vector<SplitParams> splitParams {
         // split_1d
-        SplitParams(Tensor({6}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6}),
-                    Tensor({}, element::i64, std::vector<int64_t>{0}),
+        SplitParams(reference_tests::Tensor({6}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6}),
+                    reference_tests::Tensor({}, element::i64, std::vector<int64_t>{0}),
                     3,
-                    std::vector<Tensor>{Tensor({2}, IN_ET, std::vector<T>{1, 2}),
-                                        Tensor({2}, IN_ET, std::vector<T>{3, 4}),
-                                        Tensor({2}, IN_ET, std::vector<T>{5, 6})},
+                    std::vector<reference_tests::Tensor>{reference_tests::Tensor({2}, IN_ET, std::vector<T>{1, 2}),
+                                        reference_tests::Tensor({2}, IN_ET, std::vector<T>{3, 4}),
+                                        reference_tests::Tensor({2}, IN_ET, std::vector<T>{5, 6})},
                     "split_1d"),
         // split_2d_axis_0
-        SplitParams(Tensor({6, 2}, IN_ET, std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}),
-                    Tensor({}, element::i64, std::vector<int64_t>{0}),
+        SplitParams(reference_tests::Tensor({6, 2}, IN_ET, std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}),
+                    reference_tests::Tensor({}, element::i64, std::vector<int64_t>{0}),
                     2,
-                    std::vector<Tensor>{Tensor({3, 2}, IN_ET, std::vector<T>{0, 1, 2, 3, 4, 5}),
-                                        Tensor({3, 2}, IN_ET, std::vector<T>{6, 7, 8, 9, 10, 11})},
+                    std::vector<reference_tests::Tensor>{reference_tests::Tensor({3, 2}, IN_ET, std::vector<T>{0, 1, 2, 3, 4, 5}),
+                                        reference_tests::Tensor({3, 2}, IN_ET, std::vector<T>{6, 7, 8, 9, 10, 11})},
                     "split_2d_axis_0"),
         // split_2d_axis_1
-        SplitParams(Tensor({6, 2}, IN_ET, std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}),
-                    Tensor({}, element::i64, std::vector<int64_t>{1}),
+        SplitParams(reference_tests::Tensor({6, 2}, IN_ET, std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}),
+                    reference_tests::Tensor({}, element::i64, std::vector<int64_t>{1}),
                     2,
-                    std::vector<Tensor>{Tensor({6, 1}, IN_ET, std::vector<T>{0, 2, 4, 6, 8, 10}),
-                                        Tensor({6, 1}, IN_ET, std::vector<T>{1, 3, 5, 7, 9, 11})},
+                    std::vector<reference_tests::Tensor>{reference_tests::Tensor({6, 1}, IN_ET, std::vector<T>{0, 2, 4, 6, 8, 10}),
+                                        reference_tests::Tensor({6, 1}, IN_ET, std::vector<T>{1, 3, 5, 7, 9, 11})},
                     "split_2d_axis_1"),
         // split_3d_axis_0
-        SplitParams(Tensor({2, 2, 3}, IN_ET, std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}),
-                    Tensor({}, element::i64, std::vector<int64_t>{0}),
+        SplitParams(reference_tests::Tensor({2, 2, 3}, IN_ET, std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}),
+                    reference_tests::Tensor({}, element::i64, std::vector<int64_t>{0}),
                     2,
-                    std::vector<Tensor>{Tensor({1, 2, 3}, IN_ET, std::vector<T>{0, 1, 2, 3, 4, 5}),
-                                        Tensor({1, 2, 3}, IN_ET, std::vector<T>{6, 7, 8, 9, 10, 11})},
+                    std::vector<reference_tests::Tensor>{reference_tests::Tensor({1, 2, 3}, IN_ET, std::vector<T>{0, 1, 2, 3, 4, 5}),
+                                        reference_tests::Tensor({1, 2, 3}, IN_ET, std::vector<T>{6, 7, 8, 9, 10, 11})},
                     "split_3d_axis_0"),
         // split_3d_axis_1
-        SplitParams(Tensor({2, 8, 2}, IN_ET, std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+        SplitParams(reference_tests::Tensor({2, 8, 2}, IN_ET, std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
                                                             16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31}),
-                    Tensor({}, element::i64, std::vector<int64_t>{1}),
+                    reference_tests::Tensor({}, element::i64, std::vector<int64_t>{1}),
                     4,
-                    std::vector<Tensor>{Tensor({2, 2, 2}, IN_ET, std::vector<T>{0, 1, 2, 3, 16, 17, 18, 19}),
-                                        Tensor({2, 2, 2}, IN_ET, std::vector<T>{4, 5, 6, 7, 20, 21, 22, 23}),
-                                        Tensor({2, 2, 2}, IN_ET, std::vector<T>{8, 9, 10, 11, 24, 25, 26, 27}),
-                                        Tensor({2, 2, 2}, IN_ET, std::vector<T>{12, 13, 14, 15, 28, 29, 30, 31})},
+                    std::vector<reference_tests::Tensor>{reference_tests::Tensor({2, 2, 2}, IN_ET, std::vector<T>{0, 1, 2, 3, 16, 17, 18, 19}),
+                                        reference_tests::Tensor({2, 2, 2}, IN_ET, std::vector<T>{4, 5, 6, 7, 20, 21, 22, 23}),
+                                        reference_tests::Tensor({2, 2, 2}, IN_ET, std::vector<T>{8, 9, 10, 11, 24, 25, 26, 27}),
+                                        reference_tests::Tensor({2, 2, 2}, IN_ET, std::vector<T>{12, 13, 14, 15, 28, 29, 30, 31})},
                     "split_3d_axis_1"),
         // split_3d_axis_2
-        SplitParams(Tensor({2, 1, 6}, IN_ET, std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}),
-                    Tensor({}, element::i64, std::vector<int64_t>{2}),
+        SplitParams(reference_tests::Tensor({2, 1, 6}, IN_ET, std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}),
+                    reference_tests::Tensor({}, element::i64, std::vector<int64_t>{2}),
                     2,
-                    std::vector<Tensor>{Tensor({2, 1, 3}, IN_ET, std::vector<T>{0, 1, 2, 6, 7, 8}),
-                                        Tensor({2, 1, 3}, IN_ET, std::vector<T>{3, 4, 5, 9, 10, 11})},
+                    std::vector<reference_tests::Tensor>{reference_tests::Tensor({2, 1, 3}, IN_ET, std::vector<T>{0, 1, 2, 6, 7, 8}),
+                                        reference_tests::Tensor({2, 1, 3}, IN_ET, std::vector<T>{3, 4, 5, 9, 10, 11})},
                     "split_3d_axis_2"),
         // split_4d_axis_0
-        SplitParams(Tensor({3, 2, 3, 1}, IN_ET, std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17}),
-                    Tensor({}, element::i64, std::vector<int64_t>{0}),
+        SplitParams(reference_tests::Tensor({3, 2, 3, 1}, IN_ET, std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17}),
+                    reference_tests::Tensor({}, element::i64, std::vector<int64_t>{0}),
                     3,
-                    std::vector<Tensor>{Tensor({1, 2, 3, 1}, IN_ET, std::vector<T>{0, 1, 2, 3, 4, 5}),
-                                        Tensor({1, 2, 3, 1}, IN_ET, std::vector<T>{6, 7, 8, 9, 10, 11}),
-                                        Tensor({1, 2, 3, 1}, IN_ET, std::vector<T>{12, 13, 14, 15, 16, 17})},
+                    std::vector<reference_tests::Tensor>{reference_tests::Tensor({1, 2, 3, 1}, IN_ET, std::vector<T>{0, 1, 2, 3, 4, 5}),
+                                        reference_tests::Tensor({1, 2, 3, 1}, IN_ET, std::vector<T>{6, 7, 8, 9, 10, 11}),
+                                        reference_tests::Tensor({1, 2, 3, 1}, IN_ET, std::vector<T>{12, 13, 14, 15, 16, 17})},
                     "split_4d_axis_0"),
         // split_4d_axis_1
-        SplitParams(Tensor({2, 8, 2, 2}, IN_ET, std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+        SplitParams(reference_tests::Tensor({2, 8, 2, 2}, IN_ET, std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
                                                                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
                                                                32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
                                                                48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63}),
-                    Tensor({}, element::i64, std::vector<int64_t>{1}),
+                    reference_tests::Tensor({}, element::i64, std::vector<int64_t>{1}),
                     4,
-                    std::vector<Tensor>{
-                        Tensor({2, 2, 2, 2}, IN_ET, std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 32, 33, 34, 35, 36, 37, 38, 39}),
-                        Tensor({2, 2, 2, 2}, IN_ET, std::vector<T>{8, 9, 10, 11, 12, 13, 14, 15, 40, 41, 42, 43, 44, 45, 46, 47}),
-                        Tensor({2, 2, 2, 2}, IN_ET, std::vector<T>{16, 17, 18, 19, 20, 21, 22, 23, 48, 49, 50, 51, 52, 53, 54, 55}),
-                        Tensor({2, 2, 2, 2}, IN_ET, std::vector<T>{24, 25, 26, 27, 28, 29, 30, 31, 56, 57, 58, 59, 60, 61, 62, 63})},
+                    std::vector<reference_tests::Tensor>{
+                        reference_tests::Tensor({2, 2, 2, 2}, IN_ET, std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 32, 33, 34, 35, 36, 37, 38, 39}),
+                        reference_tests::Tensor({2, 2, 2, 2}, IN_ET, std::vector<T>{8, 9, 10, 11, 12, 13, 14, 15, 40, 41, 42, 43, 44, 45, 46, 47}),
+                        reference_tests::Tensor({2, 2, 2, 2}, IN_ET, std::vector<T>{16, 17, 18, 19, 20, 21, 22, 23, 48, 49, 50, 51, 52, 53, 54, 55}),
+                        reference_tests::Tensor({2, 2, 2, 2}, IN_ET, std::vector<T>{24, 25, 26, 27, 28, 29, 30, 31, 56, 57, 58, 59, 60, 61, 62, 63})},
                     "split_4d_axis_1"),
         // split_4d_axis_2
-        SplitParams(Tensor({2, 1, 6, 2}, IN_ET, std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+        SplitParams(reference_tests::Tensor({2, 1, 6, 2}, IN_ET, std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
                                                                12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}),
-                    Tensor({}, element::i64, std::vector<int64_t>{2}),
+                    reference_tests::Tensor({}, element::i64, std::vector<int64_t>{2}),
                     3,
-                    std::vector<Tensor>{Tensor({2, 1, 2, 2}, IN_ET, std::vector<T>{0, 1, 2, 3, 12, 13, 14, 15}),
-                                        Tensor({2, 1, 2, 2}, IN_ET, std::vector<T>{4, 5, 6, 7, 16, 17, 18, 19}),
-                                        Tensor({2, 1, 2, 2}, IN_ET, std::vector<T>{8, 9, 10, 11, 20, 21, 22, 23})},
+                    std::vector<reference_tests::Tensor>{reference_tests::Tensor({2, 1, 2, 2}, IN_ET, std::vector<T>{0, 1, 2, 3, 12, 13, 14, 15}),
+                                        reference_tests::Tensor({2, 1, 2, 2}, IN_ET, std::vector<T>{4, 5, 6, 7, 16, 17, 18, 19}),
+                                        reference_tests::Tensor({2, 1, 2, 2}, IN_ET, std::vector<T>{8, 9, 10, 11, 20, 21, 22, 23})},
                     "split_4d_axis_2"),
         // split_4d_axis_3
-        SplitParams(Tensor({2, 1, 2, 6}, IN_ET, std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+        SplitParams(reference_tests::Tensor({2, 1, 2, 6}, IN_ET, std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
                                                                12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}),
-                    Tensor({}, element::i64, std::vector<int64_t>{3}),
+                    reference_tests::Tensor({}, element::i64, std::vector<int64_t>{3}),
                     3,
-                    std::vector<Tensor>{Tensor({2, 1, 2, 2}, IN_ET, std::vector<T>{0, 1, 6, 7, 12, 13, 18, 19}),
-                                        Tensor({2, 1, 2, 2}, IN_ET, std::vector<T>{2, 3, 8, 9, 14, 15, 20, 21}),
-                                        Tensor({2, 1, 2, 2}, IN_ET, std::vector<T>{4, 5, 10, 11, 16, 17, 22, 23})},
+                    std::vector<reference_tests::Tensor>{reference_tests::Tensor({2, 1, 2, 2}, IN_ET, std::vector<T>{0, 1, 6, 7, 12, 13, 18, 19}),
+                                        reference_tests::Tensor({2, 1, 2, 2}, IN_ET, std::vector<T>{2, 3, 8, 9, 14, 15, 20, 21}),
+                                        reference_tests::Tensor({2, 1, 2, 2}, IN_ET, std::vector<T>{4, 5, 10, 11, 16, 17, 22, 23})},
                     "split_4d_axis_3"),
     };
     return splitParams;

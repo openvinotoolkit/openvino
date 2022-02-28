@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,7 +53,9 @@ void roi_align(const T* feature_maps,
         auto sampling_ratio_x = sampling_ratio == 0 ? static_cast<int>(ceil(bin_width)) : sampling_ratio;
         auto sampling_ratio_y = sampling_ratio == 0 ? static_cast<int>(ceil(bin_height)) : sampling_ratio;
 
-        uint64_t num_samples_in_bin = sampling_ratio_x * sampling_ratio_y;
+        NGRAPH_CHECK(sampling_ratio_x >= 0 && sampling_ratio_y >= 0);
+
+        uint64_t num_samples_in_bin = static_cast<uint64_t>(sampling_ratio_x) * static_cast<uint64_t>(sampling_ratio_y);
 
         T sample_distance_x = bin_width / static_cast<T>(sampling_ratio_x);
         T sample_distance_y = bin_height / static_cast<T>(sampling_ratio_y);

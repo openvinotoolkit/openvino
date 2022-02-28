@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -92,7 +92,7 @@ protected:
 TEST_P(RegionYoloCPULayerTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    CheckPluginRelatedResults(executableNetwork, "RegionYolo");
+    CheckPluginRelatedResults(compiledModel, "RegionYolo");
 }
 
 namespace {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -112,7 +112,7 @@ ngraph::pass::low_precision::PullReshapeThroughDequantization::PullReshapeThroug
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher & m) -> bool {
         const auto& opsMap = m.get_pattern_value_map();
-        auto reshape = opsMap.find(reshapeWrapper)->second.get_node()->shared_from_this();
+        auto reshape = opsMap.at(reshapeWrapper).get_node_shared_ptr();
 
         auto child = reshape->get_output_target_inputs(0).begin()->get_node();
         if (ov::is_type<opset1::GroupConvolution>(child)) {

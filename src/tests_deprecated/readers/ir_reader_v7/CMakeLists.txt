@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -49,7 +49,7 @@ if(BUILD_SHARED_LIBS)
     target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
 else()
     # for static linkage the dependencies are in opposite order
-    target_link_libraries(ov_runtime PRIVATE ${TARGET_NAME})
+    target_link_libraries(openvino PRIVATE ${TARGET_NAME})
 endif()
 
 # code style

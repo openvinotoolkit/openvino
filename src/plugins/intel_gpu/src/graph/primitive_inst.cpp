@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include "generic_layer_inst.h"
 #include "input_layout_inst.h"
 #include "arg_max_min_inst.h"
+#include "experimental_detectron_roi_feature_extractor_inst.hpp"
 
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -200,7 +201,8 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
         // TODO: Remove WA for arg_max_min node.
         // For now it's required to handle the case when only second output of TopK primitive is used in plugin,
         // but kernels always write both outputs to the same memory object which leads to wrong result.
-        if (user_count == 1 && mutable_data_count == 1 && !node.is_type<arg_max_min>()) {
+        if (user_count == 1 && mutable_data_count == 1 && !node.is_type<arg_max_min>()
+                                                       && !node.is_type<experimental_detectron_roi_feature_extractor>()) {
             for (auto& user : node.get_users())
                 if (user->is_type<mutable_data>())
                     _output = user->as<mutable_data>().get_attached_memory_ptr();

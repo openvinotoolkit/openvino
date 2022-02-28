@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from collections import deque, defaultdict
@@ -106,7 +106,7 @@ def read_all_fake_quantize_configurations(config, hardware_config, model):
     every fake quantize node based on toolkit config file and sub graph of every fake quantize node
     :param config: dictionary with compression section from toolkit config file
     :param hardware_config: dictionary with hardware config
-    :param model: NXModel instance to quantize
+    :param model: CompressedModel instance to quantize
     :return dictionary with fake quantize names as keys and
      list of corresponding configurations as values
      """
@@ -168,7 +168,7 @@ def add_range_estimator_configs(fq_to_hw_confs, config):
 def get_configurations_by_preset(config, model, fq_to_hw_confs):
     """ Choose fake quantize configuration by preset
     :param config: dictionary with params algo section from toolkit config
-    :param model: NXModel instance
+    :param model: CompressedModel instance
     :param fq_to_hw_confs: dictionary with fake quantize names as keys and
      list of its configurations as values (read_all_fake_quantize_configurations(..) return value)
     :return dictionary with fake quantize nodes names as keys and

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,7 @@ namespace py = pybind11;
 void regclass_graph_Shape(py::module m) {
     py::class_<ov::Shape, std::shared_ptr<ov::Shape>> shape(m, "Shape");
     shape.doc() = "openvino.runtime.Shape wraps ov::Shape";
+    shape.def(py::init<>());
     shape.def(py::init<const std::initializer_list<size_t>&>(), py::arg("axis_lengths"));
     shape.def(py::init<const std::vector<size_t>&>(), py::arg("axis_lengths"));
     shape.def(py::init<const ov::Shape&>(), py::arg("axis_lengths"));

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -14,6 +14,11 @@ endif()
 
 if(OV_COMPILER_IS_CLANG)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-inconsistent-missing-override")
+endif()
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # protobuf\src\google\protobuf\descriptor.cc(822) : error C4703: potentially uninitialized local pointer variable 'to_use' used
+    add_definitions("/wd4703")
 endif()
 
 set(protobuf_VERBOSE ON)

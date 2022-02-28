@@ -1,10 +1,11 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 from common.layer_test_class import check_ir_version
 from common.onnx_layer_test_class import Caffe2OnnxLayerTest
+
 from unit_tests.utils.graph import build_graph
 
 
@@ -70,7 +71,8 @@ class TestScatters(Caffe2OnnxLayerTest):
                 '3_updates': {'kind': 'op', 'type': 'Parameter'},
                 'updates_data': {'shape': updates_shape, 'kind': 'data'},
 
-                'const_indata': {'kind': 'data', 'value': np.int64(axis) if axis is not None else np.int64(0)},
+                'const_indata': {'kind': 'data',
+                                 'value': np.int64(axis) if axis is not None else np.int64(0)},
                 'const': {'kind': 'op', 'type': 'Const'},
                 'const_data': {'kind': 'data'},
 
@@ -101,7 +103,8 @@ class TestScatters(Caffe2OnnxLayerTest):
 test_data = [
     dict(input_shape=[1, 5], indices_shape=[1, 2], updates_shape=[1, 2],
          axis=1, output_shape=[1, 5]),
-    dict(input_shape=[1, 256, 200, 272], indices_shape=[1, 256, 200, 272], updates_shape=[1, 256, 200, 272],
+    dict(input_shape=[1, 256, 200, 272], indices_shape=[1, 256, 200, 272],
+         updates_shape=[1, 256, 200, 272],
          axis=None, output_shape=[1, 256, 200, 272])]
 
 
@@ -110,9 +113,10 @@ class TestScatter(TestScatters):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_scatter(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_scatter(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
 
 class TestScatterElements(TestScatters):
@@ -120,6 +124,7 @@ class TestScatterElements(TestScatters):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_scatter_elements(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_scatter_elements(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, api_2=api_2)

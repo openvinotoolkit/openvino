@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,7 @@ public:
     bool is_fallback_config;
     bool ignore_matching = false;
 
-    virtual bool op_in_config(const std::shared_ptr<ngraph::Node> &node) = 0;
+    virtual bool op_in_config(const std::shared_ptr<ov::Node> &node) = 0;
 
     virtual ~iMatcherConfig() = default;
 };
@@ -54,8 +54,8 @@ public:
 
     MatcherConfig(bool ignore_matching) : iMatcherConfig({}, {}, sizeof...(OPTypes) == 0, ignore_matching) {}
 
-    bool op_in_config(const std::shared_ptr<ngraph::Node> &node) override {
-        std::initializer_list<bool> vals{(ngraph::is_type<OPTypes>(node))...};
+    bool op_in_config(const std::shared_ptr<ov::Node> &node) override {
+        std::initializer_list<bool> vals{(ov::is_type<OPTypes>(node))...};
         return std::any_of(vals.begin(), vals.end(), [](bool i) { return i; });
     };
 };
@@ -66,8 +66,8 @@ class Matcher {
     friend class MatchersManager;
 
 public:
-    virtual bool match(const std::shared_ptr<ngraph::Node> &node,
-                       const std::shared_ptr<ngraph::Node> &ref,
+    virtual bool match(const std::shared_ptr<ov::Node> &node,
+                       const std::shared_ptr<ov::Node> &ref,
                        const LayerTestsUtils::OPInfo &op_info) const = 0;
 
     virtual ~Matcher() = default;
@@ -75,7 +75,7 @@ public:
 protected:
     virtual void configure(const pugi::xml_document &cfg) = 0;
 
-    iMatcherConfig::Ptr get_config(const std::shared_ptr<ngraph::Node> &node) const;
+    iMatcherConfig::Ptr get_config(const std::shared_ptr<ov::Node> &node) const;
 
     std::vector<iMatcherConfig::Ptr> default_configs;
 

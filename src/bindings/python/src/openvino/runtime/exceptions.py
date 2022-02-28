@@ -1,16 +1,16 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""openvino exceptions hierarchy. All exceptions are descendants of NgraphError."""
+"""openvino exceptions hierarchy. All exceptions are descendants of OVError."""
 
 
-class NgraphError(Exception):
-    """Base class for Ngraph exceptions."""
+class OVError(Exception):
+    """Base class for OV exceptions."""
 
 
-class UserInputError(NgraphError):
+class UserInputError(OVError):
     """User provided unexpected input."""
 
 
-class NgraphTypeError(NgraphError, TypeError):
+class OVTypeError(OVError, TypeError):
     """Type mismatch error."""

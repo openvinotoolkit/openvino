@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,7 +40,7 @@ KERNEL (fully_connected_gpu_yxfn)(
     {
         for (uint j = 0; j < INPUT0_SIZE_Y; j++)
         {
-            for(uint i = 0; i < INPUT0_SIZE_X; i++)
+            for (uint i = 0; i < INPUT0_SIZE_X; i++)
             {
                 // Due to reshape from DataTensor to WeightTensor reshape_dims function is called directly
                 uint8 widx = FUNC_CALL(reshape_dims)(
@@ -48,13 +48,13 @@ KERNEL (fully_connected_gpu_yxfn)(
                     INPUT0_FEATURE_NUM, INPUT0_SIZE_W, INPUT0_SIZE_Z, INPUT0_SIZE_Y, INPUT0_SIZE_X,
                     FILTER_IFM_NUM, 1, FILTER_SIZE_Z, FILTER_SIZE_Y, FILTER_SIZE_X,
                     INPUT0_DIMS, FILTER_DIMS);
-                uint weight_idx = weight_offset + widx[2]*FILTER_IFM_PITCH + widx[5]*FILTER_Y_PITCH + widx[6]*FILTER_X_PITCH;
-                uint input_idx = INPUT0_OFFSET + k*INPUT0_FEATURE_PITCH + j*INPUT0_Y_PITCH + i*INPUT0_X_PITCH + batch_id*INPUT0_BATCH_PITCH;
+                uint weight_idx = weight_offset + widx[2] * FILTER_IFM_PITCH + widx[5] * FILTER_Y_PITCH + widx[6] * FILTER_X_PITCH;
+                uint input_idx = INPUT0_OFFSET + k * INPUT0_FEATURE_PITCH + j * INPUT0_Y_PITCH + i * INPUT0_X_PITCH + batch_id * INPUT0_BATCH_PITCH;
                 result += input[input_idx] * weights[weight_idx];
             }
         }
     }
-    const uint output_idx = OUTPUT_OFFSET + batch_id*OUTPUT_BATCH_PITCH + neuronIdx*OUTPUT_FEATURE_PITCH;
+    const uint output_idx = OUTPUT_OFFSET + batch_id * OUTPUT_BATCH_PITCH + neuronIdx * OUTPUT_FEATURE_PITCH;
 
 #if BIAS_TERM
     result += biases[neuronIdx];
@@ -68,5 +68,4 @@ KERNEL (fully_connected_gpu_yxfn)(
 #else
     output[output_idx] = ACTIVATION(result, ACTIVATION_PARAMS);;
 #endif
-
 }

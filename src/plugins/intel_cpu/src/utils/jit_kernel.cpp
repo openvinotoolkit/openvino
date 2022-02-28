@@ -1,19 +1,28 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "jit_kernel.hpp"
 #include <stdexcept>
+#include <iostream>
+#include <cstring>
+#include <unordered_set>
 
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 namespace {
 
 template<typename RegType>
 using registers = std::array<std::reference_wrapper<const RegType>, 16>;
+
+bool isRegAllocable(int id) {
+    return id != abi_param1.getIdx()          // function argument
+            && id != Operand::Code::RSP;      // stack pointer
+}
 
 template<typename RegType>
 const RegType & reserveReg(jit_kernel::reg_indices & freeRegs, const registers<RegType> & regs) {
@@ -33,7 +42,7 @@ void freeReg(jit_kernel::reg_indices & freeRegs, const registers<RegType> & regs
     //     throw std::runtime_error("Some register was freed twice");
     freeRegs.emplace_back(idx);
     if (freeRegs.size() > regs.size())
-        throw std::runtime_error("Some register was freed twice");
+        IE_THROW() << "Some register was freed twice";
 }
 
 const registers<Reg64> & x64regs() {
@@ -82,30 +91,30 @@ const registers<Reg8> & x8regs() {
 
 const registers<Xmm> & xmmregs() {
     static const registers<Xmm> _xmmregs {{
-        util::xmm0,  util::xmm1,  util::xmm2,  util::xmm3,
-        util::xmm4,  util::xmm5,  util::xmm6,  util::xmm7,
-        util::xmm8,  util::xmm9,  util::xmm10, util::xmm11,
-        util::xmm12, util::xmm13, util::xmm14, util::xmm15,
+        Xbyak::util::xmm0,  Xbyak::util::xmm1,  Xbyak::util::xmm2,  Xbyak::util::xmm3,
+        Xbyak::util::xmm4,  Xbyak::util::xmm5,  Xbyak::util::xmm6,  Xbyak::util::xmm7,
+        Xbyak::util::xmm8,  Xbyak::util::xmm9,  Xbyak::util::xmm10, Xbyak::util::xmm11,
+        Xbyak::util::xmm12, Xbyak::util::xmm13, Xbyak::util::xmm14, Xbyak::util::xmm15,
     }};
     return _xmmregs;
 }
 
 const registers<Ymm> & ymmregs() {
     static const registers<Ymm> _ymmregs {{
-        util::ymm0,  util::ymm1,  util::ymm2,  util::ymm3,
-        util::ymm4,  util::ymm5,  util::ymm6,  util::ymm7,
-        util::ymm8,  util::ymm9,  util::ymm10, util::ymm11,
-        util::ymm12, util::ymm13, util::ymm14, util::ymm15,
+        Xbyak::util::ymm0,  Xbyak::util::ymm1,  Xbyak::util::ymm2,  Xbyak::util::ymm3,
+        Xbyak::util::ymm4,  Xbyak::util::ymm5,  Xbyak::util::ymm6,  Xbyak::util::ymm7,
+        Xbyak::util::ymm8,  Xbyak::util::ymm9,  Xbyak::util::ymm10, Xbyak::util::ymm11,
+        Xbyak::util::ymm12, Xbyak::util::ymm13, Xbyak::util::ymm14, Xbyak::util::ymm15,
     }};
     return _ymmregs;
 }
 
 const registers<Zmm> & zmmregs() {
     static const registers<Zmm> _zmmregs {{
-        util::zmm0,  util::zmm1,  util::zmm2,  util::zmm3,
-        util::zmm4,  util::zmm5,  util::zmm6,  util::zmm7,
-        util::zmm8,  util::zmm9,  util::zmm10, util::zmm11,
-        util::zmm12, util::zmm13, util::zmm14, util::zmm15,
+        Xbyak::util::zmm0,  Xbyak::util::zmm1,  Xbyak::util::zmm2,  Xbyak::util::zmm3,
+        Xbyak::util::zmm4,  Xbyak::util::zmm5,  Xbyak::util::zmm6,  Xbyak::util::zmm7,
+        Xbyak::util::zmm8,  Xbyak::util::zmm9,  Xbyak::util::zmm10, Xbyak::util::zmm11,
+        Xbyak::util::zmm12, Xbyak::util::zmm13, Xbyak::util::zmm14, Xbyak::util::zmm15,
     }};
     return _zmmregs;
 }
@@ -132,22 +141,39 @@ cpu_isa_t get_current_isa() {
     return cpu_isa_t::sse41;
 }
 
-stack_frame::stack_frame(MKLDNNPlugin::jit_kernel & kernel, size_t size)
+stack_frame::stack_frame(ov::intel_cpu::jit_kernel & kernel, size_t size, uint32_t alignment)
     : _kernel(kernel)
-    , _size(size) {
-    if (_size)
-        _kernel.sub(_kernel.rsp, _size);
+    , _size(size)
+    , _alignment(alignment) {
+    if (_size || _alignment) {
+        if (_size && _alignment == 1) {
+            _kernel.sub(_kernel.rsp, _size);
+        } else {
+            auto tmp = _kernel.var<size_t>();
+            tmp = _kernel.rsp;
+            _kernel.sub(_kernel.rsp, sizeof(size_t) + size);        // allocate
+            _kernel.and_(_kernel.rsp, ~(alignment - 1));            // align
+            _kernel.mov(_kernel.ptr[_kernel.rsp + size], tmp);      // remember previous rsp
+        }
+    }
 }
 
 stack_frame::stack_frame(stack_frame && rhs)
     : _kernel(rhs._kernel)
-    , _size(rhs._size) {
+    , _size(rhs._size)
+    , _alignment(rhs._alignment) {
     rhs._size = 0;
+    rhs._alignment = 0;
 }
 
 stack_frame::~stack_frame() {
-    if (_size)
-        _kernel.add(_kernel.rsp, _size);
+    if (_size || _alignment) {
+        if (_size && _alignment == 1) {
+            _kernel.add(_kernel.rsp, _size);
+        } else {
+            _kernel.mov(_kernel.rsp, _kernel.ptr[_kernel.rsp + _size]);
+        }
+    }
 }
 
 const Xbyak::Reg64 & stack_frame::pointer() const {
@@ -168,6 +194,21 @@ void stack_frame::clear() const {
     }
 }
 
+const void * consts_table::store(const void *data, size_t size) {
+    if (size > chunk_size)
+        throw std::runtime_error("Data size is too large");
+    const size_t capacity = _chunks.size() * chunk_size;
+    if (size > capacity - _size) {
+        _size = _chunks.size() * chunk_size;
+        _chunks.emplace_back();
+    }
+    auto & dst = _chunks.back();
+    const size_t offset = _size % chunk_size;
+    memcpy(&dst[offset], data, size);
+    _size += size;
+    return &dst[offset];
+}
+
 }   // namespace internal
 
 jit_kernel::jit_kernel()
@@ -176,14 +217,8 @@ jit_kernel::jit_kernel()
     _free_rmmregs.reserve(16);
     _free_rmmregs.reserve(16);
 
-    auto isRegReserved = [this](int idx) {
-        return idx == param1.getIdx()           // function argument
-                || idx == Operand::Code::RSP    // stack pointer
-                || idx == Operand::Code::RBP;   // frame pointer
-    };
-
     for (int reg = Operand::Code::RAX; reg <= Operand::Code::R15; ++reg) {
-        if (!isRegReserved(reg))
+        if (isRegAllocable(reg))
             _free_x64regs.emplace_back(reg);
         _free_rmmregs.emplace_back(reg);
     }
@@ -282,38 +317,43 @@ const AddressFrame & jit_kernel::address_frame(size_t size) const {
         return ptr;
 }
 
-jit_kernel::stack_frame jit_kernel::stack(size_t size) {
-    return stack_frame(*this, size);
+const jit_kernel::reg_indices & jit_kernel::free_x64regs() const {
+    return _free_x64regs;
 }
 
-void jit_kernel::uni_vpermps(const Xmm& x1, const int *mask, const Operand& op) {
-    uint8_t imm8 = static_cast<uint8_t>(*mask);
-    mov(x1, op);
+const jit_kernel::reg_indices & jit_kernel::free_rmmregs() const {
+    return _free_rmmregs;
+}
+
+jit_kernel::stack_frame jit_kernel::stack(size_t size, uint32_t alignment) {
+    return stack_frame(*this, size, alignment);
+}
+
+void jit_kernel::uni_vpermps(const Xmm& x1, const uint8_t mask[4], const Operand& op) {
+    uint8_t imm8 = 0;
+    for (size_t i = 0; i < 4; ++i)
+        imm8 |= mask[i] << (i * 2);
+    if (op != x1)
+        movdqu(x1, op);
     shufps(x1, op, imm8);
 }
 
-void jit_kernel::uni_vpermps(const Ymm& y1, const int *mask, const Operand& op) {
-    auto mreg = reserve<Ymm>();
-    auto mptr = reserve<Reg64>();
-
-    mov(mptr, (size_t)mask);
-    uni_vmovdqu(mreg, ptr[mptr]);
+void jit_kernel::uni_vpermps(const Ymm& y1, const uint8_t mask[8], const Operand& op) {
+    int data[8];
+    for (size_t i = 0; i < 8; ++i)
+        data[i] = mask[i];
+    auto mreg = var<int[8]>();
+    mreg = data;
     vpermps(y1, mreg, op);
-
-    free(mreg);
-    free(mptr);
 }
 
-void jit_kernel::uni_vpermps(const Zmm& z1, const int *mask, const Operand& op) {
-    auto mreg = reserve<Zmm>();
-    auto mptr = reserve<Reg64>();
-
-    mov(mptr, (size_t)mask);
-    uni_vmovdqu(mreg, ptr[mptr]);
+void jit_kernel::uni_vpermps(const Zmm& z1, const uint8_t mask[16], const Operand& op) {
+    int data[16];
+    for (size_t i = 0; i < 16; ++i)
+        data[i] = mask[i];
+    auto mreg = var<int[16]>();
+    mreg = data;
     vpermps(z1, mreg, op);
-
-    free(mreg);
-    free(mptr);
 }
 
 void jit_kernel::uni_vblendps(const Xbyak::Xmm& x1, const Xbyak::Xmm& x2, uint16_t mask) {
@@ -331,4 +371,5 @@ void jit_kernel::uni_vblendps(const Xbyak::Zmm& z1, const Xbyak::Zmm& z2, uint16
     vblendmps(z1 | k1, z1, z2);
 }
 
-}   // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

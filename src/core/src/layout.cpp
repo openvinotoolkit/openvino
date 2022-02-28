@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -251,6 +251,7 @@ public:
     static std::tuple<PartialShape, Layout, size_t> find_unsqueeze(const Layout& src_layout,
                                                                    const PartialShape& src_shape,
                                                                    const Layout& dst_layout);
+    static bool is_compatible(const Layout& layout, const PartialShape& shape);
 };
 
 Layout LayoutUtils::apply_permutation(const Layout& src_layout, const std::vector<uint64_t>& dims) {
@@ -517,6 +518,12 @@ std::tuple<PartialShape, Layout, size_t> LayoutUtils::find_unsqueeze(const Layou
     }
 }
 
+bool LayoutUtils::is_compatible(const Layout& layout, const PartialShape& shape) {
+    auto layout_min_rank = layout.m_left_size + layout.m_right_size;
+    int64_t layout_max_rank = layout.m_dynamic ? -1 : layout_min_rank;
+    return shape.rank().compatible(Dimension(layout_min_rank, layout_max_rank));
+}
+
 namespace layout {
 namespace utils {
 Layout apply_permutation(const Layout& src_layout, const std::vector<uint64_t>& dims) {
@@ -539,6 +546,10 @@ std::tuple<PartialShape, Layout, size_t> find_unsqueeze(const Layout& src_layout
                                                         const PartialShape& src_shape,
                                                         const Layout& dst_layout) {
     return LayoutUtils::find_unsqueeze(src_layout, src_shape, dst_layout);
+}
+
+bool is_compatible(const Layout& layout, const PartialShape& shape) {
+    return LayoutUtils::is_compatible(layout, shape);
 }
 
 }  // namespace utils
@@ -603,6 +614,13 @@ void set_layout(ov::Output<ov::Node> output, const ov::Layout& layout) {
     if (layout.empty()) {
         output.get_rt_info().erase(ov::LayoutAttribute::get_type_info_static());
     } else {
+        OPENVINO_ASSERT(ov::layout::utils::is_compatible(layout, output.get_partial_shape()),
+                        "Can't set layout for Parameter/Result ",
+                        output,
+                        ": layout ",
+                        layout.to_string(),
+                        " is not compatible with shape ",
+                        output.get_partial_shape());
         output.get_rt_info()[ov::LayoutAttribute::get_type_info_static()] = ov::LayoutAttribute(layout);
     }
 }

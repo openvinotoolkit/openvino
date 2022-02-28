@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -128,7 +128,7 @@ public:
 
 TEST_P(GroupConvolutionTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
+    auto res = compare_functions(actualFunction, referenceFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
 
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
@@ -137,10 +137,7 @@ TEST_P(GroupConvolutionTransformation, CompareFunctions) {
 namespace testValues1 {
 const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> shapesForGroupConv = {
     {{ 1, 6, 224, 224 }, { 1, 24, 218, 218 }},
-    {
-        { Dimension::dynamic(), 6, Dimension::dynamic(), Dimension::dynamic() },
-        { Dimension::dynamic(), 24, Dimension::dynamic(), Dimension::dynamic() }
-    }
+    {{ -1, -1, -1, -1 }, { -1, -1, -1, -1 }}
 };
 
 const std::vector<GroupConvolutionTestValues> testValuesGroupConv = {
@@ -473,7 +470,7 @@ const std::vector<GroupConvolutionTestValues> testValuesGroupConv = {
                     1,
                     ngraph::element::i8,
                     false,
-                    {ov::pass::DisableConstantFolding::get_type_info_static()}
+                    {{ov::pass::DisableConstantFolding::get_type_info_static(), ov::pass::DisableConstantFolding()}}
                 },
                 {}
             },
@@ -509,10 +506,7 @@ INSTANTIATE_TEST_SUITE_P(
 namespace testValues2 {
 const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> shapesForDepthWiseConv = {
     {{ 1, 6, 224, 224 }, { 1, 6, 218, 218 }},
-    {
-        { Dimension::dynamic(), 6, Dimension::dynamic(), Dimension::dynamic() },
-        { Dimension::dynamic(), 6, Dimension::dynamic(), Dimension::dynamic() }
-    }
+    {{ -1, 6, -1, -1 }, { -1, 6, -1, -1 }},
 };
 
 const std::vector<GroupConvolutionTestValues> testValuesForDepthWiseConv = {
@@ -720,10 +714,6 @@ INSTANTIATE_TEST_SUITE_P(
 
 namespace testValues3 {
 const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> shapesWithDynamicChannel = {
-    {
-        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() }
-    },
     { PartialShape::dynamic(), PartialShape::dynamic() }
 };
 

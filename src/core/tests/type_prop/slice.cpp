@@ -1,7 +1,8 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <dimension_tracker.hpp>
 #include <numeric>
 
 #include "gtest/gtest.h"
@@ -1147,4 +1148,27 @@ TEST(type_prop, slice_v8_dynamic_rank_inputs) {
     const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
 
     EXPECT_EQ(op->get_output_partial_shape(0), dyn_rank_shape);
+}
+
+TEST(type_prop, slice_dynamic_value_and_label_propagation) {
+    Dimension marked_0 = Dimension(3);
+    ov::DimensionTracker::set_label(marked_0, 10);
+    PartialShape target_0 = PartialShape{marked_0, 4};
+
+    auto param = std::make_shared<op::Parameter>(element::f32, Shape{1});
+    auto param_0 = std::make_shared<op::Parameter>(element::f32, target_0);
+    auto shape_0 = std::make_shared<op::ShapeOf>(param_0);
+
+    const auto& et = element::i64;
+    std::vector<int64_t> start_val{0}, stop_val{1}, step_val{1};
+    const auto start = std::make_shared<op::v0::Constant>(et, Shape{start_val.size()}, start_val);
+    const auto stop = std::make_shared<op::v0::Constant>(et, Shape{stop_val.size()}, stop_val);
+    const auto step = std::make_shared<op::v0::Constant>(et, Shape{step_val.size()}, step_val);
+    const auto slice = std::make_shared<op::v8::Slice>(shape_0, start, stop, step);
+
+    auto bc = std::make_shared<op::v1::Broadcast>(param, slice);
+    ASSERT_EQ(bc->get_shape(), (Shape{3}));
+
+    const auto& output_shape = bc->get_output_partial_shape(0);
+    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
 }

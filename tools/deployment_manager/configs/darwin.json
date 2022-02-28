@@ -10,20 +10,21 @@
     "openvino_license": {
       "mandatory" : "yes",
       "files": [
-        "licensing"
+        "docs/licensing"
       ]
     },
     "ie_core": {
       "group": ["ie"],
       "files": [
         "runtime/lib/intel64/libov_runtime.dylib",
-        "runtime/lib/intel64/libinference_engine_preproc.so",
-        "runtime/lib/intel64/libinference_engine_c_api.dylib",
-        "runtime/lib/intel64/libov_hetero_plugin.so",
-        "runtime/lib/intel64/libov_auto_plugin.so",
-        "runtime/lib/intel64/libov_ir_frontend.dylib",
-        "runtime/lib/intel64/libov_onnx_frontend.dylib",
-        "runtime/lib/intel64/libov_paddle_frontend.dylib",
+        "runtime/lib/intel64/libopenvino_gapi_preproc.so",
+        "runtime/lib/intel64/libopenvino_c.dylib",
+        "runtime/lib/intel64/libopenvino_hetero_plugin.so",
+        "runtime/lib/intel64/libopenvino_auto_plugin.so",
+        "runtime/lib/intel64/libopenvino_auto_batch_plugin.so",
+        "runtime/lib/intel64/libopenvino_ir_frontend.dylib",
+        "runtime/lib/intel64/libopenvino_onnx_frontend.dylib",
+        "runtime/lib/intel64/libopenvino_paddle_frontend.dylib",
         "runtime/lib/intel64/plugins.xml",
         "runtime/3rdparty/tbb"
       ]
@@ -33,7 +34,7 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/lib/intel64/libov_intel_cpu_plugin.so"
+        "runtime/lib/intel64/libopenvino_intel_cpu_plugin.so"
       ]
     },
     "vpu": {
@@ -41,7 +42,7 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/lib/intel64/libov_intel_vpu_plugin.so",
+        "runtime/lib/intel64/libopenvino_intel_myriad_plugin.so",
         "runtime/lib/intel64/usb-ma2x8x.mvcmd",
         "runtime/lib/intel64/pcie-ma2x8x.mvcmd"
       ]

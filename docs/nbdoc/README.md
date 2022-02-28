@@ -29,19 +29,15 @@ venv/Scripts/activate
 python -m pip install -r requirements.txt
 ```
 
-## Step 2. Download personal token from github account
-
-[Tutorial how to do it.](https://docs.github.com/en/github/authenticating-to-github/keeping-your-account-and-data-secure/creating-a-personal-access-token). By default configuration you should place it on path ../.secret.
-
-## Step 3. Configure consts to meet project directions
+## Step 2. Configure consts to meet project directions
 
 [Consts file](consts.py) contains multiple variables that might differ for different environments.
 
-## Step 4. Add classes with methods to makefile or other executed file
+## Step 3. Add classes with methods to makefile or other executed file
 
 [Main file](main.py) contains example usecases of auto generator for notebooks. Informations placed in [main](main.py) should be further used to add it to makefile and possibly fully automate notebook documentation process.
 
-## Step 5. Run python file (optional)
+## Step 4. Run python file (optional)
 
 If step 4 was skipped use command
 

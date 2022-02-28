@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,9 +19,17 @@ OutputVector translate_unpack_op(const NodeContext& node) {
     auto num = node.get_attribute<int64_t>("num");
 
     auto axis_const = make_shared<Constant>(element::i64, Shape{}, axis);
-    auto res = make_shared<Split>(input, axis_const, num);
-    set_node_name(node.get_name(), res);
-    return res->outputs();
+    auto split = make_shared<Split>(input, axis_const, num);
+    OutputVector res;
+    int idx = 0;
+    for (auto out : split->outputs()) {
+        auto squeezed_res = make_shared<Squeeze>(out, axis_const);
+        squeezed_res->set_friendly_name(node.get_name() + "/squeeze_" + to_string(idx));
+        set_out_name(node.get_name() + ":" + std::to_string(idx), squeezed_res->output(0));
+        ++idx;
+        res.push_back(squeezed_res);
+    }
+    return res;
 }
 }  // namespace op
 }  // namespace tensorflow

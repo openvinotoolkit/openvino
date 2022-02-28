@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -134,7 +134,7 @@ void ov::AttributeVisitor::on_adapter(const string& name, ValueAccessor<std::sha
     on_adapter(name, static_cast<ValueAccessor<void>&>(adapter));
 }
 
-constexpr char ov::AttributeVisitor::invalid_node_id[];
+constexpr const char* ov::AttributeVisitor::invalid_node_id;
 
 void ov::AttributeVisitor::register_node(const std::shared_ptr<ngraph::Node>& node, node_id_t id) {
     if (id == invalid_node_id) {

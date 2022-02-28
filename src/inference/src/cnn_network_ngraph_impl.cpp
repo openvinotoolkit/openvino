@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,6 +32,7 @@
 // TODO: remove this pass usage
 #include <legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
+#include <transformations/common_optimizations/dimension_tracking.hpp>
 #include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
 #include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>
 #include <transformations/disable_decompression_convert_constant_folding.hpp>
@@ -74,22 +75,27 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
     };
     auto shape = output.get_partial_shape();
     auto rank = shape.rank().is_static() ? shape.rank().get_length() : -1;
+    SizeVector dims(1, 0);
+    if (shape.is_static()) {
+        dims = output.get_shape();
+    } else if (rank >= 0) {
+        dims = SizeVector(rank, 0);
+    }
+    // query shape from ngraph::Parameter output shape and check there are no zeros in it
     for (const auto& dim : shape) {
         if (dim.is_static() && dim.get_length() == 0)
             IE_THROW() << outName << " has zero dimension which is not allowed";
     }
 
-    IE_SUPPRESS_DEPRECATED_START
     const Layout rankLayout = rank < 0 ? Layout::BLOCKED : TensorDesc::getLayoutByRank(rank);
     if (ptr) {
         const auto origLayout = ptr->getTensorDesc().getLayout();
         const auto layout = isCompatible(rank, origLayout) ? origLayout : rankLayout;
-        ptr->reshape(shape, layout);
+        ptr->reshape(dims, layout);
     } else {
         const auto precision = details::convertPrecision(output.get_element_type());
-        ptr.reset(new Data(outName, precision, shape, rankLayout));
+        ptr.reset(new Data(outName, {precision, dims, rankLayout}));
     }
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 void CNNNetworkNGraphImpl::validateFunctionNames() const {
@@ -118,7 +124,8 @@ ngraph::element::Type details::toLegacyType(const ngraph::element::Type& ngraph_
     if (input) {
         return ngraph_type == ngraph::element::f16 ? ngraph::element::f32 : ngraph_type;
     } else {
-        if (ngraph_type == ngraph::element::i64 || ngraph_type == ngraph::element::i32) {
+        if (ngraph_type == ngraph::element::i64 || ngraph_type == ngraph::element::u64 ||
+            ngraph_type == ngraph::element::i32 || ngraph_type == ngraph::element::u32) {
             return ngraph::element::i32;
         } else if (ngraph_type != ngraph::element::f32) {
             return ngraph::element::f32;
@@ -216,18 +223,12 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
         InputInfo::Ptr info = std::make_shared<InputInfo>();
         const auto& name = inputInfo.second->getInputData()->getName();
         const auto& inData = inputInfo.second->getInputData();
-        IE_SUPPRESS_DEPRECATED_START
-        DataPtr input =
-            std::make_shared<Data>(name, inData->getPrecision(), inData->getPartialShape(), inData->getLayout());
-        IE_SUPPRESS_DEPRECATED_END
+        DataPtr input = std::make_shared<Data>(name, inData->getTensorDesc());
         _data[name] = input;
         info->setInputData(input);
         info->getPreProcess() = inputInfo.second->getPreProcess();
         info->setPrecision(inputInfo.second->getPrecision());
-        IE_SUPPRESS_DEPRECATED_START
-        if (!inData->isDynamic())
-            info->setLayout(inputInfo.second->getLayout());
-        IE_SUPPRESS_DEPRECATED_END
+        info->setLayout(inputInfo.second->getLayout());
         _inputData[name] = info;
     }
 }
@@ -256,7 +257,7 @@ void CNNNetworkNGraphImpl::getInputsInfo(InputsDataMap& inputs) const noexcept {
     inputs = _inputData;
 }
 
-size_t CNNNetworkNGraphImpl::layerCount() const noexcept {
+size_t CNNNetworkNGraphImpl::layerCount() const {
     return _ngraph_function->get_ops().size();
 }
 
@@ -327,7 +328,7 @@ void CNNNetworkNGraphImpl::addOutput(const ::ngraph::Output<::ngraph::Node>& out
     }
 }
 
-size_t CNNNetworkNGraphImpl::getBatchSize() const noexcept {
+size_t CNNNetworkNGraphImpl::getBatchSize() const {
     // TODO Provide adequate implementation.
     // The original code from CNNNetworkImpl just gets the first input and returns the first dimension.
     // This is not correct in general. We can follow the same semantics, but order of inputs should be
@@ -356,45 +357,57 @@ void CNNNetworkNGraphImpl::reshape() {
 
 StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes,
                                          ResponseDesc* responseDesc) noexcept {
-    if (inputShapes.empty())
-        return OK;
-
-    const auto& params = _ngraph_function->get_parameters();
-
-    // Check that we need to do reshape only if input shapes will be changed
-    bool needReshape = false;
-    for (const auto& param : params) {
-        const auto it = inputShapes.find(param->get_friendly_name());
-        if (it == inputShapes.end()) {
-            continue;
-        }
-        if (param->get_output_partial_shape(0).is_dynamic() || param->get_output_partial_shape(0) != it->second) {
-            needReshape = true;
-            break;
-        }
-    }
-
-    if (!needReshape)
-        return OK;
-
-    // save original parameters shape
-    std::map<std::string, ngraph::PartialShape> originalInputShapes;
-    for (const auto& param : params) {
-        originalInputShapes[param->get_friendly_name()] = param->get_output_partial_shape(0);
-    }
-
     try {
-        ngraph::pass::Manager ssr_manager;
-        ssr_manager.register_pass<ngraph::pass::SmartReshape>();
-        ssr_manager.run_passes(_ngraph_function);
+        if (inputShapes.empty())
+            return OK;
 
-        reshape(inputShapes);
-    } catch (std::exception& ex) {
-        reshape(originalInputShapes);
+        const auto& params = _ngraph_function->get_parameters();
+
+        // Check that we need to do reshape only if input shapes will be changed
+        bool needReshape = false;
+        for (const auto& param : params) {
+            const auto it = inputShapes.find(param->get_friendly_name());
+            if (it == inputShapes.end()) {
+                continue;
+            }
+            if (param->get_output_partial_shape(0).is_dynamic() || param->get_output_partial_shape(0) != it->second) {
+                needReshape = true;
+                break;
+            }
+        }
+
+        if (!needReshape)
+            return OK;
+
+        // save original parameters shape
+        std::map<std::string, ngraph::PartialShape> originalInputShapes;
+        for (const auto& param : params) {
+            originalInputShapes[param->get_friendly_name()] = param->get_output_partial_shape(0);
+        }
+
+        try {
+            ngraph::pass::Manager ssr_manager;
+            ssr_manager.register_pass<ngraph::pass::SmartReshape>();
+            ssr_manager.run_passes(_ngraph_function);
+
+            reshape(inputShapes);
+        } catch (std::exception& ex) {
+            reshape(originalInputShapes);
+            return DescriptionBuffer(GENERAL_ERROR, responseDesc) << ex.what();
+        }
+
+        return OK;
+    } catch (const InferenceEngine::GeneralError& ex) {
         return DescriptionBuffer(GENERAL_ERROR, responseDesc) << ex.what();
+    } catch (const ov::Exception& ex) {
+        return DescriptionBuffer(GENERAL_ERROR, responseDesc) << ex.what();
+    } catch (const std::runtime_error& ex) {
+        return DescriptionBuffer(GENERAL_ERROR, responseDesc) << ex.what();
+    } catch (const std::out_of_range& ex) {
+        return DescriptionBuffer(OUT_OF_BOUNDS, responseDesc) << ex.what();
+    } catch (...) {
+        return GENERAL_ERROR;
     }
-
-    return OK;
 }
 
 StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, SizeVector>& inputShapes,

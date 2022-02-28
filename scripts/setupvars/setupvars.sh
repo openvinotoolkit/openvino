@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" >/dev/null 2>&1 && pwd )"
@@ -78,16 +78,6 @@ if [ "${#version_arr[@]}" -ge "2" ]; then
     python_version_minor=${version_arr[1]}
 fi
 
-OS_NAME=""
-if command -v lsb_release >/dev/null 2>&1; then
-    OS_NAME=$(lsb_release -i -s)
-fi
-
-python_bitness=$(python3 -c 'import sys; print(64 if sys.maxsize > 2**32 else 32)')
-if [ "$python_bitness" != "" ] && [ "$python_bitness" != "64" ] && [ "$OS_NAME" != "Raspbian" ]; then
-    echo "[setupvars.sh] 64 bitness for Python $python_version is required"
-fi
-
 PYTHON_VERSION_MAJOR="3"
 MIN_REQUIRED_PYTHON_VERSION_MINOR="6"
 MAX_SUPPORTED_PYTHON_VERSION_MINOR="9"
@@ -99,6 +89,16 @@ if  [ "$PYTHON_VERSION_MAJOR" != "$python_version_major" ] ||
     "${PYTHON_VERSION_MAJOR}.${MIN_REQUIRED_PYTHON_VERSION_MINOR} -" \
     "${PYTHON_VERSION_MAJOR}.${MAX_SUPPORTED_PYTHON_VERSION_MINOR} (64-bit) from https://www.python.org/downloads/"
     return 1
+fi
+
+OS_NAME=""
+if command -v lsb_release >/dev/null 2>&1; then
+    OS_NAME=$(lsb_release -i -s)
+fi
+
+python_bitness=$(python"$python_version" -c 'import sys; print(64 if sys.maxsize > 2**32 else 32)')
+if [ "$python_bitness" != "" ] && [ "$python_bitness" != "64" ] && [ "$OS_NAME" != "Raspbian" ]; then
+    echo "[setupvars.sh] WARNING: 64 bitness for Python $python_version is required"
 fi
 
 if [ -n "$python_version" ]; then

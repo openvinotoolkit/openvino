@@ -1,16 +1,16 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include "mkldnn_memory.h"
+#include <cpu_memory.h>
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "nodes/common/blocked_desc_creator.h"
-#include "mkldnn_extension_utils.h"
+#include <extension_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 using namespace testing;
 
@@ -77,24 +77,6 @@ protected:
 
         ASSERT_TRUE(descDnnl.isCompatible(descCpu));
         ASSERT_TRUE(descCpu.isCompatible(descDnnl));
-
-        // undefined
-        VectorDims undefDnnlStrides(descDnnl.getBlockDims().size(), Shape::UNDEFINED_DIM);
-        std::fill(undefDnnlStrides.begin() + descDnnl.getShape().getRank(), undefDnnlStrides.end(), 0);
-        const auto undefDnnl = descDnnl.cloneWithUndefStridesAndOffset();
-        validate(*undefDnnl->as<BlockedMemoryDesc>(), undefDnnlStrides, Shape::UNDEFINED_DIM, offsetPadding, Shape::UNDEFINED_DIM);
-
-        VectorDims undefCpuStrides(descCpu.getBlockDims().size(), Shape::UNDEFINED_DIM);
-        const auto undefCpu = descCpu.cloneWithUndefStridesAndOffset();
-        validate(*undefCpu->as<BlockedMemoryDesc>(), undefCpuStrides, Shape::UNDEFINED_DIM, offsetPadding,
-                  Shape::UNDEFINED_DIM);
-
-        // defined
-        const auto definedDnnl = descDnnl.cloneWithDefaultStridesAndOffset();
-        validate(*definedDnnl->as<BlockedMemoryDesc>(), zeroStrides, offset, offsetPadding, 0);
-
-        const auto definedCpu = descCpu.cloneWithDefaultStridesAndOffset();
-        validate(*definedCpu->as<BlockedMemoryDesc>(), zeroStrides, offset, offsetPadding, 0);
     }
 };
 

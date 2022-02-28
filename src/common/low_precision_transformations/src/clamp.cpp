@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,8 +36,8 @@ bool ClampTransformation::transform(TransformationContext& context, ngraph::patt
         return false;
     }
 
-    const std::shared_ptr<Node> clamp = NetworkHelper::separateInStandaloneBranch(m.get_match_root());
-    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(clamp);
+    const std::shared_ptr<Node> clamp = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(clamp, defaultPrecisions);
 
     const bool moveSubtract = dequantization.subtract == nullptr ? false : NetworkHelper::isScalarLike(dequantization.subtractConstant);
     // issue #43136
@@ -84,7 +84,7 @@ bool ClampTransformation::canBeTransformed(const TransformationContext& context,
         return false;
     }
 
-    const auto dequantization = NetworkHelper::getDequantization(op);
+    const auto dequantization = NetworkHelper::getDequantization(op, defaultPrecisions);
     if (dequantization.multiply == nullptr) {
         return false;
     }

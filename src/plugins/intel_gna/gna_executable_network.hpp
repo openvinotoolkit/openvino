@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,7 +69,10 @@ class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal 
     InferenceEngine::IInferRequestInternal::Ptr
         CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                const std::vector<std::shared_ptr<const ov::Node>>& outputs) override {
-        if (!this->_plugin || !this->_plugin->GetCore() || !this->_plugin->GetCore()->isNewAPI())
+        if (!this->_plugin)
+            return nullptr;
+        const auto& core = _plugin->GetCore();
+        if (!core || !core->isNewAPI())
             return nullptr;
         return std::make_shared<GNAInferRequest>(plg, inputs, outputs);
     }
@@ -91,8 +94,16 @@ class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal 
         if (config.empty()) {
             IE_THROW() << "The list of configuration values is empty";
         }
+
+        auto supported_properties = Config::GetSupportedProperties(true).as<std::vector<ov::PropertyName>>();
         for (auto&& item : config) {
-            if (item.first != KEY_GNA_DEVICE_MODE) {
+            auto it = std::find(supported_properties.begin(), supported_properties.end(), item.first);
+            if (it != supported_properties.end()) {
+                if (!it->is_mutable()) {
+                    IE_THROW() << "The following config value cannot be changed dynamically "
+                               << "for compiled model in the GNA plugin: " << item.first;
+                }
+            } else if (item.first != KEY_GNA_DEVICE_MODE) {
                 IE_THROW() << "The following config value cannot be changed dynamically for ExecutableNetwork in the GNA plugin: "
                                    << item.first << ". Only " << KEY_GNA_DEVICE_MODE << " is supported.";
             }
@@ -119,7 +130,11 @@ class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal 
     }
 
     InferenceEngine::Parameter GetMetric(const std::string& name) const override {
-        return plg->GetMetric(name, {});
+        if (ov::supported_properties == name) {
+            return Config::GetSupportedProperties(true);
+        } else {
+            return plg->GetMetric(name, {});
+        }
     }
 };
 

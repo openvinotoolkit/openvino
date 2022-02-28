@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from collections import deque
@@ -25,6 +25,7 @@ from openvino.tools.mo.middle.passes.convert_data_type import convert_blob
 
 from . import editor as ge
 from . import node_utils as nu
+from .editor import get_nodes_by_type
 from .pattern_utils import get_fq_result_pattern
 from .special_operations import OPERATIONS_WITH_WEIGHTS, DETECTION_OUTPUT_FINAL_TYPES, SPLIT_OPERATIONS
 from .utils import find_operation_matches, is_ignored, get_hw_aware_ignored_patterns
@@ -487,6 +488,53 @@ class RemoveFakeQuantize:
         if parent_node.type == 'Const':
             parent_node['need_shape_inference'] = True
 
+    def optimize_for_gp_hw(self, graph, target_device):
+        """
+        Removing redundant FQs before operation Add for SPR(CPU) platform
+        """
+        def _walk_for_branch(node):
+            input_node = node
+            delete_const = lambda node: ([op for op in node if op is not None and op.type != 'Const'])
+            while True:
+                input_node = get_node_inputs(input_node)
+                input_node = delete_const(input_node)
+                if len(input_node) > 1:
+                    return False
+                input_node = input_node[0]
+                if input_node.type in ['Convolution', 'GroupConvolution', 'MatMul']:
+                    return True
+
+        def _check_const_input(node):
+            input_node = get_node_inputs(node)[0]
+            return nu.check_const_input(input_node)
+
+        def delete_one_fq(inputs_node):
+            fq_1, fq_2 = inputs_node
+            if len(get_all_node_outputs(fq_1)) > 1 \
+                and len(get_all_node_outputs(fq_2)) == 1 and _check_const_input(fq_2):
+                self.disconnect_fq_node(fq_2)
+                return
+            if _walk_for_branch(fq_1) and _walk_for_branch(fq_2):
+                if np.prod(nu.get_output_shape(fq_1, 0)) >= np.prod(nu.get_output_shape(fq_2, 0)):
+                    self.disconnect_fq_node(fq_1)
+                else:
+                    self.disconnect_fq_node(fq_2)
+                return
+
+        special_target_device = ['CPU_SPR']
+        if target_device not in special_target_device:
+            return
+
+        check_is_inputs_fq = lambda node: all([op.type == 'FakeQuantize' for op in node])
+        for op in get_nodes_by_type(graph, ['Add']):
+            if not nu.check_const_input(op):
+                inputs_node = np.array(get_node_inputs(op))
+                count_outputs_node = np.array([len(get_all_node_outputs(node)) for node in inputs_node])
+                indices = count_outputs_node.argsort()[::-1]
+                inputs_node = inputs_node[indices]
+                if check_is_inputs_fq(inputs_node):
+                    delete_one_fq(inputs_node)
+
     @staticmethod
     def undo_bias_correction(conv_node):
         bias_node = nu.get_bias_for_node(conv_node)
@@ -708,7 +756,8 @@ def create_bias_node(graph: Graph, src_node):
 
     for destination_port in destination_ports:
         add_op.out_port(0).connect(destination_port)
-    add_bias.out_node(0)['Insert_Convert_operation_after'] = True
+    if bias_dtype != np.float32:
+        add_bias.out_node(0)['Insert_Convert_operation_after'] = True
 
 
 def create_fake_quantize_node(graph: Graph, name, data_type=np.float32):
@@ -889,16 +938,18 @@ def find_shape_subgraph_endpoints(out_ports: List[Port], visited: set = None) ->
 
 
 def remove_converts(graph: Graph):
-    for op in graph.get_op_nodes(type='Convert'):
-        source_op = op.in_port(0).get_source().node
-        if source_op.type == 'Const' and source_op.data_type == np.float16:
-            # Get access to data node after Convert operation and set Insert_Convert_operation_after
-            # to restore Convert operation later
-            op.out_node(0)['Insert_Convert_operation_after'] = True
-            # Mark Const and Convert operation to fold them
-            source_op['need_shape_inference'] = True
-            op['stop_value_propagation'] = False
-            op['need_shape_inference'] = True
+    for op in graph.get_op_nodes():
+        if op.type == 'Convert':
+            source_op = op.in_port(0).get_source().node
+            if source_op.type == 'Const' and source_op.data_type == np.float16:
+                # Get access to data node after Convert operation and set Insert_Convert_operation_after
+                # to restore Convert operation later
+                op.out_node(0)['Insert_Convert_operation_after'] = True
+                # Mark Const and Convert operation to fold them
+                source_op['need_shape_inference'] = True
+                op.out_node(0)['old_rt_info'] = op['rt_info']
+                op['stop_value_propagation'] = False
+        op['need_shape_inference'] = True
     graph.clean_up()
 
 
@@ -925,6 +976,7 @@ def add_removed_converts(graph: Graph):
         # Insert Convert operation after Const operation
         const_op.out_port(0).get_connection().insert_node(convert_op)
         convert_op.out_node().value = None
+        convert_op['rt_info'] = data_node['old_rt_info']
 
         # Convert Const value to FP16 to make types in graph consistent
         const_op.value, _, _ = convert_blob(const_op.value, np.float16)

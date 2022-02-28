@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,7 +42,7 @@ StaticDimension& StaticDimension::operator*=(const StaticDimension& dim) {
 }
 
 StaticDimension StaticDimension::operator/(const value_type divisor) const {
-    OPENVINO_ASSERT(divisor >= 0, "divisor must be greater than 0");
+    OPENVINO_ASSERT(divisor > 0, "divisor must be greater than 0");
 
     if (m_dimension % divisor) {
         return StaticDimension{};

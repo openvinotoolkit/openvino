@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,6 @@
 #include <memory>
 #include <ngraph/ngraph.hpp>
 #include "layer_transformation.hpp"
-#include "low_precision/fuse_fake_quantize.hpp"
 
 namespace ngraph {
 namespace pass {

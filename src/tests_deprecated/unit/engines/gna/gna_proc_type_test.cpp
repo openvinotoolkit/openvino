@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,11 +31,6 @@ TEST_F(GNAProcTypeTest, defaultProcTypeIsSWEXACT) {
 TEST_F(GNAProcTypeTest, canPassHWProcTypeToGNA) {
     assert_that().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
     .onInfer1AFModel().withGNADeviceMode("GNA_HW").gna().propagate_forward().called_with().proc_type(GNA_HARDWARE);
-}
-
-TEST_F(GNAProcTypeTest, canPassSWProcTypeToGNA) {
-    assert_that().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
-    .onInfer1AFModel().withGNADeviceMode("GNA_SW").gna().propagate_forward().called_with().proc_type(GNA_SOFTWARE);
 }
 
 TEST_F(GNAProcTypeTest, canPassSWEXACTProcTypeToGNA) {

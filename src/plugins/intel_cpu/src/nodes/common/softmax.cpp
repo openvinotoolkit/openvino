@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@
 #include <vector>
 
 using namespace InferenceEngine;
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace mkldnn;
 using namespace mkldnn::impl::cpu;
 using namespace mkldnn::impl::cpu::x64;

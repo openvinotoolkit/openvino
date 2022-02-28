@@ -2,6 +2,8 @@
 
 @sphinxdirective
 
+.. _convert model kaldi:
+
 .. toctree::
    :maxdepth: 1
    :hidden:
@@ -12,10 +14,10 @@
 
 A summary of the steps for optimizing and deploying a model that was trained with Kaldi\*:
 
-1. [Configure the Model Optimizer](../Config_Model_Optimizer.md) for Kaldi\*.
+1. [Configure the Model Optimizer](../../Deep_Learning_Model_Optimizer_DevGuide.md) for Kaldi\*.
 2. [Convert a Kaldi\* Model](#Convert_From_Kaldi) to produce an optimized [Intermediate Representation (IR)](../../IR_and_opsets.md) of the model based on the trained network topology, weights, and biases values.
-3. Test the model in the Intermediate Representation format using the [Inference Engine](../../../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) in the target environment via provided Inference Engine [sample applications](../../../IE_DG/Samples_Overview.md).
-4. [Integrate](../../../IE_DG/Samples_Overview.md) the [Inference Engine](../../../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) in your application to deploy the model in the target environment.
+3. Test the model in the Intermediate Representation format using the [OpenVINO™ Runtime](../../../OV_Runtime_UG/openvino_intro.md) in the target environment via provided [OpenVINO Samples](../../../OV_Runtime_UG/Samples_Overview.md).
+4. [Integrate](../../../OV_Runtime_UG/Samples_Overview.md) the [OpenVINO™ Runtime](../../../OV_Runtime_UG/openvino_intro.md) in your application to deploy the model in the target environment.
 
 > **NOTE**: The Model Optimizer supports the [nnet1](http://kaldi-asr.org/doc/dnn1.html) and [nnet2](http://kaldi-asr.org/doc/dnn2.html) formats of Kaldi models. Support of the [nnet3](http://kaldi-asr.org/doc/dnn3.html) format is limited.
 
@@ -98,7 +100,7 @@ The Model Optimizer finds the last layer of the topology and removes this layer 
 
   > **NOTE**: Model Optimizer can remove SoftMax layer only if the topology has one output.
  
-  > **NOTE**: For sample inference of Kaldi models, you can use the Inference Engine Speech Recognition sample application. The sample supports models with one output. If your model has several outputs, specify the desired one with the `--output` option.    
+  > **NOTE**: For sample inference of Kaldi models, you can use the OpenVINO Speech Recognition sample application. The sample supports models with one output. If your model has several outputs, specify the desired one with the `--output` option.    
   
  If you want to convert a model for inference on Intel® Movidius™ Myriad™, use the `--remove_memory` option. 
 It removes Memory layers from the IR. Instead of it, additional inputs and outputs appear in the IR. 

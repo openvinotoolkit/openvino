@@ -1,17 +1,17 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
 
 import numpy as np
+from generator import generator, generate
 
-from openvino.tools.mo.ops.split import AttributedSplit, AttributedVariadicSplit, VariadicSplit
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array, dynamic_dimension_value, strict_compare_tensors
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array, \
+    dynamic_dimension_value, dynamic_dimension, strict_compare_tensors, mo_array
 from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.ops.split import AttributedSplit, AttributedVariadicSplit, VariadicSplit
 from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
-
-from generator import generator, generate
 
 
 class TestSplitOp(unittest.TestCase):
@@ -303,6 +303,36 @@ class TestVariadicSplitOp(unittest.TestCase):
         for out in range(ont_nodes_count):
             self.assertTrue(np.all(node.out_node(out).shape == int64_array([2, 12, lengths[out], 30])))
 
+    def test_variadic_split_value_inference_with_uint32(self):
+        axis = int64_array(2)
+        # because sum of Python int and Numpy np.uint64 gives float64
+        
+        # but np.split accepts only integers and raises error for floats
+        # therefore needed to explicitly cast np.split arguments into integer
+        # added this test for that case
+        lengths = mo_array([2, 13, 10], dtype=np.uint64)
+        input_shape = mo_array([2, 12, 25, 30])
+        input_value = np.zeros(input_shape)
+
+        graph = build_graph(self.nodes, self.edges,
+                            {
+                                'split_input_data': {'shape': input_shape, 'value': input_value},
+                                'split_axis_data': {'value': axis},
+                                'split_lengths_data': {'value': lengths},
+                                'split_op': {'out_ports_count': 4},
+                            }
+                            )
+        node = Node(graph, 'split_op')
+        for p in range(len(node.out_edges()), node.out_ports_count):
+            node.add_output_port(p)
+
+        VariadicSplit.infer(node)
+
+        ont_nodes_count = len(node.out_edges())
+        self.assertTrue(ont_nodes_count == 3)
+        for out in range(ont_nodes_count):
+            self.assertTrue(np.all(node.out_node(out).shape == int64_array([2, 12, lengths[out], 30])))
+
     @generate(*[int64_array([[2], [2]]),
                 int64_array([2, 2])])
     def test_negative_variadic_split_axis(self, axis):
@@ -324,3 +354,62 @@ class TestVariadicSplitOp(unittest.TestCase):
         except AssertionError as e:
             self.assertTrue(e.args[0] == 'VariadicSplit `axis` should be scalar or tensor with shape [1], '
                                          'but it`s not for node split_op')
+
+
+class TestSplitReverseInfer(unittest.TestCase):
+
+    def test_split_reverse_infer(self):
+        ref_input_shape = [7, 4, 6]
+        axis = 2
+        num_splits = 2
+        output_shape_1 = [dynamic_dimension, 4, 3]
+        output_shape_2 = [7, dynamic_dimension, 3]
+
+        graph = build_graph(TestSplitOp.nodes, TestSplitOp.edges,
+                            {
+                                'split_input_data': {'shape': None,
+                                                     'value': None},
+                                'split_op': {'axis': np.array(axis), 'num_splits': np.array(num_splits)},
+                                'split_output_0_data': {'shape': shape_array(output_shape_1),
+                                                        'value': None},
+                                'split_output_1_data': {'shape': shape_array(output_shape_2),
+                                                        'value': None},
+                            })
+
+        split_node = Node(graph, 'split_op')
+        AttributedSplit.reverse_infer(split_node)
+        actual_input_shape = split_node.in_port(0).data.get_shape()
+        self.assertTrue(strict_compare_tensors(ref_input_shape, actual_input_shape))
+
+
+class TestAttributedVariadicSplitReverseInfer(unittest.TestCase):
+
+    def test_splitv_dynamic_input(self):
+        ref_input_shape = [7, 4, 11]
+        axis = 2
+        num_splits = 2
+        output_shape_1 = [dynamic_dimension, 4, 3]
+        output_shape_2 = [7, dynamic_dimension, 3]
+        output_shape_3 = [7, dynamic_dimension, 5]
+
+        graph = build_graph(TestAttributedVariadicSplitOp.nodes, TestAttributedVariadicSplitOp.edges,
+                            {
+                                'split_input_data': {'shape': None},
+                                'split_op': {'axis': np.array(2), 'split_lengths': np.array([3, 3, 5]),
+                                             'out_ports_count': 2},
+                                'split_output_0_data': {'shape': shape_array(output_shape_1),
+                                                        'value': None},
+                                'split_output_1_data': {'shape': shape_array(output_shape_2),
+                                                        'value': None},
+                                'split_output_2_data': {'shape': shape_array(output_shape_3),
+                                                        'value': None},
+                            }
+                            )
+        node = Node(graph, 'split_op')
+        for p in range(len(node.out_edges()), node.out_ports_count):
+            node.add_output_port(p)
+
+        AttributedVariadicSplit.reverse_infer(node)
+
+        actual_input_shape = node.in_port(0).data.get_shape()
+        self.assertTrue(strict_compare_tensors(ref_input_shape, actual_input_shape))

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all openvino ops."""
@@ -49,12 +49,12 @@ def batch_to_space(
 
     BatchToSpace permutes data from the batch dimension of the data tensor into spatial dimensions.
 
-    @param data: Node producing the data tensor.
-    @param block_shape: The sizes of the block of values to be moved.
-    @param crops_begin: Specifies the amount to crop from the beginning along each axis of `data`.
-    @param crops_end: Specifies the amount to crop from the end along each axis of `data`.
-    @param name: Optional output node name.
-    @return The new node performing a BatchToSpace operation.
+    :param data: Node producing the data tensor.
+    :param block_shape: The sizes of the block of values to be moved.
+    :param crops_begin: Specifies the amount to crop from the beginning along each axis of `data`.
+    :param crops_end: Specifies the amount to crop from the end along each axis of `data`.
+    :param name: Optional output node name.
+    :return: The new node performing a BatchToSpace operation.
     """
     return _get_node_factory_opset2().create(
         "BatchToSpace", as_nodes(data, block_shape, crops_begin, crops_end)
@@ -71,9 +71,9 @@ def gelu(node: NodeInput, name: Optional[str] = None) -> Node:
 
     For more information refer to [Gaussian Error Linear Unit (GELU)](https://arxiv.org/pdf/1606.08415.pdf>)
 
-    @param node: Input tensor. One of: input node, array or scalar.
-    @param name: Optional output node name.
-    @return The new node performing a GELU operation on its input data element-wise.
+    :param node: Input tensor. One of: input node, array or scalar.
+    :param name: Optional output node name.
+    :return: The new node performing a GELU operation on its input data element-wise.
     """
     return _get_node_factory_opset2().create("Gelu", [node])
 
@@ -92,13 +92,13 @@ def mvn(
 
     \f[ Y = \dfrac{X-EX}{\sqrt{E(X-EX)^2}} \f]
 
-    @param data: The node with data tensor.
-    @param across_channels: Denotes if mean values are shared across channels.
-    @param normalize_variance: Denotes whether to perform variance normalization.
-    @param eps: The number added to the variance to avoid division by zero
-               when normalizing the value. Scalar value.
-    @param name: Optional output node name.
-    @return The new node performing a MVN operation on input tensor.
+    :param data: The node with data tensor.
+    :param across_channels: Denotes if mean values are shared across channels.
+    :param normalize_variance: Denotes whether to perform variance normalization.
+    :param eps: The number added to the variance to avoid division by zero
+                when normalizing the value. Scalar value.
+    :param name: Optional output node name.
+    :return: The new node performing a MVN operation on input tensor.
     """
     return _get_node_factory_opset2().create(
         "MVN",
@@ -111,10 +111,10 @@ def mvn(
 def reorg_yolo(input: Node, stride: List[int], name: Optional[str] = None) -> Node:
     """Return a node which produces the ReorgYolo operation.
 
-    @param input:   Input data
-    @param stride:  Stride to reorganize input by
-    @param name:    Optional name for output node.
-    @return ReorgYolo node
+    :param input:   Input data.
+    :param stride:  Stride to reorganize input by.
+    :param name:    Optional name for output node.
+    :return: ReorgYolo node.
     """
     return _get_node_factory_opset2().create("ReorgYolo", [input], {"stride": stride})
 
@@ -130,12 +130,12 @@ def roi_pooling(
 ) -> Node:
     """Return a node which produces an ROIPooling operation.
 
-    @param input:          Input feature map {N, C, ...}
-    @param coords:         Coordinates of bounding boxes
-    @param output_size:    Height/Width of ROI output features (shape)
-    @param spatial_scale:  Ratio of input feature map over input image size (float)
-    @param method:         Method of pooling - string: "max" or "bilinear"
-    @return               ROIPooling node
+    :param input:          Input feature map `{N, C, ...}`.
+    :param coords:         Coordinates of bounding boxes.
+    :param output_size:    Height/Width of ROI output features (shape).
+    :param spatial_scale:  Ratio of input feature map over input image size (float).
+    :param method:         Method of pooling - string: "max" or "bilinear".
+    :return:               ROIPooling node.
     """
     method = method.lower()
     return _get_node_factory_opset2().create(
@@ -159,12 +159,12 @@ def space_to_batch(
     The operator returns a copy of the input tensor where values from spatial blocks dimensions
     are moved in the batch dimension
 
-    @param data: Node producing the data tensor.
-    @param block_shape: The sizes of the block of values to be moved.
-    @param pads_begin: Specifies the padding for the beginning along each axis of `data`.
-    @param pads_end: Specifies the padding for the ending along each axis of `data`.
-    @param name: Optional output node name.
-    @return The new node performing a SpaceToBatch operation.
+    :param data: Node producing the data tensor.
+    :param block_shape: The sizes of the block of values to be moved.
+    :param pads_begin: Specifies the padding for the beginning along each axis of `data`.
+    :param pads_end: Specifies the padding for the ending along each axis of `data`.
+    :param name: Optional output node name.
+    :return: The new node performing a SpaceToBatch operation.
     """
     return _get_node_factory_opset2().create(
         "SpaceToBatch", as_nodes(data, block_shape, pads_begin, pads_end)

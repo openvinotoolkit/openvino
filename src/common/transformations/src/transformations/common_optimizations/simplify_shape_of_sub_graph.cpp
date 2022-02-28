@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -267,6 +267,7 @@ ngraph::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
             if (const auto gather = as_type_ptr<op::util::GatherBase>(input.get_node_shared_ptr())) {
                 auto indices_constant = as_type_ptr<opset8::Constant>(gather->get_input_node_shared_ptr(1));
                 if (!indices_constant || !check_shape_of_gather(gather)) {
+                    gather_dims_expected_location++;
                     continue;
                 }
 

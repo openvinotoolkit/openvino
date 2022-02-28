@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -93,7 +93,7 @@ public:
 
 TEST_P(ShuffleChannelsTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true);
+    auto res = compare_functions(actualFunction, referenceFunction, true, true);
     ASSERT_TRUE(res.first) << res.second;
 
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
@@ -103,7 +103,7 @@ namespace testValues1 {
 const std::vector<ngraph::PartialShape> inputShapes = {
     { 1, 3, 8, 10 },
     { 4, 3, 8, 10 },
-    { Dimension::dynamic(), 3, 8, Dimension::dynamic() }
+    { -1, -1, -1, -1 }
 };
 
 const std::vector<ShuffleChannelsTransformationTestValues> testValues = {
@@ -295,55 +295,6 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace testValues1
 
 namespace testValues2 {
-const std::vector<ngraph::PartialShape> inputShapesWithDynamicChannels = {
-    { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-};
-
-const std::vector<ShuffleChannelsTransformationTestValues> testValues = {
-    // U8 per tensor quantization
-    {
-        LayerTransformation::createParamsU8I8(),
-        1, // axis
-        1, // group
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {128.f}, {0.02f}}
-        },
-        {
-            ngraph::element::u8,
-            {},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {128.f}, {0.02f}}
-        }
-    },
-    // U8 per channel quantization
-    {
-        LayerTransformation::createParamsU8I8(),
-        1,
-        1,
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}
-        },
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}},
-            ngraph::element::f32,
-            {}
-        }
-    },
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    ShuffleChannelsTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(inputShapesWithDynamicChannels),
-        ::testing::ValuesIn(testValues)),
-    ShuffleChannelsTransformation::getTestCaseName);
-} // namespace testValues2
-
-namespace testValues3 {
 const std::vector<ngraph::PartialShape> inputShapesWithDynamicRank = {
     ngraph::PartialShape::dynamic()
 };
@@ -374,5 +325,5 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(inputShapesWithDynamicRank),
         ::testing::ValuesIn(testValues)),
     ShuffleChannelsTransformation::getTestCaseName);
-} // namespace testValues3
+} // namespace testValues2
 } // namespace

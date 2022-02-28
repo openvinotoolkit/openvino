@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.ops.elementwise import Add
@@ -31,8 +31,20 @@ class FakeOutputResolver(BackReplacementPattern):
                 add = create_op_with_const_inputs(graph, Add, {1: int64_array(0)}, {'can_be_fused': False})
                 rename_nodes([(fake_output, name + '/TBD'), (add, name)])
 
+                prev_op_in_port = fake_output.in_port(0).get_connection().get_source()
+                # Get tensor names incoming to FakeOutput
+                tensor_names = prev_op_in_port.get_tensor_names()
+
+                # Remove tensor info from data node
+                prev_op_in_port.remove_tensor_names()
+
                 fake_output.in_port(0).get_connection().set_destination(add.in_port(0))
                 fake_output.out_port(0).get_connection().set_source(add.out_port(0))
+
+                # Move tensor names to Add op, which replaces FakeOutput
+                if len(tensor_names) > 0:
+                    add.out_port(0).add_tensor_names(tensor_names)
+
             else:
                 result_in_port = fake_output.out_port(0).get_destination()
                 result_in_port.disconnect()

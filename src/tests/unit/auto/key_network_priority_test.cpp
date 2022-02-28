@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,11 +34,12 @@ using ::testing::InvokeWithoutArgs;
 using Config = std::map<std::string, std::string>;
 using namespace MockMultiDevice;
 
-using PriorityParams = std::tuple<unsigned int, std::string>; //{priority, deviceUniquName}
+using PriorityParams = std::tuple<unsigned int, std::string>; //{modelpriority, deviceUniquName}
 
 using ConfigParams = std::tuple<
-        std::string,                        // netPrecision
-        std::vector<PriorityParams>         // {{priority, expect device uniqueName}}
+        std::string,                       // netPrecision
+        bool,                              // enable device priority
+        std::vector<PriorityParams>        // {{modelpriority, expect device uniqueName}}
         >;
 class KeyNetworkPriorityTest : public ::testing::TestWithParam<ConfigParams> {
 public:
@@ -49,9 +50,15 @@ public:
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
         std::string netPrecision;
+        bool enableDevicePriority;
         std::vector<PriorityParams> PriorityConfigs;
-        std::tie(netPrecision, PriorityConfigs) = obj.param;
+        std::tie(netPrecision, enableDevicePriority, PriorityConfigs) = obj.param;
         std::ostringstream result;
+        if (enableDevicePriority) {
+            result << "_enableDevicePriority_true";
+        } else {
+            result << "_enableDevicePriority_false";
+        }
         for (auto& item : PriorityConfigs) {
             result <<  "_priority_" << std::get<0>(item);
             result <<  "_return_" << std::get<1>(item);
@@ -73,11 +80,7 @@ public:
        plugin  = std::shared_ptr<MockMultiDeviceInferencePlugin>(origin_plugin);
        // replace core with mock Icore
        plugin->SetCore(core);
-       metaDevices = {{CommonTestUtils::DEVICE_CPU, {}, 2, "", "CPU_01"},
-           {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "iGPU_01"},
-           {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "dGPU_01"},
-           {CommonTestUtils::DEVICE_MYRIAD, {}, 2, "01", "MYRIAD_01" },
-           {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "01", "VPUX_01"}};
+
        IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, cpuCability, {"FP32", "FP16", "INT8", "BIN"});
        IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, gpuCability, {"FP32", "FP16", "BATCHED_BLOB", "BIN"});
        IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, myriadCability, {"FP16"});
@@ -99,10 +102,26 @@ public:
 
 TEST_P(KeyNetworkPriorityTest, SelectDevice) {
     // get Parameter
+
     std::string netPrecision;
+    bool enableDevicePriority;
     std::vector<PriorityParams> PriorityConfigs;
-    std::tie(netPrecision, PriorityConfigs) = this->GetParam();
+    std::tie(netPrecision, enableDevicePriority, PriorityConfigs) = this->GetParam();
     std::vector<DeviceInformation> resDevInfo;
+
+    if (enableDevicePriority) {
+        metaDevices = {{CommonTestUtils::DEVICE_CPU, {}, 2, "", "CPU_01", 0},
+            {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "iGPU_01", 1},
+            {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "dGPU_01", 2},
+            {CommonTestUtils::DEVICE_MYRIAD, {}, 2, "01", "MYRIAD_01", 3},
+            {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "01", "VPUX_01", 4}};
+    } else {
+        metaDevices = {{CommonTestUtils::DEVICE_CPU, {}, 2, "", "CPU_01", 0},
+            {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "iGPU_01", 0},
+            {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "dGPU_01", 0},
+            {CommonTestUtils::DEVICE_MYRIAD, {}, 2, "01", "MYRIAD_01", 0},
+            {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "01", "VPUX_01", 0}};
+    }
 
     EXPECT_CALL(*plugin, SelectDevice(_, _, _)).Times(PriorityConfigs.size());
     EXPECT_CALL(*core, GetMetric(_, _, _)).Times(AtLeast(PriorityConfigs.size() * 4));
@@ -119,10 +138,25 @@ TEST_P(KeyNetworkPriorityTest, SelectDevice) {
 TEST_P(KeyNetworkPriorityTest, MultiThreadsSelectDevice) {
     // get Parameter
     std::string netPrecision;
+    bool enableDevicePriority;
     std::vector<PriorityParams> PriorityConfigs;
-    std::tie(netPrecision, PriorityConfigs) = this->GetParam();
+    std::tie(netPrecision, enableDevicePriority, PriorityConfigs) = this->GetParam();
     std::vector<DeviceInformation> resDevInfo;
     std::vector<std::future<void>> futureVect;
+
+    if (enableDevicePriority) {
+        metaDevices = {{CommonTestUtils::DEVICE_CPU, {}, 2, "", "CPU_01", 0},
+            {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "iGPU_01", 1},
+            {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "dGPU_01", 2},
+            {CommonTestUtils::DEVICE_MYRIAD, {}, 2, "01", "MYRIAD_01", 3},
+            {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "01", "VPUX_01", 4}};
+    } else {
+        metaDevices = {{CommonTestUtils::DEVICE_CPU, {}, 2, "", "CPU_01", 0},
+            {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "iGPU_01", 0},
+            {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "dGPU_01", 0},
+            {CommonTestUtils::DEVICE_MYRIAD, {}, 2, "01", "MYRIAD_01", 0},
+            {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "01", "VPUX_01", 0}};
+    }
 
     EXPECT_CALL(*plugin, SelectDevice(_, _, _)).Times(PriorityConfigs.size() * 2);
     EXPECT_CALL(*core, GetMetric(_, _, _)).Times(AtLeast(PriorityConfigs.size() * 4 * 2));
@@ -153,86 +187,164 @@ TEST_P(KeyNetworkPriorityTest, MultiThreadsSelectDevice) {
 
 // ConfigParams details
 // example
-// ConfigParams {"FP32", {PriorityParams {0, "dGPU_01"},
+// ConfigParams {"FP32", false, {PriorityParams {0, "dGPU_01"},
 //                        PriorityParams {1, "iGPU_01"},
 //                        PriorityParams {2, "MYRIAD_01"},
 //                        PriorityParams {2, "MYRIAD_01"}}},
-//              {netPrecision, PriorityParamsVector{{priority, expect device uniqueName}}}
+//              {netPrecision, enableDevicePriority,  PriorityParamsVector{{modelpriority, expect device uniqueName}}}
 
 const std::vector<ConfigParams> testConfigs = {
-                                               ConfigParams {"FP32", {PriorityParams {0, "dGPU_01"},
-                                                                      PriorityParams {1, "iGPU_01"},
-                                                                      PriorityParams {2, "CPU_01"},
-                                                                      PriorityParams {2, "CPU_01"}}},
-                                               ConfigParams {"FP32", {PriorityParams {2, "dGPU_01"},
-                                                                      PriorityParams {3, "iGPU_01"},
-                                                                      PriorityParams {4, "CPU_01"},
-                                                                      PriorityParams {5, "MYRIAD_01"}}},
-                                               ConfigParams {"FP32", {PriorityParams {2, "dGPU_01"},
-                                                                      PriorityParams {0, "dGPU_01"},
-                                                                      PriorityParams {2, "iGPU_01"},
-                                                                      PriorityParams {2, "iGPU_01"}}},
-                                               ConfigParams {"FP32", {PriorityParams {2, "dGPU_01"},
-                                                                      PriorityParams {0, "dGPU_01"},
-                                                                      PriorityParams {2, "iGPU_01"},
-                                                                      PriorityParams {3, "CPU_01"}}},
-                                               ConfigParams {"FP32", {PriorityParams {0, "dGPU_01"},
-                                                                      PriorityParams {1, "iGPU_01"},
-                                                                      PriorityParams {2, "CPU_01"},
-                                                                      PriorityParams {3, "MYRIAD_01"},
-                                                                      PriorityParams {0, "dGPU_01"},
-                                                                      PriorityParams {1, "iGPU_01"},
-                                                                      PriorityParams {2, "CPU_01"},
-                                                                      PriorityParams {3, "MYRIAD_01"}}},
-                                               ConfigParams {"INT8", {PriorityParams {0, "VPUX_01"},
-                                                                      PriorityParams {1, "CPU_01"},
-                                                                      PriorityParams {2, "CPU_01"},
-                                                                      PriorityParams {2, "CPU_01"}}},
-                                               ConfigParams {"INT8", {PriorityParams {2, "VPUX_01"},
-                                                                      PriorityParams {3, "CPU_01"},
-                                                                      PriorityParams {4, "CPU_01"},
-                                                                      PriorityParams {5, "CPU_01"}}},
-                                               ConfigParams {"INT8", {PriorityParams {2, "VPUX_01"},
-                                                                      PriorityParams {0, "VPUX_01"},
-                                                                      PriorityParams {2, "CPU_01"},
-                                                                      PriorityParams {2, "CPU_01"}}},
-                                               ConfigParams {"INT8", {PriorityParams {2, "VPUX_01"},
-                                                                      PriorityParams {0, "VPUX_01"},
-                                                                      PriorityParams {2, "CPU_01"},
-                                                                      PriorityParams {3, "CPU_01"}}},
-                                               ConfigParams {"INT8", {PriorityParams {0, "VPUX_01"},
-                                                                      PriorityParams {1, "CPU_01"},
-                                                                      PriorityParams {2, "CPU_01"},
-                                                                      PriorityParams {3, "CPU_01"},
-                                                                      PriorityParams {0, "VPUX_01"},
-                                                                      PriorityParams {1, "CPU_01"},
-                                                                      PriorityParams {2, "CPU_01"},
-                                                                      PriorityParams {3, "CPU_01"}}},
-                                               ConfigParams {"BIN", {PriorityParams {0, "dGPU_01"},
-                                                                      PriorityParams {1, "iGPU_01"},
-                                                                      PriorityParams {2, "CPU_01"},
-                                                                      PriorityParams {2, "CPU_01"}}},
-                                               ConfigParams {"BIN", {PriorityParams {2, "dGPU_01"},
-                                                                      PriorityParams {3, "iGPU_01"},
-                                                                      PriorityParams {4, "CPU_01"},
-                                                                      PriorityParams {5, "CPU_01"}}},
-                                               ConfigParams {"BIN", {PriorityParams {2, "dGPU_01"},
-                                                                      PriorityParams {0, "dGPU_01"},
-                                                                      PriorityParams {2, "iGPU_01"},
-                                                                      PriorityParams {2, "iGPU_01"}}},
-                                               ConfigParams {"BIN", {PriorityParams {2, "dGPU_01"},
-                                                                      PriorityParams {0, "dGPU_01"},
-                                                                      PriorityParams {2, "iGPU_01"},
-                                                                      PriorityParams {3, "CPU_01"}}},
-                                               ConfigParams {"BIN", {PriorityParams {0, "dGPU_01"},
-                                                                      PriorityParams {1, "iGPU_01"},
-                                                                      PriorityParams {2, "CPU_01"},
-                                                                      PriorityParams {3, "CPU_01"},
-                                                                      PriorityParams {0, "dGPU_01"},
-                                                                      PriorityParams {1, "iGPU_01"},
-                                                                      PriorityParams {2, "CPU_01"},
-                                                                      PriorityParams {3, "CPU_01"}}}
-                                              };
+    ConfigParams {"FP32", false, {PriorityParams {0, "dGPU_01"},
+        PriorityParams {1, "iGPU_01"},
+        PriorityParams {2, "CPU_01"},
+        PriorityParams {2, "CPU_01"}}},
+    ConfigParams {"FP32", false, {PriorityParams {2, "dGPU_01"},
+        PriorityParams {3, "iGPU_01"},
+        PriorityParams {4, "CPU_01"},
+        PriorityParams {5, "MYRIAD_01"}}},
+    ConfigParams {"FP32", false, {PriorityParams {2, "dGPU_01"},
+        PriorityParams {0, "dGPU_01"},
+        PriorityParams {2, "iGPU_01"},
+        PriorityParams {2, "iGPU_01"}}},
+    ConfigParams {"FP32", false, {PriorityParams {2, "dGPU_01"},
+        PriorityParams {0, "dGPU_01"},
+        PriorityParams {2, "iGPU_01"},
+        PriorityParams {3, "CPU_01"}}},
+    ConfigParams {"FP32", false, {PriorityParams {0, "dGPU_01"},
+        PriorityParams {1, "iGPU_01"},
+        PriorityParams {2, "CPU_01"},
+        PriorityParams {3, "MYRIAD_01"},
+        PriorityParams {0, "dGPU_01"},
+        PriorityParams {1, "iGPU_01"},
+        PriorityParams {2, "CPU_01"},
+        PriorityParams {3, "MYRIAD_01"}}},
+    ConfigParams {"INT8", false, {PriorityParams {0, "VPUX_01"},
+        PriorityParams {1, "CPU_01"},
+        PriorityParams {2, "CPU_01"},
+        PriorityParams {2, "CPU_01"}}},
+    ConfigParams {"INT8", false, {PriorityParams {2, "VPUX_01"},
+        PriorityParams {3, "CPU_01"},
+        PriorityParams {4, "CPU_01"},
+        PriorityParams {5, "CPU_01"}}},
+    ConfigParams {"INT8", false, {PriorityParams {2, "VPUX_01"},
+        PriorityParams {0, "VPUX_01"},
+        PriorityParams {2, "CPU_01"},
+        PriorityParams {2, "CPU_01"}}},
+    ConfigParams {"INT8", false, {PriorityParams {2, "VPUX_01"},
+        PriorityParams {0, "VPUX_01"},
+        PriorityParams {2, "CPU_01"},
+        PriorityParams {3, "CPU_01"}}},
+    ConfigParams {"INT8", false, {PriorityParams {0, "VPUX_01"},
+        PriorityParams {1, "CPU_01"},
+        PriorityParams {2, "CPU_01"},
+        PriorityParams {3, "CPU_01"},
+        PriorityParams {0, "VPUX_01"},
+        PriorityParams {1, "CPU_01"},
+        PriorityParams {2, "CPU_01"},
+        PriorityParams {3, "CPU_01"}}},
+    ConfigParams {"BIN", false, {PriorityParams {0, "dGPU_01"},
+        PriorityParams {1, "iGPU_01"},
+        PriorityParams {2, "CPU_01"},
+        PriorityParams {2, "CPU_01"}}},
+    ConfigParams {"BIN", false, {PriorityParams {2, "dGPU_01"},
+        PriorityParams {3, "iGPU_01"},
+        PriorityParams {4, "CPU_01"},
+        PriorityParams {5, "CPU_01"}}},
+    ConfigParams {"BIN", false, {PriorityParams {2, "dGPU_01"},
+        PriorityParams {0, "dGPU_01"},
+        PriorityParams {2, "iGPU_01"},
+        PriorityParams {2, "iGPU_01"}}},
+    ConfigParams {"BIN", false, {PriorityParams {2, "dGPU_01"},
+        PriorityParams {0, "dGPU_01"},
+        PriorityParams {2, "iGPU_01"},
+        PriorityParams {3, "CPU_01"}}},
+    ConfigParams {"BIN", false, {PriorityParams {0, "dGPU_01"},
+        PriorityParams {1, "iGPU_01"},
+        PriorityParams {2, "CPU_01"},
+        PriorityParams {3, "CPU_01"},
+        PriorityParams {0, "dGPU_01"},
+        PriorityParams {1, "iGPU_01"},
+        PriorityParams {2, "CPU_01"},
+        PriorityParams {3, "CPU_01"}}},
+    // metaDevices = {{CommonTestUtils::DEVICE_CPU, {}, 2, "", "CPU_01", 0},
+    // {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "iGPU_01", 1},
+    // {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "dGPU_01", 2},
+    // {CommonTestUtils::DEVICE_MYRIAD, {}, 2, "01", "MYRIAD_01", 3},
+    // {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "01", "VPUX_01", 4}};
+    // cpu > igpu > dgpu > MYRIAD > VPUX
+    ConfigParams {"FP32", true, {PriorityParams {0, "CPU_01"},
+        PriorityParams {1, "iGPU_01"},
+        PriorityParams {2, "dGPU_01"},
+        PriorityParams {2, "dGPU_01"}}},
+    ConfigParams {"FP32", true, {PriorityParams {2, "CPU_01"},
+        PriorityParams {3, "iGPU_01"},
+        PriorityParams {4, "dGPU_01"},
+        PriorityParams {5, "MYRIAD_01"}}},
+    ConfigParams {"FP32", true, {PriorityParams {2, "CPU_01"},
+        PriorityParams {0, "CPU_01"},
+        PriorityParams {2, "iGPU_01"},
+        PriorityParams {2, "iGPU_01"}}},
+    ConfigParams {"FP32", true, {PriorityParams {2, "CPU_01"},
+        PriorityParams {0, "CPU_01"},
+        PriorityParams {2, "iGPU_01"},
+        PriorityParams {3, "dGPU_01"}}},
+    ConfigParams {"FP32", true, {PriorityParams {0, "CPU_01"},
+        PriorityParams {1, "iGPU_01"},
+        PriorityParams {2, "dGPU_01"},
+        PriorityParams {3, "MYRIAD_01"},
+        PriorityParams {0, "CPU_01"},
+        PriorityParams {1, "iGPU_01"},
+        PriorityParams {2, "dGPU_01"},
+        PriorityParams {3, "MYRIAD_01"}}},
+    ConfigParams {"INT8", true, {PriorityParams {0, "CPU_01"},
+        PriorityParams {1, "VPUX_01"},
+        PriorityParams {2, "VPUX_01"},
+        PriorityParams {2, "VPUX_01"}}},
+    ConfigParams {"INT8", true, {PriorityParams {2, "CPU_01"},
+        PriorityParams {3, "VPUX_01"},
+        PriorityParams {4, "VPUX_01"},
+        PriorityParams {5, "VPUX_01"}}},
+    ConfigParams {"INT8", true, {PriorityParams {2, "CPU_01"},
+        PriorityParams {0, "CPU_01"},
+        PriorityParams {2, "VPUX_01"},
+        PriorityParams {2, "VPUX_01"}}},
+    ConfigParams {"INT8", true, {PriorityParams {2, "CPU_01"},
+        PriorityParams {0, "CPU_01"},
+        PriorityParams {2, "VPUX_01"},
+        PriorityParams {3, "VPUX_01"}}},
+    ConfigParams {"INT8", true, {PriorityParams {0, "CPU_01"},
+        PriorityParams {1, "VPUX_01"},
+        PriorityParams {2, "VPUX_01"},
+        PriorityParams {3, "VPUX_01"},
+        PriorityParams {0, "CPU_01"},
+        PriorityParams {1, "VPUX_01"},
+        PriorityParams {2, "VPUX_01"},
+        PriorityParams {3, "VPUX_01"}}},
+    ConfigParams {"BIN", true, {PriorityParams {0, "CPU_01"},
+        PriorityParams {1, "iGPU_01"},
+        PriorityParams {2, "dGPU_01"},
+        PriorityParams {2, "dGPU_01"}}},
+    ConfigParams {"BIN", true, {PriorityParams {2, "CPU_01"},
+        PriorityParams {3, "iGPU_01"},
+        PriorityParams {4, "dGPU_01"},
+        PriorityParams {5, "dGPU_01"}}},
+    ConfigParams {"BIN", true, {PriorityParams {2, "CPU_01"},
+        PriorityParams {0, "CPU_01"},
+        PriorityParams {2, "iGPU_01"},
+        PriorityParams {2, "iGPU_01"}}},
+    ConfigParams {"BIN", true, {PriorityParams {2, "CPU_01"},
+        PriorityParams {0, "CPU_01"},
+        PriorityParams {2, "iGPU_01"},
+        PriorityParams {3, "dGPU_01"}}},
+    ConfigParams {"BIN", true, {PriorityParams {0, "CPU_01"},
+        PriorityParams {1, "iGPU_01"},
+        PriorityParams {2, "dGPU_01"},
+        PriorityParams {3, "dGPU_01"},
+        PriorityParams {0, "CPU_01"},
+        PriorityParams {1, "iGPU_01"},
+        PriorityParams {2, "dGPU_01"},
+        PriorityParams {3, "dGPU_01"}}}
+};
 
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, KeyNetworkPriorityTest,

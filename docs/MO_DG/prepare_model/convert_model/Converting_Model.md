@@ -11,6 +11,7 @@
    openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet
    openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi
    openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX
+   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle
    openvino_docs_MO_DG_prepare_model_Model_Optimization_Techniques
    openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model
    openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers
@@ -36,6 +37,7 @@ Framework-specific parameters for:
 * [TensorFlow](Convert_Model_From_TensorFlow.md)
 * [MXNet](Convert_Model_From_MxNet.md)
 * [ONNX](Convert_Model_From_ONNX.md)
+* [PaddlePaddle](Convert_Model_From_Paddle.md)
 * [Kaldi](Convert_Model_From_Kaldi.md)
 
 
@@ -91,6 +93,9 @@ Framework-agnostic parameters:
                         is overridden by the --input parameter, this scale is
                         not applied for any input that does not match with the
                         original input of the model.
+                        If both --mean and --scale are specified,
+                        the mean is subtracted first and then scale is applied
+                        regardless of the order of options in command line.
   --reverse_input_channels
                         Switch the input channels order from RGB to BGR (or
                         vice versa). Applied to original inputs of the model
@@ -105,7 +110,8 @@ Framework-agnostic parameters:
   --log_level {CRITICAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}
                         Logger level
   --input INPUT         Quoted list of comma-separated input nodes names with shapes, 
-                        data types, and values for freezing. The shape and value are 
+                        data types, and values for freezing. The order of inputs in converted 
+                        model is the same as order of specified operation names. The shape and value are 
                         specified as space-separated lists. The data type of input 
                         node is specified in braces and can have one of the values: 
                         f64 (float64), f32 (float32), f16 (float16), i64 (int64), 
@@ -124,6 +130,8 @@ Framework-agnostic parameters:
                         "0:node_name1[3 4],node_name2:1[2]{i32}->[20 15]".
   --output OUTPUT       The name of the output operation of the model. For
                         TensorFlow*, do not add :0 to this name.
+                        The order of outputs in converted model is the same as order of
+                        specified operation names.
   --mean_values MEAN_VALUES, -ms MEAN_VALUES
                         Mean values to be used for the input image per
                         channel. Values to be provided in the (R,G,B) or
@@ -140,6 +148,9 @@ Framework-agnostic parameters:
                         data[255,255,255],info[255,255,255]". The exact
                         meaning and order of channels depend on how the
                         original model was trained.
+                        If both --mean_values and --scale_values are specified,
+                        the mean is subtracted first and then scale is applied
+                        regardless of the order of options in command line.
   --data_type {FP16,FP32,half,float}
                         Data type for all intermediate tensors and weights. If
                         original model is in FP32 and --data_type=FP16 is
@@ -174,7 +185,7 @@ Framework-agnostic parameters:
   --static_shape        Enables IR generation for fixed input shape (folding
                         `ShapeOf` operations and shape-calculating sub-graphs
                         to `Constant`). Changing model input shape using
-                        the Inference Engine API in runtime may fail for such an IR.
+                        the OpenVINO Runtime API in runtime may fail for such an IR.
   --disable_weights_compression
                         Disable compression and store weights with original
                         precision.
@@ -184,6 +195,8 @@ Framework-agnostic parameters:
   --transformations_config TRANSFORMATIONS_CONFIG
                         Use the configuration file with transformations
                         description.
+  --use_new_frontend    Force the usage of new frontend API for model processing.
+  --use_legacy_frontend Force the usage of legacy API for model processing.
 ```
 
 The sections below provide details on using particular parameters and examples of CLI commands.
@@ -193,11 +206,11 @@ Usually neural network models are trained with the normalized input data. This m
  * The input pre-processing operations are a part of a topology. In this case, the application that uses the framework to infer the topology does not pre-process the input.
  * The input pre-processing operations are not a part of a topology and the pre-processing is performed within the application which feeds the model with an input data.
  
-In the first case, the Model Optimizer generates the IR with required pre-processing layers and Inference Engine samples may be used to infer the model. 
+In the first case, the Model Optimizer generates the IR with required pre-processing operations and OpenVINO Samples may be used to infer the model. 
  
-In the second case, information about mean/scale values should be provided to the Model Optimizer to embed it to the generated IR. Model Optimizer provides a number of command line parameters to specify them: `--scale`, `--scale_values`, `--mean_values`. 
+In the second case, information about mean/scale values should be provided to the Model Optimizer to embed it to the generated IR. Model Optimizer provides a number of command line parameters to specify them: `--mean`, `--scale`, `--scale_values`, `--mean_values`. 
 
-If both mean and scale values are specified, the mean is subtracted first and then scale is applied. Input values are *divided* by the scale value(s). 
+> **NOTE:** If both mean and scale values are specified, the mean is subtracted first and then scale is applied regardless of the order of options in command line. Input values are *divided* by the scale value(s). If also `--reverse_input_channels` option is used, the reverse_input_channels will be applied first, then mean and after that scale.
 
 There is no a universal recipe for determining the mean/scale values for a particular model. The steps below could help to determine them:
 * Read the model documentation. Usually the documentation describes mean/scale value if the pre-processing is required.
@@ -208,11 +221,11 @@ There is no a universal recipe for determining the mean/scale values for a parti
 There are situations when the input data shape for the model is not fixed, like for the fully-convolutional neural networks. In this case, for example, TensorFlow\* models contain `-1` values in the `shape` attribute of the `Placeholder` operation. Inference Engine does not support input layers with undefined size, so if the input shapes are not defined in the model, the Model Optimizer fails to convert the model. The solution is to provide the input shape(s) using the `--input` or `--input_shape` command line parameter for all input(s) of the model or provide the batch size using the `-b` command line parameter if the model contains just one input with undefined batch size only. In the latter case, the `Placeholder` shape for the TensorFlow\* model looks like this `[-1, 224, 224, 3]`. 
 
 ## When to Reverse Input Channels <a name="when_to_reverse_input_channels"></a>
-Input data for your application can be of RGB or BRG color input order. For example, Inference Engine samples load input images in the BGR channels order. However, the model may be trained on images loaded with the opposite order (for example, most TensorFlow\* models are trained with images in RGB order). In this case, inference results using the Inference Engine samples may be incorrect. The solution is to provide `--reverse_input_channels` command line parameter. Taking this parameter, the Model Optimizer performs first convolution or other channel dependent operation weights modification so these operations output will be like the image is passed with RGB channels order.
+Input data for your application can be of RGB or BRG color input order. For example, OpenVINO Samples load input images in the BGR channels order. However, the model may be trained on images loaded with the opposite order (for example, most TensorFlow\* models are trained with images in RGB order). In this case, inference results using the OpenVINO samples may be incorrect. The solution is to provide `--reverse_input_channels` command line parameter. Taking this parameter, the Model Optimizer performs first convolution or other channel dependent operation weights modification so these operations output will be like the image is passed with RGB channels order.
 
 ## When to Specify `--static_shape` Command Line Parameter
 If the `--static_shape` command line parameter is specified the Model Optimizer evaluates shapes of all operations in the model (shape propagation) for a fixed input(s) shape(s). During the shape propagation the Model Optimizer evaluates operations *Shape* and removes them from the computation graph. With that approach, the initial model which can consume inputs of different shapes may be converted to IR working with the input of one fixed shape only. For example, consider the case when some blob is reshaped from 4D of a shape *[N, C, H, W]* to a shape *[N, C, H \* W]*. During the model conversion the Model Optimize calculates output shape as a constant 1D blob with values *[N, C, H \* W]*. So if the input shape changes to some other value *[N,C,H1,W1]* (it is possible scenario for a fully convolutional model) then the reshape layer becomes invalid.
-Resulting Intermediate Representation will not be resizable with the help of Inference Engine.
+Resulting Intermediate Representation will not be resizable with the help of OpenVINO Runtime API.
 
 ## Examples of CLI Commands
 
@@ -256,7 +269,7 @@ mo --input_model bvlc_alexnet.caffemodel --reverse_input_channels --mean_values 
 ```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with extensions listed in specified directories, specified mean_images binaryproto 
- file. For more information about extensions, please refer to [this](../customize_model_optimizer/Extending_Model_Optimizer_with_New_Primitives.md) page.
+ file. For more information about extensions, please refer to the [OpenVINO™ Extensibility Mechanism](../../../Extensibility_UG/Intro.md).
 ```sh
 mo --input_model bvlc_alexnet.caffemodel --extensions /home/,/some/other/path/ --mean_file /path/to/binaryproto --output_dir <OUTPUT_MODEL_DIR>
 ```
@@ -279,7 +292,7 @@ mo --input_model FaceNet.pb --input "placeholder_layer_name->[0.1 1.2 2.3]" --ou
 
 
 ## See Also
-* [Configuring the Model Optimizer](../Config_Model_Optimizer.md)
+* [Configuring the Model Optimizer](../../Deep_Learning_Model_Optimizer_DevGuide.md)
 * [IR Notation Reference](../../IR_and_opsets.md)
 * [Model Optimizer Extensibility](../customize_model_optimizer/Customize_Model_Optimizer.md)
 * [Model Cutting](Cutting_Model.md)

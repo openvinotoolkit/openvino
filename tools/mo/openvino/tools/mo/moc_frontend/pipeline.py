@@ -1,12 +1,16 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
 import logging as log
 from typing import List
+import sys
+from os import environ
 
+from openvino.tools.mo.moc_frontend.analysis import json_model_analysis_dump
 from openvino.tools.mo.moc_frontend.extractor import fe_user_data_repack
 from openvino.tools.mo.middle.passes.infer import validate_batch_in_shape
+from openvino.tools.mo.utils.class_registration import get_enabled_and_disabled_transforms
 
 from openvino.runtime import Dimension, PartialShape        # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEnd, InputModel, NotImplementedFailure, Place # pylint: disable=no-name-in-module,import-error
@@ -57,6 +61,14 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                 log.warn('Could not add an additional name to a tensor pointed to by \'{}\'. Details: {}'.format(
                     new_input['input_name'], str(e)))
 
+    enabled_transforms, disabled_transforms = get_enabled_and_disabled_transforms()
+    if 'ANALYSIS_JSON_PRINT' in enabled_transforms:
+        # NOTE that model analysis is performed before applying user's settings (inputs's shapes etc.)
+        framework_model = moc_front_end.decode(input_model)
+        json_model_analysis_dump(framework_model)
+        # a model is not processed further in json analysis mode
+        sys.exit(0)
+
     inputs_equal = True
     if user_shapes:
         inputs_equal = check_places_are_same(input_model.get_inputs(), user_shapes)
@@ -84,9 +96,14 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         new_input_places = [x['node'] for x in user_shapes]
         input_model.override_all_inputs(new_input_places)
         # invalidation of existing Place objects could have happened in the operation above
+        names = [place.get_names()[0] for place in new_input_places]
+        shapes = [shape for shape in argv.placeholder_shapes.values()]
+        # we have to update names used to find nodes, since the original
+        # ones where cut off the graph
+        placeholder_shapes = dict(zip(names, shapes))
         if user_shapes:
             user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
-                input_model, argv.placeholder_shapes, argv.placeholder_data_types,
+                input_model, placeholder_shapes, argv.placeholder_data_types,
                 argv.output, argv.freeze_placeholder_with_value, moc_front_end.get_name())
     elif not outputs_equal:
         log.debug('Using override_all_outputs')

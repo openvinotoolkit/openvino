@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1366,7 +1366,8 @@ TEST(activation_i32_fw_gpu, basic_yxfb_i32_funcs) {
         activation_func::negative,
         activation_func::negation,
         activation_func::relu,
-        activation_func::clamp
+        activation_func::clamp,
+        activation_func::floor
     };
 
     for (auto func : funcs) {
@@ -1403,6 +1404,9 @@ TEST(activation_i32_fw_gpu, basic_yxfb_i32_funcs) {
                 break;
             case activation_func::clamp:
                 EXPECT_EQ(std::min(std::max(input_ptr[i], static_cast<int32_t>(params.a)), static_cast<int32_t>(params.b)), output_ptr[i]);
+                break;
+            case activation_func::floor:
+                EXPECT_EQ((int32_t)std::floor(input_ptr[i]), output_ptr[i]);
                 break;
             default:
                 break;

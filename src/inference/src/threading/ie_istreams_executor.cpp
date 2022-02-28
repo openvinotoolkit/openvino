@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,16 +15,21 @@
 #include "ie_parameter.hpp"
 #include "ie_plugin_config.hpp"
 #include "ie_system_conf.h"
+#include "openvino/runtime/properties.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace InferenceEngine {
 IStreamsExecutor::~IStreamsExecutor() {}
 
-std::vector<std::string> IStreamsExecutor::Config::SupportedKeys() {
+std::vector<std::string> IStreamsExecutor::Config::SupportedKeys() const {
     return {
         CONFIG_KEY(CPU_THROUGHPUT_STREAMS),
         CONFIG_KEY(CPU_BIND_THREAD),
         CONFIG_KEY(CPU_THREADS_NUM),
         CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM),
+        ov::num_streams.name(),
+        ov::inference_num_threads.name(),
+        ov::affinity.name(),
     };
 }
 int IStreamsExecutor::Config::GetDefaultNumStreams() {
@@ -59,6 +64,29 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
                        << ". Expected only YES(binds to cores) / NO(no binding) / NUMA(binds to NUMA nodes) / "
                           "HYBRID_AWARE (let the runtime recognize and use the hybrid cores)";
         }
+    } else if (key == ov::affinity) {
+        ov::Affinity affinity;
+        std::stringstream{value} >> affinity;
+        switch (affinity) {
+        case ov::Affinity::NONE:
+            _threadBindingType = ThreadBindingType::NONE;
+            break;
+        case ov::Affinity::CORE: {
+#if (defined(__APPLE__) || defined(_WIN32))
+            _threadBindingType = ThreadBindingType::NUMA;
+#else
+            _threadBindingType = ThreadBindingType::CORES;
+#endif
+        } break;
+        case ov::Affinity::NUMA:
+            _threadBindingType = ThreadBindingType::NUMA;
+            break;
+        case ov::Affinity::HYBRID_AWARE:
+            _threadBindingType = ThreadBindingType::HYBRID_AWARE;
+            break;
+        default:
+            OPENVINO_UNREACHABLE("Unsupported affinity type");
+        }
     } else if (key == CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) {
         if (value == CONFIG_VALUE(CPU_THROUGHPUT_NUMA)) {
             _streams = static_cast<int>(getAvailableNUMANodes().size());
@@ -80,7 +108,23 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
             }
             _streams = val_i;
         }
-    } else if (key == CONFIG_KEY(CPU_THREADS_NUM)) {
+    } else if (key == ov::num_streams) {
+        auto streams = ov::util::from_string(value, ov::streams::num);
+        if (streams == ov::streams::NUMA) {
+            _streams = static_cast<int32_t>(getAvailableNUMANodes().size());
+        } else if (streams == ov::streams::AUTO) {
+            // bare minimum of streams (that evenly divides available number of cores)
+            _streams = GetDefaultNumStreams();
+        } else if (streams.num >= 0) {
+            _streams = streams.num;
+        } else {
+            OPENVINO_UNREACHABLE("Wrong value for property key ",
+                                 ov::num_streams.name(),
+                                 ". Expected non negative numbers (#streams) or ",
+                                 "ov::streams::NUMA|ov::streams::AUTO, Got: ",
+                                 streams);
+        }
+    } else if (key == CONFIG_KEY(CPU_THREADS_NUM) || key == ov::inference_num_threads) {
         int val_i;
         try {
             val_i = std::stoi(value);
@@ -111,26 +155,37 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
     }
 }
 
-Parameter IStreamsExecutor::Config::GetConfig(const std::string& key) {
-    if (key == CONFIG_KEY(CPU_BIND_THREAD)) {
+Parameter IStreamsExecutor::Config::GetConfig(const std::string& key) const {
+    if (key == ov::affinity) {
+        switch (_threadBindingType) {
+        case IStreamsExecutor::ThreadBindingType::NONE:
+            return ov::Affinity::NONE;
+        case IStreamsExecutor::ThreadBindingType::CORES:
+            return ov::Affinity::CORE;
+        case IStreamsExecutor::ThreadBindingType::NUMA:
+            return ov::Affinity::NUMA;
+        case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
+            return ov::Affinity::HYBRID_AWARE;
+        }
+    } else if (key == CONFIG_KEY(CPU_BIND_THREAD)) {
         switch (_threadBindingType) {
         case IStreamsExecutor::ThreadBindingType::NONE:
             return {CONFIG_VALUE(NO)};
-            break;
         case IStreamsExecutor::ThreadBindingType::CORES:
             return {CONFIG_VALUE(YES)};
-            break;
         case IStreamsExecutor::ThreadBindingType::NUMA:
             return {CONFIG_VALUE(NUMA)};
-            break;
         case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
             return {CONFIG_VALUE(HYBRID_AWARE)};
-            break;
         }
     } else if (key == CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) {
         return {std::to_string(_streams)};
+    } else if (key == ov::num_streams) {
+        return decltype(ov::num_streams)::value_type{_streams};
     } else if (key == CONFIG_KEY(CPU_THREADS_NUM)) {
         return {std::to_string(_threads)};
+    } else if (key == ov::inference_num_threads) {
+        return decltype(ov::inference_num_threads)::value_type{_threads};
     } else if (key == CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM)) {
         return {std::to_string(_threadsPerStream)};
     } else {

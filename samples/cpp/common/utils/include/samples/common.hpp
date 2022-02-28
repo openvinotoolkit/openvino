@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -551,7 +551,7 @@ static UNUSED bool writeOutputBmp(unsigned char* data, size_t height, size_t wid
     return true;
 }
 
-static UNUSED void printPerformanceCounts(const std::map<std::string, ov::runtime::ProfilingInfo>& performanceMap,
+static UNUSED void printPerformanceCounts(const std::map<std::string, ov::ProfilingInfo>& performanceMap,
                                           std::ostream& stream,
                                           std::string deviceName,
                                           bool bshowHeader = true) {
@@ -573,13 +573,13 @@ static UNUSED void printPerformanceCounts(const std::map<std::string, ov::runtim
 
         stream << std::setw(maxLayerName) << std::left << toPrint;
         switch (it.second.status) {
-        case ov::runtime::ProfilingInfo::Status::EXECUTED:
+        case ov::ProfilingInfo::Status::EXECUTED:
             stream << std::setw(15) << std::left << "EXECUTED";
             break;
-        case ov::runtime::ProfilingInfo::Status::NOT_RUN:
+        case ov::ProfilingInfo::Status::NOT_RUN:
             stream << std::setw(15) << std::left << "NOT_RUN";
             break;
-        case ov::runtime::ProfilingInfo::Status::OPTIMIZED_OUT:
+        case ov::ProfilingInfo::Status::OPTIMIZED_OUT:
             stream << std::setw(15) << std::left << "OPTIMIZED_OUT";
             break;
         }
@@ -955,7 +955,7 @@ static UNUSED void addRectangles(unsigned char* data,
 }
 
 inline void showAvailableDevices() {
-    ov::runtime::Core core;
+    ov::Core core;
     std::vector<std::string> devices = core.get_available_devices();
 
     std::cout << std::endl;
@@ -976,17 +976,15 @@ inline void showAvailableDevices() {
  */
 std::map<std::string, std::string> parseConfig(const std::string& configName, char comment = '#');
 
-inline std::string getFullDeviceName(ov::runtime::Core& core, std::string device) {
-    ov::Any p;
+inline std::string getFullDeviceName(ov::Core& core, std::string device) {
     try {
-        p = core.get_metric(device, METRIC_KEY(FULL_DEVICE_NAME));
-        return p.as<std::string>();
+        return core.get_property(device, ov::device::full_name);
     } catch (ov::Exception&) {
-        return "";
+        return {};
     }
 }
 
-static UNUSED void printPerformanceCounts(std::vector<ov::runtime::ProfilingInfo> performanceData,
+static UNUSED void printPerformanceCounts(std::vector<ov::ProfilingInfo> performanceData,
                                           std::ostream& stream,
                                           std::string deviceName,
                                           bool bshowHeader = true) {
@@ -995,7 +993,7 @@ static UNUSED void printPerformanceCounts(std::vector<ov::runtime::ProfilingInfo
     if (bshowHeader) {
         stream << std::endl << "performance counts:" << std::endl << std::endl;
     }
-
+    std::ios::fmtflags fmt(std::cout.flags());
     for (const auto& it : performanceData) {
         std::string toPrint(it.node_name);
         const int maxLayerName = 30;
@@ -1007,13 +1005,13 @@ static UNUSED void printPerformanceCounts(std::vector<ov::runtime::ProfilingInfo
 
         stream << std::setw(maxLayerName) << std::left << toPrint;
         switch (it.status) {
-        case ov::runtime::ProfilingInfo::Status::EXECUTED:
+        case ov::ProfilingInfo::Status::EXECUTED:
             stream << std::setw(15) << std::left << "EXECUTED";
             break;
-        case ov::runtime::ProfilingInfo::Status::NOT_RUN:
+        case ov::ProfilingInfo::Status::NOT_RUN:
             stream << std::setw(15) << std::left << "NOT_RUN";
             break;
-        case ov::runtime::ProfilingInfo::Status::OPTIMIZED_OUT:
+        case ov::ProfilingInfo::Status::OPTIMIZED_OUT:
             stream << std::setw(15) << std::left << "OPTIMIZED_OUT";
             break;
         }
@@ -1030,9 +1028,10 @@ static UNUSED void printPerformanceCounts(std::vector<ov::runtime::ProfilingInfo
     std::cout << std::endl;
     std::cout << "Full device name: " << deviceName << std::endl;
     std::cout << std::endl;
+    std::cout.flags(fmt);
 }
 
-static UNUSED void printPerformanceCounts(ov::runtime::InferRequest request,
+static UNUSED void printPerformanceCounts(ov::InferRequest request,
                                           std::ostream& stream,
                                           std::string deviceName,
                                           bool bshowHeader = true) {

@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
 import os
 import sys
 
+# do not print INFO and WARNING messages from TensorFlow
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 try:
     import tensorflow.compat.v1 as tf_v1
     # disable eager execution of TensorFlow 2 environment immediately
@@ -14,7 +16,9 @@ try:
 except ImportError:
     import tensorflow as tf_v1
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+#in some environment suppressing through TF_CPP_MIN_LOG_LEVEL does not work
+tf_v1.get_logger().setLevel("ERROR")
+
 unlikely_output_types = ['Const', 'Assign', 'NoOp', 'Parameter', 'Assert']
 
 
@@ -71,7 +75,7 @@ def main():
         print("[ ERROR ] Both keys were provided --input_model and --input_dir. Please, provide only one of them")
         sys.exit(1)
     tags = argv.saved_model_tags.split(",")
-    graph_def, _, _ = load_tf_graph_def(graph_file_name=argv.input_model, is_binary=not argv.text,
+    graph_def, _, _, _ = load_tf_graph_def(graph_file_name=argv.input_model, is_binary=not argv.text,
                                         checkpoint=argv.input_checkpoint,
                                         model_dir=argv.saved_model_dir, saved_model_tags=tags)
     summary = summarize_graph(graph_def)

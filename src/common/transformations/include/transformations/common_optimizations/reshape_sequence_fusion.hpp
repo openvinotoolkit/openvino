@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,11 +18,11 @@ class TRANSFORMATIONS_API ReshapeSequenceFusion;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief ReshpaeSequenceFusion fuses sequence of Reshape operation into single Reshape
+ * @brief ReshapeSequenceFusion fuses sequence of Reshape operation into single Reshape or eliminates full redundant sequence
  */
 
 class ngraph::pass::ReshapeSequenceFusion: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    ReshapeSequenceFusion();
+    ReshapeSequenceFusion(bool use_shape_for_elimination = true);
 };

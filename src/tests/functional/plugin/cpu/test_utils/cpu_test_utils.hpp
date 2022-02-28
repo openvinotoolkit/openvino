@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -124,9 +124,9 @@ public:
     static cpu_memory_format_t cpu_str2fmt(const char *str);
     static std::string fmts2str(const std::vector<cpu_memory_format_t> &fmts, const std::string &prefix);
     static std::string impls2str(const std::vector<std::string> &priority);
-    static CPUInfo makeCPUInfo(std::vector<cpu_memory_format_t> inFmts,
-                               std::vector<cpu_memory_format_t> outFmts,
-                               std::vector<std::string> priority);
+    static CPUInfo makeCPUInfo(const std::vector<cpu_memory_format_t>& inFmts,
+                               const std::vector<cpu_memory_format_t>& outFmts,
+                               const std::vector<std::string>& priority);
    //TODO: change to setter method
     static std::string makeSelectedTypeStr(std::string implString, ngraph::element::Type_t elType);
 
@@ -136,11 +136,11 @@ public:
                                                          const std::shared_ptr<ngraph::Node> &lastNode,
                                                          std::string name);
 
-    void CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const;
-    void CheckPluginRelatedResults(ov::runtime::CompiledModel &execNet, std::string nodeType) const;
+    void CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, const std::string& nodeType) const;
+    void CheckPluginRelatedResults(const ov::CompiledModel &execNet, const std::string& nodeType) const;
 
 protected:
-    virtual void CheckPluginRelatedResultsImpl(std::shared_ptr<const ov::Model> function, std::string nodeType) const;
+    virtual void CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov::Model>& function, const std::string& nodeType) const;
     /**
      * @brief This function modifies the initial single layer test graph to add any necessary modifications that are specific to the cpu test scope.
      * @param ngPrc Graph precision.
@@ -169,5 +169,6 @@ const std::map<std::string, std::string> cpuBF16PluginConfig =
 // utility functions
 std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams>& paramsVector);
 std::vector<CPUSpecificParams> filterCPUInfoForDevice(std::vector<CPUSpecificParams> CPUParams);
-void CheckNodeOfTypeCount(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType, size_t expectedCount);
+void CheckNumberOfNodesWithType(ov::CompiledModel &compiledModel, std::string nodeType, size_t expectedCount);
+void CheckNumberOfNodesWithType(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType, size_t expectedCount);
 } // namespace CPUTestUtils

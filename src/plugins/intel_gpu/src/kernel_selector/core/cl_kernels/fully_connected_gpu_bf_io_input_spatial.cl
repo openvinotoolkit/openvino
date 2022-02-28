@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,7 +45,7 @@ KERNEL (fully_connected_gpu_bf_io_input_spatial)(
     {
         UNIT_TYPE _inG = *OFFSET_GLOBAL_PTR(UNIT_TYPE, input, input_idx);
         uint it_w_addr = _inG == UNIT_VAL_ZERO ? weight_idx_base : s_w_idx;
-        for(uint j = 0; j < 16; j++)
+        for (uint j = 0; j < 16; j++)
         {
             UNIT_TYPE _in = intel_sub_group_shuffle(_inG, j);
             uint wi_w_addr = intel_sub_group_shuffle(it_w_addr, j);
@@ -70,7 +70,7 @@ KERNEL (fully_connected_gpu_bf_io_input_spatial)(
 #if BIAS_TERM
     result += bias[outXIdx];
 #endif
-    if(x < FILTER_OFM_NUM)
+    if (x < FILTER_OFM_NUM)
     {
         output[x] = ACTIVATION((UNIT_TYPE)(result), ACTIVATION_PARAMS);
     }

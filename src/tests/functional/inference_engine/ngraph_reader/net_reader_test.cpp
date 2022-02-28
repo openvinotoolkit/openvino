@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,7 +55,7 @@ protected:
 };
 
 TEST_P(NetReaderTest, ReadNetworkTwiceSeparately) {
-    ov::runtime::Core ie;
+    ov::Core ie;
 
     auto network = ie.read_model(_modelPath, _weightsPath);
     auto network2 = ie.read_model(_modelPath, _weightsPath);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,9 @@
 
 #include <cpu/x64/jit_generator.hpp>
 #include "jit_emitter.hpp"
-#include "mkldnn_node.h"
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class jit_add_emitter : public jit_emitter {
 public:
@@ -520,7 +520,7 @@ public:
 private:
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out,
                   const std::vector<size_t>& pool, const std::vector<size_t>& gpr,
-                  const MKLDNNPlugin::emitter_context *emit_context) const override;
+                  const ov::intel_cpu::emitter_context *emit_context) const override;
 
     template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
@@ -551,4 +551,5 @@ private:
     size_t aux_vecs_count() const override;
 };
 
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

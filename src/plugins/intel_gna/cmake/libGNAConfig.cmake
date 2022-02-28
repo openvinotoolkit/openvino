@@ -1,54 +1,61 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 # module to locate GNA libraries
 
-if (WIN32)
-    set(GNA_PLATFORM_DIR win64 CACHE STRING "" FORCE)
-elseif (UNIX)
-    set(GNA_PLATFORM_DIR linux CACHE STRING "" FORCE)
-else ()
-    message(FATAL_ERROR "GNA not supported on this platform, only linux, and windows")
-endif ()
 
 set(libGNA_FOUND TRUE)
 
 set(GNA_KERNEL_LIB_NAME gna CACHE STRING "" FORCE)
-set(GNA_LIBS_LIST
-        "libGNA::API"
-        "libGNA::KERNEL")
 
-set(GNA_LIB_DIR x64 CACHE STRING "" FORCE)
-set(libGNA_INCLUDE_DIRS "${GNA}/include" CACHE STRING "" FORCE)
-set(libGNA_LIBRARIES_BASE_PATH ${GNA}/${GNA_PLATFORM_DIR}/${GNA_LIB_DIR} CACHE STRING "" FORCE)
+if (NOT libGNA_FIND_COMPONENTS)
+    set(libGNA_FIND_COMPONENTS "API;KERNEL")
+endif()
 
-add_library(libGNA::KERNEL SHARED IMPORTED)
-find_library(GNA_KERNEL_LIBRARY
-        ${GNA_KERNEL_LIB_NAME}
-        HINTS
-        ${libGNA_LIBRARIES_BASE_PATH})
-set_target_properties(libGNA::KERNEL PROPERTIES IMPORTED_LOCATION ${GNA_KERNEL_LIBRARY})
+foreach (_gna_component ${libGNA_FIND_COMPONENTS})
+    set(libGNA_${_gna_component}_FOUND FALSE)
+    set(libGNA_FIND_REQUIRED_${_gna_component} TRUE)
+endforeach()
 
-add_library(libGNA::API INTERFACE IMPORTED)
-set_property(TARGET libGNA::API PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${libGNA_INCLUDE_DIRS})
+set(libGNA_LIBRARIES_BASE_PATH ${GNA_PATH} CACHE STRING "" FORCE)
+
+if(libGNA_FIND_REQUIRED_KERNEL)
+    find_library(GNA_KERNEL_LIBRARY
+            ${GNA_KERNEL_LIB_NAME}
+            HINTS
+            ${libGNA_LIBRARIES_BASE_PATH})
+
+    if(NOT GNA_KERNEL_LIBRARY MATCHES NOTFOUND)
+        add_library(libGNA::KERNEL SHARED IMPORTED)
+        set_target_properties(libGNA::KERNEL PROPERTIES IMPORTED_LOCATION ${GNA_KERNEL_LIBRARY})
+        set(libGNA_KERNEL_FOUND TRUE)
+    else()
+        message(SEND_ERROR "GNA KERNEL library was not found in ${libGNA_LIBRARIES_BASE_PATH}")
+    endif()
+endif()
+
+if(libGNA_FIND_REQUIRED_API)
+    find_path(libGNA_INCLUDE_DIRS gna2-api.h PATHS "${GNA_EXT_DIR}/include")
+    if(NOT libGNA_INCLUDE_DIRS MATCHES NOTFOUND)
+        add_library(libGNA::API INTERFACE IMPORTED)
+        set_target_properties(libGNA::API PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${libGNA_INCLUDE_DIRS})
+        set(libGNA_API_FOUND TRUE)
+    else()
+        message(SEND_ERROR "GNA API headers was not found in ${GNA_EXT_DIR}/include")
+    endif()
+endif()
 
 add_library(libGNA INTERFACE IMPORTED)
-foreach(_lib_name ${GNA_LIBS_LIST})
-    set_property(TARGET libGNA APPEND PROPERTY INTERFACE_LINK_LIBRARIES ${_lib_name})
-
-    get_target_property(_target_type ${_lib_name} TYPE)
-    if (${_target_type} STREQUAL "INTERFACE_LIBRARY")
-        get_target_property(_target_location ${_lib_name} INTERFACE_INCLUDE_DIRECTORIES)
-    else()
-        get_target_property(_target_location ${_lib_name} IMPORTED_LOCATION)
-    endif ()
-    message(STATUS "${_lib_name} ${_target_type} : ${_target_location}")
+foreach(_lib_name ${libGNA_FIND_COMPONENTS})
+    set_property(TARGET libGNA APPEND PROPERTY INTERFACE_LINK_LIBRARIES libGNA::${_lib_name})
 endforeach(_lib_name)
 
 if (WIN32)
-    set_target_properties(libGNA::KERNEL PROPERTIES
-        IMPORTED_IMPLIB ${GNA_KERNEL_LIBRARY})
+    if(libGNA_FIND_REQUIRED_KERNEL)
+        set_target_properties(libGNA::KERNEL PROPERTIES
+            IMPORTED_IMPLIB ${GNA_KERNEL_LIBRARY})
+    endif()
 else()
     set_target_properties(libGNA PROPERTIES INTERFACE_LINK_OPTIONS "-Wl,-rpath-link,${libGNA_LIBRARIES_BASE_PATH}")
 endif ()

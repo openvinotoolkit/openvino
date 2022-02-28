@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -94,7 +94,7 @@ public:
 TEST_P(TransposeTransformation, CompareFunctions) {
     InitNodeInfo().run_on_model(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true);
+    auto res = compare_functions(actualFunction, referenceFunction, true, true);
     ASSERT_TRUE(res.first) << res.second;
 
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
@@ -103,7 +103,7 @@ TEST_P(TransposeTransformation, CompareFunctions) {
 namespace testValues1 {
 const std::vector<ngraph::PartialShape> inputShapes4D = {
     { 1, 3, 16, 16 },
-    { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() }
+    { -1, -1, -1, -1 }
 };
 
 const std::vector<TransposeTransformationTestValues> testValues = {
@@ -197,7 +197,7 @@ INSTANTIATE_TEST_SUITE_P(
 namespace testValues2 {
 const std::vector<ngraph::PartialShape> inputShapes3D = {
     { 1, 16, 512 },
-    { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}
+    { -1, -1, -1}
 };
 
 const std::vector<TransposeTransformationTestValues> testValues = {
@@ -227,68 +227,6 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace testValues2
 
 namespace testValues3 {
-const std::vector<ngraph::PartialShape> inputShapes4DWithDynamicChannels = {
-    { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}
-};
-
-const std::vector<TransposeTransformationTestValues> testValues = {
-    {
-        { 0, 1, 3, 2 },
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {
-                {ngraph::element::f32},
-                { {128}, ngraph::element::f32, {}, true, 1, ngraph::element::u8, true },
-                {0.1f}
-            }
-        },
-        {
-            ngraph::element::u8,
-            {{}, {}, {}},
-            ngraph::element::u8,
-            {
-                {ngraph::element::f32},
-                { {128}, ngraph::element::f32, {}, true, 1, ngraph::element::u8, true },
-                {0.1f}
-            }
-        }
-    },
-    // U8: per-channel quantization
-    {
-        { 0, 1, 3, 2 },
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {
-                { ngraph::element::f32 },
-                {{ 128, 64, 32 }, ngraph::element::f32, { 1, 3, 1, 1 }},
-                {{ 0.3f, 0.2f, 0.1f }, ngraph::element::f32, { 1, 3, 1, 1 }}
-            }
-        },
-        {
-            ngraph::element::u8,
-            {
-                { ngraph::element::f32 },
-                {{ 128, 64, 32 }, ngraph::element::f32, { 1, 3, 1, 1 }},
-                {{ 0.3f, 0.2f, 0.1f }, ngraph::element::f32, { 1, 3, 1, 1 }}
-            },
-            ngraph::element::f32,
-            {{}, {}, {}}
-        }
-    },
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    TransposeTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(inputShapes4DWithDynamicChannels),
-        ::testing::ValuesIn(testValues)),
-    TransposeTransformation::getTestCaseName);
-} // namespace testValues3
-
-namespace testValues4 {
 const std::vector<ngraph::PartialShape> inputShapesWithDynamicRank = {
     PartialShape::dynamic()
 };
@@ -325,36 +263,36 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(inputShapesWithDynamicRank),
         ::testing::ValuesIn(testValues)),
     TransposeTransformation::getTestCaseName);
-} // namespace testValues4
-namespace testValues5 {
-    const std::vector<ngraph::PartialShape> inputShapes6D = {
-        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(),
-          Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() }
-    };
+} // namespace testValues3
 
-    const std::vector<TransposeTransformationTestValues> testValues = {
+namespace testValues4 {
+const std::vector<ngraph::PartialShape> inputShapes6D = {
+    { -1, -1, -1, -1, -1, -1 }
+};
+
+const std::vector<TransposeTransformationTestValues> testValues = {
+    {
+        { 0, 1, 2, 3, 4, 5},
+        LayerTransformation::createParamsU8I8(),
         {
-            { 0, 1, 2, 3, 4, 5},
-            LayerTransformation::createParamsU8I8(),
-            {
-                ngraph::element::u8,
-                {{ngraph::element::f32}, {128}, {0.1f}}
-            },
-            {
-                ngraph::element::u8,
-                {{}, {}, {}},
-                ngraph::element::u8,
-                {{ngraph::element::f32}, {128}, {0.1f}}
-            }
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128}, {0.1f}}
         },
-    };
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128}, {0.1f}}
+        }
+    },
+};
 
-    INSTANTIATE_TEST_SUITE_P(
-        smoke_LPT,
-        TransposeTransformation,
-        ::testing::Combine(
-            ::testing::ValuesIn(inputShapes6D),
-            ::testing::ValuesIn(testValues)),
-        TransposeTransformation::getTestCaseName);
-} // namespace testValues5
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    TransposeTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(inputShapes6D),
+        ::testing::ValuesIn(testValues)),
+    TransposeTransformation::getTestCaseName);
+} // namespace testValues4
 } // namespace

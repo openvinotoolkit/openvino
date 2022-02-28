@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -475,6 +475,11 @@ public:
                                    const InferenceEngine::ParamMap& params,
                                    const Config& config = {})
         : _impl(plugin, params, config) {}
+
+    ~TypedExecutionContext() {
+        shared_surf_reg.clear();
+        shared_obj_reg.clear();
+    }
 
     InferenceEngine::ParamMap getParams() const override { return _impl.getParams(); }
     std::string getDeviceName() const noexcept override { return _impl.getDeviceName(); }
