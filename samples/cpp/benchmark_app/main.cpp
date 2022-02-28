@@ -437,6 +437,9 @@ int main(int argc, char* argv[]) {
             compiledModel = core.compile_model(FLAGS_m, device_name);
             auto duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Load network took " << double_to_string(duration_ms) << " ms" << slog::endl;
+            slog::info << "Original network I/O paramteters:" << slog::endl;
+            printInputAndOutputsInfoShort(compiledModel);
+
             if (statistics)
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
@@ -466,6 +469,9 @@ int main(int argc, char* argv[]) {
             auto model = core.read_model(FLAGS_m);
             auto duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Read network took " << double_to_string(duration_ms) << " ms" << slog::endl;
+            slog::info << "Original network I/O paramteters:" << slog::endl;
+            printInputAndOutputsInfoShort(*model);
+
             if (statistics)
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
@@ -633,6 +639,9 @@ int main(int argc, char* argv[]) {
 
             auto duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Import network took " << double_to_string(duration_ms) << " ms" << slog::endl;
+            slog::info << "Original network I/O paramteters:" << slog::endl;
+            printInputAndOutputsInfoShort(compiledModel);
+
             if (statistics)
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
