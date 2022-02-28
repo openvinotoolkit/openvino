@@ -69,7 +69,8 @@ std::map<std::string, ov::TensorVector> get_remote_input_tensors(
     const std::map<std::string, std::vector<std::string>>& inputFiles,
     const std::vector<benchmark_app::InputsInfo>& app_inputs_info,
     const ov::CompiledModel& compiledModel,
-    std::vector<BufferType>& clBuffer) {
+    std::vector<BufferType>& clBuffer,
+    size_t num_requests) {
 #ifdef HAVE_DEVICE_MEM_SUPPORT
     slog::info << "Device memory will be used for input and output blobs" << slog::endl;
     if (inputFiles.size()) {
@@ -82,43 +83,45 @@ std::map<std::string, ov::TensorVector> get_remote_input_tensors(
     auto& oclContext = static_cast<ov::intel_gpu::ocl::ClContext&>(context);
     auto oclInstance = std::make_shared<gpu::OpenCL>(oclContext.get());
 
-    for (auto& inputs_info : app_inputs_info) {
-        for (auto& input : inputs_info) {
-            // Fill random
-            slog::info << "Prepare remote blob for input '" << input.first << "' with random values ("
-                       << std::string((input.second.is_image() ? "image" : "some binary data")) << " is expected)"
-                       << slog::endl;
+    for (int i = 0; i < num_requests; i++) {
+        for (auto& inputs_info : app_inputs_info) {
+            for (auto& input : inputs_info) {
+                // Fill random
+                slog::info << "Prepare remote blob for input '" << input.first << "' with random values ("
+                           << std::string((input.second.is_image() ? "image" : "some binary data")) << " is expected)"
+                           << slog::endl;
 
-            // Creating and filling shared buffers
-            cl_int err;
-            auto elementsNum = std::accumulate(begin(input.second.dataShape),
-                                               end(input.second.dataShape),
-                                               1,
-                                               std::multiplies<size_t>());
-            auto inputSize = elementsNum * input.second.type.bitwidth() / 8;
+                // Creating and filling shared buffers
+                cl_int err;
+                auto elementsNum = std::accumulate(begin(input.second.dataShape),
+                                                   end(input.second.dataShape),
+                                                   1,
+                                                   std::multiplies<size_t>());
+                auto inputSize = elementsNum * input.second.type.bitwidth() / 8;
 
-            clBuffer.push_back(
-                cl::Buffer(oclInstance->_context, CL_MEM_READ_WRITE, (cl::size_type)inputSize, NULL, &err));
+                clBuffer.push_back(
+                    cl::Buffer(oclInstance->_context, CL_MEM_READ_WRITE, (cl::size_type)inputSize, NULL, &err));
 
-            void* mappedPtr = oclInstance->_queue.enqueueMapBuffer(clBuffer.back(),
-                                                                   CL_TRUE,
-                                                                   CL_MEM_READ_WRITE,
-                                                                   0,
-                                                                   (cl::size_type)inputSize);
+                void* mappedPtr = oclInstance->_queue.enqueueMapBuffer(clBuffer.back(),
+                                                                       CL_TRUE,
+                                                                       CL_MEM_READ_WRITE,
+                                                                       0,
+                                                                       (cl::size_type)inputSize);
 
-            auto tensor = oclContext.create_tensor(input.second.type, input.second.dataShape, clBuffer.back().get());
-            remoteTensors[input.first].push_back(tensor);
+                auto tensor =
+                    oclContext.create_tensor(input.second.type, input.second.dataShape, clBuffer.back().get());
+                remoteTensors[input.first].push_back(tensor);
 
-            if (inputFiles.empty()) {
-                // Filling in random data
-                fill_buffer(mappedPtr, elementsNum, input.second.type);
-            } else {
-                // TODO: add filling with real image data
+                if (inputFiles.empty()) {
+                    // Filling in random data
+                    fill_buffer(mappedPtr, elementsNum, input.second.type);
+                } else {
+                    // TODO: add filling with real image data
+                }
+                oclInstance->_queue.enqueueUnmapMemObject(clBuffer.back(), mappedPtr);
             }
-            oclInstance->_queue.enqueueUnmapMemObject(clBuffer.back(), mappedPtr);
         }
     }
-
     return remoteTensors;
 #else
     IE_THROW() << "Device memory requested for GPU device, but OpenCL was not linked";
