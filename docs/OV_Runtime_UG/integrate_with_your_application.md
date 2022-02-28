@@ -138,7 +138,7 @@ Compile the model for a specific device using `ov::Core::compile_model()`:
 
 @endsphinxdirective
 
-It creates a compiled model from a model object. The compiled model is associated with single hardware device.
+The code above creates a compiled model associated with a single hardware device from the model object.
 It is possible to create as many compiled models as needed and to use them simultaneously (up to the limitation of the hardware resources).
 Please read article about [Query device properties](./supported_plugins/config_properties.md) to understand how device configuration can be changed.
 
