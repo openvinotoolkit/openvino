@@ -25,106 +25,92 @@ OutputVector scan(const Node& node) {
     const auto& ng_inputs = node.get_ng_inputs();
 
     const int64_t num_scan_inputs = node.get_attribute_value<int64_t>("num_scan_inputs");
-    const std::vector<int64_t> default_values(num_scan_inputs, 0);
-    std::vector<int64_t> scan_input_axes = node.get_attribute_value<std::vector<int64_t>>("scan_input_axes", default_values);
-    std::vector<int64_t> scan_input_directions = node.get_attribute_value<std::vector<int64_t>>("scan_input_directions", default_values);
-    std::vector<int64_t> scan_output_axes = node.get_attribute_value<std::vector<int64_t>>("scan_output_axes", default_values);
-    std::vector<int64_t> scan_output_directions = node.get_attribute_value<std::vector<int64_t>>("scan_output_directions", default_values);
-
-    // N initial values N state,
-    const auto init_val_inputs_count = ng_inputs.size() - num_scan_inputs;
-
-    const OutputVector init_i{ng_inputs.begin(), ng_inputs.begin() + init_val_inputs_count}; // initial
-    const OutputVector scan_i{ng_inputs.begin() + init_val_inputs_count, ng_inputs.end()}; // x
+    std::vector<int64_t> scan_input_axes = node.get_attribute_value<std::vector<int64_t>>("scan_input_axes", {});
+    bool are_scan_input_axes_set = scan_input_axes.size() > 0;
+    std::vector<int64_t> scan_input_directions = node.get_attribute_value<std::vector<int64_t>>("scan_input_directions", {});
+    bool are_scan_input_directions_set = scan_input_directions.size() > 0;
+    std::vector<int64_t> scan_output_axes = node.get_attribute_value<std::vector<int64_t>>("scan_output_axes", {});
+    bool are_scan_output_axes_set = scan_output_axes.size() > 0;
+    std::vector<int64_t> scan_output_directions = node.get_attribute_value<std::vector<int64_t>>("scan_output_directions", {});
+    bool are_scan_output_directions_set = scan_output_directions.size() > 0;
 
     const auto& subgraphs = node.get_subgraphs();
-    auto body_graph = subgraphs.at("body"); // Add(sum_in, next)
-    auto body_outputs = body_graph->get_ng_outputs(); // (2) Add(sum_in, next) -> sum_out, Identity->scan_out
-    const auto& body_inputs = body_graph->get_ng_parameters(); // (2) (sum_in, next)
+    auto body_graph = subgraphs.at("body");
+    auto body_outputs = body_graph->get_ng_outputs();
+    auto body_inputs = body_graph->get_ng_parameters();
+    const size_t num_initial_values = body_inputs.size() - num_scan_inputs;
 
-    auto initial = ng_inputs[0];
-    auto x = ng_inputs[1];
+    for (size_t i = 0; i < body_inputs.size(); i++) {
+        body_inputs[i]->set_element_type(ng_inputs[i].get_element_type());
+        if (i < num_initial_values) {
+            body_inputs[i]->set_partial_shape(ng_inputs[i].get_partial_shape());
+            body_inputs[i]->validate_and_infer_types();
+            continue;
+        }
 
-    auto sum_in = body_inputs[0];
-    auto next = body_inputs[1];
+        auto axis_val = are_scan_input_axes_set ? scan_input_axes[i - num_initial_values] : 0;
+        auto shape = ng_inputs[i].get_partial_shape();
+        if (shape.rank().is_static()) {
+            shape[axis_val] = 1;
+        }
+        body_inputs[i]->set_partial_shape(shape);
+        body_inputs[i]->validate_and_infer_types();
 
-    auto sum_out = body_outputs[0];
-    auto scan_out = body_outputs[1];
+        auto input_consumers = body_inputs[i]->output(0).get_target_inputs();
+        auto axis = default_opset::Constant::create(element::i64, Shape{1}, {axis_val});
+        auto squeeze = std::make_shared<default_opset::Squeeze>(body_inputs[i], axis);
+        for (auto& input : input_consumers) {
+            input.replace_source_output(squeeze);
+        }
+    }
 
-    // // // Infer body inputs' element type based on carried dependencies
-    // for (size_t i = 0; i < init_i.size(); i++) { // sum_in at 0, by init
-    //     body_inputs[i]->set_element_type(init_i[i].get_element_type());
-    //     body_inputs[i]->set_partial_shape(init_i[i].get_partial_shape());
-    // }
+    for (size_t i = num_initial_values; i < body_outputs.size(); i++) {
+        auto axis_val = are_scan_output_axes_set ? scan_output_axes[i - num_initial_values] : 0;
+        auto axis = default_opset::Constant::create(element::i64, Shape{1}, {axis_val});
+        body_outputs[i] = std::make_shared<default_opset::Unsqueeze>(body_outputs[i], axis);
+    }
 
-    const int64_t concat_axis = scan_input_axes[0];
-    const auto concat_axis_const = ngraph::op::Constant::create(ngraph::element::i64, {1}, {concat_axis});
+    auto axis_val = are_scan_input_axes_set ? scan_input_axes[0] : 0;
+    auto trip_count = std::make_shared<default_opset::Gather>(
+            std::make_shared<default_opset::ShapeOf>(ng_inputs[num_initial_values]),
+            default_opset::Constant::create(element::i64, Shape{1}, {axis_val}),
+            default_opset::Constant::create(element::i64, Shape{1}, {0}));
+    auto trip_count_param = std::make_shared<default_opset::Parameter>(trip_count->get_element_type(), trip_count->get_output_partial_shape(0));
+    body_inputs.push_back(trip_count_param);
+    auto ti_body = std::make_shared<Function>(body_outputs, body_inputs);
 
-    initial = std::make_shared<default_opset::Unsqueeze>(initial, concat_axis_const);
+    auto tensor_iterator = std::make_shared<default_opset::TensorIterator>();
+    tensor_iterator->set_function(ti_body);
+    tensor_iterator->set_invariant_input(trip_count_param, trip_count);
 
-    PartialShape unqueezed_shape{sum_in->get_partial_shape()};
-    unqueezed_shape.insert(unqueezed_shape.begin() + concat_axis, 1);
-    sum_in->set_partial_shape(unqueezed_shape);
-    next->set_partial_shape(unqueezed_shape);
+    OutputVector outputs;
+    const auto& ti_body_results = ti_body->get_results();
+    for (size_t i = 0; i < num_initial_values; i++) {
+        tensor_iterator->set_merged_input(body_inputs[i], ng_inputs[i], ti_body_results[i]);
+        outputs.push_back(tensor_iterator->get_iter_value(ti_body_results[i], -1));
+    }
 
-    //  sequence_length = scan_1.shape[axis_1];
-    // auto sequence_length = scan_i[0].get_shape()[scan_input_axes[0]]; // TODO: Update to dynamic PartialShape
-    // auto sequence_length = x.get_shape()[scan_input_axes[0]]; // TODO: Update to dynamic PartialShape
-    // auto sequence_length = 3; // Test value
+    for (size_t i = num_initial_values; i < num_initial_values + num_scan_inputs; i++) {
+        auto direction = are_scan_input_directions_set ? scan_input_directions[i - num_initial_values] : 0;
+        auto axis = are_scan_input_axes_set ? scan_input_axes[i - num_initial_values] : 0;
+        if (direction == 0) {
+            tensor_iterator->set_sliced_input(body_inputs[i], ng_inputs[i], 0, 1, 1, -1, axis);
+        } else {
+            NGRAPH_CHECK(false);
+        }
+    }
 
-    // Output<ngraph::Node> trip_count = ngraph::op::Constant::create(ngraph::element::i64, {1}, {sequence_length});
-    // Output<ngraph::Node> termination_cond = ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
+    for (size_t i = num_initial_values; i < ti_body_results.size(); i++) {
+        auto direction = are_scan_output_directions_set ? scan_output_directions[i - num_initial_values] : 0;
+        auto axis = are_scan_output_axes_set ? scan_output_axes[i - num_initial_values] : 0;
+        if (direction == 0) {
+            outputs.push_back(tensor_iterator->get_concatenated_slices(ti_body_results[i], 0, 1, 1, -1, axis));
+        } else {
+            NGRAPH_CHECK(false);
+        }
+    }
 
-    // // Loop output get_concatenated_slices related
-    // const int64_t concat_axis = 0;
-    // const auto concat_axis_const = ngraph::op::Constant::create(ngraph::element::i64, {1}, {concat_axis});
-    // // add dimension along which scan outputs will be concatenated
-    // for (size_t i = 1; i < body_outputs.size(); ++i) {
-    //     body_outputs[i] = std::make_shared<default_opset::Unsqueeze>(body_outputs[i], concat_axis_const);
-    // }
-
-    // scan_out = std::make_shared<default_opset::Unsqueeze>(scan_out, concat_axis_const);
-
-    // auto body_condition = std::make_shared<default_opset::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
-    // auto current_iteration = std::make_shared<default_opset::Parameter>(element::i64, Shape{});
-
-
-    ////
-    // ParameterVector body_params{sum_in, next};
-    // body_params.emplace(body_params.begin(), current_iteration);  // current iteration body input
-    // body_outputs.emplace(body_outputs.begin(), body_condition);
-
-    // const auto body = std::make_shared<ngraph::Function>(body_outputs,
-    //                                                     body_params);
-
-
-    const auto body = std::make_shared<ngraph::Function>(OutputVector{sum_out, scan_out},
-                                                        ParameterVector{sum_in, next});
-
-
-    // auto loop = std::make_shared<default_opset::Loop>(trip_count, termination_cond);
-    // default_opset::Loop::SpecialBodyPorts spec_ports{0, 0}; // current_iter_input idx, body_condidiotn_input idx
-
-    auto loop = std::make_shared<default_opset::TensorIterator>();
-
-
-    // loop->set_special_body_ports(spec_ports);
-    loop->set_function(body);
-
-    // Back edge from body output to body input
-    loop->set_merged_input(sum_in, initial, sum_out);
-
-    // Slice of x input per iteration
-    loop->set_sliced_input(next, x, 0, 1, 1, -1, scan_input_axes[0]);
-
-    // auto y = loop->get_iter_value(sum_out, -1); // y final value
-
-    auto y = std::make_shared<default_opset::Squeeze>(loop->get_iter_value(sum_out, -1), concat_axis_const); // y final value
-    auto z = loop->get_concatenated_slices(scan_out, 0, 1, 1, -1, concat_axis);
-
-    loop->validate_and_infer_types();
-
-    return OutputVector{y, z};
+    return outputs;
 }
 
 }  // namespace set_1
