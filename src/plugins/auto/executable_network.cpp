@@ -593,7 +593,7 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
     const std::vector<std::shared_ptr<const ov::Node>>& inputs,
     const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
     auto num = _numRequestsCreated++;
-    size_t sum = 0;
+    //size_t sum = 0;
     InferenceEngine::SoIInferRequestInternal request_to_share_blobs_with;
     InferenceEngine::RemoteContext::Ptr ctx = nullptr;
 
@@ -631,7 +631,7 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
 InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                                                 InferenceEngine::OutputsDataMap networkOutputs) {
     auto num = _numRequestsCreated++;
-    size_t sum = 0;
+    //size_t sum = 0;
     InferenceEngine::SoIInferRequestInternal request_to_share_blobs_with;
     InferenceEngine::RemoteContext::Ptr ctx = nullptr;
 
