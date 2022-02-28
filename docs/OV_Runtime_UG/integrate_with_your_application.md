@@ -166,7 +166,7 @@ Create an infer request using the following code:
 
 ### Step 4. Set Inputs
 
-You can use external memory to create `ov::Tensor` and use `ov::InferRequest::set_input_tensor()` method to put this tensor on device:
+You can use external memory to create `ov::Tensor` and use the `ov::InferRequest::set_input_tensor()` method to put this tensor on the device:
 
 @sphinxdirective
 
