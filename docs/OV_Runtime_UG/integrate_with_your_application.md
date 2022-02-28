@@ -208,7 +208,7 @@ The asynchronous mode supports two methods to get the inference results:
   * `ov::InferRequest::wait_for()` - Waits until the specified timeout (in milliseconds) has elapsed or the inference result becomes available, whichever comes first.
   * `ov::InferRequest::wait()` - Waits until the inference result becomes available.
 
-Both requests are thread-safe: can be called from different threads without fearing corruption and failures.
+Both requests are thread-safe, which means they can be called from different threads without exposing erroneous behavior or producing unpredictable results.
 
 Multiple requests for single `CompiledModel` are executed sequentially one by one in FIFO order.
 
