@@ -26,10 +26,10 @@ void regclass_Tensor(py::module m) {
 
                 :param array: Array to create tensor from.
                 :type array: numpy.array
-                :param shared_memory: If `True` this Tensor memory is being shared with a host,
+                :param shared_memory: If `True`, this Tensor memory is being shared with a host,
                                       that means the responsibility of keeping host memory is
                                       on the side of a user. Any action performed on the host
-                                      memory will be reflected on this Tensor's memory!
+                                      memory is reflected on this Tensor's memory!
                                       If `False`, data is being copied to this Tensor.
                                       Requires data to be C_CONTIGUOUS if `True`.
                 :type shared_memory: bool
@@ -43,8 +43,8 @@ void regclass_Tensor(py::module m) {
             R"(
                 Another Tensor's special constructor.
 
-                It take an array or slice of it and shape that will be
-                selected starting from the first element of given array/slice. 
+                It takes an array or slice of it, and shape that will be
+                selected, starting from the first element of the given array/slice. 
                 Please use it only in advanced cases if necessary!
 
                 :param array: Underlaying methods will retrieve pointer on first element

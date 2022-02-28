@@ -64,7 +64,7 @@ The `-b` command line parameter is required because the Model Optimizer cannot c
 Refer to the [Mean and Scale Values for TensorFlow\*-Slim Models](#tf_slim_mean_scale_values) for the information why `--mean_values` and `--scale` command line parameters are used.
 
 ## Mean and Scale Values for TensorFlow\*-Slim Models <a name="tf_slim_mean_scale_values"></a>
-The TensorFlow\*-Slim Models were trained with normalized input data. There are several different normalization algorithms used in the Slim library. Inference Engine classification sample does not perform image pre-processing except resizing to the input layer size. It is necessary to pass mean and scale values to the Model Optimizer so they are embedded into the generated IR in order to get correct classification results.
+The TensorFlow\*-Slim Models were trained with normalized input data. There are several different normalization algorithms used in the Slim library. OpenVINO classification sample does not perform image pre-processing except resizing to the input layer size. It is necessary to pass mean and scale values to the Model Optimizer so they are embedded into the generated IR in order to get correct classification results.
 
 The file [preprocessing_factory.py](https://github.com/tensorflow/models/blob/master/research/slim/preprocessing/preprocessing_factory.py) contains a dictionary variable `preprocessing_fn_map` defining mapping between the model type and pre-processing function to be used. The function code should be analyzed to figure out the mean/scale values. 
 
@@ -83,7 +83,7 @@ The [inception_preprocessing.py](https://github.com/tensorflow/models/blob/maste
 
 Firstly, the `image` is converted to data type `tf.float32` and the values in the tensor are scaled to the `[0, 1]` range using the [tf.image.convert_image_dtype](https://www.tensorflow.org/api_docs/python/tf/image/convert_image_dtype) function. Then the `0.5` is subtracted from the image values and values multiplied by `2.0`. The final image range of values is `[-1, 1]`.
 
-Inference Engine classification sample reads an input image as a three-dimensional array of integer values from the range `[0, 255]`. In order to scale them to `[-1, 1]` range, the mean value `127.5` for each image channel should be specified as well as scale factor `127.5`.
+OpenVINO classification sample reads an input image as a three-dimensional array of integer values from the range `[0, 255]`. In order to scale them to `[-1, 1]` range, the mean value `127.5` for each image channel should be specified as well as scale factor `127.5`.
 
 Similarly, the mean/scale values can be determined for other Slim models.
 
