@@ -10,6 +10,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph_ops/type_relaxed.hpp>
 
 ngraph::snippets::pass::ReplaceLoadsWithScalarLoads::ReplaceLoadsWithScalarLoads() {
     MATCHER_SCOPE(ReplaceLoadsWithScalarLoads);
@@ -20,7 +21,9 @@ ngraph::snippets::pass::ReplaceLoadsWithScalarLoads::ReplaceLoadsWithScalarLoads
             auto root = m.get_match_root();
             if (transformation_callback(root))
                 return false;
-            auto load = std::make_shared<ngraph::snippets::op::ScalarLoad> (root->input_value(0));
+            auto load = root->get_input_element_type(0) == root->get_output_element_type(0) ?
+                std::make_shared<ngraph::snippets::op::ScalarLoad>(root->input_value(0)) :
+                std::make_shared<ngraph::op::TypeRelaxed<ngraph::snippets::op::ScalarLoad>>(root->input_value(0), root->get_output_element_type(0));
             load->set_friendly_name(root->get_friendly_name());
             ngraph::copy_runtime_info(root, load);
             ngraph::replace_node(root, load);

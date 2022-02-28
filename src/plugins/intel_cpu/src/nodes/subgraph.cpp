@@ -22,6 +22,8 @@
 #include <ie_ngraph_utils.hpp>
 
 #include <snippets/op/subgraph.hpp>
+#include "snippets/pass/fuse_load_and_convert.hpp"
+#include "snippets/pass/update_convert.hpp"
 #include "emitters/cpu_generator.hpp"
 
 using namespace ov::intel_cpu;
@@ -49,6 +51,8 @@ MKLDNNSnippetNode::MKLDNNSnippetNode(const std::shared_ptr<ngraph::Node>& op, co
         ngraph::copy_runtime_info(tmp_snippet, snippet);
         snippet->set_friendly_name(tmp_snippet->get_friendly_name());
         snippet->set_generator(std::make_shared<CPUGenerator>(host_isa));
+
+        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.transforming2").run_on_model(new_body);
     } else {
         IE_THROW(NotImplemented) << "Node is not an instance of snippets::op::Subgraph";
     }
@@ -478,6 +482,14 @@ void MKLDNNSnippetNode::generate() {
         std::copy(b, b + harness_num_dims, &jcp.data_offsets[(inputShapes.size() + i) * harness_num_dims]);
     }
     schedule = snippet->generate(reinterpret_cast<void*>(&jcp));
+
+    // CPU specific
+    //const auto body = snippet->get_body();
+    //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.transforming1").run_on_model(body);
+    //ngraph::pass::Manager manager;
+    //manager.register_pass<ngraph::snippets::pass::FuseLoadAndConvert>(std::vector<element::Type>{element::f32, element::u8, element::i8});
+    //manager.run_passes(body);
+    //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.transforming2").run_on_model(body);
 }
 
 void MKLDNNSnippetNode::schedule_6d(const jit_snippets_call_args& call_args) const {

@@ -526,6 +526,7 @@ TokenizeSnippets::TokenizeSnippets() {
                     << " inputs and " << subgraph->outputs().size()
                     << " outputs and " << subgraph->get_body()->get_ops().size() << " ops total\n";
 
+        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.transforming2").run_on_model(act_body);
         return true;
     };
     auto matcher = std::make_shared<ngraph::pattern::Matcher>(label);

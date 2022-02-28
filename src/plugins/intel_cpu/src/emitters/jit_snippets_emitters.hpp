@@ -527,6 +527,8 @@ public:
         const std::shared_ptr<ov::Node>& n,
         const ov::element::Type& input_type)
     : MemoryEmitter(h, isa, n), shouldPostIncrement(*n->get_input_shape(0).rbegin() != 1), input_type(input_type) {
+        this->input_type = n->input(0).get_source_output().get_element_type();
+        this->output_type = n->output(0).get_element_type();
     }
 
     size_t get_inputs_num() const override {return 0;}
@@ -555,7 +557,36 @@ private:
                                             Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
         Reg64 in_reg(ea);
         Vmm vmm_src0 = Vmm(out[0]);
-        h->uni_vmovups(vmm_src0, h->ptr[in_reg]);
+
+        if (input_type != output_type) {
+            switch (input_type) {
+                case ov::element::f32: {
+                    break;
+                }
+                case ov::element::i8: {
+                    h->uni_vpmovsxbd(vmm_src0, h->ptr[in_reg]);
+                    break;
+                }
+                case ov::element::u8: {
+                    h->uni_vpmovzxbd(vmm_src0, h->ptr[in_reg]);
+                    break;
+                }
+                default: {
+                    THROW_IE_EXCEPTION << "unexpected input precision: " << input_type;
+                }
+            }
+
+            // TODO: AVX512: use VPMOVDB directly
+
+            switch (output_type) {
+                case ov::element::f32: {
+                    h->uni_vcvtdq2ps(vmm_src0, vmm_src0);
+                    break;
+                }
+            }
+        } else {
+            h->uni_vmovups(vmm_src0, h->ptr[in_reg]);
+        }
 
         if (shouldPostIncrement) {
             const auto vlen = mkldnn::impl::cpu::x64::cpu_isa_traits<isa>::vlen / (ov::element::f32.bitwidth() / input_type.bitwidth());
@@ -565,7 +596,8 @@ private:
 
 private:
     bool shouldPostIncrement;
-    const ov::element::Type input_type;
+    ov::element::Type input_type;
+    ov::element::Type output_type;
 };
 
 class BroadcastLoadEmitter : public MemoryEmitter {

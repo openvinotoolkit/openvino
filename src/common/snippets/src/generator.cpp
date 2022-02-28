@@ -60,10 +60,14 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
 
     // scalar tile
     auto m_scalar = ov::clone_model(*m.get());
+
+    //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.transforming1").run_on_model(m_scalar);
     ngraph::pass::Manager mng;
     mng.register_pass<ngraph::snippets::pass::ReplaceLoadsWithScalarLoads>();
     mng.register_pass<ngraph::snippets::pass::ReplaceStoresWithScalarStores>();
     mng.run_passes(m_scalar);
+    //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.transforming2").run_on_model(m_scalar);
+
     OV_ITT_TASK_NEXT(GENERATE, "::ScalarTile_get")
     std::vector<std::pair<std::shared_ptr<Emitter>, RegInfo>> scalar_lowered;
     for (auto n : m_scalar->get_ordered_ops()) {

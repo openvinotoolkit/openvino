@@ -21,6 +21,10 @@
 #include <memory>
 #include <array>
 
+#include <ngraph\pass\visualize_tree.hpp>
+
+#include "snippets/pass/fuse_load_and_convert.hpp"
+
 using namespace std;
 using namespace ngraph;
 
@@ -30,6 +34,8 @@ void snippets::op::Subgraph::set_generator(std::shared_ptr<ngraph::snippets::Gen
 
 snippets::op::Subgraph::Subgraph(const OutputVector& args, std::shared_ptr<ov::Model> body)
     : Op(args), m_body(body), m_generator(nullptr) {
+    ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.transforming2").run_on_model(m_body);
+
     constructor_validate_and_infer_types();
 }
 
@@ -239,6 +245,15 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
         set_callback<ngraph::snippets::pass::ReplaceStoresWithScalarStores>(skip_matching_domain);
     }
     manager.run_passes(m_body);
+
+    {
+        // CPU specific
+        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.transforming1").run_on_model(m_body);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::snippets::pass::FuseLoadAndConvert>(std::vector<element::Type>{element::f32, element::u8, element::i8});
+        manager.run_passes(m_body);
+        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.transforming2").run_on_model(m_body);
+    }
 }
 
 snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& output_shapes,
