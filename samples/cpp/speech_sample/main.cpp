@@ -562,7 +562,9 @@ int main(int argc, char* argv[]) {
                                                    "but in fact we were not able to cast input to Tensor");
                             throw std::logic_error(errMessage);
                         }
-                        memcpy(minput.data<float>(), inputFrame[i], minput.get_byte_size());
+                        memcpy(minput.data(),
+                               inputFrame[i],
+                               numFramesThisBatch * numFrameElementsInput[i] * sizeof(float));
                         // Used to infer fewer frames than the batch size
                         if (batchSize != numFramesThisBatch) {
                             memset(minput.data<float>() + numFramesThisBatch * numFrameElementsInput[i],
