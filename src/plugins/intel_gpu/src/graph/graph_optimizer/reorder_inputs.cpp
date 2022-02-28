@@ -359,8 +359,7 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
             auto reorders_cnt = count_reorders(fmt_map, lo, node);
 
             if (reorders_cnt.number < best_reorder_cnt.number ||
-                (reorders_cnt.number == best_reorder_cnt.number && reorders_cnt.total_sizes < best_reorder_cnt.total_sizes) ||
-                (reorders_cnt.number == best_reorder_cnt.number && reorders_cnt.total_sizes == best_reorder_cnt.total_sizes)) {
+                (reorders_cnt.number == best_reorder_cnt.number && reorders_cnt.total_sizes <= best_reorder_cnt.total_sizes)) {
                 best_reorder_cnt = reorders_cnt;
                 best_format = new_fmt;
             }
