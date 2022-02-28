@@ -617,14 +617,14 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
 
     // borrowing device-specific blobs from the underlying requests for the device-agnostic, user-facing requests
     // this allows to potentially save on the data-copy later (if the requests are scheduled in the same order)
-    for (const auto& device : _devicePrioritiesInitial) {
+    /*for (const auto& device : _devicePrioritiesInitial) {
         auto& dev_requests = _workerRequests[device.deviceName];
         if ((num - sum) < dev_requests.size()) {
             request_to_share_blobs_with = dev_requests.at(num - sum)._inferRequest;
             break;
         }
         sum += dev_requests.size();
-    }
+    }*/
     return std::make_shared<MultiDeviceInferRequest>(inputs, outputs, request_to_share_blobs_with);
 }
 
@@ -654,14 +654,14 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
 
     // borrowing device-specific blobs from the underlying requests for the device-agnostic, user-facing requests
     // this allows to potentially save on the data-copy later (if the requests are scheduled in the same order)
-    for (const auto& device : _devicePrioritiesInitial) {
+    /*for (const auto& device : _devicePrioritiesInitial) {
         auto& dev_requests = _workerRequests[device.deviceName];
         if ((num - sum) < dev_requests.size()) {
             request_to_share_blobs_with = dev_requests.at(num - sum)._inferRequest;
             break;
         }
         sum += dev_requests.size();
-    }
+    }*/
     return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with);
 }
 
