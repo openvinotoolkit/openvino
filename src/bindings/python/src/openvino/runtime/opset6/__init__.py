@@ -76,7 +76,7 @@ from openvino.runtime.opset5.ops import log_softmax
 from openvino.runtime.opset5.ops import loop
 from openvino.runtime.opset1.ops import lrn
 from openvino.runtime.opset4.ops import lstm_cell
-from openvino.runtime.opset1.ops import lstm_sequence
+from openvino.runtime.opset5.ops import lstm_sequence
 from openvino.runtime.opset1.ops import matmul
 from openvino.runtime.opset1.ops import max_pool
 from openvino.runtime.opset1.ops import maximum

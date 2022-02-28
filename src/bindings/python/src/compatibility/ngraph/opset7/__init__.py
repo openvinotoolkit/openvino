@@ -79,7 +79,7 @@ from ngraph.opset5.ops import log_softmax
 from ngraph.opset5.ops import loop
 from ngraph.opset1.ops import lrn
 from ngraph.opset4.ops import lstm_cell
-from ngraph.opset1.ops import lstm_sequence
+from ngraph.opset5.ops import lstm_sequence
 from ngraph.opset1.ops import matmul
 from ngraph.opset1.ops import max_pool
 from ngraph.opset1.ops import maximum
