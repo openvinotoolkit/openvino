@@ -10,19 +10,22 @@
 #include <vector>
 
 #include "decoder_proto.hpp"
+#include "default_opset.hpp"
 #include "framework.pb.h"
 #include "input_model.hpp"
+#include "internal/pass/transform_if.hpp"
+#include "internal/pass/transform_tensorarray.hpp"
+#include "internal/pass/transform_while.hpp"
 #include "op_table.hpp"
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
-#include "openvino/opsets/opset7.hpp"
 #include "openvino/util/common_util.hpp"
 #include "paddle_fw_node.hpp"
 #include "paddle_utils.hpp"
 #include "place.hpp"
 #include "so_extension.hpp"
 
-using namespace ov::opset7;
+using namespace ov::frontend::paddle::op::default_opset;
 using namespace ov;
 using namespace ov::frontend;
 
@@ -55,7 +58,7 @@ NamedOutputs make_ng_node(const std::map<paddle::TensorName, Output<Node>>& node
     NamedOutputs outputs;
     // In case the conversion function throws exception
     try {
-        outputs = creator_it->second(NodeContext(DecoderProto(op_place), named_inputs));
+        outputs = creator_it->second(paddle::NodeContext(DecoderProto(op_place), named_inputs));
     } catch (std::exception& ex) {
         FRONT_END_OP_CONVERSION_CHECK(false, "Fail to convert " + op_desc.type() + " Exception " + ex.what());
     }
@@ -96,7 +99,7 @@ bool normalize_framework_node(const std::shared_ptr<FrameworkNode>& node,
     auto creator_it = CREATORS_MAP.find(type);
     FRONT_END_OP_CONVERSION_CHECK(creator_it != CREATORS_MAP.end(), "No creator found for ", type, " node.");
 
-    auto new_node_outputs = creator_it->second(NodeContext(node->get_decoder(), node->get_named_inputs()));
+    auto new_node_outputs = creator_it->second(paddle::NodeContext(node->get_decoder(), node->get_named_inputs()));
     auto new_node = new_node_outputs.begin()->second[0].get_node_shared_ptr();
     new_node->set_friendly_name(node->get_friendly_name());
     auto node_outputs = node->return_named_outputs();
@@ -137,8 +140,90 @@ std::istream* variant_to_stream_ptr(const ov::Any& variant, std::ifstream& ext_s
 
 FrontEnd::FrontEnd() : m_op_translators(paddle::get_supported_ops()) {}
 
-std::shared_ptr<ov::Model> FrontEnd::convert_each_node(
+std::vector<std::shared_ptr<ov::Model>> FrontEnd::convert_each_node(
     const std::shared_ptr<ov::frontend::InputModel>& frontend_model,
+    std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
+                                                      const std::shared_ptr<OpPlace>&)> func) {
+    auto model = std::dynamic_pointer_cast<InputModel>(frontend_model);
+    FRONT_END_GENERAL_CHECK(model, "Invalid input model");
+    std::vector<std::shared_ptr<TensorPlace>> input_tensors;
+    std::vector<std::shared_ptr<TensorPlace>> output_tensors;
+    for (const auto& _inp_place : model->get_inputs()) {
+        const auto& inp_place = std::dynamic_pointer_cast<TensorPlace>(_inp_place);
+        input_tensors.emplace_back(inp_place);
+    }
+    for (const auto& _outp_place : model->get_outputs()) {
+        const auto& outp_place = std::dynamic_pointer_cast<TensorPlace>(_outp_place);
+        output_tensors.emplace_back(outp_place);
+    }
+    auto funcs = convert_each_node_recursive(model, 0, input_tensors, output_tensors, func);
+    std::vector<std::shared_ptr<Model>> funcs_vec;
+    for (auto&& item : funcs) {
+        funcs_vec.emplace_back(item.second);
+    }
+
+    return funcs_vec;
+}
+
+// Paddle's subblock does not has 'feed' and 'fetch' and the sub-model's parameters and results
+//  could not be generated just like the main model. We extract the information from 'conditional_block'
+//  and 'while' ops
+using SubblockInfo = std::map<
+    int32_t,
+    std::tuple<std::string, std::vector<std::shared_ptr<TensorPlace>>, std::vector<std::shared_ptr<TensorPlace>>>>;
+void try_update_sublock_info(const std::shared_ptr<OpPlace>& op_place, SubblockInfo& subblock_info) {
+    const auto& op_desc = op_place->get_desc();
+    if (op_desc.type() == "conditional_block") {
+        std::vector<std::shared_ptr<TensorPlace>> outp_tensors;
+        std::vector<std::shared_ptr<TensorPlace>> inp_tensors;
+
+        auto outp_ports = op_place->get_output_ports();
+        for (auto outp_port : outp_ports["Out"]) {
+            auto outp_tensor = outp_port->get_target_tensor_paddle();
+            outp_tensors.push_back(outp_tensor);
+        }
+        FRONT_END_GENERAL_CHECK(outp_tensors.size() > 0, "Port has no tensors connected.");
+
+        auto inp_ports = op_place->get_input_ports();
+        for (auto inp_port : inp_ports["Input"]) {
+            auto inp_tensor = inp_port->get_source_tensor_paddle();
+            inp_tensors.push_back(inp_tensor);
+        }
+
+        auto tmp_node = paddle::NodeContext(DecoderProto(op_place), paddle::NamedInputs());
+        auto block_idx = tmp_node.get_attribute<int32_t>("sub_block");
+
+        subblock_info[block_idx] = std::make_tuple(op_desc.type(), inp_tensors, outp_tensors);
+    } else if (op_desc.type() == "while") {
+        std::vector<std::shared_ptr<TensorPlace>> outp_tensors;
+        std::vector<std::shared_ptr<TensorPlace>> inp_tensors;
+
+        auto outp_ports = op_place->get_output_ports();
+        for (auto outp_port : outp_ports["Out"]) {
+            auto outp_tensor = outp_port->get_target_tensor_paddle();
+            outp_tensors.push_back(outp_tensor);
+        }
+        FRONT_END_GENERAL_CHECK(outp_tensors.size() > 0, "Port has no tensors connected.");
+
+        auto inp_ports = op_place->get_input_ports();
+        for (auto inp_port : inp_ports["X"]) {
+            auto inp_tensor = inp_port->get_source_tensor_paddle();
+            inp_tensors.push_back(inp_tensor);
+        }
+        FRONT_END_GENERAL_CHECK(inp_tensors.size() > 0, "Port has no tensors connected.");
+
+        auto tmp_node = paddle::NodeContext(DecoderProto(op_place), paddle::NamedInputs());
+        auto block_idx = tmp_node.get_attribute<int32_t>("sub_block");
+
+        subblock_info[block_idx] = std::make_tuple(op_desc.type(), inp_tensors, outp_tensors);
+    }
+}
+
+std::map<int32_t, std::shared_ptr<ov::Model>> FrontEnd::convert_each_node_recursive(
+    const std::shared_ptr<ov::frontend::InputModel>& frontend_model,
+    const int32_t block_idx,
+    const std::vector<std::shared_ptr<TensorPlace>>& input_tensors,
+    const std::vector<std::shared_ptr<TensorPlace>>& output_tensors,
     std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
                                                       const std::shared_ptr<OpPlace>&)> func) {
     auto model = std::dynamic_pointer_cast<InputModel>(frontend_model);
@@ -146,8 +231,11 @@ std::shared_ptr<ov::Model> FrontEnd::convert_each_node(
     auto nodes_dict(model->get_tensor_values());
     ParameterVector parameter_nodes;
     ResultVector result_nodes;
+    OutputVector output_nodes;
 
-    for (const auto& _inp_place : model->get_inputs()) {
+    SubblockInfo subblock_inputs_outputs;  // keep info of controlflow ops
+
+    for (const auto& _inp_place : input_tensors) {
         const auto& inp_place = std::dynamic_pointer_cast<TensorPlace>(_inp_place);
         const auto& var = inp_place->get_desc();
         const auto& shape = inp_place->get_partial_shape();
@@ -159,13 +247,15 @@ std::shared_ptr<ov::Model> FrontEnd::convert_each_node(
         parameter_nodes.push_back(param);
     }
 
-    const auto& op_places = model->get_op_places();
+    const auto& op_places = model->get_op_places(block_idx);
     for (const auto& op_place : op_places) {
         const auto& op_desc = op_place->get_desc();
         if (op_desc.type() == "feed" || op_desc.type() == "fetch") {
             // inputs and outputs are stored in the model already
             continue;
         } else {
+            try_update_sublock_info(op_place, subblock_inputs_outputs);
+
             paddle::NamedOutputs named_outputs = func(nodes_dict, op_place);
 
             if (!named_outputs.empty()) {
@@ -188,8 +278,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert_each_node(
                             ng_outputs[idx].get_tensor().set_names({var_name});
                             // if nodes_dict already has node mapped to this tensor name it
                             // usually means that it was overwritten using setTensorValue
-                            if (!nodes_dict.count(var_name))
-                                nodes_dict[var_name] = ng_outputs[idx];
+                            nodes_dict[var_name] = ng_outputs[idx];
                         }
                     }
                 }
@@ -197,16 +286,46 @@ std::shared_ptr<ov::Model> FrontEnd::convert_each_node(
         }
     }
 
-    for (const auto& _outp_place : model->get_outputs()) {
+    for (const auto& _outp_place : output_tensors) {
         const auto& outp_place = std::dynamic_pointer_cast<TensorPlace>(_outp_place);
         auto var = outp_place->get_desc();
         auto input_var_name = var.name();
         auto result = std::make_shared<Result>(nodes_dict.at(input_var_name));
         result->set_friendly_name(input_var_name + "/Result");
         result_nodes.push_back(result);
+        output_nodes.push_back(nodes_dict.at(input_var_name));
     }
 
-    return std::make_shared<ov::Model>(result_nodes, parameter_nodes);
+    std::shared_ptr<ov::Model> main_block_func;
+    if (parameter_nodes.size() > 0) {
+        main_block_func = std::make_shared<ov::Model>(result_nodes, parameter_nodes);
+    } else {
+        main_block_func = std::make_shared<ov::Model>(output_nodes);
+    }
+
+    // convert each sub block
+    std::map<int32_t, std::shared_ptr<ov::Model>> block_funcs;
+    block_funcs.insert({block_idx, main_block_func});
+
+    for (auto& item : subblock_inputs_outputs) {
+        auto ctl_op_info = item.second;
+        auto sub_block_func =
+            convert_each_node_recursive(model, item.first, std::get<1>(ctl_op_info), std::get<2>(ctl_op_info), func);
+        block_funcs.insert(sub_block_func.begin(), sub_block_func.end());
+    }
+
+    return block_funcs;
+}
+
+void FrontEnd::try_remove_internal_ops(const std::vector<std::shared_ptr<Model>>& models) const {
+    for (auto& model : models) {
+        ov::pass::Manager manager;
+        manager.register_pass<ov::frontend::paddle::pass::TransformEliminateConvert>();
+        manager.register_pass<ov::frontend::paddle::pass::TransformTensorArray>(models);
+        manager.register_pass<ov::frontend::paddle::pass::TransformIf>(models);
+        manager.register_pass<ov::frontend::paddle::pass::TransformWhile>(models);
+        manager.run_passes(model);
+    }
 }
 
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
@@ -288,7 +407,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const
     if (!m_transformation_extensions.empty()) {
         auto function = decode(model);
 
-        pass::Manager manager;
+        ov::pass::Manager manager;
         for (const auto& transformation : m_transformation_extensions) {
             transformation->register_pass(manager);
         }
@@ -302,7 +421,9 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const
         [&](const std::map<std::string, Output<Node>>& nodes_dict, const std::shared_ptr<OpPlace>& op_place) {
             return paddle::make_ng_node(nodes_dict, op_place, m_op_translators);
         });
-    return f;
+
+    try_remove_internal_ops(f);
+    return ngraph::clone_function(*f[0]);
 }
 
 void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) const {
@@ -314,6 +435,8 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
     for (const auto& result : partiallyConverted->get_results()) {
         result->validate_and_infer_types();
     }
+
+    try_remove_internal_ops({partiallyConverted});
 }
 
 std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& model) const {
@@ -323,7 +446,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& mo
     if (!m_transformation_extensions.empty()) {
         auto function = decode(model);
 
-        pass::Manager manager;
+        ov::pass::Manager manager;
         for (const auto& transformation : m_transformation_extensions) {
             transformation->register_pass(manager);
         }
@@ -343,7 +466,10 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& mo
             }
             return named_outputs;
         });
-    return f;
+
+    try_remove_internal_ops(f);
+
+    return ngraph::clone_function(*f[0]);
 }
 
 std::shared_ptr<ov::Model> FrontEnd::decode(const InputModel::Ptr& model) const {
@@ -351,7 +477,8 @@ std::shared_ptr<ov::Model> FrontEnd::decode(const InputModel::Ptr& model) const 
     FRONT_END_GENERAL_CHECK(paddle_model != nullptr, "Invalid input model");
 
     auto f = convert_each_node(paddle_model, paddle::make_framework_node);
-    return f;
+    FRONT_END_GENERAL_CHECK(f.size() == 1, "Input model has subblocks, currently 'decode' could not support it");
+    return f[0];
 }
 
 std::string FrontEnd::get_name() const {

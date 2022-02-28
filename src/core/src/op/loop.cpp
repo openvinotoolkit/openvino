@@ -191,6 +191,13 @@ void op::v5::Loop::validate_and_infer_types() {
     // Body
     m_bodies[0]->validate_nodes_and_infer_types();
 
+    // Port map processing: output -> input
+    std::map<uint64_t, uint64_t> back_edges;
+    for (const auto& desc : m_input_descriptions[0]) {
+        if (const auto& merged_desc = std::dynamic_pointer_cast<opset5::Loop::MergedInputDescription>(desc)) {
+            back_edges[merged_desc->m_body_value_index] = merged_desc->m_body_parameter_index;
+        }
+    }
     // Output
     for (const auto& output_description : m_output_descriptions[0]) {
         auto index = output_description->m_output_index;
@@ -225,11 +232,38 @@ void op::v5::Loop::validate_and_infer_types() {
             if (ps.is_dynamic()) {
                 set_output_type(index, body_value.get_element_type(), ps);
             } else {
-                auto shape = ps.get_shape();
-                if (zero_number_of_iter) {
-                    shape.at(0) = 0;
+                if (back_edges.count(output_description->m_body_value_index)) {
+                    auto back_param =
+                        m_bodies[0]->get_parameters().at(back_edges[output_description->m_body_value_index]);
+                    const auto& param_partial_shape = back_param->get_partial_shape();
+                    if (param_partial_shape != ps) {
+                        NODE_VALIDATION_CHECK(this,
+                                              ps.rank().get_length() == param_partial_shape.rank().get_length(),
+                                              "Back edge input and output rank should be same");
+                        ov::PartialShape new_ps(ps);
+                        for (auto i = 0; i < ps.size(); i++) {
+                            if (ps[i] != param_partial_shape[i]) {
+                                new_ps[i] = Dimension::dynamic();
+                            }
+                        }
+                        set_output_type(index, body_value.get_element_type(), new_ps);
+                        // also reset sub model input shape
+                        back_param->set_partial_shape(new_ps);
+                        m_bodies[0]->validate_nodes_and_infer_types();
+                    } else {
+                        auto shape = ps.get_shape();
+                        if (zero_number_of_iter) {
+                            shape.at(0) = 0;
+                        }
+                        set_output_type(index, body_value.get_element_type(), shape);
+                    }
+                } else {
+                    auto shape = ps.get_shape();
+                    if (zero_number_of_iter) {
+                        shape.at(0) = 0;
+                    }
+                    set_output_type(index, body_value.get_element_type(), shape);
                 }
-                set_output_type(index, body_value.get_element_type(), shape);
             }
         }
     }

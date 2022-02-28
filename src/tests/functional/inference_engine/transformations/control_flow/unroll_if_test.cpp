@@ -113,3 +113,47 @@ TEST(TransformationTests, UnrollIfCondIsFalse) {
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
+
+TEST(TransformationTests, UnrollIfCondIsTrueMultiOutput) {
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 3 });
+        auto X = std::make_shared<ngraph::opset6::VariadicSplit>(data, ngraph::opset6::Constant::create(ngraph::element::i32, {1}, {0}),
+            ngraph::opset6::Constant::create(ngraph::element::i32, {2}, {1, 2}));
+        auto cond = std::make_shared<ngraph::opset1::Constant>(ngraph::element::boolean, ngraph::Shape{ 1 }, true);
+        auto if_op = std::make_shared<ngraph::opset8::If>(cond);
+        auto Xt = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 2 });
+        auto then_op_result = std::make_shared<ngraph::opset1::Result>(Xt);
+        auto then_body = std::make_shared<ngraph::Function>(ngraph::OutputVector{ then_op_result }, ngraph::ParameterVector{ Xt });
+
+        auto Xe = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 2 });
+        auto else_op_result = std::make_shared<ngraph::opset1::Result>(Xe);
+        auto else_body = std::make_shared<ngraph::Function>(ngraph::OutputVector{ else_op_result }, ngraph::ParameterVector{ Xe });
+
+        if_op->set_then_body(then_body);
+        if_op->set_else_body(else_body);
+        if_op->set_input(X->output(1), Xt, Xe);
+        if_op->set_output(then_op_result, else_op_result);
+        auto if_result = std::make_shared<ngraph::opset1::Result>(if_op);
+
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ if_result }, ngraph::ParameterVector{ data });
+
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::UnrollIf>();
+        manager.run_passes(f);
+
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    {
+        auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 3 });
+        auto X = std::make_shared<ngraph::opset6::VariadicSplit>(data, ngraph::opset6::Constant::create(ngraph::element::i32, {1}, {0}),
+            ngraph::opset6::Constant::create(ngraph::element::i32, {2}, {1, 2}));
+        auto if_result = std::make_shared<ngraph::opset1::Result>(X->output(1));
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ if_result }, ngraph::ParameterVector{ data });
+    }
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}

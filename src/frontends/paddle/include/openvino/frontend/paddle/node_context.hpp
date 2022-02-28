@@ -48,6 +48,16 @@ public:
         return name_map.at(name);
     }
 
+    /// Returns all inputs in order they appear in map. This is used for FrameworkNode
+    /// creation
+    OutputVector get_all_ng_inputs() const {
+        OutputVector res;
+        for (const auto& entry : name_map) {
+            res.insert(res.end(), entry.second.begin(), entry.second.end());
+        }
+        return res;
+    }
+
     Output<Node> get_input(const std::string& name, int idx) const override {
         return name_map.at(name).at(idx);
     }
@@ -60,6 +70,18 @@ public:
         return decoder.get_output_names();
     }
 
+    std::vector<TensorName> get_output_var_names(const std::string& var_name) const {
+        return decoder.get_output_var_names(var_name);
+    }
+
+    std::vector<TensorName> get_input_var_names(const std::string& var_name) const {
+        return decoder.get_input_var_names(var_name);
+    }
+
+    bool is_tensorarray(const TensorName& tensor, bool inport = true) const {
+        return decoder.is_tensorarray(tensor, inport);
+    }
+
     ov::element::Type get_out_port_type(const std::string& port_name) const {
         return decoder.get_out_port_type(port_name);
     }
@@ -70,6 +92,15 @@ public:
     ov::Any get_attribute_as_any(const std::string& name) const override {
         auto res = decoder.get_attribute(name);
         return res;
+    }
+
+    size_t get_output_size(const std::string& port_name) const {
+        return decoder.get_output_size(port_name);
+    }
+
+    std::vector<std::pair<ov::element::Type, ov::PartialShape>> get_output_port_infos(
+        const std::string& port_name) const {
+        return decoder.get_output_port_infos(port_name);
     }
 
 private:

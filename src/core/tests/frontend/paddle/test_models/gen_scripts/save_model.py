@@ -63,17 +63,22 @@ def saveModel(name, exe, feedkeys:list, fetchlist:list, inputs:list, outputs:lis
 export dyn model, along with input and output for reference.
 input_data: list of all inputs
 '''
-def exportModel(name, dyn_func, input_data:list, target_dir:str):
+def exportModel(name, dyn_func, input_data:list, target_dir:str, dyn_shapes:list=[]):
     model_dir = os.path.join(target_dir, name)
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
     save_path = '{}/{}'.format(model_dir, name)
 
+    if len(dyn_shapes)>0:
+        assert(len(dyn_shapes) == len(input_data))
+
     input_specs = []
     for idx, data in enumerate(input_data):
         input_name = 'input{}'.format(idx)
+        input_shape = dyn_shapes[idx] if len(dyn_shapes)>0 and dyn_shapes[idx] is not None else data.shape
+
         input_specs.append(
-            paddle.static.InputSpec(shape=data.shape, dtype=data.dtype, name=input_name)
+            paddle.static.InputSpec(shape=input_shape, dtype=data.dtype, name=input_name)
         )
 
         # dump input
@@ -93,6 +98,8 @@ def exportModel(name, dyn_func, input_data:list, target_dir:str):
             np.save(os.path.join(model_dir, "output{}".format(idx)), out.numpy())
     else:       
         np.save(os.path.join(model_dir, "output{}".format(0)), result.numpy())
+    
+    return result
 
 
 if __name__ == "__main__":

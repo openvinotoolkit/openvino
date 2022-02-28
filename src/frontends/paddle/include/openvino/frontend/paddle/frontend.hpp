@@ -19,6 +19,7 @@ namespace frontend {
 namespace paddle {
 
 class OpPlace;
+class TensorPlace;
 
 class PADDLE_API FrontEnd : public ov::frontend::FrontEnd {
 public:
@@ -72,11 +73,19 @@ protected:
     InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override;
 
 protected:
-    static std::shared_ptr<Model> convert_each_node(
+    void try_remove_internal_ops(const std::vector<std::shared_ptr<Model>>& models) const;
+
+    static std::vector<std::shared_ptr<Model>> convert_each_node(
         const std::shared_ptr<InputModel>& frontend_model,
         std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
                                                           const std::shared_ptr<OpPlace>&)> func);
-
+    static std::map<int32_t, std::shared_ptr<Model>> convert_each_node_recursive(
+        const std::shared_ptr<InputModel>& frontend_model,
+        const int32_t block_idx,
+        const std::vector<std::shared_ptr<TensorPlace>>& input_tensors,
+        const std::vector<std::shared_ptr<TensorPlace>>& output_tensors,
+        std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
+                                                          const std::shared_ptr<OpPlace>&)> func);
     // m_extensions should be the first member here,
     // m_extensions can contain SO Extension (holder for other Extensions),
     // so it should be released last.

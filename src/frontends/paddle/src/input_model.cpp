@@ -48,7 +48,8 @@ public:
     void setElementType(Place::Ptr place, const ov::element::Type&);
     void setTensorValue(Place::Ptr place, const void* value);
 
-    std::vector<std::shared_ptr<OpPlace>> get_op_places() const;
+    int32_t get_block_count() const;
+    std::vector<std::shared_ptr<OpPlace>> get_op_places(const int32_t blck_idx) const;
     std::map<std::string, std::shared_ptr<TensorPlace>> get_var_places() const {
         return m_var_places;
     }
@@ -60,9 +61,10 @@ private:
     void loadPlaces();
     template <typename T>
     void loadConsts(const std::basic_string<T>& folder_with_weights, std::istream* weight_stream);
+    void createTempConsts();
     std::vector<std::shared_ptr<OpPlace>> determine_cut_nodes() const;
 
-    std::vector<std::shared_ptr<OpPlace>> m_op_places;
+    std::vector<std::vector<std::shared_ptr<OpPlace>>> m_op_places;
     std::map<std::string, std::shared_ptr<TensorPlace>> m_var_places;
     std::shared_ptr<ProgramDesc> m_fw_ptr;
     const InputModel& m_input_model;
@@ -76,10 +78,16 @@ private:
     bool m_graph_changed = false;
 };
 
+int32_t InputModel::InputModelImpl::get_block_count() const {
+    return m_fw_ptr->blocks_size();
+}
+
 void InputModel::InputModelImpl::loadPlaces() {
     const int cnt_of_blocks = m_fw_ptr->blocks_size();
     const auto& blocks = m_fw_ptr->blocks();
     std::map<std::string, uint64_t> op_statistics;
+
+    m_op_places.resize(cnt_of_blocks);
 
     for (int block_idx = 0; block_idx < cnt_of_blocks; block_idx++) {
         const auto& block = blocks[block_idx];
@@ -95,7 +103,7 @@ void InputModel::InputModelImpl::loadPlaces() {
                 op_statistics[op.type()]++;
             }
 
-            m_op_places.push_back(op_place);
+            m_op_places[block_idx].push_back(op_place);
 
             for (const auto& output : op.outputs()) {
                 for (const auto& var_name : output.arguments()) {
@@ -215,18 +223,20 @@ std::basic_string<wchar_t> get_model_path(const std::basic_string<wchar_t>& path
 #endif
 }  // namespace
 
-std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelImpl::get_op_places() const {
+std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelImpl::get_op_places(const int32_t blck_idx) const {
     if (m_graph_changed) {
         return determine_cut_nodes();
     }
-    return m_op_places;
+    if (static_cast<size_t>(blck_idx) < m_op_places.size())
+        return m_op_places[blck_idx];
+    return {};
 }
 
 std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelImpl::determine_cut_nodes() const {
     std::queue<OpPlace*> q;
     std::unordered_set<OpPlace*> visited;
     std::vector<std::shared_ptr<OpPlace>> new_op_places;
-    new_op_places.reserve(m_op_places.size());
+    new_op_places.reserve(m_op_places[0].size());
     // Marking nodes from outputs to inputs/constants
     for (const auto& output : getOutputs()) {
         if (!output->is_input()) {
@@ -327,6 +337,53 @@ InputModel::InputModelImpl::InputModelImpl(const std::basic_string<T>& path,
     } else {
         loadConsts(path, nullptr);
     }
+    createTempConsts();
+}
+
+void InputModel::InputModelImpl::createTempConsts() {
+    for (const auto& item : m_var_places) {
+        const auto& var_place = item.second;
+        const auto& var_desc = var_place->get_desc();
+        const auto& name = item.first;
+        if (var_desc.persistable())
+            continue;
+
+        // The node with tensorarray as its input may be created before the node with this tensorarray
+        // as its output. e.g. the tensorarray is both the input and output of the same node.
+        // So we have to create a fake empty node here.
+        // Problem is, we have no idea which axis should be 0.
+        // Since the models (faster/mask rcnn) are either concating tensors in tensorarray along the dynamic
+        // dimension, or concating static shape tensors. So we make the dynamic dimension to be 0. In case of static
+        // shape, we simply the the first dimension be 0.
+        if (var_desc.type().has_tensor_array()) {
+            const auto& tensor = var_desc.type().tensor_array().tensor();
+            const auto& type = TYPE_MAP[tensor.data_type()];
+
+            PartialShape tensor_ps(std::vector<Dimension>(tensor.dims().cbegin(), tensor.dims().cend()));
+            tensor_ps.insert(tensor_ps.begin(), 1);  // unsqueeze
+            // also update the place for following initialize the graph connection
+            var_place->set_element_type(type);
+            var_place->set_partial_shape(tensor_ps);
+
+            Shape shape(tensor_ps.size());
+            for (auto i = 0; i < tensor_ps.size(); i++) {
+                const auto& dim = tensor_ps[i];
+                if (dim.is_static()) {
+                    shape[i] = dim.get_length();
+                }
+            }
+
+            if (tensor_ps.is_static()) {
+                shape[1] = 0;
+            }
+
+            auto node = opset7::Constant::create(type, shape, {0});
+            node->set_friendly_name(name);
+            node->output(0).get_tensor().add_names({name});
+
+            m_tensor_values[name] = node;
+        }
+    }
 }
 
 InputModel::InputModelImpl::InputModelImpl(const std::vector<std::istream*>& streams,
@@ -347,6 +404,7 @@ InputModel::InputModelImpl::InputModelImpl(const std::vector<std::istream*>& str
     loadPlaces();
     if (streams.size() > 1)
         loadConsts(std::string(), streams[1]);
+    createTempConsts();
 }
 
 std::vector<Place::Ptr> InputModel::InputModelImpl::getInputs() const {
@@ -438,8 +496,12 @@ InputModel::InputModel(const std::wstring& path, const std::shared_ptr<Telemetry
 InputModel::InputModel(const std::vector<std::istream*>& streams, const std::shared_ptr<TelemetryExtension>& telemetry)
     : _impl{std::make_shared<InputModelImpl>(streams, *this, telemetry)} {}
 
-std::vector<std::shared_ptr<OpPlace>> InputModel::get_op_places() const {
-    return _impl->get_op_places();
+int32_t InputModel::get_block_count() const {
+    return _impl->get_block_count();
+}
+
+std::vector<std::shared_ptr<OpPlace>> InputModel::get_op_places(const int32_t blck_idx) const {
+    return _impl->get_op_places(blck_idx);
 }
 
 std::map<std::string, std::shared_ptr<TensorPlace>> InputModel::get_var_places() const {

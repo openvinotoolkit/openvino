@@ -16,12 +16,18 @@
 
 
 NGRAPH_RTTI_DEFINITION(ov::pass::RemoveConcatZeroDimInput, "RemoveConcatZeroDimInput", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::DisableRemoveConcatZeroDimInput, "DisableRemoveConcatZeroDimInput", 0);
 
 ov::pass::RemoveConcatZeroDimInput::RemoveConcatZeroDimInput() {
     MATCHER_SCOPE(RemoveConcatZeroDimInput);
     auto concat_pattern = pattern::wrap_type<opset8::Concat>();
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto concat = m.get_match_root();
+        auto& rt_info = concat->get_rt_info();
+        if (rt_info.count(DisableRemoveConcatZeroDimInput::get_type_info_static())) {
+            return false;
+        }
+
         auto concat_inputs = concat->input_values();
         concat_inputs.erase(std::remove_if(concat_inputs.begin(), concat_inputs.end(),
             [](const Output<Node>& input) {
@@ -44,4 +50,16 @@ ov::pass::RemoveConcatZeroDimInput::RemoveConcatZeroDimInput() {
     };
     auto m = std::make_shared<ngraph::pattern::Matcher>(concat_pattern, matcher_name);
     this->register_matcher(m, callback);
+}
+
+void ov::pass::disable_remove_concat_zerodim_input(const std::shared_ptr<Node>& node) {
+    node->get_rt_info().emplace(DisableRemoveConcatZeroDimInput::get_type_info_static(), DisableRemoveConcatZeroDimInput{});
+}
+
+void ov::pass::enable_remove_concat_zerodim_input(const std::shared_ptr<Node>& node) {
+    node->get_rt_info().erase(DisableRemoveConcatZeroDimInput::get_type_info_static());
+}
+
+bool ov::pass::remove_concat_zerodim_input_is_disabled(const std::shared_ptr<Node>& node) {
+    return node->get_rt_info().count(DisableRemoveConcatZeroDimInput::get_type_info_static());
 }

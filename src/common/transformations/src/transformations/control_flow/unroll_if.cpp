@@ -39,7 +39,9 @@ bool ngraph::pass::UnrollIf::run_on_model(const std::shared_ptr<ngraph::Function
         for (const auto& input_descr : input_descriptions) {
             auto in_data = if_node->input_value(input_descr->m_input_index);
             auto& param = body->get_parameters()[input_descr->m_body_parameter_index];
-            ngraph::replace_node(param, in_data.get_node_shared_ptr());
+            for (const auto& input : param->output(0).get_target_inputs()) {
+                input.replace_source_output(in_data);
+            }
         }
         for (const auto& output_desc : output_descriptions) {
             std::shared_ptr<opset8::Result> result = body->get_results()[output_desc->m_body_value_index];

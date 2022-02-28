@@ -14,9 +14,7 @@ namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API RemoveConcatZeroDimInput;
-
-}  // namespace pass
-}  // namespace ov
+class TRANSFORMATIONS_API DisableRemoveConcatZeroDimInput;
 
 /**
  * @ingroup ie_transformation_common_api
@@ -24,8 +22,26 @@ class TRANSFORMATIONS_API RemoveConcatZeroDimInput;
  * removes input of Concat if the tensor size is equal to 0
  */
 
-class ov::pass::RemoveConcatZeroDimInput: public ov::pass::MatcherPass {
+class RemoveConcatZeroDimInput: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     RemoveConcatZeroDimInput();
 };
+
+TRANSFORMATIONS_API void disable_remove_concat_zerodim_input(const std::shared_ptr<Node>& node);
+
+TRANSFORMATIONS_API void enable_remove_concat_zerodim_input(const std::shared_ptr<Node>& node);
+
+TRANSFORMATIONS_API bool remove_concat_zerodim_input_is_disabled(const std::shared_ptr<Node>& node);
+
+class DisableRemoveConcatZeroDimInput : public ov::RuntimeAttribute {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    DisableRemoveConcatZeroDimInput() = default;
+    bool is_copyable() const override {
+        return false;
+    }
+};
+
+}  // namespace pass
+}  // namespace ov

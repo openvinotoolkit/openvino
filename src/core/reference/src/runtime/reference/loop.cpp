@@ -164,9 +164,20 @@ void loop(const std::shared_ptr<Function>& func,
             }
 
             // Back-edge processing
+            bool need_validate = false;
             for (auto& back_edge : back_edges) {
                 inputs_to_body[back_edge.param_idx] = body_outputs[back_edge.result_idx];
+                const auto& param = func->get_parameters().at(back_edge.param_idx);
+                const auto& ps_param = param->get_partial_shape();
+                const auto& result_param = body_outputs[back_edge.result_idx]->get_partial_shape();
+                if (ps_param != result_param) {
+                    param->set_partial_shape(result_param);
+                    param->validate_and_infer_types();
+                    need_validate = true;
+                }
             }
+            if (need_validate)
+                func->validate_nodes_and_infer_types();
         }
 
         for (const auto& desc : out_descs) {

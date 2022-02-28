@@ -9,6 +9,7 @@ namespace paddle {
 namespace op {
 #define OP_CONVERTER(op) NamedOutputs op(const NodeContext& node)
 OP_CONVERTER(argmax);
+OP_CONVERTER(assign);
 OP_CONVERTER(assign_value);
 OP_CONVERTER(batch_norm);
 OP_CONVERTER(bicubic_interp_v2);
@@ -16,6 +17,7 @@ OP_CONVERTER(bilinear_interp_v2);
 OP_CONVERTER(cast);
 OP_CONVERTER(clip);
 OP_CONVERTER(concat);
+OP_CONVERTER(conditional_block);
 OP_CONVERTER(conv2d);
 OP_CONVERTER(conv2d_transpose);
 OP_CONVERTER(cumsum);
@@ -42,7 +44,9 @@ OP_CONVERTER(hard_sigmoid);
 OP_CONVERTER(hard_swish);
 OP_CONVERTER(layer_norm);
 OP_CONVERTER(leaky_relu);
+OP_CONVERTER(less_than);
 OP_CONVERTER(linear_interp_v2);
+OP_CONVERTER(lod_array_length);
 OP_CONVERTER(log);
 OP_CONVERTER(logical_and);
 OP_CONVERTER(logical_not);
@@ -68,6 +72,7 @@ OP_CONVERTER(relu6);
 OP_CONVERTER(reshape2);
 OP_CONVERTER(rnn);
 OP_CONVERTER(scale);
+OP_CONVERTER(select_input);
 OP_CONVERTER(shape);
 OP_CONVERTER(slice);
 OP_CONVERTER(softmax);
@@ -77,13 +82,17 @@ OP_CONVERTER(split);
 OP_CONVERTER(squeeze);
 OP_CONVERTER(stack);
 OP_CONVERTER(tanh);
+OP_CONVERTER(tensor_array_to_tensor);
 OP_CONVERTER(transpose2);
 OP_CONVERTER(trilinear_interp_v2);
 OP_CONVERTER(unsqueeze);
+OP_CONVERTER(while_);
+OP_CONVERTER(write_to_array);
 OP_CONVERTER(yolo_box);
 }  // namespace op
 std::map<std::string, CreatorFunction> get_supported_ops() {
     return {{"arg_max", op::argmax},
+            {"assign", op::assign},
             {"assign_value", op::assign_value},
             {"batch_norm", op::batch_norm},
             {"bicubic_interp_v2", op::bicubic_interp_v2},
@@ -93,6 +102,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"cast", op::cast},
             {"clip", op::clip},
             {"concat", op::concat},
+            {"conditional_block", op::conditional_block},
             {"conv2d", op::conv2d},
             {"conv2d_transpose", op::conv2d_transpose},
             {"cumsum", op::cumsum},
@@ -121,7 +131,9 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"hard_swish", op::hard_swish},
             {"layer_norm", op::layer_norm},
             {"leaky_relu", op::leaky_relu},
+            {"less_than", op::less_than},
             {"linear_interp_v2", op::linear_interp_v2},
+            {"lod_array_length", op::lod_array_length},
             {"log", op::log},
             {"logical_and", op::logical_and},
             {"logical_not", op::logical_not},
@@ -150,6 +162,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"reshape2", op::reshape2},
             {"rnn", op::rnn},
             {"scale", op::scale},
+            {"select_input", op::select_input},
             {"shape", op::shape},
             {"slice", op::slice},
             {"softmax", op::softmax},
@@ -160,9 +173,12 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"stack", op::stack},
             {"sync_batch_norm", op::batch_norm},
             {"tanh", op::tanh},
+            {"tensor_array_to_tensor", op::tensor_array_to_tensor},
             {"transpose2", op::transpose2},
             {"trilinear_interp_v2", op::trilinear_interp_v2},
             {"unsqueeze2", op::unsqueeze},
+            {"while", op::while_},
+            {"write_to_array", op::write_to_array},
             {"yolo_box", op::yolo_box}};
 };
 

@@ -18,9 +18,11 @@ NamedOutputs slice(const NodeContext& node) {
     Output<Node> start_idx_node, end_idx_node;
     if (node.has_input("StartsTensor")) {
         start_idx_node = node.get_input("StartsTensor");
+        start_idx_node = std::make_shared<Convert>(start_idx_node, element::i32);
     } else if (node.has_input("StartsTensorList")) {
         auto inputs = node.get_ng_inputs("StartsTensorList");
         start_idx_node = std::make_shared<Concat>(inputs, 0);
+        start_idx_node = std::make_shared<Convert>(start_idx_node, element::i32);
     } else {
         auto starts = node.get_attribute<std::vector<int32_t>>("starts");
         start_idx_node = Constant::create(element::i32, {starts.size()}, starts);
@@ -28,9 +30,11 @@ NamedOutputs slice(const NodeContext& node) {
 
     if (node.has_input("EndsTensor")) {
         end_idx_node = node.get_input("EndsTensor");
+        end_idx_node = std::make_shared<Convert>(end_idx_node, element::i32);
     } else if (node.has_input("EndsTensorList")) {
         auto inputs = node.get_ng_inputs("EndsTensorList");
         end_idx_node = std::make_shared<Concat>(inputs, 0);
+        end_idx_node = std::make_shared<Convert>(end_idx_node, element::i32);
     } else {
         auto ends = node.get_attribute<std::vector<int32_t>>("ends");
         end_idx_node = Constant::create(element::i32, {ends.size()}, ends);
