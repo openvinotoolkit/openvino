@@ -403,11 +403,15 @@ class IEEngine(Engine):
             raise RuntimeError('Inconsistent data in the batch. '
                                'Some items contain annotation, and some do not.')
 
+        if not all([isinstance(item[0], tuple) for item in batch]):
+            images, image_annotation = [data[0] for data in batch], [(idx, data[1]) for idx, data in enumerate(batch)]
+        else:
+            images, image_annotation = [data[1] for data in batch], [data[0] for data in batch]
+
         if all([len(item) == 2 for item in batch]):
-            image_annotation, images = map(list, zip(*batch))
             meta_data = [{}]*len(images)
         elif all([len(item) == 3 for item in batch]):
-            image_annotation, images, meta_data = map(list, zip(*batch))
+            meta_data = [data[2] for data in batch]
         else:
             raise RuntimeError('Inconsistent data in the batch. '
                                'Some items contain meta data, and some do not.')
