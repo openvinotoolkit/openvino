@@ -2,13 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <signal.h>
+#ifdef _WIN32
+#include <process.h>
+#endif
+
 #include "gtest/gtest.h"
 
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/layer_test_utils/environment.hpp"
-
-#include "shared_test_classes/base/ov_subgraph.hpp"
 
 #include "read_ir_test/read_ir.hpp"
 #include "gflag_config.hpp"
