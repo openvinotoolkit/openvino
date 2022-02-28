@@ -69,24 +69,21 @@ std::string get_version() {
 
 PYBIND11_MODULE(pyopenvino, m) {
     m.doc() = "Package openvino.pyopenvino which wraps openvino C++ APIs";
-#ifdef CI_BUILD_NUMBER
     std::string pyopenvino_version = CI_BUILD_NUMBER;
     std::string runtime_version = get_version();
-    bool is_custom_pyopenvino_version = pyopenvino_version.find("custom_") == 0;
-    bool is_custom_runtime_version = runtime_version.find("custom_") == 0;
-    if (!is_custom_pyopenvino_version && !is_custom_runtime_version) {
-        auto versions_compatible =
-            pyopenvino_version.empty() || runtime_version.empty() || pyopenvino_version == runtime_version;
-        OPENVINO_ASSERT(versions_compatible,
-                        "OpenVINO Python version (",
-                        pyopenvino_version,
-                        ") mismatches with OpenVINO Runtime library version (",
-                        runtime_version,
-                        "). It can happen if you have 2 or more different versions of OpenVINO installed in system. "
-                        "Please ensure that environment variables (e.g. PATH, PYTHONPATH) are set correctly so that "
-                        "OpenVINO Runtime and Python libraries point to same release.");
-    }
-#endif
+    bool is_custom_pyopenvino_version = pyopenvino_version.empty() || pyopenvino_version.find("custom_") == 0;
+    bool is_custom_runtime_version = runtime_version.empty() || runtime_version.find("custom_") == 0;
+    auto versions_compatible =
+        is_custom_pyopenvino_version || is_custom_runtime_version || pyopenvino_version == runtime_version;
+    OPENVINO_ASSERT(versions_compatible,
+                    "OpenVINO Python version (",
+                    pyopenvino_version,
+                    ") mismatches with OpenVINO Runtime library version (",
+                    runtime_version,
+                    "). It can happen if you have 2 or more different versions of OpenVINO installed in system. "
+                    "Please ensure that environment variables (e.g. PATH, PYTHONPATH) are set correctly so that "
+                    "OpenVINO Runtime and Python libraries point to same release.");
+
     m.def("get_version", &get_version);
     m.def("get_batch", &ov::get_batch);
     m.def("set_batch", &ov::set_batch);

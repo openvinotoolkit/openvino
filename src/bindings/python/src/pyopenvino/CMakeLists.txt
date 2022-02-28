@@ -78,10 +78,7 @@ endif()
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB})
 
-if(DEFINED CI_BUILD_NUMBER)
-    message(STATUS "Python CI Build Number: ${CI_BUILD_NUMBER}")
-    target_compile_definitions(${PROJECT_NAME} PRIVATE CI_BUILD_NUMBER=\"${CI_BUILD_NUMBER}\")
-endif()
+addVersionDefines(pyopenvino.cpp CI_BUILD_NUMBER)
 
 # perform copy
 if(OpenVINO_SOURCE_DIR)
