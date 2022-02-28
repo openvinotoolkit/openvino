@@ -19,7 +19,7 @@ The setup of Multi-Device can be described in three major steps:
 
 1. Configure each device as usual.
 2. Load the network to the Multi-Device plugin created on top of a (prioritized) list of the configured devices. This is the only change needed in the application.
-3. As with any other ExecutableNetwork call (resulting from `InferenceEngine::Core::LoadNetwork`), you create as many requests as needed to saturate the devices.
+3. As with any other ExecutableNetwork call (resulting from `InferenceEngine::ov::compile_model`), you create as many requests as needed to saturate the devices.
 
 These steps are covered below in detail.
 
@@ -29,9 +29,9 @@ Following the OpenVINO™ convention of labeling devices, the Multi-Device plugi
 
 | Parameter name | Parameter values | Default | Description |
 | -------------- | ---------------- | --- | --- |
-| "MULTI_DEVICE_PRIORITIES" | comma-separated device names with no spaces | N/A | Prioritized list of devices |
+| ov::device::priorities | comma-separated device names with no spaces | N/A | Prioritized list of devices |
 
-You can set the configuration directly as a string, or use the metric key `MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES from the `multi/multi_device_config.hpp` file, which defines the same string.
+You can set the configuration directly as a string.
 
 Basically, there are three ways to specify the devices to be use by the "MULTI":
 
