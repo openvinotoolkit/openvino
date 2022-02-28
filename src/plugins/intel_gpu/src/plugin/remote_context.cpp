@@ -189,14 +189,22 @@ void RemoteBlobImpl::lock() const {
     if (!is_allocated()) {
         IE_THROW(NotAllocated) << "[GPU] Remote blob can't be locked as it's not allocated";
     }
-    lockedHolder = std::unique_ptr<cldnn::mem_lock<uint8_t>>(new cldnn::mem_lock<uint8_t>(m_memObject, m_stream));
-    auto ptr = lockedHolder->data();
-    _handle = reinterpret_cast<void*>(ptr);
-    m_allocator.regLockedBlob(_handle, this);
+
+    std::lock_guard<std::mutex> locker(lockedMutex);
+    if (lockedCounter == 0) {
+        lockedHolder = std::unique_ptr<cldnn::mem_lock<uint8_t>>(new cldnn::mem_lock<uint8_t>(m_memObject, m_stream));
+        auto ptr = lockedHolder->data();
+        _handle = reinterpret_cast<void*>(ptr);
+        m_allocator.regLockedBlob(_handle, this);
+    }
+    lockedCounter++;
 }
 
 void RemoteBlobImpl::unlock() const {
-    lockedHolder.reset();
+    std::lock_guard<std::mutex> locker(lockedMutex);
+    lockedCounter--;
+    if (lockedCounter == 0)
+        lockedHolder.reset();
 }
 
 LockedMemory<void> RemoteBlobImpl::buffer() noexcept {
