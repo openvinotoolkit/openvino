@@ -49,6 +49,7 @@ def base_args_config(use_legacy_fe:bool=None, use_new_fe:bool=None):
     args.disable_resnet_optimization = None
     args.enable_concat_optimization = None
     args.static_shape = None
+    args.disable_weights_compression = None
     args.reverse_input_channels = None
     args.data_type = None
     args.layout = None
