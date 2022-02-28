@@ -394,10 +394,10 @@ def prepare_ir(argv : argparse.Namespace):
             load_extensions(argv, *list(deduce_legacy_frontend_by_namespace(argv)))
             t.send_event("mo", "fallback_reason", reasons_message)
             log.error("The IR preparation was executed by the legacy MO path. "
-                        "This is a fallback scenario applicable only for some specific cases. "
-                       f"The detailed reason why fallback was executed: not supported {reasons_message} were used. "
-                        "You can specify --use_new_frontend flag to force using the Frontend MO path to avoid additional checks. " +
-                        refer_to_faq_msg(105), extra={'is_warning': True})
+                      "This is a fallback scenario applicable only for some specific cases. "
+                     f"The detailed reason why fallback was executed: not supported {reasons_message} were used. "
+                      "You can specify --use_new_frontend flag to force using the Frontend MO path to avoid additional checks. " +
+                      refer_to_faq_msg(105), extra={'is_warning': True})
 
     t.send_event("mo", "conversion_method", "mo_legacy")
     graph = unified_pipeline(argv)
