@@ -213,7 +213,7 @@ Both requests are thread-safe, which means they can be called from different thr
 Multiple requests for single `CompiledModel` are executed sequentially one by one in the FIFO order.
 
 While the request is ongoing, all its methods except `ov::InferRequest::wait` or `ov::InferRequest::wait_for` throw
-the `ov::Busy` exception that request is busy with computations.
+the `ov::Busy` exception indicating the request is busy with computations.
 
 ### Step 6. Process the Inference Results 
 
