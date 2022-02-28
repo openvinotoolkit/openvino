@@ -288,11 +288,37 @@ std::string MKLDNNEdge::name() const {
     return  result.str();
 }
 
+
+
 void MKLDNNEdge::externalAllocate(MKLDNNWeightsSharing::Ptr weightsCache) {
+    auto isInPlace = [](const MKLDNNNodePtr node, int port) -> bool {
+        const auto& selected_pd = node->getSelectedPrimitiveDescriptor();
+        if (selected_pd == nullptr)
+            IE_THROW() << "Preferable primitive descriptor is not set.";
+
+        const auto& config = selected_pd->getConfig();
+
+        for (const auto& in : config.inConfs) {
+            if (in.inPlace() == port) {
+                return true;
+            }
+        }
+        for (const auto& out : config.outConfs) {
+            if (out.inPlace() == port) {
+                return true;
+            }
+        }
+
+        return false;
+    };
+
     if (status != Status::NeedAllocation)
         return;
 
-    if (weightsCache) {
+    bool isTheOnlyChildEdgeAtPort = getParent()->getChildEdgesAtPort(getInputNum()).size() == 1;
+    bool isConcurrentUpdatePossible = isInPlace(getParent(), getInputNum()) || isInPlace(getChild(), getOutputNum()) || !isTheOnlyChildEdgeAtPort;
+
+    if (weightsCache && !isConcurrentUpdatePossible) {
         auto alloc = [this] () {
             allocate();
             return memoryPtr;
