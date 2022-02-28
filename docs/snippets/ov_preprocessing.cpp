@@ -150,3 +150,59 @@ int main() {
  OPENVINO_ASSERT(model, "Model is invalid");
  return 0;
 }
+
+ //! [ov:preprocess:save_headers]
+ #include <openvino/runtime/core.hpp>
+ #include <openvino/core/preprocess/pre_post_process.hpp>
+ #include <openvino/pass/serialize.hpp>
+ //! [ov:preprocess:save_headers]
+
+void save_example() {
+ //! [ov:preprocess:save]
+ // ========  Step 0: read original model =========
+ ov::Core core;
+ std::shared_ptr<ov::Model> model = core.read_model("/path/to/some_model.onnx");
+
+ // ======== Step 1: Preprocessing ================
+ ov::preprocess::PrePostProcessor prep(model);
+ // Declare section of desired application's input format
+ prep.input().tensor()
+        .set_element_type(ov::element::u8)
+        .set_layout("NHWC")
+        .set_color_format(ov::preprocess::ColorFormat::BGR)
+        .set_spatial_dynamic_shape();
+ // Specify actual model layout
+ prep.input().model()
+        .set_layout("NCHW");
+ // Explicit preprocessing steps. Layout conversion will be done automatically as last step
+ prep.input().preprocess()
+        .convert_element_type()
+        .convert_color(ov::preprocess::ColorFormat::RGB)
+        .resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR)
+        .mean({123.675, 116.28, 103.53}) // Subtract mean after color conversion
+        .scale({58.624, 57.12, 57.375});
+ // Dump preprocessor
+ std::cout << "Preprocessor: " << prep << std::endl;
+ model = prep.build();
+
+ // ======== Step 2: Change batch size ================
+ // In this example we also want to change batch size to increase throughput
+ ov::set_batch(model, 2);
+
+ // ======== Step 3: Save the model ================
+ std::string xml = "/path/to/some_model.xml";
+ std::string bin = "/path/to/some_model.bin";
+ ov::pass::Serialize(xml, bin).run_on_model(model);
+ //! [ov:preprocess:save]
+
+}
+
+void load_aftersave_example() {
+ //! [ov:preprocess:save_load]
+ ov::Core core;
+ std::shared_ptr<ov::Model> model = core.read_model("/path/to/some_model.xml");
+
+ // No additional preprocessing is needed in application's code, it is already integrated into graph
+ ov::CompiledModel exec = core.compile_model(model, "CPU");
+ //! [ov:preprocess:save_load]
+}
