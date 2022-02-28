@@ -202,7 +202,7 @@ void regclass_AsyncInferQueue(py::module m) {
         py::arg("inputs"),
         py::arg("userdata"),
         R"(
-            Run asynchronous inference using next available InferRequest.
+            Run asynchronous inference using the next available InferRequest.
 
             This function releases the GIL, so another Python thread can
             work while this function runs in the background.
@@ -262,8 +262,8 @@ void regclass_AsyncInferQueue(py::module m) {
         },
         R"(
         Sets unified callback on all InferRequests from queue's pool.
-        Signature of such function should have two arguments, where
-        first one is InferRequest object and second one is userdata
+        The signature of such function should have two arguments, where
+        the first one is InferRequest object and the second one is userdata
         connected to InferRequest from the AsyncInferQueue's pool.
 
         .. code-block:: python
