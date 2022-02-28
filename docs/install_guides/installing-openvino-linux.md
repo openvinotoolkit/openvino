@@ -89,9 +89,13 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
    @sphinxdirective
    
    .. note::
-      To get additional information on all parameters that can be used, check up the help option: `--help`. Among others, you can find there `-s` option which offers silent mode, which together with `--eula approve` allows you to run whole installation with default values without any user inference.
+      To get additional information on all parameters that can be used, check up the help option: `\--help`. Among others, you can find there `-s` option which offers silent mode, which together with `\--eula approve` allows you to run whole installation with default values without any user inference.
    
    @endsphinxdirective
+   
+   >**NOTE**: To get additional information on all parameters that can be used, check up the help option: `--help`. Among others, you can find there `-s` option which offers silent mode, which together with `--eula approve` allows you to run whole installation with default values without any user inference.
+   
+   >**NOTE**: To get additional information on all parameters that can be used, check up the help option: `\--help`. Among others, you can find there `-s` option which offers silent mode, which together with `\--eula approve` allows you to run whole installation with default values without any user inference.
 
 6. Follow the instructions on your screen. During the installation you will be asked to accept the license agreement. The acceptance is required to continue. Check out the installation process on the image below:<br>
 
@@ -164,7 +168,7 @@ The environment variables are set. Next, you can download some additional tools.
 .. tab:: NCS 2
 
    Only if you want to perform inference on Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X VPU, follow the steps on :ref:`NCS2 Setup Guide <ncs guide>`.
-   For more details, see the `Get Started page for Intel® Neural Compute Stick 2 <https://software.intel.com/en-us/neural-compute-stick/get-started>`_.
+   For more details, see the `Get Started page for Intel® Neural Compute Stick 2 <https://software.intel.com/en-us/neural-compute-stick/get-started>`.
 
 .. tab:: VPU
 
@@ -181,7 +185,7 @@ The environment variables are set. Next, you can download some additional tools.
 Now you are ready to try out the toolkit.
 
 Developing in Python:
-   * [Start with tensorflow models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html)
+   * [Start with TensorFlow models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html)
    * [Start with ONNX and PyTorch models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/102-pytorch-onnx-to-openvino-with-output.html)
    * [Start with PaddlePaddle models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/103-paddle-onnx-to-openvino-classification-with-output.html)
 
