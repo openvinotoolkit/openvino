@@ -45,6 +45,8 @@ The target is able to take the following command-line arguments:
 * `--save_report_timeout` allows to try to save report in cycle using timeout (in seconds).
 * `--output_folder` Paths to the output folder to save report.
 * `--extract_body` allows to count extracted operation bodies to report.
+* `--shape_mode` Optional. Allows to run `static`, `dynamic` or both scenarios. Default value is empty string allows to run both scenarios. Possible values 
+  are `static`, `dynamic`, ``
 * All `gtest` command-line parameters
 
 The result of execution is `report.xml` file. It demonstrates tests statistic like pass rate, passed, crashed, skipped failed tests and plugin implementation 

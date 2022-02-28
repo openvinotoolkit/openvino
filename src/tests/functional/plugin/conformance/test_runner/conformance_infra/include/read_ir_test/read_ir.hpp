@@ -10,6 +10,14 @@ namespace ov {
 namespace test {
 namespace subgraph {
 
+enum ShapeMode {
+    DYNAMIC,
+    STATIC,
+    BOTH
+};
+
+extern ShapeMode shapeMode;
+
 using ReadIRParams = std::tuple<
         std::string,                         // IR path
         std::string,                         // Target Device
