@@ -88,6 +88,7 @@ private:
         bool parseAndSet(const std::string& str) override {
             const auto& tokens = str.empty() ?
                 std::vector<std::string>{"all"} : ov::util::split(ov::util::to_lower(str), ',');
+            property.reset();
             for (const auto& token : tokens) {
                 const bool tokenVal = (token.front() != '-');
                 const auto& tokenName = tokenVal ? token : token.substr(1);
@@ -157,19 +158,32 @@ private:
 public:
     struct TransformationFilter {
         enum Type : uint8_t {
-            PreLpt = 0, Lpt, PostLpt, Snippets, Specific, numOfTypes
+            Common = 0, Lpt, Snippets, Specific, NumOfTypes
         };
-        std::bitset<numOfTypes> filter;
+        std::bitset<NumOfTypes> filter;
 
         PropertySetterPtr getPropertySetter() {
-            return PropertySetterPtr(new BitsetFilterPropertySetter<numOfTypes>("transformations", filter,
-                {{"all", {PreLpt, Lpt, PostLpt, Snippets, Specific}},
-                 {"common", {PreLpt, Lpt, PostLpt, Snippets}},
-                 {"prelpt", {PreLpt}},
+            return PropertySetterPtr(new BitsetFilterPropertySetter<NumOfTypes>("transformations", filter,
+                {{"all", {Common, Lpt, Snippets, Specific}},
+                 {"common", {Common}},
                  {"lpt", {Lpt}},
-                 {"postlpt", {PostLpt}},
                  {"snippets", {Snippets}},
                  {"specific", {Specific}}
+                }));
+        }
+    };
+    struct IrFormatFilter {
+        enum Type : uint8_t {
+            Xml = 0, Dot, Svg, NumOfTypes
+        };
+        std::bitset<NumOfTypes> filter;
+
+        PropertySetterPtr getPropertySetter() {
+            return PropertySetterPtr(new BitsetFilterPropertySetter<NumOfTypes>("format", filter,
+                {{"all", {Xml, Dot, Svg}},
+                 {"xml", {Xml}},
+                 {"dot", {Dot}},
+                 {"svg", {Svg}},
                 }));
         }
     };
@@ -203,10 +217,12 @@ public:
 
     struct : PropertyGroup {
         std::string dir = "intel_cpu_dump";
+        IrFormatFilter format = { 1 << IrFormatFilter::Dot };
         TransformationFilter transformations;
 
         std::vector<PropertySetterPtr> getPropertySetters(void) override {
             return { PropertySetterPtr(new StringPropertySetter("dir", dir, "path to dumped IRs")),
+                     format.getPropertySetter(),
                      transformations.getPropertySetter() };
         }
     } dumpIR;

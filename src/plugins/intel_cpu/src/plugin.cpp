@@ -190,6 +190,26 @@ public:
         const bool useLpt = enableLpt &&
                             ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(nGraphFunc);
 
+        upToCpuSpecificOpSet_common(useLpt, isLegacyApi);
+
+        if (!useLpt && enableSnippets)
+            upToCpuSpecificOpSet_snippets();
+    }
+
+    void cpuSpecificOpSet(void) {
+        CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(Specific);
+
+        ConvertToCPUSpecificOpset(nGraphFunc);
+    }
+
+private:
+    const std::shared_ptr<ngraph::Function>& nGraphFunc;
+    using const_node_ptr = const std::shared_ptr<const ngraph::Node>;
+    CPU_DEBUG_CAP_ENABLE(const Config& config);
+
+    void upToCpuSpecificOpSet_common(const bool useLpt, const bool isLegacyApi) {
+        CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(Common);
+
         std::vector<ov::element::Type> defaultPrecisions;
         bool hasINT16orINT32Levels = false;
         if (useLpt) {
@@ -208,25 +228,9 @@ public:
             upToCpuSpecificOpSet_lpt(hasINT16orINT32Levels, defaultPrecisions);
 
         upToCpuSpecificOpSet_postLpt();
-
-        if (!useLpt && enableSnippets)
-            upToCpuSpecificOpSet_snippets();
     }
-
-    void cpuSpecificOpSet(void) {
-        CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(Specific);
-
-        ConvertToCPUSpecificOpset(nGraphFunc);
-    }
-
-private:
-    const std::shared_ptr<ngraph::Function>& nGraphFunc;
-    using const_node_ptr = const std::shared_ptr<const ngraph::Node>;
-    CPU_DEBUG_CAP_ENABLE(const Config& config);
 
     void upToCpuSpecificOpSet_preLpt(const std::vector<ov::element::Type>& defaultPrecisions, const bool isLegacyApi) {
-        CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(PreLpt);
-
         ngraph::pass::Manager manager;
         manager.set_per_pass_validation(false);
         manager.register_pass<ngraph::pass::InitNodeInfo>();
@@ -529,8 +533,6 @@ private:
     }
 
     void upToCpuSpecificOpSet_postLpt() {
-        CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(PostLpt);
-
         ngraph::pass::Manager postLPTPassManager;
         postLPTPassManager.register_pass<ngraph::pass::FakeQuantizeDecomposition>();
         postLPTPassManager.register_pass<ngraph::pass::UnrollTensorIterator>();
@@ -558,9 +560,9 @@ private:
     }
 
     void upToCpuSpecificOpSet_snippets(void) {
-        CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(Snippets);
-
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
+            CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(Snippets);
+
             ngraph::pass::Manager tokenization_manager;
             tokenization_manager.register_pass<SnippetsMarkSkipped>();
             tokenization_manager.register_pass<ngraph::snippets::pass::EnumerateNodes>();

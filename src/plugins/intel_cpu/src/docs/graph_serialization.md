@@ -28,14 +28,17 @@ Examples:
 ```sh
     OV_CPU_DUMP_IR="transformations" binary ...
     OV_CPU_DUMP_IR="TRANSFORMATIONS=snippets dir=path/dumpDir" binary ...
-    OV_CPU_DUMP_IR="transformations=all,-common DIR=path/dumpdir" binary ...
+    OV_CPU_DUMP_IR="transformations=all,-common DIR=path/dumpdir format=svg,xml" binary ...
 ```
 
 Option names are case insensitive, the following options are supported:
 * dir=\<path\>\
-Path to dumped .xml and .bin files. If omitted, it defaults to *intel_cpu_dump*
+Path to dumped IR files. If omitted, it defaults to *intel_cpu_dump*
+* format=<comma_separated_tokens>\
+Filter with IR formats to dump. If omitted, it defaults to *.dot*\
+See [IR format filter](<debug_caps_filters.md#IR format filter>) for more details.
 * transformations=<comma_separated_tokens>\
 Filter with main transformation stages to serialize graph before and after specified ones.\
-See [transformation filter](graph_transformation_filter.md) for more details.
+See [Transformation filter](<debug_caps_filters.md#Transformation filter>) for more details.
 
-If options are duplicated, each one is applied from left to right.
+Options are processed from left to right, so last one overwrites previous ones if duplicated.

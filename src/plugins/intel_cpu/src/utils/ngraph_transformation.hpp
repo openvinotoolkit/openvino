@@ -6,7 +6,9 @@
 #ifdef CPU_DEBUG_CAPS
 
 #include "config.h"
+#include <openvino/pass/manager.hpp>
 #include <openvino/pass/serialize.hpp>
+#include <openvino/pass/visualize_tree.hpp>
 
 namespace ov {
 namespace intel_cpu {
@@ -15,55 +17,59 @@ class TransformationDumper {
 public:
     explicit TransformationDumper(const Config& config, const Config::TransformationFilter::Type type,
                                   const std::shared_ptr<ngraph::Function>& nGraphFunc)
-        : config(config), nGraphFunc(nGraphFunc) {
-        it = std::find_if(stages.begin(), stages.end(),
-                          [type] (const StageDescription& stage) { return stage.type == type; });
-        IE_ASSERT(it != stages.end()) << "Unsupported transformation type: " << type;
-        if (it != stages.begin()) {
+        : config(config), type(type), nGraphFunc(nGraphFunc) {
+        for (auto prev = infoMap.at(type).prev; prev != TransformationType::NumOfTypes;
+             prev = infoMap.at(prev).prev) {
             // no need to serialize input graph if there was no transformations from previous dump
-            for (auto prevIt = std::reverse_iterator<StageIt>(it); prevIt < stages.rend(); prevIt++) {
-                if (config.disable.transformations.filter[prevIt->type])
-                    continue;
-                if (!config.dumpIR.transformations.filter[prevIt->type])
-                    break;
-                if (wasDumped()[prevIt->type])
-                    return;
-            }
+            if (config.disable.transformations.filter[prev])
+                continue;
+            if (!config.dumpIR.transformations.filter[prev])
+                break;
+            if (wasDumped()[prev])
+                return;
         }
-        dump(it, true);
+        dump("_in");
     }
     ~TransformationDumper() {
-        dump(it);
-        wasDumped().set(it->type);
+        dump("_out");
+        wasDumped().set(type);
     }
 
 private:
     const Config& config;
     const std::shared_ptr<ngraph::Function>& nGraphFunc;
-
     using TransformationType = Config::TransformationFilter::Type;
-    struct StageDescription {
-        TransformationType type;
+    const TransformationType type;
+
+    struct TransformationInfo {
         std::string name;
+        TransformationType prev;
     };
-    const std::vector<StageDescription> stages =
-        {{ TransformationType::PreLpt,     "preLpt" },
-         { TransformationType::Lpt,        "lpt" },
-         { TransformationType::PostLpt,    "postLpt" },
-         { TransformationType::Snippets,   "snippets" },
-         { TransformationType::Specific,   "cpuSpecificOpSet" }};
-    using StageIt = std::vector<StageDescription>::const_iterator;
-    StageIt it;
-    std::bitset<TransformationType::numOfTypes>& wasDumped(void) {
-        static std::bitset<TransformationType::numOfTypes> wasDumped;
+    // std::hash<int> is necessary for Ubuntu-16.04 (gcc-5.4 and defect in C++11 standart)
+    const std::unordered_map<TransformationType, TransformationInfo, std::hash<uint8_t>> infoMap =
+        {{TransformationType::Common,     {"common", TransformationType::NumOfTypes}},
+         {TransformationType::Lpt,        {"lpt", TransformationType::NumOfTypes}},
+         {TransformationType::Snippets,   {"snippets", TransformationType::Common}},
+         {TransformationType::Specific,   {"cpuSpecificOpSet", TransformationType::Snippets}}};
+    std::bitset<TransformationType::NumOfTypes>& wasDumped(void) {
+        static std::bitset<TransformationType::NumOfTypes> wasDumped;
         return wasDumped;
     }
-    void dump(const StageIt& it, const bool isInput = false) {
-        const auto xmlPath = config.dumpIR.dir + "/ir_transformation_" +
-                             std::to_string(std::distance(stages.begin(), it)) + '_' +
-                             it->name + (isInput ? "_input" : "_output")  + ".xml";
-        ov::pass::Serialize serializer(xmlPath, "");
-        serializer.run_on_model(nGraphFunc);
+    void dump(const std::string&& postfix) {
+        static int num = 0; // just to keep dumped IRs ordered in filesystem
+        const auto pathAndName = config.dumpIR.dir + "/ir_" + std::to_string(num) + '_' +
+                                 infoMap.at(type).name + postfix;
+        ov::pass::Manager serializer;
+        // ov::pass::Serialize serializer(xmlPath, "/dev/null");
+        if (config.dumpIR.format.filter[Config::IrFormatFilter::Xml])
+            serializer.register_pass<ov::pass::Serialize>(pathAndName + ".xml", "");
+        if (config.dumpIR.format.filter[Config::IrFormatFilter::Svg]) {
+            serializer.register_pass<ov::pass::VisualizeTree>(pathAndName + ".svg");
+        } else if (config.dumpIR.format.filter[Config::IrFormatFilter::Dot]) {
+            serializer.register_pass<ov::pass::VisualizeTree>(pathAndName + ".dot");
+        }
+        serializer.run_passes(nGraphFunc);
+        num++;
     }
 };
 

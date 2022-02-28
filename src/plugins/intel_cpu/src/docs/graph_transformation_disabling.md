@@ -15,6 +15,6 @@ Examples:
 Option names are case insensitive, the following options are supported:
 * transformations=<comma_separated_tokens>\
 Filter with main transformation stages to disable specified ones.\
-See [transformation filter](graph_transformation_filter.md) for more details.
+See [Transformation filter](<debug_caps_filters.md#Transformation filter>) for more details.
 
-If options are duplicated, each one is applied from left to right.
+Options are processed from left to right, so last one overwrites previous ones if duplicated.
