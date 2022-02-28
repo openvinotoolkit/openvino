@@ -210,7 +210,7 @@ The asynchronous mode supports two methods to get the inference results:
 
 Both requests are thread-safe, which means they can be called from different threads without exposing erroneous behavior or producing unpredictable results.
 
-Multiple requests for single `CompiledModel` are executed sequentially one by one in FIFO order.
+Multiple requests for single `CompiledModel` are executed sequentially one by one in the FIFO order.
 
 While request is ongoing, all its methods except `ov::InferRequest::wait` or `ov::InferRequest::wait_for` would throw
 the `ov::Busy` exception that request is busy with computations.
