@@ -20,9 +20,13 @@ static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Res
     p.ValidateInputs(op, {1});
 
     auto prev = op->get_input_node_shared_ptr(0);
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    auto inputID = op->get_input_source_output(0).get_tensor().get_name();
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    std::string inputID;
+    {
+        auto& rt_info = op->get_input_source_output(0).get_tensor().get_rt_info();
+        const auto it = rt_info.find("ov_legacy_name");
+        if (it != rt_info.end())
+            inputID = it->second.as<std::string>();
+    }
     if (inputID.empty()) {
         inputID = prev->get_friendly_name();
         if (prev->get_output_size() > 1) {

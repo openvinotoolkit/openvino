@@ -147,14 +147,19 @@ auto update_out_tensor_name(std::shared_ptr<ngraph::snippets::op::Subgraph> &sub
         for (const auto &in : subgraph->get_output_target_inputs(i)) {
             if (ov::is_type<opset1::Result>(in.get_node())) {
                 auto out_tensor = subgraph->output(i).get_tensor_ptr();
-                NGRAPH_SUPPRESS_DEPRECATED_START
-                if (out_tensor->get_name().empty()) {
+                std::string tensor_name;
+                auto& rt_info = out_tensor->get_rt_info();
+                {
+                    const auto it = rt_info.find("ov_legacy_name");
+                    if (it != rt_info.end())
+                        tensor_name = it->second.as<std::string>();
+                }
+                if (tensor_name.empty()) {
                     const auto& body_result = subgraph->get_body()->get_output_op(i);
                     const std::string newTensorName = ngraph::op::util::get_ie_output_name(
                             body_result->get_input_source_output(0));
-                    out_tensor->set_name(newTensorName);
+                    rt_info["ov_legacy_name"] = newTensorName;
                 }
-                NGRAPH_SUPPRESS_DEPRECATED_END
                 not_set = false;
                 break;
             }
