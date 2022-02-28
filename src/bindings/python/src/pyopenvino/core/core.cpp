@@ -27,23 +27,10 @@ void regclass_Core(py::module m) {
     py::class_<ov::Core, std::shared_ptr<ov::Core>> cls(m, "Core");
     cls.doc() =
         "openvino.runtime.Core class represents OpenVINO runtime Core entity. User applications can create several "
-        "Core class instances, but in this case the underlying plugins are created multiple times and not shared "
+        "Core class instances, but in this case, the underlying plugins are created multiple times and not shared "
         "between several Core instances. The recommended way is to have a single Core instance per application.";
 
     cls.def(py::init<const std::string&>(), py::arg("xml_config_file") = "");
-
-    // todo: remove after Accuracy Checker migration to set/get_property API
-    cls.def(
-        "set_config",
-        [](ov::Core& self, const std::map<std::string, std::string>& config, const std::string& device_name) {
-            PyErr_WarnEx(PyExc_DeprecationWarning, "set_config() is deprecated, use set_property() instead.", 1);
-            self.set_property(device_name, {config.begin(), config.end()});
-        },
-        py::arg("device_name") = "",
-        py::arg("properties"),
-        R"(
-            Sets properties for the device.
-        )");
 
     cls.def(
         "set_property",
@@ -100,12 +87,12 @@ void regclass_Core(py::module m) {
         py::arg("config") = py::dict(),
         R"(
             Creates a compiled model from a source model object.
-            Users can create as many compiled models as they need and use them simultaneously
+            Users can create as many compiled models as they need, and use them simultaneously
             (up to the limitation of the hardware resources).
 
             :param model: Model acquired from read_model function.
             :type model: openvino.runtime.Model
-            :param device_name: Name of the device to load the model to.
+            :param device_name: Name of the device which will load the model.
             :type device_name: str
             :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
             :type properties: dict
@@ -124,7 +111,7 @@ void regclass_Core(py::module m) {
         py::arg("config") = py::dict(),
         R"(
             Creates and loads a compiled model from a source model to the default OpenVINO device
-            selected by AUTO plugin. Users can create as many compiled models as they need and use
+            selected by AUTO plugin. Users can create as many compiled models as they need, and use
             them simultaneously (up to the limitation of the hardware resources).
 
             :param model: Model acquired from read_model function.
@@ -234,8 +221,8 @@ void regclass_Core(py::module m) {
             :param model: A path to a model in IR / ONNX / PDPD format.
             :type model: str
             :param weights: A path to a data file For IR format (*.bin): if path is empty,
-                            will try to read bin file with the same name as xml and if bin
-                            file with the same name was not found, will load IR without weights.
+                            it tries to read a bin file with the same name as xml and if the bin
+                            file with the same name was not found, loads IR without weights.
                             For ONNX format (*.onnx): weights parameter is not used.
                             For PDPD format (*.pdmodel) weights parameter is not used.
             :type weights: str
@@ -273,9 +260,8 @@ void regclass_Core(py::module m) {
             :param model: A string with model in IR / ONNX / PDPD format.
             :type model: str
             :param weights: A path to a data file For IR format (*.bin): if path is empty,
-                            will try to read bin file with the same name as xml and if bin
-                            file with the same name was not found, will load IR without weights.
-                            For ONNX format (*.onnx): weights parameter is not used.
+                            it tries to read a bin file with the same name as xml and if the bin
+                            file with the same name was not found, loads IR without weights.                            For ONNX format (*.onnx): weights parameter is not used.
                             For PDPD format (*.pdmodel) weights parameter is not used.
             :type weights: str
             :return: A model.
@@ -298,10 +284,10 @@ void regclass_Core(py::module m) {
         R"(
             Imports a compiled model from a previously exported one.
 
-            :param model_stream: Input stream containing a model previously exported using export_model method.
+            :param model_stream: Input stream, containing a model previously exported, using export_model method.
             :type model_stream: bytes
-            :param device_name: Name of device to import compiled model for.
-                                Note, if device_name device was not used to compile the original mode, an exception is thrown.
+            :param device_name: Name of device to which compiled model is imported.
+                                Note: if device_name is not used to compile the original model, an exception is thrown.
             :type device_name: str
             :param properties: Optional map of pairs: (property name, property value) relevant only for this load operation.
             :type properties: dict, optional
@@ -350,10 +336,10 @@ void regclass_Core(py::module m) {
             Python library `io`.
 
 
-            :param model_stream: Input stream containing a model previously exported using export_model method.
+            :param model_stream: Input stream, containing a model previously exported, using export_model method.
             :type model_stream: io.BytesIO
-            :param device_name: Name of device to import compiled model for.
-                                Note, if device_name device was not used to compile the original mode, an exception is thrown.
+            :param device_name: Name of device to which compiled model is imported.
+                                Note: if device_name is not used to compile the original model, an exception is thrown.
             :type device_name: str
             :param properties: Optional map of pairs: (property name, property value) relevant only for this load operation.
             :type properties: dict, optional
@@ -374,16 +360,6 @@ void regclass_Core(py::module m) {
                 new_compiled = core.import_model(user_stream, "CPU")
         )");
 
-    // todo: remove after Accuracy Checker migration to set/get_property API
-    cls.def(
-        "get_config",
-        [](ov::Core& self, const std::string& device_name, const std::string& name) -> py::object {
-            PyErr_WarnEx(PyExc_DeprecationWarning, "get_config() is deprecated, use get_property() instead.", 1);
-            return Common::from_ov_any(self.get_property(device_name, name)).as<py::object>();
-        },
-        py::arg("device_name"),
-        py::arg("name"));
-
     cls.def(
         "get_property",
         [](ov::Core& self, const std::string& device_name, const std::string& name) -> py::object {
@@ -401,16 +377,6 @@ void regclass_Core(py::module m) {
             :return: Extracted information from property.
             :rtype: object
         )");
-
-    // todo: remove after Accuracy Checker migration to set/get_property API
-    cls.def(
-        "get_metric",
-        [](ov::Core& self, const std::string device_name, const std::string name) -> py::object {
-            PyErr_WarnEx(PyExc_DeprecationWarning, "get_metric() is deprecated, use get_property() instead.", 1);
-            return Common::from_ov_any(self.get_property(device_name, name)).as<py::object>();
-        },
-        py::arg("device_name"),
-        py::arg("name"));
 
     cls.def("register_plugin",
             &ov::Core::register_plugin,

@@ -203,7 +203,7 @@ void regclass_AsyncInferQueue(py::module m) {
         py::arg("inputs"),
         py::arg("userdata"),
         R"(
-            Run asynchronous inference using next available InferRequest.
+            Run asynchronous inference using the next available InferRequest.
 
             This function releases the GIL, so another Python thread can
             work while this function runs in the background.

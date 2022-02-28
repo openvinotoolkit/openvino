@@ -52,8 +52,8 @@ void regclass_InferRequest(py::module m) {
         py::arg("tensors"),
         R"(
             Sets batch of tensors for input data to infer by tensor name.
-            Model input shall have batch dimension and number of tensors shall
-            match with batch size. Current version supports set tensors to model inputs only.
+            Model input needs to have batch dimension and the number of tensors needs to be
+            matched with batch size. Current version supports set tensors to model inputs only.
             In case if `tensor_name` is associated with output (or any other non-input node),
             an exception will be thrown.
 
@@ -61,7 +61,7 @@ void regclass_InferRequest(py::module m) {
             :type tensor_name: str
             :param tensors: Input tensors for batched infer request. The type of each tensor
                             must match the model input element type and shape (except batch dimension).
-                            Total size of tensors shall match with input's size.
+                            Total size of tensors needs to match with input's size.
             :type tensors: List[openvino.runtime.Tensor]
         )");
 
@@ -74,8 +74,8 @@ void regclass_InferRequest(py::module m) {
         py::arg("tensors"),
         R"(
             Sets batch of tensors for input data to infer by tensor name.
-            Model input shall have batch dimension and number of tensors shall
-            match with batch size. Current version supports set tensors to model inputs only.
+            Model input needs to have batch dimension and the number of tensors needs to be
+            matched with batch size. Current version supports set tensors to model inputs only.
             In case if `port` is associated with output (or any other non-input node),
             an exception will be thrown.
 
@@ -84,7 +84,7 @@ void regclass_InferRequest(py::module m) {
             :type port: openvino.runtime.ConstOutput
             :param tensors: Input tensors for batched infer request. The type of each tensor
                             must match the model input element type and shape (except batch dimension).
-                            Total size of tensors shall match with input's size.
+                            Total size of tensors needs to match with input's size.
             :type tensors: List[openvino.runtime.Tensor]
             :rtype: None
         )");
@@ -131,12 +131,12 @@ void regclass_InferRequest(py::module m) {
         py::arg("tensors"),
         R"(
             Sets batch of tensors for single input data.
-            Model input shall have batch dimension and number of `tensors`
-            shall match with batch size.
+            Model input needs to have batch dimension and the number of `tensors`
+            needs to match with batch size.
 
             :param tensors:  Input tensors for batched infer request. The type of each tensor
                              must match the model input element type and shape (except batch dimension).
-                             Total size of tensors shall match with input's size.
+                             Total size of tensors needs to match with input's size.
             :type tensors: List[openvino.runtime.Tensor]
         )");
 
@@ -149,14 +149,14 @@ void regclass_InferRequest(py::module m) {
         py::arg("tensors"),
         R"(
             Sets batch of tensors for single input data to infer by index.
-            Model input shall have batch dimension and number of `tensors`
-            shall match with batch size.
+            Model input needs to have batch dimension and the number of `tensors`
+            needs to match with batch size.
 
             :param idx: Index of input tensor.
             :type idx: int
             :param tensors: Input tensors for batched infer request. The type of each tensor
                             must match the model input element type and shape (except batch dimension).
-                            Total size of tensors shall match with input's size.
+                            Total size of tensors needs to match with input's size.
         )");
 
     cls.def(
@@ -517,8 +517,8 @@ void regclass_InferRequest(py::module m) {
             return self._request.get_profiling_info();
         },
         R"(
-            Queries performance measures per layer to get feedback of what
-            is the most time consuming operation, not all plugins provide
+            Queries performance is measured per layer to get feedback on what
+            is the most time-consuming operation, not all plugins provide
             meaningful data.
 
             :return: List of profiling information for operations in model.
@@ -620,7 +620,7 @@ void regclass_InferRequest(py::module m) {
             return self._request.get_profiling_info();
         },
         R"(
-            Performance measures per layer to get feedback of what is the most time consuming operation.
+            Performance is measured per layer to get feedback on the most time-consuming operation.
             Not all plugins provide meaningful data!
             
             :return: Inference time.
