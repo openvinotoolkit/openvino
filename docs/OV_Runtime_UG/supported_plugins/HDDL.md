@@ -10,7 +10,7 @@ To configure your Intel® Vision Accelerator Design With Intel® Movidius™ on 
 
 > **NOTE**: The HDDL and Myriad plugins may cause conflicts when used at the same time.
 > To ensure proper operation in such a case, the number of booted devices needs to be limited in the 'hddl_autoboot.config' file.
-> Otherwise, the HDDL plugin will boot all available myriadx devices.
+> Otherwise, the HDDL plugin will boot all available Intel® Movidius™ Myriad™ X devices.
 
 ## Supported networks
 
