@@ -69,6 +69,7 @@ std::string get_version() {
 
 PYBIND11_MODULE(pyopenvino, m) {
     m.doc() = "Package openvino.pyopenvino which wraps openvino C++ APIs";
+#ifdef CI_BUILD_NUMBER
     std::string pyopenvino_version = CI_BUILD_NUMBER;
     std::string runtime_version = get_version();
     bool is_custom_pyopenvino_version = pyopenvino_version.find("custom_") == 0;
@@ -85,6 +86,7 @@ PYBIND11_MODULE(pyopenvino, m) {
                         "Please ensure that environment variables (e.g. PATH, PYTHONPATH) are set correctly so that "
                         "OpenVINO Runtime and Python libraries point to same release.");
     }
+#endif
     m.def("get_version", &get_version);
     m.def("get_batch", &ov::get_batch);
     m.def("set_batch", &ov::set_batch);
