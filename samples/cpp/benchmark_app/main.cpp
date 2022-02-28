@@ -789,11 +789,8 @@ int main(int argc, char* argv[]) {
         std::map<std::string, ov::TensorVector> inputsData;
         if (isFlagSetInCommandLine("use_device_mem")) {
             if (device_name.find("GPU") == 0) {
-                inputsData = ::gpu::get_remote_input_tensors(inputFiles,
-                                                             app_inputs_info,
-                                                             compiledModel,
-                                                             clInputsBuffer,
-                                                             inferRequestsQueue.requests.size());
+                inputsData =
+                    ::gpu::get_remote_input_tensors(inputFiles, app_inputs_info, compiledModel, clInputsBuffer);
                 useGpuMem = true;
             } else if (device_name.find("CPU") == 0) {
                 if (newInputType) {
