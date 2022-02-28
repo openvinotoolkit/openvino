@@ -60,7 +60,6 @@ private:
         const auto pathAndName = config.dumpIR.dir + "/ir_" + std::to_string(num) + '_' +
                                  infoMap.at(type).name + postfix;
         ov::pass::Manager serializer;
-        // ov::pass::Serialize serializer(xmlPath, "/dev/null");
         if (config.dumpIR.format.filter[Config::IrFormatFilter::Xml])
             serializer.register_pass<ov::pass::Serialize>(pathAndName + ".xml", "");
         if (config.dumpIR.format.filter[Config::IrFormatFilter::Svg]) {

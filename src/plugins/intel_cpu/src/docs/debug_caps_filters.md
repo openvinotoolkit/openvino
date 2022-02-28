@@ -14,7 +14,7 @@ So filters below are equal:
 
 ## IR format filter
 
-IR format filter is used to specify output IR formats, e.g. for [serialization](<graph_serialization.md#Graph transformations>).
+IR format filter is used to specify output IR formats, e.g. for [serialization](graph_serialization.md#graph-transformations).
 ```sh
     format=<comma_separated_tokens>
 ```
@@ -33,7 +33,7 @@ Generation is based on dot representation, so IR is additionally dumped to .svg.
 ## Transformation filter
 
 Transformation filter is used to specify main graph transformation stages for different purposes,
-e.g. for [disabling](graph_transformation_disabling.md) or [serialization](<graph_serialization.md#Graph transformations>).
+e.g. for [disabling](graph_transformation_disabling.md) or [serialization](graph_serialization.md#graph-transformations).
 ```sh
     transformations=<comma_separated_tokens>
 ```
