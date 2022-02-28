@@ -32,8 +32,7 @@ OutputVector scan(const Node& node) {
     std::vector<int64_t> scan_output_directions = node.get_attribute_value<std::vector<int64_t>>("scan_output_directions", default_values);
 
     // N initial values N state,
-    // const auto init_val_inputs_count = ng_inputs.size() - num_scan_inputs;
-    const auto init_val_inputs_count = 1;
+    const auto init_val_inputs_count = ng_inputs.size() - num_scan_inputs;
 
     const OutputVector init_i{ng_inputs.begin(), ng_inputs.begin() + init_val_inputs_count}; // initial
     const OutputVector scan_i{ng_inputs.begin() + init_val_inputs_count, ng_inputs.end()}; // x
@@ -69,12 +68,12 @@ OutputVector scan(const Node& node) {
     next->set_partial_shape(unqueezed_shape);
 
     //  sequence_length = scan_1.shape[axis_1];
-    auto sequence_length = scan_i[0].get_shape()[scan_input_axes[0]]; // TODO: Update to dynamic PartialShape
+    // auto sequence_length = scan_i[0].get_shape()[scan_input_axes[0]]; // TODO: Update to dynamic PartialShape
     // auto sequence_length = x.get_shape()[scan_input_axes[0]]; // TODO: Update to dynamic PartialShape
     // auto sequence_length = 3; // Test value
 
-    Output<ngraph::Node> trip_count = ngraph::op::Constant::create(ngraph::element::i64, {1}, {sequence_length});
-    Output<ngraph::Node> termination_cond = ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
+    // Output<ngraph::Node> trip_count = ngraph::op::Constant::create(ngraph::element::i64, {1}, {sequence_length});
+    // Output<ngraph::Node> termination_cond = ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
 
     // // Loop output get_concatenated_slices related
     // const int64_t concat_axis = 0;
@@ -86,8 +85,8 @@ OutputVector scan(const Node& node) {
 
     // scan_out = std::make_shared<default_opset::Unsqueeze>(scan_out, concat_axis_const);
 
-    auto body_condition = std::make_shared<default_opset::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
-    auto current_iteration = std::make_shared<default_opset::Parameter>(element::i64, Shape{});
+    // auto body_condition = std::make_shared<default_opset::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+    // auto current_iteration = std::make_shared<default_opset::Parameter>(element::i64, Shape{});
 
 
     ////
@@ -99,13 +98,17 @@ OutputVector scan(const Node& node) {
     //                                                     body_params);
 
 
-    const auto body = std::make_shared<ngraph::Function>(OutputVector{body_condition, sum_out, scan_out},
-                                                        ParameterVector{current_iteration, sum_in, next});
+    const auto body = std::make_shared<ngraph::Function>(OutputVector{sum_out, scan_out},
+                                                        ParameterVector{sum_in, next});
 
-    auto loop = std::make_shared<default_opset::Loop>(trip_count, termination_cond);
-    default_opset::Loop::SpecialBodyPorts spec_ports{0, 0}; // current_iter_input idx, body_condidiotn_input idx
 
-    loop->set_special_body_ports(spec_ports);
+    // auto loop = std::make_shared<default_opset::Loop>(trip_count, termination_cond);
+    // default_opset::Loop::SpecialBodyPorts spec_ports{0, 0}; // current_iter_input idx, body_condidiotn_input idx
+
+    auto loop = std::make_shared<default_opset::TensorIterator>();
+
+
+    // loop->set_special_body_ports(spec_ports);
     loop->set_function(body);
 
     // Back edge from body output to body input
