@@ -78,7 +78,7 @@ Use the following code to create OpenVINO™ Core to manage available devices an
 
 ### Step 2. Compile the Model
 
-`ov::CompiledModel` class represents device specific compiled model. `ov::CompiledModel` allows to get information inputs or output ports by tensor name or index.
+`ov::CompiledModel` class represents a device specific compiled model. `ov::CompiledModel` allows you to get information inputs or output ports by a tensor name or index.
 
 Compile the model to the device using `ov::Core::compile_model()`:
 
