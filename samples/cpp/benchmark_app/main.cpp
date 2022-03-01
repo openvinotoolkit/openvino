@@ -437,7 +437,7 @@ int main(int argc, char* argv[]) {
             compiledModel = core.compile_model(FLAGS_m, device_name);
             auto duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Load network took " << double_to_string(duration_ms) << " ms" << slog::endl;
-            slog::info << "Original network I/O paramteters:" << slog::endl;
+            slog::info << "Original network I/O parameters:" << slog::endl;
             printInputAndOutputsInfoShort(compiledModel);
 
             if (statistics)
