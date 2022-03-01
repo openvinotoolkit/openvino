@@ -20,7 +20,7 @@ typedef std::tuple<
         ngraph::opset4::TopK::SortType, // sort
         ElementType,                    // Net precision
         ElementType,                    // Input precision
-        ElementType,                    // Output precision
+        std::vector<ElementType>,       // Output precision
         InputShape                      // inputShape
 > basicTopKParams;
 
@@ -41,7 +41,8 @@ public:
         int64_t keepK, axis;
         ngraph::opset4::TopK::Mode mode;
         ngraph::opset4::TopK::SortType sort;
-        ElementType netPrecision, inPrc, outPrc;
+        ElementType netPrecision, inPrc;
+        std::vector<ElementType> outPrc;
         InputShape inputShape;
         std::tie(keepK, axis, mode, sort, netPrecision, inPrc, outPrc, inputShape) = basicParamsSet;
 
@@ -54,7 +55,7 @@ public:
         result << "sort=" << sort << "_";
         result << "netPRC=" << netPrecision << "_";
         result << "inPRC=" << inPrc << "_";
-        result << "outPRC=" << outPrc << "_";
+        result << "outPRC=" << outPrc[0] << "_" << outPrc[1] << "_";
         result << "IS=" << CommonTestUtils::partialShape2str({inputShape.first}) << "_" << "TS=(";
         for (const auto& shape : inputShape.second) {
             result << CommonTestUtils::vec2str(shape) << "_";
@@ -87,14 +88,20 @@ protected:
         int64_t keepK;
         ngraph::opset4::TopK::Mode mode;
         ngraph::opset4::TopK::SortType sort;
-        ElementType inPrc, outPrc;
+        ElementType inPrc;
+        std::vector<ElementType> outPrc;
         InputShape inputShape;
         std::tie(keepK, axis, mode, sort, netPrecision, inPrc, outPrc, inputShape) = basicParamsSet;
 
-        if (additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES)
-            inPrc = outPrc = netPrecision = ElementType::bf16;
-        else
-            inPrc = outPrc = netPrecision;
+        if (additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES) {
+            inPrc = netPrecision = ElementType::bf16;
+            outType.front() = outPrc[0];
+            outType.push_back(outPrc[1]);
+        } else {
+            inPrc = netPrecision;
+            outType.front() = outPrc[0];
+            outType.push_back(outPrc[1]);
+        }
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
         selectedType = getPrimitiveType() + "_" + InferenceEngine::details::convertPrecision(netPrecision).name();
@@ -221,6 +228,10 @@ const std::vector<ElementType> netPrecisions = {
     ElementType::f32,
 };
 
+const std::vector<std::vector<ElementType>> outPrecisions = {
+    {ElementType::undefined, ElementType::undefined}
+};
+
 std::vector<std::map<std::string, std::string>> additionalConfig = {
     {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}},
     {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}
@@ -262,7 +273,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TopK, TopKLayerCPUTest,
             ::testing::ValuesIn(sortTypes),
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(ElementType::undefined),
-            ::testing::Values(ElementType::undefined),
+            ::testing::ValuesIn(outPrecisions),
             ::testing::ValuesIn(inputShapes)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams)),
         ::testing::ValuesIn(additionalConfig)),
@@ -277,7 +288,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TopK_dynamic, TopKLayerCPUTest,
             ::testing::ValuesIn(sortTypes),
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(ElementType::undefined),
-            ::testing::Values(ElementType::undefined),
+            ::testing::ValuesIn(outPrecisions),
             ::testing::ValuesIn(inputShapesDynamic)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams)),
         ::testing::ValuesIn(additionalConfig)),
@@ -300,7 +311,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TopK_bubble_BLK_on_channel_horiz, TopKLayerCPUTest
             ::testing::ValuesIn(sortTypes),
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(ElementType::undefined),
-            ::testing::Values(ElementType::undefined),
+            ::testing::ValuesIn(outPrecisions),
             ::testing::ValuesIn(inputShapes_bubble_BLK_on_channel_horiz)),
         ::testing::Values(CPUSpecificParams({nChw16c, x}, {nChw16c, nChw16c}, {}, {})),
         ::testing::ValuesIn(additionalConfig)),
@@ -315,7 +326,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TopK_bubble_BLK_on_channel_horiz_dynamic, TopKLaye
             ::testing::ValuesIn(sortTypes),
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(ElementType::undefined),
-            ::testing::Values(ElementType::undefined),
+            ::testing::ValuesIn(outPrecisions),
             ::testing::ValuesIn(inputShapesDynamic_bubble_BLK_on_channel_horiz)),
         ::testing::Values(CPUSpecificParams({nChw16c, x}, {nChw16c, nChw16c}, {}, {})),
         ::testing::ValuesIn(additionalConfig)),
