@@ -186,4 +186,4 @@ OpenVINO™ provides several debug capabilities:
 
 * [Available Operation Sets](../ops/opset.md)
 * [OpenVINO™ Runtime Extensibility Developer Guide](../Extensibility_UG/Intro.md)
-* [Transformations Developer Guide](./ov_transformations.md).
+* [Transformations Developer Guide](../Extensibility_UG/ov_transformations.md).
