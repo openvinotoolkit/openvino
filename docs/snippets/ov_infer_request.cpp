@@ -88,9 +88,9 @@ infer_request2.set_input_tensor(0, output);
 //! [roi_tensor]
 /** input_tensor points to input of a previous network and
     cropROI contains coordinates of output bounding box **/
-ov::Tensor input_tensor;
-ov::Coordinate begin;
-ov::Coordinate end;
+ov::Tensor input_tensor(ov::element::f32, ov::Shape({1, 3, 20, 20}));
+ov::Coordinate begin({0, 0, 0, 0});
+ov::Coordinate end({1, 2, 3, 3});
 //...
 
 /** roi_tensor uses shared memory of input_tensor and describes cropROI

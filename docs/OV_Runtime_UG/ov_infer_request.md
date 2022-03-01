@@ -30,7 +30,7 @@ This class allows to set and get data for model inputs, outputs and run inferenc
 
 ### Synchronous mode
 
-You can use `ov::InferRequest::infer()` to infer model in synchronous mode:
+You can use `ov::InferRequest::infer()`, which blocks the application execution,  to infer model in synchronous mode:
 
 @sphinxdirective
 
@@ -104,7 +104,8 @@ Asynchronous mode supports two ways to wait inference results:
 
 Both requests are thread-safe: can be called from different threads without fearing corruption and failures.
 
-Also InferRequest provides an functionality which allows to avoid a call of `ov::InferRequest::wait()`, in order to do it, you can use `ov::InferRequest::set_callback()` method. This method allows to set callback which will be called after completing run of InferRequest.
+Also InferRequest provides an functionality which allows to avoid a call of `ov::InferRequest::wait()`, in order to do it, you can use `ov::InferRequest::set_callback()` method. This method allows to set callback which will be called after completing run of InferRequest, please use weak reference of infer_request (`ov::InferRequest*`, `ov::InferRequest&`, `std::weal_ptr<ov::InferRequest>` and etc) in the callback, it is needed to avoid cyclic references.
+For more details please take a look too [Classification Sample Async](../../samples/cpp/classification_sample_async/README.md).
 
 @sphinxdirective
 
@@ -138,6 +139,7 @@ You can use `ov::InferRequest::cancel()` method in case if you want to cancel th
        :language: python
        :fragment: [cancel]
 
+@endsphinxdirective
 
 ## Working with Input and Output tensors
 

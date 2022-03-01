@@ -81,7 +81,7 @@ infer_request2.set_input_tensor(0, output)
 #! [roi_tensor]
 # input_tensor points to input of a previous network and
 # cropROI contains coordinates of output bounding box **/
-input_tensor = ov.Tensor()
+input_tensor = ov.Tensor(type=ov.Type.f32, shape=ov.Shape([1, 3, 20, 20]))
 begin = [0, 0, 0, 0]
 end = [1, 2, 3, 3]
 # ...

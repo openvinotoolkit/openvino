@@ -8,11 +8,7 @@ import openvino.runtime as ov
 
 #! [part1]
 core = ov.Core()
-#  model is ov.Model
-#  compiled_model is ov.CompiledModel
 #! [part1]
-
-model = core.read_model("model.xml")
 
 #! [part2_1]
 compiled_model = core.compile_model("model.xml", "AUTO")
@@ -24,6 +20,16 @@ compiled_model = core.compile_model("model.onnx", "AUTO")
 compiled_model = core.compile_model("model.pdmodel", "AUTO")
 #! [part2_3]
 #! [part2_4]
+def create_model():
+    # This example shows how to create ov::Function
+    #
+    # To construct a model, please follow 
+    # https://docs.openvino.ai/latest/openvino_docs_OV_Runtime_UG_Model_Representation.html
+    data = ov.opset8.parameter([3, 1, 2], ov.Type.f32)
+    res = ov.opset8.result(data)
+    return ov.Model([res], [data], "model")
+
+model = create_model()
 compiled_model = core.compile_model(model, "AUTO")
 #! [part2_4]
 

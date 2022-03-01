@@ -36,46 +36,43 @@ OpenVINO™ Runtime provides two types for shape representation:
 
 * `ov::Shape` - Represents static (fully defined) shapes.
 
-* `ov::PartialShape` - Represents dynamic shapes. That means that the rank or some of dimensions are dynamic (undefined). `ov::PartialShape` can be converted to `ov::Shape` using the `get_shape()` method if all dimensions are static; otherwise the conversion raises an exception.
-  `ov::PartialShape` can be converted to `ov::Shape` using the `get_shape()` method if all dimensions are static; otherwise, conversion raises an exception.
+* `ov::PartialShape` - Represents dynamic shapes. That means that the rank or some of dimensions are dynamic (dimension defines an interval or undefined). `ov::PartialShape` can be converted to `ov::Shape` using the `get_shape()` method if all dimensions are static; otherwise the conversion raises an exception.
 
-  @sphinxdirective
+@sphinxdirective
 
-  .. tab:: C++
+.. tab:: C++
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
-         :language: cpp
-         :fragment: [ov:partial_shape]
+  .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+     :language: cpp
+     :fragment: [ov:partial_shape]
 
-  .. tab:: Python
+.. tab:: Python
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
-         :language: python
-         :fragment: [ov:partial_shape]
+  .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+     :language: python
+     :fragment: [ov:partial_shape]
 
-  @endsphinxdirective
+@endsphinxdirective
 
   But in most cases before getting static shape using `get_shape()` method, you need to check that shape is static.
 
 ## Operations
 
-The `ov::Op` class represents any abstract operation in the model representation. Use this class to create [custom operations](../Extensibility_UG/add_openvino_ops).
+The `ov::Op` class represents any abstract operation in the model representation. Use this class to create [custom operations](../Extensibility_UG/add_openvino_ops.md).
 
 ## Operation Sets
 
 Operation set (opset) is a collection of operations that can be used to construct a model. The `ov::OpSet` class  provides a functionality to work with operation sets.
 For each operation set, OpenVINO™ Runtime provides a separate namespace, for example `opset8`.
 Each OpenVINO™ Release release introduces new operations and add these operations to a new operation set. New operation sets help to introduce a new version of operations that change behavior of previous operations. Using operation sets allows you to avoid changes in your application if new operations have been introduced.
+For a complete list of operation sets supported in OpenVINO™ toolkit, see [Available Operations Sets](../ops/opset.md).
+To add support of custom operations, see the [Add Custom OpenVINO Operations](../Extensibility_UG/Intro.md) document.
 
 ## Build a Model in OpenVINO™ Runtime {#build_model}
 
 You can create a model from source. This section illustrates how to construct a model composed of operations from an available operation set.
 
 Operation set `opsetX` integrates a list of pre-compiled operations that work for this purpose. In other words, `opsetX` defines a set of operations for building a graph.
-
-For a complete list of operation sets supported in OpenVINO™ toolkit, see [Available Operations Sets](../ops/opset.md).
-
-To add support of custom operations, see the [Add Custom OpenVINO Operations](../Extensibility_UG/Intro.md) document.
 
 To build an `ov::Model` instance from `opset8` operations, include the following files:
 
@@ -134,7 +131,7 @@ The following code creates a model with several outputs:
 ## Model debug capabilities
 
 OpenVINO™ provides several debug capabilities:
-   - To receive additional messages about applied graph modifications, rebuild the OpenVINO™ Runtime library with the `-DENABLE_OPENVINO_DEBUG=ON` option.
+   - To receive additional messages about applied model modifications, rebuild the OpenVINO™ Runtime library with the `-DENABLE_OPENVINO_DEBUG=ON` option.
    - Model can be visualized to image from the xDot format:
 
     @sphinxdirective
@@ -155,14 +152,14 @@ OpenVINO™ provides several debug capabilities:
 
     `ov::pass::VisualizeTree` can be parametrized via environment variables:
 
-    ```
-    OV_VISUALIZE_TREE_OUTPUT_SHAPES=1       - visualize shapes
-    OV_VISUALIZE_TREE_OUTPUT_TYPES=1        - visualize types
-    OV_VISUALIZE_TREE_MIN_MAX_DENORMAL=1    - pretty denormal values
-    OV_VISUALIZE_TREE_RUNTIME_INFO=1        - print runtime information
-    OV_VISUALIZE_TREE_IO=1                  - print I/O ports
-    OV_VISUALIZE_TREE_MEMBERS_NAME=1        - print member names
-    ```
+        ```
+        OV_VISUALIZE_TREE_OUTPUT_SHAPES=1       - visualize shapes
+        OV_VISUALIZE_TREE_OUTPUT_TYPES=1        - visualize types
+        OV_VISUALIZE_TREE_MIN_MAX_DENORMAL=1    - pretty denormal values
+        OV_VISUALIZE_TREE_RUNTIME_INFO=1        - print runtime information
+        OV_VISUALIZE_TREE_IO=1                  - print I/O ports
+        OV_VISUALIZE_TREE_MEMBERS_NAME=1        - print member names
+        ```
 
    - Also model can be serialized to IR:
 

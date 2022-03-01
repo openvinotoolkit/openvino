@@ -11,26 +11,11 @@
 
 @endsphinxdirective
 
-The following diagram illustrates the typical application development workflow:
-
-![ie_api_flow_cpp]
-
-Read the sections below to learn about each item.
-
 > **NOTE**: Before start using OpenVINO™ Runtime, make sure you set all environment variables during the installation. If you did not, follow the instructions from the _Set the Environment Variables_ section in the installation guides:
 > * [For Windows* 10](../install_guides/installing-openvino-windows.md)
 > * [For Linux*](../install_guides/installing-openvino-linux.md)
 > * [For macOS*](../install_guides/installing-openvino-macos.md)
 > * To build an open source version, use the [OpenVINO™ Runtime Build Instructions](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
-
-## OpenVINO™ Model Representation
-
-Before the start, it is necessary to say several words about OpenVINO™ Model representation.
-In OpenVINO™ Runtime a model is represented by the `ov::Model` class.
-
-The `ov::Model` object represents any models inside the OpenVINO™ Runtime.
-`ov::Model` allows to use tensor names or indexes to work wit model inputs/outpus. To get model input/output ports you can use `ov::Model::inputs()` or `ov::Model::outputs()` respectively.
-For more details please read article about [OpenVINO™ Model representation](model_representation.md).
 
 ## Use OpenVINO™ Runtime API to Implement Inference Pipeline
 
@@ -138,6 +123,9 @@ Compile the model for a specific device using `ov::Core::compile_model()`:
 
 @endsphinxdirective
 
+The `ov::Model` object represents any models inside the OpenVINO™ Runtime.
+For more details please read article about [OpenVINO™ Model representation](model_representation.md).
+
 The code above creates a compiled model associated with a single hardware device from the model object.
 It is possible to create as many compiled models as needed and use them simultaneously (up to the limitation of the hardware resources).
 To learn how to change the device configuration, read the [Query device properties](./supported_plugins/config_properties.md) article.
@@ -166,7 +154,7 @@ Create an infer request using the following code:
 
 ### Step 4. Set Inputs
 
-You can use external memory to create `ov::Tensor` and use the `ov::InferRequest::set_input_tensor()` method to put this tensor on the device:
+You can use external memory to create `ov::Tensor` and use the `ov::InferRequest::set_input_tensor` method to put this tensor on the device:
 
 @sphinxdirective
 
@@ -186,7 +174,7 @@ You can use external memory to create `ov::Tensor` and use the `ov::InferRequest
 
 ### Step 5. Start Inference
 
-OpenVINO™ Runtime supports inference in asynchronous or synchronous mode. Async API usage can improve overall frame-rate of the application, because rather than wait for inference to complete, the app can continue doing things on the host, while the accelerator is busy. You can use `ov::InferRequest::start_async()` to infer the model in the asynchronous mode and call `ov::InferRequest::wait()` to wait for the inference results:
+OpenVINO™ Runtime supports inference in asynchronous or synchronous mode. Async API usage can improve overall frame-rate of the application, because rather than wait for inference to complete, the app can continue doing things on the host, while the accelerator is busy. You can use `ov::InferRequest::start_async()` to start model inference in the asynchronous mode and call `ov::InferRequest::wait()` to wait for the inference results:
 
 @sphinxdirective
 
@@ -210,9 +198,7 @@ The asynchronous mode supports two methods to get the inference results:
 
 Both requests are thread-safe, which means they can be called from different threads without exposing erroneous behavior or producing unpredictable results.
 
-Multiple requests for single `CompiledModel` are executed sequentially one by one in the FIFO order.
-
-While the request is ongoing, all its methods except `ov::InferRequest::wait` or `ov::InferRequest::wait_for` throw
+While the request is ongoing, all its methods except `ov::InferRequest::cancel`, `ov::InferRequest::wait` or `ov::InferRequest::wait_for` throw
 the `ov::Busy` exception indicating the request is busy with computations.
 
 ### Step 6. Process the Inference Results 
@@ -245,8 +231,7 @@ The example uses CMake for project configuration.
        ├── CMakeLists.txt  - CMake file to build
        ├── ...             - Additional folders like includes/
        └── src/            - source folder
-           ├── main.cpp
-           └── main.py
+           └── main.cpp
    build/                  - build directory
        ...      
    ```
