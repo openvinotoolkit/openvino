@@ -56,11 +56,15 @@ def base_args_config():
 
 
 def get_builtin_extensions_path():
-    import openvino.frontend
-    python_frontend_path = openvino.frontend.__path__[0]
+    python_frontend_path = ''
+    if 'DATA_PATH' in os.environ: # CI scenario
+        python_frontend_path = os.environ['DATA_PATH']
+    else: # local scenario
+        import openvino.frontend
+        python_frontend_path = openvino.frontend.__path__[0]
     lib_folder_pos = python_frontend_path.rfind("lib/")
     if lib_folder_pos != -1:
-        lib_folder_path = python_frontend_path[:lib_folder_pos+4]
+        lib_folder_path = python_frontend_path[:lib_folder_pos + 4]
         for file in os.listdir(lib_folder_path):
             if file == "libtest_builtin_extensions_1.so" or file == "libtest_builtin_extensions_1.dll":
                 return path.join(lib_folder_path, file)
@@ -111,6 +115,7 @@ class TestMoFallback(unittest.TestCase):
 
 
     def test_conersion_if_extensions_is_used(self):
+        print(os.environ["DATA_PATH"])
         args = base_args_config()
         args.input_model = "test_model.onnx"
         args.extensions = get_builtin_extensions_path()
