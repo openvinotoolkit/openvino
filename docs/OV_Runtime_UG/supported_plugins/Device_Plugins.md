@@ -29,8 +29,8 @@ OpenVINO runtime also has several execution capabilities which work on top of ot
 |------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
 |[Multi-Device execution](../multi_device.md) |Multi-Device enables simultaneous inference of the same model on several devices in parallel    |
 |[Auto-Device selection](../auto_device_selection.md) |Auto-Device selection enables selecting Intel&reg; device for inference automatically |
-|[Heterogeneous execution](../hetero_execution.md) |Heterogeneous execution enables automatic inference splitting between several devices (for example if a device doesn't [support certain operation](#supported-layers)).                                                           |
-|[Automatic Batching](BATCH.md) | Auto-Batching plugin enables the batching (on top of the specified device)  that is completely transparent to the application |
+|[Heterogeneous execution](../hetero_execution.md) |Heterogeneous execution enables automatic inference splitting between several devices (for example if a device doesn't [support certain operation](#supported-layers))|
+|[Automatic Batching](../automatic_batching.md) | Auto-Batching plugin enables the batching (on top of the specified device)  that is completely transparent to the application |
 
 Devices similar to the ones we have used for benchmarking can be accessed using [Intel® DevCloud for the Edge](https://devcloud.intel.com/edge/), a remote development environment with access to Intel® hardware and the latest versions of the Intel® Distribution of the OpenVINO™ Toolkit. [Learn more](https://devcloud.intel.com/edge/get_started/devcloud/) or [Register here](https://inteliot.force.com/DevcloudForEdge/s/).
 
