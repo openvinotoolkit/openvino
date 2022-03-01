@@ -137,13 +137,24 @@ void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, co
                     // let's try to pop a task, as we know there is at least one idle request, schedule if succeeded
                     // if no device-agnostic tasks, let's try pop the device specific task, schedule if succeeded
                     Task t;
-                    if (_inferPipelineTasks.try_pop(t))
+                    std::cout << "size as:" << _inferPipelineTasks.unsafe_size() << std::endl;
+                    if (_inferPipelineTasks.try_pop(t)) {
                         ScheduleToWorkerInferRequest(std::move(t));
-                    else if (_inferPipelineTasksDeviceSpecific[device]->try_pop(t))
+                        LOG_INFO("[AUTOPLUGIN]:pop 1 from task queue");
+                    } else if (_inferPipelineTasksDeviceSpecific[device]->try_pop(t)) {
                         ScheduleToWorkerInferRequest(std::move(t), device);
+                    }
                 }
             });
     }
+    LOG_INFO("[AUTOPLUGIN]:device:%s finish create the infer requests!", device.c_str());
+    // reset the timeout in batch plugin
+    /*try {
+        executableNetwork->SetConfig({{CONFIG_KEY(AUTO_BATCH_TIMEOUT), _timeOut}});
+        LOG_INFO("[AUTOPLUGIN]:device:%s,  resetBatchTimeout to %d", device.c_str(), _timeOut);
+    } catch (...) {
+        LOG_INFO("[AUTOPLUGIN]:device:%s, ResetBatchTimeout not supported", device.c_str());
+    }*/
 }
 
 MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&                         modelPath,
@@ -213,6 +224,16 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                           if (contextPtr->workName.empty()) {
                                 contextPtr->workName = contextPtr->deviceInfo.deviceName;
                           }
+                          auto& deviceName = contextPtr->deviceInfo.deviceName;
+                          try {
+                              if (_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isEnabled && deviceName.find("CPU") == std::string::npos) {
+                                  _timeOut = contextPtr->executableNetwork->GetConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT)).as<int>();
+                                  contextPtr->executableNetwork->SetConfig({{CONFIG_KEY(AUTO_BATCH_TIMEOUT), 0}});
+                                  LOG_INFO("[AUTOPLUGIN]:device:%s, temporarily setBatchTimeout to 0", deviceName.c_str());
+                              }
+                          } catch (...) {
+                              LOG_INFO("[AUTOPLUGIN]:device:%s, SetBatchTimeout not supported", deviceName.c_str());
+                          }
                           GenerateWorkers(contextPtr->workName, contextPtr->executableNetwork);
                           //need lock
                           {
@@ -221,7 +242,6 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                                             contextPtr->deviceInfo.config.end());
                           }
                           contextPtr->isAlready = true;
-                          auto& deviceName = contextPtr->deviceInfo.deviceName;
                           LOG_INFO("[AUTOPLUGIN]:device:%s loading Network finished",
                                   deviceName.c_str());
                           auto supported_config_keys =
@@ -291,11 +311,24 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                     _workerRequests["CPU_HELP"].clear();
                     _loadContext[CPU].executableNetwork._ptr.reset();
                     _loadContext[CPU].executableNetwork._so.reset();
+                    LOG_INFO("[AUTOPLUGIN]:helper released!!");
                     break;
                 }
             }
         };
         _executor->run(std::move(recycleTask));
+        auto resetTimeoutTask = [this]() mutable {
+            std::unique_lock<std::mutex> lock(_resetMutex);
+            _resetCV.wait(lock);
+            try {
+                    _loadContext[ACTUALDEVICE].executableNetwork->SetConfig({{CONFIG_KEY(AUTO_BATCH_TIMEOUT), _timeOut}});
+                    LOG_INFO("[AUTOPLUGIN]:device:%s,  resetBatchTimeout to %d", _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str(), _timeOut);
+                } catch (...) {
+                    LOG_INFO("[AUTOPLUGIN]:device:%s, ResetBatchTimeout not supported", _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str());
+            }
+
+        };
+        _executor->run(std::move(resetTimeoutTask));
     } else {
         // only one device need to load network, do not need to load it async
         _loadContext[ACTUALDEVICE].task();
@@ -491,6 +524,7 @@ void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipeli
     }
 
     // no vacant requests this time, storing the task to the respective queue
+    LOG_INFO("[AUTOPLUGIN]:push 1 to task queue");
     if (!preferred_device.empty())
         _inferPipelineTasksDeviceSpecific[preferred_device]->push(std::move(inferPipelineTask));
     else
