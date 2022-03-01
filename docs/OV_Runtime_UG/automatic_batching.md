@@ -45,10 +45,9 @@ Alternatively, to enable the Auto-Batching in the legacy apps not akin to the no
 
 The _automatic batch size selection_ assumes that the application queries the `ov::optimal_number_of_infer_requests` to create and run the returned number of requests simultaneously. If not enough inputs were collected, the `timeout` value makes the transparent execution fall back to the execution of individual requests. Configuration-wise, this is the AUTO_BATCH_TIMEOUT property. 
 
-The timeout, which adds itself to the execution time of the requests, heavily penalizes the performance. To avoid this, in cases when your parallel slack is bounded, (for example, the application processes only 4 video streams, so there is no need to use a batch larger than 4) give the OpenVINO an additional hint.
-So the performance hint should be equipped with the optional `ov::hint::num_requests` configuration key set to **4**. 
+The timeout, which adds itself to the execution time of the requests, heavily penalizes the performance. To avoid this, in cases when your parallel slack is bounded, give the OpenVINO an additional hint.
 
-This is the most future-proof way to communicate the limitations of parallelism. For example, for the GPU it limits the batch size, for the CPU - the number of inference streams. Each device uses `the ov::hint::num_requests` when converting the hint to the device configuration options.
+For example, the application processes only 4 video streams, so there is no need to use a batch larger than 4. The most future-proof way to communicate the limitations on the parallelism is to equip the performance hint with the optional `ov::hint::num_requests` configuration key set to *4*. For the GPU this will limit the batch size, for the CPU - the number of inference streams, so each device uses the `ov::hint::num_requests` while converting the hint to the actual device configuration options.
 For the **explicit** usage, you can limit the batch size using  "BATCH:GPU(4)",  where 4 is number of requests running in parallel.
 
 Limitations:
