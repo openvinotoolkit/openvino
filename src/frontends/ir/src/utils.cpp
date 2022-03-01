@@ -102,9 +102,6 @@ void str_to_set_of_strings(const std::string& value, std::set<std::string>& res)
     std::stringstream ss(value);
     std::string field;
     while (getline(ss, field, ',')) {
-        if (field.empty())
-            IE_THROW() << "Cannot get vector of parameters! \"" << value << "\" is incorrect";
-
         // trim leading and trailing whitespaces
         auto strBegin = field.find_first_not_of(" ");
         if (strBegin == std::string::npos)
