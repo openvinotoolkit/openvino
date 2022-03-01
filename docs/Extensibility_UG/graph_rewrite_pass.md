@@ -1,4 +1,4 @@
-# OpenVINO™ Graph Rewrite Pass {#openvino_docs_Extensibility_UG_graph_rewrite_pass}
+# OpenVINO Graph Rewrite Pass {#openvino_docs_Extensibility_UG_graph_rewrite_pass}
 
 `ov::pass::GraphRewrite` serves for running multiple matcher passes on `ov::Model` in a single graph traversal.
 Example:
@@ -23,3 +23,6 @@ And then creates map from registered MatcherPasses. That helps to avoid addition
 ## See Also
 
 * [OpenVINO™ Transformations](./ov_transformations.md)
+
+[graph_rewrite_execution]: ./img/graph_rewrite_execution.png
+[graph_rewrite_efficient_search]: ./img/graph_rewrite_efficient_search.png

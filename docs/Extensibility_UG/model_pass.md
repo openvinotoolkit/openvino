@@ -1,4 +1,4 @@
-# OpenVINO™ Model Pass {#openvino_docs_Extensibility_UG_model_pass}
+# OpenVINO Model Pass {#openvino_docs_Extensibility_UG_model_pass}
 
 `ov::pass::ModelPass` is used for transformations that take entire `ov::Model` as an input and process it.
 

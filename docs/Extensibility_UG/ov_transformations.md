@@ -30,7 +30,7 @@ Lets look at the code example.
 
 @snippet ov_model_snippets.cpp ov:ports_example
 
-### Mode replacement
+### Node replacement
 
 OpenVINO™ provides two ways for node replacement: via OpenVINO™ helper function and directly via port methods. We are going to review both of them.
 
@@ -59,7 +59,7 @@ The alternative way to the insert operation is to make a node copy and use `ov::
 
 @snippet ov_model_snippets.cpp ov:insert_node_with_copy
 
-### Mode elimination
+### Node elimination
 
 Another type of node replacement is its elimination.
 
@@ -106,29 +106,11 @@ These attributes can be set by users or by plugins and when executing transforma
 In most cases, transformations have the following types: 1:1 (replace node with another node), 1:N (replace node with a sub-graph), N:1 (fuse sub-graph into a single node), N:M (any other transformation).
 Currently, there is no mechanism that automatically detects transformation types, so we need to propagate this runtime information manually. See the examples below.
 
-```cpp
-// Replace Transpose with Reshape operation (1:1)
-ov::copy_runtime_info(transpose, reshape);
-```
-
-```cpp
-// Replace Div operation with Power and Multiply sub-graph (1:N)
-ov::copy_runtime_info(div, {pow, mul});
-```
-
-```cpp
-// Fuse Convolution with Add operation (N:1)
-ov::copy_runtime_info({conv, bias}, {conv_ie});
-```
-
-```cpp
-// Any other transformation that replaces one sub-graph with another sub-graph (N:M)
-ov::copy_runtime_info({a, b, c}, {e, f});
-```
+@snippet ov_model_snippets.cpp ov:copy_runtime_info
 
 When transformation has multiple fusions or decompositions, `ov::copy_runtime_info` must be called multiple times for each case.
 
-> **Note**: copy_runtime_info removes rt_info from destination nodes. If you want to keep it, you need to specify them in source nodes like this: copy_runtime_info({a, b, c}, {a, b})
+**Note**: copy_runtime_info removes rt_info from destination nodes. If you want to keep it, you need to specify them in source nodes like this: copy_runtime_info({a, b, c}, {a, b})
 
 ###3. Constant Folding
 
@@ -188,5 +170,3 @@ OV_ENABLE_VISUALIZE_TRACING=1 -  enables visualization after each transformation
 [ngraph_insert_node]: ./img/ngraph_insert_node.png
 [transformations_structure]: ./img/transformations_structure.png
 [register_new_node]: ./img/register_new_node.png
-[graph_rewrite_execution]: ./img/graph_rewrite_execution.png
-[graph_rewrite_efficient_search]: ./img/graph_rewrite_efficient_search.png

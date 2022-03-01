@@ -1,4 +1,4 @@
-# OpenVINO™ Matcher Pass {#openvino_docs_Extensibility_UG_matcher_pass}
+# OpenVINO Matcher Pass {#openvino_docs_Extensibility_UG_matcher_pass}
 
 `ov::pass::MatcherPass` is used for pattern-based transformations.
 

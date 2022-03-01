@@ -210,3 +210,20 @@ auto pow = std::make_shared<ov::opset8::Power>(ov::opset8::Constant::create(ov::
 auto mul = std::make_shared<ov::opset8::Multiply>(input /* not constant input */, pow);
 // ! [ov:constant_subgraph]
 }
+
+void copy_runtime_info_snippet() {
+std::shared_ptr<ov::Node> transpose, reshape, div, pow, mul, conv, bias, conv_fused, a, b, c, e, f;
+// ! [ov:copy_runtime_info]
+// Replace Transpose with Reshape operation (1:1)
+ov::copy_runtime_info(transpose, reshape);
+
+// Replace Div operation with Power and Multiply sub-graph (1:N)
+ov::copy_runtime_info(div, {pow, mul});
+
+// Fuse Convolution with Add operation (N:1)
+ov::copy_runtime_info({conv, bias}, {conv_fused});
+
+// Any other transformation that replaces one sub-graph with another sub-graph (N:M)
+ov::copy_runtime_info({a, b, c}, {e, f});
+// ! [ov:copy_runtime_info]
+}
