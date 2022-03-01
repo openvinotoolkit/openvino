@@ -190,8 +190,8 @@ void save_example() {
  ov::set_batch(model, 2);
 
  // ======== Step 3: Save the model ================
- std::string xml = "/path/to/some_model.xml";
- std::string bin = "/path/to/some_model.bin";
+ std::string xml = "/path/to/some_model_saved.xml";
+ std::string bin = "/path/to/some_model_saved.bin";
  ov::pass::Serialize(xml, bin).run_on_model(model);
  //! [ov:preprocess:save]
 
@@ -200,9 +200,10 @@ void save_example() {
 void load_aftersave_example() {
  //! [ov:preprocess:save_load]
  ov::Core core;
- std::shared_ptr<ov::Model> model = core.read_model("/path/to/some_model.xml");
+ core.set_property({{CONFIG_KEY(CACHE_DIR), "/path/to/cache/dir"}});
 
- // No additional preprocessing is needed in application's code, it is already integrated into graph
- ov::CompiledModel exec = core.compile_model(model, "CPU");
+ // In case that no preprocessing is needed anymore, we can load model on target device directly
+ // With cached model available, it will also save some time on reading original model
+ ov::CompiledModel compiled_model = core.compile_model("/path/to/some_model_saved.xml", "CPU");
  //! [ov:preprocess:save_load]
 }

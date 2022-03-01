@@ -210,13 +210,15 @@ model = ppp.build()
 set_batch(model, 2)
 
 # ======== Step 3: Save the model ================
-serialize(model, "/path/to/some_model.xml", "/path/to/some_model.bin")
+serialize(model, '/path/to/some_model_saved.xml', '/path/to/some_model_saved.bin')
 
 # ! [ov:preprocess:save]
 
 # ! [ov:preprocess:save_load]
 core = Core()
-model = core.read_model(model='/path/to/some_model.xml')
-# No additional preprocessing is needed in application's code, it is already integrated into graph
-compiled_model = core.compile_model(model, 'CPU')
+core.set_property({'CACHE_DIR': '/path/to/cache/dir'})
+
+# In case that no preprocessing is needed anymore, we can load model on target device directly
+# With cached model available, it will also save some time on reading original model
+compiled_model = core.compile_model('/path/to/some_model_saved.xml', 'CPU')
 # ! [ov:preprocess:save_load]

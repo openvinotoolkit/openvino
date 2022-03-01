@@ -8,7 +8,7 @@ For many applications it is also important to minimize model's read/load time, s
 
 Most part of existing preprocessing steps can also be performed via command line options using Model Optimizer tool. Refer to [Model Optimizer - Optimize Preprocessing Computation](../MO_DG/prepare_model/Additional_Optimizations.md) for details os such command line options.
 
-## Code example
+## Code example - saving model with preprocessing to IR
 
 In case if you have some preprocessing steps which can't be integrated into execution graph using Model Optimizer command line options (e.g. `YUV->RGB` color space conversion, Resize, etc.) it is possible to write simple code which:
  - Reads original model (IR, ONNX, Paddle)
@@ -17,6 +17,7 @@ In case if you have some preprocessing steps which can't be integrated into exec
 
 Let's consider the example, there is an original `ONNX` model which takes one `float32` input with shape `{1, 3, 224, 224}` with `RGB` channels order, with mean/scale values applied. User's application can provide `BGR` image buffer with not fixed size. Additionally, we'll also imagine that our application provides input images as batches, each batch contains 2 images. Here is how model conversion code may look like in your model preparation script
 
+- Includes / Imports
 @sphinxdirective
 
 .. tab:: C++
@@ -32,6 +33,8 @@ Let's consider the example, there is an original `ONNX` model which takes one `f
          :fragment: [ov:preprocess:save_headers]
 
 @endsphinxdirective
+
+- Preprocessing & Saving to IR code
 
 @sphinxdirective
 
@@ -50,7 +53,9 @@ Let's consider the example, there is an original `ONNX` model which takes one `f
 @endsphinxdirective
 
 
-After this, your application's code can load saved file and don't perform preprocessing anymore
+## Application code - load model to target device
+
+After this, your application's code can load saved file and don't perform preprocessing anymore. In this example we'll also enable [model caching](./Model_caching_overview.md) to minimize load time when cached model is available
 
 @sphinxdirective
 
@@ -73,6 +78,7 @@ After this, your application's code can load saved file and don't perform prepro
 * [Preprocessing Details](./preprocessing_details.md)
 * [Layout API overview](./layout_overview.md)
 * [Model Optimizer - Optimize Preprocessing Computation](../MO_DG/prepare_model/Additional_Optimizations.md)
+* [Model Caching Overview](./Model_caching_overview.md)
 * <code>ov::preprocess::PrePostProcessor</code> C++ class documentation
 * <code>ov::pass::Serialize</code> - pass to serialize model to XML/BIN
 * <code>ov::set_batch</code> - update batch dimension for a given model
