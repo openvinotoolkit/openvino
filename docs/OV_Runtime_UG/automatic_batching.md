@@ -23,7 +23,7 @@ Batching is a straightforward way of leveraging the GPU compute power and saving
        :fragment: [compile_model]
 
 @endsphinxdirective
-> **NOTE**: You can disable the Auto-Batching (for example, for the GPU device) from being triggered by the `ov::hint::PerformanceMode::THROUGHPUT`. To do that, pass the `ov::hint::allow_auto_batching` set to 'false' in addition to the `ov::hint::performance_mode`:
+> **NOTE**: You can disable the Auto-Batching (for example, for the GPU device) from being triggered by the `ov::hint::PerformanceMode::THROUGHPUT`. To do that, pass the `ov::hint::allow_auto_batching` set to **false** in addition to the `ov::hint::performance_mode`:
 @sphinxdirective
 
 .. tab:: C++
