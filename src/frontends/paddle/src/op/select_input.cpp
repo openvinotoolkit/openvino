@@ -13,7 +13,8 @@ NamedOutputs select_input(const NodeContext& node) {
     const auto x = node.get_ng_inputs("X");
     const auto mask = node.get_input("Mask");
 
-    const element::Type output_type = node.get_out_port_type("Out");
+    PADDLE_OP_CHECK(node, x.size() == 2, "select_input needs 2 input nodes.");
+
     const auto cond = std::make_shared<default_opset::Convert>(mask, element::boolean);
     const auto ps0 = x[0].get_partial_shape();
     const auto ps1 = x[1].get_partial_shape();
