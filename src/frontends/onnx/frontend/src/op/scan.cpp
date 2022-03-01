@@ -70,7 +70,6 @@ OutputVector scan(const Node& node) {
         body_outputs[i] = std::make_shared<default_opset::Unsqueeze>(body_outputs[i], axis);
     }
 
-    auto axis_val = are_scan_input_axes_set ? scan_input_axes[0] : 0;
     auto ti_body = std::make_shared<Function>(body_outputs, body_inputs);
 
     auto tensor_iterator = std::make_shared<default_opset::TensorIterator>();
