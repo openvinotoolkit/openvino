@@ -201,7 +201,9 @@ ov::descriptor::Output& ov::Node::get_output_descriptor(size_t position) {
 
 void ov::Node::set_argument(size_t position, const Output<Node>& argument) {
     auto output_node = argument.get_node();
-    auto& output_descriptor = output_node->m_outputs.at(argument.get_index());
+    auto& output_descriptor = output_node->m_outputs.size() > argument.get_index()
+                                  ? output_node->m_outputs.at(argument.get_index())
+                                  : output_node->get_output_descriptor(argument.get_index());
     if (position < m_inputs.size()) {
         get_input_descriptor(position).replace_output(output_descriptor);
     } else {
