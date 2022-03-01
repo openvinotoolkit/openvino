@@ -103,7 +103,7 @@ public:
         }
     }
 
-    Mask::Ptr intersect_masks_reversed(Mask *const mask) {
+    Mask::Ptr intersect_masks_reversed(Mask *const mask) const {
         auto result_mask = std::make_shared<Mask>(std::max(size(), mask->size()));
         auto result_iter = result_mask->rbegin();
         auto mask_1_iter = rbegin();
