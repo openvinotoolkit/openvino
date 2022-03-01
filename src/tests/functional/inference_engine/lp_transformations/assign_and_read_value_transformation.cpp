@@ -60,11 +60,10 @@ public:
         const element::Type precisionBeforeDequantization = std::get<2>(GetParam());
         const size_t opsetVersion = std::get<3>(GetParam());
         const AssignTransformationTestValues testValues = std::get<4>(GetParam());
-        low_precision::LayerTransformation::setDefaultPrecisions({
-             ngraph::element::u8,  ngraph::element::i8,
-             ngraph::element::u16, ngraph::element::i16,
-             ngraph::element::u32, ngraph::element::i32
-        });
+        const std::vector<ngraph::element::Type> defaultPrecisions = low_precision::precision_set::int8_int16_int32_support;
+        const auto params = TestTransformationParams(testValues.params)
+            .setDefaultPrecisions(defaultPrecisions);
+
         actualFunction = ngraph::builder::subgraph::AssignAndReadValueFunction::getOriginal(
             inputShape,
             precision,
@@ -74,8 +73,8 @@ public:
             testValues.actual.constantValue,
             testValues.actual.dequantization);
 
-        SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::AssignAndReadValueTransformation, ngraph::opset6::Assign>(actualFunction, testValues.params);
+        SimpleLowPrecisionTransformer transformer({}, {}, { ngraph::element::f32, defaultPrecisions });
+        transformer.add<ngraph::pass::low_precision::AssignAndReadValueTransformation, ngraph::opset6::Assign>(actualFunction, params);
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::AssignAndReadValueFunction::getReference(

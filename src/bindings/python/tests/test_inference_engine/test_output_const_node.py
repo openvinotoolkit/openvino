@@ -38,7 +38,7 @@ def test_const_output_docs(device):
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, device)
     node = exec_net.input(0)
-    exptected_string = "openvino.runtime.ConstOutput wraps ov::Output<Const ov::Node >"
+    exptected_string = "openvino.runtime.ConstOutput represents port/node output."
     assert node.__doc__ == exptected_string
 
 

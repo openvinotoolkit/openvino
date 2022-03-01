@@ -208,14 +208,14 @@ TEST_P(PoolingLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckPluginRelatedResults(executableNetwork, "Pooling");
+    CheckPluginRelatedResults(compiledModel, "Pooling");
 }
 
 TEST_P(MaxPoolingV8LayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckPluginRelatedResults(executableNetwork, "Pooling");
+    CheckPluginRelatedResults(compiledModel, "Pooling");
 }
 
 namespace {
@@ -280,6 +280,15 @@ const std::vector<InputShape> inputShapes4D = {
                 {3, 4, 64, 64},
                 {1, 16, 16, 12},
                 {1, 32, 8, 8}
+            }
+        },
+        {
+            // dynamic
+            {{1, 10}, 16, 8, 8},
+            // target
+            {
+                {1, 16, 8, 8},
+                {2, 16, 8, 8},
             }
         }
 };

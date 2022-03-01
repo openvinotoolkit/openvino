@@ -16,6 +16,7 @@
 #include "ie_plugin_config.hpp"
 #include "ie_system_conf.h"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace InferenceEngine {
 IStreamsExecutor::~IStreamsExecutor() {}
@@ -26,7 +27,7 @@ std::vector<std::string> IStreamsExecutor::Config::SupportedKeys() const {
         CONFIG_KEY(CPU_BIND_THREAD),
         CONFIG_KEY(CPU_THREADS_NUM),
         CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM),
-        ov::streams::num.name(),
+        ov::num_streams.name(),
         ov::inference_num_threads.name(),
         ov::affinity.name(),
     };
@@ -107,18 +108,18 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
             }
             _streams = val_i;
         }
-    } else if (key == ov::streams::num) {
-        int32_t streams = std::stoi(value);
+    } else if (key == ov::num_streams) {
+        auto streams = ov::util::from_string(value, ov::streams::num);
         if (streams == ov::streams::NUMA) {
             _streams = static_cast<int32_t>(getAvailableNUMANodes().size());
         } else if (streams == ov::streams::AUTO) {
             // bare minimum of streams (that evenly divides available number of cores)
             _streams = GetDefaultNumStreams();
-        } else if (streams >= 0) {
-            _streams = streams;
+        } else if (streams.num >= 0) {
+            _streams = streams.num;
         } else {
             OPENVINO_UNREACHABLE("Wrong value for property key ",
-                                 ov::streams::num.name(),
+                                 ov::num_streams.name(),
                                  ". Expected non negative numbers (#streams) or ",
                                  "ov::streams::NUMA|ov::streams::AUTO, Got: ",
                                  streams);
@@ -179,8 +180,8 @@ Parameter IStreamsExecutor::Config::GetConfig(const std::string& key) const {
         }
     } else if (key == CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) {
         return {std::to_string(_streams)};
-    } else if (key == ov::streams::num) {
-        return decltype(ov::streams::num)::value_type{_streams};
+    } else if (key == ov::num_streams) {
+        return decltype(ov::num_streams)::value_type{_streams};
     } else if (key == CONFIG_KEY(CPU_THREADS_NUM)) {
         return {std::to_string(_threads)};
     } else if (key == ov::inference_num_threads) {

@@ -3,8 +3,8 @@
 //
 
 /**
- * @brief This is a header file for the ProfilingInfo objects that contains performance
- *        metric for single node
+ * @brief A header file for the ProfilingInfo objects that contain performance
+ *        metric for a single node.
  *
  * @file openvino/runtime/profiling_info.hpp
  */
@@ -24,46 +24,42 @@ namespace ov {
  */
 struct ProfilingInfo {
     /**
-     * @brief Defines the general status of the node
+     * @brief Defines the general status of a node.
      */
     enum class Status {
-        NOT_RUN,        //!< A node is not executed
-        OPTIMIZED_OUT,  //!< A node is optimized out during graph optimization phase
-        EXECUTED        //!< A node is executed
+        NOT_RUN,        //!< A node is not executed.
+        OPTIMIZED_OUT,  //!< A node is optimized out during graph optimization phase.
+        EXECUTED        //!< A node is executed.
     };
 
     /**
-     * @brief Defines a node status
+     * @brief Defines the node status.
      */
     Status status;
 
     /**
-     * @brief The absolute time in microseconds that the node ran (in total)
+     * @brief The absolute time, in microseconds, that the node ran (in total).
      */
     std::chrono::microseconds real_time;
     /**
-     * @brief The net host cpu time that the node ran
+     * @brief The net host CPU time that the node ran.
      */
     std::chrono::microseconds cpu_time;
 
     /**
-     * @brief A name of node
+     * @brief Name of a node.
      */
     std::string node_name;
 
     /**
-     * @brief An execution type of unit
+     * @brief Execution type of a unit.
      */
     std::string exec_type;
 
     /**
-     * @brief A node type
+     * @brief Node type.
      */
     std::string node_type;
 };
-
-namespace runtime {
-using ov::ProfilingInfo;
-}  // namespace runtime
 
 }  // namespace ov

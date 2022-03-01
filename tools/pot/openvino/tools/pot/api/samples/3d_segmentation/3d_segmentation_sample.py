@@ -38,9 +38,8 @@ class BRATSDataLoader(DataLoader):
         mask_path = os.path.join(self.config.mask_dir, self._img_ids[index])
         image_path = os.path.join(self.config.data_source, self._img_ids[index])
 
-        annotation = (index, self._read_image(mask_path))
         image, image_meta = self._preprocess_image(self._read_image(image_path))
-        return annotation, image, image_meta
+        return image, self._read_image(mask_path), image_meta
 
     def __len__(self):
         """ Returns size of the dataset """
@@ -121,13 +120,6 @@ class DiceIndex(Metric):
         self._overall_metric = []
 
     @property
-    def value(self):
-        """ Returns accuracy metric value for the last model output.
-        Possible format: {metric_name: [metric_values_per_image]}
-        """
-        return {self._name: [np.mean(self._overall_metric[-1])]}
-
-    @property
     def avg_value(self):
         """ Returns accuracy metric value for all model outputs.
         Possible format: {metric_name: metric_value}
@@ -187,13 +179,15 @@ class SegmentationEngine(IEEngine):
         """
         Processes model raw output for future metric and loss calculation.
         Uses image metadata that can be passed using dataloader.
-        :param outputs: network infer result in format of numpy ndarray (batch x image shape)
+        :param outputs: network infer result in the format of dictionary numpy ndarray
+                        by layer name (batch x image shape)
         :param metadata: dictionary of image metadata
         :return: processed numpy ndarray with the same shape as the original output
         """
         processed_outputs = []
-        for output, meta in zip(outputs, metadata):
+        for output, meta in zip(outputs.values(), metadata):
             # Resize to bounding box size and extend to mask size
+            output = output[0]
             low = meta['bbox'][0]
             high = meta['bbox'][1]
             box_shape = tuple((high - low).astype(np.int32))

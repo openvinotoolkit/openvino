@@ -12,6 +12,7 @@
 #include "snippets/pass/assign_registers.hpp"
 #include "snippets/pass/convert_constants_to_scalars.hpp"
 #include "snippets/pass/convert_power_to_powerstatic.hpp"
+#include "snippets/pass/vector_to_scalar.hpp"
 
 #include <ngraph/pass/manager.hpp>
 #include <openvino/pass/serialize.hpp>
@@ -132,13 +133,7 @@ Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShape
 
     NODE_VALIDATION_CHECK(this, outputShapes.size() == m_body->get_results().size(),
         "number of results for snippet doesn't match passed to generate method: ", outputShapes.size(), " vs ", m_body->get_results().size(), ".");
-    // todo: does it allowed to have outputs with different layouts? I assume no, remove if invalid
-    const AxisVector outOrder = get<1>(outputShapes[0]);
-    for (size_t i = 1; i < outputShapes.size(); i++) {
-        const AxisVector order_i = get<1>(outputShapes[i]);
-        NODE_VALIDATION_CHECK(this, outOrder.size() == order_i.size() && equal(outOrder.begin(), outOrder.end(), order_i.begin()),
-                              "Snippets output shapes must have the same layout");
-    }
+
     auto getMaxRankBlockedShape = [](const BlockedShapeVector& blockedShapes) -> const BlockedShape& {
         return *std::max_element(blockedShapes.begin(), blockedShapes.end(),
                          [&](const BlockedShape& lhs, const BlockedShape& rhs) {
@@ -186,18 +181,33 @@ Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShape
     }
 
     m_body->validate_nodes_and_infer_types();
+    auto skipStartEndOnes = [](const Shape& shape) {
+        auto begin = shape.begin();
+        auto end = shape.end();
+        while (begin != end && *begin == 1)
+            begin++;
+        while (begin != end && *(end-1) == 1)
+            end--;
+        Shape trimmedShape(end - begin, 1);
+        std::copy(begin, end, trimmedShape.begin());
+        return trimmedShape;
+    };
 
     // Check that output shapes are broadcastable => can be scheduled
     const auto& body_results = m_body->get_results();
     PartialShape outPShape = body_results[0]->get_shape();
     for (size_t i = 0; i < body_results.size(); i++) {
         auto shape_i = body_results[i]->get_shape();
-        PartialShape pShape_i(shape_i);
+        auto outputShape_i = std::get<0>(outputShapes[i]);
         // Check that the produced output shape corresponds to the passed shape
-        bool compatibleWithPassedShape = PartialShape::broadcast_merge_into(pShape_i, std::get<0>(outputShapes[i]),
+        // Some produced shapes may have been changed to be broadcastable (e.g. blocked + planar outputs),
+        // so we need to remove leading and trailing "1" before the comparison
+        PartialShape pShape_i(skipStartEndOnes(shape_i));
+        bool compatibleWithPassedShape = PartialShape::broadcast_merge_into(pShape_i, skipStartEndOnes(outputShape_i),
                                                                               ::ngraph::op::AutoBroadcastType::NUMPY);
-        NODE_VALIDATION_CHECK(this, compatibleWithPassedShape, "Inferred and passed results shapes are difference for snippet : ",
-                              shape_i, " vs ", std::get<0>(outputShapes[i]), ".");
+        NODE_VALIDATION_CHECK(this, ov::shape_size(shape_i) == ov::shape_size(outputShape_i) &&
+                              compatibleWithPassedShape, "Inferred and passed results shapes are incompatible for snippet ",
+                              get_friendly_name(), " : ", shape_i, " vs ", outputShape_i, ".");
         // Check that output shapes are broadcastable to each other => can be scheduled
         bool compatibleWithOtherOutputs = PartialShape::broadcast_merge_into(outPShape, shape_i,
                                                                ::ngraph::op::AutoBroadcastType::NUMPY);
@@ -210,6 +220,9 @@ Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShape
 void snippets::op::Subgraph::convert_to_snippet_dialect() {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::convert_to_snippet_dialect")
+    auto skip_matching_domain = [](const std::shared_ptr<const ov::Node>& n) -> bool {
+        return n->get_input_shape(0).back() != 1;
+    };
     ngraph::pass::Manager manager;
     manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
     manager.register_pass<snippets::pass::ConvertPowerToPowerStatic>();
@@ -217,6 +230,14 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
     manager.register_pass<snippets::pass::InsertStore>();
     manager.register_pass<snippets::pass::InsertMoveBroadcast>();
     manager.register_pass<snippets::pass::LoadMoveBroadcastToBroadcastLoad>();
+    manager.register_pass<snippets::pass::ReplaceLoadsWithScalarLoads>();
+    manager.register_pass<snippets::pass::ReplaceStoresWithScalarStores>();
+    if (exec_domain.back() != 1) {
+        manager.get_pass_config()->
+        set_callback<ngraph::snippets::pass::ReplaceLoadsWithScalarLoads>(skip_matching_domain);
+        manager.get_pass_config()->
+        set_callback<ngraph::snippets::pass::ReplaceStoresWithScalarStores>(skip_matching_domain);
+    }
     manager.run_passes(m_body);
 }
 

@@ -14,7 +14,7 @@ usually, the resulting values are not very performance-portable,
 so the values from one machine or device are not necessarily optimal for another.
 From this perspective, the most portable way is experimenting only the performance hints. To learn more, refer to the section below.
 
-> **NOTE**: By default, Inference Engine samples, tools and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model to Intermediate Representation (IR)](../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
+> **NOTE**: By default, OpenVINO samples, tools and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model to Intermediate Representation (IR)](../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 
 ### Latency and Throughput-focused Inference Modes
 In many cases the primary performance metric is the time (in milliseconds) for an individual inference request.
@@ -81,7 +81,9 @@ Options:
   -h, --help            Show this help message and exit.
   -i PATH_TO_INPUT, --path_to_input PATH_TO_INPUT
                         Optional. Path to a folder with images and/or binaries
-                        or to specific image or binary file.
+                        or to specific image or binary file. To map input files
+                        to the specific input use next syntax:
+                        "input1:image_path1/folder_path1,input2:image_path2/folder_path2"
   -m PATH_TO_MODEL, --path_to_model PATH_TO_MODEL
                         Required. Path to an .xml/.onnx/.prototxt file with a
                         trained model or to a .blob file with a trained
@@ -99,11 +101,17 @@ Options:
   -c PATH_TO_CLDNN_CONFIG, --path_to_cldnn_config PATH_TO_CLDNN_CONFIG
                         Optional. Required for GPU custom kernels. Absolute
                         path to an .xml file with the kernels description.
-  -hint {throughput, latency}, --perf_hint {throughput, latency}
-                        Optional. Performance hint (optimize for latency or throughput).
-                        The hint allows the OpenVINO device to select the right network-specific settings,
-                        as opposite to defining specific values like  \nstreams\ from the command line.
-                        So you can specify just the hint without adding explicit device-specific options.
+  -hint {throughput, latency, none}, --perf_hint {throughput, latency, none}
+                        Optional. Performance hint (latency or throughput or
+                        none). Performance hint allows the OpenVINO device to
+                        select the right network-specific settings.
+                        'throughput': device performance mode will be set to
+                        THROUGHPUT, default value for -api sync.
+                        'latency': device performance mode will be
+                        set to LATENCY, default value for -api async.
+                        'none': no device performance mode
+                        will be set. Using explicit 'nstreams' or other
+                        device-specific options, please set hint to 'none'
   -api {sync,async}, --api_type {sync,async}
                         Optional. Enable using sync/async API. Default value
                         is async.
@@ -124,19 +132,37 @@ Options:
   -shape SHAPE          Optional. Set shape for input. For example,
                         "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]"
                         in case of one input size.
+  -data_shape DATA_SHAPE
+                        Optional. Define shape of data to infer dynamic
+                        model. To process images with original shapes
+                        this parameter can be ommited, but it's required
+                        in other cases to benchmark dynamic model.
+                        For example "[shape1],[shape2], ..." can be
+                        used to set several data shapes in case one input
+                        or to set shape1 to input1, shape2 to input2
+                        and so on in case several inputs. Input mapping
+                        is also supported: "input1[shape1,shape2],input2[shape3,shape4]".
   -layout LAYOUT        Optional. Prompts how network layouts should be
                         treated by application. For example,
                         "input1[NCHW],input2[NC]" or "[NCHW]" in case of one
-                        input size.
+                        input size. Also can be defined partially -
+                        "input1[N...],input2[N...C]"
   -nstreams NUMBER_STREAMS, --number_streams NUMBER_STREAMS
-                       Optional. Number of streams to use for inference on the CPU/GPU/MYX in throughput mode
-                       (for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> or just <nstreams>).
-                       Default value is determined automatically for a device.
-                       Please note that although the automatic selection usually provides a reasonable performance,
-                       it still may be non-optimal for some cases, especially for very small networks.
+                        Optional. Number of streams to use for inference on the CPU/GPU/MYX in throughput mode
+                        (for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> or just <nstreams>).
+                        Default value is determined automatically for a device.
+                        Please note that although the automatic selection usually provides a reasonable performance,
+                        it still may be non-optimal for some cases, especially for very small networks.
   -nthreads NUMBER_THREADS, --number_threads NUMBER_THREADS
                         Number of threads to use for inference on the CPU
                         (including HETERO  and MULTI cases).
+  --latency_percentile LATENCY_PERCENTILE
+                        Optional. Defines the percentile to be reported in latency metric.
+                        The valid range is [1, 100]. The default value is 50 (median).
+  -enforcebf16 ENFORCEBF16, --enforce_bfloat16 ENFORCEBF16
+                        Optional. By default floating point operations execution in bfloat16 precision are enforced if supported by platform.
+                           True  - enable  bfloat16 regardless of platform support.
+                           False - disable bfloat16 regardless of platform support.
   -pin {YES,NO,NUMA,HYBRID_AWARE}, --infer_threads_pinning {YES,NO,NUMA,HYBRID_AWARE}
                         Optional. Enable threads->cores ('YES' which is OpenVINO runtime's default for conventional CPUs),
                         threads->(NUMA)nodes ('NUMA'),
@@ -148,9 +174,42 @@ Options:
                         graph information serialized.
   -pc [PERF_COUNTS], --perf_counts [PERF_COUNTS]
                         Optional. Report performance counters.
-  -ip "U8"/"FP16"/"FP32"    Optional. Specifies precision for all input layers of the network.
-  -op "U8"/"FP16"/"FP32"    Optional. Specifies precision for all output layers of the network.
-  -iop                      Optional. Specifies precision for input and output layers by name. Example: -iop "input:FP16, output:FP16". Notice that quotes are required. Overwrites precision from ip and op options for specified layers.
+  -pcseq PCSEQ --pcseq PCSEQ
+                        Optional. Report latencies for each shape in -data_shape sequence.
+  -inference_only INFERENCE_ONLY, --inference_only INFERENCE_ONLY
+                        Optional. If true inputs filling only once before measurements.
+                           True - fill inputs once before the measurements loop, default value for static models
+                           False - fill inputs each time before inference, default value for dynamic models
+  -report_type REPORT_TYPE, --report_type REPORT_TYPE
+                        Optional. Enable collecting statistics report.
+                           "--report_type no_counters" report contains configuration options specified, resulting FPS and latency.
+                           "--report_type average_counters"
+                           "report extends \"no_counters\" report and additionally includes average PM "
+                           "counters values for each layer from the network. \"detailed_counters\" report "
+                           "extends \"average_counters\" report and additionally includes per-layer PM "
+                           "counters and latency for each executed infer request.
+  -dump_config DUMP_CONFIG
+                        Optional. Path to JSON file to dump OpenVINO parameters, which were set by application.
+  -load_config LOAD_CONFIG
+                        Optional. Path to JSON file to load custom OpenVINO parameters.
+                           Please note, command line parameters have higher priority then parameters from configuration file.
+  -cdir CACHE_DIR -cache_dir
+                        Optional. Enable model caching to specified directory.
+  -lfile LOAD_FROM_FILE --load_from_file LOAD_FROM_FILE
+                        Optional. Loads model from file directly without read_network.
+  -qb QUANTIZATION_BITS --quantization_bits QUANTIZATION_BITS
+                        Optional. Weight bits for quantization:  8 (I8) or 16 (I16)
+  -iscale INPUT_SCALE --input_scale INPUT_SCALE
+                        Optional. Scale values to be used for the input image per channel.
+                        Values to be provided in the [R, G, B] format. Can be defined for desired input of the model.
+                        Example: -iscale data[255,255,255],info[255,255,255]
+  -imean INPUT_MEAN --input_mean INPUT_MEAN
+                        Optional. Mean values to be used for the input image per channel.
+                        Values to be provided in the [R, G, B] format. Can be defined for desired input of the model.
+                        Example: -imean data[255,255,255],info[255,255,255]
+  -ip "u8"/"f16"/"f32"  Optional. Specifies precision for all input layers of the network.
+  -op "u8"/"f16"/"f32"  Optional. Specifies precision for all output layers of the network.
+  -iop                  Optional. Specifies precision for input and output layers by name. Example: -iop "input:FP16, output:FP16". Notice that quotes are required. Overwrites precision from ip and op options for specified layers.
 ```
 
 Running the application with the empty list of options yields the usage message given above and an error message.
@@ -162,7 +221,7 @@ If a model has mixed input types, input folder should contain all required files
 
 To run the tool, you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
 
-> **NOTE**: Before running the tool with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> **NOTE**: Before running the tool with a trained model, make sure the model is converted to the OpenVINO format (\*.xml + \*.bin) using the [Model Optimizer tool](../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 
 ## Examples of Running the Tool
 
@@ -177,7 +236,7 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
    ```sh
    python3 downloader.py --name googlenet-v1 -o <models_dir>
    ```
-2. Convert the model to the Inference Engine IR format. Run Model Optimizer with the path to the model, model format (which must be FP32 for CPU and FPG) and output directory to generate the IR files:
+2. Convert the model to the OpenVINO IR format. Run Model Optimizer with the path to the model, model format (which must be FP32 for CPU and FPG) and output directory to generate the IR files:
    ```sh
    mo --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP32 --output_dir <ir_dir>
    ```
@@ -196,33 +255,51 @@ The application outputs number of executed iterations, total duration of executi
 Additionally, if you set the `-pc` parameter, the application outputs performance counters.
 If you set `-exec_graph_path`, the application reports executable graph information serialized.
 
-Below are fragments of sample output for CPU and GPU devices:
-* For CPU:
+Below are fragments of sample output for static and dynamic models:
+* For static model:
    ```
-   [Step 8/9] Measuring performance (Start inference asynchronously, 60000 ms duration, 4 inference requests in parallel using 4 streams)
-   Progress: |................................| 100.00%
-
-   [Step 9/9] Dumping statistics report
-   Progress: |................................| 100.00%
-
-   Count:      4408 iterations
-   Duration:   60153.52 ms
-   Latency:    51.8244 ms
-   Throughput: 73.28 FPS
-   ```
-* For GPU:
-   ```
-   [Step 10/11] Measuring performance (Start inference asynchronously, 5 inference requests using 1 streams for CPU, limits: 120000 ms duration)
-   Progress: |................................| 100%
-
+   [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests using 4 streams for CPU, inference only: True, limits: 60000 ms duration)
+   [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+   [ INFO ] First inference took 5.00 ms
    [Step 11/11] Dumping statistics report
-   Count:      98075 iterations
-   Duration:   120011.03 ms
-   Latency:    5.65 ms
-   Throughput: 817.22 FPS
+   Count:          29936 iterations
+   Duration:       60010.13 ms
+   Latency:
+      Median:     7.30 ms
+      AVG:        7.97 ms
+      MIN:        5.02 ms
+      MAX:        29.26 ms
+   Throughput: 498.85 FPS
+   ```
+* For dynamic model:
+   ```
+   [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests using 4 streams for CPU, inference only: False, limits: 60000 ms duration)
+   [ INFO ] Benchmarking in full mode (inputs filling are included in measurement loop).
+   [ INFO ] First inference took 5.10 ms
+   [Step 11/11] Dumping statistics report
+   Count:          13596 iterations
+   Duration:       60028.12 ms
+   Latency:
+      AVG:        17.53 ms
+      MIN:        2.88 ms
+      MAX:        63.54 ms
+   Latency for each data shape group:
+   data: {1, 3, 128, 128}
+      AVG:        5.09 ms
+      MIN:        2.88 ms
+      MAX:        23.30 ms
+   data: {1, 3, 224, 224}
+      AVG:        10.67 ms
+      MIN:        5.97 ms
+      MAX:        31.79 ms
+   data: {1, 3, 448, 448}
+      AVG:        36.84 ms
+      MIN:        24.76 ms
+      MAX:        63.54 ms
+   Throughput: 226.49 FPS
    ```
 
 ## See Also
-* [Using Inference Engine Samples](../../docs/OV_Runtime_UG/Samples_Overview.md)
+* [Using OpenVINO Samples](../../docs/OV_Runtime_UG/Samples_Overview.md)
 * [Model Optimizer](../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 * [Model Downloader](@ref omz_tools_downloader)

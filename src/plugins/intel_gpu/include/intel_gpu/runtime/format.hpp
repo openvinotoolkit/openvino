@@ -216,6 +216,7 @@ struct format {
         gi_yxs_os_yxsv2_osv16,
         giy_xs_os_xsv2_osv8__ao32,
         giy_xs_os_xsv2_osv16__ao32,
+        g_os_is_yx_osa2_isa8_osv8_isv2,
         g_os_is_yx_osa4_isa8_osv8_isv4,
         g_os_is_yx_osa4_isa8_osv8_isv2,
         g_os_is_yx_osa2_isa8_osv16_isv2,

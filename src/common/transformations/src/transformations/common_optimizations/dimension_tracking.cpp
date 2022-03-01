@@ -8,6 +8,7 @@
 #include <ngraph/rt_info.hpp>
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset3.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <vector>
 
 #include "dimension_tracker.hpp"
@@ -142,7 +143,8 @@ P2Btype ov::batch_util::find_batch(const std::shared_ptr<ov::Model>& f) {
             for (const auto& output : curr_node->outputs()) {
                 // we do not need to walk through shape-of sub-graphs
                 for (const auto& t_input : output.get_target_inputs()) {
-                    if (ov::is_type<ov::opset1::ShapeOf>(t_input.get_node()) ||
+                    if (ov::is_type<ov::opset1::ConvertLike>(t_input.get_node()) ||
+                        ov::is_type<ov::opset1::ShapeOf>(t_input.get_node()) ||
                         ov::is_type<ov::opset3::ShapeOf>(t_input.get_node()))
                         continue;
                     nodes.push_back(t_input.get_node());
@@ -187,7 +189,7 @@ bool ov::batch_util::check_batch_tracks_through_all_the_nodes(const std::shared_
             bool others_are_static = true;
             for (const auto& dim : input_shape)
                 if (ov::DimensionTracker::get_label(dim) == 0)
-                    others_are_static &= dim.is_static();
+                    others_are_static = others_are_static && dim.is_static();
                 else
                     name_stays = true;
             any_input_has_batch |= name_stays && others_are_static;
@@ -199,13 +201,13 @@ bool ov::batch_util::check_batch_tracks_through_all_the_nodes(const std::shared_
             bool others_are_static = true;
             for (const auto& dim : output_shape)
                 if (ov::DimensionTracker::get_label(dim) == 0)
-                    others_are_static &= dim.is_static();
+                    others_are_static = others_are_static && dim.is_static();
                 else
                     name_stays = true;
             all_outputs_has_batch &= name_stays;  // && others_are_static;
         }
         if (any_input_has_batch && !all_outputs_has_batch && !ov::is_type<ov::opset3::ShapeOf>(node) &&
-            !ov::is_type<ov::opset1::ShapeOf>(node)) {
+            !ov::is_type<ov::opset1::ShapeOf>(node) && !ov::is_type<ov::opset1::ConvertLike>(node)) {
             failed_to_propagate_batch = true;
             node->validate_and_infer_types();
         }
@@ -221,16 +223,41 @@ bool ov::batch_util::check_batch_tracks_through_all_the_nodes(const std::shared_
     return failed_to_propagate_batch;
 }
 
+bool ov::batch_util::detach_detection_output(const std::shared_ptr<ov::Model>& f) {
+    ResultVector new_outputs, outputs_to_delete;
+    for (auto& result_node : f->get_results()) {
+        auto do_node = result_node->input_value(0).get_node_shared_ptr();
+        if (ov::is_type<opset1::Convert>(do_node)) // cases with do->convert->result
+            do_node = do_node->get_input_node_shared_ptr(0);
+        if (ov::is_type<opset1::DetectionOutput>(do_node) || ov::is_type<opset8::DetectionOutput>(do_node)) {
+            for (auto& new_result_src : do_node->input_values()) {
+                auto new_result = std::make_shared<opset1::Result>(new_result_src);
+                ngraph::copy_runtime_info(result_node, new_result);
+                new_outputs.push_back(new_result);
+            }
+            outputs_to_delete.push_back(result_node);
+        }
+    }
+    for (auto& result : outputs_to_delete)
+        f->remove_result(result);
+    f->add_results(new_outputs);
+    return !new_outputs.empty() || !outputs_to_delete.empty();
+}
+
 bool ov::pass::FindBatch::run_on_model(const std::shared_ptr<ov::Model>& m) {
     auto te = std::make_shared<ov::TableOfEquivalence>();
     ov::DimensionTracker dt(te);
+
+    bool model_has_changed = false;
+    if (detach_do)
+        model_has_changed |= batch_util::detach_detection_output(m);
 
     const auto& parameters = m->get_parameters();
     std::map<std::shared_ptr<ov::opset1::Parameter>, PartialShape> parameter_to_shape;
     for (const auto& parameter : parameters) {
         auto shape = parameter->get_partial_shape();
         if (shape.rank().is_dynamic())
-            return false;
+            return model_has_changed;
         parameter_to_shape[parameter] = shape;
     }
 

@@ -80,13 +80,19 @@ def run(args):
             cldnn_config = config[GPU_DEVICE_NAME]['CONFIG_FILE']
             benchmark.add_extension(path_to_cldnn_config=cldnn_config)
 
-        if not args.perf_hint:
-            for device in devices:
-                supported_properties = benchmark.core.get_property(device, 'SUPPORTED_PROPERTIES')
-                if 'PERFORMANCE_HINT' in supported_properties:
-                    logger.warning(f"-hint default value is determined as 'THROUGHPUT' automatically for {device} device" +
-                                    "For more detailed information look at README.")
-                    args.perf_hint = "throughput"
+        for device in devices:
+            supported_properties = benchmark.core.get_property(device, 'SUPPORTED_PROPERTIES')
+            if 'PERFORMANCE_HINT' in supported_properties:
+                if is_flag_set_in_command_line('hint'):
+                    if args.perf_hint=='none':
+                        logger.warning(f"No device {device} performance hint is set.")
+                        args.perf_hint = ""
+                else:
+                    args.perf_hint = "THROUGHPUT" if benchmark.api_type == "async" else "LATENCY"
+                    logger.warning(f"PerformanceMode was not explicitly specified in command line. " +
+                    f"Device {device} performance hint will be set to " + args.perf_hint + ".")
+            else:
+                logger.warning(f"Device {device} does not support performance hint property(-hint).")
 
         version = benchmark.get_version_info()
 
@@ -331,7 +337,7 @@ def run(args):
                     try:
                         logger.info(f'  {k}  , {benchmark.core.get_property(device, k)}')
                     except:
-                        logger.info(f'  {k}  , UNSUPPORTED TYPE ')
+                        pass
 
 
         # Update number of streams
@@ -382,11 +388,6 @@ def run(args):
         elif benchmark.inference_only and not allow_inference_only_or_sync:
             raise Exception("Benchmarking dynamic model available with input filling in measurement loop only!")
 
-        if benchmark.inference_only:
-            logger.info("Benchmarking in inference only mode (inputs filling are not included in measurement loop).")
-        else:
-            logger.info("Benchmarking in full mode (inputs filling are included in measurement loop).")
-
         # update batch size in case dynamic network with one data_shape
         if benchmark.inference_only and batch_size.is_dynamic:
             batch_size = Dimension(data_queue.batch_sizes[data_queue.current_group_id])
@@ -435,6 +436,12 @@ def run(args):
         output_string = process_help_inference_string(benchmark, device_number_streams)
 
         next_step(additional_info=output_string)
+
+        if benchmark.inference_only:
+            logger.info("Benchmarking in inference only mode (inputs filling are not included in measurement loop).")
+        else:
+            logger.info("Benchmarking in full mode (inputs filling are included in measurement loop).")
+
         progress_bar_total_count = 10000
         if benchmark.niter and not benchmark.duration_seconds:
             progress_bar_total_count = benchmark.niter

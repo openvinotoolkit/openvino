@@ -954,3 +954,42 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_fake_quantize_nonconst_inputs_infer) {
                            12.5f, 12.5f, 12.5f, 12.5f, 16.f, 16.f, 16.f, 16.f, 16.f, 16.f, 16.f, 16.f});
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_opset10) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/quantize_linear_opset10.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input(std::vector<float>{32.25f, 48.34f, 50.f, 83.f});
+    test_case.add_input(std::vector<float>{0.5f});
+    test_case.add_input(std::vector<uint8_t>{0});
+
+    test_case.add_expected_output(std::vector<std::uint8_t>{64, 97, 100, 166});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_opsets_10_and_13_axis0) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/quantize_linear_opsets_10_and_13_axis0.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input(std::vector<float>{32.25f, 48.34f, 50.f, 83.f});
+    test_case.add_input(std::vector<float>{0.5f, 1.0f});
+    test_case.add_input(std::vector<uint8_t>{0, 0});
+
+    test_case.add_expected_output(std::vector<std::uint8_t>{64, 97, 50, 83});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_opsets_10_and_13_axis1) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/quantize_linear_opsets_10_and_13_axis1.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input(std::vector<float>{32.25f, 48.34f, 50.f, 83.f});
+    test_case.add_input(std::vector<float>{1.0f, 0.5f});
+    test_case.add_input(std::vector<uint8_t>{0, 0});
+
+    test_case.add_expected_output(std::vector<std::uint8_t>{32, 97, 50, 166});
+    test_case.run();
+}

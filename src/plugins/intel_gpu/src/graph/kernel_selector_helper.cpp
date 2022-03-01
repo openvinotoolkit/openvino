@@ -258,6 +258,8 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::os_is_zyx_osa4_isa8_osv8_isv2;
         case format::os_is_zyx_osa4_isa8_osv8_isv4:
             return kernel_selector::weights_layout::os_is_zyx_osa4_isa8_osv8_isv4;
+        case format::g_os_is_yx_osa2_isa8_osv8_isv2:
+            return kernel_selector::weights_layout::g_os_is_yx_osa2_isa8_osv8_isv2;
         case format::g_os_is_yx_osa4_isa8_osv8_isv2:
             return kernel_selector::weights_layout::g_os_is_yx_osa4_isa8_osv8_isv2;
         case format::g_os_is_yx_osa4_isa8_osv8_isv4:
@@ -456,6 +458,8 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::os_is_zyx_osa4_isa8_osv8_isv2;
         case kernel_selector::weights_layout::os_is_zyx_osa4_isa8_osv8_isv4:
             return cldnn::format::os_is_zyx_osa4_isa8_osv8_isv4;
+        case kernel_selector::weights_layout::g_os_is_yx_osa2_isa8_osv8_isv2:
+            return cldnn::format::g_os_is_yx_osa2_isa8_osv8_isv2;
         case kernel_selector::weights_layout::g_os_is_yx_osa4_isa8_osv8_isv2:
             return cldnn::format::g_os_is_yx_osa4_isa8_osv8_isv2;
         case kernel_selector::weights_layout::g_os_is_yx_osa4_isa8_osv8_isv4:
@@ -835,7 +839,7 @@ void set_params(const program_node& node, kernel_selector::params& params) {
     const auto& program = node.get_program();
     const auto& device_info = program.get_engine().get_device_info();
 
-    params.uniqueID = std::to_string(program.get_id()) + "_"  + node.get_unique_id();
+    params.uniqueID = std::to_string(node.get_unique_id());
     params.engineInfo.bSubGroupSupport = device_info.supports_subgroups;
     params.engineInfo.bSubGroupShortSupport = device_info.supports_subgroups_short;
     params.engineInfo.bSubGroupCharSupport = device_info.supports_subgroups_char;
