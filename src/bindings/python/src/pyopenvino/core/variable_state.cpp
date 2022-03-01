@@ -20,13 +20,7 @@ void regclass_VariableState(py::module m) {
         Reset internal variable state for relevant infer request,
         to a value specified as default for according node.
 
-        Parameters
-        ----------
-        None
-
-        Returns
-        ----------
-        reset : None
+        :rtype: None
     )");
 
     variable_st.def_property_readonly("name",
@@ -34,10 +28,8 @@ void regclass_VariableState(py::module m) {
                                       R"(
         Gets name of current variable state.
 
-        Returns
-        ----------
-        reset : str
-            A string representing a state name.
+        :return: A string representing a state name.
+        :rtype: str
     )");
 
     variable_st.def_property("state",
@@ -45,15 +37,5 @@ void regclass_VariableState(py::module m) {
                              &ov::VariableState::set_state,
                              R"(
         Gets/sets variable state.
-
-        Parameters
-        ----------
-        state : openvino.runtime.Tensor
-            The current state to set.
-
-        Returns
-        ----------
-        state : openvino.runtime.Tensor
-            A tensor representing a state.
     )");
 }
