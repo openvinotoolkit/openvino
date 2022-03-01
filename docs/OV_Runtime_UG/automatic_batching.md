@@ -48,7 +48,7 @@ The _automatic batch size selection_ assumes that the application queries the `o
 The timeout, which adds itself to the execution time of the requests, heavily penalizes the performance. To avoid this, in cases when your parallel slack is bounded, give the OpenVINO an additional hint.
 
 For example, the application processes only 4 video streams, so there is no need to use a batch larger than 4. The most future-proof way to communicate the limitations on the parallelism is to equip the performance hint with the optional `ov::hint::num_requests` configuration key set to *4*. For the GPU this will limit the batch size, for the CPU - the number of inference streams, so each device uses the `ov::hint::num_requests` while converting the hint to the actual device configuration options.
-For the **explicit** usage, you can limit the batch size using  "BATCH:GPU(4)",  where 4 is number of requests running in parallel.
+For the *explicit* usage, you can limit the batch size using  "BATCH:GPU(4)",  where 4 is the number of requests running in parallel.
 
 Limitations:
  - Although less critical for the throughput-oriented scenarios, the load-time with auto-batching increases by almost 2x.
