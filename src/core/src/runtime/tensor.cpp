@@ -32,5 +32,9 @@ size_t runtime::Tensor::get_size_in_bytes() const {
 }
 
 std::string runtime::Tensor::get_name() const {
-    return m_descriptor->get_any_name();
+    std::string tensor_name;
+    const auto& rt_info = m_descriptor->get_rt_info();
+    if (rt_info.find("ov_legacy_name") != rt_info.end())
+        tensor_name = rt_info.at("ov_legacy_name").as<std::string>();
+    return tensor_name;
 }
