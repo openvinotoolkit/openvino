@@ -65,6 +65,15 @@ if (ENABLE_THREAD_SANITIZER)
     set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fsanitize=thread")
 endif()
 
+if (ENABLE_MEMORY_SANITIZER)
+    if (WIN32)
+        message(FATAL_ERROR "Memory sanitizer is not supported in Windows")
+    else()
+        set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize=memory")
+        set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fsanitize=memory")
+    endif()
+endif()
+
 # common sanitizer options
 if (DEFINED SANITIZER_COMPILER_FLAGS)
     # ensure symbols are present
