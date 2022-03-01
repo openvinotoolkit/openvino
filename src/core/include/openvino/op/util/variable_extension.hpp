@@ -15,7 +15,7 @@ namespace util {
 class OPENVINO_API VariableExtension {
 public:
     VariableExtension() = default;
-    virtual ~VariableExtension() {};
+
     /// \brief Returns variable connected to this node.
     virtual std::shared_ptr<Variable> get_variable() const {
         return m_variable;
@@ -37,6 +37,9 @@ public:
 
     /// \brief Returns the identifier of corresponding variable.
     virtual std::string get_variable_id() const = 0;
+
+protected:
+    virtual ~VariableExtension() {};
 
 protected:
     std::shared_ptr<Variable> m_variable;

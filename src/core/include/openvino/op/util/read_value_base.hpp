@@ -16,7 +16,6 @@ public:
     BWDCMP_RTTI_DECLARATION;
 
     ReadValueBase() = default;
-    virtual ~ReadValueBase() {};
 
     /// \brief Constructs an AssignBase operation.
     explicit ReadValueBase(const OutputVector& arguments) : Op(arguments) {}
