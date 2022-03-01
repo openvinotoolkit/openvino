@@ -705,6 +705,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_OVClassLoadNetworkWithCorrectPropertiesAutoB
                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_MULTI, CommonTestUtils::DEVICE_AUTO),
                         ::testing::ValuesIn(autoCorrectConfigs)));
 
+const std::vector<ov::AnyMap> batchCorrectConfigs = {
+    {}
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_Batch_OVClassLoadNetworkWithCorrectPropertiesAutoBatchingTest, OVClassLoadNetworkWithCorrectPropertiesTest,
+                        ::testing::Combine(::testing::Values("BATCH:GPU"),
+                        ::testing::ValuesIn(batchCorrectConfigs)));
+
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassHeteroExecutableNetworkGetMetricTest,
         OVClassLoadNetworkAfterCoreRecreateTest,
         ::testing::Values("GPU"));
