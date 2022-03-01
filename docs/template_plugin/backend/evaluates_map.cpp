@@ -4,6 +4,7 @@
 
 #include "evaluates_map.hpp"
 
+#include <iostream>
 #include <ngraph/runtime/reference/abs.hpp>
 #include <ngraph/runtime/reference/adaptive_avg_pool.hpp>
 #include <ngraph/runtime/reference/adaptive_max_pool.hpp>
@@ -1963,6 +1964,8 @@ InfoForRFFT9 get_info_for_rfft9_eval(const std::vector<std::shared_ptr<HostTenso
         }
         output_shape[current_axis] = fft_output_shape[current_axis] / 2 + 1;
     }
+    output_shape.push_back(2);
+    fft_output_shape.push_back(2);
 
     result.fft_output_shape = fft_output_shape;
     result.output_shape = output_shape;
@@ -1974,6 +1977,16 @@ InfoForRFFT9 get_info_for_rfft9_eval(const std::vector<std::shared_ptr<HostTenso
 template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v9::RDFT>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     auto info = rfft_v9::get_info_for_rfft9_eval(inputs);
+
+    std::cout << "input data shape:      " << info.input_data_shape << "\n";
+    std::cout << "output data shape:     " << info.output_shape << "\n";
+    std::cout << "fft output data shape: " << info.fft_output_shape << "\n";
+    std::cout << "axes:                  ";
+    for (const auto& a : info.axes_data) {
+        std::cout << a << ", ";
+    }
+    std::cout << "\n";
+
     outputs[0]->set_shape(info.output_shape);
 
     std::vector<float> rfft_result(shape_size(info.output_shape), 0.0f);
@@ -1982,6 +1995,12 @@ bool evaluate(const shared_ptr<op::v9::RDFT>& op, const HostTensorVector& output
                              info.axes_data,
                              info.fft_output_shape,
                              rfft_result.data());
+
+    std::cout << "output data: [";
+    for (const auto x : rfft_result) {
+        std::cout << x << ", ";
+    }
+    std::cout << "]\n";
 
     const auto output_type = op->get_input_element_type(0);
     runtime::reference::fft_postprocessing(outputs, output_type, rfft_result);

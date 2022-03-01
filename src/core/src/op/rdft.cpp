@@ -17,6 +17,7 @@
 #include "ngraph/op/rdft.hpp"
 
 #include <algorithm>
+#include <iostream>
 #include <memory>
 #include <ngraph/validation_util.hpp>
 #include <rdft_shape_inference.hpp>
@@ -78,5 +79,7 @@ void op::v9::RDFT::validate_and_infer_types() {
     }
 
     rdft_shape_infer(this, input_shapes, output_shapes);
+
+    std::cout << "inferred output shape: " << output_shapes[0] << "\n";
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }

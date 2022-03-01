@@ -22,6 +22,7 @@
 #include <complex>
 #include <cstring>
 #include <functional>
+#include <iostream>
 #include <ngraph/runtime/reference/utils/fft_common.hpp>
 #include <utility>
 #include <vector>
@@ -43,13 +44,26 @@ void clip_and_write_result(const std::vector<int64_t>& axes_data,
                            const std::vector<float>& fft_result,
                            const Shape& output_fft_shape,
                            float* rdft_result) {
+    std::cout << "We are in the function clip_and_result() now...\n";
+    std::cout << "output fft shape: " << output_fft_shape << "\n";
     auto rdft_result_shape = output_fft_shape;
     for (const auto axis : axes_data) {
         rdft_result_shape[axis] = rdft_result_shape[axis] / 2 + 1;
     }
+    std::cout << "RDFT result shape: " << rdft_result_shape << "\n";
 
     const auto reversed_rdft_result_shape = fft_common::reverse_shape(rdft_result_shape);
+    std::cout << "reversed rdft result shape: ";
+    for (const auto d : reversed_rdft_result_shape) {
+        std::cout << d << ", ";
+    }
+    std::cout << "\n";
     const auto rdft_output_strides = fft_common::compute_strides(reversed_rdft_result_shape);
+    std::cout << "RDFT output strides: ";
+    for (const auto d : rdft_output_strides) {
+        std::cout << d << ", ";
+    }
+    std::cout << "\n";
 
     const auto reversed_output_fft_shape = fft_common::reverse_shape(output_fft_shape);
     const auto output_fft_strides = fft_common::compute_strides(reversed_output_fft_shape);
@@ -76,9 +90,18 @@ void rdft(const std::vector<float>& input_data,
     for (size_t i = 0; i < input_data_size; ++i) {
         complex_data[i] = complex_type{input_data[i], 0.0f};
     }
+    std::cout << "number of elements in input data: " << input_data.size() << "\n";
+    std::cout << "input data as complex numbers: ";
+    for (const auto& z : complex_data) {
+        std::cout << z << ", ";
+    }
+    std::cout << "\n";
 
     auto input_shape_for_fft = input_data_shape;
     input_shape_for_fft.push_back(2);
+
+    std::cout << "input shape for fft: " << input_shape_for_fft << "\n";
+    std::cout << "output shape for fft: " << output_fft_shape << "\n";
 
     std::vector<float> fft_result(shape_size(output_fft_shape), 0.0f);
 
@@ -89,6 +112,12 @@ void rdft(const std::vector<float>& input_data,
         fft_result.data(),
         output_fft_shape,
         FFTKind::Forward);
+
+    std::cout << "fft calculation result: ";
+    for (const auto x : fft_result) {
+        std::cout << x << ", ";
+    }
+    std::cout << "\n";
 
     clip_and_write_result(axes_data, fft_result, output_fft_shape, rdft_result);
 }

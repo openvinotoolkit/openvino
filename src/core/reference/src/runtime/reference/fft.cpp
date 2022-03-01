@@ -22,6 +22,7 @@
 #include <complex>
 #include <cstring>
 #include <functional>
+#include <iostream>
 #include <utility>
 #include <vector>
 
@@ -431,6 +432,21 @@ void fft(const float* input_data,
          float* fft_result,
          const Shape& output_shape,
          FFTKind fft_kind) {
+    std::cout << "We are in FFT reference now...\n";
+    std::cout << "input data: ";
+    for (size_t i = 0; i < shape_size(input_data_shape); ++i) {
+        std::cout << input_data[i] << ", ";
+    }
+    std::cout << "\n";
+    std::cout << "input data shape: " << input_data_shape << "\n";
+    std::cout << "axes data shape: " << axes_data_shape << "\n";
+    std::cout << "axes: ";
+    for (size_t i = 0; i < shape_size(axes_data_shape); ++i) {
+        std::cout << axes_data[i] << ", ";
+    }
+    std::cout << "\n";
+    std::cout << "output shape: " << output_shape << "\n";
+    std::cout << "FFT kind: " << (fft_kind == FFTKind::Forward ? "forward\n" : "inverse\n");
     const complex_type* complex_input_data_ptr = reinterpret_cast<const complex_type*>(input_data);
     complex_type* complex_output_ptr = reinterpret_cast<complex_type*>(fft_result);
 
