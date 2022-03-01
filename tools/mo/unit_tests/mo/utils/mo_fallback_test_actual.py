@@ -34,7 +34,6 @@ def base_args_config(use_legacy_fe:bool=None, use_new_fe:bool=None):
     args.input_model = None
     args.silent = True
     args.transform=[]
-    args.legacy_ir_generation = False
     args.scale = None
     args.output=None
     args.input=None
@@ -47,7 +46,6 @@ def base_args_config(use_legacy_fe:bool=None, use_new_fe:bool=None):
     args.transformations_config = None
     args.disable_fusing = None
     args.finegrain_fusing = None
-    args.disable_gfusing = None
     args.disable_resnet_optimization = None
     args.enable_concat_optimization = None
     args.static_shape = None

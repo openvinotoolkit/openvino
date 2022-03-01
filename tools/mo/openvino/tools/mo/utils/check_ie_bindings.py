@@ -66,7 +66,7 @@ def import_core_modules(silent: bool, path_to_module: str):
         ie_version = str(get_version())
         mo_version = str(v.get_version())  # pylint: disable=no-member,no-name-in-module
 
-        print("\t- {}: \t{}".format("OpenVINO runtime found in", os.path.dirname(openvino.__file__)))
+        print("{}: \t{}".format("OpenVINO runtime found in", os.path.dirname(openvino.__file__)))
         print("{}: \t{}".format("OpenVINO runtime version", ie_version))
         print("{}: \t{}".format("Model Optimizer version", mo_version))
 
