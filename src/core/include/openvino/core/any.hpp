@@ -541,6 +541,7 @@ class OPENVINO_API Any {
         template <typename... Args>
         Impl(Args&&... args) : value(std::forward<Args>(args)...) {}
 
+        virtual ~Impl() {};
         const std::type_info& type_info() const override {
             return typeid(T);
         }
