@@ -9,8 +9,6 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::BroadcastElementwiseFusion, "BroadcastElementwiseFusion", 0);
-
 namespace {
 
 bool can_eliminate_broadcast(const ngraph::Output<ngraph::Node>& eltwise,

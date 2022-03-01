@@ -15,8 +15,6 @@
 #include "itt.hpp"
 
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::BatchToSpaceFusion, "BatchToSpaceFusion", 0);
-
 ngraph::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
     MATCHER_SCOPE(BatchToSpaceFusion);
     auto data_pattern = pattern::any_input(pattern::has_static_shape());

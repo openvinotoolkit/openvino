@@ -59,6 +59,6 @@ class TRANSFORMATIONS_API MatMulMultiplyFusion;
  */
 class ngraph::pass::MatMulMultiplyFusion: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("MatMulMultiplyFusion", "0");
     MatMulMultiplyFusion();
 };

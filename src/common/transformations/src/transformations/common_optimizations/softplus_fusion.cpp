@@ -12,8 +12,6 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SoftPlusFusion, "SoftPlusFusion", 0);
-
 ngraph::pass::SoftPlusFusion::SoftPlusFusion() {
     MATCHER_SCOPE(SoftPlusFusion);
     // fuses ln(exp(x) + 1.0) operations into SoftPlus(x)

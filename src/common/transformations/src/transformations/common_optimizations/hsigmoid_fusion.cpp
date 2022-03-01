@@ -12,10 +12,6 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::HSigmoidFusion, "HSigmoidFusion", 0);
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::HSigmoidFusionWithReluDiv, "HSigmoidFusionWithReluDiv", 0);
-
 ngraph::pass::HSigmoidFusionWithReluDiv::HSigmoidFusionWithReluDiv() {
     MATCHER_SCOPE(HSigmoidFusionWithReluDiv);
     // Replaces a sub-graph ((min(Relu(x + 3), 6)) / 6 with a HSigmoid op.
@@ -61,8 +57,6 @@ ngraph::pass::HSigmoidFusionWithReluDiv::HSigmoidFusionWithReluDiv() {
     register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::HSigmoidFusionWithReluMul, "HSigmoidFusionWithReluMul", 0);
-
 ngraph::pass::HSigmoidFusionWithReluMul::HSigmoidFusionWithReluMul() {
     MATCHER_SCOPE(HSigmoidFusionWithReluMul);
     // Replaces a sub-graph ((min(Relu(x + 3), 6)) * const(1/6) with a HSigmoid op.
@@ -107,8 +101,6 @@ ngraph::pass::HSigmoidFusionWithReluMul::HSigmoidFusionWithReluMul() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(mul_second, matcher_name);
     register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::HSigmoidFusionWithoutRelu, "HSigmoidFusionWithoutRelu", 0);
 
 ngraph::pass::HSigmoidFusionWithoutRelu::HSigmoidFusionWithoutRelu() {
     MATCHER_SCOPE(HSigmoidFusionWithoutRelu);
@@ -159,8 +151,6 @@ ngraph::pass::HSigmoidFusionWithoutRelu::HSigmoidFusionWithoutRelu() {
     register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::HSigmoidFusionWithClampMul, "HSigmoidFusionWithClampMul", 0);
-
 ngraph::pass::HSigmoidFusionWithClampMul::HSigmoidFusionWithClampMul() {
     MATCHER_SCOPE(HSigmoidFusionWithClampMul);
     // Replaces a sub-graph (Clamp(x + 3, 0, 6) * const(1/6)) with a HSigmoid op.
@@ -204,8 +194,6 @@ ngraph::pass::HSigmoidFusionWithClampMul::HSigmoidFusionWithClampMul() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(mul_first, matcher_name);
     register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::HSigmoidFusionWithClampDiv, "HSigmoidFusionWithClampDiv", 0);
 
 ngraph::pass::HSigmoidFusionWithClampDiv::HSigmoidFusionWithClampDiv() {
     MATCHER_SCOPE(HSigmoidFusionWithClampDiv);

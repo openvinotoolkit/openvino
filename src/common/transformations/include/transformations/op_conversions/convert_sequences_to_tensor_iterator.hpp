@@ -30,7 +30,7 @@ class TRANSFORMATIONS_API ConvertSequenceToTensorIterator;
 
 class ngraph::pass::ConvertRNNSequenceToTensorIterator: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertRNNSequenceToTensorIterator", "0");
     ConvertRNNSequenceToTensorIterator();
 };
 
@@ -42,7 +42,7 @@ public:
 
 class ngraph::pass::ConvertGRUSequenceToTensorIterator: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertGRUSequenceToTensorIterator", "0");
     ConvertGRUSequenceToTensorIterator();
 };
 
@@ -54,12 +54,12 @@ public:
 
 class ngraph::pass::ConvertLSTMSequenceToTensorIterator: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertLSTMSequenceToTensorIterator", "0");
     ConvertLSTMSequenceToTensorIterator();
 };
 
 class ngraph::pass::ConvertSequenceToTensorIterator : public GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertSequenceToTensorIterator", "0");
     ConvertSequenceToTensorIterator();
 };

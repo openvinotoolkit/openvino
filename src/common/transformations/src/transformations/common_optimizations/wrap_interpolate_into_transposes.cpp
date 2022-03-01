@@ -50,8 +50,6 @@ std::vector<int64_t> build_new_axes(size_t num_of_axes, size_t rank) {
 }
 } // namespace
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::WrapInterpolateIntoTransposes, "WrapInterpolateIntoTransposes", 0);
-
 ngraph::pass::WrapInterpolateIntoTransposes::WrapInterpolateIntoTransposes() {
     MATCHER_SCOPE(WrapInterpolateIntoTransposes);
     auto interpolate_pattern = ov::pass::pattern::wrap_type<ov::opset8::Interpolate>();

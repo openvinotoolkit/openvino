@@ -14,10 +14,6 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/op/util/activation_functions.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertRNNSequenceToTensorIterator, "ConvertRNNSequenceToTensorIterator", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGRUSequenceToTensorIterator, "ConvertGRUSequenceToTensorIterator", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertLSTMSequenceToTensorIterator, "ConvertLSTMSequenceToTensorIterator", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSequenceToTensorIterator, "ConvertSequenceToTensorIterator", 0);
 
 namespace {
     ngraph::Output<ngraph::Node> get_current_iter(ngraph::ParameterVector &body_params,

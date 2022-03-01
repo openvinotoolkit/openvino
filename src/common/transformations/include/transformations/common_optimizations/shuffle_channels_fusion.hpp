@@ -35,6 +35,6 @@ namespace pass {
 
 class ngraph::pass::ShuffleChannelsFusion : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ShuffleChannelsFusion", "0");
     ShuffleChannelsFusion(const bool reshape_constants_check);
 };

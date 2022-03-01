@@ -80,8 +80,6 @@ bool check_shapes(const ngraph::PartialShape& pshape_input, const ngraph::Partia
 
 } // namespace
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ShuffleChannelsFusion, "ShuffleChannelsFusion", 0);
-
 ngraph::pass::ShuffleChannelsFusion::ShuffleChannelsFusion(const bool reshape_constants_check) {
     MATCHER_SCOPE(ShuffleChannelsFusion);
     auto input = ngraph::pattern::any_input(pattern::rank_equals(4));

@@ -13,9 +13,6 @@
 #include "transformations/common_optimizations/remove_filtering_boxes_by_size.hpp"
 #include "transformations/common_optimizations/subtract_fusion.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::FuseFilteringBoxesBySize, "FuseFilteringBoxesBySize", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::RemoveFilteringBoxesBySize, "RemoveFilteringBoxesBySize", 0);
-
 ngraph::pass::FuseFilteringBoxesBySize::FuseFilteringBoxesBySize() {
     add_matcher<SubtractFusion>();
     add_matcher<RemoveFilteringBoxesBySize>();

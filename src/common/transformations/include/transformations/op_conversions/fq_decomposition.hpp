@@ -42,6 +42,6 @@ class TRANSFORMATIONS_API FakeQuantizeDecomposition;
 
 class ngraph::pass::FakeQuantizeDecomposition: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("FakeQuantizeDecomposition", "0");
     FakeQuantizeDecomposition();
 };

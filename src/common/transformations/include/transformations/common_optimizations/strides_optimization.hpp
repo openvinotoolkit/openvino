@@ -29,7 +29,7 @@ class TRANSFORMATIONS_API StridesOptimization;
  */
 class ngraph::pass::ConvStridesPropagation: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvStridesPropagation", "0");
     ConvStridesPropagation();
 };
 
@@ -40,7 +40,7 @@ public:
  */
 class ngraph::pass::SupportedNodesStridesPropagation: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SupportedNodesStridesPropagation", "0");
     SupportedNodesStridesPropagation();
 };
 
@@ -51,7 +51,7 @@ public:
  */
 class ngraph::pass::UnsupportedNodesStridesPropagation: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("UnsupportedNodesStridesPropagation", "0");
     UnsupportedNodesStridesPropagation();
 };
 
@@ -61,7 +61,7 @@ public:
  */
 class ngraph::pass::StridesOptimization: public ngraph::pass::BackwardGraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("StridesOptimization", "0");
     StridesOptimization() {
         add_matcher<ngraph::pass::ConvStridesPropagation>();
         add_matcher<ngraph::pass::SupportedNodesStridesPropagation>();

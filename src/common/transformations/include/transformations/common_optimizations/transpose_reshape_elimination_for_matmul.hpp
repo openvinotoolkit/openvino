@@ -27,6 +27,6 @@ class TRANSFORMATIONS_API TransposeReshapeEliminationForMatmul;
  */
 class ngraph::pass::TransposeReshapeEliminationForMatmul: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("TransposeReshapeEliminationForMatmul", "0");
     TransposeReshapeEliminationForMatmul();
 };

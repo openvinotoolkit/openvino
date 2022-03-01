@@ -28,6 +28,6 @@ class TRANSFORMATIONS_API InterpolateSequenceFusion;
  */
 class ngraph::pass::InterpolateSequenceFusion : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("InterpolateSequenceFusion", "0");
     InterpolateSequenceFusion();
 };

@@ -12,8 +12,6 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDepthToSpace, "ConvertDepthToSpace", 0);
-
 ngraph::pass::ConvertDepthToSpace::ConvertDepthToSpace() {
     MATCHER_SCOPE(ConvertDepthToSpace);
     auto dts_node = ngraph::pattern::wrap_type<ngraph::opset1::DepthToSpace>({pattern::any_input(pattern::has_static_shape())});

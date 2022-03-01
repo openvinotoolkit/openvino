@@ -15,10 +15,6 @@
 #include <ngraph/validation_util.hpp>
 
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::StridesOptimization, "StridesOptimization", 0);
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvStridesPropagation, "ConvStridesPropagation", 0);
-
 static bool can_propagate_conv_stride(const std::shared_ptr<ngraph::Node>& conv) {
     const auto& kernel_shape = conv->input_value(1).get_shape();
     return std::all_of(kernel_shape.begin() + 2, kernel_shape.end(), [] (size_t s) -> bool { return s == 1; });
@@ -142,8 +138,6 @@ ngraph::pass::ConvStridesPropagation::ConvStridesPropagation() {
     this->register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SupportedNodesStridesPropagation, "SupportedNodesStridesPropagation", 0);
-
 ngraph::pass::SupportedNodesStridesPropagation::SupportedNodesStridesPropagation() {
     MATCHER_SCOPE(SupportedNodesStridesPropagation);
     auto root = pattern::wrap_type<op::util::UnaryElementwiseArithmetic, op::util::BinaryElementwiseArithmetic>();
@@ -169,8 +163,6 @@ ngraph::pass::SupportedNodesStridesPropagation::SupportedNodesStridesPropagation
     auto m = std::make_shared<pattern::Matcher>(root, matcher_name);
     this->register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::UnsupportedNodesStridesPropagation, "UnsupportedNodesStridesPropagation", 0);
 
 ngraph::pass::UnsupportedNodesStridesPropagation::UnsupportedNodesStridesPropagation() {
     MATCHER_SCOPE(UnsupportedNodesStridesPropagation);

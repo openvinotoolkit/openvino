@@ -16,8 +16,6 @@
 #include "ngraph_ops/nms_static_shape_ie.hpp"
 #include "transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMatrixNmsToMatrixNmsIE, "ConvertMatrixNmsToMatrixNmsIE", 0);
-
 ngraph::pass::ConvertMatrixNmsToMatrixNmsIE::ConvertMatrixNmsToMatrixNmsIE(bool force_i32_output_type) {
     MATCHER_SCOPE(ConvertMatrixNmsToMatrixNmsIE);
     auto nms = ngraph::pattern::wrap_type<ngraph::opset8::MatrixNms>();

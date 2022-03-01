@@ -11,8 +11,6 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ReduceL1Decomposition, "ReduceL1Decomposition", 0);
-
 ngraph::pass::ReduceL1Decomposition::ReduceL1Decomposition() {
     MATCHER_SCOPE(ReduceL1Decomposition);
     // decomposes ReduceL1 operations into ReduceSum(abs(x))

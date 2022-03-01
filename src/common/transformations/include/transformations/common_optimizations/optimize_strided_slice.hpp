@@ -33,7 +33,7 @@ class TRANSFORMATIONS_API GroupedStridedSliceOptimizer;
  */
 class ngraph::pass::UselessStridedSliceEraser: public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("UselessStridedSliceEraser", "0");
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };
 
@@ -45,7 +45,7 @@ public:
  */
 class ngraph::pass::SharedStridedSliceEraser: public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SharedStridedSliceEraser", "0");
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };
 
@@ -57,7 +57,7 @@ public:
  */
 class ngraph::pass::GroupedStridedSliceOptimizer: public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("GroupedStridedSliceOptimizer", "0");
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };
 
@@ -70,7 +70,7 @@ class ngraph::pass::StridedSliceOptimization: public ngraph::pass::FunctionPass 
 public:
     StridedSliceOptimization(bool use_shapes = true);
 
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("StridedSliceOptimization", "0");
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 
 private:

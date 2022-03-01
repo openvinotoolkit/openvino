@@ -24,6 +24,6 @@ namespace pass {
  */
 class ngraph::pass::GatherNegativeConstIndicesNormalize : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("GatherNegativeConstIndicesNormalize", "0");
     GatherNegativeConstIndicesNormalize();
 };

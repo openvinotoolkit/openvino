@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API DisableShapeOfConstantFolding;
 
 class ngraph::pass::DisableShapeOfConstantFolding: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("DisableShapeOfConstantFolding", "0");
     DisableShapeOfConstantFolding();
 };

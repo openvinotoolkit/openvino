@@ -15,12 +15,6 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <numeric>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeSinking, "TransposeSinking", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeConvert, "TransposeConvert", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeEltwise, "TransposeEltwise", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeReduction, "TransposeReduction", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeFQReduction, "TransposeFQReduction", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeFuse, "TransposeFuse", 0);
 
 using namespace ngraph;
 

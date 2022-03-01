@@ -17,10 +17,6 @@
 #include <ngraph/graph_util.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertTensorIteratorToLSTMSequence, "ConvertTensorIteratorToLSTMSequence", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertTensorIteratorToRNNSequence, "ConvertTensorIteratorToRNNSequence", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertTensorIteratorToGRUSequence, "ConvertTensorIteratorToGRUSequence", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertTensorIteratorToSequence, "ConvertTensorIteratorToSequence", 0);
 
 namespace {
 bool convertTensorIteratorToSequence(

@@ -12,8 +12,6 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMod, "ConvertMod", 0);
-
 ngraph::pass::ConvertMod::ConvertMod() {
     MATCHER_SCOPE(ConvertMod);
     auto mod = ngraph::pattern::wrap_type<opset1::Mod>();

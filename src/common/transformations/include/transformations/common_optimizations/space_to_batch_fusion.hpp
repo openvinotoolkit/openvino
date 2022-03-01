@@ -33,6 +33,6 @@ class TRANSFORMATIONS_API SpaceToBatchFusion;
 
 class ngraph::pass::SpaceToBatchFusion: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SpaceToBatchFusion", "0");
     SpaceToBatchFusion();
 };

@@ -9,8 +9,6 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSoftMax1ToSoftMax8, "ConvertSoftMax1ToSoftMax8", 0);
-
 ngraph::pass::ConvertSoftMax1ToSoftMax8::ConvertSoftMax1ToSoftMax8() {
     MATCHER_SCOPE(ConvertSoftMax1ToSoftMax8);
 

@@ -14,8 +14,6 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ReluFakeQuantizeFusion, "ReluFakeQuantizeFusion", 0);
-
 ngraph::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
     MATCHER_SCOPE(ReluFakeQuantizeFusion);
     auto data_pattern = ngraph::pattern::any_input();

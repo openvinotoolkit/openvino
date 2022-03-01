@@ -28,6 +28,6 @@ class TRANSFORMATIONS_API SplitSqueezeConcatFusion;
  */
 class ngraph::pass::SplitSqueezeConcatFusion : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SplitSqueezeConcatFusion", "0");
     SplitSqueezeConcatFusion();
 };

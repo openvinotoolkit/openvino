@@ -18,8 +18,6 @@
 
 #include "transformations/rt_info/nonconvertible_divide.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDivide, "ConvertDivide", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDivideWithConstant, "ConvertDivideWithConstant", 0);
 
 namespace {
 bool convert_divide(std::shared_ptr<ngraph::Node> node) {

@@ -14,8 +14,6 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertTopKToTopKIEMatcher, "ConvertTopKToTopKIEMatcher", 0);
-
 ngraph::pass::ConvertTopKToTopKIEMatcher::ConvertTopKToTopKIEMatcher() {
     auto topk = ngraph::pattern::wrap_type<opset1::TopK>();
 

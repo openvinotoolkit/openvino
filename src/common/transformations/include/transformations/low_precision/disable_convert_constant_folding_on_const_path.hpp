@@ -20,7 +20,7 @@ class TRANSFORMATIONS_API DisableConvertConstantFoldingOnConstPath;
 
 class ngraph::pass::DisableConvertConstantFoldingOnConstPath : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("DisableConvertConstantFoldingOnConstPath", "0");
     DisableConvertConstantFoldingOnConstPath(
         const element::TypeVector & inputPrecisions = {});
 };

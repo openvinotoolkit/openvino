@@ -12,8 +12,6 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNegative, "ConvertNegative", 0);
-
 ngraph::pass::ConvertNegative::ConvertNegative() {
     MATCHER_SCOPE(ConvertNegative);
     auto neg = ngraph::pattern::wrap_type<ngraph::opset1::Negative>();

@@ -14,8 +14,6 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SoftmaxDecomposition, "SoftmaxDecomposition", 0);
-
 ngraph::pass::SoftmaxDecomposition::SoftmaxDecomposition() {
     MATCHER_SCOPE(SoftmaxDecomposition);
     auto softmax = pattern::wrap_type<ngraph::opset1::Softmax, ngraph::opset8::Softmax>();

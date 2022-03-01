@@ -16,8 +16,6 @@
 #include "ngraph_ops/nms_static_shape_ie.hpp"
 #include "transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE, "ConvertMulticlassNmsToMulticlassNmsIE", 0);
-
 ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE::ConvertMulticlassNmsToMulticlassNmsIE(bool force_i32_output_type) {
     MATCHER_SCOPE(ConvertMulticlassNmsToMulticlassNmsIE);
     auto nms = ngraph::pattern::wrap_type<ngraph::opset8::MulticlassNms>();

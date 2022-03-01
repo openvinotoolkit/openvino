@@ -21,8 +21,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::ReshapeTransformation, "ReshapeTransformation", 0);
-
 ReshapeTransformation::ReshapeTransformation(const Params& params) : LayerTransformation(params) {
     auto input = pattern::any_input();
     auto mul_const_m = pattern::wrap_type<opset1::Constant>();

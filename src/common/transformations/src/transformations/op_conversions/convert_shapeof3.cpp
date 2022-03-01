@@ -13,8 +13,6 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertShapeOf3, "ConvertShapeOf3", 0);
-
 ngraph::pass::ConvertShapeOf3::ConvertShapeOf3() {
     MATCHER_SCOPE(ConvertShapeOf3);
     auto shapeof = pattern::wrap_type<ngraph::opset3::ShapeOf>();

@@ -14,8 +14,6 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <numeric>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeToReshape, "TransposeToReshape", 0);
-
 using namespace ngraph;
 
 ngraph::pass::TransposeToReshape::TransposeToReshape() {

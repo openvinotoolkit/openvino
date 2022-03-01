@@ -16,8 +16,6 @@ using namespace std;
 using namespace ngraph;
 using namespace ngraph::op::util;
 
-NGRAPH_RTTI_DEFINITION(pass::ConvertDetectionOutput1ToDetectionOutput8, "ConvertDetectionOutput1ToDetectionOutput8", 0);
-
 pass::ConvertDetectionOutput1ToDetectionOutput8::ConvertDetectionOutput1ToDetectionOutput8() {
     MATCHER_SCOPE(ConvertDetectionOutput1ToDetectionOutput8);
 

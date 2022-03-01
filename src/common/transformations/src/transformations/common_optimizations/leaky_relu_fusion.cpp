@@ -14,8 +14,6 @@
 #include "itt.hpp"
 
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::LeakyReluFusion, "LeakyReluFusion", 0);
-
 ngraph::pass::LeakyReluFusion::LeakyReluFusion() {
     MATCHER_SCOPE(LeakyReluFusion);
     auto data_pattern = ngraph::pattern::any_input();

@@ -61,8 +61,6 @@
 #include <transformations/common_optimizations/align_eltwise_input_ranks.hpp>
 #include <transformations/common_optimizations/matmul_const_transposes_extraction.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::MOCTransformations, "MOCTransformations", 0);
-
 bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     // To avoid issues with dynamism we make nGraph Function dynamic and after we apply all
     // transformations we restore original shapes to the nGraph Function back

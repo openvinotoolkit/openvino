@@ -11,8 +11,6 @@
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SimplifyCTCGreedyDecoderSeqLen, "SimplifyCTCGreedyDecoder", 0);
-
 ngraph::pass::SimplifyCTCGreedyDecoderSeqLen::SimplifyCTCGreedyDecoderSeqLen() {
     MATCHER_SCOPE(SimplifyCTCGreedyDecoderSeqLen);
     auto decoder = pattern::wrap_type<opset6::CTCGreedyDecoderSeqLen>();

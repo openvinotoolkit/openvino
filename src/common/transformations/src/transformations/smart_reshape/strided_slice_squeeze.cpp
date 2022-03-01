@@ -10,8 +10,6 @@
 #include <ngraph/validation_util.hpp>
 #include <transformations/smart_reshape/strided_slice_squeeze.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::StridedSliceSqueeze, "ngraph::pass::StridedSliceSqueeze", 0);
-
 ngraph::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
     // TODO: enable conditional compile
     // MATCHER_SCOPE(StridedSliceSqueeze);
@@ -112,8 +110,6 @@ ngraph::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(squeeze_label /*, matcher_name */);
     register_matcher(m, callback);
 }
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SqueezeStridedSlice, "ngraph::pass::SqueezeStridedSlice", 0);
-
 ngraph::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
     // TODO: enable conditional compile
     // MATCHER_SCOPE(SqueezeStridedSlice);
@@ -195,8 +191,6 @@ ngraph::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(ss_label /*, matcher_name */);
     register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SharedSqueeze, "ngraph::pass::SharedSqueeze", 0);
 
 namespace {
 

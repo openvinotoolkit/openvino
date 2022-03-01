@@ -14,8 +14,6 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertBroadcast3, "ConvertBroadcast3", 0);
-
 namespace {
 
 bool make_compatible_shape(const ngraph::PartialShape & input_shape, std::vector<size_t> & target_shape) {

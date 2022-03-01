@@ -14,8 +14,6 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::FakeQuantizeMulFusion, "FakeQuantizeMulFusion", 0);
-
 // This transformation multiplies the "output_low" and "output_high" inputs of the FQ operation
 // by the constant value that before transormation is used to multiply the output of FQ.
 // Both output_low and output_high are multiplied by the value represented as C (a constant) below.

@@ -14,8 +14,6 @@
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
 
-NGRAPH_RTTI_DEFINITION(ov::pass::DivisionByZeroFP16Resolver, "DivisionByZeroFP16Resolver", 0);
-
 constexpr float normalized_fp16_min = 6.103515625e-05f;  // fp16 minimal normalized  value
 
 using namespace ov;

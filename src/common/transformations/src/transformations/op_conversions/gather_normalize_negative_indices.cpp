@@ -12,8 +12,6 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::GatherNegativeConstIndicesNormalize, "GatherNegativeConstIndicesNormalize", 0);
-
 ngraph::pass::GatherNegativeConstIndicesNormalize::GatherNegativeConstIndicesNormalize() {
     MATCHER_SCOPE(GatherNegativeConstIndicesNormalize);
     auto data_input = ngraph::pattern::any_input(pattern::has_static_rank());

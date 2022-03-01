@@ -15,8 +15,6 @@
 #include "itt.hpp"
 
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::AddFakeQuantizeFusion, "AddFakeQuantizeFusion", 0);
-
 ngraph::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
     MATCHER_SCOPE(AddFakeQuantizeFusion);
     auto input_pattern = ngraph::pattern::any_input();

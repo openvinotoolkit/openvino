@@ -11,8 +11,6 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::LogSoftmaxDecomposition, "LogSoftmaxDecomposition", 0);
-
 ngraph::pass::LogSoftmaxDecomposition::LogSoftmaxDecomposition() {
     MATCHER_SCOPE(LogSoftmaxDecomposition);
     // Decomposes LogSoftmax(x, axis) op into sub-graph x - log(reduce_sum(exp(x), axis))

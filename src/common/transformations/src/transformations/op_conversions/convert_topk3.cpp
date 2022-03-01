@@ -15,8 +15,6 @@
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertTopK3, "ConvertTopK3", 0);
-
 ngraph::pass::ConvertTopK3::ConvertTopK3() {
     MATCHER_SCOPE(ConvertTopK3);
     auto topk = pattern::wrap_type<opset3::TopK>();

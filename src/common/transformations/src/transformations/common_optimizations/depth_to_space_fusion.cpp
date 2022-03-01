@@ -109,8 +109,6 @@ bool check_depth_first(const ngraph::PartialShape& shape_input, const ngraph::Pa
 
 } // namespace
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::DepthToSpaceFusion, "DepthToSpaceFusion", 0);
-
 ngraph::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
     MATCHER_SCOPE(DepthToSpaceFusion);
     auto input0 = ngraph::pattern::any_input(pattern::rank_equals(4));

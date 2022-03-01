@@ -26,7 +26,7 @@ class NGRAPH_API SharedSqueeze;
 
 class ngraph::pass::StridedSliceSqueeze : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("StridedSliceSqueeze", "0");
     StridedSliceSqueeze();
 };
 
@@ -37,7 +37,7 @@ public:
 
 class ngraph::pass::SqueezeStridedSlice : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SqueezeStridedSlice", "0");
     SqueezeStridedSlice();
 };
 
@@ -48,6 +48,6 @@ public:
 
 class ngraph::pass::SharedSqueeze : public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SharedSqueeze", "0");
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };

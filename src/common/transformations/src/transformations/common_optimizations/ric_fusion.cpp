@@ -21,8 +21,6 @@
 #include "itt.hpp"
 
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ReverseInputChannelsFusion, "ReverseInputChannelsFusion", 0);
-
 namespace ngraph {
 namespace pass {
 namespace ric_attr {

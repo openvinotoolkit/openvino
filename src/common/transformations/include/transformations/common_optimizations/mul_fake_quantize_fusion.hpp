@@ -28,6 +28,6 @@ class TRANSFORMATIONS_API MulFakeQuantizeFusion;
  */
 class ngraph::pass::MulFakeQuantizeFusion: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("MulFakeQuantizeFusion", "0");
     MulFakeQuantizeFusion();
 };

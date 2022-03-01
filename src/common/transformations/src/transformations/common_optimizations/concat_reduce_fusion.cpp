@@ -16,12 +16,6 @@
 #include <ngraph/pass/manager.hpp>
 #include "itt.hpp"
 
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ReplaceConcatReduceByMinOrMax, "ReplaceConcatReduceByMinOrMax", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::PullSqueezeThroughEltwise, "PullSqueezeThroughEltwise", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConcatReduceFusion, "ConcatReduceFusion", 0);
-
-
 namespace {
 enum class ReduceType {NONE, MAX, MIN};
 

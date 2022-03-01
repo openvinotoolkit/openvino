@@ -27,6 +27,6 @@ class TRANSFORMATIONS_API TransposeToReshape;
  */
 class ngraph::pass::TransposeToReshape : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("TransposeToReshape", "0");
     TransposeToReshape();
 };

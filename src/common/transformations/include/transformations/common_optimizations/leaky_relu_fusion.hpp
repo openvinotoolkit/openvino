@@ -27,6 +27,6 @@ class TRANSFORMATIONS_API LeakyReluFusion;
 
 class ngraph::pass::LeakyReluFusion: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("LeakyReluFusion", "0");
     LeakyReluFusion();
 };

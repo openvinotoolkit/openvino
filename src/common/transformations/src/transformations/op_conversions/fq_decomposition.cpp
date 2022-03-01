@@ -13,8 +13,6 @@
 
 #include <numeric>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::FakeQuantizeDecomposition, "FakeQuantizeDecomposition", 0);
-
 namespace {
 
 bool isValidRangesInputs(const std::shared_ptr<ngraph::opset1::FakeQuantize> &fq) {

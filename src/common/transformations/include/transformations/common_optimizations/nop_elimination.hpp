@@ -34,7 +34,7 @@ class TRANSFORMATIONS_API NopElimination;
  */
 class ngraph::pass::EliminatePad: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("EliminatePad", "0");
     EliminatePad();
 };
 
@@ -44,7 +44,7 @@ public:
  */
 class ngraph::pass::EliminateConvert: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("EliminateConvert", "0");
     EliminateConvert();
 };
 
@@ -54,7 +54,7 @@ public:
  */
 class ngraph::pass::EliminateConvertNonZero: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("EliminateConvertNonZero", "0");
     EliminateConvertNonZero();
 };
 
@@ -64,7 +64,7 @@ public:
  */
 class ngraph::pass::EliminateConcat: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("EliminateConcat", "0");
     EliminateConcat();
 };
 
@@ -74,7 +74,7 @@ public:
  */
 class ngraph::pass::EliminateSplit: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("EliminateSplit", "0");
     EliminateSplit();
 };
 
@@ -84,7 +84,7 @@ public:
  */
 class ngraph::pass::EliminateSqueeze : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("EliminateSqueeze", "0");
     EliminateSqueeze();
 };
 
@@ -94,7 +94,7 @@ public:
  */
 class ngraph::pass::EliminateTranspose: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("EliminateTranspose", "0");
     EliminateTranspose();
 };
 
@@ -104,12 +104,12 @@ public:
  */
 class ngraph::pass::EliminateEltwise: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("EliminateEltwise", "0");
     EliminateEltwise();
 };
 
 class ngraph::pass::NopElimination: public GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("NopElimination", "0");
     NopElimination(bool use_shape_for_elimination = true);
 };

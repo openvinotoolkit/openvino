@@ -16,8 +16,6 @@
 #include "itt.hpp"
 
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::BroadcastConstRangeReplacement, "BroadcastConstRangeReplacement", 0);
-
 ngraph::pass::BroadcastConstRangeReplacement::BroadcastConstRangeReplacement() {
     MATCHER_SCOPE(BroadcastConstRangeReplacement);
     auto data_input = pattern::wrap_type<ngraph::opset8::Constant>();

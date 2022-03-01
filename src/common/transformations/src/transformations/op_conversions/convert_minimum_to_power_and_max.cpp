@@ -12,8 +12,6 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMinimum, "ConvertMinimum", 0);
-
 ngraph::pass::ConvertMinimum::ConvertMinimum() {
     MATCHER_SCOPE(ConvertMinimum);
     auto minimum = ngraph::pattern::wrap_type<opset1::Minimum>();

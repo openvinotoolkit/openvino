@@ -27,6 +27,6 @@ class TRANSFORMATIONS_API RemoveMultiSubGraphOpDanglingParams;
 
 class ov::pass::RemoveMultiSubGraphOpDanglingParams: public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("RemoveMultiSubGraphOpDanglingParams", "0");
     RemoveMultiSubGraphOpDanglingParams();
 };

@@ -18,8 +18,6 @@
 #include <transformations/utils/utils.hpp>
 #include <numeric>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SharedShapeOf, "SharedShapeOf", 0);
-
 static constexpr size_t index_for_int32 = 0;
 static constexpr size_t index_for_int64 = 1;
 
@@ -59,8 +57,6 @@ bool ngraph::pass::SharedShapeOf::run_on_model(const std::shared_ptr<ngraph::Fun
     }
     return graph_rewritten;
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::GroupedGatherElimination, "GroupedGatherElimination", 0);
 
 ngraph::pass::GroupedGatherElimination::GroupedGatherElimination() {
     MATCHER_SCOPE(GroupedGatherElimination);
@@ -121,8 +117,6 @@ ngraph::pass::GroupedGatherElimination::GroupedGatherElimination() {
     this->register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::GatherNopElimination, "GatherNopElimination", 0);
-
 ngraph::pass::GatherNopElimination::GatherNopElimination() {
     MATCHER_SCOPE(GatherNopElimination);
     const auto gather_label = ngraph::pattern::wrap_type<ngraph::op::util::GatherBase>(
@@ -147,8 +141,6 @@ ngraph::pass::GatherNopElimination::GatherNopElimination() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(gather_label, matcher_name);
     this->register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SimplifyGatherShapeOf, "SimplifyGatherShapeOf", 0);
 
 ngraph::pass::SimplifyGatherShapeOf::SimplifyGatherShapeOf() {
     MATCHER_SCOPE(SimplifyGatherShapeOf);
@@ -216,8 +208,6 @@ ngraph::pass::SimplifyGatherShapeOf::SimplifyGatherShapeOf() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(shape_of_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SimplifySecondInputOfReshape, "SimplifySecondInputOfReshape", 0);
 
 ngraph::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
     MATCHER_SCOPE(SimplifySecondInputOfReshape);
@@ -312,8 +302,6 @@ ngraph::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SimplifyShapeOfSubGraph, "SimplifyShapeOfSubGraph", 0);
 
 bool ngraph::pass::SimplifyShapeOfSubGraph::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(SimplifyShapeOfSubGraph);

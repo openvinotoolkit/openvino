@@ -13,8 +13,6 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertScatterElementsToScatter, "ConvertScatterElementsToScatter", 0);
-
 ngraph::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter() {
     MATCHER_SCOPE(ConvertScatterElementsToScatter);
     auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
