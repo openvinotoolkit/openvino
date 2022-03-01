@@ -466,6 +466,20 @@ void MKLDNNDeconvolutionNode::setDynamicBatchLim(int lim) {
     MKLDNNNode::setDynamicBatchLim(lim);
 }
 
+void MKLDNNDeconvolutionNode::cleanup() {
+    if (!isDynamicNode()) {
+        internalBlobs.clear();
+    }
+
+    for (auto it : fusedWith) {
+        it->cleanup();
+    }
+
+    for (auto it : mergedWith) {
+        it->cleanup();
+    }
+}
+
 void MKLDNNDeconvolutionNode::execute(mkldnn::stream strm) {
     if (!execPtr) {
         IE_THROW() << "Can't execute Deconvolution node with name: " << getName() << ", because executor is not compiled";

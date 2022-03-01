@@ -89,15 +89,15 @@ static void regclass_graph_PreProcessSteps(py::module m) {
 
     steps.def(
         "convert_element_type",
-        [](ov::preprocess::PreProcessSteps& self, ov::element::Type type) {
+        [](ov::preprocess::PreProcessSteps& self, ov::element::Type type = {}) {
             return &self.convert_element_type(type);
         },
-        py::arg("type"),
+        py::arg_v("type", ov::element::undefined, "openvino.runtime.Type.undefined"),
         R"(
             Converts input tensor element type to specified type.
-            Input tensor must have openvino.Type.f32 data type.
+            Input tensor must have openvino.Type data type.
 
-            :param type: Destination type.
+            :param type: Destination type. If not specified, type will be taken from model input's element type
             :type type: openvino.runtime.Type
             :return: Reference to itself to allow chaining of calls in client's code in a builder-like manner.
             :rtype: openvino.runtime.preprocess.PreProcessSteps
@@ -171,15 +171,15 @@ static void regclass_graph_PostProcessSteps(py::module m) {
 
     steps.def(
         "convert_element_type",
-        [](ov::preprocess::PostProcessSteps& self, ov::element::Type type) {
+        [](ov::preprocess::PostProcessSteps& self, ov::element::Type type = {}) {
             return &self.convert_element_type(type);
         },
-        py::arg("type"),
+        py::arg_v("type", ov::element::undefined, "openvino.runtime.Type.undefined"),
         R"(
             Converts tensor element type to specified type.
-            Tensor must have openvino.Type.f32 data type.
+            Tensor must have openvino.Type data type.
 
-            :param type: Destination type.
+            :param type: Destination type. If not specified, type will be taken from model output's element type.
             :type type: openvino.runtime.Type
             :return: Reference to itself to allow chaining of calls in client's code in a builder-like manner.
             :rtype: openvino.runtime.preprocess.PostProcessSteps
@@ -279,7 +279,7 @@ static void regclass_graph_InputTensorInfo(py::module m) {
             return &self.set_color_format(format, sub_names);
         },
         py::arg("format"),
-        py::arg("sub_names"));
+        py::arg("sub_names") = std::vector<std::string>{});
 
     info.def(
         "set_memory_type",

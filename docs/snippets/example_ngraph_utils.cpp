@@ -70,65 +70,6 @@ std::shared_ptr<ov::Model> create_advanced_function() {
 }
 // ! [ov:create_advanced_model]
 
-void pattern_matcher_examples(std::shared_ptr<ov::Node> node) {
-{
-// ! [pattern:simple_example]
-// Pattern example
-auto input = std::make_shared<ov::opset8::Parameter>(ov::element::i64, ov::Shape{1});
-auto shapeof = std::make_shared<ov::opset8::ShapeOf>(input);
-
-// Create Matcher with Parameter->ShapeOf pattern
-auto m = std::make_shared<ov::pass::pattern::Matcher>(shapeof, "MyPatternBasedTransformation");
-// ! [pattern:simple_example]
-
-// ! [pattern:callback_example]
-ov::graph_rewrite_callback callback = [](ov::pass::pattern::Matcher& m) {
-    // Get root node
-    std::shared_ptr<ov::Node> root_node = m.get_match_root();
-
-    // Get all nodes matched by pattern
-    ov::NodeVector nodes = m.get_matched_nodes();
-
-    // Transformation code
-    return false;
-};
-// ! [pattern:callback_example]
-}
-
-{
-// ! [pattern:label_example]
-// Detect Multiply with arbitrary first input and second as Constant
-// ov::pattern::op::Label - represent arbitrary input
-auto input = ov::pass::pattern::any_input();
-auto value = ov::opset8::Constant::create(ov::element::f32, ov::Shape{1}, {0.5});
-auto mul = std::make_shared<ov::opset8::Multiply>(input, value);
-auto m = std::make_shared<ov::pass::pattern::Matcher>(mul, "MultiplyMatcher");
-// ! [pattern:label_example]
-}
-
-{
-// ! [pattern:concat_example]
-// Detect Concat operation with arbitrary number of inputs
-auto concat = ov::pass::pattern::wrap_type<ov::opset8::Concat>();
-auto m = std::make_shared<ov::pass::pattern::Matcher>(concat, "ConcatMatcher");
-// ! [pattern:concat_example]
-}
-
-{
-// ! [pattern:predicate_example]
-// Detect Multiply->Add sequence where mul has exactly one consumer
-auto mul = ov::pass::pattern::wrap_type<ov::opset8::Multiply>(ov::pass::pattern::consumers_count(1)/*сheck consumers count*/);
-auto add = ov::pass::pattern::wrap_type<ov::opset8::Add>({mul, ov::pass::pattern::any_input()});
-auto m = std::make_shared<ov::pass::pattern::Matcher>(add, "MultiplyAddMatcher");
-// Matcher can be used to match pattern manually on given node
-if (m->match(node->output(0))) {
-    // Successfully matched
-}
-// ! [pattern:predicate_example]
-}
-
-}
-
 bool ngraph_api_examples(std::shared_ptr<ov::Node> node) {
 {
 // ! [ngraph:ports_example]
@@ -183,63 +124,6 @@ auto dim = partial_shape[1].get_length();
 }
 
 return true;
-}
-
-// ! [ngraph:replace_node]
-bool ngraph_replace_node(std::shared_ptr<ov::Node> node) {
-    // Step 1. Verify that node has opset8::Negative type
-    auto neg = std::dynamic_pointer_cast<ov::opset8::Negative>(node);
-    if (!neg) {
-        return false;
-    }
-
-    // Step 2. Create opset8::Multiply operation where the first input is negative operation input and second as Constant with -1 value
-    auto mul = std::make_shared<ov::opset8::Multiply>(neg->input_value(0),
-                                                      ov::opset8::Constant::create(neg->get_element_type(), ov::Shape{1}, {-1}));
-
-    mul->set_friendly_name(neg->get_friendly_name());
-    // TODO: Move to new API
-    ngraph::copy_runtime_info(neg, mul);
-
-    // Step 3. Replace Negative operation with Multiply operation
-    ov::replace_node(neg, mul);
-    return true;
-
-    // Step 4. Negative operation will be removed automatically because all consumers was moved to Multiply operation
-}
-// ! [ngraph:replace_node]
-
-// ! [ngraph:insert_node]
-// Step 1. Lets suppose that we have a node with single output port and we want to insert additional operation new_node after it
-void insert_example(std::shared_ptr<ov::Node> node) {
-    // Get all consumers for node
-    auto consumers = node->output(0).get_target_inputs();
-
-    // Step 2. Create new node. Let it be opset1::Relu.
-    auto new_node = std::make_shared<ov::opset8::Relu>(node);
-
-    // Step 3. Reconnect all consumers to new_node
-    for (auto input : consumers) {
-        input.replace_source_output(new_node);
-    }
-}
-// ! [ngraph:insert_node]
-
-// ! [ngraph:insert_node_with_copy]
-void insert_example_with_copy(std::shared_ptr<ov::Node> node) {
-    // Make a node copy
-    auto node_copy = node->clone_with_new_inputs(node->input_values());
-    // Create new node
-    auto new_node = std::make_shared<ov::opset8::Relu>(node_copy);
-    ov::replace_node(node, new_node);
-}
-// ! [ngraph:insert_node_with_copy]
-
-void eliminate_example(std::shared_ptr<ov::Node> node) {
-// ! [ngraph:eliminate_node]
-// Suppose we have a node that we want to remove
-bool success = replace_output_update_name(node->output(0), node->input_value(0));
-// ! [ngraph:eliminate_node]
 }
 
 // ! [ov:serialize]
