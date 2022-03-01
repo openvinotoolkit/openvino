@@ -174,9 +174,7 @@ void ov::Node::set_arguments(const OutputVector& arguments) {
     // Add this node as a user of each argument.
     size_t i = 0;
     for (auto& output : arguments) {
-        auto output_node = output.get_node();
-        auto& output_descriptor = output_node->m_outputs.at(output.get_index());
-        m_inputs.emplace_back(this, i++, output_descriptor);
+        set_argument(i++, output);
     }
 
     // set_arguments doesn't use replace_output method, so we have to reset cache manually here
@@ -203,8 +201,15 @@ ov::descriptor::Output& ov::Node::get_output_descriptor(size_t position) {
 
 void ov::Node::set_argument(size_t position, const Output<Node>& argument) {
     auto output_node = argument.get_node();
-    auto& output_descriptor = output_node->get_output_descriptor(argument.get_index());
-    get_input_descriptor(position).replace_output(output_descriptor);
+    auto& output_descriptor = output_node->m_outputs.at(argument.get_index());
+    if (position < m_inputs.size()) {
+        get_input_descriptor(position).replace_output(output_descriptor);
+    } else {
+        while (m_inputs.size() < position) {
+            m_inputs.emplace_back(this, m_inputs.size());
+        }
+        m_inputs.emplace_back(this, position, output_descriptor);
+    }
 }
 
 void ov::Node::constructor_validate_and_infer_types() {
