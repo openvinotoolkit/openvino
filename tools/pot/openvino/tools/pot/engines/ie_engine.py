@@ -234,7 +234,7 @@ class IEEngine(Engine):
             return input_blob.partial_shape.is_dynamic
 
         def process_input(input_blob, input_data):
-            return input_data[0] if is_dymanic_input(input_blob) else np.reshape(input_data, input_blob.shape)
+            return input_data if is_dymanic_input(input_blob) else np.reshape(input_data, input_blob.shape)
 
         if isinstance(image_batch[0], dict):
             feed_dict = {}
@@ -242,7 +242,7 @@ class IEEngine(Engine):
             for input_name in image_batch[0].keys():
                 input_blob = input_blobs[input_name]
                 input_blob_name = self._get_input_any_name(input_blob)
-                feed_dict[input_blob_name] = process_input(input_blob, [image_batch[0][input_name]])
+                feed_dict[input_blob_name] = process_input(input_blob, image_batch[0][input_name])
             return feed_dict
 
         if len(input_info) == 1:
