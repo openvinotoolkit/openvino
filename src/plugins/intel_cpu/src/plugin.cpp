@@ -724,6 +724,17 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     auto nGraphFunc = clonedNetwork.getFunction();
     Transformations transformations(nGraphFunc CPU_DEBUG_CAP_ENABLE(, engConfig));
     transformations.upToCpuSpecificOpSet(enableLPT, enableSnippets, isLegacyAPI());
+
+    // need to check that all outputs have static shapes
+    // checking that all inputs have static shapes is performed in the common part
+    if (isLegacyAPI()) {
+        for (const auto& res : nGraphFunc->get_results()) {
+            if (res->get_input_partial_shape(0).is_dynamic()) {
+                IE_THROW() << "CPU plug-in can't load a model with dynamic output shapes via legacy API.";
+            }
+        }
+    }
+
     ApplyPerformanceHints(config, nGraphFunc);
     transformations.cpuSpecificOpSet();
 
