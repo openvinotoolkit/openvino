@@ -112,7 +112,7 @@ static void regclass_graph_PreProcessSteps(py::module m) {
         [](ov::preprocess::PreProcessSteps& self, ov::element::Type type = {}) {
             return &self.convert_element_type(type);
         },
-        py::arg("type") = ov::element::Type{},
+        py::arg_v("type", ov::element::undefined, "{}"),
         R"(
             Converts input tensor element type to specified type.
             Input tensor must have openvino.Type data type.
@@ -120,7 +120,7 @@ static void regclass_graph_PreProcessSteps(py::module m) {
             Parameters
             ----------
             type : openvino.runtime.Type
-                Destination type. By default type will be taken from model input's element type.
+                Destination type. If not specified, type will be taken from model input's element type.
 
             Returns
             ----------
@@ -203,7 +203,7 @@ static void regclass_graph_PostProcessSteps(py::module m) {
         [](ov::preprocess::PostProcessSteps& self, ov::element::Type type = {}) {
             return &self.convert_element_type(type);
         },
-        py::arg("type") = ov::element::Type{},
+        py::arg_v("type", ov::element::undefined, "{}"),
         R"(
             Converts tensor element type to specified type.
             Tensor must have openvino.Type data type.
@@ -211,7 +211,7 @@ static void regclass_graph_PostProcessSteps(py::module m) {
             Parameters
             ----------
             type : Type
-                Destination type. By default type will be taken from model output's element type.
+                Destination type. If not specified, type will be taken from model output's element type.
 
             Returns
             ----------
