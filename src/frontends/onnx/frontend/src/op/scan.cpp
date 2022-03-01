@@ -24,21 +24,20 @@ namespace set_1 {
 OutputVector scan(const Node& node) {
     const auto& ng_inputs = node.get_ng_inputs();
 
-    const int64_t num_scan_inputs = node.get_attribute_value<int64_t>("num_scan_inputs");
-    std::vector<int64_t> scan_input_axes = node.get_attribute_value<std::vector<int64_t>>("scan_input_axes", {});
-    bool are_scan_input_axes_set = scan_input_axes.size() > 0;
-    std::vector<int64_t> scan_input_directions = node.get_attribute_value<std::vector<int64_t>>("scan_input_directions", {});
-    bool are_scan_input_directions_set = scan_input_directions.size() > 0;
-    std::vector<int64_t> scan_output_axes = node.get_attribute_value<std::vector<int64_t>>("scan_output_axes", {});
-    bool are_scan_output_axes_set = scan_output_axes.size() > 0;
-    std::vector<int64_t> scan_output_directions = node.get_attribute_value<std::vector<int64_t>>("scan_output_directions", {});
-    bool are_scan_output_directions_set = scan_output_directions.size() > 0;
-
     const auto& subgraphs = node.get_subgraphs();
     auto body_graph = subgraphs.at("body");
     auto body_outputs = body_graph->get_ng_outputs();
     auto body_inputs = body_graph->get_ng_parameters();
-    const size_t num_initial_values = body_inputs.size() - num_scan_inputs;
+
+    const int64_t num_scan_inputs = node.get_attribute_value<int64_t>("num_scan_inputs");
+    const size_t num_initial_values = ng_inputs.size() - num_scan_inputs;
+
+    std::vector<int64_t> scan_input_axes = node.get_attribute_value<std::vector<int64_t>>("scan_input_axes", std::vector<int64_t>(num_scan_inputs, 0));
+    std::vector<int64_t> scan_input_directions = node.get_attribute_value<std::vector<int64_t>>("scan_input_directions", std::vector<int64_t>(num_scan_inputs, 0));
+
+    std::vector<int64_t> scan_output_axes = node.get_attribute_value<std::vector<int64_t>>("scan_output_axes", std::vector<int64_t>(body_outputs.size(), 0));
+    std::vector<int64_t> scan_output_directions = node.get_attribute_value<std::vector<int64_t>>("scan_output_directions", std::vector<int64_t>(body_outputs.size(), 0));
+
 
     for (size_t i = 0; i < body_inputs.size(); i++) {
         body_inputs[i]->set_element_type(ng_inputs[i].get_element_type());
@@ -48,7 +47,7 @@ OutputVector scan(const Node& node) {
             continue;
         }
 
-        auto axis_val = are_scan_input_axes_set ? scan_input_axes[i - num_initial_values] : 0;
+        auto axis_val = scan_input_axes[i - num_initial_values];
         auto shape = ng_inputs[i].get_partial_shape();
         if (shape.rank().is_static()) {
             shape[axis_val] = 1;
@@ -65,7 +64,7 @@ OutputVector scan(const Node& node) {
     }
 
     for (size_t i = num_initial_values; i < body_outputs.size(); i++) {
-        auto axis_val = are_scan_output_axes_set ? scan_output_axes[i - num_initial_values] : 0;
+        auto axis_val = scan_output_axes[i - num_initial_values];
         auto axis = default_opset::Constant::create(element::i64, Shape{1}, {axis_val});
         body_outputs[i] = std::make_shared<default_opset::Unsqueeze>(body_outputs[i], axis);
     }
@@ -83,8 +82,8 @@ OutputVector scan(const Node& node) {
     }
 
     for (size_t i = num_initial_values; i < num_initial_values + num_scan_inputs; i++) {
-        auto direction = are_scan_input_directions_set ? scan_input_directions[i - num_initial_values] : 0;
-        auto axis = are_scan_input_axes_set ? scan_input_axes[i - num_initial_values] : 0;
+        auto direction = scan_input_directions[i - num_initial_values];
+        auto axis = scan_input_axes[i - num_initial_values];
         if (direction == 0) {
             tensor_iterator->set_sliced_input(body_inputs[i], ng_inputs[i], 0, 1, 1, -1, axis);
         } else {
@@ -93,8 +92,8 @@ OutputVector scan(const Node& node) {
     }
 
     for (size_t i = num_initial_values; i < ti_body_results.size(); i++) {
-        auto direction = are_scan_output_directions_set ? scan_output_directions[i - num_initial_values] : 0;
-        auto axis = are_scan_output_axes_set ? scan_output_axes[i - num_initial_values] : 0;
+        auto direction = scan_output_directions[i - num_initial_values];
+        auto axis = scan_output_axes[i - num_initial_values];
         if (direction == 0) {
             outputs.push_back(tensor_iterator->get_concatenated_slices(ti_body_results[i], 0, 1, 1, -1, axis));
         } else {
