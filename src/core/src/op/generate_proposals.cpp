@@ -16,19 +16,17 @@ using namespace ngraph;
 
 BWDCMP_RTTI_DEFINITION(op::v6::GenerateProposalsSingleImage);
 
-op::v6::GenerateProposalsSingleImage::GenerateProposalsSingleImage(
-    const Output<Node>& im_info,
-    const Output<Node>& anchors,
-    const Output<Node>& deltas,
-    const Output<Node>& scores,
-    const Attributes& attrs)
+op::v6::GenerateProposalsSingleImage::GenerateProposalsSingleImage(const Output<Node>& im_info,
+                                                                   const Output<Node>& anchors,
+                                                                   const Output<Node>& deltas,
+                                                                   const Output<Node>& scores,
+                                                                   const Attributes& attrs)
     : Op({im_info, anchors, deltas, scores}),
       m_attrs(attrs) {
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node> op::v6::GenerateProposalsSingleImage::clone_with_new_inputs(
-    const OutputVector& new_args) const {
+shared_ptr<Node> op::v6::GenerateProposalsSingleImage::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v6_GenerateProposalsSingleImage_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v6::GenerateProposalsSingleImage>(new_args.at(0),
@@ -50,8 +48,7 @@ bool op::v6::GenerateProposalsSingleImage::visit_attributes(AttributeVisitor& vi
 void op::v6::GenerateProposalsSingleImage::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v6_GenerateProposalsSingleImage_validate_and_infer_types);
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{},
-                                                   ov::PartialShape{}};
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}, ov::PartialShape{}};
     std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),
                                                   get_input_partial_shape(1),
                                                   get_input_partial_shape(2),
@@ -65,19 +62,17 @@ void op::v6::GenerateProposalsSingleImage::validate_and_infer_types() {
 
 BWDCMP_RTTI_DEFINITION(op::v9::GenerateProposalsSingleImage);
 
-op::v9::GenerateProposalsSingleImage::GenerateProposalsSingleImage(
-    const Output<Node>& im_info,
-    const Output<Node>& anchors,
-    const Output<Node>& deltas,
-    const Output<Node>& scores,
-    const Attributes& attrs)
+op::v9::GenerateProposalsSingleImage::GenerateProposalsSingleImage(const Output<Node>& im_info,
+                                                                   const Output<Node>& anchors,
+                                                                   const Output<Node>& deltas,
+                                                                   const Output<Node>& scores,
+                                                                   const Attributes& attrs)
     : Op({im_info, anchors, deltas, scores}),
       m_attrs(attrs) {
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node> op::v9::GenerateProposalsSingleImage::clone_with_new_inputs(
-    const OutputVector& new_args) const {
+shared_ptr<Node> op::v9::GenerateProposalsSingleImage::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v9_GenerateProposalsSingleImage_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v9::GenerateProposalsSingleImage>(new_args.at(0),
@@ -104,8 +99,7 @@ void op::v9::GenerateProposalsSingleImage::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, m_attrs.post_nms_count > 0, "Attribute post_nms_count must be larger than 0.");
     NODE_VALIDATION_CHECK(this, m_attrs.nms_eta == 1.0, "Attribute min_size must be 1.0.");
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{},
-                                                   ov::PartialShape{}};
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}, ov::PartialShape{}};
     std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),
                                                   get_input_partial_shape(1),
                                                   get_input_partial_shape(2),

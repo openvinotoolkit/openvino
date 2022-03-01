@@ -30,7 +30,6 @@
 #include <ngraph/runtime/reference/exp.hpp>
 #include <ngraph/runtime/reference/experimental_detectron_detection_output.hpp>
 #include <ngraph/runtime/reference/experimental_detectron_prior_grid_generator.hpp>
-#include <ngraph/runtime/reference/generate_proposal_single_image.hpp>
 #include <ngraph/runtime/reference/experimental_detectron_roi_feature_extractor.hpp>
 #include <ngraph/runtime/reference/experimental_detectron_topk_rois.hpp>
 #include <ngraph/runtime/reference/extract_image_patches.hpp>
@@ -40,6 +39,7 @@
 #include <ngraph/runtime/reference/gather_nd.hpp>
 #include <ngraph/runtime/reference/gather_tree.hpp>
 #include <ngraph/runtime/reference/gelu.hpp>
+#include <ngraph/runtime/reference/generate_proposal_single_image.hpp>
 #include <ngraph/runtime/reference/grn.hpp>
 #include <ngraph/runtime/reference/group_convolution.hpp>
 #include <ngraph/runtime/reference/group_convolution_backprop_data.hpp>
@@ -3125,14 +3125,13 @@ bool evaluate(const shared_ptr<op::v9::GenerateProposalsSingleImage>& op,
     outputs[1]->set_element_type(output_type);
     outputs[1]->set_shape(output_scores_shape);
 
-    runtime::reference::generate_proposals_single_image_postprocessing_v9(
-            outputs[0]->get_data_ptr(),
-            outputs[1]->get_data_ptr(),
-            output_type,
-            output_rois,
-            output_scores,
-            output_rois_shape,
-            output_scores_shape);
+    runtime::reference::generate_proposals_single_image_postprocessing_v9(outputs[0]->get_data_ptr(),
+                                                                          outputs[1]->get_data_ptr(),
+                                                                          output_type,
+                                                                          output_rois,
+                                                                          output_scores,
+                                                                          output_rois_shape,
+                                                                          output_scores_shape);
 
     return true;
 }

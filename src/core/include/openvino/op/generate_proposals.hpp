@@ -42,10 +42,10 @@ public:
     /// \param scores Input scores
     /// \param attrs Operation attributes
     GenerateProposalsSingleImage(const Output<Node>& im_info,
-                                                      const Output<Node>& anchors,
-                                                      const Output<Node>& deltas,
-                                                      const Output<Node>& scores,
-                                                      const Attributes& attrs);
+                                 const Output<Node>& anchors,
+                                 const Output<Node>& deltas,
+                                 const Output<Node>& scores,
+                                 const Attributes& attrs);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -97,10 +97,10 @@ public:
     /// \param scores Input scores
     /// \param attrs Operation attributes
     GenerateProposalsSingleImage(const Output<Node>& im_info,
-                                                      const Output<Node>& anchors,
-                                                      const Output<Node>& deltas,
-                                                      const Output<Node>& scores,
-                                                      const Attributes& attrs);
+                                 const Output<Node>& anchors,
+                                 const Output<Node>& deltas,
+                                 const Output<Node>& scores,
+                                 const Attributes& attrs);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 

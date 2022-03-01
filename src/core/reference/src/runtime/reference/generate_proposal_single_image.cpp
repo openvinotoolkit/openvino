@@ -118,18 +118,18 @@ void refine_anchors(const float* deltas,
 }
 
 void refine_anchors_v9(const float* deltas,
-                    const float* scores,
-                    const float* anchors,
-                    float* proposals,
-                    const int64_t anchors_num,
-                    const int64_t bottom_H,
-                    const int64_t bottom_W,
-                    const float img_H,
-                    const float img_W,
-                    const float min_box_H,
-                    const float min_box_W,
-                    const float max_delta_log_wh,
-                    const float coordinates_offset) {
+                       const float* scores,
+                       const float* anchors,
+                       float* proposals,
+                       const int64_t anchors_num,
+                       const int64_t bottom_H,
+                       const int64_t bottom_W,
+                       const float img_H,
+                       const float img_W,
+                       const float min_box_H,
+                       const float min_box_W,
+                       const float max_delta_log_wh,
+                       const float coordinates_offset) {
     int64_t bottom_area = bottom_H * bottom_W;
 
     for (int64_t h = 0; h < bottom_H; ++h) {
@@ -285,14 +285,14 @@ void nms_cpu(const int64_t num_boxes,
 }
 
 void nms_cpu_v9(const int64_t num_boxes,
-             int64_t is_dead[],
-             const float* boxes,
-             int64_t index_out[],
-             int64_t* const num_out,
-             const int64_t base_index,
-             const float nms_thresh,
-             const int64_t max_num_out,
-             const float coordinates_offset) {
+                int64_t is_dead[],
+                const float* boxes,
+                int64_t index_out[],
+                int64_t* const num_out,
+                const int64_t base_index,
+                const float nms_thresh,
+                const int64_t max_num_out,
+                const float coordinates_offset) {
     const int64_t num_proposals = num_boxes;
     int64_t count = 0;
 
@@ -379,13 +379,13 @@ void fill_output_blobs(const float* proposals,
 }
 
 void fill_output_blobs_v9(const float* proposals,
-                       const int64_t* roi_indices,
-                       std::vector<float>& rois,
-                       std::vector<float>& scores,
-                       std::vector<int64_t>& nums,
-                       const int64_t num_proposals,
-                       const int64_t num_rois,
-                       const int64_t post_nms_topn) {
+                          const int64_t* roi_indices,
+                          std::vector<float>& rois,
+                          std::vector<float>& scores,
+                          std::vector<int64_t>& nums,
+                          const int64_t num_proposals,
+                          const int64_t num_rois,
+                          const int64_t post_nms_topn) {
     const float* src_x0 = proposals + 0 * num_proposals;
     const float* src_y0 = proposals + 1 * num_proposals;
     const float* src_x1 = proposals + 2 * num_proposals;
@@ -409,18 +409,17 @@ namespace ngraph {
 namespace runtime {
 namespace reference {
 
-void generate_proposals_single_image(
-    const float* im_info,
-    const float* anchors,
-    const float* deltas,
-    const float* scores,
-    const op::v6::GenerateProposalsSingleImage::Attributes& attrs,
-    const Shape& im_info_shape,
-    const Shape& anchors_shape,
-    const Shape& deltas_shape,
-    const Shape& scores_shape,
-    float* output_rois,
-    float* output_scores) {
+void generate_proposals_single_image(const float* im_info,
+                                     const float* anchors,
+                                     const float* deltas,
+                                     const float* scores,
+                                     const op::v6::GenerateProposalsSingleImage::Attributes& attrs,
+                                     const Shape& im_info_shape,
+                                     const Shape& anchors_shape,
+                                     const Shape& deltas_shape,
+                                     const Shape& scores_shape,
+                                     float* output_rois,
+                                     float* output_scores) {
     const int64_t anchors_num = static_cast<int64_t>(scores_shape[0]);
 
     // bottom shape: (num_anchors) x H x W
@@ -495,19 +494,18 @@ void generate_proposals_single_image(
                       post_nms_topn);
 }
 
-void generate_proposals_single_image_v9(
-    const float* im_info,
-    const float* anchors,
-    const float* deltas,
-    const float* scores,
-    const op::v9::GenerateProposalsSingleImage::Attributes& attrs,
-    const Shape& im_info_shape,
-    const Shape& anchors_shape,
-    const Shape& deltas_shape,
-    const Shape& scores_shape,
-    std::vector<float>& output_rois,
-    std::vector<float>& output_scores,
-    std::vector<int64_t>& output_num) {
+void generate_proposals_single_image_v9(const float* im_info,
+                                        const float* anchors,
+                                        const float* deltas,
+                                        const float* scores,
+                                        const op::v9::GenerateProposalsSingleImage::Attributes& attrs,
+                                        const Shape& im_info_shape,
+                                        const Shape& anchors_shape,
+                                        const Shape& deltas_shape,
+                                        const Shape& scores_shape,
+                                        std::vector<float>& output_rois,
+                                        std::vector<float>& output_scores,
+                                        std::vector<int64_t>& output_num) {
     const int64_t anchors_num = static_cast<int64_t>(scores_shape[0]);
 
     // bottom shape: (num_anchors) x H x W
@@ -544,18 +542,18 @@ void generate_proposals_single_image_v9(
     std::vector<int64_t> is_dead(pre_nms_topn);
 
     refine_anchors_v9(deltas,
-                   scores,
-                   anchors,
-                   reinterpret_cast<float*>(proposals.data()),
-                   anchors_num,
-                   bottom_H,
-                   bottom_W,
-                   img_H,
-                   img_W,
-                   min_box_H,
-                   min_box_W,
-                   static_cast<const float>(std::log(1000. / 16.)),
-                   coordinates_offset);
+                      scores,
+                      anchors,
+                      reinterpret_cast<float*>(proposals.data()),
+                      anchors_num,
+                      bottom_H,
+                      bottom_W,
+                      img_H,
+                      img_W,
+                      min_box_H,
+                      min_box_W,
+                      static_cast<const float>(std::log(1000. / 16.)),
+                      coordinates_offset);
     std::partial_sort(proposals.begin(),
                       proposals.begin() + pre_nms_topn,
                       proposals.end(),
@@ -568,14 +566,14 @@ void generate_proposals_single_image_v9(
     std::vector<int64_t> roi_indices(post_nms_topn);
 
     nms_cpu_v9(pre_nms_topn,
-            is_dead.data(),
-            unpacked_boxes.data(),
-            roi_indices.data(),
-            &num_rois,
-            0,
-            nms_thresh,
-            post_nms_topn,
-            coordinates_offset);
+               is_dead.data(),
+               unpacked_boxes.data(),
+               roi_indices.data(),
+               &num_rois,
+               0,
+               nms_thresh,
+               post_nms_topn,
+               coordinates_offset);
     fill_output_blobs_v9(unpacked_boxes.data(),
                          roi_indices.data(),
                          output_rois,
@@ -586,14 +584,13 @@ void generate_proposals_single_image_v9(
                          post_nms_topn);
 }
 
-
 void generate_proposals_single_image_postprocessing(void* prois,
-                                                                  void* pscores,
-                                                                  const ngraph::element::Type output_type,
-                                                                  const std::vector<float>& output_rois,
-                                                                  const std::vector<float>& output_scores,
-                                                                  const Shape& output_rois_shape,
-                                                                  const Shape& output_scores_shape) {
+                                                    void* pscores,
+                                                    const ngraph::element::Type output_type,
+                                                    const std::vector<float>& output_rois,
+                                                    const std::vector<float>& output_scores,
+                                                    const Shape& output_rois_shape,
+                                                    const Shape& output_scores_shape) {
     size_t rois_num = output_rois_shape[0];
 
     switch (output_type) {
@@ -633,12 +630,12 @@ void generate_proposals_single_image_postprocessing(void* prois,
 }
 
 void generate_proposals_single_image_postprocessing_v9(void* prois,
-                                                                     void* pscores,
-                                                                     const ngraph::element::Type output_type,
-                                                                     const std::vector<float>& output_rois,
-                                                                     const std::vector<float>& output_scores,
-                                                                     const Shape& output_rois_shape,
-                                                                     const Shape& output_scores_shape) {
+                                                       void* pscores,
+                                                       const ngraph::element::Type output_type,
+                                                       const std::vector<float>& output_rois,
+                                                       const std::vector<float>& output_scores,
+                                                       const Shape& output_rois_shape,
+                                                       const Shape& output_scores_shape) {
     size_t rois_num = output_rois_shape[0];
 
     switch (output_type) {
