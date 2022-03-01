@@ -75,13 +75,9 @@ void regclass_Core(py::module m) {
            const std::shared_ptr<const ov::Model>& model,
            const std::string& device_name,
            const std::map<std::string, std::string>& properties) {
-            ov::CompiledModel compiled;
-            {
-                py::gil_scoped_release release;
-                compiled = self.compile_model(model, device_name, {properties.begin(), properties.end()});
-            }
-            return compiled;
+            return self.compile_model(model, device_name, {properties.begin(), properties.end()});
         },
+        py::call_guard<py::gil_scoped_release>(),
         py::arg("model"),
         py::arg("device_name"),
         py::arg("config") = py::dict(),
@@ -105,8 +101,9 @@ void regclass_Core(py::module m) {
         [](ov::Core& self,
            const std::shared_ptr<const ov::Model>& model,
            const std::map<std::string, std::string>& config) {
-            return self.compile_model(model, ov::AnyMap{config.begin(), config.end()});
+             return self.compile_model(model, ov::AnyMap{config.begin(), config.end()});
         },
+        py::call_guard<py::gil_scoped_release>(),
         py::arg("model"),
         py::arg("config") = py::dict(),
         R"(
@@ -130,6 +127,7 @@ void regclass_Core(py::module m) {
            const std::map<std::string, std::string>& config) {
             return self.compile_model(model_path, device_name, {config.begin(), config.end()});
         },
+        py::call_guard<py::gil_scoped_release>(),
         py::arg("model_path"),
         py::arg("device_name"),
         py::arg("properties") = py::dict(),
@@ -153,6 +151,7 @@ void regclass_Core(py::module m) {
         [](ov::Core& self, const std::string& model_path, const std::map<std::string, std::string>& properties) {
             return self.compile_model(model_path, ov::AnyMap{properties.begin(), properties.end()});
         },
+        py::call_guard<py::gil_scoped_release>(),
         py::arg("model_path"),
         py::arg("config") = py::dict(),
         R"(
@@ -183,19 +182,18 @@ void regclass_Core(py::module m) {
     cls.def(
         "read_model",
         [](ov::Core& self, py::bytes model, py::bytes weights) {
+            std::string ir(model);
             // works on view in order to omit copying bytes into string
             py::buffer_info info(py::buffer(weights).request());
             size_t bin_size = static_cast<size_t>(info.size);
+            ov::Tensor tensor(ov::element::Type_t::u8, {bin_size});
             // if weights are not empty
             if (bin_size) {
                 const uint8_t* bin = reinterpret_cast<const uint8_t*>(info.ptr);
-                ov::Tensor tensor(ov::element::Type_t::u8, {bin_size});
                 std::memcpy(tensor.data(), bin, bin_size);
-                return self.read_model(model, tensor);
             }
-            // create empty tensor of type u8
-            ov::Tensor tensor(ov::element::Type_t::u8, {});
-            return self.read_model(model, tensor);
+            py::gil_scoped_release release;
+            return self.read_model(ir, tensor);
         },
         py::arg("model"),
         py::arg("weights") = py::bytes(),
@@ -213,6 +211,7 @@ void regclass_Core(py::module m) {
     cls.def(
         "read_model",
         (std::shared_ptr<ov::Model>(ov::Core::*)(const std::string&, const std::string&) const) & ov::Core::read_model,
+        py::call_guard<py::gil_scoped_release>(),
         py::arg("model"),
         py::arg("weights") = "",
         R"(
@@ -233,6 +232,7 @@ void regclass_Core(py::module m) {
     cls.def(
         "read_model",
         (std::shared_ptr<ov::Model>(ov::Core::*)(const std::string&, const ov::Tensor&) const) & ov::Core::read_model,
+        py::call_guard<py::gil_scoped_release>(),
         py::arg("model"),
         py::arg("weights"),
         R"(
@@ -249,8 +249,11 @@ void regclass_Core(py::module m) {
 
     cls.def(
         "read_model",
-        [](ov::Core& self, py::object model, py::object weights) {
-            return self.read_model(py::str(model), py::str(weights));
+        [](ov::Core& self, py::object model_path, py::object weights_path) {
+            std::string model_path_cpp{py::str(model_path)};
+            std::string weights_path_cpp{py::str(weights_path)};
+            py::gil_scoped_release release;
+            return self.read_model(model_path_cpp, weights_path_cpp);
         },
         py::arg("model"),
         py::arg("weights") = "",
@@ -278,6 +281,7 @@ void regclass_Core(py::module m) {
             _stream << model_stream;
             return self.import_model(_stream, device_name, {properties.begin(), properties.end()});
         },
+        py::call_guard<py::gil_scoped_release>(),
         py::arg("model_stream"),
         py::arg("device_name"),
         py::arg("properties") = py::none(),
@@ -324,7 +328,8 @@ void regclass_Core(py::module m) {
             _stream << model_stream
                            .attr("read")()  // alternative: model_stream.attr("get_value")()
                            .cast<std::string>();
-            return self.import_model(_stream, device_name, {properties.begin(), properties.end()});
+            py::gil_scoped_release release;
+            return self.import_model(_stream, device_name, {properties.begin(), properties.end()});;
         },
         py::arg("model_stream"),
         py::arg("device_name"),
@@ -380,6 +385,7 @@ void regclass_Core(py::module m) {
 
     cls.def("register_plugin",
             &ov::Core::register_plugin,
+            py::call_guard<py::gil_scoped_release>(),
             py::arg("plugin_name"),
             py::arg("device_name"),
             R"(
@@ -395,6 +401,7 @@ void regclass_Core(py::module m) {
 
     cls.def("register_plugins",
             &ov::Core::register_plugins,
+            py::call_guard<py::gil_scoped_release>(),
             py::arg("xml_config_file"),
             R"(
                 Registers a device plugin to OpenVINO Runtime Core instance using XML configuration
@@ -406,6 +413,7 @@ void regclass_Core(py::module m) {
 
     cls.def("unload_plugin",
             &ov::Core::unload_plugin,
+            py::call_guard<py::gil_scoped_release>(),
             py::arg("device_name"),
             R"(
                 Unloads the previously loaded plugin identified by device_name from OpenVINO Runtime.
@@ -424,6 +432,7 @@ void regclass_Core(py::module m) {
            const std::map<std::string, std::string>& properties) {
             return self.query_model(model, device_name, {properties.begin(), properties.end()});
         },
+        py::call_guard<py::gil_scoped_release>(),
         py::arg("model"),
         py::arg("device_name"),
         py::arg("properties") = py::dict(),
@@ -442,6 +451,7 @@ void regclass_Core(py::module m) {
 
     cls.def("add_extension",
             static_cast<void (ov::Core::*)(const std::string&)>(&ov::Core::add_extension),
+            py::call_guard<py::gil_scoped_release>(),
             py::arg("library_path"),
             R"(
                 Registers an extension to a Core object.
@@ -452,6 +462,7 @@ void regclass_Core(py::module m) {
 
     cls.def("add_extension",
             static_cast<void (ov::Core::*)(const std::shared_ptr<ov::Extension>&)>(&ov::Core::add_extension),
+            py::call_guard<py::gil_scoped_release>(),
             py::arg("extension"),
             R"(
                 Registers an extension to a Core object.
@@ -463,6 +474,7 @@ void regclass_Core(py::module m) {
     cls.def(
         "add_extension",
         static_cast<void (ov::Core::*)(const std::vector<std::shared_ptr<ov::Extension>>&)>(&ov::Core::add_extension),
+        py::call_guard<py::gil_scoped_release>(),
         py::arg("extensions"),
         R"(
             Registers extensions to a Core object.
@@ -473,6 +485,7 @@ void regclass_Core(py::module m) {
 
     cls.def_property_readonly("available_devices",
                               &ov::Core::get_available_devices,
+                              py::call_guard<py::gil_scoped_release>(),
                               R"(
                                     Returns devices available for inference Core objects goes over all registered plugins.
 

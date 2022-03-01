@@ -147,24 +147,22 @@ void regclass_AsyncInferQueue(py::module m) {
                 std::vector<InferRequestWrapper> requests;
                 std::queue<size_t> idle_handles;
                 std::vector<py::object> user_ids(jobs);
-                {
-                    py::gil_scoped_release release;
-                    if (jobs == 0) {
-                        jobs = (size_t)Common::get_optimal_number_of_requests(model);
-                    }
+                if (jobs == 0) {
+                    jobs = (size_t)Common::get_optimal_number_of_requests(model);
+                }
 
-                    for (size_t handle = 0; handle < jobs; handle++) {
-                        auto request = InferRequestWrapper(model.create_infer_request());
-                        // Get Inputs and Outputs info from compiled model
-                        request._inputs = model.inputs();
-                        request._outputs = model.outputs();
+                for (size_t handle = 0; handle < jobs; handle++) {
+                    auto request = InferRequestWrapper(model.create_infer_request());
+                    // Get Inputs and Outputs info from compiled model
+                    request._inputs = model.inputs();
+                    request._outputs = model.outputs();
 
-                        requests.push_back(request);
-                        idle_handles.push(handle);
-                    }
+                    requests.push_back(request);
+                    idle_handles.push(handle);
                 }
                 return new AsyncInferQueue(requests, idle_handles, user_ids);
             }),
+            py::call_guard<py::gil_scoped_release>(),
             py::arg("model"),
             py::arg("jobs") = 0,
             R"(

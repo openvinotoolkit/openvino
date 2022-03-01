@@ -31,13 +31,9 @@ void regclass_CompiledModel(py::module m) {
     cls.def(
         "create_infer_request",
         [](ov::CompiledModel& self) {
-            std::shared_ptr<InferRequestWrapper> request;
-            {
-                py::gil_scoped_release release;
-                request = std::make_shared<InferRequestWrapper>(self.create_infer_request(), self.inputs(), self.outputs());
-            }
-            return request;
+            return std::make_shared<InferRequestWrapper>(self.create_infer_request(), self.inputs(), self.outputs());
         },
+        py::call_guard<py::gil_scoped_release>(),
         R"(
             Creates an inference request object used to infer the compiled model.
             The created request has allocated input and output tensors.
@@ -77,12 +73,10 @@ void regclass_CompiledModel(py::module m) {
         "export_model",
         [](ov::CompiledModel& self) {
             std::stringstream _stream;
-            {
-                py::gil_scoped_release release;
-                self.export_model(_stream);
-            }
+            self.export_model(_stream);
             return py::bytes(_stream.str());
         },
+        py::call_guard<py::gil_scoped_release>(),
         R"(
             Exports the compiled model to bytes/output stream.
 
@@ -178,14 +172,8 @@ void regclass_CompiledModel(py::module m) {
         )");
 
     cls.def("get_runtime_model",
-            [](ov::CompiledModel& self) {
-                std::shared_ptr<const ov::Model> model;
-                {
-                    py::gil_scoped_release release;
-                    model = self.get_runtime_model();
-                }
-                return model;
-            },
+            &ov::CompiledModel::get_runtime_model,
+            py::call_guard<py::gil_scoped_release>(),
             R"(
                 Gets runtime model information from a device.
 
