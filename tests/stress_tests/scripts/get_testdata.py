@@ -183,6 +183,7 @@ def main():
             log.warning("Please specify precision for the model "
                         "{model_name} from the list: {model_info}".format(model_name=model_name,
                                                                           model_info=model_info['precisions']))
+            model_recs.remove(model_rec)
             continue
         model_rec.attrib.update(info_to_add)
         model_rec.attrib["path"] = str(
