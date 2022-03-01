@@ -33,15 +33,10 @@ static void regclass_graph_PreProcessSteps(py::module m) {
             Subtracts single float value from each element in input tensor.
             Input tensor must have ov.Type.f32 data type.
 
-            Parameters
-            ----------
-            value : float
-                Value to subtract.
-
-            Returns
-            ----------
-            selfan : PreProcessSteps
-                Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :param value: Value to subtract.
+            :type value: float
+            :return: Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.runtime.preprocess.PreProcessSteps
         )");
 
     steps.def(
@@ -54,15 +49,10 @@ static void regclass_graph_PreProcessSteps(py::module m) {
             Subtracts a given single float value from each element in a given channel from input tensor.
             Input tensor must have ov.Type.f32 data type.
 
-            Parameters
-            ----------
-            values : List[float]
-                Values to subtract.
-
-            Returns
-            ----------
-            selfan : PreProcessSteps
-                Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :param values: Value to subtract.
+            :type values: List[float]
+            :return: Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.runtime.preprocess.PreProcessSteps
         )");
 
     steps.def(
@@ -75,15 +65,10 @@ static void regclass_graph_PreProcessSteps(py::module m) {
             Divides each element in input tensor by specified constant float value.
             Input tensor must have ov.Type.f32 data type.
 
-            Parameters
-            ----------
-            value : float
-                Value to divide.
-
-            Returns
-            ----------
-            scale : PreProcessSteps
-                Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :param value: Value to divide.
+            :type value: float
+            :return: Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.runtime.preprocess.PreProcessSteps
         )");
 
     steps.def(
@@ -96,15 +81,10 @@ static void regclass_graph_PreProcessSteps(py::module m) {
             Divides each element in a given channel from input tensor by a given single float value.
             Input tensor must have ov.Type.f32 data type.
 
-            Parameters
-            ----------
-            value : List[float]
-                Value to divide.
-
-            Returns
-            ----------
-            scale : PreProcessSteps
-                Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :param values: Value to divide.
+            :type values: List[float]
+            :return: Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.runtime.preprocess.PreProcessSteps
         )");
 
     steps.def(
@@ -117,15 +97,10 @@ static void regclass_graph_PreProcessSteps(py::module m) {
             Converts input tensor element type to specified type.
             Input tensor must have openvino.Type.f32 data type.
 
-            Parameters
-            ----------
-            type : openvino.runtime.Type
-                Destination type.
-
-            Returns
-            ----------
-            convert_element_type : PreProcessSteps
-                Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :param type: Destination type.
+            :type type: openvino.runtime.Type
+            :return: Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.runtime.preprocess.PreProcessSteps
         )");
 
     steps.def(
@@ -137,14 +112,10 @@ static void regclass_graph_PreProcessSteps(py::module m) {
         R"(
             Adds custom preprocessing operation.
 
-            Parameters
-            ----------
-            operation : function taking Output<Node> as input argument and returning Output<Node> after preprocessing.
-
-            Returns
-            ----------
-            custom : PreProcessSteps
-                Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :param operation: function taking Output<Node> as input argument and returning Output<Node> after preprocessing.
+            :type operation: openvino.runtime.Output
+            :return: Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.runtime.preprocess.PreProcessSteps
         )");
 
     steps.def(
@@ -208,15 +179,10 @@ static void regclass_graph_PostProcessSteps(py::module m) {
             Converts tensor element type to specified type.
             Tensor must have openvino.Type.f32 data type.
 
-            Parameters
-            ----------
-            type : Type
-                Destination type.
-
-            Returns
-            ----------
-            convert_element_type : PostProcessSteps
-                Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :param type: Destination type.
+            :type type: openvino.runtime.Type
+            :return: Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.runtime.preprocess.PostProcessSteps
         )");
 
     steps.def(
@@ -242,14 +208,10 @@ static void regclass_graph_PostProcessSteps(py::module m) {
         R"(
             Adds custom postprocessing operation.
 
-            Parameters
-            ----------
-            operation : function taking Output<Node> as input argument and returning Output<Node> after postprocessing.
-
-            Returns
-            ----------
-            custom : PostProcessSteps
-                Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :param operation: function taking Output<Node> as input argument and returning Output<Node> after postprocessing.
+            :type operation: openvino.runtime.Output
+            :return: Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :rtype: PostProcessSteps
         )");
 }
 
@@ -269,15 +231,10 @@ static void regclass_graph_InputTensorInfo(py::module m) {
             Set initial client's tensor element type. If type is not the same as model's element type,
             conversion of element type will be done automatically.
 
-            Parameters
-            ----------
-            type : Type
-                Client's input tensor element type.
-
-            Returns
-            ----------
-            tensor : InputTensorInfo
-                Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :param type: Client's input tensor element type.
+            :type type: openvino.runtime.Type
+            :return: Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.runtime.preprocess.InputTensorInfo
         )");
 
     info.def(
@@ -347,14 +304,11 @@ static void regclass_graph_OutputTensorInfo(py::module m) {
         R"(
             Set client's output tensor element type. If type is not the same as model's element type,
             conversion of element type will be done automatically.
-            Parameters
-            ----------
-            type : Type
-                Client's output tensor element type.
-            Returns
-            ----------
-            tensor : OutputTensorInfo
-                Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+
+            :param type: Client's output tensor element type.
+            :type type: openvino.runtime.Type
+            :return: Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.runtime.preprocess.OutputTensorInfo
         )");
 
     info.def(
