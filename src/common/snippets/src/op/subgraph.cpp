@@ -15,9 +15,15 @@
 #include "snippets/pass/vector_to_scalar.hpp"
 
 #include <ngraph/pass/manager.hpp>
+
+#ifdef DEBUG_CAPS
 #include <openvino/pass/serialize.hpp>
+#include <openvino/pass/visualize_tree.hpp>
+#include <openvino/util/common_util.hpp>
 #include <openvino/util/env_util.hpp>
 #include <openvino/util/file_util.hpp>
+#include <bitset>
+#endif // DEBUG_CAPS
 
 #include <algorithm>
 #include <memory>
@@ -388,16 +394,82 @@ void snippets::op::Subgraph::serialize(const std::string& fileNameEnding) const 
  #ifdef ENABLE_OPENVINO_DEBUG
     debug_statistics(fileNameEnding, true);
  #endif // ENABLE_OPENVINO_DEBUG
-    static const std::string path = ov::util::getenv_string("OV_SNIPPETS_DUMP_IR_DIR");
-    if (!path.empty()) {
+    enum IrFormat : uint8_t {
+        Xml = 0, Dot, Svg, NumOfTypes
+    };
+    struct Config {
+        std::string dir;
+        std::bitset<NumOfTypes> formats;
+
+        Config() {
+            const auto& str = ov::util::getenv_string("OV_SNIPPETS_DUMP_IR");
+            if (str.empty())
+                return;
+
+            dir = "snippets_dump";
+            formats.set(Dot);
+
+            bool failed = false;
+            const auto& options = ov::util::split(str, ' ');
+            for (size_t i = 0; i < options.size() && !failed; i++) {
+                const auto& parts = ov::util::split(options[i], '=');
+                if (parts.size() <= 2) {
+                    const auto& optName = ov::util::to_lower(parts.front());
+                    if (optName == "dir") {
+                        dir = parts.size() == 1 ? "" : parts.back();
+                    } else if (optName == "formats") {
+                        const auto& tokens = parts.size() == 1 ? std::vector<std::string>{"all"} :
+                            ov::util::split(ov::util::to_lower(parts.back()), ',');
+                        const std::unordered_map<std::string, std::vector<IrFormat>> map = {
+                            { "all", { Xml, Dot, Svg } },
+                            { "xml", { Xml } },
+                            { "dot", { Dot } },
+                            { "svg", { Svg } } };
+                        formats.reset();
+                        for (const auto& token : tokens) {
+                            const bool tokenVal = (token.front() != '-');
+                            const auto& it = map.find(tokenVal ? token : token.substr(1));
+                            if (it != map.end()) {
+                                for (const auto& format : it->second)
+                                    formats.set(format, tokenVal);
+                            } else {
+                                failed = true;
+                                break;
+                            }
+                        }
+                    } else {
+                        failed = true;
+                    }
+                } else {
+                    failed = true;
+                }
+            }
+            if (failed)
+                SNIPPETS_THROW() << "Wrong OV_SNIPPETS_DUMP_IR syntax: " << str << std::endl
+                                 << "The following space separated options are supported (option names are case insensitive):" << std::endl
+                                 << "\tdir=<path to dumped IRs>" << std::endl
+                                 << "\tformats=<comma separated filter tokens: all,xml,dot,svg; "
+                                 << "-'token' is used for exclusion, case does not matter, no tokens is treated as 'all'>";
+        }
+    };
+
+    static const Config config;
+
+    if (config.formats.any()) {
         std::string name = get_friendly_name();
         ov::util::node_name_to_file_name(name);
         name.insert(0, "/snippet_");
         if (!fileNameEnding.empty())
             name.append('_' + fileNameEnding);
-        name.append(".xml");
-        ov::pass::Serialize serializer(path + name, "", ov::pass::Serialize::Version::IR_V10);
-        serializer.run_on_model(get_body());
+        ngraph::pass::Manager serializer;
+        if (config.formats[Xml])
+            serializer.register_pass<ov::pass::Serialize>(config.dir + name + ".xml", "");
+        if (config.formats[Svg]) {
+            serializer.register_pass<ov::pass::VisualizeTree>(config.dir + name + ".svg");
+        } else if (config.formats[Dot]) {
+            serializer.register_pass<ov::pass::VisualizeTree>(config.dir + name + ".dot");
+        }
+        serializer.run_passes(get_body());
     }
 }
 #endif // DEBUG_CAPS
