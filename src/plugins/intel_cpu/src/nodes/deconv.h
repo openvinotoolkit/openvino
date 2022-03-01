@@ -56,6 +56,8 @@ public:
 
     void setDynamicBatchLim(int lim) override;
 
+    void cleanup() override;
+
 protected:
     AttrPtr initPrimitiveAttr() override;
     AttrPtr makePrimitiveAttr(const VectorDims& dims);
