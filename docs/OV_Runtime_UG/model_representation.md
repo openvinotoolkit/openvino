@@ -14,7 +14,7 @@ For details on how to build a model in OpenVINO™ Runtime, see the [Build a Mod
 
 ## Operations
 
-The `ov::Op` class represents any abstract operation in the model representation. Use this class to create [custom operations](../OV_Runtime_UG/Extensibility_DG/AddingNGraphOps.md).
+The `ov::Op` class represents any abstract operation in the model representation. Use this class to create [custom operations](../Extensibility_UG/add_openvino_ops).
 
 ## Operation Sets
 
@@ -39,7 +39,7 @@ Operation set `opsetX` integrates a list of pre-compiled operations that work 
 
 For a complete list of operation sets supported in OpenVINO™ toolkit, see [Available Operations Sets](../ops/opset.md).
 
-To add suport of custom operations, see the [Add Custom OpenVINO Operations](../OV_Runtime_UG/Extensibility_DG/Intro.md) document.
+To add support of custom operations, see the [Add Custom OpenVINO Operations](../Extensibility_UG/Intro.md) document.
 
 To build an `ov::Model` instance from `opset8` operations, include the following files:
 
@@ -83,9 +83,9 @@ The following code creates a model with several outputs:
     @snippet example_ngraph_utils.cpp ov:serialize
 
 ### How can I develop my own transformation pass?
-   See the [Transformations Developer Guide](./ov_transformations.md).
+   See the [Transformations Developer Guide](./../Extensibility_UG/ov_transformations.md).
 
 ## See Also
 
 * [Available Operation Sets](../ops/opset.md)
-* [OpenVINO™ Runtime Extensibility Developer Guide](../OV_Runtime_UG/Extensibility_DG/Intro.md)
+* [OpenVINO™ Runtime Extensibility Developer Guide](../Extensibility_UG/Intro.md)

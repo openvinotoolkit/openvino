@@ -4,7 +4,7 @@ A summary of the steps for optimizing and deploying a model trained with PaddleP
 
 1. [Configure Model Optimizer](../../Deep_Learning_Model_Optimizer_DevGuide.md) for PaddlePaddle.
 2. [Convert a PaddlePaddle Model](#Convert_From_Paddle) to produce an optimized [Intermediate Representation (IR)](../../IR_and_opsets.md) of the model based on the trained network topology, weights, and biases.
-3. Test the model in the Intermediate Representation format using the [OpenVINO™ Runtime](../../../OV_Runtime_UG/openvino_intro.md) in the target environment via provided Inference Engine [sample applications](../../../OV_Runtime_UG/Samples_Overview.md).
+3. Test the model in the Intermediate Representation format using the [OpenVINO™ Runtime](../../../OV_Runtime_UG/openvino_intro.md) in the target environment via provided [OpenVINO Samples](../../../OV_Runtime_UG/Samples_Overview.md).
 4. [Integrate](../../../OV_Runtime_UG/Samples_Overview.md) the [OpenVINO™ Runtime](../../../OV_Runtime_UG/openvino_intro.md) in your application to deploy the model in the target environment.
 
 ## Supported Topologies

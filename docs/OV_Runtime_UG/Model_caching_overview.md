@@ -10,7 +10,7 @@
 
 As described in the [OpenVINO™ Runtime User Guide](openvino_intro.md), a common application flow consists of the following steps:
 
-1. **Create an Inference Engine Core object**: First step to manage available devices and read network objects
+1. **Create a Core object**: First step to manage available devices and read network objects
 
 2. **Read the Intermediate Representation**: Read an Intermediate Representation file into an object of the `InferenceEngine::CNNNetwork`
 
@@ -72,9 +72,9 @@ To check in advance if a particular device supports model caching, your applicat
     <div id="switcher-python" class="switcher-anchor">Python</div>
 @endsphinxdirective
 
-As described in Inference Engine Developer Guide, a common application flow consists of the following steps:
+As described in OpenVINO User Guide, a common application flow consists of the following steps:
 
-1. **Create an Inference Engine Core Object**
+1. **Create a Core Object**
 2. **Read the Intermediate Representation** - Read an Intermediate Representation file into an object of the [ie_api.IENetwork](api/ie_python_api/_autosummary/openvino.inference_engine.IENetwork.html)
 3. **Prepare inputs and outputs**
 4. **Set configuration** - Pass device-specific loading configurations to the device
