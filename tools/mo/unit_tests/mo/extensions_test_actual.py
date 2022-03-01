@@ -56,10 +56,10 @@ def base_args_config():
 
 
 def get_builtin_extensions_path():
-    python_frontend_path = ''
-    if 'DATA_PATH' in os.environ: # CI scenario
-        python_frontend_path = os.environ['DATA_PATH']
-    else: # local scenario
+    python_frontend_path = ""
+    if "DATA_PATH" in os.environ:  # CI scenario
+        python_frontend_path = os.environ["DATA_PATH"]
+    else:  # local scenario
         import openvino.frontend
         python_frontend_path = openvino.frontend.__path__[0]
     lib_folder_pos = python_frontend_path.rfind("lib/")
@@ -67,7 +67,7 @@ def get_builtin_extensions_path():
         lib_folder_path = python_frontend_path[:lib_folder_pos + 4]
         for file in os.listdir(lib_folder_path):
             if file == "libtest_builtin_extensions_1.so" or file == "libtest_builtin_extensions_1.dll":
-                return path.join(lib_folder_path, file)
+                return os.path.join(lib_folder_path, file)
     return ""
 
 
