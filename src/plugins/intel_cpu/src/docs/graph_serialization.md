@@ -28,13 +28,13 @@ Examples:
 ```sh
     OV_CPU_DUMP_IR="transformations" binary ...
     OV_CPU_DUMP_IR="TRANSFORMATIONS=snippets dir=path/dumpDir" binary ...
-    OV_CPU_DUMP_IR="transformations=all,-common DIR=path/dumpdir format=svg,xml" binary ...
+    OV_CPU_DUMP_IR="transformations=all,-common DIR=path/dumpdir formats=svg,xml" binary ...
 ```
 
 Option names are case insensitive, the following options are supported:
 * dir=\<path\>\
 Path to dumped IR files. If omitted, it defaults to *intel_cpu_dump*
-* format=<comma_separated_tokens>\
+* formats=<comma_separated_tokens>\
 Filter with IR formats to dump. If omitted, it defaults to *.dot*\
 See [IR format filter](debug_caps_filters.md#ir-format-filter) for more details.
 * transformations=<comma_separated_tokens>\

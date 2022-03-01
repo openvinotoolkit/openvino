@@ -179,7 +179,7 @@ public:
         std::bitset<NumOfTypes> filter;
 
         PropertySetterPtr getPropertySetter() {
-            return PropertySetterPtr(new BitsetFilterPropertySetter<NumOfTypes>("format", filter,
+            return PropertySetterPtr(new BitsetFilterPropertySetter<NumOfTypes>("formats", filter,
                 {{"all", {Xml, Dot, Svg}},
                  {"xml", {Xml}},
                  {"dot", {Dot}},

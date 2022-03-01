@@ -16,7 +16,7 @@ So filters below are equal:
 
 IR format filter is used to specify output IR formats, e.g. for [serialization](graph_serialization.md#graph-transformations).
 ```sh
-    format=<comma_separated_tokens>
+    formats=<comma_separated_tokens>
 ```
 
 The following tokens are supported:
