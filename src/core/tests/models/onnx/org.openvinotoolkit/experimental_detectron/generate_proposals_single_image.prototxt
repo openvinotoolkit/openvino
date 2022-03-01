@@ -8,8 +8,8 @@ graph {
     input: "scores"
     output: "out1"
     output: "out2"
-    op_type: "ExperimentalDetectronGenerateProposalsSingleImage"
-    domain: "org.openvinotoolkit"
+    op_type: "GenerateProposals"
+    domain: ""
     attribute {
       name: "min_size"
       f: 0
@@ -131,9 +131,5 @@ graph {
 }
 opset_import {
   domain: ""
-  version: 10
-}
-opset_import {
-  domain: "org.openvinotoolkit"
   version: 1
 }

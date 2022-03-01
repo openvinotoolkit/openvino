@@ -254,14 +254,21 @@ void fill_output_blobs(const float* proposals, const int* roi_indices,
     const float *src_y1 = proposals + 3 * num_proposals;
     const float *src_score = proposals + 4 * num_proposals;
 
-    parallel_for(num_rois, [&](size_t i) {
+    std::cout << "======================================================" << std::endl;
+    //parallel_for(num_rois, [&](size_t i) {
+    for (size_t i = 0; i < num_rois; i++) {
         int index = roi_indices[i];
         rois[i * 4 + 0] = src_x0[index];
         rois[i * 4 + 1] = src_y0[index];
         rois[i * 4 + 2] = src_x1[index];
         rois[i * 4 + 3] = src_y1[index];
         scores[i] = src_score[index];
-    });
+        std::cout << "rois[" << i << "]: " << rois[i * 4 + 0] << ", " \
+                << rois[i * 4 + 1] << ", " << rois[i * 4 + 2] << ", " << rois[i * 4 + 3] \
+                << std::endl;
+        std::cout << "scores[" << i << "]: " << scores[i] << std::endl;
+    }
+    //});
 }
 
 bool MKLDNNGenerateProposalsSingleImageNode::isSupportedOperation
@@ -372,8 +379,10 @@ void MKLDNNGenerateProposalsSingleImageNode::execute(mkldnn::stream strm) {
         // scale factor for height & width
 
         // minimum box width & height
-        const float min_box_H = std::max(min_size_, 1.0f);
-        const float min_box_W = std::max(min_size_, 1.0f);
+        const float min_box_H = min_size_;
+        const float min_box_W = min_size_;
+        //const float min_box_H = std::max(min_size_, 1.0f);
+        //const float min_box_W = std::max(min_size_, 1.0f);
 
         // number of all proposals = num_anchors * H * W
         const int num_proposals = anchors_num * bottom_H * bottom_W;
@@ -408,7 +417,7 @@ void MKLDNNGenerateProposalsSingleImageNode::execute(mkldnn::stream strm) {
                            bottom_W, img_H, img_W,
                            min_box_H, min_box_W,
                            static_cast<const float>(log(1000. / 16.)),
-                           coordinates_offset_);
+                           1.0f);
             std::partial_sort(proposals_.begin(), proposals_.begin() + pre_nms_topn, proposals_.end(),
                               [](const ProposalBox &struct1, const ProposalBox &struct2) {
                                   return (struct1.score > struct2.score);

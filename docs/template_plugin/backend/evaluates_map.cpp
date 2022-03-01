@@ -3124,7 +3124,6 @@ bool evaluate(const shared_ptr<op::v9::GenerateProposalsSingleImage>& op,
     outputs[0]->set_shape(output_rois_shape);
     outputs[1]->set_element_type(output_type);
     outputs[1]->set_shape(output_scores_shape);
-    outputs[2]->set_element_type(element::Type_t::i32);
 
     runtime::reference::generate_proposals_single_image_postprocessing_v9(
             outputs[0]->get_data_ptr(),
