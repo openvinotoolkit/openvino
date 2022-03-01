@@ -144,12 +144,12 @@ void regclass_AsyncInferQueue(py::module m) {
                 "InferRequests and provides synchronization functions to control flow of a simple pipeline.";
 
     cls.def(py::init([](ov::CompiledModel& model, size_t jobs) {
-                std::vector<InferRequestWrapper> requests;
-                std::queue<size_t> idle_handles;
-                std::vector<py::object> user_ids(jobs);
                 if (jobs == 0) {
                     jobs = (size_t)Common::get_optimal_number_of_requests(model);
                 }
+                std::vector<InferRequestWrapper> requests;
+                std::queue<size_t> idle_handles;
+                std::vector<py::object> user_ids(jobs);
 
                 for (size_t handle = 0; handle < jobs; handle++) {
                     auto request = InferRequestWrapper(model.create_infer_request());
