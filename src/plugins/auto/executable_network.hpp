@@ -18,7 +18,7 @@
 #include "threading/ie_executor_manager.hpp"
 #include "ie_icore.hpp"
 #include <ie_performance_hints.hpp>
-#include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/intel_auto/properties.hpp"
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
@@ -48,6 +48,7 @@ struct AutoContext {
     bool           needPerfCounters = {false};
     unsigned int   modelPriority = 0;
     bool           batchingDisabled = {false};
+    ov::intel_auto::AutoCpuUsage autoCpuUsage;
 };
 
 struct AutoLoadContext {

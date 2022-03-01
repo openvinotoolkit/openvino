@@ -16,7 +16,7 @@
 #include <ie_metric_helpers.hpp>
 #include <ie_performance_hints.hpp>
 #include <threading/ie_executor_manager.hpp>
-#include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/intel_auto/properties.hpp"
 #include "plugin.hpp"
 #include <ie_algorithm.hpp>
 #include <ie_icore.hpp>
@@ -61,6 +61,7 @@ namespace {
                     res.push_back(CONFIG_KEY_INTERNAL(MULTI_WORK_MODE_AS_AUTO));
                     res.push_back(ov::enable_profiling.name());
                     res.push_back(PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS);
+                    res.push_back(ov::intel_auto::auto_cpu_usage.name());
                     res.push_back(ov::hint::model_priority.name());
                     res.push_back(ov::hint::allow_auto_batching.name());
                     res.push_back(ov::log::level.name());
@@ -612,6 +613,31 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
     return allDevices;
 }
 
+bool MultiDeviceInferencePlugin::CheckAutoCpuUsageValue(const std::string& value) {
+    std::string noInferenceValue;
+    std::string accerlateFilValue;
+    std::string accerlateFilOneFramValue;
+    std::string fullStrengthValue;
+    std::stringstream noInferenceSs;
+    std::stringstream accerlateFilSs;
+    std::stringstream accerlateFilOneFramSs;
+    std::stringstream fullStrengthSs;
+    noInferenceSs << ov::intel_auto::AutoCpuUsage::NO_INFERENCE;
+    noInferenceValue = noInferenceSs.str();
+    accerlateFilSs << ov::intel_auto::AutoCpuUsage::ACCERLATE_FIL;
+    accerlateFilValue = accerlateFilSs.str();
+    accerlateFilOneFramSs << ov::intel_auto::AutoCpuUsage::ACCERLATE_FIL_ONE_FRAM;
+    accerlateFilOneFramValue = accerlateFilOneFramSs.str();
+    fullStrengthSs << ov::intel_auto::AutoCpuUsage::FULL_STRENGTH;
+    fullStrengthValue = fullStrengthSs.str();
+
+    if (value == noInferenceValue || value == accerlateFilValue || value == accerlateFilOneFramValue || value == fullStrengthValue) {
+        return true;
+    }
+
+    return false;
+}
+
 void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::string>& config,
         AutoContext& context, std::map<std::string, std::string>& filterConfig) {
     // TODO need to optimize this code, too much duplicated code
@@ -631,6 +657,15 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
         } else if (kvp.first == PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS) {
             if (kvp.second == PluginConfigParams::YES ||
                 kvp.second == PluginConfigParams::NO) {
+                continue;
+            } else {
+                IE_THROW() << "Unsupported config value: " << kvp.second
+                           << " for key: " << kvp.first;
+            }
+        } else if (kvp.first == ov::intel_auto::auto_cpu_usage.name()) {
+            if (CheckAutoCpuUsageValue(kvp.second)) {
+                std::stringstream strm{kvp.second};
+                strm >> context.autoCpuUsage;
                 continue;
             } else {
                 IE_THROW() << "Unsupported config value: " << kvp.second

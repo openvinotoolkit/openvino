@@ -283,6 +283,7 @@ enum class PerformanceMode {
     UNDEFINED = -1,
     LATENCY = 1,
     THROUGHPUT = 2,
+    CUMULATIVE_THROUGHPUT = 3,
 };
 
 /** @cond INTERNAL */
@@ -294,6 +295,8 @@ inline std::ostream& operator<<(std::ostream& os, const PerformanceMode& perform
         return os << "LATENCY";
     case PerformanceMode::THROUGHPUT:
         return os << "THROUGHPUT";
+    case PerformanceMode::CUMULATIVE_THROUGHPUT:
+        return os << "CUMULATIVE_THROUGHPUT";
     default:
         throw ov::Exception{"Unsupported performance mode hint"};
     }
@@ -306,6 +309,8 @@ inline std::istream& operator>>(std::istream& is, PerformanceMode& performance_m
         performance_mode = PerformanceMode::LATENCY;
     } else if (str == "THROUGHPUT") {
         performance_mode = PerformanceMode::THROUGHPUT;
+    } else if (str == "CUMULATIVE_THROUGHPUT") {
+        performance_mode = PerformanceMode::CUMULATIVE_THROUGHPUT;
     } else if (str == "") {
         performance_mode = PerformanceMode::UNDEFINED;
     } else {
