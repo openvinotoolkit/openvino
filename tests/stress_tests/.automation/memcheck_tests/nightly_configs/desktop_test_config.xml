@@ -44,6 +44,7 @@
         <model name="se-resnet-50" precision="FP32" source="omz" />
         <model name="densenet-121" precision="FP32" source="omz" />
         <model name="action-recognition-0001-decoder" precision="FP32" source="omz" />
+        <model name="action-recognition-0001-encoder" precision="FP32" source="omz" />
         <model name="driver-action-recognition-adas-0002-decoder" precision="FP32" source="omz" />
         <!--Models with FP16 precision-->
         <model name="mobilenet-v2-1.4-224" precision="FP16" source="omz" />
@@ -81,6 +82,7 @@
         <model name="se-resnet-50" precision="FP16" source="omz" />
         <model name="densenet-121" precision="FP16" source="omz" />
         <model name="action-recognition-0001-decoder" precision="FP16" source="omz" />
+        <model name="action-recognition-0001-encoder" precision="FP16" source="omz" />
         <model name="driver-action-recognition-adas-0002-decoder" precision="FP16" source="omz" />
         <!--Models with FP16-INT8 precision-->
         <model name="vehicle-attributes-recognition-barrier-0039" precision="FP16-INT8" source="omz" />
@@ -97,7 +99,6 @@
         <model name="unet-camvid-onnx-0001" precision="FP16-INT8" source="omz" />
         <model name="human-pose-estimation-0001" precision="FP16-INT8" source="omz" />
         <model name="faster-rcnn-resnet101-coco-sparse-60-0001" precision="FP16-INT8" source="omz" />
-        <model name="action-recognition-0001-encoder" precision="FP16-INT8" source="omz" />
         <model name="yolo-v2-ava-sparse-35-0001" precision="FP16-INT8" source="omz" />
         <model name="person-detection-raisinghand-recognition-0001" precision="FP16-INT8" source="omz" />
         <model name="person-detection-asl-0001" precision="FP16-INT8" source="omz" />

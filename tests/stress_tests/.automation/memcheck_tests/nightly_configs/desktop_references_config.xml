@@ -2,12 +2,6 @@
 <attributes>
     <models>
         # Values from {"commit_id": "a92a737ba0ce5afd6df2da8d80c8deec7e11b1d9", "commit_date": "2021-07-16 13:30"} and *= 1.3
-        <model path="intel/action-recognition-0001/action-recognition-0001-encoder/FP16-INT8/action-recognition-0001-encoder.xml" precision="FP16-INT8" test="create_exenetwork" device="CPU" vmsize="971843" vmpeak="1007110" vmrss="85384" vmhwm="85384" />
-        <model path="intel/action-recognition-0001/action-recognition-0001-encoder/FP16-INT8/action-recognition-0001-encoder.xml" precision="FP16-INT8" test="create_exenetwork" device="GPU" vmsize="2056979" vmpeak="2083208" vmrss="497520" vmhwm="689405" />
-        <model path="intel/action-recognition-0001/action-recognition-0001-encoder/FP16-INT8/action-recognition-0001-encoder.xml" precision="FP16-INT8" test="infer_request_inference" device="CPU" vmsize="1153666" vmpeak="1238094" vmrss="88238" vmhwm="88238" />
-        <model path="intel/action-recognition-0001/action-recognition-0001-encoder/FP16-INT8/action-recognition-0001-encoder.xml" precision="FP16-INT8" test="infer_request_inference" device="GPU" vmsize="2136165" vmpeak="2221362" vmrss="475378" vmhwm="692338" />
-        <model path="intel/action-recognition-0001/action-recognition-0001-encoder/FP16-INT8/action-recognition-0001-encoder.xml" precision="FP16-INT8" test="inference_with_streams" device="CPU" vmsize="1121036" vmpeak="1121806" vmrss="120837" vmhwm="120837" />
-        <model path="intel/action-recognition-0001/action-recognition-0001-encoder/FP16-INT8/action-recognition-0001-encoder.xml" precision="FP16-INT8" test="inference_with_streams" device="GPU" vmsize="2232016" vmpeak="2317213" vmrss="451542" vmhwm="686946" />
         <model path="intel/age-gender-recognition-retail-0013/FP16-INT8/age-gender-recognition-retail-0013.xml" precision="FP16-INT8" test="create_exenetwork" device="CPU" vmsize="904274" vmpeak="904274" vmrss="33446" vmhwm="33446" />
         <model path="intel/age-gender-recognition-retail-0013/FP16-INT8/age-gender-recognition-retail-0013.xml" precision="FP16-INT8" test="create_exenetwork" device="GPU" vmsize="1843992" vmpeak="1869348" vmrss="272173" vmhwm="444511" />
         <model path="intel/age-gender-recognition-retail-0013/FP16-INT8/age-gender-recognition-retail-0013.xml" precision="FP16-INT8" test="infer_request_inference" device="CPU" vmsize="904295" vmpeak="904295" vmrss="33576" vmhwm="33576" />
