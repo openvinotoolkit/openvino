@@ -63,11 +63,13 @@ class OVClassSetDevicePriorityConfigTest : public ::testing::Test, public ::test
 protected:
     std::string deviceName;
     ov::AnyMap configuration;
+    std::shared_ptr<ngraph::Function> actualNetwork;
 
 public:
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         std::tie(deviceName, configuration) = GetParam();
+        actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
     }
 };
 
@@ -96,7 +98,7 @@ using OVClassSetModelPriorityConfigTest = OVClassBaseTestP;
 using OVClassSetLogLevelConfigTest = OVClassBaseTestP;
 using OVClassSpecificDeviceTestSetConfig = OVClassBaseTestP;
 using OVClassSpecificDeviceTestGetConfig = OVClassBaseTestP;
-using OVClassLoadNetworkWithAutoBatchingTest = OVClassBaseTestP;
+using OVClassLoadNetworkWithCorrectPropertiesTest = OVClassSetDevicePriorityConfigTest;
 
 class OVClassSeveralDevicesTest : public OVClassNetworkTest,
                                   public ::testing::WithParamInterface<std::vector<std::string>> {
@@ -995,25 +997,9 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkWithBigDeviceIDThrows) {
     }
 }
 
-TEST_P(OVClassLoadNetworkWithAutoBatchingTest, LoadNetworkWithAutoBatchingNoThrows) {
+TEST_P(OVClassLoadNetworkWithCorrectPropertiesTest, LoadNetworkWithCorrectPropertiesTest) {
     ov::Core ie = createCoreWithTemplate();
-    ov::CompiledModel model;
-
-    // Disable Auto Batching
-    OV_ASSERT_NO_THROW(model = ie.compile_model(actualNetwork,
-                                                deviceName,
-                                                ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
-                                                ov::hint::allow_auto_batching(false)));
-    ASSERT_THROW(model.get_property(ov::hint::auto_batching_device_config), ov::Exception);
-
-    // Enable Auto Batching
-    OV_ASSERT_NO_THROW(model = ie.compile_model(actualNetwork,
-                                                deviceName,
-                                                ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
-                                                ov::hint::allow_auto_batching(true)));
-    std::string targetDevice;
-    OV_ASSERT_NO_THROW(targetDevice = model.get_property(ov::hint::auto_batching_device_config));
-    ASSERT_EQ(deviceName, targetDevice);
+    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, deviceName, configuration));
 }
 
 TEST_P(OVClassLoadNetworkTest, LoadNetworkWithInvalidDeviceIDThrows) {

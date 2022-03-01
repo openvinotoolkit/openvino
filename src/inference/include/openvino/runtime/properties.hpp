@@ -339,7 +339,6 @@ static constexpr Property<std::shared_ptr<ov::Model>> model{"MODEL_PTR"};
  * @brief Special key for auto batching feature configuration. Enabled by default
  */
 static constexpr Property<bool, PropertyMutability::RW> allow_auto_batching{"ALLOW_AUTO_BATCHING"};
-static constexpr Property<std::string> auto_batching_device_config{"AUTO_BATCH_DEVICE_CONFIG"};
 }  // namespace hint
 
 /**
