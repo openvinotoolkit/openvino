@@ -4,13 +4,13 @@
 
 #include "template_model_transformation.hpp"
 
-#include <openvino/cc/pass/itt.hpp>
+#include "openvino/cc/pass/itt.hpp"
 
 // ! [model_pass:template_transformation_cpp]
 // template_function_transformation.cpp
 
-bool ov::pass::MyFunctionTransformation::run_on_model(const std::shared_ptr<ov::Model>& f) {
-    RUN_ON_MODEL_SCOPE(MyFunctionTransformation);
+bool ov::pass::MyModelTransformation::run_on_model(const std::shared_ptr<ov::Model>& f) {
+    RUN_ON_MODEL_SCOPE(MyModelTransformation);
     // Example transformation code
     NodeVector nodes;
 

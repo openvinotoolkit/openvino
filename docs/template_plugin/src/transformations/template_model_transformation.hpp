@@ -4,21 +4,21 @@
 
 #pragma once
 
-#include <openvino/pass/pass.hpp>
+#include "openvino/pass/pass.hpp"
 
 namespace ov {
 namespace pass {
 
-class MyFunctionTransformation;
+class MyModelTransformation;
 
 }  // namespace pass
 }  // namespace ov
 
 // ! [model_pass:template_transformation_hpp]
 // template_model_transformation.hpp
-class ov::pass::MyFunctionTransformation : public ov::pass::ModelPass {
+class ov::pass::MyModelTransformation : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("MyFunctionTransformation", "0");
+    OPENVINO_RTTI("MyModelTransformation", "0");
     bool run_on_model(const std::shared_ptr<ov::Model>& f) override;
 };
 // ! [model_pass:template_transformation_hpp]
