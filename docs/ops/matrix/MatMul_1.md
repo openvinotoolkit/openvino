@@ -26,11 +26,13 @@ Temporary axes inserted in **step 2** are removed from the final output shape af
 After vector-matrix multiplication, the temporary axis inserted at ROW_INDEX_DIM is removed. After matrix-vector multiplication, the temporary axis inserted at COL_INDEX_DIM is removed.
 Output shape of two 1D tensors multiplication `[S] x [S]` is squeezed to scalar.
 
-Output shape inference logic examples (ND here means bigger than 1D):
+Output shape inference logic examples (ND here means bigger than 2D):
 
 * 1D x 1D: `[X] x [X] -> [1, X] x [X, 1] -> [1, 1] => []` (scalar)
+* 1D x 2D: `[X] x [X, Y] -> [1, X] x [X, Y] -> [1, Y] => [Y]`
 * 1D x ND: `[X] x [B, ..., X, Y] -> [1, X] x [B, ..., X, Y] -> [B, ..., 1, Y] => [B, ..., Y]`
 * ND x 1D: `[B, ..., X, Y] x [Y] -> [B, ..., X, Y] x [Y, 1] -> [B, ..., X, 1] => [B, ..., X]`
+* 2D x 1D: `[X, Y] x [Y] -> [X, Y] x [Y, 1] -> [X, 1] => [X]`
 * ND x ND: `[B, ..., X, Y] x [B, ..., Y, Z] => [B, ..., X, Z]`
 
 
