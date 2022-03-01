@@ -89,6 +89,7 @@ REGISTER_OCL(batch_to_space);
 REGISTER_OCL(binary_convolution);
 REGISTER_OCL(border);
 REGISTER_OCL(broadcast);
+REGISTER_OCL(bucketize);
 REGISTER_OCL(concatenation);
 REGISTER_OCL(convolution);
 REGISTER_OCL(crop);

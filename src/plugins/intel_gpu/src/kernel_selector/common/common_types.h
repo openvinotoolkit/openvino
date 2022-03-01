@@ -78,7 +78,8 @@ enum class KernelType {
     EXPERIMENTAL_DETECTRON_ROI_FEATURE_EXTRACTOR,
     EXPERIMENTAL_DETECTRON_TOPK_ROIS,
     CONVERT_COLOR,
-    RANDOM_UNIFORM
+    RANDOM_UNIFORM,
+    BUCKETIZE
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
