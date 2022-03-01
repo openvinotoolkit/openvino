@@ -109,18 +109,18 @@ static void regclass_graph_PreProcessSteps(py::module m) {
 
     steps.def(
         "convert_element_type",
-        [](ov::preprocess::PreProcessSteps& self, ov::element::Type type) {
+        [](ov::preprocess::PreProcessSteps& self, ov::element::Type type = {}) {
             return &self.convert_element_type(type);
         },
-        py::arg("type"),
+        py::arg_v("type", ov::element::undefined, "openvino.runtime.Type.undefined"),
         R"(
             Converts input tensor element type to specified type.
-            Input tensor must have openvino.Type.f32 data type.
+            Input tensor must have openvino.Type data type.
 
             Parameters
             ----------
             type : openvino.runtime.Type
-                Destination type.
+                Destination type. If not specified, type will be taken from model input's element type.
 
             Returns
             ----------
@@ -200,18 +200,18 @@ static void regclass_graph_PostProcessSteps(py::module m) {
 
     steps.def(
         "convert_element_type",
-        [](ov::preprocess::PostProcessSteps& self, ov::element::Type type) {
+        [](ov::preprocess::PostProcessSteps& self, ov::element::Type type = {}) {
             return &self.convert_element_type(type);
         },
-        py::arg("type"),
+        py::arg_v("type", ov::element::undefined, "openvino.runtime.Type.undefined"),
         R"(
             Converts tensor element type to specified type.
-            Tensor must have openvino.Type.f32 data type.
+            Tensor must have openvino.Type data type.
 
             Parameters
             ----------
             type : Type
-                Destination type.
+                Destination type. If not specified, type will be taken from model output's element type.
 
             Returns
             ----------
@@ -322,7 +322,7 @@ static void regclass_graph_InputTensorInfo(py::module m) {
             return &self.set_color_format(format, sub_names);
         },
         py::arg("format"),
-        py::arg("sub_names"));
+        py::arg("sub_names") = std::vector<std::string>{});
 
     info.def(
         "set_memory_type",
