@@ -45,7 +45,7 @@ class OverflowCorrection(Algorithm):
         for weighted_node in weighted_nodes:
             bias_node = nu.get_bias_for_node(weighted_node)
             output_node = weighted_node if bias_node is None else nu.get_node_output(bias_node, 0)[0]
-            output_node_name = output_node.fullname
+            output_node_name = output_node['orig_node_name'] if 'orig_node_name' in output_node else output_node.fullname
             if output_node_name not in activation_statistics \
                     or 'max_per_tensor' not in activation_statistics[output_node_name]:
                 logger.debug('Skipping {}'.format(weighted_node.fullname))
