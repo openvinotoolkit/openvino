@@ -24,6 +24,9 @@
 namespace ov {
 namespace test {
 namespace subgraph {
+
+ShapeMode shapeMode = ShapeMode::BOTH;
+
 std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParams> &obj) {
     using namespace CommonTestUtils;
     std::string pathToModel, deviceName;
@@ -158,19 +161,17 @@ void ReadIRTest::SetUp() {
                 }
             }
         }
-        std::vector<ov::Shape> staticShapes;
-        for (const auto param : function->get_parameters()) {
-            if (param->get_partial_shape().is_static()) {
-                staticShapes.push_back(param->get_shape());
-            } else {
-                staticShapes.push_back(param->get_partial_shape().get_max_shape());
-            }
-        }
         std::vector<InputShape> inputShapes;
         for (const auto& param : function -> get_parameters()) {
             if (param->get_partial_shape().is_static()) {
+                if (ov::test::subgraph::shapeMode == ov::test::subgraph::ShapeMode::DYNAMIC) {
+                    GTEST_SKIP() << "Static cases are skipped according `shape_mode`";
+                }
                 inputShapes.push_back(InputShape{{}, {param->get_shape()}});
             } else {
+                if (ov::test::subgraph::shapeMode == ov::test::subgraph::ShapeMode::STATIC) {
+                    GTEST_SKIP() << "Dynamic cases are skipped according `shape_mode`";
+                }
                 ov::Shape midShape;
                 for (const auto s : param->get_partial_shape()) {
                     int dimValue = s.get_length();
