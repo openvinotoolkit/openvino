@@ -493,10 +493,6 @@ int main(int argc, char* argv[]) {
 
                                     ov::Tensor outputBlob =
                                         inferRequest.inferRequest.get_tensor(executableNet.output(outputName));
-                                    if (!outputs.empty()) {
-                                        outputBlob =
-                                            inferRequest.inferRequest.get_tensor(executableNet.output(outputName));
-                                    }
                                     // locked memory holder should be alive all time while access to its buffer happens
                                     auto byteSize = numScoresPerOutput[next_output] * sizeof(float);
                                     std::memcpy(outputFrame, outputBlob.data<float>(), byteSize);
