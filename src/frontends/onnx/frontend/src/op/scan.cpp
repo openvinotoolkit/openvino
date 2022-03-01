@@ -71,17 +71,10 @@ OutputVector scan(const Node& node) {
     }
 
     auto axis_val = are_scan_input_axes_set ? scan_input_axes[0] : 0;
-    auto trip_count = std::make_shared<default_opset::Gather>(
-            std::make_shared<default_opset::ShapeOf>(ng_inputs[num_initial_values]),
-            default_opset::Constant::create(element::i64, Shape{1}, {axis_val}),
-            default_opset::Constant::create(element::i64, Shape{1}, {0}));
-    auto trip_count_param = std::make_shared<default_opset::Parameter>(trip_count->get_element_type(), trip_count->get_output_partial_shape(0));
-    body_inputs.push_back(trip_count_param);
     auto ti_body = std::make_shared<Function>(body_outputs, body_inputs);
 
     auto tensor_iterator = std::make_shared<default_opset::TensorIterator>();
     tensor_iterator->set_function(ti_body);
-    tensor_iterator->set_invariant_input(trip_count_param, trip_count);
 
     OutputVector outputs;
     const auto& ti_body_results = ti_body->get_results();
