@@ -218,8 +218,8 @@ def main():
 
     for model_rec in model_recs:
         if model_rec.attrib.get("full_path") is None:
-            log.warning(f"Model {model_name} does not have 'full_path' attribute! "
-                        "This model will not be verified in this run.")
+            log.warning(f"Model {model_rec.attrib['name']} does not have 'full_path' attribute! "
+                        f"This model will not be verified in this run.")
             model_recs.remove(model_rec)
 
     # rewrite test config with updated records
