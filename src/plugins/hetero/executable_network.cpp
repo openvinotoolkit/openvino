@@ -60,22 +60,24 @@ using namespace InferenceEngine::HeteroConfigParams;
 template <typename T>
 using NodeMap = std::unordered_map<ngraph::Node*, T>;
 
-HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwork& network,
+HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwork& originalNetwork,
                                                  const Engine::Configs& config,
                                                  Engine* plugin)
     : InferenceEngine::ExecutableNetworkThreadSafeDefault(nullptr,
                                                           std::make_shared<InferenceEngine::ImmediateExecutor>()),
       _heteroPlugin{plugin},
-      _name{network.getName()},
+      _name{originalNetwork.getName()},
       _config{config} {
-    auto function = network.getFunction();
-    IE_ASSERT(function != nullptr);
+    auto originalFunction = originalNetwork.getFunction();
+    IE_ASSERT(originalFunction != nullptr);
+
+    auto function = ngraph::clone_function(*originalFunction);
+    InferenceEngine::CNNNetwork network(function);
 
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.run_passes(std::const_pointer_cast<ov::Model>(function));
 
-    auto clonedFunction = ngraph::clone_function(*function);
     bool dumpDotFile = false;
     if (std::getenv("OPENVINO_HETERO_VISUALIZE")) {
         dumpDotFile = true;
@@ -85,7 +87,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     }
 
     QueryNetworkResult queryNetworkResult;
-    auto orderedOps = clonedFunction->get_ordered_ops();
+    auto orderedOps = function->get_ordered_ops();
     bool allEmpty = true;
     // Get user defined affinity
     for (auto&& node : orderedOps) {
@@ -120,7 +122,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     };
 
     // Set results, constants and parameters affinity
-    for (auto&& node : clonedFunction->get_ops()) {
+    for (auto&& node : function->get_ops()) {
         if (ngraph::op::is_constant(node) || ngraph::op::is_output(node) || ngraph::op::is_parameter(node)) {
             if (!contains(queryNetworkResult.supportedLayersMap, node->get_friendly_name())) {
                 auto& nodeWithAffinityName =
