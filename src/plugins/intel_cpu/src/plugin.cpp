@@ -569,7 +569,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
 
     if (mode_name == CONFIG_VALUE(LATENCY)) {
         config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = CONFIG_VALUE(CPU_THROUGHPUT_NUMA);
-        config[ov::num_streams.name()] = ov::util::to_string(ov::NumStreams(ov::NumStreams::NUMA));
+        config[ov::num_streams.name()] = ov::util::to_string(ov::streams::NUMA);
     } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
         const auto isa = dnnl::get_effective_cpu_isa();
         float isaSpecificThreshold = 1.0f;
@@ -627,7 +627,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
                                    engConfig.perfHintsConfig.ovPerfHintNumRequests);
         }
         config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(num_streams);
-        config[ov::num_streams.name()] = ov::util::to_string(ov::NumStreams(num_streams));
+        config[ov::num_streams.name()] = ov::util::to_string(ov::streams::NUMA);
     }
 }
 
@@ -675,6 +675,16 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     const bool enableSnippets = !(enableModelCache || enableDynamicBatch || enableBF16);
     auto nGraphFunc = clonedNetwork.getFunction();
     TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT, enableSnippets, isLegacyAPI());
+
+    // need to check that all outputs have static shapes
+    // checking that all inputs have static shapes is performed in the common part
+    if (isLegacyAPI()) {
+        for (const auto& res : nGraphFunc->get_results()) {
+            if (res->get_input_partial_shape(0).is_dynamic()) {
+                IE_THROW() << "CPU plug-in can't load a model with dynamic output shapes via legacy API.";
+            }
+        }
+    }
 
     ApplyPerformanceHints(config, nGraphFunc);
 

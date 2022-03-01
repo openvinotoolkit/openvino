@@ -40,6 +40,8 @@ Here is the list of models that are tested and guaranteed to be supported. Howev
   instruction which is used instead of steps 2 and 3 of [regular instructions](#typical-pytorch).
 * [BERT_NER](https://github.com/kamalkraj/BERT-NER) topology can be converted using steps described in [Convert PyTorch* BERT-NER to the IR](pytorch_specific/Convert_Bert_ner.md)
   instruction which is used instead of steps 2 and 3 of [regular instructions](#typical-pytorch).
+* ResNeXt-101 from [facebookresearch/semi-supervised-ImageNet1K-models](https://github.com/facebookresearch/semi-supervised-ImageNet1K-models)
+  can be converted using [regular instructions](#typical-pytorch).
 
 ## Typical steps to convert PyTorch\* model <a name="typical-pytorch"></a>
 
@@ -49,7 +51,7 @@ PyTorch* framework is supported through export to ONNX\* format. A summary of th
 2. [Export PyTorch model to ONNX\*](#export-to-onnx).
 3. [Convert an ONNX\* model](Convert_Model_From_ONNX.md) to produce an optimized [Intermediate Representation (IR)](../../IR_and_opsets.md) of the model based on the trained network topology, weights, and biases values.
 4. Test the model in the Intermediate Representation format using the [OpenVINO™ Runtime](../../../OV_Runtime_UG/openvino_intro.md) in the target environment via provided [sample applications](../../../OV_Runtime_UG/Samples_Overview.md).
-5. [Integrate](../../../OV_Runtime_UG/Samples_Overview.md) the Inference Engine in your application to deploy the model in the target environment.
+5. [Integrate OpenVINO Runtime](../../../OV_Runtime_UG/Samples_Overview.md) in your application to deploy the model in the target environment.
 
 ## Export PyTorch\* Model to ONNX\* Format <a name="export-to-onnx"></a>
 
