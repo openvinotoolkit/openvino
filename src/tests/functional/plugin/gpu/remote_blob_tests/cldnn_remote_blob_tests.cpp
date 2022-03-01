@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 #include <memory>
+#include <thread>
 
 #include <ie_compound_blob.h>
 
@@ -98,6 +99,64 @@ TEST_P(RemoteBlob_Test, smoke_canInputUserBlob) {
     }
 }
 
+TEST_P(RemoteBlob_Test, smoke_canUseRemoteBlobSimultaneously) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    const int batch = 2;
+    const int channels = 3;
+    const int height = 512;
+    const int width = 512;
+    const size_t img_size = batch * channels * height * width;
+    cl_int err;
+
+    const InferenceEngine::TensorDesc tensor_desc{InferenceEngine::Precision::U8,
+                                                  {batch, channels, height, width},
+                                                  InferenceEngine::Layout::NHWC};
+
+    InferenceEngine::Blob::Ptr ref_blob = FuncTestUtils::createAndFillBlob(tensor_desc);
+
+    auto ie = PluginCache::get().ie();
+    auto ocl_instance = std::make_shared<OpenCL>();
+    ocl_instance->_queue = cl::CommandQueue(ocl_instance->_context, ocl_instance->_device);
+
+    // Allocate OpenCL buffer for data
+    cl::Buffer shared_buffer(ocl_instance->_context, CL_MEM_READ_WRITE, img_size, NULL, &err);
+
+    // Create shared context
+    auto remote_context = make_shared_context(*ie, deviceName, ocl_instance->_queue.get());
+
+    // Wrap buffer above with IE blob
+    Blob::Ptr shared_blob = make_shared_blob(tensor_desc, remote_context, shared_buffer);
+    // Allocate is needed to actually trigger memory handle sharing. For other buffers it's called inside SetBlob impl
+    // TODO: Why do we need to call it explicitly? Consider doing it internally
+    shared_blob->allocate();
+
+    // Copy data from ordinary blob to OpenCL buffer
+    {
+        void* buffer = ref_blob->buffer();
+        ocl_instance->_queue.enqueueWriteBuffer(shared_buffer, true, 0, img_size, buffer);
+    }
+
+    // Lock remote buffer in multiple threads and compare data with ordinary one
+    const int threads_num = 8;
+    std::vector<std::thread> threads;
+    for (int i = 0; i < threads_num; i++) {
+        threads.emplace_back(std::thread{[&] {
+            auto ref_blob_buf = ref_blob->cbuffer();
+            auto ref_blob_ptr = ref_blob_buf.as<const char*>();
+            auto remote_blob_buf = shared_blob->cbuffer();
+            auto remote_blob_ptr = remote_blob_buf.as<const char*>();
+            ASSERT_EQ(ref_blob->size(), shared_blob->size());
+            for (size_t j = 0; j < ref_blob->size(); j++) {
+                ASSERT_EQ(ref_blob_ptr[j], remote_blob_ptr[j]);
+            }
+        }});
+    }
+
+    for (auto& t : threads)
+        t.join();
+}
 
 TEST_P(RemoteBlob_Test, smoke_canInputPluginRemoteBlob) {
 #if defined(ANDROID)
