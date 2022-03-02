@@ -316,7 +316,7 @@ void ExternalOptimizationUtil::dumpNetworkToFile(const std::shared_ptr<ov::Model
     unifyModelNames(network_copy);
 
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::Serialize>(out_xml_path, out_bin_path, ngraph::pass::Serialize::Version::IR_V10);
+    manager.register_pass<ngraph::pass::Serialize>(out_xml_path, out_bin_path, ngraph::pass::Serialize::Version::IR_V11);
     manager.run_passes(network_copy);
     printf("Network dumped to %s\n", out_xml_path.c_str());
     writeToHashMap(network_name, new_network_name);

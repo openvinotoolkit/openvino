@@ -178,7 +178,7 @@ const std::vector<std::vector<std::vector<size_t>>> input_shapes_transposes = {
         {{6, 16}, {1, 16}}
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_convert_matmul_to_fc, ConvertMatmulToFcPass,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_convert_matmul_to_fc, ConvertMatmulToFcPass,
                         ::testing::Combine(
                                 ::testing::ValuesIn(input_shapes),
                                 ::testing::ValuesIn(netPrecisions),

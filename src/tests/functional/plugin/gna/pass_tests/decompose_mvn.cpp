@@ -136,7 +136,7 @@ const auto mvnParams_v1 = ::testing::Combine(
     ::testing::Values(false)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_DecomposeMVN_v6, DecomposeMVNTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_DecomposeMVN_v6, DecomposeMVNTest,
     ::testing::Combine(
         mvnParams_v6,
         ::testing::ValuesIn(netPrecisions),
@@ -145,7 +145,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_DecomposeMVN_v6, DecomposeMVNTest,
         ::testing::ValuesIn(inputs)),
     DecomposeMVNTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_DecomposeMVN_v1, DecomposeMVNTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_DecomposeMVN_v1, DecomposeMVNTest,
     ::testing::Combine(
         mvnParams_v1,
         ::testing::ValuesIn(netPrecisions),
