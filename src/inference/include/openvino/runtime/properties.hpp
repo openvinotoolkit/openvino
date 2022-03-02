@@ -673,27 +673,27 @@ static constexpr Num NUMA{
     -2};  //!< Creates as many streams as needed to accommodate NUMA and avoid associated penalties
 
 /** @cond INTERNAL */
-inline std::ostream& operator<<(std::ostream& os, const Num& num) {
-    switch (num) {
+inline std::ostream& operator<<(std::ostream& os, const Num& num_val) {
+    switch (num_val) {
     case AUTO:
         return os << "AUTO";
     case NUMA:
         return os << "NUMA";
     default:
-        return os << num.num;
+        return os << num_val.num;
     }
 }
 
-inline std::istream& operator>>(std::istream& is, Num& num) {
+inline std::istream& operator>>(std::istream& is, Num& num_val) {
     std::string str;
     is >> str;
     if (str == "AUTO") {
-        num = AUTO;
+        num_val = AUTO;
     } else if (str == "NUMA") {
-        num = NUMA;
+        num_val = NUMA;
     } else {
         try {
-            num = {std::stoi(str)};
+            num_val = {std::stoi(str)};
         } catch (const std::exception& e) {
             throw ov::Exception{std::string{"Could not read number of streams from str: "} + str + "; " + e.what()};
         }
