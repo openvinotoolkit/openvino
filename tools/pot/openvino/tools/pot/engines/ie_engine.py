@@ -230,11 +230,11 @@ class IEEngine(Engine):
         """
         input_info = model.inputs
 
-        def is_dymanic_input(input_blob):
+        def is_dynamic_input(input_blob):
             return input_blob.partial_shape.is_dynamic
 
         def process_input(input_blob, input_data):
-            return input_data if is_dymanic_input(input_blob) else np.reshape(input_data, input_blob.shape)
+            return input_data if is_dynamic_input(input_blob) else np.reshape(input_data, input_blob.shape)
 
         if isinstance(image_batch[0], dict):
             feed_dict = {}
@@ -249,7 +249,7 @@ class IEEngine(Engine):
             input_blob = next(iter(input_info))
             input_blob_name = self._get_input_any_name(input_blob)
             image_batch = {input_blob_name: process_input(input_blob, image_batch)}
-            if not is_dymanic_input(input_blob) and Shape(image_batch[input_blob_name].shape) != input_info[0].shape:
+            if not is_dynamic_input(input_blob) and Shape(image_batch[input_blob_name].shape) != input_info[0].shape:
                 raise ValueError(f"Incompatible input shapes. "
                                  f"Cannot infer {Shape(image_batch[input_blob_name].shape)} into {input_info[0].shape}."
                                  f"Try to specify the layout of the model.")
@@ -269,7 +269,7 @@ class IEEngine(Engine):
             image_tensor_name = image_tensor_node.get_any_name()
 
             image_tensor = (image_tensor_name, process_input(image_tensor_node, image_batch))
-            if not is_dymanic_input(image_tensor_node) and \
+            if not is_dynamic_input(image_tensor_node) and \
                     Shape(image_tensor[1].shape) != image_tensor_node.shape:
                 raise ValueError(f"Incompatible input shapes. "
                                  f"Cannot infer {Shape(image_tensor[1].shape)} into {image_tensor_node.shape}."
