@@ -9,6 +9,7 @@
 #include "openvino/frontend/extension/op.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/frontend/place.hpp"
+#include "plugin_loader.hpp"
 #include "so_extension.hpp"
 #include "utils.hpp"
 
@@ -74,6 +75,7 @@ void FrontEnd::normalize(const std::shared_ptr<Model>& model) const {
 
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     if (m_actual) {
+        add_extension_to_shared_data(m_shared_object, extension);
         m_actual->add_extension(extension);
         return;
     }
@@ -82,29 +84,20 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
 }
 
 void FrontEnd::add_extension(const std::vector<std::shared_ptr<ov::Extension>>& extensions) {
-    if (m_actual) {
-        m_actual->add_extension(extensions);
-        return;
-    }
-    for (const auto& ext : extensions)
+    for (const auto& ext : extensions) {
         add_extension(ext);
+    }
 }
 
 void FrontEnd::add_extension(const std::string& library_path) {
-    if (m_actual) {
-        m_actual->add_extension(library_path);
-        return;
-    }
-    add_extension(ov::detail::load_extensions(library_path));
+    auto extensions_lib = ov::detail::load_extensions(library_path);
+    add_extension(extensions_lib);
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 void FrontEnd::add_extension(const std::wstring& library_path) {
-    if (m_actual) {
-        m_actual->add_extension(library_path);
-        return;
-    }
-    add_extension(ov::detail::load_extensions(library_path));
+    auto extensions_lib = ov::detail::load_extensions(library_path);
+    add_extension(extensions_lib);
 }
 #endif
 
