@@ -56,11 +56,11 @@ void printInputAndOutputsInfoShort(const T& network) {
 
         // Workaround for "tensor has no name" issue
         try {
-            for(const auto& name : input.get_names()) {
+            for (const auto& name : input.get_names()) {
                 in_name += name + " , ";
             }
             in_name = in_name.substr(0, in_name.size() - 3);
-                
+
         } catch (const ov::Exception&) {
         }
         try {
