@@ -28,6 +28,8 @@ private:
 class CPUGenerator : public ngraph::snippets::Generator {
 public:
     CPUGenerator(dnnl::impl::cpu::x64::cpu_isa_t isa);
+
+    element::Type get_supported_exec_precision() const override;
 };
 
 }   // namespace intel_cpu

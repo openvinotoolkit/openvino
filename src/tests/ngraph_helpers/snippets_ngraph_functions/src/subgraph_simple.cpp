@@ -217,6 +217,69 @@ std::shared_ptr<ov::Model> EltwiseLogLoopFunction::initReference() const {
     return std::make_shared<Model>(NodeVector{mul}, ParameterVector{data0, data1});
 }
 
+std::shared_ptr<ov::Model> EltwiseTwoResultsFunction::initOriginal() const {
+    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
+    auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
+    auto sinh0 = std::make_shared<op::v0::Sinh>(data0);
+    auto sinh1 = std::make_shared<op::v0::Sinh>(data1);
+    auto add = std::make_shared<op::v1::Add>(sinh0, sinh1);
+    auto hswish = std::make_shared<op::v4::HSwish>(add);
+    auto relu = std::make_shared<op::v0::Relu>(hswish);
+
+    NGRAPH_SUPPRESS_DEPRECATED_START
+    auto& out_tensor0 = add->get_output_tensor(0);
+    out_tensor0.set_name("add_out");
+    out_tensor0.set_names({"add_out", "y0"});
+
+    auto& out_tensor1 = relu->get_output_tensor(0);
+    out_tensor1.set_name("relu_out");
+    out_tensor1.set_names({"relu_out", "y1"});
+    NGRAPH_SUPPRESS_DEPRECATED_END
+
+    return std::make_shared<Model>(NodeVector{add, relu}, ParameterVector{data0, data1});
+}
+std::shared_ptr<ov::Model> EltwiseTwoResultsFunction::initReference() const {
+    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
+    auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
+    auto sinh0 = std::make_shared<op::v0::Sinh>(data0);
+    auto sinh1 = std::make_shared<op::v0::Sinh>(data1);
+    auto indata0 = std::make_shared<op::v0::Parameter>(precision, sinh0->get_shape());
+    auto indata1 = std::make_shared<op::v0::Parameter>(precision, sinh1->get_shape());
+    auto add = std::make_shared<op::v1::Add>(indata0, indata1);
+    auto hswish = std::make_shared<op::v4::HSwish>(add);
+    auto subgraph0 = std::make_shared<ngraph::snippets::op::Subgraph>(NodeVector{sinh0, sinh1},
+                                        std::make_shared<ov::Model>(NodeVector{add, hswish},
+                                                                    ParameterVector{indata0, indata1}));
+    auto indata2 = std::make_shared<op::v0::Parameter>(precision, subgraph0->get_output_shape(1));
+    auto relu = std::make_shared<op::v0::Relu>(indata2);
+    auto subgraph1 = std::make_shared<ngraph::snippets::op::Subgraph>(OutputVector{subgraph0->output(1)},
+                                        std::make_shared<ov::Model>(NodeVector{relu},
+                                                                    ParameterVector{indata2}));
+    NGRAPH_SUPPRESS_DEPRECATED_START
+    auto& out_tensor0 = subgraph0->get_output_tensor(0);
+    out_tensor0.set_name("add_out");
+    out_tensor0.set_names({"add_out", "y0"});
+
+    auto& out_tensor1 = subgraph1->get_output_tensor(0);
+    out_tensor1.set_name("relu_out");
+    out_tensor1.set_names({"relu_out", "y1"});
+    NGRAPH_SUPPRESS_DEPRECATED_END
+    return std::make_shared<Model>(OutputVector{subgraph0->output(0), subgraph1->output(0)}, ParameterVector{data0, data1});
+}
+
+std::shared_ptr<ov::Model> TwoInputsAndOutputsFunction::initOriginal() const {
+    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
+    auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
+    auto sin0 = std::make_shared<op::v0::Sin>(data0);
+    auto sin1 = std::make_shared<op::v0::Sin>(data1);
+    auto hswish = std::make_shared<op::v4::HSwish>(sin0);
+    auto add = std::make_shared<op::v1::Add>(hswish, sin1);
+    auto relu = std::make_shared<op::v0::Relu>(add);
+    auto sin3 = std::make_shared<op::v0::Sin>(relu);
+
+    return std::make_shared<Model>(NodeVector{hswish, sin3}, ParameterVector{data0, data1});
+}
+
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

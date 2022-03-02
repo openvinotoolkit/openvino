@@ -139,12 +139,12 @@ protected:
         }
     }
 
+    void push_vec(const Xbyak::Address &addr, size_t vec_idx) const;
+    void pop_vec(size_t vec_idx, const Xbyak::Address &addr) const;
+
 private:
     mutable std::vector<size_t> preserved_vec_idxs;
     mutable std::vector<size_t> preserved_gpr_idxs;
-
-    void push_vec(const Xbyak::Address &addr, size_t vec_idx) const;
-    void pop_vec(size_t vec_idx, const Xbyak::Address &addr) const;
 
     size_t table_off(std::string& key, size_t key_off_val_shift = 0) const {
         // assumption: all table entries sharing the same key also
