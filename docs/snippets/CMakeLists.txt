@@ -58,3 +58,22 @@ if(NOT MSVC)
 endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime openvino::runtime::dev)
+
+set(TARGET_NAME "ov_integration_snippet")
+# [cmake:integration_example]
+cmake_minimum_required(VERSION 3.10)
+set(CMAKE_CXX_STANDARD 11)
+
+
+find_package(OpenVINO REQUIRED)
+
+add_executable(${TARGET_NAME} src/main.cpp)
+
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
+# [cmake:integration_example]
+if(NOT MSVC)
+    target_compile_options(${TARGET_NAME} PRIVATE -Wno-unused-variable)
+    if(CMAKE_COMPILER_IS_GNUCXX)
+        target_compile_options(${TARGET_NAME} PRIVATE -Wno-unused-but-set-variable)
+    endif()
+endif()

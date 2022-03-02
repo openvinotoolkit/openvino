@@ -243,7 +243,7 @@ After applying the transformation, ReadValue operations can receive other operat
 
 1. Get CNNNetwork. Either way is acceptable:
 
-	* [from IR or ONNX model](./Integrate_with_customer_application_new_API.md)
+	* [from IR or ONNX model](./integrate_with_your_application.md)
 	* [from ov::Model](../OV_Runtime_UG/model_representation.md)
 
 2. Change the number of iterations inside TensorIterator/Loop nodes in the network using the [Reshape](ShapeInference.md) feature. 
@@ -347,7 +347,7 @@ After applying the transformation, ReadValue operations can receive other operat
 
 1. Get CNNNetwork. Either way is acceptable:
 
-	* [from IR or ONNX model](./Integrate_with_customer_application_new_API.md)
+	* [from IR or ONNX model](./integrate_with_your_application.md)
 	* [from ov::Model](../OV_Runtime_UG/model_representation.md)
 
 2. [Reshape](ShapeInference.md) the CNNNetwork network if necessary. **Necessary case:** where the sequence_lengths dimension of input > 1, it means TensorIterator layer will have number_iterations > 1. We should reshape the inputs of the network to set sequence_dimension to exactly 1.

@@ -28,7 +28,7 @@ At startup, the sample application does the following:
 
 
 You can see the explicit description of
-each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md) section of "Integrate the OpenVINO™ Runtime with Your Application" guide.
+each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/integrate_with_your_application.md) section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
 ## Running
 
@@ -127,7 +127,7 @@ The sample application logs each step in a standard output stream and outputs 10
 
 ## See Also
 
-- [Integrate the OpenVINO™ Runtime with Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md)
+- [Integrate the OpenVINO™ Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md)
 - [Using OpenVINO™ Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
