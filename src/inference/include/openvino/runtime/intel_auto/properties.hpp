@@ -18,10 +18,12 @@ namespace intel_auto {
  * @brief Enum to define auto cpu usage
  */
 enum class AutoCpuUsage {
-    NO_INFERENCE = 0,            // no inference
-    ACCERLATE_FIL = 1,           //
-    ACCERLATE_FIL_ONE_FRAM = 2,  // accerlate one frame
-    FULL_STRENGTH = 3,           // default
+    NO_INFERENCE = 0,   // AUTO cannot offload any inference workload to CPU
+    ACCERLATE_FIL = 1,  // AUTO only can use CPU as accelerator to start infer beginning frames when target device is
+                        // loading network. AUTO cannot use CPU as target device
+    ACCERLATE_FIL_ONE_FRAM = 2,  // AUTO only can use CPU as accelerator to infer one frame when target device is
+                                 // loading network. AUTO cannot use CPU as target device.
+    FULL_STRENGTH = 3,           // AUTO can use CPU as target device or accelerator.(default)
 };
 
 /** @cond INTERNAL */
