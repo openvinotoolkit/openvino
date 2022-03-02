@@ -2151,6 +2151,8 @@ InfoForRFFT9 get_info_for_rfft9_eval(const std::vector<std::shared_ptr<HostTenso
     result.fft_output_shape = fft_output_shape;
     result.output_shape = output_shape;
 
+    result.axes_data = canonicalized_axes;
+
     return result;
 }
 }  // namespace rfft_v9
