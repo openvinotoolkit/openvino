@@ -107,10 +107,10 @@ void rdft_shape_infer(const ov::op::v9::RDFT* op,
         return;
     }
 
-    if (input_shapes.size() == 2) {
-        for (int64_t axis : axes) {
-            output_shape[axis] = get_rdft_output_dimension(input_shape[axis]);
-        }
+    const auto last_axis = axes.back();
+    
+    if (input_shapes.size() == 2) {        
+        output_shape[last_axis] = get_rdft_output_dimension(input_shape[last_axis]);
         return;
     }
 
@@ -119,9 +119,7 @@ void rdft_shape_infer(const ov::op::v9::RDFT* op,
     bool status_signal_size = get_data_as_int64<T>(2, op, signal_size, constant_data);
 
     if (signal_size_shape.rank().is_dynamic() || !status_signal_size) {
-        for (int64_t axis : axes) {
-            output_shape[axis] = ov::Dimension::dynamic();
-        }
+        output_shape[last_axis] = ov::Dimension::dynamic();
         return;
     }
 
@@ -129,9 +127,8 @@ void rdft_shape_infer(const ov::op::v9::RDFT* op,
     for (size_t i = 0; i < num_of_axes; ++i) {
         const int64_t current_axis = axes[i];
         if (signal_size[i] != -1) {
-            output_shape[current_axis] = get_rdft_output_dimension(DimType(signal_size[i]));
-        } else {
-            output_shape[current_axis] = get_rdft_output_dimension(input_shape[current_axis]);
+            output_shape[current_axis] = DimType(signal_size[i]);
         }
     }
+    output_shape[last_axis] = get_rdft_output_dimension(output_shape[last_axis]);
 }
