@@ -1,8 +1,8 @@
 #include <openvino/runtime/core.hpp>
 
 int main() {
-ov::Core core;
-auto model = core.read_model("sample.xml");
+    ov::Core core;
+    auto model = core.read_model("sample.xml");
 
 //! [compile_model]
 {
@@ -12,10 +12,30 @@ auto model = core.read_model("sample.xml");
 
 //! [compile_model_no_auto_batching]
 {
+    // disabling the automatic batching
+    // leaving intact the other configurations options that the device selects for the 'throughput' hint 
     auto compiled_model = core.compile_model(model, "GPU", {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
                                                             ov::hint::allow_auto_batching(false)});
 }
 //! [compile_model_no_auto_batching]
 
-return 0;
+//! [query_optimal_num_requests]
+{
+    // when the batch size is automatically selected by the implementation
+    // it is important to query/create and run the sufficient #requests
+    auto compiled_model = core.compile_model(model, "GPU", ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT));
+    auto num_requests = compiled_model.get_property(ov::optimal_number_of_infer_requests);
+}
+//! [query_optimal_num_requests]
+
+//! [hint_num_requests]
+{
+    // limiting the available parallel slack for the 'throughput' hint via the ov::hint::num_requests
+    // so that certian parameters (like selected batch size) are automatically accommodated accordingly 
+    auto compiled_model = core.compile_model(model, "GPU", {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
+                                                            ov::hint::num_requests(4)});
+}
+//! [hint_num_requests]
+
+    return 0;
 }
