@@ -1,4 +1,4 @@
-# Dynamic Shapes {#openvino_docs_IE_DG_DynamicShapes}
+# Dynamic Shapes {#openvino_docs_OV_UG_DynamicShapes}
 
 As it was demonstrated in the [Changing Input Shapes](ShapeInference.md) article, there are models that support changing of input shapes before model compilation in `Core::compile_model`.
 Reshaping models provides an ability to customize the model input shape for exactly that size that is required in the end application.
@@ -22,7 +22,7 @@ Here are several examples of dimensions that can be naturally dynamic:
 
 There are various tricks to address input dynamic dimensions through combining multiple pre-reshaped models and data padding in tensor.
 The tricks are sensitive to model internals, do not always give optimal performance and cumbersome.
-Short overview of the methods you can find [here](WithoutDynamicShapes.md).
+Short overview of the methods you can find [here](ov_without_dynamic_shapes.md).
 Apply those methods only if native dynamic shape API described in the following sections doesn't work for you or doesn't give desired performance.
 
 The decision about using dynamic shapes should be based on proper benchmarking of real application with real data.
