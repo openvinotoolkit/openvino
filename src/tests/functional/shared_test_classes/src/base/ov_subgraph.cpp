@@ -317,6 +317,10 @@ void SubgraphBaseTest::validate() {
 }
 
 void SubgraphBaseTest::init_input_shapes(const std::vector<InputShape>& shapes) {
+    if (shapes.empty()) {
+        targetStaticShapes = {{}};
+        return;
+    }
     size_t targetStaticShapeSize = shapes.front().second.size();
     for (size_t i = 1; i < shapes.size(); ++i) {
         if (targetStaticShapeSize < shapes[i].second.size()) {
