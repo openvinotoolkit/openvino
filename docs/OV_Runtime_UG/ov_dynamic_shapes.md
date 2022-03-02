@@ -7,11 +7,11 @@ This article explains how the ability of model to reshape can further be leverag
 
 ## When to Apply Dynamic Shapes
 
-Model reshaping works well when it can be done once per many model inference calls with the same shape.
-However, this approach doesn't perform efficiently if the input tensor shape is changed every inference call: calling `reshape()` and `compile_model()` each time when a new size comes is extremely time-consuming.
-A popular example would be an inference of natural language processing models (like BERT) with arbitrary sized input sequences that come from the user.
+Conventional "static" model reshaping works well when it can be done once per many model inference calls with the same shape.
+However, this approach doesn't perform efficiently if the input tensor shape is changed on every inference call: calling `reshape()` and `compile_model()` each time when a new size comes is extremely time-consuming.
+A popular example would be an inference of natural language processing models (like BERT) with arbitrarily-sized input sequences that come from the user.
 In this case, the sequence length cannot be predicted and may change every time you need to call inference.
-Such dimensions that can be frequently changed are called *dynamic dimensions*.
+Below, such dimensions that can be frequently changed are called *dynamic dimensions*.
 When real shape of input is not known at `compile_model` time, that's the case when dynamic shapes should be considered.
 
 Here are several examples of dimensions that can be naturally dynamic:
@@ -20,7 +20,7 @@ Here are several examples of dimensions that can be naturally dynamic:
  - Batch dimension
  - Arbitrary number of detections in object detection models output
 
-There are various tricks to address input dynamic dimensions through combining multiple pre-reshaped models and data padding in tensor.
+There are various tricks to address input dynamic dimensions through combining multiple pre-reshaped models and input data padding.
 The tricks are sensitive to model internals, do not always give optimal performance and cumbersome.
 Short overview of the methods you can find [here](ov_without_dynamic_shapes.md).
 Apply those methods only if native dynamic shape API described in the following sections doesn't work for you or doesn't give desired performance.
@@ -38,7 +38,7 @@ There are three main parts in the flow that differ from static shapes:
 
 ### Configure the Model
 
-To avoid the tricks mentioned in the previous section there is a way to directly say that one or multiple dimensions in the model input is going to be dynamic.
+To avoid the tricks mentioned in the previous section there is a way to directly specify one or multiple dimensions in the model inputs to be dynamic.
 This is achieved with the same reshape method that is used for alternating static shape of inputs.
 Dynamic dimensions are specified as `-1` or `ov::Dimension()` instead of a positive number used for static dimensions:
 
@@ -49,17 +49,17 @@ However, there are no limitations on the number of inputs and outputs to apply d
 
 ### Undefined Dimensions "Out Of the Box"
 
-Dynamic dimensions may exist in the input model without calling reshape.
+Dynamic dimensions may appear in the input model without calling reshape.
 Many DL frameworks support undefined dimensions.
 If such a model is converted with Model Optimizer or read directly by Core::read_model, undefined dimensions are preserved.
 Such dimensions automatically treated as dynamic ones.
-So you don't need to call reshape if undefined dimensions are already configured in the original model or IR file.
+So you don't need to call reshape if undefined dimensions are already configured in the original model or in the IR file.
 
 If the input model has undefined dimensions that you are not going to change during the inference, you can set them to static values, using the same `reshape` method of the model.
-From the API perspective any combination of dynamic and static combination can be configured.
+From the API perspective any combination of dynamic and static dimensions can be configured.
 
-Model Optimizer provides capability to reshape the model during the conversion.
-Use this capability to save time on calling `reshape` method in the end application.
+Model Optimizer provides capability to reshape the model during the conversion, including specifying dynamic dimensions.
+Use this capability to save time on calling `reshape` method in the end application. <TODO: Link to MO setting shape doc>
 
 ### Dimension Bounds
 
@@ -70,12 +70,12 @@ Bounds are coded as arguments for `ov::Dimension`:
 
 Information about bounds gives opportunity for the inference plugin to apply additional optimizations.
 Using dynamic shapes assumes the plugins apply more loose optimization technique during model compilation
-It may require more resources for model compilation and inference.
+It may require more time/memory for model compilation and inference.
 So providing any additional information like bounds can be beneficial.
 For the same reason it is not recommended to leave dimensions as undefined without the real need.
 
-When specifying bounds, the lower bound is not so important as upper bound, because knowing of upper bound allows plugins to more precisely allocate memory for intermediate tensors for inference and use lesser number of tuned kernels for different sizes.
-Precisely speaking benefits of specifying lower or upper bound is HW plugin dependent.
+When specifying bounds, the lower bound is not so important as upper bound, because knowing of upper bound allows inference devices to more precisely allocate memory for intermediate tensors for inference and use lesser number of tuned kernels for different sizes.
+Precisely speaking benefits of specifying lower or upper bound is device dependent.
 Depending on the plugin specifying upper bounds can be required.
 <TODO: reference to plugin limitations table>.
 If users known lower and upper bounds for dimension it is recommended to specify them even when plugin can execute model without the bounds.
@@ -118,5 +118,5 @@ Or more programmatically:
 
 If at least one dynamic dimension exists in output of the model, shape of the corresponding output tensor will be set as the result of inference call.
 Before the first inference, memory for such a tensor is not allocated and has shape `[0]`.
-If user call `set_output_tensor` with pre-allocated tensor, the inference process calls `set_shape` as the result of its work and the initial shape is replaced by the really calculated shape.
+If user call `set_output_tensor` with pre-allocated tensor, the inference will call `set_shape` internally, and the initial shape is replaced by the really calculated shape.
 So setting shape for output tensors in this case is useful only if you want to pre-allocate enough memory for output tensor, because `Tensor`'s `set_shape` method will re-allocate memory only if new shape requires more storage.
