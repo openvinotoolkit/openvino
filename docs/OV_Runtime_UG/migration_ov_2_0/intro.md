@@ -18,7 +18,7 @@
 Older versions of OpenVINO (prior to 2022.1) required to change the logic of applications when an user migrates from the frameworks like TensorFlow, ONNX Runtime, PyTorch, PaddlePaddle, etc. The change of application's logic is connected with:
 
 - Model Optimizer changed input precisions for some inputs. For example, neural langauge processing models with `I64` input are becoming to have `I32` input element type.
-- Model Optimizer changed layouts for TensorFlow models ((see [Layouts in OpenVINO](../layout_overview.md))). It leads to unexpected user behavior that a user needs to use a different layout for its input data with compare to the framework:
+- Model Optimizer changed layouts for TensorFlow models (see [Layouts in OpenVINO](../layout_overview.md)). It leads to unexpected user behavior that a user needs to use a different layout for its input data with compare to the framework:
 ![tf_openvino]
 - Inference Engine API (`InferenceEngine::CNNNetwork`) also applied some conversion rules for input and output precisions because of device plugins limitations.
 - Users need to specify input shapes during model conversions in Model Optimizer and work with static shapes in the application.
