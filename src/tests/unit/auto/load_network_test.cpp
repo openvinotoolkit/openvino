@@ -27,13 +27,12 @@ using ::testing::AtLeast;
 using namespace MockMultiDevice;
 
 TEST(LoadNetworkToDefaultDeviceTest, LoadNetwork) {
-    Core ie;
     std::string pluginXML{"mock_engine_valid.xml"};
     std::string content{"<ie><plugins><plugin name=\"AUTO\" location=\"libmock_engine.so\"></plugin></plugins></ie>"};
     std::ofstream outfile(pluginXML);
     outfile << content;
     outfile.close();
-    ASSERT_NO_THROW(ie.RegisterPlugins(pluginXML));
+    Core ie(pluginXML);
     std::remove(pluginXML.c_str());
     std::string mockEngineName("mock_engine");
     std::string libraryName = CommonTestUtils::pre + mockEngineName + IE_BUILD_POSTFIX + CommonTestUtils::ext;
@@ -41,15 +40,11 @@ TEST(LoadNetworkToDefaultDeviceTest, LoadNetwork) {
     std::function<void(IInferencePlugin*)> injectProxyEngine(
         reinterpret_cast<void (*)(IInferencePlugin*)>(ov::util::get_symbol(sharedObjectLoader, "InjectProxyEngine")));
 
-    // prepare mockicore and cnnNetwork for loading
     auto* origin_plugin = new MockMultiDeviceInferencePlugin();
     auto plugin  = std::shared_ptr<MockMultiDeviceInferencePlugin>(origin_plugin);
-    // replace core with mock Icore
     injectProxyEngine(origin_plugin);
-    // ie.UnregisterPlugin("AUTO");
-    // ie.RegisterPlugin(std::string("mock_engine") + IE_BUILD_POSTFIX, "AUTO");
 
-    EXPECT_CALL(*plugin, LoadExeNetworkImpl(_, _))
+    EXPECT_CALL(*plugin, LoadExeNetworkImpl(_, _)).Times(1)
         .WillOnce([&](const InferenceEngine::CNNNetwork&,
                       const std::map<std::string, std::string>&) -> InferenceEngine::IExecutableNetworkInternal::Ptr {
             auto mockIExeNet = std::make_shared<MockIExecutableNetworkInternal>();
@@ -59,5 +54,5 @@ TEST(LoadNetworkToDefaultDeviceTest, LoadNetwork) {
     InferenceEngine::CNNNetwork actualCnnNetwork;
     std::shared_ptr<ngraph::Function> actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
     ASSERT_NO_THROW(actualCnnNetwork = InferenceEngine::CNNNetwork(actualNetwork));
-    ie.LoadNetwork(actualCnnNetwork);
+    ASSERT_THROW(ie.LoadNetwork(actualCnnNetwork), InferenceEngine::Exception);
 }
