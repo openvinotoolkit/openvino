@@ -212,6 +212,10 @@ endif()
 
 macro(ov_install_static_lib target comp)
     if(NOT BUILD_SHARED_LIBS)
+        get_target_property(target_type ${target} TYPE)
+        if(${target_type} STREQUAL "STATIC_LIBRARY")
+            set_target_properties(${target} PROPERTIES EXCLUDE_FROM_ALL FALSE)
+        endif()
         install(TARGETS ${target} EXPORT OpenVINOTargets
                 ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${comp} ${ARGN})
     endif()
