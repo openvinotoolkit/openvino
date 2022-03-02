@@ -146,7 +146,6 @@ void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, co
                 }
             });
     }
-    LOG_INFO("[AUTOPLUGIN]:device:%s finish create the infer requests!", device.c_str());
 }
 
 MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&                         modelPath,
@@ -216,7 +215,6 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                           if (contextPtr->workName.empty()) {
                                 contextPtr->workName = contextPtr->deviceInfo.deviceName;
                           }
-                          auto& deviceName = contextPtr->deviceInfo.deviceName;
                           GenerateWorkers(contextPtr->workName, contextPtr->executableNetwork);
                           //need lock
                           {
@@ -225,6 +223,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                                             contextPtr->deviceInfo.config.end());
                           }
                           contextPtr->isAlready = true;
+                          auto& deviceName = contextPtr->deviceInfo.deviceName;
                           LOG_INFO("[AUTOPLUGIN]:device:%s loading Network finished",
                                   deviceName.c_str());
                           auto supported_config_keys =
@@ -499,7 +498,6 @@ bool MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipeli
         _inferPipelineTasksDeviceSpecific[preferred_device]->push(std::move(inferPipelineTask));
     else
         _inferPipelineTasks.push(std::move(inferPipelineTask));
-    LOG_INFO("[AUTOPLUGIN]:push 1 to task queue");
     return false;
 }
 

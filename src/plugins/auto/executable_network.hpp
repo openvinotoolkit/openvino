@@ -162,9 +162,6 @@ private:
     bool                                                                _exitFlag = {false};
     const InferenceEngine::CNNNetwork                                   _network;
     int                                                                 _cpuHelpInferCount = 0;
-    int                                                                 _timeOut = 0;
-    mutable std::mutex                                                  _resetMutex;
-    std::condition_variable                                             _resetCV;
 };
 
 }  // namespace MultiDevicePlugin

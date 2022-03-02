@@ -542,7 +542,6 @@ std::pair<AutoBatchExecutableNetwork::WorkerInferRequest&, int> AutoBatchExecuta
                         }
                         workerRequestPtr->_inferRequestBatched->StartAsync();
                     } else if ((status == std::cv_status::timeout) && sz) {
-                        std::cout << "timeout triggered!!!" << "current size" << sz << std::endl;
                         // timeout to collect the batch is over, have to execute the requests in the batch1 mode
                         std::pair<AutoBatchAsyncInferRequest*, InferenceEngine::Task> t;
                         // popping all tasks collected by the moment of the time-out and execute each with batch1
@@ -950,7 +949,6 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     }
 
     InferenceEngine::SoExecutableNetworkInternal executableNetworkWithBatch;
-    std::cout << "batch size !!!!" << metaDevice.batchForDevice << std::endl;
     if (metaDevice.batchForDevice > 1 && batched_inputs.size()) {
         try {
             CNNNetwork reshaped(InferenceEngine::details::cloneNetwork(network));
