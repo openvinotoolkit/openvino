@@ -3,6 +3,7 @@
 //
 #include "behavior/plugin/auto_batching_tests.hpp"
 #include "behavior/plugin/configuration_tests.hpp"
+#include "openvino/runtime/properties.hpp"
 
 
 const std::vector<size_t> num_streams{ 2 };
@@ -39,5 +40,23 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::Values(std::string(CommonTestUtils::DEVICE_BATCH) + ":" + CommonTestUtils::DEVICE_GPU),
                 ::testing::Values(DefaultParameter{CONFIG_KEY(AUTO_BATCH_TIMEOUT),
                                                    InferenceEngine::Parameter{"1000"}})),
+        DefaultConfigurationTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_AutoBatching_GPU_2_0_string,
+        DefaultConfigurationTest,
+        ::testing::Combine(
+                ::testing::Values(std::string(CommonTestUtils::DEVICE_BATCH) + ":" + CommonTestUtils::DEVICE_GPU),
+                ::testing::Values(DefaultParameter{ov::auto_batch_timeout.name(),
+                                                   InferenceEngine::Parameter{"1000"}})),
+        DefaultConfigurationTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_AutoBatching_GPU_2_0_uint,
+        DefaultConfigurationTest,
+        ::testing::Combine(
+                ::testing::Values(std::string(CommonTestUtils::DEVICE_BATCH) + ":" + CommonTestUtils::DEVICE_GPU),
+                ::testing::Values(DefaultParameter{ov::auto_batch_timeout.name(),
+                                                   InferenceEngine::Parameter{1000}})),
         DefaultConfigurationTest::getTestCaseName);
 }  // namespace AutoBatchingTests
