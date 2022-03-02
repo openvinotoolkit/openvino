@@ -95,7 +95,7 @@ Inference Engine API fills inputs as `I32` precision (**not** aligned with the o
 
 @endsphinxdirective
 
-OpenVINO™ Runtime API 2.0 fills inputs as `I64` precision (aligned with the original model)::
+OpenVINO™ Runtime API 2.0 fills inputs as `I64` precision (aligned with the original model):
 
 @sphinxdirective
 
