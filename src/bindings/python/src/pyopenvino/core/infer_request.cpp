@@ -516,6 +516,7 @@ void regclass_InferRequest(py::module m) {
         [](InferRequestWrapper& self) {
             return self._request.get_profiling_info();
         },
+        py::call_guard<py::gil_scoped_release>(),
         R"(
             Queries performance is measured per layer to get feedback on what
             is the most time-consuming operation, not all plugins provide
@@ -530,6 +531,7 @@ void regclass_InferRequest(py::module m) {
         [](InferRequestWrapper& self) {
             return self._request.query_state();
         },
+        py::call_guard<py::gil_scoped_release>(),
         R"(
             Gets state control interface for given infer request.
 
@@ -619,6 +621,7 @@ void regclass_InferRequest(py::module m) {
         [](InferRequestWrapper& self) {
             return self._request.get_profiling_info();
         },
+        py::call_guard<py::gil_scoped_release>(),
         R"(
             Performance is measured per layer to get feedback on the most time-consuming operation.
             Not all plugins provide meaningful data!
