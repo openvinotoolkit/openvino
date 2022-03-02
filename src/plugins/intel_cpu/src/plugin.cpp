@@ -631,7 +631,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
                                    engConfig.perfHintsConfig.ovPerfHintNumRequests);
         }
         config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(num_streams);
-        config[ov::num_streams.name()] = ov::util::to_string(ov::streams::NUMA);
+        config[ov::num_streams.name()] = ov::util::to_string(num_streams);
     }
 }
 
