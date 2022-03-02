@@ -68,7 +68,7 @@ The property returns information in the following format:
    [time]LOG_LEVEL[file] [PLUGIN]: message
 @endsphinxdirective
 
-in which the “LOG_LEVEL” is represented by the first letter of its name (ERROR being an exception and using its full name). For example:
+in which the `LOG_LEVEL` is represented by the first letter of its name (ERROR being an exception and using its full name). For example:
 
 @sphinxdirective
 .. code-block:: sh
