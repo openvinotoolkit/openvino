@@ -18,6 +18,7 @@
    openvino_docs_IE_DG_supported_plugins_AUTO
    openvino_docs_OV_UG_Running_on_multiple_devices
    openvino_docs_OV_UG_Hetero_execution
+   openvino_docs_OV_UG_Automatic_Batching
    openvino_docs_IE_DG_network_state_intro
    openvino_2_0_transition_guide
    openvino_docs_OV_Should_be_in_performance
