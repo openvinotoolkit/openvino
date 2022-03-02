@@ -50,7 +50,6 @@ jobs:
     BUILD_SAMPLES_DIR: $(WORK_DIR)/build_samples
     BUILD_LAYER_TESTS_DIR: $(WORK_DIR)/build_layer_tests
     BUILD_SAMPLES_TESTS_DIR: $(WORK_DIR)/build_samples_tests
-    BUILD_LIB_DIR: $(REPO_DIR)/bin/intel64/$(BUILD_TYPE)/lib
     INSTALL_DIR: $(WORK_DIR)/install_pkg
     INSTALL_TEST_DIR: $(INSTALL_DIR)/tests
     LAYER_TESTS_DIR: $(INSTALL_TEST_DIR)/layer_tests
@@ -245,14 +244,12 @@ jobs:
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
-      export BUILD_LIB_DIR=$(BUILD_LIB_DIR)
       . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_TEST_DIR)/pyopenvino $(PYTHON_STATIC_ARGS) --junitxml=TEST-Pyngraph.xml --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_zoo_models.py --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_backend.py
     displayName: 'Python API 2.0 Tests'
     continueOnError: false
 
   - script: |
       export MO_ROOT=$(INSTALL_DIR)/tools/mo
-      export BUILD_LIB_DIR=$(BUILD_LIB_DIR)
       . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_DIR)/tests/mo/unit_tests --junitxml=TEST-ModelOptimizer.xml
     displayName: 'Model Optimizer UT'
     continueOnError: false

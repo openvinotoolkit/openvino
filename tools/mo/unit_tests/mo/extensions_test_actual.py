@@ -10,13 +10,18 @@ import os
 from os import path
 import json
 import argparse
+from pathlib import Path
+from itertools import chain
 from openvino.tools.mo.main import prepare_ir
-from openvino.frontend import FrontEndManager # pylint: disable=no-name-in-module,import-error
+from openvino.frontend import (
+    FrontEndManager,
+)  # pylint: disable=no-name-in-module,import-error
 
 try:
     import openvino_telemetry as tm
 except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
+
 
 def base_args_config():
     args = argparse.Namespace()
@@ -24,20 +29,20 @@ def base_args_config():
     args.extensions = None
     args.use_legacy_frontend = False
     args.use_new_frontend = True
-    args.framework = 'onnx'
+    args.framework = "onnx"
     args.model_name = None
     args.input_model = None
     args.silent = True
-    args.transform=[]
+    args.transform = []
     args.legacy_ir_generation = False
     args.scale = None
-    args.output=None
-    args.input=None
-    args.input_shape=None
-    args.batch=None
-    args.mean_values=None
-    args.scale_values=None
-    args.output_dir=os.getcwd()
+    args.output = None
+    args.input = None
+    args.input_shape = None
+    args.batch = None
+    args.mean_values = None
+    args.scale_values = None
+    args.output_dir = os.getcwd()
     args.freeze_placeholder_with_value = None
     args.transformations_config = None
     args.disable_fusing = None
@@ -56,18 +61,13 @@ def base_args_config():
 
 
 def get_builtin_extensions_path():
-    python_frontend_path = ""
-    if "BUILD_LIB_DIR" in os.environ:  # CI scenario
-        python_frontend_path = os.environ["BUILD_LIB_DIR"]
-    else:  # local scenario
-        import openvino.frontend
-        python_frontend_path = openvino.frontend.__path__[0]
-    lib_folder_pos = python_frontend_path.rfind("lib")
-    if lib_folder_pos != -1:
-        lib_folder_path = python_frontend_path[:lib_folder_pos + 3]
-        for file in os.listdir(lib_folder_path):
-            if file == "libtest_builtin_extensions_1.so" or file == "libtest_builtin_extensions_1.dll":
-                return os.path.join(lib_folder_path, file)
+    win_folder_path = Path(__file__).parent.parent.parent.parent
+    linux_folder_path = win_folder_path.joinpath("lib")
+    for lib_path in chain(
+        win_folder_path.glob("*.dll"), linux_folder_path.glob("*.so")
+    ):
+        if "libtest_builtin_extensions_1" in lib_path.name:
+            return str(lib_path)
     return ""
 
 
@@ -85,12 +85,17 @@ class TestMoFallback(unittest.TestCase):
             make_tensor_value_info("out", onnx.TensorProto.FLOAT, (1, 2)),
         ]
         graph = make_graph([relu], "test_graph", input_tensors, output_tensors)
-        model = make_model(graph, producer_name="MO tests",
-                                                opset_imports=[onnx.helper.make_opsetid("", 13)])
+        model = make_model(
+            graph,
+            producer_name="MO tests",
+            opset_imports=[onnx.helper.make_opsetid("", 13)],
+        )
         self.models["test_model.onnx"] = model
 
         self.test_config_files = {}
-        self.test_config_files['test_config.json'] = """[
+        self.test_config_files[
+            "test_config.json"
+        ] = """[
             {
             "custom_attributes": {
             "test_attribute": true
@@ -99,7 +104,9 @@ class TestMoFallback(unittest.TestCase):
             "library": "library_path",
             "match_kind": "scope"
             }
-        ]""".replace("library_path", get_builtin_extensions_path())
+        ]""".replace(
+            "library_path", get_builtin_extensions_path()
+        )
 
         for name, model in self.models.items():
             onnx.save(model, name)
@@ -113,8 +120,10 @@ class TestMoFallback(unittest.TestCase):
         for name in self.test_config_files.keys():
             os.remove(name)
 
-
-    @pytest.mark.skipif(len(get_builtin_extensions_path()) == 0, reason="The extension library path was not found")
+    @pytest.mark.skipif(
+        len(get_builtin_extensions_path()) == 0,
+        reason="The extension library path was not found",
+    )
     def test_conersion_if_extensions_is_used(self):
         args = base_args_config()
         args.input_model = "test_model.onnx"
@@ -125,8 +134,10 @@ class TestMoFallback(unittest.TestCase):
         assert any(op.get_type_name() == "Swish" for op in model.get_ops())
         assert all(op.get_type_name() != "Relu" for op in model.get_ops())
 
-
-    @pytest.mark.skipif(len(get_builtin_extensions_path()) == 0, reason="The extension library path was not found")
+    @pytest.mark.skipif(
+        len(get_builtin_extensions_path()) == 0,
+        reason="The extension library path was not found",
+    )
     def test_conersion_if_transformations_config_is_used(self):
         args = base_args_config()
         args.input_model = "test_model.onnx"
