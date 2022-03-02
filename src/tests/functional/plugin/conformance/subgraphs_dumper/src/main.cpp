@@ -15,8 +15,13 @@
 #include "op_cloner.hpp"
 #include "utils/model_wrap_struct.hpp"
 #include "gflag_config.hpp"
-#include <stdlib.h>
 #include <string.h>
+
+const static std::vector<std::regex> getRegexByFrontend() {
+    std::vector<std::regex> result;
+
+    return result;
+}
 
 std::vector<SubgraphsDumper::Model> findModelsInDirs(const std::vector<std::string> &dirs) {
     std::vector<std::string> input_folder_content;

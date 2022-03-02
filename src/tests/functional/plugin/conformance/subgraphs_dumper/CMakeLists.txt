@@ -11,6 +11,18 @@ list(APPEND DEPENDENCIES
         pugixml::static
 )
 
+if(TARGET openvino_ir_frontend)
+    list(APPEND DEPENDENCIES openvino_ir_frontend)
+endif()
+
+if(TARGET openvino_onnx_frontend)
+    list(APPEND DEPENDENCIES openvino_onnx_frontend)
+endif()
+
+if(TARGET openvino_paddle_frontend)
+    list(APPEND DEPENDENCIES openvino_paddle_frontend)
+endif()
+
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -23,9 +35,5 @@ addIeTargetTest(
             ${DEPENDENCIES}
         ADD_CPPLINT
 )
-
-if(TARGET openvino_ir_frontend)
-    add_dependencies(${TARGET_NAME} openvino_ir_frontend)
-endif()
 
 ie_faster_build(${TARGET_NAME} UNITY)
