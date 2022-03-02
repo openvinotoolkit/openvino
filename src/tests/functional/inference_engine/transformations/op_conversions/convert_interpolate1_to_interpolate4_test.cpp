@@ -56,6 +56,7 @@ TEST_F(TransformationTestsF, ConvertInterpolate1ToInterpolate4) {
 
         function_ref = std::make_shared<Function>(NodeVector{interpolate4}, ParameterVector{data_node});
     }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 TEST_F(TransformationTestsF, ConvertInterpolate1ToInterpolate4_1) {
@@ -93,4 +94,28 @@ TEST_F(TransformationTestsF, ConvertInterpolate1ToInterpolate4_1) {
 
         function_ref = std::make_shared<Function>(NodeVector{interpolate4}, ParameterVector{data_node});
     }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+TEST(TransformationTests, DynamiShapeInterpolate1To4) {
+    auto data_node = std::make_shared<opset1::Parameter>(element::f32, PartialShape{-1, 5, {1, 10}, -1});
+    auto out_shape_node = std::make_shared<opset1::Parameter>(element::i32, Shape{2});
+
+    auto interpolate1_attr = op::v0::InterpolateAttrs();
+    interpolate1_attr.axes = AxisSet(std::vector<size_t>{2, 3});
+    interpolate1_attr.mode = "linear";
+    interpolate1_attr.align_corners = false;
+    interpolate1_attr.antialias = true;
+    interpolate1_attr.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    interpolate1_attr.pads_end = std::vector<size_t>{0, 0, 0, 0};
+
+    auto interpolate1 = std::make_shared<opset1::Interpolate>(data_node, out_shape_node, interpolate1_attr);
+    auto f = std::make_shared<Function>(NodeVector{interpolate1}, ParameterVector{data_node, out_shape_node});
+
+    auto manager = ov::pass::Manager();
+    manager.register_pass<pass::InitNodeInfo>();
+    manager.register_pass<pass::ConvertInterpolate1ToInterpolate4>();
+    manager.run_passes(f);
+
+    ASSERT_TRUE(ngraph::op::util::has_op_with_type<opset4::Interpolate>(f));
 }
