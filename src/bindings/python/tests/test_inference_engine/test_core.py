@@ -317,9 +317,6 @@ def test_add_extension_template_extension(device):
     model.reshape(new_shapes)
     assert model.input().partial_shape == after_reshape
 
-    # CVS-74584
-    del model
-
 
 def test_add_extension():
     class EmptyExtension(Extension):

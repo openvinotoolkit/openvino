@@ -192,6 +192,7 @@ void regclass_Core(py::module m) {
             ov::Tensor tensor(ov::element::Type_t::u8, {});
             return self.read_model(model, tensor);
         },
+        py::keep_alive<0, 1>(),
         py::arg("model"),
         py::arg("weights") = py::bytes(),
         R"(
@@ -210,6 +211,7 @@ void regclass_Core(py::module m) {
         (std::shared_ptr<ov::Model>(ov::Core::*)(const std::string&, const std::string&) const) & ov::Core::read_model,
         py::arg("model"),
         py::arg("weights") = "",
+        py::keep_alive<0, 1>(),
         R"(
             Reads models from IR / ONNX / PDPD formats.
 
@@ -228,6 +230,7 @@ void regclass_Core(py::module m) {
     cls.def(
         "read_model",
         (std::shared_ptr<ov::Model>(ov::Core::*)(const std::string&, const ov::Tensor&) const) & ov::Core::read_model,
+        py::keep_alive<0, 1>(),
         py::arg("model"),
         py::arg("weights"),
         R"(
@@ -247,6 +250,7 @@ void regclass_Core(py::module m) {
         [](ov::Core& self, py::object model, py::object weights) {
             return self.read_model(py::str(model), py::str(weights));
         },
+        py::keep_alive<0, 1>(),
         py::arg("model"),
         py::arg("weights") = "",
         R"(
