@@ -117,6 +117,7 @@ bool SupportsFusingWithConvolution_Simple(const std::shared_ptr<const Node> &nod
            ov::is_type<ngraph::op::v7::Gelu>(node) ||
            ov::is_type<ngraph::op::Abs>(node) ||
            ov::is_type<ngraph::op::Sqrt>(node) ||
+           ov::is_type<ngraph::op::FakeQuantize>(node) ||
            canBePerformedAsScaleShift(node, channelAxis);
 }
 // Convolution is a special case, since it supports peculiar fusings
@@ -146,7 +147,9 @@ bool isSuitableMiscParent(const std::shared_ptr<const Node> &node) {
                                   ov::is_type<ngraph::opset1::ConvolutionBackpropData>(node) ||
                                   ov::is_type<ngraph::op::util::ArithmeticReductionKeepDims>(node) ||
                                   ov::is_type<ngraph::op::util::LogicalReductionKeepDims>(node) ||
-                                  ov::is_type<ngraph::opset1::GroupConvolutionBackpropData>(node);
+                                  ov::is_type<ngraph::opset1::GroupConvolutionBackpropData>(node) ||
+                                  ov::is_type<ngraph::opset1::AvgPool>(node) ||
+                                  ov::is_type<ngraph::op::v4::Swish>(node);
     // has a single output, connected to a single child
     const auto out = node->outputs();
     const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
@@ -303,52 +306,50 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
     for (auto &node : m->get_ordered_ops()) {
         if (ngraph::op::is_constant(node))
             continue;
+
         if (ngraph::op::is_parameter(node)) {
             SetNodeFusingType(node, NodeFusingType::IgnoredAfterInputs);
-            continue;
         } else if (isSuitableConvolutionParent(node)) {
             // Initiate fusing chain
             SetNodeFusingType(node, NodeFusingType::FusedWithConvolution);
-            continue;
         } else if (isSuitableBinaryConvolutionParent(node)) {
             SetNodeFusingType(node, NodeFusingType::FusedWithBinaryConvolution);
-            continue;
         } else if (isSuitableMiscParent(node)) {
             SetNodeFusingType(node, NodeFusingType::FusedWithMisc);
-            continue;
         } else if (isSuitableMatMulParent(node)) {
             SetNodeFusingType(node, NodeFusingType::FusedWithMatMul);
-            continue;
-        }
-        for (const auto fusingChainType : getContinuableChains(node)) {
-            if (isSuitableChildForFusingSimple(node)) {
-                PropagateIfHasOnlyChild(node, fusingChainType);
-            } else if (fusingChainType == NodeFusingType::FusedWithConvolution ||
-                       fusingChainType == NodeFusingType::FusedWithBinaryConvolution) {
-                if (isSuitableParentForFusingSumActivation(node)) {
-                    PropagateIfHasOnlyChild(node, NodeFusingType::FusedWithConvolutionSumActivation);
-                    // Mimic FuseConvolutionAndSimpleOperationThroughMaxPool
-                } else if (isSuitablePoolChild(node)) {
+        } else {
+            for (const auto fusingChainType : getContinuableChains(node)) {
+                if (isSuitableChildForFusingSimple(node)) {
                     PropagateIfHasOnlyChild(node, fusingChainType);
+                } else if (fusingChainType == NodeFusingType::FusedWithConvolution ||
+                           fusingChainType == NodeFusingType::FusedWithBinaryConvolution) {
+                    if (isSuitableParentForFusingSumActivation(node)) {
+                        PropagateIfHasOnlyChild(node, NodeFusingType::FusedWithConvolutionSumActivation);
+                        // Mimic FuseConvolutionAndSimpleOperationThroughMaxPool
+                    } else if (isSuitablePoolChild(node)) {
+                        PropagateIfHasOnlyChild(node, fusingChainType);
+                    }
+                } else if (fusingChainType == NodeFusingType::FusedWithConvolutionSumActivation &&
+                           isSuitableChildForFusingSumActivation(node)) {
+                    // Todo: Chain could be converted from FusedWithBinaryConvolution to FusedWithConvolution at this point
+                    // Set FusedWithConvolution, so the fusing chain could be propagated
+                    PropagateIfHasOnlyChild(node, NodeFusingType::FusedWithConvolution);
+                } else if (fusingChainType == NodeFusingType::FusedWithMatMul) {
+                    // Handle fusings for both MatMul and FullyConnected
+                    NodeFusingType updatedChainType = fusingChainType;
+                    if (isSuitableChildForFusingMatMul(node, updatedChainType))
+                        PropagateIfHasOnlyChild(node, updatedChainType);
+                } else if (fusingChainType == NodeFusingType::IgnoredAfterInputs && (snippets::pass::AppropriateForSubgraph(node) ||
+                            ov::is_type<ngraph::op::v0::Convert>(node) || ov::is_type<ngraph::op::v1::Transpose>(node))) {
+                    // In OV_API 2.0 after Input node with I8/U8 precisions incerts Convert node, moreother on TF models inserts
+                    // Transpose layer. These brakes an idea to leave Eltwise node with I8/U8 inputs and FP32 outputs instead of Subgrath node
+                    // TODO Remove an additional check on Convert/Transpose here after enabling Subgraths with I8/U8 inputs and FP32 outputs
+                    SetNodeFusingType(node, NodeFusingType::IgnoredAfterInputs);
                 }
-            } else if (fusingChainType == NodeFusingType::FusedWithConvolutionSumActivation &&
-                       isSuitableChildForFusingSumActivation(node)) {
-                // Todo: Chain could be converted from FusedWithBinaryConvolution to FusedWithConvolution at this point
-                // Set FusedWithConvolution, so the fusing chain could be propagated
-                PropagateIfHasOnlyChild(node, NodeFusingType::FusedWithConvolution);
-            } else if (fusingChainType == NodeFusingType::FusedWithMatMul) {
-                // Handle fusings for both MatMul and FullyConnected
-                NodeFusingType updatedChainType = fusingChainType;
-                if (isSuitableChildForFusingMatMul(node, updatedChainType))
-                    PropagateIfHasOnlyChild(node, updatedChainType);
-            } else if (fusingChainType == NodeFusingType::IgnoredAfterInputs && (snippets::pass::AppropriateForSubgraph(node) ||
-                        ov::is_type<ngraph::op::v0::Convert>(node) || ov::is_type<ngraph::op::v1::Transpose>(node))) {
-                // In OV_API 2.0 after Input node with I8/U8 precisions incerts Convert node, moreother on TF models inserts
-                // Transpose layer. These brakes an idea to leave Eltwise node with I8/U8 inputs and FP32 outputs instead of Subgrath node
-                // TODO Remove an additional check on Convert/Transpose here after enabling Subgraths with I8/U8 inputs and FP32 outputs
-                SetNodeFusingType(node, NodeFusingType::IgnoredAfterInputs);
             }
         }
+
         if (GetNodeFusingType(node) != NodeFusingType::NotSet) {
             SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
         } else {

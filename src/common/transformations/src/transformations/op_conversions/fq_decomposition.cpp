@@ -33,16 +33,27 @@ bool isValidRangesInputs(const std::shared_ptr<ngraph::opset1::FakeQuantize>& fq
     });
 }
 
+bool is_scalar_constant(const std::shared_ptr<ngraph::Node>& source_output_node) {
+    return ngraph::is_type<ngraph::opset1::Constant>(source_output_node) &&
+           ngraph::shape_size(source_output_node->get_shape()) == 1;
+};
+
 }  // namespace
 
-ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
+ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition(const bool constant_weights) {
     MATCHER_SCOPE(FakeQuantizeDecomposition);
-    auto data = ngraph::pattern::any_input();
-    auto il = ngraph::pattern::wrap_type<opset1::Constant>();
-    auto ih = ngraph::pattern::wrap_type<opset1::Constant>();
-    auto ol = ngraph::pattern::wrap_type<opset1::Constant>();
-    auto oh = ngraph::pattern::wrap_type<opset1::Constant>();
-    auto fake_quantize = ngraph::pattern::wrap_type<ngraph::opset1::FakeQuantize>({data, il, ih, ol, oh});
+
+    auto fake_quantize = ngraph::pattern::wrap_type<ngraph::opset1::FakeQuantize>(
+        constant_weights ? OutputVector{ngraph::pattern::any_input(),
+                                        ngraph::pattern::wrap_type<opset1::Constant>(),
+                                        ngraph::pattern::wrap_type<opset1::Constant>(),
+                                        ngraph::pattern::wrap_type<opset1::Constant>(),
+                                        ngraph::pattern::wrap_type<opset1::Constant>()}
+                         : OutputVector{ngraph::pattern::any_input(),
+                                        ngraph::pattern::any_input(),
+                                        ngraph::pattern::any_input(),
+                                        ngraph::pattern::any_input(),
+                                        ngraph::pattern::any_input()});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
@@ -50,7 +61,7 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
             pattern_to_output.at(fake_quantize).get_node_shared_ptr());
 
         if (fake_quantize_node == nullptr || transformation_callback(fake_quantize_node) ||
-            !isValidRangesInputs(fake_quantize_node)) {
+            (constant_weights && !isValidRangesInputs(fake_quantize_node))) {
             return false;
         }
 
@@ -130,4 +141,11 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(fake_quantize, matcher_name);
     register_matcher(m, callback);
+}
+
+bool ngraph::pass::FakeQuantizeDecomposition::isAllScalarConstant(const std::shared_ptr<const ngraph::Node>& node) {
+    return is_scalar_constant(node->get_input_node_shared_ptr(1)) &&
+           is_scalar_constant(node->get_input_node_shared_ptr(2)) &&
+           is_scalar_constant(node->get_input_node_shared_ptr(3)) &&
+           is_scalar_constant(node->get_input_node_shared_ptr(4));
 }

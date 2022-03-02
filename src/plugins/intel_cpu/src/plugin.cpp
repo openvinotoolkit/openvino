@@ -82,6 +82,8 @@
 #include <transformations/op_conversions/fq_decomposition.hpp>
 #include <transformations/utils/utils.hpp>
 #include <snippets/pass/collapse_subgraph.hpp>
+#include <snippets/pass/common_optimizations.hpp>
+#include <snippets/pass/constant_folding.hpp>
 #include "ngraph_transformations/snippets_mark_skipped.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
@@ -498,20 +500,12 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     }
 
     ngraph::pass::Manager postLPTPassManager;
-    postLPTPassManager.register_pass<ngraph::pass::FakeQuantizeDecomposition>();
     postLPTPassManager.register_pass<ngraph::pass::UnrollTensorIterator>();
     postLPTPassManager.register_pass<ReshapePRelu>();
-
-    postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::FakeQuantizeDecomposition>([](const_node_ptr &node) -> bool {
-        std::string errMsg;
-        return node::FakeQuantize::isSupportedOperation(node, errMsg);
-    });
     postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::UnrollTensorIterator>([](const_node_ptr &node) -> bool {
         // UnrollTI transformation is disabled by default, is turned on by LowLatency transformation
         return node->get_rt_info().count("UNROLL_TI") == 0;
     });
-
-
     postLPTPassManager.register_pass<MoveEltwiseUpThroughDataMov>();
     postLPTPassManager.get_pass_config()->set_callback<MoveEltwiseUpThroughDataMov>([](const std::shared_ptr<const ngraph::Node>& node) -> bool {
         if (node->get_input_size() >= 2) {
@@ -523,13 +517,17 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     postLPTPassManager.register_pass<ngraph::pass::ConstantFolding>();
     postLPTPassManager.run_passes(nGraphFunc);
 
-    if (!useLpt && _enableSnippets && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
+    if (_enableSnippets && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
         ngraph::pass::Manager tokenization_manager;
         tokenization_manager.register_pass<SnippetsMarkSkipped>();
         tokenization_manager.register_pass<ngraph::snippets::pass::EnumerateNodes>();
         tokenization_manager.register_pass<ngraph::snippets::pass::TokenizeSnippets>();
         tokenization_manager.get_pass_config()->set_callback<ngraph::snippets::pass::TokenizeSnippets>(
                 [](const std::shared_ptr<const ov::Node>& n) -> bool {
+                    if (ngraph::is_type<ngraph::opset1::FakeQuantize>(n) && !ngraph::pass::FakeQuantizeDecomposition::isAllScalarConstant(n)) {
+                        return true;
+                    }
+
                     const auto& inputs = n->inputs();
                     // todo: clarify whether we can evaluate snippets on const paths
                     const bool has_only_const_inputs = std::all_of(inputs.begin(), inputs.end(),
@@ -548,8 +546,19 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                                                              [&](const ov::Output<const ov::Node>& out) {return  rank_is_too_large(out.get_tensor());});
                     return has_only_const_inputs || bad_input_rank || bad_output_rank;
                 });
+        tokenization_manager.register_pass<ngraph::snippets::pass::CommonOptimizations>();
+        tokenization_manager.register_pass<ngraph::snippets::pass::ConstantFolding>();
         tokenization_manager.run_passes(nGraphFunc);
     }
+
+    ngraph::pass::Manager fqDecompositionManager;
+    fqDecompositionManager.register_pass<ngraph::pass::FakeQuantizeDecomposition>();
+    fqDecompositionManager.get_pass_config()->set_callback<ngraph::pass::FakeQuantizeDecomposition>([](const_node_ptr& node) -> bool {
+            std::string errMsg;
+            return node::FakeQuantize::isSupportedOperation(node, errMsg);
+        });
+    fqDecompositionManager.register_pass<ngraph::pass::ConstantFolding>();
+    fqDecompositionManager.run_passes(nGraphFunc);
 }
 
 static void Transformation(CNNNetwork& clonedNetwork, const bool _enableLPT, const bool _enableSnippets, const bool isLegacyApi) {

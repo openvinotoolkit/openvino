@@ -17,9 +17,9 @@ namespace pass {
  * Only single-value (0D) constants are currently supported.
  * @ingroup snippets
  */
-class ConvertConstantsToScalars: public ngraph::pass::MatcherPass {
+class ConvertConstants: public ngraph::pass::FunctionPass {
 public:
-    ConvertConstantsToScalars();
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
 } // namespace pass
