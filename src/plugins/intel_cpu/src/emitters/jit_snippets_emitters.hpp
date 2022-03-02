@@ -6,8 +6,12 @@
 
 #include <ngraph/rt_info.hpp>
 #include <ngraph/variant.hpp>
+#include <ie_ngraph_utils.hpp>
 
 #include "jit_emitter.hpp"
+#include "jit_load_store_emitters.hpp"
+
+#include "snippets_transformations/op/store_convert.hpp"
 
 using namespace Xbyak;
 using ngraph::snippets::AllocatedEmitter;
@@ -163,6 +167,7 @@ private:
     size_t num_inputs = 0;
     size_t num_outputs = 0;
     std::vector<size_t> io_dims {};
+    std::vector<size_t> io_data_size {};
     size_t increment = 0;
 };
 
@@ -183,9 +188,9 @@ private:
     }
 };
 
-class FakeBroadcastEmitter : public jit_emitter {
+class BroadcastMoveEmitter : public jit_emitter {
 public:
-    FakeBroadcastEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
+    BroadcastMoveEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override {return 1;}
 
@@ -201,6 +206,7 @@ private:
 
 private:
     bool use_broadcast;
+    size_t byte_size = 0lu;
 };
 
 class ScalarEmitter : public jit_emitter {
@@ -238,32 +244,15 @@ private:
 class MemoryEmitter : public jit_emitter  {
 public:
     MemoryEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
-    size_t get_inputs_num() const override {return 1;}
 
 protected:
-//    static size_t getEA(const std::shared_ptr<ov::Node>& n);
-//    size_t ea;
+    Precision src_prc;
+    Precision dst_prc;
 };
 
 class StoreEmitter : public MemoryEmitter  {
 public:
     StoreEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
-    size_t get_inputs_num() const override {return 1;}
-
-private:
-    void emit_impl(const std::vector<size_t>& in,
-              const std::vector<size_t>& out,
-              const std::vector<size_t>& pool,
-              const std::vector<size_t>& gpr,
-              const ov::intel_cpu::emitter_context *emit_context) const override;
-
-    template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
-};
-
-class ScalarStoreEmitter : public MemoryEmitter {
-public:
-    ScalarStoreEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override {return 1;}
 
@@ -276,6 +265,11 @@ private:
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
+    void emit_data() const override;
+
+private:
+    size_t count;
+    std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
 };
 
 class LoadEmitter : public MemoryEmitter {
@@ -293,11 +287,17 @@ private:
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
+    void emit_data() const override;
+
+private:
+    size_t count;
+    std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
 };
 
 class BroadcastLoadEmitter : public MemoryEmitter {
 public:
     BroadcastLoadEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
+
     size_t get_inputs_num() const override {return 0;}
 
 private:
@@ -311,21 +311,49 @@ private:
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
 };
 
-class ScalarLoadEmitter : public MemoryEmitter {
+class LoadConvertEmitter : public MemoryEmitter {
 public:
-    ScalarLoadEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
+    LoadConvertEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override {return 0;}
 
 private:
     void emit_impl(const std::vector<size_t>& in,
-              const std::vector<size_t>& out,
-              const std::vector<size_t>& pool,
-              const std::vector<size_t>& gpr,
-              const ov::intel_cpu::emitter_context *emit_context) const override;
+                   const std::vector<size_t>& out,
+                   const std::vector<size_t>& pool,
+                   const std::vector<size_t>& gpr,
+                   const ov::intel_cpu::emitter_context *emit_context) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
+    void emit_data() const override;
+
+private:
+    size_t count;
+    std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
 };
+
+class StoreConvertEmitter : public MemoryEmitter {
+public:
+    StoreConvertEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
+
+    size_t get_inputs_num() const override {return 1;}
+
+private:
+    void emit_impl(const std::vector<size_t>& in,
+                   const std::vector<size_t>& out,
+                   const std::vector<size_t>& pool,
+                   const std::vector<size_t>& gpr,
+                   const ov::intel_cpu::emitter_context *emit_context) const override;
+
+    template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
+    void emit_data() const override;
+
+private:
+    size_t count;
+    std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
+};
+
 }   // namespace intel_cpu
 }   // namespace ov

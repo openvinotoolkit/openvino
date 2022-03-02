@@ -90,12 +90,12 @@ public:
 
 
     snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes,
-                                ngraph::pass::Manager& opt, const void* compile_params = nullptr);
+                                ngraph::pass::Manager& opt, const ov::element::Type exec_type = ngraph::element::f32, const void* compile_params = nullptr);
     snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes,
-                                const void* compile_params = nullptr);
+                                const ov::element::Type exec_type = ngraph::element::f32, const void* compile_params = nullptr);
     snippets::Schedule generate(ngraph::pass::Manager &opt, const void* compile_params = nullptr);
     snippets::Schedule generate(const void* compile_params = nullptr);
-    Shape canonicalize(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes);
+    Shape canonicalize(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes, const ov::element::Type exec_type);
 
     // plugin sets generator for a snippet to some specific generator.
     // it's going to be replaced with Jitters table later
@@ -107,8 +107,11 @@ public:
     void serialize() const;
 
     static auto wrap_node_as_subgraph(const std::shared_ptr<ngraph::Node>& node) -> std::shared_ptr<Subgraph>;
+    static void fill_empty_output_names(const Output<Node>& target_output_node, const Output<Node>& replacement_output_node);
 
 private:
+    void align_precision(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes,
+                         const ov::element::Type exec_type);
     void convert_to_snippet_dialect();
     Shape exec_domain;
     std::shared_ptr<ov::Model> m_body;

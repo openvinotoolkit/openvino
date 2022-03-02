@@ -29,12 +29,13 @@ public:
     DummyTargetMachine();
     bool is_supported() const override { return true; }
     ngraph::snippets::code get_snippet() const override { return nullptr; }
-    size_t get_lanes() const override { return 1; }
+    size_t get_lanes() const override { return 10; }
 };
 
 class DummyGenerator : public ngraph::snippets::Generator {
 public:
     DummyGenerator() : ngraph::snippets::Generator(std::make_shared<DummyTargetMachine>()) {}
+    element::Type get_supported_exec_precision() const override { return ov::element::f32; }
 };
 
 class LoweringTests : public TransformationTestsF {
