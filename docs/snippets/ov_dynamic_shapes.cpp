@@ -5,30 +5,60 @@
 #include <openvino/runtime/runtime.hpp>
 
 void reshape_with_dynamics() {
-
+{
 //! [ov_dynamic_shapes:reshape_undefined]
 ov::Core core;
 auto model = core.read_model("model.xml");
 
 // Set one static dimension (= 1) and another dynamic dimension (= Dimension())
-model->reshape({{1, ov::Dimension()}});
+model->reshape({{1, ov::Dimension()}});  // {1,?}
 
 // The same as above
-model->reshape({{1, -1}});
+model->reshape({{1, -1}}); // {1,?}
 
 // Or set both dimensions as dynamic if both are going to be changed dynamically
-model->reshape({{ov::Dimension(), ov::Dimension()}});
+model->reshape({{ov::Dimension(), ov::Dimension()}});  // {?,?}
 
 // The same as above
-model->reshape({{-1, -1}});
+model->reshape({{-1, -1}});  // {?,?}
 //! [ov_dynamic_shapes:reshape_undefined]
 //! [ov_dynamic_shapes:reshape_bounds]
 // Both dimensions are dynamic, first may have size within 1..10 and the second is withing 8..512
-model->reshape({{ov::Dimension(1, 10), ov::Dimension(8, 512)}});
+model->reshape({{ov::Dimension(1, 10), ov::Dimension(8, 512)}});  // {1..10,8..512}
 
 // Both dimensions are dynamic, first doesn't have bounds, the second is in 8..512
-model->reshape({{-1, ov::Dimension(8, 512)}});
+model->reshape({{-1, ov::Dimension(8, 512)}});   // {?,8..512}
 //! [ov_dynamic_shapes:reshape_bounds]
+}
+{
+ov::Core core;
+auto model = core.read_model("model.xml");
+//! [ov_dynamic_shapes:print_dynamic]
+// Print output partial shape
+std::cout << model->output().get_partial_shape() << "\n";
+
+// Print input partial shape
+std::cout << model->input().get_partial_shape() << "\n";
+//! [ov_dynamic_shapes:print_dynamic]
+}
+{
+ov::Core core;
+//! [ov_dynamic_shapes:detect_dynamic]
+auto model = core.read_model("model.xml");
+
+if (model->input(0).get_partial_shape().is_dynamic()) {
+    // input is dynamic
+}
+
+if (model->output(0).get_partial_shape().is_dynamic()) {
+    // output is dynamic
+}
+
+if (model->output(0).get_partial_shape()[1].is_dynamic()) {
+    // 1-st dimension of output is dynamic
+}
+//! [ov_dynamic_shapes:detect_dynamic]
+}
 }
 
 void set_tensor() {

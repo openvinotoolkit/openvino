@@ -14,7 +14,7 @@
    openvino_docs_IE_DG_ShapeInference
    openvino_docs_OV_UG_Working_with_devices
    openvino_docs_OV_Runtime_UG_Preprocessing_Overview
-   openvino_docs_IE_DG_DynamicBatching
+   openvino_docs_IE_DG_DynamicShapes
    openvino_docs_IE_DG_supported_plugins_AUTO
    openvino_docs_OV_UG_Running_on_multiple_devices
    openvino_docs_OV_UG_Hetero_execution
