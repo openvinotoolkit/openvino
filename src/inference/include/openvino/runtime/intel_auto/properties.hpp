@@ -51,8 +51,7 @@ inline std::istream& operator>>(std::istream& is, AutoCpuUsage& autoCpuUsage) {
         autoCpuUsage = AutoCpuUsage::ACCERLATE_FIL_ONE_FRAM;
     } else if (str == "AUTO_CPU_FULL_STRENGTH") {
         autoCpuUsage = AutoCpuUsage::FULL_STRENGTH;
-    } 
-    else {
+    } else {
         throw ov::Exception{"Unsupported AutoCpuUsage: " + str};
     }
     return is;
