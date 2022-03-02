@@ -43,5 +43,7 @@ class TRANSFORMATIONS_API FakeQuantizeDecomposition;
 class ngraph::pass::FakeQuantizeDecomposition: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    FakeQuantizeDecomposition();
+    FakeQuantizeDecomposition(const bool constant_weights = true);
+
+    static bool isAnyScalarConstant(const std::shared_ptr<const ngraph::Node>& node);
 };
