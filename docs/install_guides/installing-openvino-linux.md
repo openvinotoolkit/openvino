@@ -131,7 +131,7 @@ If you have more than one OpenVINO™ version on your machine, you can easily sw
 
 The environment variables are set. Next, you can download some additional tools.
 
-## <a name="model-optimizer">Step 4 (Optional): Download additional components
+## <a name="model-optimizer">Step 4 (Optional): Download Additional Components
 
 > **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. The OpenVINO™ Development Tools can only be installed via PyPI now. See [Install OpenVINO™ Development Tools](installing-model-dev-tools.md) for detailed steps.
 
@@ -148,7 +148,7 @@ The environment variables are set. Next, you can download some additional tools.
 
 @endsphinxdirective
 
-## <a name="optional-steps"></a>Step 5 (Optional): Configure Inference on non-CPU Devices
+## <a name="optional-steps"></a>Step 5 (Optional): Configure Inference on Non-CPU Devices
 
 @sphinxdirective
 .. tab:: GPU
@@ -170,7 +170,7 @@ The environment variables are set. Next, you can download some additional tools.
 
 @endsphinxdirective
 
-## <a name="get-started"></a>Step 6: What's next?
+## <a name="get-started"></a>Step 6: What's Next?
 
 Now you are ready to try out the toolkit.
 
