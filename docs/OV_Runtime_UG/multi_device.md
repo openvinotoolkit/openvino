@@ -44,7 +44,7 @@ Notice that the priorities of the devices can be changed in real time for the ex
 Finally, there is a way to specify number of requests that the Multi-Device will internally keep for each device. Suppose your original app was running 4 cameras with 4 inference requests. You would probably want to share these 4 requests between 2 devices used in MULTI. The easiest way is to specify a number of requests for each device using parentheses: "MULTI:CPU(2),GPU(2)" and use the same 4 requests in your app. However, such an explicit configuration is not performance-portable and hence not recommended. Instead, the better way is to configure the individual devices and query the resulting number of requests to be used at the application level (see [Configuring the Individual Devices and Creating the Multi-Device On Top](#configuring-the-individual-devices-and-creating-the-multi-device-on-top)).
 
 ### Enumerating Available Devices
-The Inference Engine features a dedicated API to enumerate devices and their capabilities. See the [Hello Query Device C++ Sample](../../samples/cpp/hello_query_device/README.md). This is example output from the sample (truncated to device names only):
+The OpenVINO Runtime API features a dedicated methods to enumerate devices and their capabilities. See the [Hello Query Device C++ Sample](../../samples/cpp/hello_query_device/README.md). This is example output from the sample (truncated to device names only):
 
 ```sh
   ./hello_query_device
@@ -182,7 +182,7 @@ You can set the configuration directly as a string, or use the metric key `MULTI
 
 
 ### Enumerating Available Devices
-The Inference Engine features a dedicated API to enumerate devices and their capabilities. See the [Hello Query Device Python Sample](../../samples/python/hello_query_device/README.md). This is example output from the sample (truncated to device names only):
+The OpenVINO Runtime API features a dedicated methods to enumerate devices and their capabilities. See the [Hello Query Device Python Sample](../../samples/python/hello_query_device/README.md). This is example output from the sample (truncated to device names only):
 
 ```sh
   ./hello_query_device
