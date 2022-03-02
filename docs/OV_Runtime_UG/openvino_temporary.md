@@ -13,7 +13,6 @@
    openvino_docs_IE_DG_Int8Inference
    openvino_docs_IE_DG_Bfloat16Inference
    openvino_docs_OV_UG_NoDynamicShapes
-   openvino_docs_IE_DG_DynamicBatching
 
 @endsphinxdirective
 
