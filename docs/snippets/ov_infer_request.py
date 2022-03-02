@@ -91,3 +91,7 @@ end = [1, 2, 3, 3]
 roi_tensor = ov.Tensor(input_tensor, begin, end)
 infer_request2.set_tensor("input_name", roi_tensor)
 #! [roi_tensor]
+
+#! [remote_tensor]
+# NOT SUPPORTED
+#! [remote_tensor]

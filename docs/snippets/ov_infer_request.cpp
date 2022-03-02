@@ -99,5 +99,14 @@ ov::Tensor roi_tensor(input_tensor, begin, end);
 infer_request2.set_tensor("input_name", roi_tensor);
 //! [roi_tensor]
 
+{
+//! [remote_tensor]
+ov::RemoteContext context = core.get_default_context("GPU");
+auto input_port = compiled_model.input("tensor_name");
+ov::RemoteTensor remote_tensor = context.create_tensor(input_port.get_element_type(), input_port.get_shape());
+infer_request.set_tensor(input_port, remote_tensor);
+//! [remote_tensor]
+}
+
 return 0;
 }

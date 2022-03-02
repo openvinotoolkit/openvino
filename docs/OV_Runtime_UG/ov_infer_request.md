@@ -255,3 +255,23 @@ It is possible to re-use shared input by several models. You do not need to allo
        :fragment: [roi_tensor]
 
 @endsphinxdirective
+
+### Using of remote tensors
+
+You can create a remote tensor to work with remote device memory. `ov::RemoteContext` allows to create remote tensor.
+
+@sphinxdirective
+
+.. tab:: C++
+
+    .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
+       :language: cpp
+       :fragment: [remote_tensor]
+
+.. tab:: Python
+
+    .. doxygensnippet:: docs/snippets/ov_infer_request.py
+       :language: python
+       :fragment: [remote_tensor]
+
+@endsphinxdirective
