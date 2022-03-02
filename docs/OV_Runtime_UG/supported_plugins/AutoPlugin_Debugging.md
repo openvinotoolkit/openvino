@@ -1,7 +1,7 @@
 # Debugging Auto-Device Plugin {#openvino_docs_IE_DG_supported_plugins_AUTO_debugging}
 
 ## Debug log
-In case of execution problems, just like all other plugins, Auto-Device provides the user with information on exceptions and error values. If the returned data is not enough for debugging purposes, more information may be acquired by means of ov::log::Level.
+In case of execution problems, just like all other plugins, Auto-Device provides the user with information on exceptions and error values. If the returned data is not enough for debugging purposes, more information may be acquired by means of `ov::log::Level`.
 
 There are six levels of logs, which can be called explicitly or set via the OPENVINO_LOG_LEVEL environment variable (can be overwritten by compile_model or set_property):
 
