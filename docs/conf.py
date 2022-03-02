@@ -108,6 +108,12 @@ repositories = {
         'github_repo': 'open_model_zoo',
         'github_version': 'master',
         'host_url': 'https://github.com'
+    },
+    'ovms': {
+        'github_user': 'openvinotoolkit',
+        'github_repo': 'model_server',
+        'github_version': 'main',
+        'host_url': 'https://github.com'
     }
 }
 
@@ -144,6 +150,7 @@ def setup(app):
     app.add_config_value('repositories', repositories, rebuild=True)
     app.add_js_file('js/custom.js')
     app.add_js_file('js/graphs.js')
+    app.add_js_file('js/graphs_ov_tf.js')
     try:
         shutil.copytree(os.path.join(app.srcdir, 'csv'), os.path.join(app.outdir, 'csv'), dirs_exist_ok=True)
     except FileNotFoundError:

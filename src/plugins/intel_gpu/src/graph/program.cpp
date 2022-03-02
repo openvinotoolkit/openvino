@@ -107,6 +107,7 @@ program::program(engine& engine_ref,
     prepare_nodes(topology);
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
+    program_node::reset_unique_id();
     if (no_optimizations) {
         init_graph();
     } else {
@@ -481,8 +482,6 @@ void program::pre_optimize_graph(bool is_internal) {
 
     // handle symmetric and asymmetric padding for input
     apply_opt_pass<handle_input_padding>();
-
-    apply_opt_pass<handle_permute>();
 
     processing_order.calculate_BFS_processing_order();  // this method makes sense only for OOOQ (out of order execution queue)
 
