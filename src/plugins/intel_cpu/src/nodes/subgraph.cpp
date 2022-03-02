@@ -22,6 +22,7 @@
 
 #include <snippets/op/subgraph.hpp>
 #include "emitters/cpu_generator.hpp"
+#include "ngraph_transformations/fuse_load_store_and_convert.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl::impl::utils;
@@ -60,7 +61,7 @@ void Snippet::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    const Precision supportedPrecision = Precision::FP32;
+    const std::vector<Precision> supportedPrecisions = { Precision::FP32, Precision::I32, Precision::BF16, Precision::I8, Precision::U8 };
 
     bool dimRanksAreEqual = true;
     for (size_t i = 0; dimRanksAreEqual && i < inputShapes.size(); i++) {
@@ -125,18 +126,30 @@ void Snippet::initSupportedPrimitiveDescriptors() {
         config.dynBatchSupport = false;
         config.inConfs.resize(inputShapes.size());
         for (size_t i = 0; i < inputShapes.size(); i++) {
+            auto precision = getOriginalInputPrecisionAtPort(i);
+            if (std::all_of(supportedPrecisions.begin(), supportedPrecisions.end(),
+                            [precision](const Precision& sp) { return precision != sp; }))
+                precision = Precision::FP32;
+            const auto equalPrecisions = getOriginalOutputPrecisions().size() == 1 &&
+                    precision == getOriginalOutputPrecisionAtPort(0);
+
             BlockedMemoryDesc::CmpMask inputMask = BLOCKED_DESC_SKIP_OFFSET_MASK;
             PortConfig portConfig;
-            portConfig.inPlace((!i && canBeInPlace()) ? 0 : -1);
+            portConfig.inPlace((!i && canBeInPlace() && equalPrecisions) ? 0 : -1);
             portConfig.constant(false);
             if (inputShapes[i].getDims()[0] == 1) {
                 inputMask.reset(0); // accepts any stride on batch axis
             }
-            portConfig.setMemDesc(createMemoryDesc(inputShapes[i], supportedPrecision, offset), inputMask);
+            portConfig.setMemDesc(createMemoryDesc(inputShapes[i], precision, offset), inputMask);
             config.inConfs[i] = portConfig;
         }
         config.outConfs.resize(outputShapes.size());
         for (size_t i = 0; i < outputShapes.size(); i++) {
+            auto precision = getOriginalOutputPrecisionAtPort(i);
+            if (std::all_of(supportedPrecisions.begin(), supportedPrecisions.end(),
+                            [precision](const Precision& sp) { return precision != sp; }))
+                precision = Precision::FP32;
+
             BlockedMemoryDesc::CmpMask outputMask = BLOCKED_DESC_SKIP_OFFSET_MASK;
             PortConfig portConfig;
             portConfig.inPlace(-1);
@@ -144,7 +157,7 @@ void Snippet::initSupportedPrimitiveDescriptors() {
             if (outputShapes[i].getDims()[0] == 1) {
                 outputMask.reset(0); // accepts any stride on batch axis
             }
-            portConfig.setMemDesc(createMemoryDesc(outputShapes[i], supportedPrecision, offset), outputMask);
+            portConfig.setMemDesc(createMemoryDesc(outputShapes[i], precision, offset), outputMask);
             config.outConfs[i] = portConfig;
         }
 
@@ -205,6 +218,10 @@ bool Snippet::created() const {
 
 bool Snippet::canBeInPlace() const {
     if (getParentEdgesAtPort(0)[0]->getParent()->getType() == Type::Input) {
+        return false;
+    }
+
+    if (getChildEdges().size() != 1) {
         return false;
     }
 
@@ -287,8 +304,7 @@ void Snippet::define_schedule() {
     }
 
     const auto config = getSelectedPrimitiveDescriptor()->getConfig();
-    const auto dataSize = config.inConfs[0].getMemDesc()->getPrecision().size();
-    auto initOffsets = [this, config, dataSize]() {
+    auto initOffsets = [this, config]() {
         // find max rank input among all outputs
         const size_t inputNum = getParentEdges().size();
         offsets_in.resize(inputNum);
@@ -296,7 +312,7 @@ void Snippet::define_schedule() {
             offsets_in[i].resize(tensorRank, 1);
             offset_calculation(offsets_in[i], dims_in[i], exec_domain);
             for (size_t j = 0; j < tensorRank; j++) {
-                offsets_in[i][j] *= dataSize;
+                offsets_in[i][j] *= config.inConfs[i].getMemDesc()->getPrecision().size();
             }
         }
 
@@ -305,7 +321,8 @@ void Snippet::define_schedule() {
         for (size_t i = 0; i < inputNum; i++) {
             const auto memPtr = getParentEdgeAt(i)->getMemoryPtr();
             srcMemPtrs[i] = memPtr;
-            start_offset_in[i] =  memPtr->GetDescWithType<BlockedMemoryDesc>()->getOffsetPadding() * dataSize;
+            start_offset_in[i] =  memPtr->GetDescWithType<BlockedMemoryDesc>()->getOffsetPadding() *
+                    config.inConfs[i].getMemDesc()->getPrecision().size();
         }
 
         const size_t outputNum = config.outConfs.size();
@@ -314,7 +331,7 @@ void Snippet::define_schedule() {
             offsets_out[i].resize(tensorRank, 1);
             offset_calculation(offsets_out[i], dims_out[i], exec_domain);
             for (size_t j = 0; j < tensorRank; j++) {
-                offsets_out[i][j] *= dataSize;
+                offsets_out[i][j] *= config.outConfs[i].getMemDesc()->getPrecision().size();
             }
         }
 
@@ -323,7 +340,8 @@ void Snippet::define_schedule() {
         for (size_t i = 0; i < outputNum; i++) {
             const auto memPtr = getChildEdgeAt(i)->getMemoryPtr();
             dstMemPtrs[i] = memPtr;
-            start_offset_out[i] = memPtr->GetDescWithType<BlockedMemoryDesc>()->getOffsetPadding() * dataSize;
+            start_offset_out[i] = memPtr->GetDescWithType<BlockedMemoryDesc>()->getOffsetPadding() *
+                    config.outConfs[i].getMemDesc()->getPrecision().size();
         }
     };
 
@@ -373,7 +391,7 @@ void Snippet::define_schedule() {
         return collapsedDims;
     };
 
-    auto initSchedulingInfo = [this, dataSize]() -> void {
+    auto initSchedulingInfo = [this, config]() -> void {
         // initialize scheduling information
         sch_offsets_in.resize(offsets_in.size(), 0);
         sch_offsets_out.resize(offsets_out.size(), 0);
@@ -388,16 +406,16 @@ void Snippet::define_schedule() {
             // update offsets for tile 2D because loaders have ptr shifts in some cases and stores have always ptrs shifts
             for (size_t i = 0; i < offsets_in.size(); i++) {
                 int64_t offset = offsets_in[i][tensorRank - 2];
-                if ((offset > dataSize) || (offset == 0 && dims_in[i].back() != 1)) {
-                    sch_offsets_in[i] = offset - exec_domain.back() * dataSize;
-                } else if (offset == dataSize) {
+                if ((offset > config.inConfs[i].getMemDesc()->getPrecision().size()) || (offset == 0 && dims_in[i].back() != 1)) {
+                    sch_offsets_in[i] = offset - exec_domain.back() * config.inConfs[i].getMemDesc()->getPrecision().size();
+                } else if (offset == config.inConfs[i].getMemDesc()->getPrecision().size()) {
                     sch_offsets_in[i] = offset;
                 }
             }
 
             for (size_t i = 0; i < offsets_out.size(); i++) {
                 int64_t offset = offsets_out[i][tensorRank - 2];
-                sch_offsets_out[i] = offset - exec_domain.back() * dataSize;
+                sch_offsets_out[i] = offset - exec_domain.back() * config.outConfs[i].getMemDesc()->getPrecision().size();
             }
         }
     };
@@ -434,7 +452,28 @@ void Snippet::generate() {
         auto b = offsets_out[i].begin();
         std::copy(b, b + harness_num_dims, &jcp.data_offsets[(inputShapes.size() + i) * harness_num_dims]);
     }
-    schedule = snippet->generate(reinterpret_cast<void*>(&jcp));
+
+    ov::pass::Manager optManager;
+    optManager.register_pass<ov::intel_cpu::pass::FuseLoadConvert>();
+    optManager.register_pass<ov::intel_cpu::pass::FuseStoreConvert>();
+
+    // LoadConvert uses Load emitter that support conversion from any type to only f32
+    optManager.get_pass_config()->set_callback<ov::intel_cpu::pass::FuseLoadConvert>(
+            [](const std::shared_ptr<const ov::Node>& n) -> bool {
+                if (const auto& convert = std::dynamic_pointer_cast<const ov::op::v0::Convert>(n))
+                    return convert->get_destination_type() != ov::element::f32;
+                return true;
+            });
+
+    // StoreConvert uses Store emitter that support conversion from only f32 to any types
+    optManager.get_pass_config()->set_callback<ov::intel_cpu::pass::FuseStoreConvert>(
+            [](const std::shared_ptr<const ov::Node>& n) -> bool {
+                if (const auto& convert = std::dynamic_pointer_cast<const ov::op::v0::Convert>(n))
+                    return convert->get_input_element_type(0) != ov::element::f32;
+                return true;
+            });
+
+    schedule = snippet->generate(optManager, reinterpret_cast<void*>(&jcp));
 }
 
 void Snippet::schedule_6d(const jit_snippets_call_args& call_args) const {

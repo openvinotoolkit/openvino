@@ -43,6 +43,12 @@ struct store_emitter_context : public emitter_context {
     Precision dst_prc_;
 };
 
+// Arithmetic modes for data type conversion in store_emitter
+enum arithmetic_mode {
+    saturation,
+    truncation
+};
+
 class jit_load_emitter : public jit_emitter {
 public:
     jit_load_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
@@ -101,7 +107,7 @@ private:
 
 class jit_store_emitter : public jit_emitter {
 public:
-    jit_store_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
+    jit_store_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa, arithmetic_mode mode = arithmetic_mode::saturation,
                     InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32, emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_gpr);
 
     /**
@@ -145,9 +151,12 @@ private:
     template <typename Vmm>
     void store_dword_to_word_extension(const Vmm &vmm, const Xbyak::Reg64 &reg, int offset, bool is_bf16, bool is_signed, int store_size) const;
 
+    void register_table_entries() override;
+
     size_t aux_gprs_count() const override;
     size_t aux_vecs_count() const override;
 
+    arithmetic_mode mode = arithmetic_mode::saturation;
     std::string name;
     int v_len_elt;  // 4/8/16
     std::shared_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;

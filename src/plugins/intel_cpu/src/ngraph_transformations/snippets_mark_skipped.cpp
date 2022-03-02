@@ -180,6 +180,39 @@ bool isSuitableMatMulParent(const std::shared_ptr<const Node> &node) {
     const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
     return is_suitable_node && has_only_child;
 }
+// Subtract as ZeroPoints for Convolution
+bool isSuitableSubtractAsZeroPointsParent(const std::shared_ptr<const Node> &node) {
+    const bool is_suitable_node = ov::is_type<ngraph::op::v1::Subtract>(node);
+    const auto out = node->outputs();
+    const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
+    const bool has_two_parents = node->get_input_size() == 2;
+    if (!(is_suitable_node && has_only_child && has_two_parents))
+        return false;
+
+    const auto child = node->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
+    const bool is_conv = ov::is_type<ov::op::v1::Convolution>(child);
+    const bool is_group_conv = ov::is_type<ov::op::v1::GroupConvolution>(child);
+    if (!is_conv && !is_group_conv)
+        return false;
+    const auto weight_shape = child->get_input_shape(1);
+    const bool is_depthwise = is_group_conv && weight_shape[1] == 1 && weight_shape[2] == 1;
+    const bool deptwise_is_suitable = implication(is_depthwise, child->get_input_shape(0).size() < 5);
+    if (!(is_conv && deptwise_is_suitable))
+        return false;
+
+    const bool first_input_is_suitable = node->get_input_node_shared_ptr(0)->get_output_element_type(0) == ov::element::u8;
+    const auto zp_weights = node->get_input_node_shared_ptr(1);
+    const auto zp_weight_shape = zp_weights->get_output_shape(0);
+    bool second_input_is_suitable =
+            ov::is_type<ngraph::op::v0::Constant>(zp_weights) &&
+                    zp_weights->get_output_element_type(0) == ov::element::u8 &&
+                    zp_weight_shape.size() >= 2;
+    if (!(first_input_is_suitable && second_input_is_suitable))
+        return false;
+    auto correct_shape = ov::Shape(zp_weight_shape.size(), 1);
+    correct_shape[1] = zp_weight_shape[1];
+    return correct_shape == zp_weight_shape;
+}
 bool isSuitablePoolChild(const std::shared_ptr<const Node> &node) {
     const bool is_suitable_node = ov::is_type<ngraph::op::v1::MaxPool>(node);
     // has a single output, connected to a single child
@@ -225,11 +258,35 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, Nod
     // FuseMatMulAndSimpleOperation or FuseFullyConnectedAndSimpleOperation
     // Invoke SupportsFusingWithConvolution_Simple directly instead of isSuitableChildForFusingSimple to
     // eliminate getNumNonConstInputs() check
-    int fusingAxis;
-    if (can_be_converted_to_FC)
-        fusingAxis = matmul_shape.size() == 3 ? 2 : 1;
-    else
-        fusingAxis = matmul_shape.size() - 1;
+    int fusingAxis = can_be_converted_to_FC ? (matmul_shape.size() == 3 ? 2 : 1) : matmul_shape.size() - 1;
+
+    // canFuse() from MatMul for case with rank > 2
+    // Algorithm::EltwisePowerStatic is ignored
+    if (!can_be_converted_to_FC &&
+        node->get_output_shape(0).size() > 2) {
+        if (ov::is_type<ov::op::v1::Add>(node) ||
+            ov::is_type<ov::op::v1::Multiply>(node) ||
+            ov::is_type<ov::op::v1::Subtract>(node) ||
+            ov::is_type<ov::op::v1::Divide>(node) ||
+            ov::is_type<ov::op::v0::PRelu>(node)) {
+            const auto const1 = ov::is_type<ov::op::v0::Constant>(node->get_input_node_shared_ptr(0));
+            const auto const2 = ov::is_type<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1));
+            int constPort = -1;
+            if (const2) {
+                constPort = 1;
+            } else if (const1) {
+                constPort = 0;
+            }
+
+            if (constPort != -1) {
+                auto const_shape = node->get_input_shape(constPort);
+                if (ov::shape_size(const_shape) != 1) {
+                    return false;
+                }
+            }
+        }
+    }
+
     if (SupportsFusingWithConvolution_Simple(node, fusingAxis)) {
         updatedChainType = NodeFusingType::FusedWithMisc;
         return true;
@@ -324,10 +381,7 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
     for (auto &node : m->get_ordered_ops()) {
         if (ngraph::op::is_constant(node))
             continue;
-        if (ngraph::op::is_parameter(node)) {
-            SetNodeFusingType(node, NodeFusingType::IgnoredAfterInputs);
-            continue;
-        } else if (isSuitableConvolutionParent(node)) {
+        if (isSuitableConvolutionParent(node)) {
             // Initiate fusing chain
             SetNodeFusingType(node, NodeFusingType::FusedWithConvolution);
             continue;
@@ -339,6 +393,9 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
             continue;
         } else if (isSuitableMatMulParent(node)) {
             SetNodeFusingType(node, NodeFusingType::FusedWithMatMul);
+            continue;
+        } else if (isSuitableSubtractAsZeroPointsParent(node)) {
+            SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
             continue;
         }
         for (const auto fusingChainType : getContinuableChains(node)) {
@@ -362,12 +419,6 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
                 NodeFusingType updatedChainType = fusingChainType;
                 if (isSuitableChildForFusingMatMul(node, updatedChainType))
                     PropagateIfHasOnlyChild(node, updatedChainType);
-            } else if (fusingChainType == NodeFusingType::IgnoredAfterInputs && (snippets::pass::AppropriateForSubgraph(node) ||
-                        ov::is_type<ngraph::op::v0::Convert>(node) || ov::is_type<ngraph::op::v1::Transpose>(node))) {
-                // In OV_API 2.0 after Input node with I8/U8 precisions incerts Convert node, moreother on TF models inserts
-                // Transpose layer. These brakes an idea to leave Eltwise node with I8/U8 inputs and FP32 outputs instead of Subgrath node
-                // TODO Remove an additional check on Convert/Transpose here after enabling Subgraths with I8/U8 inputs and FP32 outputs
-                SetNodeFusingType(node, NodeFusingType::IgnoredAfterInputs);
             }
         }
         if (GetNodeFusingType(node) != NodeFusingType::NotSet) {

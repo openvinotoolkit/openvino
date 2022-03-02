@@ -19,8 +19,12 @@ class Store : public ngraph::op::Op {
 public:
     OPENVINO_OP("Store", "SnippetsOpset");
 
-    Store(const Output<Node>& x);
+    Store(const Output<Node>& x, const size_t count = 0lu);
     Store() = default;
+
+    size_t get_count() const { return m_count; }
+
+    void set_count(const size_t count) { m_count = count; }
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -31,6 +35,9 @@ public:
     OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
+
+protected:
+    size_t m_count = 0lu;
 };
 
 } // namespace op

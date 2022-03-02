@@ -24,12 +24,10 @@ DummyTargetMachine::DummyTargetMachine() {
     jitters[op::v1::Multiply::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::Load::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::VectorLoad::get_type_info_static()] = dummy_functor;
-    jitters[ngraph::snippets::op::ScalarLoad::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::BroadcastLoad::get_type_info_static()] = dummy_functor;
 
     jitters[ngraph::snippets::op::Store::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::VectorStore::get_type_info_static()] = dummy_functor;
-    jitters[ngraph::snippets::op::ScalarStore::get_type_info_static()] = dummy_functor;
 
     jitters[ngraph::snippets::op::Scalar::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::BroadcastMove::get_type_info_static()] = dummy_functor;

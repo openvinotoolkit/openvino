@@ -99,15 +99,19 @@ auto is_layout_oblivious(const std::shared_ptr<const Node> &n) -> bool {
             || ov::is_type<opset1::Tanh>(n)
             || ov::is_type<ngraph::op::v0::Gelu>(n)
             || ov::is_type<ngraph::op::v7::Gelu>(n)
-            || ov::is_type<ngraph::op::v4::HSwish>(n);
+            || ov::is_type<ngraph::op::v4::HSwish>(n)
+            || ov::is_type<ngraph::op::v0::Convert>(n);
     };
     return is_layout_oblivious_unary(n) || is_layout_oblivious_binary(n);
 }
 
 auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
     auto supported = [](descriptor::Tensor& t) -> bool {
-        return t.get_element_type() == ngraph::element::f32 &&
-               t.get_partial_shape().is_static();
+        static const std::set<ngraph::element::Type> supported_data_types =
+                { ngraph::element::f32, ngraph::element::i32, ngraph::element::bf16, ngraph::element::i8, ngraph::element::u8 };
+        return t.get_partial_shape().is_static() &&
+                std::any_of(supported_data_types.begin(), supported_data_types.end(),
+                            [&t](const ngraph::element::Type& type) { return t.get_element_type() == type; });
     };
     const auto & inputs = n->inputs();
     const auto & outputs = n->outputs();
@@ -406,6 +410,18 @@ TokenizeSnippets::TokenizeSnippets() {
                 auto& input_body = clones[input_node];
                 size_t source_output_index = input_value.get_index();
                 auto source_result = input_body->get_results()[source_output_index];
+
+                // We cannot add new node after Convert (which isn't input node of Subgraph) to avoid arithmetic problems with conversion
+                // We can add new node in Subgraph after Convert                       We cannot add new node in Subgraph after Convert
+                //              Parameter                                                          Parameter
+                //                  |                                                                Relu
+                //               Convert                                                            Convert
+                const auto input_in_subgraph = source_result->get_input_node_shared_ptr(0);
+                if (ov::is_type<ngraph::op::v0::Convert>(input_in_subgraph)) {
+                    if (!ov::is_type<ngraph::op::v0::Parameter>(input_in_subgraph->get_input_node_shared_ptr(0))) {
+                        return abort_with_strategy("Convert supports only as Input and as Result of subgraph. Aborting");
+                    }
+                }
                 // Result op has a single input
                 internal_inputs.push_back(source_result->input_value(0));
             } else {

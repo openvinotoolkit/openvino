@@ -35,6 +35,7 @@ public:
 class DummyGenerator : public ngraph::snippets::Generator {
 public:
     DummyGenerator() : ngraph::snippets::Generator(std::make_shared<DummyTargetMachine>()) {}
+    element::Type get_supported_exec_precision() const override { return ov::element::f32; }
 };
 
 class LoweringTests : public TransformationTestsF {

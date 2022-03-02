@@ -6,6 +6,7 @@
 #include "snippets/remarks.hpp"
 
 #include "snippets/op/subgraph.hpp"
+#include "snippets/op/convert_saturation.hpp"
 #include "snippets/pass/insert_load_store.hpp"
 #include "snippets/pass/insert_movebroadcast.hpp"
 #include "snippets/pass/load_movebroadcast_to_broadcastload.hpp"
@@ -13,8 +14,13 @@
 #include "snippets/pass/convert_constants_to_scalars.hpp"
 #include "snippets/pass/convert_power_to_powerstatic.hpp"
 #include "snippets/pass/vector_to_scalar.hpp"
+#include "snippets/pass/transform_convert_to_truncation.hpp"
+#include <snippets/pass/precision_propagation.hpp>
+
+#include "transformations/common_optimizations/nop_elimination.hpp"
 
 #include <ngraph/pass/manager.hpp>
+#include "ngraph/pass/constant_folding.hpp"
 #include <openvino/pass/serialize.hpp>
 
 #include <algorithm>
@@ -213,8 +219,82 @@ Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShape
                                                                ::ngraph::op::AutoBroadcastType::NUMPY);
         NODE_VALIDATION_CHECK(this, compatibleWithOtherOutputs, "Snippets output shapes must be numpy broadcastable");
     }
+
+    // We should insert Converts after Parameters and Constant and before Results
+    // to align precision inside Subgraph body that is supported by Plugin
+    align_precision(outputShapes, inputShapes);
+
     exec_domain = outPShape.get_shape();
     return exec_domain;
+}
+
+void insertConvertSaturationAfterNode(const std::shared_ptr<Node>& node, const ov::element::Type element_type) {
+    for (const auto& output : node->outputs()) {
+        for (auto consumer : output.get_target_inputs()) {
+            // If after node there is ConvertTruncation we should insert ConvertSaturation after that
+            if (auto existing_convert_t = ngraph::as_type_ptr<ngraph::snippets::op::ConvertTruncation>(consumer.get_node()->shared_from_this())) {
+                if (existing_convert_t->get_destination_type() != element_type) {
+                    insertConvertSaturationAfterNode(existing_convert_t, element_type);
+                }
+                continue;
+            }
+
+            auto existing_convert_s = ngraph::as_type_ptr<ngraph::snippets::op::ConvertSaturation>(consumer.get_node()->shared_from_this());
+            if ((!existing_convert_s && !ov::is_type<ngraph::op::v0::Result>(consumer.get_node()->shared_from_this()) &&
+                    consumer.get_node()->shared_from_this()->get_element_type() != element_type) ||
+                (existing_convert_s && existing_convert_s->get_destination_type() != element_type)) {
+                const auto convert = std::make_shared<ngraph::snippets::op::ConvertSaturation>(node, element_type);
+                consumer.replace_source_output(convert);
+            }
+        }
+    }
+}
+
+void snippets::op::Subgraph::align_precision(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes) {
+    ngraph::pass::Manager p_manager;
+    p_manager.register_pass<snippets::pass::TransformConvertToConvertTruncation>();
+    p_manager.run_passes(m_body);
+
+    // We should insert Converts to f32 after scalar constants of unsupported element type
+    // because at the moment scalar is constant node, not parameter as other constant node. Thus we check all ops to find scalars
+    // Also we should use ConstantFolding pass after that in "convert_to_snippet_dialect"
+    // TODO: Need to unit behavior with common constants or to come up with another solution
+    const auto supported_exec_type = m_generator->get_supported_exec_precision();
+    for (auto& node : m_body->get_ops()) {
+        if (op::is_scalar_constant(node)) {
+            insertConvertSaturationAfterNode(node, supported_exec_type);
+        }
+    }
+
+    for (size_t i = 0; i < inputShapes.size(); i++) {
+        insertConvertSaturationAfterNode(m_body->get_parameters()[i], supported_exec_type);
+    }
+
+    const auto& body_results = m_body->get_results();
+    for (size_t i = 0; i < outputShapes.size(); i++) {
+        const auto needed_out_type = std::get<2>(outputShapes[i]);
+
+        // If there is real Convert from graph (ConvertTruncation) before Result
+        // we should check destination type and insert ConvertSaturation before that if needed
+        if (auto existing_convert_t = ngraph::as_type_ptr<ngraph::snippets::op::ConvertTruncation>(body_results[i]->get_input_node_shared_ptr(0))) {
+            const auto original_input_element_type = existing_convert_t->get_input_element_type(0);
+            if (original_input_element_type != supported_exec_type) {
+                const auto convert = std::make_shared<ngraph::snippets::op::ConvertSaturation>(
+                        existing_convert_t->get_input_node_shared_ptr(0), original_input_element_type);
+                existing_convert_t->set_argument(0, convert);
+            }
+        } else {
+            const auto convert = std::make_shared<ngraph::snippets::op::ConvertSaturation>(
+                    body_results[i]->get_input_node_shared_ptr(0), needed_out_type);
+            body_results[i]->set_argument(0, convert);
+        }
+    }
+
+    ngraph::pass::Manager manager;
+    manager.register_pass<snippets::pass::PrecisionPropagation>(supported_exec_type);
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ngraph::pass::EliminateConvert>();
+    manager.run_passes(m_body);
 }
 
 void snippets::op::Subgraph::convert_to_snippet_dialect() {
@@ -223,11 +303,16 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
     auto skip_matching_domain = [](const std::shared_ptr<const ov::Node>& n) -> bool {
         return n->get_input_shape(0).back() != 1;
     };
+
+    // At the moment we support only full vector Load/Store and scalar Load/Store so that count is equal to lanes.
+    // Then we are going to support variadic Load/Store with different element count
+    const size_t count = m_generator->get_target_machine()->get_lanes();
+
     ngraph::pass::Manager manager;
     manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
     manager.register_pass<snippets::pass::ConvertPowerToPowerStatic>();
-    manager.register_pass<snippets::pass::InsertLoad>();
-    manager.register_pass<snippets::pass::InsertStore>();
+    manager.register_pass<snippets::pass::InsertLoad>(count);
+    manager.register_pass<snippets::pass::InsertStore>(count);
     manager.register_pass<snippets::pass::InsertMoveBroadcast>();
     manager.register_pass<snippets::pass::LoadMoveBroadcastToBroadcastLoad>();
     // Note that, BrodacastMove is typically inserted right after the Load. Such cases are typical for
@@ -246,12 +331,12 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
     //                        Result
     // Note: Load* should be replaced with ScalarLoad in this example to avoid invalid read in vector Tile.
     if (!exec_domain.empty() && exec_domain.back() != 1) {
-        manager.register_pass<snippets::pass::ReplaceLoadsWithScalarLoads>();
-        manager.register_pass<snippets::pass::ReplaceStoresWithScalarStores>();
+        manager.register_pass<snippets::pass::SetScalarCountForLoad>();
+        manager.register_pass<snippets::pass::SetScalarCountForStore>();
         manager.get_pass_config()->
-        set_callback<ngraph::snippets::pass::ReplaceLoadsWithScalarLoads>(skip_matching_domain);
+        set_callback<ngraph::snippets::pass::SetScalarCountForLoad>(skip_matching_domain);
         manager.get_pass_config()->
-        set_callback<ngraph::snippets::pass::ReplaceStoresWithScalarStores>(skip_matching_domain);
+        set_callback<ngraph::snippets::pass::SetScalarCountForStore>(skip_matching_domain);
     }
     manager.run_passes(m_body);
 }

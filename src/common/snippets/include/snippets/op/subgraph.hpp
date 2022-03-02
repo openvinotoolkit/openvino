@@ -109,6 +109,7 @@ public:
     static auto wrap_node_as_subgraph(const std::shared_ptr<ngraph::Node>& node) -> std::shared_ptr<Subgraph>;
 
 private:
+    void align_precision(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes);
     void convert_to_snippet_dialect();
     Shape exec_domain;
     std::shared_ptr<ov::Model> m_body;
