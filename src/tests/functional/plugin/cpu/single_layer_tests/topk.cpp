@@ -90,18 +90,17 @@ protected:
         ngraph::opset4::TopK::SortType sort;
         ElementType inPrc;
         std::vector<ElementType> outPrc;
+        outPrc.reserve(2);
         InputShape inputShape;
         std::tie(keepK, axis, mode, sort, netPrecision, inPrc, outPrc, inputShape) = basicParamsSet;
 
-        if (additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES) {
+        if (additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES)
             inPrc = netPrecision = ElementType::bf16;
-            outType.front() = outPrc[0];
-            outType.push_back(outPrc[1]);
-        } else {
+        else
             inPrc = netPrecision;
-            outType.front() = outPrc[0];
-            outType.push_back(outPrc[1]);
-        }
+        outType.reserve(2);
+        outType[0] = outPrc[0];
+        outType.push_back(outPrc[1]);
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
         selectedType = getPrimitiveType() + "_" + InferenceEngine::details::convertPrecision(netPrecision).name();
