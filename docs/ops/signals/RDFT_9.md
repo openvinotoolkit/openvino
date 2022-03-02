@@ -70,7 +70,7 @@ There is no `signal_size` input (3D input tensor):
     <output>
         <port id="2">
             <dim>1</dim>
-            <dim>161</dim>
+            <dim>320</dim>
             <dim>161</dim>
             <dim>2</dim>
         </port>
@@ -91,7 +91,7 @@ There is no `signal_size` input (2D input tensor):
         </port>
     <output>
         <port id="2">
-            <dim>161</dim>
+            <dim>320</dim>
             <dim>161</dim>
             <dim>2</dim>
         </port>
@@ -118,7 +118,7 @@ There is `signal_size` input (3D input tensor):
     <output>
         <port id="3">
             <dim>1</dim>
-            <dim>257</dim>
+            <dim>512</dim>
             <dim>51</dim>
             <dim>2</dim>
         </port>
@@ -143,7 +143,7 @@ There is `signal_size` input (2D input tensor):
         </port>
     <output>
         <port id="3">
-            <dim>257</dim>
+            <dim>512</dim>
             <dim>51</dim>
             <dim>2</dim>
         </port>
@@ -171,9 +171,9 @@ There is `signal_size` input (4D input tensor, `-1` in `signal_size`, unsorted a
     <output>
         <port id="3">
             <dim>16</dim>
-            <dim>385</dim>
+            <dim>768</dim>
             <dim>513</dim>
-            <dim>86</dim>
+            <dim>170</dim>
             <dim>2</dim>
         </port>
     </output>
@@ -199,10 +199,10 @@ There is `signal_size` input (4D input tensor, `-1` in `signal_size`, unsorted a
         </port>
     <output>
         <port id="3">
-            <dim>9</dim>
+            <dim>16</dim>
             <dim>768</dim>
             <dim>1029</dim>
-            <dim>130</dim>
+            <dim>258</dim>
             <dim>2</dim>
         </port>
     </output>
