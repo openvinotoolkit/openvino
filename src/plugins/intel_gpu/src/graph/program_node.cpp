@@ -5,7 +5,7 @@
 #include "program_node.h"
 #include "program_helpers.h"
 #include "primitive_inst.h"
-
+#include "loop_inst.h"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "convolution_inst.h"
 #include "quantize_inst.h"
@@ -36,6 +36,11 @@ void program_node::replace_dependency(size_t idx, program_node& new_dep) {
         return;
     if (dependencies[idx] == &new_dep)
         return;
+
+    if (is_type<loop>()) {
+        loop_node& loop = *this;
+        loop.update_primitive_map(dependencies[idx]->id(), new_dep.id(), true);
+    }
 
     auto it = std::find(dependencies[idx]->users.begin(), dependencies[idx]->users.end(), this);
     if (it != dependencies[idx]->users.end()) {
