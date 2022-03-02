@@ -613,31 +613,6 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
     return allDevices;
 }
 
-bool MultiDeviceInferencePlugin::CheckAutoCpuUsageValue(const std::string& value) {
-    std::string noInferenceValue;
-    std::string accerlateFilValue;
-    std::string accerlateFilOneFramValue;
-    std::string fullStrengthValue;
-    std::stringstream noInferenceSs;
-    std::stringstream accerlateFilSs;
-    std::stringstream accerlateFilOneFramSs;
-    std::stringstream fullStrengthSs;
-    noInferenceSs << ov::intel_auto::AutoCpuUsage::NO_INFERENCE;
-    noInferenceValue = noInferenceSs.str();
-    accerlateFilSs << ov::intel_auto::AutoCpuUsage::ACCERLATE_FIL;
-    accerlateFilValue = accerlateFilSs.str();
-    accerlateFilOneFramSs << ov::intel_auto::AutoCpuUsage::ACCERLATE_FIL_ONE_FRAM;
-    accerlateFilOneFramValue = accerlateFilOneFramSs.str();
-    fullStrengthSs << ov::intel_auto::AutoCpuUsage::FULL_STRENGTH;
-    fullStrengthValue = fullStrengthSs.str();
-
-    if (value == noInferenceValue || value == accerlateFilValue || value == accerlateFilOneFramValue || value == fullStrengthValue) {
-        return true;
-    }
-
-    return false;
-}
-
 void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::string>& config,
         AutoContext& context, std::map<std::string, std::string>& filterConfig) {
     // TODO need to optimize this code, too much duplicated code
@@ -663,13 +638,12 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
                            << " for key: " << kvp.first;
             }
         } else if (kvp.first == ov::intel_auto::auto_cpu_usage.name()) {
-            if (CheckAutoCpuUsageValue(kvp.second)) {
+            try {
                 std::stringstream strm{kvp.second};
                 strm >> context.autoCpuUsage;
                 continue;
-            } else {
-                IE_THROW() << "Unsupported config value: " << kvp.second
-                           << " for key: " << kvp.first;
+            } catch (...) {
+                IE_THROW() << "Unsupported config value: " << kvp.second << " for key: " << kvp.first;
             }
         } else if (kvp.first == ov::log::level.name()) {
                auto success = MultiDevicePlugin::setLogLevel(kvp.second);

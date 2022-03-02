@@ -18,10 +18,10 @@ namespace intel_auto {
  * @brief Enum to define auto cpu usage
  */
 enum class AutoCpuUsage {
-    NO_INFERENCE = 0,              //no inference
-    ACCERLATE_FIL = 1,             //
-    ACCERLATE_FIL_ONE_FRAM = 2,    //
-    FULL_STRENGTH = 3,             //default
+    NO_INFERENCE = 0,            // no inference
+    ACCERLATE_FIL = 1,           //
+    ACCERLATE_FIL_ONE_FRAM = 2,  // accerlate one frame
+    FULL_STRENGTH = 3,           // default
 };
 
 /** @cond INTERNAL */
@@ -59,7 +59,8 @@ inline std::istream& operator>>(std::istream& is, AutoCpuUsage& autoCpuUsage) {
 /** @endcond */
 
 /**
- * @brief auto_cpu_usage setting that should be one of NO_INFERENCE, ACCERLATE_FIL, ACCERLATE_FIL_ONE_FRAM, FULL_STRENGTH
+ * @brief auto_cpu_usage setting that should be one of NO_INFERENCE, ACCERLATE_FIL, ACCERLATE_FIL_ONE_FRAM,
+ * FULL_STRENGTH
  */
 static constexpr Property<AutoCpuUsage> auto_cpu_usage{"AUTO_CPU_USAGE"};
 
