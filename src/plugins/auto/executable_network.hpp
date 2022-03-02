@@ -19,6 +19,7 @@
 #include "ie_icore.hpp"
 #include <ie_performance_hints.hpp>
 #include "openvino/runtime/properties.hpp"
+#include "common.hpp"
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
@@ -30,19 +31,8 @@
 namespace MultiDevicePlugin {
 
 class MultiDeviceInferencePlugin;
-
-using DeviceName = std::string;
 using NetworkFuture = std::future<InferenceEngine::SoExecutableNetworkInternal>;
 using NetworkPromise = std::promise<InferenceEngine::SoExecutableNetworkInternal>;
-
-struct DeviceInformation {
-    DeviceName deviceName;
-    std::map<std::string, std::string> config;
-    int numRequestsPerDevices;
-    std::string defaultDeviceID;
-    DeviceName uniqueName;
-    unsigned int devicePriority;
-};
 
 struct AutoContext {
     bool           needPerfCounters = {false};

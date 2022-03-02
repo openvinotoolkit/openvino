@@ -41,7 +41,7 @@ public:
     void InferImpl() override;
     // Multi-Device impl specific: sets the data (blobs from the device-less requests to the specific device request)
     void SetBlobsToAnotherRequest(const InferenceEngine::SoIInferRequestInternal& req);
-
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>  _perfMap;
 private:
     void CreateInferRequest(const InferenceEngine::SoIInferRequestInternal& request_to_share_blobs_with,
                             InferenceEngine::RemoteContext::Ptr ctx);

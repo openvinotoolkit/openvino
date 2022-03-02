@@ -20,6 +20,8 @@
 #include "plugin.hpp"
 #include <ie_algorithm.hpp>
 #include <ie_icore.hpp>
+#include "multi_schedule.hpp"
+#include "multi_executable_network.hpp"
 
 #include "itt.hpp"
 // ------------------------------MultiDeviceInferencePlugin----------------------------
@@ -401,10 +403,14 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     }
     // MULTI can enable the perf counters only if all  devices support/enable that
     bool enablePerfCounters = num_plugins_supporting_perf_counters == executableNetworkPerDevice.size();
-    auto impl = std::make_shared<MultiDeviceExecutableNetwork>(executableNetworkPerDevice,
-                                                               metaDevices,
-                                                               multiNetworkConfig,
-                                                               enablePerfCounters);
+    auto multiContext = std::make_shared<MultiContext>();
+    multiContext->_devicePriorities = metaDevices;
+    multiContext->_devicePrioritiesInitial = metaDevices;
+    multiContext->_networksPerDevice = executableNetworkPerDevice;
+    multiContext->_config = multiNetworkConfig;
+    multiContext->_needPerfCounters = enablePerfCounters;
+    multiContext->_core = GetCore();
+    auto impl = std::make_shared<MultiExecutableNetwork>(multiContext, std::make_shared<MultiSchedule>());
     if (!modelPath.empty()) {
         SetExeNetworkInfo(impl,
                           executableNetworkPerDevice.begin()->second->GetInputsInfo(),

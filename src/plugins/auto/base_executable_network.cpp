@@ -23,39 +23,44 @@
 #include "utils/log_util.hpp"
 
 #include "itt.hpp"
+#include "base_executable_network.hpp"
 // ------------------------------BaseExecutableNetwork----------------------------
 namespace MultiDevicePlugin {
 using namespace InferenceEngine;
 
-BaseExecutableNetwork::BaseExecutableNetwork(Schedule::Ptr schedule):
-    _schedule(schedule) {
-    _executableNetwork = _schedule->GetExecNetwork();
+BaseExecutableNetwork::BaseExecutableNetwork(const Schedule::Ptr& schedule, const Context::Ptr& context):
+    _schedule(schedule),
+    _context(context) {
+    //_executableNetwork = _schedule->GetExecNetwork();
 }
 BaseExecutableNetwork::~BaseExecutableNetwork() {
-    _schedule->release()
+    _schedule->release();
 }
 
 std::shared_ptr<InferenceEngine::RemoteContext> BaseExecutableNetwork::GetContext() const {
-    return _executableNetwork->GetContext()
+    return _executableNetwork->GetContext();
 }
 
-InferenceEngine::IInferRequestInternal::Ptr BaseExecutableNetwork::CreateInferRequestImpl(
+IInferPtr BaseExecutableNetwork::CreateInferRequestImpl(
     const std::vector<std::shared_ptr<const ov::Node>>& inputs,
     const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
-    return _schedule->CreateInferRequestImpl(inputs, outputs)
+    _context->_executableNetwork = shared_from_this();
+    return _schedule->CreateInferRequestImpl(inputs, outputs);
 }
 
-InferenceEngine::IInferRequestInternal::Ptr BaseExecutableNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
-                                                                                                InferenceEngine::OutputsDataMap networkOutputs) {
-    return _schedule->CreateInferRequestImpl(networkInputs, networkOutputs)
+IInferPtr BaseExecutableNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
+        InferenceEngine::OutputsDataMap networkOutputs) {
+    _context->_executableNetwork = shared_from_this();
+    return _schedule->CreateInferRequestImpl(networkInputs, networkOutputs);
 }
 
 IInferRequestInternal::Ptr BaseExecutableNetwork::CreateInferRequest() {
-    return _schedule->CreateInferRequest()
+    _context->_executableNetwork = shared_from_this();
+    return _schedule->CreateInferRequest();
 }
 
 void BaseExecutableNetwork::SetConfig(const std::map<std::string, InferenceEngine::Parameter> &config) {
-    return _executableNetwork->SetConfig(string, config);
+    return _executableNetwork->SetConfig(config);
 }
 
 InferenceEngine::Parameter BaseExecutableNetwork::GetConfig(const std::string &name) const {

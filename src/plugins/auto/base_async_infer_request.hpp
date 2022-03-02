@@ -5,15 +5,10 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include <map>
-#include <vector>
-#include <utility>
-#include <memory>
-#include <string>
 
 #include <cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp>
 #include "infer_request.hpp"
-#include "executable_network.hpp"
+#include "base_schedule.hpp"
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
@@ -23,18 +18,20 @@
 #endif
 
 namespace MultiDevicePlugin {
-typedef  BaseAsyncInferRequest InferenceEngine::AsyncInferRequestThreadSafeDefault;
-class BaseInferRequest : public MultiDeviceInferRequest {
+class BaseAsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
 public:
-    using Ptr = std::shared_ptr<BaseInferRequest>;
+    using Ptr = std::shared_ptr<BaseAsyncInferRequest>;
+    explicit BaseAsyncInferRequest(const Schedule::Ptr& schedule,
+            const IInferPtr&         inferRequest,
+            const InferenceEngine::ITaskExecutor::Ptr&  callbackExecutor);
+    void Infer_ThreadUnsafe() override;
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
+    ~BaseAsyncInferRequest();
 
-    explicit BaseInferRequest(const InferenceEngine::SoIInferRequestInternal&  inferRequest,
-             Schedule::Ptr _schedule);
-    ~BaseInferRequest();
+protected:
+    Schedule::Ptr _schedule;
+    WorkerInferRequest* _workerInferRequest = nullptr;
+    IInferPtr _inferRequest;
+};
 
-    virtual void InferImpl() override;
-    InferenceEngine::SoIInferRequestInternal  _realInferRequest;
-private:
-    Schedule::Ptr                             _schedule;
 }  // namespace MultiDevicePlugin
-
