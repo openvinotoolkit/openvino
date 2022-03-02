@@ -95,6 +95,7 @@ public:
     void execute(dnnl::stream strm) override;
     std::vector<VectorDims> shapeInfer() const override;
     void executeDynamicImpl(dnnl::stream strm) override;
+    size_t getFusingAxis() const override;
     bool canFuse(const NodePtr& node) const override;
     bool canBeInPlace() const override {
         return false;

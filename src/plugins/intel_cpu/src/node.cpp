@@ -1130,11 +1130,11 @@ InferenceEngine::Layout Node::getWeightsLayoutByDims(SizeVector dims, bool isGro
     }
 }
 
-void Node::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem) {
+void Node::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem, const size_t channelAxis) {
     IE_THROW() << "Fusing of " << NameFromType(this->getType()) << " operation is not implemented";
 }
 
-void Node::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem) {
+void Node::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem, const size_t channelAxis) {
     IE_THROW() << "Fusing of " << NameFromType(this->getType()) << " operation is not implemented";
 }
 
