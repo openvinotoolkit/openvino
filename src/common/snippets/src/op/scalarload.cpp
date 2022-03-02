@@ -6,5 +6,5 @@
 
 using namespace ngraph;
 
-snippets::op::ScalarLoad::ScalarLoad(const Output<Node>& x) : Load(x) {
+snippets::op::ScalarLoad::ScalarLoad(const Output<Node>& x) : Load(x, 1lu) {
 }

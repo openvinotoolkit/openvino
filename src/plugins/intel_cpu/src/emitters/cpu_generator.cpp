@@ -12,6 +12,7 @@
 #include "jit_snippets_emitters.hpp"
 #include "jit_eltwise_emitters.hpp"
 #include "jit_mkldnn_emitters.hpp"
+#include "jit_conversion_emitters.hpp"
 #include "jit_mkldnn_ext_emitters.hpp"
 
 #include <ngraph/opsets/opset5.hpp>
@@ -53,11 +54,11 @@ ov::intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_
     jitters[ngraph::snippets::op::ScalarStore::get_type_info_static()] = CREATE_EMITTER(ScalarStoreEmitter);
 
     jitters[ngraph::snippets::op::Scalar::get_type_info_static()] = CREATE_EMITTER(ScalarEmitter);
-    jitters[ngraph::snippets::op::BroadcastMove::get_type_info_static()] = CREATE_EMITTER(FakeBroadcastEmitter);
+    jitters[ngraph::snippets::op::BroadcastMove::get_type_info_static()] = CREATE_EMITTER(BroadcastMoveEmitter);
     // jitters[ngraph::snippets::op::Nop::get_type_info_static()] = CREATE_EMITTER(NopEmitter); // Not supported
     // jitters[ngraph::opset1::Broadcast::get_type_info_static()] = CREATE_EMITTER(); // Not supported
 
-    // jitters[ngraph::opset1::Convert::get_type_info_static()] = CREATE_EMITTER(); // Not supported
+    jitters[ngraph::opset1::Convert::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_convert_emitter);
     // jitters[ngraph::opset1::FakeQuantize::get_type_info_static()] = CREATE_EMITTER(); // not supported
 
     // binary
@@ -127,6 +128,10 @@ size_t ov::intel_cpu::CPUTargetMachine::get_lanes() const {
         case dnnl::impl::cpu::x64::avx512_common : return dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::avx512_common>::vlen / sizeof(float);
         default : IE_THROW() << "unknown isa " << isa;
     }
+}
+
+ov::element::TypeVector ov::intel_cpu::CPUTargetMachine::get_supported_exec_types() const {
+    return { ov::element::f32 };
 }
 
 bool ov::intel_cpu::CPUTargetMachine::is_supported() const {

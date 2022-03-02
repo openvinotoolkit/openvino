@@ -167,17 +167,17 @@ std::vector<std::vector<ov::Shape>> basic3D = {
         {{2, 17, 5}},
 };
 
-const auto basicCases3D = ::testing::Combine(
+const auto basicCases3D_Eltwise = ::testing::Combine(
         ::testing::ValuesIn(static_shapes_to_test_representation(basic3D)),
         ::testing::Values(activationShapes),
         ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
-        ::testing::ValuesIn(netPrc),
+        ::testing::Values(Precision::FP32),  // need to support nCw[8/16]c, nwc for Snippets
         ::testing::Values(Precision::FP32),
         ::testing::Values(Precision::FP32),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_3D))
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_Activation3D_Eltwise_CPU_BF16, ActivationLayerCPUTest, basicCases3D, ActivationLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Activation3D_Eltwise_CPU_FP32, ActivationLayerCPUTest, basicCases3D_Eltwise, ActivationLayerCPUTest::getTestCaseName);
 
 /* ============= Activation (2D) ============= */
 std::vector<CPUSpecificParams> cpuParams_4D = {

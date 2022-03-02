@@ -6,5 +6,5 @@
 
 using namespace ngraph;
 
-snippets::op::ScalarStore::ScalarStore(const Output<Node>& x) : Store(x) {
+snippets::op::ScalarStore::ScalarStore(const Output<Node>& x) : Store(x, 1lu) {
 }

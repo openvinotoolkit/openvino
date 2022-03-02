@@ -32,6 +32,7 @@ NGRAPH_OP(Parameter, ngraph::op::v0)
 NGRAPH_OP(BlockedParameter, ngraph::snippets::op)
 NGRAPH_OP(Result, ngraph::op::v0)
 NGRAPH_OP(Broadcast, ngraph::op::v1)
+NGRAPH_OP(Convert, ngraph::op::v0)
 
 // unary
 NGRAPH_OP(Abs, ngraph::op::v0)

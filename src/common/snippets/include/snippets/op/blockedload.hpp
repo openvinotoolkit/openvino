@@ -20,12 +20,12 @@ class BlockedLoad : public Load {
 public:
     OPENVINO_OP("BlockedLoad", "SnippetsOpset", ngraph::snippets::op::Load);
 
-    BlockedLoad(const Output<Node>& x);
+    BlockedLoad(const Output<Node>& x, const size_t lanes = 0lu);
     BlockedLoad() = default;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override {
         check_new_args_count(this, new_args);
-        return std::make_shared<BlockedLoad>(new_args.at(0));
+        return std::make_shared<BlockedLoad>(new_args.at(0), m_lanes);
     }
 };
 

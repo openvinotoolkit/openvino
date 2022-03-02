@@ -15,7 +15,7 @@
 ngraph::snippets::pass::LoadMoveBroadcastToBroadcastLoad::LoadMoveBroadcastToBroadcastLoad() {
     MATCHER_SCOPE(LoadMoveBroadcastToBroadcastLoad);
     auto param_pattern = ngraph::pattern::wrap_type<ngraph::opset1::Parameter>();
-    auto load_pattern = std::make_shared<ngraph::snippets::op::Load>(param_pattern);
+    auto load_pattern = ngraph::pattern::wrap_type<ngraph::snippets::op::Load>({param_pattern});
     auto fbn = std::make_shared<ngraph::snippets::op::BroadcastMove>(load_pattern, Shape{1});
 
     register_matcher(std::make_shared<ngraph::pattern::Matcher>(fbn),

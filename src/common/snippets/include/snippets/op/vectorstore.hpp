@@ -20,12 +20,12 @@ class VectorStore : public Store {
 public:
     OPENVINO_OP("VectorStore", "SnippetsOpset", ngraph::snippets::op::Store);
 
-    VectorStore(const Output<Node>& x);
+    VectorStore(const Output<Node>& x, const size_t lanes = 0lu);
     VectorStore() = default;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override {
         check_new_args_count(this, new_args);
-        return std::make_shared<VectorStore>(new_args.at(0));
+        return std::make_shared<VectorStore>(new_args.at(0), m_lanes);
     }
 };
 

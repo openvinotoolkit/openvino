@@ -42,6 +42,12 @@ public:
     virtual size_t get_lanes() const = 0;
 
     /**
+    * @brief gets vector of supported element types for execution
+    * @return vector of element types
+    */
+    virtual element::TypeVector get_supported_exec_types() const = 0;
+
+    /**
      * @brief called by generator to all the emittor for a target machine
      * @return a map by node's type info with callbacks to create an instance of emmitter for corresponding operation type
      */
@@ -117,6 +123,12 @@ public:
      * @return pointer to generated code
      */
     code generate(std::shared_ptr<ov::Model>& m, const void* compile_params = nullptr) const;
+
+    /**
+     * @brief gets target machine
+     * @return pointer to target machine
+     */
+    std::shared_ptr<TargetMachine> get_target_machine() const { return target; }
 
 protected:
     std::shared_ptr<TargetMachine> target;
