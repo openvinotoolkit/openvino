@@ -50,14 +50,20 @@ The timeout, which adds itself to the execution time of the requests, heavily pe
 For example, the application processes only 4 video streams, so there is no need to use a batch larger than 4. The most future-proof way to communicate the limitations on the parallelism is to equip the performance hint with the optional `ov::hint::num_requests` configuration key set to *4*. For the GPU this will limit the batch size, for the CPU - the number of inference streams, so each device uses the `ov::hint::num_requests` while converting the hint to the actual device configuration options.
 For the *explicit* usage, you can limit the batch size using  "BATCH:GPU(4)",  where 4 is the number of requests running in parallel.
 
-Limitations:
+### Other Performance Considerations
+
+To achieve the best performance with the Automatic Batching it is strongly recommended that the application
+ - Operates the number of inference requests that is multiple of the batch size. In the above example, of the batch size 4, the application best to operate 4, 8, 12, 16, etc requests
+ - Uses the requests ("grouped" by the batch size) together, for example the first 4 requests are inferred, while the second group of the requests is being populated, and so on.  
+
+The following are limitations of the current implementations:
  - Although less critical for the throughput-oriented scenarios, the load-time with auto-batching increases by almost 2x.
- - Certain networks are not reshape-able by the batching dimension (specified as 'N' in the layouts terms), so the auto-batching is not triggered.
+ - Certain networks are not reshape-able by the "batching" dimension (specified as 'N' in the layouts terms) or if the dimension is not zero-th, the auto-batching is not triggered. 
  - Performance improvements happen at the cost of the memory footprint growth, yet the auto-batching queries the available memory (especially for the dGPUs) and limits the selected batch size accordingly.
 
  
 
-### Configuring the Automatic Batching Plugin
+### Configuring the Automatic Batching
 Following the OpenVINO convention for devices names, the *batching* device is named *BATCH*. The configuration options are as follows:
 
 | Parameter name     | Parameter description      | Default            |             Examples                                                      |
