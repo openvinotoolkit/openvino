@@ -58,6 +58,18 @@ auto outputs_are_not_broadcastable(const std::shared_ptr<const Node>& node) -> b
 
 auto is_layout_oblivious(const std::shared_ptr<const Node> &n) -> bool {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::is_layout_oblivious")
+    auto is_layout_supported = [](const std::shared_ptr<const Node>& n) -> bool {
+        const auto fakeQuantize = ov::as_type_ptr<const opset1::FakeQuantize>(n);
+        if (fakeQuantize != nullptr) {
+            return
+                is_type<opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(1)) &&
+                is_type<opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(2)) &&
+                is_type<opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(3)) &&
+                is_type<opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(4));
+        }
+        return false;
+    };
+
     auto is_layout_oblivious_binary = [](const std::shared_ptr<const Node> &n) -> bool {
         return ov::is_type<opset1::Add>(n)
             || ov::is_type<opset1::Divide>(n)
@@ -101,7 +113,7 @@ auto is_layout_oblivious(const std::shared_ptr<const Node> &n) -> bool {
             || ov::is_type<ngraph::op::v7::Gelu>(n)
             || ov::is_type<ngraph::op::v4::HSwish>(n);
     };
-    return is_layout_oblivious_unary(n) || is_layout_oblivious_binary(n);
+    return is_layout_supported(n) || is_layout_oblivious_unary(n) || is_layout_oblivious_binary(n);
 }
 
 auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {

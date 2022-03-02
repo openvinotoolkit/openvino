@@ -12,6 +12,9 @@ namespace test {
 class SnippetsTestsCommon : virtual public ov::test::SubgraphBaseTest {
 protected:
     void validateNumSubgraphs();
+
+    void validateOriginalLayersNamesByType(const std::string& layerType, const std::string& originalLayersNames);
+
     // Expected num nodes and subgraphs in exec graphs depends on the plugin
     // pipeline, tokenization callback for example. Therefore, they have to be provided manually.
     size_t ref_num_nodes = 0;
