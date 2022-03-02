@@ -285,6 +285,10 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     auto isSequencePrimitiveSupported = [](const_node_ptr &node) -> bool {
         const auto& data = node->input(0);
         const auto& data_pshape = data.get_partial_shape();
+        // WA: dynamic shapes make impossible to check seq_len due to shapeOf subgraphs
+        // but the sequence is still supported in CPU and doesn't need to be decomposed
+        if (data_pshape.is_dynamic())
+            return true;
         if (data_pshape.rank().is_static() && data_pshape.rank().get_length() > 1 && !data_pshape[1].is_static())
             return false;
         auto max_seq_len = data.get_shape().at(1);
@@ -675,6 +679,16 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     const bool enableSnippets = !(enableModelCache || enableDynamicBatch || enableBF16);
     auto nGraphFunc = clonedNetwork.getFunction();
     TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT, enableSnippets, isLegacyAPI());
+
+    // need to check that all outputs have static shapes
+    // checking that all inputs have static shapes is performed in the common part
+    if (isLegacyAPI()) {
+        for (const auto& res : nGraphFunc->get_results()) {
+            if (res->get_input_partial_shape(0).is_dynamic()) {
+                IE_THROW() << "CPU plug-in can't load a model with dynamic output shapes via legacy API.";
+            }
+        }
+    }
 
     ApplyPerformanceHints(config, nGraphFunc);
 

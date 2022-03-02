@@ -46,8 +46,7 @@ class WiderFaceLoader(DataLoader):
         if index >= len(self):
             raise IndexError
 
-        annotation = (index, self._annotations[self._img_ids[index]])
-        return annotation, self._read_image(self._img_ids[index])
+        return self._read_image(self._img_ids[index]), self._annotations[self._img_ids[index]]
 
     def __len__(self):
         """ Returns size of the dataset """
@@ -311,15 +310,6 @@ class Recall(Metric):
         self._true_positives = []
         self._n_recorded_faces = []
         self._n_total_preds = []
-
-    @property
-    def value(self):
-        """ Returns metric value for the last model output.
-         Possible format: {metric_name: [metric_values_per_image]}
-         """
-        tp = np.cumsum(self._true_positives[-1])[np.arange(self._n_total_preds[-1])]
-        recalls = tp / np.maximum(self._n_recorded_faces[-1], np.finfo(np.float64).eps)
-        return {self._name: [recalls[-1]]}
 
     @property
     def avg_value(self):
