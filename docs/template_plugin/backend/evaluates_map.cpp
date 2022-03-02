@@ -2137,14 +2137,16 @@ InfoForRFFT9 get_info_for_rfft9_eval(const std::vector<std::shared_ptr<HostTenso
     size_t num_of_axes = result.axes_data.size();
     auto signal_size = fft_v7::get_signal_size(inputs, num_of_axes);
 
+    const auto last_axis = canonicalized_axes.back();
     for (size_t i = 0; i < num_of_axes; ++i) {
         int64_t current_axis = canonicalized_axes[i];
         int64_t current_signal_size = signal_size[i];
         if (current_signal_size != -1) {
             fft_output_shape[current_axis] = current_signal_size;
+            output_shape[current_axis] = current_signal_size;
         }
-        output_shape[current_axis] = fft_output_shape[current_axis] / 2 + 1;
     }
+    output_shape[last_axis] = fft_output_shape[last_axis] / 2 + 1;
     output_shape.push_back(2);
     fft_output_shape.push_back(2);
 

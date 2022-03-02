@@ -47,9 +47,11 @@ void clip_and_write_result(const std::vector<int64_t>& axes_data,
     std::cout << "We are in the function clip_and_result() now...\n";
     std::cout << "output fft shape: " << output_fft_shape << "\n";
     auto rdft_result_shape = output_fft_shape;
-    for (const auto axis : axes_data) {
-        rdft_result_shape[axis] = rdft_result_shape[axis] / 2 + 1;
-    }
+    const auto last_axis = axes_data.back();
+    rdft_result_shape[last_axis] = rdft_result_shape[last_axis] / 2 + 1;
+//    for (const auto axis : axes_data) {
+//        rdft_result_shape[axis] = rdft_result_shape[axis] / 2 + 1;
+//    }
     std::cout << "RDFT result shape: " << rdft_result_shape << "\n";
 
     const auto reversed_rdft_result_shape = fft_common::reverse_shape(rdft_result_shape);
