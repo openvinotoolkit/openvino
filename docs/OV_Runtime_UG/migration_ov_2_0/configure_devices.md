@@ -22,19 +22,19 @@ Inference Engine API:
 
 @sphinxdirective
 
-.. tab:: Core::SetConfig
+.. tab:: Devices
 
     .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
        :language: cpp
        :fragment: [core_set_config]
 
-.. tab:: Core::LoadNetwork
+.. tab:: Model Loading
 
     .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
        :language: cpp
        :fragment: [core_load_network]
 
-.. tab:: ExecutableNetwork::SetConfig
+.. tab:: Execution
 
     .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
        :language: cpp
@@ -46,19 +46,19 @@ OpenVINO Runtime API 2.0:
 
 @sphinxdirective
 
-.. tab:: Core::SetConfig
+.. tab:: Devices
 
     .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
        :language: cpp
        :fragment: [core_set_property]
 
-.. tab:: Core::LoadNetwork
+.. tab:: Model Loading
 
     .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
        :language: cpp
        :fragment: [core_compile_model]
 
-.. tab:: ExecutableNetwork::SetConfig
+.. tab:: Execution
 
     .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
        :language: cpp
@@ -72,25 +72,25 @@ Inference Engine API:
 
 @sphinxdirective
 
-.. tab:: Core::GetConfig
+.. tab:: Device configuration
 
     .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
        :language: cpp
        :fragment: [core_get_config]
 
-.. tab:: Core::GetMetric
+.. tab:: Device metrics
 
     .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
        :language: cpp
        :fragment: [core_get_metric]
 
-.. tab:: ExecutableNetwork::GetConfig
+.. tab:: Execution config
 
     .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
        :language: cpp
        :fragment: [executable_network_get_metric]
 
-.. tab:: ExecutableNetwork::GetMetric
+.. tab:: Execution metrics
 
     .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
        :language: cpp
@@ -102,25 +102,25 @@ OpenVINO Runtime API 2.0:
 
 @sphinxdirective
 
-.. tab:: Core::GetConfig
+.. tab:: Device configuration
 
     .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
        :language: cpp
        :fragment: [core_get_rw_property]
 
-.. tab:: Core::GetMetric
+.. tab:: Device metrics
 
     .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
        :language: cpp
        :fragment: [core_get_ro_property]
 
-.. tab:: ExecutableNetwork::GetConfig
+.. tab:: Execution config
 
     .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
        :language: cpp
        :fragment: [compiled_model_get_rw_property]
 
-.. tab:: ExecutableNetwork::GetMetric
+.. tab:: Execution metrics
 
     .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
        :language: cpp
