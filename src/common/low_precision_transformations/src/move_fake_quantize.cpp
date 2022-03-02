@@ -113,6 +113,7 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
         } else {
             auto fq_input = operation->clone_with_new_inputs({concat->get_input_source_output(i)});
             fq_input->set_friendly_name(operation_original_name + "_" + std::to_string(i + 1));
+            ngraph::copy_runtime_info(operation, fq_input);
             parent_output = fq_input->output(0);
         }
 

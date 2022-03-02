@@ -124,6 +124,8 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
             *ov::as_type_ptr<opset1::ConvolutionBackpropData>(copyNode),
             std::vector<element::Type>{deqPrecision, deqPrecision},
             std::vector<element::Type>{deqPrecision});
+        relaxedConvolutionBackpropData->set_friendly_name(convolutionBackpropData->get_friendly_name());
+        ngraph::copy_runtime_info(convolutionBackpropData, relaxedConvolutionBackpropData);
 
         newMultiplyAfter = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
             std::vector<element::Type>{ deqPrecision, deqPrecision },
@@ -136,6 +138,8 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
         inputs[0] = convolutionBackpropData->get_input_node_ptr(0)->input_value(0);
         if (ov::is_type<opset1::Convert>(convolutionBackpropData->get_input_node_ptr(0))) {
             auto newConvolution = convolutionBackpropData->clone_with_new_inputs(inputs);
+            newConvolution->set_friendly_name(convolutionBackpropData->get_friendly_name());
+            ngraph::copy_runtime_info(convolutionBackpropData, newConvolution);
             replace_node(convolutionBackpropData, newConvolution);
             convolutionBackpropData = newConvolution;
         }
@@ -164,7 +168,10 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
             auto inputs = convolutionBackpropData->input_values();
             inputs[1] = multiplyFromWeights->input_value(0);
 
-            const auto newconvolutionBackpropData = convolutionBackpropData->copy_with_new_inputs(inputs);
+            const auto newconvolutionBackpropData = convolutionBackpropData->clone_with_new_inputs(inputs);
+            newconvolutionBackpropData->set_friendly_name(convolutionBackpropData->get_friendly_name());
+            ngraph::copy_runtime_info(convolutionBackpropData, newconvolutionBackpropData);
+
             newMultiplyAfter = std::make_shared<opset1::Multiply>(
                 newconvolutionBackpropData,
                 foldConvert(
@@ -209,6 +216,8 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
             inputs[1] = convolutionBackpropData->get_input_node_ptr(1)->input_value(0);
             // remove Convert on weights
             auto newConvolution = convolutionBackpropData->clone_with_new_inputs(inputs);
+            newConvolution->set_friendly_name(convolutionBackpropData->get_friendly_name());
+            ngraph::copy_runtime_info(convolutionBackpropData, newConvolution);
             replace_node(convolutionBackpropData, newConvolution);
             convolutionBackpropData = newConvolution;
         }
