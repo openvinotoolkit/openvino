@@ -612,11 +612,6 @@ def test_op_extension_via_frontend_extension_map_attributes():
 
 def get_builtin_extensions_path():
     print("get_builtin_extensions_path was called")
-    ld_library_path = os.environ["LD_LIBRARY_PATH"]
-    print(f"LD_LIBRARY_PATH={ld_library_path}")
-    if len(ld_library_path) > 0:
-        import glob
-        print(glob.glob(f"{ld_library_path}/*"))
     python_frontend_path = ""
     if "BUILD_LIB_DIR" in os.environ:  # CI scenario
         python_frontend_path = os.environ["BUILD_LIB_DIR"]
@@ -625,12 +620,15 @@ def get_builtin_extensions_path():
         import openvino.frontend
         python_frontend_path = openvino.frontend.__path__[0]
         print(f"found only path {python_frontend_path}")
-    lib_folder_pos = python_frontend_path.rfind("lib/")
+    lib_folder_pos = python_frontend_path.rfind("lib")
     if lib_folder_pos != -1:
-        lib_folder_path = python_frontend_path[:lib_folder_pos + 4]
+        lib_folder_path = python_frontend_path[:lib_folder_pos + 3]
         for file in os.listdir(lib_folder_path):
+            print(f"file in dir: {file}")
             if file == "libtest_builtin_extensions_1.so" or file == "libtest_builtin_extensions_1.dll":
-                return os.path.join(lib_folder_path, file)
+                to_return = os.path.join(lib_folder_path, file)
+                print(f"returned: {to_return}")
+                return to_return
     return ""
 
 
