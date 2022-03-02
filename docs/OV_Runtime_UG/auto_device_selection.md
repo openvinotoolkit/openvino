@@ -281,7 +281,7 @@ To enable Performance Hints for your application, use the following code:
 @endsphinxdirective
 
 ### ov::hint::model_priority
-The property enables you to control the priorities of networks in Auto-Device Plugin. A high-priority network will be loaded to a supported high-priority device. A lower-priority network will not be loaded to a device that is occupied by a higher-priority network.
+The property enables you to control the priorities of networks in the Auto-Device plugin. A high-priority network will be loaded to a supported high-priority device. A lower-priority network will not be loaded to a device that is occupied by a higher-priority network.
 
 @sphinxdirective
 .. tab:: C++ API
