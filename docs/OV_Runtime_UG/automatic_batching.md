@@ -1,4 +1,4 @@
-# Automatic Batching Plugin {#openvino_docs_OV_UG_Automatic_Batching}
+# Automatic Batching {#openvino_docs_OV_UG_Automatic_Batching}
 
 ## (Automatic) Batching Execution
 
