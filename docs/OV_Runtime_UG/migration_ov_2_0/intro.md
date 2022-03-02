@@ -37,13 +37,13 @@ The IR v11 is supported by all OpenVINO Development tools including Post Trainin
 
 ### IR v10 compatibility
 
-All user's applications written to work with IR v10 are also supported by OpenVINO Runtime API from OpenVINO 2.0. So, if a user has an IR v10, such IR v10 can be fed to OpenVINO Runtime as well (see [migration steps](./common_inference_pipeline.md)).
+OpenVINO Runtime API 2.0 also supports model in IR v10 for backward compatibility. So, if a user has an IR v10, such IR v10 can be fed to OpenVINO Runtime as well (see [migration steps](./common_inference_pipeline.md)).
 
-Some OpenVINO tools also support IR v10 as well as IR v11 as an input:
+Some OpenVINO Development Tools also support both IR v10 and IR v11 as an input:
 - Accuracy checker also supports IR v10, but requires an additional option to denote which API is used underneath.
 - [Compile tool](../../../tools/compile_tool/README.md) compiles the model to be used in OpenVINO 2.0 API by default. If a user wants to use the resulting compiled blob in Inference Engine API, the additional `ov_api_1_0` option should be passed.
 
-But the following OpenVINO model tools don't support IR v10 as an input, they require to regenerate an IR v11 from the original model with latest Model Optimizer:
+But the following OpenVINO tools don't support IR v10 as an input, they require to regenerate an IR v11 from the original model with latest Model Optimizer:
 - Post Training Optimization tool
 - Deep Learning WorkBench
 
@@ -78,4 +78,4 @@ Please look at next transition guides to understand how migrate Inference Engine
  - [Configure device](./configure_devices.md)
  - [OpenVINO™ Model Creation](graph_construction.md)
 
-[tf_openvino]: ../img/tf_openvino.png
+[tf_openvino]: ../../img/tf_openvino.png

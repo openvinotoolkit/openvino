@@ -65,7 +65,7 @@ OpenVINO™ Runtime API 2.0:
 
 ## 5. Fill input tensors
 
-Inference Engine API:
+Inference Engine API fills inputs as `I32` precision (**not** aligned with the original model):
 
 @sphinxdirective
 
@@ -95,7 +95,7 @@ Inference Engine API:
 
 @endsphinxdirective
 
-OpenVINO™ Runtime API 2.0:
+OpenVINO™ Runtime API 2.0 fills inputs as `I64` precision (aligned with the original model)::
 
 @sphinxdirective
 
@@ -137,7 +137,7 @@ OpenVINO™ Runtime API 2.0:
 
 ## 7. Process the Inference Results
 
-Inference Engine API:
+Inference Engine API processes outputs as `I32` precision (**not** aligned with the original model):
 
 @sphinxdirective
 
@@ -167,7 +167,9 @@ Inference Engine API:
 
 @endsphinxdirective
 
-OpenVINO™ Runtime API 2.0:
+OpenVINO™ Runtime API 2.0 processes outputs:
+- For IR v10 as `I32` precision (**not** aligned with the original model) to match **old** behavior
+- For IR v11, ONNX, ov::Model, Paddle as `I64` precision (aligned with the original model) to match **new** behavior
 
 @sphinxdirective
 
