@@ -21,7 +21,8 @@ typedef std::tuple<
         std::map<std::string, std::string>,  // Configuration
         std::pair<size_t, size_t>,           // Third dimenstion and hidden size
         size_t,                              // Number of Cells
-        bool                                 // Decompose LSTMCell
+        bool,                                // Decompose LSTMCell
+        float                                // Input and weights range
 > basicLstmParams;
 
 class Basic_LSTM_S : public testing::WithParamInterface<basicLstmParams>,
@@ -33,6 +34,7 @@ public:
     static std::shared_ptr<ngraph::Function> GetNetwork(size_t thirdDimOut,
         size_t hiddenSize,
         size_t num_cells = 10,
+        float weights_range = 10.f,
         const InferenceEngine::Precision& netPrecission = InferenceEngine::Precision::FP32,
         std::vector<float>* hidden_memory_init_out = nullptr,
         std::vector<float>* cell_memory_init_out = nullptr);
@@ -43,6 +45,7 @@ protected:
 
     size_t hidden_size;
     size_t third_dim;
+    float weights_range;
     std::vector<float> hidden_memory_init;
     std::vector<float> cell_memory_init;
     void SetUp() override;
