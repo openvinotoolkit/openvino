@@ -977,8 +977,8 @@ std::shared_ptr<ov::Model> generateBinaryEltwiseComp(const std::shared_ptr<ov::o
         return nullptr;
     }
 
-    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(eltwiseNode)};
-    return std::make_shared<ov::Model>(results, params, "BinaryEltwiseGraph");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(eltwise)};
+    return std::make_shared<ov::Model>(results, params, "BinaryEltwiseComparisonGraph");
 }
 
 std::shared_ptr<ov::Model> generateBinaryEltwiseLogical(const std::shared_ptr<ov::op::Op> &node) {
