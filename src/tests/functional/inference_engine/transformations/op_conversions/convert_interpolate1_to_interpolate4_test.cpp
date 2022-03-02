@@ -56,6 +56,7 @@ TEST_F(TransformationTestsF, ConvertInterpolate1ToInterpolate4) {
 
         function_ref = std::make_shared<Function>(NodeVector{interpolate4}, ParameterVector{data_node});
     }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 TEST_F(TransformationTestsF, ConvertInterpolate1ToInterpolate4_1) {
@@ -93,4 +94,5 @@ TEST_F(TransformationTestsF, ConvertInterpolate1ToInterpolate4_1) {
 
         function_ref = std::make_shared<Function>(NodeVector{interpolate4}, ParameterVector{data_node});
     }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
