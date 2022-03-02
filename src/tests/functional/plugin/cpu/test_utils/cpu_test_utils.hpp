@@ -157,6 +157,8 @@ protected:
     std::vector<cpu_memory_format_t> inFmts, outFmts;
     std::vector<std::string> priority;
     std::string selectedType;
+    std::vector<CPUSpecificParams> cpuParamsVec;
+    ov::element::Type execElemType;
 };
 
 // common parameters

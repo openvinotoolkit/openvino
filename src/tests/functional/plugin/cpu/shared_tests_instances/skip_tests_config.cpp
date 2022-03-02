@@ -48,7 +48,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: 56143. Enable nspc convolutions for bf16 precision
         R"(.*ConvolutionLayerCPUTest.*_inFmts=(ndhwc|nhwc).*ENFORCE_BF16=YES.*)",
         // TODO: 56827. Sporadic test failures
-        R"(.*smoke_Conv.+_FP32.ConvolutionLayerCPUTest\.CompareWithRefs.*TS=\(\(.\.67.+\).*inFmts=n.+c.*_primitive=jit_avx2.*)",
+        R"(.*smoke_Conv.+_FP32_avx2.ConvolutionLayerCPUTest\.CompareWithRefs.*TS=\(\(.\.67.+\).*inFmts=n.+c.*_primitive=jit_avx2.*)",
         // incorrect jit_uni_planar_convolution with dilation = {1, 2, 1} and output channel 1
         R"(.*smoke_Convolution3D.*D=\(1.2.1\)_O=1.*)",
 
