@@ -26,7 +26,7 @@ def create_onnx_model():
     ]
     output_tensors = [make_tensor_value_info("out", onnx.TensorProto.FLOAT, (2, 2))]
     graph = make_graph([add, const_node, mul], "graph", input_tensors, output_tensors)
-    return make_model(graph, producer_name="ngraph ONNX Importer")
+    return make_model(graph, producer_name="ONNX Frontend")
 
 
 def create_onnx_model_2():
@@ -38,7 +38,7 @@ def create_onnx_model_2():
         make_tensor_value_info("out", onnx.TensorProto.FLOAT, (1, 2)),
     ]
     graph = make_graph([relu], "test_graph", input_tensors, output_tensors)
-    return make_model(graph, producer_name="ngraph ONNX Importer")
+    return make_model(graph, producer_name="ONNX Frontend")
 
 
 def create_onnx_model_with_subgraphs():
@@ -64,7 +64,7 @@ def create_onnx_model_with_subgraphs():
     res = onnx.helper.make_tensor_value_info("res", onnx.TensorProto.FLOAT, [3])
 
     graph = make_graph([if_node], "graph", [cond, A, B], [res])
-    return make_model(graph, producer_name="ngraph ONNX Importer")
+    return make_model(graph, producer_name="ONNX Frontend")
 
 
 def create_onnx_model_with_custom_attributes():
@@ -100,7 +100,7 @@ def create_onnx_model_with_custom_attributes():
     ]
     output_tensors = [make_tensor_value_info("out", onnx.TensorProto.FLOAT, (2, 2))]
     graph = make_graph([add, const_node, mul], "graph", input_tensors, output_tensors)
-    return make_model(graph, producer_name="ngraph ONNX Importer")
+    return make_model(graph, producer_name="ONNX Frontend")
 
 
 def create_onnx_model_for_op_extension():
@@ -136,7 +136,7 @@ def create_onnx_model_for_op_extension():
     output_tensors = [make_tensor_value_info("out", onnx.TensorProto.FLOAT, (3, 3, 32, 32))]
     graph = make_graph([const_node, elu, avg_pool, floor, concat, mul, cast], "graph",
                        input_tensors, output_tensors)
-    return make_model(graph, producer_name="ngraph ONNX Importer")
+    return make_model(graph, producer_name="ONNX Frontend")
 
 
 def run_function(function, *inputs, expected):
