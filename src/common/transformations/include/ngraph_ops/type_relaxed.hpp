@@ -323,6 +323,10 @@ std::shared_ptr<Node> TypeRelaxed<BaseOp>::clone_with_new_inputs(const OutputVec
     }
 
     new_node->validate_and_infer_types();
+
+    // clean rt_info and friendly name (that mustn't be cloned due to semantic of this method)
+    new_node->set_friendly_name("");
+    new_node->get_rt_info().clear();
     return new_node;
 }
 
