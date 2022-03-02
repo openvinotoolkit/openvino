@@ -13,10 +13,8 @@ int main() {
     InferenceEngine::CNNNetwork network = core.ReadNetwork("model.xml");
     //! [ie:read_model]
 
-    //! [ie:get_inputs_outputs]
     InferenceEngine::InputsDataMap inputs = network.getInputsInfo();
     InferenceEngine::OutputsDataMap outputs = network.getOutputsInfo();
-    //! [ie:get_inputs_outputs]
 
     //! [ie:compile_model]
     InferenceEngine::ExecutableNetwork exec_network = core.LoadNetwork(network, "CPU");
@@ -29,7 +27,6 @@ int main() {
     //! [ie:get_input_tensor]
     InferenceEngine::Blob::Ptr input_blob1 = infer_request.GetBlob(inputs.begin()->first);
     // fill first blob
-    InferenceEngine::SizeVector dims1 = input_blob1->getTensorDesc().getDims();
     InferenceEngine::MemoryBlob::Ptr minput1 = InferenceEngine::as<InferenceEngine::MemoryBlob>(input_blob1);
     if (minput1) {
         // locked memory holder should be alive all time while access to its
@@ -39,6 +36,7 @@ int main() {
         auto data = minputHolder.as<InferenceEngine::PrecisionTrait<InferenceEngine::Precision::I32>::value_type*>();
         // Fill data ...
     }
+
     InferenceEngine::Blob::Ptr input_blob2 = infer_request.GetBlob("data2");
     // fill first blob
     InferenceEngine::MemoryBlob::Ptr minput2 = InferenceEngine::as<InferenceEngine::MemoryBlob>(input_blob2);
