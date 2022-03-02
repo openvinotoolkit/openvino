@@ -100,3 +100,4 @@ explicit markup ends without a blank line
 \* keyerror:
 \* modulenotfounderror
 unexpected unindent
+failed to import object
