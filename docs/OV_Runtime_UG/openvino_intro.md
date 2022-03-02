@@ -10,7 +10,6 @@
 
    openvino_docs_Integrate_OV_with_your_application
    <!-- should be a part of Integrate OV in user application -->
-   openvino_docs_OV_Runtime_UG_Model_Representation
    openvino_docs_IE_DG_ShapeInference
    openvino_docs_OV_UG_Working_with_devices
    openvino_docs_OV_Runtime_UG_Preprocessing_Overview
