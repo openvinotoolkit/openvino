@@ -2,12 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <signal.h>
+#ifdef _WIN32
+#include <process.h>
+#endif
+
 #include "gtest/gtest.h"
 
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "functional_test_utils/layer_test_utils/environment.hpp"
 
+#include "read_ir_test/read_ir.hpp"
 #include "gflag_config.hpp"
 #include "conformance.hpp"
 
@@ -42,6 +48,13 @@ int main(int argc, char* argv[]) {
     LayerTestsUtils::Summary::setSaveReportWithUniqueName(FLAGS_report_unique_name);
     LayerTestsUtils::Summary::setOutputFolder(FLAGS_output_folder);
     LayerTestsUtils::Summary::setSaveReportTimeout(FLAGS_save_report_timeout);
+    if (FLAGS_shape_mode == std::string("static")) {
+        ov::test::subgraph::shapeMode = ov::test::subgraph::ShapeMode::STATIC;
+    } else if (FLAGS_shape_mode == std::string("dynamic")) {
+        ov::test::subgraph::shapeMode = ov::test::subgraph::ShapeMode::DYNAMIC;
+    } else if (FLAGS_shape_mode != std::string("")) {
+        throw std::runtime_error("Incorrect value for `--shape_mode`. Should be `dynamic`, `static` or ``. Current value is `" + FLAGS_shape_mode + "`");
+    }
 
     // ---------------------------Initialization of Gtest env -----------------------------------------------
     ov::test::conformance::targetDevice = FLAGS_device.c_str();
@@ -59,5 +72,24 @@ int main(int argc, char* argv[]) {
 
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::AddGlobalTestEnvironment(new LayerTestsUtils::TestEnvironment);
+
+    auto exernalSignalHandler = [](int errCode) {
+        std::cerr << "Unexpected application crash with code: " << errCode << std::endl;
+
+        // set default handler for crash
+        signal(SIGINT, SIG_DFL);
+        signal(SIGTERM, SIG_DFL);
+
+        if (errCode == SIGINT || errCode == SIGTERM) {
+            auto& s = LayerTestsUtils::Summary::getInstance();
+            s.saveReport();
+            exit(1);
+        }
+    };
+
+    // killed by extarnal
+    signal(SIGINT, exernalSignalHandler);
+    signal(SIGTERM , exernalSignalHandler);
+
     return RUN_ALL_TESTS();
 }
