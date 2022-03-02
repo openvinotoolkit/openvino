@@ -21,7 +21,6 @@
    openvino_docs_IE_DG_network_state_intro
    openvino_2_0_transition_guide
    openvino_docs_OV_Should_be_in_performance
-   openvino_docs_OV_Runtime_API_Changes
 
 @endsphinxdirective
 
