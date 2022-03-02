@@ -26,12 +26,12 @@ Short overview of the methods you can find [here](ov_without_dynamic_shapes.md).
 Apply those methods only if native dynamic shape API described in the following sections doesn't work for you or doesn't give desired performance.
 
 The decision about using dynamic shapes should be based on proper benchmarking of real application with real data.
-Than's because unlike statically shaped models, inference of dynamically shaped ones takes different inference time depending on input data shape or input tensor content.
+That's because unlike statically shaped models, inference of dynamically shaped ones takes different inference time depending on input data shape or input tensor content.
 
 ## Dynamic Shapes without Tricks
 
 This section describes how to handle dynamically shaped models natively with OpenVINO Runtime API version 2022.1 and higher.
-There are there main parts in the flow that differ from static shapes:
+There are three main parts in the flow that differ from static shapes:
  - configure the model
  - prepare data for inference
  - read resulting data after inference
@@ -78,13 +78,13 @@ When specifying bounds, the lower bound is not so important as upper bound, beca
 Precisely speaking benefits of specifying lower or upper bound is HW plugin dependent.
 Depending on the plugin specifying upper bounds can be required.
 <TODO: reference to plugin limitations table>.
-If developer knowns lower and upper bounds for dimension it is recommended to specify them even when plugin can execute model without the bounds.
+If users known lower and upper bounds for dimension it is recommended to specify them even when plugin can execute model without the bounds.
 
 ### Setting Input Tensors
 
 Preparing model with the reshape method was the first step.
 The second step is passing a tensor with an appropriate shape to infer request.
-This is similar to [regular steps](Integrate_with_customer_application_new_API.md), but now we can pass tensors with different shapes for the same executable model and even for the same infer request:
+This is similar to [regular steps](Integrate_with_customer_application_new_API.md), but now we can pass tensors with different shapes for the same executable model and even for the same inference request:
 
 @snippet snippets/ov_dynamic_shapes.cpp ov_dynamic_shapes:set_input_tensor
 
