@@ -10,7 +10,7 @@
 #include "snippets/pass/insert_movebroadcast.hpp"
 #include "snippets/pass/load_movebroadcast_to_broadcastload.hpp"
 #include "snippets/pass/assign_registers.hpp"
-#include "snippets/pass/convert_constants_to_scalars.hpp"
+#include "snippets/pass/convert_constants.hpp"
 #include "snippets/pass/convert_power_to_powerstatic.hpp"
 #include "snippets/pass/vector_to_scalar.hpp"
 
@@ -50,6 +50,11 @@ void snippets::op::Subgraph::validate_and_infer_types() {
     }
 
     for (size_t i = 0; i < get_input_size(); ++i) {
+        //// TODO: workaround
+        //const auto params = m_body->get_parameters();
+        //if (i >= params.size()) {
+        //    break;
+        //}
         m_body->replace_parameter(i, std::make_shared<opset1::Parameter>(get_input_element_type(i), get_input_partial_shape(i)));
     }
 
@@ -78,6 +83,21 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Nod
     ngraph::OutputVector subgraph_inputs;
 
     for (const auto& input : node->input_values()) {
+        // TODO: step #1, don't create Parameter
+        //if (is_type<opset1::Constant>(input.get_node_shared_ptr())) {
+        //    body_inputs.push_back(input);
+        //    if (shape_size(input.get_shape()) > 1ul) {
+        //        subgraph_inputs.push_back(input);
+        //    }
+        //} else {
+        //    auto parameter = std::make_shared<ngraph::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
+        //    body_parameters.push_back(parameter);
+        //    body_parameters.back()->set_friendly_name(input.get_node()->get_friendly_name());
+        //    body_inputs.push_back(parameter->output(0));
+
+        //    subgraph_inputs.push_back(input);
+        //}
+
         if (is_scalar_constant(input.get_node_shared_ptr())) {
             body_inputs.push_back(input);
         } else {
@@ -223,8 +243,9 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
     auto skip_matching_domain = [](const std::shared_ptr<const ov::Node>& n) -> bool {
         return n->get_input_shape(0).back() != 1;
     };
+
     ngraph::pass::Manager manager;
-    manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
+    manager.register_pass<snippets::pass::ConvertConstants>();
     manager.register_pass<snippets::pass::ConvertPowerToPowerStatic>();
     manager.register_pass<snippets::pass::InsertLoad>();
     manager.register_pass<snippets::pass::InsertStore>();

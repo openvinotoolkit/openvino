@@ -58,6 +58,18 @@ auto outputs_are_not_broadcastable(const std::shared_ptr<const Node>& node) -> b
 
 auto is_layout_oblivious(const std::shared_ptr<const Node> &n) -> bool {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::is_layout_oblivious")
+    auto is_layout_supported = [](const std::shared_ptr<const Node>& n) -> bool {
+        const auto fakeQuantize = ov::as_type_ptr<const opset1::FakeQuantize>(n);
+        if (fakeQuantize != nullptr) {
+            return
+                is_type<opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(1)) &&
+                is_type<opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(2)) &&
+                is_type<opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(3)) &&
+                is_type<opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(4));
+        }
+        return false;
+    };
+
     auto is_layout_oblivious_binary = [](const std::shared_ptr<const Node> &n) -> bool {
         return ov::is_type<opset1::Add>(n)
             || ov::is_type<opset1::Divide>(n)
@@ -101,7 +113,7 @@ auto is_layout_oblivious(const std::shared_ptr<const Node> &n) -> bool {
             || ov::is_type<ngraph::op::v7::Gelu>(n)
             || ov::is_type<ngraph::op::v4::HSwish>(n);
     };
-    return is_layout_oblivious_unary(n) || is_layout_oblivious_binary(n);
+    return is_layout_supported(n) || is_layout_oblivious_unary(n) || is_layout_oblivious_binary(n);
 }
 
 auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
@@ -409,6 +421,21 @@ TokenizeSnippets::TokenizeSnippets() {
                 // Result op has a single input
                 internal_inputs.push_back(source_result->input_value(0));
             } else {
+                // TODO: step #1, don't create Parameter
+                // if (is_type<opset1::Constant>(input_node)) {
+                //    internal_inputs.push_back(input_node->output(0));
+                //    if (shape_size(input_value.get_shape()) > 1ul) {
+                //        external_inputs.push_back(input_value);
+                //    }
+                //} else {
+                //    auto parameter = std::make_shared<ngraph::opset1::Parameter>(input_value.get_element_type(),
+                //    input_value.get_partial_shape()); body_parameters.push_back(parameter);
+                //    body_parameters.back()->set_friendly_name(input_node->get_friendly_name());
+                //    internal_inputs.push_back(parameter->output(0));
+                //
+                //    external_inputs.push_back(input_value);
+                //}
+
                 if (op::is_scalar_constant(input_node)) {
                     internal_inputs.push_back(input_node->output(0));
                 } else {
@@ -477,6 +504,7 @@ TokenizeSnippets::TokenizeSnippets() {
             throw ngraph_error("body results and node results size mismatch during subgraph collaps");
         }
         // todo: move this plugin-specific constraint to the plugin callback
+        // TODO: step #2: move to callback
         if (body_parameters.size() + body_results.size() > 7) {
             const std::string message_reset = "new subgraph is created. Impossible to schedule subgraph with " +
             std::to_string(body_parameters.size()) + " inputs and " + std::to_string(body_results.size()) + " outputs.";
