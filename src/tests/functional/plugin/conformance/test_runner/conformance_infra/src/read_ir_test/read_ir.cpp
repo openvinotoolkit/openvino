@@ -161,6 +161,9 @@ void ReadIRTest::SetUp() {
                 }
             }
         }
+        if (function->get_parameters().empty()) {
+            return;
+        }
         std::vector<InputShape> inputShapes;
         for (const auto& param : function -> get_parameters()) {
             if (param->get_partial_shape().is_static()) {

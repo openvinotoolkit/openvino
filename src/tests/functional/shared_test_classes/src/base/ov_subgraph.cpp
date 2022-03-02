@@ -57,7 +57,7 @@ void SubgraphBaseTest::run() {
         if (isCurrentTestDisabled)
             GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
 
-        ASSERT_FALSE(targetStaticShapes.empty()) << "Target Static Shape is empty!!!";
+        ASSERT_FALSE(targetStaticShapes.empty() && !function->get_parameters().empty()) << "Target Static Shape is empty!!!";
         std::string errorMessage;
         try {
             compile_model();
