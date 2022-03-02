@@ -539,7 +539,7 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
     }
 
     //Mark removed nodes as supported
-    auto removedNodeNames = GetRemovedNodes(network, clonedNetwork);
+    auto removedNodeNames = GetRemovedNodes(function, func);
     supported.insert(removedNodeNames.begin(), removedNodeNames.end());
 
     for (auto&& layerName : supported) {

@@ -301,16 +301,17 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
     exeNetwork->SetPointerToPlugin(shared_from_this());
 }
 
-std::unordered_set<std::string> IInferencePlugin::GetRemovedNodes(const CNNNetwork& originalNetwork,
-                                                                  const CNNNetwork& transformedNetwork) const {
+std::unordered_set<std::string> IInferencePlugin::GetRemovedNodes(
+    const std::shared_ptr<const ov::Model>& originalFunction,
+    const std::shared_ptr<const ov::Model>& transformedFunction) const {
     std::unordered_set<std::string> result = {};
     std::unordered_set<std::string> transformedNodeNames = {};
 
-    for (auto&& node : transformedNetwork.getFunction()->get_ops()) {
+    for (auto&& node : transformedFunction->get_ops()) {
         transformedNodeNames.emplace(node->get_friendly_name());
     }
 
-    for (auto&& originalNode : originalNetwork.getFunction()->get_ops()) {
+    for (auto&& originalNode : originalFunction->get_ops()) {
         if (!InferenceEngine::details::contains(transformedNodeNames, originalNode->get_friendly_name()))
             result.emplace(originalNode->get_friendly_name());
     }

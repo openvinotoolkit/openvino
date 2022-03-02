@@ -915,17 +915,18 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
         }
 
         auto clonedNetwork = InferenceEngine::details::cloneNetwork(network);
+        auto clonnedFunction = clonedNetwork.getFunction();
         const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
         const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
                                || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
         const bool enableSnippets = !(conf.cache_dir.empty() || conf.enableDynamicBatch || (conf.enforceBF16
                 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)));
         Transformation(clonedNetwork, enableLPT, enableSnippets, isLegacyAPI());
-        auto ops = clonedNetwork.getFunction()->get_ordered_ops();
+        auto ops = clonnedFunction->get_ordered_ops();
         std::unordered_set<std::string> supported;
         std::unordered_set<std::string> unsupported;
 
-        auto layerIsSupported = [&](std::shared_ptr<ngraph::Node> op) {
+        auto layerIsSupported = [&](const std::shared_ptr<ngraph::Node>& op) {
             std::unique_ptr<Node> ptr;
             try {
                 ptr.reset(Node::factory().create(op, {mkldnn::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
@@ -993,7 +994,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
             }
         }
 
-        auto removedNodeNames = GetRemovedNodes(network, clonedNetwork);
+        auto removedNodeNames = GetRemovedNodes(function, clonnedFunction);
         supported.insert(removedNodeNames.begin(), removedNodeNames.end());
 
         for (auto&& layerName : supported) {

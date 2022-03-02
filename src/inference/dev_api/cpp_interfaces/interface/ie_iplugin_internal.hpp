@@ -337,14 +337,14 @@ protected:
 
     /**
      * @brief Returns set of nodes which were removed after transformation.
-     * If originalNetwork contains node1 and transformedNetwork does not
+     * If originalFunction contains node1 and transformedFunction does not
      * contains node1 in ops list, node1 will be returned.
-     * @param originalNetwork Original network
-     * @param transformedNetwork Transformed network
+     * @param originalFunction Original network
+     * @param transformedFunction Transformed network
      * @return Set of strings which contains removed node names
      */
-    std::unordered_set<std::string> GetRemovedNodes(const CNNNetwork& originalNetwork,
-                                                    const CNNNetwork& transformedNetwork) const;
+    std::unordered_set<std::string> GetRemovedNodes(const std::shared_ptr<const ov::Model>& originalFunction,
+                                                    const std::shared_ptr<const ov::Model>& transformedFunction) const;
 
     std::string _pluginName;                            //!< A device name that plugins enables
     std::map<std::string, std::string> _config;         //!< A map config keys -> values

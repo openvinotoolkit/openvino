@@ -180,10 +180,11 @@ QueryNetworkResult Engine::QueryNetwork(
 
         if (auto function = supportedNetwork.getFunction()) {
             auto clonedNetwork = cloneNetwork(supportedNetwork);
+            auto clonedFunction = clonedNetwork.getFunction();
             auto convertedNetwork = vpu::FrontEnd::convertNetwork(clonedNetwork);
 
             QueryNetworkResult supportedRes = getQueryNetwork(clonedNetwork, function, GetName(), supportedLayers);
-            auto removedNodeNames = GetRemovedNodes(supportedNetwork, clonedNetwork);
+            auto removedNodeNames = GetRemovedNodes(function, clonedFunction);
 
             for (const auto& layer : removedNodeNames) {
                 res.supportedLayersMap.emplace(layer, GetName());
