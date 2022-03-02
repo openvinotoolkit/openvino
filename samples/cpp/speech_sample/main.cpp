@@ -345,8 +345,10 @@ int main(int argc, char* argv[]) {
         // -----------------------------------------------------------------------------------------------------
         // --------------------------- Step 5. Do inference --------------------------------------------------------
         std::vector<std::vector<uint8_t>> ptrUtterances;
-        std::vector<std::vector<uint8_t>> vectorPtrScores((outputs.size() == 0) ? 1 : outputs.size());
-        std::vector<uint16_t> numScoresPerOutput((outputs.size() == 0) ? 1 : outputs.size());
+        std::vector<std::vector<uint8_t>> vectorPtrScores((outputs.size() == 0) ? executableNet.outputs().size()
+                                                                                : outputs.size());
+        std::vector<uint16_t> numScoresPerOutput((outputs.size() == 0) ? executableNet.outputs().size()
+                                                                       : outputs.size());
         std::vector<std::vector<uint8_t>> vectorPtrReferenceScores(reference_name_files.size());
         std::vector<ScoreErrorT> vectorFrameError(reference_name_files.size()),
             vectorTotalError(reference_name_files.size());
