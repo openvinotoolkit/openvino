@@ -330,14 +330,14 @@ int main(int argc, char* argv[]) {
         size_t count_file = 1;
         if (!FLAGS_o.empty()) {
             output_name_files = convert_str_to_vector(FLAGS_o);
-            if (output_name_files.size() != outputs.size() && output_name_files.size() != executableNet.outputs().size()) {
+            if (output_name_files.size() != executableNet.outputs().size()) {
                 throw std::logic_error("The number of output files is not equal to the number of model outputs.");
             }
             count_file = output_name_files.empty() ? 1 : output_name_files.size();
         }
         if (!FLAGS_r.empty()) {
             reference_name_files = convert_str_to_vector(FLAGS_r);
-            if (reference_name_files.size() != outputs.size() && reference_name_files.size() != executableNet.outputs().size()) {
+            if (reference_name_files.size() != executableNet.outputs().size()) {
                 throw std::logic_error("The number of reference files is not equal to the number of model outputs.");
             }
             count_file = reference_name_files.empty() ? 1 : reference_name_files.size();
@@ -476,8 +476,9 @@ int main(int argc, char* argv[]) {
                         inferRequest.inferRequest.wait();
                         if (inferRequest.frameIndex >= 0)
                             for (size_t next_output = 0; next_output < count_file; next_output++) {
-                                std::string outputName = (outputs.size() == 0) ? executableNet.output(next_output).get_any_name()
-                                                                               : output_names[next_output];
+                                std::string outputName = (outputs.size() == 0)
+                                                             ? executableNet.output(next_output).get_any_name()
+                                                             : output_names[next_output];
                                 auto dims = executableNet.output(outputName).get_shape();
                                 numScoresPerOutput[next_output] = std::accumulate(std::begin(dims),
                                                                                   std::end(dims),
@@ -652,8 +653,8 @@ int main(int argc, char* argv[]) {
                 }
                 if (!FLAGS_r.empty()) {
                     // print statistical score error
-                    std::string outputName =
-                        (outputs.size() == 0) ? executableNet.output(next_output).get_any_name() : output_names[next_output];
+                    std::string outputName = (outputs.size() == 0) ? executableNet.output(next_output).get_any_name()
+                                                                   : output_names[next_output];
                     std::cout << "Output name: " << outputName << std::endl;
                     std::cout << "Number scores per frame: " << numScoresPerOutput[next_output] / batchSize << std::endl
                               << std::endl;
