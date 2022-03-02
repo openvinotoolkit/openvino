@@ -330,17 +330,15 @@ int main(int argc, char* argv[]) {
         size_t count_file = 1;
         if (!FLAGS_o.empty()) {
             output_name_files = convert_str_to_vector(FLAGS_o);
-            if (output_name_files.size() != outputs.size() &&
-                output_name_files.size() != executableNet.outputs().size()) {
-                throw std::logic_error("The number of output files is not equal to the number of model outputs.");
+            if (output_name_files.size() != outputs.size() && !outputs.empty()) {
+                throw std::logic_error("The number of output files is not equal to the number of network outputs.");
             }
             count_file = output_name_files.empty() ? 1 : output_name_files.size();
         }
         if (!FLAGS_r.empty()) {
             reference_name_files = convert_str_to_vector(FLAGS_r);
-            if (reference_name_files.size() != outputs.size() &&
-                reference_name_files.size() != executableNet.outputs().size()) {
-                throw std::logic_error("The number of reference files is not equal to the number of model outputs.");
+            if (reference_name_files.size() != outputs.size() && !outputs.empty()) {
+                throw std::logic_error("The number of reference files is not equal to the number of network outputs.");
             }
             count_file = reference_name_files.empty() ? 1 : reference_name_files.size();
         }
