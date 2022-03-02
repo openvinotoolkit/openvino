@@ -44,15 +44,35 @@ TEST(LoadNetworkToDefaultDeviceTest, LoadNetwork) {
     auto plugin  = std::shared_ptr<MockMultiDeviceInferencePlugin>(origin_plugin);
     injectProxyEngine(origin_plugin);
 
-    EXPECT_CALL(*plugin, LoadExeNetworkImpl(_, _)).Times(1)
-        .WillOnce([&](const InferenceEngine::CNNNetwork&,
-                      const std::map<std::string, std::string>&) -> InferenceEngine::IExecutableNetworkInternal::Ptr {
-            auto mockIExeNet = std::make_shared<MockIExecutableNetworkInternal>();
-            return mockIExeNet;
-        });
-
     InferenceEngine::CNNNetwork actualCnnNetwork;
     std::shared_ptr<ngraph::Function> actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
     ASSERT_NO_THROW(actualCnnNetwork = InferenceEngine::CNNNetwork(actualNetwork));
-    ASSERT_THROW(ie.LoadNetwork(actualCnnNetwork), InferenceEngine::Exception);
+
+    auto mockIExeNet = std::make_shared<MockIExecutableNetworkInternal>();
+    EXPECT_CALL(*mockIExeNet, GetOutputsInfo())
+        .WillOnce([&]() -> ConstOutputsDataMap {
+            ConstOutputsDataMap outputMap;
+            for (const auto& output : actualCnnNetwork.getOutputsInfo()) {
+                outputMap.emplace(output.first, output.second);
+            }
+            return outputMap;
+        });
+
+    EXPECT_CALL(*mockIExeNet, GetInputsInfo())
+        .WillOnce([&]() -> ConstInputsDataMap {
+            ConstInputsDataMap inputMap;
+            for (const auto& input : actualCnnNetwork.getInputsInfo()) {
+                inputMap.emplace(input.first, input.second);
+            }
+            return inputMap;
+        });
+
+    EXPECT_CALL(*plugin, LoadExeNetworkImpl(_, _)).Times(1)
+        .WillOnce([&](const InferenceEngine::CNNNetwork&,
+                      const std::map<std::string, std::string>&) -> InferenceEngine::IExecutableNetworkInternal::Ptr {
+            return mockIExeNet;
+        });
+
+
+    ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork));
 }
