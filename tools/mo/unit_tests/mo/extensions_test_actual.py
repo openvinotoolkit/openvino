@@ -57,8 +57,8 @@ def base_args_config():
 
 def get_builtin_extensions_path():
     python_frontend_path = ""
-    if "DATA_PATH" in os.environ:  # CI scenario
-        python_frontend_path = os.environ["DATA_PATH"]
+    if "BUILD_LIB_DIR" in os.environ:  # CI scenario
+        python_frontend_path = os.environ["BUILD_LIB_DIR"]
     else:  # local scenario
         import openvino.frontend
         python_frontend_path = openvino.frontend.__path__[0]
@@ -115,7 +115,6 @@ class TestMoFallback(unittest.TestCase):
 
 
     def test_conersion_if_extensions_is_used(self):
-        print(os.environ["DATA_PATH"])
         args = base_args_config()
         args.input_model = "test_model.onnx"
         args.extensions = get_builtin_extensions_path()

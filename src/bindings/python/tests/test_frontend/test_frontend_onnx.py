@@ -612,8 +612,8 @@ def test_op_extension_via_frontend_extension_map_attributes():
 
 def get_builtin_extensions_path():
     python_frontend_path = ""
-    if "DATA_PATH" in os.environ:  # CI scenario
-        python_frontend_path = os.environ["DATA_PATH"]
+    if "BUILD_LIB_DIR" in os.environ:  # CI scenario
+        python_frontend_path = os.environ["BUILD_LIB_DIR"]
     else:  # local scenario
         import openvino.frontend
         python_frontend_path = openvino.frontend.__path__[0]
