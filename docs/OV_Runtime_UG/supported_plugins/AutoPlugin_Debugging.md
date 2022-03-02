@@ -78,7 +78,6 @@ in which the `LOG_LEVEL` is represented by the first letter of its name (ERROR b
    [17:09:36.6809]ERROR[executable_network.cpp:384] [AUTOPLUGIN] load failed, MYRIAD:[ GENERAL_ERROR ]
 @endsphinxdirective
 
-For more details on the ov::log::level, please refer to [openvino/runtime/properties.hpp](https://github.com/openvinotoolkit/openvino/blob/1621a5a0/src/inference/include/openvino/runtime/properties.hpp#L348)
 
 ## Instrumentation and Tracing Technology
 
