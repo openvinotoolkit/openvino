@@ -925,7 +925,8 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::VariadicSp
                              std::make_shared<ov::op::v0::Result>(Node->output(2)),
                              std::make_shared<ov::op::v0::Result>(Node->output(3))};
     return std::make_shared<ov::Model>(results, params, "VariadicSplitGraph");
-    
+}
+
 std::shared_ptr<ov::Model> generateBinaryEltwise(const std::shared_ptr<ov::op::Op> &node) {
     const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{1, 2}, {1, 2}});
     std::shared_ptr<ov::Node> eltwiseNode;
