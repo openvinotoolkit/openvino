@@ -4,6 +4,7 @@
 
 The Automatic-Batching is a preview of the new functionality in the OpenVINO™ toolkit.  It performs on-the-fly automatic batching (i.e. grouping inference requests together) to improve device utilization, with no programming effort from the user.
 Inputs gathering and outputs scattering from the individual inference requests required for the batch happen transparently, without affecting the application code. 
+
 The feature primarily targets existing code written for inferencing many requests (each instance with the batch size 1). To obtain corresponding performance improvements, the application must be *running many inference requests simultaneously*. 
 As explained below, the auto-batching functionality can be also used via a special *virtual* device.       
 
@@ -41,7 +42,7 @@ Batching is a straightforward way of leveraging the GPU compute power and saving
 @endsphinxdirective
 
 
-Alternatively, to enable the Auto-Batching in the legacy apps not akin to the notion of the performance hints, you may need to use the **explicit** device notion, such as 'BATCH:GPU'. In both cases (the "throughput" hint or explicit BATCH device), the optimal batch size selection happens automatically. The actual value depends on a model and device specifics (for example, on-device memory for the dGPUs).
+Alternatively, to enable the Auto-Batching in the legacy apps not akin to the notion of the performance hints, you may need to use the **explicit** device notion, such as 'BATCH:GPU'. In both cases (the *throughput* hint or explicit BATCH device), the optimal batch size selection happens automatically. The actual value depends on the model and device specifics, for example, on-device memory for the dGPUs.
 
 This _automatic batch size selection_ assumes that the application queries the `ov::optimal_number_of_infer_requests` to create and run the returned number of requests simultaneously:
 @sphinxdirective
@@ -62,7 +63,7 @@ This _automatic batch size selection_ assumes that the application queries the `
 If not enough inputs were collected, the `timeout` value makes the transparent execution fall back to the execution of individual requests. Configuration-wise, this is the AUTO_BATCH_TIMEOUT property.
 The timeout, which adds itself to the execution time of the requests, heavily penalizes the performance. To avoid this, in cases when your parallel slack is bounded, give the OpenVINO an additional hint.
 
-For example, the application processes only 4 video streams, so there is no need to use a batch larger than 4. The most future-proof way to communicate the limitations on the parallelism is to equip the performance hint with the optional `ov::hint::num_requests` configuration key set to *4*. For the GPU this will limit the batch size, for the CPU - the number of inference streams, so each device uses the `ov::hint::num_requests` while converting the hint to the actual device configuration options:
+For example, the application processes only 4 video streams, so there is no need to use a batch larger than 4. The most future-proof way to communicate the limitations on the parallelism is to equip the performance hint with the optional `ov::hint::num_requests` configuration key set to 4. For the GPU this will limit the batch size, for the CPU - the number of inference streams, so each device uses the `ov::hint::num_requests` while converting the hint to the actual device configuration options:
 @sphinxdirective
 
 .. tab:: C++
@@ -83,7 +84,7 @@ For the *explicit* usage, you can limit the batch size using  "BATCH:GPU(4)",  w
 
 ### Other Performance Considerations
 
-To achieve the best performance with the Automatic Batching it is strongly recommended that the application
+To achieve the best performance with the Automatic Batching, the application should:
  - Operate the number of inference requests that represents the multiple of the batch size. In the above example, for batch size 4, the application should operate 4, 8, 12, 16, etc. requests.
  - Use the requests, grouped by the batch size, together. For example, the first 4 requests are inferred, while the second group of the requests is being populated.  
 
