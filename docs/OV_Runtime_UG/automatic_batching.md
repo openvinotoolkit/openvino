@@ -84,8 +84,8 @@ For the *explicit* usage, you can limit the batch size using  "BATCH:GPU(4)",  w
 ### Other Performance Considerations
 
 To achieve the best performance with the Automatic Batching it is strongly recommended that the application
- - Operates the number of inference requests that is multiple of the batch size. In the above example, of the batch size 4, the application best to operate 4, 8, 12, 16, etc requests
- - Uses the requests ("grouped" by the batch size) together, for example the first 4 requests are inferred, while the second group of the requests is being populated, and so on.  
+ - Operate the number of inference requests that represents the multiple of the batch size. In the above example, for batch size 4, the application should operate 4, 8, 12, 16, etc. requests.
+ - Use the requests, grouped by the batch size, together. For example, the first 4 requests are inferred, while the second group of the requests is being populated.  
 
 The following are limitations of the current implementations:
  - Although less critical for the throughput-oriented scenarios, the load-time with auto-batching increases by almost 2x.

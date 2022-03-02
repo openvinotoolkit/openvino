@@ -13,7 +13,7 @@ int main() {
 //! [compile_model_no_auto_batching]
 {
     // disabling the automatic batching
-    // leaving intact the other configurations options that the device selects for the 'throughput' hint 
+    // leaving intact other configurations options that the device selects for the 'throughput' hint 
     auto compiled_model = core.compile_model(model, "GPU", {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
                                                             ov::hint::allow_auto_batching(false)});
 }
