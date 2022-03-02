@@ -17,7 +17,7 @@ or accuracy is significantly affected.
 Model can even crash during inference.
 
 Besides the bad developer experience,
-the main disadvantage of padding is bad performance due to spending time for processing dummy elements in the padding area,
+the main disadvantage of padding is a bad performance due to spending time for processing dummy elements in the padding area,
 even if the model is properly designed to be used with padding.
 It turns out that usually such models are designed in a way where calculations in the padded area still happen not affecting the end result.
 
