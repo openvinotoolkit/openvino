@@ -138,7 +138,7 @@ class Property : public util::BaseProperty<T, mutability_> {
     template <typename V>
     struct Forward {
         template <typename U,
-                  typename std::enable_if<std::is_same<U, const std::string&>::value &&
+                  typename std::enable_if<std::is_same<typename std::decay<U>::type, std::string>::value &&
                                               std::is_convertible<V, std::string>::value,
                                           bool>::type = true>
         explicit operator U() {
@@ -146,15 +146,15 @@ class Property : public util::BaseProperty<T, mutability_> {
         }
 
         template <typename U,
-                  typename std::enable_if<std::is_same<U, const std::string&>::value &&
+                  typename std::enable_if<std::is_same<typename std::decay<U>::type, std::string>::value &&
                                               !std::is_convertible<V, std::string>::value,
                                           bool>::type = true>
         explicit operator U() {
-            return Any{value}.as<std::string>();
+            return Any{value}.as<U>();
         }
 
         template <typename U,
-                  typename std::enable_if<!std::is_same<U, const std::string&>::value &&
+                  typename std::enable_if<!std::is_same<typename std::decay<U>::type, std::string>::value &&
                                               std::is_convertible<V, std::string>::value,
                                           bool>::type = true>
         explicit operator U() {
@@ -162,7 +162,7 @@ class Property : public util::BaseProperty<T, mutability_> {
         }
 
         template <typename U,
-                  typename std::enable_if<!std::is_same<U, const std::string&>::value &&
+                  typename std::enable_if<!std::is_same<typename std::decay<U>::type, std::string>::value &&
                                               !std::is_convertible<V, std::string>::value,
                                           bool>::type = true>
         explicit operator U() {
@@ -652,23 +652,11 @@ namespace streams {
 struct Num {
     using Base = std::tuple<int32_t>;  //!< NumStreams is representable as int32_t
 
-    /**
-     * @brief Special value for ov::execution::num_streams property.
-     */
-    enum Special {
-        AUTO = -1,  //!< Creates bare minimum of streams to improve the performance
-        NUMA = -2,  //!< Creates as many streams as needed to accommodate NUMA and avoid associated penalties
-    };
-
-    constexpr Num() : num{AUTO} {};
+    constexpr Num() : num{-1} {};
 
     constexpr Num(const int32_t num_) : num{num_} {}
 
-    operator int32_t() {
-        return num;
-    }
-
-    operator int32_t() const {
+    constexpr operator int32_t() const {
         return num;
     }
 
@@ -680,16 +668,16 @@ struct Num {
  */
 static constexpr Property<Num, PropertyMutability::RW> num{"NUM_STREAMS"};
 
-static constexpr Num AUTO{Num::AUTO};  //!< Creates bare minimum of streams to improve the performance
+static constexpr Num AUTO{-1};  //!< Creates bare minimum of streams to improve the performance
 static constexpr Num NUMA{
-    Num::NUMA};  //!< Creates as many streams as needed to accommodate NUMA and avoid associated penalties
+    -2};  //!< Creates as many streams as needed to accommodate NUMA and avoid associated penalties
 
 /** @cond INTERNAL */
 inline std::ostream& operator<<(std::ostream& os, const Num& num) {
-    switch (num.num) {
-    case Num::AUTO:
+    switch (num) {
+    case AUTO:
         return os << "AUTO";
-    case Num::NUMA:
+    case NUMA:
         return os << "NUMA";
     default:
         return os << num.num;
@@ -714,11 +702,6 @@ inline std::istream& operator>>(std::istream& is, Num& num) {
 }
 /** @endcond */
 }  // namespace streams
-
-/**
- * @brief Class to represent number of streams in streams executor
- */
-using NumStreams = streams::Num;
 
 /**
  * @brief The number of executor logical partitions

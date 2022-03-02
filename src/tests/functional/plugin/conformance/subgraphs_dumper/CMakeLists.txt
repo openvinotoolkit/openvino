@@ -4,6 +4,13 @@
 
 set(TARGET_NAME subgraphsDumper)
 
+list(APPEND DEPENDENCIES
+        gflags
+        inference_engine
+        commonTestUtils
+        pugixml::static
+)
+
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -11,10 +18,9 @@ addIeTargetTest(
             ${CMAKE_CURRENT_SOURCE_DIR}/include
         LINK_LIBRARIES
             PRIVATE
-                gflags
-                inference_engine
-                commonTestUtils
-                pugixml::static
+                ${DEPENDENCIES}
+        DEPENDENCIES
+            ${DEPENDENCIES}
         ADD_CPPLINT
 )
 
