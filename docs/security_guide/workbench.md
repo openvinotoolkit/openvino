@@ -7,12 +7,12 @@ Deep Learning Workbench (DL Workbench) is a web application running within a Doc
 Unless necessary, limit the connections to the DL Workbench to `localhost` (127.0.0.1), so that it
 is only accessible from the machine the Docker container is built on:
 
-* When using `docker run` to [start the DL Workbench from Docker
-  Hub](@ref workbench_docs_Workbench_DG_Run_Locally), limit connections for the host IP 127.0.0.1.
-  For example, limit the connections for the host IP to the port `5665` with the `-p
-  127.0.0.1:5665:5665` command . Refer to [Container
-  networking](https://docs.docker.com/config/containers/container-networking/#published-ports) for
-  details.
+When using `docker run` to [start the DL Workbench from Docker
+Hub](@ref workbench_docs_Workbench_DG_Run_Locally), limit connections for the host IP 127.0.0.1.
+For example, limit the connections for the host IP to the port `5665` with the `-p
+127.0.0.1:5665:5665` command . Refer to [Container
+networking](https://docs.docker.com/config/containers/container-networking/#published-ports) for
+details.
 
 ## Authentication Security
 
