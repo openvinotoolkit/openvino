@@ -84,7 +84,7 @@ If users known lower and upper bounds for dimension it is recommended to specify
 
 Preparing model with the reshape method was the first step.
 The second step is passing a tensor with an appropriate shape to infer request.
-This is similar to [regular steps](Integrate_with_customer_application_new_API.md), but now we can pass tensors with different shapes for the same executable model and even for the same inference request:
+This is similar to [regular steps](integrate_with_your_application.md), but now we can pass tensors with different shapes for the same executable model and even for the same inference request:
 
 @snippet snippets/ov_dynamic_shapes.cpp ov_dynamic_shapes:set_input_tensor
 
