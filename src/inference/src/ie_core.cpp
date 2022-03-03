@@ -151,7 +151,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             if (it != config.end()) {
                 std::lock_guard<std::mutex> lock(_cacheConfigMutex);
                 fillConfig(_cacheConfig, it->second);
-                for (auto& deviceCfg: _cacheConfigPerDevice) {
+                for (auto& deviceCfg : _cacheConfigPerDevice) {
                     fillConfig(deviceCfg.second, it->second);
                 }
                 config.erase(it);
@@ -203,6 +203,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                 config._cacheManager = nullptr;
             }
         }
+
     private:
         mutable std::mutex _cacheConfigMutex;
         CacheConfig _cacheConfig;
@@ -572,9 +573,9 @@ public:
 
         auto plugin = GetCPPPluginByName(parsed._deviceName);
         ov::SoPtr<ie::IExecutableNetworkInternal> res;
-        auto cacheManager = coreConfig.getCacheConfigForDevice(parsed._deviceName,
-                                                               DeviceSupportsCacheDir(plugin),
-                                                               parsed._config)._cacheManager;
+        auto cacheManager =
+            coreConfig.getCacheConfigForDevice(parsed._deviceName, DeviceSupportsCacheDir(plugin), parsed._config)
+                ._cacheManager;
         if (cacheManager && DeviceSupportsImportExport(plugin)) {
             auto hash = CalculateNetworkHash(network, parsed._deviceName, plugin, parsed._config);
             bool loadedFromCache = false;
@@ -670,14 +671,23 @@ public:
         }
         auto plugin = GetCPPPluginByName(parsed._deviceName);
         ov::SoPtr<ie::IExecutableNetworkInternal> res;
-        auto cacheManager = coreConfig.getCacheConfigForDevice(parsed._deviceName, DeviceSupportsCacheDir(plugin), parsed._config)._cacheManager;
+        auto cacheManager =
+            coreConfig.getCacheConfigForDevice(parsed._deviceName, DeviceSupportsCacheDir(plugin), parsed._config)
+                ._cacheManager;
         if (!forceDisableCache && cacheManager && DeviceSupportsImportExport(plugin)) {
             auto hash = CalculateNetworkHash(network, parsed._deviceName, plugin, parsed._config);
             bool loadedFromCache = false;
             auto lock = cacheGuard.getHashLock(hash);
             res = LoadNetworkFromCache(cacheManager, hash, plugin, parsed._config, nullptr, loadedFromCache);
             if (!loadedFromCache) {
-                res = compile_model_impl(network, plugin, parsed._config, cacheManager, nullptr, hash, {}, forceDisableCache);
+                res = compile_model_impl(network,
+                                         plugin,
+                                         parsed._config,
+                                         cacheManager,
+                                         nullptr,
+                                         hash,
+                                         {},
+                                         forceDisableCache);
             } else {
                 // Temporary workaround until all plugins support caching of original model inputs
                 InferenceEngine::SetExeNetworkInfo(res._ptr, network.getFunction(), isNewAPI());
@@ -696,7 +706,9 @@ public:
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         auto plugin = GetCPPPluginByName(parsed._deviceName);
         ov::SoPtr<ie::IExecutableNetworkInternal> res;
-        auto cacheManager = coreConfig.getCacheConfigForDevice(parsed._deviceName, DeviceSupportsCacheDir(plugin), parsed._config)._cacheManager;
+        auto cacheManager =
+            coreConfig.getCacheConfigForDevice(parsed._deviceName, DeviceSupportsCacheDir(plugin), parsed._config)
+                ._cacheManager;
         if (cacheManager && DeviceSupportsImportExport(plugin)) {
             bool loadedFromCache = false;
             auto hash = CalculateFileHash(modelPath, parsed._deviceName, plugin, parsed._config);
