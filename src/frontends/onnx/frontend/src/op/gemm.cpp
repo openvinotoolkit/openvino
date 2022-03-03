@@ -30,10 +30,7 @@ OutputVector gemm(const Node& node) {
     }
 
     const auto alpha = node.get_attribute_value<float>("alpha", 1);
-    const auto beta = node.get_attribute_value<float>("beta", 1);
-
-    const auto alpha_node = default_opset::Constant::create(input_b.get_element_type(), Shape{}, {alpha});
-    const auto beta_node = default_opset::Constant::create(input_c.get_element_type(), Shape{}, {beta});
+    const auto beta_node = node.get_attribute_as_constant<float>("beta", 1);
 
     const bool trans_a = node.get_attribute_value<int64_t>("transA", 0);
     const bool trans_b = node.get_attribute_value<int64_t>("transB", 0);
@@ -52,6 +49,7 @@ OutputVector gemm(const Node& node) {
     std::shared_ptr<ngraph::Node> matmul_node = std::make_shared<default_opset::MatMul>(input_a, input_b);
 
     if (alpha != 1) {
+        const auto alpha_node = default_opset::Constant::create(input_b.get_element_type(), Shape{}, {alpha});
         matmul_node = std::make_shared<default_opset::Multiply>(matmul_node, alpha_node);
     }
 
@@ -76,10 +74,7 @@ OutputVector gemm(const Node& node) {
     }
 
     const auto alpha = node.get_attribute_value<float>("alpha", 1);
-    const auto beta = node.get_attribute_value<float>("beta", 1);
-
-    const auto alpha_node = default_opset::Constant::create(input_b.get_element_type(), Shape{}, {alpha});
-    const auto beta_node = default_opset::Constant::create(input_c.get_element_type(), Shape{}, {beta});
+    const auto beta_node = node.get_attribute_as_constant<float>("beta", 1);
 
     const bool trans_a = node.get_attribute_value<int64_t>("transA", 0);
     const bool trans_b = node.get_attribute_value<int64_t>("transB", 0);
@@ -88,6 +83,7 @@ OutputVector gemm(const Node& node) {
         std::make_shared<default_opset::MatMul>(input_a, input_b, trans_a, trans_b);
 
     if (alpha != 1) {
+        const auto alpha_node = default_opset::Constant::create(input_b.get_element_type(), Shape{}, {alpha});
         matmul_node = std::make_shared<default_opset::Multiply>(matmul_node, alpha_node);
     }
 

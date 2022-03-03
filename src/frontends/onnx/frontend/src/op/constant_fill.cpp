@@ -32,9 +32,7 @@ OutputVector constant_fill(const Node& node) {
                          "The input which determines output shape was not provided");
         target_shape = node.get_ng_inputs().at(0);
         if (node.has_attribute("extra_shape")) {
-            const auto extra_shape = node.get_attribute_value<std::vector<int64_t>>("extra_shape");
-            const auto extra_shape_const =
-                default_opset::Constant::create(target_shape.get_element_type(), {extra_shape.size()}, extra_shape);
+            const auto extra_shape_const = node.get_attribute_as_constant<std::vector<int64_t>>("extra_shape");
             target_shape = std::make_shared<default_opset::Concat>(OutputVector{target_shape, extra_shape_const}, 0);
         }
     } else  // use shape attribute as target shape

@@ -18,8 +18,7 @@ OutputVector scatter_elements(const Node& node) {
     const auto indices = node.get_ng_inputs().at(1);
     const auto updates = node.get_ng_inputs().at(2);
 
-    const auto axis = node.get_attribute_value<std::int64_t>("axis", 0);
-    const auto axis_node = default_opset::Constant::create(element::i64, Shape{}, {axis});
+    const auto axis_node = node.get_attribute_as_constant<std::int64_t>("axis", 0);
 
     return {std::make_shared<ngraph::opset3::ScatterElementsUpdate>(data, indices, updates, axis_node)};
 }
