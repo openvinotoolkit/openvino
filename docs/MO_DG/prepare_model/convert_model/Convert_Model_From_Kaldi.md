@@ -9,7 +9,6 @@
    :hidden:
 
    openvino_docs_MO_DG_prepare_model_convert_model_kaldi_specific_Aspire_Tdnn_Model
-   Supported Topologies <openvino_docs_MO_DG_prepare_model_convert_model_kaldi_specific_supported_topologies>
 
 @endsphinxdirective
 

@@ -12,7 +12,6 @@
    openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_YOLACT
    openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_Bert_ner
    openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_RCAN
-   Supported Topologies <openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_supported_topologies>
 
 @endsphinxdirective
 

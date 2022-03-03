@@ -24,7 +24,6 @@
    Wide and Deep Family Models <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_WideAndDeep_Family_Models>
    XLNet Model <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_XLNet_From_Tensorflow>
    YOLO Models <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_YOLO_From_Tensorflow>
-   Supported Topologies <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_supported_topologies>
 
 @endsphinxdirective
 

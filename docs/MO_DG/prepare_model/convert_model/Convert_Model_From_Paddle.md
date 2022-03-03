@@ -1,17 +1,5 @@
 # Converting a PaddlePaddle Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle}
 
-@sphinxdirective
-
-.. _convert model paddle:
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-   Supported Topologies <openvino_docs_MO_DG_prepare_model_convert_model_paddle_specific_supported_topologies>
-
-@endsphinxdirective
-
 A summary of the steps for optimizing and deploying a model trained with PaddlePaddle:
 
 1. [Configure Model Optimizer](../../Deep_Learning_Model_Optimizer_DevGuide.md) for PaddlePaddle.

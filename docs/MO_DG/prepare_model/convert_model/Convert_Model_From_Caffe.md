@@ -1,17 +1,5 @@
 # Converting a Caffe* Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe}
 
-@sphinxdirective
-
-.. _convert model caffe:
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-   Supported Topologies <openvino_docs_MO_DG_prepare_model_convert_model_caffe_specific_supported_topologies>
-
-@endsphinxdirective
-
 A summary of the steps for optimizing and deploying a model that was trained with Caffe\*:
 
 1. [Configure the Model Optimizer](../../Deep_Learning_Model_Optimizer_DevGuide.md) for Caffe\*.

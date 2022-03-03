@@ -10,7 +10,6 @@
 
    openvino_docs_MO_DG_prepare_model_convert_model_mxnet_specific_Convert_Style_Transfer_From_MXNet
    openvino_docs_MO_DG_prepare_model_convert_model_mxnet_specific_Convert_GluonCV_Models
-   openvino_docs_MO_DG_prepare_model_convert_model_mxnet_specific_supported_topologies
 
 @endsphinxdirective
 
