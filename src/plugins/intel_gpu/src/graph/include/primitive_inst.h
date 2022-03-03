@@ -160,6 +160,7 @@ public:
     std::vector<memory::cptr> get_intermediates_memories() const { return _intermediates_memory; }
 
     virtual void update_shape();
+    virtual void update_weights() {}
     void update_impl();
 
 protected:

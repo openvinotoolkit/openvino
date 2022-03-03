@@ -262,7 +262,7 @@ KernelsPriority FullyConnected_bf_tiled::GetKernelsPriority(const Params& params
     if (fc_params.output.GetLayout() == DataLayout::bfyx)
         output_b *= fc_params.output.Feature().v;
 
-    float estimated_time = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    float estimated_time = FORCE_PRIORITY_9;
     if (output_b > 1 && fc_params.inputs[0].GetDType() == Datatype::F32)
         estimated_time = FORCE_PRIORITY_3;
     else if (output_b > 1 && fc_params.inputs[0].GetDType() == Datatype::F16)

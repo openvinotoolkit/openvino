@@ -1733,7 +1733,9 @@ TEST(fully_connected_gpu, dynamic) {
     topology.add(w_data);
     topology.add(fc);
 
-    network network(engine, topology);
+    build_options options;
+    options.set_option(build_option::optimize_data(true));
+    network network(engine, topology, options);
     network.set_input_data("input", input_prim);
 
     auto outputs = network.execute();
@@ -1754,4 +1756,168 @@ TEST(fully_connected_gpu, dynamic) {
     EXPECT_EQ(0.75f, output_ptr[1]);
     EXPECT_EQ(-2.25f, output_ptr[2]);
     EXPECT_EQ(3.0f, output_ptr[3]);
+}
+
+TEST(fully_connected_gpu, dynamic_multi_inference_same_shape) {
+    const int32_t input_f = 3, input_b = 1,  // size of whole input buffer
+        weight_b = 4;
+
+    auto& engine = get_test_engine();
+
+    auto input_dyn_layout = layout{ data_types::f32,format::bfyx, ov::PartialShape{ ov::Dimension(1, 10), input_f, 1, 1} };
+    auto input_actual_layout = layout{ data_types::f32,format::bfyx, ov::PartialShape{ input_b, input_f, 1, 1} };
+    auto input_prim1 = engine.allocate_memory(input_actual_layout);
+    auto input_prim2 = engine.allocate_memory(input_actual_layout);
+    auto weights_prim = engine.allocate_memory({ data_types::f32,format::bfyx, ov::PartialShape{ weight_b, input_f, 1, 1 } });
+
+    set_values(input_prim1, { 0.5f, -2.0f, -0.5f });
+    set_values(input_prim2, { -0.5f, 2.0f, 0.5f });
+    set_values(weights_prim, { 1.5f, 1.0f, 0.5f,
+                              -1.0f, 0.0f, 0.5f,
+                              0.5f, -0.5f, -2.0f,
+                              -0.5f, 1.0f, 1.5f });
+
+    auto input = input_layout("input", input_dyn_layout);
+    auto w_data = data("weights", weights_prim);
+    auto fc = fully_connected("full_con_prim", "input", "weights");
+    topology topology;
+    topology.add(input);
+    topology.add(w_data);
+    topology.add(fc);
+
+    build_options options;
+    options.set_option(build_option::optimize_data(true));
+    network network(engine, topology, options);
+
+    {
+        network.set_input_data("input", input_prim1);
+
+        auto outputs = network.execute();
+        EXPECT_EQ(outputs.size(), size_t(1));
+        EXPECT_EQ(outputs.begin()->first, "full_con_prim");
+
+        auto output_prim = outputs.begin()->second.get_memory();
+
+        auto out_l = output_prim->get_layout();
+        EXPECT_EQ(out_l.batch(), input_b);
+        EXPECT_EQ(out_l.feature(), weight_b);
+        EXPECT_EQ(out_l.spatial(0), 1);
+        EXPECT_EQ(out_l.spatial(1), 1);
+
+        cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+
+        EXPECT_EQ(-1.5f, output_ptr[0]);
+        EXPECT_EQ(-0.75f, output_ptr[1]);
+        EXPECT_EQ(2.25f, output_ptr[2]);
+        EXPECT_EQ(-3.0f, output_ptr[3]);
+    }
+
+    {
+        network.set_input_data("input", input_prim2);
+
+
+        auto outputs = network.execute();
+        EXPECT_EQ(outputs.size(), size_t(1));
+        EXPECT_EQ(outputs.begin()->first, "full_con_prim");
+
+        auto output_prim = outputs.begin()->second.get_memory();
+
+        auto out_l = output_prim->get_layout();
+        EXPECT_EQ(out_l.batch(), input_b);
+        EXPECT_EQ(out_l.feature(), weight_b);
+        EXPECT_EQ(out_l.spatial(0), 1);
+        EXPECT_EQ(out_l.spatial(1), 1);
+
+        cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+
+        EXPECT_EQ(1.5f, output_ptr[0]);
+        EXPECT_EQ(0.75f, output_ptr[1]);
+        EXPECT_EQ(-2.25f, output_ptr[2]);
+        EXPECT_EQ(3.0f, output_ptr[3]);
+    }
+}
+
+TEST(fully_connected_gpu, dynamic_multi_inference_different_shape) {
+    const int32_t input_f = 3, weight_b = 4;
+
+    auto& engine = get_test_engine();
+
+    auto input_dyn_layout = layout{ data_types::f32,format::bfyx, ov::PartialShape{ ov::Dimension(1, 10), input_f, 1, 1} };
+    auto input_actual_layout1 = layout{ data_types::f32,format::bfyx, ov::PartialShape{ 2, input_f, 1, 1} };
+    auto input_actual_layout2 = layout{ data_types::f32,format::bfyx, ov::PartialShape{ 1, input_f, 1, 1} };
+    auto input_prim1 = engine.allocate_memory(input_actual_layout1);
+    auto input_prim2 = engine.allocate_memory(input_actual_layout2);
+    auto weights_prim = engine.allocate_memory({ data_types::f32,format::bfyx, ov::PartialShape{ weight_b, input_f, 1, 1 } });
+
+    set_values(input_prim1, { 0.5f, -2.0f, -0.5f,
+                              -0.5f, 2.0f, 0.5f });
+    set_values(input_prim2, { -0.5f, 2.0f, 0.5f });
+    set_values(weights_prim, { 1.5f, 1.0f, 0.5f,
+                              -1.0f, 0.0f, 0.5f,
+                              0.5f, -0.5f, -2.0f,
+                              -0.5f, 1.0f, 1.5f });
+
+    auto input = input_layout("input", input_dyn_layout);
+    auto w_data = data("weights", weights_prim);
+    auto fc = fully_connected("full_con_prim", "input", "weights");
+    topology topology;
+    topology.add(input);
+    topology.add(w_data);
+    topology.add(fc);
+
+    build_options options;
+    options.set_option(build_option::optimize_data(true));
+    network network(engine, topology, options);
+
+    {
+        network.set_input_data("input", input_prim1);
+
+        auto outputs = network.execute();
+        EXPECT_EQ(outputs.size(), size_t(1));
+        EXPECT_EQ(outputs.begin()->first, "full_con_prim");
+
+        auto output_prim = outputs.begin()->second.get_memory();
+
+        auto out_l = output_prim->get_layout();
+        EXPECT_EQ(out_l.batch(), 2);
+        EXPECT_EQ(out_l.feature(), weight_b);
+        EXPECT_EQ(out_l.spatial(0), 1);
+        EXPECT_EQ(out_l.spatial(1), 1);
+
+        cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+
+        EXPECT_EQ(-1.5f, output_ptr[0]);
+        EXPECT_EQ(-0.75f, output_ptr[1]);
+        EXPECT_EQ(2.25f, output_ptr[2]);
+        EXPECT_EQ(-3.0f, output_ptr[3]);
+
+        EXPECT_EQ(1.5f, output_ptr[4]);
+        EXPECT_EQ(0.75f, output_ptr[5]);
+        EXPECT_EQ(-2.25f, output_ptr[6]);
+        EXPECT_EQ(3.0f, output_ptr[7]);
+    }
+
+    {
+        network.set_input_data("input", input_prim2);
+
+
+        auto outputs = network.execute();
+        EXPECT_EQ(outputs.size(), size_t(1));
+        EXPECT_EQ(outputs.begin()->first, "full_con_prim");
+
+        auto output_prim = outputs.begin()->second.get_memory();
+
+        auto out_l = output_prim->get_layout();
+        EXPECT_EQ(out_l.batch(), 1);
+        EXPECT_EQ(out_l.feature(), weight_b);
+        EXPECT_EQ(out_l.spatial(0), 1);
+        EXPECT_EQ(out_l.spatial(1), 1);
+
+        cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+
+        EXPECT_EQ(1.5f, output_ptr[0]);
+        EXPECT_EQ(0.75f, output_ptr[1]);
+        EXPECT_EQ(-2.25f, output_ptr[2]);
+        EXPECT_EQ(3.0f, output_ptr[3]);
+    }
 }

@@ -40,7 +40,7 @@ fully_connected_kernel_selector::fully_connected_kernel_selector() {
     // Attach<FullyConnectedKernelMMAD>();
     // Attach<FullyConnectedKernelIMAD>();
     // Attach<FullyConnected_fs_byx_fsv32>();
-    // Attach<FullyConnected_bf_tiled>();
+    Attach<FullyConnected_bf_tiled>();
 }
 
 KernelsData fully_connected_kernel_selector::GetBestKernels(const Params& params,

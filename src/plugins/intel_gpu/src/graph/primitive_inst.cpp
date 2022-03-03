@@ -207,6 +207,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         update_shape();
         if (shape_changed()) {
             update_impl();
+            update_weights();
             realloc_if_needed();
         }
     }

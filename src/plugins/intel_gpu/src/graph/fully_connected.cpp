@@ -144,4 +144,42 @@ std::string fully_connected_inst::to_string(fully_connected_node const& node) {
 
 fully_connected_inst::typed_primitive_inst(network& network, fully_connected_node const& node)
     : parent(network, node) { }
+
+// TODO: looks like we can move this logic to primitive_inst class
+// and call that based in some virtual method result which would return bool
+// I.e.
+// virual bool is_weightable_layer() { return false; }
+// override this for fc/conv/etc
+// and in common primitive_execute we call
+// if (is_weightable_layer()) update_weights();
+void fully_connected_inst::update_weights() {
+    if (!_impl)
+        return;
+
+
+    auto& weights_params = _impl->_weights_reorder_params;
+    layout expected_layout = from_weights_tensor(weights_params.dest);
+    layout current_layout = node.get_dependency(1).get_output_layout();
+
+    bool requires_reorder = weights_params.engine != kernel_selector::GenericKernelParams::Engine::NONE &&
+                            (!reordered_weights || reordered_weights->get_layout() != expected_layout);
+    if (requires_reorder) {
+        auto& program = _node.get_program();
+        auto& engine = _network.get_engine();
+        auto& stream = _network.get_stream();
+        auto _kernel_id = program.add_kernel(weights_params.clKernel->code.kernelString);
+        program.compile();
+        auto kernel = program.get_kernel(_kernel_id);
+
+        reordered_weights = engine.allocate_memory(expected_layout, allocation_type::usm_device);
+
+        kernel_arguments_data args;
+        args.inputs.push_back(dep_memory_ptr(1));
+        args.output = reordered_weights;
+        stream.set_arguments(*kernel, weights_params.clKernel->params, args);
+        auto out_ev = stream.enqueue_kernel(*kernel, weights_params.clKernel->params, args, {}, true);
+        stream.wait_for_events({out_ev});
+    }
+}
+
 }  // namespace cldnn

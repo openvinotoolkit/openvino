@@ -174,6 +174,7 @@ std::vector<size_t> layout::get_dims_order() const {
 std::string layout::to_string() const {
     // TODO: Extend with format/data-type info
     std::stringstream s;
+    s << format.to_string();
     s << size;
     return s.str();
 }
