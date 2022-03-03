@@ -82,7 +82,8 @@ def parse_outputs_from_args(args: argparse.Namespace) -> Tuple[List[str], List[i
 
 
 def parse_input_layouts(args: argparse.Namespace, inputs: List[Output]) -> Dict[str, str]:
-    if ',' in args.layout:
-        return dict([_input.split('[') for _input in args.layout[:-1].split('],')])
-    else:
+    if args.layout[0] == '[':
         return {_input.get_any_name(): args.layout[1:-1] for _input in inputs}
+    else:
+        sep = '],' if ',' in args.layout else ']'
+        return dict([_input.split('[') for _input in args.layout[:-1].split(sep)])
