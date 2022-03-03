@@ -486,6 +486,13 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Gelu> &nod
     return std::make_shared<ov::Model>(results, params, "Gelu");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v7::Gelu> &node) {
+    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{8}});
+    const auto gelu = std::make_shared<ov::op::v7::Gelu>(params[0]);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(gelu)};
+    return std::make_shared<ov::Model>(results, params, "Gelu");
+}
+
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::GroupConvolution> &node) {
     const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{1, 1, 6}, {1, 1, 1, 3}});
     const auto group_convolution = std::make_shared<ov::op::v1::GroupConvolution>(params[0],
@@ -541,19 +548,18 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v4::Interpolat
     using ShapeCalcMode = op::v4::Interpolate::ShapeCalcMode;
     using TransformMode = op::v4::Interpolate::CoordinateTransformMode;
     using NearestMode = op::v4::Interpolate::NearestMode;
-
-    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{1, 1, 2, 4}});
-    const auto out_shape_in = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {4}, {1, 1, 1, 2});
-    const auto scales = ngraph::builder::makeConstant<float>(ov::element::f32, {1}, {1.0});
+    const auto params = ngraph::builder::makeDynamicParams({ov::element::f32, ov::element::i32}, {{2, 2, 30, 60}, {15, 30}});
+    const auto scales = ngraph::builder::makeConstant<float>(ov::element::f32, {2}, {0.5f, 0.5f});
+    const auto axes = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {2}, {2, 3});
     const InterpolateAttrs attrs{InterpolateMode::NEAREST,
-                                 ShapeCalcMode::SIZES,
+                                 ShapeCalcMode::SCALES,
                                  std::vector<size_t>{0, 0, 0, 0},
                                  std::vector<size_t>{0, 0, 0, 0},
                                  TransformMode::HALF_PIXEL,
                                  NearestMode::ROUND_PREFER_FLOOR,
                                  false,
                                  -0.75};
-    const auto interpolate = std::make_shared<ov::op::v4::Interpolate>(params[0], out_shape_in, scales, attrs);
+    const auto interpolate = std::make_shared<ov::op::v4::Interpolate>(params[0], params[1], scales, axes, attrs);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(interpolate)};
     return std::make_shared<ov::Model>(results, params, "Interpolate-4");
 }
@@ -580,7 +586,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v6::Assign> &n
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::LRN> &node) {
     const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 3, 2, 1}});
-    const auto axes = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {1}, std::vector<int64_t>{2});
+    const auto axes = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {1}, std::vector<int64_t>{1});
     const auto lrn = std::make_shared<ov::op::v0::LRN>(params[0], axes, 3, 0.5, 1, 3);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(lrn)};
     return std::make_shared<ov::Model>(results, params, "LRN");
@@ -1303,8 +1309,6 @@ std::shared_ptr<ov::Model> generateUnaryEltwise(const std::shared_ptr<ov::op::Op
         eltwiseNode = std::make_shared<ov::op::v0::Exp>(param);
     } else if (ov::is_type<ov::op::v0::Floor>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::Floor>(param);
-    } else if (ov::is_type<ov::op::v7::Gelu>(node)) {
-        eltwiseNode = std::make_shared<ov::op::v7::Gelu>(param);
     } else if (ov::is_type<ov::op::v5::HSigmoid>(node)) {
         eltwiseNode = std::make_shared<ov::op::v5::HSigmoid>(param);
     } else if (ov::is_type<ov::op::v4::HSwish>(node)) {
@@ -1786,8 +1790,6 @@ std::shared_ptr<ov::Model> generateGraph() {
     } else if (ov::is_type<ov::op::util::ConvertColorNV12Base>(node) ||
                ov::is_type<ov::op::util::ConvertColorI420Base>(node)) {
         return generateConvertColor(node);
-    } else if (ov::is_type<ov::op::util::MultiSubGraphOp>(node)) {
-        return generateMultiSubGraph(node);
     } else if (ov::is_type<ov::op::util::NmsBase>(node)) {
         return generateNmsBase(node);
     } else if (ov::is_type<ov::op::util::ReadValueBase>(node)) {
@@ -1810,6 +1812,8 @@ std::shared_ptr<ov::Model> generateGraph() {
         return generateRNNCellBase(node);
     } else if (ov::is_type<ov::op::util::SubGraphOp>(node)) {
         return generateSubGraphOp(node);
+    } else if (ov::is_type<ov::op::util::MultiSubGraphOp>(node)) {
+        return generateMultiSubGraph(node);
     }
 
     return generate(node);
