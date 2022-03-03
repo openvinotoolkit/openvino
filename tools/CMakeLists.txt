@@ -6,7 +6,10 @@
 #
 
 add_subdirectory(compile_tool)
-add_subdirectory(legacy/benchmark_app)
+
+if(ENABLE_SAMPLES)
+    add_subdirectory(legacy/benchmark_app)
+endif()
 
 #
 # Python tools
