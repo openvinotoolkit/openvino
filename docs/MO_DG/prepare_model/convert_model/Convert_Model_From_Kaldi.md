@@ -1,17 +1,5 @@
 # Converting a Kaldi* Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi}
 
-@sphinxdirective
-
-.. _convert model kaldi:
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-   openvino_docs_MO_DG_prepare_model_convert_model_kaldi_specific_Aspire_Tdnn_Model
-
-@endsphinxdirective
-
 A summary of the steps for optimizing and deploying a model that was trained with Kaldi\*:
 
 1. [Configure the Model Optimizer](../../Deep_Learning_Model_Optimizer_DevGuide.md) for Kaldi\*.
@@ -96,6 +84,8 @@ The Model Optimizer outputs the mapping between inputs and outputs. For example:
 2. Copy output blobs from the mapping to the corresponding inputs. For example, data from `Result_for_Offset_fastlstm2.r_trunc__2Offset_fastlstm2.r_trunc__2_out`
 must be copied to `Parameter_0_for_Offset_fastlstm2.r_trunc__2Offset_fastlstm2.r_trunc__2_out`.
 
-
 ## Supported Kaldi\* Layers
 Refer to [Supported Framework Layers ](../Supported_Frameworks_Layers.md) for the list of supported standard layers.
+
+## See Also
+[Model Conversion Tutorials](Convert_Model_Tutorials.md)

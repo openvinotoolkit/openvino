@@ -1,4 +1,4 @@
-# Convert TensorFlow DeepSpeech Model to the Intermediate Representation {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_DeepSpeech_From_Tensorflow}
+# Convert TensorFlow DeepSpeech Model {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_DeepSpeech_From_Tensorflow}
 
 [DeepSpeech project](https://github.com/mozilla/DeepSpeech) provides an engine to train speech-to-text models.
 

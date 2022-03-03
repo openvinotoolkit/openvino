@@ -1,18 +1,5 @@
 # Converting an MXNet* Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet}
 
-@sphinxdirective
-
-.. _convert model mxnet:
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-   openvino_docs_MO_DG_prepare_model_convert_model_mxnet_specific_Convert_Style_Transfer_From_MXNet
-   openvino_docs_MO_DG_prepare_model_convert_model_mxnet_specific_Convert_GluonCV_Models
-
-@endsphinxdirective
-
 A summary of the steps for optimizing and deploying a model that was trained with the MXNet\* framework:
 
 1. [Configure the Model Optimizer](../../Deep_Learning_Model_Optimizer_DevGuide.md) for MXNet* (MXNet was used to train your model)
@@ -80,3 +67,6 @@ In this document, you learned:
 * Basic information about how the Model Optimizer works with MXNet\* models
 * Which MXNet\* models are supported
 * How to convert a trained MXNet\* model using the Model Optimizer with both framework-agnostic and MXNet-specific command-line options
+
+## See Also
+[Model Conversion Tutorials](Convert_Model_Tutorials.md)

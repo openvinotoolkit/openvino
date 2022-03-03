@@ -1,20 +1,5 @@
 # Converting a PyTorch* Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch}
 
-@sphinxdirective
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-   openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_F3Net
-   openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_QuartzNet
-   openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_RNNT
-   openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_YOLACT
-   openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_Bert_ner
-   openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_RCAN
-
-@endsphinxdirective
-
 ## Typical Steps to Convert PyTorch Model <a name="typical-pytorch"></a>
 
 PyTorch* framework is supported through export to ONNX\* format. A summary of the steps for optimizing and deploying a model that was trained with the PyTorch\* framework:
@@ -51,3 +36,6 @@ torch.onnx.export(model, (dummy_input, ), 'model.onnx')
 * Not all PyTorch\* operations can be exported to ONNX\* opset 9 which is used by default, as of version 1.8.1.
 It is recommended to export models to opset 11 or higher when export to default opset 9 is not working. In that case, use `opset_version`
 option of the `torch.onnx.export`. For more information about ONNX* opset, refer to the [Operator Schemas](https://github.com/onnx/onnx/blob/master/docs/Operators.md).
+
+## See Also
+[Model Conversion Tutorials](Convert_Model_Tutorials.md)

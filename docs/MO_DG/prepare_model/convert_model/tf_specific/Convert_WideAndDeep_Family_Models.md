@@ -1,4 +1,4 @@
-# Converting TensorFlow Wide and Deep Family Models to the Intermediate Representation {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_WideAndDeep_Family_Models}
+# Convert TensorFlow Wide and Deep Family Models {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_WideAndDeep_Family_Models}
 
 The Wide and Deep models is a combination of wide and deep parts for memorization and generalization of object features respectively.
 These models can contain different types of object features such as numerical, categorical, sparse and sequential features. These feature types are specified

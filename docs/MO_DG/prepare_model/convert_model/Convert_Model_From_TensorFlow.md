@@ -1,32 +1,5 @@
 # Converting a TensorFlow* Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow}
 
-@sphinxdirective
-
-.. _convert model tf:
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-
-   Attention OCR Model <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_AttentionOCR_From_Tensorflow>
-   BERT Model <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_BERT_From_Tensorflow>
-   CRNN Model <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_CRNN_From_Tensorflow>
-   DeepSpeech Model <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_DeepSpeech_From_Tensorflow>
-   EfficientDet Models <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_EfficientDet_Models>
-   FaceNet Models <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_FaceNet_From_Tensorflow>
-   GNMT Model <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_GNMT_From_Tensorflow>
-   Language Model on One Billion Word Benchmark <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_lm_1b_From_Tensorflow>
-   Neural Collaborative Filtering Model <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_NCF_From_Tensorflow>
-   Object Detection API Models <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models>
-   RetinaNet Model <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_RetinaNet_From_Tensorflow>
-   Slim Image Classification Model Library Models <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Slim_Library_Models>
-   Wide and Deep Family Models <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_WideAndDeep_Family_Models>
-   XLNet Model <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_XLNet_From_Tensorflow>
-   YOLO Models <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_YOLO_From_Tensorflow>
-
-@endsphinxdirective
-
 A summary of the steps for optimizing and deploying a model that was trained with the TensorFlow\* framework:
 
 1. [Configure the Model Optimizer](../../Deep_Learning_Model_Optimizer_DevGuide.md) for TensorFlow\* (TensorFlow was used to train your model).
@@ -296,3 +269,6 @@ In this document, you learned:
 * Which TensorFlow models are supported
 * How to freeze a TensorFlow model
 * How to convert a trained TensorFlow model using the Model Optimizer with both framework-agnostic and TensorFlow-specific command-line options
+
+## See Also
+[Model Conversion Tutorials](Convert_Model_Tutorials.md)

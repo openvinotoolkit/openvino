@@ -1,4 +1,4 @@
-# Converting RetinaNet Model from TensorFlow to the Intermediate Representation {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_RetinaNet_From_Tensorflow}
+# Converting TensorFlow RetinaNet Model {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_RetinaNet_From_Tensorflow}
 
 This tutorial explains how to convert RetinaNet model to the Intermediate Representation (IR).
 

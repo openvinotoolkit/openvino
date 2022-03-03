@@ -1,4 +1,4 @@
-# Converting TensorFlow Slim Image Classification Model Library Models {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Slim_Library_Models}
+# Convert TensorFlow Slim Image Classification Model Library Models {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Slim_Library_Models}
 
 <a href="https://github.com/tensorflow/models/tree/master/research/slim/README.md">TensorFlow\*-Slim Image Classification Model Library</a> is a library to define, train and evaluate classification models in TensorFlow\*. The library contains Python scripts defining the classification topologies together with checkpoint files for several pre-trained classification topologies. To convert a TensorFlow\*-Slim library model, complete the following steps:
 

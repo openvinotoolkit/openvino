@@ -1,4 +1,4 @@
-# Convert TensorFlow XLNet Model to the Intermediate Representation {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_XLNet_From_Tensorflow}
+# Convert TensorFlow XLNet Model {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_XLNet_From_Tensorflow}
 
 Pre-trained models for XLNet (Bidirectional Encoder Representations from Transformers) are
 [publicly available](https://github.com/zihangdai/xlnet).
