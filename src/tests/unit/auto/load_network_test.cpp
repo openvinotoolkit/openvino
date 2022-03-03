@@ -43,8 +43,8 @@ TEST(LoadNetworkToDefaultDeviceTest, LoadNetwork) {
     std::function<void(IInferencePlugin*)> injectProxyEngine(
         reinterpret_cast<void (*)(IInferencePlugin*)>(ov::util::get_symbol(sharedObjectLoader, "InjectProxyEngine")));
 
-    auto* origin_plugin = new MockMultiDeviceInferencePlugin();
-    auto plugin  = std::shared_ptr<MockMultiDeviceInferencePlugin>(origin_plugin);
+    auto* origin_plugin = new MockMultiDeviceLoadNetworkTestPlugin();
+    auto plugin  = std::shared_ptr<MockMultiDeviceLoadNetworkTestPlugin>(origin_plugin);
     injectProxyEngine(origin_plugin);
 
     InferenceEngine::CNNNetwork actualCnnNetwork;
@@ -94,8 +94,8 @@ TEST(CompileModelToDefaultDeviceTest, compileModel) {
     std::function<void(IInferencePlugin*)> injectProxyEngine(
         reinterpret_cast<void (*)(IInferencePlugin*)>(ov::util::get_symbol(sharedObjectLoader, "InjectProxyEngine")));
 
-    auto* origin_plugin = new MockMultiDeviceInferencePlugin();
-    auto plugin  = std::shared_ptr<MockMultiDeviceInferencePlugin>(origin_plugin);
+    auto* origin_plugin = new MockMultiDeviceLoadNetworkTestPlugin();
+    auto plugin  = std::shared_ptr<MockMultiDeviceLoadNetworkTestPlugin>(origin_plugin);
     injectProxyEngine(origin_plugin);
 
     InferenceEngine::CNNNetwork actualCnnNetwork;
