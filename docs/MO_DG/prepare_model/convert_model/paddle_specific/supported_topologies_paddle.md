@@ -1,0 +1,21 @@
+# Supported PaddlePaddle Topologies {#openvino_docs_MO_DG_prepare_model_convert_model_paddle_specific_supported_topologies}
+
+| Model Name| Model Type| Description|
+| ------------- | ------------ | ------------- |
+|ppocr-det| optical character recognition| Models are exported from [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR/tree/release/2.1/). Refer to [READ.md](https://github.com/PaddlePaddle/PaddleOCR/tree/release/2.1/#pp-ocr-20-series-model-listupdate-on-dec-15).|
+|ppocr-rec| optical character recognition| Models are exported from [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR/tree/release/2.1/). Refer to [READ.md](https://github.com/PaddlePaddle/PaddleOCR/tree/release/2.1/#pp-ocr-20-series-model-listupdate-on-dec-15).|
+|ResNet-50| classification| Models are exported from [PaddleClas](https://github.com/PaddlePaddle/PaddleClas/tree/release/2.1/). Refer to [getting_started_en.md](https://github.com/PaddlePaddle/PaddleClas/blob/release/2.1/docs/en/tutorials/getting_started_en.md#4-use-the-inference-model-to-predict)|
+|MobileNet v2| classification| Models are exported from [PaddleClas](https://github.com/PaddlePaddle/PaddleClas/tree/release/2.1/). Refer to [getting_started_en.md](https://github.com/PaddlePaddle/PaddleClas/blob/release/2.1/docs/en/tutorials/getting_started_en.md#4-use-the-inference-model-to-predict)|
+|MobileNet v3| classification| Models are exported from [PaddleClas](https://github.com/PaddlePaddle/PaddleClas/tree/release/2.1/). Refer to [getting_started_en.md](https://github.com/PaddlePaddle/PaddleClas/blob/release/2.1/docs/en/tutorials/getting_started_en.md#4-use-the-inference-model-to-predict)|
+|BiSeNet v2| semantic segmentation| Models are exported from [PaddleSeg](https://github.com/PaddlePaddle/PaddleSeg/tree/release/2.1). Refer to [model_export.md](https://github.com/PaddlePaddle/PaddleSeg/blob/release/2.1/docs/model_export.md#)|
+|DeepLab v3 plus| semantic segmentation| Models are exported from [PaddleSeg](https://github.com/PaddlePaddle/PaddleSeg/tree/release/2.1). Refer to [model_export.md](https://github.com/PaddlePaddle/PaddleSeg/blob/release/2.1/docs/model_export.md#)|
+|Fast-SCNN| semantic segmentation| Models are exported from [PaddleSeg](https://github.com/PaddlePaddle/PaddleSeg/tree/release/2.1). Refer to [model_export.md](https://github.com/PaddlePaddle/PaddleSeg/blob/release/2.1/docs/model_export.md#)|
+|OCRNET| semantic segmentation| Models are exported from [PaddleSeg](https://github.com/PaddlePaddle/PaddleSeg/tree/release/2.1). Refer to [model_export.md](https://github.com/PaddlePaddle/PaddleSeg/blob/release/2.1/docs/model_export.md#)|
+|Yolo v3| detection| Models are exported from [PaddleDetection](https://github.com/PaddlePaddle/PaddleDetection/tree/release/2.1). Refer to [EXPORT_MODEL.md](https://github.com/PaddlePaddle/PaddleDetection/blob/release/2.1/deploy/EXPORT_MODEL.md#).|
+|ppyolo| detection| Models are exported from [PaddleDetection](https://github.com/PaddlePaddle/PaddleDetection/tree/release/2.1). Refer to [EXPORT_MODEL.md](https://github.com/PaddlePaddle/PaddleDetection/blob/release/2.1/deploy/EXPORT_MODEL.md#).|
+|MobileNetv3-SSD| detection| Models are exported from [PaddleDetection](https://github.com/PaddlePaddle/PaddleDetection/tree/release/2.2). Refer to [EXPORT_MODEL.md](https://github.com/PaddlePaddle/PaddleDetection/blob/release/2.2/deploy/EXPORT_MODEL.md#).|
+|U-Net| semantic segmentation| Models are exported from [PaddleSeg](https://github.com/PaddlePaddle/PaddleSeg/tree/release/2.3). Refer to [model_export.md](https://github.com/PaddlePaddle/PaddleSeg/blob/release/2.3/docs/model_export.md#)|
+|BERT| language representation| Models are exported from [PaddleNLP](https://github.com/PaddlePaddle/PaddleNLP/tree/v2.1.1). Refer to [README.md](https://github.com/PaddlePaddle/PaddleNLP/tree/develop/examples/language_model/bert#readme)|
+|ernie| language representation| Models are exported from [PaddleNLP](https://github.com/PaddlePaddle/PaddleNLP/tree/v2.1.1). Refer to [README.md](https://github.com/PaddlePaddle/PaddleNLP/tree/develop/examples/language_model/bert#readme)|
+
+> **NOTE:** The verified models are exported from the repository of branch release/2.1.

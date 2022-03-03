@@ -12,36 +12,11 @@
    openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_YOLACT
    openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_Bert_ner
    openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_RCAN
+   Supported Topologies <openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_supported_topologies>
 
 @endsphinxdirective
 
-## Supported Topologies
-
-Here is the list of models that are tested and guaranteed to be supported. However, you can also use these instructions to convert PyTorch\* models that are not presented in the list.
-
-* [Torchvision Models](https://pytorch.org/docs/stable/torchvision/index.html):  alexnet, densenet121, densenet161,
-  densenet169, densenet201, resnet101, resnet152, resnet18, resnet34, resnet50, vgg11, vgg13, vgg16, vgg19.
-  The models can be converted using [regular instructions](#typical-pytorch).
-* [Cadene Pretrained Models](https://github.com/Cadene/pretrained-models.pytorch): alexnet, fbresnet152, resnet101,
-  resnet152, resnet18, resnet34, resnet152, resnet18, resnet34, resnet50, resnext101_32x4d, resnext101_64x4d, vgg11.
-  The models can be converted using [regular instructions](#typical-pytorch).
-* [ESPNet Models](https://github.com/sacmehta/ESPNet/tree/master/pretrained) can be converted using [regular instructions](#typical-pytorch).
-* [MobileNetV3](https://github.com/d-li14/mobilenetv3.pytorch) can be converted using [regular instructions](#typical-pytorch).
-* [iSeeBetter](https://github.com/amanchadha/iSeeBetter) can be converted using [regular instructions](#typical-pytorch).
-  Please refer to [`iSeeBetterTest.py`](https://github.com/amanchadha/iSeeBetter/blob/master/iSeeBetterTest.py) script for code to initialize the model.
-* F3Net topology can be converted using steps described in [Convert PyTorch\* F3Net to the IR](pytorch_specific/Convert_F3Net.md)
-  instruction which is used instead of steps 2 and 3 of [regular instructions](#typical-pytorch).
-* QuartzNet topologies from [NeMo project](https://github.com/NVIDIA/NeMo) can be converted using steps described in
-  [Convert PyTorch\* QuartzNet to the IR](pytorch_specific/Convert_QuartzNet.md) instruction which is used instead of
-  steps 2 and 3 of [regular instructions](#typical-pytorch).
-* YOLACT topology can be converted using steps described in [Convert PyTorch\* YOLACT to the IR](pytorch_specific/Convert_YOLACT.md)
-  instruction which is used instead of steps 2 and 3 of [regular instructions](#typical-pytorch).
-* [RCAN](https://github.com/yulunzhang/RCAN) topology can be converted using steps described in [Convert PyTorch\* RCAN to the IR](pytorch_specific/Convert_RCAN.md)
-  instruction which is used instead of steps 2 and 3 of [regular instructions](#typical-pytorch).
-* [BERT_NER](https://github.com/kamalkraj/BERT-NER) topology can be converted using steps described in [Convert PyTorch* BERT-NER to the IR](pytorch_specific/Convert_Bert_ner.md)
-  instruction which is used instead of steps 2 and 3 of [regular instructions](#typical-pytorch).
-
-## Typical steps to convert PyTorch\* model <a name="typical-pytorch"></a>
+## Typical Steps to Convert PyTorch Model <a name="typical-pytorch"></a>
 
 PyTorch* framework is supported through export to ONNX\* format. A summary of the steps for optimizing and deploying a model that was trained with the PyTorch\* framework:
 
@@ -66,7 +41,7 @@ import torch
 model = SomeModel()
 # Evaluate the model to switch some operations from training mode to inference.
 model.eval()
-# Create dummy input for the model. It will be used to run the model inside export function. 
+# Create dummy input for the model. It will be used to run the model inside export function.
 dummy_input = torch.randn(1, 3, 224, 224)
 # Call the export function
 torch.onnx.export(model, (dummy_input, ), 'model.onnx')
