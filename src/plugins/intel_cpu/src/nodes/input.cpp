@@ -249,12 +249,22 @@ MKLDNNInputNode::MKLDNNInputNode(const std::shared_ptr<ngraph::Node>& op, const 
 void MKLDNNInputNode::cloneBlobIfRequired() {
     Shape shape(constOp->get_shape().empty() ? ngraph::Shape(1, 1) : constOp->get_shape());
     const auto prec = convertPrecision(constOp->get_element_type());
-    const size_t size = shape.getRank();
+    const size_t size = shape.getElementsCount();
     DnnlBlockedMemoryDesc memDesc(prec, shape);
 
     auto cloneBlob = [&, this] () {
         MKLDNNMemory memory{ getEngine() };
-        memory.Create(memDesc, constOp->get_data_ptr());
+
+        // CVS-74980
+        // MKLDNN/oneDNN always allocate 1byte for element type with bitWidth < 8 (u4,u1...)
+        // but ngraph Constant uses actual bitWidth for data storage allocation
+        // in that case we make a copy to avoid overflow
+        if (constOp->get_byte_size() >= memDesc.getCurrentMemSize()) {
+            memory.Create(memDesc, constOp->get_data_ptr());
+        } else {
+            memory.Create(memDesc);
+            memcpy(memory.GetPtr(), constOp->get_data_ptr(), constOp->get_byte_size());
+        }
 
         MKLDNNMemoryPtr ptr = MKLDNNMemoryPtr(new MKLDNNMemory(getEngine()));
         ptr->Create(memDesc);

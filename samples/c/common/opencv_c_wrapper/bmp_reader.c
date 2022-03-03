@@ -4,11 +4,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define CLEANUP_AND_RETURN(x)        \
-    if (x && !image && !image->data) \
-        free(image->data);           \
-    if (input != NULL)               \
-        fclose(input);               \
+#define CLEANUP_AND_RETURN(x)                           \
+    if (0 != x && NULL != image && NULL != image->data) \
+        free(image->data);                              \
+    if (input != NULL)                                  \
+        fclose(input);                                  \
     return x;
 
 int readBmpImage(const char* fileName, BitMap* image) {
