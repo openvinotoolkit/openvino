@@ -32,8 +32,11 @@ protected:
 
     virtual void configure_model();
     virtual void compile_model();
+    void compile_model_new();
     virtual void init_ref_function(std::shared_ptr<ov::Model> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes);
+    std::map<std::shared_ptr<ov::Node>, ov::Tensor> generate_inputs_new(const std::vector<ov::Shape>& targetInputStaticShapes);
     virtual void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes);
+    void infer_new(const std::map<std::shared_ptr<ov::Node>, ov::Tensor>& _inputs);
     virtual void infer();
     virtual void validate();
 
@@ -58,6 +61,7 @@ protected:
     LayerTestsUtils::Summary& summary = LayerTestsUtils::Summary::getInstance();
 
     virtual std::vector<ov::Tensor> calculate_refs();
+    std::vector<ov::Tensor> calculate_refs_new(const std::map<std::shared_ptr<ov::Node>, ov::Tensor>& _inputs);
     virtual std::vector<ov::Tensor> get_plugin_outputs();
 };
 
