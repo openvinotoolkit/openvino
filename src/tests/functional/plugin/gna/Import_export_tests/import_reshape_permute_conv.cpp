@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#pragma once
-
-#include "base/import_export_base/import_export_base.hpp"
+#include "base/import_export_base.hpp"
 #include "ngraph_functions/builders.hpp"
 
 namespace LayerTestsDefinitions {
