@@ -12,7 +12,7 @@ int main() {
                                 + std::string(i < (myriadDevices.size() -1) ? "," : "");
     }
 
-    ov::CompiledModel compileModel = core.compile_model(model, allDevices, {});
+    ov::CompiledModel compileModel = core.compile_model(model, allDevices);
 //! [part3]
 return 0;
 }

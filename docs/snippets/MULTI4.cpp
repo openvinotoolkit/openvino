@@ -11,7 +11,7 @@ core.set_property("HDDL", hddl_config);
 // configure the GPU device
 core.set_property("GPU", gpu_config);
 // load the network to the multi-device, while specifying the configuration (devices along with priorities):
-ov::CompiledModel compileModel = core.compile_model(model, "MULTI", {{ov::device::priorities.name(), "HDDL,GPU"}});
+ov::CompiledModel compileModel = core.compile_model(model, "MULTI", ov::device::priorities("HDDL,GPU"));
 // new property allows to query the optimal number of requests:
 uint32_t nireq = compileModel.get_property(ov::optimal_number_of_infer_requests);
 //! [part4]

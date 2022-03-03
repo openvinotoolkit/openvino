@@ -11,7 +11,7 @@ using namespace InferenceEngine;
         allDevices += device;
         allDevices += ((device == availableDevices[availableDevices.size()-1]) ? "" : ",");
     }
-    ov::CompiledModel compileModel = core.compile_model(model, allDevices, {});
+    ov::CompiledModel compileModel = core.compile_model(model, allDevices);
 //! [part2]
 return 0;
 }

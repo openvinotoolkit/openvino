@@ -5,7 +5,7 @@ using namespace InferenceEngine;
 //! [part1]
     ov::Core core;
     std::shared_ptr<ov::Model> model = core.read_model("sample.xml");
-    ov::CompiledModel compileModel = core.compile_model(model, "MULTI:HDDL,GPU", {});
+    ov::CompiledModel compileModel = core.compile_model(model, "MULTI:HDDL,GPU");
     //...
     compileModel.set_property(ov::device::priorities("GPU,HDDL"));
     // you can even exclude some device

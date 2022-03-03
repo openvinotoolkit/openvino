@@ -31,7 +31,7 @@ Following the OpenVINO™ convention of labeling devices, the Multi-Device plugi
 | -------------- | ---------------- | --- | --- |
 | ov::device::priorities | comma-separated device names with no spaces | N/A | Prioritized list of devices |
 
-You can set the configuration directly as a string.
+You can set the priorities directly as a string.
 
 Basically, there are three ways to specify the devices to be use by the "MULTI":
 
