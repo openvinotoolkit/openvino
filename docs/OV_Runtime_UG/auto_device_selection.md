@@ -10,7 +10,7 @@
 
 @endsphinxdirective
 
-The Auto-Device plugin is a virtual device which automatically selects the processing unit to use for inference with OpenVINO. It chooses from a list of available devices defined by the user and aims at finding the most suitable hardware for the given model. The best device is chosen using the following logic: 
+The Auto-Device plugin, or AUTO, is a virtual device which automatically selects the processing unit to use for inference with OpenVINO™. It chooses from a list of available devices defined by the user and aims at finding the most suitable hardware for the given model. The best device is chosen using the following logic: 
 
 1. Check which supported devices are available. 
 2. Check the precision of the input model (for detailed information on precisions read more on the [OPTIMIZATION_CAPABILITIES metric](../IE_PLUGIN_DG/Plugin.md)) 
@@ -44,7 +44,7 @@ If you have dGPU in your system, it will be selected for most jobs (first on the
 
 What is important, **AUTO always starts inference with the CPU**. CPU provides very low latency and can start inference with no additional delays. While it performs inference, the Auto-Device plugin continues to load the model to the device best suited for the purpose and transfers the task to it when ready. This way, the devices which are much slower in loading the network, GPU being the best example, do not impede inference at its initial stages. 
 
-This mechanism can be easily observed in our Benchmark Application sample (see here), showing how the first-inference latency (the time it takes to load the network and perform the first inference) is reduced when using AUTO. For example: 
+This mechanism can be easily observed in our Benchmark Application sample ([see here](#Benchmark App Info)), showing how the first-inference latency (the time it takes to load the network and perform the first inference) is reduced when using AUTO. For example: 
 
 @sphinxdirective
 .. code-block:: sh
@@ -69,9 +69,9 @@ first-inference latency: **173.13 ms + 13.20 ms**
 
 ## Using the Auto-Device Plugin 
 
-Inference with Auto-Device is configured similarly to other plugins: first you configure devices, then load a network to the Auto-device plugin, and finally, execute inference. 
+Inference with AUTO is configured similarly to other plugins: first you configure devices, then load a network to the plugin, and finally, execute inference. 
 
-Following the OpenVINO naming convention, the Auto-device plugin is assigned the label of “AUTO.” It may be defined with no additional parameters, resulting in defaults being used, or configured further with the following setup options: 
+Following the OpenVINO™ naming convention, the Auto-Device plugin is assigned the label of “AUTO.” It may be defined with no additional parameters, resulting in defaults being used, or configured further with the following setup options: 
 
 @sphinxdirective
 +-------------------------+-----------------------------------------------+-----------------------------------------------------------+
@@ -111,7 +111,7 @@ Following the OpenVINO naming convention, the Auto-device plugin is assigned the
 @endsphinxdirective
 
 ### Device candidate list
-The device candidate list allows users to customize the priority and limit the choice of devices available to the AUTO plugin. If not specified, the plugin assumes all the devices present in the system can be used. Note, that Inference Engine lets you use “GPU” as an alias for “GPU.0” in function calls. 
+The device candidate list allows users to customize the priority and limit the choice of devices available to the AUTO plugin. If not specified, the plugin assumes all the devices present in the system can be used. Note, that OpenVINO™ Runtime lets you use “GPU” as an alias for “GPU.0” in function calls. 
 The following commands are accepted by the API: 
 
 @sphinxdirective
@@ -216,7 +216,7 @@ The following commands are accepted by the API:
 
 @endsphinxdirective
 
-To check what devices are present in the system, you can use Inference Engine Device API:
+To check what devices are present in the system, you can use Device API:
 
 For C++ API
 @sphinxdirective
@@ -234,7 +234,7 @@ For Python API
 
 
 ### Performance Hints
-The ov::hint property enables you to specify a performance mode for the plugin to be more efficient for particular use cases.
+The `ov::hint` property enables you to specify a performance mode for the plugin to be more efficient for particular use cases.
 
 #### ov::hint::PerformanceMode::THROUGHPUT
 This mode prioritizes high throughput, balancing between latency and power. It is best suited for tasks involving multiple jobs, like inference of video feeds or large numbers of images.
@@ -333,8 +333,8 @@ The property enables you to control the priorities of networks in the Auto-Devic
       # Result: compiled_model0 will use GPU, compiled_model1 will use GPU, compiled_model3 will use MYRIAD.
 @endsphinxdirective
 
-## Configuring Individual Devices and Creating the Auto-Device on Top
-Although the methods described above are currently the preferred way to execute inference with the Auto-Device plugin, the following steps can be also used as an alternative. It is currently available as a legacy feature and used if the device candidate list includes VPUX or Myriad (devices uncapable of utilizing the Performance Hints option). 
+## Configuring Individual Devices and Creating the Auto-Device plugin on Top
+Although the methods described above are currently the preferred way to execute inference with AUTO, the following steps can be also used as an alternative. It is currently available as a legacy feature and used if the device candidate list includes VPUX or Myriad (devices uncapable of utilizing the Performance Hints option). 
 
 @sphinxdirective
 .. tab:: C++ API
@@ -346,7 +346,7 @@ Although the methods described above are currently the preferred way to execute 
       // Read a network in IR, PaddlePaddle, or ONNX format
       stdshared_ptrovModel model = core.read_model(sample.xml);
 
-      // Configure the VPUX and the Myriad devices separately and load the network to Auto-Device plugin
+      // Configure the VPUX and the Myriad devices separately and load the network to the Auto-Device plugin
       set VPU config
       core.set_property(VPUX, {});
 
@@ -365,7 +365,7 @@ Although the methods described above are currently the preferred way to execute 
       # Read a network in IR, PaddlePaddle, or ONNX format:
       model = core.read_model(model_path)
       
-      # Configure the VPUX and the Myriad devices separately and load the network to Auto-Device plugin:
+      # Configure the VPUX and the Myriad devices separately and load the network to the Auto-Device plugin:
       core.set_config(config=vpux_config, device_name="VPUX")
       core.set_config (config=vpux_config, device_name="MYRIAD")
       compiled_model = core.compile_model(model=model)
@@ -379,8 +379,9 @@ Although the methods described above are currently the preferred way to execute 
       device_cap = core.get_metric("CPU", "OPTIMIZATION_CAPABILITIES")
 @endsphinxdirective
 
-## Using the Auto-Device with OpenVINO Samples and the Benchmark App
-To see how Auto-Device is used in practice and test its performance, take a look at OpenVINO samples. All samples supporting the "-d" command-line option (which stands for "device") will accept the plugin out-of-the-box. The Benchmark Application will be a perfect place to start – it presents the optimal performance of the plugin without the need for additional settings, like the number of requests or CPU threads. To evaluate the AUTO performance, you can use the following commands:
+<a name="Benchmark App Info"></a>
+## Using AUTO with OpenVINO™ Samples and the Benchmark App
+To see how the Auto-Device plugin is used in practice and test its performance, take a look at OpenVINO™ samples. All samples supporting the "-d" command-line option (which stands for "device") will accept the plugin out-of-the-box. The Benchmark Application will be a perfect place to start – it presents the optimal performance of the plugin without the need for additional settings, like the number of requests or CPU threads. To evaluate the AUTO performance, you can use the following commands:
 
 For unlimited device choice:
 @sphinxdirective
@@ -396,6 +397,9 @@ For limited device choice:
    ./benchmark_app –d AUTO:CPU,GPU,MYRIAD –m <model> -i <input> -niter 1000
 @endsphinxdirective
 
+For more information, refer to the [C++](../../../samples/cpp/benchmark_app/README.md) or [Python](../../../tools/benchmark_tool/README.md) version instructions.	
+	
+	
 @sphinxdirective
 .. note::
 
@@ -403,5 +407,5 @@ For limited device choice:
 
    You can use the FP16 IR to work with auto-device.
    
-   No demos are yet fully optimized for the auto-device, by means of selecting the most suitable device, using the GPU streams/throttling, and so on.
+   No demos are yet fully optimized for AUTO, by means of selecting the most suitable device, using the GPU streams/throttling, and so on.
 @endsphinxdirective
