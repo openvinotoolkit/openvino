@@ -6,7 +6,7 @@ import numpy as np
 import openvino.runtime as ov
 #! [import]
 
-#! reshape_undefined
+#! [reshape_undefined]
 core = ov.Core()
 model = core.read_model("model.xml")
 
@@ -27,9 +27,9 @@ model.reshape([-1, -1])
 
 # The same as above
 model.reshape("?, ?")
-#! reshape_undefined
+#! [reshape_undefined]
 
-#! reshape_bounds
+#! [reshape_bounds]
 # Both dimensions are dynamic, first may have size within 1..10 and the second is withing 8..512
 model.reshape([ov.Dimension(1, 10), ov.Dimension(8, 512)])
 
@@ -41,19 +41,19 @@ model.reshape("1..10, 8..512")
 
 # Both dimensions are dynamic, first doesn't have bounds, the second is in 8..512
 model.reshape([-1, (8, 512)])
-#! reshape_bounds
+#! [reshape_bounds]
 
 model = core.read_model("model.xml")
 
-#! print_dynamic
+#! [print_dynamic]
 # Print output partial shape
 print(model.output().partial_shape)
 
 # Print input partial shape
 print(model.input().partial_shape)
-#! print_dynamic
+#! [print_dynamic]
 
-#! detect_dynamic
+#! [detect_dynamic]
 model = core.read_model("model.xml")
 
 if model.input(0).partial_shape.is_dynamic():
@@ -67,12 +67,12 @@ if model.output(0).partial_shape.is_dynamic():
 if model.output(0).partial_shape[1].is_dynamic():
     # 1-st dimension of output is dynamic
     pass
-#! detect_dynamic
+#! [detect_dynamic]
 
 executable = core.compile_model(model)
 infer_request = executable.create_infer_request()
 
-#! set_input_tensor
+#! [set_input_tensor]
 # The first inference call
 
 # Create tensor compatible to the model input
@@ -112,11 +112,11 @@ infer_request.infer([input_tensor2])
 # output_tensor queried after the first inference call above is valid here.
 # But it may not be true for the memory underneath as shape changed, so re-take an output data:
 data2 = output_tensor.data[:]
-#! set_input_tensor
+#! [set_input_tensor]
 
 infer_request = executable.create_infer_request()
 
-#! get_input_tensor
+#! [get_input_tensor]
 # Get the tensor, shape is not initialized
 input_tensor = infer_request.get_input_tensor()
 
@@ -136,4 +136,4 @@ input_tensor.shape = [1, 200]
 
 infer_request.infer()
 data2 = output_tensor.data[:]
-#! get_input_tensor
+#! [get_input_tensor]
