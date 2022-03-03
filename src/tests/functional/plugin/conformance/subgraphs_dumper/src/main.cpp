@@ -93,11 +93,11 @@ int main(int argc, char *argv[]) {
 
     std::vector<std::string> local_cache_dirs = CommonTestUtils::splitStringByDelimiter(FLAGS_local_cache);
     std::vector<std::string> dirs = CommonTestUtils::splitStringByDelimiter(FLAGS_input_folders);
-    auto cachedOps = findModelsInDirs(local_cache_dirs);
     auto models = findModelsInDirs(dirs);
 
     auto cache = SubgraphsDumper::OPCache::make_cache();
     if (!FLAGS_local_cache.empty()) {
+        auto cachedOps = findModelsInDirs(local_cache_dirs);
         cacheModels(cache, ret_code, cachedOps, FLAGS_extract_body);
     }
     cacheModels(cache, ret_code, models, FLAGS_extract_body);
