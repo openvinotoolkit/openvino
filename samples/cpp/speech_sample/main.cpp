@@ -342,6 +342,10 @@ int main(int argc, char* argv[]) {
             }
             count_file = reference_name_files.empty() ? 1 : reference_name_files.size();
         }
+        if (count_file > executableNet.outputs().size()) {
+            throw std::logic_error(
+                "The number of output/reference files is not equal to the number of network outputs.");
+        }
         // -----------------------------------------------------------------------------------------------------
         // --------------------------- Step 5. Do inference --------------------------------------------------------
         std::vector<std::vector<uint8_t>> ptrUtterances;
