@@ -25,4 +25,4 @@ Inside OpenVINO there are two ways how to get better performance numbers: optimi
 - **Deployment optimization**  includes tuning inference parameters and optimizing model execution. To read more visit [Deployment Optimization Guide](../optimization_guide/dldt_deployment_optimization_guide.md).
 
 ## Performance benchmarks
-To estimate the performance and for the comparison of performance numbers, measured on various supported devices, a wide range of public models are available at [Perforance benchmarks](../benchmarks/performance_benchmarks.md) section.
+To estimate the performance and compare performance numbers, measured on various supported devices, a wide range of public models are available at [Perforance benchmarks](../benchmarks/performance_benchmarks.md) section.
