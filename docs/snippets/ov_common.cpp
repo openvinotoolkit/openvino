@@ -62,16 +62,11 @@ int main() {
     //! [ov_api_2_0:create_core]
 
     //! [ov_api_2_0:read_model]
-    std::shared_ptr<ov::Model> network = core.read_model("model.xml");
+    std::shared_ptr<ov::Model> model = core.read_model("model.xml");
     //! [ov_api_2_0:read_model]
 
-    //! [ov_api_2_0:get_inputs_outputs]
-    std::vector<ov::Output<ov::Node>> inputs = network->inputs();
-    std::vector<ov::Output<ov::Node>> outputs = network->outputs();
-    //! [ov_api_2_0:get_inputs_outputs]
-
     //! [ov_api_2_0:compile_model]
-    ov::CompiledModel compiled_model = core.compile_model(network, "CPU");
+    ov::CompiledModel compiled_model = core.compile_model(model, "CPU");
     //! [ov_api_2_0:compile_model]
 
     //! [ov_api_2_0:create_infer_request]
