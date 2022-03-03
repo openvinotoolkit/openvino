@@ -28,13 +28,14 @@ from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_
 from openvino.tools.mo.pipeline.common import prepare_emit_ir, get_ir_version
 from openvino.tools.mo.pipeline.unified import unified_pipeline
 from openvino.tools.mo.utils import import_extensions
-from openvino.tools.mo.utils.cli_parser import check_available_transforms, get_caffe_cli_options, \
+from openvino.tools.mo.utils.cli_parser import check_available_transforms, \
+    get_advanced_cli_options, get_caffe_cli_options, \
     get_common_cli_options, get_freeze_placeholder_values, get_kaldi_cli_options, get_layout_values, \
     get_mean_scale_dictionary, get_meta_info, get_model_name, get_mxnet_cli_options, get_onnx_cli_options, \
     get_placeholder_shapes, get_tf_cli_options, get_tuple_values, parse_transform, parse_tuple_pairs
 from openvino.tools.mo.utils.error import Error, FrameworkError
 from openvino.tools.mo.utils.find_ie_version import find_ie_version
-from openvino.tools.mo.utils.get_ov_update_message import get_ov_update_message
+from openvino.tools.mo.utils.get_ov_update_message import get_ov_update_message, get_ov_api20_message
 from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_namespace
 from openvino.tools.mo.utils.logger import init_logger, progress_printer
 from openvino.tools.mo.utils.model_analysis import AnalysisResults
@@ -61,6 +62,7 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
     print('Model Optimizer arguments:')
     props = OrderedDict()
     props['common_args'] = get_common_cli_options(model_name)
+    props['advanced_args'] = get_advanced_cli_options()
     if is_caffe:
         props['caffe_args'] = get_caffe_cli_options()
     if is_tf:
@@ -74,6 +76,7 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
 
     framework_specifics_map = {
         'common_args': 'Common parameters:',
+        'advanced_args': 'Advanced parameters:',
         'caffe_args': 'Caffe specific parameters:',
         'tf_args': 'TensorFlow specific parameters:',
         'mxnet_args': 'MXNet specific parameters:',
@@ -244,9 +247,6 @@ def arguments_post_parsing(argv: argparse.Namespace):
 
     # This is just to check that transform key is valid and transformations are available
     check_available_transforms(parse_transform(argv.transform))
-
-    if argv.legacy_ir_generation and len(argv.transform) != 0:
-        raise Error("--legacy_ir_generation and --transform keys can not be used at the same time.")
 
     # For C++ frontends there are no specific Python installation requirements, check only generic ones
     if moc_front_end:
@@ -434,13 +434,12 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
 
         return_code = "not executed"
         try:
-            if not argv.legacy_ir_generation:
-                from openvino.tools.mo.back.offline_transformations import apply_offline_transformations
-                apply_offline_transformations(orig_model_name, argv)
-                if "compress_fp16" in argv and argv.compress_fp16:
-                    # restore data_type cmd parameter
-                    argv.data_type = 'FP16'
-                return_code = 0
+            from openvino.tools.mo.back.offline_transformations import apply_offline_transformations
+            apply_offline_transformations(orig_model_name, argv)
+            if "compress_fp16" in argv and argv.compress_fp16:
+                # restore data_type cmd parameter
+                argv.data_type = 'FP16'
+            return_code = 0
         except Exception as e:
             return_code = "failed"
             log.error(e)
@@ -523,11 +522,15 @@ def main(cli_parser: argparse.ArgumentParser, fem: FrontEndManager, framework: s
         argv.feManager = fem
 
         ov_update_message = None
+        ov_api20_message = None
         if not hasattr(argv, 'silent') or not argv.silent:
             ov_update_message = get_ov_update_message()
+            ov_api20_message = get_ov_api20_message()
         ret_code = driver(argv)
         if ov_update_message:
             print(ov_update_message)
+        if ov_api20_message and ret_code == 0:
+            print(ov_api20_message)
         telemetry.send_event('mo', 'conversion_result', 'success')
         telemetry.end_session('mo')
         telemetry.force_shutdown(1.0)

@@ -18,12 +18,15 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/crash_handler.hpp"
 #include "functional_test_utils/ov_tensor_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
 #include "shared_test_classes/base/utils/compare_results.hpp"
+
+#include <setjmp.h>
 
 namespace ov {
 namespace test {
@@ -34,52 +37,60 @@ std::ostream& operator <<(std::ostream& os, const InputShape& inputShape) {
 }
 
 void SubgraphBaseTest::run() {
-    auto crashHandler = [](int errCode) {
-        auto& s = LayerTestsUtils::Summary::getInstance();
-        s.saveReport();
-        std::cerr << "Unexpected application crash with code: " << errCode << std::endl;
-        std::abort();
-    };
-    signal(SIGSEGV, crashHandler);
+    // in case of crash jump will be made and work will be continued
+    auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
 
-    LayerTestsUtils::PassRate::Statuses status = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()
-                                                     ? LayerTestsUtils::PassRate::Statuses::SKIPPED
-                                                     : LayerTestsUtils::PassRate::Statuses::CRASHED;
-    summary.setDeviceName(targetDevice);
-    summary.updateOPsStats(function, status);
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    // place to jump in case of a crash
+#ifdef _WIN32
+    if (setjmp(CommonTestUtils::env) == 0) {
+#else
+    if (sigsetjmp(CommonTestUtils::env, 1) == 0) {
+#endif
+        bool isCurrentTestDisabled = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled();
 
-    ASSERT_FALSE(targetStaticShapes.empty()) << "Target Static Shape is empty!!!";
-    std::string errorMessage;
-    try {
-        compile_model();
-        for (const auto& targetStaticShapeVec : targetStaticShapes) {
-            try {
-                if (!inputDynamicShapes.empty()) {
-                    // resize ngraph function according new target shape
-                    // Note: output shapes of some nodes depend on the input data
-                    // so for some tests we need to override this function and replace parameter with constant node to get correct output shapes
-                    init_ref_function(functionRefs, targetStaticShapeVec);
+        LayerTestsUtils::PassRate::Statuses status = isCurrentTestDisabled ?
+            LayerTestsUtils::PassRate::Statuses::SKIPPED :
+            LayerTestsUtils::PassRate::Statuses::CRASHED;
+        summary.setDeviceName(targetDevice);
+        summary.updateOPsStats(function, status);
+
+        if (isCurrentTestDisabled)
+            GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+
+        ASSERT_FALSE(targetStaticShapes.empty() && !function->get_parameters().empty()) << "Target Static Shape is empty!!!";
+        std::string errorMessage;
+        try {
+            compile_model();
+            for (const auto& targetStaticShapeVec : targetStaticShapes) {
+                try {
+                    if (!inputDynamicShapes.empty()) {
+                        // resize ngraph function according new target shape
+                        // Note: output shapes of some nodes depend on the input data
+                        // so for some tests we need to override this function and replace parameter with constant node to get correct output shapes
+                        init_ref_function(functionRefs, targetStaticShapeVec);
+                    }
+                    generate_inputs(targetStaticShapeVec);
+                } catch (const std::exception& ex) {
+                    throw std::runtime_error("Incorrect target static shape: " +
+                                             CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
                 }
-                generate_inputs(targetStaticShapeVec);
-            } catch (const std::exception& ex) {
-                throw std::runtime_error("Incorrect target static shape: " +
-                                         CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
+                infer();
+                validate();
             }
-            infer();
-            validate();
+            status = LayerTestsUtils::PassRate::Statuses::PASSED;
+        } catch (const std::exception& ex) {
+            status = LayerTestsUtils::PassRate::Statuses::FAILED;
+            errorMessage = ex.what();
+        } catch (...) {
+            status = LayerTestsUtils::PassRate::Statuses::FAILED;
+            errorMessage = "Unknown failure occurred.";
         }
-        status = LayerTestsUtils::PassRate::Statuses::PASSED;
-    } catch (const std::exception& ex) {
-        status = LayerTestsUtils::PassRate::Statuses::FAILED;
-        errorMessage = ex.what();
-    } catch (...) {
-        status = LayerTestsUtils::PassRate::Statuses::FAILED;
-        errorMessage = "Unknown failure occurred.";
-    }
-    summary.updateOPsStats(function, status);
-    if (status != LayerTestsUtils::PassRate::Statuses::PASSED) {
-        GTEST_FATAL_FAILURE_(errorMessage.c_str());
+        summary.updateOPsStats(function, status);
+        if (status != LayerTestsUtils::PassRate::Statuses::PASSED) {
+            GTEST_FATAL_FAILURE_(errorMessage.c_str());
+        }
+    } else {
+        IE_THROW() << "Crash happens";
     }
 }
 
@@ -228,11 +239,24 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
 
     auto functionToProcess = ov::clone_model(*functionRefs);
     //TODO: remove this conversions as soon as function interpreter fully support bf16 and f16
-    static const precisions_array precisions = {
-            { ngraph::element::bf16, ngraph::element::f32 },
-            { ngraph::element::f16, ngraph::element::f32}
+    precisions_array precisions = {
+            { ngraph::element::bf16, ngraph::element::f32 }
     };
-
+    auto convert_added = false;
+    for (const auto &param : function->get_parameters()) {
+        for (size_t i = 0; i < param->get_output_size(); i++) {
+            for (const auto &node : param->get_output_target_inputs(i)) {
+                std::shared_ptr<ov::Node> nodePtr = node.get_node()->shared_from_this();
+                if (std::dynamic_pointer_cast<ov::op::v0::Convert>(nodePtr)) {
+                    convert_added = true;
+                    break;
+                }
+            }
+        }
+    }
+    if (!convert_added) {
+        precisions.push_back({ ngraph::element::f16, ngraph::element::f32});
+    }
     pass::Manager manager;
     manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
     manager.run_passes(functionToProcess);
@@ -293,6 +317,10 @@ void SubgraphBaseTest::validate() {
 }
 
 void SubgraphBaseTest::init_input_shapes(const std::vector<InputShape>& shapes) {
+    if (shapes.empty()) {
+        targetStaticShapes = {{}};
+        return;
+    }
     size_t targetStaticShapeSize = shapes.front().second.size();
     for (size_t i = 1; i < shapes.size(); ++i) {
         if (targetStaticShapeSize < shapes[i].second.size()) {
