@@ -51,12 +51,6 @@ endfunction()
 set(VALIDATED_LIBRARIES "" CACHE INTERNAL "")
 
 function(_ov_add_api_validator_post_build_step)
-    if(NOT BUILD_SHARED_LIBS)
-        # since _ov_add_api_validator_post_build_step
-        # is currently run only on shared libraries, we have nothing to test
-        return()
-    endif()
-
     set(UWP_API_VALIDATOR_APIS "${PROGRAMFILES}/Windows Kits/10/build/universalDDIs/x64/UniversalDDIs.xml")
     set(UWP_API_VALIDATOR_EXCLUSION "${UWP_SDK_PATH}/BinaryExclusionlist.xml")
 

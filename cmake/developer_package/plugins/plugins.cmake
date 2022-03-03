@@ -347,7 +347,7 @@ function(ie_generate_plugins_hpp)
     # for some reason dependency on source files does not work
     # so, we have to use explicit target and make it dependency for inference_engine
     add_custom_target(_ie_plugins_hpp DEPENDS ${ie_plugins_hpp})
-    add_dependencies(inference_engine _ie_plugins_hpp)
+    add_dependencies(inference_engine_obj _ie_plugins_hpp)
 
     # add dependency for object files
     get_target_property(sources inference_engine_obj SOURCES)
