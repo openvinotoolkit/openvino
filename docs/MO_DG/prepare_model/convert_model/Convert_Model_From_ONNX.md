@@ -2,6 +2,8 @@
 
 @sphinxdirective
 
+.. _convert model onnx:
+
 .. toctree::
    :maxdepth: 1
    :hidden:
@@ -75,7 +77,7 @@ To convert an ONNX\* model, run Model Optimizer with the path to the input model
 ```sh
  mo --input_model <INPUT_MODEL>.onnx --output_dir <OUTPUT_MODEL_DIR>
 ```
-There are no ONNX\* specific parameters, so only framework-agnostic parameters are available to convert your model. For details, see see the General Conversion Parameters section on the [Converting a Model to Intermediate Representation (IR)](Converting_Model.md) page.
+There are no ONNX\* specific parameters, so only framework-agnostic parameters are available to convert your model. For details, see the General Conversion Parameters section on the [Converting a Model to Intermediate Representation (IR)](Converting_Model.md) page.
 
 ## Supported ONNX\* Layers
 Refer to [Supported Framework Layers](../Supported_Frameworks_Layers.md) for the list of supported standard layers.

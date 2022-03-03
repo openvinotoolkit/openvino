@@ -25,7 +25,7 @@ OutputVector experimental_detectron_prior_grid_generator(const Node& node) {
     attrs.h = node.get_attribute_value<int64_t>("h", 0);
     attrs.w = node.get_attribute_value<int64_t>("w", 0);
     attrs.stride_x = node.get_attribute_value<float>("stride_x", 0.0f);
-    attrs.stride_x = node.get_attribute_value<float>("stride_y", 0.0f);
+    attrs.stride_y = node.get_attribute_value<float>("stride_y", 0.0f);
 
     return {std::make_shared<PriorGridGenerator>(priors, feature_map, im_data, attrs)};
 }

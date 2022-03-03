@@ -305,3 +305,21 @@ TEST_F(TransformationTestsF, ReshapeSequenceFusionNeg5_special_zero_false) {
         manager.register_pass<pass::ReshapeSequenceFusion>();
     }
 }
+
+TEST_F(TransformationTestsF, ReshapeSequenceFusionEliminate) {
+    {
+        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 2, 3});
+        auto relu = std::make_shared<opset6::Relu>(data);
+        auto a = reshape(relu, {2, 3});
+        auto b = reshape(a, {1, 2, 3});
+        function = std::make_shared<Function>(OutputVector{b}, ParameterVector{data});
+
+        manager.register_pass<pass::ReshapeSequenceFusion>();
+    }
+
+    {
+        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 2, 3});
+        auto relu = std::make_shared<opset6::Relu>(data);
+        function_ref = std::make_shared<Function>(OutputVector{relu}, ParameterVector{data});
+    }
+}

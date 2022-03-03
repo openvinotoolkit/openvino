@@ -61,7 +61,7 @@ public:
     virtual bool free(void* handle) noexcept = 0;
 
 protected:
-    ~IAllocator() = default;
+    virtual ~IAllocator() = default;
 };
 
 /**

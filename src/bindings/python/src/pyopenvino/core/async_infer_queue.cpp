@@ -140,10 +140,12 @@ public:
 
 void regclass_AsyncInferQueue(py::module m) {
     py::class_<AsyncInferQueue, std::shared_ptr<AsyncInferQueue>> cls(m, "AsyncInferQueue");
+    cls.doc() = "openvino.runtime.AsyncInferQueue represents helper that creates a pool of asynchronous"
+                "InferRequests and provides synchronization functions to control flow of a simple pipeline.";
 
-    cls.def(py::init([](ov::CompiledModel& net, size_t jobs) {
+    cls.def(py::init([](ov::CompiledModel& model, size_t jobs) {
                 if (jobs == 0) {
-                    jobs = (size_t)Common::get_optimal_number_of_requests(net);
+                    jobs = (size_t)Common::get_optimal_number_of_requests(model);
                 }
 
                 std::vector<InferRequestWrapper> requests;
@@ -151,10 +153,10 @@ void regclass_AsyncInferQueue(py::module m) {
                 std::vector<py::object> user_ids(jobs);
 
                 for (size_t handle = 0; handle < jobs; handle++) {
-                    auto request = InferRequestWrapper(net.create_infer_request());
-                    // Get Inputs and Outputs info from executable network
-                    request._inputs = net.inputs();
-                    request._outputs = net.outputs();
+                    auto request = InferRequestWrapper(model.create_infer_request());
+                    // Get Inputs and Outputs info from compiled model
+                    request._inputs = model.inputs();
+                    request._outputs = model.outputs();
 
                     requests.push_back(request);
                     idle_handles.push(handle);
@@ -162,8 +164,18 @@ void regclass_AsyncInferQueue(py::module m) {
 
                 return new AsyncInferQueue(requests, idle_handles, user_ids);
             }),
-            py::arg("network"),
-            py::arg("jobs") = 0);
+            py::arg("model"),
+            py::arg("jobs") = 0,
+            R"(
+                Creates AsyncInferQueue.
+
+                :param model: Model to be used to create InferRequests in a pool.
+                :type model: openvino.runtime.CompiledModel
+                :param jobs: Number of InferRequests objects in a pool. If 0, jobs number
+                will be set automatically to the optimal number. Default: 0
+                :type jobs: int
+                :rtype: openvino.runtime.AsyncInferQueue
+            )");
 
     cls.def(
         "start_async",
@@ -171,7 +183,10 @@ void regclass_AsyncInferQueue(py::module m) {
             // getIdleRequestId function has an intention to block InferQueue
             // until there is at least one idle (free to use) InferRequest
             auto handle = self.get_idle_request_id();
-            self._idle_handles.pop();
+            {
+                std::lock_guard<std::mutex> lock(self._mutex);
+                self._idle_handles.pop();
+            }
             // Set new inputs label/id from user
             self._user_ids[handle] = userdata;
             // Update inputs if there are any
@@ -185,27 +200,94 @@ void regclass_AsyncInferQueue(py::module m) {
             }
         },
         py::arg("inputs"),
-        py::arg("userdata"));
+        py::arg("userdata"),
+        R"(
+            Run asynchronous inference using the next available InferRequest.
 
-    cls.def("is_ready", [](AsyncInferQueue& self) {
-        return self._is_ready();
-    });
+            This function releases the GIL, so another Python thread can
+            work while this function runs in the background.
 
-    cls.def("wait_all", [](AsyncInferQueue& self) {
-        return self.wait_all();
-    });
+            :param inputs: Data to set on input tensors of next available InferRequest from
+            AsyncInferQueue's pool.
+            :type inputs: dict[Union[int, str, openvino.runtime.ConstOutput] : openvino.runtime.Tensor]
+            :param userdata: Any data that will be passed to a callback
+            :rtype: None
+        )");
 
-    cls.def("get_idle_request_id", [](AsyncInferQueue& self) {
-        return self.get_idle_request_id();
-    });
+    cls.def(
+        "is_ready",
+        [](AsyncInferQueue& self) {
+            return self._is_ready();
+        },
+        R"(
+            One of 'flow control' functions.
+            Returns True if any free request in the pool, otherwise False.
 
-    cls.def("set_callback", [](AsyncInferQueue& self, py::function f_callback) {
-        self.set_custom_callbacks(f_callback);
-    });
+            Function releases GIL, other threads can work while this function waits.
 
-    cls.def("__len__", [](AsyncInferQueue& self) {
-        return self._requests.size();
-    });
+            :return: If there is at least one free InferRequest in a pool, returns True.
+            :rtype: bool
+    )");
+
+    cls.def(
+        "wait_all",
+        [](AsyncInferQueue& self) {
+            return self.wait_all();
+        },
+        R"(
+        One of 'flow control' functions. Blocking call.
+        Waits for all InferRequests in a pool to finish scheduled work. 
+
+        Function releases GIL, other threads can work while this function waits.
+    )");
+
+    cls.def(
+        "get_idle_request_id",
+        [](AsyncInferQueue& self) {
+            return self.get_idle_request_id();
+        },
+        R"(
+        Returns next free id of InferRequest from queue's pool.
+        Function waits for any request to complete and then returns this request's id.
+
+        Function releases GIL, other threads can work while this function waits.
+
+        :rtype: int
+    )");
+
+    cls.def(
+        "set_callback",
+        [](AsyncInferQueue& self, py::function callback) {
+            self.set_custom_callbacks(callback);
+        },
+        R"(
+        Sets unified callback on all InferRequests from queue's pool.
+        The signature of such function should have two arguments, where
+        the first one is InferRequest object and the second one is userdata
+        connected to InferRequest from the AsyncInferQueue's pool.
+
+        .. code-block:: python
+
+            def f(request, userdata):
+                result = request.output_tensors[0]
+                print(result + userdata)
+
+            async_infer_queue.set_callback(f)
+
+        :param callback: Any Python defined function that matches callback's requirements.
+        :type callback: function
+    )");
+
+    cls.def(
+        "__len__",
+        [](AsyncInferQueue& self) {
+            return self._requests.size();
+        },
+        R"(
+        Number of InferRequests in the pool.
+        
+        :rtype: int
+    )");
 
     cls.def(
         "__iter__",
@@ -214,11 +296,29 @@ void regclass_AsyncInferQueue(py::module m) {
         },
         py::keep_alive<0, 1>()); /* Keep set alive while iterator is used */
 
-    cls.def("__getitem__", [](AsyncInferQueue& self, size_t i) {
-        return self._requests[i];
-    });
+    cls.def(
+        "__getitem__",
+        [](AsyncInferQueue& self, size_t i) {
+            return self._requests[i];
+        },
+        R"(
+        :param i: InferRequest id
+        :type i: int
+        :return: InferRequests from the pool with given id.
+        :rtype: openvino.runtime.InferRequest
+    )");
 
-    cls.def_property_readonly("userdata", [](AsyncInferQueue& self) {
-        return self._user_ids;
+    cls.def_property_readonly(
+        "userdata",
+        [](AsyncInferQueue& self) {
+            return self._user_ids;
+        },
+        R"(
+        :return: List of all passed userdata. None if the data wasn't passed yet.
+        :rtype: List[Any]
+    )");
+
+    cls.def("__repr__", [](const AsyncInferQueue& self) {
+        return "<AsyncInferQueue: " + std::to_string(self._requests.size()) + " jobs>";
     });
 }

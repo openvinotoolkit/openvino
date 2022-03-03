@@ -121,6 +121,7 @@ struct BaseProperty : public PropertyTag {
 private:
     const char* _name = nullptr;
 };
+
 template <typename T, PropertyMutability M>
 inline std::ostream& operator<<(std::ostream& os, const BaseProperty<T, M>& property) {
     return os << property.name();
@@ -133,7 +134,45 @@ inline std::ostream& operator<<(std::ostream& os, const BaseProperty<T, M>& prop
  * @tparam T type of value used to set or get property
  */
 template <typename T, PropertyMutability mutability_ = PropertyMutability::RW>
-struct Property : public util::BaseProperty<T, mutability_> {
+class Property : public util::BaseProperty<T, mutability_> {
+    template <typename V>
+    struct Forward {
+        template <typename U,
+                  typename std::enable_if<std::is_same<typename std::decay<U>::type, std::string>::value &&
+                                              std::is_convertible<V, std::string>::value,
+                                          bool>::type = true>
+        explicit operator U() {
+            return value;
+        }
+
+        template <typename U,
+                  typename std::enable_if<std::is_same<typename std::decay<U>::type, std::string>::value &&
+                                              !std::is_convertible<V, std::string>::value,
+                                          bool>::type = true>
+        explicit operator U() {
+            return Any{value}.as<U>();
+        }
+
+        template <typename U,
+                  typename std::enable_if<!std::is_same<typename std::decay<U>::type, std::string>::value &&
+                                              std::is_convertible<V, std::string>::value,
+                                          bool>::type = true>
+        explicit operator U() {
+            return Any{value}.as<U>();
+        }
+
+        template <typename U,
+                  typename std::enable_if<!std::is_same<typename std::decay<U>::type, std::string>::value &&
+                                              !std::is_convertible<V, std::string>::value,
+                                          bool>::type = true>
+        explicit operator U() {
+            return value;
+        }
+
+        V&& value;
+    };
+
+public:
     using util::BaseProperty<T, mutability_>::BaseProperty;
     /**
      * @brief Constructs property
@@ -143,7 +182,7 @@ struct Property : public util::BaseProperty<T, mutability_> {
      */
     template <typename... Args>
     inline std::pair<std::string, Any> operator()(Args&&... args) const {
-        return {this->name(), Any::make<T>(std::forward<Args>(args)...)};
+        return {this->name(), Any::make<T>(Forward<Args>{std::forward<Args>(args)}...)};
     }
 };
 
@@ -181,6 +220,9 @@ static constexpr Property<std::string, PropertyMutability::RO> model_name{"NETWO
 static constexpr Property<uint32_t, PropertyMutability::RO> optimal_number_of_infer_requests{
     "OPTIMAL_NUMBER_OF_INFER_REQUESTS"};
 
+/**
+ * @brief Namespace with hint properties
+ */
 namespace hint {
 
 /**
@@ -232,7 +274,7 @@ inline std::istream& operator>>(std::istream& is, Priority& priority) {
  * @brief High-level OpenVINO model priority hint
  * Defines what model should be provided with more performant bounded resource first
  */
-static constexpr Property<Priority> model_priority{"OV_MODEL_PRIORITY"};
+static constexpr Property<Priority> model_priority{"MODEL_PRIORITY"};
 
 /**
  * @brief Enum to define possible performance mode hints
@@ -292,6 +334,11 @@ static constexpr Property<uint32_t> num_requests{"PERFORMANCE_HINT_NUM_REQUESTS"
  * ov::optimal_batch_size)
  */
 static constexpr Property<std::shared_ptr<ov::Model>> model{"MODEL_PTR"};
+
+/**
+ * @brief Special key for auto batching feature configuration. Enabled by default
+ */
+static constexpr Property<bool, PropertyMutability::RW> allow_auto_batching{"ALLOW_AUTO_BATCHING"};
 }  // namespace hint
 
 /**
@@ -301,6 +348,9 @@ static constexpr Property<std::shared_ptr<ov::Model>> model{"MODEL_PTR"};
  */
 static constexpr Property<bool> enable_profiling{"PERF_COUNT"};
 
+/**
+ * @brief Namespace with log level property and its possible values
+ */
 namespace log {
 
 /**
@@ -413,6 +463,12 @@ static constexpr Property<unsigned int, PropertyMutability::RO> optimal_batch_si
 static constexpr Property<uint32_t, PropertyMutability::RO> max_batch_size{"MAX_BATCH_SIZE"};
 
 /**
+ * @brief Read-write property to set the timeout used to collect the inputs for the auto-batching
+ * impact.
+ */
+static constexpr Property<uint32_t, PropertyMutability::RW> auto_batch_timeout{"AUTO_BATCH_TIMEOUT"};
+
+/**
  * @brief Read-only property to provide a hint for a range for number of async infer requests. If device supports
  * streams, the metric provides range for number of IRs per stream.
  *
@@ -424,6 +480,9 @@ static constexpr Property<uint32_t, PropertyMutability::RO> max_batch_size{"MAX_
 static constexpr Property<std::tuple<unsigned int, unsigned int, unsigned int>, PropertyMutability::RO>
     range_for_async_infer_requests{"RANGE_FOR_ASYNC_INFER_REQUESTS"};
 
+/**
+ * @brief Namespace with device properties
+ */
 namespace device {
 
 /**
@@ -572,6 +631,10 @@ static constexpr Property<float, PropertyMutability::RO> thermal{"DEVICE_THERMAL
  * @brief Read-only property to get a std::vector<std::string> of capabilities options per device.
  */
 static constexpr Property<std::vector<std::string>, PropertyMutability::RO> capabilities{"OPTIMIZATION_CAPABILITIES"};
+
+/**
+ * @brief Namespace with possible values for ov::device::capabilities property
+ */
 namespace capability {
 constexpr static const auto FP32 = "FP32";                    //!< Device supports fp32 inference
 constexpr static const auto BF16 = "BF16";                    //!< Device supports bf16 inference
@@ -580,27 +643,76 @@ constexpr static const auto INT8 = "INT8";                    //!< Device suppor
 constexpr static const auto INT16 = "INT16";                  //!< Device supports int16 inference
 constexpr static const auto BIN = "BIN";                      //!< Device supports binary inference
 constexpr static const auto WINOGRAD = "WINOGRAD";            //!< Device supports winograd optimization
-constexpr static const auto EXPORT_IMPORT = "EXPORT_IMPORT";  //!< Device supports model export and import
+constexpr static const auto EXPORT_IMPORT = "EXPORT_IMPORT";  //!< Device supports compiled model export and import
 }  // namespace capability
+
 }  // namespace device
 
+/**
+ * @brief Namespace for streams in streams executor
+ */
 namespace streams {
 /**
- * @brief Special value for ov::execution::streams::num property.
- * Creates bare minimum of streams to improve the performance
+ * @brief Class to represent number of streams in streams executor
  */
-static constexpr const int32_t AUTO = -1;
-/**
- * @brief Special value for ov::execution::streams::num property.
- * Creates as many streams as needed to accommodate NUMA and avoid associated penalties
- */
-static constexpr const int32_t NUMA = -2;
+struct Num {
+    using Base = std::tuple<int32_t>;  //!< NumStreams is representable as int32_t
+
+    constexpr Num() : num{-1} {};
+
+    constexpr Num(const int32_t num_) : num{num_} {}
+
+    constexpr operator int32_t() const {
+        return num;
+    }
+
+    int32_t num = 0;
+};
 
 /**
  * @brief The number of executor logical partitions
  */
-static constexpr Property<int32_t, PropertyMutability::RW> num{"NUM_STREAMS"};
+static constexpr Property<Num, PropertyMutability::RW> num{"NUM_STREAMS"};
+
+static constexpr Num AUTO{-1};  //!< Creates bare minimum of streams to improve the performance
+static constexpr Num NUMA{
+    -2};  //!< Creates as many streams as needed to accommodate NUMA and avoid associated penalties
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const Num& num_val) {
+    switch (num_val) {
+    case AUTO:
+        return os << "AUTO";
+    case NUMA:
+        return os << "NUMA";
+    default:
+        return os << num_val.num;
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, Num& num_val) {
+    std::string str;
+    is >> str;
+    if (str == "AUTO") {
+        num_val = AUTO;
+    } else if (str == "NUMA") {
+        num_val = NUMA;
+    } else {
+        try {
+            num_val = {std::stoi(str)};
+        } catch (const std::exception& e) {
+            throw ov::Exception{std::string{"Could not read number of streams from str: "} + str + "; " + e.what()};
+        }
+    }
+    return is;
+}
+/** @endcond */
 }  // namespace streams
+
+/**
+ * @brief The number of executor logical partitions
+ */
+static constexpr Property<streams::Num, PropertyMutability::RW> num_streams{"NUM_STREAMS"};
 
 /**
  * @brief Maximum number of threads that can be used for inference tasks

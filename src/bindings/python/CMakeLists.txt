@@ -16,13 +16,20 @@ endif()
 
 set(LIBRARY_OUTPUT_DIRECTORY_BIN ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 set(PYTHON_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
+set(PYTHON_BINDINGS_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
-add_subdirectory(src/compatibility/openvino)
+# Remove this condition as 76672 will be fixed
+if (CMAKE_CROSSCOMPILING AND DEFINED ENV{OE_CMAKE_TOOLCHAIN_FILE})
+    add_subdirectory(src/compatibility/openvino)
+else()
+    add_subdirectory(src/compatibility/openvino)
 
-add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
+    add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
 
-add_subdirectory(src/compatibility/pyngraph)
-add_subdirectory(src/pyopenvino)
+    add_subdirectory(src/compatibility/pyngraph)
+    add_subdirectory(src/pyopenvino)
+
+endif()
 
 if(ENABLE_WHEEL)
     add_subdirectory(wheel)

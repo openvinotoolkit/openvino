@@ -53,7 +53,7 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
     ov::ParameterVector params;
     ov::ResultVector results;
     const auto& model_tf = std::dynamic_pointer_cast<InputModel>(model);
-    FRONT_END_GENERAL_CHECK(model_tf, "nullptr for InputModel is given for translation into OV function");
+    FRONT_END_GENERAL_CHECK(model_tf, "nullptr for InputModel is given for translation into OV Model");
     const auto& operation_places = model_tf->get_op_places();
     const auto& model_inputs = model_tf->get_inputs();
     const auto& model_outputs = model_tf->get_outputs();
@@ -108,6 +108,10 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
         // prepare a list of OV node inputs for each node
         ov::OutputVector ng_inputs;
         for (size_t input_port_idx = 0; input_port_idx < operation_decoder->get_input_size(); ++input_port_idx) {
+            // TODO: Implement more general approach. Skipping Constants that have input edges
+            if (operation_decoder->get_op_type() == "Const") {
+                break;
+            }
             std::string producer_name;
             size_t producer_port_idx;
             try {
@@ -143,7 +147,7 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
                 ng_inputs.push_back(input_outputs_vector.at(producer_port_idx));
             } else {
                 FRONT_END_GENERAL_CHECK(false,
-                                        "No input is found for node \"" + operation_name + "\" by port" +
+                                        "No input is found for node \"" + operation_name + "\" by port " +
                                             std::to_string(producer_port_idx));
             }
         }
@@ -255,7 +259,7 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
 
     // TODO: reorder results and params according to indices given in RT info (if any)
 
-    // create the OV function
+    // create the OV Model
     ng_function = std::make_shared<ov::Model>(results, params, model_name);
     OPENVINO_DEBUG << "Done with translations";
 }

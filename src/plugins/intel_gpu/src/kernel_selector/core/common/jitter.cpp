@@ -340,6 +340,7 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                        layout == DataLayout::bs_fs_yx_bsv16_fsv16 ||
                        layout == DataLayout::bs_fs_yx_bsv4_fsv4 ||
                        layout == DataLayout::bs_fs_yx_bsv8_fsv4 ||
+                       layout == DataLayout::bs_fs_yx_bsv8_fsv2 ||
                        layout == DataLayout::bs_fs_yx_bsv4_fsv2 ||
                        layout == DataLayout::bs_fs_yx_bsv32_fsv16 ||
                        layout == DataLayout::bs_fs_yx_bsv32_fsv32) {
@@ -353,6 +354,7 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                     layout == DataLayout::bs_fs_yx_bsv32_fsv16  ||
                     layout == DataLayout::bs_fs_yx_bsv4_fsv4  ||
                     layout == DataLayout::bs_fs_yx_bsv8_fsv4  ||
+                    layout == DataLayout::bs_fs_yx_bsv8_fsv2  ||
                     layout == DataLayout::bs_fs_yx_bsv4_fsv2  ||
                     layout == DataLayout::bs_fs_yx_bsv16_fsv16 ||
                     layout == DataLayout::fs_b_yx_fsv32)
