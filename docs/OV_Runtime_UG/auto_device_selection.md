@@ -397,8 +397,7 @@ For limited device choice:
    ./benchmark_app –d AUTO:CPU,GPU,MYRIAD –m <model> -i <input> -niter 1000
 @endsphinxdirective
 
-For more information, refer to the [C++](../../../samples/cpp/benchmark_app/README.md) or [Python](../../../tools/benchmark_tool/README.md) version instructions.	
-	
+For more information, refer to the [C++](../../samples/cpp/benchmark_app/README.md) or [Python](../../tools/benchmark_tool/README.md) version instructions.	
 	
 @sphinxdirective
 .. note::
