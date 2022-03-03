@@ -402,9 +402,9 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               action=DeprecatedStoreTrue, default=False)
     # we use CanonicalizeDirCheckExistenceAction instead of readable_dirs to handle empty strings
     common_group.add_argument("--extensions",
-                              help="Paths or a comma separated list of paths to libraries (.so or .dll) "
-                                   "with extensions. For the legacy MO path (if `--use_legacy_frontend` is used) "
-                                   "directory or a comma separated list of directories with extensions are supported. "
+                              help="Paths or a comma-separated list of paths to libraries (.so or .dll) "
+                                   "with extensions. For the legacy MO path (if `--use_legacy_frontend` is used), "
+                                   "directory or a comma-separated list of directories with extensions are supported. "
                                    "To disable all extensions including those that are placed at the default location, "
                                    "pass an empty string.",
                               default=import_extensions.default_path(),
