@@ -88,13 +88,13 @@ Inference Engine API:
 
     .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
        :language: cpp
-       :fragment: [executable_network_get_metric]
+       :fragment: [executable_network_get_config]
 
 .. tab:: Execution metrics
 
     .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
        :language: cpp
-       :fragment: [executable_network_get_config]
+       :fragment: [executable_network_get_metric]
 
 @endsphinxdirective
 
