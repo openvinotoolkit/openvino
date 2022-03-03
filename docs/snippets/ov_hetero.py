@@ -34,7 +34,7 @@ compiled_model = core.compile_model(model, device_name="HETERO:GPU,CPU")
 #! [compile_model]
 
 #! [configure_fallback_devices]
-core.set_property("HETERO", {"MULTI_DEVICE_PRIORITIES":"GPU,CPU"})
+core.set_property("HETERO", {"MULTI_DEVICE_PRIORITIES": "GPU,CPU"})
 core.set_property("CPU", {"PERF_COUNT": "YES"})
 core.set_property("GPU", {"INFERENCE_PRECISION_HINT": "f16"})
 compiled_model = core.compile_model(model=model, device_name="HETERO")
