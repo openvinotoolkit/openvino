@@ -66,6 +66,9 @@ def command_line_for_convert(config):
     cli_args += ' --name ' + config.name
     cli_args += ' --mo ' + MO_PATH.joinpath('mo.py').as_posix()
     cli_args += ' --precisions ' + config.precision
+    if hasattr(config, 'custom_mo_config'):
+        for custom_mo_arg in config.custom_mo_config:
+            cli_args += ' --add_mo_arg=' + custom_mo_arg
     script_launch_cli = '{python_exe} {main_py} {args}'.format(
         python_exe=sys.executable, main_py=executable, args=cli_args
     )
