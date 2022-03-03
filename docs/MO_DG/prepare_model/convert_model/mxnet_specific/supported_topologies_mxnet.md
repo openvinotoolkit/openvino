@@ -1,7 +1,5 @@
 # Supported MXNet Topologies {#openvino_docs_MO_DG_prepare_model_convert_model_mxnet_specific_supported_topologies}
 
-## Supported Topologies
-
 > **NOTE**: SSD models from the table require converting to the deploy mode. For details, see the [Conversion Instructions](https://github.com/zhreshold/mxnet-ssd/#convert-model-to-deploy-mode) in the GitHub MXNet-SSD repository.
 
 | Model Name| Model File |

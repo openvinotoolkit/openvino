@@ -34,7 +34,7 @@ A summary of the steps for optimizing and deploying a model that was trained wit
 2. [Freeze the TensorFlow model](#freeze-the-tensorflow-model) if your model is not already frozen or skip this step and use the [instruction](#loading-nonfrozen-models) to a convert a non-frozen model.
 3. [Convert a TensorFlow\* model](#Convert_From_TF) to produce an optimized [Intermediate Representation (IR)](../../IR_and_opsets.md) of the model based on the trained network topology, weights, and biases values.
 4. Test the model in the Intermediate Representation format using the [OpenVINO™ Runtime](../../../OV_Runtime_UG/openvino_intro.md) in the target environment via provided [sample applications](../../../OV_Runtime_UG/Samples_Overview.md).
-5. [Integrate OpenVINO Runtime](../../../OV_Runtime_UG/Samples_Overview.md) in your application to deploy the model in the target environment.
+5. [Integrate OpenVINO Runtime](../../../OV_Runtime_UG/integrate_with_your_application.md) in your application to deploy the model in the target environment.
 
 ## Loading Non-Frozen Models to the Model Optimizer <a name="loading-nonfrozen-models"></a>
 
