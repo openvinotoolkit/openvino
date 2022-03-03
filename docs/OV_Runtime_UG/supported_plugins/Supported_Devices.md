@@ -116,7 +116,7 @@ the supported output precision  depends on the actual underlying devices. _Gener
 |Layout              |NCDHW|NCHW |CHW  |NC   |C    |
 
 For setting relevant configuration, refer to the
-[Integrate with Customer Application New Request API](../Integrate_with_customer_application_new_API.md) topic
+[Integrate with Customer Application](../integrate_with_your_application.md) topic
 (step 3 "Configure input and output").
 
 ### Supported Layers
