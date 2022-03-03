@@ -42,8 +42,7 @@ TEST(attributes, readvalue_v3_op) {
 TEST(attributes, assign_v6_op) {
     NodeBuilder::get_ops().register_factory<opset6::Assign>();
     const auto in = make_shared<op::Parameter>(element::f32, Shape{1});
-    const auto variable =
-        std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "v0"});
+    const auto variable = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "v0"});
     const auto read_value = make_shared<opset6::ReadValue>(in, variable);
     const auto assign = make_shared<opset6::Assign>(read_value, variable);
     NodeBuilder builder(assign);
@@ -56,8 +55,7 @@ TEST(attributes, assign_v6_op) {
 TEST(attributes, readvalue_v6_op) {
     NodeBuilder::get_ops().register_factory<opset6::ReadValue>();
     const auto in = make_shared<op::Parameter>(element::f32, Shape{1});
-    const auto variable =
-        std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "v0"});
+    const auto variable = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "v0"});
     const auto read_value = make_shared<opset6::ReadValue>(in, variable);
     NodeBuilder builder(read_value);
 
