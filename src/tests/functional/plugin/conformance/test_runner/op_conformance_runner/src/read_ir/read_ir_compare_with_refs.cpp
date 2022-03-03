@@ -11,7 +11,7 @@ namespace ov {
 namespace test {
 namespace conformance {
 namespace op {
-/**/
+
 using namespace ov::test::subgraph;
 
 namespace {
