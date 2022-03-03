@@ -300,6 +300,97 @@ const std::vector<float> expected_rdft2d_results_2 = {
     1.8890494,   -1.8022469,    -0.37335354, 0.69326025,  -0.07385725,  -0.1723765,
     -1.5445105,  0.7000739};
 
+const std::vector<float> expected_rdft3d_results = {
+    101.805756,  -5.2273273e-05, 2.5097876,    3.936094,     -2.5597036,  -1.8717405,
+    -1.0637736,  0.7801182,      -2.1040666,   -1.3385094,   -7.9471993,  2.026558e-06,
+    0.15199316,  0.52512753,     6.7908745,    2.5329556,    0.98875976,  4.755993,
+    3.157838,    3.190782,       1.4353466,    1.6061276,    -2.158554,   4.201776,
+    -1.3423799,  1.2554499,      3.5570183,    -0.8320818,   2.263445,    0.36719292,
+    0.7579028,   -1.8762131,     -0.32408538,  -0.87544185,  -3.4693956,  -4.429764,
+    -0.85828185, -3.9007902,     -2.0141544,   0.4111499,    2.8994608,   0.21030927,
+    -2.6786098,  -10.127857,     -0.6911557,   1.0018079,    -2.8430226,  0.33270124,
+    0.25672907,  1.8232578,      -4.4159126,   -2.040338,    1.9982092,   -0.7974717,
+    -0.07559925, -1.0274884,     1.9742157,    3.9031482,    0.22159882,  1.4359848,
+    -1.0190966,  3.2186508e-06,  4.0004425,    0.8568655,    1.3117876,   0.2163087,
+    0.28074512,  0.17570588,     -5.466423,    4.531178,     3.857718,    -1.2516975e-06,
+    0.2567385,   -1.823246,      -1.0750613,   -0.037295938, 5.20209,     -2.0005994,
+    -1.7456844,  3.7091968,      -5.45543,     -3.4499822,   0.22159535,  -1.4359887,
+    -0.8582816,  3.9007854,      -0.31885874,  0.65880924,   0.6968423,   2.3119528,
+    -3.6876333,  2.273767,       5.38906,      -0.45788872,  -2.8430223,  -0.33269957,
+    -1.3423961,  -1.2554631,     3.1138885,    -1.4416232,   -6.0413575,  -3.6011095,
+    -2.080242,   0.0045015216,   -4.7212796,   -0.3527125,   -3.4693892,  4.429763,
+    0.15199506,  -0.52512354,    -0.85594195,  2.8447511,    -0.10181111, -1.5565643,
+    -1.6371696,  0.19021615,     0.8239815,    3.018465,     -2.158556,   -4.2017746,
+    3.9272437,   -3.9339066e-06, -0.18137527,  3.7160687,    2.1042633,   0.8752967,
+    0.29226887,  5.755277,       -2.9184306,   0.78941,      -9.410112,   3.0100346e-06,
+    -1.7881365,  1.140914,       0.13286811,   -3.01685,     2.4928799,   6.7320104,
+    0.5376528,   0.88787735,     -0.78172505,  -7.0903873,   3.5203578,   -0.6790314,
+    -3.246148,   -3.0523329,     -4.1306543,   -5.653259,    -3.866367,   -1.5466263,
+    -3.6847744,  -3.2064118,     0.5578996,    -0.12726665,  -2.2060838,  -1.2613428,
+    0.588767,    1.2716217,      -2.5499039,   -0.8091496,   -3.0134337,  0.0408957,
+    1.4991964,   6.6122847,      -0.36368948,  -3.0809648,   3.9192853,   -3.764699,
+    0.19334978,  3.9811373,      0.68720365,   -1.717634,    2.346336,    -3.3394372,
+    1.2645291,   2.241068,       1.1309403,    -0.3806507,   2.1538877,   -2.3990266,
+    0.6885946,   -1.4901161e-06, -0.037429705, 0.24751475,   0.2968948,   -7.367506,
+    -4.574969,   -1.329541,      -0.5423446,   3.2239883,    2.4139037,   2.9802322e-07,
+    0.19334424,  -3.9811373,     3.1507545,    2.0127864,    -4.4341884,  -1.2173393,
+    0.72419256,  0.015158802,    -4.4655256,   -0.34677732,  2.1538897,   2.3990245,
+    0.5887663,   -1.2716188,     -1.6747494,   -3.415226,    1.2875631,   1.0108626,
+    2.0268395,   -2.3615427,     -1.502785,    -2.8317401,   3.919288,    3.764695,
+    -3.2461433,  3.0523314,      -0.5022881,   0.9094755,    -0.55759126, -0.24697942,
+    5.0729737,   5.668646,       -4.662384,    2.9517999,    -2.2060819,  1.2613468,
+    -1.7881389,  -1.1409098,     -1.8951292,   -2.1522717,   -7.4092865,  -0.38806117,
+    -0.6685039,  -1.3767233,     -0.8713439,   0.71781945,   3.5203605,   0.6790297};
+
+const std::vector<float> expected_rdft3d_results_2 = {
+    50.90331,     -1.4543533e-05, -8.559692,   -1.1978266,     -1.6134334,  -12.046599,
+    3.8535514,    -5.5232873,     5.9049683,   0.065603495,    2.4468107,   1.4522064,
+    -7.222825,    1.2278557e-05,  0.40963984,  0.231709,       4.16645,     -0.29528028,
+    -0.052075505, 1.450621,       3.3082519,   -0.8792013,     1.356175,    -5.1859245,
+    1.3184534,    -1.1199851,     -1.4637363,  -1.9884299,     -1.5605974,  0.7887349,
+    -1.3716602,   0.47921878,     1.0902424,   1.4594792,      -0.59960556, -2.6757474,
+    -3.0592656,   1.7766399,      0.27734682,  1.0108652,      -0.07190053, 2.7305403,
+    -1.5605986,   -0.78873086,    0.41156515,  0.18685403,     0.4121489,   1.4797752,
+    -1.6846865,   -3.8916636,     -1.4160703,  0.20651829,     0.52929974,  2.9917672,
+    -0.07190076,  -2.7305427,     0.4096415,   -0.23171037,    0.9022726,   -0.022200808,
+    0.10522783,   -3.0115416,     -0.8654218,  -0.4384073,     0.061277367, 0.14856634,
+    -3.0687659,   1.3078697,      -1.4637384,  1.9884316,      25.904425,   -24.998884,
+    -6.9080105,   3.5445771,      -8.985163,   -6.860018,      -1.2686447,  -4.8765025,
+    2.6592734,    -0.45706248,    2.3816066,   -0.29202732,    -4.6167727,  2.6060565,
+    -0.33058774,  -1.3549114,     3.9574459,   -5.44279,       0.041313916, 0.67204094,
+    1.446027,     -4.5138807,     -3.8023772,  -4.576436,      -0.7724026,  -2.6531591,
+    -0.6192993,   0.25615194,     -1.2367722,  2.5178113,      0.7623075,   0.48839718,
+    1.3743844,    2.4679115,      -1.1419809,  -1.1111865,     2.3388672,   1.9520425,
+    -0.13640736,  -0.47136223,    2.8086162,   1.2466785,      0.16848034,  -0.46490768,
+    0.6572111,    0.7753189,      1.8804929,   -2.9868064,     -5.498336,   -0.053289652,
+    -0.16271627,  2.1104114,      0.9904991,   -0.041024223,   -1.5557647,  0.14997506,
+    -1.1769819,   -0.9719368,     0.8428756,   -0.5060569,     -1.0734584,  -0.9006812,
+    -4.556718,    -0.5252099,     1.1278908,   -0.17134166,    -3.1672862,  1.5541049,
+    0.78084624,   2.8328683,      0.90555733,  -1.3709068e-06, -2.1656086,  1.8928962,
+    -3.7985847,   0.511709,       -0.62185717, 0.24569236,     2.1366088,   2.7886305,
+    0.6373716,    -0.2268233,     -2.0107267,  5.662441e-07,   -1.9172084,  -0.6146841,
+    -1.1900643,   -5.233785,      -0.73726743, 0.5786506,      -2.188651,   -2.6516552,
+    -3.1928902,   0.58211625,     -2.305578,   -0.5623034,     1.6252834,   -0.58828497,
+    0.49230486,   2.1939852,      0.7714851,   -1.6455705,     2.382816,    2.1837692,
+    0.4225806,    -0.56881106,    2.514269,    -3.4460905,     -1.618634,   -0.057608932,
+    1.3247533,    -1.6338379,     0.49230492,  -2.1939862,     1.2456759,   0.5296728,
+    -2.5860875,   -4.45515,       -1.659962,   3.7603593,      1.7411764,   0.8570565,
+    -2.0422916,   -0.50222373,    1.3247528,   1.633839,       -1.9172082,  0.6146865,
+    0.35901868,   -0.44665974,    1.0374024,   0.27800465,     -4.6435204,  3.1660864,
+    0.8079842,    -1.2379556,     -2.921052,   1.6526239,      1.6252828,   0.588284,
+    25.90444,     24.998867,      -3.817289,   -2.8495073,     3.573144,    -4.6748676,
+    4.500339,     -0.40109348,    5.382302,    3.3112957,      0.7025763,   1.5174108,
+    -4.616783,    -2.6060438,     -1.1769816,  0.97193646,     -0.9810596,  -0.086276084,
+    -0.83065766,  1.3572321,      -0.3264265,  0.9830234,      1.9656628,   -0.027371943,
+    -0.2147214,   0.9708719,      0.7808455,   -2.8328671,     0.16847888,  0.46490908,
+    -1.3624828,   -1.6547482,     2.0986745,   1.1753378,      0.9649557,   -2.1333718,
+    -2.8838634,   -3.6214924,     -1.2048804,  1.4246187,      -1.5557631,  -0.14997569,
+    -1.2367743,   -2.5178103,     1.0000296,   -0.05879204,    -4.0544314,  0.01142931,
+    2.153687,     -0.078014135,   0.4878212,   -1.0468364,     -2.503492,   2.5305676,
+    2.808617,     -1.2466786,     -0.33058444, 1.3549128,      0.41841656,  0.03719666,
+    2.216088,     -1.8328552,     -0.95222485, 3.2528882,      -0.25863037, -0.91804826,
+    -2.822532,    1.4063904,      -0.6193025,  -0.25615215};
+
 template<class T>
 static std::vector<T> convert(const std::vector<float>& v) {
     if (v.empty()) {
@@ -341,6 +432,7 @@ static std::vector<T> convert(const std::vector<bfloat16>& v) {
     }
     return converted;
 }
+
 template <element::Type_t ET>
 std::vector<RDFTParams> generateParamsForRDFT() {
     std::vector<RDFTParams> params{
@@ -551,180 +643,50 @@ std::vector<RDFTParams> generateParamsForRDFT() {
                    expected_rdft2d_results_2,
                    op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {-2, -1}),
                    op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {5, 12})),
-//        // dft3d_eval_1
-//        DFTParams(Shape{4, 6, 8, 2},
-//                  Shape{4, 6, 8, 2},
-//                  ET,
-//                  ET,
-//                  input_data_1,
-//                  expected_dft3d_results_1,
-//                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {0, 1, 2}),
-//                  NULL),
-//        // dft3d_eval
-//        DFTParams(Shape{2, 10, 10, 2},
-//                  Shape{2, 10, 10, 2},
-//                  ET,
-//                  ET,
-//                  input_data,
-//                  expected_dft3d_results,
-//                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {0, 1, 2}),
-//                  NULL),
-//        // dft3d_eval_i32
-//        DFTParams(Shape{2, 10, 10, 2},
-//                  Shape{2, 10, 10, 2},
-//                  ET,
-//                  ET,
-//                  input_data,
-//                  expected_dft3d_results,
-//                  op::v0::Constant::create<int64_t>(element::Type_t::i32, Shape{3}, {0, 1, 2}),
-//                  NULL),
-//        // dft1d_signal_size_eval
-//        DFTParams(Shape{2, 10, 10, 2},
-//                  Shape{2, 10, 10, 2},
-//                  ET,
-//                  ET,
-//                  input_data,
-//                  expected_dft1d_signal_size_results,
-//                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {-2}),
-//                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {20})),
-//        // dft2d_signal_size_eval_1
-//        DFTParams(Shape{4, 6, 8, 2},
-//                  Shape{4, 6, 8, 2},
-//                  ET,
-//                  ET,
-//                  input_data_1,
-//                  expected_dft2d_signal_size_results_1,
-//                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {0, 2}),
-//                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {5, 9})),
-//        // dft2d_signal_size_eval_2
-//        DFTParams(Shape{4, 6, 8, 2},
-//                  Shape{4, 6, 8, 2},
-//                  ET,
-//                  ET,
-//                  input_data_1,
-//                  expected_dft2d_signal_size_results_2,
-//                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {0, 1}),
-//                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {4, 6})),
-//        // dft2d_signal_size_eval_3
-//        DFTParams(Shape{4, 6, 8, 2},
-//                  Shape{4, 6, 8, 2},
-//                  ET,
-//                  ET,
-//                  input_data_1,
-//                  expected_dft2d_signal_size_results_3,
-//                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {0, 2}),
-//                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {3, 4})),
-//        // dft2d_signal_size_eval_4
-//        DFTParams(Shape{4, 6, 8, 2},
-//                  Shape{4, 6, 8, 2},
-//                  ET,
-//                  ET,
-//                  input_data_1,
-//                  expected_dft2d_signal_size_results_4,
-//                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {0, 2}),
-//                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {4, 8})),
-//        // dft2d_signal_size_eval_5
-//        DFTParams(Shape{4, 6, 8, 2},
-//                  Shape{4, 6, 8, 2},
-//                  ET,
-//                  ET,
-//                  input_data_1,
-//                  expected_dft2d_signal_size_results_5,
-//                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {0, 2}),
-//                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {5, 4})),
-//        // dft3d_signal_size_eval
-//        DFTParams(Shape{4, 6, 8, 2},
-//                  Shape{4, 6, 8, 2},
-//                  ET,
-//                  ET,
-//                  input_data_1,
-//                  expected_dft3d_signal_size_results,
-//                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {0, 1, 2}),
-//                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {3, 7, 5})),
+        // rdft3d_eval_1
+        RDFTParams(Shape{2, 10, 10},
+                   Shape{2, 10, 6, 2},
+                   ET,
+                   ET,
+                   input_data,
+                   expected_rdft3d_results,
+                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {0, 1, 2}),
+                   NULL),
+        // rdft3d_eval_1_negative_axes_and_signal_size
+        RDFTParams(Shape{2, 10, 10},
+                   Shape{2, 10, 6, 2},
+                   ET,
+                   ET,
+                   input_data,
+                   expected_rdft3d_results,
+                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {-3, 1, 2}),
+                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {-1, 10, -1})),
+        // rdft3d_eval_2
+        RDFTParams(Shape{2, 10, 10},
+                   Shape{4, 5, 7, 2},
+                   ET,
+                   ET,
+                   input_data,
+                   expected_rdft3d_results_2,
+                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {0, 1, 2}),
+                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {4, 5, 12})),
+        // rdft3d_eval_2_negative_axes
+        RDFTParams(Shape{2, 10, 10},
+                   Shape{4, 5, 7, 2},
+                   ET,
+                   ET,
+                   input_data,
+                   expected_rdft3d_results_2,
+                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {-3, -2, 2}),
+                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {4, 5, 12})),
     };
 
     return params;
 }
 
-//template <element::Type_t ET>
-//std::vector<DFTParams> generateParamsForDFT_float16() {
-//    using T = typename element_type_traits<ET>::value_type;
-//
-//    std::vector<DFTParams> params{
-//        // dft1d_eval_float16
-//        DFTParams(Shape{2, 10, 10, 2},
-//                  Shape{2, 10, 10, 2},
-//                  ET,
-//                  ET,
-//                  convert<T>(input_data),
-//                  convert<T>(expected_dft1d_float16_results),
-//                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2}),
-//                  NULL),
-//        // dft2d_eval_float16
-//        DFTParams(Shape{2, 10, 10, 2},
-//                  Shape{2, 10, 10, 2},
-//                  ET,
-//                  ET,
-//                  convert<T>(input_data),
-//                  convert<T>(expected_dft2d_float16_results),
-//                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {1, 2}),
-//                  NULL),
-//        // dft3d_eval_float16
-//        DFTParams(Shape{2, 10, 10, 2},
-//                  Shape{2, 10, 10, 2},
-//                  ET,
-//                  ET,
-//                  convert<T>(input_data),
-//                  convert<T>(expected_dft3d_float16_results),
-//                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {0, 1, 2}),
-//                  NULL),
-//    };
-//
-//    return params;
-//}
-//
-//template <element::Type_t ET>
-//std::vector<DFTParams> generateParamsForDFT_bfloat16() {
-//    using T = typename element_type_traits<ET>::value_type;
-//
-//    std::vector<DFTParams> params{
-//        // dft1d_eval_bfloat16
-//        DFTParams(Shape{2, 10, 10, 2},
-//                  Shape{2, 10, 10, 2},
-//                  ET,
-//                  ET,
-//                  convert<T>(input_data),
-//                  convert<T>(expected_dft1d_bfloat16_results),
-//                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2}),
-//                  NULL),
-//        // dft2d_eval_bfloat16
-//        DFTParams(Shape{2, 10, 10, 2},
-//                  Shape{2, 10, 10, 2},
-//                  ET,
-//                  ET,
-//                  convert<T>(input_data),
-//                  convert<T>(expected_dft2d_bfloat16_results),
-//                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {1, 2}),
-//                  NULL),
-//        // dft3d_eval_bfloat16
-//        DFTParams(Shape{2, 10, 10, 2},
-//                  Shape{2, 10, 10, 2},
-//                  ET,
-//                  ET,
-//                  convert<T>(input_data),
-//                  convert<T>(expected_dft3d_bfloat16_results),
-//                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {0, 1, 2}),
-//                  NULL),
-//    };
-//
-//    return params;
-//}
-
 std::vector<RDFTParams> generateCombinedParamsForRDFT() {
     const std::vector<std::vector<RDFTParams>> allTypeParams{
-        generateParamsForRDFT<element::Type_t::f32>(),
-//        generateParamsForDFT_float16<element::Type_t::f16>(),
-//        generateParamsForDFT_bfloat16<element::Type_t::bf16>(),
+        generateParamsForRDFT<element::Type_t::f32>()
     };
 
     std::vector<RDFTParams> combinedParams;
