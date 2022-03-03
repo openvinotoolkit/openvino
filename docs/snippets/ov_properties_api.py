@@ -30,10 +30,10 @@ nireq = compiled_model.get_property("OPTIMAL_NUMBER_OF_INFER_REQUESTS");
 # latency hint is a default for CPU
 core.set_property("CPU", {"PERFORMANCE_HINT": "LATENCY"})
 # compiled with latency configuration hint
-compiled_model_latency =  core.compile_model(model, "CPU")
+compiled_model_latency = core.compile_model(model, "CPU")
 # compiled with overriden performance hint value
 config = {"PERFORMANCE_HINT": "THROUGHPUT"}
-core.compile_model(model, "CPU", config)
+compiled_model_thrp = core.compile_model(model, "CPU", config)
 # [core_set_property_then_compile]
 
 # [device_thermal]
