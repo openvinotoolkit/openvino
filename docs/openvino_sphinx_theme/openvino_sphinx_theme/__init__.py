@@ -4,12 +4,10 @@ import json
 from json import JSONDecodeError
 from sphinx.errors import ExtensionError
 import jinja2
-from docutils.parsers import rst
 from pathlib import Path
 from bs4 import BeautifulSoup as bs
 from sphinx.util import logging
 from pydata_sphinx_theme import index_toctree
-from .directives.code import DoxygenSnippet
 
 SPHINX_LOGGER = logging.getLogger(__name__)
 
@@ -232,5 +230,4 @@ def setup(app):
     app.connect("html-page-context", add_toctree_functions)
     app.connect('env-before-read-docs', read_doxygen_configs)
     app.add_html_theme('openvino_sphinx_theme', theme_path)
-    rst.directives.register_directive('doxygensnippet', DoxygenSnippet)
     return {'parallel_read_safe': True, 'parallel_write_safe': True}

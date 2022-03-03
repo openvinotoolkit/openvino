@@ -17,8 +17,10 @@ from docutils import nodes
 from docutils.parsers.rst import Directive, directives
 from docutils.transforms import Transform
 from sphinx import __version__ as sphinx_version_string, roles, addnodes, config
+from sphinx.directives.code import LiteralIncludeReader
 from sphinx.directives.other import Include
 from sphinx.domains import Domain
+
 
 #...............................................................................
 #
@@ -29,6 +31,7 @@ sphinx_version = version.parse(sphinx_version_string)
 this_dir = os.path.dirname(os.path.realpath(__file__))
 url_re_prog = re.compile('(ftp|https?)://')
 crefdb = {}
+
 
 def get_cref_target(text):
     if text in crefdb:
@@ -239,6 +242,111 @@ class RefCodeBlock(Directive):
         self.add_name(node)
         return [node]
 
+
+class DoxygenSnippet(RefCodeBlock):
+    option_spec = dict({'fragment': directives.unchanged_required,
+                        'language': directives.unchanged_required}, **RefCodeBlock.option_spec)
+
+    def run(self):
+        config = self.state.document.settings.env.config
+        pos = 0
+        node = DoxyrestLiteralBlock('.', '')  # single char to prevent sphinx from trying to highlight it
+        node['classes'] += ['highlight']  # we are stripping pyments-generated <div>
+        node['classes'] += self.options.get('class', [])
+
+        if 'fragment' in self.options:
+            self.options['start-after'] = self.options['fragment']
+            self.options['end-before'] = self.options['fragment']
+        document = self.state.document
+        if not document.settings.file_insertion_enabled:
+            return [document.reporter.warning('File insertion disabled',
+                                              line=self.lineno)]
+        # convert options['diff'] to absolute path
+        if 'diff' in self.options:
+            _, path = self.env.relfn2path(self.options['diff'])
+            self.options['diff'] = path
+
+        location = self.state_machine.get_source_and_line(self.lineno)
+        doxygen_snippet_root = config.html_context.get('doxygen_snippet_root')
+        if doxygen_snippet_root and os.path.exists(doxygen_snippet_root):
+            rel_filename = self.arguments[0]
+            filename = os.path.join(doxygen_snippet_root, rel_filename)
+        else:
+            rel_filename, filename = self.env.relfn2path(self.arguments[0])
+
+        reader = LiteralIncludeReader(filename, self.options, config)
+        text, lines = reader.read(location=location)
+
+        code = self.insert_refs(text)
+        # code = ':ref:`ov::Core <doxid-classov_1_1_core>`'
+
+        language = self.options.get('language')
+
+        while True:
+            match = self.role_re_prog.search(code, pos)
+            if match is None:
+                plain_text = code[pos:]
+                if plain_text != "":
+                    node += HighlightedText(plain_text, plain_text, language=language)
+                break
+
+            plain_text = code[pos:match.start()]
+            if plain_text != "":
+                node += HighlightedText(plain_text, plain_text, language=language)
+
+            raw_text = match.group(0)
+            role = match.group(1)
+            text = match.group(2)
+            target = match.group(4)
+
+            pos = match.end()
+
+            if text:
+                text = text.replace('\\<', '<')  # restore escaped left-chevron
+
+            if role == ':target:':
+                if not target:
+                    target = text
+                    text = None
+                    ws_match = self.ws_re_prog.match(code, pos)
+                    if ws_match:  # drop whitespace right after empty target
+                        pos = ws_match.end()
+
+                new_node = create_target_node(
+                    raw_text,
+                    text,
+                    target,
+                    language,
+                    None,
+                    self.state.document,
+                    ['doxyrest-code-target']
+                )
+
+            else:
+                if not role or role == ':cref:':
+                    target = get_cref_target(target if target else text)
+                elif not target:
+                    target = text
+
+                new_node = create_ref_node(raw_text, text, target)
+
+            node += new_node
+
+        self.add_name(node)
+        return [node]
+
+    def insert_refs(self, text):
+        result = []
+        for line in text.split('\n'):
+            for occur in re.finditer(r'\w+(?::{2}\w+)+', line):
+                code_entity = 'class' + occur.group().replace('::', '_1_1')
+                if code_entity in self.state.document.settings.env.all_docs:
+                    code_entity = code_entity.replace('_1_1', '_1_1_')
+                    line = line.replace(occur.group(), f':ref:`{occur.group()} <doxid-{code_entity.lower()}>`')
+            result.append(line)
+        return '\n'.join(result)
+
+
 #...............................................................................
 #
 #  Sphinx transforms
@@ -425,6 +533,7 @@ def on_builder_inited(app):
                 global crefdb
                 crefdb.update(new_crefdb)
 
+
 def on_config_inited(app, config):
 
     # prepare and register doxyrest-specific docutils.conf
@@ -479,6 +588,7 @@ def setup(app):
     app.add_config_value('doxyrest_cref_file', default=None, rebuild=True)
     app.add_config_value('doxyrest_tab_width', default=4, rebuild=True)
     directives.register_directive('ref-code-block', RefCodeBlock)
+    directives.register_directive('doxygensnippet', DoxygenSnippet)
     app.add_transform(RefTransform)
     app.connect('builder-inited', on_builder_inited)
     app.connect('config-inited', on_config_inited)
