@@ -27,6 +27,8 @@
 2. If `a not in normalized_axes`, then `S_a = data_shape[a]`.
 
 3. If `a in normalized_axes`, then `a = normalized_axes[i]` for some `i`. In such case, `S_a = 2 * (data_shape[a] - 1)` if the `signal_size` input is not specified, or, if it is specified, `signal_size[i] = -1`; and `S_a = signal_size[a]` otherwise.
+   + When `i != len(normalized_axes) - 1`, `S_a` is calculated as `S_a = data_shape[a]` if the `signal_size` input is not specified, or, if it is specified, `signal_size[i] = -1`; and `S_a = signal_size[a]` otherwise.
+   + When `i = len(normalized_axes) - 1`, `S_a` is calculated as `S_a = 2 * (data_shape[a] - 1)` if the `signal_size` input is not specified, or, if it is specified, `signal_size[i] = -1`; and `S_a = signal_size[a]` otherwise.
 
 **Types**
 
@@ -77,7 +79,7 @@ There is no `signal_size` input (4D input tensor):
     <output>
         <port id="2">
             <dim>1</dim>
-            <dim>320</dim>
+            <dim>161</dim>
             <dim>320</dim>
         </port>
     </output>
@@ -98,7 +100,7 @@ There is no `signal_size` input (3D input tensor):
         </port>
     <output>
         <port id="2">
-            <dim>320</dim>
+            <dim>161</dim>
             <dim>320</dim>
         </port>
     </output>
