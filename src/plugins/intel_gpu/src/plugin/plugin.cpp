@@ -976,13 +976,12 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         ICNNNetwork::InputShapes new_shapes;
 
         try {
-            std::set<std::string> batched_inputs;
-            std::set<std::string> batched_outputs;
+            std::set<std::pair<std::string, size_t>> batched_inputs;
 
             auto function = InferenceEngine::details::cloneNetwork(cloned_network).getFunction();
             ov::pass::Manager m;
             m.register_pass<ngraph::pass::InitNodeInfo>();
-            m.register_pass<ov::pass::FindBatch>(false, true);
+            m.register_pass<ov::pass::FindBatch>(true, false);
             m.run_passes(function);
             const auto& params = function->get_parameters();
             for (size_t input_id = 0; input_id < params.size(); input_id++) {
@@ -995,81 +994,39 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
                     }
                     return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
                 }
-                // check the batch dim: either 0th (and the original batch size of 1) or none
-                if (shape.size() && ov::DimensionTracker::get_label(shape[0])) {
-                    const auto& static_shape = input->get_shape();
-                    if (static_shape[0] != 1) {
-                        GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                            GPU_DEBUG_COUT << "[MAX_BATCH_SIZE] Only to be applied for not-batched networks" << std::endl;
-                        }
-                        return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
-                    }
-                    batched_inputs.insert(
-                            ngraph::op::util::get_ie_output_name(params[input_id]->output(0)));  // batched dim for the input
-                } else {
-                    // if the 0-th dim is not for the batch, then we support only the case when NONE dimension is batch
-                    for (size_t s = 1; s < shape.size(); s++) {
+
+                if (shape.size()) {
+                    for (size_t s = 0; s < shape.size(); s++) {
                         if (ov::DimensionTracker::get_label(shape[s])) {
+                            // batched dim for the input
+                            auto batched_input_id = ngraph::op::util::get_ie_output_name(params[input_id]->output(0));
                             GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                                GPU_DEBUG_COUT << "[MAX_BATCH_SIZE] only networks with inputs/outputs batched by 0th dimension" << std::endl;
+                                GPU_DEBUG_COUT << "[MAX_BATCH_SIZE] detected batched input " << batched_input_id
+                                               << "[" << s << "]" << std::endl;
                             }
-                            return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
+                            batched_inputs.insert(std::make_pair(batched_input_id, s));
                         }
                     }
-                }
-            }
-            const auto& results = function->get_results();
-            for (size_t output_id = 0; output_id < results.size(); output_id++) {
-                const auto& output = results[output_id];
-                const auto& shape = output->get_output_partial_shape(0);
-                if (shape.is_dynamic()) {
-                    GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                         GPU_DEBUG_COUT << "[MAX_BATCH_SIZE] does not support dynamic networks." << std::endl;
-                    }
-                    return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
-                }
-                // check the batch dim: either 0th (and the original batch size of 1) or none
-                if (shape.size() && ov::DimensionTracker::get_label(shape[0])) {
-                    if (shape[0] != 1) {
-                        GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                            GPU_DEBUG_COUT << "[MAX_BATCH_SIZE] does not reshape/re-batch originally batched networks." << std::endl;
-                        }
-                        return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
-                    }
-                    const auto& node = output->input_value(0);
-                    batched_outputs.insert(ngraph::op::util::get_ie_output_name(
-                                ov::Output<const ov::Node>(node.get_node(), node.get_index())));
-                } else {
-                    // if the 0-th dim is not for the batch, then we support only the case when NONE dimension is batch
-                    for (size_t s = 1; s < shape.size(); s++) {
-                        if (ov::DimensionTracker::get_label(shape[s])) {
-                            GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                                GPU_DEBUG_COUT << "[MAX_BATCH_SIZE] operates only networks with outputs batched by 0th dimension" << std::endl;
-                            }
-                            return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
-                        }
-                    }
-                }
-                if (!batched_inputs.size() || !batched_outputs.size()) {
-                    GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                        GPU_DEBUG_COUT << "[MAX_BATCH_SIZE] MAX_BATCH_SIZE supports only networks with inputs/outputs featuring batched dim." << std::endl;
-                    }
-                    return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
                 }
             }
 
-            if (batched_inputs.size()) {
-                try {
-                    ICNNNetwork::InputShapes shapes = cloned_network.getInputShapes();
-                    for (const auto& input : batched_inputs)
-                        shapes[input][0] = base_batch_size;
-                    cloned_network.reshape(shapes);
-                } catch (...) {
-                    GPU_DEBUG_IF(debug_config->verbose >= 1) {
-                        GPU_DEBUG_COUT << "[MAX_BATCH_SIZE] Error at reshape to " << base_batch_size << std::endl;
-                    }
-                    return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
+            if (!batched_inputs.size()) {
+                GPU_DEBUG_IF(debug_config->verbose >= 2) {
+                    GPU_DEBUG_COUT << "[MAX_BATCH_SIZE] MAX_BATCH_SIZE supports only networks with inputs/outputs featuring batched dim." << std::endl;
                 }
+                return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
+            }
+
+            try {
+                ICNNNetwork::InputShapes shapes = cloned_network.getInputShapes();
+                for (const auto& input : batched_inputs)
+                    shapes[input.first][input.second] = base_batch_size;
+                cloned_network.reshape(shapes);
+            } catch (...) {
+                GPU_DEBUG_IF(debug_config->verbose >= 1) {
+                    GPU_DEBUG_COUT << "[MAX_BATCH_SIZE] Error at reshape to " << base_batch_size << std::endl;
+                }
+                return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
             }
 
             auto nGraphFunc = cloned_network.getFunction();
