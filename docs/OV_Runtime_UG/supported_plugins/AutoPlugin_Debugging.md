@@ -7,7 +7,7 @@ There are six levels of logs, which can be called explicitly or set via the `OPE
 
 0 - ov::log::Level::NO  
 1 - ov::log::Level::ERR  
-2 - ov::log::Level::WARING  
+2 - ov::log::Level::WARNING  
 3 - ov::log::Level::INFO  
 4 - ov::log::Level::DEBUG  
 5 - ov::log::Level::TRACE  
@@ -81,23 +81,23 @@ in which the `LOG_LEVEL` is represented by the first letter of its name (ERROR b
 
 ## Instrumentation and Tracing Technology
 
-All major performance calls of both Inference Engine and the AUTO plugin are instrumented with Instrumentation and Tracing Technology (ITT) APIs. To enable ITT in Inference Engine, please compile OpenVINO with the following option:
+All major performance calls of both OpenVINO™ Runtime and the AUTO plugin are instrumented with Instrumentation and Tracing Technology (ITT) APIs. To enable ITT in OpenVINO™ Runtime, compile it with the following option:
 @sphinxdirective
 .. code-block:: sh
 
    -DENABLE_PROFILING_ITT=ON
 @endsphinxdirective
 
-For more information, please refer to:
+For more information, you can refer to:
 * [OpenVINO profiling](https://docs.openvino.ai/latest/groupie_dev_profiling.html)
 * [Intel® VTune™ Profiler User Guide](https://www.intel.com/content/www/us/en/develop/documentation/vtune-help/top/api-support/instrumentation-and-tracing-technology-apis.html)
 
-### Analyze code performance on Linux
+### Analyze Code Performance on Linux
 
-You can analyze code performance using VTUNE. For more information and installation instructions [[download the PDF]](https://software.intel.com/content/www/us/en/develop/download/intel-vtune-install-guide-linux-os.html)
-With VTUNE installed you can configure your analysis with the following steps:
+You can analyze code performance using Intel® VTune™ Profiler. For more information and installation instructions refer to the [installation guide (PDF)](https://software.intel.com/content/www/us/en/develop/download/intel-vtune-install-guide-linux-os.html)
+With Intel® VTune™ Profiler installed you can configure your analysis with the following steps:
 
-1. Open VTune Profiler GUI on the host machine with the following command:
+1. Open Intel® VTune™ Profiler GUI on the host machine with the following command:
 @sphinxdirective
 
 .. code-block:: sh
@@ -107,29 +107,29 @@ With VTUNE installed you can configure your analysis with the following steps:
    vtune-gui
 @endsphinxdirective
 
-2. select “Configure Analysis”
-3. In the “where” pane, select “Local Host”
+2. select **Configure Analysis**
+3. In the **where** pane, select **Local Host**
 @sphinxdirective
 .. image:: _static/images/IE_DG_supported_plugins_AUTO_debugging-img01-localhost.png
    :align: center
 @endsphinxdirective
-4. In the “what” pane, specify your target application/script on the local system.
+4. In the **what** pane, specify your target application/script on the local system.
 @sphinxdirective
 .. image:: _static/images/IE_DG_supported_plugins_AUTO_debugging-img02-launch.png
    :align: center
 @endsphinxdirective
-5. In the “how” pane, choose and configure the analysis type you want to perform, for example, “Hotspots Analysis”:
+5. In the **how** pane, choose and configure the analysis type you want to perform, for example, **Hotspots Analysis**:
 identify the most time-consuming functions and drill down to see time spent on each line of source code. Focus optimization efforts on hot code for the greatest performance impact.
 @sphinxdirective
 .. image:: _static/images/IE_DG_supported_plugins_AUTO_debugging-img03-hotspots.png
    :align: center
 @endsphinxdirective
-6.	Start the analysis by clicking the start button. When it is done, vtune will give you a summary of the run, including top hotspots and top tasks in your application:
+6.	Start the analysis by clicking the start button. When it is done, you will get a summary of the run, including top hotspots and top tasks in your application:
 @sphinxdirective
 .. image:: _static/images/IE_DG_supported_plugins_AUTO_debugging-img04-vtunesummary.png
    :align: center
 @endsphinxdirective
-7. To analyze ITT info related to the Auto plugin, click on the Bottom-up tab, choose the “Task Domain/Task Type/Function/Call Stack” from the dropdown list - Auto plugin-related ITT info is under the MULTIPlugin task  Domain:
+7. To analyze ITT info related to the Auto plugin, click on the **Bottom-up** tab, choose the **Task Domain/Task Type/Function/Call Stack** from the dropdown list - Auto plugin-related ITT info is under the MULTIPlugin task  domain:
 @sphinxdirective
 .. image:: _static/images/IE_DG_supported_plugins_AUTO_debugging-img05-vtunebottomup.png
    :align: center
