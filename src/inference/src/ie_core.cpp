@@ -150,27 +150,63 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             auto it = config.find(CONFIG_KEY(CACHE_DIR));
             if (it != config.end()) {
                 std::lock_guard<std::mutex> lock(_cacheConfigMutex);
-                _cacheConfig._cacheDir = it->second;
-                if (!it->second.empty()) {
-                    FileUtils::createDirectoryRecursive(it->second);
-                    _cacheConfig._cacheManager = std::make_shared<ie::FileStorageCacheManager>(std::move(it->second));
-                } else {
-                    _cacheConfig._cacheManager = nullptr;
+                fillConfig(_cacheConfig, it->second);
+                for (auto& deviceCfg: _cacheConfigPerDevice) {
+                    fillConfig(deviceCfg.second, it->second);
                 }
-
                 config.erase(it);
             }
         }
 
-        // Creating thread-safe copy of config including shared_ptr to ICacheManager
-        CacheConfig getCacheConfig() const {
+        void setCacheForDevice(const std::string& dir, const std::string& name) {
             std::lock_guard<std::mutex> lock(_cacheConfigMutex);
-            return _cacheConfig;
+            fillConfig(_cacheConfigPerDevice[name], dir);
         }
 
+        // Creating thread-safe copy of config including shared_ptr to ICacheManager
+        // Passing empty or not-existing name will return global cache config
+        CacheConfig getCacheConfigForDevice(const std::string& name,
+                                            bool deviceSupportsCacheDir,
+                                            std::map<std::string, std::string>& parsedConfig) const {
+            if (parsedConfig.count(CONFIG_KEY(CACHE_DIR))) {
+                CoreConfig::CacheConfig tempConfig;
+                CoreConfig::fillConfig(tempConfig, parsedConfig.at(CONFIG_KEY(CACHE_DIR)));
+                if (!deviceSupportsCacheDir) {
+                    parsedConfig.erase(CONFIG_KEY(CACHE_DIR));
+                }
+                return tempConfig;
+            } else {
+                std::lock_guard<std::mutex> lock(_cacheConfigMutex);
+                if (_cacheConfigPerDevice.count(name) > 0) {
+                    return _cacheConfigPerDevice.at(name);
+                } else {
+                    return _cacheConfig;
+                }
+            }
+        }
+
+        CacheConfig getCacheConfigForDevice(const std::string& name) const {
+            std::lock_guard<std::mutex> lock(_cacheConfigMutex);
+            if (_cacheConfigPerDevice.count(name) > 0) {
+                return _cacheConfigPerDevice.at(name);
+            } else {
+                return _cacheConfig;
+            }
+        }
+
+        static void fillConfig(CacheConfig& config, const std::string& dir) {
+            config._cacheDir = dir;
+            if (!dir.empty()) {
+                FileUtils::createDirectoryRecursive(dir);
+                config._cacheManager = std::make_shared<ie::FileStorageCacheManager>(dir);
+            } else {
+                config._cacheManager = nullptr;
+            }
+        }
     private:
         mutable std::mutex _cacheConfigMutex;
         CacheConfig _cacheConfig;
+        std::map<std::string, CacheConfig> _cacheConfigPerDevice;
     };
 
     // Core settings (cache config, etc)
@@ -245,6 +281,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     ov::SoPtr<ie::IExecutableNetworkInternal> compile_model_impl(const InferenceEngine::CNNNetwork& network,
                                                                  ov::InferencePlugin& plugin,
                                                                  const std::map<std::string, std::string>& parsedConfig,
+                                                                 const std::shared_ptr<ie::ICacheManager>& cacheManager,
                                                                  const ie::RemoteContext::Ptr& context,
                                                                  const std::string& blobID,
                                                                  const std::string& modelPath = std::string(),
@@ -253,7 +290,6 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         ov::SoPtr<ie::IExecutableNetworkInternal> execNetwork;
         execNetwork = context ? plugin.compile_model(network, context, parsedConfig)
                               : plugin.compile_model(network, parsedConfig);
-        auto cacheManager = coreConfig.getCacheConfig()._cacheManager;
         if (!forceDisableCache && cacheManager && DeviceSupportsImportExport(plugin)) {
             try {
                 // need to export network for further import from "cache"
@@ -536,20 +572,22 @@ public:
 
         auto plugin = GetCPPPluginByName(parsed._deviceName);
         ov::SoPtr<ie::IExecutableNetworkInternal> res;
-        auto cacheManager = coreConfig.getCacheConfig()._cacheManager;
+        auto cacheManager = coreConfig.getCacheConfigForDevice(parsed._deviceName,
+                                                               DeviceSupportsCacheDir(plugin),
+                                                               parsed._config)._cacheManager;
         if (cacheManager && DeviceSupportsImportExport(plugin)) {
             auto hash = CalculateNetworkHash(network, parsed._deviceName, plugin, parsed._config);
             bool loadedFromCache = false;
             auto lock = cacheGuard.getHashLock(hash);
             res = LoadNetworkFromCache(cacheManager, hash, plugin, parsed._config, context, loadedFromCache);
             if (!loadedFromCache) {
-                res = compile_model_impl(network, plugin, parsed._config, context, hash);
+                res = compile_model_impl(network, plugin, parsed._config, cacheManager, context, hash);
             } else {
                 // Temporary workaround until all plugins support caching of original model inputs
                 InferenceEngine::SetExeNetworkInfo(res._ptr, network.getFunction(), isNewAPI());
             }
         } else {
-            res = compile_model_impl(network, plugin, parsed._config, context, {});
+            res = compile_model_impl(network, plugin, parsed._config, cacheManager, context, {});
         }
         return res;
     }
@@ -632,20 +670,20 @@ public:
         }
         auto plugin = GetCPPPluginByName(parsed._deviceName);
         ov::SoPtr<ie::IExecutableNetworkInternal> res;
-        auto cacheManager = coreConfig.getCacheConfig()._cacheManager;
+        auto cacheManager = coreConfig.getCacheConfigForDevice(parsed._deviceName, DeviceSupportsCacheDir(plugin), parsed._config)._cacheManager;
         if (!forceDisableCache && cacheManager && DeviceSupportsImportExport(plugin)) {
             auto hash = CalculateNetworkHash(network, parsed._deviceName, plugin, parsed._config);
             bool loadedFromCache = false;
             auto lock = cacheGuard.getHashLock(hash);
             res = LoadNetworkFromCache(cacheManager, hash, plugin, parsed._config, nullptr, loadedFromCache);
             if (!loadedFromCache) {
-                res = compile_model_impl(network, plugin, parsed._config, nullptr, hash, {}, forceDisableCache);
+                res = compile_model_impl(network, plugin, parsed._config, cacheManager, nullptr, hash, {}, forceDisableCache);
             } else {
                 // Temporary workaround until all plugins support caching of original model inputs
                 InferenceEngine::SetExeNetworkInfo(res._ptr, network.getFunction(), isNewAPI());
             }
         } else {
-            res = compile_model_impl(network, plugin, parsed._config, nullptr, {}, {}, forceDisableCache);
+            res = compile_model_impl(network, plugin, parsed._config, cacheManager, nullptr, {}, {}, forceDisableCache);
         }
         return {res._ptr, res._so};
     }
@@ -658,7 +696,7 @@ public:
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         auto plugin = GetCPPPluginByName(parsed._deviceName);
         ov::SoPtr<ie::IExecutableNetworkInternal> res;
-        auto cacheManager = coreConfig.getCacheConfig()._cacheManager;
+        auto cacheManager = coreConfig.getCacheConfigForDevice(parsed._deviceName, DeviceSupportsCacheDir(plugin), parsed._config)._cacheManager;
         if (cacheManager && DeviceSupportsImportExport(plugin)) {
             bool loadedFromCache = false;
             auto hash = CalculateFileHash(modelPath, parsed._deviceName, plugin, parsed._config);
@@ -669,7 +707,7 @@ public:
                 if (val) {
                     val(cnnNetwork);
                 }
-                res = compile_model_impl(cnnNetwork, plugin, parsed._config, nullptr, hash, modelPath);
+                res = compile_model_impl(cnnNetwork, plugin, parsed._config, cacheManager, nullptr, hash, modelPath);
             }
         } else if (cacheManager) {
             // TODO: 'validation' for dynamic API doesn't work for this case, as it affects a lot of plugin API
@@ -679,7 +717,7 @@ public:
             if (val) {
                 val(cnnNetwork);
             }
-            res = compile_model_impl(cnnNetwork, plugin, parsed._config, nullptr, {}, modelPath);
+            res = compile_model_impl(cnnNetwork, plugin, parsed._config, cacheManager, nullptr, {}, modelPath);
         }
         return {res._ptr, res._so};
     }
@@ -919,10 +957,13 @@ public:
                 // configuring
                 {
                     if (DeviceSupportsCacheDir(plugin)) {
-                        auto cacheConfig = coreConfig.getCacheConfig();
+                        auto cacheConfig = coreConfig.getCacheConfigForDevice(deviceName);
                         if (cacheConfig._cacheManager) {
                             desc.defaultConfig[CONFIG_KEY(CACHE_DIR)] = cacheConfig._cacheDir;
                         }
+                    } else if (desc.defaultConfig.count(CONFIG_KEY(CACHE_DIR)) > 0) {
+                        // Remove "CACHE_DIR" from config if it is not supported by plugin
+                        desc.defaultConfig.erase(CONFIG_KEY(CACHE_DIR));
                     }
                     allowNotImplemented([&]() {
                         // Add device specific value to support device_name.device_id cases
@@ -1054,6 +1095,11 @@ public:
 
         if (deviceName.empty()) {
             coreConfig.setAndUpdate(config);
+        } else {
+            auto cache_it = config.find(CONFIG_KEY(CACHE_DIR));
+            if (cache_it != config.end()) {
+                coreConfig.setCacheForDevice(cache_it->second, clearDeviceName);
+            }
         }
 
         auto base_desc = pluginRegistry.find(clearDeviceName);
@@ -1083,10 +1129,13 @@ public:
                 allowNotImplemented([&]() {
                     auto configCopy = config;
                     if (DeviceSupportsCacheDir(plugin.second)) {
-                        auto cacheConfig = coreConfig.getCacheConfig();
+                        auto cacheConfig = coreConfig.getCacheConfigForDevice(deviceName);
                         if (cacheConfig._cacheManager) {
                             configCopy[CONFIG_KEY(CACHE_DIR)] = cacheConfig._cacheDir;
                         }
+                    } else if (configCopy.count(CONFIG_KEY(CACHE_DIR)) > 0) {
+                        // Remove "CACHE_DIR" from config if it is not supported by plugin
+                        configCopy.erase(CONFIG_KEY(CACHE_DIR));
                     }
                     // Add device specific value to support device_name.device_id cases
                     std::vector<std::string> supportedConfigKeys =
