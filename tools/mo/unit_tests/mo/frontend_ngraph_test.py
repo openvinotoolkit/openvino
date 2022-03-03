@@ -61,6 +61,15 @@ def test_main_test():
     assert not status.returncode
 
 
+def test_mo_extensions_test():
+    setup_env()
+    args = [sys.executable, '-m', 'pytest',
+            os.path.join(os.path.dirname(__file__), 'extensions_test_actual.py'), '-s']
+
+    status = subprocess.run(args, env=os.environ)
+    assert not status.returncode
+
+
 def test_mo_fallback_test():
     setup_env()
     args = [sys.executable, '-m', 'pytest',
