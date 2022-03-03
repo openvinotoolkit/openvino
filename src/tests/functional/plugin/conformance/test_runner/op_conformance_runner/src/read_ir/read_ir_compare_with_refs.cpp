@@ -11,14 +11,14 @@ namespace ov {
 namespace test {
 namespace conformance {
 namespace op {
-
+/**/
 using namespace ov::test::subgraph;
 
 namespace {
 INSTANTIATE_TEST_SUITE_P(conformance,
                          ReadIRTest,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(CommonTestUtils::getFileListByPatternRecursive(IRFolderPaths, std::regex(R"(.*\.xml)"))),
+                                 ::testing::ValuesIn(CommonTestUtils::getFileListByPatternRecursive(IRFolderPaths, {std::regex(R"(.*\.xml)")})),
                                  ::testing::Values(targetDevice),
                                  ::testing::Values(pluginConfig)),
                          ReadIRTest::getTestCaseName);
