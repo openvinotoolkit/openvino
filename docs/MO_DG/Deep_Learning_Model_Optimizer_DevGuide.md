@@ -637,7 +637,7 @@ To convert the model to the Intermediate Representation (IR), run Model Optimize
 mo --input_model INPUT_MODEL --output_dir <OUTPUT_MODEL_DIR>
 ```
 
-You need to have have write permissions for an output directory.
+You need to have write permissions for an output directory.
 
 > **NOTE**: Some models require using additional arguments to specify conversion parameters, such as `--input_shape`, `--scale`, `--scale_values`, `--mean_values`, `--mean_file`. To learn about when you need to use these parameters, refer to [Converting a Model to Intermediate Representation (IR)](prepare_model/convert_model/Converting_Model.md).
 

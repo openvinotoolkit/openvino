@@ -13,7 +13,7 @@ the name \'.+?\' supplied as the argument
 warning: while setting up extension conf.py: csv directory not found
 argument \'.+?\' of command
 no uniquely matching class member found for
-example example was already documented\. ignoring documentation found here\.
+example was already documented\. ignoring documentation found here\.
 documentation for unknown define
 detected potential recursive class relation between class
 no matching file member found for
