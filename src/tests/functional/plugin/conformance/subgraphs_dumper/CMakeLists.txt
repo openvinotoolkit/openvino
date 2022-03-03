@@ -15,7 +15,7 @@ list(APPEND DEFINITIONS)
 
 if(TARGET openvino_ir_frontend)
     list(APPEND DEPENDENCIES openvino_ir_frontend)
-#    list(APPEND DEFINITIONS ENABLE_OV_IR_FRONTEND)
+    list(APPEND DEFINITIONS ENABLE_OV_IR_FRONTEND)
 endif()
 
 if(TARGET openvino_onnx_frontend)
