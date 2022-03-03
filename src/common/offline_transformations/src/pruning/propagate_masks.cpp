@@ -451,6 +451,37 @@ public:
                 NGRAPH_DEBUG << "No weights mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
                 return false;
             }
+            using dims_set = std::set<int64_t>;
+            auto input_shape_broadcasted_dims = dims_set();
+            auto weights_shape_broadcasted_dims = dims_set();
+            if (m_input.get_partial_shape().is_static() &&
+                m_weights.get_partial_shape().is_static()) {
+                // Compute brodcasted dims
+                const auto input_shape = m_input.get_shape();
+                const auto weights_shape = m_weights.get_shape();
+                const int64_t input_shape_size_diff = input_shape.size() - weights_shape.size();
+                for (int64_t i = 0; i < input_shape.size(); ++i)
+                    if (input_shape[i] == 1 || i < input_shape_size_diff)
+                        input_shape_broadcasted_dims.insert(i);
+
+                const int64_t weights_shape_size_diff = -input_shape_size_diff;
+                for (int64_t i = 0; i < weights_shape.size(); ++i)
+                    if (weights_shape[i] == 1 || i < weights_shape_size_diff)
+                        weights_shape_broadcasted_dims.insert(i);
+
+                // Union sets
+                for (auto & elem : input_shape_broadcasted_dims) {
+                    const auto shifted_elem = elem + weights_shape_size_diff;
+                    if (shifted_elem >= 0)
+                        weights_shape_broadcasted_dims.insert(shifted_elem);
+                }
+                for (auto & elem : weights_shape_broadcasted_dims) {
+                    const auto shifted_elem = elem + input_shape_size_diff;
+                    if (shifted_elem >= 0)
+                        input_shape_broadcasted_dims.insert(shifted_elem);
+                }
+            }
+            auto has_broadcasted_dims = input_shape_broadcasted_dims.size() || weights_shape_broadcasted_dims.size();
             auto input_mask_row = input_mask.get();
             auto weights_mask_row = weights_mask.get();
 
@@ -458,12 +489,20 @@ public:
             auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
             auto output_mask_row = output_mask.get();
 
-            auto out_mask_callback = [input_mask_row, weights_mask_row, union_eltwise_type](Mask::Ptr cur_mask) -> bool {
+            auto out_mask_callback = [=](Mask::Ptr cur_mask) -> bool {
                 Mask::Ptr result_mask;
                 if (union_eltwise_type) {
-                    result_mask = input_mask_row->union_masks_reversed(weights_mask_row);
+                    if (has_broadcasted_dims)
+                        result_mask = input_mask_row->union_masks_reversed_with_broadcasted_dims(weights_mask_row);
+                    else
+                        result_mask = input_mask_row->union_masks_reversed(weights_mask_row);
                 } else {
-                    result_mask = input_mask_row->intersect_masks_reversed(weights_mask_row);
+                    if (has_broadcasted_dims)
+                        result_mask = input_mask_row->intersect_masks_reversed_with_broadcasted_dims(weights_mask_row,
+                                                                                                     input_shape_broadcasted_dims,
+                                                                                                     weights_shape_broadcasted_dims);
+                    else
+                        result_mask = input_mask_row->intersect_masks_reversed(weights_mask_row);
                 }
                 cur_mask->copy_value_from_mask_reversed(result_mask.get());
                 return true;
