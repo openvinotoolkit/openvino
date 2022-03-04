@@ -10,6 +10,7 @@
 #include <iterator>
 
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/opsets/opset5.hpp>
@@ -486,10 +487,27 @@ public:
                         input_shape_broadcasted_dims.insert(shifted_elem);
                 }
             }
-            auto has_broadcasted_dims = input_shape_broadcasted_dims.size() || weights_shape_broadcasted_dims.size();
+            //auto has_broadcasted_dims = input_shape_broadcasted_dims.size() || weights_shape_broadcasted_dims.size();
+            // Prevent case when input_mask don't have masks on broadcasted dims but
+            // weights_mask has
+            bool inp_has_masks_on_broadcasted_dims = false;
+            for (auto & dim : input_shape_broadcasted_dims)
+                if (!input_mask->at(dim).empty()) {
+                    inp_has_masks_on_broadcasted_dims = true;
+                    break;
+                }
+            bool weights_has_masks_on_broadcasted_dims = false;
+            for (auto & dim : weights_shape_broadcasted_dims)
+                if (!weights_mask->at(dim).empty()) {
+                    weights_has_masks_on_broadcasted_dims = true;
+                    break;
+                }
+            if (!inp_has_masks_on_broadcasted_dims && weights_has_masks_on_broadcasted_dims) {
+                // Swap input and weights
+                std::swap(input_mask, weights_mask);
+            }
             auto input_mask_row = input_mask.get();
             auto weights_mask_row = weights_mask.get();
-
             // Merging masks from two inputs
             auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
             auto output_mask_row = output_mask.get();
@@ -497,19 +515,12 @@ public:
             auto out_mask_callback = [=](Mask::Ptr cur_mask) -> bool {
                 Mask::Ptr result_mask;
                 if (union_eltwise_type) {
-                    if (has_broadcasted_dims)
-                        result_mask = input_mask_row->union_masks_reversed_with_broadcasted_dims(weights_mask_row);
-                    else
-                        result_mask = input_mask_row->union_masks_reversed(weights_mask_row);
+                    result_mask = input_mask_row->union_masks_reversed(weights_mask_row);
                 } else {
-                    if (has_broadcasted_dims)
-                        result_mask = input_mask_row->intersect_masks_reversed_with_broadcasted_dims(weights_mask_row,
-                                                                                                     input_shape_broadcasted_dims,
-                                                                                                     weights_shape_broadcasted_dims);
-                    else
-                        result_mask = input_mask_row->intersect_masks_reversed(weights_mask_row);
+                    result_mask = input_mask_row->intersect_masks_reversed(weights_mask_row);
                 }
                 cur_mask->copy_value_from_mask_reversed(result_mask.get());
+                cur_mask->copy_value_from_mask_reversed_masked(input_mask_row, input_shape_broadcasted_dims, true);
                 return true;
             };
             output_mask->add_callback(out_mask_callback, input_mask);
@@ -518,12 +529,14 @@ public:
                 cur_mask->copy_value_from_mask_reversed_masked(weights_mask_row, input_shape_broadcasted_dims);
                 return true;
             }, weights_mask);
-            input_mask->add_callback([output_mask_row, input_shape_broadcasted_dims](Mask::Ptr cur_mask) -> bool {
-                cur_mask->copy_value_from_mask_reversed_masked(output_mask_row, input_shape_broadcasted_dims);
+            input_mask->add_callback([output_mask_row](Mask::Ptr cur_mask) -> bool {
+                cur_mask->copy_value_from_mask_reversed(output_mask_row);
                 return true;
             }, output_mask);
             weights_mask->add_callback([input_mask_row, weights_shape_broadcasted_dims](Mask::Ptr cur_mask) -> bool {
                 cur_mask->copy_value_from_mask_reversed_masked(input_mask_row, weights_shape_broadcasted_dims);
+                for (auto & dim : weights_shape_broadcasted_dims)
+                    cur_mask->at(dim).clear();
                 return true;
             }, input_mask);
 
@@ -1181,8 +1194,8 @@ public:
     SkipPropagation() {
         // Skip mask propagation for ShapeOf operation to prevent this opearation to be
         // processed as stop op.
-        auto node = pattern::wrap_type<opset6::ShapeOf>();
-        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        auto node = pattern::wrap_type<opset6::ShapeOf, opset1::ShapeOf>();
+        ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
             return true;
         };
 

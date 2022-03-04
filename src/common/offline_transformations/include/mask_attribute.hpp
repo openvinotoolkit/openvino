@@ -103,12 +103,12 @@ public:
         }
     }
 
-    void copy_value_from_mask_reversed_masked(Mask *const mask, std::set<int64_t> idx_mask) {
+    void copy_value_from_mask_reversed_masked(Mask *const mask, std::set<int64_t> idx_mask, const bool invert_mask = false) {
         auto cur_mask_iter = rbegin();
         auto mask_iter = mask->rbegin();
         while (cur_mask_iter != rend() && mask_iter != mask->rend()) {
             const auto idx = rend() - cur_mask_iter - 1;
-            if (idx_mask.find(idx) == idx_mask.end())
+            if ((idx_mask.find(idx) != idx_mask.end()) == invert_mask)
                 *cur_mask_iter = *mask_iter;
 
             cur_mask_iter++;
