@@ -4,13 +4,6 @@
 
 #pragma once
 
-#include <cstddef>
-#include <vector>
-
-#include "ngraph/attribute_adapter.hpp"
-#include "ngraph/op/op.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/op/util/fft_base.hpp"
 #include "openvino/op/irdft.hpp"
 
 namespace ngraph {
