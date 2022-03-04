@@ -38,9 +38,6 @@ def build_arg_parser() -> argparse.ArgumentParser:
                       help='Optional. Write GNA model to file using path/filename provided.')
     args.add_argument('-we', '--export_embedded_gna_model', type=str,
                       help='Optional. Write GNA embedded model to file using path/filename provided.')
-    args.add_argument('-we_gen', '--embedded_gna_configuration', default='GNA1', type=str, metavar='[GNA1, GNA3]',
-                      help='Optional. GNA generation configuration string for embedded export. '
-                      'Can be GNA1 (default) or GNA3.')
     args.add_argument('--exec_target', default='', type=str, choices=('GNA_TARGET_2_0', 'GNA_TARGET_3_0'),
                       metavar='[GNA_TARGET_2_0, GNA_TARGET_3_0]',
                       help='Optional. Specify GNA execution target generation. '

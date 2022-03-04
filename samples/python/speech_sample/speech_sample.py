@@ -145,7 +145,6 @@ def main():
 
         if args.export_embedded_gna_model:
             plugin_config['GNA_FIRMWARE_MODEL_IMAGE'] = args.export_embedded_gna_model
-            plugin_config['GNA_FIRMWARE_MODEL_IMAGE_GENERATION'] = args.embedded_gna_configuration
 
         if args.performance_counter:
             plugin_config['PERF_COUNT'] = 'YES'
@@ -171,7 +170,6 @@ def main():
 
     if args.export_embedded_gna_model:
         log.info(f'Exported GNA embedded model to file {args.export_embedded_gna_model}')
-        log.info(f'GNA embedded model export done for GNA generation {args.embedded_gna_configuration}')
         return 0
 
 # --------------------------- Step 6. Set up input --------------------------------------------------------------------
