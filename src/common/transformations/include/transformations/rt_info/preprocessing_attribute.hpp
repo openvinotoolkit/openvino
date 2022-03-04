@@ -23,6 +23,8 @@ class NGRAPH_API PreprocessingAttribute : public ov::RuntimeAttribute {
 public:
     OPENVINO_RTTI("preprocessing", "0");
     PreprocessingAttribute() = default;
-    bool visit_attributes(AttributeVisitor& visitor) override { return true; };
+    bool visit_attributes(AttributeVisitor& visitor) override {
+        return true;
+    };
 };
-} // namespace ov
+}  // namespace ov

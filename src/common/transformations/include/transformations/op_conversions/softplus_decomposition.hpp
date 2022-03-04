@@ -4,11 +4,10 @@
 
 #pragma once
 
-#include <vector>
 #include <memory>
-
-#include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
+#include <vector>
 
 namespace ngraph {
 namespace pass {
@@ -23,7 +22,7 @@ class TRANSFORMATIONS_API SoftPlusDecomposition;
  * @brief SoftPlusDecomposition transformation replaces SoftPlus op to
  * group of operations: log(exp(x) + 1).
  */
-class ngraph::pass::SoftPlusDecomposition: public ngraph::pass::MatcherPass {
+class ngraph::pass::SoftPlusDecomposition : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     SoftPlusDecomposition();

@@ -5,15 +5,15 @@
 #pragma once
 
 #include <assert.h>
+
 #include <functional>
 #include <memory>
-#include <string>
 #include <set>
+#include <string>
 
 #include "openvino/core/node.hpp"
 #include "openvino/core/runtime_attribute.hpp"
 #include "transformations_visibility.hpp"
-
 
 namespace ov {
 
@@ -34,9 +34,13 @@ public:
 
     Decompression() = default;
 
-    bool visit_attributes(AttributeVisitor& visitor) override { return true; }
+    bool visit_attributes(AttributeVisitor& visitor) override {
+        return true;
+    }
 
-    bool is_copyable() const override { return false; }
+    bool is_copyable() const override {
+        return false;
+    }
 };
 
 }  // namespace ov

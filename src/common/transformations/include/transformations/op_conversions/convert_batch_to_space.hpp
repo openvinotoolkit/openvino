@@ -4,13 +4,11 @@
 
 #pragma once
 
-#include <vector>
 #include <memory>
-
-#include <transformations_visibility.hpp>
-
 #include <ngraph/ops.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
+#include <vector>
 
 namespace ngraph {
 namespace pass {
@@ -33,7 +31,7 @@ class TRANSFORMATIONS_API ConvertBatchToSpace;
  *
  */
 
-class ngraph::pass::ConvertBatchToSpace: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertBatchToSpace : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     explicit ConvertBatchToSpace(bool convert_by_elements = true) : MatcherPass() {

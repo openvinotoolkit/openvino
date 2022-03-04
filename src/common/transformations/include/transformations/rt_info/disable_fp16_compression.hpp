@@ -8,7 +8,6 @@
 #include "openvino/core/runtime_attribute.hpp"
 #include "transformations_visibility.hpp"
 
-
 namespace ov {
 
 TRANSFORMATIONS_API void disable_fp16_compression(const std::shared_ptr<Node>& node);
@@ -28,7 +27,9 @@ public:
 
     DisableFP16Compression() = default;
 
-    bool is_copyable() const override { return false; }
+    bool is_copyable() const override {
+        return false;
+    }
 };
 
 }  // namespace ov

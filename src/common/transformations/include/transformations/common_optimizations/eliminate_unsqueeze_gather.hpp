@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
-
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
+
 #include "ngraph/pattern/matcher.hpp"
 
 namespace ngraph {

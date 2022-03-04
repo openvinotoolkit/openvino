@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
-
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -18,10 +17,11 @@ class TRANSFORMATIONS_API BroadcastConstRangeReplacement;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief BroadcastConstRangeReplacement replaces Constant filled with range values starting from 0 and replaces it with Range op
+ * @brief BroadcastConstRangeReplacement replaces Constant filled with range values starting from 0 and replaces it with
+ * Range op
  */
 
-class ngraph::pass::BroadcastConstRangeReplacement: public ngraph::pass::MatcherPass {
+class ngraph::pass::BroadcastConstRangeReplacement : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     BroadcastConstRangeReplacement();

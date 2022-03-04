@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API SkipGatherBeforeTransposeAndReshape;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief SkipGatherBeforeTransposeAndReshape transformation removes Gather from the Gather->Transpose->Reshape sequence 
+ * @brief SkipGatherBeforeTransposeAndReshape transformation removes Gather from the Gather->Transpose->Reshape sequence
  * in case when input has batch=1 and gather has axis=0 and indices={0}.
  * Also, this transformation corrects a transpose constant to save semantic.
  */

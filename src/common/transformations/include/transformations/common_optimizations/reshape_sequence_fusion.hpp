@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
-
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -18,10 +17,11 @@ class TRANSFORMATIONS_API ReshapeSequenceFusion;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief ReshapeSequenceFusion fuses sequence of Reshape operation into single Reshape or eliminates full redundant sequence
+ * @brief ReshapeSequenceFusion fuses sequence of Reshape operation into single Reshape or eliminates full redundant
+ * sequence
  */
 
-class ngraph::pass::ReshapeSequenceFusion: public ngraph::pass::MatcherPass {
+class ngraph::pass::ReshapeSequenceFusion : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ReshapeSequenceFusion(bool use_shape_for_elimination = true);

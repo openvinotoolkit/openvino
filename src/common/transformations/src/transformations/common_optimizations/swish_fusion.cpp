@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "itt.hpp"
 #include "transformations/common_optimizations/swish_fusion.hpp"
 
 #include <memory>
-
 #include <ngraph/opsets/opset4.hpp>
-#include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+
+#include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
@@ -30,7 +30,7 @@ bool check_beta_value(const std::shared_ptr<ngraph::opset4::Constant>& constant)
     return true;
 }
 
-} // namespace
+}  // namespace
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SwishFusion, "SwishFusion", 0);
 
@@ -43,16 +43,16 @@ ngraph::pass::SwishFusionWithSigmoid::SwishFusionWithSigmoid() {
     auto sigmoid = std::make_shared<ngraph::opset4::Sigmoid>(input);
     auto mul = std::make_shared<ngraph::opset4::Multiply>(input, sigmoid);
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        auto &pattern_to_output = m.get_pattern_value_map();
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        auto& pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
         auto swish = std::make_shared<ngraph::opset4::Swish>(exp_input);
 
         swish->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({pattern_to_output.at(sigmoid).get_node_shared_ptr(),
-                                   pattern_to_output.at(mul).get_node_shared_ptr()},
-                                  swish);
+        ngraph::copy_runtime_info(
+            {pattern_to_output.at(sigmoid).get_node_shared_ptr(), pattern_to_output.at(mul).get_node_shared_ptr()},
+            swish);
         ngraph::replace_node(m.get_match_root(), swish);
         return true;
     };
@@ -72,8 +72,8 @@ ngraph::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
     auto sigmoid = std::make_shared<ngraph::opset4::Sigmoid>(mul_beta);
     auto mul = std::make_shared<ngraph::opset4::Multiply>(input, sigmoid);
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        auto &pattern_to_output = m.get_pattern_value_map();
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        auto& pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
         auto beta_input = pattern_to_output.at(beta);
 
@@ -81,7 +81,9 @@ ngraph::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
         Output<Node> new_beta;
         if (beta_constant) {
             if (check_beta_value(beta_constant)) {
-                new_beta = opset4::Constant::create(beta_input.get_element_type(), Shape{}, {beta_constant->cast_vector<float>()[0]});
+                new_beta = opset4::Constant::create(beta_input.get_element_type(),
+                                                    Shape{},
+                                                    {beta_constant->cast_vector<float>()[0]});
             } else {
                 return false;
             }
@@ -96,9 +98,9 @@ ngraph::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
         auto swish = std::make_shared<ngraph::opset4::Swish>(exp_input, new_beta);
 
         swish->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({pattern_to_output.at(sigmoid).get_node_shared_ptr(),
-                                   pattern_to_output.at(mul).get_node_shared_ptr()},
-                                  swish);
+        ngraph::copy_runtime_info(
+            {pattern_to_output.at(sigmoid).get_node_shared_ptr(), pattern_to_output.at(mul).get_node_shared_ptr()},
+            swish);
         ngraph::replace_node(m.get_match_root(), swish);
         return true;
     };
@@ -121,11 +123,12 @@ ngraph::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
     auto add = std::make_shared<ngraph::opset4::Add>(exp, add_constant);
     auto div = std::make_shared<ngraph::opset4::Divide>(input, add);
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        auto &pattern_to_output = m.get_pattern_value_map();
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        auto& pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
-        auto constant = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+        auto constant = std::dynamic_pointer_cast<ngraph::opset4::Constant>(
+            pattern_to_output.at(add_constant).get_node_shared_ptr());
         if (!op::util::has_constant_value<float>(constant, 1.0f)) {
             return false;
         }
@@ -162,10 +165,11 @@ ngraph::pass::SwishFusionWithoutBeta::SwishFusionWithoutBeta() {
     auto div = std::make_shared<ngraph::opset4::Divide>(input, add);
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        auto & pattern_to_output = m.get_pattern_value_map();
+        auto& pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
-        auto constant = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+        auto constant = std::dynamic_pointer_cast<ngraph::opset4::Constant>(
+            pattern_to_output.at(add_constant).get_node_shared_ptr());
         if (!op::util::has_constant_value<float>(constant, 1.0f)) {
             return false;
         }
@@ -178,7 +182,7 @@ ngraph::pass::SwishFusionWithoutBeta::SwishFusionWithoutBeta() {
                                    pattern_to_output.at(add_constant).get_node_shared_ptr(),
                                    pattern_to_output.at(add).get_node_shared_ptr(),
                                    pattern_to_output.at(div).get_node_shared_ptr()},
-                                   swish);
+                                  swish);
         ngraph::replace_node(m.get_match_root(), swish);
         return true;
     };

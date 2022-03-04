@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
 
 namespace ngraph {
 namespace pass {
 
-    class TRANSFORMATIONS_API Gelu7Downgrade;
+class TRANSFORMATIONS_API Gelu7Downgrade;
 
 }  // namespace pass
 }  // namespace ngraph

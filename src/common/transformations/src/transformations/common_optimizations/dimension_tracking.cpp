@@ -161,7 +161,8 @@ P2Btype ov::batch_util::find_batch(const std::shared_ptr<ov::Model>& f) {
 }
 
 void ov::batch_util::restore_original_dimensions(
-    const std::map<std::shared_ptr<ov::opset1::Parameter>, ov::PartialShape>& parameter_to_shape, bool leave_batch_dynamic) {
+    const std::map<std::shared_ptr<ov::opset1::Parameter>, ov::PartialShape>& parameter_to_shape,
+    bool leave_batch_dynamic) {
     for (const auto& item : parameter_to_shape) {
         const auto& batch_marked_shape = item.first->get_partial_shape();
         auto original_shape = item.second;
@@ -227,7 +228,7 @@ bool ov::batch_util::detach_detection_output(const std::shared_ptr<ov::Model>& f
     ResultVector new_outputs, outputs_to_delete;
     for (auto& result_node : f->get_results()) {
         auto do_node = result_node->input_value(0).get_node_shared_ptr();
-        if (ov::is_type<opset1::Convert>(do_node)) // cases with do->convert->result
+        if (ov::is_type<opset1::Convert>(do_node))  // cases with do->convert->result
             do_node = do_node->get_input_node_shared_ptr(0);
         if (ov::is_type<opset1::DetectionOutput>(do_node) || ov::is_type<opset8::DetectionOutput>(do_node)) {
             for (auto& new_result_src : do_node->input_values()) {
@@ -278,7 +279,7 @@ bool ov::pass::FindBatch::run_on_model(const std::shared_ptr<ov::Model>& m) {
 
     bool failed_to_propagate_batch = ov::batch_util::check_batch_tracks_through_all_the_nodes(m);
 
-    if (failed_to_propagate_batch) { // restore original input shape with labels
+    if (failed_to_propagate_batch) {  // restore original input shape with labels
         for (const auto& item : parameter_to_shape)
             item.first->set_partial_shape(item.second);
     } else {  // restore original input shape with batch labels
