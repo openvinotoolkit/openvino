@@ -1,7 +1,6 @@
 # Install Intel® Distribution of OpenVINO™ Toolkit from PyPI Repository {#openvino_docs_install_guides_installing_openvino_pip}
 
-You can install Intel® Distribution of OpenVINO™ toolkit through the PyPI repository, including both OpenVINO™ Runtime and OpenVINO™ Development Tools. Besides, from the 2022.1 release, OpenVINO Development Tools can only be installed via PyPI.
-
+You can install Intel® Distribution of OpenVINO™ toolkit through the PyPI repository, including both OpenVINO™ Runtime and OpenVINO™ Development Tools. 
 
 ## Installing OpenVINO Runtime
 

@@ -8,7 +8,7 @@
 
 If you met proxy issues during the installation with Docker, please set up proxy settings for Docker. See the Proxy section in the [Install the DL Workbench from DockerHub*](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Prerequisites.html#set-proxy) topic.
 
-### Permission Errors for `/dev/shm`
+### Permission Errors for /dev/shm
 
 If you encounter a permission error for files in `/dev/shm` (see `hddldaemon.log`). A possible cause is that the uid and gid of the container user are different from the uid and gid of the user who created `hddldaemon` service on the host.
 
@@ -43,7 +43,7 @@ ${HDDL_INSTALL_DIR}/bin/bsl_reset
 ```
 
 ---
-### Get the "No space left on device" error while loading a network
+### "No space left on device" error while loading a network
 When the application runs inference of a network with a big size(>4MB) of input/output or if the system is running out of the DMA buffer, 
 the HDDL Plugin will fall back to use shared memory. 
 In this case, if the application exits abnormally, the shared memory is not released automatically. 
@@ -53,7 +53,7 @@ sudo rm -f /dev/shm/hddl_*
 ```
 
 ---
-### How to solve the permission issue?
+### Solutions to the permission issue
 
 Make sure that the following udev rules exist:
    - `/etc/udev/rules.d/97-myriad-usbboot.rules`
@@ -67,7 +67,7 @@ sudo usermod -a -G users "$(whoami)"
 ```
 
 ---
-### `setup.sh` doesn't install the driver binaries to `/lib/modules` on CentOS systems
+### setup.sh doesn't install the driver binaries to /lib/modules on CentOS systems
 
 As a temporary workaround, run the commands below to install the drivers. This issue will be fixed in future releases.
 
@@ -128,7 +128,7 @@ sudo modprobe myd_ion
 Please contact your motherboard vendor to verify SMBUS pins are connected to the PCIe slot.
 
 ---
-### Get "Error: ipc_connection_linux_UDS : bind() failed" in hddldaemon log.
+### "Error: ipc_connection_linux_UDS : bind() failed" in hddldaemon log
 
 You may have run hddldaemon under another user. Run the command below and try again:
 ```sh
@@ -136,7 +136,7 @@ sudo rm -rf /var/tmp/hddl_*
 ```
 
 ---
-### Get "I2C bus: SMBus I801 adapter at not found!" in hddldaemon log
+### "I2C bus: SMBus I801 adapter at not found!" in hddldaemon log
 
 Run the following command to check if a SMBUS I801 adapter can be found:
 ```sh
@@ -147,7 +147,7 @@ Then run:
 sudo modprobe i2c-i801
 ```
 ---
-### Get "open /dev/ion failed!" in hddldaemon log
+### "open /dev/ion failed!" in hddldaemon log
 
 Check if `myd_ion` kernel module is installed by running the following command:
 ```sh
@@ -156,7 +156,7 @@ lsmod | grep myd_ion
 If you do not see any output from the command, reinstall the `myd_ion` module.
 
 ---
-### Constantly get "\_name\_mapping open failed err=2,No such file or directory" in hddldaemon log
+### Constantly getting "\_name\_mapping open failed err=2,No such file or directory" in hddldaemon log
 
 Check if myd_vsc kernel module is installed by running the following command:
 ```sh
@@ -165,7 +165,7 @@ lsmod | grep myd_vsc
 If you do not see any output from the command reinstall the `myd_vsc` module.
 
 ---
-### Get "Required key not available" when trying to install the `myd_ion` or `myd_vsc` modules
+### "Required key not available" appears when trying to install the myd_ion or myd_vsc modules
 
 Run the following commands:
 ```sh
