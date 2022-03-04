@@ -17,7 +17,7 @@ To convert a Caffe\* model, run Model Optimizer with the path to the input model
 
 Two groups of parameters are available to convert your model:
 
-* Framework-agnostic parameters are used to convert a model trained with any supported framework. For details, see see the General Conversion Parameters section on the [Converting a Model to Intermediate Representation (IR)](Converting_Model.md) page.
+* Framework-agnostic parameters are used to convert a model trained with any supported framework. For details, see the General Conversion Parameters section on the [Converting a Model to Intermediate Representation (IR)](Converting_Model.md) page.
 * [Caffe-specific parameters](#caffe_specific_conversion_params) are used to convert only Caffe\* models.
 
 ### Using Caffe\*-Specific Conversion Parameters <a name="caffe_specific_conversion_params"></a>

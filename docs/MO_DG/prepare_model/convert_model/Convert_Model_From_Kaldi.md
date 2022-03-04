@@ -18,7 +18,7 @@ mo --input_model <INPUT_MODEL>.nnet --output_dir <OUTPUT_MODEL_DIR>
 
 Two groups of parameters are available to convert your model:
 
-* Framework-agnostic parameters are used to convert a model trained with any supported framework. For details, see see the General Conversion Parameters section on the [Converting a Model to Intermediate Representation (IR)](Converting_Model.md) page.
+* Framework-agnostic parameters are used to convert a model trained with any supported framework. For details, see the General Conversion Parameters section on the [Converting a Model to Intermediate Representation (IR)](Converting_Model.md) page.
 * [Kaldi-specific parameters](#kaldi_specific_conversion_params) are used to convert only Kaldi\* models.
 
 ### Using Kaldi\*-Specific Conversion Parameters <a name="kaldi_specific_conversion_params"></a>

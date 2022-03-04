@@ -17,7 +17,7 @@ To convert an MXNet\* model, run Model Optimizer with a path to the input model 
 
 Two groups of parameters are available to convert your model:
 
-* Framework-agnostic parameters are used to convert a model trained with any supported framework. For details, see see the General Conversion Parameters section on the [Converting a Model to Intermediate Representation (IR)](Converting_Model.md) page.
+* Framework-agnostic parameters are used to convert a model trained with any supported framework. For details, see the General Conversion Parameters section on the [Converting a Model to Intermediate Representation (IR)](Converting_Model.md) page.
 * [MXNet-specific parameters](#mxnet_specific_conversion_params) are used to convert only MXNet models.
 
 
