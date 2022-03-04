@@ -90,14 +90,12 @@ void FrontEnd::add_extension(const std::vector<std::shared_ptr<ov::Extension>>& 
 }
 
 void FrontEnd::add_extension(const std::string& library_path) {
-    auto extensions_lib = ov::detail::load_extensions(library_path);
-    add_extension(extensions_lib);
+    add_extension(ov::detail::load_extensions(library_path));
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 void FrontEnd::add_extension(const std::wstring& library_path) {
-    auto extensions_lib = ov::detail::load_extensions(library_path);
-    add_extension(extensions_lib);
+    add_extension(ov::detail::load_extensions(library_path));
 }
 #endif
 
