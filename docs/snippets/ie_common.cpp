@@ -76,10 +76,11 @@ int main() {
     // Start inference without blocking current thread
     infer_request.StartAsync();
     // Get inference status
-    if (InferenceEngine::OK != infer_request.Wait(InferenceEngine::InferRequest::STATUS_ONLY)) {
-        // Wait for inference complition
-        infer_request.Wait(InferenceEngine::InferRequest::RESULT_READY);
-    }
+    InferenceEngine::StatusCode status = infer_request.Wait(InferenceEngine::InferRequest::STATUS_ONLY);
+    // Wait for 1 miliseconds
+    status = infer_request.Wait(1);
+    // Wait for inference complition
+    infer_request.Wait(InferenceEngine::InferRequest::RESULT_READY);
     //! [ie:start_async_and_wait]
 
     //! [ie:get_output_tensor]

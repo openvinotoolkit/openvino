@@ -101,10 +101,11 @@ int main() {
     // Start inference without blocking current thread
     infer_request.start_async();
     // Get inference status
-    if (!infer_request.wait_for(std::chrono::milliseconds{0})) {
-        // Wait for inference complition
-        infer_request.wait();
-    }
+    bool status = infer_request.wait_for(std::chrono::milliseconds{0});
+    // Wait for one miliseconds
+    status = infer_request.wait_for(std::chrono::milliseconds{1});
+    // Wait for inference complition
+    infer_request.wait();
     //! [ov_api_2_0:start_async_and_wait]
 
     outputs_aligned(infer_request);
