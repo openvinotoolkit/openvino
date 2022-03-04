@@ -50,9 +50,33 @@ int main() {
     }
     //! [ie:get_input_tensor]
 
+    //! [ie:set_callback]
+    infer_request.SetCompletionCallback<std::function<void(InferenceEngine::InferRequest, InferenceEngine::StatusCode)>>(
+        [&](InferenceEngine::InferRequest request, InferenceEngine::StatusCode status) {
+            if (status != InferenceEngine::OK) {
+                // Process error code
+            } else {
+                // Extract inference result
+                InferenceEngine::Blob::Ptr output_blob = request.GetBlob(outputs.begin()->first);
+                // Restart inference if needed
+                // request.StartAsync();
+            }
+        });
+    //! [ie:set_callback]
+
     //! [ie:inference]
     infer_request.Infer();
     //! [ie:inference]
+
+    //! [ie:start_async_and_wait]
+    // Start inference without blocking current thread
+    infer_request.StartAsync();
+    // Get inference status
+    if (InferenceEngine::OK != infer_request.Wait(InferenceEngine::InferRequest::STATUS_ONLY)) {
+        // Wait for inference complition
+        infer_request.Wait(InferenceEngine::InferRequest::RESULT_READY);
+    }
+    //! [ie:start_async_and_wait]
 
     //! [ie:get_output_tensor]
     InferenceEngine::Blob::Ptr output_blob = infer_request.GetBlob(outputs.begin()->first);
