@@ -373,7 +373,7 @@ TEST_P(OVClassSetModelPriorityConfigTest, SetConfigNoThrow) {
     EXPECT_EQ(value, ov::hint::Priority::HIGH);
 }
 
-TEST_P(OVClassSetDevicePriorityConfigTest, SetConfigNoThrow) {
+TEST_P(OVClassSetDevicePriorityConfigTest, SetConfigAndCheckGetConfigNoThrow) {
     ov::Core ie = createCoreWithTemplate();
     std::string devicePriority;
     OV_ASSERT_NO_THROW(ie.set_property(deviceName, configuration));
