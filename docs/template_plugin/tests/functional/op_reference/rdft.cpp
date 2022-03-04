@@ -3,7 +3,6 @@
 //
 
 #include <gtest/gtest.h>
-#include <iostream>
 
 #include "base_reference_test.hpp"
 #include "openvino/op/constant.hpp"
@@ -23,7 +22,6 @@ struct RDFTParams {
                const std::vector<T>& expected_value,
                const std::shared_ptr<op::v0::Constant>& axes,
                const std::shared_ptr<op::v0::Constant>& signal) {
-        std::cout << "number of elements in input data is " << input_value.size() << "\n";
         m_input_shape = input_shape;
         m_expected_shape = expected_shape;
         m_input_type = input_type;

@@ -22,6 +22,7 @@
 #include <complex>
 #include <cstring>
 #include <functional>
+#include <iostream>
 #include <ngraph/runtime/reference/utils/fft_common.hpp>
 #include <utility>
 #include <vector>
@@ -105,6 +106,12 @@ void irdft(const std::vector<float>& input_data,
         reinterpret_cast<float*>(ifft_result.data()),
         output_ifft_shape,
         FFTKind::Inverse);
+
+    std::cout << "fft calculation result: ";
+    for (const auto x : ifft_result) {
+        std::cout << x << ", ";
+    }
+    std::cout << "\n";
 
     for (size_t i = 0; i < size_of_ifft_result; ++i) {
         irdft_result[i] = std::real(ifft_result[i]);

@@ -2162,16 +2162,6 @@ InfoForRFFT9 get_info_for_rfft9_eval(const std::vector<std::shared_ptr<HostTenso
 template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v9::RDFT>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     auto info = rfft_v9::get_info_for_rfft9_eval(inputs);
-
-    std::cout << "input data shape:      " << info.input_data_shape << "\n";
-    std::cout << "output data shape:     " << info.output_shape << "\n";
-    std::cout << "fft output data shape: " << info.fft_output_shape << "\n";
-    std::cout << "axes:                  ";
-    for (const auto& a : info.axes_data) {
-        std::cout << a << ", ";
-    }
-    std::cout << "\n";
-
     outputs[0]->set_shape(info.output_shape);
 
     std::vector<float> rfft_result(shape_size(info.output_shape), 0.0f);
@@ -2180,12 +2170,6 @@ bool evaluate(const shared_ptr<op::v9::RDFT>& op, const HostTensorVector& output
                              info.axes_data,
                              info.fft_output_shape,
                              rfft_result.data());
-
-    std::cout << "output data: [";
-    for (const auto x : rfft_result) {
-        std::cout << x << ", ";
-    }
-    std::cout << "]\n";
 
     const auto output_type = op->get_input_element_type(0);
     runtime::reference::fft_postprocessing(outputs, output_type, rfft_result);
@@ -2221,23 +2205,25 @@ InfoForIRFFT9 get_info_for_irfft9_eval(const std::vector<std::shared_ptr<HostTen
     size_t num_of_axes = result.axes_data.size();
     auto signal_size = fft_v7::get_signal_size(inputs, num_of_axes);
 
+    const auto last_axis = canonicalized_axes.back();
     for (size_t i = 0; i < num_of_axes; ++i) {
         int64_t current_axis = canonicalized_axes[i];
         int64_t current_signal_size = signal_size[i];
-        size_t current_dim = 0;
         if (current_signal_size != -1) {
-            current_dim = static_cast<size_t>(current_signal_size);
-        } else {
-            current_dim = 2 * (fft_output_shape[current_axis] - 1);
+            fft_output_shape[current_axis] = static_cast<size_t>(current_signal_size);
+            output_shape[current_axis] = static_cast<size_t>(current_signal_size);
         }
-        fft_output_shape[current_axis] = current_dim;
-        output_shape[current_axis] = current_dim;
+    }
+    if (signal_size.back() == -1) {
+        output_shape[last_axis] = 2 * (result.input_data_shape[last_axis] - 1);
+        fft_output_shape[last_axis] = 2 * (result.input_data_shape[last_axis] - 1);
     }
 
     output_shape.pop_back();
 
     result.fft_output_shape = fft_output_shape;
     result.output_shape = output_shape;
+    result.axes_data = canonicalized_axes;
 
     return result;
 }
@@ -2246,6 +2232,16 @@ InfoForIRFFT9 get_info_for_irfft9_eval(const std::vector<std::shared_ptr<HostTen
 template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v9::IRDFT>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     auto info = irfft_v9::get_info_for_irfft9_eval(inputs);
+
+    std::cout << "input data shape:      " << info.input_data_shape << "\n";
+    std::cout << "output data shape:     " << info.output_shape << "\n";
+    std::cout << "fft output data shape: " << info.fft_output_shape << "\n";
+    std::cout << "axes:                  ";
+    for (const auto& a : info.axes_data) {
+        std::cout << a << ", ";
+    }
+    std::cout << "\n";
+
     outputs[0]->set_shape(info.output_shape);
 
     std::vector<float> irfft_result(shape_size(info.output_shape), 0.0f);
@@ -2254,6 +2250,12 @@ bool evaluate(const shared_ptr<op::v9::IRDFT>& op, const HostTensorVector& outpu
                               info.axes_data,
                               info.fft_output_shape,
                               irfft_result.data());
+
+    std::cout << "output data: [";
+    for (const auto x : irfft_result) {
+        std::cout << x << ", ";
+    }
+    std::cout << "]\n";
 
     const auto output_type = op->get_input_element_type(0);
     runtime::reference::fft_postprocessing(outputs, output_type, irfft_result);
