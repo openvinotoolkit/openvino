@@ -57,7 +57,7 @@ void SubgraphBaseTest::run() {
         if (isCurrentTestDisabled)
             GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
 
-        ASSERT_FALSE(targetStaticShapes.empty()) << "Target Static Shape is empty!!!";
+        ASSERT_FALSE(targetStaticShapes.empty() && !function->get_parameters().empty()) << "Target Static Shape is empty!!!";
         std::string errorMessage;
         try {
             compile_model();
@@ -317,6 +317,10 @@ void SubgraphBaseTest::validate() {
 }
 
 void SubgraphBaseTest::init_input_shapes(const std::vector<InputShape>& shapes) {
+    if (shapes.empty()) {
+        targetStaticShapes = {{}};
+        return;
+    }
     size_t targetStaticShapeSize = shapes.front().second.size();
     for (size_t i = 1; i < shapes.size(); ++i) {
         if (targetStaticShapeSize < shapes[i].second.size()) {
