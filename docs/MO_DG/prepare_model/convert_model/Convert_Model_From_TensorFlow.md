@@ -32,13 +32,13 @@ A summary of the steps for optimizing and deploying a model that was trained wit
 2. [Freeze the TensorFlow model](#freeze-the-tensorflow-model) if your model is not already frozen or skip this step and use the [instruction](#loading-nonfrozen-models) to a convert a non-frozen model.
 3. [Convert a TensorFlow\* model](#Convert_From_TF) to produce an optimized [Intermediate Representation (IR)](../../IR_and_opsets.md) of the model based on the trained network topology, weights, and biases values.
 4. Test the model in the Intermediate Representation format using the [OpenVINO™ Runtime](../../../OV_Runtime_UG/openvino_intro.md) in the target environment via provided [sample applications](../../../OV_Runtime_UG/Samples_Overview.md).
-5. [Integrate](../../../OV_Runtime_UG/Samples_Overview.md) the Inference Engine in your application to deploy the model in the target environment.
+5. [Integrate OpenVINO Runtime](../../../OV_Runtime_UG/Samples_Overview.md) in your application to deploy the model in the target environment.
 
 ## Supported Topologies
 
 **Supported Non-Frozen Topologies with Links to the Associated Slim Model Classification Download Files**
 
-Detailed information on how to convert models from the <a href="https://github.com/tensorflow/models/tree/master/research/slim/README.md">TensorFlow\*-Slim Image Classification Model Library</a> is available in the [Converting TensorFlow*-Slim Image Classification Model Library Models](tf_specific/Convert_Slim_Library_Models.md) chapter. The table below contains list of supported TensorFlow\*-Slim Image Classification Model Library models and required mean/scale values. The mean values are specified as if the input image is read in BGR channels order layout like Inference Engine classification sample does.
+Detailed information on how to convert models from the <a href="https://github.com/tensorflow/models/tree/master/research/slim/README.md">TensorFlow\*-Slim Image Classification Model Library</a> is available in the [Converting TensorFlow*-Slim Image Classification Model Library Models](tf_specific/Convert_Slim_Library_Models.md) chapter. The table below contains list of supported TensorFlow\*-Slim Image Classification Model Library models and required mean/scale values. The mean values are specified as if the input image is read in BGR channels order layout like OpenVINO classification sample does.
 
 | Model Name| Slim Model Checkpoint File| \-\-mean_values | \-\-scale|
 | ------------- | ------------ | ------------- | -----:|
@@ -285,7 +285,7 @@ To convert a TensorFlow model:
 
 Two groups of parameters are available to convert your model:
 
-* Framework-agnostic parameters are used to convert a model trained with any supported framework. For details, see see the General Conversion Parameters section on the [Converting a Model to Intermediate Representation (IR)](Converting_Model.md) page.
+* Framework-agnostic parameters are used to convert a model trained with any supported framework. For details, see the General Conversion Parameters section on the [Converting a Model to Intermediate Representation (IR)](Converting_Model.md) page.
 * [TensorFlow-specific parameters](#tensorflow_specific_conversion_params): Parameters used to convert only TensorFlow models.
 
 > **NOTE**: The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For more information about the parameter, refer to **When to Reverse Input Channels** section of [Converting a Model to Intermediate Representation (IR)](Converting_Model.md).
@@ -354,7 +354,7 @@ TensorFlow*-specific parameters:
  mo --input_model inception_v1.pb -b 1 --tensorboard_logdir /tmp/log_dir --output_dir <OUTPUT_MODEL_DIR>
 ```
 
-* Launching the Model Optimizer for a model with custom TensorFlow operations (refer to the [TensorFlow* documentation](https://www.tensorflow.org/extend/adding_an_op)) implemented in C++ and compiled into the shared library `my_custom_op.so`. Model Optimizer falls back to TensorFlow to infer output shape of operations implemented in the library if a custom TensorFlow operation library is provided. If it is not provided, a custom operation with an inference function is needed. For more information about custom operations, refer to the [Custom Layers Guide](../../../HOWTO/Custom_Layers_Guide.md).
+* Launching the Model Optimizer for a model with custom TensorFlow operations (refer to the [TensorFlow* documentation](https://www.tensorflow.org/extend/adding_an_op)) implemented in C++ and compiled into the shared library `my_custom_op.so`. Model Optimizer falls back to TensorFlow to infer output shape of operations implemented in the library if a custom TensorFlow operation library is provided. If it is not provided, a custom operation with an inference function is needed. For more information about custom operations, refer to the [OpenVINO™ Extensibility Mechanism](../../../Extensibility_UG/Intro.md).
 ```sh
  mo --input_model custom_model.pb --tensorflow_custom_layer_libraries ./my_custom_op.so --output_dir <OUTPUT_MODEL_DIR>
 ```

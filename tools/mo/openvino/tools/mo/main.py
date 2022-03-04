@@ -28,7 +28,8 @@ from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_
 from openvino.tools.mo.pipeline.common import prepare_emit_ir, get_ir_version
 from openvino.tools.mo.pipeline.unified import unified_pipeline
 from openvino.tools.mo.utils import import_extensions
-from openvino.tools.mo.utils.cli_parser import check_available_transforms, get_caffe_cli_options, \
+from openvino.tools.mo.utils.cli_parser import check_available_transforms, \
+    get_advanced_cli_options, get_available_front_ends, get_caffe_cli_options, \
     get_common_cli_options, get_freeze_placeholder_values, get_kaldi_cli_options, get_layout_values, \
     get_mean_scale_dictionary, get_meta_info, get_model_name, get_mxnet_cli_options, get_onnx_cli_options, \
     get_placeholder_shapes, get_tf_cli_options, get_tuple_values, parse_transform, parse_tuple_pairs
@@ -61,6 +62,7 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
     print('Model Optimizer arguments:')
     props = OrderedDict()
     props['common_args'] = get_common_cli_options(model_name)
+    props['advanced_args'] = get_advanced_cli_options()
     if is_caffe:
         props['caffe_args'] = get_caffe_cli_options()
     if is_tf:
@@ -74,6 +76,7 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
 
     framework_specifics_map = {
         'common_args': 'Common parameters:',
+        'advanced_args': 'Advanced parameters:',
         'caffe_args': 'Caffe specific parameters:',
         'tf_args': 'TensorFlow specific parameters:',
         'mxnet_args': 'MXNet specific parameters:',
@@ -117,7 +120,7 @@ def get_moc_frontends(argv: argparse.Namespace):
     if not fem or use_legacy_frontend:
         return None, []
 
-    available_moc_front_ends = fem.get_available_front_ends()
+    available_moc_front_ends = get_available_front_ends(fem)
 
     if not argv.framework and argv.input_model:
         moc_front_end = fem.load_by_model(argv.input_model)
@@ -132,7 +135,11 @@ def get_moc_frontends(argv: argparse.Namespace):
     default_frontends = get_default_frontends()
     # Disable MOC frontend if default is set to legacy and no user override
     if default_frontends.get(moc_front_end.get_name()) == 'legacy' and not use_new_frontend:
-        moc_front_end = None
+        return None, available_moc_front_ends
+
+    # This check as a workaround to skip IR frontend
+    if not moc_front_end.get_name() in available_moc_front_ends:
+        return None, available_moc_front_ends
 
     return moc_front_end, available_moc_front_ends
 
@@ -244,9 +251,6 @@ def arguments_post_parsing(argv: argparse.Namespace):
 
     # This is just to check that transform key is valid and transformations are available
     check_available_transforms(parse_transform(argv.transform))
-
-    if argv.legacy_ir_generation and len(argv.transform) != 0:
-        raise Error("--legacy_ir_generation and --transform keys can not be used at the same time.")
 
     # For C++ frontends there are no specific Python installation requirements, check only generic ones
     if moc_front_end:
@@ -434,13 +438,12 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
 
         return_code = "not executed"
         try:
-            if not argv.legacy_ir_generation:
-                from openvino.tools.mo.back.offline_transformations import apply_offline_transformations
-                apply_offline_transformations(orig_model_name, argv)
-                if "compress_fp16" in argv and argv.compress_fp16:
-                    # restore data_type cmd parameter
-                    argv.data_type = 'FP16'
-                return_code = 0
+            from openvino.tools.mo.back.offline_transformations import apply_offline_transformations
+            apply_offline_transformations(orig_model_name, argv)
+            if "compress_fp16" in argv and argv.compress_fp16:
+                # restore data_type cmd parameter
+                argv.data_type = 'FP16'
+            return_code = 0
         except Exception as e:
             return_code = "failed"
             log.error(e)

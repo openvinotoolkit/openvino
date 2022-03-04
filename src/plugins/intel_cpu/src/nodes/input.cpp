@@ -249,7 +249,7 @@ MKLDNNInputNode::MKLDNNInputNode(const std::shared_ptr<ngraph::Node>& op, const 
 void MKLDNNInputNode::cloneBlobIfRequired() {
     Shape shape(constOp->get_shape().empty() ? ngraph::Shape(1, 1) : constOp->get_shape());
     const auto prec = convertPrecision(constOp->get_element_type());
-    const size_t size = shape.getRank();
+    const size_t size = shape.getElementsCount();
     DnnlBlockedMemoryDesc memDesc(prec, shape);
 
     auto cloneBlob = [&, this] () {
