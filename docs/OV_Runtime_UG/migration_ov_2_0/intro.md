@@ -10,6 +10,7 @@
    openvino_2_0_configure_devices
    openvino_2_0_preprocessing
    openvino_2_0_model_creation
+   openvino_2_0_deployment
       
 @endsphinxdirective
 
@@ -77,5 +78,6 @@ Please look at next transition guides to understand how migrate Inference Engine
  - [Preprocess your model](./preprocessing.md)
  - [Configure device](./configure_devices.md)
  - [OpenVINO™ Model Creation](graph_construction.md)
+ - [Install & deployment](deployment_migration.md)
 
 [tf_openvino]: ../../img/tf_openvino.png
