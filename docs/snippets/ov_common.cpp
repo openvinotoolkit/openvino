@@ -76,7 +76,8 @@ int main() {
     inputs_aligned(infer_request);
 
     //! [ov_api_2_0:set_callback]
-    infer_request.set_callback([&] (std::exception_ptr exception_ptr) {
+    auto restart_once = true;
+    infer_request.set_callback([&, restart_once] (std::exception_ptr exception_ptr) mutable {
         if (exception_ptr) {
             // procces exception or rethrow it.
             std::rethrow_exception(exception_ptr);
@@ -84,7 +85,10 @@ int main() {
             // Extract inference result
             ov::Tensor output_tensor = infer_request.get_output_tensor();
             // Restart inference if needed
-            // infer_request.start_async();
+            if (restart_once) {
+                infer_request.start_async();
+                restart_once = false;
+            }
         }
     });
     //! [ov_api_2_0:set_callback]

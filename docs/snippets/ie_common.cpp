@@ -51,15 +51,19 @@ int main() {
     //! [ie:get_input_tensor]
 
     //! [ie:set_callback]
+    auto restart_once = true;
     infer_request.SetCompletionCallback<std::function<void(InferenceEngine::InferRequest, InferenceEngine::StatusCode)>>(
-        [&](InferenceEngine::InferRequest request, InferenceEngine::StatusCode status) {
+        [&, restart_once](InferenceEngine::InferRequest request, InferenceEngine::StatusCode status) mutable {
             if (status != InferenceEngine::OK) {
                 // Process error code
             } else {
                 // Extract inference result
                 InferenceEngine::Blob::Ptr output_blob = request.GetBlob(outputs.begin()->first);
                 // Restart inference if needed
-                // request.StartAsync();
+                if (restart_once) {
+                    request.StartAsync();
+                    restart_once = false;
+                }
             }
         });
     //! [ie:set_callback]
