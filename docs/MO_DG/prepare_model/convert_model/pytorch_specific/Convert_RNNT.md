@@ -1,4 +1,4 @@
-# Convert PyTorch\* RNN-T Model {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_RNNT}
+# Convert PyTorch* RNN-T Model {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_RNNT}
 
 This instruction covers conversion of RNN-T model from [MLCommons](https://github.com/mlcommons) repository. Follow
 the steps below to export a PyTorch* model into ONNX* before converting it to IR:

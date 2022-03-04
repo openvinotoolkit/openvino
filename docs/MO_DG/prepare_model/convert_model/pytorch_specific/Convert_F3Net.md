@@ -1,4 +1,4 @@
-# Convert PyTorch* F3Net {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_F3Net}
+# Convert PyTorch* F3Net Model {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_F3Net}
 
 [F3Net](https://github.com/weijun88/F3Net): Fusion, Feedback and Focus for Salient Object Detection
 

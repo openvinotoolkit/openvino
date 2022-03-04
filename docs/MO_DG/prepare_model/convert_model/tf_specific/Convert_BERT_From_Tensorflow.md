@@ -1,4 +1,4 @@
-# Convert TensorFlow* BERT Model {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_BERT_From_Tensorflow}
+# Convert TensorFlow BERT Model {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_BERT_From_Tensorflow}
 
 Pre-trained models for BERT (Bidirectional Encoder Representations from Transformers) are
 [publicly available](https://github.com/google-research/bert).

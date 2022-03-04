@@ -1,4 +1,4 @@
-# Convert CRNN Model {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_CRNN_From_Tensorflow}
+# Convert TensorFlow CRNN Model {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_CRNN_From_Tensorflow}
 
 This tutorial explains how to convert a CRNN model to Intermediate Representation (IR).
 

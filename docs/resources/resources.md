@@ -19,6 +19,7 @@
    :caption: Intermediate Representation and Operations Sets
    :hidden:
 
+   openvino_docs_MO_DG_IR_and_opsets
    openvino_docs_ops_opset
    openvino_docs_ops_broadcast_rules
    openvino_docs_operations_specifications

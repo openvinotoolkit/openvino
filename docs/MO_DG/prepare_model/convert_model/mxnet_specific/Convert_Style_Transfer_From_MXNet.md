@@ -1,4 +1,4 @@
-# Convert a Style Transfer Model from MXNet* {#openvino_docs_MO_DG_prepare_model_convert_model_mxnet_specific_Convert_Style_Transfer_From_MXNet}
+# Convert MXNet Style Transfer Model {#openvino_docs_MO_DG_prepare_model_convert_model_mxnet_specific_Convert_Style_Transfer_From_MXNet}
 
 The tutorial explains how to generate a model for style transfer using the public MXNet\* neural style transfer sample.
 To use the style transfer sample from OpenVINO&trade;, follow the steps below as no public pre-trained style transfer model is provided with the OpenVINO toolkit.
