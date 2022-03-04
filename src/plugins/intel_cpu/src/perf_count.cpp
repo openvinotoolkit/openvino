@@ -46,11 +46,11 @@ PerfHelper::~PerfHelper() {
         std::vector<VectorDims> in, out;
         in.reserve(_node->getParentEdges().size());
         for (auto i = 0; i < _node->getParentEdges().size(); i++) {
-                in.push_back(_node->getParentEdgeAt(i)->getMemory().getStaticDims());
+            in.push_back(_node->getParentEdgeAt(i)->getMemory().getStaticDims());
         }
         out.reserve(_node->getChildEdges().size());
         for (auto i = 0; i < _node->getChildEdges().size(); i++) {
-                out.push_back(_node->getChildEdgeAt(i)->getMemory().getStaticDims());
+            out.push_back(_node->getChildEdgeAt(i)->getMemory().getStaticDims());
         }
         _node->PerfCounter().finish_itr(_itrKey, std::make_pair(std::move(in), std::move(out)));
     } else {

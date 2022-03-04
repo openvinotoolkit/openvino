@@ -185,7 +185,7 @@ public:
     }
 
     void infer() {
-        _graph->ResetInferCount();
+        CPU_DEBUG_CAP_ENABLE(_graph->ResetInferCount());
         _graph->Infer();
     }
 

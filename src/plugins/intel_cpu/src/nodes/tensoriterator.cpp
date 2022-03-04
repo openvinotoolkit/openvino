@@ -511,7 +511,7 @@ void MKLDNNTensorIteratorNode::prepareParams() {
 }
 
 void MKLDNNTensorIteratorNode::execute(mkldnn::stream strm) {
-    sub_graph.ResetInferCount();
+    CPU_DEBUG_CAP_ENABLE(sub_graph.ResetInferCount());
 
     bool continue_cond = initial_cond_check->getStatus();
     int max_num_iter = trip_count_check->getStatus();
@@ -541,7 +541,7 @@ void MKLDNNTensorIteratorNode::execute(mkldnn::stream strm) {
 
 void MKLDNNTensorIteratorNode::executeDynamicImpl(mkldnn::stream strm) {
     const auto &eng = getEngine();
-    sub_graph.ResetInferCount();
+    CPU_DEBUG_CAP_ENABLE(sub_graph.ResetInferCount());
 
     bool continue_cond = initial_cond_check->getStatus();
     int max_num_iter = trip_count_check->getStatus();

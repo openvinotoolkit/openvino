@@ -224,7 +224,7 @@ void MKLDNNIfNode::execute(mkldnn::stream strm) {
 
     for (auto &mapper : beforeMappers)
         mapper->execute(strm);
-    subGraph.ResetInferCount();
+    CPU_DEBUG_CAP_ENABLE(subGraph.ResetInferCount());
     subGraph.Infer();
     for (auto &mapper : afterMappers)
         mapper->execute(strm);
