@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph_ops/nms_static_shape_ie.hpp"
+
 #include <memory>
 
 #include "ngraph/ops.hpp"
-#include "ngraph_ops/nms_static_shape_ie.hpp"
 
 namespace ngraph {
 namespace op {
