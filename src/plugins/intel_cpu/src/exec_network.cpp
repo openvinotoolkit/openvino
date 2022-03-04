@@ -176,6 +176,7 @@ MKLDNNExecNetwork::Graph::Lock MKLDNNExecNetwork::GetGraph() const {
                     graphLock._graph.setConfig(_cfg);
                 }
                 graphLock._graph.CreateGraph(_network, extensionManager, _numaNodesWeights[numaNodeId]);
+                CPU_DEBUG_CAP_ENABLE(graphLock._graph.setNestingLevel(1));
             } catch(...) {
                 exception = std::current_exception();
             }

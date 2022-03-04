@@ -93,19 +93,19 @@ public:
 
     std::vector<PerfData> _perfData;
 
-    std::string getItrDurationReport() const {
+    std::vector<std::pair<std::string, double>> getItrDurationReport() const {
         const auto& total = _itrDuration[Total];
         const auto& shapeInfer = _itrDuration[ShapeInfer];
         const auto& prepareParams = _itrDuration[PrepareParams];
 
-        std::string reportStr("time(ms):total:" + std::to_string(total.count()));
+        std::vector<std::pair<std::string, double>> report{{"total", total.count()}};
         if (shapeInfer != std::chrono::high_resolution_clock::duration::zero() ||
             prepareParams != std::chrono::high_resolution_clock::duration::zero()) {
-            reportStr.append(" time(ms):shapeInfer:" + std::to_string(shapeInfer.count()) +
-                             " time(ms):prepareParams:" + std::to_string(prepareParams.count()) +
-                             " time(ms):exec:" + std::to_string((total - shapeInfer - prepareParams).count()));
+            report.emplace_back(std::make_pair("shapeInfer", shapeInfer.count()));
+            report.emplace_back(std::make_pair("prepareParams", prepareParams.count()));
+            report.emplace_back(std::make_pair("exec", (total - shapeInfer - prepareParams).count()));
         }
-        return reportStr;
+        return report;
     }
 
     uint64_t avg() const { return _total.num ? _total.duration / _total.num : 0; }
@@ -135,7 +135,7 @@ private:
 
     void finish_itr() {
         _itrDuration[Total] = std::chrono::high_resolution_clock::now() - _itrStart[Total];
-        _total.duration += _itrDuration[Total].count();
+        _total.duration += std::chrono::duration_cast<std::chrono::microseconds>(_itrDuration[Total]).count();
         _total.num++;
         _isItrStarted = false;
     }

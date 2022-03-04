@@ -20,10 +20,12 @@ CSV tables with aggregate performance counters are dumped upon *ExecNetwork* des
 Map of model input shapes to indexes.
 * \<prefix\>perf_raw_nodes.csv\
 Aggregate performance counters without processing.
-* \<prefix\>perf_modelInput_0_nodes.csv ... \<prefix\>perf_modelInput_N_nodes.csv\
+* \<prefix\>perf_0_\<0_model_input_shape\>\_nodes.csv ... \<prefix\>perf_N_\<N_model_input_shape\>\_nodes.csv\
 Aggregate performance counters per node for corresponding model inputs.
-* \<prefix\>perf_modelInput_0_nodeTypes.csv ... \<prefix\>perf_modelInput_N_nodeTypes.csv\
+* \<prefix\>perf_0_\<0_model_input_shape\>\_nodeTypes.csv ... \<prefix\>perf_N_\<N_model_input_shape\>\_nodeTypes.csv\
 Aggregate performance counters per node type for corresponding model inputs.
-* \<prefix\>perf_modelInput_all_nodeTypes.csv\
+* \<prefix\>perf_all_nodeTypes.csv\
 Aggregate performance counters per node type for all model inputs.\
-This table is absent in case of single model input (static case) since it is the same as \<prefix\>perf_modelInput_0_nodeTypes.csv
+This table is absent in case of single model input (static case) since it is the same as \<prefix\>perf_0_\<0_model_input_shape\>_nodeTypes.csv
+
+\<model_input_shape\> in table name is limited by 100 characters, so complete shape is additionally stated at the end of corresponding table and in \<prefix\>perf_modelInputs.csv.

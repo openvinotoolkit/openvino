@@ -941,7 +941,7 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
 }
 
 inline void MKLDNNGraph::ExecuteNode(const MKLDNNNodePtr& node, const mkldnn::stream& stream) const {
-    DUMP(node, config, infer_count);
+    DUMP(node, config, nestingLevel, infer_count);
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, node->profiling.execute);
 
     if (node->isDynamicNode()) {
@@ -960,7 +960,7 @@ void MKLDNNGraph::Infer(MKLDNNInferRequestBase* request) {
 
     CPU_DEBUG_CAP_ENABLE(const PerfKey perfKey = perfGetKey(*this));
     for (const auto& node : executableGraphNodes) {
-        VERBOSE(node, config.verbose);
+        VERBOSE(node, config.verbose, infer_count);
         PERF(node, config.collectPerfCounters, perfKey);
 
         if (request)
@@ -968,7 +968,7 @@ void MKLDNNGraph::Infer(MKLDNNInferRequestBase* request) {
         ExecuteNode(node, stream);
     }
 
-    if (infer_count != -1) infer_count++;
+    CPU_DEBUG_CAP_ENABLE(infer_count++);
 }
 
 void MKLDNNGraph::VisitNode(MKLDNNNodePtr node, std::vector<MKLDNNNodePtr>& sortedNodes) {

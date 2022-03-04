@@ -19,7 +19,9 @@ class DumpHelper {
     const Config& config;
 
 public:
-    explicit DumpHelper(const MKLDNNNodePtr& _node, const Config& _config, int _count = -1): node(_node), config(_config), count(_count) {
+    explicit DumpHelper(const MKLDNNNodePtr& _node, const Config& _config, const uint8_t nestingLevel, int _count = -1)
+        : node(_node), config(_config), count(nestingLevel > 1 ? _count : -1) {
+        // -1 is used to omit count for main CPU plugin execution graph
         dumpInputBlobs(node, config, count);
     }
 

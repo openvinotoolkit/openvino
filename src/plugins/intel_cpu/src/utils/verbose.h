@@ -17,12 +17,12 @@ namespace intel_cpu {
 
 class Verbose {
 public:
-    Verbose(const MKLDNNNodePtr& _node, const std::string& _lvl)
+    Verbose(const MKLDNNNodePtr& _node, const std::string& _lvl, const int inferCount)
         : node(_node), lvl(atoi(_lvl.c_str())) {
         if (!shouldBePrinted())
             return;
         node->_verboseStorage.cleanup();
-        printInfo();
+        printInfo(inferCount);
     }
 
     ~Verbose() {
@@ -39,9 +39,19 @@ private:
     std::stringstream stream;
 
     bool shouldBePrinted() const;
-    void printInfo();
+    void printInfo(const int inferCount);
     void printLastInfo();
     void flush() const;
+
+    enum Color {
+        RED,
+        GREEN,
+        YELLOW,
+        BLUE,
+        PURPLE,
+        CYAN
+    };
+    std::string colorize(const Color color, const std::string& str) const;
 };
 
 // use heap allocation instead of stack to align with PERF macro (to have proper destruction order)

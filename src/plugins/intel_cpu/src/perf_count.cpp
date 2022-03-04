@@ -237,6 +237,14 @@ static void perfDumpNodes(const std::string& path, const std::vector<MKLDNNNodeP
         return str;
     };
 
+    auto modelInputToFileName = [&modelInputShapes] (const size_t idx) {
+        return std::to_string(idx) + '_' + modelInputShapes[idx].substr(0, 100);
+    };
+    auto closeWithModelInput = [&modelInputShapes] (std::ofstream& csv, const size_t idx) {
+        csv << "Model Input Shape:,\"" << modelInputShapes[idx] << "\"\n";
+        csv.close();
+    };
+
     std::vector<std::map<Type, NodeTypePerfData>> modelInputs(modelInputsNum);
 
     openCsv(csv, "raw_nodes.csv");
@@ -258,7 +266,7 @@ static void perfDumpNodes(const std::string& path, const std::vector<MKLDNNNodeP
 
             csv << nodePrefixStr << idx << ",\"" << modelInputShapes[idx] << "\",\"";
             if (!modelInputCsv.is_open()) {
-                openCsv(modelInputCsv, "modelInput_" + std::to_string(idx) + "_nodes" + ".csv");
+                openCsv(modelInputCsv, modelInputToFileName(idx) + "_nodes.csv");
                 modelInputCsv << "Node name,Node type,Node in->out shapes,"
                                  "\"Total time (avg, us)\",\"Exec time (avg, us)\","
                                  "\"ShapeInfer time (avg, us)\",\"PrepareParams time (avg, us)\","
@@ -311,9 +319,9 @@ static void perfDumpNodes(const std::string& path, const std::vector<MKLDNNNodeP
         }
     }
     csv.close();
-    for (auto& csv : nodeCsvs) {
-        csv.close();
-    } // raw_nodes.csv and modelInput_*_nodes.csv
+    for (size_t i = 0; i < nodeCsvs.size(); i++) {
+        closeWithModelInput(nodeCsvs[i], i);
+    } // raw_nodes.csv and *_nodes.csv
     assert(modelInputs.size() == modelInputsNum);
 
     const std::string nodeTypeHeader(
@@ -330,7 +338,7 @@ static void perfDumpNodes(const std::string& path, const std::vector<MKLDNNNodeP
             << cntr.durationSum << ','
             << perfPercent(cntr.durationSum, totalDuration);
     };
-    auto finalizeNodeTypeCsv = [&] (std::ofstream& csv,
+    auto finalizeNodeTypeCsv = [&printNodeTypeCntr] (std::ofstream& csv,
                                    const NodeTypePerfData& aggregateData, const size_t num) {
         aggregateData.validate(num);
         csv << "Total,"
@@ -341,8 +349,7 @@ static void perfDumpNodes(const std::string& path, const std::vector<MKLDNNNodeP
             printNodeTypeCntr(csv, aggregateData.counters[idx],
                               perfAvg(cntr.avgSum, num), aggregateData.counters[Total].durationSum);
         }
-        csv << std::endl;;
-        csv.close();
+        csv << std::endl;
     };
 
     const bool isDynamicModelInput = (modelInputsNum > 1);
@@ -369,7 +376,7 @@ static void perfDumpNodes(const std::string& path, const std::vector<MKLDNNNodeP
     for (auto i = 0; i < modelInputsNum; i++) {
         const auto& nodeTypesMap = modelInputs[i];
 
-        openCsv(csv, "modelInput_" + std::to_string(i) + "_nodeTypes" + ".csv");
+        openCsv(csv, modelInputToFileName(i) + "_nodeTypes.csv");
         csv << nodeTypeHeader;
 
         modelInputTotal.nodeNum = total.nodeNum;
@@ -419,11 +426,12 @@ static void perfDumpNodes(const std::string& path, const std::vector<MKLDNNNodeP
             csv << std::endl;
         }
         finalizeNodeTypeCsv(csv, modelInputTotal, nodeTypesMap.size());
+        closeWithModelInput(csv, i);
         modelInputTotal.cleanup();
-    } // modelInput_*_nodeTypes.csv
+    } // *_nodeTypes.csv
 
     if (isDynamicModelInput) {
-        openCsv(csv, "modelInput_all_nodeTypes.csv");
+        openCsv(csv, "all_nodeTypes.csv");
         csv << nodeTypeHeader;
         for (auto& nodeType : aggregateNodeTypesMap) {
             auto& nodeTypePerfData = nodeType.second;
@@ -447,6 +455,7 @@ static void perfDumpNodes(const std::string& path, const std::vector<MKLDNNNodeP
             csv << std::endl;
         }
         finalizeNodeTypeCsv(csv, total, aggregateNodeTypesMap.size());
+        csv.close();
     }
 }
 
