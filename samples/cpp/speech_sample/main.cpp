@@ -494,9 +494,9 @@ int main(int argc, char* argv[]) {
 
                                 if (!FLAGS_o.empty()) {
                                     /* Prepare output data for save to file in future */
-                                    auto outputFrame =
-                                        &vectorPtrScores[next_output].front() +
-                                        numScoresPerOutput[next_output] * sizeof(float) * (inferRequest.frameIndex);
+                                    auto outputFrame = &vectorPtrScores[next_output].front() +
+                                                       numScoresPerOutput[next_output] * sizeof(float) *
+                                                           (inferRequest.frameIndex) / batchSize;
 
                                     ov::Tensor outputBlob =
                                         inferRequest.inferRequest.get_tensor(executableNet.output(outputName));
@@ -653,7 +653,7 @@ int main(int argc, char* argv[]) {
                                           uttName,
                                           &vectorPtrScores[next_output].front(),
                                           numFramesFile,
-                                          numScoresPerOutput[next_output]);
+                                          numScoresPerOutput[next_output] / batchSize);
                 }
                 if (!FLAGS_r.empty()) {
                     // print statistical score error
