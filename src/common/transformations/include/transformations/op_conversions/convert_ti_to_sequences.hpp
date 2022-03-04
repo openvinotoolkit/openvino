@@ -4,15 +4,10 @@
 
 #pragma once
 
-#include <vector>
 #include <memory>
-
-#include <vector>
-#include <memory>
-
-#include <transformations_visibility.hpp>
-
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
+#include <vector>
 
 namespace ngraph {
 namespace pass {
@@ -31,7 +26,7 @@ class TRANSFORMATIONS_API ConvertTensorIteratorToSequence;
  * converts this pattern to LSTMSequence layer and replaces them TensorIterator.
  */
 
-class ngraph::pass::ConvertTensorIteratorToLSTMSequence: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertTensorIteratorToLSTMSequence : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertTensorIteratorToLSTMSequence();
@@ -43,7 +38,7 @@ public:
  * converts this pattern to RNNSequence layer and replaces them TensorIterator.
  */
 
-class ngraph::pass::ConvertTensorIteratorToRNNSequence: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertTensorIteratorToRNNSequence : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertTensorIteratorToRNNSequence();
@@ -55,7 +50,7 @@ public:
  * converts this pattern to GRUSequence layer and replaces them TensorIterator.
  */
 
-class ngraph::pass::ConvertTensorIteratorToGRUSequence: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertTensorIteratorToGRUSequence : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertTensorIteratorToGRUSequence();
