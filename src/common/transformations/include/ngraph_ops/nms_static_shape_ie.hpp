@@ -12,6 +12,17 @@
 
 #include "ngraph/op/op.hpp"
 
+namespace ov {
+namespace op {
+namespace v8 {
+
+class MulticlassNms;
+class MatrixNms;
+
+}  // namespace v8
+}  // namespace op
+}  // namespace ov
+
 namespace ngraph {
 namespace op {
 namespace internal {
