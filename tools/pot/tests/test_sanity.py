@@ -175,8 +175,8 @@ SIMPLIFIED_TEST_MODELS = [
 ]
 
 
-def launch_simplified_mode(_params, tmp_path, models, engine_config):
-    model_name, model_framework, algorithm, preset, _, custom_mo_config = _params
+def launch_simplified_mode(_simplified_params, tmp_path, models, engine_config):
+    model_name, model_framework, algorithm, preset, _, custom_mo_config = _simplified_params
     algorithm_config = make_algo_config(algorithm, preset)
 
     model = models.get(model_name, model_framework, tmp_path, custom_mo_config=custom_mo_config)
@@ -211,10 +211,10 @@ def launch_simplified_mode(_params, tmp_path, models, engine_config):
 
 @pytest.fixture(scope='module', params=SIMPLIFIED_TEST_MODELS,
                 ids=['{}_{}_{}_{}'.format(*m) for m in SIMPLIFIED_TEST_MODELS])
-def _params(request):
+def _simplified_params(request):
     return request.param
 
-def test_simplified_mode(_params, tmp_path, models):
+def test_simplified_mode(_simplified_params, tmp_path, models):
     with open(PATHS2DATASETS_CONFIG.as_posix()) as f:
         data_source = Dict(json.load(f))['ImageNet2012'].pop('source_dir')
 
@@ -223,8 +223,8 @@ def test_simplified_mode(_params, tmp_path, models):
                           'device': 'CPU',
                           'central_fraction': 0.875})
 
-    _, _, _, _, expected_accuracy, _ = _params
-    metrics = launch_simplified_mode(_params, tmp_path, models, engine_config)
+    _, _, _, _, expected_accuracy, _ = _simplified_params
+    metrics = launch_simplified_mode(_simplified_params, tmp_path, models, engine_config)
     assert metrics == pytest.approx(expected_accuracy, abs=0.006)
 
 
