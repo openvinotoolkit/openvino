@@ -371,7 +371,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
             }
         }
 
-        if (next.is_type<quantize>())
+        if (next.is_type<quantize>() && prev.get_users().size() == 1)
             return true;
 
         if (next.is_type<permute>()) {
