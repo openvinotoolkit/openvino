@@ -38,8 +38,8 @@ struct OPENVINO_API DiscreteTypeInfo {
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     explicit constexpr DiscreteTypeInfo(const char* _name,
-                               const char* _version_id,
-                               const DiscreteTypeInfo* _parent = nullptr)
+                                        const char* _version_id,
+                                        const DiscreteTypeInfo* _parent = nullptr)
         : name(_name),
           version(0),
           version_id(_version_id),
