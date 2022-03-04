@@ -157,16 +157,6 @@ TensorFlow*-specific parameters:
  mo --input_model inception_v1.pbtxt --input_model_is_text -b 1 --output_dir <OUTPUT_MODEL_DIR>
 ```
 
-* Launching the Model Optimizer for Inception V1 frozen model and update custom sub-graph replacement file `transform.json` with information about input and output nodes of the matched sub-graph, specifying a writable output directory. For more information about this feature, refer to [Sub-Graph Replacement in the Model Optimizer](../customize_model_optimizer/Subgraph_Replacement_Model_Optimizer.md).
-```sh
- mo --input_model inception_v1.pb -b 1 --tensorflow_custom_operations_config_update transform.json --output_dir <OUTPUT_MODEL_DIR>
-```
-
-* Launching the Model Optimizer for Inception V1 frozen model and use custom sub-graph replacement file `transform.json` for model conversion. For more information about this feature, refer to [Sub-Graph Replacement in the Model Optimizer](../customize_model_optimizer/Subgraph_Replacement_Model_Optimizer.md).
-```sh
- mo --input_model inception_v1.pb -b 1 --transformations_config transform.json --output_dir <OUTPUT_MODEL_DIR>
-```
-
 * Launching the Model Optimizer for Inception V1 frozen model and dump information about the graph to TensorBoard log dir `/tmp/log_dir`
 ```sh
  mo --input_model inception_v1.pb -b 1 --tensorboard_logdir /tmp/log_dir --output_dir <OUTPUT_MODEL_DIR>

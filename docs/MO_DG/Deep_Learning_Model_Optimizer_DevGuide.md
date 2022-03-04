@@ -9,8 +9,16 @@
    :hidden:
 
    openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model
+   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow
+   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX
+   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch
+   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle
+   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet
+   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe
+   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi
+   openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model
    openvino_docs_MO_DG_Additional_Optimization_Use_Cases
-   openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer
+   openvino_docs_MO_DG_prepare_model_convert_model_tutorials
    openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ
 
 @endsphinxdirective
@@ -631,20 +639,27 @@ Before running the Model Optimizer, you must install the Model Optimizer pre-req
 To convert the model to the Intermediate Representation (IR), run Model Optimizer:
 
 ```sh
-mo --input_model INPUT_MODEL --output_dir <OUTPUT_MODEL_DIR>
+mo --input_model INPUT_MODEL
 ```
 
-You need to have have write permissions for an output directory.
+> **NOTE**: Some models require using additional arguments, such as `--input`, `--input_shape`, and `--output`. To learn about when you need to use these parameters, refer to [General Conversion Parameters](prepare_model/convert_model/Converting_Model.md).
 
-> **NOTE**: Some models require using additional arguments to specify conversion parameters, such as `--input_shape`, `--scale`, `--scale_values`, `--mean_values`, `--mean_file`. To learn about when you need to use these parameters, refer to [Converting a Model to Intermediate Representation (IR)](prepare_model/convert_model/Converting_Model.md).
-
-To adjust the conversion process, you may use general parameters defined in the [Converting a Model to Intermediate Representation (IR)](prepare_model/convert_model/Converting_Model.md) and
-framework-specific parameters for:
-* [Caffe](prepare_model/convert_model/Convert_Model_From_Caffe.md)
+To adjust the conversion process, you may use [general parameters](prepare_model/convert_model/Converting_Model.md) and framework-specific parameters for:
 * [TensorFlow](prepare_model/convert_model/Convert_Model_From_TensorFlow.md)
-* [MXNet](prepare_model/convert_model/Convert_Model_From_MxNet.md)
 * [ONNX](prepare_model/convert_model/Convert_Model_From_ONNX.md)
+* [PyTorch](prepare_model/convert_model/Convert_Model_From_PyTorch.md)
+* [PaddlePaddle](prepare_model/convert_model/Convert_Model_From_Paddle.md)
+* [MXNet](prepare_model/convert_model/Convert_Model_From_MxNet.md)
+* [Caffe](prepare_model/convert_model/Convert_Model_From_Caffe.md)
 * [Kaldi](prepare_model/convert_model/Convert_Model_From_Kaldi.md)
+
+## Examples of CLI Commands
+
+Launch the Model Optimizer for the Caffe bvlc_alexnet model:
+
+```sh
+mo --input_model bvlc_alexnet.caffemodel
+```
 
 ## Videos
 

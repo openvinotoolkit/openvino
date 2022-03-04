@@ -91,8 +91,3 @@ The output of the IR is a list of 7-element tuples: `[image_id, class_id, confid
 * `y_max` -- normalized `y` coordinate of the upper right corner of the detected object.
 
 The first element with `image_id = -1` means end of data.
-
----
-## See Also
-
-* [Sub-Graph Replacement in Model Optimizer](../../customize_model_optimizer/Subgraph_Replacement_Model_Optimizer.md)
