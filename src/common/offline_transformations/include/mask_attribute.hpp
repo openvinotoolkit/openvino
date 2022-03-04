@@ -103,6 +103,19 @@ public:
         }
     }
 
+    void copy_value_from_mask_reversed_masked(Mask *const mask, std::set<int64_t> idx_mask) {
+        auto cur_mask_iter = rbegin();
+        auto mask_iter = mask->rbegin();
+        while (cur_mask_iter != rend() && mask_iter != mask->rend()) {
+            const auto idx = rend() - cur_mask_iter - 1;
+            if (idx_mask.find(idx) == idx_mask.end())
+                *cur_mask_iter = *mask_iter;
+
+            cur_mask_iter++;
+            mask_iter++;
+        }
+    }
+
     Mask::Ptr intersect_masks_reversed_with_broadcasted_dims(
         Mask *const mask,
         const std::set<int64_t> left_broadcasted_dims,

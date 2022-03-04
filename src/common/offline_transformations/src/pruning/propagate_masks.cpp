@@ -454,6 +454,8 @@ public:
             using dims_set = std::set<int64_t>;
             auto input_shape_broadcasted_dims = dims_set();
             auto weights_shape_broadcasted_dims = dims_set();
+            auto input_shape_ones_dims = dims_set();
+            auto weights_shape_ones_dims = dims_set();
             if (m_input.get_partial_shape().is_static() &&
                 m_weights.get_partial_shape().is_static()) {
                 // Compute brodcasted dims
@@ -462,14 +464,17 @@ public:
                 const int64_t input_shape_size_diff = input_shape.size() - weights_shape.size();
                 for (int64_t i = 0; i < input_shape.size(); ++i)
                     if (input_shape[i] == 1 || i < input_shape_size_diff)
-                        input_shape_broadcasted_dims.insert(i);
+                        input_shape_ones_dims.insert(i);
 
                 const int64_t weights_shape_size_diff = -input_shape_size_diff;
                 for (int64_t i = 0; i < weights_shape.size(); ++i)
                     if (weights_shape[i] == 1 || i < weights_shape_size_diff)
-                        weights_shape_broadcasted_dims.insert(i);
-
+                        weights_shape_ones_dims.insert(i);
                 // Union sets
+                std::copy(input_shape_ones_dims.begin(), input_shape_ones_dims.end(),
+                          std::inserter(input_shape_broadcasted_dims, input_shape_broadcasted_dims.begin()));
+                std::copy(weights_shape_ones_dims.begin(), weights_shape_ones_dims.end(),
+                          std::inserter(weights_shape_broadcasted_dims, weights_shape_broadcasted_dims.begin()));
                 for (auto & elem : input_shape_broadcasted_dims) {
                     const auto shifted_elem = elem + weights_shape_size_diff;
                     if (shifted_elem >= 0)
@@ -509,16 +514,16 @@ public:
             };
             output_mask->add_callback(out_mask_callback, input_mask);
 
-            input_mask->add_callback([weights_mask_row](Mask::Ptr cur_mask) -> bool {
-                cur_mask->copy_value_from_mask_reversed(weights_mask_row);
+            input_mask->add_callback([weights_mask_row, input_shape_broadcasted_dims](Mask::Ptr cur_mask) -> bool {
+                cur_mask->copy_value_from_mask_reversed_masked(weights_mask_row, input_shape_broadcasted_dims);
                 return true;
             }, weights_mask);
-            input_mask->add_callback([output_mask_row](Mask::Ptr cur_mask) -> bool {
-                cur_mask->copy_value_from_mask_reversed(output_mask_row);
+            input_mask->add_callback([output_mask_row, input_shape_broadcasted_dims](Mask::Ptr cur_mask) -> bool {
+                cur_mask->copy_value_from_mask_reversed_masked(output_mask_row, input_shape_broadcasted_dims);
                 return true;
             }, output_mask);
-            weights_mask->add_callback([input_mask_row](Mask::Ptr cur_mask) -> bool {
-                cur_mask->copy_value_from_mask_reversed(input_mask_row);
+            weights_mask->add_callback([input_mask_row, weights_shape_broadcasted_dims](Mask::Ptr cur_mask) -> bool {
+                cur_mask->copy_value_from_mask_reversed_masked(input_mask_row, weights_shape_broadcasted_dims);
                 return true;
             }, input_mask);
 
