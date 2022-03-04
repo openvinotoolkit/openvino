@@ -8,11 +8,11 @@ mo --help
 
 Paragraphs below provide useful details on relevant parameters.
 
-## When to Specify `--input_shape` Command Line Parameter <a name="when_to_specify_input_shapes"></a>
+## When to Specify --input_shape Command Line Parameter <a name="when_to_specify_input_shapes"></a>
 There are situations when Model Optimizer is unable to deduce input shapes of the model, for example, in case of model cutting due to unsupported operations.
 The solution is to provide input shapes of a static rank explicitly.
 
-## When to Specify `--static_shape` Command Line Parameter
+## When to Specify --static_shape Command Line Parameter
 If the `--static_shape` command line parameter is specified the Model Optimizer evaluates shapes of all operations in the model (shape propagation) for a fixed input(s) shape(s). During the shape propagation the Model Optimizer evaluates operations *Shape* and removes them from the computation graph. With that approach, the initial model which can consume inputs of different shapes may be converted to IR working with the input of one fixed shape only. For example, consider the case when some blob is reshaped from 4D of a shape *[N, C, H, W]* to a shape *[N, C, H \* W]*. During the model conversion the Model Optimize calculates output shape as a constant 1D blob with values *[N, C, H \* W]*. So if the input shape changes to some other value *[N,C,H1,W1]* (it is possible scenario for a fully convolutional model) then the reshape layer becomes invalid.
 Resulting Intermediate Representation will not be resizable with the help of OpenVINO Runtime API.
 

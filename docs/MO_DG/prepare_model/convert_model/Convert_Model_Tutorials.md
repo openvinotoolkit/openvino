@@ -39,5 +39,3 @@
 This section provides you with a set of tutorials that demonstrate conversion steps for specific TensorFlow, ONNX, PyTorch, MXNet and Kaldi models.
 
 You can also find a collection of [Python tutorials](../../../tutorials.md) written for running on Jupyter* notebooks that provide an introduction to the OpenVINO™ toolkit and explain how to use the Python API and tools for optimized deep learning inference.
-
-
