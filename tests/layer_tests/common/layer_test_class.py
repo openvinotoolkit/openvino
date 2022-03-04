@@ -1,16 +1,19 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import itertools
+import numpy as np
 import os
+import re
 import warnings
+import xml.etree.ElementTree as ET
+from openvino.tools.mo.utils.ir_engine.ir_engine import IREngine
 from pathlib import Path
 
 import numpy as np
 from common.constants import test_device, test_precision
-from common.layer_utils import IEInfer
-from mo.utils.ir_engine.ir_engine import IREngine
-
+from common.layer_utils import IEInfer, InferAPI20
+from openvino.tools.mo.utils.ir_engine.ir_engine import IREngine
 from common.utils.common_utils import generate_ir
 from common.utils.parsers import mapping_parser
 
@@ -19,19 +22,24 @@ class CommonLayerTest:
     input_model_key = "input_model"
 
     def produce_model_path(self, framework_model, save_path):
-        pass
+        raise RuntimeError("This is base class, please implement produce_model_path function for"
+                           " the specific framework")
 
     def get_framework_results(self, inputs_dict, model_path):
-        pass
+        raise RuntimeError("This is base class, please implement get_framework_results function for"
+                           " the specific framework")
 
-    def _test(self, framework_model, ref_net, ie_device, precision, ir_version, temp_dir, infer_timeout=60,
-              enabled_transforms='', disabled_transforms='', **kwargs):
+    def _test(self, framework_model, ref_net, ie_device, precision, ir_version, temp_dir, api_2,
+              use_new_frontend=False, infer_timeout=60, enabled_transforms='',
+              disabled_transforms='', **kwargs):
         """
         :param enabled_transforms/disabled_transforms: string with idxs of transforms that should be enabled/disabled.
                                                        Example: "transform_1,transform_2"
         """
         model_path = self.produce_model_path(framework_model=framework_model, save_path=temp_dir)
 
+        self.use_new_frontend = use_new_frontend
+        self.api_2 = api_2
         # TODO Pass environment variables via subprocess environment
         os.environ['MO_ENABLED_TRANSFORMS'] = enabled_transforms
         os.environ['MO_DISABLED_TRANSFORMS'] = disabled_transforms
@@ -50,30 +58,42 @@ class CommonLayerTest:
         if 'input_names' in kwargs and len(kwargs['input_names']):
             mo_params.update(dict(input=','.join(kwargs['input_names'])))
 
+        if use_new_frontend:
+            mo_params["use_new_frontend"] = True
+
         exit_code, stderr = generate_ir(**mo_params)
 
         del os.environ['MO_ENABLED_TRANSFORMS']
         del os.environ['MO_DISABLED_TRANSFORMS']
-        assert not exit_code, ("IR generation failed with {} exit code: {}".format(exit_code, stderr))
+        assert not exit_code, (
+            "IR generation failed with {} exit code: {}".format(exit_code, stderr))
 
         path_to_xml = Path(temp_dir, 'model.xml')
         path_to_bin = Path(temp_dir, 'model.bin')
 
-        ir = IREngine(path_to_xml, path_to_bin, precision=precision)
-        if ref_net is not None:
-            (flag, resp) = ir.compare(ref_net)
-            assert flag, '\n'.join(resp)
+        # TODO: need to update ref graphs or get rid of this comparison
+        # if ref_net is not None:
+        #     ir = IREngine(path_to_xml, path_to_bin, precision=precision)
+        #     (flag, resp) = ir.compare(ref_net)
+        #     assert flag, '\n'.join(resp)
+
+        if api_2:
+            ie_engine = InferAPI20(model=path_to_xml,
+                                   weights=path_to_bin,
+                                   device=ie_device)
+        else:
+            ie_engine = IEInfer(model=path_to_xml,
+                                weights=path_to_bin,
+                                device=ie_device)
 
         # Prepare feed dict
         if 'kwargs_to_prepare_input' in kwargs and kwargs['kwargs_to_prepare_input']:
-            inputs_dict = self._prepare_input(ir.get_inputs(), kwargs['kwargs_to_prepare_input'])
+            inputs_dict = self._prepare_input(ie_engine.get_inputs_info(precision),
+                                              kwargs['kwargs_to_prepare_input'])
         else:
-            inputs_dict = self._prepare_input(ir.get_inputs())
+            inputs_dict = self._prepare_input(ie_engine.get_inputs_info(precision))
 
         # IE infer:
-        ie_engine = IEInfer(model=path_to_xml,
-                            weights=path_to_bin,
-                            device=ie_device)
         infer_res = ie_engine.infer(input_data=inputs_dict, infer_timeout=infer_timeout)
 
         if hasattr(self, 'skip_framework') and self.skip_framework:
@@ -98,8 +118,34 @@ class CommonLayerTest:
         # Compare Ie results with Framework results
         fw_eps = custom_eps if precision == 'FP32' else 5e-2
         assert self.compare_ie_results_with_framework(infer_res=infer_res, framework_res=fw_res,
-                                                      mapping_dict=mapping_dict, framework_eps=fw_eps), \
-            "Comparing with Framework failed: ie_res={}; framework_res={}.".format(infer_res, fw_res)
+                                                      mapping_dict=mapping_dict,
+                                                      framework_eps=fw_eps), \
+            "Comparing with Framework failed: ie_res={}; framework_res={}.".format(infer_res,
+                                                                                   fw_res)
+
+        if len(inputs_dict.keys()) > 1 or len(infer_res.keys()) > 1:
+            tree = ET.parse(path_to_xml)
+            # findall returns elements in document order, this order should be the same as
+            # order of inputs/outputs in original model
+            inputs_ie = [child for child in tree.findall('.//layer[@type="Parameter"]')]
+            outputs_ie = [child for child in tree.findall('.//layer[@type="Result"]')]
+
+            if 'input_names' in kwargs:
+                input_names = kwargs['input_names']
+                for i, input_name in enumerate(input_names):
+                    assert inputs_ie[i].attrib['name'] == input_name, \
+                        'Input order does not match framework order. Input with index {} is {}, ' \
+                        'but expected {}'.format(i, inputs_ie[i].attrib['name'], input_name)
+
+            if 'output_names' in kwargs:
+                output_names = kwargs['output_names']
+                for i, output_name in enumerate(output_names):
+                    output_name_ie = outputs_ie[i].attrib['name']
+                    output_without_sink_port = re.sub(r'\/sink_port_.', '', output_name_ie)
+
+                    assert output_without_sink_port == output_name, \
+                        'Output order does not match framework order. Output with index {} is {}, ' \
+                        'but expected {}'.format(i, output_without_sink_port, output_name)
 
     # Feed dict for each input is filled with random number.
     # It is possible to redefine this function and generate your own input
@@ -108,20 +154,26 @@ class CommonLayerTest:
             inputs_dict[input] = np.random.randint(-255, 255, inputs_dict[input]).astype(np.float32)
         return inputs_dict
 
-    def compare_ie_results_with_framework(self, infer_res, framework_res, mapping_dict, framework_eps):
+    def compare_ie_results_with_framework(self, infer_res, framework_res, mapping_dict,
+                                          framework_eps):
         is_ok = True
         from common.utils.common_utils import allclose
         for framework_out_name in framework_res:
-            if framework_out_name not in mapping_dict:
-                raise RuntimeError("Output {} not found in mapping file!".format(framework_out_name))
 
-            ie_out_name = mapping_dict[framework_out_name]
+            if framework_out_name not in list(infer_res.keys()):
+                if framework_out_name not in mapping_dict:
+                    raise RuntimeError("Output {} not found in mapping file!".format(framework_out_name))
+                ie_out_name = mapping_dict[framework_out_name]
+            else:
+                ie_out_name = framework_out_name
 
-            if not allclose(infer_res[ie_out_name], framework_res[framework_out_name], atol=framework_eps,
+            if not allclose(infer_res[ie_out_name], framework_res[framework_out_name],
+                            atol=framework_eps,
                             rtol=framework_eps):
                 is_ok = False
                 print("Max diff is {}".format(
-                    np.array(abs(infer_res[ie_out_name] - framework_res[framework_out_name])).max()))
+                    np.array(
+                        abs(infer_res[ie_out_name] - framework_res[framework_out_name])).max()))
             else:
                 print("Accuracy validation successful!\n")
                 print("absolute eps: {}, relative eps: {}".format(framework_eps, framework_eps))

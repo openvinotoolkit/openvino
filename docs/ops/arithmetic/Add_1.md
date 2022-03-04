@@ -1,8 +1,8 @@
-## Add <a name="Add"></a> {#openvino_docs_ops_arithmetic_Add_1}
+# Add {#openvino_docs_ops_arithmetic_Add_1}
 
 **Versioned name**: *Add-1*
 
-**Category**: Arithmetic binary operation
+**Category**: *Arithmetic binary*
 
 **Short description**: *Add* performs element-wise addition operation with two given tensors applying broadcasting rule specified in the *auto_broacast* attribute.
 

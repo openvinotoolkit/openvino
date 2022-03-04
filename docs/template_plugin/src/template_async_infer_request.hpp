@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,10 @@ namespace TemplatePlugin {
 // ! [async_infer_request:header]
 class TemplateAsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
 public:
-    TemplateAsyncInferRequest(const TemplateInferRequest::Ptr& inferRequest, const InferenceEngine::ITaskExecutor::Ptr& taskExecutor,
-                              const InferenceEngine::ITaskExecutor::Ptr& waitExecutor, const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor);
+    TemplateAsyncInferRequest(const TemplateInferRequest::Ptr& inferRequest,
+                              const InferenceEngine::ITaskExecutor::Ptr& taskExecutor,
+                              const InferenceEngine::ITaskExecutor::Ptr& waitExecutor,
+                              const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor);
 
     ~TemplateAsyncInferRequest();
 

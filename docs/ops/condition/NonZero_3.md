@@ -1,8 +1,8 @@
-## NonZero <a name="NonZero"></a> {#openvino_docs_ops_condition_NonZero_3}
+# NonZero {#openvino_docs_ops_condition_NonZero_3}
 
 **Versioned name**: *NonZero-3*
 
-**Category**: Condition operation
+**Category**: *Condition*
 
 **Short description**: *NonZero* returns the indices of the non-zero elements of the input tensor.
 
@@ -21,11 +21,11 @@
   * **Range of values**: `i64` or `i32`
   * **Type**: string
   * **Default value**: "i64"
-  * **Required**: *No*
+  * **Required**: *no*
 
 **Inputs**:
 
-*   **1**: A tensor of type *T* and arbitrary shape. **Required**.
+*   **1**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**:
 

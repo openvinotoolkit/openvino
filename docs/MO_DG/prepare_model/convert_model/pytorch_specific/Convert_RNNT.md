@@ -20,15 +20,15 @@ mkdir rnnt_for_openvino
 cd rnnt_for_openvino
 ```
 
-**Step 3**. Download pretrained weights for PyTorch implementation from https://zenodo.org/record/3662521#.YG21DugzZaQ.
-For UNIX*-like systems you can use wget:
+**Step 3**. Download pretrained weights for PyTorch implementation from [https://zenodo.org/record/3662521#.YG21DugzZaQ](https://zenodo.org/record/3662521#.YG21DugzZaQ).
+For UNIX*-like systems you can use `wget`:
 ```bash
 wget https://zenodo.org/record/3662521/files/DistributedDataParallel_1576581068.9962234-epoch-100.pt
 ```
 The link was taken from `setup.sh` in the `speech_recoginitin/rnnt` subfolder. You will get exactly the same weights as 
-if you were following the steps from https://github.com/mlcommons/inference/tree/master/speech_recognition/rnnt.
+if you were following the steps from [https://github.com/mlcommons/inference/tree/master/speech_recognition/rnnt](https://github.com/mlcommons/inference/tree/master/speech_recognition/rnnt).
 
-**Step 4**. Install required python* packages:
+**Step 4**. Install required Python packages:
 ```bash
 pip3 install torch toml
 ```
@@ -37,7 +37,7 @@ pip3 install torch toml
 `export_rnnt_to_onnx.py` and run it in the current directory `rnnt_for_openvino`:
 
 > **NOTE**: If you already have a full clone of MLCommons inference repository, you need to
-> specify `mlcommons_inference_path` variable.
+> specify the `mlcommons_inference_path` variable.
 
 ```python
 import toml
@@ -73,35 +73,36 @@ inp = torch.randn([seq_length, batch_size, feature_length])
 feature_length = torch.LongTensor([seq_length])
 x_padded, x_lens = model.encoder(inp, feature_length)
 torch.onnx.export(model.encoder, (inp, feature_length), "rnnt_encoder.onnx", opset_version=12,
-                  input_names=['input.1', '1'], dynamic_axes={'input.1': {0: 'seq_len', 1: 'batch'}})
+                  input_names=['input', 'feature_length'], output_names=['x_padded', 'x_lens'],
+                  dynamic_axes={'input': {0: 'seq_len', 1: 'batch'}})
 
 symbol = torch.LongTensor([[20]])
 hidden = torch.randn([2, batch_size, 320]), torch.randn([2, batch_size, 320])
 g, hidden = model.prediction.forward(symbol, hidden)
 torch.onnx.export(model.prediction, (symbol, hidden), "rnnt_prediction.onnx", opset_version=12,
-                  input_names=['input.1', '1', '2'],
-                  dynamic_axes={'input.1': {0: 'batch'}, '1': {1: 'batch'}, '2': {1: 'batch'}})
+                  input_names=['symbol', 'hidden_in_1', 'hidden_in_2'],
+                  output_names=['g', 'hidden_out_1', 'hidden_out_2'],
+                  dynamic_axes={'symbol': {0: 'batch'}, 'hidden_in_1': {1: 'batch'}, 'hidden_in_2': {1: 'batch'}})
 
 f = torch.randn([batch_size, 1, 1024])
 model.joint.forward(f, g)
 torch.onnx.export(model.joint, (f, g), "rnnt_joint.onnx", opset_version=12,
-                  input_names=['0', '1'], dynamic_axes={'0': {0: 'batch'}, '1': {0: 'batch'}})
+                  input_names=['0', '1'], output_names=['result'], dynamic_axes={'0': {0: 'batch'}, '1': {0: 'batch'}})
 ```
 
 ```bash
 python3 export_rnnt_to_onnx.py
 ```
 
-After completing this step, the files rnnt_encoder.onnx, rnnt_prediction.onnx, and rnnt_joint.onnx will be saved in 
-the current directory. 
+After completing this step, the files `rnnt_encoder.onnx`, `rnnt_prediction.onnx`, and `rnnt_joint.onnx` will be saved in the current directory. 
 
-**Step 6**. Run the conversion command:
+**Step 6**. Run the conversion commands:
 
-```bash
-python3 {path_to_openvino}/mo.py --input_model rnnt_encoder.onnx --input "input.1[157 1 240],1->157"
-python3 {path_to_openvino}/mo.py --input_model rnnt_prediction.onnx --input "input.1[1 1],1[2 1 320],2[2 1 320]"
-python3 {path_to_openvino}/mo.py --input_model rnnt_joint.onnx --input "0[1 1 1024],1[1 1 320]"
+```sh
+mo --input_model rnnt_encoder.onnx --input "input[157 1 240],feature_length->157"
+mo --input_model rnnt_prediction.onnx --input "symbol[1 1],hidden_in_1[2 1 320],hidden_in_2[2 1 320]"
+mo --input_model rnnt_joint.onnx --input "0[1 1 1024],1[1 1 320]"
 ```
-Please note that hardcoded value for sequence length = 157 was taken from the MLCommons, but conversion to IR preserves 
-network [reshapeability](../../../../IE_DG/ShapeInference.md); this means you can change input shapes manually to any value either during conversion or 
-inference. 
+Please note that hardcoded value for sequence length = 157 was taken from the MLCommons but conversion to IR preserves 
+network [reshapeability](../../../../OV_Runtime_UG/ShapeInference.md), this means you can change input shapes manually to any value either during conversion or 
+inference.

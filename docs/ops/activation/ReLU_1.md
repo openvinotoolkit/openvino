@@ -1,4 +1,4 @@
-## ReLU <a name="ReLU"></a> {#openvino_docs_ops_activation_ReLU_1}
+# ReLU {#openvino_docs_ops_activation_ReLU_1}
 
 **Versioned name**: *ReLU-1*
 
@@ -15,16 +15,16 @@
 For each element from the input tensor calculates corresponding
  element in the output tensor with the following formula:
  \f[
- Y_{i}^{( l )} = max(0, Y_{i}^{( l - 1 )})
+ Y_{i}^{( l )} = max(0,\ Y_{i}^{( l - 1 )})
  \f]
 
 **Inputs**:
 
-*   **1**: Multidimensional input tensor *x* of any supported numeric type. Required.
+*   **1**: Multidimensional input tensor *x* of any supported numeric type. **Required.**
 
 **Outputs**:
 
-*   **1**: Result of ReLU function applied to the input tensor *x*. Tensor with shape and type matching the input tensor. Required.
+*   **1**: Result of ReLU function applied to the input tensor *x*. Tensor with shape and type matching the input tensor.
 
 **Example**
 

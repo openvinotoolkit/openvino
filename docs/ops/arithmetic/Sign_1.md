@@ -1,36 +1,33 @@
-## Sign <a name="Sign"></a> {#openvino_docs_ops_arithmetic_Sign_1}
+# Sign  {#openvino_docs_ops_arithmetic_Sign_1}
 
 **Versioned name**: *Sign-1*
 
-**Category**: Arithmetic unary operation
+**Category**: *Arithmetic unary*
 
-**Short description**: *Sign* performs element-wise sign operation with given tensor.
+**Short description**: *Sign* performs element-wise sign operation on a given input tensor.
 
-**Attributes**:
-
-    No attributes available.
-
-**Inputs**
-
-* **1**: An tensor of type *T*. **Required.**
-
-**Outputs**
-
-* **1**: The result of element-wise sign operation. A tensor of type *T* with mapped elements of the input tensor to -1 (if it is negative), 0 (if it is zero), or 1 (if it is positive).
-
-**Types**
-
-* *T*: any numeric type.
-
-*Sign* does the following with the input tensor *a*:
+**Detailed description**: *Sign* performs element-wise sign operation on a given input tensor, based on the following mathematical formula:
 
 \f[
 a_{i} = sign(a_{i})
 \f]
 
-**Examples**
+**Attributes**: *Sign* operation has no attributes.
 
-*Example 1*
+**Inputs**
+
+* **1**: A tensor of type *T* and arbitrary shape. **Required.**
+
+**Outputs**
+
+* **1**: The result of element-wise *Sign* operation. A tensor of type *T* with mapped elements of the input tensor to -1 (if it is negative), 0 (if it is zero), or 1 (if it is positive).
+
+**Types**
+
+* *T*: any numeric type.
+
+
+**Example**
 
 ```xml
 <layer ... type="Sign">

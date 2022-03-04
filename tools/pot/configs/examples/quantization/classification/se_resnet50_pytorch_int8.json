@@ -1,0 +1,102 @@
+{
+    "model": {
+        "model_name": "se_resnet50",
+        "model": "<MODEL_PATH>",
+        "weights": "<PATH_TO_WEIGHTS>"
+    },
+    "engine": {
+        "launchers": [
+            {
+                "framework": "dlsdk",
+                "device": "CPU",
+                "adapter": "classification"
+            }
+        ],
+        "datasets": [{
+            "name": "classification_dataset",
+            "data_source": "<PATH_TO_DATASET>",
+            "annotation_conversion": {
+                  "converter": "imagenet",
+                  "annotation_file": "<PATH_TO_ANNOTATION_FILE>"
+            },
+            "reader": "pillow_imread",
+            "preprocessing":[
+                {
+                    "type": "bgr_to_rgb"
+                },
+                {
+                    "use_pillow": true,
+                    "type": "resize",
+                    "size": 256,
+                    "interpolation": "BILINEAR",
+                    "aspect_ratio_scale": "greater"
+                },
+                {
+                    "type": "crop",
+                    "size": 224,
+                    "use_pillow": true
+                }
+            ],
+            "metrics": [
+                {
+                    "name": "accuracy@top1",
+                    "type": "accuracy",
+                    "top_k": 1
+                },
+                {
+                    "name": "accuracy@top5",
+                    "type": "accuracy",
+                    "top_k": 5
+                }
+            ]
+        }]
+    },
+    "compression": {
+        "algorithms": [
+            {
+                "name": "MinMaxQuantization",
+                "params": {
+                    "target_device": "CPU",
+                    "preset": "mixed",
+                    "stat_subset_size": 1000,
+                    "ignored": {
+                        "scope": [
+                            "400", "402",
+                            "416", "418",
+                            "432", "434",
+                            "450", "452",
+                            "466", "468",
+                            "482", "484",
+                            "498", "500",
+                            "516", "518",
+                            "532", "534",
+                            "548", "550",
+                            "564", "566",
+                            "580", "582",
+                            "596", "598",
+                            "614", "616",
+                            "630", "632",
+                            "646", "648"
+                        ]
+                    },
+                    "weights": {
+                        "bits": 8,
+                        "mode": "symmetric",
+                        "granularity": "perchannel"
+                    },
+                    "activations": {
+                        "bits": 8,
+                        "mode": "symmetric",
+                        "granularity": "pertensor"
+                    }
+                }
+            },
+            {
+                "name": "FastBiasCorrection",
+                "params": {
+                    "stat_subset_size": 1000
+                }
+            }
+        ]
+    }
+}

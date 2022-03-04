@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -11,10 +11,8 @@ file (GLOB_RECURSE HDR *.h)
 add_executable(${TARGET_NAME} ${HDR} ${SRC})
 
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(${TARGET_NAME} PRIVATE StressTestsCommon gflags)
+target_link_libraries(${TARGET_NAME} PRIVATE StressTestsCommon)
 
-# Copy local configs to BIN_FOLDER
-configure_file(local_configs/test_config.xml 
-        ${OUTPUT_ROOT}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE}/stress_tests_configs/memcheck_tests/test_config.xml COPYONLY)
-configure_file(local_configs/references_config.xml
-        ${OUTPUT_ROOT}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE}/stress_tests_configs/memcheck_tests/references_config.xml COPYONLY)
+install(TARGETS ${TARGET_NAME}
+            RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+

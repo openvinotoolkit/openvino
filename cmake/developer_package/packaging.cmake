@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -10,16 +10,19 @@ include(CPackComponent)
 #
 # Set library directory for cpack
 #
-set(IE_CPACK_IE_DIR       deployment_tools/inference_engine)
 function(ie_cpack_set_library_dir)
     if(WIN32)
-        set(IE_CPACK_LIBRARY_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH_FOLDER}/${CMAKE_BUILD_TYPE} PARENT_SCOPE)
-        set(IE_CPACK_RUNTIME_PATH ${IE_CPACK_IE_DIR}/bin/${ARCH_FOLDER}/${CMAKE_BUILD_TYPE} PARENT_SCOPE)
-        set(IE_CPACK_ARCHIVE_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH_FOLDER}/${CMAKE_BUILD_TYPE} PARENT_SCOPE)
+        set(IE_CPACK_LIBRARY_PATH runtime/lib/${ARCH_FOLDER}/$<CONFIG> PARENT_SCOPE)
+        set(IE_CPACK_RUNTIME_PATH runtime/bin/${ARCH_FOLDER}/$<CONFIG> PARENT_SCOPE)
+        set(IE_CPACK_ARCHIVE_PATH runtime/lib/${ARCH_FOLDER}/$<CONFIG> PARENT_SCOPE)
+    elseif(APPLE)
+        set(IE_CPACK_LIBRARY_PATH runtime/lib/${ARCH_FOLDER}/$<CONFIG> PARENT_SCOPE)
+        set(IE_CPACK_RUNTIME_PATH runtime/lib/${ARCH_FOLDER}/$<CONFIG> PARENT_SCOPE)
+        set(IE_CPACK_ARCHIVE_PATH runtime/lib/${ARCH_FOLDER}/$<CONFIG> PARENT_SCOPE)
     else()
-        set(IE_CPACK_LIBRARY_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH_FOLDER} PARENT_SCOPE)
-        set(IE_CPACK_RUNTIME_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH_FOLDER} PARENT_SCOPE)
-        set(IE_CPACK_ARCHIVE_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH_FOLDER} PARENT_SCOPE)
+        set(IE_CPACK_LIBRARY_PATH runtime/lib/${ARCH_FOLDER} PARENT_SCOPE)
+        set(IE_CPACK_RUNTIME_PATH runtime/lib/${ARCH_FOLDER} PARENT_SCOPE)
+        set(IE_CPACK_ARCHIVE_PATH runtime/lib/${ARCH_FOLDER} PARENT_SCOPE)
     endif()
 endfunction()
 
@@ -53,7 +56,9 @@ macro(ie_cpack)
     set(CPACK_PACKAGE_VENDOR "Intel Corporation")
     set(CPACK_VERBATIM_VARIABLES ON)
     set(CPACK_COMPONENTS_ALL ${ARGN})
-    set(CPACK_STRIP_FILES ON)
+    if (NOT DEFINED CPACK_STRIP_FILES)
+        set(CPACK_STRIP_FILES ON)
+    endif()
     set(CPACK_THREADS 8)
 
     string(REPLACE "/" "_" CPACK_PACKAGE_VERSION "${CI_BUILD_NUMBER}")

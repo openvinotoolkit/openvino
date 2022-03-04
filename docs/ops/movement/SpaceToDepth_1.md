@@ -1,4 +1,4 @@
-## SpaceToDepth <a name="SpaceToDepth"></a> {#openvino_docs_ops_movement_SpaceToDepth_1}
+# SpaceToDepth {#openvino_docs_ops_movement_SpaceToDepth_1}
 
 **Versioned name**: *SpaceToDepth-1*
 
@@ -44,7 +44,6 @@ If `mode = depth_first`:
     * *blocks_first*: the output depth is gathered from `[block_size, ..., block_size,  C]`
     * *depth_first*: the output depth is gathered from `[C, block_size, ..., block_size]`
   * **Type**: `string`
-  * **Default value**: None
   * **Required**: *yes*
 
 **Inputs**

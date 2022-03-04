@@ -1,8 +1,8 @@
-## Divide <a name="Divide"></a> {#openvino_docs_ops_arithmetic_Divide_1}
+# Divide {#openvino_docs_ops_arithmetic_Divide_1}
 
 **Versioned name**: *Divide-1*
 
-**Category**: Arithmetic binary operation
+**Category**: *Arithmetic binary*
 
 **Short description**: *Divide* performs element-wise division operation with two given tensors applying broadcasting rule specified in the *auto_broacast* attribute.
 
@@ -11,7 +11,7 @@ Before performing arithmetic operation, input tensors *a* and *b* are broadcaste
 After broadcasting *Divide* performs division operation for the input tensors *a* and *b* using the formula below:
 
 \f[
-o_{i} = a_{i} / b_{i}
+o_{i} = \frac{a_{i}}{b_{i}}
 \f]
 
 The result of division by zero is undefined.

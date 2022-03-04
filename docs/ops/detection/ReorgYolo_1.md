@@ -1,4 +1,4 @@
-## ReorgYolo Layer <a name="ReorgYolo"></a> {#openvino_docs_ops_detection_ReorgYolo_1}
+# ReorgYolo Layer {#openvino_docs_ops_detection_ReorgYolo_1}
 
 **Versioned name**: *ReorgYolo-1*
 
@@ -17,7 +17,6 @@
   * **Description**: *stride* is the distance between cut throws in output blobs.
   * **Range of values**: positive integer
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 **Inputs**:

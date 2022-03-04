@@ -1,8 +1,8 @@
-## Log <a name="Log"></a> {#openvino_docs_ops_arithmetic_Log_1}
+# Log  {#openvino_docs_ops_arithmetic_Log_1}
 
 **Versioned name**: *Log-1*
 
-**Category**: Arithmetic unary operation
+**Category**: *Arithmetic unary*
 
 **Short description**: *Log* performs element-wise natural logarithm operation with given tensor.
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,24 +8,24 @@
 #include <string>
 
 namespace TimeTest {
-using time_point = std::chrono::high_resolution_clock::time_point;
+    using time_point = std::chrono::high_resolution_clock::time_point;
 
 /** Encapsulate time measurements.
 Object of a class measures time at start and finish of object's life cycle.
 When destroyed, reports duration.
 */
-class Timer {
-private:
-  std::string name;
-  time_point start_time;
+    class Timer {
+    private:
+        std::string name;
+        time_point start_time;
 
-public:
-  /// Constructs Timer object and measures start time.
-  Timer(const std::string &timer_name);
+    public:
+        /// Constructs Timer object and measures start time.
+        Timer(const std::string &timer_name);
 
-  /// Destructs Timer object, measures duration and reports it.
-  ~Timer();
-};
+        /// Destructs Timer object, measures duration and reports it.
+        ~Timer();
+    };
 
 #define SCOPED_TIMER(timer_name) TimeTest::Timer timer_name(#timer_name);
 

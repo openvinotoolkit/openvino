@@ -1,4 +1,4 @@
-## DepthToSpace <a name="DepthToSpace"></a> {#openvino_docs_ops_movement_DepthToSpace_1}
+# DepthToSpace {#openvino_docs_ops_movement_DepthToSpace_1}
 
 **Versioned name**: *DepthToSpace-1*
 
@@ -43,12 +43,11 @@ If `mode = depth_first`:
     * *blocks_first*: the input depth is divided to `[block_size, ..., block_size,  new_depth]`
     * *depth_first*: the input depth is divided to `[new_depth, block_size, ..., block_size]`
   * **Type**: `string`
-  * **Default value**: None
   * **Required**: *yes*
 
 **Inputs**
 
-*   **1**: `data` - input tensor of type *T* with rank >= 3. **Required**.
+*   **1**: `data` - input tensor of type *T* with rank >= 3. **Required.**
 
 **Outputs**
 

@@ -1,36 +1,32 @@
-## Acosh <a name="Acosh"></a> {#openvino_docs_ops_arithmetic_Acosh_3}
+# Acosh {#openvino_docs_ops_arithmetic_Acosh_3}
 
 **Versioned name**: *Acosh-3*
 
-**Category**: Arithmetic unary operation
+**Category**: *Arithmetic unary*
 
 **Short description**: *Acosh* performs element-wise hyperbolic inverse cosine (arccosh) operation with given tensor.
 
-**Attributes**:
-
-    No attributes available.
-
-**Inputs**
-
-* **1**: A tensor of type *T*. **Required.**
-
-**Outputs**
-
-* **1**: The result of element-wise acosh operation. A tensor of type *T*.
-
-**Types**
-
-* *T*: any floating point type.
-
-*Acosh* does the following with the input tensor *a*:
+**Detailed description**:  Operation takes one input tensor and performs the element-wise hyperbolic inverse cosine operation on a given input tensor, based on the following mathematical formula:
 
 \f[
 a_{i} = acosh(a_{i})
 \f]
 
-**Examples**
+**Attributes**: *Acosh* operation has no attributes.
 
-*Example 1*
+**Inputs**
+
+* **1**: A tensor of type *T* and arbitrary shape. **Required.**
+
+**Outputs**
+
+* **1**: The result of element-wise *Acosh* operation. A tensor of type *T* and the same shape as the input tensor.
+
+**Types**
+
+* *T*: any numeric type.
+
+**Examples**
 
 ```xml
 <layer ... type="Acosh">

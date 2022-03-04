@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,8 @@ namespace {
 
 // ! [test_convolution:declare_parameters]
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32,
-    InferenceEngine::Precision::FP16,
+        InferenceEngine::Precision::FP32,
+        InferenceEngine::Precision::FP16,
 };
 
 /* ============= 2D Convolution ============= */
@@ -58,41 +58,41 @@ const auto conv2DParams_AutoPadValid = ::testing::Combine(
 
 // ! [test_convolution:instantiate]
 INSTANTIATE_TEST_SUITE_P(Convolution2D_ExplicitPadding, ConvolutionLayerTest,
-                        ::testing::Combine(
-                                conv2DParams_ExplicitPadding,
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
-                                ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE)),
-                        ConvolutionLayerTest::getTestCaseName);
+                         ::testing::Combine(
+                                 conv2DParams_ExplicitPadding,
+                                 ::testing::ValuesIn(netPrecisions),
+                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                 ::testing::Values(InferenceEngine::Layout::ANY),
+                                 ::testing::Values(InferenceEngine::Layout::ANY),
+                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
+                                 ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE)),
+                         ConvolutionLayerTest::getTestCaseName);
 // ! [test_convolution:instantiate]
 
 INSTANTIATE_TEST_SUITE_P(Convolution2D_AutoPadValid, ConvolutionLayerTest,
-                        ::testing::Combine(
-                                conv2DParams_AutoPadValid,
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
-                                ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE)),
-                        ConvolutionLayerTest::getTestCaseName);
+                         ::testing::Combine(
+                                 conv2DParams_AutoPadValid,
+                                 ::testing::ValuesIn(netPrecisions),
+                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                 ::testing::Values(InferenceEngine::Layout::ANY),
+                                 ::testing::Values(InferenceEngine::Layout::ANY),
+                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
+                                 ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE)),
+                         ConvolutionLayerTest::getTestCaseName);
 
 /* ============= 3D Convolution ============= */
 
 const std::vector<std::vector<size_t >> kernels3d = {{3, 3, 3},
-                                                            {3, 5, 3}};
+                                                     {3, 5, 3}};
 const std::vector<std::vector<ptrdiff_t>> paddings3d = {{0, 0, 0},
                                                         {0, 2, 0}};
 
 const std::vector<std::vector<size_t >> strides3d = {{1, 1, 1},
-                                                            {1, 2, 1}};
+                                                     {1, 2, 1}};
 const std::vector<std::vector<size_t >> dilations3d = {{1, 1, 1},
-                                                              {1, 2, 1}};
+                                                       {1, 2, 1}};
 
 const auto conv3DParams_ExplicitPadding = ::testing::Combine(
         ::testing::ValuesIn(kernels3d),
@@ -114,27 +114,27 @@ const auto conv3DParams_AutoPadValid = ::testing::Combine(
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_Convolution3D_ExplicitPadding, ConvolutionLayerTest,
-                        ::testing::Combine(
-                                conv3DParams_ExplicitPadding,
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(std::vector<size_t >({1, 3, 10, 10, 10})),
-                                ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE)),
-                        ConvolutionLayerTest::getTestCaseName);
+                         ::testing::Combine(
+                                 conv3DParams_ExplicitPadding,
+                                 ::testing::ValuesIn(netPrecisions),
+                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                 ::testing::Values(InferenceEngine::Layout::ANY),
+                                 ::testing::Values(InferenceEngine::Layout::ANY),
+                                 ::testing::Values(std::vector<size_t >({1, 3, 10, 10, 10})),
+                                 ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE)),
+                         ConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_Convolution3D_AutoPadValid, ConvolutionLayerTest,
-                        ::testing::Combine(
-                                conv3DParams_AutoPadValid,
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(std::vector<size_t >({1, 3, 10, 10, 10})),
-                                ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE)),
-                        ConvolutionLayerTest::getTestCaseName);
+                         ::testing::Combine(
+                                 conv3DParams_AutoPadValid,
+                                 ::testing::ValuesIn(netPrecisions),
+                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                 ::testing::Values(InferenceEngine::Layout::ANY),
+                                 ::testing::Values(InferenceEngine::Layout::ANY),
+                                 ::testing::Values(std::vector<size_t >({1, 3, 10, 10, 10})),
+                                 ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE)),
+                         ConvolutionLayerTest::getTestCaseName);
 
 }  // namespace

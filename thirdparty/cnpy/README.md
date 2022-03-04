@@ -51,5 +51,3 @@ struct NpyArray {
     template<typename T> T* data();
 };
 ```
-
-See [example1.cpp](example1.cpp) for examples of how to use the library. example1 will also be build during cmake installation.

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -6,21 +6,17 @@ project(openvino_fuzzing)
 
 cmake_minimum_required(VERSION 3.13)
 
-if (CMAKE_BUILD_TYPE STREQUAL "")
-    message(STATUS "CMAKE_BUILD_TYPE not defined, 'Release' will be used")
-    set(CMAKE_BUILD_TYPE "Release")
-endif()
+set(CMAKE_BUILD_TYPE "Release" CACHE STRING "CMake build type")
+set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Release" "Debug" "RelWithDebInfo" "MinSizeRel")
 
 set(OpenVINO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../")
 
-if (NOT TARGET IE::inference_engine)
-    find_package(IEDevScripts REQUIRED
-                 PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
-                 NO_CMAKE_FIND_ROOT_PATH
-                 NO_DEFAULT_PATH)
-endif()
+find_package(IEDevScripts REQUIRED
+             PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
+             NO_CMAKE_FIND_ROOT_PATH
+             NO_DEFAULT_PATH)
 
-find_package(InferenceEngine REQUIRED)
+find_package(OpenVINO REQUIRED)
 
 if (NOT ENABLE_FUZZING)
     message(STATUS

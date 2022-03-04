@@ -1,15 +1,28 @@
 # Converting an MXNet* Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet}
 
+@sphinxdirective
+
+.. _convert model mxnet:
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   openvino_docs_MO_DG_prepare_model_convert_model_mxnet_specific_Convert_Style_Transfer_From_MXNet
+   openvino_docs_MO_DG_prepare_model_convert_model_mxnet_specific_Convert_GluonCV_Models
+
+@endsphinxdirective
+
 A summary of the steps for optimizing and deploying a model that was trained with the MXNet\* framework:
 
-1. [Configure the Model Optimizer](../Config_Model_Optimizer.md) for MXNet* (MXNet was used to train your model)
+1. [Configure the Model Optimizer](../../Deep_Learning_Model_Optimizer_DevGuide.md) for MXNet* (MXNet was used to train your model)
 2. [Convert a MXNet model](#ConvertMxNet) to produce an optimized [Intermediate Representation (IR)](../../IR_and_opsets.md) of the model based on the trained network topology, weights, and biases values
-3. Test the model in the Intermediate Representation format using the [Inference Engine](../../../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) in the target environment via provided Inference Engine [sample applications](../../../IE_DG/Samples_Overview.md)
-4. [Integrate](../../../IE_DG/Samples_Overview.md) the [Inference Engine](../../../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) in your application to deploy the model in the target environment
+3. Test the model in the Intermediate Representation format using the [OpenVINO™ Runtime](../../../OV_Runtime_UG/openvino_intro.md) in the target environment via provided [OpenVINO Samples](../../../OV_Runtime_UG/Samples_Overview.md)
+4. [Integrate](../../../OV_Runtime_UG/Samples_Overview.md) the [OpenVINO™ Runtime](../../../OV_Runtime_UG/openvino_intro.md) in your application to deploy the model in the target environment
 
 ## Supported Topologies
 
-> **NOTE:** SSD models from the table require converting to the deploy mode. For details, see the [Conversion Instructions](https://github.com/zhreshold/mxnet-ssd/#convert-model-to-deploy-mode) in the GitHub MXNet-SSD repository.
+> **NOTE**: SSD models from the table require converting to the deploy mode. For details, see the [Conversion Instructions](https://github.com/zhreshold/mxnet-ssd/#convert-model-to-deploy-mode) in the GitHub MXNet-SSD repository.
 
 | Model Name| Model File |
 | ------------- |:-------------:|
@@ -43,18 +56,16 @@ A summary of the steps for optimizing and deploying a model that was trained wit
 
 ## Convert an MXNet* Model <a name="ConvertMxNet"></a>
 
-To convert an MXNet\* model:
+To convert an MXNet\* model, run Model Optimizer with a path to the input model `.params` file and to an output directory where you have write permissions:
 
-1. Go to the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory.
-2. To convert an MXNet\* model contained in a `model-file-symbol.json` and `model-file-0000.params`, run the Model Optimizer launch script `mo.py`, specifying a path to the input model file and a path to an output directory with write permissions:
 ```sh
-python3 mo_mxnet.py --input_model model-file-0000.params --output_dir <OUTPUT_MODEL_DIR>
+ mo --input_model model-file-0000.params --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 Two groups of parameters are available to convert your model:
 
-* [Framework-agnostic parameters](Converting_Model_General.md): These parameters are used to convert any model trained in any supported framework.
-* [MXNet-specific parameters](#mxnet_specific_conversion_params): Parameters used to convert only MXNet models
+* Framework-agnostic parameters are used to convert a model trained with any supported framework. For details, see the General Conversion Parameters section on the [Converting a Model to Intermediate Representation (IR)](Converting_Model.md) page.
+* [MXNet-specific parameters](#mxnet_specific_conversion_params) are used to convert only MXNet models.
 
 
 ### Using MXNet\*-Specific Conversion Parameters <a name="mxnet_specific_conversion_params"></a>
@@ -80,7 +91,7 @@ MXNet-specific parameters:
             Use only if your topology is one of ssd gluoncv topologies
 ```
 
-> **NOTE:** By default, the Model Optimizer does not use the MXNet loader, as it transforms the topology to another format, which is compatible with the latest
+> **NOTE**: By default, the Model Optimizer does not use the MXNet loader, as it transforms the topology to another format, which is compatible with the latest
 > version of MXNet, but it is required for models trained with lower version of MXNet. If your model was trained with MXNet version lower than 1.0.0, specify the
 > `--legacy_mxnet_model` key to enable the MXNet loader. However, the loader does not support models with custom layers. In this case, you must manually
 > recompile MXNet with custom layers and install it to your environment.

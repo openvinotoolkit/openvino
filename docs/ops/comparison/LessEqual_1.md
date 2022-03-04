@@ -1,35 +1,10 @@
-## LessEqual <a name="LessEqual"></a> {#openvino_docs_ops_comparison_LessEqual_1}
+# LessEqual {#openvino_docs_ops_comparison_LessEqual_1}
 
 **Versioned name**: *LessEqual-1*
 
-**Category**: Comparison binary operation
+**Category**: *Comparison binary*
 
-**Short description**: *LessEqual* performs element-wise comparison operation with two given tensors applying multi-directional broadcast rules.
-
-**Attributes**:
-
-* *auto_broadcast*
-
-  * **Description**: specifies rules used for auto-broadcasting of input tensors.
-  * **Range of values**:
-    * *none* - no auto-broadcasting is allowed, all input shapes should match
-    * *numpy* - numpy broadcasting rules, aligned with ONNX Broadcasting. Description is available in <a href="https://github.com/onnx/onnx/blob/master/docs/Broadcasting.md">ONNX docs</a>.
-  * **Type**: string
-  * **Default value**: "numpy"
-  * **Required**: *no*
-
-**Inputs**
-
-* **1**: A tensor of type *T*. **Required.**
-* **2**: A tensor of type *T*. **Required.**
-
-**Outputs**
-
-* **1**: The result of element-wise comparison operation. A tensor of type boolean.
-
-**Types**
-
-* *T*: arbitrary supported type.
+**Short description**: *LessEqual* performs element-wise comparison operation with two given tensors applying broadcast rules specified in the *auto_broadcast* attribute.
 
 **Detailed description**
 Before performing arithmetic operation, input tensors *a* and *b* are broadcasted if their shapes are different and `auto_broadcast` attributes is not `none`. Broadcasting is performed according to `auto_broadcast` value.
@@ -37,15 +12,42 @@ Before performing arithmetic operation, input tensors *a* and *b* are broadcaste
 After broadcasting *LessEqual* does the following with the input tensors *a* and *b*:
 
 \f[
-o_{i} = a_{i} <= b_{i}
+o_{i} = a_{i} \leq b_{i}
 \f]
+
+**Attributes**:
+
+* *auto_broadcast*
+
+  * **Description**: specifies rules used for auto-broadcasting of input tensors.
+  * **Range of values**:
+    * *none* - no auto-broadcasting is allowed, all input shapes should match,
+    * *numpy* -  numpy broadcasting rules, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md),
+    * *pdpd* - PaddlePaddle-style implicit broadcasting, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md).
+  * **Type**: string
+  * **Default value**: "numpy"
+  * **Required**: *no*
+
+**Inputs**
+
+* **1**: A tensor of type *T* and arbitrary shape. **Required.**
+* **2**: A tensor of type *T* and arbitrary shape. **Required.**
+
+**Outputs**
+
+* **1**: The result of element-wise comparison operation applied to the input tensors. A tensor of type **boolean** and  shape equal to broadcasted shape of two inputs.
+
+**Types**
+
+* *T*: arbitrary supported type.
 
 **Examples**
 
-*Example 1*
+*Example 1: no broadcast*
 
 ```xml
 <layer ... type="LessEqual">
+    <data auto_broadcast="none"/>
     <input>
         <port id="0">
             <dim>256</dim>
@@ -65,9 +67,10 @@ o_{i} = a_{i} <= b_{i}
 </layer>
 ```
 
-*Example 2: broadcast*
+*Example 2: numpy broadcast*
 ```xml
 <layer ... type="LessEqual">
+    <data auto_broadcast="numpy"/>
     <input>
         <port id="0">
             <dim>8</dim>

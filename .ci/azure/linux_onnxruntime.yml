@@ -1,25 +1,34 @@
+trigger:
+  branches:
+    include:
+    - master
+    - releases/*
+  paths:
+    exclude:
+    - docs/*
+
 jobs:
 - job: onnxruntime
   timeoutInMinutes: 90
 
   pool:
-    name: LIN_VMSS_VENV_ONNX_WU2
+    name: LIN_VMSS_VENV_ONNX_U20_WU2
 
   variables:
     system.debug: true
     VSTS_HTTP_RETRY: 5
     VSTS_HTTP_TIMEOUT: 200
-    WORKERS_NUMBER: 8
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
     ONNXRUNTIME_REPO_DIR: $(REPO_DIR)/../onnxruntime
     WORK_DIR: $(Pipeline.Workspace)/_w
     MODELS_DIR: /mount/cinfsshare/onnxtestdata
     TMP_DIR: /mnt/tmp
-    INSTALL_DIR: $(WORK_DIR)/install_pkg
+    INSTALL_DIR: $(WORK_DIR)/install_pkg/openvino
     BUILD_DIR: $(WORK_DIR)/build
     ONNXRUNTIME_UTILS: $(REPO_DIR)/.ci/azure/ci_utils/onnxruntime
     ONNXRUNTIME_BUILD_DIR: $(ONNXRUNTIME_REPO_DIR)/build
+
   steps:
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
@@ -29,6 +38,7 @@ jobs:
       echo Python info ; which python ; python --version
       echo Java info ; which java ; java -version
       echo gcc info ; which gcc ; gcc --version
+      echo cmake info ; which cmake ; cmake --version
       lsb_release
       env
       cat /proc/cpuinfo
@@ -44,7 +54,7 @@ jobs:
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       sudo rm -rf $(TMP_DIR) ; sudo mkdir $(TMP_DIR) ; sudo chmod 777 -R $(TMP_DIR)
       sudo mkdir -p $(MODELS_DIR)
-      sudo apt --assume-yes install nfs-common
+      sudo apt --assume-yes update && sudo apt --assume-yes install nfs-common
       sudo mount -vvv -t nfs cinfsshare.file.core.windows.net:/cinfsshare/onnxtestdata $(MODELS_DIR) -o vers=4,minorversion=1,sec=sys
     displayName: 'Make dirs'
 
@@ -60,15 +70,14 @@ jobs:
     displayName: 'Clone onnxruntime'
 
   - script: |
-      sudo apt --assume-yes install libusb-1.0-0-dev
-      # For opencv-python: setuptools and upgrade
-      sudo apt-get install python3-setuptools
+      set -e
+      $(REPO_DIR)/install_build_dependencies.sh
       python3 -m pip install --upgrade pip
-      python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/requirements.txt
+      python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements.txt
       # For running Python API tests
-      python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/src/requirements-dev.txt
+      python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
       # Speed up build
-      wget https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-linux.zip
+      wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
       unzip ninja-linux.zip
       sudo cp -v ninja /usr/local/bin/
       # Speed up tests
@@ -83,74 +92,71 @@ jobs:
         -GNinja
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_PYTHON=ON
-        -DPYTHON_EXECUTABLE=/usr/bin/python3.6
-        -DENABLE_VPU=OFF
-        -DENABLE_GNA=OFF
+        -DPYTHON_EXECUTABLE=/usr/bin/python3.8
+        -DENABLE_INTEL_MYRIAD_COMMON=OFF
+        -DENABLE_INTEL_GNA=OFF
         -DENABLE_OPENCV=OFF
         -DENABLE_CPPLINT=OFF
         -DENABLE_TESTS=OFF
-        -DENABLE_MKL_DNN=ON
-        -DENABLE_CLDNN=OFF
+        -DENABLE_INTEL_CPU=ON
+        -DENABLE_INTEL_GPU=OFF
         -DENABLE_PROFILING_ITT=OFF
         -DENABLE_SAMPLES=OFF
-        -DENABLE_SPEECH_DEMO=OFF
-        -DNGRAPH_ONNX_IMPORT_ENABLE=ON
-        -DNGRAPH_ONNX_EDITOR_ENABLE=ON
-        -DNGRAPH_DEBUG_ENABLE=OFF
+        -DENABLE_OV_ONNX_FRONTEND=ON
+        -DENABLE_OPENVINO_DEBUG=OFF
         $(REPO_DIR)
       workingDirectory: $(BUILD_DIR)
 
   - script: ninja
     workingDirectory: $(BUILD_DIR)
-    displayName: 'Build Lin'
+    displayName: 'Build Lin ONNX'
 
   - script: ls -alR $(REPO_DIR)/bin/
-    displayName: 'List files'
+    displayName: 'List bin files'
 
   - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install'
 
   - script: |
-      source $(INSTALL_DIR)/bin/setupvars.sh
-      echo "2021.2" > $(INSTALL_DIR)/deployment_tools/inference_engine/version.txt
+      source $(INSTALL_DIR)/setupvars.sh
       CXXFLAGS="-Wno-error=deprecated-declarations" ./build.sh --config RelWithDebInfo --use_openvino CPU_FP32 --build_shared_lib --parallel --skip_tests --build_dir $(ONNXRUNTIME_BUILD_DIR)
     workingDirectory: $(ONNXRUNTIME_REPO_DIR)
-    displayName: 'Build ONNX Runtime'
+    displayName: 'Build Lin ONNX Runtime'
 
   - script: |
-      source $(INSTALL_DIR)/bin/setupvars.sh
+      source $(INSTALL_DIR)/setupvars.sh
       skip_tests=`tr -s '\n ' ':' < $(ONNXRUNTIME_UTILS)/skip_tests`
       ./onnxruntime_test_all --gtest_filter=-$skip_tests
     workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run onnxruntime_test_all'
 
   - script: |
-      source $(INSTALL_DIR)/bin/setupvars.sh
+      source $(INSTALL_DIR)/setupvars.sh
       ./onnxruntime_shared_lib_test
     workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run onnxruntime_shared_lib_test'
 
   - script: |
-      source $(INSTALL_DIR)/bin/setupvars.sh
+      source $(INSTALL_DIR)/setupvars.sh
       ./onnxruntime_global_thread_pools_test
     workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run onnxruntime_global_thread_pools_test'
 
   - script: |
-      source $(INSTALL_DIR)/bin/setupvars.sh
+      source $(INSTALL_DIR)/setupvars.sh
       ./onnxruntime_api_tests_without_env
     workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run onnxruntime_api_tests_without_env'
 
   - script: |
-      source $(INSTALL_DIR)/bin/setupvars.sh
+      source $(INSTALL_DIR)/setupvars.sh
       ./onnx_test_runner "$(ONNXRUNTIME_REPO_DIR)/cmake/external/onnx/onnx/backend/test/data/pytorch-converted"
     workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run pytorch-converted tests'
 
   - script: |
-      source $(INSTALL_DIR)/bin/setupvars.sh
+      source $(INSTALL_DIR)/setupvars.sh
       ./onnx_test_runner "$(ONNXRUNTIME_REPO_DIR)/cmake/external/onnx/onnx/backend/test/data/pytorch-operator"
     workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run pytorch-operator tests'

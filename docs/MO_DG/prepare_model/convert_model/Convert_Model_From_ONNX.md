@@ -1,5 +1,21 @@
 # Converting a ONNX* Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX}
 
+@sphinxdirective
+
+.. _convert model onnx:
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_Faster_RCNN
+   openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_Mask_RCNN
+   openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_GPT2
+   openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_DLRM
+   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch
+
+@endsphinxdirective
+
 ## Introduction to ONNX
 
 [ONNX*](https://github.com/onnx/onnx) is a representation format for deep learning models. ONNX allows AI developers easily transfer models between different frameworks that helps to choose the best combination for them. Today, PyTorch\*, Caffe2\*, Apache MXNet\*, Microsoft Cognitive Toolkit\* and other tools are developing ONNX support.
@@ -57,15 +73,11 @@ The list of supported topologies from the [models v1.5](https://github.com/Paddl
 ## Convert an ONNX* Model <a name="Convert_From_ONNX"></a>
 The Model Optimizer process assumes you have an ONNX model that was directly downloaded from a public repository or converted from any framework that supports exporting to the ONNX format.
 
-To convert an ONNX\* model:
-
-1. Go to the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory.
-2. Use the `mo.py` script to simply convert a model with the path to the input model `.nnet` file and an output directory where you have write permissions:
+To convert an ONNX\* model, run Model Optimizer with the path to the input model `.nnet` file and an output directory where you have write permissions:
 ```sh
-python3 mo.py --input_model <INPUT_MODEL>.onnx --output_dir <OUTPUT_MODEL_DIR>
+ mo --input_model <INPUT_MODEL>.onnx --output_dir <OUTPUT_MODEL_DIR>
 ```
-
-There are no ONNX\* specific parameters, so only [framework-agnostic parameters](Converting_Model_General.md) are available to convert your model.
+There are no ONNX\* specific parameters, so only framework-agnostic parameters are available to convert your model. For details, see the General Conversion Parameters section on the [Converting a Model to Intermediate Representation (IR)](Converting_Model.md) page.
 
 ## Supported ONNX\* Layers
 Refer to [Supported Framework Layers](../Supported_Frameworks_Layers.md) for the list of supported standard layers.

@@ -21,28 +21,29 @@
 #include "Utils.h"
 
 #ifndef _WIN32
-    #include <sys/syscall.h>
-    #include <unistd.h>
+#    include <sys/syscall.h>
+#    include <unistd.h>
 #endif
 
 #ifdef _WIN32
 static const int64_t g_PID = (int64_t)GetCurrentProcessId();
 #else
 static const int64_t g_PID = (int64_t)getpid();
-    #if defined(__APPLE__)
+#    if defined(__APPLE__)
 inline int64_t GetTidFromPThread() {
     uint64_t tid64 = 0;
     pthread_threadid_np(NULL, &tid64);
     return (int64_t)tid64;
 }
-    #endif
+#    endif
 #endif
 
 // https://github.com/google/trace-viewer
 // For ETW see here:
 // http://git.chromium.org/gitweb/?p=chromium/src.git;a=commitdiff;h=41fabf8e2dd3a847cbdad05da9b43fd9a99d741a
 // (content/browser/tracing/etw_system_event_consumer_win.cc)
-// parser source: https://github.com/google/trace-viewer/blob/49d0dd94c3925c3721d059ad3ee2db51d176248c/trace_viewer/extras/importer/trace_event_importer.html
+// parser source:
+// https://github.com/google/trace-viewer/blob/49d0dd94c3925c3721d059ad3ee2db51d176248c/trace_viewer/extras/importer/trace_event_importer.html
 class CTraceEventFormat {
 public:
     struct SRegularFields {

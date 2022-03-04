@@ -1,16 +1,16 @@
-## HSwish <a name="HSwish"></a> {#openvino_docs_ops_activation_HSwish_4}
+# HSwish {#openvino_docs_ops_activation_HSwish_4}
 
 **Versioned name**: *HSwish-4*
 
-**Category**: *Activation*
+**Category**: *Activation function*
 
 **Short description**: HSwish takes one input tensor and produces output tensor where the hard version of swish function is applied to the tensor elementwise.
 
 **Detailed description**: For each element from the input tensor calculates corresponding
-element in the output tensor with the following formula: 
+element in the output tensor with the following formula:
 
 \f[
-HSwish(x) = x \frac{min(max(x + 3, 0), 6)}{6}
+HSwish(x) = x \cdot \frac{min(max(x + 3,\ 0),\ 6)}{6}
 \f]
 
 The HSwish operation is introduced in the following [article](https://arxiv.org/pdf/1905.02244.pdf).
@@ -19,7 +19,7 @@ The HSwish operation is introduced in the following [article](https://arxiv.org/
 
 **Inputs**:
 
-*   **1**: Multidimensional input tensor of type *T*. **Required**.
+*   **1**: Multidimensional input tensor of type *T*. **Required.**
 
 **Outputs**:
 
@@ -27,7 +27,7 @@ The HSwish operation is introduced in the following [article](https://arxiv.org/
 
 **Types**
 
-* *T*: arbitrary supported floating point type.
+* *T*: arbitrary supported floating-point type.
 
 
 **Example**

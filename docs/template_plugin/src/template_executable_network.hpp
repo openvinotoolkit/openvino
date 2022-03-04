@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,24 +23,33 @@ class Plugin;
 // ! [executable_network:header]
 class ExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDefault {
 public:
-    ExecutableNetwork(const std::shared_ptr<const ngraph::Function>& function, const InferenceEngine::InputsDataMap& inputInfoMap,
-                      const InferenceEngine::OutputsDataMap& outputsInfoMap, const Configuration& cfg, const std::shared_ptr<Plugin>& plugin);
+    ExecutableNetwork(const std::shared_ptr<const ngraph::Function>& function,
+                      const InferenceEngine::InputsDataMap& inputInfoMap,
+                      const InferenceEngine::OutputsDataMap& outputsInfoMap,
+                      const Configuration& cfg,
+                      const std::shared_ptr<Plugin>& plugin);
 
     ExecutableNetwork(std::istream& model, const Configuration& cfg, const std::shared_ptr<Plugin>& plugin);
 
     // Methods from a base class ExecutableNetworkThreadSafeDefault
 
     void Export(std::ostream& model) override;
-    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
-                                                                       InferenceEngine::OutputsDataMap networkOutputs) override;
+    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(
+        InferenceEngine::InputsDataMap networkInputs,
+        InferenceEngine::OutputsDataMap networkOutputs) override;
+    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(
+        const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+        const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
     InferenceEngine::Parameter GetMetric(const std::string& name) const override;
     InferenceEngine::Parameter GetConfig(const std::string& name) const override;
 
 private:
     friend class TemplateInferRequest;
+    friend class Plugin;
 
-    void CompileNetwork(const std::shared_ptr<const ngraph::Function>& function, const InferenceEngine::InputsDataMap& inputInfoMap,
+    void CompileNetwork(const std::shared_ptr<const ngraph::Function>& function,
+                        const InferenceEngine::InputsDataMap& inputInfoMap,
                         const InferenceEngine::OutputsDataMap& outputsInfoMap);
     void InitExecutor();
 

@@ -31,15 +31,15 @@
 #include <vector>
 
 #if defined(__arm__) && !defined(__aarch64__)
-    #define ARM32
+#    define ARM32
 #endif
 
 #ifdef _WIN32
-    #include <windows.h>
+#    include <windows.h>
 #else
-    #include <fcntl.h>
-    #include <sys/stat.h>
-    #include <sys/types.h>
+#    include <fcntl.h>
+#    include <sys/stat.h>
+#    include <sys/types.h>
 #endif
 
 static std::string get_environ_value(const std::string& name) {
@@ -142,9 +142,9 @@ typedef std::recursive_mutex TCritSec;
 #endif
 
 #ifdef _MSC_VER
-    #define thread_local __declspec(thread)
+#    define thread_local __declspec(thread)
 #else
-    #define thread_local __thread
+#    define thread_local __thread
 #endif
 
 template <size_t size>
@@ -201,7 +201,7 @@ protected:
     std::function<void(void)> m_fn;
 
 public:
-    CScope(const std::function<void(void)>& fn): m_fn(fn) {}
+    CScope(const std::function<void(void)>& fn) : m_fn(fn) {}
     ~CScope() {
         m_fn();
     }

@@ -1,8 +1,8 @@
-## Cos <a name="Cos"></a> {#openvino_docs_ops_arithmetic_Cos_1}
+# Cos {#openvino_docs_ops_arithmetic_Cos_1}
 
 **Versioned name**: *Cos-1*
 
-**Category**: Arithmetic unary operation
+**Category**: *Arithmetic unary*
 
 **Short description**: *Cos* performs element-wise cosine operation on a given input tensor.
 

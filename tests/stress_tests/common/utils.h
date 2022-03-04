@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,6 @@
 #include <vector>
 #include <thread>
 #include <functional>
-#include <sys/unistd.h>
-#include <sys/wait.h>
 
 #ifdef _WIN32
 #define OS_SEP std::string("\\")
@@ -39,29 +37,7 @@ size_t getVmRSSInKB();
 size_t getVmHWMInKB();
 size_t getThreadsNum();
 
-template<typename Function, typename ... Args>
-int run_in_processes(const int &numprocesses, Function const &function, Args ... args) {
-    std::vector<pid_t> child_pids(numprocesses);
-
-    for (int i = 0; i < numprocesses; i++) {
-        child_pids[i] = fork();
-        if (child_pids[i] == 0) {
-            function(args...);
-            exit(EXIT_SUCCESS);
-        }
-    }
-
-    int status = 0;
-    for (int i = 0; i < numprocesses; i++) {
-        int _status = 0;
-        waitpid(child_pids[i], &_status, WSTOPPED);
-        if (_status) {
-            log_err("Process run # " << i << " failed with exitcode " << _status);
-            status = _status;
-        }
-    }
-    return status;
-}
+int run_in_processes(const int &numprocesses, const std::function<void()> &function);
 
 template<typename Function, typename ... Args>
 inline void run_in_threads(const int &numthreads, Function const &function, Args ... args) {

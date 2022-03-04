@@ -1,10 +1,18 @@
-## LogicalOr <a name="LogicalOr"></a> {#openvino_docs_ops_logical_LogicalOr_1}
+# LogicalOr {#openvino_docs_ops_logical_LogicalOr_1}
 
 **Versioned name**: *LogicalOr-1*
 
-**Category**: Logical binary operation
+**Category**: *Logical binary*
 
 **Short description**: *LogicalOr* performs element-wise logical OR operation with two given tensors applying multi-directional broadcast rules.
+
+**Detailed description**: Before performing logical operation, input tensors *a* and *b* are broadcasted if their shapes are different and `auto_broadcast` attributes is not `none`. Broadcasting is performed according to `auto_broadcast` value.
+
+After broadcasting *LogicalOr* does the following with the input tensors *a* and *b*:
+
+\f[
+o_{i} = a_{i} \lor b_{i}
+\f]
 
 **Attributes**:
 
@@ -12,37 +20,29 @@
 
   * **Description**: specifies rules used for auto-broadcasting of input tensors.
   * **Range of values**:
-    * *none* - no auto-broadcasting is allowed, all input shapes should match
-    * *numpy* - numpy broadcasting rules, aligned with ONNX Broadcasting. Description is available in <a href="https://github.com/onnx/onnx/blob/master/docs/Broadcasting.md">ONNX docs</a>.
+    * *none* - no auto-broadcasting is allowed, all input shapes must match
+    * *numpy* - numpy broadcasting rules, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md),
+    * *pdpd* - PaddlePaddle-style implicit broadcasting, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md).
   * **Type**: string
   * **Default value**: "numpy"
   * **Required**: *no*
 
 **Inputs**
 
-* **1**: A tensor of type *T*. **Required**.
-* **2**: A tensor of type *T*. **Required**.
+* **1**: A tensor of type *T_BOOL* and arbitrary shape. **Required.**
+* **2**: A tensor of type *T_BOOL* and arbitrary shape. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise logical OR operation. A tensor of type boolean.
+* **1**: The result of element-wise *LogicalOr* operation. A tensor of type *T_BOOL* and the same shape equal to broadcasted shape of two inputs.
 
 **Types**
 
-* *T*: boolean type.
-
-**Detailed description**
-Before performing logical operation, input tensors *a* and *b* are broadcasted if their shapes are different and `auto_broadcast` attributes is not `none`. Broadcasting is performed according to `auto_broadcast` value.
-
-After broadcasting *LogicalOr* does the following with the input tensors *a* and *b*:
-
-\f[
-o_{i} = a_{i} or b_{i}
-\f]
+* *T_BOOL*: `boolean`.
 
 **Examples**
 
-*Example 1*
+*Example 1: no broadcast*
 
 ```xml
 <layer ... type="LogicalOr">
@@ -65,7 +65,7 @@ o_{i} = a_{i} or b_{i}
 </layer>
 ```
 
-*Example 2: broadcast*
+*Example 2: numpy broadcast*
 ```xml
 <layer ... type="LogicalOr">
     <input>

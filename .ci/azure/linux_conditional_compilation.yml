@@ -1,25 +1,32 @@
+trigger:
+  branches:
+    include:
+    - master
+    - releases/*
+  paths:
+    exclude:
+    - docs/*
+
 jobs:
 - job: LinCC
   # About 150% of total time
   timeoutInMinutes: 90
 
   pool:
-    name: LIN_VMSS_VENV_F16S_WU2
+    name: LIN_VMSS_VENV_F16S_U20_WU2
 
   variables:
     system.debug: true
     VSTS_HTTP_RETRY: 5
     VSTS_HTTP_TIMEOUT: 200
-    WORKERS_NUMBER: 16
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
     OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)/../openvino_contrib
     MODELS_PATH: $(REPO_DIR)/../testdata
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
-    BIN_DIR: $(REPO_DIR)/bin/intel64/$(BUILD_TYPE)
     INSTALL_DIR: $(WORK_DIR)/install_pkg
-    SETUPVARS: $(INSTALL_DIR)/bin/setupvars.sh
+    SETUPVARS: $(INSTALL_DIR)/setupvars.sh
 
   steps:
   - script: |
@@ -30,6 +37,7 @@ jobs:
       echo Python info ; which python ; python --version
       echo Java info ; which java ; java -version
       echo gcc info ; which gcc ; gcc --version
+      echo cmake info ; which cmake ; cmake --version
       lsb_release
       env
       cat /proc/cpuinfo
@@ -53,10 +61,11 @@ jobs:
     path: openvino
 
   - script: |
-      sudo apt --assume-yes install libusb-1.0-0-dev
-      python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/requirements.txt
+      set -e
+      $(REPO_DIR)/install_build_dependencies.sh
+      python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements.txt
       # Speed up build
-      wget https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-linux.zip
+      wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
       unzip ninja-linux.zip
       sudo cp -v ninja /usr/local/bin/
     workingDirectory: $(WORK_DIR)
@@ -76,12 +85,14 @@ jobs:
 
   - script: ninja
     workingDirectory: $(BUILD_DIR)
-    displayName: 'Build'
+    displayName: 'Build LinCC'
 
   - script: ls -alR $(REPO_DIR)/bin/
-    displayName: 'List files'
+    displayName: 'List bin files'
 
   - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install'
 
+  - script: ls -alR $(INSTALL_DIR)
+    displayName: 'List install files'

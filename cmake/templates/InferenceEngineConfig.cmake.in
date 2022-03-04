@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 #
@@ -25,88 +25,32 @@
 
 @PACKAGE_INIT@
 
-#
-# Common functions
-#
-
 if(NOT DEFINED CMAKE_FIND_PACKAGE_NAME)
     set(CMAKE_FIND_PACKAGE_NAME InferenceEngine)
-    set(_need_package_name_reset ON)
+    set(_ie_need_package_name_reset ON)
 endif()
 
-# we have to use our own version of find_dependency because of support cmake 3.7
-macro(_ie_find_dependency dep)
-    set(cmake_fd_quiet_arg)
-    if(${CMAKE_FIND_PACKAGE_NAME}_FIND_QUIETLY)
-        set(cmake_fd_quiet_arg QUIET)
-    endif()
-    set(cmake_fd_required_arg)
-    if(${CMAKE_FIND_PACKAGE_NAME}_FIND_REQUIRED)
-        set(cmake_fd_required_arg REQUIRED)
-    endif()
+# need to store current PACKAGE_PREFIX_DIR, because it's overwritten by sub-package one
+set(_ie_package_prefix_dir "${PACKAGE_PREFIX_DIR}")
 
-    get_property(cmake_fd_alreadyTransitive GLOBAL PROPERTY
-        _CMAKE_${dep}_TRANSITIVE_DEPENDENCY)
+include(CMakeFindDependencyMacro)
 
-    find_package(${dep} ${ARGN}
-        ${cmake_fd_quiet_arg}
-        ${cmake_fd_required_arg})
+find_dependency(OpenVINO
+                PATHS "${CMAKE_CURRENT_LIST_DIR}"
+                NO_CMAKE_FIND_ROOT_PATH
+                NO_DEFAULT_PATH)
 
-    if(NOT DEFINED cmake_fd_alreadyTransitive OR cmake_fd_alreadyTransitive)
-        set_property(GLOBAL PROPERTY _CMAKE_${dep}_TRANSITIVE_DEPENDENCY TRUE)
-    endif()
-
-    if(NOT ${dep}_FOUND)
-        set(${CMAKE_FIND_PACKAGE_NAME}_NOT_FOUND_MESSAGE "${CMAKE_FIND_PACKAGE_NAME} could not be found because dependency ${dep} could not be found.")
-        set(${CMAKE_FIND_PACKAGE_NAME}_FOUND False)
-        return()
-    endif()
-
-    set(cmake_fd_required_arg)
-    set(cmake_fd_quiet_arg)
-endmacro()
-
-function(_ie_target_no_deprecation_error)
-    if(NOT MSVC)
-        if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-            set(flags "-diag-warning=1786")
-        else()
-            set(flags "-Wno-error=deprecated-declarations")
-        endif()
-
-        set_target_properties(${ARGV} PROPERTIES INTERFACE_COMPILE_OPTIONS ${flags})
-    endif()
-endfunction()
-
-#
-# Inference Engine config
-#
-
-# need to store current PACKAGE_PREFIX_DIR, because it's overwritten by ngraph one
-set(IE_PACKAGE_PREFIX_DIR "${PACKAGE_PREFIX_DIR}")
-
-set(THREADING "@THREADING@")
-if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
-    set_and_check(_tbb_dir "@PACKAGE_IE_TBB_DIR@")
-    _ie_find_dependency(TBB
-                        COMPONENTS tbb tbbmalloc
-                        CONFIG
-                        PATHS ${TBBROOT}/cmake
-                              ${_tbb_dir}
-                        NO_CMAKE_FIND_ROOT_PATH
-                        NO_DEFAULT_PATH)
+# create targets with old names for compatibility
+if(TARGET openvino::runtime AND NOT TARGET IE::inference_engine)
+    add_library(IE::inference_engine INTERFACE IMPORTED)
+    set_target_properties(IE::inference_engine PROPERTIES
+        INTERFACE_LINK_LIBRARIES openvino::runtime)
 endif()
 
-set_and_check(_ngraph_dir "@PACKAGE_IE_NGRAPH_DIR@")
-_ie_find_dependency(ngraph
-                    CONFIG
-                    PATHS ${_ngraph_dir}
-                    NO_CMAKE_FIND_ROOT_PATH
-                    NO_DEFAULT_PATH)
-
-if(NOT TARGET inference_engine)
-    set(_ie_as_external_package ON)
-    include("${CMAKE_CURRENT_LIST_DIR}/InferenceEngineTargets.cmake")
+if(TARGET openvino::runtime::c AND NOT TARGET IE::inference_engine_c_api)
+    add_library(IE::inference_engine_c_api INTERFACE IMPORTED)
+    set_target_properties(IE::inference_engine_c_api PROPERTIES
+        INTERFACE_LINK_LIBRARIES openvino::runtime::c)
 endif()
 
 # mark components as available
@@ -122,29 +66,21 @@ unset(InferenceEngine_LIBRARIES)
 foreach(comp IN LISTS ${CMAKE_FIND_PACKAGE_NAME}_FIND_COMPONENTS)
     # check if the component is available
     if(${CMAKE_FIND_PACKAGE_NAME}_${comp}_FOUND)
-        set(pcomp ${comp})
-        if(_ie_as_external_package)
-            set(pcomp IE::${comp})
-        endif()
+        set(pcomp IE::${comp})
 
         list(APPEND InferenceEngine_LIBRARIES ${pcomp})
     endif()
 endforeach()
 
-if(_ie_as_external_package)
-    _ie_target_no_deprecation_error(${InferenceEngine_LIBRARIES})
-endif()
-unset(_ie_as_external_package)
-
 # restore PACKAGE_PREFIX_DIR
-set(PACKAGE_PREFIX_DIR ${IE_PACKAGE_PREFIX_DIR})
-unset(IE_PACKAGE_PREFIX_DIR)
+set(PACKAGE_PREFIX_DIR ${_ie_package_prefix_dir})
+unset(_ie_package_prefix_dir)
 
 set_and_check(InferenceEngine_INCLUDE_DIRS "@PACKAGE_IE_INCLUDE_DIR@")
 
 check_required_components(${CMAKE_FIND_PACKAGE_NAME})
 
-if(_need_package_name_reset)
+if(_ie_need_package_name_reset)
     unset(CMAKE_FIND_PACKAGE_NAME)
-    unset(_need_package_name_reset)
+    unset(_ie_need_package_name_reset)
 endif()

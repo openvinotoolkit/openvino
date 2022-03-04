@@ -1,35 +1,31 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 cmake_minimum_required(VERSION 3.13)
 
-if (CMAKE_BUILD_TYPE STREQUAL "")
-    message(STATUS "CMAKE_BUILD_TYPE not defined, 'Release' will be used")
-    set(CMAKE_BUILD_TYPE "Release")
+set (CMAKE_CXX_STANDARD 11)
+set (CMAKE_CXX_EXTENSIONS OFF)
+set (CMAKE_CXX_STANDARD_REQUIRED ON)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set (CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
 endif()
 
-find_package(InferenceEngineDeveloperPackage REQUIRED)
+set(CMAKE_BUILD_TYPE "Release" CACHE STRING "CMake build type")
+set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Release" "Debug" "RelWithDebInfo" "MinSizeRel")
+
+# Define directory where artifacts will be placed
+set(OUTPUT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
+
+# Search OpenVINO Inference Engine installed
+find_package(OpenVINO REQUIRED)
 
 set(OpenVINO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../")
-
-if(EXISTS "${OpenVINO_SOURCE_DIR}/thirdparty/gflags")
-    function(add_gflags)
-        set(GFLAGS_IS_SUBPROJECT TRUE)
-        set(HAVE_SYS_STAT_H 1)
-        set(HAVE_INTTYPES_H 1)
-        set(INTTYPES_FORMAT C99)
-        set(BUILD_TESTING OFF)
-        set(BUILD_SHARED_LIBS OFF)
-        add_subdirectory(${OpenVINO_SOURCE_DIR}/thirdparty/gflags
-                         ${CMAKE_CURRENT_BINARY_DIR}/gflags_build
-                         EXCLUDE_FROM_ALL)
-        set_target_properties(gflags_nothreads_static PROPERTIES FOLDER thirdparty)
-    endfunction()
-    add_gflags()
-endif()
 
 add_subdirectory(common)
 add_subdirectory(unittests)
 add_subdirectory(memleaks_tests)
 add_subdirectory(memcheck_tests)
+
+install(DIRECTORY scripts/ DESTINATION tests/stress_tests/scripts COMPONENT tests EXCLUDE_FROM_ALL)
+install(DIRECTORY .automation/ DESTINATION tests/stress_tests/.automation COMPONENT tests EXCLUDE_FROM_ALL)

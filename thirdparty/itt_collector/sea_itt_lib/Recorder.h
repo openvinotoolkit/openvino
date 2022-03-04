@@ -21,14 +21,14 @@
 //#define TURBO_MODE
 
 #ifdef _WIN32
-    #include <windows.h>
+#    include <windows.h>
 #else
-    #include <dlfcn.h>
-    #include <fcntl.h>
-    #include <sys/mman.h>
-    #include <sys/stat.h>
-    #include <sys/types.h>
-    #include <unistd.h>
+#    include <dlfcn.h>
+#    include <fcntl.h>
+#    include <sys/mman.h>
+#    include <sys/stat.h>
+#    include <sys/types.h>
+#    include <unistd.h>
 #endif
 #include <string>
 
@@ -145,7 +145,10 @@ struct SRecord {
     void* function;
 };
 double* WriteRecord(ERecordType type, const SRecord& record);
-void WriteMeta(const CTraceEventFormat::SRegularFields& main, __itt_string_handle* pKey, const char* name, double* pDelta = nullptr);
+void WriteMeta(const CTraceEventFormat::SRegularFields& main,
+               __itt_string_handle* pKey,
+               const char* name,
+               double* pDelta = nullptr);
 
 namespace sea {
 struct IHandler;

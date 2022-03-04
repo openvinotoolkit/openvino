@@ -1,6 +1,6 @@
 # !/usr/bin/env python3
 
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # pylint:disable=invalid-name,no-name-in-module,logging-format-interpolation,redefined-outer-name
@@ -9,8 +9,10 @@
 """
 import argparse
 import logging as log
-import sys
 import os
+import sys
+from pathlib import Path
+
 import numpy as np
 from openvino.inference_engine import IECore
 
@@ -25,8 +27,8 @@ def input_preparation(net):
     """
 
     feed_dict = {}
-    for layer_name, layer_data in net.inputs.items():
-        feed_dict.update({layer_name: np.ones(shape=layer_data.shape)})
+    for layer_name, layer_data in net.input_info.items():
+        feed_dict.update({layer_name: np.ones(shape=layer_data.input_data.shape)})
     return feed_dict
 
 
@@ -58,22 +60,30 @@ def cli_parser():
     :return: ir path, device and output folder path variables.
     """
     parser = argparse.ArgumentParser(description='Arguments for python API inference')
-    parser.add_argument('-m', dest='ir_path', required=True, help='Path to XML file of IR')
+    parser.add_argument('-m', dest='ir_path', required=True, help='Path to XML file of IR',  action="append")
     parser.add_argument('-d', dest='device', required=True, help='Target device to infer on')
-    parser.add_argument('-r', dest='out_path', required=True,
+    parser.add_argument('-r', dest='out_path', required=True, type=Path,
                         help='Dumps results to the output file')
+    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',
+                        help='Increase output verbosity')
     args = parser.parse_args()
     ir_path = args.ir_path
     device = args.device
     out_path = args.out_path
+    if args.verbose:
+        log.getLogger().setLevel(log.DEBUG)
     return ir_path, device, out_path
 
 
 if __name__ == "__main__":
     ir_path, device, out_path = cli_parser()
-    results = infer(ir_path=ir_path, device=device)
-    np.savez(out_path, **results)
-    log.info("Path for inference results: {}".format(out_path))
-    log.info("Inference results:")
-    log.info(results)
-    log.info("SUCCESS!")
+
+    for model in ir_path:
+        result = infer(ir_path=model, device=device)
+
+        np.savez(out_path / f"{Path(model).name}.npz", **result)
+
+        log.info("Path for inference results: {}".format(out_path))
+        log.debug("Inference results:")
+        log.debug(result)
+        log.debug("SUCCESS!")

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,7 @@ std::array<long, MeasureValueMax> MemCheckPipeline::measure() {
     return measures;
 }
 
-void MemCheckPipeline::record_measures(const std::string & id) {
+void MemCheckPipeline::record_measures(const std::string &id) {
     std::array<long, MeasureValueMax> measures = measure();
     log_debug("[ MEASURE ] " << MEMCHECK_DELIMITER << id);
     log_info(util::get_measure_values_headers(MEMCHECK_DELIMITER));
@@ -62,7 +62,7 @@ std::string MemCheckPipeline::get_reference_record_for_test(std::string test_nam
     return ss.str();
 }
 
-TestResult common_test_pipeline(const std::function<std::array<long, MeasureValueMax>()>& test_pipeline,
+TestResult common_test_pipeline(const std::function<std::array<long, MeasureValueMax>()> &test_pipeline,
                                 const std::array<long, MeasureValueMax> &references) {
     log_info("Reference values of virtual memory consumption:");
     log_info(util::get_measure_values_headers(MEMCHECK_DELIMITER));

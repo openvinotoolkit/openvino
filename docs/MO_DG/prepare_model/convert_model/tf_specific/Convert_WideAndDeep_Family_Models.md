@@ -92,37 +92,37 @@ python census_main.py
 Use the following command line to convert the saved model file with the checkpoint:
 
 ```sh
-python mo.py 
+ mo 
 --input_checkpoint checkpoint --input_meta_graph model.ckpt.meta
 --input "IteratorGetNext:0[2],
          IteratorGetNext:1[2],
          IteratorGetNext:2[2],
          IteratorGetNext:4[2],
          IteratorGetNext:7[2],
-         linear/linear_model/linear_model/linear_model/education/to_sparse_input/indices:0[10 2]{i32},
-         linear/linear_model/linear_model/linear_model/education/hash_table_Lookup/LookupTableFindV2:0[10]{i32},
-         linear/linear_model/linear_model/linear_model/education/to_sparse_input/dense_shape:0[2]{i32}->[2 50],
-         linear/linear_model/linear_model/linear_model/marital_status/to_sparse_input/indices:0[10 2]{i32},
-         linear/linear_model/linear_model/linear_model/marital_status/hash_table_Lookup/LookupTableFindV2:0[10]{i32},
-         linear/linear_model/linear_model/linear_model/marital_status/to_sparse_input/dense_shape:0[2]{i32}->[2 50],
-         linear/l inear_model/linear_model/linear_model/relationship/to_sparse_input/indices:0[10 2]{i32},
-         linear/linear_model/linear_model/linear_model/relationship/hash_table_Lookup/LookupTableFindV2:0[10]{i32},
-         linear/linear_model/linear_model/linear_model/relationship/to_sparse_input/dense_shape:0[2]{i32}->[2 50],
-         linear/linear_model/linear_model/linear_model/workclass/to_sparse_input/indices:0[10 2]{i32},
-         linear/linear_model/linear_model/linear_model/workclass/hash_table_Lookup/LookupTableFindV2:0[10]{i32},
-         linear/linear_model/linear_model/linear_model/workclass/to_sparse_input/dense_shape:0[2]{i32}->[2 50],
-         dnn/input_from_feature_columns/input_layer/education_indicator/to_sparse_input/indices:0[10 2]{i32},
-         dnn/input_from_feature_columns/input_layer/education_indicator/hash_table_Lookup/LookupTableFindV2:0[10]{i32},
-         dnn/input_from_feature_columns/input_layer/education_indicator/to_sparse_input/dense_shape:0[2]{i32}->[2 50],
-         dnn/input_from_feature_columns/input_layer/marital_status_indicator/to_sparse_input/indices:0[10 2]{i32},
-         dnn/input_from_feature_columns/input_layer/marital_status_indicator/hash_table_Lookup/LookupTableFindV2:0[10]{i32},
-         dnn/input_from_feature_columns/input_layer/marital_status_indicator/to_sparse_input/dense_shape:0[2]{i32}->[2 50],
-         dnn/input_from_feature_columns/input_layer/relationship_indicator/to_sparse_input/indices:0[10 2]{i32},
-         dnn/input_from_feature_columns/input_layer/relationship_indicator/hash_table_Lookup/LookupTableFindV2:0[10]{i32},
-         dnn/input_from_feature_columns/input_layer/relationship_indicator/to_sparse_input/dense_shape:0[2]{i32}->[2 50],
-         dnn/input_from_feature_columns/input_layer/workclass_indicator/to_sparse_input/indices:0[10 2]{i32},
-         dnn/input_from_feature_columns/input_layer/workclass_indicator/hash_table_Lookup/LookupTableFindV2:0[10]{i32},
-         dnn/input_from_feature_columns/input_layer/workclass_indicator/to_sparse_input/dense_shape:0[2]{i32}->[2 50]" 
+         linear/linear_model/linear_model/linear_model/education/to_sparse_input/indices:0[10 2]{i64},
+         linear/linear_model/linear_model/linear_model/education/hash_table_Lookup/LookupTableFindV2:0[10]{i64},
+         linear/linear_model/linear_model/linear_model/education/to_sparse_input/dense_shape:0[2]{i64}->[2 50],
+         linear/linear_model/linear_model/linear_model/marital_status/to_sparse_input/indices:0[10 2]{i64},
+         linear/linear_model/linear_model/linear_model/marital_status/hash_table_Lookup/LookupTableFindV2:0[10]{i64},
+         linear/linear_model/linear_model/linear_model/marital_status/to_sparse_input/dense_shape:0[2]{i64}->[2 50],
+         linear/l inear_model/linear_model/linear_model/relationship/to_sparse_input/indices:0[10 2]{i64},
+         linear/linear_model/linear_model/linear_model/relationship/hash_table_Lookup/LookupTableFindV2:0[10]{i64},
+         linear/linear_model/linear_model/linear_model/relationship/to_sparse_input/dense_shape:0[2]{i64}->[2 50],
+         linear/linear_model/linear_model/linear_model/workclass/to_sparse_input/indices:0[10 2]{i64},
+         linear/linear_model/linear_model/linear_model/workclass/hash_table_Lookup/LookupTableFindV2:0[10]{i64},
+         linear/linear_model/linear_model/linear_model/workclass/to_sparse_input/dense_shape:0[2]{i64}->[2 50],
+         dnn/input_from_feature_columns/input_layer/education_indicator/to_sparse_input/indices:0[10 2]{i64},
+         dnn/input_from_feature_columns/input_layer/education_indicator/hash_table_Lookup/LookupTableFindV2:0[10]{i64},
+         dnn/input_from_feature_columns/input_layer/education_indicator/to_sparse_input/dense_shape:0[2]{i64}->[2 50],
+         dnn/input_from_feature_columns/input_layer/marital_status_indicator/to_sparse_input/indices:0[10 2]{i64},
+         dnn/input_from_feature_columns/input_layer/marital_status_indicator/hash_table_Lookup/LookupTableFindV2:0[10]{i64},
+         dnn/input_from_feature_columns/input_layer/marital_status_indicator/to_sparse_input/dense_shape:0[2]{i64}->[2 50],
+         dnn/input_from_feature_columns/input_layer/relationship_indicator/to_sparse_input/indices:0[10 2]{i64},
+         dnn/input_from_feature_columns/input_layer/relationship_indicator/hash_table_Lookup/LookupTableFindV2:0[10]{i64},
+         dnn/input_from_feature_columns/input_layer/relationship_indicator/to_sparse_input/dense_shape:0[2]{i64}->[2 50],
+         dnn/input_from_feature_columns/input_layer/workclass_indicator/to_sparse_input/indices:0[10 2]{i64},
+         dnn/input_from_feature_columns/input_layer/workclass_indicator/hash_table_Lookup/LookupTableFindV2:0[10]{i64},
+         dnn/input_from_feature_columns/input_layer/workclass_indicator/to_sparse_input/dense_shape:0[2]{i64}->[2 50]" 
 --output head/predictions/probabilities
 ```
 

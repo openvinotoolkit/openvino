@@ -1,18 +1,20 @@
-## CumSum <a name="CumSum"></a> {#openvino_docs_ops_arithmetic_CumSum_3}
+# CumSum {#openvino_docs_ops_arithmetic_CumSum_3}
 
 **Versioned name**: *CumSum-3*
 
-**Category**: Arithmetic unary operation
+**Category**: *Arithmetic unary*
 
 **Short description**: *CumSum* performs cumulative summation of the input elements along the given axis.
 
-**Detailed description**: By default, it will do the sum inclusively meaning the first element is copied as is. Through an "exclusive" attribute, this behavior can change to exclude the first element. It can also perform summation in the opposite direction of the axis. For that, set reverse attribute to `true`.
+**Detailed description**: *CumSum* performs cumulative summation of the input elements along the `axis` specified by the second input. By default, the `j-th` output element is the inclusive sum of the first `j` elements in the given sequence, and the first element in the sequence is copied to the output as is.
+In the `exclusive` mode the `j-th` output element is the sum of the first `j-1` elements and the first element in the output sequence is `0`.
+To perform the summation in the opposite direction of the axis, set reverse attribute to `true`.
 
 **Attributes**:
 
 * *exclusive*
 
-  * **Description**: If the attribute is set to `true` then an exclusive sum in which the top element is not included is returned. In other terms, if set to `true`, the `j-th` output element would be the sum of the first `(j-1)` elements. Otherwise, it would be the sum of the first `j` elements.
+* **Description**: If the attribute is set to `true`, then exclusive sums are returned, the `j-th` element is not included in the `j-th` sum. Otherwise, the inclusive sum of the first `j` elements for the `j-th` element is calculated.
   * **Range of values**:
     * `false` - include the top element
     * `true` - do not include the top element
@@ -32,19 +34,19 @@
 
 **Inputs**
 
-* **1**: An tensor of type *T*. **Required.**
+* **1**: A tensor of type *T* and rank greater or equal to 1. **Required.**
 
-* **2**: Scalar axis of type *T_AXIS*. Negative value means counting dimensions from the back. Default value is 0. **Optional.**
+* **2**: Axis index along which the cumulative sum is performed. A scalar of type *T_AXIS*. Negative value means counting dimensions from the back. Default value is `0`. **Optional.**
 
 **Outputs**
 
-* **1**: Output tensor with cumulative sums of the input's elements. A tensor of type *T* of the same shape as 1st input.
+* **1**: Output tensor with cumulative sums of the input elements. A tensor of type *T* of the same shape as the first input.
 
 **Types**
 
 * *T*: any numeric type.
 
-* *T_AXIS*: any integer number.
+* *T_AXIS*: `int64` or `int32`.
 
 **Examples**
 

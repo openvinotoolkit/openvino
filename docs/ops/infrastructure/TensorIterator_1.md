@@ -1,8 +1,8 @@
-## TensorIterator <a name="TensorIterator"></a> {#openvino_docs_ops_infrastructure_TensorIterator_1}
+# TensorIterator {#openvino_docs_ops_infrastructure_TensorIterator_1}
 
 **Versioned name**: *TensorIterator-1*
 
-**Category**: Infrastructure
+**Category**: *Infrastructure*
 
 **Short description**: *TensorIterator* layer performs recurrent execution of the network, which is described in the `body`, iterating through the data.
 

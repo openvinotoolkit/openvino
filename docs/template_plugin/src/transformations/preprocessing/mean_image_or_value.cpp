@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,10 @@ ngraph::pass::AddMeanSubtract::AddMeanSubtract(const MeanMap& inputInfoMap) {
         }
 
         auto mean_const = it->second;
-        NGRAPH_CHECK(mean_const->get_element_type() == ngraph::element::f32, "Mean for ", param->get_friendly_name(), " must have f32 type");
+        NGRAPH_CHECK(mean_const->get_element_type() == ngraph::element::f32,
+                     "Mean for ",
+                     param->get_friendly_name(),
+                     " must have f32 type");
 
         auto copy_param = param->clone_with_new_inputs({});
         auto sub = std::make_shared<ngraph::opset3::Subtract>(copy_param, mean_const);

@@ -1,4 +1,4 @@
-## HardSigmoid <a name="HardSigmoid"></a> {#openvino_docs_ops_activation_HardSigmoid_1}
+# HardSigmoid {#openvino_docs_ops_activation_HardSigmoid_1}
 
 **Versioned name**: *HardSigmoid-1*
 
@@ -12,9 +12,12 @@
 
 For each element from the input tensor calculates corresponding
  element in the output tensor with the following formula:
+
  \f[
- y = max(0, min(1, alpha * x + beta))
+ y = max(0,\ min(1,\ \alpha x + \beta))
  \f]
+
+ where α corresponds to `alpha` scalar input and β corresponds to `beta` scalar input.
 
 **Inputs**
 
@@ -30,7 +33,7 @@ For each element from the input tensor calculates corresponding
 
 **Types**
 
-* *T*: any floating point type.
+* *T*: any floating-point type.
 
 **Examples**
 

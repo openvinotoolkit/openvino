@@ -1,8 +1,15 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-cmake_minimum_required(VERSION 3.13)
+if(DEFINED BUILD_SHARED_LIBS AND NOT BUILD_SHARED_LIBS)
+    # 'target_link_libraries' does not work correctly when called from
+    # different directly where 'add_library' is called: CMake generates
+    # incorrect OpenVINOConfig.cmake in this case
+    cmake_minimum_required(VERSION 3.17)
+else()
+    cmake_minimum_required(VERSION 3.13)
+endif()
 
 project(OpenVINO DESCRIPTION "OpenVINO toolkit")
 
@@ -25,66 +32,30 @@ endif()
 
 # resolving dependencies for the project
 message (STATUS "PROJECT ............................... " ${PROJECT_NAME})
+message (STATUS "CMAKE_VERSION ......................... " ${CMAKE_VERSION})
 message (STATUS "CMAKE_BINARY_DIR ...................... " ${CMAKE_BINARY_DIR})
-message (STATUS "OpenVINO_SOURCE_DIR ....     .......... " ${OpenVINO_SOURCE_DIR})
+message (STATUS "CMAKE_SOURCE_DIR ...................... " ${CMAKE_SOURCE_DIR})
+message (STATUS "OpenVINO_SOURCE_DIR ................... " ${OpenVINO_SOURCE_DIR})
+message (STATUS "OpenVINO_BINARY_DIR ................... " ${OpenVINO_BINARY_DIR})
 message (STATUS "CMAKE_GENERATOR ....................... " ${CMAKE_GENERATOR})
 message (STATUS "CMAKE_C_COMPILER_ID ................... " ${CMAKE_C_COMPILER_ID})
+message (STATUS "CMAKE_CXX_COMPILER_ID ................. " ${CMAKE_CXX_COMPILER_ID})
 message (STATUS "CMAKE_BUILD_TYPE ...................... " ${CMAKE_BUILD_TYPE})
+message (STATUS "CMAKE_TOOLCHAIN_FILE .................. " ${CMAKE_TOOLCHAIN_FILE})
 
 # remove file with exported developer targets to force its regeneration
+file(REMOVE "${CMAKE_BINARY_DIR}/ngraphTargets.cmake")
 file(REMOVE "${CMAKE_BINARY_DIR}/InferenceEngineTargets.cmake")
+file(REMOVE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 foreach(component IN LISTS openvino_export_components)
     file(REMOVE "${CMAKE_BINARY_DIR}/${component}_dev_targets.cmake")
     unset(${component} CACHE)
 endforeach()
+unset(openvino_export_components CACHE)
 
 #
 # Build
 #
-
-function(build_ngraph)
-    function(ngraph_set option value)
-        if(NOT DEFINED ${option})
-            set(${option} ${value} CACHE BOOL "" FORCE)
-        endif()
-    endfunction()
-
-    if(ENABLE_TESTS AND NOT ANDROID)
-        ngraph_set(NGRAPH_UNIT_TEST_ENABLE ON)
-    else()
-        ngraph_set(NGRAPH_UNIT_TEST_ENABLE OFF)
-    endif()
-
-    if(NOT (ANDROID OR WINDOWS_STORE OR (MSVC AND (ARM OR AARCH64)) ))
-        ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE ON)
-        ngraph_set(NGRAPH_PDPD_FRONTEND_ENABLE ON)
-    else()
-        ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE OFF)
-        ngraph_set(NGRAPH_PDPD_FRONTEND_ENABLE OFF)
-    endif()
-
-    if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
-        ie_add_compiler_flags(-Wno-error=uninitialized -Wno-error=literal-conversion)
-    elseif(UNIX)
-        ie_add_compiler_flags(-Wno-error=maybe-uninitialized -Wno-error=return-type)
-    endif()
-
-    # WA for GCC 7.0
-    if (UNIX)
-        ie_add_compiler_flags(-Wno-error=return-type -Wno-undef)
-    elseif(WIN32)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4308 /wd4146 /wd4703 /wd4244 /wd4819")
-    endif()
-
-    if(ENABLE_LTO)
-        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
-    endif()
-
-    ie_cpack_add_component(ngraph REQUIRED)
-    ie_cpack_add_component(ngraph_dev REQUIRED DEPENDS ngraph)
-
-    add_subdirectory(ngraph)
-endfunction()
 
 function(openvino_developer_export_targets)
     cmake_parse_arguments(EXPORT "" "COMPONENT" "TARGETS" ${ARGN})
@@ -118,19 +89,22 @@ function(openvino_developer_export_targets)
         "A list of OpenVINO exported components" FORCE)
 endfunction()
 
+# add target with processed tests model zoo
+include(cmake/test_model_zoo.cmake)
+
 add_subdirectory(thirdparty)
-add_subdirectory(openvino)
-build_ngraph()
-add_subdirectory(inference-engine)
+add_subdirectory(src)
+add_subdirectory(samples)
 
-# for Template plugin
-openvino_developer_export_targets(COMPONENT ngraph TARGETS ngraph_backend interpreter_backend)
+# Enable interpreter backend
+if (ENABLE_TESTS OR ENABLE_TEMPLATE)
+    add_subdirectory(docs/template_plugin/backend)
+endif()
 include(cmake/extra_modules.cmake)
-
-add_subdirectory(model-optimizer)
 add_subdirectory(docs)
 add_subdirectory(tools)
 add_subdirectory(scripts)
+add_subdirectory(licensing)
 
 #
 # CPack

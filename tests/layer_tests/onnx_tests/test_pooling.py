@@ -1,11 +1,11 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
-
 from common.layer_test_class import check_ir_version
 from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+
 from unit_tests.utils.graph import build_graph
 
 
@@ -14,7 +14,8 @@ def float_array(x):
 
 
 class TestPooling(OnnxRuntimeLayerTest):
-    def create_net(self, shape, kernel_shape, pads, strides, op, ir_version, count_include_pad=None, auto_pad=None,
+    def create_net(self, shape, kernel_shape, pads, strides, op, ir_version, count_include_pad=None,
+                   auto_pad=None,
                    storage_order=None, ceil=False, opset=None):
         """
             ONNX net                      IR net
@@ -63,7 +64,8 @@ class TestPooling(OnnxRuntimeLayerTest):
         else:
             rounding = np.ceil if ceil else np.floor
             out_spacial_shape = rounding(
-                (float_array(shape[2:]) + np.add(_pads[:, 0], _pads[:, 1]) - float_array(kernel_shape)) / strides + 1)
+                (float_array(shape[2:]) + np.add(_pads[:, 0], _pads[:, 1]) - float_array(
+                    kernel_shape)) / strides + 1)
 
         out_shape = np.array(shape)
         out_shape[2:] = out_spacial_shape
@@ -132,6 +134,7 @@ class TestPooling(OnnxRuntimeLayerTest):
                          'rounding_type': 'ceil' if auto_pad != 'NOTSET' or ceil else 'floor',
                          'auto_pad': None},
                 'node_data': {'shape': out_shape, 'kind': 'data'},
+                'node_indicies_data': {'shape': out_shape, 'kind': 'data'},
                 'input_const_data': {'kind': 'data', 'value': constant.flatten()},
                 'const': {'kind': 'op', 'type': 'Const'},
                 'const_data': {'shape': out_shape, 'kind': 'data'},
@@ -141,21 +144,24 @@ class TestPooling(OnnxRuntimeLayerTest):
             }
             if op == 'AveragePool':
                 nodes_attributes['node']['type'] = 'AvgPool'
-                nodes_attributes['node']['exclude-pad'] = 'true' if count_include_pad == 0 else 'false'
+                nodes_attributes['node']['exclude-pad'] = True if count_include_pad == 0 else False
             else:
                 nodes_attributes['node']['type'] = 'MaxPool'
 
+            edges = [('input', 'input_data'),
+                     ('input_data', 'node'),
+                     ('node', 'node_data', {'out': 0}),
+                     ('input_const_data', 'const'),
+                     ('const', 'const_data'),
+                     ('node_data', 'concat'),
+                     ('const_data', 'concat'),
+                     ('concat', 'concat_data'),
+                     ('concat_data', 'result')]
+            if op == "MaxPool":
+                edges.append(('node', 'node_indicies_data', {'out': 1}))
             ref_net = build_graph(nodes_attributes,
-                                  [('input', 'input_data'),
-                                   ('input_data', 'node'),
-                                   ('node', 'node_data'),
-                                   ('input_const_data', 'const'),
-                                   ('const', 'const_data'),
-                                   ('node_data', 'concat'),
-                                   ('const_data', 'concat'),
-                                   ('concat', 'concat_data'),
-                                   ('concat_data', 'result')
-                                   ])
+                                  edges,
+                                  nodes_with_edges_only=True)
 
         return onnx_net, ref_net
 
@@ -236,7 +242,8 @@ class TestPooling(OnnxRuntimeLayerTest):
     test_data_precommit = [
         dict(shape=[2, 3, 10], kernel_shape=[2], pads=None, strides=[3]),
         dict(shape=[2, 3, 30, 30], kernel_shape=[5, 5], pads=None, strides=[3, 2]),
-        dict(shape=[2, 3, 28, 28, 28], kernel_shape=[5, 5, 5], pads=[2, 4, 2, 0, 0, 2], strides=None),
+        dict(shape=[2, 3, 28, 28, 28], kernel_shape=[5, 5, 5], pads=[2, 4, 2, 0, 0, 2],
+             strides=None),
         dict(shape=[2, 3, 30, 30, 30], kernel_shape=[5, 5, 5], pads=None, strides=[3, 3, 5])]
 
     test_data = [
@@ -256,80 +263,124 @@ class TestPooling(OnnxRuntimeLayerTest):
         dict(shape=[2, 3, 30, 30, 30], kernel_shape=[4, 2, 2], pads=None, strides=None),
         dict(shape=[2, 3, 30, 30, 30], kernel_shape=[2, 4, 2], pads=None, strides=None),
         dict(shape=[2, 3, 30, 30, 30], kernel_shape=[2, 2, 4], pads=None, strides=None),
-        dict(shape=[2, 3, 28, 28, 28], kernel_shape=[3, 3, 3], pads=[2, 2, 2, 2, 2, 2], strides=None),
-        dict(shape=[2, 3, 28, 28, 28], kernel_shape=[5, 5, 5], pads=[2, 4, 2, 0, 0, 2], strides=None),
+        dict(shape=[2, 3, 28, 28, 28], kernel_shape=[3, 3, 3], pads=[2, 2, 2, 2, 2, 2],
+             strides=None),
+        dict(shape=[2, 3, 28, 28, 28], kernel_shape=[5, 5, 5], pads=[2, 4, 2, 0, 0, 2],
+             strides=None),
         dict(shape=[2, 3, 30, 30, 30], kernel_shape=[5, 5, 5], pads=None, strides=[3, 3, 3]),
         dict(shape=[2, 3, 30, 30, 30], kernel_shape=[5, 5, 5], pads=None, strides=[5, 3, 3]),
         dict(shape=[2, 3, 30, 30, 30], kernel_shape=[5, 5, 5], pads=None, strides=[3, 5, 3]),
         dict(shape=[2, 3, 30, 30, 30], kernel_shape=[5, 5, 5], pads=None, strides=[3, 3, 5])]
 
     test_data_autopad_precommit = [
-        dict(shape=[2, 3, 30, 30, 30], auto_pad='VALID', kernel_shape=[2, 2, 4], pads=None, strides=None),
-        dict(shape=[2, 3, 21, 21, 21], auto_pad='VALID', kernel_shape=[3, 3, 3], pads=None, strides=[3, 2, 3]),
-        dict(shape=[2, 3, 21, 21, 21], auto_pad='VALID', kernel_shape=[3, 3, 3], pads=None, strides=[3, 3, 2])]
+        dict(shape=[2, 3, 30, 30, 30], auto_pad='VALID', kernel_shape=[2, 2, 4], pads=None,
+             strides=None),
+        dict(shape=[2, 3, 21, 21, 21], auto_pad='VALID', kernel_shape=[3, 3, 3], pads=None,
+             strides=[3, 2, 3]),
+        dict(shape=[2, 3, 21, 21, 21], auto_pad='VALID', kernel_shape=[3, 3, 3], pads=None,
+             strides=[3, 3, 2])]
 
     test_data_autopad = [
         dict(shape=[2, 3, 10], auto_pad='SAME_UPPER', kernel_shape=[2], pads=[0, 1], strides=[3]),
         dict(shape=[2, 3, 10], auto_pad='SAME_LOWER', kernel_shape=[2], pads=[0, 1], strides=[3]),
         dict(shape=[2, 3, 10], auto_pad='VALID', kernel_shape=[2], pads=None, strides=[3]),
-        dict(shape=[2, 3, 30, 30], auto_pad='SAME_UPPER', kernel_shape=[2, 2], pads=[0, 0, 1, 1], strides=None),
-        dict(shape=[2, 3, 30, 30], auto_pad='SAME_UPPER', kernel_shape=[4, 2], pads=[1, 0, 2, 1], strides=None),
-        dict(shape=[2, 3, 30, 30], auto_pad='SAME_UPPER', kernel_shape=[2, 4], pads=[0, 1, 1, 2], strides=None),
-        dict(shape=[2, 3, 30, 30], auto_pad='SAME_UPPER', kernel_shape=[5, 5], pads=[1, 1, 1, 1], strides=[3, 3]),
-        dict(shape=[2, 3, 30, 30], auto_pad='SAME_UPPER', kernel_shape=[5, 5], pads=[1, 1, 2, 1], strides=[2, 3]),
-        dict(shape=[2, 3, 30, 30], auto_pad='SAME_UPPER', kernel_shape=[5, 5], pads=[1, 1, 1, 2], strides=[3, 2]),
-        dict(shape=[2, 3, 30, 30], auto_pad='SAME_LOWER', kernel_shape=[2, 2], pads=[0, 0, 1, 1], strides=None),
-        dict(shape=[2, 3, 30, 30], auto_pad='SAME_LOWER', kernel_shape=[4, 2], pads=[1, 0, 2, 1], strides=None),
-        dict(shape=[2, 3, 30, 30], auto_pad='SAME_LOWER', kernel_shape=[2, 4], pads=[0, 1, 1, 2], strides=None),
-        dict(shape=[2, 3, 30, 30], auto_pad='SAME_LOWER', kernel_shape=[5, 5], pads=[1, 1, 1, 1], strides=[3, 3]),
-        dict(shape=[2, 3, 30, 30], auto_pad='SAME_LOWER', kernel_shape=[5, 5], pads=[1, 1, 2, 1], strides=[2, 3]),
-        dict(shape=[2, 3, 30, 30], auto_pad='SAME_LOWER', kernel_shape=[5, 5], pads=[1, 1, 1, 2], strides=[3, 2]),
+        dict(shape=[2, 3, 30, 30], auto_pad='SAME_UPPER', kernel_shape=[2, 2], pads=[0, 0, 1, 1],
+             strides=None),
+        dict(shape=[2, 3, 30, 30], auto_pad='SAME_UPPER', kernel_shape=[4, 2], pads=[1, 0, 2, 1],
+             strides=None),
+        dict(shape=[2, 3, 30, 30], auto_pad='SAME_UPPER', kernel_shape=[2, 4], pads=[0, 1, 1, 2],
+             strides=None),
+        dict(shape=[2, 3, 30, 30], auto_pad='SAME_UPPER', kernel_shape=[5, 5], pads=[1, 1, 1, 1],
+             strides=[3, 3]),
+        dict(shape=[2, 3, 30, 30], auto_pad='SAME_UPPER', kernel_shape=[5, 5], pads=[1, 1, 2, 1],
+             strides=[2, 3]),
+        dict(shape=[2, 3, 30, 30], auto_pad='SAME_UPPER', kernel_shape=[5, 5], pads=[1, 1, 1, 2],
+             strides=[3, 2]),
+        dict(shape=[2, 3, 30, 30], auto_pad='SAME_LOWER', kernel_shape=[2, 2], pads=[0, 0, 1, 1],
+             strides=None),
+        dict(shape=[2, 3, 30, 30], auto_pad='SAME_LOWER', kernel_shape=[4, 2], pads=[1, 0, 2, 1],
+             strides=None),
+        dict(shape=[2, 3, 30, 30], auto_pad='SAME_LOWER', kernel_shape=[2, 4], pads=[0, 1, 1, 2],
+             strides=None),
+        dict(shape=[2, 3, 30, 30], auto_pad='SAME_LOWER', kernel_shape=[5, 5], pads=[1, 1, 1, 1],
+             strides=[3, 3]),
+        dict(shape=[2, 3, 30, 30], auto_pad='SAME_LOWER', kernel_shape=[5, 5], pads=[1, 1, 2, 1],
+             strides=[2, 3]),
+        dict(shape=[2, 3, 30, 30], auto_pad='SAME_LOWER', kernel_shape=[5, 5], pads=[1, 1, 1, 2],
+             strides=[3, 2]),
         dict(shape=[2, 3, 30, 30], auto_pad='VALID', kernel_shape=[2, 2], pads=None, strides=None),
         dict(shape=[2, 3, 30, 30], auto_pad='VALID', kernel_shape=[4, 2], pads=None, strides=None),
         dict(shape=[2, 3, 30, 30], auto_pad='VALID', kernel_shape=[2, 4], pads=None, strides=None),
-        dict(shape=[2, 3, 21, 21], auto_pad='VALID', kernel_shape=[3, 3], pads=None, strides=[3, 3]),
-        dict(shape=[2, 3, 21, 21], auto_pad='VALID', kernel_shape=[3, 3], pads=None, strides=[2, 3]),
-        dict(shape=[2, 3, 21, 21], auto_pad='VALID', kernel_shape=[3, 3], pads=None, strides=[3, 2]),
-        dict(shape=[2, 3, 30, 30, 30], auto_pad='SAME_UPPER', kernel_shape=[2, 2, 2], pads=[0, 0, 0, 1, 1, 1],
+        dict(shape=[2, 3, 21, 21], auto_pad='VALID', kernel_shape=[3, 3], pads=None,
+             strides=[3, 3]),
+        dict(shape=[2, 3, 21, 21], auto_pad='VALID', kernel_shape=[3, 3], pads=None,
+             strides=[2, 3]),
+        dict(shape=[2, 3, 21, 21], auto_pad='VALID', kernel_shape=[3, 3], pads=None,
+             strides=[3, 2]),
+        dict(shape=[2, 3, 30, 30, 30], auto_pad='SAME_UPPER', kernel_shape=[2, 2, 2],
+             pads=[0, 0, 0, 1, 1, 1],
              strides=None),
-        dict(shape=[2, 3, 30, 30, 30], auto_pad='SAME_UPPER', kernel_shape=[4, 2, 2], pads=[1, 0, 0, 2, 1, 1],
+        dict(shape=[2, 3, 30, 30, 30], auto_pad='SAME_UPPER', kernel_shape=[4, 2, 2],
+             pads=[1, 0, 0, 2, 1, 1],
              strides=None),
-        dict(shape=[2, 3, 30, 30, 30], auto_pad='SAME_UPPER', kernel_shape=[2, 4, 2], pads=[0, 1, 0, 1, 2, 1],
+        dict(shape=[2, 3, 30, 30, 30], auto_pad='SAME_UPPER', kernel_shape=[2, 4, 2],
+             pads=[0, 1, 0, 1, 2, 1],
              strides=None),
-        dict(shape=[2, 3, 30, 30, 30], auto_pad='SAME_UPPER', kernel_shape=[2, 2, 4], pads=[0, 0, 1, 1, 1, 2],
+        dict(shape=[2, 3, 30, 30, 30], auto_pad='SAME_UPPER', kernel_shape=[2, 2, 4],
+             pads=[0, 0, 1, 1, 1, 2],
              strides=None),
-        dict(shape=[2, 3, 30, 30, 30], auto_pad='SAME_UPPER', kernel_shape=[5, 5, 5], pads=[1, 1, 1, 1, 1, 1],
+        dict(shape=[2, 3, 30, 30, 30], auto_pad='SAME_UPPER', kernel_shape=[5, 5, 5],
+             pads=[1, 1, 1, 1, 1, 1],
              strides=[3, 3, 3]),
-        dict(shape=[2, 3, 30, 30, 30], auto_pad='SAME_UPPER', kernel_shape=[5, 5, 5], pads=[0, 1, 1, 0, 1, 1],
+        dict(shape=[2, 3, 30, 30, 30], auto_pad='SAME_UPPER', kernel_shape=[5, 5, 5],
+             pads=[0, 1, 1, 0, 1, 1],
              strides=[5, 3, 3]),
-        dict(shape=[2, 3, 30, 30, 30], auto_pad='SAME_UPPER', kernel_shape=[5, 5, 5], pads=[1, 0, 1, 1, 0, 1],
+        dict(shape=[2, 3, 30, 30, 30], auto_pad='SAME_UPPER', kernel_shape=[5, 5, 5],
+             pads=[1, 0, 1, 1, 0, 1],
              strides=[3, 5, 3]),
-        dict(shape=[2, 3, 30, 30, 30], auto_pad='SAME_UPPER', kernel_shape=[5, 5, 5], pads=[1, 1, 0, 1, 1, 0],
+        dict(shape=[2, 3, 30, 30, 30], auto_pad='SAME_UPPER', kernel_shape=[5, 5, 5],
+             pads=[1, 1, 0, 1, 1, 0],
              strides=[3, 3, 5]),
-        dict(shape=[2, 3, 30, 30, 30], auto_pad='SAME_LOWER', kernel_shape=[2, 2, 2], pads=[0, 0, 0, 1, 1, 1],
+        dict(shape=[2, 3, 30, 30, 30], auto_pad='SAME_LOWER', kernel_shape=[2, 2, 2],
+             pads=[0, 0, 0, 1, 1, 1],
              strides=None),
-        dict(shape=[2, 3, 30, 30, 30], auto_pad='SAME_LOWER', kernel_shape=[4, 2, 2], pads=[1, 0, 0, 2, 1, 1],
+        dict(shape=[2, 3, 30, 30, 30], auto_pad='SAME_LOWER', kernel_shape=[4, 2, 2],
+             pads=[1, 0, 0, 2, 1, 1],
              strides=None),
-        dict(shape=[2, 3, 30, 30, 30], auto_pad='SAME_LOWER', kernel_shape=[2, 4, 2], pads=[0, 1, 0, 1, 2, 1],
+        dict(shape=[2, 3, 30, 30, 30], auto_pad='SAME_LOWER', kernel_shape=[2, 4, 2],
+             pads=[0, 1, 0, 1, 2, 1],
              strides=None),
-        dict(shape=[2, 3, 30, 30, 30], auto_pad='SAME_LOWER', kernel_shape=[2, 2, 4], pads=[0, 0, 1, 1, 1, 2],
+        dict(shape=[2, 3, 30, 30, 30], auto_pad='SAME_LOWER', kernel_shape=[2, 2, 4],
+             pads=[0, 0, 1, 1, 1, 2],
              strides=None),
-        dict(shape=[2, 3, 30, 30, 30], auto_pad='SAME_LOWER', kernel_shape=[5, 5, 5], pads=[1, 1, 1, 1, 1, 1],
+        dict(shape=[2, 3, 30, 30, 30], auto_pad='SAME_LOWER', kernel_shape=[5, 5, 5],
+             pads=[1, 1, 1, 1, 1, 1],
              strides=[3, 3, 3]),
-        dict(shape=[2, 3, 30, 30, 30], auto_pad='SAME_LOWER', kernel_shape=[5, 5, 5], pads=[0, 1, 1, 0, 1, 1],
+        dict(shape=[2, 3, 30, 30, 30], auto_pad='SAME_LOWER', kernel_shape=[5, 5, 5],
+             pads=[0, 1, 1, 0, 1, 1],
              strides=[5, 3, 3]),
-        dict(shape=[2, 3, 30, 30, 30], auto_pad='SAME_LOWER', kernel_shape=[5, 5, 5], pads=[1, 0, 1, 1, 0, 1],
+        dict(shape=[2, 3, 30, 30, 30], auto_pad='SAME_LOWER', kernel_shape=[5, 5, 5],
+             pads=[1, 0, 1, 1, 0, 1],
              strides=[3, 5, 3]),
-        dict(shape=[2, 3, 30, 30, 30], auto_pad='SAME_LOWER', kernel_shape=[5, 5, 5], pads=[1, 1, 0, 1, 1, 0],
+        dict(shape=[2, 3, 30, 30, 30], auto_pad='SAME_LOWER', kernel_shape=[5, 5, 5],
+             pads=[1, 1, 0, 1, 1, 0],
              strides=[3, 3, 5]),
-        dict(shape=[2, 3, 30, 30, 30], auto_pad='VALID', kernel_shape=[2, 2, 2], pads=None, strides=None),
-        dict(shape=[2, 3, 30, 30, 30], auto_pad='VALID', kernel_shape=[4, 2, 2], pads=None, strides=None),
-        dict(shape=[2, 3, 30, 30, 30], auto_pad='VALID', kernel_shape=[2, 4, 2], pads=None, strides=None),
-        dict(shape=[2, 3, 30, 30, 30], auto_pad='VALID', kernel_shape=[2, 2, 4], pads=None, strides=None),
-        dict(shape=[2, 3, 21, 21, 21], auto_pad='VALID', kernel_shape=[3, 3, 3], pads=None, strides=[3, 3, 3]),
-        dict(shape=[2, 3, 21, 21, 21], auto_pad='VALID', kernel_shape=[3, 3, 3], pads=None, strides=[2, 3, 3]),
-        dict(shape=[2, 3, 21, 21, 21], auto_pad='VALID', kernel_shape=[3, 3, 3], pads=None, strides=[3, 2, 3]),
-        dict(shape=[2, 3, 21, 21, 21], auto_pad='VALID', kernel_shape=[3, 3, 3], pads=None, strides=[3, 3, 2])]
+        dict(shape=[2, 3, 30, 30, 30], auto_pad='VALID', kernel_shape=[2, 2, 2], pads=None,
+             strides=None),
+        dict(shape=[2, 3, 30, 30, 30], auto_pad='VALID', kernel_shape=[4, 2, 2], pads=None,
+             strides=None),
+        dict(shape=[2, 3, 30, 30, 30], auto_pad='VALID', kernel_shape=[2, 4, 2], pads=None,
+             strides=None),
+        dict(shape=[2, 3, 30, 30, 30], auto_pad='VALID', kernel_shape=[2, 2, 4], pads=None,
+             strides=None),
+        dict(shape=[2, 3, 21, 21, 21], auto_pad='VALID', kernel_shape=[3, 3, 3], pads=None,
+             strides=[3, 3, 3]),
+        dict(shape=[2, 3, 21, 21, 21], auto_pad='VALID', kernel_shape=[3, 3, 3], pads=None,
+             strides=[2, 3, 3]),
+        dict(shape=[2, 3, 21, 21, 21], auto_pad='VALID', kernel_shape=[3, 3, 3], pads=None,
+             strides=[3, 2, 3]),
+        dict(shape=[2, 3, 21, 21, 21], auto_pad='VALID', kernel_shape=[3, 3, 3], pads=None,
+             strides=[3, 3, 2])]
 
     global_test_data = [dict(shape=[2, 3, 10]),
                         dict(shape=[2, 3, 32, 32]),
@@ -338,95 +389,111 @@ class TestPooling(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("incl_pad", [None, 1])
     @pytest.mark.nightly
-    def test_avgpool_opset7(self, params, incl_pad, ie_device, precision, ir_version, temp_dir):
+    def test_avgpool_opset7(self, params, incl_pad, ie_device, precision, ir_version, temp_dir,
+                            api_2):
         if not len(params['shape']) in [4, 5]:
             pytest.skip("Pooling layer support only 4D and 5D input tensors")
         self._test(
-            *self.create_net(**params, op='AveragePool', count_include_pad=incl_pad, ir_version=ir_version, opset=7),
-            ie_device, precision, ir_version, temp_dir=temp_dir)
+            *self.create_net(**params, op='AveragePool', count_include_pad=incl_pad,
+                             ir_version=ir_version, opset=7),
+            ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_autopad)
     @pytest.mark.nightly
-    def test_avgpool_opset7_autopad(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_avgpool_opset7_autopad(self, params, ie_device, precision, ir_version, temp_dir,
+                                    api_2):
         if not len(params['shape']) in [4, 5]:
             pytest.skip("Pooling layer support only 4D and 5D input tensors")
         self._test(*self.create_net(**params, op='AveragePool', ir_version=ir_version, opset=7),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("incl_pad", [None, 1])
     @pytest.mark.parametrize("ceil", [True, False])
     @pytest.mark.nightly
-    def test_avgpool_opset10(self, params, incl_pad, ceil, ie_device, precision, ir_version, temp_dir):
+    def test_avgpool_opset10(self, params, incl_pad, ceil, ie_device, precision, ir_version,
+                             temp_dir, api_2):
         if not len(params['shape']) in [4, 5]:
             pytest.skip("Pooling layer support only 4D and 5D input tensors")
         self._test(
-            *self.create_net(**params, op='AveragePool', count_include_pad=incl_pad, ceil=ceil, ir_version=ir_version,
-                             opset=10), ie_device, precision, ir_version, temp_dir=temp_dir)
+            *self.create_net(**params, op='AveragePool', count_include_pad=incl_pad, ceil=ceil,
+                             ir_version=ir_version,
+                             opset=10), ie_device, precision, ir_version, temp_dir=temp_dir,
+            api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_autopad)
     @pytest.mark.nightly
-    def test_avgpool_opset10_autopad(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_avgpool_opset10_autopad(self, params, ie_device, precision, ir_version, temp_dir,
+                                     api_2):
         if not len(params['shape']) in [4, 5]:
             pytest.skip("Pooling layer support only 4D and 5D input tensors")
         self._test(*self.create_net(**params, op='AveragePool', ir_version=ir_version, opset=10),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("st_order", [None, 1])
     @pytest.mark.nightly
-    def test_maxpool_opset8(self, params, st_order, ie_device, precision, ir_version, temp_dir):
+    def test_maxpool_opset8(self, params, st_order, ie_device, precision, ir_version, temp_dir,
+                            api_2):
         if not len(params['shape']) in [4, 5]:
             pytest.skip("Pooling layer support only 4D and 5D input tensors")
-        self._test(*self.create_net(**params, op='MaxPool', storage_order=st_order, ir_version=ir_version, opset=8),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+        self._test(
+            *self.create_net(**params, op='MaxPool', storage_order=st_order, ir_version=ir_version,
+                             opset=8),
+            ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_autopad)
     @pytest.mark.nightly
-    def test_maxpool_opset8_autopad(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_maxpool_opset8_autopad(self, params, ie_device, precision, ir_version, temp_dir,
+                                    api_2):
         if not len(params['shape']) in [4, 5]:
             pytest.skip("Pooling layer support only 4D and 5D input tensors")
         self._test(*self.create_net(**params, op='MaxPool', ir_version=ir_version, opset=8),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("st_order", [None, 1])
     @pytest.mark.parametrize("ceil", [True, False])
     @pytest.mark.nightly
-    def test_maxpool_opset10(self, params, st_order, ceil, ie_device, precision, ir_version, temp_dir):
+    def test_maxpool_opset10(self, params, st_order, ceil, ie_device, precision, ir_version,
+                             temp_dir, api_2):
         if not len(params['shape']) in [4, 5]:
             pytest.skip("Pooling layer support only 4D and 5D input tensors")
-        self._test(*self.create_net(**params, op='MaxPool', storage_order=st_order, ceil=ceil, ir_version=ir_version,
-                                    opset=10), ie_device, precision, ir_version, temp_dir=temp_dir)
+        self._test(*self.create_net(**params, op='MaxPool', storage_order=st_order, ceil=ceil,
+                                    ir_version=ir_version,
+                                    opset=10), ie_device, precision, ir_version, temp_dir=temp_dir,
+                   api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_autopad_precommit)
     @pytest.mark.precommit
-    def test_maxpool_opset10_autopad(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_maxpool_opset10_autopad(self, params, ie_device, precision, ir_version, temp_dir,
+                                     api_2):
         if not len(params['shape']) in [4, 5]:
             pytest.skip("Pooling layer support only 4D and 5D input tensors")
         self._test(*self.create_net(**params, op='MaxPool', ir_version=ir_version, opset=10),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_autopad)
     @pytest.mark.nightly
-    def test_maxpool_opset10_autopad(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_maxpool_opset10_autopad(self, params, ie_device, precision, ir_version, temp_dir,
+                                     api_2):
         if not len(params['shape']) in [4, 5]:
             pytest.skip("Pooling layer support only 4D and 5D input tensors")
         self._test(*self.create_net(**params, op='MaxPool', ir_version=ir_version, opset=10),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", global_test_data)
     @pytest.mark.nightly
-    def test_global_avgpool(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_global_avgpool(self, params, ie_device, precision, ir_version, temp_dir, api_2):
         if not len(params['shape']) in [4, 5]:
             pytest.skip("Pooling layer support only 4D and 5D input tensors")
         self._test(*self.create_global_net(**params, op='GlobalAveragePool', ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", global_test_data)
     @pytest.mark.nightly
-    def test_global_maxpool(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_global_maxpool(self, params, ie_device, precision, ir_version, temp_dir, api_2):
         if not len(params['shape']) in [4, 5]:
             pytest.skip("Pooling layer support only 4D and 5D input tensors")
         self._test(*self.create_global_net(**params, op='GlobalMaxPool', ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)

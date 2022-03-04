@@ -1,4 +1,4 @@
-# "Hot Topic" How-To Links {#openvino_docs_how_tos_how_to_links}
+# "Hot Topic" How-To Links
 
 ## Blogs & Articles
 
@@ -13,42 +13,61 @@
 * [Accelerate Vision-based AI with Intel® Distribution of OpenVINO™ Toolkit](https://www.intel.ai/accelerate-vision-based-ai-with-intel-distribution-of-openvino-toolkit/)
 
 ## Custom Operations Guide
-To learn about what is *custom operation* and how to work with them in the Deep Learning Deployment Toolkit, see the [Custom Operations Guide](../HOWTO/Custom_Layers_Guide.md).
+To learn about what is *custom operation* and how to work with them in the Deep Learning Deployment Toolkit, see the [Custom Operations Guide](../Extensibility_UG/Intro.md).
  
 ## Introducing OpenVINO™ and Computer Vision | IoT Developer Show Season 2 | Intel Software
 
-[![](https://img.youtube.com/vi/M6Nyh2JDLQs/0.jpg)](https://www.youtube.com/watch?v=M6Nyh2JDLQs)
-<iframe width="560" height="315" src="https://www.youtube.com/embed/M6Nyh2JDLQs" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+@sphinxdirective
+.. raw:: html
 
+    <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="560" height="315" src="https://www.youtube.com/embed/M6Nyh2JDLQs" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+@endsphinxdirective
 
 ## OpenVINO™ Toolkit and Two Hardware Development Kits | IoT Developer Show Season 2 | Intel Software
 
-[![](https://img.youtube.com/vi/GtJPBYjuyVU/0.jpg)](https://www.youtube.com/watch?v=GtJPBYjuyVU)
-<iframe width="560" height="315" src="https://www.youtube.com/embed/GtJPBYjuyVU" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+@sphinxdirective
+.. raw:: html
 
+    <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="560" height="315" src="https://www.youtube.com/embed/GtJPBYjuyVU" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+@endsphinxdirective
 
 ## Intel Demonstration of High Performance Vision Deployment - The OpenVINO Toolkit in Action
 
-[![](https://img.youtube.com/vi/1_iI_4Zgufw/0.jpg)](https://www.youtube.com/watch?v=1_iI_4Zgufw)
-<iframe width="560" height="315" src="https://www.youtube.com/embed/1_iI_4Zgufw" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+@sphinxdirective
+.. raw:: html
 
+    <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="560" height="315" src="https://www.youtube.com/embed/1_iI_4Zgufw" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+@endsphinxdirective
 
 ## Computer Vision at the Edge with OpenVINO by Krishnakumar Shetti at ODSC_India
 
-[![](https://img.youtube.com/vi/RfRCrq35LXg/0.jpg)](https://www.youtube.com/watch?v=RfRCrq35LXg)
-<iframe width="560" height="315" src="https://www.youtube.com/embed/RfRCrq35LXg" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+@sphinxdirective
+..raw:: html
 
+    <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="560" height="315" src="https://www.youtube.com/embed/RfRCrq35LXg" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+@endsphinxdirective
 
 ## Model optimizer concept
 
-[![](https://img.youtube.com/vi/Kl1ptVb7aI8/0.jpg)](https://www.youtube.com/watch?v=Kl1ptVb7aI8)
-<iframe width="560" height="315" src="https://www.youtube.com/embed/Kl1ptVb7aI8" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+@sphinxdirective
+.. raw:: html
+
+    <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="560" height="315" src="https://www.youtube.com/embed/Kl1ptVb7aI8" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+@endsphinxdirective
 
 ## Computer Vision with Intel
 
-[![](https://img.youtube.com/vi/FZZD4FCvO9c/0.jpg)](https://www.youtube.com/watch?v=FZZD4FCvO9c)
-<iframe width="560" height="315" src="https://www.youtube.com/embed/FZZD4FCvO9c" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+@sphinxdirective
+.. raw:: html
 
+    <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="560" height="315" src="https://www.youtube.com/embed/FZZD4FCvO9c" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+@endsphinxdirective
 
 ## Case Studies
 

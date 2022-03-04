@@ -1,4 +1,4 @@
-## Mish <a name="Mish"></a> {#openvino_docs_ops_activation_Mish_4}
+# Mish {#openvino_docs_ops_activation_Mish_4}
 
 **Versioned name**: *Mish-4*
 
@@ -20,7 +20,7 @@ Mish(x) = x\cdot\tanh\big(SoftPlus(x)\big) = x\cdot\tanh\big(\ln(1+e^{x})\big)
 
 **Inputs**:
 
-*   **1**: A tensor of type *T* and arbitrary shape. **Required**.
+*   **1**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**:
 

@@ -1,4 +1,4 @@
-## ReduceMin <a name="ReduceMin"></a> {#openvino_docs_ops_reduction_ReduceMin_1}
+# ReduceMin {#openvino_docs_ops_reduction_ReduceMin_1}
 
 **Versioned name**: *ReduceMin-1*
 
@@ -17,7 +17,7 @@ where indices i0, ..., iN run through all valid indices for input `data`, and fi
 
 Particular cases:
 
-1. If `axes` is an empty list, *ReduceMin* corresponds to the identity operation. 
+1. If `axes` is an empty list, *ReduceMin* corresponds to the identity operation.
 2. If `axes` contains all dimensions of input `data`, a single reduction value is calculated for the entire input tensor.
 
 **Attributes**

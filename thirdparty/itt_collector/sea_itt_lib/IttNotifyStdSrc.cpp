@@ -31,17 +31,17 @@
 #include <vector>
 
 #ifdef _WIN32
-    #include <direct.h>
-    #include <io.h>
+#    include <direct.h>
+#    include <io.h>
 #else
-    #include <libgen.h>
-    #include <pthread.h>
+#    include <libgen.h>
+#    include <pthread.h>
 #endif
 
 #ifdef __APPLE__
-    //#define __APPLE_API_UNSTABLE
-    #include <sys/kdebug.h>
-    #include <sys/kdebug_signpost.h>
+//#define __APPLE_API_UNSTABLE
+#    include <sys/kdebug.h>
+#    include <sys/kdebug_signpost.h>
 #endif
 
 namespace sea {
@@ -79,9 +79,9 @@ public:
 };
 
 #ifdef _DEBUG
-    #define ITT_FUNCTION_STAT() CIttFnStat oIttFnStat(__FUNCTION__)
+#    define ITT_FUNCTION_STAT() CIttFnStat oIttFnStat(__FUNCTION__)
 #else
-    #define ITT_FUNCTION_STAT()
+#    define ITT_FUNCTION_STAT()
 #endif
 
 struct __itt_frame_t {
@@ -229,7 +229,8 @@ std::shared_ptr<std::string> g_spCutName;
 
 std::string Escape4Path(std::string str) {
     std::replace_if(
-        str.begin(), str.end(),
+        str.begin(),
+        str.end(),
         [](char sym) {
             return strchr("/\\:*?\"<>|", sym);
         },
@@ -239,7 +240,7 @@ std::string Escape4Path(std::string str) {
 
 void InitDomain(__itt_domain* pDomain) {
     CIttLocker locker;
-    pDomain->extra2 = new DomainExtra {};
+    pDomain->extra2 = new DomainExtra{};
     if (g_savepath.size()) {
         DomainExtra* pDomainExtra = reinterpret_cast<DomainExtra*>(pDomain->extra2);
         pDomainExtra->strDomainPath = GetDir(g_savepath, Escape4Path(pDomain->nameA));
@@ -258,7 +259,7 @@ SThreadRecord* GetThreadRecord() {
 
     CIttLocker lock;
 
-    pThreadRecord = new SThreadRecord {};
+    pThreadRecord = new SThreadRecord{};
     static __itt_global* pGlobal = GetITTGlobal();
 
     __itt_domain* pDomain = pGlobal->domain_list;
@@ -308,9 +309,11 @@ CTraceEventFormat::SRegularFields GetRegularFields(__itt_clock_domain* clock_dom
 
     if (pTrack) {
         CTraceEventFormat::SRegularFields& trackRF = *(CTraceEventFormat::SRegularFields*)pTrack->extra2;
-        rf.changed |= (rf.pid != trackRF.pid) ? CTraceEventFormat::SRegularFields::ecPid : CTraceEventFormat::SRegularFields::ecNothing;
+        rf.changed |= (rf.pid != trackRF.pid) ? CTraceEventFormat::SRegularFields::ecPid
+                                              : CTraceEventFormat::SRegularFields::ecNothing;
         rf.pid = trackRF.pid;
-        rf.changed |= (rf.tid != trackRF.tid) ? CTraceEventFormat::SRegularFields::ecTid : CTraceEventFormat::SRegularFields::ecNothing;
+        rf.changed |= (rf.tid != trackRF.tid) ? CTraceEventFormat::SRegularFields::ecTid
+                                              : CTraceEventFormat::SRegularFields::ecNothing;
         rf.tid = trackRF.tid;
     }
     if (clock_domain || timestamp) {
@@ -396,7 +399,11 @@ __itt_string_handle* string_handle_createW(const wchar_t* name) {
 }
 #endif
 
-void marker_ex(const __itt_domain* pDomain, __itt_clock_domain* clock_domain, unsigned long long timestamp, __itt_id id, __itt_string_handle* pName,
+void marker_ex(const __itt_domain* pDomain,
+               __itt_clock_domain* clock_domain,
+               unsigned long long timestamp,
+               __itt_id id,
+               __itt_string_handle* pName,
                __itt_scope scope) {
     ITT_FUNCTION_STAT();
     CTraceEventFormat::SRegularFields rf = GetRegularFields(clock_domain, timestamp);
@@ -428,12 +435,12 @@ void task_begin(const __itt_domain* pDomain, __itt_id taskid, __itt_id parentid,
     SThreadRecord* pThreadRecord = GetThreadRecord();
 
     CTraceEventFormat::SRegularFields rf = GetRegularFields();
-    pThreadRecord->pTask = placement_new(STaskDescriptor) {pThreadRecord->pTask,  // chaining the previous task inside
-                                                           rf,
-                                                           pDomain,
-                                                           pName,
-                                                           taskid,
-                                                           parentid};
+    pThreadRecord->pTask = placement_new(STaskDescriptor){pThreadRecord->pTask,  // chaining the previous task inside
+                                                          rf,
+                                                          pDomain,
+                                                          pName,
+                                                          taskid,
+                                                          parentid};
 
     for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i) {
         g_handlers[i]->TaskBegin(*pThreadRecord->pTask, false);
@@ -446,13 +453,13 @@ void task_begin_fn(const __itt_domain* pDomain, __itt_id taskid, __itt_id parent
     CTraceEventFormat::SRegularFields rf = GetRegularFields();
     SThreadRecord* pThreadRecord = GetThreadRecord();
 
-    pThreadRecord->pTask = placement_new(STaskDescriptor) {pThreadRecord->pTask,  // chaining the previous task inside
-                                                           rf,
-                                                           pDomain,
-                                                           nullptr,
-                                                           taskid,
-                                                           parentid,
-                                                           fn};
+    pThreadRecord->pTask = placement_new(STaskDescriptor){pThreadRecord->pTask,  // chaining the previous task inside
+                                                          rf,
+                                                          pDomain,
+                                                          nullptr,
+                                                          taskid,
+                                                          parentid,
+                                                          fn};
 
     for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i) {
         g_handlers[i]->TaskBegin(*pThreadRecord->pTask, false);
@@ -480,7 +487,11 @@ void task_end(const __itt_domain* pDomain) {
     pThreadRecord->pTask = prev;
 }
 
-void Counter(const __itt_domain* pDomain, __itt_string_handle* pName, double value, __itt_clock_domain* clock_domain, unsigned long long timestamp) {
+void Counter(const __itt_domain* pDomain,
+             __itt_string_handle* pName,
+             double value,
+             __itt_clock_domain* clock_domain,
+             unsigned long long timestamp) {
     CTraceEventFormat::SRegularFields rf = GetRegularFields(clock_domain, timestamp);
 
     for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i) {
@@ -494,13 +505,16 @@ void counter_inc_delta_v3(const __itt_domain* pDomain, __itt_string_handle* pNam
 }
 
 void FixCounter(__itt_counter_info_t* pCounter) {
-    pCounter->extra2 = new SDomainName {UNICODE_AGNOSTIC(domain_create)(pCounter->domainA), UNICODE_AGNOSTIC(string_handle_create)(pCounter->nameA)};
+    pCounter->extra2 = new SDomainName{UNICODE_AGNOSTIC(domain_create)(pCounter->domainA),
+                                       UNICODE_AGNOSTIC(string_handle_create)(pCounter->nameA)};
     for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i) {
         g_handlers[i]->CreateCounter(reinterpret_cast<__itt_counter>(pCounter));
     }
 }
 
-__itt_counter ITTAPI UNICODE_AGNOSTIC(counter_create_typed)(const char* name, const char* domain, __itt_metadata_type type) {
+__itt_counter ITTAPI UNICODE_AGNOSTIC(counter_create_typed)(const char* name,
+                                                            const char* domain,
+                                                            __itt_metadata_type type) {
     ITT_FUNCTION_STAT();
 
     if (!name || !domain)
@@ -514,7 +528,8 @@ __itt_counter ITTAPI UNICODE_AGNOSTIC(counter_create_typed)(const char* name, co
     __itt_global* pGlobal = GetITTGlobal();
     for (h_tail = NULL, h = pGlobal->counter_list; h != NULL; h_tail = h, h = h->next) {
         if (h->nameA != NULL && h->type == type && !__itt_fstrcmp(h->nameA, name) &&
-            ((h->domainA == NULL && domain == NULL) || (h->domainA != NULL && domain != NULL && !__itt_fstrcmp(h->domainA, domain))))
+            ((h->domainA == NULL && domain == NULL) ||
+             (h->domainA != NULL && domain != NULL && !__itt_fstrcmp(h->domainA, domain))))
             break;
     }
     if (!h) {
@@ -549,10 +564,21 @@ double Convert(void* ptr) {
 typedef double (*FConvert)(void* ptr);
 
 FConvert g_MetatypeFormatConverter[] = {
-    nullptr, Convert<uint64_t>, Convert<int64_t>, Convert<uint32_t>, Convert<int32_t>, Convert<uint16_t>, Convert<int16_t>, Convert<float>, Convert<double>,
+    nullptr,
+    Convert<uint64_t>,
+    Convert<int64_t>,
+    Convert<uint32_t>,
+    Convert<int32_t>,
+    Convert<uint16_t>,
+    Convert<int16_t>,
+    Convert<float>,
+    Convert<double>,
 };
 
-void counter_set_value_ex(__itt_counter id, __itt_clock_domain* clock_domain, unsigned long long timestamp, void* value_ptr) {
+void counter_set_value_ex(__itt_counter id,
+                          __itt_clock_domain* clock_domain,
+                          unsigned long long timestamp,
+                          void* value_ptr) {
     ITT_FUNCTION_STAT();
     if (id->type < __itt_metadata_u64 || id->type > __itt_metadata_double) {
         VerbosePrint("%s: weird type: %d stack: %s\n", __FUNCTION__, (int)id->type, GetStackString().c_str());
@@ -579,7 +605,7 @@ void UNICODE_AGNOSTIC(sync_create)(void* addr, const char* objtype, const char* 
     __itt_id id = __itt_id_make(addr, 0);
 
     CTraceEventFormat::SRegularFields rf = GetRegularFields();
-    WriteRecord(ERecordType::ObjectNew, SRecord {rf, *g_pIntelSEAPIDomain, id, __itt_null, pName});
+    WriteRecord(ERecordType::ObjectNew, SRecord{rf, *g_pIntelSEAPIDomain, id, __itt_null, pName});
 }
 
 #ifdef _WIN32
@@ -593,7 +619,7 @@ void sync_destroy(void* addr) {
 
     __itt_id id = __itt_id_make(addr, 0);
     CTraceEventFormat::SRegularFields rf = GetRegularFields();
-    WriteRecord(ERecordType::ObjectDelete, SRecord {rf, *g_pIntelSEAPIDomain, id, __itt_null});
+    WriteRecord(ERecordType::ObjectDelete, SRecord{rf, *g_pIntelSEAPIDomain, id, __itt_null});
 }
 
 inline void SyncState(void* addr, const char* state) {
@@ -602,7 +628,8 @@ inline void SyncState(void* addr, const char* state) {
     __itt_id id = __itt_id_make(addr, 0);
 
     CTraceEventFormat::SRegularFields rf = GetRegularFields();
-    WriteRecord(ERecordType::ObjectSnapshot, SRecord {rf, *g_pIntelSEAPIDomain, id, __itt_null, nullptr, nullptr, state, strlen(state)});
+    WriteRecord(ERecordType::ObjectSnapshot,
+                SRecord{rf, *g_pIntelSEAPIDomain, id, __itt_null, nullptr, nullptr, state, strlen(state)});
 }
 
 void UNICODE_AGNOSTIC(sync_rename)(void* addr, const char* name) {
@@ -643,14 +670,14 @@ void region_begin(const __itt_domain* pDomain, __itt_id id, __itt_id parentid, c
     ITT_FUNCTION_STAT();
 
     CTraceEventFormat::SRegularFields rf = GetRegularFields();
-    WriteRecord(ERecordType::BeginFrame, SRecord {rf, *pDomain, id, parentid, pName});
+    WriteRecord(ERecordType::BeginFrame, SRecord{rf, *pDomain, id, parentid, pName});
 }
 
 void region_end(const __itt_domain* pDomain, __itt_id id) {
     ITT_FUNCTION_STAT();
 
     CTraceEventFormat::SRegularFields rf = GetRegularFields();
-    WriteRecord(ERecordType::EndFrame, SRecord {rf, *pDomain, id, __itt_null});
+    WriteRecord(ERecordType::EndFrame, SRecord{rf, *pDomain, id, __itt_null});
 }
 
 __itt_clock_domain* clock_domain_create(__itt_get_clock_info_fn fn, void* fn_data) {
@@ -668,8 +695,11 @@ __itt_clock_domain* clock_domain_create(__itt_get_clock_info_fn fn, void* fn_dat
     fn(&ci, fn_data);
     uint64_t now2 = CTraceEventFormat::GetRegularFields().nanoseconds;
 
-    *ppClockDomain = new __itt_clock_domain {
-        ci, fn, fn_data, 0,
+    *ppClockDomain = new __itt_clock_domain{
+        ci,
+        fn,
+        fn_data,
+        0,
         new uint64_t((now1 + now2) / 2)  // let's keep current time point in extra2
     };
 
@@ -694,7 +724,11 @@ void clock_domain_reset() {
     });
 }
 
-void task_begin_ex(const __itt_domain* pDomain, __itt_clock_domain* clock_domain, unsigned long long timestamp, __itt_id taskid, __itt_id parentid,
+void task_begin_ex(const __itt_domain* pDomain,
+                   __itt_clock_domain* clock_domain,
+                   unsigned long long timestamp,
+                   __itt_id taskid,
+                   __itt_id parentid,
                    __itt_string_handle* pName) {
     ITT_FUNCTION_STAT();
 
@@ -702,12 +736,12 @@ void task_begin_ex(const __itt_domain* pDomain, __itt_clock_domain* clock_domain
 
     CTraceEventFormat::SRegularFields rf = GetRegularFields(clock_domain, timestamp);
 
-    pThreadRecord->pTask = placement_new(STaskDescriptor) {pThreadRecord->pTask,  // chaining the previous task inside
-                                                           rf,
-                                                           pDomain,
-                                                           pName,
-                                                           taskid,
-                                                           parentid};
+    pThreadRecord->pTask = placement_new(STaskDescriptor){pThreadRecord->pTask,  // chaining the previous task inside
+                                                          rf,
+                                                          pDomain,
+                                                          pName,
+                                                          taskid,
+                                                          parentid};
 
     for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i) {
         g_handlers[i]->TaskBegin(*pThreadRecord->pTask, false);
@@ -765,7 +799,8 @@ __itt_track_group* track_group_create(__itt_string_handle* pName, __itt_track_gr
         WriteGroupName(g_lastPseudoProcess, pName->strA);
     }
     // zero name means current process
-    return *ppTrackGroup = new __itt_track_group {pName, nullptr, track_group_type, int(pName ? g_lastPseudoProcess-- : g_PID)};
+    return *ppTrackGroup =
+               new __itt_track_group{pName, nullptr, track_group_type, int(pName ? g_lastPseudoProcess-- : g_PID)};
 }
 
 __itt_track* track_create(__itt_track_group* track_group, __itt_string_handle* name, __itt_track_type track_type) {
@@ -783,13 +818,14 @@ __itt_track* track_create(__itt_track_group* track_group, __itt_string_handle* n
         ppTrack = &(*ppTrack)->next;
     }
 
-    CTraceEventFormat::SRegularFields* pRF = new CTraceEventFormat::SRegularFields {int64_t(track_group->extra1), g_lastPseudoThread--};
+    CTraceEventFormat::SRegularFields* pRF =
+        new CTraceEventFormat::SRegularFields{int64_t(track_group->extra1), g_lastPseudoThread--};
 
     for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i) {
         g_handlers[i]->SetThreadName(*pRF, name->strA);
     }
 
-    return *ppTrack = new __itt_track {name, track_group, track_type, 0, pRF};
+    return *ppTrack = new __itt_track{name, track_group, track_type, 0, pRF};
 }
 
 class COverlapped {
@@ -801,9 +837,17 @@ public:
         return *(pThreadRecord->pOverlapped = new COverlapped);
     }
 
-    void Begin(__itt_id taskid, const CTraceEventFormat::SRegularFields& rf, const __itt_domain* domain, __itt_string_handle* name, __itt_id parentid) {
-        m_map[taskid].reset(placement_new(STaskDescriptor) {nullptr,  // chaining the previous task inside
-                                                            rf, domain, name, taskid, parentid},
+    void Begin(__itt_id taskid,
+               const CTraceEventFormat::SRegularFields& rf,
+               const __itt_domain* domain,
+               __itt_string_handle* name,
+               __itt_id parentid) {
+        m_map[taskid].reset(placement_new(STaskDescriptor){nullptr,  // chaining the previous task inside
+                                                           rf,
+                                                           domain,
+                                                           name,
+                                                           taskid,
+                                                           parentid},
                             placement_free<STaskDescriptor>);
 
         for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i) {
@@ -863,20 +907,30 @@ protected:
     TTaskMap m_map;
 };
 
-void task_begin_overlapped_ex(const __itt_domain* pDomain, __itt_clock_domain* clock_domain, unsigned long long timestamp, __itt_id taskid, __itt_id parentid,
+void task_begin_overlapped_ex(const __itt_domain* pDomain,
+                              __itt_clock_domain* clock_domain,
+                              unsigned long long timestamp,
+                              __itt_id taskid,
+                              __itt_id parentid,
                               __itt_string_handle* pName) {
     ITT_FUNCTION_STAT();
 
     COverlapped::Get().Begin(taskid, GetRegularFields(clock_domain, timestamp), pDomain, pName, parentid);
 }
 
-void task_begin_overlapped(const __itt_domain* pDomain, __itt_id taskid, __itt_id parentid, __itt_string_handle* pName) {
+void task_begin_overlapped(const __itt_domain* pDomain,
+                           __itt_id taskid,
+                           __itt_id parentid,
+                           __itt_string_handle* pName) {
     ITT_FUNCTION_STAT();
 
     task_begin_overlapped_ex(pDomain, nullptr, 0, taskid, parentid, pName);
 }
 
-void task_end_overlapped_ex(const __itt_domain* pDomain, __itt_clock_domain* clock_domain, unsigned long long timestamp, __itt_id taskid) {
+void task_end_overlapped_ex(const __itt_domain* pDomain,
+                            __itt_clock_domain* clock_domain,
+                            unsigned long long timestamp,
+                            __itt_id taskid) {
     ITT_FUNCTION_STAT();
 
     COverlapped::Get().End(taskid, GetRegularFields(clock_domain, timestamp), pDomain);
@@ -899,7 +953,8 @@ template <class... Args>
 void MetadataAdd(const __itt_domain* pDomain, __itt_id id, __itt_string_handle* pKey, Args... args) {
     if (id.d1 || id.d2) {
         SThreadRecord* pThreadRecord = GetThreadRecord();
-        if (!COverlapped::Get().AddArg(pDomain, id, pKey, args...) && pThreadRecord->pTask && pThreadRecord->pTask->id == id) {
+        if (!COverlapped::Get().AddArg(pDomain, id, pKey, args...) && pThreadRecord->pTask &&
+            pThreadRecord->pTask->id == id) {
             for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i) {
                 g_handlers[i]->AddArg(*pThreadRecord->pTask, pKey, args...);
             }
@@ -907,7 +962,11 @@ void MetadataAdd(const __itt_domain* pDomain, __itt_id id, __itt_string_handle* 
     }
 }
 
-void UNICODE_AGNOSTIC(metadata_str_add)(const __itt_domain* pDomain, __itt_id id, __itt_string_handle* pKey, const char* data, size_t length) {
+void UNICODE_AGNOSTIC(metadata_str_add)(const __itt_domain* pDomain,
+                                        __itt_id id,
+                                        __itt_string_handle* pKey,
+                                        const char* data,
+                                        size_t length) {
     ITT_FUNCTION_STAT();
 
     if (id == __itt_null) {
@@ -940,12 +999,21 @@ void UNICODE_AGNOSTIC(metadata_str_add)(const __itt_domain* pDomain, __itt_id id
 }
 
 #ifdef _WIN32
-void metadata_str_addW(const __itt_domain* pDomain, __itt_id id, __itt_string_handle* pKey, const wchar_t* data, size_t length) {
+void metadata_str_addW(const __itt_domain* pDomain,
+                       __itt_id id,
+                       __itt_string_handle* pKey,
+                       const wchar_t* data,
+                       size_t length) {
     UNICODE_AGNOSTIC(metadata_str_add)(pDomain, id, pKey, W2L(data).c_str(), length);
 }
 #endif
 
-void metadata_add(const __itt_domain* pDomain, __itt_id id, __itt_string_handle* pKey, __itt_metadata_type type, size_t count, void* data) {
+void metadata_add(const __itt_domain* pDomain,
+                  __itt_id id,
+                  __itt_string_handle* pKey,
+                  __itt_metadata_type type,
+                  size_t count,
+                  void* data) {
     ITT_FUNCTION_STAT();
 
     if (id.d1 || id.d2) {
@@ -976,19 +1044,19 @@ void frame_begin_v3(const __itt_domain* pDomain, __itt_id* id) {
     ITT_FUNCTION_STAT();
 
     CTraceEventFormat::SRegularFields rf = GetRegularFields();
-    WriteRecord(ERecordType::BeginFrame, SRecord {rf, *pDomain, id ? *id : __itt_null, __itt_null});
+    WriteRecord(ERecordType::BeginFrame, SRecord{rf, *pDomain, id ? *id : __itt_null, __itt_null});
 }
 
 void frame_end_v3(const __itt_domain* pDomain, __itt_id* id) {
     ITT_FUNCTION_STAT();
 
     CTraceEventFormat::SRegularFields rf = GetRegularFields();
-    WriteRecord(ERecordType::EndFrame, SRecord {rf, *pDomain, id ? *id : __itt_null, __itt_null});
+    WriteRecord(ERecordType::EndFrame, SRecord{rf, *pDomain, id ? *id : __itt_null, __itt_null});
 }
 
 __itt_frame_t* UNICODE_AGNOSTIC(frame_create)(const char* domain) {
     ITT_FUNCTION_STAT();
-    return new __itt_frame_t {UNICODE_AGNOSTIC(domain_create)(domain), __itt_id_make(const_cast<char*>(domain), 0)};
+    return new __itt_frame_t{UNICODE_AGNOSTIC(domain_create)(domain), __itt_id_make(const_cast<char*>(domain), 0)};
 }
 
 #ifdef _WIN32
@@ -1027,9 +1095,9 @@ void frame_submit_v3(const __itt_domain* pDomain, __itt_id* pId, __itt_timestamp
         }
     }
     rf.nanoseconds = begin;
-    WriteRecord(ERecordType::BeginFrame, SRecord {rf, *pDomain, pId ? *pId : __itt_null, __itt_null, pName});
+    WriteRecord(ERecordType::BeginFrame, SRecord{rf, *pDomain, pId ? *pId : __itt_null, __itt_null, pName});
     rf.nanoseconds = end;
-    WriteRecord(ERecordType::EndFrame, SRecord {rf, *pDomain, pId ? *pId : __itt_null, __itt_null});
+    WriteRecord(ERecordType::EndFrame, SRecord{rf, *pDomain, pId ? *pId : __itt_null, __itt_null});
 }
 
 __itt_timestamp get_timestamp() {
@@ -1040,10 +1108,11 @@ __itt_timestamp get_timestamp() {
 void Pause() {
     static __itt_global* pGlobal = GetITTGlobal();
     while (pGlobal) {
-        pGlobal->state = __itt_collection_paused;
+        pGlobal->state = __itt_collection_init_fail;
         ___itt_domain* pDomain = pGlobal->domain_list;
         while (pDomain) {
-            pDomain->flags = 0;  // this flag is analyzed by static part of ITT to decide where to call dynamic part or not
+            pDomain->flags =
+                0;  // this flag is analyzed by static part of ITT to decide where to call dynamic part or not
             pDomain = pDomain->next;
         }
         pGlobal = pGlobal->next;
@@ -1065,10 +1134,11 @@ void Resume() {
     while (pGlobal) {
         ___itt_domain* pDomain = pGlobal->domain_list;
         while (pDomain) {
-            pDomain->flags = 1;  // this flag is analyzed by static part of ITT to decide where to call dynamic part or not
+            pDomain->flags =
+                1;  // this flag is analyzed by static part of ITT to decide where to call dynamic part or not
             pDomain = pDomain->next;
         }
-        pGlobal->state = __itt_collection_normal;
+        pGlobal->state = __itt_collection_uninitialized;
         pGlobal = pGlobal->next;
     }
 }
@@ -1085,7 +1155,11 @@ using TRelations = __itt_string_handle * [__itt_relation_is_predecessor_to + 1];
 // it's not static member of function to avoid racing
 TRelations g_relations = {};  // will be filled in InitSEA
 
-void relation_add_ex(const __itt_domain* pDomain, __itt_clock_domain* clock_domain, unsigned long long timestamp, __itt_id head, __itt_relation relation,
+void relation_add_ex(const __itt_domain* pDomain,
+                     __itt_clock_domain* clock_domain,
+                     unsigned long long timestamp,
+                     __itt_id head,
+                     __itt_relation relation,
                      __itt_id tail) {
     ITT_FUNCTION_STAT();
     CTraceEventFormat::SRegularFields rf = GetRegularFields(clock_domain, timestamp);
@@ -1105,7 +1179,10 @@ void relation_add(const __itt_domain* pDomain, __itt_id head, __itt_relation rel
     relation_add_ex(pDomain, nullptr, 0, head, relation, tail);
 }
 
-void relation_add_to_current_ex(const __itt_domain* pDomain, __itt_clock_domain* clock_domain, unsigned long long timestamp, __itt_relation relation,
+void relation_add_to_current_ex(const __itt_domain* pDomain,
+                                __itt_clock_domain* clock_domain,
+                                unsigned long long timestamp,
+                                __itt_relation relation,
                                 __itt_id tail) {
     ITT_FUNCTION_STAT();
     relation_add_ex(pDomain, clock_domain, timestamp, __itt_null, relation, tail);
@@ -1120,7 +1197,9 @@ struct SHeapFunction {
 __itt_heap_function ITTAPI UNICODE_AGNOSTIC(heap_function_create)(const char* name, const char* domain) {
     ITT_FUNCTION_STAT();
     std::string counter_name = std::string(name) + ":ALL(bytes)";
-    return new SHeapFunction {UNICODE_AGNOSTIC(domain_create)(domain), name, UNICODE_AGNOSTIC(string_handle_create)(counter_name.c_str())};
+    return new SHeapFunction{UNICODE_AGNOSTIC(domain_create)(domain),
+                             name,
+                             UNICODE_AGNOSTIC(string_handle_create)(counter_name.c_str())};
 }
 
 #ifdef _WIN32
@@ -1151,7 +1230,7 @@ protected:
     bool m_bInitialized = false;
 
 public:
-    CMemoryTracker(): m_bInitialized(true) {}
+    CMemoryTracker() : m_bInitialized(true) {}
     void Alloc(SHeapFunction* pHeapFunction, const void* addr, size_t size) {
         static bool bMemCount = !!(GetFeatureSet() & sfMemCounters);
 
@@ -1159,7 +1238,11 @@ public:
             return;
 
         for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i) {
-            g_handlers[i]->Alloc(GetRegularFields(), addr, size, pHeapFunction->pDomain->nameA, pHeapFunction->name.c_str());
+            g_handlers[i]->Alloc(GetRegularFields(),
+                                 addr,
+                                 size,
+                                 pHeapFunction->pDomain->nameA,
+                                 pHeapFunction->name.c_str());
         }
 
         SNode* pNode = UpdateAllocation(size, +1, nullptr);
@@ -1172,7 +1255,8 @@ public:
                 if (m_counter_map.end() == it) {
                     std::string name = pHeapFunction->name + std::string(":size<") + std::to_string(size) + ">(count)";
                     __itt_string_handle* pName = UNICODE_AGNOSTIC(string_handle_create)(name.c_str());
-                    it = m_counter_map.insert(m_counter_map.end(), std::make_pair(size, std::make_pair(pName, size_t(1))));
+                    it = m_counter_map.insert(m_counter_map.end(),
+                                              std::make_pair(size, std::make_pair(pName, size_t(1))));
                 } else {
                     ++it->second.second;
                 }
@@ -1233,7 +1317,11 @@ public:
                 UpdateAllocation(size, -1, pNode);
         }
         for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i) {
-            g_handlers[i]->Free(GetRegularFields(), addr, size, pHeapFunction->pDomain->nameA, pHeapFunction->name.c_str());
+            g_handlers[i]->Free(GetRegularFields(),
+                                addr,
+                                size,
+                                pHeapFunction->pDomain->nameA,
+                                pHeapFunction->name.c_str());
         }
     }
 
@@ -1324,9 +1412,9 @@ __itt_event ITTAPI event_createW(const wchar_t* name, int namelen) {
 #endif
 
 #ifdef _WIN32
-    #define WIN(something) something
+#    define WIN(something) something
 #else
-    #define WIN(nothing)
+#    define WIN(nothing)
 #endif
 
 #define _AW(macro, name) macro(UNICODE_AGNOSTIC(name)) WIN(macro(ITT_JOIN(name, W)))
@@ -1487,8 +1575,9 @@ void FillApiList(__itt_api_info* api_list_ptr) {
         continue;                                                     \
     }
 #define ITT_STUB_IMPL_ORIG(name) ITT_STUB_IMPL(name)
-#ifdef _DEBUG  // dangerous stub that doesn't return anything (even when expected) but records the function call for statistics sake
-    #define ITT_STUB_NO_IMPL(fn)                                              \
+#ifdef _DEBUG  // dangerous stub that doesn't return anything (even when expected) but records the function call for
+               // statistics sake
+#    define ITT_STUB_NO_IMPL(fn)                                              \
         if (0 == strcmp("__itt_" ITT_TO_STR(fn), api_list_ptr[i].name)) {     \
             struct local {                                                    \
                 static void stub(...) {                                       \
@@ -1499,7 +1588,7 @@ void FillApiList(__itt_api_info* api_list_ptr) {
             continue;                                                         \
         }
 #else
-    #define ITT_STUB_NO_IMPL(fn)
+#    define ITT_STUB_NO_IMPL(fn)
 #endif
 
     for (int i = 0; (api_list_ptr[i].name != NULL) && (*api_list_ptr[i].name != 0); ++i) {
@@ -1516,10 +1605,13 @@ uint64_t GetFeatureSet() {
     static std::string save = GetSavePath();
 
     static uint64_t features = (std::string::npos != env.find("mfp") ? sfMetricsFrameworkPublisher : 0) |
-                               (std::string::npos != env.find("mfc") ? sfMetricsFrameworkConsumer : 0) | (save.size() ? sfSEA : 0) |
-                               (std::string::npos != env.find("stack") ? sfStack : 0) | (std::string::npos != env.find("vscv") ? sfConcurrencyVisualizer : 0) |
-                               (std::string::npos != env.find("rmtr") ? sfRemotery : 0) | (std::string::npos != env.find("brflr") ? sfBrofiler : 0) |
-                               (std::string::npos != env.find("memstat") ? sfMemStat : 0) | (std::string::npos != env.find("memcount") ? sfMemCounters : 0) |
+                               (std::string::npos != env.find("mfc") ? sfMetricsFrameworkConsumer : 0) |
+                               (save.size() ? sfSEA : 0) | (std::string::npos != env.find("stack") ? sfStack : 0) |
+                               (std::string::npos != env.find("vscv") ? sfConcurrencyVisualizer : 0) |
+                               (std::string::npos != env.find("rmtr") ? sfRemotery : 0) |
+                               (std::string::npos != env.find("brflr") ? sfBrofiler : 0) |
+                               (std::string::npos != env.find("memstat") ? sfMemStat : 0) |
+                               (std::string::npos != env.find("memcount") ? sfMemCounters : 0) |
                                (std::string::npos != env.find("rad") ? sfRadTelemetry : 0);
     return features;
 }
@@ -1534,7 +1626,8 @@ void TraverseDomains(const std::function<void(___itt_domain&)>& callback) {
 void TraverseThreadRecords(const std::function<void(SThreadRecord&)>& callback) {
     TraverseDomains([&](___itt_domain& domain) {
         if (DomainExtra* pDomainExtra = reinterpret_cast<DomainExtra*>(domain.extra2)) {
-            for (SThreadRecord* pThreadRecord = pDomainExtra->pThreadRecords; pThreadRecord; pThreadRecord = pThreadRecord->pNext)
+            for (SThreadRecord* pThreadRecord = pDomainExtra->pThreadRecords; pThreadRecord;
+                 pThreadRecord = pThreadRecord->pNext)
                 callback(*pThreadRecord);
         }
     });
@@ -1544,7 +1637,8 @@ void SetCutName(const std::string& name) {
     CIttLocker lock;
     g_spCutName = std::make_shared<std::string>(Escape4Path(name));
     TraverseThreadRecords([](SThreadRecord& record) {
-        record.nSpeedupCounter = (std::numeric_limits<int>::max)();  // changing number is safer than changing pointer to last recorder
+        record.nSpeedupCounter =
+            (std::numeric_limits<int>::max)();  // changing number is safer than changing pointer to last recorder
     });
 }
 
@@ -1555,7 +1649,8 @@ CTraceEventFormat::SRegularFields g_rfMainThread = CTraceEventFormat::GetRegular
 void SetFolder(const std::string& path) {
     CIttLocker lock;
 
-    std::string new_path = path.size() ? (path + "-" + std::to_string(CTraceEventFormat::GetRegularFields().pid) + "/") : "";
+    std::string new_path =
+        path.size() ? (path + "-" + std::to_string(CTraceEventFormat::GetRegularFields().pid) + "/") : "";
 
     if (g_savepath == new_path)
         return;
@@ -1575,11 +1670,14 @@ void SetFolder(const std::string& path) {
         for (___itt_domain* pDomain = pGlobal->domain_list; pDomain; pDomain = pDomain->next) {
             DomainExtra* pDomainExtra = reinterpret_cast<DomainExtra*>(pDomain->extra2);
             if (pDomainExtra) {
-                pDomainExtra->strDomainPath = g_savepath.size() ? GetDir(g_savepath, Escape4Path(pDomain->nameA)) : "";  // 3.
+                pDomainExtra->strDomainPath =
+                    g_savepath.size() ? GetDir(g_savepath, Escape4Path(pDomain->nameA)) : "";  // 3.
                 pDomainExtra->bHasDomainPath = !pDomainExtra->strDomainPath.empty();
-                for (SThreadRecord* pThreadRecord = pDomainExtra->pThreadRecords; pThreadRecord; pThreadRecord = pThreadRecord->pNext) {
+                for (SThreadRecord* pThreadRecord = pDomainExtra->pThreadRecords; pThreadRecord;
+                     pThreadRecord = pThreadRecord->pNext) {
                     if (g_savepath.size()) {
-                        pThreadRecord->bRemoveFiles = true;  // 1. on next attempt to get a file it will recreate all files with new paths
+                        pThreadRecord->bRemoveFiles =
+                            true;  // 1. on next attempt to get a file it will recreate all files with new paths
                     } else {
                         pThreadRecord->files.clear();
                     }
@@ -1589,7 +1687,8 @@ void SetFolder(const std::string& path) {
 
         if (g_savepath.size()) {
             for (___itt_string_handle* pString = pGlobal->string_list; pString; pString = pString->next)
-                sea::ReportString(const_cast<__itt_string_handle*>(pString));  // 2. making string to be reported again - into the new folder
+                sea::ReportString(const_cast<__itt_string_handle*>(
+                    pString));  // 2. making string to be reported again - into the new folder
         }
     }
 
@@ -1620,7 +1719,10 @@ bool WriteFTraceTimeSyncMarkers() {
     }
     for (size_t i = 0; i < 5; ++i) {
         char buff[100] = {};
-        int size = snprintf(buff, sizeof(buff), "IntelSEAPI_Time_Sync: %llu\n", (long long unsigned int)CTraceEventFormat::GetTimeNS());
+        int size = snprintf(buff,
+                            sizeof(buff),
+                            "IntelSEAPI_Time_Sync: %llu\n",
+                            (long long unsigned int)CTraceEventFormat::GetTimeNS());
         int res = write(fd, buff, (unsigned int)size);
         if (-1 == res)
             return false;
@@ -1633,8 +1735,17 @@ bool WriteFTraceTimeSyncMarkers() {
 #ifdef __APPLE__
 bool WriteKTraceTimeSyncMarkers() {
     for (size_t i = 0; i < 5; ++i) {
-        kdebug_signpost(APPSDBG_CODE(DBG_MACH_CHUD, 0x15EA), CTraceEventFormat::GetTimeNS(), 0x15EA15EA, 0x15EA15EA, 0x15EA15EA);
-        syscall(SYS_kdebug_trace, APPSDBG_CODE(DBG_MACH_CHUD, 0x15EA) | DBG_FUNC_NONE, CTraceEventFormat::GetTimeNS(), 0x15EA15EA, 0x15EA15EA, 0x15EA15EA);
+        kdebug_signpost(APPSDBG_CODE(DBG_MACH_CHUD, 0x15EA),
+                        CTraceEventFormat::GetTimeNS(),
+                        0x15EA15EA,
+                        0x15EA15EA,
+                        0x15EA15EA);
+        syscall(SYS_kdebug_trace,
+                APPSDBG_CODE(DBG_MACH_CHUD, 0x15EA) | DBG_FUNC_NONE,
+                CTraceEventFormat::GetTimeNS(),
+                0x15EA15EA,
+                0x15EA15EA,
+                0x15EA15EA);
     }
     return true;
 }
@@ -1655,8 +1766,10 @@ void InitSEA() {
         ("parent_of"),       /**< "A is parent of B" means that A created B */
         ("continuation_of"), /**< "A is continuation of B" means that A assumes the dependencies of B */
         ("child_of"),        /**< "A is child of B" means that A was created by B (inverse of is_parent_of) */
-        ("continued_by"),    /**< "A is continued by B" means that B assumes the dependencies of A (inverse of is_continuation_of) */
-        ("predecessor_to")   /**< "A is predecessor to B" means that B cannot start until A completes (inverse of is_dependent_on) */
+        ("continued_by"),    /**< "A is continued by B" means that B assumes the dependencies of A (inverse of
+                                is_continuation_of) */
+        ("predecessor_to")   /**< "A is predecessor to B" means that B cannot start until A completes (inverse of
+                                is_dependent_on) */
     };
 
     size_t i = 0;
@@ -1716,32 +1829,54 @@ SEA_EXPORT void* itt_create_string(const char* str) {
 SEA_EXPORT void itt_marker(void* domain, uint64_t id, void* name, int scope, uint64_t timestamp) {
     __itt_marker_ex(reinterpret_cast<__itt_domain*>(domain),
                     nullptr,  // zero clock domain means that given time is already a correct timestamp
-                    timestamp, id ? __itt_id_make(domain, id) : __itt_null, reinterpret_cast<__itt_string_handle*>(name), (__itt_scope)scope);
+                    timestamp,
+                    id ? __itt_id_make(domain, id) : __itt_null,
+                    reinterpret_cast<__itt_string_handle*>(name),
+                    (__itt_scope)scope);
 }
 
 SEA_EXPORT void itt_task_begin(void* domain, uint64_t id, uint64_t parent, void* name, uint64_t timestamp) {
-    __itt_task_begin_ex(reinterpret_cast<__itt_domain*>(domain), nullptr, timestamp, id ? __itt_id_make(domain, id) : __itt_null,
-                        parent ? __itt_id_make(domain, parent) : __itt_null, reinterpret_cast<__itt_string_handle*>(name));
+    __itt_task_begin_ex(reinterpret_cast<__itt_domain*>(domain),
+                        nullptr,
+                        timestamp,
+                        id ? __itt_id_make(domain, id) : __itt_null,
+                        parent ? __itt_id_make(domain, parent) : __itt_null,
+                        reinterpret_cast<__itt_string_handle*>(name));
 }
 
 SEA_EXPORT void itt_task_begin_overlapped(void* domain, uint64_t id, uint64_t parent, void* name, uint64_t timestamp) {
-    __itt_task_begin_overlapped_ex(reinterpret_cast<__itt_domain*>(domain), nullptr, timestamp, __itt_id_make(domain, id),
-                                   parent ? __itt_id_make(domain, parent) : __itt_null, reinterpret_cast<__itt_string_handle*>(name));
+    __itt_task_begin_overlapped_ex(reinterpret_cast<__itt_domain*>(domain),
+                                   nullptr,
+                                   timestamp,
+                                   __itt_id_make(domain, id),
+                                   parent ? __itt_id_make(domain, parent) : __itt_null,
+                                   reinterpret_cast<__itt_string_handle*>(name));
 }
 
 SEA_EXPORT void itt_metadata_add(void* domain, uint64_t id, void* name, double value) {
-    __itt_metadata_add(reinterpret_cast<__itt_domain*>(domain), id ? __itt_id_make(domain, id) : __itt_null, reinterpret_cast<__itt_string_handle*>(name),
-                       __itt_metadata_double, 1, &value);
+    __itt_metadata_add(reinterpret_cast<__itt_domain*>(domain),
+                       id ? __itt_id_make(domain, id) : __itt_null,
+                       reinterpret_cast<__itt_string_handle*>(name),
+                       __itt_metadata_double,
+                       1,
+                       &value);
 }
 
 SEA_EXPORT void itt_metadata_add_str(void* domain, uint64_t id, void* name, const char* value) {
-    __itt_metadata_str_add(reinterpret_cast<__itt_domain*>(domain), id ? __itt_id_make(domain, id) : __itt_null, reinterpret_cast<__itt_string_handle*>(name),
-                           value, 0);
+    __itt_metadata_str_add(reinterpret_cast<__itt_domain*>(domain),
+                           id ? __itt_id_make(domain, id) : __itt_null,
+                           reinterpret_cast<__itt_string_handle*>(name),
+                           value,
+                           0);
 }
 
 SEA_EXPORT void itt_metadata_add_blob(void* domain, uint64_t id, void* name, const void* value, uint32_t size) {
-    __itt_metadata_add(reinterpret_cast<__itt_domain*>(domain), id ? __itt_id_make(domain, id) : __itt_null, reinterpret_cast<__itt_string_handle*>(name),
-                       __itt_metadata_unknown, size, const_cast<void*>(value));
+    __itt_metadata_add(reinterpret_cast<__itt_domain*>(domain),
+                       id ? __itt_id_make(domain, id) : __itt_null,
+                       reinterpret_cast<__itt_string_handle*>(name),
+                       __itt_metadata_unknown,
+                       size,
+                       const_cast<void*>(value));
 }
 
 SEA_EXPORT void itt_task_end(void* domain, uint64_t timestamp) {
@@ -1749,11 +1884,16 @@ SEA_EXPORT void itt_task_end(void* domain, uint64_t timestamp) {
 }
 
 SEA_EXPORT void itt_task_end_overlapped(void* domain, uint64_t timestamp, uint64_t taskid) {
-    __itt_task_end_overlapped_ex(reinterpret_cast<__itt_domain*>(domain), nullptr, timestamp, __itt_id_make(domain, taskid));
+    __itt_task_end_overlapped_ex(reinterpret_cast<__itt_domain*>(domain),
+                                 nullptr,
+                                 timestamp,
+                                 __itt_id_make(domain, taskid));
 }
 
 SEA_EXPORT void* itt_counter_create(void* domain, void* name) {
-    return __itt_counter_create_typed(reinterpret_cast<__itt_string_handle*>(name)->strA, reinterpret_cast<__itt_domain*>(domain)->nameA, __itt_metadata_u64);
+    return __itt_counter_create_typed(reinterpret_cast<__itt_string_handle*>(name)->strA,
+                                      reinterpret_cast<__itt_domain*>(domain)->nameA,
+                                      __itt_metadata_u64);
 }
 
 SEA_EXPORT void itt_set_counter(void* id, double value, uint64_t timestamp) {
@@ -1761,8 +1901,10 @@ SEA_EXPORT void itt_set_counter(void* id, double value, uint64_t timestamp) {
 }
 
 SEA_EXPORT void* itt_create_track(const char* group, const char* track) {
-    return __itt_track_create(__itt_track_group_create(((group) ? __itt_string_handle_create(group) : nullptr), __itt_track_group_type_normal),
-                              __itt_string_handle_create(track), __itt_track_type_normal);
+    return __itt_track_create(__itt_track_group_create(((group) ? __itt_string_handle_create(group) : nullptr),
+                                                       __itt_track_group_type_normal),
+                              __itt_string_handle_create(track),
+                              __itt_track_type_normal);
 }
 
 SEA_EXPORT void itt_set_track(void* track) {

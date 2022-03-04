@@ -1,136 +1,684 @@
 # Model Optimizer Developer Guide {#openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide}
 
+@sphinxdirective
+
+.. _deep learning model optimizer:
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   
+   openvino_docs_MO_DG_IR_and_opsets
+   openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model
+   openvino_docs_MO_DG_Additional_Optimization_Use_Cases
+   openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer
+   openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ
+   openvino_docs_MO_DG_Known_Issues_Limitations
+   openvino_docs_MO_DG_Default_Model_Optimizer_Optimizations
+
+@endsphinxdirective
+
+## Introduction 
+
 Model Optimizer is a cross-platform command-line tool that facilitates the transition between the training and deployment environment, performs static model analysis, and adjusts deep learning models for optimal execution on end-point target devices.
 
-Model Optimizer process assumes you have a network model trained using a supported deep learning framework. The scheme below illustrates the typical workflow for deploying a trained deep learning model:
+Model Optimizer process assumes you have a network model trained using supported deep learning frameworks: Caffe*, TensorFlow*, Kaldi*, MXNet* or converted to the ONNX* format. Model Optimizer produces an Intermediate Representation (IR) of the network, which can be inferred with the [OpenVINO™ Runtime](../OV_Runtime_UG/openvino_intro.md).
 
-![](img/workflow_steps.png)
+> **NOTE**: Model Optimizer does not infer models. Model Optimizer is an offline tool that runs before the inference takes place.
 
-Model Optimizer produces an Intermediate Representation (IR) of the network, which can be read, loaded, and inferred with the Inference Engine. The Inference Engine API offers a unified API across a number of supported Intel® platforms. The Intermediate Representation is a pair of files describing the model:
+The scheme below illustrates the typical workflow for deploying a trained deep learning model: 
+
+![](img/BASIC_FLOW_MO_simplified.svg)
+
+The IR is a pair of files describing the model: 
 
 *  <code>.xml</code> - Describes the network topology
 
 *  <code>.bin</code> - Contains the weights and biases binary data.
 
-> **TIP**: You also can work with the Model Optimizer inside the OpenVINO™ [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench).
-> [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is a platform built upon OpenVINO™ and provides a web-based graphical environment that enables you to optimize, fine-tune, analyze, visualize, and compare 
-> performance of deep learning models on various Intel® architecture
-> configurations. In the DL Workbench, you can use most of OpenVINO™ toolkit components.
-> <br>
-> Proceed to an [easy installation from Docker](@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub) to get started.
+> **TIP**: You also can work with the Model Optimizer inside the OpenVINO™ [Deep Learning Workbench](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Introduction.html) (DL Workbench).
+> [DL Workbench](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Introduction.html) is a web-based graphical environment that enables you to optimize, fine-tune, analyze, visualize, and compare performance of deep learning models.
 
-## What's New in the Model Optimizer in this Release?
+## Install Model Optimizer Pre-Requisites
 
-* Common changes:
-    * Implemented several optimization transformations to replace sub-graphs of operations with HSwish, Mish, Swish and SoftPlus operations.
-    * Model Optimizer generates IR keeping shape-calculating sub-graphs **by default**. Previously, this behavior was triggered if the "--keep_shape_ops" command line parameter was provided. The key is ignored in this release and will be deleted in the next release. To trigger the legacy behavior to generate an IR for a fixed input shape (folding ShapeOf operations and shape-calculating sub-graphs to Constant), use the "--static_shape" command line parameter. Changing model input shape using the Inference Engine API in runtime may fail for such an IR.
-    * Fixed Model Optimizer conversion issues resulted in non-reshapeable IR using the Inference Engine reshape API.
-    * Enabled transformations to fix non-reshapeable patterns in the original networks:
-        * Hardcoded Reshape
-            * In Reshape(2D)->MatMul pattern
-            * Reshape->Transpose->Reshape when the pattern can be fused to the ShuffleChannels or DepthToSpace operation
-        * Hardcoded Interpolate
-            * In Interpolate->Concat pattern
-        * Added a dedicated requirements file for TensorFlow 2.X as well as the dedicated install prerequisites scripts.
-        * Replaced the SparseToDense operation with ScatterNDUpdate-4.
-* ONNX*:
-    * Enabled an ability to specify the model output **tensor** name using the "--output" command line parameter.
-    * Added support for the following operations:
-        * Acosh
-        * Asinh
-        * Atanh
-        * DepthToSpace-11, 13
-        * DequantizeLinear-10 (zero_point must be constant)
-        * HardSigmoid-1,6
-        * QuantizeLinear-10 (zero_point must be constant)
-        * ReduceL1-11, 13
-        * ReduceL2-11, 13
-        * Resize-11, 13 (except mode="nearest" with 5D+ input, mode="tf_crop_and_resize", and attributes exclude_outside and extrapolation_value with non-zero values)
-        * ScatterND-11, 13
-        * SpaceToDepth-11, 13
-* TensorFlow*:
-    * Added support for the following operations:
-        * Acosh
-        * Asinh
-        * Atanh
-        * CTCLoss
-        * EuclideanNorm
-        * ExtractImagePatches
-        * FloorDiv
-* MXNet*:
-    * Added support for the following operations:
-        * Acosh
-        * Asinh
-        * Atanh
-* Kaldi*:
-    * Fixed bug with ParallelComponent support. Now it is fully supported with no restrictions.
+Before running the Model Optimizer, you must install the Model Optimizer pre-requisites for the framework that was used to train the model.
 
-> **NOTE:** 
-> [Intel® System Studio](https://software.intel.com/en-us/system-studio) is an all-in-one, cross-platform tool suite, purpose-built to simplify system bring-up and improve system and IoT device application performance on Intel® platforms. If you are using the Intel® Distribution of OpenVINO™ with Intel® System Studio, go to [Get Started with Intel® System Studio](https://software.intel.com/en-us/articles/get-started-with-openvino-and-intel-system-studio-2019).
+@sphinxdirective
+.. tab:: Using configuration scripts
 
-## Table of Contents
+   .. tab:: Linux
 
-* [Preparing and Optimizing your Trained Model with Model Optimizer](prepare_model/Prepare_Trained_Model.md)
-    * [Configuring Model Optimizer](prepare_model/Config_Model_Optimizer.md)
-    * [Converting a Model to Intermediate Representation (IR)](prepare_model/convert_model/Converting_Model.md)
-        * [Converting a Model Using General Conversion Parameters](prepare_model/convert_model/Converting_Model_General.md)
-        * [Converting Your Caffe* Model](prepare_model/convert_model/Convert_Model_From_Caffe.md)
-        * [Converting Your TensorFlow* Model](prepare_model/convert_model/Convert_Model_From_TensorFlow.md)
-            * [Converting BERT from TensorFlow](prepare_model/convert_model/tf_specific/Convert_BERT_From_Tensorflow.md)
-            * [Converting GNMT from TensorFlow](prepare_model/convert_model/tf_specific/Convert_GNMT_From_Tensorflow.md)
-            * [Converting YOLO from DarkNet to TensorFlow and then to IR](prepare_model/convert_model/tf_specific/Convert_YOLO_From_Tensorflow.md)
-            * [Converting Wide and Deep Models from TensorFlow](prepare_model/convert_model/tf_specific/Convert_WideAndDeep_Family_Models.md)
-            * [Converting FaceNet from TensorFlow](prepare_model/convert_model/tf_specific/Convert_FaceNet_From_Tensorflow.md)
-            * [Converting DeepSpeech from TensorFlow](prepare_model/convert_model/tf_specific/Convert_DeepSpeech_From_Tensorflow.md)
-            * [Converting Language Model on One Billion Word Benchmark from TensorFlow](prepare_model/convert_model/tf_specific/Convert_lm_1b_From_Tensorflow.md)
-            * [Converting Neural Collaborative Filtering Model from TensorFlow*](prepare_model/convert_model/tf_specific/Convert_NCF_From_Tensorflow.md)
-            * [Converting TensorFlow* Object Detection API Models](prepare_model/convert_model/tf_specific/Convert_Object_Detection_API_Models.md)
-            * [Converting TensorFlow*-Slim Image Classification Model Library Models](prepare_model/convert_model/tf_specific/Convert_Slim_Library_Models.md)
-            * [Converting CRNN Model from TensorFlow*](prepare_model/convert_model/tf_specific/Convert_CRNN_From_Tensorflow.md)
-        * [Converting Your MXNet* Model](prepare_model/convert_model/Convert_Model_From_MxNet.md)
-            * [Converting a Style Transfer Model from MXNet](prepare_model/convert_model/mxnet_specific/Convert_Style_Transfer_From_MXNet.md)
-        * [Converting Your Kaldi* Model](prepare_model/convert_model/Convert_Model_From_Kaldi.md)
-        * [Converting Your ONNX* Model](prepare_model/convert_model/Convert_Model_From_ONNX.md)
-            * [Converting Faster-RCNN ONNX* Model](prepare_model/convert_model/onnx_specific/Convert_Faster_RCNN.md)
-            * [Converting Mask-RCNN ONNX* Model](prepare_model/convert_model/onnx_specific/Convert_Mask_RCNN.md)
-            * [Converting GPT2 ONNX* Model](prepare_model/convert_model/onnx_specific/Convert_GPT2.md)
-        * [Converting Your PyTorch* Model](prepare_model/convert_model/Convert_Model_From_PyTorch.md)
-            * [Converting F3Net PyTorch* Model](prepare_model/convert_model/pytorch_specific/Convert_F3Net.md)
-            * [Converting QuartzNet PyTorch* Model](prepare_model/convert_model/pytorch_specific/Convert_QuartzNet.md)
-            * [Converting YOLACT PyTorch* Model](prepare_model/convert_model/pytorch_specific/Convert_YOLACT.md)
-        * [Model Optimizations Techniques](prepare_model/Model_Optimization_Techniques.md)
-        * [Cutting parts of the model](prepare_model/convert_model/Cutting_Model.md)
-        * [Sub-graph Replacement in Model Optimizer](prepare_model/customize_model_optimizer/Subgraph_Replacement_Model_Optimizer.md)
-        * [Supported Framework Layers](prepare_model/Supported_Frameworks_Layers.md)
-        * [Intermediate Representation and Operation Sets](IR_and_opsets.md)
-        * [Operations Specification](../ops/opset.md)
-        * [Intermediate Representation suitable for INT8 inference](prepare_model/convert_model/IR_suitable_for_INT8_inference.md)
-    * [Model Optimizer Extensibility](prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md)
-        * [Extending Model Optimizer with New Primitives](prepare_model/customize_model_optimizer/Extending_Model_Optimizer_with_New_Primitives.md)
-        * [Extending Model Optimizer with Caffe Python Layers](prepare_model/customize_model_optimizer/Extending_Model_Optimizer_with_Caffe_Python_Layers.md)
-        * [Extending Model Optimizer with Custom MXNet* Operations](prepare_model/customize_model_optimizer/Extending_MXNet_Model_Optimizer_with_New_Primitives.md)
-        * [Legacy Mode for Caffe* Custom Layers](prepare_model/customize_model_optimizer/Legacy_Mode_for_Caffe_Custom_Layers.md)
-    * [Model Optimizer Frequently Asked Questions](prepare_model/Model_Optimizer_FAQ.md)
+      .. tab:: All frameworks
+      
+         .. tab:: Install globally
 
-* [Known Issues](Known_Issues_Limitations.md)
+            .. code-block:: sh
 
-**Typical Next Step:** [Preparing and Optimizing your Trained Model with Model Optimizer](prepare_model/Prepare_Trained_Model.md)
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               ./install_prerequisites.sh
+         
+         .. tab:: Install to virtualenv
 
-## Video: Model Optimizer Concept
+            .. code-block:: sh
 
-[![](https://img.youtube.com/vi/Kl1ptVb7aI8/0.jpg)](https://www.youtube.com/watch?v=Kl1ptVb7aI8)
-\htmlonly
-<iframe width="560" height="315" src="https://www.youtube.com/embed/Kl1ptVb7aI8" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-\endhtmlonly
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               virtualenv --system-site-packages -p python3 ./venv
+               source ./venv/bin/activate  # sh, bash, ksh, or zsh
+               ./install_prerequisites.shs
 
-## Video: Model Optimizer Basic Operation
-[![](https://img.youtube.com/vi/BBt1rseDcy0/0.jpg)](https://www.youtube.com/watch?v=BBt1rseDcy0)
-\htmlonly
-<iframe width="560" height="315" src="https://www.youtube.com/embed/BBt1rseDcy0" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-\endhtmlonly
+      .. tab:: Caffe
+      
+         .. tab:: Install globally
 
-## Video: Choosing the Right Precision
-[![](https://img.youtube.com/vi/RF8ypHyiKrY/0.jpg)](https://www.youtube.com/watch?v=RF8ypHyiKrY)
-\htmlonly
-<iframe width="560" height="315" src="https://www.youtube.com/embed/RF8ypHyiKrY" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-\endhtmlonly
+            .. code-block:: sh
+
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisitess
+               install_prerequisites_caffe.sh
+         
+         .. tab:: Install to virtualenv
+
+            .. code-block:: sh
+
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               virtualenv --system-site-packages -p python3 ./venv
+               source ./venv/bin/activate  # sh, bash, ksh, or zsh
+               install_prerequisites_caffe.shs
+
+      .. tab:: Tensorflow 1.x
+      
+         .. tab:: Install globally
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               install_prerequisites_tf.sh
+         
+         .. tab:: Install to virtualenv
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               virtualenv --system-site-packages -p python3 ./venv
+               source ./venv/bin/activate  # sh, bash, ksh, or zsh
+               install_prerequisites_tf.sh
+
+      .. tab:: Tensorflow 2.x
+      
+         .. tab:: Install globally
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               install_prerequisites_tf2.sh
+         
+         .. tab:: Install to virtualenv
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               virtualenv --system-site-packages -p python3 ./venv
+               source ./venv/bin/activate  # sh, bash, ksh, or zsh
+               install_prerequisites_tf2.sh
+
+      .. tab:: MXNet
+      
+         .. tab:: Install globally
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               install_prerequisites_mxnet.sh
+         
+         .. tab:: Install to virtualenv
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               virtualenv --system-site-packages -p python3 ./venv
+               source ./venv/bin/activate  # sh, bash, ksh, or zsh
+               install_prerequisites_mxnet.sh
+
+      .. tab:: ONNX
+      
+         .. tab:: Install globally
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               install_prerequisites_onnx.sh
+         
+         .. tab:: Install to virtualenv
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               virtualenv --system-site-packages -p python3 ./venv
+               source ./venv/bin/activate  # sh, bash, ksh, or zsh
+               install_prerequisites_onnx.sh
+
+      .. tab:: Kaldi
+      
+         .. tab:: Install globally
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               install_prerequisites_kaldi.sh
+         
+         .. tab:: Install to virtualenv
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               virtualenv --system-site-packages -p python3 ./venv
+               source ./venv/bin/activate  # sh, bash, ksh, or zsh
+               install_prerequisites_kaldi.sh
+
+   .. tab:: Windows
+
+      .. tab:: All frameworks
+      
+         .. tab:: Install globally
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites\
+               install_prerequisites.bat
+         
+         .. tab:: Install to virtualenv
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites
+               virtualenv --system-site-packages -p python .\env
+               env\Scripts\activate.bat
+               install_prerequisites.bat
+
+      .. tab:: Caffe
+      
+         .. tab:: Install globally
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites\
+               install_prerequisites_caffe.bat
+         
+         .. tab:: Install to virtualenv
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites
+               virtualenv --system-site-packages -p python .\env
+               env\Scripts\activate.bat
+               install_prerequisites_caffe.bat
+
+      .. tab:: Tensorflow 1.x
+      
+         .. tab:: Install globally
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites\
+               install_prerequisites_tf.bat
+         
+         .. tab:: Install to virtualenv
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites
+               virtualenv --system-site-packages -p python .\env
+               env\Scripts\activate.bat
+               install_prerequisites_tf.bat
+
+      .. tab:: Tensorflow 2.x
+      
+         .. tab:: Install globally
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites\
+               install_prerequisites_tf2.bat
+         
+         .. tab:: Install to virtualenv
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites
+               virtualenv --system-site-packages -p python .\env
+               env\Scripts\activate.bat
+               install_prerequisites_tf2.bat
+
+      .. tab:: MXNet
+      
+         .. tab:: Install globally
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites\
+               install_prerequisites_mxnet.bat
+         
+         .. tab:: Install to virtualenv
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites
+               virtualenv --system-site-packages -p python .\env
+               env\Scripts\activate.bat
+               install_prerequisites_mxnet.bat
+
+      .. tab:: ONNX
+      
+         .. tab:: Install globally
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites\
+               install_prerequisites_onnx.bat
+         
+         .. tab:: Install to virtualenv
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites
+               virtualenv --system-site-packages -p python .\env
+               env\Scripts\activate.bat
+               install_prerequisites_onnx.bat
+
+      .. tab:: Kaldi
+      
+         .. tab:: Install globally
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites\
+               install_prerequisites_kaldi.bat
+         
+         .. tab:: Install to virtualenv
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites
+               virtualenv --system-site-packages -p python .\env
+               env\Scripts\activate.bat
+               install_prerequisites_kaldi.bat
+
+   .. tab:: macOS
+
+      .. tab:: All frameworks
+      
+         .. tab:: Install globally
+
+            .. code-block:: sh
+
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               ./install_prerequisites.sh
+         
+         .. tab:: Install to virtualenv
+
+            .. code-block:: sh
+
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               virtualenv --system-site-packages -p python3 ./venv
+               source ./venv/bin/activate  # sh, bash, ksh, or zsh
+               ./install_prerequisites.shs
+
+      .. tab:: Caffe
+      
+         .. tab:: Install globally
+
+            .. code-block:: sh
+
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisitess
+               install_prerequisites_caffe.sh
+         
+         .. tab:: Install to virtualenv
+
+            .. code-block:: sh
+
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               virtualenv --system-site-packages -p python3 ./venv
+               source ./venv/bin/activate  # sh, bash, ksh, or zsh
+               install_prerequisites_caffe.shs
+
+      .. tab:: Tensorflow 1.x
+      
+         .. tab:: Install globally
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               install_prerequisites_tf.sh
+         
+         .. tab:: Install to virtualenv
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               virtualenv --system-site-packages -p python3 ./venv
+               source ./venv/bin/activate  # sh, bash, ksh, or zsh
+               install_prerequisites_tf.sh
+
+      .. tab:: Tensorflow 2.x
+      
+         .. tab:: Install globally
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               install_prerequisites_tf2.sh
+         
+         .. tab:: Install to virtualenv
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               virtualenv --system-site-packages -p python3 ./venv
+               source ./venv/bin/activate  # sh, bash, ksh, or zsh
+               install_prerequisites_tf2.sh
+
+      .. tab:: MXNet
+      
+         .. tab:: Install globally
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               install_prerequisites_mxnet.sh
+         
+         .. tab:: Install to virtualenv
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               virtualenv --system-site-packages -p python3 ./venv
+               source ./venv/bin/activate  # sh, bash, ksh, or zsh
+               install_prerequisites_mxnet.sh
+
+      .. tab:: ONNX
+      
+         .. tab:: Install globally
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               install_prerequisites_onnx.sh
+         
+         .. tab:: Install to virtualenv
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               virtualenv --system-site-packages -p python3 ./venv
+               source ./venv/bin/activate  # sh, bash, ksh, or zsh
+               install_prerequisites_onnx.sh
+
+      .. tab:: Kaldi
+      
+         .. tab:: Install globally
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               install_prerequisites_kaldi.sh
+         
+         .. tab:: Install to virtualenv
+
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               virtualenv --system-site-packages -p python3 ./venv
+               source ./venv/bin/activate  # sh, bash, ksh, or zsh
+               install_prerequisites_kaldi.sh
+
+.. tab:: Using manual configuration process
+
+   .. tab:: Linux
+
+      .. tab:: All frameworks
+      
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>/deployment_tools/model_optimizer/
+            virtualenv --system-site-packages -p python3 ./venv
+            source ./venv/bin/activate
+            pip3 install -r requirements.txt
+
+      .. tab:: Caffe
+      
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>/deployment_tools/model_optimizer/
+            virtualenv --system-site-packages -p python3 ./venv
+            source ./venv/bin/activate
+            pip3 install -r requirements_caffe.txt
+
+      .. tab:: Tensorflow 1.x
+      
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>/deployment_tools/model_optimizer/
+            virtualenv --system-site-packages -p python3 ./venv
+            source ./venv/bin/activate
+            pip3 install -r requirements_tf.txt
+
+      .. tab:: Tensorflow 2.x
+      
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>/deployment_tools/model_optimizer/
+            virtualenv --system-site-packages -p python3 ./venv
+            source ./venv/bin/activate
+            pip3 install -r requirements_tf2.txt
+
+      .. tab:: MXNet
+      
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>/deployment_tools/model_optimizer/
+            virtualenv --system-site-packages -p python3 ./venv
+            source ./venv/bin/activate
+            pip3 install -r requirements_mxnet.txt
+
+      .. tab:: ONNX
+      
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>/deployment_tools/model_optimizer/
+            virtualenv --system-site-packages -p python3 ./venv
+            source ./venv/bin/activate
+            pip3 install -r requirements_onnx.txt
+
+      .. tab:: Kaldi
+      
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>/deployment_tools/model_optimizer/
+            virtualenv --system-site-packages -p python3 ./venv
+            source ./venv/bin/activate
+            pip3 install -r requirements_kaldi.txt
+
+   .. tab:: Windows
+
+      .. tab:: All frameworks
+      
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>\deployment_tools\model_optimizer
+            virtualenv --system-site-packages -p python .\env
+            env\Scripts\activate.bat
+            pip install -r requirements.txt
+
+      .. tab:: Caffe
+      
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>\deployment_tools\model_optimizer
+            virtualenv --system-site-packages -p python .\env
+            env\Scripts\activate.bat
+            pip install -r requirements_caffe.txt
+
+      .. tab:: Tensorflow 1.x
+      
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>\deployment_tools\model_optimizer
+            virtualenv --system-site-packages -p python .\env
+            env\Scripts\activate.bat
+            pip install -r requirements_tf.txt
+
+      .. tab:: Tensorflow 2.x
+      
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>\deployment_tools\model_optimizer
+            virtualenv --system-site-packages -p python .\env
+            env\Scripts\activate.bat
+            pip install -r requirements_tf2.txt
+
+      .. tab:: MXNet
+      
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>\deployment_tools\model_optimizer
+            virtualenv --system-site-packages -p python .\env
+            env\Scripts\activate.bat
+            pip install -r requirements_mxnet.txt
+
+      .. tab:: ONNX
+      
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>\deployment_tools\model_optimizer
+            virtualenv --system-site-packages -p python .\env
+            env\Scripts\activate.bat
+            pip install -r requirements_onnx.txt
+
+      .. tab:: Kaldi
+      
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>\deployment_tools\model_optimizer
+            virtualenv --system-site-packages -p python .\env
+            env\Scripts\activate.bat
+            pip install -r requirements_kaldi.txt
+
+   .. tab:: macOS
+
+      .. tab:: All frameworks
+      
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>/deployment_tools/model_optimizer/
+            virtualenv --system-site-packages -p python3 ./venv
+            source ./venv/bin/activate
+            pip3 install -r requirements.txt
+
+      .. tab:: Caffe
+      
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>/deployment_tools/model_optimizer/
+            virtualenv --system-site-packages -p python3 ./venv
+            source ./venv/bin/activate
+            pip3 install -r requirements_caffe.txt
+
+      .. tab:: Tensorflow 1.x
+      
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>/deployment_tools/model_optimizer/
+            virtualenv --system-site-packages -p python3 ./venv
+            source ./venv/bin/activate
+            pip3 install -r requirements_tf.txt
+
+      .. tab:: Tensorflow 2.x
+      
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>/deployment_tools/model_optimizer/
+            virtualenv --system-site-packages -p python3 ./venv
+            source ./venv/bin/activate
+            pip3 install -r requirements_tf2.txt
+
+      .. tab:: MXNet
+      
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>/deployment_tools/model_optimizer/
+            virtualenv --system-site-packages -p python3 ./venv
+            source ./venv/bin/activate
+            pip3 install -r requirements_mxnet.txt
+
+      .. tab:: ONNX
+      
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>/deployment_tools/model_optimizer/
+            virtualenv --system-site-packages -p python3 ./venv
+            source ./venv/bin/activate
+            pip3 install -r requirements_onnx.txt
+
+      .. tab:: Kaldi
+      
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>/deployment_tools/model_optimizer/
+            virtualenv --system-site-packages -p python3 ./venv
+            source ./venv/bin/activate
+            pip3 install -r requirements_kaldi.txt
+
+@endsphinxdirective
+
+## Run Model Optimizer
+
+To convert the model to the Intermediate Representation (IR), run Model Optimizer:
+
+```sh
+mo --input_model INPUT_MODEL --output_dir <OUTPUT_MODEL_DIR>
+```
+
+You need to have write permissions for an output directory.
+
+> **NOTE**: Some models require using additional arguments to specify conversion parameters, such as `--input_shape`, `--scale`, `--scale_values`, `--mean_values`, `--mean_file`. To learn about when you need to use these parameters, refer to [Converting a Model to Intermediate Representation (IR)](prepare_model/convert_model/Converting_Model.md).
+
+To adjust the conversion process, you may use general parameters defined in the [Converting a Model to Intermediate Representation (IR)](prepare_model/convert_model/Converting_Model.md) and 
+framework-specific parameters for:
+* [Caffe](prepare_model/convert_model/Convert_Model_From_Caffe.md)
+* [TensorFlow](prepare_model/convert_model/Convert_Model_From_TensorFlow.md)
+* [MXNet](prepare_model/convert_model/Convert_Model_From_MxNet.md)
+* [ONNX](prepare_model/convert_model/Convert_Model_From_ONNX.md)
+* [Kaldi](prepare_model/convert_model/Convert_Model_From_Kaldi.md)
+
+## Videos
+
+@sphinxdirective
+
+.. list-table::
+
+   * - .. raw:: html
+
+           <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="220"
+           src="https://www.youtube.com/embed/Kl1ptVb7aI8">
+           </iframe>
+    
+     - .. raw:: html
+
+           <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="220"
+           src="https://www.youtube.com/embed/BBt1rseDcy0">
+           </iframe>
+
+     - .. raw:: html
+
+           <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="220"
+           src="https://www.youtube.com/embed/RF8ypHyiKrY">
+           </iframe>
+
+   * - **Model Optimizer Concept.**
+     - **Model Optimizer Basic Operation.**
+     - **Choosing the Right Precision.**
+
+   * - Duration: 3:56
+     - Duration: 2:57
+     - Duration: 4:18
+
+@endsphinxdirective

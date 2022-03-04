@@ -1,0 +1,237 @@
+<?xml version="1.0" ?>
+<net name="loop_2d_add" version="10">
+	<layers>
+		<layer id="0" name="trip_count/Output_0/Data__const" type="Const" version="opset1">
+			<data element_type="i64" offset="0" shape="1" size="8"/>
+			<output>
+				<port id="1" precision="I64">
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="a_final5/execution_cond/Output_0/Data__const" type="Const" version="opset1">
+			<data element_type="boolean" offset="8" shape="" size="1"/>
+			<output>
+				<port id="1" precision="BOOL"/>
+			</output>
+		</layer>
+		<layer id="2" name="a_init" type="Parameter" version="opset1">
+			<data element_type="f32" shape="1,2"/>
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>2</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="3" name="a_final5" type="Loop" version="opset5">
+			<input>
+				<port id="0">
+					<dim>1</dim>
+				</port>
+				<port id="1"/>
+				<port id="2">
+					<dim>1</dim>
+					<dim>2</dim>
+				</port>
+			</input>
+			<output>
+				<port id="3" precision="FP32">
+					<dim>1</dim>
+					<dim>2</dim>
+				</port>
+				<port id="4" precision="FP32">
+					<dim>3</dim>
+					<dim>1</dim>
+					<dim>2</dim>
+				</port>
+			</output>
+			<port_map>
+				<input external_port_id="1" internal_layer_id="0"/>
+				<input external_port_id="2" internal_layer_id="2"/>
+				<output external_port_id="-1" internal_layer_id="1" purpose="execution_condition"/>
+				<output external_port_id="3" internal_layer_id="5"/>
+				<output axis="0" external_port_id="4" internal_layer_id="8"/>
+			</port_map>
+			<back_edges>
+				<edge from-layer="1" from-port="0" to-layer="0" to-port="0"/>
+				<edge from-layer="5" from-port="0" to-layer="2" to-port="0"/>
+			</back_edges>
+			<body>
+				<layers>
+					<layer id="0" name="cond_in" type="Parameter" version="opset1">
+						<data element_type="boolean" shape=""/>
+						<output>
+							<port id="0" precision="BOOL"/>
+						</output>
+					</layer>
+					<layer id="1" name="cond_identity/sink_port_0" type="Result" version="opset1">
+						<input>
+							<port id="0"/>
+						</input>
+					</layer>
+					<layer id="2" name="a_in" type="Parameter" version="opset1">
+						<data element_type="f32" shape="1,2"/>
+						<output>
+							<port id="0" precision="FP32">
+								<dim>1</dim>
+								<dim>2</dim>
+							</port>
+						</output>
+					</layer>
+					<layer id="3" name="b/Output_0/Data__const" type="Const" version="opset1">
+						<data element_type="f32" offset="13" shape="1,2" size="8"/>
+						<output>
+							<port id="1" precision="FP32">
+								<dim>1</dim>
+								<dim>2</dim>
+							</port>
+						</output>
+					</layer>
+					<layer id="4" name="loop_body_add" type="Add" version="opset1">
+						<input>
+							<port id="0">
+								<dim>1</dim>
+								<dim>2</dim>
+							</port>
+							<port id="1">
+								<dim>1</dim>
+								<dim>2</dim>
+							</port>
+						</input>
+						<output>
+							<port id="2" precision="FP32">
+								<dim>1</dim>
+								<dim>2</dim>
+							</port>
+						</output>
+					</layer>
+					<layer id="5" name="loop_body_add/sink_port_0" type="Result" version="opset1">
+						<input>
+							<port id="0">
+								<dim>1</dim>
+								<dim>2</dim>
+							</port>
+						</input>
+					</layer>
+					<layer id="6" name="11_input_port_1/value/Output_0/Data__const" type="Const" version="opset1">
+						<data element_type="i64" offset="21" shape="1" size="8"/>
+						<output>
+							<port id="1" precision="I64">
+								<dim>1</dim>
+							</port>
+						</output>
+					</layer>
+					<layer id="7" name="11" type="Unsqueeze" version="opset1">
+						<input>
+							<port id="0">
+								<dim>1</dim>
+								<dim>2</dim>
+							</port>
+							<port id="1">
+								<dim>1</dim>
+							</port>
+						</input>
+						<output>
+							<port id="2" precision="FP32">
+								<dim>3</dim>
+								<dim>1</dim>
+								<dim>2</dim>
+							</port>
+						</output>
+					</layer>
+					<layer id="8" name="output_accumulator/sink_port_0" type="Result" version="opset1">
+						<input>
+							<port id="0">
+								<dim>3</dim>
+								<dim>1</dim>
+								<dim>2</dim>
+							</port>
+						</input>
+					</layer>
+				</layers>
+				<edges>
+					<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+					<edge from-layer="2" from-port="0" to-layer="4" to-port="0"/>
+					<edge from-layer="3" from-port="1" to-layer="4" to-port="1"/>
+					<edge from-layer="4" from-port="2" to-layer="5" to-port="0"/>
+					<edge from-layer="4" from-port="2" to-layer="7" to-port="0"/>
+					<edge from-layer="6" from-port="1" to-layer="7" to-port="1"/>
+					<edge from-layer="7" from-port="2" to-layer="8" to-port="0"/>
+				</edges>
+			</body>
+		</layer>
+		<layer id="4" name="122_input_port_1/value124_const" type="Const" version="opset1">
+			<data element_type="f32" offset="9" shape="" size="4"/>
+			<output>
+				<port id="1" precision="FP32"/>
+			</output>
+		</layer>
+		<layer id="5" name="a_final" type="Add" version="opset1">
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>2</dim>
+				</port>
+				<port id="1"/>
+			</input>
+			<output>
+				<port id="2" precision="FP32">
+					<dim>1</dim>
+					<dim>2</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="6" name="a_final/sink_port_0" type="Result" version="opset1">
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>2</dim>
+				</port>
+			</input>
+		</layer>
+		<layer id="7" name="126_input_port_1/value128_const" type="Const" version="opset1">
+			<data element_type="f32" offset="9" shape="" size="4"/>
+			<output>
+				<port id="1" precision="FP32"/>
+			</output>
+		</layer>
+		<layer id="8" name="a_values" type="Add" version="opset1">
+			<input>
+				<port id="0">
+					<dim>3</dim>
+					<dim>1</dim>
+					<dim>2</dim>
+				</port>
+				<port id="1"/>
+			</input>
+			<output>
+				<port id="2" precision="FP32">
+					<dim>3</dim>
+					<dim>1</dim>
+					<dim>2</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="9" name="a_values/sink_port_0" type="Result" version="opset1">
+			<input>
+				<port id="0">
+					<dim>3</dim>
+					<dim>1</dim>
+					<dim>2</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="1" to-layer="3" to-port="0"/>
+		<edge from-layer="1" from-port="1" to-layer="3" to-port="1"/>
+		<edge from-layer="2" from-port="0" to-layer="3" to-port="2"/>
+		<edge from-layer="3" from-port="3" to-layer="5" to-port="0"/>
+		<edge from-layer="4" from-port="1" to-layer="5" to-port="1"/>
+		<edge from-layer="5" from-port="2" to-layer="6" to-port="0"/>
+		<edge from-layer="3" from-port="4" to-layer="8" to-port="0"/>
+		<edge from-layer="7" from-port="1" to-layer="8" to-port="1"/>
+		<edge from-layer="8" from-port="2" to-layer="9" to-port="0"/>
+	</edges>
+</net>

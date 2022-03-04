@@ -1,51 +1,45 @@
-# Intel® Distribution of OpenVINO™ Toolkit Developer Package 
-Copyright © 2018-2021 Intel Corporation
-> **LEGAL NOTICE**: Your use of this software and any required dependent software (the
-“Software Package”) is subject to the terms and conditions of the [software license agreements](https://software.intel.com/content/dam/develop/external/us/en/documents/intel-openvino-license-agreements.pdf) for the Software Package, which may also include notices, disclaimers, or
-license terms for third party or open source software included in or with the Software Package, and your use indicates your acceptance of all such terms. Please refer to the “third-party-programs.txt” or other similarly-named text file included with the Software Package for additional details.
-
->Intel is committed to the respect of human rights and avoiding complicity in human rights abuses, a policy reflected in the [Intel Global Human Rights Principles](https://www.intel.com/content/www/us/en/policy/policy-human-rights.html). Accordingly, by accessing the Intel material on this platform you agree that you will not use the material in a product or application that causes or contributes to a violation of an internationally recognized human right.
-
+# OpenVINO™ Development Tools 
 
 ## Introduction
 
 OpenVINO™ toolkit is a comprehensive toolkit for quickly developing applications and solutions that solve a variety of tasks including emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, and many others. Based on latest generations of artificial neural networks, including Convolutional Neural Networks (CNNs), recurrent and attention-based networks, the toolkit extends computer vision and non-vision workloads across Intel® hardware, maximizing performance. It accelerates applications with high-performance, AI and deep learning inference deployed from edge to cloud.
 
-The **developer package** includes the following components installed by default:
+**The developer package includes the following components installed by default:**
 
 | Component        | Console Script                                                                   | Description                                                                                                                                                                                                                                                                                                   |  
 |------------------|---------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [Model Optimizer](https://docs.openvinotoolkit.org/latest/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html) | `mo` |**Model Optimizer** imports, converts, and optimizes models that were trained in popular frameworks to a format usable by Intel tools, especially the Inference Engine. <br>Popular frameworks include Caffe\*, TensorFlow\*, MXNet\*, and ONNX\*.                                               |
-| [Benchmark Tool](https://docs.openvinotoolkit.org/latest/openvino_inference_engine_tools_benchmark_tool_README.html)| `benchmark_app` | **Benchmark Application** allows you to estimate deep learning inference performance on supported devices for synchronous and asynchronous modes.                                              |
-| [Accuracy Checker](https://docs.openvinotoolkit.org/latest/omz_tools_accuracy_checker.html) and <br> [Annotation Converter](https://docs.openvinotoolkit.org/latest/omz_tools_accuracy_checker_annotation_converters.html) | `accuracy_check` <br> `convert_annotation` |**Accuracy Checker**  is a deep learning accuracy validation tool that allows you to collect accuracy metrics against popular datasets. The main advantages of the tool are the flexibility of configuration and an impressive set of supported datasets, preprocessing, postprocessing, and metrics. <br> **Annotation Converter** is a utility for offline conversion of datasets to the format suitable for metric evaluation used in Accuracy Checker.                                            |
-| [Post-Training Optimization Tool](https://docs.openvinotoolkit.org/latest/pot_README.html)| `pot` |**Post-Training Optimization Tool** allows you to optimize trained models with advanced capabilities, such as quantization and low-precision optimizations, without the need to retrain or fine-tune models. Optimizations are also available through the [API](https://docs.openvinotoolkit.org/latest/pot_compression_api_README.html).                                            |
-| [Model Downloader and other Open Model Zoo tools](https://docs.openvinotoolkit.org/latest/omz_tools_downloader.html)| `omz_downloader` <br> `omz_converter` <br> `omz_quantizer` <br> `omz_info_dumper`| **Model Downloader** is a tool for getting access to the collection of high-quality and extremely fast pre-trained deep learning [public](https://docs.openvinotoolkit.org/latest/omz_models_group_public.html) and [intel](https://docs.openvinotoolkit.org/latest/omz_models_group_intel.html)-trained models. Use these free pre-trained models instead of training your own models to speed up the development and production deployment process. The principle of the tool is as follows: it downloads model files from online sources and, if necessary, patches them with Model Optimizer to make them more usable. A number of additional tools are also provided to automate the process of working with downloaded models:<br> **Model Converter** is a tool for converting the models stored in a format other than the Intermediate Representation (IR) into that format using Model Optimizer. <br> **Model Quantizer** is a tool for automatic quantization of full-precision IR models into low-precision versions using Post-Training Optimization Tool. <br> **Model Information Dumper** is a helper utility for dumping information about the models in a stable machine-readable format.|
+| [Model Optimizer](https://docs.openvino.ai/latest/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html) | `mo` |**Model Optimizer** imports, converts, and optimizes models that were trained in popular frameworks to a format usable by OpenVINO components. <br>Supported frameworks include Caffe\*, TensorFlow\*, MXNet\*, PaddlePaddle\*, and ONNX\*.                                               |
+| [Benchmark Tool](https://docs.openvino.ai/latest/openvino_inference_engine_tools_benchmark_tool_README.html)| `benchmark_app` | **Benchmark Application** allows you to estimate deep learning inference performance on supported devices for synchronous and asynchronous modes.                                              |
+| [Accuracy Checker](https://docs.openvino.ai/latest/omz_tools_accuracy_checker.html) and <br> [Annotation Converter](https://docs.openvino.ai/latest/omz_tools_accuracy_checker_annotation_converters.html) | `accuracy_check` <br> `convert_annotation` |**Accuracy Checker**  is a deep learning accuracy validation tool that allows you to collect accuracy metrics against popular datasets. The main advantages of the tool are the flexibility of configuration and a set of supported datasets, preprocessing, postprocessing, and metrics. <br> **Annotation Converter** is a utility that prepares datasets for evaluation with Accuracy Checker.                                             |
+| [Post-Training Optimization Tool](https://docs.openvino.ai/latest/pot_README.html)| `pot` |**Post-Training Optimization Tool** allows you to optimize trained models with advanced capabilities, such as quantization and low-precision optimizations, without the need to retrain or fine-tune models. Optimizations are also available through the [API](https://docs.openvino.ai/latest/pot_compression_api_README.html).                                            |
+| [Model Downloader and other Open Model Zoo tools](https://docs.openvino.ai/latest/omz_tools_downloader.html)| `omz_downloader` <br> `omz_converter` <br> `omz_quantizer` <br> `omz_info_dumper`| **Model Downloader** is a tool for getting access to the collection of high-quality and extremely fast pre-trained deep learning [public](https://docs.openvino.ai/latest/omz_models_group_public.html) and [Intel](https://docs.openvino.ai/latest/omz_models_group_intel.html)-trained models. These free pre-trained models can be used to speed up the development and production deployment process without training your own models. The tool downloads model files from online sources and, if necessary, patches them to make them more usable with Model Optimizer. A number of additional tools are also provided to automate the process of working with downloaded models:<br> **Model Converter** is a tool for converting Open Model Zoo models that are stored in an original deep learning framework format into the OpenVINO Intermediate Representation (IR) using Model Optimizer. <br> **Model Quantizer** is a tool for automatic quantization of full-precision models in the IR format into low-precision versions using the Post-Training Optimization Tool. <br> **Model Information Dumper** is a helper utility for dumping information about the models to a stable, machine-readable format.
 
+The developer package also installs the OpenVINO™ Runtime package as a dependency.
 
-**Developer package** also provides the **runtime package** installed as a dependency. The runtime package includes the following components:
+**The runtime package installs the following components:**
 
 | Component                                                                                           | Description                                                                                                                                                                                                                                                                                                   |  
 |-----------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [Inference Engine](https://pypi.org/project/openvino)               | This is the engine that runs the deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                                                                                                                |
-
+| [OpenVINO™ Runtime](https://pypi.org/project/openvino)               | This is the engine that runs the deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                                                                                                                |
 
 ## System Requirements
-The complete list of supported hardware is available in the [Release Notes](https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html#inpage-nav-8).
+The complete list of supported hardware is available in the [Release Notes](https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-relnotes.html).
 
 The table below lists the supported operating systems and Python* versions required to run the installation.
 
 | Supported Operating System                                   | [Python* Version (64-bit)](https://www.python.org/) |
 | :------------------------------------------------------------| :---------------------------------------------------|
 |   Ubuntu* 18.04 long-term support (LTS), 64-bit              | 3.6, 3.7, 3.8                                       |
-|   Ubuntu* 20.04 long-term support (LTS), 64-bit              | 3.6, 3.7, 3.8                                       |
+|   Ubuntu* 20.04 long-term support (LTS), 64-bit              | 3.6, 3.7, 3.8, 3.9                                  |
 |   Red Hat* Enterprise Linux* 8, 64-bit                       | 3.6, 3.8                                            |
-|   CentOS* 7, 64-bit                                          | 3.6, 3.7, 3.8                                       |
-|   macOS* 10.15.x versions                                    | 3.6, 3.7, 3.8                                       |
-|   Windows 10*, 64-bit                                        | 3.6, 3.7, 3.8                                       |
+|   macOS* 10.15.x                                             | 3.6, 3.7, 3.8, 3.9                                  |
+|   Windows 10*, 64-bit                                        | 3.6, 3.7, 3.8, 3.9                                  |
 
 > **NOTE**: This package can be installed on other versions of macOS, Linux and Windows, but only the specific versions above are fully validated.
 
-## Install the Developer Package
+> **NOTE**: The current version of the OpenVINO™ Runtime for macOS* supports inference on Intel® CPUs only.
+
+## Install the OpenVINO™ Development Tools Package
 
 ### Step 1. Set Up Python Virtual Environment
 
@@ -54,16 +48,13 @@ To avoid dependency conflicts, use a virtual environment. Skip this
 
 Create virtual environment:
 
-On Linux and macOS:
 ```sh
-# Depending on your OS, this step may require installing python3-venv
-python3 -m venv openvino_env
-```
-
-On Windows: 
-```sh
+python -m pip install --user virtualenv 
 python -m venv openvino_env
 ```
+
+> **NOTE**: On Linux and macOS, you may need to type `python3` instead of
+`python`. You may also need to [install pip](https://pip.pypa.io/en/stable/installing/). For example, on Ubuntu execute the following command to get pip installed: `sudo apt install python3-venv python3-pip`.
 
 ### Step 2. Activate Virtual Environment
 
@@ -87,11 +78,10 @@ python -m pip install --upgrade pip
 
 To install and configure the components of the development package for working with specific frameworks, use the `pip install openvino-dev[extras]` command, where `extras` is a list of extras from the table below: 
 
-| DL Framework                                                                     | Extra                          |
+| DL Framework                                                                     | Extra                           |
 | :------------------------------------------------------------------------------- | :-------------------------------|
 |   [Caffe*](https://caffe.berkeleyvision.org/)                                    | caffe                           |
-|   [Caffe2*](https://caffe2.ai/)                                                 | caffe2                          |
-|   [Kaldi*](https://kaldi-asr.org/)                                               | kaldi                           |
+|   [Kaldi*](https://github.com/kaldi-asr/kaldi)                                   | kaldi                           |
 |   [MXNet*](https://mxnet.apache.org/)                                            | mxnet                           |
 |   [ONNX*](https://github.com/microsoft/onnxruntime/)                             | onnx                            |
 |   [PyTorch*](https://pytorch.org/)                                               | pytorch                         |
@@ -102,6 +92,7 @@ For example, to install and configure the components for working with TensorFlow
    ```sh
    pip install openvino-dev[tensorflow2,mxnet,caffe]
    ```
+**NOTE**: Support of MO in TensorFlow 1.x environment is deprecated. Use TensorFlow 2.x environment to convert both TensorFlow 1.x and 2.x models
 
 ### Step 5. Verify that the Package Is Installed
 
@@ -111,11 +102,11 @@ For example, to install and configure the components for working with TensorFlow
    ```
    You will see the help message for Model Optimizer if installation finished successfully.
 
-- To verify that Inference Engine from the **runtime package** is available, run the command below:
+- To verify that OpenVINO Runtime from the **runtime package** is available, run the command below:
    ```sh
-   python -c "from openvino.inference_engine import IECore"
+   python -c "from openvino.runtime import Core"
    ```
-   You will not see any error messages if installation finished successfully.
+   If installation was successful, you will not see any error messages (no console output).
 
 ## Troubleshooting
 
@@ -133,5 +124,12 @@ sudo apt-get install libpython3.7
 ## Additional Resources
 
 - [Intel® Distribution of OpenVINO™ toolkit](https://software.intel.com/en-us/openvino-toolkit)
-- [OpenVINO™ toolkit online documentation](https://docs.openvinotoolkit.org)
+- [OpenVINO™ toolkit online documentation](https://docs.openvino.ai)
 - [OpenVINO™ Notebooks](https://github.com/openvinotoolkit/openvino_notebooks)
+
+Copyright © 2018-2022 Intel Corporation
+> **LEGAL NOTICE**: Your use of this software and any required dependent software (the
+“Software Package”) is subject to the terms and conditions of the [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0.html) for the Software Package, which may also include notices, disclaimers, or
+license terms for third party or open source software included in or with the Software Package, and your use indicates your acceptance of all such terms. Please refer to the “third-party-programs.txt” or other similarly-named text file included with the Software Package for additional details.
+
+>Intel is committed to the respect of human rights and avoiding complicity in human rights abuses, a policy reflected in the [Intel Global Human Rights Principles](https://www.intel.com/content/www/us/en/policy/policy-human-rights.html). Accordingly, by accessing the Intel material on this platform you agree that you will not use the material in a product or application that causes or contributes to a violation of an internationally recognized human right.

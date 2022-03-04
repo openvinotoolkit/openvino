@@ -1,0 +1,174 @@
+{
+    "target_device": "GNA",
+    "config": {
+        "quantization": {
+            "q32_a": {
+                "bits": 32,
+                "mode": "symmetric",
+                "granularity": "pertensor",
+                "level_low": -2147483648,
+                "level_high": 2147483647
+            },
+            "q16_a": {
+                "bits": 16,
+                "mode": "symmetric",
+                "granularity": "pertensor",
+                "level_low": -32768,
+                "level_high": 32767
+            },
+            "q8_w": {
+                "bits": 8,
+                "mode": "symmetric",
+                "granularity": "perchannel",
+                "level_low": -127,
+                "level_high": 127
+            },
+            "q16_w": {
+                "bits": 16,
+                "mode": "symmetric",
+                "granularity": "pertensor",
+                "level_low": -32767,
+                "level_high": 32767
+            }
+        }
+    },
+    "operations": [
+        {
+            "type": "Convolution",
+            "quantization": {
+                "activations": "q16_a",
+                "weights": "q16_w"
+            }
+        },
+        {
+            "type": "MatMul",
+            "quantization": {
+                "activations": "q16_a",
+                "weights": ["q8_w", "q16_w"]
+            }
+        },
+        {
+            "type": "Add",
+            "quantization": {
+                "activations": "q16_a",
+                "weights": "q16_w"
+            }
+        },
+        {
+            "type": "Multiply",
+            "quantization": {
+                "activations": "q16_a",
+                "weights": ["q8_w", "q16_w"]
+            }
+        },
+        {
+            "type": "Power",
+            "quantization": {
+                "activations": "q32_a"
+            }
+        },
+        {
+            "type": "AvgPool",
+            "quantization": {
+                "activations": "q16_a"
+            }
+        },
+        {
+            "type": "ReduceMean",
+            "quantization": {
+                "activations": "q16_a"
+            }
+        },
+        {
+            "type": "Assign",
+            "quantization": {
+                "activations": "q16_a"
+            }
+        },
+        {
+            "type": "Sigmoid",
+            "quantization": {
+                "activations": "q32_a"
+            }
+        },
+        {
+            "type": "Tanh",
+            "quantization": {
+                "activations": "q32_a"
+            }
+        },
+        {
+            "type": "ReLU",
+            "quantization": {
+                "activations": "q32_a"
+            }
+        },
+        {
+            "type": "PReLU",
+            "quantization": {
+                "activations": "q32_a"
+            }
+        },
+        {
+            "type": "Clamp",
+            "quantization": {
+                "activations": "q32_a"
+            }
+        },
+        {
+            "type": "Log",
+            "quantization": {
+                "activations": "q32_a"
+            }
+        },
+        {
+            "type": "Abs",
+            "quantization": {
+                "activations": "q32_a"
+            }
+        },
+        {
+            "type": "Exp",
+            "quantization": {
+                "activations": "q32_a"
+            }
+        },
+        {
+            "type": "Sign",
+            "quantization": {
+                "activations": "q32_a"
+            }
+        },
+        {
+            "type": "Result",
+            "quantization": {
+                "activations": "q16_a"
+            }
+        },
+        {
+            "type": "Subtract",
+            "quantization": {
+                "activations": "q16_a",
+                "weights": "q16_w"
+            }
+        },
+        {"type": "MaxPool"},
+        {"type": "ReduceMax"},
+        {"type": "Reshape"},
+        {"type": "Concat"},
+        {"type": "Flatten"},
+        {"type": "Squeeze"},
+        {"type": "Unsqueeze"},
+        {"type": "Split"},
+        {"type": "VariadicSplit"},
+        {"type": "Crop"},
+        {"type": "Transpose"},
+        {"type": "Tile"},
+        {"type": "StridedSlice"},
+        {"type": "ShuffleChannels"},
+        {"type": "Broadcast"},
+        {"type": "Pad"},
+        {"type": "ConvertLike"}, 
+        {"type": "DepthToSpace"}
+    ]
+}

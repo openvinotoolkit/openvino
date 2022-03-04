@@ -1,8 +1,8 @@
-## FloorMod <a name="FloorMod"></a> {#openvino_docs_ops_arithmetic_FloorMod_1}
+# FloorMod  {#openvino_docs_ops_arithmetic_FloorMod_1}
 
 **Versioned name**: *FloorMod-1*
 
-**Category**: Arithmetic binary operation
+**Category**: *Arithmetic binary*
 
 **Short description**: *FloorMod* performs an element-wise floor modulo operation with two given tensors applying broadcasting rule specified in the *auto_broadcast* attribute.
 
@@ -10,7 +10,7 @@
 As a first step input tensors *a* and *b* are broadcasted if their shapes differ. Broadcasting is performed according to `auto_broadcast` attribute specification. As a second step *FloorMod* operation is computed element-wise on the input tensors *a* and *b* according to the formula below:
 
 \f[
-o_{i} = a_{i} % b_{i}
+o_{i} = a_{i} \mod b_{i}
 \f]
 
 *FloorMod* operation computes a reminder of a floored division. It is the same behaviour like in Python programming language: `floor(x / y) * y + floor_mod(x, y) = x`. The sign of the result is equal to a sign of a divisor. The result of division by zero is undefined.
@@ -29,8 +29,8 @@ o_{i} = a_{i} % b_{i}
 
 **Inputs**
 
-* **1**: A tensor of type *T* and arbitrary shape. Required.
-* **2**: A tensor of type *T* and arbitrary shape. Required.
+* **1**: A tensor of type *T* and arbitrary shape. **Required.**
+* **2**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**
 

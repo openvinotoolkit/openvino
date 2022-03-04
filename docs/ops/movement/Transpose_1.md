@@ -1,8 +1,8 @@
-## Transpose<a name="Transpose"></a> {#openvino_docs_ops_movement_Transpose_1}
+# Transpose {#openvino_docs_ops_movement_Transpose_1}
 
 **Versioned name**: *Transpose-1*
 
-**Category**: Data movement
+**Category**: *Data movement*
 
 **Short description**: *Transpose* operation reorders the input tensor dimensions.
 

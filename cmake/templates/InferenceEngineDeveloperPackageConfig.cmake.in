@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -9,11 +9,10 @@ include(CMakeFindDependencyMacro)
 # TODO: remove after changing [private plugins]
 set_and_check(OpenVINO_SOURCE_DIR "@OpenVINO_SOURCE_DIR@") # KMB
 set_and_check(OpenVINO_MAIN_SOURCE_DIR "@OpenVINO_SOURCE_DIR@") # KMB
-set_and_check(IE_MAIN_SOURCE_DIR "@IE_MAIN_SOURCE_DIR@") # HDDL
 
 # Variables to export in plugin's projects
 
-set(ie_options "@IE_OPTIONS@;CMAKE_BUILD_TYPE;CMAKE_SKIP_RPATH;")
+set(ie_options "@IE_OPTIONS@;CMAKE_BUILD_TYPE;CMAKE_SKIP_RPATH")
 list(APPEND ie_options CMAKE_CXX_COMPILER_LAUNCHER CMAKE_C_COMPILER_LAUNCHER)
 file(TO_CMAKE_PATH "${CMAKE_CURRENT_LIST_DIR}" cache_path)
 
@@ -44,10 +43,28 @@ find_dependency(InferenceEngine
                 NO_CMAKE_FIND_ROOT_PATH
                 NO_DEFAULT_PATH)
 
+find_dependency(ngraph
+                PATHS "${CMAKE_CURRENT_LIST_DIR}"
+                NO_CMAKE_FIND_ROOT_PATH
+                NO_DEFAULT_PATH)
+
+find_dependency(OpenVINODeveloperPackage
+                PATHS "${CMAKE_CURRENT_LIST_DIR}"
+                NO_CMAKE_FIND_ROOT_PATH
+                NO_DEFAULT_PATH)
+
+if(TARGET openvino::runtime AND NOT TARGET IE::runtime)
+    add_library(IE::runtime INTERFACE IMPORTED)
+    set_target_properties(IE::runtime PROPERTIES
+        INTERFACE_LINK_LIBRARIES openvino::runtime)
+endif()
+
 # WA for cmake: it exports ngraph as IE::ngraph in the IE export list
 # while we already have ngraph export in its own export list as ngraph::ngraph
-set_property(TARGET ngraph::ngraph PROPERTY IMPORTED_GLOBAL TRUE)
-add_library(IE::ngraph ALIAS ngraph::ngraph)
+if(TARGET ngraph::ngraph AND NOT TARGET IE::ngraph)
+    add_library(IE::ngraph INTERFACE IMPORTED)
+    set_target_properties(IE::ngraph PROPERTIES INTERFACE_LINK_LIBRARIES ngraph::ngraph)
+endif()
 
 foreach(component @openvino_export_components@)
     include("${CMAKE_CURRENT_LIST_DIR}/${component}_dev_targets.cmake")
@@ -73,6 +90,9 @@ if(NOT MSVC)
     ie_add_compiler_flags(-Wno-error=unused-variable)
     if(CMAKE_COMPILER_IS_GNUCXX)
         ie_add_compiler_flags(-Wno-error=unused-but-set-variable)
+        if(SUGGEST_OVERRIDE_SUPPORTED)
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
+        endif()
     endif()
 endif()
 

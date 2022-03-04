@@ -1,8 +1,8 @@
-## Asinh <a name="Asinh"></a> {#openvino_docs_ops_arithmetic_Asinh_3}
+# Asinh {#openvino_docs_ops_arithmetic_Asinh_3}
 
 **Versioned name**: *Asinh-3*
 
-**Category**: Arithmetic unary operation
+**Category**: *Arithmetic unary*
 
 **Short description**: *Asinh* performs element-wise inverse hyperbolic sine operation (arcsinh) on a given input tensor.
 

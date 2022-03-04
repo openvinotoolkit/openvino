@@ -33,7 +33,7 @@ Boxes of `background_class` are skipped and thus eliminated.
     * *none* - do not guarantee the order.
   * **Type**: `string`
   * **Default value**: `none`
-  * **Required**: *No*
+  * **Required**: *no*
 
 * *sort_result_across_batch*
 
@@ -43,7 +43,7 @@ Boxes of `background_class` are skipped and thus eliminated.
     * *false* - do not sort selected boxes across batches (boxes are sorted per batch element).
   * **Type**: boolean
   * **Default value**: false
-  * **Required**: *No*
+  * **Required**: *no*
 
 * *output_type*
 
@@ -51,7 +51,7 @@ Boxes of `background_class` are skipped and thus eliminated.
   * **Range of values**: `i64` or `i32`
   * **Type**: `string`
   * **Default value**: `i64`
-  * **Required**: *No*
+  * **Required**: *no*
 
 * *iou_threshold*
 
@@ -59,7 +59,7 @@ Boxes of `background_class` are skipped and thus eliminated.
   * **Range of values**: a floating-point number
   * **Type**: `float`
   * **Default value**: `0`
-  * **Required**: *No*
+  * **Required**: *no*
 
 * *score_threshold*
 
@@ -67,7 +67,7 @@ Boxes of `background_class` are skipped and thus eliminated.
   * **Range of values**: a floating-point number
   * **Type**: `float`
   * **Default value**: `0`
-  * **Required**: *No*
+  * **Required**: *no*
 
 * *nms_top_k*
 
@@ -75,7 +75,7 @@ Boxes of `background_class` are skipped and thus eliminated.
   * **Range of values**: an integer
   * **Type**: `int`
   * **Default value**: `-1` meaning to keep all boxes
-  * **Required**: *No*
+  * **Required**: *no*
 
 * *keep_top_k*
 
@@ -83,7 +83,7 @@ Boxes of `background_class` are skipped and thus eliminated.
   * **Range of values**: an integer
   * **Type**: `int`
   * **Default value**: `-1` meaning to keep all boxes
-  * **Required**: *No*
+  * **Required**: *no*
 
 * *background_class*
 
@@ -91,7 +91,7 @@ Boxes of `background_class` are skipped and thus eliminated.
   * **Range of values**: an integer
   * **Type**: `int`
   * **Default value**: `-1` meaning to keep all classes.
-  * **Required**: *No*
+  * **Required**: *no*
 
 * *normalized*
 
@@ -101,7 +101,7 @@ Boxes of `background_class` are skipped and thus eliminated.
     * *false* - the box coordinates are not normalized.
   * **Type**: boolean
   * **Default value**: True
-  * **Required**: *No*
+  * **Required**: *no*
 
 * *nms_eta*
 
@@ -109,17 +109,17 @@ Boxes of `background_class` are skipped and thus eliminated.
   * **Range of values**: a floating-point number in close range `[0, 1.0]`.
   * **Type**: `float`
   * **Default value**: `1.0`
-  * **Required**: *No*
+  * **Required**: *no*
 
 **Inputs**:
 
 *   **1**: `boxes` - tensor of type *T* and shape `[num_batches, num_boxes, 4]` with box coordinates. The box coordinates are layout as `[xmin, ymin, xmax, ymax]`. **Required.**
 
-*   **2**: `scores` - tensor of type *T* and shape `[num_batches, num_classes, num_boxes]` with box scores. **Required.**
+*   **2**: `scores` - tensor of type *T* and shape `[num_batches, num_classes, num_boxes]` with box scores. The tensor type should be same with `boxes`. **Required.**
 
 **Outputs**:
 
-*   **1**: `selected_outputs` - tensor of type *T_THRESHOLDS* and shape `[number of selected boxes, 6]` containing the selected boxes with score and class as tuples `[class_id, box_score, xmin, ymin, xmax, ymax]`.
+*   **1**: `selected_outputs` - tensor of type *T* which should be same with `boxes` and shape `[number of selected boxes, 6]` containing the selected boxes with score and class as tuples `[class_id, box_score, xmin, ymin, xmax, ymax]`.
 
 *   **2**: `selected_indices` - tensor of type *T_IND* and shape `[number of selected boxes, 1]` the selected indices in the flattened `boxes`, which are absolute values cross batches. Therefore possible valid values are in the range `[0, num_batches * num_boxes - 1]`.
 
@@ -129,11 +129,7 @@ When there is no box selected, `selected_num` is filled with `0`. `selected_outp
 
 **Types**
 
-* *T*: floating point type.
-
-* *T_MAX_BOXES*: integer type.
-
-* *T_THRESHOLDS*: floating point type.
+* *T*: floating-point type.
 
 * *T_IND*: `int64` or `int32`.
 
@@ -161,7 +157,7 @@ When there is no box selected, `selected_num` is filled with `0`. `selected_outp
         </port>
         <port id="6" precision="I64">
             <dim>-1</dim>
-            <dim>1</dim>         
+            <dim>1</dim>
         </port>
         <port id="7" precision="I64">
             <dim>3</dim>

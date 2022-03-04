@@ -11,7 +11,8 @@ file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
 if(NOT CLDNN__IOCL_ICD_INCDIRS OR TRUE)
     list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/GPU_RemoteBlob_API0.cpp"
                              "${CMAKE_CURRENT_SOURCE_DIR}/GPU_RemoteBlob_API1.cpp"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/GPU_RemoteBlob_API2.cpp")
+                             "${CMAKE_CURRENT_SOURCE_DIR}/GPU_RemoteBlob_API2.cpp"
+                             "${CMAKE_CURRENT_SOURCE_DIR}/GPU_RemoteBlob_API3.cpp")
 endif()
 
 # remove OpenCV related sources
@@ -34,6 +35,7 @@ list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/dldt_optimization_guide2.c
 # create a static library
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
+target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../template_extension/new/")
 
 if(CLDNN__IOCL_ICD_INCDIRS)
     target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${CLDNN__IOCL_ICD_INCDIRS})
@@ -44,8 +46,8 @@ if(OpenCV_FOUND)
     target_link_libraries(${TARGET_NAME} PRIVATE opencv_core)
 endif()
 
-if(NGRAPH_ONNX_IMPORT_ENABLE)
-    target_link_libraries(${TARGET_NAME} PRIVATE onnx_importer)
+if(ENABLE_OV_ONNX_FRONTEND)
+    target_link_libraries(${TARGET_NAME} PRIVATE openvino_onnx_frontend)
 endif()
 
 if(NOT MSVC)
@@ -55,5 +57,23 @@ if(NOT MSVC)
     endif()
 endif()
 
-target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_plugin_api
-    ngraph inference_engine_transformations)
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime openvino::runtime::dev)
+
+set(TARGET_NAME "ov_integration_snippet")
+# [cmake:integration_example]
+cmake_minimum_required(VERSION 3.10)
+set(CMAKE_CXX_STANDARD 11)
+
+
+find_package(OpenVINO REQUIRED)
+
+add_executable(${TARGET_NAME} src/main.cpp)
+
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
+# [cmake:integration_example]
+if(NOT MSVC)
+    target_compile_options(${TARGET_NAME} PRIVATE -Wno-unused-variable)
+    if(CMAKE_COMPILER_IS_GNUCXX)
+        target_compile_options(${TARGET_NAME} PRIVATE -Wno-unused-but-set-variable)
+    endif()
+endif()

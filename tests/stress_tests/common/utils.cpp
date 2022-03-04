@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,16 @@
 
 #include <string>
 #include <string.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#include <psapi.h>
+#include <tlhelp32.h>
+#else
+#include <sys/unistd.h>
+#include <sys/wait.h>
+#endif
+
 
 std::string OS_PATH_JOIN(std::initializer_list<std::string> list) {
     if (!list.size())
@@ -37,13 +47,52 @@ static int parseLine(std::string line) {
 }
 
 #ifdef _WIN32
+static PROCESS_MEMORY_COUNTERS getMemoryInfo() {
+    static PROCESS_MEMORY_COUNTERS pmc;
+    pmc.cb = sizeof(PROCESS_MEMORY_COUNTERS);
+    GetProcessMemoryInfo(GetCurrentProcess(),&pmc, pmc.cb);
+    return pmc;
+}
+
 size_t getVmSizeInKB() {
-                // TODO rewrite for Virtual Memory
-                PROCESS_MEMORY_COUNTERS pmc;
-                pmc.cb = sizeof(PROCESS_MEMORY_COUNTERS);
-                GetProcessMemoryInfo(GetCurrentProcess(),&pmc, pmc.cb);
-                return pmc.WorkingSetSize;
-	    }
+    return getMemoryInfo().PagefileUsage / 1024;
+    }
+
+size_t getVmPeakInKB() {
+    return getMemoryInfo().PeakPagefileUsage / 1024;
+    }
+
+size_t getVmRSSInKB() {
+    return getMemoryInfo().WorkingSetSize / 1024;
+    }
+
+size_t getVmHWMInKB() {
+    return getMemoryInfo().PeakWorkingSetSize / 1024;
+    }
+
+size_t getThreadsNum() {
+    // first determine the id of the current process
+    DWORD const  id = GetCurrentProcessId();
+
+    // then get a process list snapshot.
+    HANDLE const  snapshot = CreateToolhelp32Snapshot( TH32CS_SNAPALL, 0 );
+
+    // initialize the process entry structure.
+    PROCESSENTRY32 entry = { 0 };
+    entry.dwSize = sizeof( entry );
+
+    // get the first process info.
+    BOOL  ret = true;
+    ret = Process32First( snapshot, &entry );
+    while( ret && entry.th32ProcessID != id ) {
+        ret = Process32Next( snapshot, &entry );
+    }
+    CloseHandle( snapshot );
+    return ret 
+        ?   entry.cntThreads
+        :   -1;
+    }
+
 #else
 size_t getSystemDataByName(char *name){
     FILE* file = fopen("/proc/self/status", "r");
@@ -69,6 +118,35 @@ size_t getVmHWMInKB() {return getSystemDataByName((char*) "VmHWM:");}
 size_t getThreadsNum() {return getSystemDataByName((char*) "Threads:");}
 
 #endif
+
+int run_in_processes(const int &numprocesses, const std::function<void()> &function) {
+#ifdef _WIN32
+    // TODO: implement run in separate process by using WinAPI
+    function();
+    return 0;
+#else
+    std::vector<pid_t> child_pids(numprocesses);
+
+    for (int i = 0; i < numprocesses; i++) {
+        child_pids[i] = fork();
+        if (child_pids[i] == 0) {
+            function();
+            exit(EXIT_SUCCESS);
+        }
+    }
+
+    int status = 0;
+    for (int i = 0; i < numprocesses; i++) {
+        int _status = 0;
+        waitpid(child_pids[i], &_status, WSTOPPED);
+        if (_status) {
+            log_err("Process run # " << i << " failed with exitcode " << _status);
+            status = _status;
+        }
+    }
+    return status;
+#endif
+}
 
 void auto_expand_env_vars(std::string &input) {
     const static std::string pattern1 = "${", pattern2 = "}";

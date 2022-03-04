@@ -1,4 +1,4 @@
-## Elu<a name="Elu"></a> {#openvino_docs_ops_activation_Elu_1}
+# Elu {#openvino_docs_ops_activation_Elu_1}
 
 **Versioned name**: *Elu-1*
 
@@ -29,12 +29,11 @@ where α corresponds to *alpha* attribute.
   * **Description**: scale for the negative factor
   * **Range of values**: non-negative arbitrary floating-point number
   * **Type**: `float`
-  * **Default value**: none
   * **Required**: *yes*
 
 **Inputs**:
 
-*   **1**: A tensor of type *T* and arbitrary shape. **Required**.
+*   **1**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**:
 

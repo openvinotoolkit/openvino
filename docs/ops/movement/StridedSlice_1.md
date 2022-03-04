@@ -1,8 +1,8 @@
-## StridedSlice <a name="StridedSlice"></a> {#openvino_docs_ops_movement_StridedSlice_1}
+# StridedSlice {#openvino_docs_ops_movement_StridedSlice_1}
 
 **Versioned name**: *StridedSlice-1*
 
-**Category**: Data movement operation
+**Category**: *Data movement*
 
 **Short description**: *StridedSlice* extracts a strided slice of a tensor.
 

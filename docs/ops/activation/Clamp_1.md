@@ -1,4 +1,4 @@
-## Clamp<a name="Clamp"></a> {#openvino_docs_ops_activation_Clamp_1}
+# Clamp {#openvino_docs_ops_activation_Clamp_1}
 
 **Versioned name**: *Clamp-1*
 
@@ -15,7 +15,7 @@
 
 Let *min_value* and *max_value* be *min* and *max*, respectively. The mathematical formula of *Clamp* is as follows:
 \f[
-clamp( x_{i} )=\min\big( \max\left( x_{i}, min\_value \right), max\_value \big)
+clamp( x_{i} )=\min\big( \max\left( x_{i},\ min\_value \right),\ max\_value \big)
 \f]
 
 **Attributes**:
@@ -23,22 +23,20 @@ clamp( x_{i} )=\min\big( \max\left( x_{i}, min\_value \right), max\_value \big)
 * *min*
 
   * **Description**: *min* is the lower bound of values in the output.
-  * **Range of values**: arbitrary floating point number
+  * **Range of values**: arbitrary floating-point number
   * **Type**: `float`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *max*
 
   * **Description**: *max* is the upper bound of values in the output.
-  * **Range of values**: arbitrary floating point number
+  * **Range of values**: arbitrary floating-point number
   * **Type**: `float`
-  * **Default value**: None
   * **Required**: *yes*
 
 **Inputs**:
 
-*   **1**: A tensor of type *T* and arbitrary shape. **Required**.
+*   **1**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**:
 

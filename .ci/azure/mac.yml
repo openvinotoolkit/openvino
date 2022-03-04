@@ -1,3 +1,12 @@
+trigger:
+  branches:
+    include:
+    - master
+    - releases/*
+  paths:
+    exclude:
+    - docs/*
+
 resources:
   repositories:
   - repository: openvino_contrib
@@ -22,26 +31,27 @@ jobs:
     system.debug: true
     VSTS_HTTP_RETRY: 5
     VSTS_HTTP_TIMEOUT: 200
-    WORKERS_NUMBER: 3
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
     OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)/../openvino_contrib
     MODELS_PATH: $(REPO_DIR)/../testdata
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
-    BIN_DIR: $(REPO_DIR)/bin/intel64/$(BUILD_TYPE)
     INSTALL_DIR: $(WORK_DIR)/install_pkg
-    SETUPVARS: $(INSTALL_DIR)/bin/setupvars.sh
+    INSTALL_TEST_DIR: $(INSTALL_DIR)/tests
+    SETUPVARS: $(INSTALL_DIR)/setupvars.sh
+    TMP_DIR: /tmp
+    CCACHE_DIR: $(WORK_DIR)/ccache/mac
 
   steps:
   - script: |
       whoami
       uname -a
-      which python3
-      python3 --version
-      which java
-      java -version
-      gcc --version
+      echo Python3 info ; which python3 ; python3 --version
+      echo Python info ; which python ; python --version
+      echo Java info ; which java ; java -version
+      echo gcc info ; which gcc ; gcc --version
+      echo cmake info ; which cmake ; cmake --version
       xcrun --sdk macosx --show-sdk-version
       env
       sysctl -a
@@ -76,8 +86,10 @@ jobs:
   - script: |
       brew install cython
       brew install automake
+      python3 -m pip install -r $(REPO_DIR)/src/core/tests/requirements_test_onnx.txt
       # Speed up build
       brew install ninja
+      brew install ccache
       # Speed up tests
       git clone https://github.com/google/gtest-parallel.git
     workingDirectory: $(WORK_DIR)
@@ -87,53 +99,99 @@ jobs:
       export PATH="/usr/local/opt/cython/bin:$PATH"
       export CC=gcc
       export CXX=g++
-      # Disable errors with Ninja
-      export CXXFLAGS="-Wno-error=unused-command-line-argument"
-      export CFLAGS="-Wno-error=unused-command-line-argument"
-      cmake -GNinja -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DENABLE_TESTS=ON -DENABLE_STRICT_DEPENDENCIES=OFF -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules $(REPO_DIR)
+      cmake -GNinja -DVERBOSE_BUILD=ON -DENABLE_REQUIREMENTS_INSTALL=OFF -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DENABLE_TESTS=OFF -DENABLE_STRICT_DEPENDENCIES=OFF -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache $(REPO_DIR)
     workingDirectory: $(BUILD_DIR)
     displayName: 'CMake'
 
-  - script: ninja
+  - script: ls -alR $(REPO_DIR)/temp/
+    displayName: 'List temp SDKs'
+
+  - task: Cache@2
+    inputs:
+      key: 'ccache | "$(Agent.OS)"'
+      path: $(CCACHE_DIR)
+      restoreKeys: |
+        ccache | "$(Agent.OS)"
+    displayName: Cache
+
+  - script: ccache --zero-stats --max-size=10G --show-config
+    displayName: 'Clean ccache stats'
+
+  - script: |
+      export CCACHE_DIR=$(CCACHE_DIR)
+      export CCACHE_TEMPDIR=$(TMP_DIR)/ccache
+      export CCACHE_BASEDIR=$(Pipeline.Workspace)
+      export CCACHE_MAXSIZE=10G
+      ninja
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Mac'
 
+  - script: ccache --show-stats
+    displayName: 'Show ccache stats'
+
   - script: ls -alR $(REPO_DIR)/bin/
-    displayName: 'List files'
+    displayName: 'List bin files'
 
   - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install'
 
-  - script: $(BIN_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*:IE_CPU.onnx_model_sigmoid:IE_CPU/GRUSequenceOp.onnx_model_gru* --gtest_output=xml:TEST-NGraphUT.xml
-    displayName: 'nGraph UT'
-    continueOnError: false
+  - script: ls -alR $(INSTALL_DIR)
+    displayName: 'List install files'
 
-  - script: $(BIN_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_filter=-MKLDNNGraphStructureTests.TestNoRedundantReordersBeforeDWConvolution:TestConvolution/MKLDNNGraphConvolutionTests.TestsConvolution/0:TestConvolutionDefaultPrimitivesPriority/MKLDNNGraphConvolutionTests.TestsConvolution/0 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml
+  - script: |
+      set -e
+      mkdir -p $(INSTALL_DIR)/opencv/
+      cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P cmake_install.cmake
+      cp -R $(REPO_DIR)/temp/opencv_4.5.2_osx/opencv/* $(INSTALL_DIR)/opencv/
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'Install tests'
+
+  - script: ls -alR $(INSTALL_DIR)
+    displayName: 'List install files'
+
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*:IE_CPU.onnx_model_sigmoid:IE_CPU/GRUSequenceOp.onnx_model_gru* --gtest_output=xml:TEST-NGraphUT.xml
+    workingDirectory: $(INSTALL_TEST_DIR)
+    displayName: 'OV Core UT'
+    continueOnError: false
+    enabled: false
+
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_filter=-MKLDNNGraphStructureTests.TestNoRedundantReordersBeforeDWConvolution:TestConvolution/MKLDNNGraphConvolutionTests.TestsConvolution/0:TestConvolutionDefaultPrimitivesPriority/MKLDNNGraphConvolutionTests.TestsConvolution/0 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml
     displayName: 'IE UT old'
     continueOnError: false
+    enabled: false
 
-  - script: $(BIN_DIR)/ieUnitTests --gtest_output=xml:TEST-ieUnitTests.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieUnitTests --gtest_output=xml:TEST-ieUnitTests.xml
     displayName: 'IE UT'
     continueOnError: false
+    enabled: false
 
-  - script: $(BIN_DIR)/cpuUnitTests --gtest_output=xml:TEST-cpuUnitTests.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/cpuUnitTests --gtest_output=xml:TEST-cpuUnitTests.xml
     displayName: 'CPU UT'
     continueOnError: false
+    enabled: false
 
-  - script: $(BIN_DIR)/vpuUnitTests --gtest_output=xml:TEST-vpuUnitTests.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/vpuUnitTests --gtest_output=xml:TEST-vpuUnitTests.xml
     displayName: 'VPU UT'
     continueOnError: false
+    enabled: false
 
-  - script: $(BIN_DIR)/onnxImporterUnitTests --gtest_output=xml:TEST-onnxImporterUnitTests.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/onnxImporterUnitTests --gtest_output=xml:TEST-onnxImporterUnitTests.xml
     displayName: 'ONNX Importer UT'
     continueOnError: false
+    enabled: false
 
-  - script: $(BIN_DIR)/ieFuncTests --gtest_output=xml:TEST-ieFuncTests.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieMultiPluginUnitTests --gtest_output=xml:TEST-ieMultiPluginUnitTests.xml
+    displayName: 'MULTI UT'
+    continueOnError: false
+    enabled: false
+
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieFuncTests --gtest_output=xml:TEST-ieFuncTests.xml
     displayName: 'IE FuncTests'
     continueOnError: false
+    enabled: false
 
-  - script: $(BIN_DIR)/cpuFuncTests --gtest_filter=*smoke*:-smoke_LPT/ReduceMinTransformation.CompareWithRefImpl/f32_Shape* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/cpuFuncTests --gtest_filter=*smoke*:-smoke_LPT/ReduceMinTransformation.CompareWithRefImpl/f32_Shape* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml
     displayName: 'CPU FuncTests'
     continueOnError: false
     enabled: false
@@ -141,9 +199,10 @@ jobs:
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
-      $(BIN_DIR)/InferenceEngineCAPITests --gtest_output=xml:TEST-InferenceEngineCAPITests.xml
+      . $(SETUPVARS) && $(INSTALL_TEST_DIR)/InferenceEngineCAPITests --gtest_output=xml:TEST-InferenceEngineCAPITests.xml
     displayName: 'IE CAPITests'
     continueOnError: false
+    enabled: false
 
   - task: PublishTestResults@2
     condition: always()

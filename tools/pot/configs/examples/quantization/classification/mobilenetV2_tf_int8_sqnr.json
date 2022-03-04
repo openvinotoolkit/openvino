@@ -1,0 +1,30 @@
+{
+    "model": {
+        "model_name": "mobilenet_v2_1.0_224",
+        "model": "<MODEL_PATH>",
+        "weights": "<PATH_TO_WEIGHTS>"
+    },
+    "engine": {
+        "config": "<CONFIG_PATH>"
+    },
+    "compression": {
+        "algorithms": [
+            {
+                "name": "DefaultQuantization",
+                "params": {
+                    "preset": "performance",
+                    "stat_subset_size": 300
+                }
+            },
+            {
+                "name": "QuantNoiseEstimator",
+                "params": {
+                    "stat_subset_size": 100,
+                    "mode": "full_fq_noise",
+                    "type": "sqnr",
+                    "results_dump_filename": "./mobilenetv2_sqnr_data.csv"
+                }
+            }
+        ]
+    }
+}

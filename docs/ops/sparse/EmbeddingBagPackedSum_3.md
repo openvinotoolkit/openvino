@@ -1,4 +1,4 @@
-## EmbeddingBagPackedSum <a name="EmbeddingBagPackedSum"></a> {#openvino_docs_ops_sparse_EmbeddingBagPackedSum_3}
+# EmbeddingBagPackedSum {#openvino_docs_ops_sparse_EmbeddingBagPackedSum_3}
 
 **Versioned name**: *EmbeddingBagPackedSum-3*
 
@@ -8,11 +8,13 @@
 
 **Detailed description**: This is the first case of the PyTorch [EmbeddingBag](https://pytorch.org/docs/stable/nn.html#embeddingbag), it has indices in the tensor of format `[batch, indices_per_bag]`. If 3rd input is not provided, this operation is equivalent to *Gather* followed by *ReduceSum(axis=0)*. However, *EmbeddingBagPackedSum* is much more time and memory efficient than using a chain of these operations.
 
+**Attributes**: EmbeddingBagPackedSum operation has no attributes.
+
 **Inputs**:
 
-*   **1**: `emb_table` tensor containing the embedding lookup table of the module of shape `[num_emb, emb_dim1, emb_dim2, ...]` and of type *T*. Required.
+*   **1**: `emb_table` tensor containing the embedding lookup table of the module of shape `[num_emb, emb_dim1, emb_dim2, ...]` and of type *T*. **Required.**
 
-*   **2**: `indices` tensor of shape `[batch, indices_per_bag]` and of type *T_IND*. Required.
+*   **2**: `indices` tensor of shape `[batch, indices_per_bag]` and of type *T_IND*. **Required.**
 
 *   **3**: `per_sample_weights` tensor of the same shape as `indices` and of type *T*. Each value in this tensor are multiplied with each value pooled from embedding table for each index. Optional, default is tensor of ones.
 

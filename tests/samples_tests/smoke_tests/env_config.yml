@@ -1,0 +1,8 @@
+out_directory: ${WORKSPACE}/out
+models_path: ${SHARE}/models/
+test_data: ${SHARE}/validation_set/
+#Performance data:
+perf_result_path: ${SHARE}/validation_set/performance_result/
+samples_data_zip: "https://storage.openvinotoolkit.org/repositories/openvino/ci_dependencies/test/2021.4/samples_smoke_tests_data_2021.4.zip"
+smoke_tests_path: ${WORKSPACE}/tests/smoke_tests
+samples_path: ${WORKSPACE}/tests/smoke_tests/samples_smoke_tests_data.zip

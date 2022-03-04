@@ -1,19 +1,26 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+
+if(SUGGEST_OVERRIDE_SUPPORTED)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
+endif()
 
 if(ENABLE_LTO)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 endif()
 
-add_subdirectory(ittapi EXCLUDE_FROM_ALL)
+add_subdirectory(ittapi)
 add_subdirectory(itt_collector EXCLUDE_FROM_ALL)
 add_subdirectory(zlib EXCLUDE_FROM_ALL)
 add_subdirectory(cnpy EXCLUDE_FROM_ALL)
-add_subdirectory(ocl EXCLUDE_FROM_ALL)
+if(ENABLE_INTEL_GPU)
+    add_subdirectory(ocl)
+endif()
 
 add_subdirectory(xbyak EXCLUDE_FROM_ALL)
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS xbyak)
+ov_install_static_lib(xbyak openvino_common)
 
 #
 # Pugixml
@@ -25,10 +32,14 @@ if(ENABLE_SYSTEM_PUGIXML)
     add_library(pugixml::static ALIAS pugixml)
 else()
     function(ie_build_pugixml)
-        set(BUILD_SHARED_LIBS OFF)
-        add_subdirectory(pugixml EXCLUDE_FROM_ALL)
+        function(ie_build_pugixml_static)
+            set(BUILD_SHARED_LIBS OFF)
+            add_subdirectory(pugixml EXCLUDE_FROM_ALL)
+        endfunction()
+        ie_build_pugixml_static()
         set_property(TARGET pugixml-static PROPERTY EXPORT_NAME pugixml)
         openvino_developer_export_targets(COMPONENT openvino_common TARGETS pugixml::static)
+        ov_install_static_lib(pugixml-static openvino_common)
     endfunction()
 
     ie_build_pugixml()
@@ -46,93 +57,110 @@ add_subdirectory(fluid/modules/gapi EXCLUDE_FROM_ALL)
 set_target_properties(ade fluid PROPERTIES FOLDER thirdparty)
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS ade fluid)
 
+ov_install_static_lib(ade openvino_common)
+ov_install_static_lib(fluid openvino_common)
+
 #
 # Gflags
 #
 
-function(add_gflags)
-    # common gflags settings
-    set(GFLAGS_IS_SUBPROJECT TRUE)
-    set(HAVE_SYS_STAT_H 1)
-    set(HAVE_INTTYPES_H 1)
-    set(INTTYPES_FORMAT C99)
-    set(BUILD_TESTING OFF)
-    set(BUILD_SHARED_LIBS OFF)
-
-    add_subdirectory(gflags EXCLUDE_FROM_ALL)
-    set_target_properties(gflags_nothreads_static PROPERTIES FOLDER thirdparty)
-    openvino_developer_export_targets(COMPONENT openvino_common TARGETS gflags)
-endfunction()
-
-add_gflags()
+add_subdirectory(gflags EXCLUDE_FROM_ALL)
+openvino_developer_export_targets(COMPONENT openvino_common TARGETS gflags)
 
 #
 # Google Tests framework
 #
 
-function(add_gtest_libraries)
-    set(gtest_force_shared_crt ON CACHE BOOL "disable static CRT for google test")
-    if (UNIX)
-        ie_add_compiler_flags(-Wno-undef)
-        if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-            ie_add_compiler_flags(-Wno-deprecated-copy)
-        endif()
-    endif()
-
-    set(BUILD_SHARED_LIBS OFF)
-    set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+if(ENABLE_OV_CORE_UNIT_TESTS OR ENABLE_TESTS)
     add_subdirectory(gtest EXCLUDE_FROM_ALL)
 
-    get_target_property(gtest_include_dirs gtest INTERFACE_INCLUDE_DIRECTORIES)
-    set_target_properties(gtest PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${gtest_include_dirs}")
-
-    get_target_property(gmock_include_dirs gtest INTERFACE_INCLUDE_DIRECTORIES)
-    set_target_properties(gmock PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${gmock_include_dirs};${gmock_SOURCE_DIR}/include")
-
-    # If we have specified /Z7 option, remove -Zi option which comes from gtest
-    if (WIN32)
-        set(gtest_targets "gtest;gtest_main;gmock;gmock_main")
-        foreach(target_name ${gtest_targets})
-            if(TARGET "${target_name}")
-                get_target_property(_target_cxx_flags ${target_name} COMPILE_OPTIONS)
-                if(_target_cxx_flags)
-                    if(CMAKE_CXX_FLAGS_DEBUG MATCHES ".+/Z7.+" OR CMAKE_CXX_FLAGS_RELWITHDEBINFO MATCHES ".+/Z7.+")
-                        string(REPLACE "-Zi" " " _target_cxx_flags ${_target_cxx_flags})
-                        message(STATUS "Removing -Zi flag from target " ${target_name})
-                        set_target_properties(${target_name} PROPERTIES COMPILE_OPTIONS "${_target_cxx_flags}")
-                    endif()
-                endif()
-            endif()
-        endforeach()
-    endif()
-    set_target_properties(gtest gtest_main gmock gmock_main
-                          PROPERTIES FOLDER thirdparty)
-    
-    openvino_developer_export_targets(COMPONENT inference_engine_tests
+    openvino_developer_export_targets(COMPONENT tests
                                       TARGETS gmock gmock_main gtest gtest_main)
-endfunction()
-
-if(NGRAPH_UNIT_TEST_ENABLE OR ENABLE_TESTS)
-    add_gtest_libraries()
 endif()
+
+#
+# Protobuf
+#
+
+if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND)
+    if(ENABLE_SYSTEM_PROTOBUF)
+        set(Protobuf_USE_STATIC_LIBS ON)
+        if(VERBOSE_BUILD)
+            set(Protobuf_DEBUG ON)
+        endif()
+        find_package(Protobuf 3.18.2 REQUIRED)
+        set(Protobuf_LITE_LIBRARIES protobuf::libprotobuf-lite)
+        set(Protobuf_LIBRARIES protobuf::libprotobuf)
+        set(SYSTEM_PROTOC protobuf::protoc)
+        set(PROTOC_EXECUTABLE ${SYSTEM_PROTOC})
+
+        foreach(target ${SYSTEM_PROTOC} ${Protobuf_LIBRARIES} ${Protobuf_LITE_LIBRARIES})
+            set_property(TARGET ${target} PROPERTY IMPORTED_GLOBAL TRUE)
+        endforeach()
+    else()
+        add_subdirectory(protobuf EXCLUDE_FROM_ALL)
+    endif()
+
+    # forward variables used in the other places
+    set(SYSTEM_PROTOC ${SYSTEM_PROTOC} PARENT_SCOPE)
+    set(PROTOC_EXECUTABLE ${PROTOC_EXECUTABLE} PARENT_SCOPE)
+    set(Protobuf_LIBRARIES ${Protobuf_LIBRARIES} PARENT_SCOPE)
+    set(Protobuf_LITE_LIBRARIES ${Protobuf_LITE_LIBRARIES} PARENT_SCOPE)
+    set(Protobuf_INCLUDE_DIRS ${Protobuf_INCLUDE_DIRS} PARENT_SCOPE)
+    set(Protobuf_IN_FRONTEND ON PARENT_SCOPE)
+
+    # set public / interface compile options
+    foreach(target IN LISTS Protobuf_LITE_LIBRARIES Protobuf_LIBRARIES)
+        set(link_type PUBLIC)
+        if(ENABLE_SYSTEM_PROTOBUF)
+            set(link_type INTERFACE)
+        endif()
+        if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+            target_compile_options(${target} ${link_type} -Wno-undef)
+        endif()
+    endforeach()
+endif()
+
+#
+# ONNX
+#
+
+if(ENABLE_OV_ONNX_FRONTEND)
+    add_subdirectory(onnx)
+endif()
+
+#
+# nlohmann json
+#
+
+add_subdirectory(json)
+
+openvino_developer_export_targets(COMPONENT openvino_common
+                                  TARGETS nlohmann_json nlohmann_json_schema_validator)
+
+ov_install_static_lib(nlohmann_json openvino_common)
+ov_install_static_lib(nlohmann_json_schema_validator openvino_common)
 
 #
 # Install
 #
 
-ie_cpack_add_component(cpp_samples_deps)
-
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
-        DESTINATION ${IE_CPACK_IE_DIR}/samples/cpp/thirdparty
-        COMPONENT cpp_samples_deps
+        DESTINATION "samples/cpp/thirdparty"
+        COMPONENT cpp_samples
         USE_SOURCE_PERMISSIONS)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/zlib
-        DESTINATION ${IE_CPACK_IE_DIR}/samples/cpp/thirdparty
-        COMPONENT cpp_samples_deps
+        DESTINATION "samples/cpp/thirdparty"
+        COMPONENT cpp_samples
         USE_SOURCE_PERMISSIONS)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cnpy
-        DESTINATION ${IE_CPACK_IE_DIR}/samples/cpp/thirdparty
-        COMPONENT cpp_samples_deps
+        DESTINATION "samples/cpp/thirdparty"
+        COMPONENT cpp_samples
+        USE_SOURCE_PERMISSIONS)
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/json
+        DESTINATION "samples/cpp/thirdparty"
+        COMPONENT cpp_samples
         USE_SOURCE_PERMISSIONS)

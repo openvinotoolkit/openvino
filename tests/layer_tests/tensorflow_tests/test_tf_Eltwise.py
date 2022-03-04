@@ -1,13 +1,14 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
 
 from common.tf_layer_test_class import CommonTFLayerTest
+from common.utils.tf_utils import permute_nchw_to_nhwc
 
 
 class TestEltwise(CommonTFLayerTest):
-    def create_eltwise_net(self, shape, operation, ir_version):
+    def create_eltwise_net(self, shape, operation, ir_version, use_new_frontend):
         """
             Tensorflow net                 IR net
 
@@ -26,13 +27,12 @@ class TestEltwise(CommonTFLayerTest):
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
 
-            shapes = shape.copy()
-            # reshaping
-            if len(shapes) >= 4:
-                shapes.append(shapes.pop(1))
+            tf_x_shape = shape.copy()
 
-            x = tf.compat.v1.placeholder(tf.float32, shapes, 'Input')
-            y = tf.compat.v1.placeholder(tf.float32, shapes, 'Input')     # Input_1 in graph_def
+            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_new_frontend)
+
+            x = tf.compat.v1.placeholder(tf.float32, tf_x_shape, 'Input')
+            y = tf.compat.v1.placeholder(tf.float32, tf_x_shape, 'Input')  # Input_1 in graph_def
 
             if operation == 'sum':
                 tf.add(x, y, name='Operation')
@@ -62,9 +62,12 @@ class TestEltwise(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_eltwise(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_eltwise_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_eltwise(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
+                     api_2):
+        self._test(*self.create_eltwise_net(**params, ir_version=ir_version,
+                                            use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend, api_2=api_2)
 
     test_data_5D = []
     for operation in ['sum', 'max', 'mul']:
@@ -72,8 +75,11 @@ class TestEltwise(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.precommit
-    def test_eltwise_5D_precommit(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_eltwise_5D_precommit(self, params, ie_device, precision, ir_version, temp_dir,
+                                  use_new_frontend, api_2):
         if ie_device == 'GPU':
             pytest.skip("5D tensors is not supported on GPU")
-        self._test(*self.create_eltwise_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+        self._test(*self.create_eltwise_net(**params, ir_version=ir_version,
+                                            use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend, api_2=api_2)

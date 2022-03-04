@@ -29,22 +29,22 @@
 #define INTEL_JIT_PROFILER "INTEL_JIT_PROFILER"
 
 #ifdef _WIN32
-    #define setenv _putenv
-    #include <windows.h>
-    #undef API_VERSION
-    #include <Dbghelp.h>
-    #pragma comment(lib, "dbghelp")
+#    define setenv _putenv
+#    include <windows.h>
+#    undef API_VERSION
+#    include <Dbghelp.h>
+#    pragma comment(lib, "dbghelp")
 #else
-    #define setenv  putenv
-    #define _strdup strdup
+#    define setenv  putenv
+#    define _strdup strdup
 #endif
 
 #if (INTPTR_MAX == INT32_MAX)
-    #define BIT_SUFFIX "32"
+#    define BIT_SUFFIX "32"
 #elif INTPTR_MAX == INT64_MAX
-    #define BIT_SUFFIX "64"
+#    define BIT_SUFFIX "64"
 #else
-    #error "Environment not 32 or 64-bit!"
+#    error "Environment not 32 or 64-bit!"
 #endif
 
 int GlobalInit() {
@@ -52,7 +52,10 @@ int GlobalInit() {
     static const char jit_var_name[] = INTEL_JIT_PROFILER BIT_SUFFIX;
     sea::SModuleInfo mdlinfo = sea::Fn2Mdl((void*)GlobalInit);
 
-    VerbosePrint("IntelSEAPI: %s=%s | Loaded from: %s\n", var_name, get_environ_value(var_name).c_str(), mdlinfo.path.c_str());
+    VerbosePrint("IntelSEAPI: %s=%s | Loaded from: %s\n",
+                 var_name,
+                 get_environ_value(var_name).c_str(),
+                 mdlinfo.path.c_str());
 
     std::string value = var_name;
     value += "=";
@@ -103,9 +106,9 @@ void UnchainGlobal(__itt_global* pOld) {
 }
 
 #ifdef _WIN32
-    #include <windows.h>
+#    include <windows.h>
 
-    #define FIX_STR(type, ptr, name)                                                    \
+#    define FIX_STR(type, ptr, name)                                                    \
         if (!ptr->name##A) {                                                            \
             if (ptr->name##W) {                                                         \
                 size_t len = lstrlenW((const wchar_t*)ptr->name##W);                    \
@@ -118,7 +121,7 @@ void UnchainGlobal(__itt_global* pOld) {
         }
 
 #else
-    #define FIX_STR(type, ptr, name)                                   \
+#    define FIX_STR(type, ptr, name)                                   \
         if (!ptr->name##A) {                                           \
             if (ptr->name##W) {                                        \
                 size_t len = wcslen((const wchar_t*)ptr->name##W);     \
@@ -208,8 +211,15 @@ void AtExit() {
 
 extern "C" {
 #ifdef STANDARD_SOURCES
-typedef bool (*receive_t)(uint64_t receiver, uint64_t time, uint16_t count, const stdsrc::uchar_t** names, const stdsrc::uchar_t** values, double progress);
-typedef uint64_t (*get_receiver_t)(const stdsrc::uchar_t* provider, const stdsrc::uchar_t* opcode, const stdsrc::uchar_t* taskName);
+typedef bool (*receive_t)(uint64_t receiver,
+                          uint64_t time,
+                          uint16_t count,
+                          const stdsrc::uchar_t** names,
+                          const stdsrc::uchar_t** values,
+                          double progress);
+typedef uint64_t (*get_receiver_t)(const stdsrc::uchar_t* provider,
+                                   const stdsrc::uchar_t* opcode,
+                                   const stdsrc::uchar_t* taskName);
 
 SEA_EXPORT bool parse_standard_source(const char* file, get_receiver_t get_receiver, receive_t receive) {
     STDSRC_CHECK_RET(file, false);
@@ -220,7 +230,10 @@ SEA_EXPORT bool parse_standard_source(const char* file, get_receiver_t get_recei
         stdsrc::Reader& m_reader;
 
     public:
-        Receiver(stdsrc::Reader& reader, uint64_t receiver, receive_t receive): m_receiver(receiver), m_reader(reader), m_receive(receive) {}
+        Receiver(stdsrc::Reader& reader, uint64_t receiver, receive_t receive)
+            : m_receiver(receiver),
+              m_reader(reader),
+              m_receive(receive) {}
 
         virtual bool onEvent(uint64_t time, const stdsrc::CVariantTree& props) {
             size_t size = props.get_bags().size();
@@ -237,7 +250,12 @@ SEA_EXPORT bool parse_standard_source(const char* file, get_receiver_t get_recei
                 values[i] = value.is_empty() ? nullptr : value.as_str(values_temp[i]).c_str();
                 ++i;
             }
-            return m_receive(m_receiver, time, (uint16_t)size, size ? &names[0] : nullptr, size ? &values[0] : nullptr, m_reader.getProgress());
+            return m_receive(m_receiver,
+                             time,
+                             (uint16_t)size,
+                             size ? &names[0] : nullptr,
+                             size ? &values[0] : nullptr,
+                             m_reader.getProgress());
         }
     };
 
@@ -246,8 +264,10 @@ SEA_EXPORT bool parse_standard_source(const char* file, get_receiver_t get_recei
         receive_t m_receive = nullptr;
 
     public:
-        Reader(get_receiver_t get_receiver, receive_t receive): m_get_receiver(get_receiver), m_receive(receive) {}
-        virtual stdsrc::Receiver::Ptr getReceiver(const stdsrc::ustring& provider, const stdsrc::ustring& opcode, const stdsrc::ustring& taskName,
+        Reader(get_receiver_t get_receiver, receive_t receive) : m_get_receiver(get_receiver), m_receive(receive) {}
+        virtual stdsrc::Receiver::Ptr getReceiver(const stdsrc::ustring& provider,
+                                                  const stdsrc::ustring& opcode,
+                                                  const stdsrc::ustring& taskName,
                                                   stdsrc::CVariantTree& props) {
             uint64_t receiver = m_get_receiver(provider.c_str(), opcode.c_str(), taskName.c_str());
             if (!receiver)
@@ -257,10 +277,10 @@ SEA_EXPORT bool parse_standard_source(const char* file, get_receiver_t get_recei
     };
     Reader reader(get_receiver, receive);
     std::string path(file);
-    #ifdef _WIN32
+#    ifdef _WIN32
     if (path.substr(path.size() - 4) == ".etl")
         return stdsrc::readETLFile(reader, file, stdsrc::etuRaw);
-    #endif
+#    endif
     return false;
 }
 #endif
@@ -270,7 +290,8 @@ SEA_EXPORT const char* resolve_pointer(const char* szModulePath, uint64_t addr) 
     static std::string res;
     res.clear();
     static HANDLE hCurProc = GetCurrentProcess();
-    DWORD dwOptions = SymSetOptions((SymGetOptions() | SYMOPT_LOAD_LINES | SYMOPT_UNDNAME | SYMOPT_INCLUDE_32BIT_MODULES | SYMOPT_ALLOW_ABSOLUTE_SYMBOLS) &
+    DWORD dwOptions = SymSetOptions((SymGetOptions() | SYMOPT_LOAD_LINES | SYMOPT_UNDNAME |
+                                     SYMOPT_INCLUDE_32BIT_MODULES | SYMOPT_ALLOW_ABSOLUTE_SYMBOLS) &
                                     ~SYMOPT_DEFERRED_LOADS);
     static BOOL bInitialize = SymInitialize(hCurProc, NULL, TRUE);
     if (!bInitialize)
@@ -343,7 +364,12 @@ SEA_EXPORT int Initialize() {
 
 #if defined(STANDARD_SOURCES) && defined(_DEBUG) && 0
 
-bool receive(uint64_t, uint64_t time, uint16_t count, const stdsrc::uchar_t** names, const stdsrc::uchar_t** values, double progress) {
+bool receive(uint64_t,
+             uint64_t time,
+             uint16_t count,
+             const stdsrc::uchar_t** names,
+             const stdsrc::uchar_t** values,
+             double progress) {
     return true;
 }
 

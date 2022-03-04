@@ -1,8 +1,8 @@
-## Range<a name="Range"></a> {#openvino_docs_ops_generation_Range_4}
+# Range {#openvino_docs_ops_generation_Range_4}
 
 **Versioned name**: *Range-4*
 
-**Category**: Generation
+**Category**: *Generation*
 
 **Short description**: *Range* operation generates a sequence of numbers according input values [start, stop) with a step.
 
@@ -13,8 +13,7 @@
   * **Description**: the output tensor type
   * **Range of values**: any numeric type
   * **Type**: string
-  * **Default value**: None
-  * **Required**: *Yes*
+  * **Required**: *yes*
 
 **Inputs**:
 
@@ -52,7 +51,7 @@ the i-th element is calculated by the following formula:
 val[i+1]=val[i]+step.
 \f]
 
-The calculations are done after casting all values to `accumulate_type(output_type)`. `accumulate_type` is a type that have better or equal accuracy for accumulation than `output_type` on current hardware, e.g. `fp64` for `fp16`. The number of elements is calculated in the floating point type according to the following formula:
+The calculations are done after casting all values to `accumulate_type(output_type)`. `accumulate_type` is a type that have better or equal accuracy for accumulation than `output_type` on current hardware, e.g. `fp64` for `fp16`. The number of elements is calculated in the floating-point type according to the following formula:
 
 \f[
 max(ceil((end − start) / step), 0)
@@ -104,7 +103,7 @@ This is aligned with PyTorch's operation `torch.arange`, to align with tensorflo
 </layer>
 ```
 
-*Example 3: floating point*
+*Example 3: floating-point*
 
 ```xml
 <layer ... type="Range">

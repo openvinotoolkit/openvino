@@ -1,4 +1,4 @@
-## SoftMax <a name="SoftMax"></a> {#openvino_docs_ops_activation_SoftMax_1}
+# SoftMax {#openvino_docs_ops_activation_SoftMax_1}
 
 **Versioned name**: *SoftMax-1*
 
@@ -27,7 +27,7 @@ where \f$C\f$ is a size of tensor along *axis* dimension.
 
 **Inputs**:
 
-*   **1**: Input tensor with enough number of dimension to be compatible with *axis* attribute. Required.
+*   **1**: Input tensor with enough number of dimension to be compatible with *axis* attribute. **Required.**
 
 **Outputs**:
 

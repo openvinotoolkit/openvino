@@ -1,8 +1,8 @@
-## Range<a name="Range"></a> {#openvino_docs_ops_generation_Range_1}
+# Range {#openvino_docs_ops_generation_Range_1}
 
 **Versioned name**: *Range-1*
 
-**Category**: Generation
+**Category**: *Generation*
 
 **Short description**: *Range* operation generates a sequence of numbers according input values [start, stop) with a step.
 

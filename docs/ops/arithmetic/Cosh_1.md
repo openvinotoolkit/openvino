@@ -1,8 +1,8 @@
-## Cosh <a name="Cosh"></a> {#openvino_docs_ops_arithmetic_Cosh_1}
+# Cosh  {#openvino_docs_ops_arithmetic_Cosh_1}
 
 **Versioned name**: *Cosh-1*
 
-**Category**: Arithmetic unary operation
+**Category**: *Arithmetic unary*
 
 **Short description**: *Cosh* performs element-wise hyperbolic cosine operation on a given input tensor.
 

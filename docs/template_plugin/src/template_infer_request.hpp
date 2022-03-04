@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,11 @@ class TemplateInferRequest : public InferenceEngine::IInferRequestInternal {
 public:
     typedef std::shared_ptr<TemplateInferRequest> Ptr;
 
-    TemplateInferRequest(const InferenceEngine::InputsDataMap& networkInputs, const InferenceEngine::OutputsDataMap& networkOutputs,
+    TemplateInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
+                         const InferenceEngine::OutputsDataMap& networkOutputs,
+                         const std::shared_ptr<ExecutableNetwork>& executableNetwork);
+    TemplateInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                         const std::vector<std::shared_ptr<const ov::Node>>& outputs,
                          const std::shared_ptr<ExecutableNetwork>& executableNetwork);
     ~TemplateInferRequest();
 
@@ -39,7 +43,13 @@ public:
     void waitPipeline();
     void inferPostprocess();
 
+    InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
+    void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& userBlob) override;
+
+    void SetBlobsImpl(const std::string& name, const InferenceEngine::BatchedBlob::Ptr& batchedBlob) override;
+
 private:
+    void createInferRequest();
     void allocateDeviceBuffers();
     void allocateBlobs();
 
@@ -51,8 +61,6 @@ private:
     std::array<std::chrono::duration<float, std::micro>, numOfStages> _durations;
 
     InferenceEngine::BlobMap _networkOutputBlobs;
-    ngraph::ParameterVector _parameters;
-    ngraph::ResultVector _results;
 
     std::vector<std::shared_ptr<ngraph::runtime::Tensor>> _inputTensors;
     std::vector<std::shared_ptr<ngraph::runtime::Tensor>> _outputTensors;

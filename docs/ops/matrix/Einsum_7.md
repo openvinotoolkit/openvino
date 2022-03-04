@@ -1,8 +1,8 @@
-## Einsum <a name="Einsum"></a> {#openvino_docs_ops_matrix_Einsum_7}
+# Einsum {#openvino_docs_ops_matrix_Einsum_7}
 
 **Versioned name**: *Einsum-7*
 
-**Category**: Matrix multiplication
+**Category**: *Matrix multiplication*
 
 **Short description**: *Einsum* performs the Einstein summation convention on the operands.
 

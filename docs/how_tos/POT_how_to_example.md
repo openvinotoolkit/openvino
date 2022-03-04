@@ -16,21 +16,21 @@ Install OpenVINO™ toolkit and Model Optimizer, Accuracy Checker, and Post-trai
 
 1. Define the OpenVINO™ install directory:
 ```
-export OV=/opt/intel/openvino_2021/
+export OV=/opt/intel/openvino_2022/
 ```
 2. Install the Model Optimizer prerequisites:
 ```
-cd $OV/deployment_tools/model_optimizer/install_prerequisites
+cd $OV/tools/model_optimizer/install_prerequisites
 sudo ./install_prerequisites.sh
 ```
 3. Install the Accuracy Checker requirements:
 ```
-cd $OV/deployment_tools/open_model_zoo/tools/accuracy_checker
+cd $OV/tools/accuracy_checker
 sudo python3 setup.py install
 ```
 4. Install the Post-training Optimization Tool:
 ```
-cd $OV/deployment_tools/tools/post_training_optimization_toolkit
+cd $OV/tools/post_training_optimization_toolkit
 sudo python3 setup.py install
 ```
 
@@ -46,14 +46,14 @@ mkdir ~/POT
 cd ~/POT
 ```
 ```
-python3 $OV/deployment_tools/tools/model_downloader/downloader.py --name mobilenet-v2-pytorch -o .
+python3 $OV/extras/open_model_zoo/tools/downloader/downloader.py --name mobilenet-v2-pytorch -o .
 ```
 
 ## 3. Prepare Model for Inference
 
 Install requirements for PyTorch using the commands below:
 ```
-cd $OV/deployment_tools/open_model_zoo/tools/downloader
+cd $OV/extras/open_model_zoo/tools/downloader
 ```
 ```
 python3 -mpip install --user -r ./requirements-pytorch.in
@@ -61,13 +61,13 @@ python3 -mpip install --user -r ./requirements-pytorch.in
 
 You can find the parameters for Mobilnet v2 conversion here:
 ```
-vi /opt/intel/openvino_2021/deployment_tools/open_model_zoo/models/public/mobilenet-v2-pytorch/model.yml
+vi /opt/intel/openvino_2022/extras/open_model_zoo/models/public/mobilenet-v2-pytorch/model.yml
 ```
 
 Convert the model from PyTorch to ONNX*:
 ```
 cd ~/POT/public/mobilenet-v2-pytorch
-python3 /opt/intel/openvino_2021/deployment_tools/open_model_zoo/tools/downloader/pytorch_to_onnx.py  \
+python3 /opt/intel/openvino_2022/extras/open_model_zoo/tools/downloader/pytorch_to_onnx.py  \
     --model-name=MobileNetV2 \
     --model-path=.  \
     --weights=mobilenet-v2.pth \
@@ -80,7 +80,7 @@ python3 /opt/intel/openvino_2021/deployment_tools/open_model_zoo/tools/downloade
 ```
 Convert the model from ONNX to the OpenVINO™ Intermediate Representation (IR):
 ```
-mo_onnx.py  \
+mo  \
     -m mobilenet-v2.onnx \  
     --input=data  \
     --mean_values=data[123.675,116.28,103.53]  \
@@ -100,17 +100,17 @@ mv mobilenet-v2.bin ~/POT/model.bin
 
 Edit the configuration files:
 ```
-sudo vi $OV/deployment_tools/open_model_zoo/tools/accuracy_checker/dataset_definitions.yml
+sudo vi $OV/tools/accuracy_checker/dataset_definitions.yml
 (edit imagenet_1000_classes)
 ```
 ```
-export DEFINITIONS_FILE=/opt/intel/openvino_2021/deployment_tools/open_model_zoo/tools/accuracy_checker/dataset_definitions.yml
+export DEFINITIONS_FILE=/opt/intel/openvino_2022/tools/accuracy_checker/dataset_definitions.yml
 ```
 
 Copy the JSON file to my directory and edit:
 
 ```
-cp $OV/deployment_tools/tools/post_training_optimization_toolkit/configs/examples/quantization/classification/mobilenetV2_pytorch_int8.json ~/POT
+cp $OV/tools/post_training_optimization_toolkit/configs/examples/quantization/classification/mobilenetV2_pytorch_int8.json ~/POT
 ```
 ```
 vi mobilenetV2_pytorch_int8.json
@@ -119,7 +119,7 @@ vi mobilenetV2_pytorch_int8.json
 Copy the YML file to my directory and edit:
 
 ```
-cp /opt/intel/openvino_2021/deployment_tools/open_model_zoo/tools/accuracy_checker/configs/mobilenet-v2.yml ~/POT
+cp /opt/intel/openvino_2022/tools/accuracy_checker/configs/mobilenet-v2.yml ~/POT
 ```
 ```
 vi mobilenet-v2.yml
@@ -133,8 +133,8 @@ Run Accuracy Checker on the original model:
 accuracy_check -c mobilenet-v2.yml
 ```
 
-Install the Benchmark Tool first. To learn more about Benchmark Tool refer to [Benchmark C++ Tool](https://docs.openvinotoolkit.org/latest/openvino_inference_engine_samples_benchmark_app_README.html)
- or [Benchmark Python* Tool](https://docs.openvinotoolkit.org/latest/openvino_inference_engine_tools_benchmark_tool_README.html).
+Install the Benchmark Tool first. To learn more about Benchmark Tool refer to [Benchmark C++ Tool](https://docs.openvino.ai/latest/openvino_inference_engine_samples_benchmark_app_README.html)
+ or [Benchmark Python* Tool](https://docs.openvino.ai/latest/openvino_inference_engine_tools_benchmark_tool_README.html).
 
 Run performance benchmark:
 ```

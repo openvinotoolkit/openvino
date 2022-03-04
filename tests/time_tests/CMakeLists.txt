@@ -1,8 +1,15 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 cmake_minimum_required(VERSION 3.13)
+
+set (CMAKE_CXX_STANDARD 11)
+set (CMAKE_CXX_EXTENSIONS OFF)
+set (CMAKE_CXX_STANDARD_REQUIRED ON)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set (CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
+endif()
 
 set (CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the build type")
 
@@ -10,19 +17,12 @@ project(time_tests)
 
 set(OpenVINO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../")
 
-# Search OpenVINO Inference Engine via InferenceEngine_DIR
-find_package(IEDevScripts REQUIRED
-             PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
-             NO_CMAKE_FIND_ROOT_PATH
-             NO_DEFAULT_PATH)
-
 # Search OpenVINO Inference Engine installed
-find_package(InferenceEngine)
-
-if(NOT InferenceEngine_FOUND)
-    # Search OpenVINO Inference Engine via InferenceEngineDeveloperPackage_DIR
-    # in order to provide backward compatibility with old OpenVINO packages
-    find_package(InferenceEngineDeveloperPackage REQUIRED)
-endif()
+find_package(OpenVINO REQUIRED)
 
 add_subdirectory(src)
+
+install(DIRECTORY test_runner/ DESTINATION tests/time_tests/test_runner COMPONENT tests EXCLUDE_FROM_ALL)
+install(DIRECTORY .automation/ DESTINATION tests/time_tests/test_runner/.automation COMPONENT tests EXCLUDE_FROM_ALL)
+install(DIRECTORY scripts/ DESTINATION tests/time_tests/scripts COMPONENT tests EXCLUDE_FROM_ALL)
+install(DIRECTORY ../utils/ DESTINATION tests/utils COMPONENT tests EXCLUDE_FROM_ALL)

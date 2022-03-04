@@ -11,7 +11,7 @@ If you train the model using the [script provided in model repository](https://g
 
 **Step 2**. To generate the Intermediate Representation (IR) of the model, change your current working directory to the Model Optimizer installation directory and run the Model Optimizer with the following parameters:
 ```sh
-python3 ./mo.py --input_model dlrm_s_pytorch.onnx
+mo --input_model dlrm_s_pytorch.onnx
 ```
 
 Note that Pytorch model uses operation `torch.nn.EmbeddingBag`. This operation converts to onnx as custom `ATen` layer and not directly supported by OpenVINO*, but it is possible to convert this operation to:

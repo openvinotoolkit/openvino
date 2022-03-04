@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -11,10 +11,10 @@ ie_dependent_option (ENABLE_LTO "Enable Link Time Optimization" OFF "LINUX;NOT C
 
 ie_option (OS_FOLDER "create OS dedicated folder in output" OFF)
 
-if(UNIX)
-    ie_option(USE_BUILD_TYPE_SUBFOLDER "Create dedicated sub-folder per build type for output binaries" ON)
-else()
+if(OV_GENERATOR_MULTI_CONFIG)
     ie_option(USE_BUILD_TYPE_SUBFOLDER "Create dedicated sub-folder per build type for output binaries" OFF)
+else()
+    ie_option(USE_BUILD_TYPE_SUBFOLDER "Create dedicated sub-folder per build type for output binaries" ON)
 endif()
 
 # FIXME: ARM cross-compiler generates several "false positive" warnings regarding __builtin_memcpy buffer overflow
@@ -44,21 +44,19 @@ ie_option (BUILD_SHARED_LIBS "Build as a shared library" ON)
 
 ie_dependent_option (ENABLE_FASTER_BUILD "Enable build features (PCH, UNITY) to speed up build time" OFF "CMAKE_VERSION VERSION_GREATER_EQUAL 3.16" OFF)
 
-if(NOT DEFINED ENABLE_CPPLINT)
-	ie_dependent_option (ENABLE_CPPLINT "Enable cpplint checks during the build" ON "UNIX;NOT ANDROID" OFF)
-endif()
+ie_dependent_option (ENABLE_CPPLINT "Enable cpplint checks during the build" ON "UNIX;NOT ANDROID" OFF)
 
-if(NOT DEFINED ENABLE_CPPLINT_REPORT)
-	ie_dependent_option (ENABLE_CPPLINT_REPORT "Build cpplint report instead of failing the build" OFF "ENABLE_CPPLINT" OFF)
-endif()
+ie_dependent_option (ENABLE_CPPLINT_REPORT "Build cpplint report instead of failing the build" OFF "ENABLE_CPPLINT" OFF)
 
 ie_dependent_option (ENABLE_CLANG_FORMAT "Enable clang-format checks during the build" ON "UNIX;NOT ANDROID" OFF)
+
+ie_dependent_option (ENABLE_NCC_STYLE "Enable ncc style check" ON "UNIX;NOT ANDROID" OFF)
 
 ie_option (VERBOSE_BUILD "shows extra information about build" OFF)
 
 ie_option (ENABLE_UNSAFE_LOCATIONS "skip check for MD5 for dependency" OFF)
 
-ie_dependent_option (ENABLE_FUZZING "instrument build for fuzzing" OFF "CMAKE_CXX_COMPILER_ID MATCHES ^(Apple)?Clang$; NOT WIN32" OFF)
+ie_dependent_option (ENABLE_FUZZING "instrument build for fuzzing" OFF "OV_COMPILER_IS_CLANG; NOT WIN32" OFF)
 
 #
 # Check features

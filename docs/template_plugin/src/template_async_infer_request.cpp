@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,10 +9,13 @@
 using namespace TemplatePlugin;
 
 // ! [async_infer_request:ctor]
-TemplateAsyncInferRequest::TemplateAsyncInferRequest(const TemplateInferRequest::Ptr& inferRequest, const InferenceEngine::ITaskExecutor::Ptr& cpuTaskExecutor,
+TemplateAsyncInferRequest::TemplateAsyncInferRequest(const TemplateInferRequest::Ptr& inferRequest,
+                                                     const InferenceEngine::ITaskExecutor::Ptr& cpuTaskExecutor,
                                                      const InferenceEngine::ITaskExecutor::Ptr& waitExecutor,
                                                      const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor)
-    : AsyncInferRequestThreadSafeDefault(inferRequest, cpuTaskExecutor, callbackExecutor), _inferRequest(inferRequest), _waitExecutor(waitExecutor) {
+    : AsyncInferRequestThreadSafeDefault(inferRequest, cpuTaskExecutor, callbackExecutor),
+      _inferRequest(inferRequest),
+      _waitExecutor(waitExecutor) {
     // In current implementation we have CPU only tasks and no needs in 2 executors
     // So, by default single stage pipeline is created.
     // This stage executes InferRequest::Infer() using cpuTaskExecutor.
@@ -23,7 +26,8 @@ TemplateAsyncInferRequest::TemplateAsyncInferRequest(const TemplateInferRequest:
     if (remoteDevice) {
         _pipeline = {{cpuTaskExecutor,
                       [this] {
-                          OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "TemplateAsyncInferRequest::PreprocessingAndStartPipeline");
+                          OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin,
+                                             "TemplateAsyncInferRequest::PreprocessingAndStartPipeline");
                           _inferRequest->inferPreprocess();
                           _inferRequest->startPipeline();
                       }},

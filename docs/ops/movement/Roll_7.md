@@ -1,8 +1,8 @@
-## Roll <a name="Roll"></a> {#openvino_docs_ops_movement_Roll_7}
+# Roll {#openvino_docs_ops_movement_Roll_7}
 
 **Versioned name**: *Roll-7*
 
-**Category**: data movement operation
+**Category**: *Data movement*
 
 **Short description**: The *Roll* operation shifts elements of a tensor along specified axes.
 
@@ -10,7 +10,7 @@
 
 Example 1. *Roll* output with `shift` = 1, `axes` = 0:
 
-``` 
+```
 data    = [[ 1,  2,  3],
         [ 4,  5,  6],
         [ 7,  8,  9],
@@ -23,7 +23,7 @@ output  = [[10, 11, 12],
 
 Example 2. *Roll* output with `shift` = [-1, 2], `axes` = [0, 1]:
 
-``` 
+```
 data    = [[ 1,  2,  3],
         [ 4,  5,  6],
         [ 7,  8,  9],
@@ -36,7 +36,7 @@ output  = [[ 5,  6,  4],
 
 Example 3. *Roll* output with `shift` = [1, 2, 1], `axes` = [0, 1, 0]:
 
-``` 
+```
 data    = [[ 1,  2,  3],
         [ 4,  5,  6],
         [ 7,  8,  9],

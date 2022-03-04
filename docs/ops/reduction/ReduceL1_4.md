@@ -1,4 +1,4 @@
-## ReduceLp <a name="ReduceL1"></a> {#openvino_docs_ops_reduction_ReduceL1_4}
+# ReduceLp {#openvino_docs_ops_reduction_ReduceL1_4}
 
 **Versioned name**: *ReduceL1-4*
 
@@ -17,7 +17,7 @@ where indices i0, ..., iN run through all valid indices for input `data`, and fi
 
 Particular cases:
 
-1. If `axes` is an empty list, *ReduceL1* corresponds to the identity operation. 
+1. If `axes` is an empty list, *ReduceL1* corresponds to the identity operation.
 2. If `axes` contains all dimensions of input `data`, a single reduction value is calculated for the entire input tensor.
 
 **Attributes**

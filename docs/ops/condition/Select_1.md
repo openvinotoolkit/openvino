@@ -1,8 +1,8 @@
-## Select <a name="Select"></a> {#openvino_docs_ops_condition_Select_1}
+# Select {#openvino_docs_ops_condition_Select_1}
 
 **Versioned name**: *Select-1*
 
-**Category**: *Conditions*
+**Category**: *Condition*
 
 **Short description**: *Select* returns a tensor filled with the elements from the second or the third inputs, depending on the condition (the first input) value.
 
@@ -17,26 +17,31 @@
 
   * **Description**: specifies rules used for auto-broadcasting of input tensors.
   * **Range of values**:
-    * *none* - no auto-broadcasting is allowed, all input shapes should match
-    * *numpy* - numpy broadcasting rules, aligned with ONNX Broadcasting. Description is available in <a href="https://github.com/onnx/onnx/blob/master/docs/Broadcasting.md">ONNX docs</a>.
-  * **Type**: string
+    * *none* - no auto-broadcasting is allowed, all input shapes must match
+    * *numpy* - numpy broadcasting rules, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md)
+    * *pdpd* - PaddlePaddle-style implicit broadcasting, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md)
+  * **Type**: `string`
   * **Default value**: "numpy"
   * **Required**: *no*
 
 
 **Inputs**:
 
-* **1**: `cond` tensor with selection mask of type `boolean`. The tensor can be 0D.
+* **1**: `cond` - tensor of type *T_COND* and arbitrary shape with selection mask. **Required**.
 
-* **2**: `then` the tensor with elements to take where the corresponding element in `cond` is true. Arbitrary type that should match type of `else` input tensor.
+* **2**: `then` - tensor of type *T* and arbitrary shape with elements to take where the corresponding element in `cond` is `true`. **Required**.
 
-* **3**: `else` the tensor with elements to take where the corresponding element in `cond` is false. Arbitrary type that should match type of `then` input tensor.
+* **3**: `else` - tensor of type *T* and arbitrary shape with elements to take where the corresponding element in `cond` is `false`. **Required**.
 
 
 **Outputs**:
 
 * **1**: blended output tensor that is tailored from values of inputs tensors `then` and `else` based on `cond` and broadcasting rules. It has the same type of elements as `then` and `else`.
 
+**Types**
+
+* *T_COND*: `boolean` type.
+* *T*: any supported numeric type.
 
 **Example**
 

@@ -1,4 +1,4 @@
-## GELU- Gaussian Error Linear Unit <a name="Gelu"></a> {#openvino_docs_ops_activation_GELU_7}
+# GELU- Gaussian Error Linear Unit {#openvino_docs_ops_activation_GELU_7}
 
 **Versioned name**: *Gelu-7*
 
@@ -22,13 +22,13 @@ The *Gelu* function may be approximated in two different ways based on *approxim
 For `erf` approximation mode, *Gelu* function is represented as:
 
 \f[
-    Gelu(x) = x\cdot\Phi(x) = x\cdot\frac{1}{2}\cdot\left[1 + erf\left(x/\sqrt{2}\right)\right]
+    Gelu(x) = x\cdot\Phi(x) = x\cdot\frac{1}{2}\cdot\left[1 + erf\frac{x}{\sqrt{2}}\right]
 \f]
 
 For `tanh` approximation mode, *Gelu* function is represented as:
 
 \f[
-    Gelu(x) \approx x\cdot\frac{1}{2}\cdot \left(1 + \tanh\left[\sqrt{2/\pi} \cdot (x + 0.044715 \cdot x^3)\right]\right)
+    Gelu(x) \approx x\cdot\frac{1}{2}\cdot \left(1 + \tanh\left[\sqrt{\frac{2}{\pi}} \cdot (x + 0.044715 \cdot x^3)\right]\right)
 \f]
 
 **Attributes**
@@ -45,7 +45,7 @@ For `tanh` approximation mode, *Gelu* function is represented as:
 
 **Inputs**:
 
-*   **1**: A tensor of type *T* and arbitrary shape. **Required**.
+*   **1**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**:
 

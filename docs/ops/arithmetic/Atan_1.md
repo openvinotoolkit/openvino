@@ -1,8 +1,8 @@
-## Atan <a name="Atan"></a> {#openvino_docs_ops_arithmetic_Atan_1}
+# Atan  {#openvino_docs_ops_arithmetic_Atan_1}
 
 **Versioned name**: *Atan-1*
 
-**Category**: Arithmetic unary operation
+**Category**: *Arithmetic unary*
 
 **Short description**: *Atan* performs element-wise inverse tangent (arctangent) operation with given tensor.
 

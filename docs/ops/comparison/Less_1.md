@@ -1,10 +1,20 @@
-## Less <a name="Less"></a> {#openvino_docs_ops_comparison_Less_1}
+# Less {#openvino_docs_ops_comparison_Less_1}
 
 **Versioned name**: *Less-1*
 
-**Category**: Comparison binary operation
+**Category**: *Comparison binary*
 
 **Short description**: *Less* performs element-wise comparison operation with two given tensors applying multi-directional broadcast rules.
+
+**Detailed description**
+Before performing arithmetic operation, input tensors *a* and *b* are broadcasted if their shapes are different and `auto_broadcast` attributes is not `none`. Broadcasting is performed according to `auto_broadcast` value.
+
+After broadcasting *Less* does the following with the input tensors *a* and *b*:
+
+\f[
+o_{i} = a_{i} < b_{i}
+\f]
+
 
 **Attributes**:
 
@@ -13,8 +23,9 @@
   * **Description**: specifies rules used for auto-broadcasting of input tensors.
   * **Range of values**:
     * *none* - no auto-broadcasting is allowed, all input shapes should match
-    * *numpy* - numpy broadcasting rules, aligned with ONNX Broadcasting. Description is available in <a href="https://github.com/onnx/onnx/blob/master/docs/Broadcasting.md">ONNX docs</a>.
-  * **Type**: string
+    * *numpy* - numpy broadcasting rules, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md)
+    * *pdpd* - PaddlePaddle-style implicit broadcasting, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md)
+  * **Type**: `string`
   * **Default value**: "numpy"
   * **Required**: *no*
 
@@ -30,15 +41,6 @@
 **Types**
 
 * *T*: arbitrary supported type.
-
-**Detailed description**
-Before performing arithmetic operation, input tensors *a* and *b* are broadcasted if their shapes are different and `auto_broadcast` attributes is not `none`. Broadcasting is performed according to `auto_broadcast` value.
-
-After broadcasting *Less* does the following with the input tensors *a* and *b*:
-
-\f[
-o_{i} = a_{i} < b_{i}
-\f]
 
 **Examples**
 

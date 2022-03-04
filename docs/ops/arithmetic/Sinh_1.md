@@ -1,8 +1,8 @@
-## Sinh <a name="Sinh"></a> {#openvino_docs_ops_arithmetic_Sinh_1}
+# Sinh {#openvino_docs_ops_arithmetic_Sinh_1}
 
 **Versioned name**: *Sinh-1*
 
-**Category**: Arithmetic unary operation
+**Category**: *Arithmetic unary*
 
 **Short description**: *Sinh* performs element-wise hyperbolic sine (sinh) operation on a given input tensor
 

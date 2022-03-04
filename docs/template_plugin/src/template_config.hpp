@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <ie_parameter.hpp>
 #include <map>
+#include <openvino/runtime/properties.hpp>
 #include <string>
 #include <threading/ie_istreams_executor.hpp>
 
@@ -21,7 +22,9 @@ struct Configuration {
     Configuration& operator=(const Configuration&) = default;
     Configuration& operator=(Configuration&&) = default;
 
-    explicit Configuration(const ConfigMap& config, const Configuration& defaultCfg = {}, const bool throwOnUnsupported = true);
+    explicit Configuration(const ConfigMap& config,
+                           const Configuration& defaultCfg = {},
+                           const bool throwOnUnsupported = true);
 
     InferenceEngine::Parameter Get(const std::string& name) const;
 
@@ -30,6 +33,7 @@ struct Configuration {
     int deviceId = 0;
     bool perfCount = true;
     InferenceEngine::IStreamsExecutor::Config _streamsExecutorConfig;
+    ov::hint::PerformanceMode performance_mode = ov::hint::PerformanceMode::UNDEFINED;
 };
 // ! [configuration:header]
 

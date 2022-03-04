@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from distutils.version import LooseVersion
@@ -7,12 +7,14 @@ import numpy as np
 import pytest
 from common.layer_test_class import check_ir_version
 from common.tf_layer_test_class import CommonTFLayerTest
-from mo.front.common.partial_infer.utils import int64_array
+from common.utils.tf_utils import permute_nchw_to_nhwc
+
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from unit_tests.utils.graph import build_graph
 
 
 class TestLogSoftmax(CommonTFLayerTest):
-    def create_log_softmax_net(self, shape, reduction_axis, ir_version):
+    def create_log_softmax_net(self, shape, reduction_axis, ir_version, use_new_frontend):
         """
             Tensorflow net                 IR net
 
@@ -30,11 +32,10 @@ class TestLogSoftmax(CommonTFLayerTest):
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            shapes = shape.copy()
-            # reshaping
-            if len(shapes) >= 3:
-                shapes.append(shapes.pop(1))
-            input = tf.compat.v1.placeholder(tf.float32, shapes, 'Input')
+            tf_x_shape = shape.copy()
+
+            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_new_frontend)
+            input = tf.compat.v1.placeholder(tf.float32, tf_x_shape, 'Input')
             if LooseVersion(tf.__version__) < LooseVersion('2.0.0'):
                 tf.nn.log_softmax(input, name='Operation', axis=reduction_axis)
             else:
@@ -57,7 +58,7 @@ class TestLogSoftmax(CommonTFLayerTest):
         reduce_sum_shape[reduction_axis] = 1
 
         converted_shape = shape if rank != 1 else shape[0]
-        if check_ir_version(10, None, ir_version):
+        if check_ir_version(10, None, ir_version) and not use_new_frontend:
             ref_nodes_attributes = {
                 'input': {'kind': 'op', 'type': 'Parameter', 'shape': converted_shape},
                 'input_data': {'shape': shape, 'kind': 'data', 'value': None},
@@ -122,9 +123,12 @@ class TestLogSoftmax(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
-    def test_log_softmax_precommit(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_log_softmax_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_log_softmax_precommit(self, params, ie_device, precision, ir_version, temp_dir,
+                                   use_new_frontend, api_2):
+        self._test(*self.create_log_softmax_net(**params, ir_version=ir_version,
+                                                use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend, api_2=api_2)
 
     test_data = [dict(shape=[1], reduction_axis=-1),
                  dict(shape=[2, 5], reduction_axis=-1),
@@ -133,6 +137,9 @@ class TestLogSoftmax(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_log_softmax(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_log_softmax_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_log_softmax(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
+                         api_2):
+        self._test(*self.create_log_softmax_net(**params, ir_version=ir_version,
+                                                use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend, api_2=api_2)

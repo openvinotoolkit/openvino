@@ -1,32 +1,34 @@
+trigger:
+  branches:
+    include:
+    - master
+    - releases/*
+  paths:
+    exclude:
+    - docs/*
+
 jobs:
 - job: OpenVINO_ONNX_CI
   strategy:
     matrix:
       Release:
         BUILD_TYPE: 'Release'
-        PROTOBUF_LITE: 'OFF'
         TOX_COMMAND: 'tox && tox -e zoo_models'
       Debug:
         BUILD_TYPE: 'Debug'
-        PROTOBUF_LITE: 'OFF'
         TOX_COMMAND: 'tox'
-      Protobuf_lite:
-        BUILD_TYPE: 'Release'
-        PROTOBUF_LITE: 'ON'
-        TOX_COMMAND: 'tox && tox -e zoo_models'
-    maxParallel: 3
+    maxParallel: 2
 
   # About 300% of total time
   timeoutInMinutes: 90
 
   pool:
-    name: LIN_VMSS_VENV_ONNX_WU2
+    name: LIN_VMSS_VENV_ONNX_U20_WU2
 
   variables:
     system.debug: true
     VSTS_HTTP_RETRY: 5
     VSTS_HTTP_TIMEOUT: 200
-    WORKERS_NUMBER: 8
     REPO_DIR: $(Build.Repository.LocalPath)
     WORK_DIR: $(Pipeline.Workspace)/_w
     MODELS_DIR: /mount/cinfsshare/onnxtestdata
@@ -43,6 +45,7 @@ jobs:
       echo Python info ; which python ; python --version
       echo Java info ; which java ; java -version
       echo gcc info ; which gcc ; gcc --version
+      echo cmake info ; which cmake ; cmake --version
       lsb_release
       env
       cat /proc/cpuinfo
@@ -56,10 +59,10 @@ jobs:
 
   - script: |
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
-      sudo rm -rf $(TMP_DIR) ; sudo mkdir $(TMP_DIR) ; sudo chmod 777 -R $(TMP_DIR)
       sudo mkdir -p $(MODELS_DIR)
-      sudo apt --assume-yes install nfs-common
+      sudo apt --assume-yes update && sudo apt --assume-yes install nfs-common
       sudo mount -vvv -t nfs cinfsshare.file.core.windows.net:/cinfsshare/onnxtestdata $(MODELS_DIR) -o vers=4,minorversion=1,sec=sys
+      mkdir -p $(MODELS_DIR)/models_data
     displayName: 'Make dirs'
 
   - checkout: self
@@ -68,16 +71,23 @@ jobs:
     submodules: recursive
     path: openvino
 
-  - script: docker build --tag=openvino-onnx-ci-image --file=.ci/openvino-onnx/Dockerfile --build-arg BUILD_TYPE=$(BUILD_TYPE) --build-arg PROTOBUF_LITE=$(PROTOBUF_LITE) .
-    displayName: 'Docker build $(BUILD_TYPE) protobuf-lite: $(PROTOBUF_LITE)'
+  - script: |
+      set -e
+      sudo apt --assume-yes install git-lfs uidmap
+      curl -fsSL https://get.docker.com -o get-docker.sh
+      sudo sh get-docker.sh
+    workingDirectory: $(WORK_DIR)
+    displayName: 'Install dependencies'
 
-  - script: ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -d $(TMP_DIR) -o -s "$(ONNX_MODEL_ZOO_SHA)"
-    displayName: 'Get models'
+  - script: src/bindings/python/tests/test_onnx/model_zoo_preprocess.sh -d $(MODELS_DIR)/models_data -o -s "$(ONNX_MODEL_ZOO_SHA)"
+    displayName: 'Update models'
     condition: ne(variables['BUILD_TYPE'], 'Debug')
 
-  - script: sudo fallocate -l 48G /swapfile ; sudo mkswap /swapfile ; sudo swapon /swapfile ; df ; free -h
+  - script: sudo docker build --tag=openvino-onnx-ci-image --file=.ci/openvino-onnx/Dockerfile --build-arg BUILD_TYPE=$(BUILD_TYPE) --build-arg PROTOBUF_LITE=$(PROTOBUF_LITE) .
+    displayName: 'Docker build $(BUILD_TYPE)'
+
+  - script: sudo fallocate -l 64G /swapfile ; sudo mkswap /swapfile ; sudo swapon /swapfile ; df ; free -h
     displayName: 'Create swap'
 
-  - script: |
-      docker run --name openvino-onnx-ci-container --volume $(TMP_DIR)/model_zoo/onnx_model_zoo_$(ONNX_MODEL_ZOO_SHA):/root/.onnx/model_zoo/onnx_model_zoo --volume $(MODELS_DIR)/msft:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image /bin/bash -c "$(TOX_COMMAND)"
-    displayName: 'Docker run $(BUILD_TYPE) protobuf-lite: $(PROTOBUF_LITE)'
+  - script: sudo docker run --name openvino-onnx-ci-container --volume $(MODELS_DIR)/models_data/model_zoo/onnx_model_zoo_$(ONNX_MODEL_ZOO_SHA):/root/.onnx/model_zoo/onnx_model_zoo --volume $(MODELS_DIR)/msft:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image /bin/bash -c "$(TOX_COMMAND)"
+    displayName: 'Docker run $(BUILD_TYPE)'

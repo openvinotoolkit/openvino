@@ -1,0 +1,11 @@
+requests
+pyyaml
+wheel
+test-generator
+numpy
+pytest
+scikit-build
+opencv-python
+progress
+nibabel
+scipy

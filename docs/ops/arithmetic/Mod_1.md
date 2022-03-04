@@ -1,8 +1,8 @@
-## Mod <a name="Mod"></a> {#openvino_docs_ops_arithmetic_Mod_1}
+# Mod  {#openvino_docs_ops_arithmetic_Mod_1}
 
 **Versioned name**: *Mod-1*
 
-**Category**: Arithmetic binary operation
+**Category**: *Arithmetic binary*
 
 **Short description**: *Mod* performs an element-wise modulo operation with two given tensors applying broadcasting rule specified in the *auto_broadcast* attribute.
 
@@ -10,7 +10,7 @@
 As a first step input tensors *a* and *b* are broadcasted if their shapes differ. Broadcasting is performed according to `auto_broadcast` attribute specification. As a second step *Mod* operation is computed element-wise on the input tensors *a* and *b* according to the formula below:
 
 \f[
-o_{i} = a_{i} % b_{i}
+o_{i} = a_{i} \mod b_{i}
 \f]
 
 *Mod* operation computes a reminder of a truncated division. It is the same behaviour like in C programming language: `truncated(x / y) * y + truncated_mod(x, y) = x`. The sign of the result is equal to a sign of a dividend. The result of division by zero is undefined.
@@ -30,8 +30,8 @@ o_{i} = a_{i} % b_{i}
 
 **Inputs**
 
-* **1**: A tensor of type *T* and arbitrary shape. Required.
-* **2**: A tensor of type *T* and arbitrary shape. Required.
+* **1**: A tensor of type *T* and arbitrary shape. **Required.**
+* **2**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**
 

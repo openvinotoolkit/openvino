@@ -1,0 +1,124 @@
+resources:
+  repositories:
+  - repository: openvino_contrib
+    type: github
+    endpoint: openvinotoolkit
+    name: openvinotoolkit/openvino_contrib
+
+jobs:
+- job: Lin
+  # About 150% of total time
+  timeoutInMinutes: 90
+
+  pool:
+    name: LIN_VMSS_VENV_F16S_U20_WU2
+
+  variables:
+    system.debug: true
+    VSTS_HTTP_RETRY: 5
+    VSTS_HTTP_TIMEOUT: 200
+    BUILD_TYPE: Release
+    REPO_DIR: $(Build.Repository.LocalPath)
+    OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)/../openvino_contrib
+    WORK_DIR: $(Pipeline.Workspace)/_w
+    BUILD_DIR: $(WORK_DIR)/build
+    BUILD_SAMPLES_DIR: $(WORK_DIR)/build_samples
+    INSTALL_DIR: $(WORK_DIR)/install_pkg
+    SETUPVARS: $(INSTALL_DIR)/setupvars.sh
+
+  steps:
+  - script: |
+      curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
+      whoami
+      uname -a
+      echo Python3 info ; which python3 ; python3 --version
+      echo Python info ; which python ; python --version
+      echo Java info ; which java ; java -version
+      echo gcc info ; which gcc ; gcc --version
+      echo cmake info ; which cmake ; cmake --version
+      lsb_release
+      env
+      cat /proc/cpuinfo
+      cat /proc/meminfo
+      cat /etc/fstab
+      vmstat -s
+      df
+      lsblk -o NAME,HCTL,SIZE,MOUNTPOINT | grep -i "sd"
+      free -h
+    displayName: 'System info'
+
+  - script: |
+      rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
+      rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
+      rm -rf $(BUILD_SAMPLES_DIR) ; mkdir $(BUILD_SAMPLES_DIR)
+    displayName: 'Make dir'
+
+  - checkout: self
+    clean: true
+    lfs: false
+    submodules: recursive
+    path: openvino
+
+  - checkout: openvino_contrib
+    clean: true
+    lfs: false
+    submodules: recursive
+    path: openvino_contrib
+
+  - script: |
+      set -e
+      $(REPO_DIR)/install_build_dependencies.sh
+      # Move jdk into contrib
+      sudo apt --assume-yes install openjdk-11-jdk
+      # Speed up build
+      wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
+      unzip ninja-linux.zip
+      sudo cp -v ninja /usr/local/bin/
+    workingDirectory: $(WORK_DIR)
+    displayName: 'Install dependencies'
+
+  - task: CMake@1
+    inputs:
+      # Coverity has too many PARSE_ERROR errors with ENABLE_FASTER_BUILD=ON. Disabling FASTER_BUILD.
+      cmakeArgs: >
+        -GNinja
+        -DVERBOSE_BUILD=ON
+        -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
+        -DENABLE_FASTER_BUILD=OFF
+        -DENABLE_STRICT_DEPENDENCIES=OFF
+        -DENABLE_REQUIREMENTS_INSTALL=OFF
+        -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
+        $(REPO_DIR)
+      workingDirectory: $(BUILD_DIR)
+
+  - script: ls -alR $(REPO_DIR)/temp/
+    displayName: 'List temp SDKs'
+
+  - script: |
+        set -e
+        wget https://scan.coverity.com/download/linux64 --post-data "token=$(COVERITY_TOKEN)&project=openvino" -O coverity_tool.tgz
+        tar xvf coverity_tool.tgz
+        rm coverity_tool.tgz
+    workingDirectory: $(WORK_DIR)
+    displayName: 'Install coverity tool'
+
+  - script: $(WORK_DIR)/cov-analysis*/bin/cov-build --dir $(BUILD_DIR)/cov-int ninja
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'Build Lin with Coverity'
+
+  - script: ls -alR $(REPO_DIR)/bin/
+    displayName: 'List bin files'
+
+  - script: tar -C $(BUILD_DIR) -czvf openvino.tgz cov-int
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'Pack cov-int folder for submission'
+
+  - script: |
+        curl --form token=$(COVERITY_TOKEN) \
+          --form email=$(COVERITY_USER) \
+          --form file=@openvino.tgz \
+          --form version="$(Build.SourceVersion)" \
+          --form description="https://github.com/openvinotoolkit/openvino/runs/$(Build.BuildNumber)" \
+          https://scan.coverity.com/builds?project=openvino
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'Submit for analysis'

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -12,19 +12,19 @@ Usage: ./scrips/compare_memcheck_2_runs.py cur_source ref_source \
 
 import argparse
 import json
+import logging as log
 import os
 import sys
 from collections import OrderedDict
 from glob import glob
 from operator import itemgetter
 from pathlib import Path
-import logging as log
 
 from pymongo import MongoClient
-from memcheck_upload import create_memcheck_records
 
 # Database arguments
 from memcheck_upload import DATABASE, DB_COLLECTIONS
+from memcheck_upload import create_memcheck_records
 
 
 class HashableDict(dict):

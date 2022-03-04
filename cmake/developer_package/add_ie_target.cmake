@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -19,9 +19,10 @@ addIeTarget(
         ${SDL_INCLUDES}
         /some/specific/path
    LINK_LIBRARIES
-        ie::important_plugin
+        link_dependencies
    DEPENDENCIES
         dependencies
+        ie::important_plugin
    OBJECT_FILES
         object libraries
 )
@@ -132,6 +133,10 @@ function(addIeTarget)
     endif()
 endfunction()
 
+function(ov_add_target)
+    addIeTarget(${ARGV})
+endfunction()
+
 #[[
 Wrapper function over addIeTarget, that also adds a test with the same name.
 You could use
@@ -146,11 +151,15 @@ function(addIeTargetTest)
         NAME
         )
     set(oneValueOptionalArgs
+        COMPONENT
         )
     set(multiValueArgs
         LABELS
         )
     cmake_parse_arguments(ARG "${options}" "${oneValueRequiredArgs};${oneValueOptionalArgs}" "${multiValueArgs}" ${ARGN} )
+    if (NOT DEFINED ARG_COMPONENT)
+        set(ARG_COMPONENT tests)
+    endif()
 
     addIeTarget(TYPE EXECUTABLE NAME ${ARG_NAME} ${ARG_UNPARSED_ARGUMENTS})
 
@@ -159,6 +168,10 @@ function(addIeTargetTest)
 
     install(TARGETS ${ARG_NAME}
             RUNTIME DESTINATION tests
-            COMPONENT tests
+            COMPONENT ${ARG_COMPONENT}
             EXCLUDE_FROM_ALL)
+endfunction()
+
+function(ov_add_test_target)
+    addIeTargetTest(${ARGV})
 endfunction()

@@ -3,7 +3,7 @@
 This tutorial describes the example from the following YouTube* video:
 ///
 
-To learn more about how to run the MonoDepth Python* demo application, refer to the [documentation](https://docs.openvinotoolkit.org/latest/omz_demos_monodepth_demo_python.html).
+To learn more about how to run the MonoDepth Python* demo application, refer to the [documentation](https://docs.openvino.ai/latest/omz_demos_monodepth_demo_python.html).
 
 Tested on OpenVINO™ 2021, Ubuntu 18.04.
 
@@ -11,7 +11,7 @@ Tested on OpenVINO™ 2021, Ubuntu 18.04.
 
 Define the OpenVINO™ install directory:
 ```
-export OV=/opt/intel/openvino_2021/
+export OV=/opt/intel/openvino_2022/
 ```
 Define the working directory. Make sure the directory exist:
 ```
@@ -22,19 +22,19 @@ export WD=~/MonoDepth_Python/
 
 Initialize OpenVINO™:
 ```
-source $OV/bin/setupvars.sh
+source $OV/setupvars.sh
 ```
 
 Install the Model Optimizer prerequisites:
 ```
-cd $OV/deployment_tools/model_optimizer/install_prerequisites/
+cd $OV/tools/model_optimizer/install_prerequisites/
 sudo ./install_prerequisites.sh
 ```
 
 Install the Model Downloader prerequisites:
 
 ```
-cd $OV/deployment_tools/tools/model_downloader/
+cd $OV/extras/open_model_zoo/tools/downloader/
 python3 -mpip install --user -r ./requirements.in
 sudo python3 -mpip install --user -r ./requirements-pytorch.in
 sudo python3 -mpip install --user -r ./requirements-caffe2.in
@@ -44,7 +44,7 @@ sudo python3 -mpip install --user -r ./requirements-caffe2.in
 
 Download all models from the Demo Models list:
 ```
-python3 $OV/deployment_tools/tools/model_downloader/downloader.py --list $OV/deployment_tools/inference_engine/demos/python_demos/monodepth_demo/models.lst -o $WD
+python3 $OV/extras/open_model_zoo/tools/downloader/downloader.py --list $OV/deployment_tools/inference_engine/demos/python_demos/monodepth_demo/models.lst -o $WD
 ```
 
 ## 4. Convert Models to Intermediate Representation (IR)
@@ -52,7 +52,7 @@ python3 $OV/deployment_tools/tools/model_downloader/downloader.py --list $OV/dep
 Use the convert script to convert the models to ONNX*, and then to IR format:
 ```
 cd $WD
-python3 $OV/deployment_tools/tools/model_downloader/converter.py --list $OV/deployment_tools/inference_engine/demos/python_demos/monodepth_demo/models.lst
+python3 $OV/extras/open_model_zoo/tools/downloader/converter.py --list $OV/deployment_tools/inference_engine/demos/python_demos/monodepth_demo/models.lst
 ```
 
 ## 5. Run Demo

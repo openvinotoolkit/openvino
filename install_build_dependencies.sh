@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 params=$1
@@ -32,6 +32,8 @@ if [ -f /etc/lsb-release ]; then
     sudo -E apt update
     sudo -E apt-get install -y \
             build-essential \
+            cmake \
+            ccache \
             curl \
             wget \
             libssl-dev \
@@ -47,7 +49,11 @@ if [ -f /etc/lsb-release ]; then
             libtool \
             autoconf \
             shellcheck \
-            python \
+            patchelf \
+            libenchant1c2a \
+            python3-pip \
+            python3-enchant \
+            python3-setuptools \
             libcairo2-dev \
             libpango1.0-dev \
             libglib2.0-dev \
@@ -59,6 +65,11 @@ if [ -f /etc/lsb-release ]; then
             gstreamer1.0-plugins-base \
             libusb-1.0-0-dev \
             libopenblas-dev
+    if apt-cache search --names-only '^libjson-c2'| grep -q libjson-c2; then
+        sudo -E apt-get install -y libjson-c2
+    else
+        sudo -E apt-get install -y libjson-c3
+    fi
     if apt-cache search --names-only '^libpng12-dev'| grep -q libpng12; then
         sudo -E apt-get install -y libpng12-dev
     else
@@ -165,7 +176,7 @@ fi
 
 # cmake 3.13 or higher is required to build OpenVINO
 current_cmake_version=$(cmake --version | sed -ne 's/[^0-9]*\(\([0-9]\.\)\{0,4\}[0-9][^.]\).*/\1/p')
-required_cmake_ver=3.13
+required_cmake_ver=3.17
 if [ ! "$(printf '%s\n' "$required_cmake_ver" "$current_cmake_version" | sort -V | head -n1)" = "$required_cmake_ver" ]; then
     wget "https://github.com/Kitware/CMake/releases/download/v3.18.4/cmake-3.18.4.tar.gz"
     tar xf cmake-3.18.4.tar.gz

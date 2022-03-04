@@ -12,6 +12,10 @@
 #include<stdexcept>
 #include <regex>
 
+#define assert_throw(expression)         \
+    if (!(expression))                   \
+        throw std::runtime_error(#expression)
+
 char cnpy::BigEndianTest() {
     int x = 1;
     return (((char *)&x)[0]) ? '<' : '>';
@@ -93,10 +97,10 @@ void cnpy::parse_npy_header(unsigned char* buffer,size_t& word_size, std::vector
     bool littleEndian = false;
     if (loc1 < header.size())
         littleEndian = (header[loc1] == '<' || header[loc1] == '|' ? true : false);
-    assert(littleEndian);
+    assert_throw(littleEndian);
 
     //char type = header[loc1+1];
-    //assert(type == map_type(T));
+    //assert_throw(type == map_type(T));
 
     std::string str_ws = header.substr(loc1+2);
     loc2 = str_ws.find("'");
@@ -116,7 +120,7 @@ void cnpy::parse_npy_header(FILE* fp, size_t& word_size, std::vector<size_t>& sh
     else {
         header = "";
     }
-    assert(header[header.size()-1] == '\n');
+    assert_throw(header[header.size()-1] == '\n');
 
     size_t loc1, loc2;
 
@@ -153,10 +157,10 @@ void cnpy::parse_npy_header(FILE* fp, size_t& word_size, std::vector<size_t>& sh
     bool littleEndian = false;
     if (loc1 < header.size())
         littleEndian = (header[loc1] == '<' || header[loc1] == '|' ? true : false);
-    assert(littleEndian);
+    assert_throw(littleEndian);
 
     //char type = header[loc1+1];
-    //assert(type == map_type(T));
+    //assert_throw(type == map_type(T));
 
     std::string str_ws = header.substr(loc1+2);
     loc2 = str_ws.find("'");
@@ -166,7 +170,8 @@ void cnpy::parse_npy_header(FILE* fp, size_t& word_size, std::vector<size_t>& sh
 void cnpy::parse_zip_footer(FILE* fp, uint16_t& nrecs, size_t& global_header_size, size_t& global_header_offset)
 {
     std::vector<char> footer(22);
-    fseek(fp,-22,SEEK_END);
+    if(fseek(fp,-22,SEEK_END) != 0)
+        throw std::runtime_error("parse_zip_footer: failed fseek");
     size_t res = fread(&footer[0],sizeof(char),22,fp);
     if(res != 22)
         throw std::runtime_error("parse_zip_footer: failed fread");
@@ -180,10 +185,10 @@ void cnpy::parse_zip_footer(FILE* fp, uint16_t& nrecs, size_t& global_header_siz
     global_header_offset = *(uint32_t*) &footer[16];
     comment_len = *(uint16_t*) &footer[20];
 
-    assert(disk_no == 0);
-    assert(disk_start == 0);
-    assert(nrecs_on_disk == nrecs);
-    assert(comment_len == 0);
+    assert_throw(disk_no == 0);
+    assert_throw(disk_start == 0);
+    assert_throw(nrecs_on_disk == nrecs);
+    assert_throw(comment_len == 0);
 }
 
 cnpy::NpyArray load_the_npy_file(FILE* fp) {
@@ -191,7 +196,7 @@ cnpy::NpyArray load_the_npy_file(FILE* fp) {
     size_t word_size = 0;
     bool fortran_order = false;
     cnpy::parse_npy_header(fp,word_size,shape,fortran_order);
-    if (word_size >= 0 && word_size < ULLONG_MAX) {
+    if (word_size > 0 && word_size < ULLONG_MAX) {
         cnpy::NpyArray arr(shape, word_size, fortran_order);
         size_t nread = fread(arr.data<char>(), 1, arr.num_bytes(), fp);
         if (nread != arr.num_bytes())
@@ -219,6 +224,8 @@ cnpy::NpyArray load_the_npz_array(FILE* fp, uint32_t compr_bytes, uint32_t uncom
     d_stream.opaque = Z_NULL;
     d_stream.avail_in = 0;
     d_stream.next_in = Z_NULL;
+    d_stream.total_in = 0;
+    d_stream.total_out = 0;
     err = inflateInit2(&d_stream, -MAX_WBITS);
 
     d_stream.avail_in = compr_bytes;
@@ -233,7 +240,7 @@ cnpy::NpyArray load_the_npz_array(FILE* fp, uint32_t compr_bytes, uint32_t uncom
     size_t word_size = 0;
     bool fortran_order = false;
     cnpy::parse_npy_header(&buffer_uncompr[0],word_size,shape,fortran_order);
-    if (word_size >= 0 && word_size < ULLONG_MAX) {
+    if (word_size > 0 && word_size < ULLONG_MAX) {
         cnpy::NpyArray array(shape, word_size, fortran_order);
 
         size_t offset = uncompr_bytes - array.num_bytes();
@@ -326,8 +333,8 @@ cnpy::NpyArray cnpy::npz_load(std::string fname, std::string varname) {
 
         //read in the extra field
         uint16_t extra_field_len = *(uint16_t*) &local_header[28];
-        fseek(fp,extra_field_len,SEEK_CUR); //skip past the extra field
-        
+        if (fseek(fp,extra_field_len,SEEK_CUR) != 0) //skip past the extra field
+            throw std::runtime_error("npz_load: failed fseek");
         uint16_t compr_method = *reinterpret_cast<uint16_t*>(&local_header[0]+8);
         uint32_t compr_bytes = *reinterpret_cast<uint32_t*>(&local_header[0]+18);
         uint32_t uncompr_bytes = *reinterpret_cast<uint32_t*>(&local_header[0]+22);
@@ -340,7 +347,8 @@ cnpy::NpyArray cnpy::npz_load(std::string fname, std::string varname) {
         else {
             //skip past the data
             uint32_t size = *(uint32_t*) &local_header[22];
-            fseek(fp,size,SEEK_CUR);
+            if (fseek(fp,size,SEEK_CUR) !=0)
+                throw std::runtime_error("npz_load: failed fseek");
         }
     }
 
@@ -356,11 +364,13 @@ cnpy::NpyArray cnpy::npy_load(std::string fname) {
 
     if(!fp) throw std::runtime_error("npy_load: Unable to open file "+fname);
 
-    NpyArray arr = load_the_npy_file(fp);
+    try {
+        NpyArray arr = load_the_npy_file(fp);
+        fclose(fp);
+        return arr;
+    } catch (...) {
+        fclose(fp);
+        throw;
+    }
 
-    fclose(fp);
-    return arr;
 }
-
-
-

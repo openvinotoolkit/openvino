@@ -1,37 +1,35 @@
-## Erf <a name="Erf"></a> {#openvino_docs_ops_arithmetic_Erf_1}
+# Erf {#openvino_docs_ops_arithmetic_Erf_1}
 
 **Versioned name**: *Erf-1*
 
-**Category**: Arithmetic unary operation
+**Category**: *Arithmetic unary*
 
-**Short description**: *Erf* calculates the Gauss error function element-wise with given tensor.
+**Short description**: *Erf* performs element-wise Gauss error function (erf) on a given input tensor.
 
 **Detailed Description**
 
-For each element from the input tensor calculates corresponding element in the output tensor with the following formula:
+*Erf* performs element-wise erf operation on a given input tensor, based on the following mathematical formula:
+
 \f[
 erf(x) = \pi^{-1} \int_{-x}^{x} e^{-t^2} dt
 \f]
 
-**Attributes**:
-
-    No attributes available.
+**Attributes**: *Erf* operation has no attributes.
 
 **Inputs**
 
-* **1**: A tensor of type *T*. **Required.**
+* **1**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise operation. A tensor of type *T*.
+* **1**: The result of element-wise *Erf* function applied to the input tensor. A tensor of type *T* and the same shape as the input tensor.
 
 **Types**
 
-* *T*: any supported floating point type.
+* *T*: any supported numeric type.
 
-**Examples**
 
-*Example 1*
+**Example**
 
 ```xml
 <layer ... type="Erf">
