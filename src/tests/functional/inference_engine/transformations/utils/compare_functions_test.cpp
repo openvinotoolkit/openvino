@@ -537,7 +537,7 @@ public:
     DummyConstant& operator=(const DummyConstant&) = delete;
 
     const NodeTypeInfo& get_type_info() const override {
-        static const NodeTypeInfo type_info{typeid(this).name(), 0};
+        static const NodeTypeInfo type_info{typeid(this).name(), 0ul};
         return type_info;
     }
 
@@ -635,7 +635,7 @@ public:
     }
 
     static constexpr DiscreteTypeInfo type_info{
-        "TestDummyDataTypeTransformationTests_NO_NGRAPH_NAME_COLISION", 0};
+        "TestDummyDataTypeTransformationTests_NO_NGRAPH_NAME_COLISION", 0ul};
 
     const DiscreteTypeInfo& get_type_info() const override {
         return type_info;

@@ -146,7 +146,7 @@ TEST(opset, opset8_dump) {
 
 class MyOpOld : public ov::op::Op {
 public:
-    static constexpr ov::DiscreteTypeInfo type_info{"MyOpOld", 0};
+    static constexpr ov::DiscreteTypeInfo type_info{"MyOpOld", 0ul};
     const ov::DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }

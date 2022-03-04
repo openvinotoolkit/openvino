@@ -27,7 +27,7 @@
 namespace ngraph {
 class TestOpMultiOut : public op::Op {
 public:
-    static constexpr NodeTypeInfo type_info{"TestOpMultiOut", 0};
+    static constexpr NodeTypeInfo type_info{"TestOpMultiOut", 0ul};
     const NodeTypeInfo& get_type_info() const override {
         return type_info;
     }

@@ -181,7 +181,7 @@ std::string getOVExtensionPath() {
 
 class CustomOldIdentity : public ngraph::op::Op {
 public:
-    static constexpr ngraph::NodeTypeInfo type_info{"Identity", 0};
+    static constexpr ngraph::NodeTypeInfo type_info{"Identity", 0ul};
     const ngraph::NodeTypeInfo& get_type_info() const override {
         return type_info;
     }

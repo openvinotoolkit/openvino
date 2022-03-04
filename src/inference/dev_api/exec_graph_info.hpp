@@ -91,7 +91,7 @@ static const char RUNTIME_PRECISION[] = "runtimePrecision";
  */
 class INFERENCE_ENGINE_API_CLASS(ExecutionNode) : public ngraph::Node {
 public:
-    static constexpr ngraph::NodeTypeInfo type_info{"ExecutionNode", 0};
+    static constexpr ngraph::NodeTypeInfo type_info{"ExecutionNode", 0ul};
     const ngraph::NodeTypeInfo& get_type_info() const override;
 
     /**

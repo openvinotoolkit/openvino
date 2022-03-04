@@ -20,7 +20,7 @@ class Any;
 class OPENVINO_API RuntimeAttribute {
 public:
     static const DiscreteTypeInfo& get_type_info_static() {
-        static const ::ov::DiscreteTypeInfo type_info_static{"RuntimeAttribute", 0};
+        static const ::ov::DiscreteTypeInfo type_info_static{"RuntimeAttribute", 0ul};
         return type_info_static;
     }
     virtual const DiscreteTypeInfo& get_type_info() const {

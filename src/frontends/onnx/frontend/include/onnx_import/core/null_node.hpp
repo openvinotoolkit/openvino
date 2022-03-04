@@ -30,7 +30,7 @@ namespace onnx_import {
 /// https://github.com/onnx/onnx/blob/master/docs/IR.md#optional-inputs-and-outputs
 class ONNX_IMPORTER_API NullNode : public ngraph::Node {
 public:
-    static constexpr NodeTypeInfo type_info{"NullNode", 0};
+    static constexpr NodeTypeInfo type_info{"NullNode", 0ul};
     const NodeTypeInfo& get_type_info() const override {
         return type_info;
     }
