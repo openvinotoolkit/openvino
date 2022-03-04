@@ -135,7 +135,7 @@ def get_moc_frontends(argv: argparse.Namespace):
     default_frontends = get_default_frontends()
     # Disable MOC frontend if default is set to legacy and no user override
     if default_frontends.get(moc_front_end.get_name()) == 'legacy' and not use_new_frontend:
-        moc_front_end = None
+        return None, available_moc_front_ends
 
     # This check as a workaround to skip IR frontend
     if not moc_front_end.get_name() in available_moc_front_ends:
