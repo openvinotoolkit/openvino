@@ -120,7 +120,7 @@ def get_moc_frontends(argv: argparse.Namespace):
     if not fem or use_legacy_frontend:
         return None, []
 
-    available_moc_front_ends = get_available_front_ends()
+    available_moc_front_ends = get_available_front_ends(fem)
 
     if not argv.framework and argv.input_model:
         moc_front_end = fem.load_by_model(argv.input_model)
