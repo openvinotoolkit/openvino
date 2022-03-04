@@ -42,7 +42,7 @@ Batching is a straightforward way of leveraging the GPU compute power and saving
 @endsphinxdirective
 
 
-Alternatively, to enable the Auto-Batching in the legacy apps not akin to the notion of the performance hints, you may need to use the **explicit** device notion, such as 'BATCH:GPU'. In both cases (the *throughput* hint or explicit BATCH device), the optimal batch size selection happens automatically. The actual value depends on the model and device specifics, for example, on-device memory for the dGPUs.
+Alternatively, to enable the Auto-Batching in the legacy apps not akin to the notion of the performance hints, you may need to use the **explicit** device notion, such as 'BATCH:GPU'. In both cases (the *throughput* hint or explicit BATCH device), the optimal batch size selection happens automatically (the implementation queries the `ov::optimal_batch_size` property from the device, passing the model's graph as the parameter). The actual value depends on the model and device specifics, for example, on-device memory for the dGPUs.
 
 This _automatic batch size selection_ assumes that the application queries the `ov::optimal_number_of_infer_requests` to create and run the returned number of requests simultaneously:
 @sphinxdirective
@@ -80,28 +80,41 @@ For example, the application processes only 4 video streams, so there is no need
 
 @endsphinxdirective
 
-For the *explicit* usage, you can limit the batch size using  "BATCH:GPU(4)",  where 4 is the number of requests running in parallel.
+For the *explicit* usage, you can limit the batch size using "BATCH:GPU(4)",  where 4 is the number of requests running in parallel. Notice that since the CPU doesn't support the `ov::optimal_batch_size` yet, it works with the auto-batching only when explicit batch size is specified, for example "BATCH:CPU(16)". 
 
 ### Other Performance Considerations
 
 To achieve the best performance with the Automatic Batching, the application should:
  - Operate the number of inference requests that represents the multiple of the batch size. In the above example, for batch size 4, the application should operate 4, 8, 12, 16, etc. requests.
- - Use the requests, grouped by the batch size, together. For example, the first 4 requests are inferred, while the second group of the requests is being populated.  
+ - Use the requests, grouped by the batch size, together. For example, the first 4 requests are inferred, while the second group of the requests is being populated. Essentially, the Automatic Batching shifts the asynchronousity from the individual requests to the groups of requests that constitute the batches.
+  - Balance the 'timeout' value vs the batch size. For example in many cases having smaller timeout value/batch size may yield better performance than large batch size, but with the timeout value that is not large enough to accommodate the full number of the required requests. 
 
 The following are limitations of the current implementations:
  - Although less critical for the throughput-oriented scenarios, the load-time with auto-batching increases by almost 2x.
- - Certain networks are not reshape-able by the "batching" dimension (specified as 'N' in the layouts terms) or if the dimension is not zero-th, the auto-batching is not triggered. 
+ - Certain networks are not safely reshape-able by the "batching" dimension (specified as 'N' in the layouts terms). Also, if the batching dimension is not zero-th, the auto-batching is not triggered _implicitly_ by the throughput hint.
+ - - Notice the _explicit_ notion for example "BATCH:GPU" uses the relaxed dimensions tracking, often making the auto-batching possible. For example this tricks unlocks most **detection networks**.
+ - - When "forcing" the auto-batching via the explicit device notion, make sure to validate the results for correctness.   
  - Performance improvements happen at the cost of the memory footprint growth, yet the auto-batching queries the available memory (especially for the dGPUs) and limits the selected batch size accordingly.
 
  
-
 ### Configuring the Automatic Batching
 Following the OpenVINO convention for devices names, the *batching* device is named *BATCH*. The configuration options are as follows:
 
 | Parameter name     | Parameter description      | Default            |             Examples                                                      |
 | :---               | :---                  | :---               |:-----------------------------------------------------------------------------|
-| "AUTO_BATCH_DEVICE" | Device name to apply the automatic batching and optional batch size in brackets | N/A | BATCH:GPU which triggers the automatic batch size selection or explicit batch size BATCH:GPU(4)     |
+| "AUTO_BATCH_DEVICE" | Device name to apply the automatic batching and optional batch size in brackets | N/A | "BATCH:GPU" which triggers the automatic batch size selection. Another example is device name (to apply the batching) with directly specified batch size "BATCH:GPU(4)"     |
 | "AUTO_BATCH_TIMEOUT" | timeout value, in ms | 1000 |  you can reduce the timeout value (to avoid performance penalty when the data arrives too non-evenly) e.g. pass the "100", or in contrast make it large enough e.g. to accommodate inputs preparation (e.g. when it is serial process)     |
+
+### Testing Automatic Batching Performance with the Benchmark_App
+The `benchmark_app`, that exists in both  [C++](../../samples/cpp/benchmark_app/README.md) and [Python](../../tools/benchmark_tool/README.md) versions, is the best way to evaluate the performance of the Automatic Batching:
+ -  The most straighforward way is performance hints:
+- - benchmark_app **-hint tput** -d GPU -m 'path to your favorite model'
+ -  Overriding the strict rules of implicit reshaping by the batch dimension via the explicit device notion:
+- - benchmark_app **-hint none -d BATCH:GPU** -m 'path to your favorite model'
+ -  Finally, overriding the automatically-deduced batch size as well:
+- - $benchmark_app -hint none -d **BATCH:GPU(16)** -m 'path to your favorite model'
+
+The last example is also applicabe to the CPU and any other device that generally supports the batched execution.  
 
 ### See Also
 [Supported Devices](supported_plugins/Supported_Devices.md)
