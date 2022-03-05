@@ -174,6 +174,14 @@ static void regclass_graph_PreProcessSteps(py::module m) {
         py::arg("alg"));
 
     steps.def(
+        "crop",
+        [](ov::preprocess::PreProcessSteps& self, const std::vector<int>& begin, const std::vector<int>& end) {
+            return &self.crop(begin, end);
+        },
+        py::arg("begin"),
+        py::arg("end"));
+
+    steps.def(
         "convert_layout",
         [](ov::preprocess::PreProcessSteps& self, const ov::Layout& layout = {}) {
             return &self.convert_layout(layout);

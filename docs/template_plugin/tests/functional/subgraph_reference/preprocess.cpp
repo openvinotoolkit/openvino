@@ -847,10 +847,10 @@ static RefPreprocessParams set_shape_custom_crop() {
         p.build();
         return f;
     };
-    auto input_size = 4 * 4 * 4 * 4;
-    std::vector<float> input_values(input_size);
+    auto input_shape = Shape{4, 4, 4, 4};
+    std::vector<float> input_values(shape_size(input_shape));
     std::iota(input_values.begin(), input_values.end(), 0);
-    res.inputs.emplace_back(element::f32, Shape{4, 4, 4, 4}, input_values);
+    res.inputs.emplace_back(element::f32, input_shape, input_values);
     res.expected.emplace_back(Shape{2, 2, 2, 2}, element::f32, std::vector<float>{ 85,  86,  89,  90,
                                                                                   101, 102, 105, 106,
                                                                                   149, 150, 153, 154,
@@ -890,10 +890,10 @@ static RefPreprocessParams preprocess_crop_basic() {
         p.build();
         return f;
     };
-    auto input_size = 4 * 4 * 4 * 4;
-    std::vector<float> input_values(input_size);
+    auto input_shape = Shape{4, 4, 4, 4};
+    std::vector<float> input_values(shape_size(input_shape));
     std::iota(input_values.begin(), input_values.end(), 0);
-    res.inputs.emplace_back(element::f32, Shape{4, 4, 4, 4}, input_values);
+    res.inputs.emplace_back(element::f32, input_shape, input_values);
     res.expected.emplace_back(Shape{2, 2, 2, 2}, element::f32, std::vector<float>{ 85,  86,  89,  90,
                                                                                    101, 102, 105, 106,
                                                                                    149, 150, 153, 154,
@@ -911,11 +911,11 @@ static RefPreprocessParams preprocess_crop_2axis_dynamic() {
         p.build();
         return f;
     };
-    auto input_size = 1 * 3 * 2 * 2;
-    std::vector<float> input_values(input_size);
+    auto input_shape = Shape{1, 3, 2, 2};
+    std::vector<float> input_values(shape_size(input_shape));
     std::iota(input_values.begin(), input_values.end(), 0);
     res.inputs.emplace_back(element::f32, Shape{1, 3, 2, 2}, input_values);
-    res.expected.emplace_back(Shape{1, 3, 1, 1}, element::f32, std::vector<float>{ 3, 7, 11});
+    res.expected.emplace_back(Shape{1, 3, 1, 1}, element::f32, std::vector<float>{3, 7, 11});
     return res;
 }
 

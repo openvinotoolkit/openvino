@@ -346,6 +346,27 @@ def test_ngraph_preprocess_reverse_channels():
     assert np.equal(output, expected_output).all()
 
 
+def test_ngraph_preprocess_crop():
+    orig_shape = [1, 2, 1, 1]
+    tensor_shape = [1, 2, 3, 3]
+    parameter_a = ops.parameter(orig_shape, dtype=np.float32, name="A")
+    model = ops.relu(parameter_a)
+    function = Model(model, [parameter_a], "TestFunction")
+
+    p = PrePostProcessor(function)
+    p.input().tensor().set_shape(tensor_shape)
+    p.input().preprocess().crop([0,0,1,1], [1,2,-1,-1]);
+    function = p.build()
+
+    input_data = np.arange(18).astype(np.float32).reshape(tensor_shape)
+    expected_output = np.array([4, 13]).astype(np.float32).reshape(orig_shape)
+
+    runtime = get_runtime()
+    computation = runtime.computation(function)
+    output = computation(input_data)
+    assert np.equal(output, expected_output).all()
+
+
 def test_ngraph_preprocess_resize_algorithm():
     shape = [1, 1, 3, 3]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
