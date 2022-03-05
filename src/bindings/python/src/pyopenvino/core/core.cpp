@@ -101,7 +101,7 @@ void regclass_Core(py::module m) {
         [](ov::Core& self,
            const std::shared_ptr<const ov::Model>& model,
            const std::map<std::string, std::string>& config) {
-             return self.compile_model(model, ov::AnyMap{config.begin(), config.end()});
+            return self.compile_model(model, ov::AnyMap{config.begin(), config.end()});
         },
         py::call_guard<py::gil_scoped_release>(),
         py::arg("model"),
@@ -329,7 +329,8 @@ void regclass_Core(py::module m) {
                            .attr("read")()  // alternative: model_stream.attr("get_value")()
                            .cast<std::string>();
             py::gil_scoped_release release;
-            return self.import_model(_stream, device_name, {properties.begin(), properties.end()});;
+            return self.import_model(_stream, device_name, {properties.begin(), properties.end()});
+            ;
         },
         py::arg("model_stream"),
         py::arg("device_name"),

@@ -213,10 +213,9 @@ void regclass_AsyncInferQueue(py::module m) {
             :rtype: None
         )");
 
-    cls.def(
-        "is_ready",
-        &AsyncInferQueue::_is_ready,
-        R"(
+    cls.def("is_ready",
+            &AsyncInferQueue::_is_ready,
+            R"(
             One of 'flow control' functions.
             Returns True if any free request in the pool, otherwise False.
 
@@ -226,20 +225,18 @@ void regclass_AsyncInferQueue(py::module m) {
             :rtype: bool
     )");
 
-    cls.def(
-        "wait_all",
-        &AsyncInferQueue::wait_all,
-        R"(
+    cls.def("wait_all",
+            &AsyncInferQueue::wait_all,
+            R"(
             One of 'flow control' functions. Blocking call.
             Waits for all InferRequests in a pool to finish scheduled work.
 
             Function releases GIL, other threads can work while this function waits.
         )");
 
-    cls.def(
-        "get_idle_request_id",
-        &AsyncInferQueue::get_idle_request_id,
-        R"(
+    cls.def("get_idle_request_id",
+            &AsyncInferQueue::get_idle_request_id,
+            R"(
             Returns next free id of InferRequest from queue's pool.
             Function waits for any request to complete and then returns this request's id.
 
@@ -248,10 +245,9 @@ void regclass_AsyncInferQueue(py::module m) {
             :rtype: int
         )");
 
-    cls.def(
-        "set_callback",
-        &AsyncInferQueue::set_custom_callbacks,
-        R"(
+    cls.def("set_callback",
+            &AsyncInferQueue::set_custom_callbacks,
+            R"(
             Sets unified callback on all InferRequests from queue's pool.
             Signature of such function should have two arguments, where
             first one is InferRequest object and second one is userdata
