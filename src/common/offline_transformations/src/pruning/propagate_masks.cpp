@@ -810,7 +810,7 @@ public:
             const auto & m_reshape_to_const = pattern_map.at(reshape_to_const);
             const auto & m_reshape_to = pattern_map.at(reshape_to);
             const auto & m_unary_op = pattern_map.at(unary_op);
-            //const auto & m_reshape_from_const = pattern_map.at(reshape_from_const);
+            const auto & m_reshape_from_const = pattern_map.at(reshape_from_const);
             const auto & m_reshape_from = pattern_map.at(reshape_from);
 
             // Check reshape_to input shape equal to reshape_from output shape
@@ -828,21 +828,85 @@ public:
             auto input_mask = getMask(m_input);
             auto reshape_to_const_mask = getMask(m_reshape_to_const);
             //auto reshape_from_const_mask = getMask(m_reshape_from_const);
-            auto output_mask = std::make_shared<Mask>(input_mask->size());
             //if (!(input_mask && reshape_to_const_mask && reshape_from_const_mask && output_mask))
             if (!(input_mask && reshape_to_const_mask))
                 return false;
+            // Check reshape_to is revert flatten case
+            auto input_shape_iter = reshape_to_input_shape.rbegin();
+            auto output_shape_iter = reshape_to_output_shape.rbegin();
+            while (input_shape_iter != reshape_to_input_shape.rend() &&
+                   output_shape_iter != reshape_to_output_shape.rend()) {
+                if (*input_shape_iter != *output_shape_iter)
+                    break;
+
+                input_shape_iter++;
+                output_shape_iter++;
+            }
+            int64_t not_reshaped_dims_input = reshape_to_input_shape.rend() - input_shape_iter;
+            int64_t not_reshaped_dims_output = reshape_to_output_shape.rend() - output_shape_iter;
+            if (not_reshaped_dims_output != 1)
+                return false;
+
+            // Update reshape_to constant
+            {
+                const auto reshape_to_const_node = get_constant_from_source(m_reshape_to_const.get_node_shared_ptr());
+                const auto reshape_to_const_consumers  = m_reshape_to_const.get_target_inputs();
+
+                const auto shape_of = std::make_shared<opset6::ShapeOf>(m_input);
+
+                const auto axis = opset6::Constant::create(ov::element::i8, {}, {0});
+                auto dims_to_keep_vec = std::vector<int64_t>();
+                for (int64_t i = not_reshaped_dims_input; i < reshape_to_input_shape.size(); ++i)
+                    dims_to_keep_vec.push_back(i);
+
+                const auto dims_to_keep = opset6::Constant::create(m_reshape_to_const.get_element_type(), {dims_to_keep_vec.size()}, dims_to_keep_vec);
+                const auto gather = std::make_shared<opset6::Gather>(shape_of, dims_to_keep, axis);
+                const auto concat = std::make_shared<opset6::Concat>(
+                                        NodeVector{opset6::Constant::create(m_reshape_to_const.get_element_type(), {2}, {-1, 1}), gather}, 0);
+                for (auto consumer : reshape_to_const_consumers)
+                    consumer.replace_source_output(concat);
+            }
+            // Update reshape_from constant
+            {
+                // Check if reshape_from shape input is already connect to input
+                // by ShapeOf
+                bool insert_shape_of = true;
+                std::shared_ptr<ov::Node> shape_of_op = std::dynamic_pointer_cast<opset6::ShapeOf>(m_reshape_from_const.get_node_shared_ptr());
+                if (!shape_of_op)
+                    shape_of_op = std::dynamic_pointer_cast<opset1::ShapeOf>(m_reshape_from_const.get_node_shared_ptr());
+                if (shape_of_op) {
+                    for (auto & output : m_input.get_node()->outputs())
+                        for (auto & target_input : output.get_target_inputs())
+                            if (target_input.get_node() == shape_of_op.get()) {
+                                insert_shape_of = false;
+                                break;
+                            }
+                }
+
+                if (insert_shape_of) {
+                    const auto reshape_from_const_node = get_constant_from_source(m_reshape_from_const.get_node_shared_ptr());
+                    const auto reshape_from_const_consumers  = m_reshape_from_const.get_target_inputs();
+
+                    const auto shape_of = std::make_shared<opset6::ShapeOf>(m_input);
+                    for (auto consumer : reshape_from_const_consumers)
+                        consumer.replace_source_output(shape_of);
+                }
+            }
+
             // Skip propagation inside pattern by
             // rewriting callbacks
-            const auto skip_prop_callback = [](Mask::Ptr cur_mask) -> bool {
-                return true;
-            };
-            input_mask->add_callback(skip_prop_callback, reshape_to_const_mask);
-            reshape_to_const_mask->add_callback(skip_prop_callback, input_mask);
+            //const auto skip_prop_callback = [](Mask::Ptr cur_mask) -> bool {
+            //    return true;
+            //};
+            input_mask->remove_callback(reshape_to_const_mask);
+            //reshape_to_const_mask->remove_callback(input_mask);
+            //input_mask->add_callback(skip_prop_callback, reshape_to_const_mask);
+            //reshape_to_const_mask->add_callback(skip_prop_callback, input_mask);
 
             //reshape_from_const_mask->add_callback(skip_prop_callback, output_mask);
             //output_mask->add_callback(skip_prop_callback, reshape_from_const_mask);
 
+            auto output_mask = std::make_shared<Mask>(input_mask->size());
             const auto input_mask_row = input_mask.get();
             const auto output_mask_row = output_mask.get();
             // Pass input masks to output masks directly

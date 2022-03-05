@@ -294,6 +294,16 @@ public:
         return true;
     }
 
+    bool remove_callback(Mask::Ptr mask) {
+        if (m_callbacks.find(mask.get()) == m_callbacks.end()) {
+            NGRAPH_DEBUG << "Attempt to remove not existed callback";
+            return false;
+        }
+        m_dependencies.erase(std::remove(m_dependencies.begin(), m_dependencies.end(), mask.get()), m_dependencies.end());
+        m_callbacks.erase(mask.get());
+        return true;
+    }
+
     /* Modify state of this mask by corresponding callback,
     which returns modifying success status (bool) and then
     modify all dependent masks by their corresponding callbacks*/
