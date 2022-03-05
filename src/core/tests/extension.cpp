@@ -10,6 +10,9 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/op_extension.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/runtime/runtime.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/util/file_util.hpp"
 #include "so_extension.hpp"
@@ -65,6 +68,67 @@ public:
 
 namespace {
 
+std::string& get_dev_name() {
+    static std::string dev_name = "TEMPLATE";
+    return dev_name;
+}
+
+template <class T>
+class OpModelEvaluate : public ov::EvaluateExtension {
+public:
+    const ov::DiscreteTypeInfo& get_type_info() const override {
+        return T::get_type_info_static();
+    }
+    bool has_evaluate(const std::shared_ptr<const ov::Node>& node) const override {
+        return node->get_type_info() == T::get_type_info_static();
+    }
+    bool evaluate(const std::shared_ptr<const ov::Node>& node,
+                  ov::TensorVector& output_values,
+                  const ov::TensorVector& input_values) const override {
+        std::shared_ptr<ov::Model> model;
+        // Create single operation model
+        {
+            ov::ParameterVector params;
+            ov::OutputVector inputs;
+            for (const auto& tensor : input_values) {
+                auto param = std::make_shared<ov::opset8::Parameter>(tensor.get_element_type(), tensor.get_shape());
+                params.emplace_back(param);
+                inputs.emplace_back(param);
+            }
+            auto cloned_node = node->clone_with_new_inputs(inputs);
+            model = std::make_shared<ov::Model>(cloned_node->outputs(), params);
+        }
+
+        ov::Core core;
+        try {
+            // Register template plugin
+            if (get_dev_name() == "TEMPLATE")
+                core.register_plugin(std::string("openvino_template_plugin") + IE_BUILD_POSTFIX, "TEMPLATE");
+        } catch (...) {
+        }
+        auto infer_request = core.compile_model(model, get_dev_name()).create_infer_request();
+        for (size_t i = 0; i < input_values.size(); i++) {
+            infer_request.set_input_tensor(i, input_values[i]);
+        }
+        for (size_t i = 0; i < output_values.size(); i++) {
+            infer_request.set_output_tensor(i, output_values[i]);
+        }
+        infer_request.infer();
+        return true;
+    }
+};
+
+template <class OP, class Ext>
+class TestExtension {
+public:
+    TestExtension() {
+        OP::add_extension(std::make_shared<Ext>());
+    }
+    ~TestExtension() {
+        ov::get_extensions_for_type(OP::get_type_info_static()).clear();
+    }
+};
+
 class TestReluEvaluate {
 public:
     TestReluEvaluate(const ov::element::Type& el_type,
@@ -73,7 +137,7 @@ public:
                      const std::vector<int64_t>& out_data,
                      bool add_extension = false) {
         if (add_extension)
-            ov::opset8::Relu::add_extension(std::make_shared<Add1Evaluate>());
+            ext = std::make_shared<TestExtension<ov::opset8::Relu, Add1Evaluate>>();
 
         auto parameter = std::make_shared<ov::opset8::Parameter>(el_type, shape);
         std::shared_ptr<ov::Node> relu = std::make_shared<ov::opset8::Relu>(parameter);
@@ -90,17 +154,14 @@ public:
         return m_success;
     }
 
-    ~TestReluEvaluate() {
-        ov::get_extensions_for_type(ov::opset8::Relu::get_type_info_static()).clear();
-    }
-
 private:
     bool m_success = false;
+    std::shared_ptr<void> ext;
 };
 
 }  // namespace
 
-TEST(extension, evaluate_extension) {
+TEST(extension, evaluate_extension_relu) {
     std::vector<int64_t> orig_data = {-2, -1, 1, 2};
     std::vector<int64_t> ref_orig_data = {0, 0, 1, 2};
     std::vector<int64_t> ref_data = {-1, 0, 2, 3};
@@ -115,4 +176,92 @@ TEST(extension, evaluate_extension) {
         TestReluEvaluate test_eval(el_type, shape, orig_data, ref_orig_data, false);
         EXPECT_TRUE(test_eval.success());
     }
+}
+
+typedef std::chrono::high_resolution_clock Time;
+typedef std::chrono::nanoseconds ns;
+
+inline double get_duration_ms_till_now(Time::time_point& startTime) {
+    return std::chrono::duration_cast<ns>(Time::now() - startTime).count() * 0.000001;
+};
+
+TEST(extension, constant_fold_constant_conv) {
+    const auto& gen_data = [](const ov::Shape& shape) {
+        size_t size = ov::shape_size(shape);
+        std::vector<float> data(size);
+        for (size_t i = 0; i < size; i++) {
+            data[i] = i;
+        }
+        return data;
+    };
+    std::shared_ptr<ov::Model> origin_model;
+    {
+        ov::Shape data_shape{1, 7, 320, 32, 32};
+        ov::Shape weights_shape{32, 7, 3, 3, 3};
+        ov::Shape bias_shape{1, 32, 1, 1, 1};
+        std::vector<float> in_data = gen_data(data_shape);
+        std::vector<float> w_data = gen_data(weights_shape);
+        std::vector<float> b_data = gen_data(bias_shape);
+        auto const_data = ov::opset8::Constant::create(ov::element::f32, data_shape, in_data);
+        auto weights = ov::opset8::Constant::create(ov::element::f32, weights_shape, w_data);
+        auto conv = std::make_shared<ov::opset8::Convolution>(const_data,
+                                                              weights,
+                                                              ov::Strides{3, 3, 3},
+                                                              ov::CoordinateDiff({0, 0, 0}),
+                                                              ov::CoordinateDiff({0, 0, 0}),
+                                                              ov::Strides{2, 2, 2});
+        auto bias = ov::opset8::Constant::create(ov::element::f32, bias_shape, b_data);
+        auto add = std::make_shared<ov::opset8::Add>(conv, bias);
+        origin_model = std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{});
+    }
+    double no_dev, template_dev, cpu_dev;
+    // Apply constant folding
+    {
+        auto cloned_model = ov::clone_model(*origin_model);
+        ov::pass::Manager pass_manager;
+        pass_manager.register_pass<ov::pass::ConstantFolding>();
+        auto startTime = Time::now();
+        pass_manager.run_passes(cloned_model);
+        no_dev = get_duration_ms_till_now(startTime);
+
+        // Model shouldn't folded
+        EXPECT_EQ(origin_model->get_ops().size(), cloned_model->get_ops().size());
+    }
+
+    // Apply constant folding with extension
+    {
+        TestExtension<ov::opset8::Convolution, OpModelEvaluate<ov::opset8::Convolution>> test = {};
+
+        auto cloned_model = ov::clone_model(*origin_model);
+        ov::pass::Manager pass_manager;
+        pass_manager.register_pass<ov::pass::ConstantFolding>();
+        auto startTime = Time::now();
+        pass_manager.run_passes(cloned_model);
+        template_dev = get_duration_ms_till_now(startTime);
+
+        // Model shouldn't folded
+        EXPECT_NE(origin_model->get_ops().size(), cloned_model->get_ops().size());
+        EXPECT_EQ(2, cloned_model->get_ops().size());
+    }
+
+    // Apply constant folding with extension on CPU
+    {
+        get_dev_name() = "CPU";
+        TestExtension<ov::opset8::Convolution, OpModelEvaluate<ov::opset8::Convolution>> test = {};
+
+        auto cloned_model = ov::clone_model(*origin_model);
+        ov::pass::Manager pass_manager;
+        pass_manager.register_pass<ov::pass::ConstantFolding>();
+        auto startTime = Time::now();
+        pass_manager.run_passes(cloned_model);
+        cpu_dev = get_duration_ms_till_now(startTime);
+
+        // Model shouldn't folded
+        EXPECT_NE(origin_model->get_ops().size(), cloned_model->get_ops().size());
+        EXPECT_EQ(2, cloned_model->get_ops().size());
+    }
+
+    std::cout << "Duration no_constant_folding: " << no_dev << std::endl;
+    std::cout << "Duration template_folding: " << template_dev << std::endl;
+    std::cout << "Duration cpu_folding: " << cpu_dev << std::endl;
 }

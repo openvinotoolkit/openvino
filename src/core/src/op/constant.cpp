@@ -10,12 +10,26 @@
 #include <ngraph/validation_util.hpp>
 #include <sstream>
 
+#include "blob_factory.hpp"  // IE private header
 #include "itt.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/util.hpp"
 
 using namespace std;
+
+namespace {
+class SharedTensor {
+public:
+    SharedTensor(const std::shared_ptr<InferenceEngine::Blob>& impl, const std::shared_ptr<void>& so)
+        : _impl(impl),
+          _so(so) {}
+
+private:
+    std::shared_ptr<InferenceEngine::Blob> _impl;
+    std::shared_ptr<void> _so;
+};
+}  // namespace
 
 template <typename T>
 static inline string to_cpp_string(T value) {
@@ -38,7 +52,7 @@ ov::op::v0::Constant::Constant(const shared_ptr<ngraph::runtime::Tensor>& tensor
     m_element_type = tensor->get_element_type();
     m_shape = tensor->get_shape();
     // Share data from HostTensor if we work with it
-    // And copy data in other cas
+    // And copy data in other case
     if (auto hostTensor = std::dynamic_pointer_cast<ngraph::runtime::HostTensor>(tensor)) {
         m_data = make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<ngraph::runtime::Tensor>>>(
             static_cast<char*>(hostTensor->get_data_ptr()),
@@ -49,6 +63,19 @@ ov::op::v0::Constant::Constant(const shared_ptr<ngraph::runtime::Tensor>& tensor
         allocate_buffer(false);
         tensor->read(get_data_ptr_nc(), tensor->get_size_in_bytes());
     }
+    constructor_validate_and_infer_types();
+}
+
+ov::op::v0::Constant::Constant(const ov::Tensor& tensor) {
+    m_element_type = tensor.get_element_type();
+    m_shape = tensor.get_shape();
+    // Share data from ov::Tensor
+    auto shared_tensor = std::make_shared<SharedTensor>(tensor._impl, tensor._so);
+    m_data = std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<SharedTensor>>>(
+        static_cast<char*>(tensor.data()),
+        tensor.get_byte_size(),
+        shared_tensor);
+    m_all_elements_bitwise_identical = are_all_data_elements_bitwise_identical();
     constructor_validate_and_infer_types();
 }
 

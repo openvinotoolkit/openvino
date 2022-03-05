@@ -14,6 +14,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 namespace op {
@@ -29,6 +30,10 @@ public:
     /// \brief Initialize a constant from tensor
     /// \param tensor The tensor with data
     Constant(const std::shared_ptr<ngraph::runtime::Tensor>& tensor);
+
+    /// \brief Initialize a constant from OpenVINO tensor
+    /// \param tensor The tensor with data
+    Constant(const ov::Tensor& tensor);
 
     /// \brief Constructs a tensor constant.
     ///

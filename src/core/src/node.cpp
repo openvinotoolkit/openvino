@@ -830,31 +830,38 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
 
     // If all the inputs are constants, try to evaluate the outputs
     bool all_constants = std::all_of(input_values.begin(), input_values.end(), [](const Output<Node>& input) {
-        return ov::as_type_ptr<ngraph::op::v0::Constant>(input.get_node_shared_ptr());
+        return std::dynamic_pointer_cast<ov::op::v0::Constant>(input.get_node_shared_ptr());
     });
     if (!all_constants)
         return false;
 
-    HostTensorVector input_tensors;
+    ov::TensorVector input_tensors;
     for (const auto& input : input_values) {
-        auto host_tensor = make_shared<ngraph::runtime::HostTensor>(
-            ov::as_type_ptr<ngraph::op::v0::Constant>(input.get_node_shared_ptr()));
-        input_tensors.push_back(host_tensor);
+        auto constant = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(input.get_node_shared_ptr());
+        NODE_VALIDATION_CHECK(this, constant, "Cannot constant fold node. Input is not constant.");
+        input_tensors.emplace_back(ov::Tensor(constant->get_element_type(),
+                                              constant->get_shape(),
+                                              const_cast<void*>(constant->get_data_ptr())));
     }
-    HostTensorVector output_tensors;
+    ov::TensorVector output_tensors;
     OutputVector output_constants;
     for (const auto& output : outputs()) {
-        auto tensor = make_shared<HostTensor>(output.get_element_type(), output.get_partial_shape());
-        output_tensors.push_back(tensor);
+        if (output.get_element_type().is_dynamic() || output.get_partial_shape().is_dynamic()) {
+            if (output.get_element_type().is_static()) {
+                output_tensors.emplace_back(ov::Tensor(output.get_element_type(), {0}));
+            } else {
+                output_tensors.emplace_back(ov::Tensor());
+            }
+        } else {
+            output_tensors.emplace_back(ov::Tensor(output.get_element_type(), output.get_shape()));
+        }
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
     if (evaluate(output_tensors, input_tensors)) {
         for (size_t i = 0; i < output_tensors.size(); ++i) {
             output_values[i] = make_shared<ngraph::op::Constant>(output_tensors[i]);
         }
         return true;
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
     return false;
 }
 

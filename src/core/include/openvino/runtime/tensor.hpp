@@ -28,6 +28,12 @@ class InferRequest;
 class RemoteContext;
 class VariableState;
 
+namespace op {
+namespace v0 {
+class Constant;
+}  // namespace v0
+}  // namespace op
+
 /**
  * @brief Tensor API holding host memory
  *
@@ -50,6 +56,7 @@ protected:
     friend class ov::InferRequest;
     friend class ov::RemoteContext;
     friend class ov::VariableState;
+    friend class ov::op::v0::Constant;
 
 public:
     /// @brief Default constructor
