@@ -88,7 +88,7 @@ For the *explicit* usage, you can limit the batch size using "BATCH:GPU(4)",  wh
 To achieve the best performance with the Automatic Batching, the application should:
  - Operate the number of inference requests that represents the multiple of the batch size. In the above example, for batch size 4, the application should operate 4, 8, 12, 16, etc. requests.
  - Use the requests, grouped by the batch size, together. For example, the first 4 requests are inferred, while the second group of the requests is being populated. Essentially, the Automatic Batching shifts the asynchronousity from the individual requests to the groups of requests that constitute the batches.
-  - Balance the 'timeout' value vs the batch size. For example in many cases having smaller timeout value/batch size may yield better performance than large batch size, but with the timeout value that is not large enough to accommodate the full number of the required requests. 
+  - Balance the 'timeout' value vs the batch size. For example, in many cases having a smaller timeout value/batch size may yield better performance than large batch size, but with the timeout value that is not large enough to accommodate the full number of the required requests. 
 
 The following are limitations of the current implementations:
  - Although less critical for the throughput-oriented scenarios, the load-time with auto-batching increases by almost 2x.
