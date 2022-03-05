@@ -1,4 +1,4 @@
-# Convert ONNX* GPT-2 Model to the Intermediate Representation {#openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_GPT2}
+# Convert ONNX* GPT-2 Model {#openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_GPT2}
 
 [Public pre-trained GPT-2 model](https://github.com/onnx/models/tree/master/text/machine_comprehension/gpt-2)  is a large
 transformer-based language model with a simple objective: predict the next word, given all of the previous words within some text.

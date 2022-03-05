@@ -1,7 +1,7 @@
 # Low-precision model representation {#pot_docs_model_representation}
 
 ## Introduction
-The goal of this document is to describe how optimized models are represented in OpenVINO Intermediate Representation (IR) and provide guidance on interpretation rules for such models at runtime. 
+The goal of this document is to describe how optimized models are represented in OpenVINO Intermediate Representation (IR) and provide guidance on interpretation rules for such models at runtime.
 Currently, there are two groups of optimization methods that can change the IR after applying them to the full-precision model:
 - **Sparsity**. It is represented by zeros inside the weights and this is up to the hardware plugin how to interpret these zeros (use weights as is or apply special compression algorithms and sparse arithmetic). No additional mask is provided with the model.
 - **Quantization**. The rest of this document is dedicated to the representation of quantized models.
@@ -25,6 +25,7 @@ The second is responsible for the dequantization:
 `r = q / (levels-1) * (output_high - output_low) + output_low`  
 From the scale/zero-point notation standpoint the latter formula can be written as follows:  
 `r = (output_high - output_low) / (levels-1) * (q + output_low / (output_high - output_low) * (levels-1))`  
+
 Thus we can define:
 - **Scale** as `(output_high - output_low) / (levels-1)`
 - **Zero-point** as `-output_low / (output_high - output_low) * (levels-1)`
