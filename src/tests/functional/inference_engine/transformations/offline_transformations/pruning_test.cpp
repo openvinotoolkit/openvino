@@ -3515,8 +3515,10 @@ TEST_F(TransformationTestsF, MaskPropagationReverseFlatten) {
     auto rev_flat_const = opset5::Constant::create(element::i64, {2}, {12, 6});
     auto rev_flat = std::make_shared<opset5::Reshape>(transpose, rev_flat_const, true);
 
+    auto unary_op = std::make_shared<opset5::Softmax>(rev_flat);
+
     auto reshape_recover_const = opset5::Constant::create(element::i64, {4}, {1, 6, 2, 6});
-    auto reshape_recover = std::make_shared<opset5::Reshape>(rev_flat, reshape_recover_const, true);
+    auto reshape_recover = std::make_shared<opset5::Reshape>(unary_op, reshape_recover_const, true);
 
     auto flatten_const = opset5::Constant::create(element::i64, {2}, {1, 72});
     auto flatten = std::make_shared<opset5::Reshape>(reshape_recover, flatten_const, true);
