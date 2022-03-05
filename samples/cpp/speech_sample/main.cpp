@@ -342,11 +342,17 @@ int main(int argc, char* argv[]) {
             }
             count_file = reference_name_files.empty() ? 1 : reference_name_files.size();
         }
+        if (count_file > executableNet.outputs().size()) {
+            throw std::logic_error(
+                "The number of output/reference files is not equal to the number of network outputs.");
+        }
         // -----------------------------------------------------------------------------------------------------
         // --------------------------- Step 5. Do inference --------------------------------------------------------
         std::vector<std::vector<uint8_t>> ptrUtterances;
-        std::vector<std::vector<uint8_t>> vectorPtrScores((outputs.size() == 0) ? 1 : outputs.size());
-        std::vector<uint16_t> numScoresPerOutput((outputs.size() == 0) ? 1 : outputs.size());
+        std::vector<std::vector<uint8_t>> vectorPtrScores((outputs.size() == 0) ? executableNet.outputs().size()
+                                                                                : outputs.size());
+        std::vector<uint16_t> numScoresPerOutput((outputs.size() == 0) ? executableNet.outputs().size()
+                                                                       : outputs.size());
         std::vector<std::vector<uint8_t>> vectorPtrReferenceScores(reference_name_files.size());
         std::vector<ScoreErrorT> vectorFrameError(reference_name_files.size()),
             vectorTotalError(reference_name_files.size());
@@ -474,8 +480,9 @@ int main(int argc, char* argv[]) {
                         inferRequest.inferRequest.wait();
                         if (inferRequest.frameIndex >= 0)
                             for (size_t next_output = 0; next_output < count_file; next_output++) {
-                                std::string outputName = (outputs.size() == 0) ? executableNet.output(0).get_any_name()
-                                                                               : output_names[next_output];
+                                std::string outputName = (outputs.size() == 0)
+                                                             ? executableNet.output(next_output).get_any_name()
+                                                             : output_names[next_output];
                                 auto dims = executableNet.output(outputName).get_shape();
                                 numScoresPerOutput[next_output] = std::accumulate(std::begin(dims),
                                                                                   std::end(dims),
@@ -487,16 +494,12 @@ int main(int argc, char* argv[]) {
 
                                 if (!FLAGS_o.empty()) {
                                     /* Prepare output data for save to file in future */
-                                    auto outputFrame =
-                                        &vectorPtrScores[next_output].front() +
-                                        numScoresPerOutput[next_output] * sizeof(float) * (inferRequest.frameIndex);
+                                    auto outputFrame = &vectorPtrScores[next_output].front() +
+                                                       numScoresPerOutput[next_output] * sizeof(float) *
+                                                           (inferRequest.frameIndex) / batchSize;
 
                                     ov::Tensor outputBlob =
                                         inferRequest.inferRequest.get_tensor(executableNet.output(outputName));
-                                    if (!outputs.empty()) {
-                                        outputBlob =
-                                            inferRequest.inferRequest.get_tensor(executableNet.output(outputName));
-                                    }
                                     // locked memory holder should be alive all time while access to its buffer happens
                                     auto byteSize = numScoresPerOutput[next_output] * sizeof(float);
                                     std::memcpy(outputFrame, outputBlob.data<float>(), byteSize);
@@ -650,12 +653,12 @@ int main(int argc, char* argv[]) {
                                           uttName,
                                           &vectorPtrScores[next_output].front(),
                                           numFramesFile,
-                                          numScoresPerOutput[next_output]);
+                                          numScoresPerOutput[next_output] / batchSize);
                 }
                 if (!FLAGS_r.empty()) {
                     // print statistical score error
-                    std::string outputName =
-                        (outputs.size() == 0) ? executableNet.output(0).get_any_name() : output_names[next_output];
+                    std::string outputName = (outputs.size() == 0) ? executableNet.output(next_output).get_any_name()
+                                                                   : output_names[next_output];
                     std::cout << "Output name: " << outputName << std::endl;
                     std::cout << "Number scores per frame: " << numScoresPerOutput[next_output] / batchSize << std::endl
                               << std::endl;

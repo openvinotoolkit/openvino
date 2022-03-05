@@ -5,11 +5,11 @@
 #include "transformations/op_conversions/gelu7_downgrade.hpp"
 
 #include <memory>
-
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset7.hpp>
-#include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+
 #include "itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::Gelu7Downgrade, "Gelu7Downgrade", 0);
@@ -20,7 +20,8 @@ ngraph::pass::Gelu7Downgrade::Gelu7Downgrade() {
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
-        auto gelu_node = std::dynamic_pointer_cast<ngraph::opset7::Gelu>(pattern_to_output.at(gelu).get_node_shared_ptr());
+        auto gelu_node =
+            std::dynamic_pointer_cast<ngraph::opset7::Gelu>(pattern_to_output.at(gelu).get_node_shared_ptr());
 
         if (gelu_node == nullptr || transformation_callback(gelu_node)) {
             return false;

@@ -4,18 +4,19 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief Resolves transpose_b key from MatMul operation if corresponding input is constant or FakeQuantize by inserting Transpose
+ * @brief Resolves transpose_b key from MatMul operation if corresponding input is constant or FakeQuantize by inserting
+ * Transpose
  */
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API MatMulConstTransposesExtraction: public MatcherPass {
+class TRANSFORMATIONS_API MatMulConstTransposesExtraction : public MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     MatMulConstTransposesExtraction();
