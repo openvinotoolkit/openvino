@@ -205,6 +205,7 @@ with (SCRIPT_DIR / 'requirements.txt').open() as requirements:
         in pkg_resources.parse_requirements(requirements)
     ]
 
+
 def concat_files(output_file, input_files):
     with open(output_file, 'w', encoding='utf-8') as outfile:
         for filename in input_files:
@@ -212,6 +213,7 @@ def concat_files(output_file, input_files):
                 content = infile.read()
                 outfile.write(content)
     return output_file
+
 
 description_md = SCRIPT_DIR.parents[1] / 'docs' / 'install_guides' / 'pypi-openvino-dev.md'
 md_files = [description_md, SCRIPT_DIR.parents[1] / 'docs' / 'install_guides' / 'pre-release-note.md']
