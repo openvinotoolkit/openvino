@@ -13,7 +13,7 @@ namespace v9 {
 /// \brief An operation RDFT that computes the discrete real-to-complex Fourier transformation.
 class OPENVINO_API RDFT : public util::FFTBase {
 public:
-    OPENVINO_OP("RDFT", "opset9", util::FFTBase, 9);
+    OPENVINO_OP("RDFT", "opset9", util::FFTBase);
     BWDCMP_RTTI_DECLARATION;
     RDFT() = default;
 

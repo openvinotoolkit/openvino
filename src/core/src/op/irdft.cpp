@@ -16,18 +16,10 @@
 
 #include "ngraph/op/irdft.hpp"
 
-#include <algorithm>
-#include <irdft_shape_inference.hpp>
+#include "irdft_shape_inference.hpp"
 #include <memory>
-#include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/axis_set.hpp"
-#include "ngraph/axis_vector.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/util/op_types.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
 
 using namespace std;
 using namespace ngraph;

@@ -13,7 +13,7 @@ namespace v9 {
 /// \brief An operation IRDFT that computes the discrete inverse complex-to-real Fourier transformation.
 class OPENVINO_API IRDFT : public util::FFTBase {
 public:
-    OPENVINO_OP("IRDFT", "opset9", util::FFTBase, 9);
+    OPENVINO_OP("IRDFT", "opset9", util::FFTBase);
     BWDCMP_RTTI_DECLARATION;
     IRDFT() = default;
 
