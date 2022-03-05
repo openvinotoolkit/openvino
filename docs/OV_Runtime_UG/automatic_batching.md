@@ -103,7 +103,7 @@ Following the OpenVINO convention for devices names, the *batching* device is na
 
 | Parameter name     | Parameter description      | Default            |             Examples                                                      |
 | :---               | :---                  | :---               |:-----------------------------------------------------------------------------|
-| "AUTO_BATCH_DEVICE" | Device name to apply the automatic batching and optional batch size in brackets | N/A | "BATCH:GPU" which triggers the automatic batch size selection. Another example is device name (to apply the batching) with directly specified batch size "BATCH:GPU(4)"     |
+| "AUTO_BATCH_DEVICE" | Device name to apply the automatic batching and optional batch size in brackets | N/A | "BATCH:GPU" which triggers the automatic batch size selection. Another example is the device name (to apply the batching) with directly specified batch size "BATCH:GPU(4)"     |
 | "AUTO_BATCH_TIMEOUT" | timeout value, in ms | 1000 |  you can reduce the timeout value (to avoid performance penalty when the data arrives too non-evenly) e.g. pass the "100", or in contrast make it large enough e.g. to accommodate inputs preparation (e.g. when it is serial process)     |
 
 ### Testing Automatic Batching Performance with the Benchmark_App
