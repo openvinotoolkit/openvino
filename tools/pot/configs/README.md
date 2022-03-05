@@ -49,8 +49,10 @@ This section defines optimization algorithms and their parameters. For more deta
 
 ## Examples of the Configuration File
 
+
 For a quick start, many examples of configuration files are provided [here](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/examples). There you can find ready-to-use configurations for the models from various domains: Computer Vision (Image 
  Classification, Object Detection, Segmentation), Natural Language Processing, Recommendation Systems. We put configuration files for the models which require non-default configuration settings to get accurate results.
+
 For details on how to run the Post-Training Optimization Tool with a sample configuration file, see the [example](@ref pot_configs_examples_README).
 
 ## See Also

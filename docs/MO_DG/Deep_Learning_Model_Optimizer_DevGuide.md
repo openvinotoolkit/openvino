@@ -22,7 +22,7 @@
 
 Model Optimizer is a cross-platform command-line tool that facilitates the transition between the training and deployment environment, performs static model analysis, and adjusts deep learning models for optimal execution on end-point target devices.
 
-Model Optimizer process assumes you have a network model trained using supported deep learning frameworks: Caffe*, TensorFlow*, Kaldi*, MXNet* or converted to the ONNX* format. Model Optimizer produces an Intermediate Representation (IR) of the network, which can be inferred with the [OpenVINO™ Runtime](../OV_Runtime_UG/OpenVINO_Runtime_User_Guide.md).
+Model Optimizer process assumes you have a network model trained using supported deep learning frameworks: Caffe*, TensorFlow*, Kaldi*, MXNet* or converted to the ONNX* format. Model Optimizer produces an Intermediate Representation (IR) of the network, which can be inferred with the [OpenVINO™ Runtime](../OV_Runtime_UG/openvino_intro.md).
 
 > **NOTE**: Model Optimizer does not infer models. Model Optimizer is an offline tool that runs before the inference takes place.
 
@@ -637,7 +637,7 @@ To convert the model to the Intermediate Representation (IR), run Model Optimize
 mo --input_model INPUT_MODEL --output_dir <OUTPUT_MODEL_DIR>
 ```
 
-You need to have have write permissions for an output directory.
+You need to have write permissions for an output directory.
 
 > **NOTE**: Some models require using additional arguments to specify conversion parameters, such as `--input_shape`, `--scale`, `--scale_values`, `--mean_values`, `--mean_file`. To learn about when you need to use these parameters, refer to [Converting a Model to Intermediate Representation (IR)](prepare_model/convert_model/Converting_Model.md).
 

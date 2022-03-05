@@ -1,4 +1,4 @@
-# GNA Plugin {#openvino_docs_IE_DG_supported_plugins_GNA}
+# GNA device {#openvino_docs_OV_UG_supported_plugins_GNA}
 ## Introducing the GNA Plugin
 
 The Intel® Gaussian & Neural Accelerator is a low-power neural coprocessor for continuous inference at the edge.
@@ -225,10 +225,10 @@ For the list of supported layers, see the **GNA** column of the **Supported Laye
 
 Limitations include:
 
-- Only 1D convolutions are natively supported.
+- Only 1D convolutions are natively supported on the HW prior to GNA 3.0; 2D convolutions have specific limitations (see the table above).
 - The number of output channels for convolutions must be a multiple of 4.
 - The maximum number of filters is 65532 for GNA 2.0 and 8192 for GNA 3.0.
-- Permute layer support is limited to the cases where no data reordering is needed or when reordering is happening for two dimensions, at least one of which is not greater than 8.
+- Transpose layer support is limited to the cases where no data reordering is needed or when reordering is happening for two dimensions, at least one of which is not greater than 8.
 - Splits and concatenations are supported for continuous portions of memory (e.g., split of 1,2,3,4 to 1,1,3,4 and 1,1,3,4 or concats of 1,2,3,4 and 1,2,3,5 to 2,2,3,4).
 - For Multiply, Add and Subtract layers, auto broadcasting is only supported for constant inputs.
 
@@ -236,13 +236,13 @@ Limitations include:
 
 The Intel® GNA 1.0 and 2.0 hardware natively supports only 1D convolutions.
 
-However, 2D convolutions can be mapped to 1D when a convolution kernel moves in a single direction. GNA Plugin performs such a transformation for Kaldi `nnet1` convolution. From this perspective, the Intel® GNA hardware convolution operation accepts an `NHWC` input and produces an `NHWC` output. Because OpenVINO™ only supports the `NCHW` layout, you may need to insert `Permute` layers before or after convolutions.
+However, 2D convolutions can be mapped to 1D when a convolution kernel moves in a single direction. GNA Plugin performs such a transformation for Kaldi `nnet1` convolution. From this perspective, the Intel® GNA hardware convolution operation accepts an `NHWC` input and produces an `NHWC` output. Because OpenVINO™ only supports the `NCHW` layout, you may need to insert `Transpose` layers before or after convolutions.
 
-For example, the Kaldi model optimizer inserts such a permute after convolution for the [rm_cnn4a network](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/rm_cnn4a_smbr/). This `Permute` layer is automatically removed by the GNA Plugin, because the Intel® GNA hardware convolution layer already produces the required `NHWC` result.
+For example, the Kaldi model optimizer inserts such a transpose after convolution for the [rm_cnn4a network](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/rm_cnn4a_smbr/). This `Transpose` layer is automatically removed by the GNA Plugin, because the Intel® GNA hardware convolution layer already produces the required `NHWC` result.
 
 ## Operation Precision
 
-Intel® GNA essentially operates in the low-precision mode, which represents a mix of 8-bit (`I8`), 16-bit (`I16`), and 32-bit (`I32`) integer computations. Outputs calculated using a reduced integer precision are different from the scores calculated using the floating point format, for example, `FP32` outputs calculated on CPU using the Inference Engine [CPU Plugin](CPU.md).
+Intel® GNA essentially operates in the low-precision mode, which represents a mix of 8-bit (`I8`), 16-bit (`I16`), and 32-bit (`I32`) integer computations. Outputs calculated using a reduced integer precision are different from the scores calculated using the floating point format, for example, `FP32` outputs calculated on CPU using the OpenVINO [CPU device](CPU.md).
 
 Unlike other plugins supporting low-precision execution, the GNA plugin can calculate quantization factors at the model loading time, so you can run a model without calibration using the [Post-Training Optimization Tool](@ref pot_README).
 However, this mode may not provide satisfactory accuracy because the internal quantization algorithm is based on heuristics which may or may not be efficient, depending on the model and dynamic range of input data.
