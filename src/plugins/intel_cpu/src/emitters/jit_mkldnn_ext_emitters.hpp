@@ -151,13 +151,13 @@ public:
         const std::shared_ptr<ngraph::Node>& n,
         InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32) : jit_mkldnn_emitter(host, host_isa, n, exec_prc) {
         const auto round = getNgraphOpAs<ngraph::op::v5::Round>(n);
-        const auto node_mode = round->get_mode();
-        if ((node_mode != ngraph::opset5::Round::RoundMode::HALF_AWAY_FROM_ZERO) &&
-             (node_mode != ngraph::opset5::Round::RoundMode::HALF_TO_EVEN)) {
-            IE_THROW(NotImplemented) << "Subgraph node doesn't support ngraph operation Round with mode: " << static_cast<int>(node_mode);
+        const auto mode = round->get_mode();
+        if ((mode != ngraph::opset5::Round::RoundMode::HALF_AWAY_FROM_ZERO) &&
+            (mode != ngraph::opset5::Round::RoundMode::HALF_TO_EVEN)) {
+            IE_THROW(NotImplemented) << "Round emitter doesn't support ngraph operation Round with mode: " << static_cast<int>(mode);
         }
 
-        kind = node_mode == ngraph::opset5::Round::RoundMode::HALF_AWAY_FROM_ZERO ?
+        kind = mode == ngraph::opset5::Round::RoundMode::HALF_AWAY_FROM_ZERO ?
             dnnl_eltwise_round_half_away_from_zero :
             dnnl_eltwise_round_half_to_even;
         set_injector();
