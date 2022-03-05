@@ -115,7 +115,7 @@ The `benchmark_app`, that exists in both  [C++](../../samples/cpp/benchmark_app/
  -  Finally, overriding the automatically-deduced batch size as well:
 - - $benchmark_app -hint none -d **BATCH:GPU(16)** -m 'path to your favorite model'
 
-The last example is also applicabe to the CPU and any other device that generally supports the batched execution.  
+The last example is also applicable to the CPU and any other device that generally supports the batched execution.  
 
 ### See Also
 [Supported Devices](supported_plugins/Supported_Devices.md)
