@@ -11,8 +11,41 @@ Model Optimizer performs preprocessing to a model. It is possible to optimize th
 -	**Larger batch size**<br>
 	Notice that the devices like GPU are doing better with larger batch size. While it is possible to set the batch size in the runtime using the OpenVINO Runtime API [ShapeInference feature](../../OV_Runtime_UG/ShapeInference.md).
 
--	**Resulting IR precision**<br>
-The resulting IR precision, for instance, `FP16` or `FP32`, directly affects performance. As CPU now supports `FP16` (while internally upscaling to `FP32` anyway) and because this is the best precision for a GPU target, you may want to always convert models to `FP16`. Notice that this is the only precision that Intel&reg; Movidius&trade; Myriad&trade; 2 and Intel&reg; Myriad&trade; X VPUs support.
+## When to Specify Layout
+
+Layout defines which dimensions located in shape. Layout syntax is explained in
+[Layout API overview](../../OV_Runtime_UG/layout_overview.md). It is possible to specify
+layout for inputs and outputs. There are 2 options to specify layout `--layout` and
+`--source_layout`. For example to specify `NCHW` layout for model with single input:
+```
+mo --input_model /path/to/model --source_layout nchw
+mo --input_model /path/to/model --layout nchw
+```
+If model has more than 1 input or if not only input layout but also output layout needs
+to be specified it is required to specify names for each layout:
+```
+mo --input_model /path/to/model --source_layout name1(nchw),name2(nc)
+mo --input_model /path/to/model --layout name1(nchw),name2(nc)
+```
+Some preprocessing may require setting of input layouts, for example setting batch,
+application of mean or scales, reverse input channels (BGR<->RGB)
+
+## How to change layout of the model 
+
+It is possible to change layout of the model. It may be needed if input data has different
+layout then model was trained on. There are 2 options that can be used to change layout of
+model inputs or outputs --layout and --target_layout. For example to change layout of the
+model with one input from NHWC to NCHW:
+```
+mo --input_model /path/to/model --source_layout nhwc --target_layout nchw
+mo --input_model /path/to/model --layout "nhwc->nchw"
+```
+Similarly, if model has multiple inputs or if it is required to change layout of output,
+names must be specified:
+```
+mo --input_model /path/to/model --source_layout name1(nhwc),name2(nc) --target_layout name1(nchw)
+mo --input_model /path/to/model --layout "name1(nhwc->nchw),name2(nc)"
+```
 
 ## When to Specify Mean and Scale Values
 Usually neural network models are trained with the normalized input data. This means that the input data values are converted to be in a specific range, for example, `[0, 1]` or `[-1, 1]`. Sometimes the mean values (mean images) are subtracted from the input data values as part of the pre-processing. There are two cases how the input data pre-processing is implemented.
@@ -32,4 +65,28 @@ There is no a universal recipe for determining the mean/scale values for a parti
 
 ## When to Reverse Input Channels <a name="when_to_reverse_input_channels"></a>
 Input data for your application can be of RGB or BRG color input order. For example, OpenVINO Samples load input images in the BGR channels order. However, the model may be trained on images loaded with the opposite order (for example, most TensorFlow\* models are trained with images in RGB order). In this case, inference results using the OpenVINO samples may be incorrect. The solution is to provide `--reverse_input_channels` command line parameter. Taking this parameter, the Model Optimizer performs first convolution or other channel dependent operation weights modification so these operations output will be like the image is passed with RGB channels order.
+
+## Compression of model to FP16
+
+Mode Optimizer can compress the model to `FP16` data type. This will not only make the
+model to occupy less space in file system, but also may increase performance on some
+hardware. Model Optimizer will change data type on all the constants inside the model
+to `FP16` precision and insert `Convert` nodes to initial data type so that the data
+flow inside the model is preserved. To compress the model to `FP16` please use
+`--data_type` option like this:
+
+```
+mo --input_model /path/to/model --data_type FP16
+```
+
+> **NOTE**: Using `--data_type FP32` will not do anything and will not force `FP32` 
+> precision in the model. If the model was `FP16` originally in the framework,
+> Model Optimizer will not convert such weights to `FP32` even if `--data_type FP32`
+> option is used .
+
+Some plugins, for example GPU, will show greater performance while slightly sacrificing
+accuracy.
+
+> **NOTE**: Intel&reg; Movidius&trade; Myriad&trade; 2 and Intel&reg; Myriad&trade; X VPUs
+> require models in `FP16` precision.
 
