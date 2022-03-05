@@ -4,13 +4,13 @@
 
 "Easy to use" is one of the main points for OpenVINO 2.0 concept. This includes not only simplification of migration from frameworks to OpenVINO Toolkit, but also how OpenVINO is organized, how the development tools are used, how to develop and deploy OpenVINO-based applications.
 
-Starting from OpenVINO 2.0, Model Optimizer, Post Training Optimization tool, Open Model Zoo tools and other Python-based Development tools are distributed via [PyPI](https://pypi.org/project/openvino-dev/) only. This simplifies user experience, because in older versions of OpenVINO development tools should be installed and used differently dependning on distribution type (debian packages vs. PyPi).
+Starting from OpenVINO 2.0, Model Optimizer, Post Training Optimization tool, Open Model Zoo tools and other Python-based Development tools are distributed via [PyPi](https://pypi.org/project/openvino-dev/) only. This simplifies user experience, because in older versions of OpenVINO development tools should be installed and used differently dependning on distribution type (OpenVINO Installer versus PyPi), but also ensures that dependencies are handled properly via `pip` package manager as well as supports virtual environments for development tools.
 
-Moreover, we have tried further to reorganize package structure to have it in a good shape:
+Regarding the OpenVINO Installer, we have tried further to reorganize package structure to have it in a good shape:
 
 - `runtime` folder with OpenVINO Runtime include headers, libraries and CMake interfaces.
-- `tools` folder with [compile_tool](../../../tools/compile_tool/README.md), [deployment manager](../../install_guides/deployment-manager-tool.md), `requirement.txt` files with `openvino-dev` package.
-- `python` folder with OpenVINO Python runtime.
+- `tools` folder with [compile_tool](../../../tools/compile_tool/README.md), [deployment manager](../../install_guides/deployment-manager-tool.md), `requirement.txt` files with link to corresponding version of `openvino-dev` package.
+- `python` folder with OpenVINO Python Runtime.
 
 ## Installing development tools
 
@@ -20,13 +20,13 @@ In older versions of OpenVINO, Development tools were a part of main package. On
 $ mo.py -h
 ```
 
-In OpenVINO 2.0 users can install development tools only from [PyPI](https://pypi.org/project/openvino-dev/) repository:
+Starting with OpenVINO 2.0 users can install development tools only from [PyPi](https://pypi.org/project/openvino-dev/) repository:
 
 ```
 $ python3 -m pip install -r <openvino_root>/tools/requirements_tf.txt 
 ```
 
-Which install all OpenVINO development tools via the `openvino-dev` package and TensorFlow as an extra (see [Step 4. Install the Package](https://pypi.org/project/openvino-dev/) for details).
+Which installs all OpenVINO development tools via the `openvino-dev` package and TensorFlow as an extra (see [Step 4. Install the Package](https://pypi.org/project/openvino-dev/) for details).
 
 Then, tools can be used as:
 
@@ -35,7 +35,7 @@ $ mo -h
 $ pot -h
 ```
 
-Without installations of other dependencies.
+Without installations of other dependencies. See [Install OpenVINO™ Development Tools](../../install_guides/installing-model-dev-tools.md) for more details.
 
 ## Build C / C++ applications
 
@@ -52,7 +52,7 @@ add_executable(ie_ngraph_app main.cpp)
 target_link_libraries(ie_ngraph_app PRIVATE ${InferenceEngine_LIBRARIES} ${NGRAPH_LIBRARIES})
 ```
 
-OpenVINO Runtine 2.0:
+OpenVINO Runtime 2.0:
 
 ```cmake
 find_package(OpenVINO REQUIRED)
@@ -153,4 +153,4 @@ Now, the modularity is more clear:
  - `openvino_onnx_frontend` to read ONNX models
  - `openvino_paddle_frontend` to read Paddle models
 
-So, to perform deployment steps - just take only required functionality: `openvino` or `openvino_c` depending on derired language plus plugins which are needed to solve your task. For example, `openvino_intel_cpu_plugin` and `openvino_ir_frontend` plugins to be able to load OpenVINO IRs and perform inference on CPU device.
+So, to perform deployment steps - just take only required functionality: `openvino` or `openvino_c` depending on desired language plus plugins which are needed to solve your task. For example, `openvino_intel_cpu_plugin` and `openvino_ir_frontend` plugins to be able to load OpenVINO IRs and perform inference on CPU device.

@@ -5,12 +5,12 @@
 .. toctree::
    :maxdepth: 1
    :hidden:
-   
+
+   openvino_2_0_deployment
    openvino_2_0_inference_pipeline
    openvino_2_0_configure_devices
    openvino_2_0_preprocessing
    openvino_2_0_model_creation
-   openvino_2_0_deployment
       
 @endsphinxdirective
 
@@ -74,10 +74,10 @@ The table below demonstrates which behavior **old** or **new** is used depending
 |OpenVINO Runtime API 2.0       |     Old |     New |       New |                   New |
 
 Please look at next transition guides to understand how migrate Inference Engine-based application to OpenVINO™ Runtime API 2.0:
+ - [Install & deployment](deployment_migration.md)
  - [OpenVINO™ Common Inference pipeline](common_inference_pipeline.md)
  - [Preprocess your model](./preprocessing.md)
  - [Configure device](./configure_devices.md)
  - [OpenVINO™ Model Creation](graph_construction.md)
- - [Install & deployment](deployment_migration.md)
 
 [tf_openvino]: ../../img/tf_openvino.png
