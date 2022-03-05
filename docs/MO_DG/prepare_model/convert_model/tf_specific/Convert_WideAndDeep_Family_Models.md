@@ -1,4 +1,4 @@
-# Converting TensorFlow* Wide and Deep Family Models to the Intermediate Representation {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_WideAndDeep_Family_Models}
+# Convert TensorFlow Wide and Deep Family Models {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_WideAndDeep_Family_Models}
 
 The Wide and Deep models is a combination of wide and deep parts for memorization and generalization of object features respectively.
 These models can contain different types of object features such as numerical, categorical, sparse and sequential features. These feature types are specified
@@ -24,7 +24,7 @@ The Wide and Deep model is no longer in the master branch of the repository but 
 
 **Step 2**. Train the model
 
-As the OpenVINO&trade; toolkit does not support the categorical with hash and crossed features, such feature types must be switched off in the model 
+As the OpenVINO&trade; toolkit does not support the categorical with hash and crossed features, such feature types must be switched off in the model
 by changing the `build_model_columns()` function in `census_dataset.py` as follows:
 
 ```python
@@ -61,7 +61,7 @@ def build_model_columns():
       age, boundaries=[18, 25, 30, 35, 40, 45, 50, 55, 60, 65])
   # Wide columns and deep columns.
   base_columns = [
-      education, marital_status, relationship, workclass, 
+      education, marital_status, relationship, workclass,
       age_buckets,
   ]
   crossed_columns = []
@@ -92,7 +92,7 @@ python census_main.py
 Use the following command line to convert the saved model file with the checkpoint:
 
 ```sh
- mo 
+ mo
 --input_checkpoint checkpoint --input_meta_graph model.ckpt.meta
 --input "IteratorGetNext:0[2],
          IteratorGetNext:1[2],
@@ -122,7 +122,7 @@ Use the following command line to convert the saved model file with the checkpoi
          dnn/input_from_feature_columns/input_layer/relationship_indicator/to_sparse_input/dense_shape:0[2]{i64}->[2 50],
          dnn/input_from_feature_columns/input_layer/workclass_indicator/to_sparse_input/indices:0[10 2]{i64},
          dnn/input_from_feature_columns/input_layer/workclass_indicator/hash_table_Lookup/LookupTableFindV2:0[10]{i64},
-         dnn/input_from_feature_columns/input_layer/workclass_indicator/to_sparse_input/dense_shape:0[2]{i64}->[2 50]" 
+         dnn/input_from_feature_columns/input_layer/workclass_indicator/to_sparse_input/dense_shape:0[2]{i64}->[2 50]"
 --output head/predictions/probabilities
 ```
 

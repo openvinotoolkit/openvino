@@ -7,28 +7,6 @@ A summary of the steps for optimizing and deploying a model trained with PaddleP
 3. Test the model in the Intermediate Representation format using the [OpenVINO™ Runtime](../../../OV_Runtime_UG/openvino_intro.md) in the target environment via provided [OpenVINO Samples](../../../OV_Runtime_UG/Samples_Overview.md).
 4. [Integrate](../../../OV_Runtime_UG/Samples_Overview.md) the [OpenVINO™ Runtime](../../../OV_Runtime_UG/openvino_intro.md) in your application to deploy the model in the target environment.
 
-## Supported Topologies
-
-| Model Name| Model Type| Description|
-| ------------- | ------------ | ------------- |
-|ppocr-det| optical character recognition| Models are exported from [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR/tree/release/2.1/). Refer to [READ.md](https://github.com/PaddlePaddle/PaddleOCR/tree/release/2.1/#pp-ocr-20-series-model-listupdate-on-dec-15).|
-|ppocr-rec| optical character recognition| Models are exported from [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR/tree/release/2.1/). Refer to [READ.md](https://github.com/PaddlePaddle/PaddleOCR/tree/release/2.1/#pp-ocr-20-series-model-listupdate-on-dec-15).|
-|ResNet-50| classification| Models are exported from [PaddleClas](https://github.com/PaddlePaddle/PaddleClas/tree/release/2.1/). Refer to [getting_started_en.md](https://github.com/PaddlePaddle/PaddleClas/blob/release/2.1/docs/en/tutorials/getting_started_en.md#4-use-the-inference-model-to-predict)|
-|MobileNet v2| classification| Models are exported from [PaddleClas](https://github.com/PaddlePaddle/PaddleClas/tree/release/2.1/). Refer to [getting_started_en.md](https://github.com/PaddlePaddle/PaddleClas/blob/release/2.1/docs/en/tutorials/getting_started_en.md#4-use-the-inference-model-to-predict)|
-|MobileNet v3| classification| Models are exported from [PaddleClas](https://github.com/PaddlePaddle/PaddleClas/tree/release/2.1/). Refer to [getting_started_en.md](https://github.com/PaddlePaddle/PaddleClas/blob/release/2.1/docs/en/tutorials/getting_started_en.md#4-use-the-inference-model-to-predict)|
-|BiSeNet v2| semantic segmentation| Models are exported from [PaddleSeg](https://github.com/PaddlePaddle/PaddleSeg/tree/release/2.1). Refer to [model_export.md](https://github.com/PaddlePaddle/PaddleSeg/blob/release/2.1/docs/model_export.md#)|
-|DeepLab v3 plus| semantic segmentation| Models are exported from [PaddleSeg](https://github.com/PaddlePaddle/PaddleSeg/tree/release/2.1). Refer to [model_export.md](https://github.com/PaddlePaddle/PaddleSeg/blob/release/2.1/docs/model_export.md#)|
-|Fast-SCNN| semantic segmentation| Models are exported from [PaddleSeg](https://github.com/PaddlePaddle/PaddleSeg/tree/release/2.1). Refer to [model_export.md](https://github.com/PaddlePaddle/PaddleSeg/blob/release/2.1/docs/model_export.md#)|
-|OCRNET| semantic segmentation| Models are exported from [PaddleSeg](https://github.com/PaddlePaddle/PaddleSeg/tree/release/2.1). Refer to [model_export.md](https://github.com/PaddlePaddle/PaddleSeg/blob/release/2.1/docs/model_export.md#)|
-|Yolo v3| detection| Models are exported from [PaddleDetection](https://github.com/PaddlePaddle/PaddleDetection/tree/release/2.1). Refer to [EXPORT_MODEL.md](https://github.com/PaddlePaddle/PaddleDetection/blob/release/2.1/deploy/EXPORT_MODEL.md#).|
-|ppyolo| detection| Models are exported from [PaddleDetection](https://github.com/PaddlePaddle/PaddleDetection/tree/release/2.1). Refer to [EXPORT_MODEL.md](https://github.com/PaddlePaddle/PaddleDetection/blob/release/2.1/deploy/EXPORT_MODEL.md#).|
-|MobileNetv3-SSD| detection| Models are exported from [PaddleDetection](https://github.com/PaddlePaddle/PaddleDetection/tree/release/2.2). Refer to [EXPORT_MODEL.md](https://github.com/PaddlePaddle/PaddleDetection/blob/release/2.2/deploy/EXPORT_MODEL.md#).|
-|U-Net| semantic segmentation| Models are exported from [PaddleSeg](https://github.com/PaddlePaddle/PaddleSeg/tree/release/2.3). Refer to [model_export.md](https://github.com/PaddlePaddle/PaddleSeg/blob/release/2.3/docs/model_export.md#)|
-|BERT| language representation| Models are exported from [PaddleNLP](https://github.com/PaddlePaddle/PaddleNLP/tree/v2.1.1). Refer to [README.md](https://github.com/PaddlePaddle/PaddleNLP/tree/develop/examples/language_model/bert#readme)|
-|ernie| language representation| Models are exported from [PaddleNLP](https://github.com/PaddlePaddle/PaddleNLP/tree/v2.1.1). Refer to [README.md](https://github.com/PaddlePaddle/PaddleNLP/tree/develop/examples/language_model/bert#readme)|
-
-> **NOTE:** The verified models are exported from the repository of branch release/2.1.
-
 ## Convert a PaddlePaddle Model <a name="Convert_From_Paddle"></a>
 
 To convert a PaddlePaddle model:
@@ -56,3 +34,6 @@ Refer to [Supported Framework Layers](../Supported_Frameworks_Layers.md) for the
 ## Frequently Asked Questions (FAQ)
 
 When Model Optimizer is unable to run to completion due to issues like typographical errors, incorrectly used options, etc., it provides explanatory messages. They describe the potential cause of the problem and give a link to the [Model Optimizer FAQ](../Model_Optimizer_FAQ.md), which provides instructions on how to resolve most issues. The FAQ also includes links to relevant sections in the Model Optimizer Developer Guide to help you understand what went wrong.
+
+## See Also
+[Model Conversion Tutorials](Convert_Model_Tutorials.md)

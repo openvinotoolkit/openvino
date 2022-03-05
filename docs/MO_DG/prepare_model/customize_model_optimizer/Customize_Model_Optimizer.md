@@ -10,7 +10,7 @@
 
 @endsphinxdirective
 
-<a name="model-optimizer-extensibility"></a>Model Optimizer extensibility mechanism enables support of new operations and custom transformations to generate the optimized intermediate representation (IR) as described in the 
+<a name="model-optimizer-extensibility"></a>Model Optimizer extensibility mechanism enables support of new operations and custom transformations to generate the optimized intermediate representation (IR) as described in the
 [Deep Learning Network Intermediate Representation and Operation Sets in OpenVINO™](../../IR_and_opsets.md). This
 mechanism is a core part of the Model Optimizer. The Model Optimizer itself uses it under the hood, being a huge set of examples on how to add custom logic to support your model.
 
@@ -144,7 +144,7 @@ OpenVINO&trade; [TopK](../../../ops/sort/TopK_3.md) operation semantic, which re
 
 It is important to mention that sometimes it seems like transformation cannot be implemented during the front phase
 because the actual values of inputs or shapes are needed. But in fact shapes or values manipulations can be implemented
-using operations that are added to the graph. Consider the 
+using operations that are added to the graph. Consider the
 `extensions/front/onnx/flattenONNX_to_reshape.py` transformation, which replaces an ONNX\* operation
 [Flatten](https://github.com/onnx/onnx/blob/master/docs/Operators.md#Flatten) with a sub-graph of operations performing
 the following (for the case when `axis` is not equal to 0 and 1):
@@ -260,7 +260,7 @@ More information on how to develop middle transformations and dedicated API desc
 
 There are several middle transformations responsible for changing model layout from NHWC to NCHW. These transformations are triggered by default for TensorFlow models as TensorFlow supports Convolution operations in the NHWC layout.
 
-This layout change is disabled automatically if the model does not have operations that OpenVINO&trade needs to execute in the NCHW layout, for example, Convolutions in NHWC layout. 
+This layout change is disabled automatically if the model does not have operations that OpenVINO&trade needs to execute in the NCHW layout, for example, Convolutions in NHWC layout.
 
 It is still possible to force Model Optimizer to do layout change, using `--disable_nhwc_to_nchw` command-line parameter, although it is not advised.
 
@@ -287,7 +287,7 @@ The back phase starts after the layout change to NCHW. This phase contains mostl
 
 1. Transformations that should work with a graph in the NCHW layout and thus cannot be implemented in the middle
 phase.
-2. Transformations that replace nodes corresponding to internal Model Optimizer operations with nodes corresponding to the 
+2. Transformations that replace nodes corresponding to internal Model Optimizer operations with nodes corresponding to the
 [opset](@ref openvino_docs_ops_opset) operations.
 3. Transformations that normalize operations inputs according to the specification.
 4. Final optimization transformations.
@@ -703,7 +703,7 @@ to enable or disable execution of the transformation during a model conversion. 
 2. Attribute `id` specifies a unique transformation string identifier. This transformation identifier can be used to
 enable (disable) the transformation by setting environment variable `MO_ENABLED_TRANSFORMS` (`MO_DISABLED_TRANSFORMS`)
 with a comma separated list of `id`s. The environment variables override the value of the `enabled` attribute of the
-transformation. Instead of using `id` attribute value you can add fully defined class name to `MO_ENABLED_TRANSFORMS` 
+transformation. Instead of using `id` attribute value you can add fully defined class name to `MO_ENABLED_TRANSFORMS`
 (`MO_DISABLED_TRANSFORMS`) variable, `extensions.back.NonmalizeToNormalizeL2.NormalizeToNormalizeL2` for example. Optional attribute.
 3. Attribute `run_not_recursively` specifies whether the transformation should be executed in the sub-graphs, for
 example, body of the [TensorIterator](../../../ops/infrastructure/TensorIterator_1.md) and

@@ -1,4 +1,4 @@
-# Convert TensorFlow* Attention OCR Model to Intermediate Representation {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_AttentionOCR_From_Tensorflow}
+# Convert TensorFlow Attention OCR Model {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_AttentionOCR_From_Tensorflow}
 
 This tutorial explains how to convert the Attention OCR (AOCR) model from the [TensorFlow* Attention OCR repository](https://github.com/emedvedev/attention-ocr) to the Intermediate Representation (IR).
 
@@ -20,7 +20,7 @@ The original AOCR model contains data preprocessing which consists of the follow
 * Decoding input data to binary format where input data is an image represented as a string.
 * Resizing binary image to working resolution.
 
-After that, the resized image is sent to the convolution neural network (CNN). The Model Optimizer does not support image decoding so you should cut of preprocessing part of the model using '--input' command line parameter. 
+After that, the resized image is sent to the convolution neural network (CNN). The Model Optimizer does not support image decoding so you should cut of preprocessing part of the model using '--input' command line parameter.
 ```sh
 mo \
 --input_model=model/path/frozen_graph.pb \

@@ -1,4 +1,4 @@
-# Convert PyTorch* F3Net to the Intermediate Representation {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_F3Net}
+# Convert PyTorch* F3Net Model {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_F3Net}
 
 [F3Net](https://github.com/weijun88/F3Net): Fusion, Feedback and Focus for Salient Object Detection
 
@@ -7,12 +7,12 @@
 To clone the repository, run the following command:
 
 ```sh
-git clone http://github.com/weijun88/F3Net.git 
+git clone http://github.com/weijun88/F3Net.git
 ```
 
 ## Download and Convert the Model to ONNX*
 
-To download the pre-trained model or train the model yourself, refer to the 
+To download the pre-trained model or train the model yourself, refer to the
 [instruction](https://github.com/weijun88/F3Net/blob/master/README.md) in the F3Net model repository. First, convert the model to ONNX\* format. Create and run the following Python script in the `src` directory of the model repository:
 ```python
 import torch
