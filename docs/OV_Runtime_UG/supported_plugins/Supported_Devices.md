@@ -1,11 +1,11 @@
 Supported Devices {#openvino_docs_IE_DG_supported_plugins_Supported_Devices}
 ==================
 
-The Inference Engine can infer models in different formats with various input and output formats. This section provides supported and optimal configurations per device. In OpenVINO™ documentation, "device" refers to an Intel® processors used for inference, which can be a supported CPU, GPU, VPU (vision processing unit), or GNA (Gaussian neural accelerator coprocessor), or a combination of those devices.
+The OpenVINO Runtime can infer models in different formats with various input and output formats. This section provides supported and optimal configurations per device. In OpenVINO™ documentation, "device" refers to an Intel® processors used for inference, which can be a supported CPU, GPU, VPU (vision processing unit), or GNA (Gaussian neural accelerator coprocessor), or a combination of those devices.
 
 > **NOTE**: With OpenVINO™ 2020.4 release, Intel® Movidius™ Neural Compute Stick is no longer supported.
 
-The Inference Engine provides unique capabilities to infer deep learning models on the following device types with corresponding plugins:
+The OpenVINO Runtime provides unique capabilities to infer deep learning models on the following device types with corresponding plugins:
 
 | Plugin                                   | Device types                                                                                                                                                |
 |------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -35,7 +35,7 @@ The table below shows the plugin libraries and additional dependencies for Linux
 
 ## Supported Configurations
 
-The Inference Engine can inference models in different formats with various input and output formats.
+The OpenVINO Runtime can inference models in different formats with various input and output formats.
 This page shows supported and optimal configurations for each plugin.
 
 ### Terminology
@@ -116,7 +116,7 @@ the supported output precision  depends on the actual underlying devices. _Gener
 |Layout              |NCDHW|NCHW |CHW  |NC   |C    |
 
 For setting relevant configuration, refer to the
-[Integrate with Customer Application New Request API](../Integrate_with_customer_application_new_API.md) topic
+[Integrate with Customer Application](../integrate_with_your_application.md) topic
 (step 3 "Configure input and output").
 
 ### Supported Layers
@@ -271,6 +271,6 @@ The following layers are supported by the plugins and by [Shape Inference featur
 
 \*- support is limited to the specific parameters. Refer to "Known Layers Limitation" section for the device [from the list of supported](Supported_Devices.md).
 
-\*\*- support is implemented via [Extensibility mechanism](../Extensibility_DG/Intro.md).
+\*\*- support is implemented via [Extensibility mechanism](../../Extensibility_UG/Intro.md).
 
 \*\*\*- supports NCDHW layout.
