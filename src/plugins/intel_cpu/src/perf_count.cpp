@@ -19,7 +19,7 @@ static double perfDeviationPercent(const std::vector<double>& values, const doub
 static void perfShapeToStr(const VectorDims& shape, std::string& str);
 static void perfDumpNodes(const std::string& path, const std::vector<MKLDNNNodePtr>& nodes, const std::vector<std::string>& modelInputShapes);
 
-void PerfCount::finish_itr(const PerfKey itrKey, PerfData::PerfNodeShape&& itrNodeShape) {
+void PerfCount::finish_itr(const PerfKey itrKey, const std::shared_ptr<MKLDNNNode>& node) {
     finish_itr();
 
     assert(itrKey <= _perfData.size());
@@ -33,7 +33,17 @@ void PerfCount::finish_itr(const PerfKey itrKey, PerfData::PerfNodeShape&& itrNo
             perfData.counters[i].num++;
         }
     }
-    perfData.nodeShapesSet.insert(itrNodeShape);
+
+    std::vector<VectorDims> in, out;
+    in.reserve(node->getParentEdges().size());
+    for (auto i = 0; i < node->getParentEdges().size(); i++) {
+        in.push_back(node->getParentEdgeAt(i)->getMemory().getStaticDims());
+    }
+    out.reserve(node->getChildEdges().size());
+    for (auto i = 0; i < node->getChildEdges().size(); i++) {
+        out.push_back(node->getChildEdgeAt(i)->getMemory().getStaticDims());
+    }
+    perfData.nodeShapesSet.insert(std::make_pair(std::move(in), std::move(out)));
 }
 
 PerfHelper::PerfHelper(const std::shared_ptr<MKLDNNNode>& node, const PerfKey itrKey) :
@@ -43,16 +53,7 @@ PerfHelper::PerfHelper(const std::shared_ptr<MKLDNNNode>& node, const PerfKey it
 
 PerfHelper::~PerfHelper() {
     if (_itrKey != std::numeric_limits<PerfKey>::max()) {
-        std::vector<VectorDims> in, out;
-        in.reserve(_node->getParentEdges().size());
-        for (auto i = 0; i < _node->getParentEdges().size(); i++) {
-            in.push_back(_node->getParentEdgeAt(i)->getMemory().getStaticDims());
-        }
-        out.reserve(_node->getChildEdges().size());
-        for (auto i = 0; i < _node->getChildEdges().size(); i++) {
-            out.push_back(_node->getChildEdgeAt(i)->getMemory().getStaticDims());
-        }
-        _node->PerfCounter().finish_itr(_itrKey, std::make_pair(std::move(in), std::move(out)));
+        _node->PerfCounter().finish_itr(_itrKey, _node);
     } else {
         _node->PerfCounter().finish_itr();
     }

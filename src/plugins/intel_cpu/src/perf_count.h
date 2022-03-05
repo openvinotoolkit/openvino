@@ -57,6 +57,7 @@ public:
 
 #else // CPU_DEBUG_CAPS
 
+class MKLDNNNode;
 typedef size_t PerfKey;
 
 class PerfCount {
@@ -139,13 +140,12 @@ private:
         _total.num++;
         _isItrStarted = false;
     }
-    void finish_itr(const PerfKey itrKey, PerfData::PerfNodeShape&& itrNodeShape);
+    void finish_itr(const PerfKey itrKey, const std::shared_ptr<MKLDNNNode>& node);
 
     friend class PerfHelper;
     friend class PerfHelperStage;
 };
 
-class MKLDNNNode;
 class PerfHelper {
     const std::shared_ptr<MKLDNNNode>& _node;
     const PerfKey _itrKey;
