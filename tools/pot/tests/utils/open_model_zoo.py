@@ -58,7 +58,7 @@ def download(config):
     return runner.run()
 
 
-def command_line_for_convert(config):
+def command_line_for_convert(config, custom_mo_config=None):
     python_path = DOWNLOAD_PATH.as_posix()
     executable = OMZ_DOWNLOADER_PATH.joinpath('converter.py').as_posix()
     cli_args = ' -o ' + config.model_params.output_dir
@@ -66,8 +66,8 @@ def command_line_for_convert(config):
     cli_args += ' --name ' + config.name
     cli_args += ' --mo ' + MO_PATH.joinpath('mo.py').as_posix()
     cli_args += ' --precisions ' + config.precision
-    if hasattr(config, 'custom_mo_config'):
-        for custom_mo_arg in config.custom_mo_config:
+    if custom_mo_config:
+        for custom_mo_arg in custom_mo_config:
             cli_args += ' --add_mo_arg=' + custom_mo_arg
     script_launch_cli = '{python_exe} {main_py} {args}'.format(
         python_exe=sys.executable, main_py=executable, args=cli_args
@@ -80,8 +80,8 @@ def command_line_for_convert(config):
     )
 
 
-def convert(config):
-    runner = Command(command_line_for_convert(config))
+def convert(config, custom_mo_config=None):
+    runner = Command(command_line_for_convert(config, custom_mo_config))
     return runner.run()
 
 

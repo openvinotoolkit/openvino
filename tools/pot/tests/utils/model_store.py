@@ -38,9 +38,7 @@ class ModelStore:
                         'Couldn\'t load model {} from the framework {}'.format(model.name, model.framework))
                 assert omz_model_download(model) == 0,\
                     'Can not download model: {}'.format(model.name)
-                if custom_mo_config:
-                    model.custom_mo_config = custom_mo_config
-                convert_value = omz_model_convert(model)
+                convert_value = omz_model_convert(model, custom_mo_config)
                 assert convert_value == 0, 'Can not convert model: {}'.format(model.name)
                 model_path = tmp_path.joinpath(
                     model.subdirectory.as_posix(), model.precision, model.name)
