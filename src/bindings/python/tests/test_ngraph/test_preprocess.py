@@ -355,7 +355,7 @@ def test_ngraph_preprocess_crop():
 
     p = PrePostProcessor(function)
     p.input().tensor().set_shape(tensor_shape)
-    p.input().preprocess().crop([0,0,1,1], [1,2,-1,-1])
+    p.input().preprocess().crop([0, 0, 1, 1], [1, 2, -1, -1])
     function = p.build()
 
     input_data = np.arange(18).astype(np.float32).reshape(tensor_shape)
