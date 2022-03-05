@@ -29,7 +29,7 @@ from openvino.tools.mo.pipeline.common import prepare_emit_ir, get_ir_version
 from openvino.tools.mo.pipeline.unified import unified_pipeline
 from openvino.tools.mo.utils import import_extensions
 from openvino.tools.mo.utils.cli_parser import check_available_transforms, \
-    get_advanced_cli_options, get_caffe_cli_options, \
+    get_advanced_cli_options, get_available_front_ends, get_caffe_cli_options, \
     get_common_cli_options, get_freeze_placeholder_values, get_kaldi_cli_options, get_layout_values, \
     get_mean_scale_dictionary, get_meta_info, get_model_name, get_mxnet_cli_options, get_onnx_cli_options, \
     get_placeholder_shapes, get_tf_cli_options, get_tuple_values, parse_transform, parse_tuple_pairs
@@ -120,7 +120,7 @@ def get_moc_frontends(argv: argparse.Namespace):
     if not fem or use_legacy_frontend:
         return None, []
 
-    available_moc_front_ends = fem.get_available_front_ends()
+    available_moc_front_ends = get_available_front_ends(fem)
 
     if not argv.framework and argv.input_model:
         moc_front_end = fem.load_by_model(argv.input_model)
@@ -135,7 +135,11 @@ def get_moc_frontends(argv: argparse.Namespace):
     default_frontends = get_default_frontends()
     # Disable MOC frontend if default is set to legacy and no user override
     if default_frontends.get(moc_front_end.get_name()) == 'legacy' and not use_new_frontend:
-        moc_front_end = None
+        return None, available_moc_front_ends
+
+    # This check as a workaround to skip IR frontend
+    if not moc_front_end.get_name() in available_moc_front_ends:
+        return None, available_moc_front_ends
 
     return moc_front_end, available_moc_front_ends
 
