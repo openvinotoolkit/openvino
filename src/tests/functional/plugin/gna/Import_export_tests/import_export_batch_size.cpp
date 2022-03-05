@@ -13,7 +13,7 @@
 #include <ie_layouts.h>
 
 #include "ngraph_functions/builders.hpp"
-#include "base/import_export_base/import_export_base.hpp"
+#include "base/import_export_base.hpp"
 
 namespace LayerTestDefinitions {
 
