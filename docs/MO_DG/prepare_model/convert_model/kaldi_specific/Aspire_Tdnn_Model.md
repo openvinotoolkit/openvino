@@ -1,6 +1,6 @@
-# Convert Kaldi* ASpIRE Chain Time Delay Neural Network (TDNN) Model to the Intermediate Representation {#openvino_docs_MO_DG_prepare_model_convert_model_kaldi_specific_Aspire_Tdnn_Model}
+# Convert Kaldi* ASpIRE Chain Time Delay Neural Network (TDNN) Model {#openvino_docs_MO_DG_prepare_model_convert_model_kaldi_specific_Aspire_Tdnn_Model}
 
-You can [download a pre-trained model](https://kaldi-asr.org/models/1/0001_aspire_chain_model.tar.gz) 
+You can [download a pre-trained model](https://kaldi-asr.org/models/1/0001_aspire_chain_model.tar.gz)
 for the ASpIRE Chain Time Delay Neural Network (TDNN) from the Kaldi* project official website.
 
 ## Convert ASpIRE Chain TDNN Model to IR
@@ -10,15 +10,15 @@ To generate the Intermediate Representation (IR) of the model, run the Model Opt
  mo --input_model exp/chain/tdnn_7b/final.mdl --output output
 ```
 
-The IR will have two inputs: `input` for data and `ivector` for ivectors. 
+The IR will have two inputs: `input` for data and `ivector` for ivectors.
 
 ## Example: Run ASpIRE Chain TDNN Model with the Speech Recognition Sample
 
 These instructions show how to run the converted model with the [Speech Recognition sample](../../../../../samples/cpp/speech_sample/README.md).
-In this example, the input data contains one utterance from one speaker. 
+In this example, the input data contains one utterance from one speaker.
 
-To follow the steps described below, you must first do the following: 
-1. Download a [Kaldi repository](https://github.com/kaldi-asr/kaldi). 
+To follow the steps described below, you must first do the following:
+1. Download a [Kaldi repository](https://github.com/kaldi-asr/kaldi).
 2. Build it using instructions in `README.md` in the repository.
 3. Download the [model archive](https://kaldi-asr.org/models/1/0001_aspire_chain_model.tar.gz) from Kaldi website.
 4. Extract the downloaded model archive to the `egs/aspire/s5` folder of the Kaldi repository.
@@ -49,10 +49,10 @@ cd <path_to_kaldi_repo>/egs/aspire/s5/
 
 2. Extract ivectors from the data:
 ```sh
-./steps/online/nnet2/extract_ivectors_online.sh --nj 1 --ivector_period <max_frame_count_in_utterance> <data folder> exp/tdnn_7b_chain_online/ivector_extractor <ivector folder> 
+./steps/online/nnet2/extract_ivectors_online.sh --nj 1 --ivector_period <max_frame_count_in_utterance> <data folder> exp/tdnn_7b_chain_online/ivector_extractor <ivector folder>
 ```
-To simplify the preparation of ivectors for the Speech Recognition sample, 
-specify the maximum number of frames in utterances as a parameter for `--ivector_period` 
+To simplify the preparation of ivectors for the Speech Recognition sample,
+specify the maximum number of frames in utterances as a parameter for `--ivector_period`
 to get only one ivector per utterance.
 
 To get the maximum number of frames in utterances, you can use the following command line:
@@ -71,7 +71,7 @@ cd <ivector folder>
 <path_to_kaldi_repo>/src/featbin/copy-feats --binary=False ark:ivector_online.1.ark ark,t:ivector_online.1.ark.txt
 ```
 
-5. For the Speech Recognition sample, the `.ark` file must contain an ivector 
+5. For the Speech Recognition sample, the `.ark` file must contain an ivector
 for each frame. You must copy the ivector `frame_count` times.
 To do this, you can run the following script in the Python* command prompt:
 ```python
@@ -108,5 +108,5 @@ Run the Speech Recognition sample with the created ivector `.ark` file as follow
 speech_sample -i feats.ark,ivector_online_ie.ark -m final.xml -d CPU -o prediction.ark -cw_l 17 -cw_r 12
 ```
 
-Results can be decoded as described in "Use of Sample in Kaldi* Speech Recognition Pipeline" chapter 
+Results can be decoded as described in "Use of Sample in Kaldi* Speech Recognition Pipeline" chapter
 in [the Speech Recognition Sample description](../../../../../samples/cpp/speech_sample/README.md).
