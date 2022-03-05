@@ -7,6 +7,9 @@
 #include "openvino/core/axis_vector.hpp"
 #include "utils.hpp"
 
+namespace ov {
+namespace op {
+namespace util {
 template <class T>
 void irdft_shape_infer(const ov::op::v9::IRDFT* op,
                       const std::vector<T>& input_shapes,
@@ -132,3 +135,6 @@ void irdft_shape_infer(const ov::op::v9::IRDFT* op,
         output_shape[last_axis] = DimType(2) * (input_shape[last_axis] - DimType(1));
     }
 }
+}  // namespace util
+}  // namespace op
+}  // namespace ov

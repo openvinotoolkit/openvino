@@ -7,6 +7,9 @@
 #include "openvino/core/axis_vector.hpp"
 #include "utils.hpp"
 
+namespace ov {
+namespace op {
+namespace util {
 template <typename B>
 B get_ouput_dimension_bound(B b) {
     if (b <= 0) {
@@ -132,3 +135,6 @@ void rdft_shape_infer(const ov::op::v9::RDFT* op,
     }
     output_shape[last_axis] = get_rdft_output_dimension(output_shape[last_axis]);
 }
+}  // namespace util
+}  // namespace op
+}  // namespace ov

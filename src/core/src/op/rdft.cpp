@@ -69,6 +69,6 @@ void op::v9::RDFT::validate_and_infer_types() {
         input_shapes = {data, axes, signal_size};
     }
 
-    rdft_shape_infer(this, input_shapes, output_shapes);
+    ov::op::util::rdft_shape_infer(this, input_shapes, output_shapes);
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
