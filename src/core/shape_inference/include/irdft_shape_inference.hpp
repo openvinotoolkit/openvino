@@ -46,7 +46,7 @@ void irdft_shape_infer(const ov::op::v9::IRDFT* op,
                                   axes_shape[0].get_length());
         }
 
-        // IRDFT operation supports for negative axes to transform. More precisely, according to
+        // IRDFT operation supports negative axes to transform. More precisely, according to
         // the IRDFT operation specification, axes should be integers from -(r - 1) to (r - 2)
         // inclusively, where r = rank(data). A negative axis 'a' is interpreted as an axis
         // 'r - 1 + a'. The reason is the following: real input tensor of the shape
@@ -64,7 +64,7 @@ void irdft_shape_infer(const ov::op::v9::IRDFT* op,
                 axes_set.insert(static_cast<size_t>(axis));
             }
 
-            NODE_VALIDATION_CHECK(op, axes.size() == axes_set.size(), "FFT op axes must be unique.");
+            NODE_VALIDATION_CHECK(op, axes.size() == axes_set.size(), "IRDFT op axes must be unique.");
 
             NODE_VALIDATION_CHECK(op,
                                   std::find(axes.begin(), axes.end(), input_rank - 1) == axes.end(),

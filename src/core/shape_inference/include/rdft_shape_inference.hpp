@@ -54,9 +54,9 @@ void rdft_shape_infer(const ov::op::v9::RDFT* op,
                                   axes_shape[0].get_length());
         }
 
-        // RDFT operation supports for negative axes to transform. More precisely, according to
+        // RDFT operation supports negative axes to transform. More precisely, according to
         // the RDFT operation specification, axes should be integers from -r to (r - 1)
-        // inclusively, where r = rank(data). A negative axis 'a' is interpreted as an axis 'r+ a'.
+        // inclusively, where r = rank(data). A negative axis 'a' is interpreted as an axis 'r + a'.
         if (axes_shape.rank().is_static() && axes_are_known) {
             for (int64_t& axis : axes) {
                 if (axis < 0) {
