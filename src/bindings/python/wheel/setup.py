@@ -427,6 +427,7 @@ def get_package_dir(install_cfg):
         py_package_path = dirs[0]
     return py_package_path
 
+
 def concat_files(output_file, input_files):
     with open(output_file, 'w', encoding='utf-8') as outfile:
         for filename in input_files:
@@ -434,6 +435,7 @@ def concat_files(output_file, input_files):
                 content = infile.read()
                 outfile.write(content)
     return output_file
+
 
 platforms = ['linux', 'win32', 'darwin']
 if not any(pl in sys.platform for pl in platforms):
