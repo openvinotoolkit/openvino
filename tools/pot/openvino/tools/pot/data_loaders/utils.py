@@ -35,11 +35,13 @@ def crop(image, central_fraction):
     return image[start_height:start_height + dst_height, start_width:start_width + dst_width]
 
 
-def prepare_image(image, layout, dst_shape, central_fraction=None, grayscale=False):
+def prepare_image(image, layout, dst_shape=None, central_fraction=None, grayscale=False):
     if central_fraction:
         image = crop(image, central_fraction)
 
-    image = cv.resize(image, dst_shape[::-1])
+    if dst_shape:
+        image = cv.resize(image, dst_shape[::-1])
+
     if grayscale:
         image = np.expand_dims(image, 2)
 
