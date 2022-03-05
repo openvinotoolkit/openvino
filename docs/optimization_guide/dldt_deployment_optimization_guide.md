@@ -29,7 +29,7 @@ In many cases, a network expects a pre-processed image, so make sure you do not 
 - Note that in many cases, you can directly share the (input) data with the OpenVINO, for example consider [remote tensors API of the GPU Plugin](../OV_Runtime_UG//supported_plugins/GPU_RemoteBlob_API.md).
 
 ## High-level Performance Presets (Hints): Throughput and Latency
-Traditionally, each of the OpenVINO's [supported devices](supported_plugins/Supported_Devices.md) offers a bunch of low-level performance settings. 
+Traditionally, each of the OpenVINO's [supported devices](../OV_Runtime_UG/supported_plugins/Supported_Devices.md) offers a bunch of low-level performance settings. 
 Tweaking this detailed configuration requires deep architecture understanding.
 Also, while the resulting performance may be optimal for the specific combination of the device and the model that is inferred, it is actually neither device/model nor future-proof:
 - Even within a family of the devices (like various CPUs), things like different number of CPU cores would eventually result in different execution configuration to be optimal.
@@ -127,3 +127,23 @@ Please refer to the code of the [Benchmark App](../../samples/cpp/benchmark_app/
 -	Multi-device logic always attempts to save on the (e.g. inputs) data copies between device-agnostic, user-facing inference requests 
     and device-specific 'worker' requests that are being actually scheduled behind the scene. 
     To facilitate the copy savings, it is recommended to run the requests in the order that they were created.
+
+### Internal Inference Performance Counters and Execution Graphs <a name="performance-counters"></a>
+
+Both [C++](../../samples/cpp/benchmark_app/README.md) and [Python](../../tools/benchmark_tool/README.md) versions of the `benchmark_app` supports a `-pc` command-line parameter that outputs internal execution breakdown.
+
+Below is example of CPU plugin output for a network (since the device is CPU, the layers wall clock `realTime` and the `cpu` time are the same):
+
+```
+conv1      EXECUTED       layerType: Convolution        realTime: 706        cpu: 706            execType: jit_avx2
+conv2_1_x1  EXECUTED       layerType: Convolution        realTime: 137        cpu: 137            execType: jit_avx2_1x1
+fc6        EXECUTED       layerType: Convolution        realTime: 233        cpu: 233            execType: jit_avx2_1x1
+fc6_nChw8c_nchw      EXECUTED  layerType: Reorder           realTime: 20         cpu: 20             execType: reorder
+out_fc6         EXECUTED       layerType: Output            realTime: 3          cpu: 3              execType: unknown
+relu5_9_x2    OPTIMIZED_OUT     layerType: ReLU             realTime: 0          cpu: 0              execType: undef
+```
+
+This contains layers name (as seen in IR), layers type and execution statistics. Notice the `OPTIMIZED_OUT`, which indicates that the particular activation was fused into adjacent convolution.
+
+
+TODO:execution graphs

@@ -37,5 +37,5 @@ Each of the [OpenVINO supported devices](../OV_Runtime_UG/supported_plugins/Devi
 Finally, how the full-stack application uses the inference component _end-to-end_ is important.  
 For example, what are the stages that needs to be orchestrated? In some cases a significant part of the workload time is spent on bringing and preparing the input data. Here the asynchronous inference should  increases performance by overlapping the compute with inputs population. Also, in many cases the (image) pre-processing can be offloaded to the OpenVINO. For variably-sized inputs, consider [dynamic shapes](../OV_Runtime_UG/ov_dynamic_shapes.md) to efficiently connect the data input pipeline and the model inference.
 
-For further in-depth reading on the performance topics, please visit [Deployment Optimization Guide](../optimization_guide/dldt_deployment_optimization_guide.md).
+For further in-depth reading on the performance topics, please visit [Deployment Optimization Guide](./dldt_deployment_optimization_guide.md).
 
