@@ -46,7 +46,7 @@ public:
     }
     std::shared_ptr<bool> m_flag = std::make_shared<bool>(false);
 };
-}
+}  // namespace _decoder_transformation_test
 
 TEST(DecoderTransformation, TestPass) {
     _decoder_transformation_test::TestPass test_pass;
