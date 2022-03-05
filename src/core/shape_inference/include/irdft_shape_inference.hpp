@@ -53,14 +53,11 @@ void irdft_shape_infer(const ov::op::v9::IRDFT* op,
         // [n_0, ..., n_{r - 1}, 2] is interpreted as a complex tensor with the shape
         // [n_0, ..., n_{r - 1}].
         if (axes_shape.rank().is_static() && axes_are_known) {
+            ov::AxisSet axes_set;
             for (int64_t& axis : axes) {
                 if (axis < 0) {
                     axis += input_rank - 1;
                 }
-            }
-
-            ov::AxisSet axes_set;
-            for (const auto& axis : axes) {
                 axes_set.insert(static_cast<size_t>(axis));
             }
 

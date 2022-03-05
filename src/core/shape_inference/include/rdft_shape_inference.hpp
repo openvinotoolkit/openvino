@@ -58,14 +58,11 @@ void rdft_shape_infer(const ov::op::v9::RDFT* op,
         // the RDFT operation specification, axes should be integers from -r to (r - 1)
         // inclusively, where r = rank(data). A negative axis 'a' is interpreted as an axis 'r + a'.
         if (axes_shape.rank().is_static() && axes_are_known) {
+            ov::AxisSet axes_set;
             for (int64_t& axis : axes) {
                 if (axis < 0) {
                     axis += input_rank;
                 }
-            }
-
-            ov::AxisSet axes_set;
-            for (const auto& axis : axes) {
                 axes_set.insert(static_cast<size_t>(axis));
             }
 
