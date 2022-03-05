@@ -17,9 +17,9 @@
 #include "ngraph/op/rdft.hpp"
 
 #include <memory>
-#include "rdft_shape_inference.hpp"
 
 #include "itt.hpp"
+#include "rdft_shape_inference.hpp"
 
 using namespace std;
 using namespace ngraph;

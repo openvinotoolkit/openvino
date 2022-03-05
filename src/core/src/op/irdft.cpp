@@ -16,9 +16,9 @@
 
 #include "ngraph/op/irdft.hpp"
 
-#include "irdft_shape_inference.hpp"
 #include <memory>
 
+#include "irdft_shape_inference.hpp"
 #include "itt.hpp"
 
 using namespace std;
