@@ -13,6 +13,7 @@ namespace {
 const std::vector<ov::AnyMap> cpu_properties = {
         {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
         {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
+        {ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)},
         {ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)},
 };
 
@@ -25,7 +26,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVPropertiesTests,
 const std::vector<ov::AnyMap> multi_Auto_properties = {
         {ov::device::priorities(CommonTestUtils::DEVICE_CPU), ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)},
         {ov::device::priorities(CommonTestUtils::DEVICE_CPU), ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
-        {ov::device::priorities(CommonTestUtils::DEVICE_CPU), ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU), ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU), ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiBehaviorTests, OVPropertiesTests,
