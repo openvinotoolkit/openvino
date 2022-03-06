@@ -15,8 +15,7 @@ and segmentation masks are kept in the `SegmentationClass` directory.
 ## How to Run the Sample
 In the instructions below, the Post-Training Optimization Tool directory `<POT_DIR>` is referred to:
 - `<ENV>/lib/python<version>/site-packages/` in the case of PyPI installation, where `<ENV>` is a Python* 
-  environment where OpenVINO is installed and `<version>` is a Python* version, e.g. `3.6`.
-- `<INSTALL_DIR>/deployment_tools/tools/post_training_optimization_toolkit` in the case of OpenVINO distribution package. 
+  environment where OpenVINO is installed and `<version>` is a Python* version, for example `3.6`.
   `<INSTALL_DIR>` is the directory where Intel&reg; Distribution of OpenVINO&trade; toolkit is installed.
 
 1. To get started, follow the [Installation Guide](@ref pot_InstallationGuide).
