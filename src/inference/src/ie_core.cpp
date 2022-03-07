@@ -251,7 +251,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                                                                  bool forceDisableCache = false) {
         OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CoreImpl::compile_model_impl");
         ov::SoPtr<ie::IExecutableNetworkInternal> execNetwork;
-        std::cout<< "File: " << __FILE__ << ", Line: " << __LINE__ <<", Call Function: " <<  __FUNCTION__ << std::endl;
+        std::cout << "File: " << __FILE__ << ", Line: " << __LINE__ << ", Call Function: " << __FUNCTION__ << std::endl;
         execNetwork = context ? plugin.compile_model(network, context, parsedConfig)
                               : plugin.compile_model(network, parsedConfig);
         auto cacheManager = coreConfig.getCacheConfig()._cacheManager;
@@ -620,7 +620,7 @@ public:
                                                 const std::string& deviceNameOrig,
                                                 const std::map<std::string, std::string>& config) override {
         OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::LoadNetwork::CNN");
-        std::cout<< "File: " << __FILE__ << ", Line: " << __LINE__ <<", Call Function: " <<  __FUNCTION__ << std::endl;
+        std::cout << "File: " << __FILE__ << ", Line: " << __LINE__ << ", Call Function: " << __FUNCTION__ << std::endl;
         std::string deviceName = deviceNameOrig;
         std::map<std::string, std::string> config_with_batch = config;
         // if auto-batching is applicable, the below function will patch the device name and config accordingly:
@@ -1403,7 +1403,7 @@ CNNNetwork Core::ReadNetwork(const std::string& model, const Blob::CPtr& weights
 }
 
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config) {
-    std::cout<< "File: " << __FILE__ << ", Line: " << __LINE__ <<", Call Function: " <<  __FUNCTION__ << std::endl;
+    std::cout << "File: " << __FILE__ << ", Line: " << __LINE__ << ", Call Function: " << __FUNCTION__ << std::endl;
     return LoadNetwork(network, ov::DEFAULT_DEVICE_NAME, config);
 }
 
@@ -1411,7 +1411,7 @@ ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
                                     const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) {
     auto valid = ov::CoreImpl::CheckStatic(network);
-    std::cout<< "File: " << __FILE__ << ", Line:" << __LINE__ << ", Call Function: " <<  __FUNCTION__ << std::endl;
+    std::cout << "File: " << __FILE__ << ", Line:" << __LINE__ << ", Call Function: " << __FUNCTION__ << std::endl;
     OPENVINO_ASSERT(std::get<0>(valid),
                     "InferenceEngine::Core::LoadNetwork doesn't support inputs having dynamic shapes. ",
                     "Use ov::Core::compile_model API instead. Dynamic inputs are :",

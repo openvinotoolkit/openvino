@@ -36,7 +36,7 @@ Parameter MockPlugin::GetMetric(const std::string& name, const std::map<std::str
 std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
 MockPlugin::LoadNetwork(const CNNNetwork &network,
                         const std::map<std::string, std::string> &config) {
-    std::cout<< "File: " << __FILE__ << ", Line: " << __LINE__ <<", Call Function: " <<  __FUNCTION__ << std::endl;
+    std::cout<< "File: " << __FILE__ << ", Line: " << __LINE__ <<", Call Function: " << __FUNCTION__ << std::endl;
     if (_target) {
         return _target->LoadNetwork(network, config);
     } else {
