@@ -560,7 +560,12 @@ void program::post_optimize_graph(bool is_internal) {
 
     apply_opt_pass<remove_redundant_reorders>(lo, false, true);  // TODO: do we need it at this place also?
 
+#ifdef GPU_DEBUG_CONFIG
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    if (!is_internal && (!options.get<build_option_type::partial_build_program>()->enabled() || !debug_config->dry_run_path.empty())) {
+#else
     if (!is_internal && !options.get<build_option_type::partial_build_program>()->enabled()) {
+#endif
         // ToDo remove hidden dependencies from propagate_constants pass
         apply_opt_pass<propagate_constants>();
     }
