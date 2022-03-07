@@ -3,7 +3,7 @@
 //
 
 #include "behavior/ov_plugin/properties_tests.hpp"
-#include <openvino/runtime/properties.hpp>
+#include <openvino/runtime/intel_auto/properties.hpp>
 
 using namespace ov::test::behavior;
 using namespace InferenceEngine::PluginConfigParams;
@@ -33,4 +33,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiBehaviorTests, OVPropertiesTests,
                 ::testing::Values(CommonTestUtils::DEVICE_AUTO, CommonTestUtils::DEVICE_MULTI),
                 ::testing::ValuesIn(multi_Auto_properties)),
         OVPropertiesTests::getTestCaseName);
+
+const std::vector<ov::AnyMap> Auto_cpu_usage_properties = {
+    {ov::intel_auto::auto_cpu_usage(ov::intel_auto::AutoCpuUsage::NO_INFERENCE)},
+    {ov::intel_auto::auto_cpu_usage(ov::intel_auto::AutoCpuUsage::ACCERLATE_FIL)},
+    {ov::intel_auto::auto_cpu_usage(ov::intel_auto::AutoCpuUsage::ACCERLATE_FIL_ONE_FRAM)},
+    {ov::intel_auto::auto_cpu_usage(ov::intel_auto::AutoCpuUsage::FULL_STRENGTH)},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_AutoCpuUsageBehaviorTests,
+                         OVPropertiesTests,
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                            ::testing::ValuesIn(Auto_cpu_usage_properties)),
+                         OVPropertiesTests::getTestCaseName);
 } // namespace
