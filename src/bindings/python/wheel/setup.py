@@ -27,7 +27,7 @@ WHEEL_LIBS_PACKAGE = 'openvino.libs'
 PYTHON_VERSION = f'python{sys.version_info.major}.{sys.version_info.minor}'
 
 LIBS_DIR = 'bin' if platform.system() == 'Windows' else 'lib'
-CONFIG = 'Release' if platform.system() == 'Windows' else ''
+CONFIG = 'Release' if platform.system() == 'Windows' or platform.system() == 'Darwin' else ''
 
 machine = platform.machine()
 if machine == 'x86_64' or machine == 'AMD64':

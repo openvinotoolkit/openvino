@@ -463,6 +463,12 @@ static constexpr Property<unsigned int, PropertyMutability::RO> optimal_batch_si
 static constexpr Property<uint32_t, PropertyMutability::RO> max_batch_size{"MAX_BATCH_SIZE"};
 
 /**
+ * @brief Read-write property to set the timeout used to collect the inputs for the auto-batching
+ * impact.
+ */
+static constexpr Property<uint32_t, PropertyMutability::RW> auto_batch_timeout{"AUTO_BATCH_TIMEOUT"};
+
+/**
  * @brief Read-only property to provide a hint for a range for number of async infer requests. If device supports
  * streams, the metric provides range for number of IRs per stream.
  *
@@ -673,27 +679,27 @@ static constexpr Num NUMA{
     -2};  //!< Creates as many streams as needed to accommodate NUMA and avoid associated penalties
 
 /** @cond INTERNAL */
-inline std::ostream& operator<<(std::ostream& os, const Num& num) {
-    switch (num) {
+inline std::ostream& operator<<(std::ostream& os, const Num& num_val) {
+    switch (num_val) {
     case AUTO:
         return os << "AUTO";
     case NUMA:
         return os << "NUMA";
     default:
-        return os << num.num;
+        return os << num_val.num;
     }
 }
 
-inline std::istream& operator>>(std::istream& is, Num& num) {
+inline std::istream& operator>>(std::istream& is, Num& num_val) {
     std::string str;
     is >> str;
     if (str == "AUTO") {
-        num = AUTO;
+        num_val = AUTO;
     } else if (str == "NUMA") {
-        num = NUMA;
+        num_val = NUMA;
     } else {
         try {
-            num = {std::stoi(str)};
+            num_val = {std::stoi(str)};
         } catch (const std::exception& e) {
             throw ov::Exception{std::string{"Could not read number of streams from str: "} + str + "; " + e.what()};
         }
