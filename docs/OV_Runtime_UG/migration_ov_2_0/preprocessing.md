@@ -29,13 +29,13 @@ Inference Engine API:
 
       .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.cpp
          :language: cpp
-         :fragment: [ov:preprocess:mean_scale]
+         :fragment: [ov:preprocess:test]
 
 .. tab:: Python
 
       .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.cpp
          :language: python
-         :fragment: [ov:preprocess:mean_scale]
+         :fragment: [ov:preprocess:test]
 
 @endsphinxdirective
 

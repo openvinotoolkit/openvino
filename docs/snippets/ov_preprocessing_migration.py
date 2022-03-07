@@ -3,6 +3,12 @@
 # #
 
 
+# ! [ov:preprocess:test]
+
+from openvino.runtime import Core
+
+# ! [ov:preprocess:test]
+
 
 # from openvino.runtime import Core
 # import openvino.runtime.opset8 as ops
