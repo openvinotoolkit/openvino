@@ -1,4 +1,4 @@
-tensorflow~=2.5.0
+tensorflow>=1.15.5,<2.6
 networkx~=2.5; python_version <= "3.6"
 networkx~=2.6; python_version > "3.6"
 numpy>=1.16.6,<1.20

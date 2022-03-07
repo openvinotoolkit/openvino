@@ -29,8 +29,8 @@ def test_get_property(device):
         pytest.skip("Can't run on ARM plugin due-to CPU dependent test")
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, device)
-    config = exec_net.get_property("PERF_COUNT")
-    assert config == "NO"
+    profiling_enabled = exec_net.get_property("PERF_COUNT")
+    assert not profiling_enabled
 
 
 def test_get_runtime_model(device):
@@ -238,7 +238,7 @@ def test_inputs_docs(device):
     exec_net = core.compile_model(func, device)
     inputs = exec_net.inputs
     input_0 = inputs[0]
-    expected_string = "openvino.runtime.ConstOutput wraps ov::Output<Const ov::Node >"
+    expected_string = "openvino.runtime.ConstOutput represents port/node output."
     assert input_0.__doc__ == expected_string
 
 

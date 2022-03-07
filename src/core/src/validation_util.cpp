@@ -1223,7 +1223,8 @@ bool are_equal(const HostTensorPtr& lhs, const HostTensorPtr& rhs, size_t max_el
         return false;
     auto mask = std::make_shared<HostTensor>(element::boolean, lhs_shape);
     const auto& param = std::make_shared<op::Parameter>(lhs_et, lhs_shape);
-    op::v1::Equal(param, param, ngraph::op::AutoBroadcastType::NUMPY).evaluate({mask}, {lhs, rhs});
+    bool eval_status = op::v1::Equal(param, param, ngraph::op::AutoBroadcastType::NUMPY).evaluate({mask}, {lhs, rhs});
+    OPENVINO_ASSERT(eval_status);
     auto equal = op::Constant(mask).cast_vector<bool>();
     return std::all_of(equal.begin(), equal.end(), [](bool i) {
         return i;
@@ -1271,7 +1272,7 @@ HostTensorPtr evaluate_bound(const Output<Node>& output, bool is_upper, bool inv
                         should_invalidate |= true;
                     if (tensor.get_upper_value() && shape_size(tensor.get_upper_value()->get_shape()) > 10)
                         should_invalidate |= true;
-                    if (should_invalidate)
+                    if (should_invalidate && input.get_target_inputs().size() == 1)
                         tensor.invalidate_values();
                 }
                 propagate_rt_info(node, output);

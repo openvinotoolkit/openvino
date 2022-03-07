@@ -3,6 +3,8 @@
 
 @sphinxdirective
 
+.. _model zoo:
+
 .. toctree::
    :maxdepth: 1
    :hidden:
@@ -17,6 +19,13 @@
    :caption: Demo Applications
 
    omz_demos
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: Model API
+
+   omz_model_api_ovms_adapter
 
    
 @endsphinxdirective

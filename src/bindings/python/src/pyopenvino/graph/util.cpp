@@ -22,18 +22,13 @@ void regmodule_graph_util(py::module m) {
             &ov::get_constant_from_source,
             py::arg("output"),
             R"(
-                    Runs an estimation of source tensor.
+                Runs an estimation of source tensor.
 
-                    Parameters
-                    ----------
-                    output : Output
-                        output node
-
-                    Returns
-                    ----------
-                    get_constant_from_source : Constant or None
-                        If it succeeded to calculate both bounds and
-                        they are the same returns Constant operation
-                        from the resulting bound, otherwise Null.
-                )");
+                :param index: Output node.
+                :type index: openvino.runtime.Output
+                :return: If it succeeded to calculate both bounds and
+                         they are the same, returns Constant operation
+                         from the resulting bound, otherwise Null.
+                :rtype: openvino.runtime.op.Constant or openvino.runtime.Node
+            )");
 }

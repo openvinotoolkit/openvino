@@ -17,7 +17,7 @@ def main():
 
     # Parsing and validation of input arguments
     if len(sys.argv) != 4:
-        log.info('Usage: <path_to_model> <path_to_image> <device_name>')
+        log.info(f'Usage: {sys.argv[0]} <path_to_model> <path_to_image> <device_name>')
         return 1
 
     model_path = sys.argv[1]
@@ -29,7 +29,7 @@ def main():
     core = Core()
 
 # --------------------------- Step 2. Read a model --------------------------------------------------------------------
-    log.info(f'Reading the network: {model_path}')
+    log.info(f'Reading the model: {model_path}')
     # (.xml and .bin files) or (.onnx file)
     model = core.read_model(model_path)
 

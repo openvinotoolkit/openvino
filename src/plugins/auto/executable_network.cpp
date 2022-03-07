@@ -309,6 +309,29 @@ void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
     auto& deviceConfig = context.deviceInfo.config;
     auto& deviceList = context.metaDevices;
     bool curDevIsCPU = (device.find("CPU") != std::string::npos);
+    bool curDevIsGPU = (device.find("GPU") != std::string::npos);
+    {
+        std::lock_guard<std::mutex> lock(_confMutex);
+        if (curDevIsGPU && _loadContext[CPU].isEnabled) {
+            // user does not set the compiling threads
+            // limit the threads num for compiling
+            int maxNumThreads = 0;
+            try {
+                maxNumThreads = _core->GetConfig(device, GPU_CONFIG_KEY(MAX_NUM_THREADS)).as<int>();
+            } catch (...) {
+                LOG_DEBUG("[AUTOPLUGIN]: cannot get MAX_NUM_THREADS from GPU");
+            }
+            if (maxNumThreads == static_cast<int>(std::thread::hardware_concurrency())) {
+                int threadNum = maxNumThreads / 2;
+                deviceConfig[GPU_CONFIG_KEY(MAX_NUM_THREADS)] = std::to_string(threadNum).c_str();
+                LOG_DEBUG("[AUTO PLUGIN]:gpu streams number for compiling: %s", deviceConfig[GPU_CONFIG_KEY(MAX_NUM_THREADS)].c_str());
+            } else {
+                // user set the compiling threads num
+                // use the user's val anyway
+                LOG_DEBUG("[AUTOPLUGIN]:user defined compiling threads: %d", maxNumThreads);
+            }
+        }
+    }
     try {
         if (!modelPath.empty()) {
             context.executableNetwork = _core->LoadNetwork(modelPath, device, deviceConfig);
@@ -570,7 +593,6 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
     const std::vector<std::shared_ptr<const ov::Node>>& inputs,
     const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
     auto num = _numRequestsCreated++;
-    size_t sum = 0;
     InferenceEngine::SoIInferRequestInternal request_to_share_blobs_with;
     InferenceEngine::RemoteContext::Ptr ctx = nullptr;
 
@@ -592,23 +614,12 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
         return std::make_shared<MultiDeviceInferRequest>(inputs, outputs, request_to_share_blobs_with, ctx);
     }
 
-    // borrowing device-specific blobs from the underlying requests for the device-agnostic, user-facing requests
-    // this allows to potentially save on the data-copy later (if the requests are scheduled in the same order)
-    for (const auto& device : _devicePrioritiesInitial) {
-        auto& dev_requests = _workerRequests[device.deviceName];
-        if ((num - sum) < dev_requests.size()) {
-            request_to_share_blobs_with = dev_requests.at(num - sum)._inferRequest;
-            break;
-        }
-        sum += dev_requests.size();
-    }
     return std::make_shared<MultiDeviceInferRequest>(inputs, outputs, request_to_share_blobs_with);
 }
 
 InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                                                 InferenceEngine::OutputsDataMap networkOutputs) {
     auto num = _numRequestsCreated++;
-    size_t sum = 0;
     InferenceEngine::SoIInferRequestInternal request_to_share_blobs_with;
     InferenceEngine::RemoteContext::Ptr ctx = nullptr;
 
@@ -629,16 +640,6 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
         return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with, ctx);
     }
 
-    // borrowing device-specific blobs from the underlying requests for the device-agnostic, user-facing requests
-    // this allows to potentially save on the data-copy later (if the requests are scheduled in the same order)
-    for (const auto& device : _devicePrioritiesInitial) {
-        auto& dev_requests = _workerRequests[device.deviceName];
-        if ((num - sum) < dev_requests.size()) {
-            request_to_share_blobs_with = dev_requests.at(num - sum)._inferRequest;
-            break;
-        }
-        sum += dev_requests.size();
-    }
     return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with);
 }
 

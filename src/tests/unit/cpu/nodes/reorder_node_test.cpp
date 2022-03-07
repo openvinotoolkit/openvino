@@ -13,14 +13,14 @@
 #include <dnnl.hpp>
 #include <typeinfo>
 
+#include <nodes/reorder.h>
+#include "nodes/input.h"
+#include <edge.h>
+#include <node.h>
 #include "cache/multi_cache.h"
-#include "mkldnn_edge.h"
-#include "mkldnn_input_node.h"
-#include "mkldnn_node.h"
-#include "mkldnn_reorder_node.h"
 
 using namespace InferenceEngine;
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 /*
  * ReorderCustomizedStrideTest validateds MKLDNNReorderNode::optimizedNcsp2Nspc() and
  * MKLDNNReorderNode::optimizedNspc2Ncsp() for inPlace case. The customized inPlace case means reorder output C channel
@@ -127,7 +127,6 @@ public:
         result << "_InputDataType:" << typeid(inputType).name();
         result << "_OutputDataType:" << typeid(outputType).name();
         result << ")";
-
         return result.str();
     }
 
@@ -179,30 +178,30 @@ protected:
             return result;
         };
         cpuEngine = {dnnl::engine::kind::cpu, 0};
-        MKLDNNPlugin::MKLDNNWeightsSharing::Ptr weightsCache;
+        ov::intel_cpu::MKLDNNWeightsSharing::Ptr weightsCache;
 
-        inputNode = std::make_shared<MKLDNNPlugin::MKLDNNInputNode>(MKLDNNPlugin::Shape(srcDims),
+        inputNode = std::make_shared<ov::intel_cpu::MKLDNNInputNode>(ov::intel_cpu::Shape(srcDims),
                                                                     prec,
                                                                     "Reorder_Input",
                                                                     "Input",
                                                                     cpuEngine,
                                                                     weightsCache);
-        reorderNode = std::make_shared<MKLDNNPlugin::MKLDNNReorderNode>("Reorder", cpuEngine, weightsCache);
-        auto outputNode = std::make_shared<MKLDNNPlugin::MKLDNNInputNode>(MKLDNNPlugin::Shape(dstDims),
+        reorderNode = std::make_shared<ov::intel_cpu::MKLDNNReorderNode>("Reorder", cpuEngine, weightsCache);
+        auto outputNode = std::make_shared<ov::intel_cpu::MKLDNNInputNode>(ov::intel_cpu::Shape(dstDims),
                                                                           prec,
                                                                           "Reorder_Output",
                                                                           "Output",
                                                                           cpuEngine,
                                                                           weightsCache);
 
-        parentEdge = std::make_shared<MKLDNNPlugin::MKLDNNEdge>(inputNode, reorderNode, 0, 0);
-        childEdge = std::make_shared<MKLDNNPlugin::MKLDNNEdge>(reorderNode, outputNode, 0, 0);
-        parentEdge->changeStatus(MKLDNNPlugin::MKLDNNEdge::Status::NeedAllocation);
-        childEdge->changeStatus(MKLDNNPlugin::MKLDNNEdge::Status::NeedAllocation);
+        parentEdge = std::make_shared<ov::intel_cpu::MKLDNNEdge>(inputNode, reorderNode, 0, 0);
+        childEdge = std::make_shared<ov::intel_cpu::MKLDNNEdge>(reorderNode, outputNode, 0, 0);
+        parentEdge->changeStatus(ov::intel_cpu::MKLDNNEdge::Status::NeedAllocation);
+        childEdge->changeStatus(ov::intel_cpu::MKLDNNEdge::Status::NeedAllocation);
         reorderNode->addEdge(parentEdge);
         reorderNode->addEdge(childEdge);
 
-        auto rtParamsCache = std::make_shared<MKLDNNPlugin::MultiCache>(100);
+        auto rtParamsCache = std::make_shared<ov::intel_cpu::MultiCache>(100);
 
         const std::vector<size_t> srcBlockedDims = getBlockedDims(srcDims, srcOrder);
         const std::vector<size_t> srcStrides = getStrides(srcBlockedDims);
@@ -211,27 +210,28 @@ protected:
         const std::vector<size_t> dstBlockedDims = getBlockedDims(dstDims, dstOrder);
         const std::vector<size_t> dstStrides = getStrides(dstBlockedDims);
 
-        const MKLDNNPlugin::CpuBlockedMemoryDesc
-            inputDesc(prec, MKLDNNPlugin::Shape(srcDims), srcBlockedDims, srcOrder, 0, offsetPaddingToData, srcStrides);
+        const ov::intel_cpu::CpuBlockedMemoryDesc
+            inputDesc(prec, ov::intel_cpu::Shape(srcDims), srcBlockedDims, srcOrder, 0, offsetPaddingToData, srcStrides);
 
-        const MKLDNNPlugin::CpuBlockedMemoryDesc outputDesc(prec,
-                                                            MKLDNNPlugin::Shape(srcDims),
+        const ov::intel_cpu::CpuBlockedMemoryDesc outputDesc(prec,
+                                                            ov::intel_cpu::Shape(srcDims),
                                                             getBlockedDims(srcDims, dstOrder),
                                                             dstOrder,
                                                             0,
                                                             offsetPaddingToData,
                                                             dstStrides);
 
-        auto parentMemory = std::make_shared<MKLDNNPlugin::MKLDNNMemory>(cpuEngine);
-        auto childMemory = std::make_shared<MKLDNNPlugin::MKLDNNMemory>(cpuEngine);
+        auto parentMemory = std::make_shared<ov::intel_cpu::MKLDNNMemory>(cpuEngine);
+        auto childMemory = std::make_shared<ov::intel_cpu::MKLDNNMemory>(cpuEngine);
         parentMemory->Create(inputDesc, nullptr);
         childMemory->Create(outputDesc, nullptr);
+
         parentEdge->reuse(parentMemory);
         childEdge->reuse(childMemory);
 
         reorderNode->setDescs(inputDesc, outputDesc);
         reorderNode->setRuntimeCache(rtParamsCache);
-        std::vector<std::shared_ptr<MKLDNNPlugin::MKLDNNNode>> nodes{inputNode, reorderNode, outputNode};
+        std::vector<std::shared_ptr<ov::intel_cpu::MKLDNNNode>> nodes{inputNode, reorderNode, outputNode};
         for (auto& n : nodes) {
             n->init();
             n->getSupportedDescriptors();
@@ -266,7 +266,7 @@ protected:
         const auto& inputReorder = parentEdge->getMemory().GetPrimitive();
         auto inputReorderData = map_memory<inputType>(inputReorder);
 
-        MKLDNNPlugin::DnnlMemoryDescPtr dnnlMdInput = parentEdge->getMemory().GetDescWithType<DnnlMemoryDesc>();
+        ov::intel_cpu::DnnlMemoryDescPtr dnnlMdInput = parentEdge->getMemory().GetDescWithType<DnnlMemoryDesc>();
         const dnnl::impl::memory_desc_wrapper mdInput{dnnlMdInput->getDnnlDesc().data};
         for (size_t i = 0; i < elemNum; ++i)
             inputReorderData[mdInput.off_l(i, false)] = inputType(i);
@@ -274,7 +274,7 @@ protected:
         elemNum = std::accumulate(dstDims.begin(), dstDims.end(), size_t(1), std::multiplies<size_t>());
         const auto& outputReorder = childEdge->getMemory().GetPrimitive();
         auto outputReorderData = map_memory<outputType>(outputReorder);
-        MKLDNNPlugin::DnnlMemoryDescPtr dnnlMdOutput = childEdge->getMemory().GetDescWithType<DnnlMemoryDesc>();
+        ov::intel_cpu::DnnlMemoryDescPtr dnnlMdOutput = childEdge->getMemory().GetDescWithType<DnnlMemoryDesc>();
         const dnnl::impl::memory_desc_wrapper mdOutput{dnnlMdOutput->getDnnlDesc().data};
         for (size_t i = 0; i < elemNum; ++i)
             outputReorderData[mdOutput.off_l(i, false)] = outputType(0);
@@ -295,12 +295,12 @@ protected:
     std::vector<size_t> dstOrder;
     InferenceEngine::Precision prec;
 
-    std::shared_ptr<MKLDNNPlugin::MultiCache> rtParamsCache;
+    std::shared_ptr<ov::intel_cpu::MultiCache> rtParamsCache;
     mkldnn::stream stream;
-    std::shared_ptr<MKLDNNPlugin::MKLDNNReorderNode> reorderNode;
-    std::shared_ptr<MKLDNNPlugin::MKLDNNInputNode> inputNode;
-    std::shared_ptr<MKLDNNPlugin::MKLDNNEdge> parentEdge;
-    std::shared_ptr<MKLDNNPlugin::MKLDNNEdge> childEdge;
+    std::shared_ptr<ov::intel_cpu::MKLDNNReorderNode> reorderNode;
+    std::shared_ptr<ov::intel_cpu::MKLDNNInputNode> inputNode;
+    std::shared_ptr<ov::intel_cpu::MKLDNNEdge> parentEdge;
+    std::shared_ptr<ov::intel_cpu::MKLDNNEdge> childEdge;
 };
 
 using ReorderCustomizedStrideTestF32 = ReorderCustomizedStrideTest<f32_f32>;
@@ -443,10 +443,10 @@ protected:
         srcLayout = reorderParam.srcLayout;
         dstLayout = reorderParam.dstLayout;
         prec = reorderParam.prec;
-        srcDims = MKLDNNPlugin::Shape(inputPartialShape);
+        srcDims = ov::intel_cpu::Shape(inputPartialShape);
         dstDims = srcDims;
         blockCreatorMap = BlockedDescCreator::getCommonCreators();
-        rtParamsCache = std::make_shared<MKLDNNPlugin::MultiCache>(100);
+        rtParamsCache = std::make_shared<ov::intel_cpu::MultiCache>(100);
         buildReorderNode();
         reorderNode->setRuntimeCache(rtParamsCache);
     }
@@ -456,35 +456,35 @@ protected:
         auto dstBlockedDescCreator = blockCreatorMap[dstLayout];
 
         const mkldnn::engine cpuEngine(dnnl::engine::kind::cpu, 0);
-        MKLDNNPlugin::MKLDNNWeightsSharing::Ptr weightsCache;
+        ov::intel_cpu::MKLDNNWeightsSharing::Ptr weightsCache;
 
-        inputNode = std::make_shared<MKLDNNPlugin::MKLDNNInputNode>(srcDims,
+        inputNode = std::make_shared<ov::intel_cpu::MKLDNNInputNode>(srcDims,
                                                                     prec,
                                                                     "Reorder_Input",
                                                                     "Parameter",
                                                                     cpuEngine,
                                                                     weightsCache);
-        reorderNode = std::make_shared<MKLDNNPlugin::MKLDNNReorderNode>("Reorder", cpuEngine, weightsCache);
-        auto outputNode = std::make_shared<MKLDNNPlugin::MKLDNNInputNode>(dstDims,
+        reorderNode = std::make_shared<ov::intel_cpu::MKLDNNReorderNode>("Reorder", cpuEngine, weightsCache);
+        auto outputNode = std::make_shared<ov::intel_cpu::MKLDNNInputNode>(dstDims,
                                                                           prec,
                                                                           "Reorder_Output",
                                                                           "Output",
                                                                           cpuEngine,
                                                                           weightsCache);
 
-        parentEdge = std::make_shared<MKLDNNPlugin::MKLDNNEdge>(inputNode, reorderNode, 0, 0);
-        childEdge = std::make_shared<MKLDNNPlugin::MKLDNNEdge>(reorderNode, outputNode, 0, 0);
-        parentEdge->changeStatus(MKLDNNPlugin::MKLDNNEdge::Status::NeedAllocation);
-        childEdge->changeStatus(MKLDNNPlugin::MKLDNNEdge::Status::NeedAllocation);
+        parentEdge = std::make_shared<ov::intel_cpu::MKLDNNEdge>(inputNode, reorderNode, 0, 0);
+        childEdge = std::make_shared<ov::intel_cpu::MKLDNNEdge>(reorderNode, outputNode, 0, 0);
+        parentEdge->changeStatus(ov::intel_cpu::MKLDNNEdge::Status::NeedAllocation);
+        childEdge->changeStatus(ov::intel_cpu::MKLDNNEdge::Status::NeedAllocation);
         reorderNode->addEdge(parentEdge);
         reorderNode->addEdge(childEdge);
-        auto rtParamsCache = std::make_shared<MKLDNNPlugin::MultiCache>(100);
+        auto rtParamsCache = std::make_shared<ov::intel_cpu::MultiCache>(100);
         inputDesc = srcBlockedDescCreator->createDesc(prec, srcDims);
 
-        const MKLDNNPlugin::CpuBlockedMemoryDesc outputDesc = dstBlockedDescCreator->createDesc(prec, dstDims);
+        const ov::intel_cpu::CpuBlockedMemoryDesc outputDesc = dstBlockedDescCreator->createDesc(prec, dstDims);
 
-        auto parentMemory = std::make_shared<MKLDNNPlugin::MKLDNNMemory>(cpuEngine);
-        auto childMemory = std::make_shared<MKLDNNPlugin::MKLDNNMemory>(cpuEngine);
+        auto parentMemory = std::make_shared<ov::intel_cpu::MKLDNNMemory>(cpuEngine);
+        auto childMemory = std::make_shared<ov::intel_cpu::MKLDNNMemory>(cpuEngine);
         parentMemory->Create(inputDesc, nullptr);
         childMemory->Create(outputDesc, nullptr);
         parentEdge->reuse(parentMemory);
@@ -492,7 +492,7 @@ protected:
 
         reorderNode->setDescs(inputDesc, outputDesc);
 
-        std::vector<std::shared_ptr<MKLDNNPlugin::MKLDNNNode>> nodes{inputNode, reorderNode, outputNode};
+        std::vector<std::shared_ptr<ov::intel_cpu::MKLDNNNode>> nodes{inputNode, reorderNode, outputNode};
         for (auto& n : nodes) {
             n->init();
             n->getSupportedDescriptors();
@@ -505,22 +505,22 @@ protected:
     }
 
 private:
-    std::shared_ptr<MKLDNNPlugin::MultiCache> rtParamsCache;
+    std::shared_ptr<ov::intel_cpu::MultiCache> rtParamsCache;
     mkldnn::stream stream;
-    std::shared_ptr<MKLDNNPlugin::MKLDNNReorderNode> reorderNode;
-    std::shared_ptr<MKLDNNPlugin::MKLDNNNode> inputNode;
-    std::shared_ptr<MKLDNNPlugin::MKLDNNEdge> parentEdge;
-    std::shared_ptr<MKLDNNPlugin::MKLDNNEdge> childEdge;
+    std::shared_ptr<ov::intel_cpu::MKLDNNReorderNode> reorderNode;
+    std::shared_ptr<ov::intel_cpu::MKLDNNNode> inputNode;
+    std::shared_ptr<ov::intel_cpu::MKLDNNEdge> parentEdge;
+    std::shared_ptr<ov::intel_cpu::MKLDNNEdge> childEdge;
 
-    MKLDNNPlugin::Shape srcDims;
-    MKLDNNPlugin::Shape dstDims;
+    ov::intel_cpu::Shape srcDims;
+    ov::intel_cpu::Shape dstDims;
     LayoutType srcLayout;
     LayoutType dstLayout;
     InferenceEngine::Precision prec;
     std::vector<std::vector<size_t>> inputShapes;
     ngraph::PartialShape inputPartialShape;
     BlockedDescCreator::CreatorsMap blockCreatorMap;
-    MKLDNNPlugin::CpuBlockedMemoryDesc inputDesc{InferenceEngine::Precision::FP32, MKLDNNPlugin::Shape{}};
+    ov::intel_cpu::CpuBlockedMemoryDesc inputDesc{InferenceEngine::Precision::FP32, ov::intel_cpu::Shape{}};
 };
 
 using ReorderCPUTestF32 = ReorderCPUTest<f32_f32>;

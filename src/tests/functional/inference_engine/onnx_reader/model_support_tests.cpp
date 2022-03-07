@@ -63,3 +63,9 @@ TEST(ONNXReader_ModelUnsupported, unknown_wire_type) {
     EXPECT_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("unsupported/unknown_wire_type.onnx")),
                  InferenceEngine::NetworkNotRead);
 }
+
+TEST(ONNXReader_ModelUnsupported, duplicate_fields) {
+    // the model contains the IR_VERSION field twice - this is not correct
+    EXPECT_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("unsupported/duplicate_onnx_fields.onnx")),
+                 std::exception);
+}

@@ -168,7 +168,7 @@ TEST_P(EltwiseLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckPluginRelatedResults(executableNetwork, "Eltwise");
+    CheckPluginRelatedResults(compiledModel, "Eltwise");
 }
 
 namespace {
@@ -434,54 +434,98 @@ std::vector<std::vector<ngraph::Shape>> inShapes_4D_1D = {
         {{1, 3, 3, 3}, {3}},
 };
 
-std::vector<CPUSpecificParams> cpuParams_4D_1D = {
-        CPUSpecificParams({nChw16c, x}, {nChw16c}, {}, {}),
-        CPUSpecificParams({nhwc, x}, {nhwc}, {}, {}),
-        CPUSpecificParams({nchw, x}, {nchw}, {}, {})
+std::vector<CPUSpecificParams> cpuParams_4D_1D_Constant_mode = {
+        CPUSpecificParams({nChw16c, nchw}, {nChw16c}, {}, {}),
+        CPUSpecificParams({nhwc, nhwc}, {nhwc}, {}, {}),
+        CPUSpecificParams({nchw, nchw}, {nchw}, {}, {})
 };
 
-const auto params_4D_1D = ::testing::Combine(
+const auto params_4D_1D_constant_mode = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_4D_1D)),
                 ::testing::Values(ngraph::helpers::EltwiseTypes::ADD, ngraph::helpers::EltwiseTypes::MULTIPLY),
-                ::testing::ValuesIn(secondaryInputTypes),
+                ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes),
                 ::testing::ValuesIn(netType),
                 ::testing::Values(ElementType::f32),
                 ::testing::Values(ElementType::f32),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
-        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_1D)),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_1D_Constant_mode)),
         ::testing::Values(emptyFusingSpec));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_1D, EltwiseLayerCPUTest, params_4D_1D, EltwiseLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_1D_Constant, EltwiseLayerCPUTest, params_4D_1D_constant_mode, EltwiseLayerCPUTest::getTestCaseName);
+
+std::vector<CPUSpecificParams> cpuParams_4D_1D_Parameter_mode = {
+        CPUSpecificParams({nChw16c, x}, {nChw16c}, {}, {}),
+        CPUSpecificParams({nhwc, x}, {nhwc}, {}, {}),
+        CPUSpecificParams({nchw, x}, {nchw}, {}, {})
+};
+
+const auto params_4D_1D_parameter_mode = ::testing::Combine(
+        ::testing::Combine(
+                ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_4D_1D)),
+                ::testing::Values(ngraph::helpers::EltwiseTypes::ADD, ngraph::helpers::EltwiseTypes::MULTIPLY),
+                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                ::testing::ValuesIn(opTypes),
+                ::testing::ValuesIn(netType),
+                ::testing::Values(ElementType::f32),
+                ::testing::Values(ElementType::f32),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                ::testing::Values(additional_config)),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_1D_Parameter_mode)),
+        ::testing::Values(emptyFusingSpec));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_1D_Parameter, EltwiseLayerCPUTest, params_4D_1D_parameter_mode, EltwiseLayerCPUTest::getTestCaseName);
 
 std::vector<std::vector<ngraph::Shape>> inShapes_5D_1D = {
         {{2, 17, 5, 4, 10}, {10}},
         {{1, 3, 3, 3, 3}, {3}},
 };
 
-std::vector<CPUSpecificParams> cpuParams_5D_1D = {
-        CPUSpecificParams({nCdhw16c, x}, {nCdhw16c}, {}, {}),
-        CPUSpecificParams({ndhwc, x}, {ndhwc}, {}, {}),
-        CPUSpecificParams({ncdhw, x}, {ncdhw}, {}, {})
+std::vector<CPUSpecificParams> cpuParams_5D_1D_constant = {
+        CPUSpecificParams({nCdhw16c, ncdhw}, {nCdhw16c}, {}, {}),
+        CPUSpecificParams({ndhwc, ndhwc}, {ndhwc}, {}, {}),
+        CPUSpecificParams({ncdhw, ncdhw}, {ncdhw}, {}, {})
 };
 
-const auto params_5D_1D = ::testing::Combine(
+const auto params_5D_1D_constant = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_5D_1D)),
                 ::testing::Values(ngraph::helpers::EltwiseTypes::ADD, ngraph::helpers::EltwiseTypes::MULTIPLY),
-                ::testing::ValuesIn(secondaryInputTypes),
+                ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes),
                 ::testing::ValuesIn(netType),
                 ::testing::Values(ElementType::f32),
                 ::testing::Values(ElementType::f32),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
-        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_1D)),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_1D_constant)),
         ::testing::Values(emptyFusingSpec));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_1D, EltwiseLayerCPUTest, params_5D_1D, EltwiseLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_1D_Constant, EltwiseLayerCPUTest, params_5D_1D_constant, EltwiseLayerCPUTest::getTestCaseName);
+
+std::vector<CPUSpecificParams> cpuParams_5D_1D_parameter = {
+        CPUSpecificParams({nCdhw16c, x}, {nCdhw16c}, {}, {}),
+        CPUSpecificParams({ndhwc, x}, {ndhwc}, {}, {}),
+        CPUSpecificParams({ncdhw, x}, {ncdhw}, {}, {})
+};
+
+const auto params_5D_1D_parameter = ::testing::Combine(
+        ::testing::Combine(
+                ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_5D_1D)),
+                ::testing::Values(ngraph::helpers::EltwiseTypes::ADD, ngraph::helpers::EltwiseTypes::MULTIPLY),
+                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                ::testing::ValuesIn(opTypes),
+                ::testing::ValuesIn(netType),
+                ::testing::Values(ElementType::f32),
+                ::testing::Values(ElementType::f32),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                ::testing::Values(additional_config)),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_1D_parameter)),
+        ::testing::Values(emptyFusingSpec));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_1D_Parameter, EltwiseLayerCPUTest, params_5D_1D_parameter, EltwiseLayerCPUTest::getTestCaseName);
 
 
 std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesBinDyn = {

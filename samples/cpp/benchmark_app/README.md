@@ -56,7 +56,7 @@ Note that the benchmark_app usually produces optimal performance for any device 
 
 But it is still may be sub-optimal for some cases, especially for very small networks. More details can read in [Performance Optimization Guide](../../../docs/optimization_guide/dldt_optimization_guide.md).
 
-As explained in the  [Performance Optimization Guide](../../../docs/optimization_guide/dldt_optimization_guide.md) section, for all devices, including new [MULTI device](../../../docs/OV_Runtime_UG/supported_plugins/MULTI.md) it is preferable to use the FP16 IR for the model.
+As explained in the  [Performance Optimization Guide](../../../docs/optimization_guide/dldt_optimization_guide.md) section, for all devices, including new [MULTI device](../../../docs/OV_Runtime_UG/multi_device.md) it is preferable to use the FP16 IR for the model.
 Also if latency of the CPU inference on the multi-socket machines is of concern, please refer to the same
 [Performance Optimization Guide](../../../docs/optimization_guide/dldt_optimization_guide.md).
 
@@ -85,11 +85,11 @@ Options:
     -l "<absolute_path>"        Required for CPU custom layers. Absolute path to a shared library with the kernels implementations.
           Or
     -c "<absolute_path>"        Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.
-    -hint "<throughput(or just 'tput')/latency">
-                                Optional. Performance hint (optimize for latency or throughput).
-                                The hint allows the OpenVINO device to select the right network-specific settings,
-                                as opposite to just accepting specific values from the sample command line.
-                                So you can specify only the hint without setting explicit 'nstreams' or other device-specific options.
+    -hint "performance hint (latency or throughput or none)"   Optional. Performance hint allows the OpenVINO device to select the right network-specific settings.
+                                 'throughput' or 'tput': device performance mode will be set to THROUGHPUT.
+                                 'latency': device performance mode will be set to LATENCY.
+                                 'none': no device performance mode will be set.
+                                Using explicit 'nstreams' or other device-specific options, please set hint to 'none'
     -api "<sync/async>"         Optional (deprecated). Enable Sync/Async API. Default value is "async".
     -niter "<integer>"          Optional. Number of iterations. If not specified, the number of iterations is calculated depending on a device.
     -nireq "<integer>"          Optional. Number of infer requests. Default value is determined automatically for a device.
@@ -166,7 +166,7 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
 
 > **NOTE**: The Internet access is required to execute the following steps successfully. If you have access to the Internet through the proxy server only, please make sure that it is configured in your OS environment.
 
-1. Download the model. Go to the the Model Downloader directory and run the `downloader.py` script with specifying the model name and directory to download the model to:
+1. Download the model. Go to the Model Downloader directory and run the `downloader.py` script with specifying the model name and directory to download the model to:
    ```sh
    cd <INSTAL_DIR>/extras/open_model_zoo/tools/downloader
    ```

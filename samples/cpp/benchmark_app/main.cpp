@@ -55,9 +55,10 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
     if (FLAGS_api != "async" && FLAGS_api != "sync") {
         throw std::logic_error("Incorrect API. Please set -api option to `sync` or `async` value.");
     }
-    if (!FLAGS_hint.empty() && FLAGS_hint != "throughput" && FLAGS_hint != "tput" && FLAGS_hint != "latency") {
+    if (!FLAGS_hint.empty() && FLAGS_hint != "throughput" && FLAGS_hint != "tput" && FLAGS_hint != "latency" &&
+        FLAGS_hint != "none") {
         throw std::logic_error("Incorrect performance hint. Please set -hint option to"
-                               "either `throughput`(tput) or `latency' value.");
+                               "`throughput`(tput), `latency' value or 'none'.");
     }
     if (!FLAGS_report_type.empty() && FLAGS_report_type != noCntReport && FLAGS_report_type != averageCntReport &&
         FLAGS_report_type != detailedCntReport) {
@@ -104,6 +105,38 @@ static void next_step(const std::string additional_info = "") {
 
     std::cout << "[Step " << step_id << "/" << step_names.size() << "] " << step_names.at(step_id)
               << (additional_info.empty() ? "" : " (" + additional_info + ")") << std::endl;
+}
+
+ov::hint::PerformanceMode get_performance_hint(const std::string& device, const ov::Core& core) {
+    ov::hint::PerformanceMode ov_perf_hint = ov::hint::PerformanceMode::UNDEFINED;
+    auto supported_properties = core.get_property(device, ov::supported_properties);
+    if (std::find(supported_properties.begin(), supported_properties.end(), ov::hint::performance_mode) !=
+        supported_properties.end()) {
+        if (FLAGS_hint != "") {
+            if (FLAGS_hint == "throughput" || FLAGS_hint == "tput") {
+                slog::warn << "Device(" << device << ") performance hint is set to THROUGHPUT" << slog::endl;
+                ov_perf_hint = ov::hint::PerformanceMode::THROUGHPUT;
+            } else if (FLAGS_hint == "latency") {
+                slog::warn << "Device(" << device << ") performance hint is set to LATENCY" << slog::endl;
+                ov_perf_hint = ov::hint::PerformanceMode::LATENCY;
+            } else if (FLAGS_hint == "none") {
+                slog::warn << "No device(" << device << ") performance hint is set" << slog::endl;
+                ov_perf_hint = ov::hint::PerformanceMode::UNDEFINED;
+            }
+        } else {
+            ov_perf_hint =
+                FLAGS_api == "sync" ? ov::hint::PerformanceMode::LATENCY : ov::hint::PerformanceMode::THROUGHPUT;
+
+            slog::warn << "Performance hint was not explicitly specified in command line. "
+                          "Device("
+                       << device << ") performance hint will be set to " << ov_perf_hint << "." << slog::endl;
+        }
+    } else {
+        if (FLAGS_hint != "") {
+            slog::warn << "Device(" << device << ") does not support performance hint property(-hint)." << slog::endl;
+        }
+    }
+    return ov_perf_hint;
 }
 
 /**
@@ -195,21 +228,6 @@ int main(int argc, char* argv[]) {
             slog::info << "GPU extensions is loaded " << ext << slog::endl;
         }
 
-        if (FLAGS_hint.empty()) {
-            for (auto& device : devices) {
-                auto supported_properties = core.get_property(device, ov::supported_properties);
-                if (std::find(supported_properties.begin(), supported_properties.end(), ov::hint::performance_mode) !=
-                    supported_properties.end()) {
-                    slog::warn << "-hint default value is determined as " << ov::hint::PerformanceMode::THROUGHPUT
-                               << " automatically for " << device
-                               << " device. For more detailed information look at README." << slog::endl;
-                    std::stringstream strm;
-                    strm << ov::hint::PerformanceMode::THROUGHPUT;
-                    FLAGS_hint = strm.str();
-                }
-            }
-        }
-
         slog::info << "OpenVINO: " << ov::get_openvino_version() << slog::endl;
         slog::info << "Device info: " << slog::endl;
         slog::info << core.get_versions(device_name) << slog::endl;
@@ -217,11 +235,6 @@ int main(int argc, char* argv[]) {
         // ----------------- 3. Setting device configuration
         // -----------------------------------------------------------
         next_step();
-        ov::hint::PerformanceMode ov_perf_hint = ov::hint::PerformanceMode::UNDEFINED;
-        if (FLAGS_hint == "throughput" || FLAGS_hint == "tput")
-            ov_perf_hint = ov::hint::PerformanceMode::THROUGHPUT;
-        else if (FLAGS_hint == "latency")
-            ov_perf_hint = ov::hint::PerformanceMode::LATENCY;
 
         auto getDeviceTypeFromName = [](std::string device) -> std::string {
             return device.substr(0, device.find_first_of(".("));
@@ -248,6 +261,7 @@ int main(int argc, char* argv[]) {
             auto& device_config = config[device];
 
             // high-level performance modes
+            auto ov_perf_hint = get_performance_hint(device, core);
             if (ov_perf_hint != ov::hint::PerformanceMode::UNDEFINED) {
                 device_config.emplace(ov::hint::performance_mode(ov_perf_hint));
                 if (FLAGS_nireq != 0)
@@ -288,7 +302,6 @@ int main(int argc, char* argv[]) {
                 auto it_device_nstreams = device_nstreams.find(device);
                 if (it_device_nstreams != device_nstreams.end()) {
                     // set to user defined value
-                    auto supported_properties = core.get_property(device, ov::supported_properties);
                     if (supported(key)) {
                         device_config[key] = it_device_nstreams->second;
                     } else if (supported(ov::num_streams.name())) {
@@ -318,7 +331,7 @@ int main(int argc, char* argv[]) {
                         } else if (supported(ov::num_streams.name())) {
                             // Use API 2.0 key for streams
                             key = ov::num_streams.name();
-                            device_config[key] = ov::NumStreams::AUTO;
+                            device_config[key] = ov::streams::AUTO;
                         }
                     }
                 }
@@ -379,10 +392,10 @@ int main(int argc, char* argv[]) {
 
                 if ((device_name.find("MULTI") != std::string::npos) &&
                     (device_name.find("CPU") != std::string::npos)) {
-                    slog::warn << "Turn on GPU throttling. Multi-device execution with "
+                    slog::warn << "GPU throttling is turned on. Multi-device execution with "
                                   "the CPU + GPU performs best with GPU throttling hint, "
                                << "which releases another CPU thread (that is otherwise "
-                                  "used by the GPU driver for active polling)"
+                                  "used by the GPU driver for active polling)."
                                << slog::endl;
                     device_config[GPU_CONFIG_KEY(PLUGIN_THROTTLE)] = "1";
                 }
@@ -391,6 +404,8 @@ int main(int argc, char* argv[]) {
                 setThroughputStreams();
             } else if (device.find("GNA") != std::string::npos) {
                 set_infer_precision();
+            } else if (device.find("AUTO") != std::string::npos) {
+                device_nstreams.erase(device);
             }
         }
 
@@ -539,7 +554,9 @@ int main(int argc, char* argv[]) {
                             info.at(name).type = type_to_set;
                         }
                     }
-                    // Explicitly set inputs layout.
+                }
+                // Explicitly set inputs layout.
+                if (!name.empty() && !app_inputs_info[0].at(name).layout.empty()) {
                     in.model().set_layout(app_inputs_info[0].at(name).layout);
                 }
             }
@@ -772,8 +789,11 @@ int main(int argc, char* argv[]) {
         std::map<std::string, ov::TensorVector> inputsData;
         if (isFlagSetInCommandLine("use_device_mem")) {
             if (device_name.find("GPU") == 0) {
-                inputsData =
-                    ::gpu::get_remote_input_tensors(inputFiles, app_inputs_info, compiledModel, clInputsBuffer);
+                inputsData = ::gpu::get_remote_input_tensors(inputFiles,
+                                                             app_inputs_info,
+                                                             compiledModel,
+                                                             clInputsBuffer,
+                                                             inferRequestsQueue.requests.size());
                 useGpuMem = true;
             } else if (device_name.find("CPU") == 0) {
                 if (newInputType) {
@@ -1048,8 +1068,7 @@ int main(int argc, char* argv[]) {
                      StatisticsVariant("Percentile boundary", "percentile_boundary", FLAGS_latency_percentile),
                      StatisticsVariant("Average latency (ms)", "latency_avg", generalLatency.avg),
                      StatisticsVariant("Min latency (ms)", "latency_min", generalLatency.min),
-                     StatisticsVariant("Max latency (ms)", "latency_max", generalLatency.max),
-                     StatisticsVariant("throughput", "throughput", fps)});
+                     StatisticsVariant("Max latency (ms)", "latency_max", generalLatency.max)});
 
                 if (FLAGS_pcseq && app_inputs_info.size() > 1) {
                     for (size_t i = 0; i < groupLatencies.size(); ++i) {
@@ -1059,6 +1078,8 @@ int main(int argc, char* argv[]) {
                     }
                 }
             }
+            statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                       {StatisticsVariant("throughput", "throughput", fps)});
         }
         progressBar.finish();
 

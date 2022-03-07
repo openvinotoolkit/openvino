@@ -57,11 +57,11 @@ Formula:
 
 * **2**: `H` - 2D tensor of type *T* `[batch_size, hidden_size]`, initial hidden state. **Required.**
 
-* **3**: `W` - 2D tensor tensor of type *T* `[hidden_size, input_size]`, the weights for matrix multiplication. **Required.**
+* **3**: `W` - 2D tensor of type *T* `[hidden_size, input_size]`, the weights for matrix multiplication. **Required.**
 
-* **4**: `R` - 2D tensor tensor of type *T* `[hidden_size, hidden_size]`, the recurrence weights for matrix multiplication. **Required.**
+* **4**: `R` - 2D tensor of type *T* `[hidden_size, hidden_size]`, the recurrence weights for matrix multiplication. **Required.**
 
-* **5**: `B` 1D tensor tensor of type *T* `[hidden_size]`, the sum of biases (weights and recurrence weights). **Required.**
+* **5**: `B` 1D tensor of type *T* `[hidden_size]`, the sum of biases (weights and recurrence weights). **Required.**
 
 **Outputs**
 
