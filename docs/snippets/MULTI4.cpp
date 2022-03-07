@@ -1,8 +1,8 @@
 #include <openvino/openvino.hpp>
 
 int main() {
-const ov::AnyMap hddl_config  = {{ ov::enable_profiling.name(), InferenceEngine::PluginConfigParams::YES}};
-const ov::AnyMap gpu_config = {{ ov::enable_profiling.name(), InferenceEngine::PluginConfigParams::YES}};
+const ov::AnyMap hddl_config  = ov::enable_profiling(true);
+const ov::AnyMap gpu_config = ov::enable_profiling(true);
 //! [part4]
 // configure the HDDL device first
 ov::Core core;
