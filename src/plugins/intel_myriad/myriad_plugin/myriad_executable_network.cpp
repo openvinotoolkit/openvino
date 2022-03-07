@@ -97,12 +97,13 @@ ExecutableNetwork::ExecutableNetwork(
                 const auto inDataParam = std::make_shared<ngraph::opset3::Parameter>(
                     input->get_output_element_type(0), inputShape.get_max_shape());
                 const auto inDataShapeParam = std::make_shared<ngraph::opset3::Parameter>(
-                    ngraph::element::i32, ov::Shape{inputShape.get_max_shape().size()});
+                    ngraph::element::i64, ov::Shape{inputShape.get_max_shape().size()});
                 inDataShapeParam->set_friendly_name(input->get_friendly_name()+"_real_shape");
                 inDataParam->set_friendly_name(input->get_friendly_name());
                 inDataParam->get_output_tensor(0).set_names(input->get_output_tensor(0).get_names());
                 const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(
-                    inDataParam, inDataShapeParam, ngraph::vpu::op::DynamicShapeResolverMode::INFER_DYNAMIC_SHAPE);
+                    inDataParam, inDataShapeParam,
+                    ngraph::vpu::op::DynamicShapeResolverMode::INFER_DYNAMIC_SHAPE, input->get_partial_shape());
                 function->replace_node(input, dsr);
                 function->remove_parameter(input);
                 function->add_parameters({inDataShapeParam, inDataParam});
