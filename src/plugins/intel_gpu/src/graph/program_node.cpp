@@ -393,6 +393,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
                 float scale;
                 dnnl::memory::data_type data_type;
                 cur_p_ops.get_params_sum(idx, scale, data_type);
+                // Only conv supports data type specification in append_sum. Other primitives(deconv, fc) do not support it.
                 if (is_type<convolution>()) {
                     new_p_ops.append_sum(scale, data_type);
                 } else {
@@ -701,6 +702,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
                     dnnl::post_ops eltw_p_op_prev, sum_p_op;
 
                     eltw_p_op_prev.append_eltwise(eltw_scale * next_alpha * next_scale, alg, alpha, beta);
+                    // Only conv supports data type specification in append_sum. Other primitives(deconv, fc) do not support it.
                     if (is_type<convolution>()) {
                         sum_p_op.append_sum(sum_scale * next_alpha, data_type);
                     } else {
@@ -835,6 +837,7 @@ void program_node::init_onednn_primitive_attributes() {
 
             if (e_node.get_primitive()->mode == eltwise_mode::sum) {
                 if (program_helpers::needs_onednn_sum_post_op(e_node, in)) {
+                    // Only conv supports data type specification in append_sum. Other primitives(deconv, fc) do not support it.
                     if (is_type<convolution>()) {
                         post_ops.append_sum(1.0f, onednn::convert_data_type(in.data_type));
                     } else {

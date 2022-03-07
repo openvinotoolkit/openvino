@@ -698,17 +698,21 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         }
 
         GPU_DEBUG_IF(debug_config->verbose >= 1) {
-            GPU_DEBUG_COUT << "Execute " << inst->id() << ", memory type: "
-                           << inst->output_memory().get_allocation_type() << std::endl;
-            auto debug_in_out_mem_addr = [&]() {
-                for (size_t i = 0; i < get_primitive(inst->id())->dependencies().size(); i++) {
-                    auto& in_mem = get_primitive(inst->id())->dep_memory(i);
-                    GPU_DEBUG_COUT << "In " << in_mem.buffer_ptr() << std::endl;
+            std::ostringstream in_addr;
+            // buffer_ptr() only support usm_memory
+            for (size_t i = 0; i < get_primitive(inst->id())->dependencies().size(); i++) {
+                auto& in_mem = get_primitive(inst->id())->dep_memory(i);
+                in_addr << in_mem.buffer_ptr();
+                if (i < get_primitive(inst->id())->dependencies().size() - 1) {
+                    in_addr << ", ";
                 }
-                auto& out_mem = get_primitive(inst->id())->output_memory();
-                GPU_DEBUG_COUT << "Out " << out_mem.buffer_ptr() << std::endl;
-            };
-            debug_in_out_mem_addr();
+            }
+            auto& out_mem = get_primitive(inst->id())->output_memory();
+
+            GPU_DEBUG_COUT << "Execute " << inst->id() << ", memory type: "
+                           << inst->output_memory().get_allocation_type() << ", in_usm("
+                           << in_addr.str() << "), out_usm("
+                           << out_mem.buffer_ptr() << ")" << std::endl;
         }
 
         // If a node has mutable input or it's an output, then the input/output buffers might be changed
