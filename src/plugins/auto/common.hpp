@@ -20,6 +20,8 @@
 namespace MultiDevicePlugin {
 using DeviceName = std::string;
 using IInferPtr = InferenceEngine::IInferRequestInternal::Ptr;
+template<typename T>
+using DeviceMap = std::unordered_map<DeviceName, T>;
 struct DeviceInformation {
     DeviceName deviceName;
     std::map<std::string, std::string> config;
@@ -37,8 +39,6 @@ public:
     virtual ~Context() = default;
 };
 
-template<typename T>
-using DeviceMap = std::unordered_map<DeviceName, T>;
 class MultiContext : public Context {
 public:
     using Ptr = std::shared_ptr<MultiContext>;
@@ -49,6 +49,20 @@ public:
     std::mutex _mutex;
     bool _needPerfCounters;
     virtual ~MultiContext() = default;
+};
+
+class MultiDeviceInferencePlugin;
+class AutoContext : public MultiContext {
+public:
+    using Ptr = std::shared_ptr<AutoContext>;
+    std::string _modelPath;
+    InferenceEngine::CNNNetwork _network;
+    std::string _strDevices;
+    unsigned int _modelPriority = 0;
+    bool _batchingDisabled = {false};
+    std::mutex _confMutex;
+    MultiDeviceInferencePlugin* _plugin;
+    virtual ~AutoContext() = default;
 };
 
 struct WorkerInferRequest {

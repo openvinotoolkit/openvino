@@ -6,6 +6,7 @@
 #pragma once
 
 #include "base_schedule.hpp"
+#include "threading/ie_thread_safe_containers.hpp"
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
@@ -50,15 +51,15 @@ class MultiSchedule : public Schedule, public InferenceEngine::ITaskExecutor {
         static thread_local const char* _thisPreferredDeviceName;
 
     protected:
-        void GenerateWorkers(const std::string& device,
+        virtual void GenerateWorkers(const std::string& device,
                 const InferenceEngine::SoExecutableNetworkInternal& executableNetwork);
         static bool RunPipelineTask(InferenceEngine::Task& inferPipelineTask,
                 NotBusyWorkerRequests& idleWorkerRequests,
                 const DeviceName& preferred_device);
-        void ScheduleToWorkerInferRequest(InferenceEngine::Task,
+        virtual void ScheduleToWorkerInferRequest(InferenceEngine::Task,
                 DeviceName preferred_device = "");
 
-    private:
+    protected:
         InferenceEngine::ThreadSafeQueue<InferenceEngine::Task>                      _inferPipelineTasks;
         DeviceMap<std::unique_ptr<InferenceEngine::ThreadSafeQueue<InferenceEngine::Task>>> _inferPipelineTasksDeviceSpecific;
         DeviceMap<NotBusyWorkerRequests>                            _idleWorkerRequests;
@@ -66,5 +67,27 @@ class MultiSchedule : public Schedule, public InferenceEngine::ITaskExecutor {
         mutable std::mutex                                          _mutex;
         std::atomic_size_t                                          _numRequestsCreated = {0};
         MultiContext::Ptr                                           _multiContext;
+};
+
+struct IdleGuard {
+    explicit IdleGuard(WorkerInferRequest* workerInferRequestPtr,
+                       MultiSchedule::NotBusyWorkerRequests& notBusyWorkerRequests) :
+        _workerInferRequestPtr{workerInferRequestPtr},
+        _notBusyWorkerRequests{&notBusyWorkerRequests} {
+    }
+    ~IdleGuard() {
+        if (nullptr != _notBusyWorkerRequests) {
+            _notBusyWorkerRequests->
+                try_push(std::make_pair(_workerInferRequestPtr->_index,
+                            _workerInferRequestPtr));
+        }
+    }
+    MultiSchedule::NotBusyWorkerRequests* Release() {
+        auto notBusyWorkerRequests = _notBusyWorkerRequests;
+        _notBusyWorkerRequests = nullptr;
+        return notBusyWorkerRequests;
+    }
+    WorkerInferRequest*     _workerInferRequestPtr = nullptr;
+    MultiSchedule::NotBusyWorkerRequests*  _notBusyWorkerRequests = nullptr;
 };
 }  // namespace MultiDevicePlugin

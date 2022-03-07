@@ -32,28 +32,6 @@ thread_local WorkerInferRequest* MultiSchedule::_thisWorkerInferRequest = nullpt
 // TODO: revert to the plain variable (see header file), when we moved to the next CentOS 8.x in our support matrix
 thread_local const char* MultiSchedule::_thisPreferredDeviceName = "";
 
-struct IdleGuard {
-    explicit IdleGuard(WorkerInferRequest* workerInferRequestPtr,
-                       MultiSchedule::NotBusyWorkerRequests& notBusyWorkerRequests) :
-        _workerInferRequestPtr{workerInferRequestPtr},
-        _notBusyWorkerRequests{&notBusyWorkerRequests} {
-    }
-    ~IdleGuard() {
-        if (nullptr != _notBusyWorkerRequests) {
-            _notBusyWorkerRequests->
-                try_push(std::make_pair(_workerInferRequestPtr->_index,
-                            _workerInferRequestPtr));
-        }
-    }
-    MultiSchedule::NotBusyWorkerRequests* Release() {
-        auto notBusyWorkerRequests = _notBusyWorkerRequests;
-        _notBusyWorkerRequests = nullptr;
-        return notBusyWorkerRequests;
-    }
-    WorkerInferRequest*     _workerInferRequestPtr = nullptr;
-    MultiSchedule::NotBusyWorkerRequests*  _notBusyWorkerRequests = nullptr;
-};
-
 void MultiSchedule::init(const Context::Ptr& context) {
     Schedule::init(context);
     _multiContext = std::dynamic_pointer_cast<MultiContext>(_context);
@@ -72,7 +50,7 @@ Pipeline MultiSchedule::GetPipeline(const IInferPtr& syncInferRequest,
                 /*task*/ [this, &syncInferRequest](){
                 // by default, no preferred device:
                 _thisPreferredDeviceName = "";
-                auto execNetwork = std::dynamic_pointer_cast<MultiExecutableNetwork>(_multiContext->_executableNetwork.lock());
+                auto execNetwork = _multiContext->_executableNetwork.lock();
                 // if any input is remote (e.g. was set with SetBlob), let' use the corresponding device
                 for (const auto &it : execNetwork->GetInputsInfo()) {
                     auto b = syncInferRequest->GetBlob(it.first);
@@ -221,7 +199,10 @@ void MultiSchedule::run(Task inferPipelineTask) {
 }
 
 MultiSchedule::~MultiSchedule() {
-    _multiContext->_devicePriorities.clear();
+    {
+        std::lock_guard<std::mutex> lock(_multiContext->_mutex);
+        _multiContext->_devicePriorities.clear();
+    }
     /* NOTE: The only threads that use `MultiSchedule` worker infer requests' threads.
      *       But AsyncInferRequest destructor should wait for all asynchronous tasks by the request
      */

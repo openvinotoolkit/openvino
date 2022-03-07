@@ -14,7 +14,7 @@
 #include "ie_icore.hpp"
 #include "ie_metric_helpers.hpp"
 #include <ie_plugin_config.hpp>
-#include "async_infer_request.hpp"
+#include "base_async_infer_request.hpp"
 #include "plugin.hpp"
 
 #include "ngraph/opsets/opset1.hpp"

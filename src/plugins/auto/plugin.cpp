@@ -22,6 +22,8 @@
 #include <ie_icore.hpp>
 #include "multi_schedule.hpp"
 #include "multi_executable_network.hpp"
+#include "auto_schedule.hpp"
+#include "auto_executable_network.hpp"
 
 #include "itt.hpp"
 // ------------------------------MultiDeviceInferencePlugin----------------------------
@@ -210,7 +212,7 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetConfig(const std::stri
 }
 
 void MultiDeviceInferencePlugin::SetConfig(const std::map<std::string, std::string> & config) {
-    AutoContext context;
+    auto context = std::make_shared<AutoContext>();
     std::map<std::string, std::string> filterConfig;
     CheckConfig(config, context, filterConfig);
     for (auto && kvp : config) {
@@ -310,9 +312,9 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         // and set filter configure
 
         OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl::AutoMode");
-        AutoContext context;
+        auto autoContext = std::make_shared<AutoContext>();
         std::map<std::string, std::string> filterConfig;
-        CheckConfig(fullConfig, context, filterConfig);
+        CheckConfig(fullConfig, autoContext, filterConfig);
         // filter the device that supports filter configure
         auto strDevices = GetDeviceList(fullConfig);
         auto metaDevices = ParseMetaDevices(strDevices, fullConfig);
@@ -347,7 +349,14 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
              strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
              LOG_INFO("[AUTOPLUGIN]:device:%s, priority:%ld", iter->deviceName.c_str(), iter->devicePriority);
         }
-        return std::make_shared<MultiDeviceExecutableNetwork>(modelPath, network, supportDevices, strDevices, this, context, context.needPerfCounters);
+        autoContext->_modelPath = modelPath;
+        autoContext->_network = network;
+        autoContext->_devicePriorities = supportDevices;
+        autoContext->_devicePrioritiesInitial = supportDevices;
+        autoContext->_strDevices = strDevices;
+        autoContext->_plugin = this;
+        autoContext->_core = GetCore();
+        return std::make_shared<AutoExecutableNetwork>(autoContext, std::make_shared<AutoSchedule>());
     }
     OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl:MultiMode");
     if (priorities == fullConfig.end()) {
@@ -619,17 +628,17 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
 }
 
 void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::string>& config,
-        AutoContext& context, std::map<std::string, std::string>& filterConfig) {
+        AutoContext::Ptr& context, std::map<std::string, std::string>& filterConfig) {
     // TODO need to optimize this code, too much duplicated code
 
     const auto perf_hints_configs = PerfHintsConfig::SupportedKeys();
     for (auto&& kvp : config) {
         if (kvp.first == ov::enable_profiling) {
             if (kvp.second == PluginConfigParams::YES) {
-                context.needPerfCounters = true;
+                context->_needPerfCounters = true;
                 filterConfig.insert({kvp.first, kvp.second});
             } else if (kvp.second == PluginConfigParams::NO) {
-                context.needPerfCounters = false;
+                context->_needPerfCounters = false;
             } else {
                 IE_THROW() << "Unsupported config value: " << kvp.second
                            << " for key: " << kvp.first;
@@ -667,14 +676,14 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
                     IE_THROW() << "Unsupported config value: " << kvp.second
                         << " for key: " << kvp.first;
                 }
-                context.modelPriority = priority;
+                context->_modelPriority = priority;
             } catch(...) {
                 IE_THROW() << "Unsupported config value: " << kvp.second
                            << " for key: " << kvp.first;
             }
         } else if (kvp.first == ov::hint::allow_auto_batching) {
             if (kvp.second == PluginConfigParams::NO) {
-                context.batchingDisabled = true;
+                context->_batchingDisabled = true;
                 continue;
             }
         } else if (std::find(perf_hints_configs.begin(), perf_hints_configs.end(), kvp.first) != perf_hints_configs.end()) {
