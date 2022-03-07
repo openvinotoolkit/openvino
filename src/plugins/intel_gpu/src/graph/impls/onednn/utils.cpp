@@ -329,9 +329,9 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
                 std::stringstream msg;
                 msg << "Unsupported onednn dnnl::memory::desc find_format. "
                     << "ndims: " << desc.data.ndims
-                    << ", inner_nblks: " << desc.data.format_desc.blocking.inner_nblks
+                    << ", inner_nblks: " << blk.inner_nblks
                     << ", inner_blks: ";
-                for (int i = 0; i < desc.data.format_desc.blocking.inner_nblks; i++)
+                for (int i = 0; i < blk.inner_nblks; i++)
                     msg << "(blk " << blk.inner_blks[i] << ", idx " << blk.inner_idxs[i] << ") ";
 
                 throw std::runtime_error(msg.str());
