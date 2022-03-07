@@ -23,7 +23,21 @@ The snippets suppose we need to preprocess a model input with tensor name `tenso
 
 Inference Engine API:
 
-@snippet docs/snippets/ov_preprocessing_migration.cpp mean_scale
+@sphinxdirective
+
+.. tab:: C++
+
+      .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.cpp
+         :language: cpp
+         :fragment: [ov:preprocess:mean_scale]
+
+.. tab:: Python
+
+      .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.cpp
+         :language: python
+         :fragment: [ov:preprocess:mean_scale]
+
+@endsphinxdirective
 
 OpenVINO Runtime API 2.0:
 
