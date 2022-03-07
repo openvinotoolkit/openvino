@@ -285,27 +285,32 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                 // second, check the idle queue if all requests are in place
                 size_t destroynum = 0;
                 std::pair<int, WorkerInferRequest*> worker;
-                std::list<Time> cpuHelpAllTimes;
+                std::list<Time> cpuHelpAllStartTimes;
+                std::list<Time> cpuHelpAllEndTimes;
                 while (_idleWorkerRequests["CPU_HELP"].try_pop(worker)) {
                     destroynum++;
-                    INFO_RUN([&cpuHelpAllTimes, &worker]() {
-                        cpuHelpAllTimes.splice(cpuHelpAllTimes.end(), worker.second->_times);
+                    INFO_RUN([&cpuHelpAllStartTimes, &cpuHelpAllEndTimes, &worker]() {
+                        cpuHelpAllStartTimes.splice(cpuHelpAllStartTimes.end(), worker.second->_startTimes);
+                        cpuHelpAllEndTimes.splice(cpuHelpAllEndTimes.end(), worker.second->_endTimes);
                     });
                 }
-                INFO_RUN([this, &cpuHelpAllTimes]() {
-                    cpuHelpAllTimes.sort(std::less<Time>());
-                    _cpuHelpInferCount = cpuHelpAllTimes.size();
+                INFO_RUN([this, &cpuHelpAllStartTimes, &cpuHelpAllEndTimes]() {
+                    cpuHelpAllStartTimes.sort(std::less<Time>());
+                    cpuHelpAllEndTimes.sort(std::less<Time>());
+                    _cpuHelpInferCount = cpuHelpAllStartTimes.size();
+                    IE_ASSERT(_cpuHelpInferCount == cpuHelpAllEndTimes.size());
                 });
                 if (destroynum == _workerRequests["CPU_HELP"].size()) {
                     std::lock_guard<std::mutex> lock(_confMutex);
-                    INFO_RUN([this, &cpuHelpAllTimes, &destroynum]() {
+                    INFO_RUN([this, &cpuHelpAllStartTimes, &cpuHelpAllEndTimes, &destroynum]() {
                         _cpuHelpReleaseTime = std::chrono::steady_clock::now();
-                        if (cpuHelpAllTimes.size() >= destroynum + 2) {
+                        if (cpuHelpAllStartTimes.size() >= destroynum + 1) {
                             //remove last worksize num requests, so the fps will be more accuracy
-                            cpuHelpAllTimes.resize(_cpuHelpInferCount - destroynum);
+                            cpuHelpAllStartTimes.resize(_cpuHelpInferCount - destroynum);
+                            cpuHelpAllEndTimes.resize(_cpuHelpInferCount - destroynum);
                             std::chrono::duration<double, std::milli> durtation =
-                                cpuHelpAllTimes.back() - cpuHelpAllTimes.front();
-                            _cpuHelpFps = (cpuHelpAllTimes.size() - 1) * 1000 / durtation.count();
+                                cpuHelpAllEndTimes.back() - cpuHelpAllStartTimes.front();
+                            _cpuHelpFps = cpuHelpAllStartTimes.size() * 1000 / durtation.count();
                         }
                     });
                     LOG_INFO("[AUTOPLUGIN] release all work requests of CPU_HELP");
@@ -568,41 +573,43 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
     }
     INFO_RUN([this] {
         for (auto&& _workerRequest : _workerRequests) {
-            unsigned int count = 0;
-            std::list<MultiDevicePlugin::Time> reqAllTimes;
+            std::list<Time> reqAllStartTimes;
+            std::list<Time> reqAllEndTimes;
             for (auto& request : _workerRequest.second) {
-                count += request._times.size();
-                reqAllTimes.splice(reqAllTimes.end(), request._times);
+                reqAllStartTimes.splice(reqAllStartTimes.end(), request._startTimes);
+                reqAllEndTimes.splice(reqAllEndTimes.end(), request._endTimes);
             }
-            reqAllTimes.sort(std::less<Time>());
+            unsigned int count = reqAllStartTimes.size();
+            IE_ASSERT(count == reqAllEndTimes.size());
+            reqAllStartTimes.sort(std::less<Time>());
+            reqAllEndTimes.sort(std::less<Time>());
             if (_workerRequest.first == "CPU_HELP") {
                 LOG_INFO("[AUTOPLUGIN]CPU_HELP:infer:%ld", _cpuHelpInferCount + count);
                 if (_cpuHelpFps > 0.0) {
                     LOG_INFO("[AUTOPLUGIN]CPU_HELP:fps:%lf", _cpuHelpFps);
-                } else if (count >= 2) {
+                } else if (count >= 1) {
                     std::chrono::duration<double, std::milli> durtation =
-                        reqAllTimes.back() - reqAllTimes.front();
-                    LOG_INFO("[AUTOPLUGIN]CPU_HELP:fps:%lf", (count - 1) * 1000 /
-                        durtation.count());
+                        reqAllEndTimes.back() - reqAllStartTimes.front();
+                    LOG_INFO("[AUTOPLUGIN]CPU_HELP:fps:%lf", count * 1000 / durtation.count());
                 }
             } else {
                 LOG_INFO("[AUTOPLUGIN]%s:infer:%ld", _workerRequest.first.c_str(), count);
-                auto n = reqAllTimes.size();
+                auto n = reqAllStartTimes.size();
                 Time time;
-                while (!reqAllTimes.empty()) {
-                    time = reqAllTimes.front();
+                while (!reqAllStartTimes.empty()) {
+                    time = reqAllStartTimes.front();
                     if (time < _cpuHelpReleaseTime) {
-                        reqAllTimes.pop_front();
+                        reqAllStartTimes.pop_front();
                         n--;
                     } else {
                         break;
                     }
                 }
-                if (n >= 2) {
+                if (n >= 1) {
                     std::chrono::duration<double, std::milli> durtation =
-                        reqAllTimes.back() - time;
+                        reqAllEndTimes.back() - time;
                     LOG_INFO("[AUTOPLUGIN]%s:fps:%lf", _workerRequest.first.c_str(),
-                            (n - 1) * 1000 / durtation.count());
+                        n * 1000 / durtation.count());
                 }
             }
         }

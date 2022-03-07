@@ -73,7 +73,7 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
                _workerInferRequest = MultiDeviceExecutableNetwork::_thisWorkerInferRequest;
                _inferRequest->SetBlobsToAnotherRequest(_workerInferRequest->_inferRequest);
                INFO_RUN([this]() {
-                   _workerInferRequest->_times.push_back(std::move(std::chrono::steady_clock::now()));
+                   _workerInferRequest->_startTimes.push_back(std::move(std::chrono::steady_clock::now()));
                });
         }},
         // final task in the pipeline:
@@ -83,6 +83,9 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
               }
               if (_needPerfCounters)
                   _perfMap = _workerInferRequest->_inferRequest->GetPerformanceCounts();
+              INFO_RUN([this]() {
+                   _workerInferRequest->_endTimes.push_back(std::move(std::chrono::steady_clock::now()));
+              });
         }}
     };
 }
