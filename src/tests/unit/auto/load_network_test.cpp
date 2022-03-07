@@ -70,11 +70,12 @@ TEST(LoadNetworkToDefaultDeviceTest, LoadNetwork) {
             return inputMap;
         });
 
-    //EXPECT_CALL(*plugin, LoadExeNetworkImpl(_, _)).Times(2)
-    //    .WillRepeatedly([&](const InferenceEngine::CNNNetwork&,
-    //                  const std::map<std::string, std::string>&) -> InferenceEngine::IExecutableNetworkInternal::Ptr {
-    //        return mockIExeNet;
-    //    });
+    EXPECT_CALL(*plugin, LoadExeNetworkImpl(_, _)).Times(AtLeast(1))
+        .WillRepeatedly([&](const InferenceEngine::CNNNetwork&,
+                      const std::map<std::string, std::string>&) -> InferenceEngine::IExecutableNetworkInternal::Ptr {
+            std::cout<< "File: " << __FILE__ << ", Line: " << __LINE__ <<", Call Function: " <<  __FUNCTION__ << std::endl;
+            return mockIExeNet;
+        });
 
     ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork));
     //ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_AUTO));

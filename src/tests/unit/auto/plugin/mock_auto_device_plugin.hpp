@@ -22,5 +22,9 @@ class MockMultiDeviceLoadNetworkTestPlugin : public MultiDeviceInferencePlugin {
 public:
     MOCK_METHOD(InferenceEngine::IExecutableNetworkInternal::Ptr, LoadExeNetworkImpl, (const InferenceEngine::CNNNetwork&,
                 (const std::map<std::string, std::string>&)), (override));
+    //MOCK_METHOD(InferenceEngine::IExecutableNetworkInternal::Ptr, LoadNetworkImpl, (const std::string&,
+    //                                                                                InferenceEngine::CNNNetwork,
+    //                                                                                (const std::map<std::string, std::string>&),
+    //                                                                                const std::string &), (override));
 };
 }// namespace MockMultiDevice
