@@ -116,7 +116,7 @@ void IInferencePlugin::SetName(const std::string& pluginName) noexcept {
 std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
     const CNNNetwork& network,
     const std::map<std::string, std::string>& config) {
-    std::cout<< "File: " << __FILE__ << ", Line: " << __LINE__ <<", Call Function: " <<  __FUNCTION__ << std::endl;
+    std::cout << "File: " << __FILE__ << ", Line: " << __LINE__ << ", Call Function: " << __FUNCTION__ << std::endl;
     return LoadNetwork(network, config, nullptr);
 }
 
@@ -133,7 +133,7 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
     const std::map<std::string, std::string>& config,
     const std::shared_ptr<RemoteContext>& context) {
     std::shared_ptr<IExecutableNetworkInternal> impl;
-    std::cout<< "File: " << __FILE__ << ", Line: " << __LINE__ <<", Call Function: " <<  __FUNCTION__ << std::endl;
+    std::cout << "File: " << __FILE__ << ", Line: " << __LINE__ << ", Call Function: " << __FUNCTION__ << std::endl;
 
     // if IR `version` is not set, suppose it's IR v10 for old API
     // it allows to use operation names in set_ / get_tensor instead of tensor_names
@@ -182,7 +182,7 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
     }
 
     if (nullptr == context) {
-        std::cout<< "File: " << __FILE__ << ", Line: " << __LINE__ <<", Call Function: " <<  __FUNCTION__ << std::endl;
+        std::cout << "File: " << __FILE__ << ", Line: " << __LINE__ << ", Call Function: " << __FUNCTION__ << std::endl;
         impl = LoadExeNetworkImpl(network, config);
     } else {
         impl = LoadExeNetworkImpl(network, context, config);
