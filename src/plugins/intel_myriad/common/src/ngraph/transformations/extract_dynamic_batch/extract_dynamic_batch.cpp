@@ -51,6 +51,10 @@ private:
 
             {ngraph::opset5::Relu::get_type_info_static(),             sliceUnaryEltwise},
             {ngraph::opset5::Clamp::get_type_info_static(),            sliceUnaryEltwise},
+
+            // TODO: Need to make sure that all topologies/attributes scenarios can be covered by sliceUnaryEltwise
+            {ngraph::opset5::MaxPool::get_type_info_static(),          sliceUnaryEltwise},
+            {ngraph::opset5::AvgPool::get_type_info_static(),          sliceUnaryEltwise},
         };
         return slicers;
     }

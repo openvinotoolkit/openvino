@@ -23,6 +23,11 @@ void FrontEnd::addDataTypeConvertStages(const Model& model) {
     VPU_LOGGER_SECTION(env.log);
 
     for (const auto& input : model->datas()) {
+        if (_core && _core->isNewAPI()) {
+            env.log->trace("OpenVINO API 2.0 has already inserted Convert operations. Skip this legacy pass for inputs.");
+            continue;
+        }
+
         if (input->usage() != DataUsage::Input) {
             continue;
         }
