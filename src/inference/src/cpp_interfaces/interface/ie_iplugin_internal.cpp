@@ -309,6 +309,8 @@ std::unordered_set<std::string> IInferencePlugin::GetRemovedNodes(
 
     for (auto&& node : transformedFunction->get_ops()) {
         transformedNodeNames.emplace(node->get_friendly_name());
+        for (auto&& fusedLayerName : ngraph::getFusedNamesVector(node))
+            transformedNodeNames.emplace(fusedLayerName);
     }
 
     for (auto&& originalNode : originalFunction->get_ops()) {

@@ -936,6 +936,9 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
             return true;
         };
 
+        auto removedNodeNames = GetRemovedNodes(function, clonnedFunction);
+        supported.insert(removedNodeNames.begin(), removedNodeNames.end());
+
         bool isSupported = false;
         bool wasNodeAlreadyChecked = false;
         for (auto op : ops) {
@@ -993,9 +996,6 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
                 }
             }
         }
-
-        auto removedNodeNames = GetRemovedNodes(function, clonnedFunction);
-        supported.insert(removedNodeNames.begin(), removedNodeNames.end());
 
         for (auto&& layerName : supported) {
             res.supportedLayersMap.emplace(layerName, GetName());
