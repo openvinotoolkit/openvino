@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -32,7 +32,7 @@ public:
  * @ingroup ie_transformation_common_api
  * @brief PullSqueezeThroughEltwise transformation propagates Squeeze up through binary elementwise operations:
  */
-class ngraph::pass::PullSqueezeThroughEltwise: public ngraph::pass::MatcherPass {
+class ngraph::pass::PullSqueezeThroughEltwise : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     PullSqueezeThroughEltwise();
@@ -74,7 +74,7 @@ public:
  * by a single Minimum/Maximum with 2 inputs and tries to eliminate Squeeze/Unsqueeze layers before and after Min/Max.
  */
 
-class ngraph::pass::ConcatReduceFusion: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConcatReduceFusion : public ngraph::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConcatReduceFusion();
