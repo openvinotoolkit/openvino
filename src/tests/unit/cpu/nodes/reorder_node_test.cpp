@@ -300,7 +300,6 @@ protected:
     std::vector<size_t> dstOrder;
     InferenceEngine::Precision prec;
 
-    std::shared_ptr<ov::intel_cpu::MultiCache> rtParamsCache;
     mkldnn::stream stream;
     std::shared_ptr<ov::intel_cpu::MKLDNNReorderNode> reorderNode;
     std::shared_ptr<ov::intel_cpu::MKLDNNInputNode> inputNode;
