@@ -34,6 +34,7 @@ TEST(LoadNetworkToDefaultDeviceTest, LoadNetwork) {
     std::ofstream outfile(pluginXML);
     ASSERT_NO_THROW(outfile << content);
     ASSERT_NO_THROW(outfile.close());
+    std::cout<< "File: " << __FILE__ << ", Line: " << __LINE__ <<", Call Function: " << __FUNCTION__ << std::endl;
     Core ie(pluginXML);
     //ov::Core ie_core(pluginXML);
     std::remove(pluginXML.c_str());
