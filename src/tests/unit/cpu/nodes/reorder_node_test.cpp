@@ -12,6 +12,7 @@
 #include <common/memory_desc_wrapper.hpp>
 #include <dnnl.hpp>
 #include <typeinfo>
+#include <utility>
 
 #include <nodes/reorder.h>
 #include "nodes/input.h"
@@ -50,9 +51,9 @@ struct mapped_ptr_t {
     mapped_ptr_t(const dnnl::memory* mem) : mem_(mem) {
         ptr_ = mem->map_data<nonconst_type>();
     }
-    mapped_ptr_t(mapped_ptr_t&& other) : mem_(other.mem_), ptr_(other.ptr_) {
-        other.mem_ = nullptr;
-        other.ptr_ = nullptr;
+    mapped_ptr_t(mapped_ptr_t&& other) {
+        std::swap(mem_, other.mem_);
+        std::swap(ptr_, other.ptr_);
     }
 
     mapped_ptr_t(const mapped_ptr_t&) = delete;
@@ -74,8 +75,8 @@ struct mapped_ptr_t {
     }
 
 private:
-    const dnnl::memory* mem_;
-    nonconst_type* ptr_;
+    const dnnl::memory* mem_{nullptr};
+    nonconst_type* ptr_{nullptr};
 };
 
 template <typename T>
@@ -91,12 +92,9 @@ inline void check_reorder(const dnnl::memory::desc& md_i,
     auto src_data = map_memory<data_i_t>(src);
     auto dst_data = map_memory<data_o_t>(dst);
 
-    const auto ndims = md_i.data.ndims;
-    const auto* dims = md_i.data.dims;
-    const size_t nelems = std::accumulate(dims, dims + ndims, size_t(1), std::multiplies<size_t>());
-
     const dnnl::impl::memory_desc_wrapper mdw_i(md_i.data);
     const dnnl::impl::memory_desc_wrapper mdw_o(md_o.data);
+    auto nelems = mdw_i.nelems();
     for (size_t i = 0; i < nelems; ++i) {
         auto src_offset = mdw_i.off_l(i, false);
         data_i_t s_raw = src_data[src_offset];
@@ -107,6 +105,14 @@ inline void check_reorder(const dnnl::memory::desc& md_i,
     }
 }
 
+template <typename T>
+std::string typeInfo(void) {
+    if (std::is_same<T, float>::value)
+        return "float";
+    if (std::is_same<T, int8_t>::value)
+        return "int8";
+    return "Unsupported type";
+}
 template <typename T>
 class ReorderCustomizedStrideTest : public ::testing::Test,
                                     public ::testing::WithParamInterface<ReorderCustomImplTestParamSet<T>> {
@@ -124,8 +130,8 @@ public:
         result.seekp(-1, result.cur);
         result << ")";
         result << "_IsNspcToNcsp:" << p.isNspc2Ncsp;
-        result << "_InputDataType:" << typeid(inputType).name();
-        result << "_OutputDataType:" << typeid(outputType).name();
+        result << "_InputDataType:" << typeInfo<inputType>();
+        result << "_OutputDataType:" << typeInfo<outputType>();
         result << ")";
         return result.str();
     }
@@ -231,7 +237,7 @@ protected:
 
         reorderNode->setDescs(inputDesc, outputDesc);
         reorderNode->setRuntimeCache(rtParamsCache);
-        std::vector<std::shared_ptr<ov::intel_cpu::MKLDNNNode>> nodes{inputNode, reorderNode, outputNode};
+        std::array<std::shared_ptr<ov::intel_cpu::MKLDNNNode>, 3> nodes{inputNode, reorderNode, outputNode};
         for (auto& n : nodes) {
             n->init();
             n->getSupportedDescriptors();
@@ -262,20 +268,19 @@ protected:
     // Fill dstData with zeros
 
     void fillData() {
-        auto elemNum = std::accumulate(srcDims.begin(), srcDims.end(), size_t(1), std::multiplies<size_t>());
-        const auto& inputReorder = parentEdge->getMemory().GetPrimitive();
-        auto inputReorderData = map_memory<inputType>(inputReorder);
-
+        const auto& inputMemory = parentEdge->getMemory().GetPrimitive();
+        auto inputReorderData = map_memory<inputType>(inputMemory);
         ov::intel_cpu::DnnlMemoryDescPtr dnnlMdInput = parentEdge->getMemory().GetDescWithType<DnnlMemoryDesc>();
         const dnnl::impl::memory_desc_wrapper mdInput{dnnlMdInput->getDnnlDesc().data};
+        auto elemNum = mdInput.nelems();
         for (size_t i = 0; i < elemNum; ++i)
             inputReorderData[mdInput.off_l(i, false)] = inputType(i);
-        // Set all the elements in output memory to be 0.
-        elemNum = std::accumulate(dstDims.begin(), dstDims.end(), size_t(1), std::multiplies<size_t>());
+
         const auto& outputReorder = childEdge->getMemory().GetPrimitive();
         auto outputReorderData = map_memory<outputType>(outputReorder);
         ov::intel_cpu::DnnlMemoryDescPtr dnnlMdOutput = childEdge->getMemory().GetDescWithType<DnnlMemoryDesc>();
         const dnnl::impl::memory_desc_wrapper mdOutput{dnnlMdOutput->getDnnlDesc().data};
+        elemNum = mdOutput.nelems();
         for (size_t i = 0; i < elemNum; ++i)
             outputReorderData[mdOutput.off_l(i, false)] = outputType(0);
     }
@@ -390,8 +395,8 @@ public:
         }
         result << "_InputLayoutType:" << static_cast<int>(p.srcLayout) << ".";
         result << "_OutputLayoutType:" << static_cast<int>(p.dstLayout) << ".";
-        result << "_InputDataType:" << typeid(inputType).name();
-        result << "_OutputDataType:" << typeid(outputType).name();
+        result << "_InputDataType:" << typeInfo<inputType>();
+        result << "_OutputDataType:" << typeInfo<outputType>();
         result << ")";
         return result.str();
     }
@@ -410,13 +415,13 @@ protected:
 
         auto memDesc = inputDesc.cloneWithNewDims(inputShape);
         parentEdge->getMemoryPtr()->redefineDesc(memDesc);
-        auto elemNum = std::accumulate(inputShape.begin(), inputShape.end(), size_t(1), std::multiplies<size_t>());
 
         const auto& inputReorder = parentEdge->getMemory().GetPrimitive();
         auto inputReorderData = map_memory<inputType>(inputReorder);
 
         dnnlMdInput = parentEdge->getMemory().GetDescWithType<DnnlMemoryDesc>();
         const dnnl::impl::memory_desc_wrapper mdInput{dnnlMdInput->getDnnlDesc().data};
+        auto elemNum = mdInput.nelems();
 
         for (size_t i = 0; i < elemNum; ++i) {
             inputReorderData[mdInput.off_l(i, false)] = inputType(i);
@@ -435,38 +440,46 @@ protected:
 
         check_reorder<inputType, outputType>(mdInput, mdOutput, reorderInput, reorderOutput);
     }
+    struct buildReorderParams {
+        ov::intel_cpu::Shape srcDims;
+        ov::intel_cpu::Shape dstDims;
+        LayoutType srcLayout;
+        LayoutType dstLayout;
+        InferenceEngine::Precision prec;
+    };
 
     void SetUp() override {
-        ReorderCPUTestParamSet<T> reorderParam = this->GetParam();
-        inputPartialShape = reorderParam.inputPartialShape;
-        inputShapes = reorderParam.inputShapes;
-        srcLayout = reorderParam.srcLayout;
-        dstLayout = reorderParam.dstLayout;
-        prec = reorderParam.prec;
-        srcDims = ov::intel_cpu::Shape(inputPartialShape);
-        dstDims = srcDims;
-        blockCreatorMap = BlockedDescCreator::getCommonCreators();
-        rtParamsCache = std::make_shared<ov::intel_cpu::MultiCache>(100);
-        buildReorderNode();
+        ReorderCPUTestParamSet<T> reorderTestParam = this->GetParam();
+        buildReorderParams reorderParams;
+        reorderParams.srcLayout = reorderTestParam.srcLayout;
+        reorderParams.dstLayout = reorderTestParam.dstLayout;
+        reorderParams.prec = reorderTestParam.prec;
+        reorderParams.srcDims = ov::intel_cpu::Shape(reorderTestParam.inputPartialShape);
+        reorderParams.dstDims = reorderParams.srcDims;
+        inputShapes = reorderTestParam.inputShapes;
+
+        auto rtParamsCache = std::make_shared<ov::intel_cpu::MultiCache>(100);
+        buildReorderNode(reorderParams);
         reorderNode->setRuntimeCache(rtParamsCache);
     }
 
-    void buildReorderNode() {
-        auto srcBlockedDescCreator = blockCreatorMap[srcLayout];
-        auto dstBlockedDescCreator = blockCreatorMap[dstLayout];
+    void buildReorderNode(const buildReorderParams& reorderParams) {
+        BlockedDescCreator::CreatorsMap blockCreatorMap = BlockedDescCreator::getCommonCreators();
+        auto srcBlockedDescCreator = blockCreatorMap[reorderParams.srcLayout];
+        auto dstBlockedDescCreator = blockCreatorMap[reorderParams.dstLayout];
 
         const mkldnn::engine cpuEngine(dnnl::engine::kind::cpu, 0);
         ov::intel_cpu::MKLDNNWeightsSharing::Ptr weightsCache;
 
-        inputNode = std::make_shared<ov::intel_cpu::MKLDNNInputNode>(srcDims,
-                                                                    prec,
+        auto inputNode = std::make_shared<ov::intel_cpu::MKLDNNInputNode>(reorderParams.srcDims,
+                                                                    reorderParams.prec,
                                                                     "Reorder_Input",
                                                                     "Parameter",
                                                                     cpuEngine,
                                                                     weightsCache);
         reorderNode = std::make_shared<ov::intel_cpu::MKLDNNReorderNode>("Reorder", cpuEngine, weightsCache);
-        auto outputNode = std::make_shared<ov::intel_cpu::MKLDNNInputNode>(dstDims,
-                                                                          prec,
+        auto outputNode = std::make_shared<ov::intel_cpu::MKLDNNInputNode>(reorderParams.dstDims,
+                                                                          reorderParams.prec,
                                                                           "Reorder_Output",
                                                                           "Output",
                                                                           cpuEngine,
@@ -478,10 +491,9 @@ protected:
         childEdge->changeStatus(ov::intel_cpu::MKLDNNEdge::Status::NeedAllocation);
         reorderNode->addEdge(parentEdge);
         reorderNode->addEdge(childEdge);
-        auto rtParamsCache = std::make_shared<ov::intel_cpu::MultiCache>(100);
-        inputDesc = srcBlockedDescCreator->createDesc(prec, srcDims);
+        inputDesc = srcBlockedDescCreator->createDesc(reorderParams.prec, reorderParams.srcDims);
 
-        const ov::intel_cpu::CpuBlockedMemoryDesc outputDesc = dstBlockedDescCreator->createDesc(prec, dstDims);
+        const ov::intel_cpu::CpuBlockedMemoryDesc outputDesc = dstBlockedDescCreator->createDesc(reorderParams.prec, reorderParams.dstDims);
 
         auto parentMemory = std::make_shared<ov::intel_cpu::MKLDNNMemory>(cpuEngine);
         auto childMemory = std::make_shared<ov::intel_cpu::MKLDNNMemory>(cpuEngine);
@@ -492,7 +504,7 @@ protected:
 
         reorderNode->setDescs(inputDesc, outputDesc);
 
-        std::vector<std::shared_ptr<ov::intel_cpu::MKLDNNNode>> nodes{inputNode, reorderNode, outputNode};
+        std::array<std::shared_ptr<ov::intel_cpu::MKLDNNNode>, 3> nodes{inputNode, reorderNode, outputNode};
         for (auto& n : nodes) {
             n->init();
             n->getSupportedDescriptors();
@@ -501,26 +513,15 @@ protected:
         //Select inputDesc as primitive descriptor for reorder node
         reorderNode->selectPrimitiveDescriptorByIndex(0);
         stream = {cpuEngine};
-        return;
     }
 
 private:
-    std::shared_ptr<ov::intel_cpu::MultiCache> rtParamsCache;
     mkldnn::stream stream;
     std::shared_ptr<ov::intel_cpu::MKLDNNReorderNode> reorderNode;
-    std::shared_ptr<ov::intel_cpu::MKLDNNNode> inputNode;
     std::shared_ptr<ov::intel_cpu::MKLDNNEdge> parentEdge;
     std::shared_ptr<ov::intel_cpu::MKLDNNEdge> childEdge;
-
-    ov::intel_cpu::Shape srcDims;
-    ov::intel_cpu::Shape dstDims;
-    LayoutType srcLayout;
-    LayoutType dstLayout;
-    InferenceEngine::Precision prec;
-    std::vector<std::vector<size_t>> inputShapes;
-    ngraph::PartialShape inputPartialShape;
-    BlockedDescCreator::CreatorsMap blockCreatorMap;
     ov::intel_cpu::CpuBlockedMemoryDesc inputDesc{InferenceEngine::Precision::FP32, ov::intel_cpu::Shape{}};
+    std::vector<std::vector<size_t>> inputShapes;
 };
 
 using ReorderCPUTestF32 = ReorderCPUTest<f32_f32>;
@@ -542,7 +543,7 @@ const auto reorderCpuTestParams_1 =
                                                 InferenceEngine::Precision::FP32});
 
 const auto reorderCpuTestParams_2 =
-    ::testing::Values(ReorderCPUTestParamSetF32{{2, 8, -1, 4},
+    ::testing::Values(ReorderCPUTestParamSetF32{{-1, -1, -1, -1},
                                                 {{2, 8, 4, 4}, {2, 8, 8, 4}, {2, 8, 4, 4}},
                                                 LayoutType::ncsp,
                                                 LayoutType::nspc,
@@ -556,7 +557,7 @@ const auto reorderCpuTestParams_3 =
                                                 InferenceEngine::Precision::FP32});
 
 const auto reorderCpuTestParams_4 =
-    ::testing::Values(ReorderCPUTestParamSetS8{{2, 32, -1, 4},
+    ::testing::Values(ReorderCPUTestParamSetS8{{-1, 32, -1, -1},
                                                 {{2, 32, 3, 4}, {2, 32, 6, 4}, {2, 32, 3, 4}},
                                                 LayoutType::nCsp16c,
                                                 LayoutType::nspc,
