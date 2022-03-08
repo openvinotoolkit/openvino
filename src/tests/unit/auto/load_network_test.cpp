@@ -34,7 +34,7 @@ TEST(LoadNetworkToDefaultDeviceTest, LoadNetwork) {
     std::ofstream outfile(pluginXML);
     ASSERT_NO_THROW(outfile << content);
     ASSERT_NO_THROW(outfile.close());
-    std::cout<< "File: " << __FILE__ << ", Line: " << __LINE__ <<", Call Function: " << __FUNCTION__ << std::endl;
+    std::cout << "File: " << __FILE__ << ", Line: " << __LINE__ <<", Call Function: " << __FUNCTION__ << std::endl;
     Core ie(pluginXML);
     //ov::Core ie_core(pluginXML);
     std::remove(pluginXML.c_str());
@@ -74,7 +74,7 @@ TEST(LoadNetworkToDefaultDeviceTest, LoadNetwork) {
     EXPECT_CALL(*plugin, LoadExeNetworkImpl(_, _)).Times(AtLeast(1))
         .WillRepeatedly([&](const InferenceEngine::CNNNetwork&,
                       const std::map<std::string, std::string>&) -> InferenceEngine::IExecutableNetworkInternal::Ptr {
-            std::cout<< "File: " << __FILE__ << ", Line: " << __LINE__ <<", Call Function: " <<  __FUNCTION__ << std::endl;
+            std::cout << "File: " << __FILE__ << ", Line: " << __LINE__ <<", Call Function: " <<  __FUNCTION__ << std::endl;
             return mockIExeNet;
         });
 

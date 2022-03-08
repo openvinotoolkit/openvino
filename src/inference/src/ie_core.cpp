@@ -1379,7 +1379,7 @@ public:
 };
 
 Core::Core(const std::string& xmlConfigFile) {
-    std::cout<< "File: " << __FILE__ << ", Line: " << __LINE__ <<", Call Function: " << __FUNCTION__ << std::endl;
+    std::cout << "File: " << __FILE__ << ", Line: " << __LINE__ << ", Call Function: " << __FUNCTION__ << std::endl;
     _impl = std::make_shared<Impl>();
 
 #ifdef OPENVINO_STATIC_LIBRARY
@@ -1627,7 +1627,7 @@ void Core::RegisterPlugin(const std::string& pluginName, const std::string& devi
 }
 
 void Core::RegisterPlugins(const std::string& xmlConfigFile) {
-    std::cout<< "File: " << __FILE__ << ", Line: " << __LINE__ <<", Call Function: " << __FUNCTION__ << std::endl;
+    std::cout << "File: " << __FILE__ << ", Line: " << __LINE__ << ", Call Function: " << __FUNCTION__ << std::endl;
     _impl->RegisterPluginsInRegistry(xmlConfigFile);
 }
 
