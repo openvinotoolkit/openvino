@@ -146,5 +146,6 @@ CreatePluginEngineProxy(InferenceEngine::IInferencePlugin *target) {
 }
 
 OPENVINO_PLUGIN_API void InjectProxyEngine(InferenceEngine::IInferencePlugin *target) {
+    std::cout<< "File: " << __FILE__ << ", Line: " << __LINE__ <<", Call Function: " << __FUNCTION__ << std::endl;
     __target = target;
 }

@@ -882,7 +882,9 @@ public:
             else
                 IE_THROW() << "Device with \"" << deviceName << "\" name is not registered in the InferenceEngine";
         }
-
+        auto pluginPath = (it->second).libraryLocation.c_str();
+        std::wstring tmp(pluginPath);
+        std::cout << "Device Name: " << deviceName << "\tLib: " << std::string(tmp.begin(), tmp.end()) << std::endl;
         // Plugin is in registry, but not created, let's create
         auto it_plugin = plugins.find(deviceName);
         if (it_plugin == plugins.end()) {
