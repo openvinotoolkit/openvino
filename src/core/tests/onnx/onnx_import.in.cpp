@@ -4736,3 +4736,15 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unsqueeze_ai_onnx_domain_opset13) {
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_expand_failsafe_node) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/expand_failsafe_node.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    const auto input_data = {1.0f, 2.0f, 3.0f, 4.0f};
+    test_case.add_input<float>(input_data);
+    // the target shape is an empty constant so the Expand operation should not modify the input shape
+    test_case.add_expected_output<float>(input_data);
+    test_case.run();
+}
