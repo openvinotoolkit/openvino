@@ -407,8 +407,8 @@ public:
 
         FOREACH_CHILD (pluginNode, devicesNode, "plugin") {
             std::string deviceName = GetStrAttr(pluginNode, "name");
-            auto libName =  GetStrAttr(pluginNode, "location");
-            std::cout << __FILE__ << ": " << __LINE__;
+            auto libName = GetStrAttr(pluginNode, "location");
+            std::cout << "Pid: " << getpid() << __FILE__ << ": " << __LINE__;
             std::cout << " Device Name: " << deviceName << "\tLib: " << libName << std::endl;
             ov::util::FilePath pluginPath = ov::util::to_file_path(GetStrAttr(pluginNode, "location").c_str());
 
