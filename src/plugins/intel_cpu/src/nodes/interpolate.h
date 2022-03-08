@@ -115,11 +115,11 @@ public:
     void prepareParams() override;
 
     struct InterpolateAttrs {
-        InterpolateMode mode;
-        InterpolateCoordTransMode coordTransMode;
-        InterpolateNearestMode nearestMode;
-        bool antialias;
-        float cubeCoeff;
+        InterpolateMode mode = InterpolateMode::nearest;
+        InterpolateCoordTransMode coordTransMode = InterpolateCoordTransMode::half_pixel;
+        InterpolateNearestMode nearestMode = InterpolateNearestMode::round_prefer_floor;
+        bool antialias = false;
+        float cubeCoeff = -0.75;
         std::vector<int> padBegin;
         std::vector<int> padEnd;
         InferenceEngine::Precision inPrc;
