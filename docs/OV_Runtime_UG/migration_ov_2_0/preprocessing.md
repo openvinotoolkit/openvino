@@ -29,11 +29,11 @@ Inference Engine API:
 
       .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.cpp
          :language: cpp
-         :fragment: [ov:preprocess:test]
+         :fragment: [ov_mean_scale]
 
 .. tab:: Python
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.cpp
+      .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.py
          :language: python
          :fragment: [ov:preprocess:test]
 
@@ -41,13 +41,13 @@ Inference Engine API:
 
 OpenVINO Runtime API 2.0:
 
-@snippet docs/snippets/ov_preprocessing_migration.py ov_mean_scale
+@snippet docs/snippets/ov_preprocessing_migration.cpp ov_mean_scale
 
 ### Precision and layout conversions
 
 Inference Engine API:
 
-@snippet docs/snippets/ov_preprocessing_migration.py conversions
+@snippet docs/snippets/ov_preprocessing_migration.cpp conversions
 
 OpenVINO Runtime API 2.0:
 
