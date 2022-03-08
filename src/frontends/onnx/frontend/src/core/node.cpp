@@ -213,7 +213,7 @@ template <typename T>
 std::shared_ptr<ov::op::v0::Constant> Node::Impl::get_attribute_as_constant(const std::string& name) const {
     const auto value = get_attribute_value<T>(name);
     const element::Type type = element::from<T>();
-    return ov::op::v0::Constant::create(type, Shape{}, std::vector<T>{value});
+    return std::make_shared<ov::op::v0::Constant>(type, Shape{}, value);
 }
 
 template <typename T>
@@ -221,7 +221,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::Impl::get_attribute_as_constant(cons
                                                                             T default_value) const {
     const auto value = get_attribute_value<T>(name, default_value);
     const element::Type type = element::from<T>();
-    return ov::op::v0::Constant::create(type, Shape{}, std::vector<T>{value});
+    return std::make_shared<ov::op::v0::Constant>(type, Shape{}, value);
 }
 
 template <>
