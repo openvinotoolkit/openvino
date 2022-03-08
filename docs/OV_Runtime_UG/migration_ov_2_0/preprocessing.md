@@ -41,13 +41,13 @@ Inference Engine API:
 
 OpenVINO Runtime API 2.0:
 
-@snippet docs/snippets/ov_preprocessing_migration.cpp ov_mean_scale
+@snippet docs/snippets/ov_preprocessing_migration.py ov_mean_scale
 
 ### Precision and layout conversions
 
 Inference Engine API:
 
-@snippet docs/snippets/ov_preprocessing_migration.cpp conversions
+@snippet docs/snippets/ov_preprocessing_migration.py conversions
 
 OpenVINO Runtime API 2.0:
 
