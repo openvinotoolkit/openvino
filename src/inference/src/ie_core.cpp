@@ -393,7 +393,7 @@ public:
      */
     void RegisterPluginsInRegistry(const std::string& xmlConfigFile) {
         std::lock_guard<std::mutex> lock(pluginsMutex);
-
+        std::cout << "Plugin XML file location: " << xmlConfigFile << std::endl;
         auto parse_result = ParseXml(xmlConfigFile.c_str());
         if (!parse_result.error_msg.empty()) {
             IE_THROW() << parse_result.error_msg;
@@ -407,6 +407,9 @@ public:
 
         FOREACH_CHILD (pluginNode, devicesNode, "plugin") {
             std::string deviceName = GetStrAttr(pluginNode, "name");
+            auto libName =  GetStrAttr(pluginNode, "location");
+            std::cout << __FILE__ << ": " << __LINE__;
+            std::cout << " Device Name: " << deviceName << "\tLib: " << libName << std::endl;
             ov::util::FilePath pluginPath = ov::util::to_file_path(GetStrAttr(pluginNode, "location").c_str());
 
             if (deviceName.find('.') != std::string::npos) {
@@ -884,7 +887,8 @@ public:
         }
         auto pluginPath = (it->second).libraryLocation.c_str();
         std::wstring tmp(pluginPath);
-        std::cout << "Device Name: " << deviceName << "\tLib: " << std::string(tmp.begin(), tmp.end()) << std::endl;
+        std::cout << __FILE__ << ": " << __LINE__;
+        std::cout << " Device Name: " << deviceName << "\tLib: " << std::string(tmp.begin(), tmp.end()) << std::endl;
         // Plugin is in registry, but not created, let's create
         auto it_plugin = plugins.find(deviceName);
         if (it_plugin == plugins.end()) {

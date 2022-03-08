@@ -32,10 +32,10 @@ TEST(LoadNetworkToDefaultDeviceTest, LoadNetwork) {
     std::string pluginXML{"mock_engine_valid.xml"};
     std::string content{"<ie><plugins><plugin name=\"AUTO\" location=\"libmock_engine.so\"></plugin></plugins></ie>"};
     std::ofstream outfile(pluginXML);
-    outfile << content;
-    outfile.close();
+    ASSERT_NO_THROW(outfile << content);
+    ASSERT_NO_THROW(outfile.close());
     Core ie(pluginXML);
-    ov::Core ie_core(pluginXML);
+    //ov::Core ie_core(pluginXML);
     std::remove(pluginXML.c_str());
     std::string mockEngineName("mock_engine");
     std::string libraryName = CommonTestUtils::pre + mockEngineName + IE_BUILD_POSTFIX + CommonTestUtils::ext;
