@@ -25,7 +25,7 @@ RemoteBlobImpl::RemoteBlobImpl(ClContext::Ptr context,
     uint32_t plane,
     BlobType mem_type) :
     m_context(context), m_stream(stream), m_layout(layout), m_mem_type(mem_type), m_mem(mem), m_surf(surf), m_plane(plane),
-    _handle(nullptr), _allocator(nullptr), m_memObject(nullptr), lockedHolder(nullptr) {
+    _handle(nullptr), _allocator(nullptr), m_memObject(nullptr), lockedCounter(0), lockedHolder(nullptr) {
     auto _impl = getContextImpl(m_context.lock());
     auto eng = _impl->GetEngine();
 
@@ -189,14 +189,22 @@ void RemoteBlobImpl::lock() const {
     if (!is_allocated()) {
         IE_THROW(NotAllocated) << "[GPU] Remote blob can't be locked as it's not allocated";
     }
-    lockedHolder = std::unique_ptr<cldnn::mem_lock<uint8_t>>(new cldnn::mem_lock<uint8_t>(m_memObject, m_stream));
-    auto ptr = lockedHolder->data();
-    _handle = reinterpret_cast<void*>(ptr);
-    m_allocator.regLockedBlob(_handle, this);
+
+    std::lock_guard<std::mutex> locker(lockedMutex);
+    if (lockedCounter == 0) {
+        lockedHolder = std::unique_ptr<cldnn::mem_lock<uint8_t>>(new cldnn::mem_lock<uint8_t>(m_memObject, m_stream));
+        auto ptr = lockedHolder->data();
+        _handle = reinterpret_cast<void*>(ptr);
+        m_allocator.regLockedBlob(_handle, this);
+    }
+    lockedCounter++;
 }
 
 void RemoteBlobImpl::unlock() const {
-    lockedHolder.reset();
+    std::lock_guard<std::mutex> locker(lockedMutex);
+    lockedCounter--;
+    if (lockedCounter == 0)
+        lockedHolder.reset();
 }
 
 LockedMemory<void> RemoteBlobImpl::buffer() noexcept {
