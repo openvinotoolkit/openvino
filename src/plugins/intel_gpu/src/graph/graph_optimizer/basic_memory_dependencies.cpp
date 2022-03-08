@@ -43,18 +43,21 @@ void basic_memory_dependencies::run(program& p) {
             for (auto& fused_op : node->get_fused_primitives()) {
                 if (fused_op.node->is_type<eltwise>() && fused_op.deps.size() == 1) {
                     auto eltw_in_layout = node->get_dependency(fused_op.dep_start_idx).get_output_layout();
-                    auto conv_out_layout = node->get_output_layout();
-                    if (eltw_dep > 0) {
-                        can_reuse_eltwise_mem = false;
-                        break;
-                    }
+                    auto out_layout = node->get_output_layout();
 
-                    if (eltw_in_layout.size == conv_out_layout.size &&
-                        eltw_in_layout.format == conv_out_layout.format &&
-                        eltw_in_layout.data_padding == conv_out_layout.data_padding &&
-                        data_type_traits::size_of(eltw_in_layout.data_type) == data_type_traits::size_of(conv_out_layout.data_type)) {
+                    if (!program_helpers::needs_onednn_sum_post_op(fused_op.node->as<eltwise>(), eltw_in_layout))
+                        continue;
+
+                    if (program_helpers::are_layouts_identical_for_onednn_sum_post_op(eltw_in_layout, out_layout)) {
+                        if (eltw_dep > 0)
+                            throw std::runtime_error("Unsupported multiple full size tensors.");
+
                         eltw_dep = fused_op.dep_start_idx;
                         can_reuse_eltwise_mem = true;
+                    }
+
+                    if (program_helpers::needs_onednn_sum_post_op(fused_op.node->as<eltwise>(), eltw_in_layout) && !can_reuse_eltwise_mem) {
+                        throw std::runtime_error("Buffer reuse is required for onednn sum post operation.");
                     }
                 }
             }

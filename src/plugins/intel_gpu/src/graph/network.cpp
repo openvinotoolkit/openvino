@@ -556,19 +556,6 @@ void network::allocate_primitives() {
                         can_reuse_eltwise_mem = true;
                     }
 
-                    if (!can_reuse_eltwise_mem) {
-                        if (_primitives.find(eltw_in.id()) != _primitives.end() && _primitives.find(node->id()) != _primitives.end()) {
-                            auto& eltw_inst = _primitives.at(eltw_in.id());
-                            auto& prim_inst = _primitives.at(node->id());
-                            auto eltw_mem_type = eltw_inst->output_memory().get_allocation_type();
-                            auto prim_mem_type = prim_inst->output_memory().get_allocation_type();
-
-                            // Keep lockable memory type for `prim_inst` output if needed
-                            if (eltw_mem_type != prim_mem_type && eltw_mem_type != allocation_type::cl_mem && eltw_mem_type != allocation_type::usm_host)
-                                can_reuse_eltwise_mem = false;
-                        }
-                    }
-
                     if (program_helpers::needs_onednn_sum_post_op(fused_op.node->as<eltwise>(), eltw_in_layout) && !can_reuse_eltwise_mem) {
                         throw std::runtime_error("Buffer reuse is required for onednn sum post operation.");
                     }
