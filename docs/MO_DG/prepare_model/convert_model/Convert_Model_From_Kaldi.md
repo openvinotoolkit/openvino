@@ -1,17 +1,5 @@
 # Converting a Kaldi* Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi}
 
-@sphinxdirective
-
-.. _convert model kaldi:
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-   openvino_docs_MO_DG_prepare_model_convert_model_kaldi_specific_Aspire_Tdnn_Model
-
-@endsphinxdirective
-
 A summary of the steps for optimizing and deploying a model that was trained with Kaldi\*:
 
 1. [Configure the Model Optimizer](../../Deep_Learning_Model_Optimizer_DevGuide.md) for Kaldi\*.
@@ -20,26 +8,6 @@ A summary of the steps for optimizing and deploying a model that was trained wit
 4. [Integrate](../../../OV_Runtime_UG/Samples_Overview.md) the [OpenVINO™ Runtime](../../../OV_Runtime_UG/openvino_intro.md) in your application to deploy the model in the target environment.
 
 > **NOTE**: The Model Optimizer supports the [nnet1](http://kaldi-asr.org/doc/dnn1.html) and [nnet2](http://kaldi-asr.org/doc/dnn2.html) formats of Kaldi models. Support of the [nnet3](http://kaldi-asr.org/doc/dnn3.html) format is limited.
-
-## Supported Topologies
-* Convolutional Neural Networks (CNN):
-    * Wall Street Journal CNN (wsj_cnn4b)
-    * Resource Management CNN (rm_cnn4a_smbr)
-
-* Long Short Term Memory (LSTM) Networks:
-    * Resource Management LSTM (rm_lstm4f)
-    * TED-LIUM LSTM (ted_lstm4f)
-
-* Deep Neural Networks (DNN):
-    * Wall Street Journal DNN (wsj_dnn5b_smbr);
-    * TED-LIUM DNN (ted_dnn_smbr)
-
-* Time delay neural network (TDNN)
-    * [ASpIRE Chain TDNN](kaldi_specific/Aspire_Tdnn_Model.md);
-    * [Librispeech nnet3](https://github.com/ryanleary/kaldi-test/releases/download/v0.0/LibriSpeech-trained.tgz).
-
-* TDNN-LSTM model
-
 
 ## Convert a Kaldi* Model <a name="Convert_From_Kaldi"></a>
 
@@ -99,23 +67,25 @@ Kaldi-specific parameters:
 The Model Optimizer finds the last layer of the topology and removes this layer only if it is a SoftMax layer.
 
   > **NOTE**: Model Optimizer can remove SoftMax layer only if the topology has one output.
- 
-  > **NOTE**: For sample inference of Kaldi models, you can use the OpenVINO Speech Recognition sample application. The sample supports models with one output. If your model has several outputs, specify the desired one with the `--output` option.    
-  
- If you want to convert a model for inference on Intel® Movidius™ Myriad™, use the `--remove_memory` option. 
-It removes Memory layers from the IR. Instead of it, additional inputs and outputs appear in the IR. 
+
+  > **NOTE**: For sample inference of Kaldi models, you can use the OpenVINO Speech Recognition sample application. The sample supports models with one output. If your model has several outputs, specify the desired one with the `--output` option.
+
+ If you want to convert a model for inference on Intel® Movidius™ Myriad™, use the `--remove_memory` option.
+It removes Memory layers from the IR. Instead of it, additional inputs and outputs appear in the IR.
 The Model Optimizer outputs the mapping between inputs and outputs. For example:
 ```sh
-[ WARNING ]  Add input/output mapped Parameter_0_for_Offset_fastlstm2.r_trunc__2Offset_fastlstm2.r_trunc__2_out -> Result_for_Offset_fastlstm2.r_trunc__2Offset_fastlstm2.r_trunc__2_out 
-[ WARNING ]  Add input/output mapped Parameter_1_for_Offset_fastlstm2.r_trunc__2Offset_fastlstm2.r_trunc__2_out -> Result_for_Offset_fastlstm2.r_trunc__2Offset_fastlstm2.r_trunc__2_out 
-[ WARNING ]  Add input/output mapped Parameter_0_for_iteration_Offset_fastlstm3.c_trunc__3390 -> Result_for_iteration_Offset_fastlstm3.c_trunc__3390 
+[ WARNING ]  Add input/output mapped Parameter_0_for_Offset_fastlstm2.r_trunc__2Offset_fastlstm2.r_trunc__2_out -> Result_for_Offset_fastlstm2.r_trunc__2Offset_fastlstm2.r_trunc__2_out
+[ WARNING ]  Add input/output mapped Parameter_1_for_Offset_fastlstm2.r_trunc__2Offset_fastlstm2.r_trunc__2_out -> Result_for_Offset_fastlstm2.r_trunc__2Offset_fastlstm2.r_trunc__2_out
+[ WARNING ]  Add input/output mapped Parameter_0_for_iteration_Offset_fastlstm3.c_trunc__3390 -> Result_for_iteration_Offset_fastlstm3.c_trunc__3390
 ```
  Based on this mapping, link inputs and outputs in your application manually as follows:
- 
-1. Initialize inputs from the mapping as zeros in the first frame of an utterance.
-2. Copy output blobs from the mapping to the corresponding inputs. For example, data from `Result_for_Offset_fastlstm2.r_trunc__2Offset_fastlstm2.r_trunc__2_out` 
-must be copied to `Parameter_0_for_Offset_fastlstm2.r_trunc__2Offset_fastlstm2.r_trunc__2_out`.
 
+1. Initialize inputs from the mapping as zeros in the first frame of an utterance.
+2. Copy output blobs from the mapping to the corresponding inputs. For example, data from `Result_for_Offset_fastlstm2.r_trunc__2Offset_fastlstm2.r_trunc__2_out`
+must be copied to `Parameter_0_for_Offset_fastlstm2.r_trunc__2Offset_fastlstm2.r_trunc__2_out`.
 
 ## Supported Kaldi\* Layers
 Refer to [Supported Framework Layers ](../Supported_Frameworks_Layers.md) for the list of supported standard layers.
+
+## See Also
+[Model Conversion Tutorials](Convert_Model_Tutorials.md)
