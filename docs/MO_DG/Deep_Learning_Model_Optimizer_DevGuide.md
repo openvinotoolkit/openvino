@@ -61,7 +61,7 @@ For more description, please refer to [Cutting Off Parts of a Model](prepare_mod
 
 Also, Model Optimizer can insert additional input pre-processing sub-graphs into the converted model.
 For this, there exist `--mean_values`, `scales_values`, `--layout` and other parameters described
-in [Optimizing Preprocessing Computation](prepare_model/Additional_Optimizations.md).
+in [Optimizing Preprocessing Computation](prepare_model/convert_model/Additional_Optimizations.md).
 
 To get the full list of conversion parameters available in Model Optimizer, run the following command:
 
