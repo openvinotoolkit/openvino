@@ -453,11 +453,13 @@ ext_modules = find_prebuilt_extensions(get_dir_list(PY_INSTALL_CFG)) if pkg_name
 
 description_md = SCRIPT_DIR.parents[3] / 'docs' / 'install_guides' / 'pypi-openvino-rt.md'
 md_files = [description_md, SCRIPT_DIR.parents[3] / 'docs' / 'install_guides' / 'pre-release-note.md']
+docs_url = 'https://docs.openvino.ai/latest/index.html'
 
 if(os.getenv('CI_BUILD_DEV_TAG')):
     output = Path.cwd() / 'build' / 'pypi-openvino-rt.md'
     output.parent.mkdir(exist_ok=True)
     description_md = concat_files(output, md_files)
+    docs_url = 'https://docs.openvino.ai/nightly/index.html'
 
 
 setup(
@@ -472,7 +474,7 @@ setup(
     long_description=get_description(os.getenv('WHEEL_OVERVIEW', description_md)),
     long_description_content_type='text/markdown',
     download_url=os.getenv('WHEEL_DOWNLOAD_URL', 'https://github.com/openvinotoolkit/openvino/tags'),
-    url=os.getenv('WHEEL_URL', 'https://docs.openvino.ai/latest/index.html'),
+    url=os.getenv('WHEEL_URL', docs_url),
     cmdclass={
         'build': CustomBuild,
         'install': CustomInstall,

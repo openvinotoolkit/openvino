@@ -217,11 +217,13 @@ def concat_files(output_file, input_files):
 
 description_md = SCRIPT_DIR.parents[1] / 'docs' / 'install_guides' / 'pypi-openvino-dev.md'
 md_files = [description_md, SCRIPT_DIR.parents[1] / 'docs' / 'install_guides' / 'pre-release-note.md']
+docs_url = 'https://docs.openvino.ai/latest/index.html'
 
 if(os.getenv('CI_BUILD_DEV_TAG')):
     output = Path.cwd() / 'build' / 'pypi-openvino-dev.md'
     output.parent.mkdir(exist_ok=True)
     description_md = concat_files(output, md_files)
+    docs_url = 'https://docs.openvino.ai/nightly/index.html'
 
 setup(
     name='openvino-dev',
@@ -229,7 +231,7 @@ setup(
     author=os.getenv('WHEEL_AUTHOR', 'Intel® Corporation'),
     license=os.getenv('WHEEL_LICENCE_TYPE', 'OSI Approved :: Apache Software License'),
     author_email=os.getenv('WHEEL_AUTHOR_EMAIL', 'openvino_pushbot@intel.com'),
-    url=os.getenv('WHEEL_URL', 'https://docs.openvino.ai/latest/index.html'),
+    url=os.getenv('WHEEL_URL', docs_url),
     download_url=os.getenv('WHEEL_DOWNLOAD_URL', 'https://github.com/openvinotoolkit/openvino/tags'),
     description=os.getenv('WHEEL_DESC', 'OpenVINO(TM) Development Tools'),
     long_description=get_description(os.getenv('WHEEL_OVERVIEW', description_md)),
