@@ -129,6 +129,8 @@ OpenVINO™ Runtime API 2.0 fills inputs as `I64` precision (aligned with the or
 
 Inference Engine API:
 
+@sphinxdirective
+
 .. tab:: sync
 
     .. doxygensnippet:: docs/snippets/ie_common.cpp
@@ -141,7 +143,11 @@ Inference Engine API:
        :language: cpp
        :fragment: [ov_api_2_0:start_async_and_wait]
 
+@endsphinxdirective
+
 OpenVINO™ Runtime API 2.0:
+
+@sphinxdirective
 
 .. tab:: sync
 
@@ -154,6 +160,7 @@ OpenVINO™ Runtime API 2.0:
        :language: cpp
        :fragment: [ov_api_2_0:start_async_and_wait]
 
+@endsphinxdirective
 ## 7. Start asynchronous inference and wait for result
 
 @sphinxdirective
