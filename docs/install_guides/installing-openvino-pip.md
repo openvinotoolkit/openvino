@@ -1,7 +1,6 @@
 # Install Intel® Distribution of OpenVINO™ Toolkit from PyPI Repository {#openvino_docs_install_guides_installing_openvino_pip}
 
-You can install Intel® Distribution of OpenVINO™ toolkit through the PyPI repository, including both OpenVINO™ Runtime and OpenVINO™ Development Tools. Besides, from the 2022.1 release, OpenVINO Development Tools can only be installed via PyPI.
-
+You can install Intel® Distribution of OpenVINO™ toolkit through the PyPI repository, including both OpenVINO™ Runtime and OpenVINO™ Development Tools. 
 
 ## Installing OpenVINO Runtime
 
@@ -37,5 +36,5 @@ For system requirements and more detailed steps, see <https://pypi.org/project/o
 
 - [Intel® Distribution of OpenVINO™ toolkit](https://software.intel.com/en-us/openvino-toolkit)
 - [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
-- [Inference Engine Developer Guide](../OV_Runtime_UG/Deep_Learning_Inference_Engine_DevGuide.md)
-- [Inference Engine Samples Overview](../OV_Runtime_UG/Samples_Overview.md)
+- [OpenVINO™ Runtime User Guide](../OV_Runtime_UG/openvino_intro.md)
+- [OpenVINO Samples Overview](../OV_Runtime_UG/Samples_Overview.md)

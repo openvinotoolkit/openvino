@@ -451,6 +451,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
     for (size_t i = 0; i < min_size; ++i) {
         benchmark_app::InputsInfo info_map;
 
+        bool is_there_at_least_one_batch_dim = false;
         for (auto& item : input_info) {
             benchmark_app::InputInfo info;
             auto name = item.get_any_name();
@@ -602,6 +603,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                         }
                         info.dataShape[batch_index] = batch_size;
                         reshape_required = true;
+                        is_there_at_least_one_batch_dim = true;
                     }
                 } else {
                     slog::warn << "Input '" << item.get_any_name()
@@ -610,6 +612,12 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                 }
             }
             info_map[name] = info;
+        }
+
+        if (batch_size > 1 && !is_there_at_least_one_batch_dim) {
+            throw std::runtime_error("-b option is provided in command line, but there's no inputs with batch(B) "
+                                     "dimension in input layout, so batch cannot be set. "
+                                     "You may specify layout explicitly using -layout option.");
         }
 
         // Update scale and mean
@@ -813,7 +821,7 @@ std::string parameter_name_to_tensor_name(const std::string& name,
                                           const std::vector<ov::Output<const ov::Node>>& outputs_info) {
     if (std::any_of(inputs_info.begin(), inputs_info.end(), [name](const ov::Output<const ov::Node>& port) {
             try {
-                return name == port.get_any_name();
+                return port.get_names().count(name) > 0;
             } catch (const ov::Exception&) {
                 return false;  // Some ports might have no names - so this is workaround
             }
@@ -821,7 +829,7 @@ std::string parameter_name_to_tensor_name(const std::string& name,
         return name;
     } else if (std::any_of(outputs_info.begin(), outputs_info.end(), [name](const ov::Output<const ov::Node>& port) {
                    try {
-                       return name == port.get_any_name();
+                       return port.get_names().count(name) > 0;
                    } catch (const ov::Exception&) {
                        return false;  // Some ports might have no names - so this is workaround
                    }

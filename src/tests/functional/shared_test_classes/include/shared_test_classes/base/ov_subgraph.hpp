@@ -26,12 +26,6 @@ public:
     virtual void serialize();
     virtual void query_model();
 
-    void TearDown() override {
-        if (!configuration.empty()) {
-            ov::test::utils::PluginCache::get().core().reset();
-        }
-    }
-
 protected:
     virtual void compare(const std::vector<ov::Tensor> &expected,
                          const std::vector<ov::Tensor> &actual);
@@ -55,7 +49,7 @@ protected:
     std::vector<std::vector<ov::Shape>> targetStaticShapes;
     ElementType inType = ov::element::undefined, outType = ov::element::undefined;
 
-    ov::CompiledModel executableNetwork;
+    ov::CompiledModel compiledModel;
     ov::InferRequest inferRequest;
 
     constexpr static const double disable_threshold = std::numeric_limits<double>::max();

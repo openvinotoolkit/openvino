@@ -35,6 +35,7 @@ list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/dldt_optimization_guide2.c
 # create a static library
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
+target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../template_extension/new/")
 
 if(CLDNN__IOCL_ICD_INCDIRS)
     target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${CLDNN__IOCL_ICD_INCDIRS})
@@ -57,3 +58,22 @@ if(NOT MSVC)
 endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime openvino::runtime::dev)
+
+set(TARGET_NAME "ov_integration_snippet")
+# [cmake:integration_example]
+cmake_minimum_required(VERSION 3.10)
+set(CMAKE_CXX_STANDARD 11)
+
+
+find_package(OpenVINO REQUIRED)
+
+add_executable(${TARGET_NAME} src/main.cpp)
+
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
+# [cmake:integration_example]
+if(NOT MSVC)
+    target_compile_options(${TARGET_NAME} PRIVATE -Wno-unused-variable)
+    if(CMAKE_COMPILER_IS_GNUCXX)
+        target_compile_options(${TARGET_NAME} PRIVATE -Wno-unused-but-set-variable)
+    endif()
+endif()
