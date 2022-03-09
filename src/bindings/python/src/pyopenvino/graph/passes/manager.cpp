@@ -77,7 +77,7 @@ void regclass_graph_passes_Manager(py::module m) {
                 R"(
         Set the type of register pass for pass manager.
 
-        :param pass_name : string to set the type of a pass
+        :param pass_name : String to set the type of a pass.
         :type pass_name: str
     // )");
 
@@ -90,15 +90,15 @@ void regclass_graph_passes_Manager(py::module m) {
                 R"(
         Set the type of register pass for pass manager.
 
-        :param pass_name: string to set the type of a pass
+        :param pass_name: String to set the type of a pass.
         :type pass_name: str
-        :param output_files: tuple which contains paths where .xml and .bin files will be saved
+        :param output_files: Tuple which contains paths where .xml and .bin files will be saved.
         :type output_files: Tuple[str, str]
-        :param version: sets the version of the IR which will be generated.
-            Supported versions are:
-                            - "UNSPECIFIED" (default) : Use the latest or function version
-                            - "IR_V10" : v10 IR
-                            - "IR_V11" : v11 IR
+        :param version: Sets the version of the IR which will be generated.
+                                   Supported versions are:
+                                       - "UNSPECIFIED" (default) : Use the latest or function version
+                                       - "IR_V10" : v10 IR
+                                       - "IR_V11" : v11 IR
         :type version: str
         Examples
         ----------
@@ -120,13 +120,13 @@ void regclass_graph_passes_Manager(py::module m) {
         R"(
         Set the type of register pass for pass manager.
 
-        :param pass_name: string to set the type of a pass
+        :param pass_name: String to set the type of a pass.
         :type pass_name: str
-        :param xml_path: path where .xml file will be saved
+        :param xml_path: Path where *.xml file will be saved.
         :type xml_path: str
-        :param bin_path: path where .bin file will be saved
+        :param bin_path: Path where *.bin file will be saved.
         :type bin_path: str
-        :param version: sets the version of the IR which will be generated.
+        :param version: Sets the version of the IR which will be generated.
             Supported versions are:
                             - "UNSPECIFIED" (default) : Use the latest or function version
                             - "IR_V10" : v10 IR

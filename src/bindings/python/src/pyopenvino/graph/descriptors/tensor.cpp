@@ -44,7 +44,7 @@ void regclass_graph_descriptor_Tensor(py::module m) {
     tensor.def("size",
                &ov::descriptor::Tensor::size,
                R"(
-                Returns the size description
+                Returns the size description.
 
                 :return: The size description.
                 :rtype: size_t
@@ -53,7 +53,7 @@ void regclass_graph_descriptor_Tensor(py::module m) {
     tensor.def("get_partial_shape",
                &ov::descriptor::Tensor::get_partial_shape,
                R"(
-                Returns the partial shape description
+                Returns the partial shape description.
 
                 :return: PartialShape description.
                 :rtype: openvino.runtime.PartialShape
@@ -62,18 +62,18 @@ void regclass_graph_descriptor_Tensor(py::module m) {
     tensor.def("get_element_type",
                &ov::descriptor::Tensor::get_element_type,
                R"(
-                Returns the element type description
+                Returns the element type description.
 
-                :return: Type description
+                :return: Type description.
                 :rtype: openvino.runtime.Type
              )");
 
     tensor.def("get_names",
                &ov::descriptor::Tensor::get_names,
                R"(
-                Returns names
+                Returns names.
 
-                :return: Get names
+                :return: Get names.
                 :rtype: set
              )");
 
@@ -81,9 +81,9 @@ void regclass_graph_descriptor_Tensor(py::module m) {
                &ov::descriptor::Tensor::set_names,
                py::arg("names"),
                R"(
-                Set names for tensor
+                Set names for tensor.
 
-                :param names: Set of names
+                :param names: Set of names.
                 :type names: set
              )");
 
@@ -93,16 +93,16 @@ void regclass_graph_descriptor_Tensor(py::module m) {
                R"(
                 Adds names for tensor.
 
-                :param names: Add names
+                :param names: Add names.
                 :type names: set
              )");
 
     tensor.def("get_any_name",
                &ov::descriptor::Tensor::get_any_name,
                R"(
-                Returns any of set name
+                Returns any of set name.
 
-                :return: Any name
+                :return: Any name.
                 :rtype: string
              )");
 

@@ -40,7 +40,7 @@ void regclass_frontend_Place(py::module m) {
                 All associated names (synonyms) that identify this place in the graph in a framework specific way.
 
                 :return: A vector of strings each representing a name that identifies this place in the graph.
-                    Can be empty if there are no names associated with this place or name cannot be attached.
+                         Can be empty if there are no names associated with this place or name cannot be attached.
                 :rtype: List[str]
              )");
 

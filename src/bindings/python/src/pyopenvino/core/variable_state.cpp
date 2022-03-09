@@ -19,8 +19,6 @@ void regclass_VariableState(py::module m) {
                     R"(
         Reset internal variable state for relevant infer request,
         to a value specified as default for according node.
-
-        :rtype: None
     )");
 
     variable_st.def_property_readonly("name",

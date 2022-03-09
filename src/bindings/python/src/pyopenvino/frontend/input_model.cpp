@@ -194,7 +194,7 @@ void regclass_frontend_InputModel(py::module m) {
                 Removes any sinks directly attached to this place with all inbound data flow
                 if it is not required by any other output.
 
-                :param place: Model place
+                :param place: Model place.
                 :type place: openvino.frontend.Place
             )");
 
@@ -220,7 +220,7 @@ void regclass_frontend_InputModel(py::module m) {
            R"(
                 Returns current partial shape used for this place.
 
-                :param place: Model place
+                :param place: Model place.
                 :type place: openvino.frontend.Place
                 :return: Partial shape for this place.
                 :rtype: openvino.runtime.PartialShape
@@ -231,7 +231,7 @@ void regclass_frontend_InputModel(py::module m) {
            R"(
                 Returns all inputs for a model.
 
-                :return: A list of input places
+                :return: A list of input places.
                 :rtype: List[openvino.frontend.Place]
             )");
 
@@ -240,7 +240,7 @@ void regclass_frontend_InputModel(py::module m) {
            R"(
                 Returns all outputs for a model. An output is a terminal place in a graph where data escapes the flow.
 
-                :return: A list of output places
+                :return: A list of output places.
                 :rtype: List[openvino.frontend.Place]
             )");
 
@@ -307,6 +307,6 @@ void regclass_frontend_InputModel(py::module m) {
             :param place: Model place.
             :type place: openvino.frontend.Place
             :param value: New value to assign.
-            :type value: ndarray
+            :type value: numpy.ndarray
         )");
 }
