@@ -22,7 +22,7 @@ def check_gil_released_safe(func, args):
         # while sleeping main thread acquires GIL and runs func, which will release GIL
         time.sleep(0.000001)
         # increment reference counting of args while running func
-        args_ = args
+        args_ = args  # noqa: F841 'assigned to but never used'
         gil_released = True
     thread = Thread(target=detect_gil)
     thread.start()
@@ -161,10 +161,6 @@ def test_get_available_devices(device):
 # InferRequest
 
 request = compiled.create_infer_request()
-
-def test_infer():
-    data = [np.random.normal(size=list(compiled.input().shape))]
-    check_gil_released_safe(request.infer, [data])
 
 
 def test_infer():
