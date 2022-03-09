@@ -4,12 +4,11 @@
 
 #include "transformations/template_pattern_transformation.hpp"
 
-#include <openvino/cc/pass/itt.hpp>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/opsets/opset3.hpp>
-#include <openvino/pass/manager.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/opsets/opset3.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/template_model_transformation.hpp"
 
 // ! [graph_rewrite:template_transformation_cpp]
@@ -122,7 +121,7 @@ void run_matcher_with_manager2(std::shared_ptr<ov::Model> f) {
 void run_matcher_with_manager3(std::shared_ptr<ov::Model> f) {
     // ! [matcher_pass:manager3]
     ov::pass::Manager manager;
-    manager.register_pass<ov::pass::MyFunctionTransformation>();
+    manager.register_pass<ov::pass::MyModelTransformation>();
     // Two matchers will run independently (two independent graph traversals)
     // pass::Manager automatically creates GraphRewrite container for each MatcherPass
     manager.register_pass<ov::pass::DecomposeDivideMatcher>();
