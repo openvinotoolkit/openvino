@@ -16,6 +16,7 @@ from openvino.runtime.passes import Manager
 def check_gil_released_safe(func, args):
     global gil_released
     gil_released = False
+
     def detect_gil():
         global gil_released
         # while sleeping main thread acquires GIL and runs func, which will release GIL
@@ -45,13 +46,16 @@ user_stream = io.BytesIO()
 def test_gil_released_async_infer_queue_init():
     check_gil_released_safe(AsyncInferQueue, [compiled])
 
+
 def test_gil_released_async_infer_queue_start_async():
     infer_queue.start_async()
     check_gil_released_safe(infer_queue.start_async, [])
 
+
 def test_gil_released_async_infer_queue_is_ready():
     infer_queue.start_async()
     check_gil_released_safe(infer_queue.is_ready, [])
+
 
 def test_gil_released_async_infer_queue_wait_all():
     infer_queue.start_async()
@@ -63,14 +67,18 @@ def test_gil_released_async_infer_queue_wait_all():
 def test_gil_released_create_infer_request():
     check_gil_released_safe(compiled.create_infer_request, [])
 
+
 def test_gil_released_infer_new_request():
     check_gil_released_safe(compiled, [])
+
 
 def test_gil_released_export():
     check_gil_released_safe(compiled.export_model, [])
 
+
 def test_gil_released_export_advanced():
     check_gil_released_safe(compiled.export_model, [user_stream])
+
 
 def test_gil_released_get_runtime_model():
     check_gil_released_safe(compiled.get_runtime_model, [])
@@ -80,6 +88,7 @@ def test_gil_released_get_runtime_model():
 
 def test_compile_model(device):
     check_gil_released_safe(core.compile_model, [model, device])
+
 
 def test_read_model_from_bytes():
     ir = bytes(b"""<net name="relu_model" version="11">
@@ -119,6 +128,7 @@ def test_read_model_from_bytes():
 </net>""")
     check_gil_released_safe(core.read_model, [ir])
 
+
 def test_read_model_from_path():
     from pathlib import Path
     model_path = "relu.xml"
@@ -130,15 +140,19 @@ def test_read_model_from_path():
     os.remove(model_path)
     os.remove(bin_path)
 
+
 def test_import_model(device):
     check_gil_released_safe(core.import_model, [user_stream, device])
+
 
 def test_query_model(device):
     check_gil_released_safe(core.query_model, [model, device])
 
+
 def test_add_extension():
     from openvino.runtime import Extension
     check_gil_released_safe(core.add_extension, [[Extension(), Extension()]])
+
 
 def test_get_available_devices(device):
     check_gil_released_safe(getattr, [core, "available_devices"])
@@ -152,22 +166,27 @@ def test_infer():
     data = [np.random.normal(size=list(compiled.input().shape))]
     check_gil_released_safe(request.infer, [data])
 
+
 def test_infer():
     data = [np.random.normal(size=list(compiled.input().shape))]
     check_gil_released_safe(request.infer, [data])
+
 
 def test_start_async():
     data = [np.random.normal(size=list(compiled.input().shape))]
     check_gil_released_safe(request.start_async, [data])
     request.wait()
 
+
 def test_wait():
     data = [np.random.normal(size=list(compiled.input().shape))]
     request.start_async(data)
     check_gil_released_safe(request.wait, [])
 
+
 def test_get_profiling_info():
     check_gil_released_safe(request.get_profiling_info, [])
+
 
 def test_query_state():
     check_gil_released_safe(request.query_state, [])
