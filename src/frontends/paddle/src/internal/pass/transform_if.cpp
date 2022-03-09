@@ -13,7 +13,6 @@
 
 #include "default_opset.hpp"
 #include "internal/op/conditional_block.hpp"
-#include "internal/op/tensorarray_length.hpp"
 #include "internal/op/tensorarray_write.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "openvino/frontend/paddle/exception.hpp"

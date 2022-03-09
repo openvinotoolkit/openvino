@@ -18,10 +18,12 @@ NamedOutputs select_input(const NodeContext& node) {
     const auto cond = std::make_shared<default_opset::Convert>(mask, element::boolean);
     const auto ps0 = x[0].get_partial_shape();
     const auto ps1 = x[1].get_partial_shape();
+    int idx0 = -1;
+    int idx1 = -1;
 
     if (ps0.compatible(ps1)) {
-        auto placehodler = std::make_shared<default_opset::Select>(cond, x[1], x[0]);
-        return node.default_single_output_mapping({placehodler}, {"Out"});
+        idx0 = 0;
+        idx1 = 1;
     } else {
         // paddle detection model code is wrong and will result a dynamic rank model:
         //   https://github.com/PaddlePaddle/PaddleDetection/blob/16e3d7408161713c765886cfb952f98d9f68713c/ppdet/modeling/layers.py#L407
@@ -37,13 +39,27 @@ NamedOutputs select_input(const NodeContext& node) {
                 }
                 return idx;
             };
-            auto placehodler = std::make_shared<default_opset::Select>(cond, x[fix_idx(1)], x[fix_idx(0)]);
-            return node.default_single_output_mapping({placehodler}, {"Out"});
+            idx0 = fix_idx(0);
+            idx1 = fix_idx(1);
         }
-        PADDLE_OP_CHECK(node, false, "input shapes should be compatible.");
-
-        return {};
+        PADDLE_OP_CHECK(node, idx0 >= 0, "input shapes should be compatible.");
     }
+    // paddle two branch may produce dynamic shape, use 'if' to satisfy it
+    const auto ps0_new = x[idx0].get_partial_shape();
+    const auto ps1_new = x[idx1].get_partial_shape();
+    const auto if_node = std::make_shared<default_opset::If>(cond);
+    const auto then_param = std::make_shared<default_opset::Parameter>(x[idx1].get_element_type(), ps1_new);
+    const auto then_result = std::make_shared<default_opset::Result>(then_param);
+    const auto then_branch = std::make_shared<Model>(ResultVector{then_result}, ParameterVector{then_param});
+    const auto else_param = std::make_shared<default_opset::Parameter>(x[idx0].get_element_type(), ps0_new);
+    const auto else_result = std::make_shared<default_opset::Result>(else_param);
+    const auto else_branch = std::make_shared<Model>(ResultVector{else_result}, ParameterVector{else_param});
+    if_node->set_then_body(then_branch);
+    if_node->set_else_body(else_branch);
+    if_node->set_input(x[idx1], then_param, nullptr);
+    if_node->set_input(x[idx0], nullptr, else_param);
+    if_node->set_output(then_result, else_result);
+    return node.default_single_output_mapping({if_node}, {"Out"});
 }
 
 }  // namespace op

@@ -57,7 +57,8 @@ ov::pass::RemoveConcatZeroDimInput::RemoveConcatZeroDimInput() {
 }
 
 void ov::pass::disable_remove_concat_zerodim_input(const std::shared_ptr<Node>& node) {
-    node->get_rt_info().emplace(DisableRemoveConcatZeroDimInput::get_type_info_static(), DisableRemoveConcatZeroDimInput{});
+    node->get_rt_info().emplace(DisableRemoveConcatZeroDimInput::get_type_info_static(),
+                                DisableRemoveConcatZeroDimInput{});
 }
 
 void ov::pass::enable_remove_concat_zerodim_input(const std::shared_ptr<Node>& node) {

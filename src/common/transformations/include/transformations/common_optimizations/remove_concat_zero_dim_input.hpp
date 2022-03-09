@@ -21,7 +21,7 @@ class TRANSFORMATIONS_API DisableRemoveConcatZeroDimInput;
  * removes input of Concat if the tensor size is equal to 0
  */
 
-class RemoveConcatZeroDimInput: public ov::pass::MatcherPass {
+class RemoveConcatZeroDimInput : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     RemoveConcatZeroDimInput();

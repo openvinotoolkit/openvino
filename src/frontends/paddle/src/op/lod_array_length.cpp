@@ -3,7 +3,6 @@
 //
 
 #include "default_opset.hpp"
-#include "internal/op/tensorarray_length.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
 namespace ov {
@@ -11,11 +10,18 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs lod_array_length(const NodeContext& node) {
+    using namespace default_opset;
     const auto x = node.get_input("X");
+    const auto shape = std::make_shared<default_opset::ShapeOf>(x);
+    const auto const_1_node = Constant::create(element::i64, {1}, {1});
+    const auto const_2_node = Constant::create(element::i64, {1}, {2});
+    const auto len = std::make_shared<StridedSlice>(shape,
+                                                    const_1_node,
+                                                    const_2_node,
+                                                    std::vector<int64_t>{0},
+                                                    std::vector<int64_t>{0});
 
-    auto placehodler = std::make_shared<ov::op::internal::TensorArrayLength>(x);
-
-    return node.default_single_output_mapping({placehodler}, {"Out"});
+    return node.default_single_output_mapping({len}, {"Out"});
 }
 }  // namespace op
 }  // namespace paddle

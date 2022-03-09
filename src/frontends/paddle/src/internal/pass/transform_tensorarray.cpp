@@ -15,7 +15,6 @@
 
 #include "default_opset.hpp"
 #include "internal/op/conditional_block.hpp"
-#include "internal/op/tensorarray_length.hpp"
 #include "internal/op/tensorarray_write.hpp"
 #include "internal/op/while.hpp"
 #include "openvino/frontend/paddle/exception.hpp"
@@ -30,18 +29,20 @@ using namespace ov::pass;
 using namespace frontend::paddle::op::default_opset;
 
 ov::frontend::paddle::pass::TransformTensorArray::TransformTensorArray(std::vector<std::shared_ptr<Model>> functions) {
-    auto length_label = ngraph::pattern::wrap_type<ov::op::internal::TensorArrayLength>();
+    const auto shape_label = ngraph::pattern::wrap_type<ShapeOf>();
+    const auto length_label = ngraph::pattern::wrap_type<StridedSlice>(
+        {shape_label, ngraph::pattern::any_input(), ngraph::pattern::any_input(), ngraph::pattern::any_input()});
     auto write_label =
         ngraph::pattern::wrap_type<ov::op::internal::TensorArrayWrite>({ngraph::pattern::any_input(), length_label});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
         const auto& opsMap = m.get_pattern_value_map();
         const auto& write_node = opsMap.at(write_label).get_node_shared_ptr();
-        const auto& length_node = opsMap.at(length_label).get_node_shared_ptr();
-        if (!write_node || !length_node)
+        const auto& shape_node = opsMap.at(shape_label).get_node_shared_ptr();
+        if (!write_node || !shape_node)
             return false;
         const auto& new_item = write_node->get_input_node_shared_ptr(0);
-        const auto& list = length_node->get_input_node_shared_ptr(0);
+        const auto& list = shape_node->get_input_node_shared_ptr(0);
         const auto& new_item_unsqueeze =
             std::make_shared<Unsqueeze>(new_item->output(0), Constant::create(element::i32, {1}, {0}));
         // remove TensorArrayLength->TensorArrayWrite

@@ -13,7 +13,6 @@
 
 #include "default_opset.hpp"
 #include "internal/op/conditional_block.hpp"
-#include "internal/op/tensorarray_length.hpp"
 #include "internal/op/tensorarray_write.hpp"
 #include "internal/op/while.hpp"
 #include "openvino/frontend/paddle/exception.hpp"
@@ -52,8 +51,12 @@ ov::frontend::paddle::pass::TransformWhile::TransformWhile(std::vector<std::shar
             return false;
         };
         for (size_t i = 0; i < parameters.size(); i++) {
-            const auto& param_name = inputs[i].get_node()->get_friendly_name();
-            if (is_exist(param_name)) {
+            const auto names = inputs[i].get_names();
+            std::string param_name;
+            if (!names.empty()) {
+                param_name = *names.begin();
+            }
+            if (!param_name.empty() && is_exist(param_name)) {
                 auto out_node = sub_model->output(param_name);
                 loop->set_merged_input(parameters[i], inputs[i], out_node);
             } else {
@@ -80,7 +83,7 @@ ov::frontend::paddle::pass::TransformWhile::TransformWhile(std::vector<std::shar
         loop->add_node_control_dependencies(while_node);
         while_node->clear_control_dependents();
 
-        loop->set_friendly_name(loop->get_friendly_name());
+        loop->set_friendly_name(while_node->get_friendly_name());
         copy_runtime_info(while_node, loop);
 
         return true;
