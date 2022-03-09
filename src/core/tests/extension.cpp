@@ -85,6 +85,7 @@ public:
     bool evaluate(const std::shared_ptr<const ov::Node>& node,
                   ov::TensorVector& output_values,
                   const ov::TensorVector& input_values) const override {
+        std::cout << "EVALUATE" << std::endl;
         std::shared_ptr<ov::Model> model;
         // Create single operation model
         {
@@ -185,7 +186,7 @@ inline double get_duration_ms_till_now(Time::time_point& startTime) {
     return std::chrono::duration_cast<ns>(Time::now() - startTime).count() * 0.000001;
 };
 
-TEST(extension, constant_fold_constant_conv) {
+TEST(extension, constant_fold_conv) {
     const auto& gen_data = [](const ov::Shape& shape) {
         size_t size = ov::shape_size(shape);
         std::vector<float> data(size);
@@ -248,6 +249,79 @@ TEST(extension, constant_fold_constant_conv) {
     {
         get_dev_name() = "CPU";
         TestExtension<ov::opset8::Convolution, OpModelEvaluate<ov::opset8::Convolution>> test = {};
+
+        auto cloned_model = ov::clone_model(*origin_model);
+        ov::pass::Manager pass_manager;
+        pass_manager.register_pass<ov::pass::ConstantFolding>();
+        auto startTime = Time::now();
+        pass_manager.run_passes(cloned_model);
+        cpu_dev = get_duration_ms_till_now(startTime);
+
+        // Model shouldn't folded
+        EXPECT_NE(origin_model->get_ops().size(), cloned_model->get_ops().size());
+        EXPECT_EQ(2, cloned_model->get_ops().size());
+    }
+
+    std::cout << "Duration no_constant_folding: " << no_dev << std::endl;
+    std::cout << "Duration template_folding: " << template_dev << std::endl;
+    std::cout << "Duration cpu_folding: " << cpu_dev << std::endl;
+}
+
+TEST(extension, constant_fold_reshape) {
+    const auto& gen_data = [](const ov::Shape& shape) {
+        size_t size = ov::shape_size(shape);
+        std::vector<float> data(size);
+        for (size_t i = 0; i < size; i++) {
+            data[i] = i;
+        }
+        return data;
+    };
+    std::shared_ptr<ov::Model> origin_model;
+    {
+        ov::Shape data_shape{1, 7, 32};
+        ov::Shape weights_shape{2};
+        std::vector<float> in_data = gen_data(data_shape);
+        std::vector<int64_t> reshape_data = {-1, 7};
+        auto const_data = ov::opset8::Constant::create(ov::element::f32, data_shape, in_data);
+        auto shape = ov::opset8::Constant::create(ov::element::i64, weights_shape, reshape_data);
+        auto reshape = std::make_shared<ov::opset8::Reshape>(const_data, shape, false);
+        origin_model = std::make_shared<ov::Model>(ov::OutputVector{reshape}, ov::ParameterVector{});
+    }
+    double no_dev, template_dev, cpu_dev;
+    // Apply constant folding
+    {
+        auto cloned_model = ov::clone_model(*origin_model);
+        ov::pass::Manager pass_manager;
+        pass_manager.register_pass<ov::pass::ConstantFolding>();
+        auto startTime = Time::now();
+        pass_manager.run_passes(cloned_model);
+        no_dev = get_duration_ms_till_now(startTime);
+
+        // Model shouldn't folded
+        EXPECT_NE(origin_model->get_ops().size(), cloned_model->get_ops().size());
+        EXPECT_EQ(2, cloned_model->get_ops().size());
+    }
+
+    // Apply constant folding with extension
+    {
+        TestExtension<ov::opset8::Reshape, OpModelEvaluate<ov::opset8::Reshape>> test = {};
+
+        auto cloned_model = ov::clone_model(*origin_model);
+        ov::pass::Manager pass_manager;
+        pass_manager.register_pass<ov::pass::ConstantFolding>();
+        auto startTime = Time::now();
+        pass_manager.run_passes(cloned_model);
+        template_dev = get_duration_ms_till_now(startTime);
+
+        // Model shouldn't folded
+        EXPECT_NE(origin_model->get_ops().size(), cloned_model->get_ops().size());
+        EXPECT_EQ(2, cloned_model->get_ops().size());
+    }
+
+    // Apply constant folding with extension on CPU
+    {
+        get_dev_name() = "CPU";
+        TestExtension<ov::opset8::Reshape, OpModelEvaluate<ov::opset8::Reshape>> test = {};
 
         auto cloned_model = ov::clone_model(*origin_model);
         ov::pass::Manager pass_manager;

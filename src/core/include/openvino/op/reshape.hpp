@@ -55,7 +55,7 @@ public:
     bool evaluate_upper(const HostTensorVector& outputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool evaluate_label(TensorLabelVector& output_labels) const override;
-    bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
+    bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override;
 
 protected:
     bool m_special_zero;

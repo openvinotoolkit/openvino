@@ -12,6 +12,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
 #include "ngraph/runtime/reference/reshape.hpp"
+#include "openvino/core/evaluate_extension.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
@@ -38,6 +39,26 @@ void compute_output_shape(const HostTensorPtr& shape_pattern, std::vector<int64_
         output_shape.push_back(shape_pattern_ptr[i]);
     }
 }
+
+template <element::Type_t ET>
+void compute_output_shape(const ov::Tensor& shape_pattern, std::vector<int64_t>& output_shape) {
+    using T = typename element_type_traits<ET>::value_type;
+    T* shape_pattern_ptr = shape_pattern.data<T>();
+    size_t output_rank = shape_pattern.get_shape().empty() ? 0 : shape_pattern.get_shape()[0];
+    for (size_t i = 0; i < output_rank; i++) {
+        output_shape.push_back(shape_pattern_ptr[i]);
+    }
+}
+
+const ov::EvaluateExtension::Ptr get_evaluate_extension(const ov::DiscreteTypeInfo& type) {
+    for (const auto ext : ov::get_extensions_for_type(type)) {
+        if (auto eval_ext = std::dynamic_pointer_cast<ov::EvaluateExtension>(ext)) {
+            return eval_ext;
+        }
+    }
+    return nullptr;
+}
+
 }  // namespace
 }  // namespace reshapeop
 
@@ -222,20 +243,6 @@ bool op::v1::Reshape::evaluate_label(TensorLabelVector& output_labels) const {
     if (!get_input_tensor(1).has_and_set_bound())
         return false;
     return default_label_evaluator(this, output_labels);
-}
-
-bool op::v1::Reshape::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
-    if (get_output_partial_shape(0).is_dynamic()) {
-        return false;
-    }
-
-    const auto& shape = get_output_shape(0);
-
-    if (auto data_const = std::dynamic_pointer_cast<op::v0::Constant>(inputs_values[0].get_node_shared_ptr())) {
-        output_values[0] = std::make_shared<op::v0::Constant>(*data_const, shape);
-        return true;
-    }
-    return false;
 }
 
 namespace {
@@ -431,4 +438,53 @@ void op::v1::Reshape::calculate_output_shape(vector<Dimension>& reshape_pattern,
                               " is incompatible with input shape ",
                               get_input_shape(0));
     }
+}
+
+bool op::v1::Reshape::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
+    auto ext = reshapeop::get_evaluate_extension(get_type_info());
+    if (ext)
+        return ext->evaluate(shared_from_this(), outputs, inputs);
+    OPENVINO_ASSERT(inputs.size() == 2);
+    OPENVINO_ASSERT(outputs.size() == 1);
+    // infer and set output shape if the output shape contain -1
+    // and zero value dimension
+    std::vector<int64_t> out_shape_val;
+
+    switch (inputs[1].get_element_type()) {
+        COMPUTE_OUT_SHAPE_CASE(i8, inputs[1], out_shape_val);
+        COMPUTE_OUT_SHAPE_CASE(i16, inputs[1], out_shape_val);
+        COMPUTE_OUT_SHAPE_CASE(i32, inputs[1], out_shape_val);
+        COMPUTE_OUT_SHAPE_CASE(i64, inputs[1], out_shape_val);
+        COMPUTE_OUT_SHAPE_CASE(u8, inputs[1], out_shape_val);
+        COMPUTE_OUT_SHAPE_CASE(u16, inputs[1], out_shape_val);
+        COMPUTE_OUT_SHAPE_CASE(u32, inputs[1], out_shape_val);
+        COMPUTE_OUT_SHAPE_CASE(u64, inputs[1], out_shape_val);
+    default:
+        throw ov::Exception("shape_pattern element type is not integral data type");
+    }
+
+    std::vector<Dimension> reshape_pattern;
+    int64_t minus_one_idx = -1;
+    for (size_t i = 0; i < out_shape_val.size(); ++i) {
+        NODE_VALIDATION_CHECK(this, out_shape_val[i] >= -1, "Dim size cannot be less than -1");
+        if (out_shape_val[i] == -1) {  // ctor of Dimension(-1) would turn input Dimension(0, max_int)
+            NODE_VALIDATION_CHECK(this, minus_one_idx == -1, "More than one dimension has size of -1");
+            minus_one_idx = static_cast<int64_t>(i);
+        }
+        reshape_pattern.emplace_back(out_shape_val[i]);
+    }
+
+    std::vector<Dimension> output_shape(out_shape_val.size());
+    calculate_output_shape(reshape_pattern, minus_one_idx, inputs[0].get_shape(), output_shape);
+    NGRAPH_CHECK(ov::PartialShape(output_shape).is_static());
+    outputs[0].set_shape(ov::PartialShape(output_shape).to_shape());
+
+    const AxisVector order = get_default_order(inputs[0].get_shape());
+    ngraph::runtime::opt_kernel::reshape(static_cast<char*>(inputs[0].data()),
+                                         static_cast<char*>(outputs[0].data()),
+                                         inputs[0].get_shape(),
+                                         order,
+                                         outputs[0].get_shape(),
+                                         inputs[0].get_element_type().size());
+    return true;
 }
