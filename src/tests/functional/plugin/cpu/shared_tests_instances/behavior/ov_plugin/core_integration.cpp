@@ -81,7 +81,8 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values("MULTI", "AUTO"));
 
 const std::vector<ov::AnyMap> multiConfigs = {
-        {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}};
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}
+};
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassSetDevicePriorityConfigTest, OVClassSetDevicePriorityConfigTest,
@@ -126,12 +127,12 @@ TEST(OVClassBasicTest, smoke_SetConfigStreamsNum) {
     setGetProperty(value, num_streams);
     ASSERT_EQ(num_streams, value);
 
-    num_streams = ov::NumStreams::NUMA;
+    num_streams = ov::streams::NUMA;
 
     setGetProperty(value, num_streams);
     ASSERT_GT(value, 0); // value has been configured automatically
 
-    num_streams = ov::NumStreams::AUTO;
+    num_streams = ov::streams::AUTO;
 
     setGetProperty(value, num_streams);
     ASSERT_GT(value, 0); // value has been configured automatically

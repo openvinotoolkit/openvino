@@ -13,7 +13,6 @@
 
 #include "ops_cache.hpp"
 #include "op_cloner.hpp"
-#include "utils/dynamism_resolver.hpp"
 #include "utils/model_wrap_struct.hpp"
 #include "gflag_config.hpp"
 #include <stdlib.h>
@@ -71,15 +70,6 @@ void cacheModels(std::unique_ptr<SubgraphsDumper::OPCache> &cache,
 
                 InferenceEngine::CNNNetwork net = ie.ReadNetwork(model.xml, model.bin);
                 auto function = net.getFunction();
-                if (FLAGS_eliminate_dynamism) {
-                    try {
-                        SubgraphsDumper::resolve_dynamic_shapes(function);
-                    } catch (std::exception &e) {
-                        std::cout << "Failed to eliminate dynamism from model " << model.xml
-                                  << "\n Exception occurred:\n" << e.what() << "\nModel will be processed as is."
-                                  << std::endl;
-                    }
-                }
                 cache->update_ops_cache(function, extract_body, model.xml);
             } catch (std::exception &e) {
                 std::cout << "Model processing failed with exception:" << std::endl << e.what() << std::endl;
@@ -103,11 +93,13 @@ int main(int argc, char *argv[]) {
 
     std::vector<std::string> local_cache_dirs = CommonTestUtils::splitStringByDelimiter(FLAGS_local_cache);
     std::vector<std::string> dirs = CommonTestUtils::splitStringByDelimiter(FLAGS_input_folders);
-    auto cachedOps = findModelsInDirs(local_cache_dirs);
     auto models = findModelsInDirs(dirs);
 
     auto cache = SubgraphsDumper::OPCache::make_cache();
-    cacheModels(cache, ret_code, cachedOps, FLAGS_extract_body);
+    if (!FLAGS_local_cache.empty()) {
+        auto cachedOps = findModelsInDirs(local_cache_dirs);
+        cacheModels(cache, ret_code, cachedOps, FLAGS_extract_body);
+    }
     cacheModels(cache, ret_code, models, FLAGS_extract_body);
     cache->serialize_cached_ops(FLAGS_output_folder);
 

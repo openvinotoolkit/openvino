@@ -7,7 +7,7 @@
 #include <vector>
 #include <mkldnn_types.h>
 #include <ie_parallel.hpp>
-#include <mkldnn_extension_utils.h>
+#include <extension_utils.h>
 #include "cpu_memcpy.h"
 #include "utils/bfloat16.hpp"
 
@@ -15,7 +15,7 @@
 #include <common/primitive_hashing_utils.hpp>
 
 using namespace InferenceEngine;
-using namespace MKLDNNPlugin;
+using namespace ov::intel_cpu;
 using namespace mkldnn;
 using namespace mkldnn::impl;
 using namespace mkldnn::impl::cpu::x64;
