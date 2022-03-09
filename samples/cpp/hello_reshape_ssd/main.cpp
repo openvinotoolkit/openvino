@@ -46,14 +46,14 @@ int main(int argc, char* argv[]) {
         printInputAndOutputsInfo(*model);
 
         // Step 3. Validate model inputs and outputs
-        OPENVINO_ASSERT(model->get_parameters().size() == 1, "Sample supports models with 1 input only");
-        OPENVINO_ASSERT(model->get_results().size() == 1, "Sample supports models with 1 output only");
+        OPENVINO_ASSERT(model->inputs().size() == 1, "Sample supports models with 1 input only");
+        OPENVINO_ASSERT(model->outputs().size() == 1, "Sample supports models with 1 output only");
 
         // SSD has an additional post-processing DetectionOutput layer that simplifies output filtering,
         // try to find it.
         ov::NodeVector ops = model->get_ops();
         auto it = std::find_if(ops.begin(), ops.end(), [](std::shared_ptr<ov::Node> node) {
-            return node->get_type_info() == ngraph::op::DetectionOutput::get_type_info_static();
+            return node->get_type_info().name == ngraph::op::DetectionOutput::get_type_info_static().name;
         });
         if (it == ops.end()) {
             throw std::logic_error("model does not contain DetectionOutput layer");

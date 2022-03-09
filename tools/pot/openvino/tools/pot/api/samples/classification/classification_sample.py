@@ -29,9 +29,8 @@ class ImageNetDataLoader(DataLoader):
         if index >= len(self):
             raise IndexError
 
-        annotation = (index, self._annotations[self._img_ids[index]])\
-            if self._annotations else (index, None)
-        return annotation, self._read_image(self._img_ids[index])
+        annotation = self._annotations[self._img_ids[index]] if self._annotations else None
+        return self._read_image(self._img_ids[index]), annotation
 
     # Methods specific to the current implementation
     @staticmethod
@@ -83,11 +82,6 @@ class Accuracy(Metric):
         self._top_k = top_k
         self._name = 'accuracy@top{}'.format(self._top_k)
         self._matches = []
-
-    @property
-    def value(self):
-        """ Returns accuracy metric value for the last model output. """
-        return {self._name: self._matches[-1]}
 
     @property
     def avg_value(self):

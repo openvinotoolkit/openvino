@@ -72,6 +72,22 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassGetAvailableDevices, OVClassGetAvailableDevices,
         ::testing::Values("CPU"));
 
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassSetModelPriorityConfigTest, OVClassSetModelPriorityConfigTest,
+        ::testing::Values("MULTI", "AUTO"));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassSetLogLevelConfigTest, OVClassSetLogLevelConfigTest,
+        ::testing::Values("MULTI", "AUTO"));
+
+const std::vector<ov::AnyMap> multiConfigs = {
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}
+};
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassSetDevicePriorityConfigTest, OVClassSetDevicePriorityConfigTest,
+        ::testing::Combine(::testing::Values("MULTI", "AUTO"),
+                           ::testing::ValuesIn(multiConfigs)));
 //
 // IE Class GetConfig
 //
@@ -87,14 +103,14 @@ TEST(OVClassBasicTest, smoke_SetConfigInferenceNumThreads) {
     int32_t value = 0;
     int32_t num_threads = 1;
 
-    ASSERT_NO_THROW(ie.set_property("CPU", ov::inference_num_threads(num_threads)));
-    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::inference_num_threads));
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::inference_num_threads(num_threads)));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::inference_num_threads));
     ASSERT_EQ(num_threads, value);
 
     num_threads = 4;
 
-    ASSERT_NO_THROW(ie.set_property("CPU", ov::inference_num_threads(num_threads)));
-    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::inference_num_threads));
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::inference_num_threads(num_threads)));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::inference_num_threads));
     ASSERT_EQ(num_threads, value);
 }
 
@@ -104,8 +120,8 @@ TEST(OVClassBasicTest, smoke_SetConfigStreamsNum) {
     int32_t num_streams = 1;
 
     auto setGetProperty = [&ie](int32_t& getProperty, int32_t setProperty){
-        ASSERT_NO_THROW(ie.set_property("CPU", ov::streams::num(setProperty)));
-        ASSERT_NO_THROW(getProperty = ie.get_property("CPU", ov::streams::num));
+        OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::num_streams(setProperty)));
+        OV_ASSERT_NO_THROW(getProperty = ie.get_property("CPU", ov::num_streams));
     };
 
     setGetProperty(value, num_streams);
@@ -132,12 +148,12 @@ TEST(OVClassBasicTest, smoke_SetConfigAffinity) {
 #else
     auto defaultBindThreadParameter = ov::Affinity::CORE;
 #endif
-    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::affinity));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::affinity));
     ASSERT_EQ(defaultBindThreadParameter, value);
 
     const ov::Affinity affinity = ov::Affinity::HYBRID_AWARE;
-    ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
-    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::affinity));
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::affinity));
     ASSERT_EQ(affinity, value);
 }
 
@@ -146,13 +162,13 @@ TEST(OVClassBasicTest, smoke_SetConfigHintInferencePrecision) {
     auto value = ov::element::f32;
     const auto precision = InferenceEngine::with_cpu_x86_bfloat16() ? ov::element::bf16 : ov::element::f32;
 
-    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::inference_precision));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::inference_precision));
     ASSERT_EQ(precision, value);
 
     const auto forcedPrecision = ov::element::f32;
 
-    ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::inference_precision(forcedPrecision)));
-    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::inference_precision));
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::inference_precision(forcedPrecision)));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::inference_precision));
     ASSERT_EQ(precision, forcedPrecision);
 }
 
@@ -161,13 +177,13 @@ TEST(OVClassBasicTest, smoke_SetConfigEnableProfiling) {
     bool value;
     const bool enableProfilingDefault = false;
 
-    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::enable_profiling));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::enable_profiling));
     ASSERT_EQ(enableProfilingDefault, value);
 
     const bool enableProfiling = true;
 
-    ASSERT_NO_THROW(ie.set_property("CPU", ov::enable_profiling(enableProfiling)));
-    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::enable_profiling));
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::enable_profiling(enableProfiling)));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::enable_profiling));
     ASSERT_EQ(enableProfiling, value);
 }
 

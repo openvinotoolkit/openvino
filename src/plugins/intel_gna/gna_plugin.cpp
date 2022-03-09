@@ -196,6 +196,9 @@ void GNAPlugin::ExportScores(void *ptr_dst,
                   uint32_t num_vector_stride,
                   Precision precision_in,
                   Precision precision_out) {
+    if (ptr_src == nullptr || ptr_dst == nullptr) {
+        THROW_GNA_EXCEPTION << "Received null pointer arguments";
+    }
     if (precision_out != Precision::I32 && precision_out != Precision::FP32) {
         THROW_GNA_EXCEPTION << "Unsupported target precision for infer : " << precision_out.name();
     }
@@ -856,7 +859,12 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     std::vector<CNNLayerPtr> sortedNoMem;
     std::unordered_map<std::string, std::vector<InferenceEngine::CNNLayerPtr>> memoryPairs;
     // find all memory layers pairs and mark which one used as outputs
+    uint16_t id = 0;
     for (auto &layer : sortedNet) {
+        // set order id for layers to use it in compact mode
+        IE_SUPPRESS_DEPRECATED_START
+        layer->userValue.v_int = id++;
+        IE_SUPPRESS_DEPRECATED_END
         auto generic = dynamic_cast<GenericLayer *>(layer.get());
         if (generic == nullptr) {
             sortedNoMem.push_back(layer);
@@ -909,11 +917,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     }
 
     // Creating Layer primitives
-    uint16_t id = 0;
     for (auto & layer : sortedNoMem) {
-        IE_SUPPRESS_DEPRECATED_START
-        layer->userValue.v_int = id++;
-        IE_SUPPRESS_DEPRECATED_END
         graphCompiler.CreateLayerPrimitive(layer);
     }
 

@@ -153,7 +153,7 @@ std::shared_ptr<KernelString> KernelBaseOpenCL::GetKernelString(const std::strin
         kernel_string->undefs = jit.second;
         kernel_string->options = exe_mode + " -cl-mad-enable";
         if (engine_info.bOptHintsSupport)
-            kernel_string->options += " -DOPT_HINS_SUPPORTED=1";
+            kernel_string->options += " -DOPT_HINTS_SUPPORTED=1";
         if (engine_info.bLocalBlockIOSupport)
             kernel_string->options += " -Dcl_intel_subgroup_local_block_io -DLOCAL_BLOCK_IO_SUPPORTED=1";
         kernel_string->entry_point = entry_point;

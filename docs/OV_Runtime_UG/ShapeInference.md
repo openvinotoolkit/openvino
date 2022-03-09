@@ -1,4 +1,4 @@
-# Using the Reshape Inference Feature {#openvino_docs_IE_DG_ShapeInference}
+# Changing input shapes {#openvino_docs_IE_DG_ShapeInference}
 
 ## Introduction (C++)
 
@@ -43,8 +43,7 @@ If a model has a hard-coded batch dimension, use `InferenceEngine::CNNNetwork::s
 
 Inference Engine takes three kinds of a model description as an input, which are converted into an `InferenceEngine::CNNNetwork` object:
 1. [Intermediate Representation (IR)](../MO_DG/IR_and_opsets.md) through `InferenceEngine::Core::ReadNetwork`
-2. [ONNX model](../OV_Runtime_UG/ONNX_Support.md) through `InferenceEngine::Core::ReadNetwork`
-3. [OpenVINO Model](../OV_Runtime_UG/model_representation.md) through the constructor of `InferenceEngine::CNNNetwork`
+2. [OpenVINO Model](../OV_Runtime_UG/model_representation.md) through the constructor of `InferenceEngine::CNNNetwork`
 
 `InferenceEngine::CNNNetwork` keeps an `ngraph::Function` object with the model description internally.
 The object should have fully-defined input shapes to be successfully loaded to Inference Engine plugins.
@@ -113,7 +112,7 @@ To keep the model valid after the reshape, choose a new input shape that satisfi
 For details, refer to the <a href="_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models.html#tf_od_custom_input_shape">Tensorflow Object Detection API models resizing techniques</a>.
 
 ### Extensibility
-The Inference Engine provides a special mechanism that allows adding support of shape inference for custom operations. This mechanism is described in the [Extensibility documentation](Extensibility_DG/Intro.md)
+The Inference Engine provides a special mechanism that allows adding support of shape inference for custom operations. This mechanism is described in the [Extensibility documentation](../Extensibility_UG/Intro.md)
 
 ## Introduction (Python)
 
@@ -167,7 +166,7 @@ To feed input data of a shape that is different from the model input shape, resh
 
 Once the input shape of IENetwork is set, call the `IECore.load_network` method to get an ExecutableNetwork object for inference with updated shapes.
 
-There are other approaches to reshape the model during the stage of IR generation or [nGraph function](https://docs.openvino.ai/latest/openvino_docs_nGraph_DG_PythonAPI.html#create_an_ngraph_function_from_a_graph) creation.
+There are other approaches to reshape the model during the stage of IR generation or [OpenVINO model](https://docs.openvino.ai/latest/openvino_docs_nGraph_DG_PythonAPI.html#create_an_ngraph_function_from_a_graph) creation.
 
 Practically, some models are not ready to be reshaped. In this case, a new input shape cannot be set with the Model Optimizer or the `IENetwork.reshape` method.
 
@@ -219,7 +218,7 @@ exec_net = ie.load_network(network=net, device_name="CPU")
 ```
 
 ### Extensibility
-The Inference Engine provides a special mechanism that allows adding support of shape inference for custom operations. This mechanism is described in the [Extensibility documentation](Extensibility_DG/Intro.md)
+The Inference Engine provides a special mechanism that allows adding support of shape inference for custom operations. This mechanism is described in the [Extensibility documentation](../Extensibility_UG/Intro.md)
 
 ### See Also:
 
