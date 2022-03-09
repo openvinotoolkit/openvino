@@ -13,16 +13,17 @@ Model Optimizer performs preprocessing to a model. It is possible to optimize th
 
 ## When to Specify Layout
 
-Layout defines which dimensions located in shape. Layout syntax is explained in
-[Layout API overview](../../OV_Runtime_UG/layout_overview.md). It is possible to specify
-layout for inputs and outputs. There are 2 options to specify layout `--layout` and
-`--source_layout`. For example to specify `NCHW` layout for model with single input:
+Layout defines which dimensions are located in shape and can be specified
+for both inputs and outputs. For layout syntax check the [Layout API overview](../../OV_Runtime_UG/layout_overview.md). 
+To specify layout, you can use either `--layout` or `--source_layout` followed by the layout value. 
+Additionally, if a model has more than one input or needs both input and output layouts specified,
+each layout needs to be given a name. Here are examples of the two cases:
+`NCHW` layout specified for a model with a single input:
 ```
 mo --input_model /path/to/model --source_layout nchw
 mo --input_model /path/to/model --layout nchw
 ```
-If model has more than 1 input or if not only input layout but also output layout needs
-to be specified it is required to specify names for each layout:
+`NCHW` and `NC` layouts specified for a model with two inputs:
 ```
 mo --input_model /path/to/model --source_layout name1(nchw),name2(nc)
 mo --input_model /path/to/model --layout name1(nchw),name2(nc)
@@ -35,7 +36,7 @@ application of mean or scales, and reversing input channels (BGR<->RGB).
 It is possible to change layout of the model. It may be needed if input data has different
 layout then model was trained on. There are 2 options that can be used to change layout of
 model inputs or outputs --layout and --target_layout. For example to change layout of the
-model with one input from NHWC to NCHW:
+model with one input from `NHWC` to `NCHW`:
 ```
 mo --input_model /path/to/model --source_layout nhwc --target_layout nchw
 mo --input_model /path/to/model --layout "nhwc->nchw"
