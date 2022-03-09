@@ -23,6 +23,7 @@ Input data may require pre-processing such as `RGB<->BGR` conversion and mean an
 * [Configuring the Model Optimizer](../../Deep_Learning_Model_Optimizer_DevGuide.md)
 * [Model Cutting](Cutting_Model.md)
 * [Optimize Preprocessing Computation](../Additional_Optimizations.md)
+* [Compression Of Model To FP16](../FP16_Compression.md)
 * [Convert TensorFlow Models](Convert_Model_From_TensorFlow.md)
 * [Convert ONNX Models](Convert_Model_From_ONNX.md)
 * [Convert PyTorch Models](Convert_Model_From_PyTorch.md)

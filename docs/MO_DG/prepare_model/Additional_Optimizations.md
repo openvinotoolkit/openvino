@@ -65,27 +65,3 @@ There is no a universal recipe for determining the mean/scale values for a parti
 
 ## When to Reverse Input Channels <a name="when_to_reverse_input_channels"></a>
 Input data for your application can be of either RGB or BRG color input order. For example, OpenVINO Samples load input images in the BGR channel order, but many models are trained in the RBG one, like most TensorFlow cases. Such discrepancy may result in incorrect inference results. The solution is to use the `--reverse_input_channels` command line parameter, which tells Model Optimizer to perform weights modification with the first convolution or other channel-dependent operation. Therefore, it will look like the image is passed with the RGB channel order.
-
-## Compression of model to FP16
-
-Model Optimizer can compress models to `FP16` data type. This makes them occupy less space 
-in the file system and, most importantly, increase performance when particular hardware is used. 
-The process assumes changing data type on all constants inside the model
-to the `FP16` precision and inserting `Convert` nodes to the initial data type, so that the data
-flow inside the model is preserved. To compress the model to `FP16` use the `--data_type` option like this:
-
-```
-mo --input_model /path/to/model --data_type FP16
-```
-
-> **NOTE**: Using `--data_type FP32` will not do anything and will not force `FP32` 
-> precision in the model. If the model was `FP16` originally in the framework,
-> Model Optimizer will not convert such weights to `FP32` even if `--data_type FP32`
-> option is used .
-
-Some plugins, for example GPU, will show greater performance while slightly sacrificing
-accuracy.
-
-> **NOTE**: Intel&reg; Movidius&trade; Myriad&trade; 2 and Intel&reg; Myriad&trade; X VPUs
-> require models in `FP16` precision.
-
