@@ -19,7 +19,8 @@
 namespace MultiDevicePlugin {
 using namespace InferenceEngine;
 
-BaseExecutableNetwork::BaseExecutableNetwork(const Schedule::Ptr& schedule, const Context::Ptr& context):
+BaseExecutableNetwork::BaseExecutableNetwork(const Schedule::Ptr& schedule,
+    const Context::Ptr& context):
     _schedule(schedule),
     _context(context) {
     //_executableNetwork = _schedule->GetExecNetwork();
@@ -28,7 +29,8 @@ BaseExecutableNetwork::~BaseExecutableNetwork() {
     _schedule->release();
 }
 
-std::shared_ptr<InferenceEngine::RemoteContext> BaseExecutableNetwork::GetContext() const {
+std::shared_ptr<InferenceEngine::RemoteContext>
+BaseExecutableNetwork::GetContext() const {
     return _executableNetwork->GetContext();
 }
 
@@ -38,8 +40,9 @@ IInferPtr BaseExecutableNetwork::CreateInferRequestImpl(
     return _schedule->CreateInferRequestImpl(inputs, outputs);
 }
 
-IInferPtr BaseExecutableNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
-        InferenceEngine::OutputsDataMap networkOutputs) {
+IInferPtr BaseExecutableNetwork::CreateInferRequestImpl(
+    InferenceEngine::InputsDataMap networkInputs,
+    InferenceEngine::OutputsDataMap networkOutputs) {
     return _schedule->CreateInferRequestImpl(networkInputs, networkOutputs);
 }
 
@@ -48,23 +51,26 @@ IInferRequestInternal::Ptr BaseExecutableNetwork::CreateInferRequest() {
     return _schedule->CreateInferRequest();
 }
 
-void BaseExecutableNetwork::SetConfig(const std::map<std::string, InferenceEngine::Parameter> &config) {
+void BaseExecutableNetwork::SetConfig(const
+    std::map<std::string, InferenceEngine::Parameter>& config) {
     return _executableNetwork->SetConfig(config);
 }
 
-InferenceEngine::Parameter BaseExecutableNetwork::GetConfig(const std::string &name) const {
+InferenceEngine::Parameter BaseExecutableNetwork::GetConfig(
+    const std::string& name) const {
     return _executableNetwork->GetConfig(name);
 }
 
-InferenceEngine::Parameter BaseExecutableNetwork::GetMetric(const std::string &name) const {
+InferenceEngine::Parameter BaseExecutableNetwork::GetMetric(
+    const std::string& name) const {
     return _executableNetwork->GetMetric(name);
 }
 
 void BaseExecutableNetwork::SetExeNetworkForContext() {
     // Maybe different API will call this function, so add call once here
     // for every AutoSchedule instance
-    std::call_once(_oc, [this] () {
-            _context->_executableNetwork = shared_from_this();
-            });
+    std::call_once(_oc, [this]() {
+        _context->_executableNetwork = shared_from_this();
+    });
 }
 }  // namespace MultiDevicePlugin

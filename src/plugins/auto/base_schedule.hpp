@@ -19,21 +19,21 @@
 #endif
 
 namespace MultiDevicePlugin {
-using Stage = std::pair<InferenceEngine::ITaskExecutor::Ptr, InferenceEngine::Task>;
+using Stage = std::pair<IE::ITaskExecutor::Ptr, IE::Task>;
 using Pipeline = std::vector<Stage>;
 class Schedule : public std::enable_shared_from_this<Schedule>  {
 public:
     using Ptr = std::shared_ptr<Schedule>;
     virtual IInferPtr CreateInferRequest();
-    virtual IInferPtr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
-            InferenceEngine::OutputsDataMap networkOutputs);
+    virtual IInferPtr CreateInferRequestImpl(IE::InputsDataMap networkInputs,
+        IE::OutputsDataMap networkOutputs);
     virtual IInferPtr CreateInferRequestImpl(
-            const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-            const std::vector<std::shared_ptr<const ov::Node>>& outputs);
+        const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+        const std::vector<std::shared_ptr<const ov::Node>>& outputs);
     virtual void release();
     virtual void init(const Context::Ptr& context);
     virtual Pipeline GetPipeline(const IInferPtr& syncRequestImpl,
-            WorkerInferRequest** WorkerInferRequest);
+        WorkerInferRequest** WorkerInferRequest);
     virtual ~Schedule() = default;
 
 protected:

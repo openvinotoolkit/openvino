@@ -20,12 +20,12 @@ struct AutoLoadContext {
     std::atomic<bool> isLoadSuccess = {false};
     std::future<void> future;
     std::promise<void> promise;
-    InferenceEngine::SoExecutableNetworkInternal executableNetwork;
+    SoExecNetwork executableNetwork;
     DeviceInformation  deviceInfo;
     std::vector<DeviceInformation> metaDevices;
     std::string networkPrecision;
     std::string errMessage;
-    InferenceEngine::Task task;
+    IE::Task task;
     //ACTUALDEVICE's workName is same as it's deviceName,
     //CPU_HELP's workName is "CPU_HELP", and  deviceName is "CPU"
     //add workName is because of ACTUALDEVICE and CPU maybe all CPU,
@@ -34,50 +34,49 @@ struct AutoLoadContext {
 };
 
 enum AutoLoadContextIndex {
-     CPU = 0,
-     ACTUALDEVICE = 1,
-     CONTEXTNUM = 2
+    CPU = 0,
+    ACTUALDEVICE = 1,
+    CONTEXTNUM = 2
 };
 class AutoSchedule : public MultiSchedule {
-    public:
-        using Ptr = std::shared_ptr<AutoSchedule>;
-        void init(const Context::Ptr& context) override;
-        IInferPtr CreateInferRequest() override;
-        IInferPtr CreateInferRequestImpl(
-                InferenceEngine::InputsDataMap networkInputs,
-                InferenceEngine::OutputsDataMap networkOutputs) override;
-        IInferPtr CreateInferRequestImpl(
-                const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-                const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;
-        void WaitActualNetworkReady() const;
-        virtual ~AutoSchedule();
+public:
+    using Ptr = std::shared_ptr<AutoSchedule>;
+    void init(const Context::Ptr& context) override;
+    IInferPtr CreateInferRequest() override;
+    IInferPtr CreateInferRequestImpl(
+        IE::InputsDataMap networkInputs,
+        IE::OutputsDataMap networkOutputs) override;
+    IInferPtr CreateInferRequestImpl(
+        const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+        const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;
+    void WaitActualNetworkReady() const;
+    virtual ~AutoSchedule();
 
-    public:
-        AutoLoadContext                           _loadContext[CONTEXTNUM];
+public:
+    AutoLoadContext                           _loadContext[CONTEXTNUM];
 
-    protected:
-        void GenerateWorkers(const std::string& device,
-                const InferenceEngine::SoExecutableNetworkInternal&
-                executableNetwork) override;
-        void ScheduleToWorkerInferRequest(InferenceEngine::Task,
-                DeviceName preferred_device = "") override;
+protected:
+    void GenerateWorkers(const std::string& device, const SoExecNetwork&
+        executableNetwork) override;
+    void ScheduleToWorkerInferRequest(IE::Task,
+        DeviceName preferred_device = "") override;
 
-    private:
-        void WaitFirstNetworkReady();
-        void TryToLoadNetWork(AutoLoadContext& context,
-                const std::string& modelPath,
-                const InferenceEngine::CNNNetwork& network);
+private:
+    void WaitFirstNetworkReady();
+    void TryToLoadNetWork(AutoLoadContext& context,
+        const std::string& modelPath,
+        const IE::CNNNetwork& network);
 
-    private:
-        InferenceEngine::IStreamsExecutor::Ptr   _executor;
-        mutable std::once_flag                   _oc;
-        std::once_flag                           _firstLoadOC;
-        std::future<void>                        _firstLoadFuture;
-        std::promise<void>                       _firstLoadPromise;
-        bool                                     _exitFlag = {false};
-        int                                      _cpuHelpInferCount = 0;
-        std::atomic_size_t                       _numRequestsCreated = {0};
-        AutoContext::Ptr                         _autoContext;
+private:
+    IE::IStreamsExecutor::Ptr                _executor;
+    mutable std::once_flag                   _oc;
+    std::once_flag                           _firstLoadOC;
+    std::future<void>                        _firstLoadFuture;
+    std::promise<void>                       _firstLoadPromise;
+    bool                                     _exitFlag = {false};
+    int                                      _cpuHelpInferCount = 0;
+    std::atomic_size_t                       _numRequestsCreated = {0};
+    AutoContext::Ptr                         _autoContext;
 };
 
 }  // namespace MultiDevicePlugin

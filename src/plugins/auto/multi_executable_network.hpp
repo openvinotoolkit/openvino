@@ -31,21 +31,21 @@
 
 namespace MultiDevicePlugin {
 class MultiExecutableNetwork : public BaseExecutableNetwork {
-    friend InferenceEngine::IInferRequestInternal::Ptr MultiSchedule::CreateInferRequest();
-    public:
-        using Ptr = std::shared_ptr<MultiExecutableNetwork>;
+    friend IInferPtr MultiSchedule::CreateInferRequest();
+public:
+    using Ptr = std::shared_ptr<MultiExecutableNetwork>;
 
-        explicit MultiExecutableNetwork(MultiContext::Ptr& context,
-               const MultiSchedule::Ptr& schedule);
+    explicit MultiExecutableNetwork(MultiContext::Ptr& context,
+        const MultiSchedule::Ptr& schedule);
 
-        void SetConfig(const std::map<std::string, InferenceEngine::Parameter> &config) override;
-        InferenceEngine::Parameter GetConfig(const std::string &name) const override;
-        InferenceEngine::Parameter GetMetric(const std::string &name) const override;
-        std::shared_ptr<InferenceEngine::RemoteContext> GetContext() const override;
-        ~MultiExecutableNetwork() override;
+    void SetConfig(const std::map<std::string, IE::Parameter>& config) override;
+    IE::Parameter GetConfig(const std::string& name) const override;
+    IE::Parameter GetMetric(const std::string& name) const override;
+    std::shared_ptr<IE::RemoteContext> GetContext() const override;
+    ~MultiExecutableNetwork() override;
 
-    private:
-        MultiContext::Ptr                                           _multiContext;
+private:
+    MultiContext::Ptr                                           _multiContext;
 };
 
 }  // namespace MultiDevicePlugin

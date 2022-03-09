@@ -18,8 +18,12 @@
 #endif
 
 namespace MultiDevicePlugin {
+namespace IE = InferenceEngine;
 using DeviceName = std::string;
-using IInferPtr = InferenceEngine::IInferRequestInternal::Ptr;
+using IInferPtr = IE::IInferRequestInternal::Ptr;
+using IExecNetwork = IE::IExecutableNetworkInternal;
+using SoInfer = IE::SoIInferRequestInternal;
+using SoExecNetwork = IE::SoExecutableNetworkInternal;
 template<typename T>
 using DeviceMap = std::unordered_map<DeviceName, T>;
 struct DeviceInformation {
@@ -34,8 +38,8 @@ struct DeviceInformation {
 class Context : public std::enable_shared_from_this<Context>  {
 public:
     using Ptr = std::shared_ptr<Context>;
-    std::shared_ptr<InferenceEngine::ICore> _core;
-    std::weak_ptr<InferenceEngine::IExecutableNetworkInternal> _executableNetwork;
+    std::shared_ptr<IE::ICore> _core;
+    std::weak_ptr<IExecNetwork> _executableNetwork;
     virtual ~Context() = default;
 };
 
@@ -44,8 +48,8 @@ public:
     using Ptr = std::shared_ptr<MultiContext>;
     std::vector<DeviceInformation>  _devicePriorities;
     std::vector<DeviceInformation>  _devicePrioritiesInitial;
-    std::unordered_map<std::string, InferenceEngine::Parameter> _config;
-    DeviceMap<InferenceEngine::SoExecutableNetworkInternal> _networksPerDevice;
+    std::unordered_map<std::string, IE::Parameter> _config;
+    DeviceMap<SoExecNetwork> _networksPerDevice;
     std::mutex _mutex;
     bool _needPerfCounters;
     virtual ~MultiContext() = default;
@@ -56,7 +60,7 @@ class AutoContext : public MultiContext {
 public:
     using Ptr = std::shared_ptr<AutoContext>;
     std::string _modelPath;
-    InferenceEngine::CNNNetwork _network;
+    IE::CNNNetwork _network;
     std::string _strDevices;
     unsigned int _modelPriority = 0;
     bool _batchingDisabled = {false};
@@ -66,10 +70,10 @@ public:
 };
 
 struct WorkerInferRequest {
-    InferenceEngine::SoIInferRequestInternal  _inferRequest;
-    InferenceEngine::Task                     _task;
-    std::exception_ptr                        _exceptionPtr = nullptr;
-    unsigned int                              _inferCount = 0;
-    int                                       _index = 0;
+    SoInfer _inferRequest;
+    IE::Task _task;
+    std::exception_ptr _exceptionPtr = nullptr;
+    unsigned int _inferCount = 0;
+    int _index = 0;
 };
 }  // namespace MultiDevicePlugin

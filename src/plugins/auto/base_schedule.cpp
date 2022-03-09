@@ -11,12 +11,13 @@ namespace MultiDevicePlugin {
 IInferPtr Schedule::CreateInferRequest() {
     return nullptr;
 }
-IInferPtr Schedule::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
-        InferenceEngine::OutputsDataMap networkOutputs) {
+IInferPtr Schedule::CreateInferRequestImpl(IE::InputsDataMap networkInputs,
+    IE::OutputsDataMap networkOutputs) {
     return nullptr;
 }
-IInferPtr Schedule::CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-        const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
+IInferPtr Schedule::CreateInferRequestImpl(const
+    std::vector<std::shared_ptr<const ov::Node>>& inputs,
+    const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
     return nullptr;
 }
 void Schedule::release() {
@@ -27,7 +28,7 @@ void Schedule::init(const Context::Ptr& context) {
 }
 
 Pipeline Schedule::GetPipeline(const IInferPtr& syncRequestImpl,
-        WorkerInferRequest** WorkerInferRequest) {
+    WorkerInferRequest** WorkerInferRequest) {
     return {};
 }
 }  // namespace MultiDevicePlugin
