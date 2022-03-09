@@ -161,6 +161,7 @@ OpenVINO™ Runtime API 2.0:
        :fragment: [ov_api_2_0:start_async_and_wait]
 
 @endsphinxdirective
+
 ## 7. Start asynchronous inference and wait for result
 
 @sphinxdirective
