@@ -132,9 +132,7 @@ To learn how to change the device configuration, read the [Query device properti
 
 ### Step 3. Create an Inference Request
 
-`ov::InferRequest` class provides methods for model inference in the OpenVINO™ Runtime.
-This section demonstrates a simple pipeline, to get more information about other use cases, read the [InferRequest documentation](./ov_infer_request.md) dedicated article.
-Create an infer request using the following code:
+`ov::InferRequest` class provides methods for model inference in the OpenVINO™ Runtime. Create an infer request using the following code (see [InferRequest detailed documentation](./ov_infer_request.md) for more details):
 
 @sphinxdirective
 
@@ -174,7 +172,7 @@ You can use external memory to create `ov::Tensor` and use the `ov::InferRequest
 
 ### Step 5. Start Inference
 
-OpenVINO™ Runtime supports inference in asynchronous or synchronous mode. Async API usage can improve overall frame-rate of the application, because rather than wait for inference to complete, the app can continue doing things on the host, while the accelerator is busy. You can use `ov::InferRequest::start_async()` to start model inference in the asynchronous mode and call `ov::InferRequest::wait()` to wait for the inference results:
+OpenVINO™ Runtime supports inference in asynchronous or synchronous mode. Async API usage can improve overall frame-rate of the application, because rather than wait for inference to complete, the app can continue doing things on the host, while the accelerator is busy. You can use `ov::InferRequest::start_async` to start model inference in the asynchronous mode and call `ov::InferRequest::wait` to wait for the inference results:
 
 @sphinxdirective
 
@@ -192,14 +190,7 @@ OpenVINO™ Runtime supports inference in asynchronous or synchronous mode. Asyn
 
 @endsphinxdirective
 
-The asynchronous mode supports two methods to get the inference results:
-  * `ov::InferRequest::wait_for()` - Waits until the specified timeout (in milliseconds) has elapsed or the inference result becomes available, whichever comes first.
-  * `ov::InferRequest::wait()` - Waits until the inference result becomes available.
-
-Both requests are thread-safe, which means they can be called from different threads without exposing erroneous behavior or producing unpredictable results.
-
-While the request is ongoing, all its methods except `ov::InferRequest::cancel`, `ov::InferRequest::wait` or `ov::InferRequest::wait_for` throw
-the `ov::Busy` exception indicating the request is busy with computations.
+This section demonstrates a simple pipeline, to get more information about other ways to perform inference, read the dedicated ["Run inference" section](./ov_infer_request.md).
 
 ### Step 6. Process the Inference Results 
 
