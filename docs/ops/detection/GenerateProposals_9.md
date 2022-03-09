@@ -7,7 +7,7 @@
 **Short description**: The *GenerateProposals* operation proposes ROIs and their scores
 based on input data for each image in the batch.
 
-**Detailed description**: The operation performs the following steps:
+**Detailed description**: The operation performs the following steps for each image:
 
 1.  Transposes and reshapes predicted bounding boxes deltas and scores to get them into the same dimension order as the
 anchors.
@@ -19,6 +19,8 @@ indicates whether the proposal bboxes are normalized or not.
 6.  Applies non-maximum suppression with *adaptive_nms_threshold*. The initial value of *adaptive_nms_threshold* is
 *nms_threshold*. If `nms_eta < 1` and `adaptive_threshold > 0.5`, update `adaptive_threshold *= nms_eta`.
 7.  Takes and returns top proposals after nms operation. The number of returned proposals is dynamic. And the max number of proposals is specified by attribute *post_nms_count*.
+
+All proposals of the whole batch are concated image by image, and distinguishable through outputs.
 
 **Attributes**:
 
@@ -72,18 +74,17 @@ indicates whether the proposal bboxes are normalized or not.
 
 * **1**: `im_info` - tensor of type *T* and shape `[num_batches, 3]` or `[num_batches, 4]` providing input image info. The image info is layout as `[image_height, image_width, scale_height_and_width]` or as `[image_height, image_width, scale_height, scale_width]`. **Required.**
 
-* **2**: `anchors` - tensor of type *T* with shape `[number_of_anchors, height, width, 4]` providing anchors. **Required.**
+* **2**: `anchors` - tensor of type *T* with shape `[number_of_anchors, height, width, 4]` providing anchors. Each anchor is layouted as `[xmin, ymin, xmax, ymax]`. **Required.**
 
-* **3**: `boxesdeltas` - tensor of type *T* with shape `[num_batches, number_of_anchors * 4, height, width]` providing deltas for anchors.
- **Required.**
+* **3**: `boxesdeltas` - tensor of type *T* with shape `[num_batches, number_of_anchors * 4, height, width]` providing deltas for anchors. The delta consists of 4 element tuples with layout `[dx, dy, log(dw), log(dh)]`. **Required.**
 
-* **4**: `scores` - tensor of type *T* with shape `[num_batches,number_of_anchors, height, width]` providing proposals scores.  **Required.**
+* **4**: `scores` - tensor of type *T* with shape `[num_batches, number_of_anchors, height, width]` providing proposals scores.  **Required.**
 
 The `height` and `width` from inputs `anchors`, `boxesdeltas` and `scores` are the height and width of feature maps.
 
 **Outputs**
 
-* **1**: `rpnrois` - tensor of type *T* with shape `[num_rois, 4]` providing proposed ROIs.
+* **1**: `rpnrois` - tensor of type *T* with shape `[num_rois, 4]` providing proposed ROIs. The proposals are layouted as `[xmin, ymin, xmax, ymax]`.
 
 * **2**: `rpnscores` - tensor of type *T* with shape `[num_rois, 1]` providing proposed ROIs scores.
 
