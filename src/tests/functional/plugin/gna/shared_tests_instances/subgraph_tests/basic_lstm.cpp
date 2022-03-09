@@ -35,7 +35,7 @@ size_t small_num_cells = 10;
 
 size_t big_num_cells = 49;
 
-float weights_range = 0.02f;
+std::pair<float, float> weights_range = {0.f, 0.02f};
 
 const std::vector<bool> decompose = { false, true };
 
