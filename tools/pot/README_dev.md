@@ -33,7 +33,7 @@ Post-Training Optimization Tool includes standalone command-line tool and Python
 3) Setup Model Optimizer. 
     You can setup Model Optimizer that needs for POT purposed with the two ways:
     1. Install Model Optimizer with pip using "python setup.py install" at the mo folder (`<openvino_path>/tools/mo/setup.py`)
-    2. Setup Model Optimizer for Python using PYTHONPATH environment variable. Add the the following `<openvino_path>/tools/mo` into PYTHONPATH.
+    2. Setup Model Optimizer for Python using PYTHONPATH environment variable. Add the following `<openvino_path>/tools/mo` into PYTHONPATH.
 4) Install requirements for accuracy checker:
     - From POT root: `cd ./thirdparty/open_model_zoo/tools/accuracy_checker`
     - Call setup script: `python3 setup.py install`

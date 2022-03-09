@@ -32,7 +32,7 @@ generic component translating the model to real integer representation and HW-sp
 
 ## Model Optimization Workflow
 We propose a common workflow which aligns with what other DL frameworks have. It contains two main components: post-training quantization and Quantization-Aware Training (QAT). 
-The first component is the the easiest way to get optimized models where the latter one can be considered as an alternative or an addition when the first does not give
+The first component is the easiest way to get optimized models where the latter one can be considered as an alternative or an addition when the first does not give
 accurate results.
 
 The diagram below shows the optimization flow for the new model with OpenVINO and relative tools.
