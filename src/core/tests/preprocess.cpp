@@ -1255,6 +1255,21 @@ TEST(pre_post_process, preprocess_memory_type_not_cleared) {
     EXPECT_EQ(var0, "abc");
 }
 
+TEST(pre_post_process, preprocess_from) {
+    auto t = ov::runtime::Tensor(element::u8, {1, 480, 640, 3});
+    auto f = create_simple_function(element::f32, Shape{1, 224, 224, 3});
+    ov::layout::set_layout(f->input(), "NHWC");
+    auto p = PrePostProcessor(f);
+    p.input().tensor().from(t);
+    p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
+    f = p.build();
+
+    EXPECT_EQ(f->input().get_element_type(), element::u8);
+    EXPECT_EQ(f->input().get_shape(), (Shape{1, 480, 640, 3}));
+    EXPECT_EQ(f->output().get_element_type(), element::f32);
+    EXPECT_EQ(f->output().get_shape(), (Shape{1, 224, 224, 3}));
+}
+
 // --- PostProcess - set/convert element type ---
 
 TEST(pre_post_process, postprocess_convert_element_type_explicit) {
