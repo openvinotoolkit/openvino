@@ -125,35 +125,36 @@ OpenVINO™ Runtime API 2.0 fills inputs as `I64` precision (aligned with the or
 
 @endsphinxdirective
 
-## 6. Set completion callback
-
-@sphinxdirective
-
-.. tab:: Inference Engine API
-
-    .. doxygensnippet:: docs/snippets/ie_common.cpp
-       :language: cpp
-       :fragment: [ie:set_callback]
-
-.. tab:: OpenVINO™ Runtime API 2.0
-
-    .. doxygensnippet:: docs/snippets/ov_common.cpp
-       :language: cpp
-       :fragment: [ov_api_2_0:set_callback]
-
-@endsphinxdirective
-
-## 7. Start Inference
+## 6. Start Inference
 
 Inference Engine API:
 
-@snippet docs/snippets/ie_common.cpp ie:inference
+.. tab:: sync
+
+    .. doxygensnippet:: docs/snippets/ie_common.cpp
+       :language: cpp
+       :fragment: [ie:inference]
+
+.. tab:: async
+
+    .. doxygensnippet:: docs/snippets/ov_common.cpp
+       :language: cpp
+       :fragment: [ov_api_2_0:start_async_and_wait]
 
 OpenVINO™ Runtime API 2.0:
 
-@snippet docs/snippets/ov_common.cpp ov_api_2_0:inference
+.. tab:: sync
 
-## 8. Start asynchronous inference and wait for result
+    .. doxygensnippet:: docs/snippets/ie_common.cpp
+       :language: cpp
+       :fragment: [ov_api_2_0:inference]
+
+.. tab:: async
+    .. doxygensnippet:: docs/snippets/ov_common.cpp
+       :language: cpp
+       :fragment: [ov_api_2_0:start_async_and_wait]
+
+## 7. Start asynchronous inference and wait for result
 
 @sphinxdirective
 
@@ -171,7 +172,7 @@ OpenVINO™ Runtime API 2.0:
 
 @endsphinxdirective
 
-## 9. Process the Inference Results
+## 8. Process the Inference Results
 
 Inference Engine API processes outputs as `I32` precision (**not** aligned with the original model):
 

@@ -75,7 +75,11 @@ int main() {
 
     inputs_aligned(infer_request);
 
-    //! [ov_api_2_0:set_callback]
+    //! [ov_api_2_0:inference]
+    infer_request.infer();
+    //! [ov_api_2_0:inference]
+
+    //! [ov_api_2_0:start_async_and_wait]
     auto restart_once = true;
     infer_request.set_callback([&, restart_once] (std::exception_ptr exception_ptr) mutable {
         if (exception_ptr) {
@@ -91,13 +95,6 @@ int main() {
             }
         }
     });
-    //! [ov_api_2_0:set_callback]
-
-    //! [ov_api_2_0:inference]
-    infer_request.infer();
-    //! [ov_api_2_0:inference]
-
-    //! [ov_api_2_0:start_async_and_wait]
     // Start inference without blocking current thread
     infer_request.start_async();
     // Get inference status

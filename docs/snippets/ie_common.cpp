@@ -50,7 +50,12 @@ int main() {
     }
     //! [ie:get_input_tensor]
 
-    //! [ie:set_callback]
+    //! [ie:inference]
+    infer_request.Infer();
+    //! [ie:inference]
+
+    //! [ie:start_async_and_wait]
+    // Start inference without blocking current thread
     auto restart_once = true;
     infer_request.SetCompletionCallback<std::function<void(InferenceEngine::InferRequest, InferenceEngine::StatusCode)>>(
         [&, restart_once](InferenceEngine::InferRequest request, InferenceEngine::StatusCode status) mutable {
@@ -66,14 +71,6 @@ int main() {
                 }
             }
         });
-    //! [ie:set_callback]
-
-    //! [ie:inference]
-    infer_request.Infer();
-    //! [ie:inference]
-
-    //! [ie:start_async_and_wait]
-    // Start inference without blocking current thread
     infer_request.StartAsync();
     // Get inference status
     InferenceEngine::StatusCode status = infer_request.Wait(InferenceEngine::InferRequest::STATUS_ONLY);
