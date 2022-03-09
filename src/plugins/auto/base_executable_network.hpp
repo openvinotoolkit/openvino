@@ -37,8 +37,14 @@ class BaseExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSaf
 
     protected:
         Schedule::Ptr _schedule;
-        Context::Ptr                                           _context;
+        Context::Ptr _context;
         InferenceEngine::SoExecutableNetworkInternal _executableNetwork;
+
+    private:
+        void SetExeNetworkForContext();
+
+    private:
+        std::once_flag _oc;
 };
 
 }  // namespace MultiDevicePlugin

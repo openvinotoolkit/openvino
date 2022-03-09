@@ -35,18 +35,16 @@ std::shared_ptr<InferenceEngine::RemoteContext> BaseExecutableNetwork::GetContex
 IInferPtr BaseExecutableNetwork::CreateInferRequestImpl(
     const std::vector<std::shared_ptr<const ov::Node>>& inputs,
     const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
-    _context->_executableNetwork = shared_from_this();
     return _schedule->CreateInferRequestImpl(inputs, outputs);
 }
 
 IInferPtr BaseExecutableNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
         InferenceEngine::OutputsDataMap networkOutputs) {
-    _context->_executableNetwork = shared_from_this();
     return _schedule->CreateInferRequestImpl(networkInputs, networkOutputs);
 }
 
 IInferRequestInternal::Ptr BaseExecutableNetwork::CreateInferRequest() {
-    _context->_executableNetwork = shared_from_this();
+    SetExeNetworkForContext();
     return _schedule->CreateInferRequest();
 }
 
@@ -60,5 +58,13 @@ InferenceEngine::Parameter BaseExecutableNetwork::GetConfig(const std::string &n
 
 InferenceEngine::Parameter BaseExecutableNetwork::GetMetric(const std::string &name) const {
     return _executableNetwork->GetMetric(name);
+}
+
+void BaseExecutableNetwork::SetExeNetworkForContext() {
+    // Maybe different API will call this function, so add call once here
+    // for every AutoSchedule instance
+    std::call_once(_oc, [this] () {
+            _context->_executableNetwork = shared_from_this();
+            });
 }
 }  // namespace MultiDevicePlugin
