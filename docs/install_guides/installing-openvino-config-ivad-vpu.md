@@ -2,6 +2,8 @@
 
 @sphinxdirective
 
+.. _vpu guide:
+
 .. toctree::
    :maxdepth: 2
    :hidden:
