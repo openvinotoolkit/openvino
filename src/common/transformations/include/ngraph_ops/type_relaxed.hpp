@@ -326,7 +326,7 @@ std::shared_ptr<Node> TypeRelaxed<BaseOp>::clone_with_new_inputs(const OutputVec
 
     // clean rt_info and friendly name (that mustn't be cloned due to semantic of this method)
     new_node->set_friendly_name("");
-    new_node->get_rt_info().clear();
+    new_node->get_rt_info() = {};
     return new_node;
 }
 
