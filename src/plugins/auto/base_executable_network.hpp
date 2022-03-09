@@ -4,12 +4,6 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-
-#include <map>
-#include <vector>
-#include <string>
-
-#include "cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp"
 #include "base_schedule.hpp"
 
 #ifdef  MULTIUNITTEST
@@ -50,5 +44,4 @@ private:
 private:
     std::once_flag _oc;
 };
-
 }  // namespace MultiDevicePlugin

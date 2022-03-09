@@ -4,23 +4,8 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-
-#include <atomic>
-#include <mutex>
-#include <unordered_map>
-#include <map>
-#include <vector>
-#include <string>
-
-#include "threading/ie_thread_safe_containers.hpp"
-#include "threading/ie_itask_executor.hpp"
-#include "threading/ie_executor_manager.hpp"
-#include "ie_icore.hpp"
-#include <ie_performance_hints.hpp>
-#include "openvino/runtime/properties.hpp"
 #include "base_executable_network.hpp"
 #include "multi_schedule.hpp"
-#include "common.hpp"
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual

@@ -3,11 +3,8 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include "ie_icore.hpp"
-#include "ie_metric_helpers.hpp"
-#include <ie_plugin_config.hpp>
 #include "auto_executable_network.hpp"
-#include "utils/log_util.hpp"
+
 // ------------------------------AutoExecutableNetwork----------------------------
 //
 namespace MultiDevicePlugin {

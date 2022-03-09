@@ -6,7 +6,6 @@
 #pragma once
 
 #include "base_schedule.hpp"
-#include "threading/ie_thread_safe_containers.hpp"
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual

@@ -5,10 +5,8 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-
-#include <cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp>
-#include "infer_request.hpp"
 #include "base_schedule.hpp"
+#include "infer_request.hpp"
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual

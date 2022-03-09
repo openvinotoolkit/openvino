@@ -8,7 +8,21 @@
 #include <map>
 #include <string>
 #include "ie_icore.hpp"
+#include "ie_metric_helpers.hpp"
+#include <ie_plugin_config.hpp>
 #include "cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp"
+#include "threading/ie_executor_manager.hpp"
+#include "threading/ie_immediate_executor.hpp"
+#include "threading/ie_istreams_executor.hpp"
+#include "threading/ie_itask_executor.hpp"
+#include "threading/ie_thread_safe_containers.hpp"
+#include "utils/log_util.hpp"
+#include <ie_performance_hints.hpp>
+#include "openvino/runtime/properties.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "transformations/utils/utils.hpp"
+#include "utils/log_util.hpp"
+#include "itt.hpp"
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual

@@ -3,17 +3,6 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <string>
-#include <vector>
-#include <map>
-
-#include "ie_icore.hpp"
-#include "ie_metric_helpers.hpp"
-#include <ie_plugin_config.hpp>
-
-#include "utils/log_util.hpp"
-
-#include "itt.hpp"
 #include "base_executable_network.hpp"
 // ------------------------------BaseExecutableNetwork----------------------------
 namespace MultiDevicePlugin {

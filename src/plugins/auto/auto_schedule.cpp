@@ -3,26 +3,12 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <mutex>
-#include <string>
-#include <vector>
-#include <memory>
-#include <utility>
-#include <map>
-#include <unordered_map>
 
-#include "ie_icore.hpp"
-#include "ie_metric_helpers.hpp"
-#include <ie_plugin_config.hpp>
-#include "auto_executable_network.hpp"
+#include "auto_schedule.hpp"
 #include "base_async_infer_request.hpp"
+#include "auto_executable_network.hpp"
 #include "plugin.hpp"
 
-#include "ngraph/opsets/opset1.hpp"
-#include "transformations/utils/utils.hpp"
-#include "utils/log_util.hpp"
-
-#include "itt.hpp"
 // ------------------------------AutoSchedule----------------------------
 namespace MultiDevicePlugin {
 

@@ -5,11 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include "cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp"
 #include "common.hpp"
-#include "threading/ie_immediate_executor.hpp"
-#include "threading/ie_istreams_executor.hpp"
-#include "threading/ie_itask_executor.hpp"
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual

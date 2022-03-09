@@ -3,15 +3,7 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <string>
-#include <vector>
-#include <memory>
-#include <map>
-
 #include "base_async_infer_request.hpp"
-#include <ie_icore.hpp>
-#include <ie_metric_helpers.hpp>
-#include <ie_plugin_config.hpp>
 
 namespace MultiDevicePlugin {
 BaseAsyncInferRequest::BaseAsyncInferRequest(const Schedule::Ptr& schedule,

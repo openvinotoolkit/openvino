@@ -3,26 +3,8 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <mutex>
-#include <string>
-#include <vector>
-#include <memory>
-#include <utility>
-#include <map>
-#include <unordered_map>
-
-#include "ie_icore.hpp"
-#include "ie_metric_helpers.hpp"
-#include <ie_plugin_config.hpp>
-#include "base_async_infer_request.hpp"
-#include "plugin.hpp"
-
-#include "ngraph/opsets/opset1.hpp"
-#include "transformations/utils/utils.hpp"
-#include "utils/log_util.hpp"
 #include "multi_executable_network.hpp"
-
-#include "itt.hpp"
+#include "plugin.hpp"
 // ------------------------------MultiExecutableNetwork----------------------------
 namespace MultiDevicePlugin {
 MultiExecutableNetwork::MultiExecutableNetwork(MultiContext::Ptr& context,
