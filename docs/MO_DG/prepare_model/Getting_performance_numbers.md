@@ -9,7 +9,7 @@ When evaluating performance of your model with the OpenVINO Runtime, you must me
 
 - Track separately the operations that happen outside the OpenVINO Runtime, like video decoding. 
 
-> **NOTE**: Some image pre-processing can be baked into the IR and accelerated. For more information, refer to [Model Optimizer Knobs Related to Performance](Additional_Optimizations.md)
+> **NOTE**: Some image pre-processing can be baked into the IR and accelerated. For more information, refer to [Optimizing Preprocessing Computation](Additional_Optimizations.md)
 
 ## Tip 2. Getting Credible Performance Numbers 
 

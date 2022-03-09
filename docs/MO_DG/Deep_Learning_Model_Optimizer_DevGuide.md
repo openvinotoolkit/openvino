@@ -53,15 +53,15 @@ mo --input_model INPUT_MODEL
 ```
 
 Model Optimizer provides parameters `--input` and `--input_shape` to override original input shapes for model conversion.
-For more information about these parameters, please refer to [Setting Input Shapes](prepare_model/convert_model/Converting_Model.md). 
+For more information about these parameters, please refer to [Setting Input Shapes](prepare_model/convert_model/Converting_Model.md).
 
-In order to cut off undesirable parts of a model such as unsupported operations and training sub-graphs, 
+In order to cut off undesirable parts of a model such as unsupported operations and training sub-graphs,
 `--input` and `--output` parameters can be used to define new inputs and outputs of the converted model.
-For more description, please refer to [Cutting Off Parts of a Model](prepare_model/convert_model/Cutting_Model.md)
+For more description, please refer to [Cutting Off Parts of a Model](prepare_model/convert_model/Cutting_Model.md).
 
 Also, Model Optimizer can insert additional input pre-processing sub-graphs into the converted model.
 For this, there exist `--mean_values`, `scales_values`, `--layout` and other parameters described
-in [Optimize Preprocessing Computation](prepare_model/Additional_Optimizations.md).
+in [Optimizing Preprocessing Computation](prepare_model/Additional_Optimizations.md).
 
 To get the full list of conversion parameters available in Model Optimizer, run the following command:
 
