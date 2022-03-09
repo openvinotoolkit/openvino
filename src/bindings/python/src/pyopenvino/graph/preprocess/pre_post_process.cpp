@@ -330,6 +330,21 @@ static void regclass_graph_InputTensorInfo(py::module m) {
             return &self.set_memory_type(memory_type);
         },
         py::arg("memory_type"));
+
+    info.def(
+        "set_from",
+        [](ov::preprocess::InputTensorInfo& self, const ov::Tensor& tensor) {
+            return &self.set_from(tensor);
+        },
+        py::arg("runtime_tensor"));
+
+    info.def(
+        "set_from",
+        [](ov::preprocess::InputTensorInfo& self, py::array& numpy_array) {
+            // Convert to contiguous array if not already C-style.
+            return &self.set_from(Common::tensor_from_numpy(numpy_array, false));
+        },
+        py::arg("runtime_tensor"));
 }
 
 static void regclass_graph_OutputTensorInfo(py::module m) {

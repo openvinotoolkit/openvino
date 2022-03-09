@@ -129,7 +129,7 @@ public:
     /// \param runtime_tensor User's created tensor.
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
-    InputTensorInfo& from(const ov::runtime::Tensor& runtime_tensor);
+    InputTensorInfo& set_from(const ov::Tensor& runtime_tensor);
 };
 
 }  // namespace preprocess

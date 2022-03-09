@@ -249,8 +249,8 @@ InputTensorInfo& InputTensorInfo::set_shape(const PartialShape& shape) {
     return *this;
 }
 
-InputTensorInfo& InputTensorInfo::from(const ov::runtime::Tensor& runtime_tensor) {
-    m_impl->from(runtime_tensor);
+InputTensorInfo& InputTensorInfo::set_from(const ov::Tensor& runtime_tensor) {
+    m_impl->set_from(runtime_tensor);
     return *this;
 }
 

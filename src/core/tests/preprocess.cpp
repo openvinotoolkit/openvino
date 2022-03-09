@@ -1256,11 +1256,11 @@ TEST(pre_post_process, preprocess_memory_type_not_cleared) {
 }
 
 TEST(pre_post_process, preprocess_from) {
-    auto t = ov::runtime::Tensor(element::u8, {1, 480, 640, 3});
+    auto t = ov::Tensor(element::u8, {1, 480, 640, 3});
     auto f = create_simple_function(element::f32, Shape{1, 224, 224, 3});
     ov::layout::set_layout(f->input(), "NHWC");
     auto p = PrePostProcessor(f);
-    p.input().tensor().from(t);
+    p.input().tensor().set_from(t);
     p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
     f = p.build();
 

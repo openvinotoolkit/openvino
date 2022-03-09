@@ -198,7 +198,7 @@ public:
         m_shape_set = true;
     }
 
-    void from(const ov::runtime::Tensor& runtime_tensor) {
+    void set_from(const ov::runtime::Tensor& runtime_tensor) {
         set_shape(runtime_tensor.get_shape());
         set_element_type(runtime_tensor.get_element_type());
     }
