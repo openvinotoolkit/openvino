@@ -183,7 +183,10 @@ void regclass_AsyncInferQueue(py::module m) {
             // getIdleRequestId function has an intention to block InferQueue
             // until there is at least one idle (free to use) InferRequest
             auto handle = self.get_idle_request_id();
-            self._idle_handles.pop();
+            {
+                std::lock_guard<std::mutex> lock(self._mutex);
+                self._idle_handles.pop();
+            }
             // Set new inputs label/id from user
             self._user_ids[handle] = userdata;
             // Update inputs if there are any
@@ -199,7 +202,7 @@ void regclass_AsyncInferQueue(py::module m) {
         py::arg("inputs"),
         py::arg("userdata"),
         R"(
-            Run asynchronous inference using next available InferRequest.
+            Run asynchronous inference using the next available InferRequest.
 
             This function releases the GIL, so another Python thread can
             work while this function runs in the background.
@@ -259,8 +262,8 @@ void regclass_AsyncInferQueue(py::module m) {
         },
         R"(
         Sets unified callback on all InferRequests from queue's pool.
-        Signature of such function should have two arguments, where
-        first one is InferRequest object and second one is userdata
+        The signature of such function should have two arguments, where
+        the first one is InferRequest object and the second one is userdata
         connected to InferRequest from the AsyncInferQueue's pool.
 
         .. code-block:: python

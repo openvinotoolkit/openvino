@@ -13,6 +13,7 @@
 
 #include "openvino/core/dimension.hpp"  // ov::Dimension
 #include "openvino/core/shape.hpp"      // ov::Shape
+#include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/partial_shape.hpp"
 
 namespace py = pybind11;
@@ -23,15 +24,17 @@ void regclass_graph_PartialShape(py::module m) {
     py::class_<ov::PartialShape, std::shared_ptr<ov::PartialShape>> shape(m, "PartialShape");
     shape.doc() = "openvino.runtime.PartialShape wraps ov::PartialShape";
 
-    shape.def(py::init([](const std::vector<int64_t>& dimensions) {
-        return ov::PartialShape(std::vector<ov::Dimension>(dimensions.begin(), dimensions.end()));
-    }));
-    shape.def(py::init<const std::initializer_list<size_t>&>());
-    shape.def(py::init<const std::vector<size_t>&>());
-    shape.def(py::init<const std::initializer_list<ov::Dimension>&>());
-    shape.def(py::init<const std::vector<ov::Dimension>&>());
     shape.def(py::init<const ov::Shape&>());
     shape.def(py::init<const ov::PartialShape&>());
+    shape.def(py::init([](py::list& shape) {
+        return Common::partial_shape_from_list(shape);
+    }));
+    shape.def(py::init([](py::tuple& shape) {
+        return Common::partial_shape_from_list(shape.cast<py::list>());
+    }));
+    shape.def(py::init([](const std::string& shape) {
+        return Common::partial_shape_from_str(shape);
+    }));
 
     shape.def_static("dynamic", &ov::PartialShape::dynamic, py::arg("rank") = ov::Dimension());
 

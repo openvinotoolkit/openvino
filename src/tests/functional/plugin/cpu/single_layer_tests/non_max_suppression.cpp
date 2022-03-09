@@ -398,7 +398,7 @@ private:
 TEST_P(NmsLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    // CheckPluginRelatedResults(executableNetwork, "NonMaxSuppression");
+    // CheckPluginRelatedResults(compiledModel, "NonMaxSuppression");
 };
 
 const std::vector<InputShapeParams> inShapeParams = {

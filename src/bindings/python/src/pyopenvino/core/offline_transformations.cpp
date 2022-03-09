@@ -146,7 +146,7 @@ void regmodule_offline_transformations(py::module m) {
         py::arg("weights_path"),
         py::arg("version") = "UNSPECIFIED",
         R"(
-            Serialize given model into IR. The generated .xml and .bin files will be save
+            Serialize given model into IR. The generated .xml and .bin files will be saved
             into provided paths.
 
             :param model: model which will be converted to IR representation

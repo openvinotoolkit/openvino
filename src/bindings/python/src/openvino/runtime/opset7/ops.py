@@ -46,7 +46,7 @@ def einsum(
 
     :param inputs: The list of input nodes
     :param equation: Einsum equation
-    @return: The new node performing Einsum operation on the inputs
+    :return: The new node performing Einsum operation on the inputs
     """
     attributes = {
         "equation": equation
@@ -66,7 +66,7 @@ def gelu(
     :param data: The node with data tensor.
     :param approximation_mode: defines which approximation to use ('tanh' or 'erf')
     :param name: Optional output node name.
-    returns The new node performing a Gelu activation with the input tensor.
+    :return: The new node performing a Gelu activation with the input tensor.
     """
     inputs = as_nodes(data)
 
@@ -88,7 +88,7 @@ def roll(
     :param data: The node with data tensor.
     :param shift: The node with the tensor with numbers of places by which elements are shifted.
     :param axes: The node with the tensor with axes along which elements are shifted.
-    returns The new node performing a Roll operation on the input tensor.
+    :return: The new node performing a Roll operation on the input tensor.
     """
     inputs = as_nodes(data, shift, axes)
 
@@ -108,7 +108,7 @@ def gather(
     :param indices:      N-D tensor with indices by which data is gathered
     :param axis:         axis along which elements are gathered
     :param batch_dims:   number of batch dimensions
-    @return:             The new node which performs Gather
+    :return:             The new node which performs Gather
     """
     inputs = as_nodes(data, indices, axis)
     attributes = {
@@ -127,7 +127,7 @@ def dft(
     :param data: Tensor with transformed data.
     :param axes: Tensor with axes to transform.
     :param signal_size: Tensor specifying signal size with respect to axes from the input 'axes'.
-    @return: The new node which performs DFT operation on the input data tensor.
+    :return: The new node which performs DFT operation on the input data tensor.
     """
     if signal_size is None:
         inputs = as_nodes(data, axes)
@@ -148,7 +148,7 @@ def idft(
     :param data: Tensor with transformed data.
     :param axes: Tensor with axes to transform.
     :param signal_size: Tensor specifying signal size with respect to axes from the input 'axes'.
-    @return: The new node which performs IDFT operation on the input data tensor.
+    :return: The new node which performs IDFT operation on the input data tensor.
     """
     if signal_size is None:
         inputs = as_nodes(data, axes)

@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "any_copy.hpp"
+#include "check_network_batchable.hpp"
 #include "cnn_network_ngraph_impl.hpp"
 #include "compilation_context.hpp"
 #include "cpp/ie_cnn_network.h"
@@ -453,9 +454,9 @@ public:
 #ifdef OPENVINO_STATIC_LIBRARY
 
     /**
-     * @brief Register plugins for devices which are located in .xml configuration file.
+     * @brief Register plugins for devices using statically defined configuration
      * @note The function supports UNICODE path
-     * @param xmlConfigFile An .xml configuraion with device / plugin information
+     * @param static_registry a statically defined configuration with device / plugin information
      */
     void RegisterPluginsInRegistry(const decltype(::getStaticPluginsRegistry())& static_registry) {
         std::lock_guard<std::mutex> lock(pluginsMutex);
@@ -557,6 +558,8 @@ public:
                            std::string& deviceName,
                            std::map<std::string, std::string>& config) {
         std::string deviceNameWithBatchSize, deviceNameWithoutBatch;
+        // fully strict dims tracking by default (Auto-Batching is enabled implicitly)
+        bool strictly_check_dims = true;
         if (deviceName.find("BATCH") != std::string::npos) {
             // explicitly enabled Auto-Batching
             auto pos = deviceName.find_first_of(":");
@@ -564,6 +567,9 @@ public:
                 return;  // BATCH device is already configured via the config
             deviceNameWithBatchSize = deviceName.substr(pos + 1);
             deviceNameWithoutBatch = DeviceIDParser::getBatchDevice(deviceNameWithBatchSize);
+            // when user sets the BATCH device explicitly, we may check the dims less strictly
+            // as the result is being checked by the user
+            strictly_check_dims = false;
         } else {
             // check whether the Auto-Batching is disabled explicitly
             const auto& batch_mode = config.find(ov::hint::allow_auto_batching.name());
@@ -594,38 +600,18 @@ public:
             if (bExclReqsEnabled || (!bTputInPlg && !bTputInLoadCfg))
                 return;
         }
-        auto function = network.getFunction();
-        // have to execute the DetectionOutput separately (without batching)
-        // as this layer mix-in the values from the different inputs (batch id)
-        bool bDetectionOutput = false;
-        const std::string detectionOutputOpName = ngraph::op::DetectionOutput::get_type_info_static().name;
-        const std::string resultOpName = ngraph::op::Result::get_type_info_static().name;
-        for (auto&& node : function->get_ops()) {
-            auto isDetectionOutputParent = [&detectionOutputOpName](decltype(node)& nd) {
-                for (size_t n = 0; n < nd->get_input_size(); n++) {
-                    // the code below doesn't need to separate the versions (opsets) of the DetectionOutput
-                    // so type_info name check is enough
-                    // (if in a future there will be a new ver that doesn't mix the batch, this will be new op)
-                    if (detectionOutputOpName == nd->get_input_node_ptr(n)->get_type_info().name)
-                        return true;
-                }
-                return false;
-            };
-
-            if ((detectionOutputOpName == node->get_type_info().name) ||
-                ((resultOpName == node->get_type_info().name) && isDetectionOutputParent(node))) {
-                node->get_rt_info()["affinity"] = deviceNameWithoutBatch;
-                bDetectionOutput = true;
-            } else {
-                node->get_rt_info()["affinity"] = "BATCH";
-            }
-        }
         auto batchConfig = deviceNameWithBatchSize.empty() ? deviceNameWithoutBatch : deviceNameWithBatchSize;
-        if (bDetectionOutput) {
+        auto res = InferenceEngine::details::isNetworkBatchable(network, deviceNameWithoutBatch, strictly_check_dims);
+        switch (res) {
+        case InferenceEngine::details::NetworkBatchAbility::NO:
+            return;
+        case InferenceEngine::details::NetworkBatchAbility::AS_IS:
+            deviceName = "BATCH:" + batchConfig;
+            break;
+        case InferenceEngine::details::NetworkBatchAbility::WITH_HETERO:
             deviceName = "HETERO:BATCH," + deviceNameWithoutBatch;
             config[CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)] = batchConfig;
-        } else {
-            deviceName = "BATCH:" + batchConfig;
+            break;
         }
     }
 
@@ -784,6 +770,36 @@ public:
         }
 
         return GetCPPPluginByName(parsed._deviceName).get_metric(name, parsed._config);
+    }
+
+    void set_property(const std::string& device_name, const AnyMap& properties) override {
+        OPENVINO_ASSERT(device_name.find("HETERO:") != 0,
+                        "set_property is supported only for HETERO itself (without devices). "
+                        "You can configure the devices with set_property before creating the HETERO on top.");
+        OPENVINO_ASSERT(device_name.find("MULTI:") != 0,
+                        "set_property is supported only for MULTI itself (without devices). "
+                        "You can configure the devices with set_property before creating the MULTI on top.");
+        OPENVINO_ASSERT(device_name.find("AUTO:") != 0,
+                        "set_property is supported only for AUTO itself (without devices). "
+                        "You can configure the devices with set_property before creating the AUTO on top.");
+
+        ExtractAndSetDeviceConfig(properties);
+        SetConfigForPlugins(any_copy(properties), device_name);
+    }
+
+    Any get_property(const std::string& deviceName, const std::string& name, const AnyMap& arguments) const override {
+        OPENVINO_ASSERT(deviceName.find("HETERO:") != 0,
+                        "You can only get_config of the HETERO itself (without devices). "
+                        "get_config is also possible for the individual devices before creating the HETERO on top.");
+        OPENVINO_ASSERT(deviceName.find("MULTI:") != 0,
+                        "You can only get_config of the MULTI itself (without devices). "
+                        "get_config is also possible for the individual devices before creating the MULTI on top.");
+        OPENVINO_ASSERT(deviceName.find("AUTO:") != 0,
+                        "You can only get_config of the AUTO itself (without devices). "
+                        "get_config is also possible for the individual devices before creating the AUTO on top.");
+
+        auto parsed = parseDeviceNameIntoConfig(deviceName, arguments);
+        return GetCPPPluginByName(parsed._deviceName).get_property(name, parsed._config);
     }
 
     Any GetConfig(const std::string& deviceName, const std::string& name) const override {
@@ -1113,7 +1129,20 @@ public:
 
     std::map<std::string, std::string> GetSupportedConfig(const std::string& deviceName,
                                                           const std::map<std::string, std::string>& configs) override {
-        std::vector<std::string> supportedConfigKeys = GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+        std::vector<std::string> supportedConfigKeys;
+        try {
+            supportedConfigKeys =
+                GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
+        } catch (ov::Exception&) {
+        }
+        try {
+            for (auto&& property : ICore::get_property(deviceName, ov::supported_properties)) {
+                if (property.is_mutable()) {
+                    supportedConfigKeys.emplace_back(std::move(property));
+                }
+            }
+        } catch (ov::Exception&) {
+        }
         std::map<std::string, std::string> supportedConfig;
         for (auto&& key : supportedConfigKeys) {
             auto itKey = configs.find(key);
@@ -1128,8 +1157,7 @@ public:
                 std::map<std::string, std::string> device_configs;
                 util::Read<std::map<std::string, std::string>>{}(strm, device_configs);
                 for (auto&& device_config : device_configs) {
-                    if (supportedConfigKeys.end() !=
-                        std::find(supportedConfigKeys.begin(), supportedConfigKeys.end(), device_config.first)) {
+                    if (util::contains(supportedConfigKeys, device_config.first)) {
                         supportedConfig[device_config.first] = device_config.second;
                     }
                 }
@@ -1765,49 +1793,20 @@ SupportedOpsMap Core::query_model(const std::shared_ptr<const ov::Model>& model,
     });
 }
 
-void Core::set_property(const AnyMap& config) {
-    OV_CORE_CALL_STATEMENT({
-        _impl->ExtractAndSetDeviceConfig(config);
-        _impl->SetConfigForPlugins(any_copy(config), {});
-    });
+void Core::set_property(const AnyMap& properties) {
+    OV_CORE_CALL_STATEMENT(return _impl->set_property({}, properties););
 }
 
-void Core::set_property(const std::string& deviceName, const AnyMap& config) {
-    OPENVINO_ASSERT(deviceName.find("HETERO:") != 0,
-                    "set_property is supported only for HETERO itself (without devices). "
-                    "You can configure the devices with set_property before creating the HETERO on top.");
-    OPENVINO_ASSERT(deviceName.find("MULTI:") != 0,
-                    "set_property is supported only for MULTI itself (without devices). "
-                    "You can configure the devices with set_property before creating the MULTI on top.");
-    OPENVINO_ASSERT(deviceName.find("AUTO:") != 0,
-                    "set_property is supported only for AUTO itself (without devices). "
-                    "You can configure the devices with set_property before creating the AUTO on top.");
-
-    OV_CORE_CALL_STATEMENT({
-        _impl->ExtractAndSetDeviceConfig(config);
-        _impl->SetConfigForPlugins(any_copy(config), deviceName);
-    });
+void Core::set_property(const std::string& device_name, const AnyMap& properties) {
+    OV_CORE_CALL_STATEMENT(return _impl->set_property(device_name, properties););
 }
 
 Any Core::get_property(const std::string& deviceName, const std::string& name) const {
-    return get_property(deviceName, name, AnyMap{});
+    OV_CORE_CALL_STATEMENT(return _impl->get_property(deviceName, name, {}););
 }
 
 Any Core::get_property(const std::string& deviceName, const std::string& name, const AnyMap& arguments) const {
-    OPENVINO_ASSERT(deviceName.find("HETERO:") != 0,
-                    "You can only get_config of the HETERO itself (without devices). "
-                    "get_config is also possible for the individual devices before creating the HETERO on top.");
-    OPENVINO_ASSERT(deviceName.find("MULTI:") != 0,
-                    "You can only get_config of the MULTI itself (without devices). "
-                    "get_config is also possible for the individual devices before creating the MULTI on top.");
-    OPENVINO_ASSERT(deviceName.find("AUTO:") != 0,
-                    "You can only get_config of the AUTO itself (without devices). "
-                    "get_config is also possible for the individual devices before creating the AUTO on top.");
-
-    OV_CORE_CALL_STATEMENT({
-        auto parsed = parseDeviceNameIntoConfig(deviceName, arguments);
-        return _impl->GetCPPPluginByName(parsed._deviceName).get_property(name, parsed._config);
-    });
+    OV_CORE_CALL_STATEMENT(return _impl->get_property(deviceName, name, arguments););
 }
 
 std::vector<std::string> Core::get_available_devices() const {
