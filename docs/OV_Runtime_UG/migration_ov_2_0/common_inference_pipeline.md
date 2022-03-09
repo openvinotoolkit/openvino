@@ -156,6 +156,7 @@ OpenVINO™ Runtime API 2.0:
        :fragment: [ov_api_2_0:inference]
 
 .. tab:: async
+
     .. doxygensnippet:: docs/snippets/ov_common.cpp
        :language: cpp
        :fragment: [ov_api_2_0:start_async_and_wait]
