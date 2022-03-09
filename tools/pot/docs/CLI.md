@@ -17,7 +17,7 @@ its models then you can employ POT CLI to optimize your model.
 In other cases, you should consider using POT [API](@ref pot_compression_api_README). To start with POT CLI please refer to the
 following [example](@ref pot_configs_examples_README).
 
-Note: There is also the so-called [**Simplified mode**](@ref pot_docs_simplified_mode) that is basically aimed at INT8 quantization if the model is from the Computer Vision domain and has a simple dataset preprocessing, like image resize and crop. In this case, you can also use POT CLI for 
+Note: There is also the so-called [**Simplified mode**](@ref pot_docs_simplified_mode) aimed at INT8 quantization if the model is from the Computer Vision domain and has a simple dataset preprocessing, like image resize and crop. In this case, you can also use POT CLI for 
 optimization. However, the accuracy results are not guaranteed in this case. Moreover, you are also limited in the 
 optimization methods choice since the accuracy measurement is not available.
  
