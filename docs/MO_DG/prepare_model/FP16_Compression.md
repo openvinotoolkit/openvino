@@ -10,10 +10,8 @@ flow inside the model is preserved. To compress the model to `FP16` use the `--d
 mo --input_model /path/to/model --data_type FP16
 ```
 
-> **NOTE**: Using `--data_type FP32` will not do anything and will not force `FP32` 
-> precision in the model. If the model was `FP16` originally in the framework,
-> Model Optimizer will not convert such weights to `FP32` even if `--data_type FP32`
-> option is used .
+> **NOTE**: Using `--data_type FP32` will give no result and will not force `FP32` 
+> precision in the model. If the model was `FP16` it will have `FP16` precision in IR as well.
 
 Some plugins, for example GPU, will show greater performance while slightly sacrificing
 accuracy.
