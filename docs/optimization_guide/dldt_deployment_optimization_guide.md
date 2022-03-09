@@ -41,15 +41,19 @@ Also, while the resulting performance may be optimal for the specific combinatio
 Beyond execution _parameters_ there are potentially many device-specific details like _scheduling_ that greatly affect the performance. 
 Specifically, GPU-oriented tricks like batching, which combines many (potentially tens) of input images to achieve optimal throughput, do not always map well to the CPU, as e.g. detailed in the next sections.
 The hints allow to really hide _execution_ specifics required to saturate the device. For example, no need to explicitly combine multiple inputs into a batch to achieve good GPU performance.
-Instead, it is possible to keep a separate infer request per camera or another source of input and process the requests in parallel using <a href="#ie-async-api">OpenVINO Async API</a>).
+Instead, it is possible to keep a separate infer request per camera or another source of input and process the requests in parallel using <a href="#ov-async-api">OpenVINO Async API</a>).
 The only requirement for the application is about running multiple inference requests in parallel.
-Device-specific implementation of the hints will take care of the rest. This allows a developer to greatly simplify the app-logic.
+OpenVINO's device-specific implementation of the hints will take care of the rest. This allows a developer to greatly simplify the app-logic.
 
 In summary, when the performance _portability_ is of concern, consider the [High-Level Performance Hints](../OV_Runtime_UG/performance_hints.md). 
+Below you can find the implementation details (particularly how the OpenVINO implements the 'throughput' approach) for the specific devices. 
+Keep in mind that while multiple scheduling and/or batching approaches (combining individual inference requests) can work together, the hints make these decisions to be transparent to the application.
 
-
-by offloading the inference to a special pool of the threads (aka 'OpenVINO streams')Below you can find the implementation details for the specific devices. 
-
+### OpenVINO Streams <a name="cpu-streams"></a>
+As detailed in the section <a href="#ov-async-api">OpenVINO Async API</a>) running multiple inference requests asynchronously is important for general application efficiency.
+Additionally, most devices support running multiple inference requests in parallel in order to improve the device utilization. The _level_ of the parallelism (i.e. how many requests are really executed in parallel on the device) is commonly referred as a number of 'streams'.  Notice that for efficient asynchronous execution, the streams are actually handling inference with special pool of the threads.
+So each time you start inference requests (potentially from different application threads), they are actually muxed into a inference queue of the particular `ov:compiled_model`.  
+If there is a vacant stream, it pops the request from the queue and actually expedites that to the on-device execution.
 
 ### Throughput on the CPU: Internals <a name="cpu-streams"></a>
 In order to best serve multiple inference requests simultaneously, the inference threads are grouped/pinned to the particular CPU cores, constituting execution "streams".
@@ -59,7 +63,12 @@ This provides much better performance for the networks than batching especially 
 Compared with the batching, the parallelism is somewhat transposed (i.e. performed over inputs, with much less synchronization within CNN ops):
 ![](../img/cpu_streams_explained.png)
 
+Notice that [high-level performance hints](../OV_Runtime_UG/performance_hints.md) allows the implementation to select the optimal number of the streams, _depending on the model compute demands_ and CPU capabilities (including [int8 inference](../OV_Runtime_UG/Int8Inference.md) hardware acceleration, number of cores, etc). 
+
 ### Automatic Batching Internals <a name="ov-auto-batching"></a>
+While the GPU plugin fully supports general notion of the streams, the associated performance improvements are usually modest.
+The primary reason is that while the streams allow to hide the communication overheads and hide certain bubbles in device utilization, running multiple kernels on the GPU simultaneously is less efficient, compared to calling same kernel on the multiple inputs at once.   
+
 As explained in the section on the [automatic batching](../OV_Runtime_UG/automatic_batching.md), the feature performs on-the-fly grouping of the inference requests to improve device utilization.
 The Automatic Batching relaxes the requirement for an application to saturate devices like GPU by _explicitly_ using a large batch. It essentially it performs transparent inputs gathering from 
 individual inference requests followed by the actual batched execution, with no programming effort from the user:
@@ -90,7 +99,7 @@ You can compare the pseudo-codes for the regular and async-based approaches:
 The technique can be generalized to any available parallel slack. For example, you can do inference and simultaneously encode the resulting or previous frames or run further inference, like emotion detection on top of the face detection results.
 Refer to the [Object Detection С++ Demo](@ref omz_demos_object_detection_demo_cpp), [Object Detection Python Demo](@ref omz_demos_object_detection_demo_python)(latency-oriented Async API showcase) and [Benchmark App Sample](../../samples/cpp/benchmark_app/README.md) for complete examples of the Async API in action.
 
-The API of the inference requests offers Sync and Async execution. While the `ov::InferRequest::infer()` is inherently synchronous and executes immediately (effectively serializing the execution flow), the Async "splits" the `infer()` into `ov::InferRequest::start_async()` and `ov::InferRequest::wait()`. Please consider the [API examples](../OV_Runtime_UG/ov_infer_request.md).
+The API of the inference requests offers Sync and Async execution. While the `ov::InferRequest::infer()` is inherently synchronous and executes immediately (effectively serializing the execution flow in the current application thread), the Async "splits" the `infer()` into `ov::InferRequest::start_async()` and `ov::InferRequest::wait()`. Please consider the [API examples](../OV_Runtime_UG/ov_infer_request.md).
 
 A typical use-case for the `ov::InferRequest::infer()` is running a dedicated application thread per source of inputs (e.g. a camera), so that every step (frame capture, processing, results parsing and associated logic) is kept serial within the thread.
 In contrast, the `ov::InferRequest::start_async()` and `ov::InferRequest::wait()` allow the application to continue its activities and poll or wait for the inference completion. So one reason for using asynchronous code is _efficiency_.
