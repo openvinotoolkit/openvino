@@ -90,7 +90,7 @@ void irdft_shape_infer(const ov::op::v9::IRDFT* op,
     }
 
     if (input_shape.rank().is_dynamic()) {
-        output_shape = ov::PartialShape();
+        output_shape = ov::PartialShape::dynamic();
         return;
     }
 
