@@ -49,7 +49,7 @@ mo --input_model /path/to/model --layout "name1(nhwc->nchw),name2(nc)"
 ```
 
 ## When to Specify Mean and Scale Values
-Usually neural network models are trained with the normalized input data. This means that the input data values are converted to be in a specific range, for example, `[0, 1]` or `[-1, 1]`. Sometimes the mean values (mean images) are subtracted from the input data values as part of the pre-processing. There are two cases how the input data pre-processing is implemented.
+Usually, neural network models are trained with normalized input data. This means that the input data values are converted to be in a specific range, for example, `[0, 1]` or `[-1, 1]`. Sometimes, mean values (mean images) are subtracted from the input data values as part of pre-processing, which is implemented in one of two ways:
  * The input pre-processing operations are a part of a topology. In this case, the application that uses the framework to infer the topology does not pre-process the input.
  * The input pre-processing operations are not a part of a topology and the pre-processing is performed within the application which feeds the model with an input data.
 
