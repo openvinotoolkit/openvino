@@ -1,4 +1,4 @@
-# Model Optimizer Developer Guide {#openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide}
+# Model Optimizer User Guide {#openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide}
 
 @sphinxdirective
 
@@ -9,6 +9,8 @@
    :hidden:
 
    openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model
+   openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model
+   openvino_docs_MO_DG_Additional_Optimization_Use_Cases
    openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow
    openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX
    openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch
@@ -16,8 +18,6 @@
    openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet
    openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe
    openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi
-   openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model
-   openvino_docs_MO_DG_Additional_Optimization_Use_Cases
    openvino_docs_MO_DG_prepare_model_convert_model_tutorials
    openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ
 
@@ -52,21 +52,75 @@ To convert the model to the Intermediate Representation (IR), run Model Optimize
 mo --input_model INPUT_MODEL
 ```
 
-To adjust the conversion process, you may use [general parameters](prepare_model/convert_model/Converting_Model.md) and framework-specific parameters for:
-* [TensorFlow](prepare_model/convert_model/Convert_Model_From_TensorFlow.md)
-* [ONNX](prepare_model/convert_model/Convert_Model_From_ONNX.md)
-* [PyTorch](prepare_model/convert_model/Convert_Model_From_PyTorch.md)
-* [PaddlePaddle](prepare_model/convert_model/Convert_Model_From_Paddle.md)
-* [MXNet](prepare_model/convert_model/Convert_Model_From_MxNet.md)
-* [Caffe](prepare_model/convert_model/Convert_Model_From_Caffe.md)
-* [Kaldi](prepare_model/convert_model/Convert_Model_From_Kaldi.md)
+Model Optimizer provides parameters `--input` and `--input_shape` to override original input shapes for model conversion.
+For more information about these parameters, please refer to [Setting Input Shapes](prepare_model/convert_model/Converting_Model.md). 
+
+In order to cut off undesirable parts of a model such as unsupported operations and training sub-graphs, 
+`--input` and `--output` parameters can be used to define new inputs and outputs of the converted model.
+For more description, please refer to [Cutting Off Parts of a Model](prepare_model/convert_model/Cutting_Model.md)
+
+Also, Model Optimizer can insert additional input pre-processing sub-graphs into the converted model.
+For this, there exist `--mean_values`, `scales_values`, `--layout` and other parameters described
+in [Optimize Preprocessing Computation](prepare_model/Additional_Optimizations.md).
+
+To get the full list of conversion parameters available in Model Optimizer, run the following command:
+
+```sh
+mo --help
+```
 
 ## Examples of CLI Commands
 
-Launch the Model Optimizer for the Caffe bvlc_alexnet model:
+Launch the Model Optimizer for the TensorFlow* BERT model in binary protobuf format with three inputs and explicitly specify input shapes
+where the batch size and the sequence length equal 2 and 30. For more information about TensorFlow* models conversion,
+please refer to [Converting a TensorFlow* Model](prepare_model/convert_model/Convert_Model_From_TensorFlow.md).
 
 ```sh
-mo --input_model bvlc_alexnet.caffemodel
+mo --input_model bert.pb --input input_mask,input_word_ids,input_type_ids --input_shape [2,30],[2,30],[2,30]
+```
+
+Launch the Model Optimizer for the TensorFlow* MobileNet model in SavedModel format.
+
+```sh
+mo --saved_model_dir MobileNet
+```
+
+Launch the Model Optimizer for the ONNX* OCR model and explicitly specify new output. For more information about ONNX* models conversion,
+please refer to [Converting a ONNX* Model](prepare_model/convert_model/Convert_Model_From_ONNX.md).
+Note that PyTorch* models must be exported to ONNX* format before its conversion into IR,
+follow details from [Converting a PyTorch* Model](prepare_model/convert_model/Convert_Model_From_PyTorch.md).
+
+```sh
+mo --input_model ocr.onnx --output probabilities
+```
+
+Launch the Model Optimizer for the PaddlePaddle* UNet model and apply mean-scale normalization to the input.
+For more information about ONNX* models conversion, please refer to
+[Converting a PaddlePaddle* Model](prepare_model/convert_model/Convert_Model_From_Paddle.md).
+
+```sh
+mo --input_model unet.pdmodel --input data --mean_values data[123,117,104] --scale 255
+```
+
+Launch the Model Optimizer for the MXNet* SSD Inception V3 model and specify input layout.
+For more information about MXNet* models conversion, please refer to [Converting a MXNet* Model](prepare_model/convert_model/Convert_Model_From_MxNet.md).
+
+```sh
+mo --input_model ssd_inception_v3-0000.params --layout NCHW
+```
+
+Launch the Model Optimizer for the Caffe* AlexNet model with reversed input channels order between RGB and BGR.
+For more information about Caffe* models conversion, please refer to [Converting a Caffe* Model](prepare_model/convert_model/Convert_Model_From_Caffe.md).
+
+```sh
+mo --input_model alexnet.caffemodel --reverse_input_channels
+```
+
+Launch the Model Optimizer for the Kaldi* LibriSpeech nnet2 model. For more information about Kaldi* models conversion,
+please refer to [Converting a Kaldi* Model](prepare_model/convert_model/Convert_Model_From_Kaldi.md).
+
+```sh
+mo --input_model librispeech_nnet2.mdl --input_shape [1,140]
 ```
 
 ## Videos
