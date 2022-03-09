@@ -156,14 +156,13 @@ void fully_connected_inst::update_weights() {
     if (!_impl)
         return;
 
-
     auto& weights_params = _impl->_weights_reorder_params;
-    layout expected_layout = from_weights_tensor(weights_params.dest);
     layout current_layout = node.get_dependency(1).get_output_layout();
 
     bool requires_reorder = weights_params.engine != kernel_selector::GenericKernelParams::Engine::NONE &&
-                            (!reordered_weights || reordered_weights->get_layout() != expected_layout);
+                            (!reordered_weights || reordered_weights->get_layout() != from_weights_tensor(weights_params.dest));
     if (requires_reorder) {
+        layout expected_layout = from_weights_tensor(weights_params.dest);
         auto& program = _node.get_program();
         auto& engine = _network.get_engine();
         auto& stream = _network.get_stream();
