@@ -43,7 +43,7 @@ Batching is a straightforward way of leveraging the GPU compute power and saving
 
 
 Alternatively, to enable the Auto-Batching in the legacy apps not akin to the notion of the performance hints, you may need to use the **explicit** device notion, such as 'BATCH:GPU'. In both cases (the *throughput* hint or explicit BATCH device), the optimal batch size selection happens automatically (the implementation queries the `ov::optimal_batch_size` property from the device, passing the model's graph as the parameter). The actual value depends on the model and device specifics, for example, on-device memory for the dGPUs.
-Auto-Batching is not limited to the GPUs, but if a device does not support the `ov::optimal_batch_size` yet, it works with the auto-batching only via specifying an explicit batch size, for example, "BATCH:<device>(16)".
+Auto-Batching support is not limited to the GPUs, but if a device does not support the `ov::optimal_batch_size` yet, it can work with the auto-batching only when specifying an explicit batch size, for example, "BATCH:<device>(16)".
 
 This _automatic batch size selection_ assumes that the application queries the `ov::optimal_number_of_infer_requests` to create and run the returned number of requests simultaneously:
 @sphinxdirective
@@ -88,7 +88,8 @@ For the *explicit* usage, you can limit the batch size using "BATCH:GPU(4)",  wh
 To achieve the best performance with the Automatic Batching, the application should:
  - Operate the number of inference requests that represents the multiple of the batch size. In the above example, for batch size 4, the application should operate 4, 8, 12, 16, etc. requests.
  - Use the requests, grouped by the batch size, together. For example, the first 4 requests are inferred, while the second group of the requests is being populated. Essentially, the Automatic Batching shifts the asynchronousity from the individual requests to the groups of requests that constitute the batches.
-  - Balance the 'timeout' value vs the batch size. For example, in many cases having a smaller timeout value/batch size may yield better performance than large batch size, but with the timeout value that is not large enough to accommodate the full number of the required requests. 
+  - Balance the 'timeout' value vs the batch size. For example, in many cases having a smaller timeout value/batch size may yield better performance than large batch size, but with the timeout value that is not large enough to accommodate the full number of the required requests.
+  - Carefully apply the auto-batching to the pipelines. For example for the conventional video-sources->detection->classification flow, it is the most benefical to do auto-batching over the inputs to the detection stage. Whereas the resulting number of detections is usually fluent, which makes tha auto-batching less applicable for the classification stage).         
 
 The following are limitations of the current implementations:
  - Although less critical for the throughput-oriented scenarios, the load-time with auto-batching increases by almost 2x.
@@ -115,7 +116,7 @@ The `benchmark_app`, that exists in both  [C++](../../samples/cpp/benchmark_app/
  -  Finally, overriding the automatically-deduced batch size as well:
 - - $benchmark_app -hint none -d **BATCH:GPU(16)** -m 'path to your favorite model'
 
-The last example is also applicable to the CPU and any other device that generally supports the batched execution.  
+The last example is also applicable to the CPU or any other device that generally supports the batched execution.  
 
 ### See Also
 [Supported Devices](supported_plugins/Supported_Devices.md)
