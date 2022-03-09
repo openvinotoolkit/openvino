@@ -59,9 +59,9 @@ void regclass_frontend_FrontEndManager(py::module m) {
         R"(
                 Selects and loads appropriate frontend depending on model file extension and other file info (header).
 
-                :param model_path: Path to model file/directory.
+                :param model_path: A path to a model file/directory.
                 :type model_path: str
-                :return: Frontend interface for further loading of models. 'None' if no suitable frontend is found
+                :return: Frontend interface for further loading of models. 'None' if no suitable frontend is found.
                 :rtype: openvino.frontend.FrontEnd
             )");
 

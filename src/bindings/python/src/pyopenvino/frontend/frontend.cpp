@@ -54,7 +54,7 @@ void regclass_frontend_FrontEnd(py::module m) {
             R"(
                 Completely convert the remaining, not converted part of a function.
 
-                :param model: Partially converted nGraph function.
+                :param model: Partially converted OpenVINO model.
                 :type model: openvino.frontend.Model
                 :return: Fully converted OpenVINO Model.
                 :rtype: openvino.runtime.Model
@@ -106,7 +106,7 @@ void regclass_frontend_FrontEnd(py::module m) {
                 Gets name of this FrontEnd. Can be used by clients
                 if frontend is selected automatically by FrontEndManager::load_by_model.
 
-                :return: Current frontend name. Empty string if not implemented.
+                :return: Current frontend name. Returns empty string if not implemented.
                 :rtype: str
             )");
 
