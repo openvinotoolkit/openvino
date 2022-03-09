@@ -5,11 +5,18 @@ This guide provides steps on creating a Docker image with Intel® Distribution o
 ## <a name="system-requirments"></a>System Requirements
 
 @sphinxdirective
-.. tab:: Target Operating Systems
-
-  * Ubuntu 18.04 long-term support (LTS), 64-bit
-  * Ubuntu 20.04 long-term support (LTS), 64-bit
-  * Red Hat Enterprise Linux 8, 64-bit
+.. tab:: Target Operating Systems with Python Version
+  
+  +----------------------------------------------+----------------+
+  | Operating System                             |   Supported    |
+  |                                              | Python Version |
+  +----------------------------------------------+----------------+
+  | Ubuntu 18.04 long-term support (LTS), 64-bit |        3.6     |
+  +----------------------------------------------+----------------+
+  | Ubuntu 20.04 long-term support (LTS), 64-bit |        3.8     |
+  +----------------------------------------------+----------------+
+  | Red Hat Enterprise Linux 8, 64-bit           |        3.6     |
+  +----------------------------------------------+----------------+
 
 .. tab:: Host Operating Systems
 
