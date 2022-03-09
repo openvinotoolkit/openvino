@@ -241,7 +241,7 @@ def test_ngraph_preprocess_set_from_tensor():
     shape = [1, 224, 224, 3]
     inp_shape = [1, 480, 640, 3]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
-    parameter_a.set_layout(ov.Layout('NHWC'))
+    parameter_a.set_layout(ov.Layout("NHWC"))
     model = parameter_a
     function = Model(model, [parameter_a], "TestFunction")
 
