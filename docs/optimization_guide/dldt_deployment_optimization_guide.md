@@ -15,7 +15,7 @@ This document explains how to optimize your _runtime_ inference performance with
 
 * High-level Performance Presets (Hints): Throughput and Latency
 
-* Async API 
+* Async API and 'get_tensor' Idiom 
 
 * Device-specific optimization 
 
@@ -46,7 +46,10 @@ The only requirement for the application is about running multiple inference req
 Device-specific implementation of the hints will take care of the rest. This allows a developer to greatly simplify the app-logic.
 
 In summary, when the performance _portability_ is of concern, consider the [High-Level Performance Hints](../OV_Runtime_UG/performance_hints.md). 
-Below you can find the implementation details for the specific devices. 
+
+
+by offloading the inference to a special pool of the threads (aka 'OpenVINO streams')Below you can find the implementation details for the specific devices. 
+
 
 ### Throughput on the CPU: Internals <a name="cpu-streams"></a>
 In order to best serve multiple inference requests simultaneously, the inference threads are grouped/pinned to the particular CPU cores, constituting execution "streams".
@@ -57,17 +60,16 @@ Compared with the batching, the parallelism is somewhat transposed (i.e. perform
 ![](../img/cpu_streams_explained.png)
 
 ### Automatic Batching Internals <a name="ov-auto-batching"></a>
-As explained in the section on the [automatic batching](../OV_Runtime_UG/automatic_batching.md), the feature performs on-the-fly grouping of the inference requests toimprove device utilization.
+As explained in the section on the [automatic batching](../OV_Runtime_UG/automatic_batching.md), the feature performs on-the-fly grouping of the inference requests to improve device utilization.
 The Automatic Batching relaxes the requirement for an application to saturate devices like GPU by _explicitly_ using a large batch. It essentially it performs transparent inputs gathering from 
 individual inference requests followed by the actual batched execution, with no programming effort from the user:
 ![](../img/BATCH_device.PNG)
 
-Essentially, the Automatic Batching shifts the asynchronousity from the individual requests to the groups of requests that constitute the batches. Thus, for the execution to be efficient it is very important that the requests arrive timely, without causing a timeout. Normally, the timeout should never be hit. It is rather a graceful way to handle the application exit (when the inputs are not arriving anymore, so the full batch is not possible to collect). So if your workload experiences the timeouts (which would result i the performance drop, as, when happened, the timeout value adds itself to the latency of every request), consider balancing the timeout value vs the batch size. For example in many cases having smaller timeout value/batch size may yield better performance than large batch size, but coupled with the timeout value that is cannot guarantee accommodating the full number of the required requests. 
-  TBD
+Essentially, the Automatic Batching shifts the asynchronousity from the individual requests to the groups of requests that constitute the batches. Thus, for the execution to be efficient it is very important that the requests arrive timely, without causing a batching timeout. Normally, the timeout should never be hit. It is rather a graceful way to handle the application exit (when the inputs are not arriving anymore, so the full batch is not possible to collect). So if your workload experiences the timeouts (resulting in the performance drop, as the timeout value adds itself to the latency of every request), consider balancing the timeout value vs the batch size. For example in many cases having smaller timeout value/batch size may yield better performance than large batch size, but coupled with the timeout value that is cannot guarantee accommodating the full number of the required requests.
 
 ## OpenVINO Async API <a name="ov-async-api"></a>
 
-OpenVINO Async API can improve overall throughput rate of the application. While a device is busy with the inference, the application can do other things in parallel rather than wait for the inference to complete.
+OpenVINO Async API can improve overall throughput rate of the application. While a device is busy with the inference, the application can do other things in parallel (e.g. populating inputs or scheduling other requests) rather than wait for the inference to complete.
 
 In the example below, inference is applied to the results of the video decoding. So it is possible to keep two parallel infer requests, and while the current is processed, the input frame for the next is being captured. This essentially hides the latency of capturing, so that the overall frame rate is rather determined only by the slowest part of the pipeline (decoding IR inference) and not by the sum of the stages.
 
@@ -88,18 +90,23 @@ You can compare the pseudo-codes for the regular and async-based approaches:
 The technique can be generalized to any available parallel slack. For example, you can do inference and simultaneously encode the resulting or previous frames or run further inference, like emotion detection on top of the face detection results.
 Refer to the [Object Detection С++ Demo](@ref omz_demos_object_detection_demo_cpp), [Object Detection Python Demo](@ref omz_demos_object_detection_demo_python)(latency-oriented Async API showcase) and [Benchmark App Sample](../../samples/cpp/benchmark_app/README.md) for complete examples of the Async API in action.
 
-## Request-Based API and “GetBlob” Idiom <a name="new-request-based-api"></a>
+The API of the inference requests offers Sync and Async execution. While the `ov::InferRequest::infer()` is inherently synchronous and executes immediately (effectively serializing the execution flow), the Async "splits" the `infer()` into `ov::InferRequest::start_async()` and `ov::InferRequest::wait()`. Please consider the [API examples](../OV_Runtime_UG/ov_infer_request.md).
 
-Infer Request based API offers two types of request: Sync and Async. The Sync is considered below. The Async splits (synchronous) `Infer` into `StartAsync` and `Wait` (see <a href="#ie-async-api">OpenVINO Async API</a>).
+A typical use-case for the `ov::InferRequest::infer()` is running a dedicated application thread per source of inputs (e.g. a camera), so that every step (frame capture, processing, results parsing and associated logic) is kept serial within the thread.
+In contrast, the `ov::InferRequest::start_async()` and `ov::InferRequest::wait()` allow the application to continue its activities and poll or wait for the inference completion. So one reason for using asynchronous code is _efficiency_.
 
-More importantly, an infer request encapsulates the reference to the “executable” network and actual inputs/outputs. Now, when you load the network to the plugin, you get a reference to the executable network (you may consider that as a queue). Actual infer requests are created by the executable network:
+Notice that the `ov::InferRequest::wait()` waits for the specific request only. However, running multiple inference requests in parallel provides no guarantees on the completion order. This may complicate a possible logic based on the `ov::InferRequest::wait`. The most scalable approach is using callbacks (set via the `ov::InferRequest::set_callback`) that are executed upon completion of the request. The callback functions will be used by the OpenVINO runtime to notify on the results (or errors). 
+This is more event-driven approach for you to implement the flow control.
 
-```sh
+Few important points on the callbacks:
+- It is the application responsibility to ensure that any callback function is thread-safe
+- Although executed asynchronously by a dedicated threads the callbacks should NOT include heavy operations (e.g. I/O) and/or blocking calls. Keep the work done by any callback to a minimum.
 
-@snippet snippets/dldt_optimization_guide6.cpp part6
-```
+## "get_tensor" Idiom <a name="new-request-based-api"></a>
 
-`GetBlob` is a recommend way to communicate with the network, as it internally allocates the data with right padding/alignment for the device. For example, the GPU inputs/outputs blobs are mapped to the host (which is fast) if the `GetBlob` is used. But if you called the `SetBlob`, the copy (from/to the blob you have set) into the internal GPU plugin structures will happen.
+`get_tensor` is a recommended way to populate the inference inputs (and read back the outputs), as it internally allocates the data with right padding/alignment for the device. For example, the GPU inputs/outputs tensors are mapped to the host (which is fast) only when the `get_blob` is used, while for the `set_tensor` a copy into the internal GPU structures may happen.
+Please consider the [API examples](../OV_Runtime_UG/ov_infer_request.md).
+In contrast, the `set_tensor` is a preferable way to handle [remote tensors for example with the GPU device](../OV_Runtime_UG//supported_plugins/GPU_RemoteBlob_API.md).
 
 ## Additional GPU Checklist <a name="gpu-checklist"></a>
 
@@ -144,6 +151,4 @@ relu5_9_x2    OPTIMIZED_OUT     layerType: ReLU             realTime: 0         
 ```
 
 This contains layers name (as seen in IR), layers type and execution statistics. Notice the `OPTIMIZED_OUT`, which indicates that the particular activation was fused into adjacent convolution.
-
-
-TODO:execution graphs
+Both benchmark_app versions also support "exec_graph_path" command-line option governing the OpenVINO to output the same per-layer execution statistics, but in the form of the plugin-specific (Netron-viewable)[https://netron.app/] graph to the specified file.
