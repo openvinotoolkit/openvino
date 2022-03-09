@@ -45,13 +45,13 @@ inline std::ostream& operator<<(std::ostream& os, const AutoCpuUsage& autoCpuUsa
 inline std::istream& operator>>(std::istream& is, AutoCpuUsage& autoCpuUsage) {
     std::string str;
     is >> str;
-    if (str == "AUTO_CPU_USAGE_NO_INFERENCE") {
+    if (str == "NO_INFERENCE") {
         autoCpuUsage = AutoCpuUsage::NO_INFERENCE;
-    } else if (str == "AUTO_CPU_USAGE_ACCERLATE_FIL") {
+    } else if (str == "ACCERLATE_FIL") {
         autoCpuUsage = AutoCpuUsage::ACCERLATE_FIL;
-    } else if (str == "AUTO_CPU_USAGE_ACCERLATE_FIL_ONE_FRAM") {
+    } else if (str == "ACCERLATE_FIL_ONE_FRAM") {
         autoCpuUsage = AutoCpuUsage::ACCERLATE_FIL_ONE_FRAM;
-    } else if (str == "AUTO_CPU_USAGE_FULL_STRENGTH") {
+    } else if (str == "FULL_STRENGTH") {
         autoCpuUsage = AutoCpuUsage::FULL_STRENGTH;
     } else {
         throw ov::Exception{"Unsupported AutoCpuUsage: " + str};
@@ -61,10 +61,10 @@ inline std::istream& operator>>(std::istream& is, AutoCpuUsage& autoCpuUsage) {
 /** @endcond */
 
 /**
- * @brief auto_cpu_usage setting that should be one of NO_INFERENCE, ACCERLATE_FIL, ACCERLATE_FIL_ONE_FRAM,
+ * @brief autoCpuUsage setting that should be one of NO_INFERENCE, ACCERLATE_FIL, ACCERLATE_FIL_ONE_FRAM,
  * FULL_STRENGTH
  */
-static constexpr Property<AutoCpuUsage> auto_cpu_usage{"AUTO_CPU_USAGE"};
+static constexpr Property<AutoCpuUsage> auto_cpu_usage{"CPU_USAGE"};
 
 }  // namespace intel_auto
 }  // namespace ov
