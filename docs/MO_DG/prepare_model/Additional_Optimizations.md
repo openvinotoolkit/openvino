@@ -9,7 +9,7 @@ Model Optimizer performs preprocessing to a model. It is possible to optimize th
 	If, for example, your network assumes the RGB inputs, the Model Optimizer can swap the channels in the first convolution using the `--reverse_input_channels` command line option, so you do not need to convert your inputs to RGB every time you get the BGR image, for example, from OpenCV*.
 
 -	**Larger batch size**<br>
-	Notice that the devices like GPU are doing better with larger batch size. While it is possible to set the batch size in the runtime using the OpenVINO Runtime API [ShapeInference feature](../../OV_Runtime_UG/ShapeInference.md).
+	Some devices, like GPU, achieve better results with larger batch sizes. In such cases, it is possible to set the batch size using the OpenVINO Runtime API [ShapeInference feature](../../OV_Runtime_UG/ShapeInference.md).
 
 ## When to Specify Layout
 
@@ -27,10 +27,10 @@ to be specified it is required to specify names for each layout:
 mo --input_model /path/to/model --source_layout name1(nchw),name2(nc)
 mo --input_model /path/to/model --layout name1(nchw),name2(nc)
 ```
-Some preprocessing may require setting of input layouts, for example setting batch,
-application of mean or scales, reverse input channels (BGR<->RGB)
+Some preprocessing may require setting of input layouts, for example: batch setting,
+application of mean or scales, and reversing input channels (BGR<->RGB).
 
-## How to change layout of the model 
+## How to Change Layout of a Model 
 
 It is possible to change layout of the model. It may be needed if input data has different
 layout then model was trained on. There are 2 options that can be used to change layout of
@@ -64,16 +64,15 @@ There is no a universal recipe for determining the mean/scale values for a parti
 * Open the model in a visualization tool and check for layers performing subtraction or multiplication (like `Sub`, `Mul`, `ScaleShift`, `Eltwise` etc) of the input data. If such layers exist, pre-processing is probably part of the model.
 
 ## When to Reverse Input Channels <a name="when_to_reverse_input_channels"></a>
-Input data for your application can be of RGB or BRG color input order. For example, OpenVINO Samples load input images in the BGR channels order. However, the model may be trained on images loaded with the opposite order (for example, most TensorFlow\* models are trained with images in RGB order). In this case, inference results using the OpenVINO samples may be incorrect. The solution is to provide `--reverse_input_channels` command line parameter. Taking this parameter, the Model Optimizer performs first convolution or other channel dependent operation weights modification so these operations output will be like the image is passed with RGB channels order.
+Input data for your application can be of either RGB or BRG color input order. For example, OpenVINO Samples load input images in the BGR channel order, but many models are trained in the RBG one, like most TensorFlow cases. Such discrepancy may result in incorrect inference results. The solution is to use the `--reverse_input_channels` command line parameter, which tells Model Optimizer to perform weights modification with the first convolution or other channel-dependent operation. Therefore, it will look like the image is passed with the RGB channel order.
 
 ## Compression of model to FP16
 
-Mode Optimizer can compress the model to `FP16` data type. This will not only make the
-model to occupy less space in file system, but also may increase performance on some
-hardware. Model Optimizer will change data type on all the constants inside the model
-to `FP16` precision and insert `Convert` nodes to initial data type so that the data
-flow inside the model is preserved. To compress the model to `FP16` please use
-`--data_type` option like this:
+Model Optimizer can compress models to `FP16` data type. This makes them occupy less space 
+in the file system and, most importantly, increase performance when particular hardware is used. 
+The process assumes changing data type on all constants inside the model
+to the `FP16` precision and inserting `Convert` nodes to the initial data type, so that the data
+flow inside the model is preserved. To compress the model to `FP16` use the `--data_type` option like this:
 
 ```
 mo --input_model /path/to/model --data_type FP16
