@@ -139,9 +139,9 @@ Inference Engine API:
 
 .. tab:: async
 
-    .. doxygensnippet:: docs/snippets/ov_common.cpp
+    .. doxygensnippet:: docs/snippets/ie_common.cpp
        :language: cpp
-       :fragment: [ov_api_2_0:start_async_and_wait]
+       :fragment: [ie:start_async_and_wait]
 
 @endsphinxdirective
 
@@ -151,7 +151,7 @@ OpenVINO™ Runtime API 2.0:
 
 .. tab:: sync
 
-    .. doxygensnippet:: docs/snippets/ie_common.cpp
+    .. doxygensnippet:: docs/snippets/ov_common.cpp
        :language: cpp
        :fragment: [ov_api_2_0:inference]
 
@@ -162,25 +162,7 @@ OpenVINO™ Runtime API 2.0:
 
 @endsphinxdirective
 
-## 7. Start asynchronous inference and wait for result
-
-@sphinxdirective
-
-.. tab:: Inference Engine API
-
-    .. doxygensnippet:: docs/snippets/ie_common.cpp
-       :language: cpp
-       :fragment: [ie:start_async_and_wait]
-
-.. tab:: OpenVINO™ Runtime API 2.0
-
-    .. doxygensnippet:: docs/snippets/ov_common.cpp
-       :language: cpp
-       :fragment: [ov_api_2_0:start_async_and_wait]
-
-@endsphinxdirective
-
-## 8. Process the Inference Results
+## 7. Process the Inference Results
 
 Inference Engine API processes outputs as `I32` precision (**not** aligned with the original model):
 
