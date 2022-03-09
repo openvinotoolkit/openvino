@@ -50,13 +50,12 @@ protected:
     void SetUp() override;
 
     void TearDown() override;
-    bool checkOutput(const ov::runtime::Tensor& in, const ov::runtime::Tensor& out);
+    bool checkOutput(const ov::runtime::Tensor& in, const ov::runtime::Tensor& actual);
 
     std::shared_ptr<ov::Core> ie = utils::PluginCache::get().core();
     std::shared_ptr<Model> function;
     std::string targetDevice;
     ov::AnyMap configuration;
-    bool checkOutputValues;
     std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>> inOutShapes;
 };
 using OVNotSupportRequestDynamicTests = OVInferRequestDynamicTests;

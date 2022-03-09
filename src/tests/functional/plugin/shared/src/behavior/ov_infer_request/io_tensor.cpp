@@ -189,7 +189,7 @@ TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkSetInputTensor) {
     std::shared_ptr<ov::Core> ie = utils::PluginCache::get().core();
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
-    ov::runtime::InferRequest req;
+    ov::InferRequest req;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     OV_ASSERT_NO_THROW(req.infer());
     // Get input_tensor
@@ -210,7 +210,7 @@ TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkSetOutputTensor) {
     std::shared_ptr<ov::Core> ie = utils::PluginCache::get().core();
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
-    ov::runtime::InferRequest req;
+    ov::InferRequest req;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     OV_ASSERT_NO_THROW(req.infer());
     // Get output_tensor

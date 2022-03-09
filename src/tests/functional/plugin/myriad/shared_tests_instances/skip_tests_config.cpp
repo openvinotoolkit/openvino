@@ -25,7 +25,7 @@ std::vector<std::string> disabledTestPatterns() {
         ".*InferRequestDynamicTests.GetSameTensor2times.*",
         ".*InferRequestDynamicTests.InferDynamicNetworkWithSetTensor.*",
         ".*InferRequestDynamicTests.InferDynamicNetworkSetOutputShapeBeforeInfer.*",
-        ".*InferRequestDynamicTests.InferDynamicNetworkSetOutputTensorBeforeInfer.*",
+        ".*InferRequestDynamicTests.InferDynamicNetworkSetUnexpectedOutputTensorBeforeInfer.*",
         ".*InferRequestDynamicTests.InferDynamicNetworkSetOutputTensorPreAllocatedMemoryBeforeInfer.*",
         // TODO: Issue: 26268
         ".*ConcatLayerTest.*axis=0.*",
