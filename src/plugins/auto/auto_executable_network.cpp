@@ -29,7 +29,14 @@ void AutoExecutableNetwork::SetConfig(const std::map<std::string, InferenceEngin
 }
 
 InferenceEngine::Parameter AutoExecutableNetwork::GetConfig(const std::string &name) const {
-    IE_THROW(NotImplemented);
+    {
+        std::lock_guard<std::mutex> lock(_autoContext->_confMutex);
+        auto it = _config.find(name);
+        if (it != _config.end()) {
+            return it->second;
+        }
+    }
+    IE_THROW(NotFound) << name <<" not found in the ExecutableNetwork config";
 }
 
 InferenceEngine::Parameter AutoExecutableNetwork::GetMetric(const std::string &name) const {
