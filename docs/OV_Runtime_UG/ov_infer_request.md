@@ -102,9 +102,9 @@ Asynchronous mode supports two ways to wait inference results:
 
     @endsphinxdirective
 
-Both requests are thread-safe: can be called from different threads without fearing corruption and failures.
+Both methods are thread-safe.
 
-When you are running several inference requests in parallel, accelerators can process such infer requests simultaneously, so it's impossible to predict which one will finish first and usage of `ov::InferRequest::wait` is unappropriate here. For such scenarios, you should use `ov::InferRequest::set_callback` method to set callback which will be called upon completion of InferRequest:
+When you are running several inference requests in parallel, a device can process them simultaneously, with no garauntees on the completion order. This may complicate a possible logic based on the `ov::InferRequest::wait` (unless you code needs to wait for the _all_ requests). For multi-requests scenario, consider using `ov::InferRequest::set_callback` method to set a callback which is  called upon completion of the request:
 
 @sphinxdirective
 
