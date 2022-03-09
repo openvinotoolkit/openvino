@@ -17,9 +17,11 @@ def check_gil_released_safe(func, args):
     global gil_released
     gil_released = False
     def detect_gil():
+        global gil_released
         # while sleeping main thread acquires GIL and runs func, which will release GIL
         time.sleep(0.000001)
-        global gil_released
+        # increment reference counting of args while running func
+        args_ = args
         gil_released = True
     thread = Thread(target=detect_gil)
     thread.start()
