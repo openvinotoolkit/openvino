@@ -11,8 +11,7 @@ core = Core()
 core.set_property(device_name="CPU", properties={"PERF_COUNT": "YES"})
 # ! [core_set_property]
 
-#help(core.read_model)
-model = core.read_model("/home/pwysocki/openvino/docs/snippets/sparsity_example_02_sparsity_tf.xml")
+model = core.read_model("sample.xml")
 
 # ! [core_compile_model]
 compiled_model = core.compile_model(model=model, device_name="MULTI", config=
