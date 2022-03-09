@@ -2,14 +2,16 @@
 
 Model Optimizer performs preprocessing to a model. It is possible to optimize this step and improve first inference time, to do that, follow the tips bellow:
 
--	**Image mean/scale parameters**<br>
-	Make sure to use the input image mean/scale parameters (`--scale` and `–mean_values`) with the Model Optimizer when you need pre-processing. It allows the tool to bake the pre-processing into the IR to get accelerated by the OpenVINO Runtime.
+- **Image mean/scale parameters**<br>
+    Make sure to use the input image mean/scale parameters (`--scale` and `–mean_values`) with the Model Optimizer when you need pre-processing. It allows the tool to bake the pre-processing into the IR to get accelerated by the OpenVINO Runtime.
 
--	**RGB vs. BGR inputs**<br>
-	If, for example, your network assumes the RGB inputs, the Model Optimizer can swap the channels in the first convolution using the `--reverse_input_channels` command line option, so you do not need to convert your inputs to RGB every time you get the BGR image, for example, from OpenCV*.
+- **RGB vs. BGR inputs**<br>
+    If, for example, your network assumes the RGB inputs, the Model Optimizer can swap the channels in the first convolution using the `--reverse_input_channels` command line option, so you do not need to convert your inputs to RGB every time you get the BGR image, for example, from OpenCV*.
 
--	**Larger batch size**<br>
-	Some devices, like GPU, achieve better results with larger batch sizes. In such cases, it is possible to set the batch size using the OpenVINO Runtime API [ShapeInference feature](../../OV_Runtime_UG/ShapeInference.md).
+- **Larger batch size**<br>
+    Some devices, like GPU, achieve better results with larger batch sizes. In such cases,
+    it is possible to set the batch size using `--batch` option of Model Optimizer or the
+    OpenVINO Runtime API [ShapeInference feature](../../OV_Runtime_UG/ShapeInference.md).
 
 ## When to Specify Layout
 
