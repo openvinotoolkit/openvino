@@ -1579,7 +1579,7 @@ void MKLDNNGraphOptimizer::FuseEltwiseAndSimple(MKLDNNGraph &graph) {
                     graphEdges.push_back(newEdge);
                     parent->addEdge(newEdge);
 
-                    parentNode->inputShapes.push_back(parent->outputShapes[0]);
+                    parentNode->inputShapes.push_back(parent->getOutputShapeAtPort(inNum));
                 }
             }
 
