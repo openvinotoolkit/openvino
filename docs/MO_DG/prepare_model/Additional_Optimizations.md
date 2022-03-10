@@ -1,4 +1,4 @@
-# Optimizing Preprocessing Computation {#openvino_docs_MO_DG_Additional_Optimization_Use_Cases}
+# Embedding Preprocessing Computation {#openvino_docs_MO_DG_Additional_Optimization_Use_Cases}
 
 Input data for inference can be different from training dataset and requires additional preprocessing before inference.
 In order to accelerate the whole pipeline including preprocessing and inference, Model Optimizer provides special parameters such as `--mean_values`,

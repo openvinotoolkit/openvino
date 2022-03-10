@@ -26,9 +26,9 @@
 
 ## Introduction
 
-Model Optimizer is a cross-platform command-line tool that facilitates the transition between the training and deployment environment, performs static model analysis, and adjusts deep learning models for optimal execution on end-point target devices.
+Model Optimizer is a cross-platform command-line tool that facilitates transition between training and deployment environments, performs static model analysis, and adjusts deep learning models for optimal execution on end-point target devices.
 
-Model Optimizer process assumes you have a network model trained using supported deep learning frameworks: TensorFlow*, PyTorch*, ONNX*, PaddlePaddle*, MXNet*, Caffe*, Kaldi*. Model Optimizer produces an Intermediate Representation (IR) of the network, which can be inferred with the [OpenVINO™ Runtime](../OV_Runtime_UG/openvino_intro.md).
+Using Model Optimizer tool assumes you already have a deep-learning model trained using one of the supported frameworks: TensorFlow, PyTorch, PaddlePaddle, MXNet, Caffe, Kaldi, or represented in ONNX* format. Model Optimizer produces an Intermediate Representation (IR) of the model, which can be inferred with [OpenVINO™ Runtime](../OV_Runtime_UG/openvino_intro.md).
 
 > **NOTE**: Model Optimizer does not infer models. Model Optimizer is an offline tool that runs before the inference takes place.
 
@@ -47,22 +47,22 @@ The IR is a pair of files describing the model:
 
 ## Run Model Optimizer
 
-To convert the model to the Intermediate Representation (IR), run Model Optimizer:
+To convert the model to IR, run Model Optimizer:
 
 ```sh
 mo --input_model INPUT_MODEL
 ```
 
-Model Optimizer provides parameters `--input` and `--input_shape` to override original input shapes for model conversion.
+To override original input shapes for model conversion, Model Optimizer provides two parameters: `--input` and `--input_shape`.
 For more information about these parameters, please refer to [Setting Input Shapes](prepare_model/convert_model/Converting_Model.md).
 
-In order to cut off undesirable parts of a model such as unsupported operations and training sub-graphs,
-`--input` and `--output` parameters can be used to define new inputs and outputs of the converted model.
-For more description, please refer to [Cutting Off Parts of a Model](prepare_model/convert_model/Cutting_Model.md).
+To cut off unwanted parts of a model, such as unsupported operations and training sub-graphs,
+the `--input` and `--output` parameters can be used, defining new inputs and outputs of the converted model.
+For a more detailed description, refer to [Cutting Off Parts of a Model](prepare_model/convert_model/Cutting_Model.md).
 
 Also, Model Optimizer can insert additional input pre-processing sub-graphs into the converted model.
 For this, there exist `--mean_values`, `scales_values`, `--layout`, and other parameters described
-in [Optimizing Preprocessing Computation](prepare_model/Additional_Optimizations.md).
+in [Embedding Preprocessing Computation](prepare_model/Additional_Optimizations.md).
 
 Model Optimizer provides compression parameter `--data_type` to generate IR of `FP16` data type. For more details,
 please refer to [Compression of a Model to FP16](prepare_model/FP16_Compression.md).
@@ -103,7 +103,7 @@ For more information about ONNX* models conversion, please refer to
 [Converting a PaddlePaddle* Model](prepare_model/convert_model/Convert_Model_From_Paddle.md).
 
 ```sh
-mo --input_model unet.pdmodel --input data --mean_values data[123,117,104] --scale 255
+mo --input_model unet.pdmodel --mean_values [123,117,104] --scale 255
 ```
 
 Launch the Model Optimizer for the MXNet* SSD Inception V3 model and specify input layout.
