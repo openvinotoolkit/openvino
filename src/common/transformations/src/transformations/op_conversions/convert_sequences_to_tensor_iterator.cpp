@@ -14,7 +14,6 @@
 #include "itt.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
 
-
 namespace {
 ngraph::Output<ngraph::Node> get_current_iter(ngraph::ParameterVector& body_params,
                                               ngraph::ResultVector& body_results,

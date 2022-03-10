@@ -15,7 +15,6 @@
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using namespace ngraph;
 
 namespace {

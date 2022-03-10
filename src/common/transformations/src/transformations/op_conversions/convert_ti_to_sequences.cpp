@@ -17,7 +17,6 @@
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 namespace {
 bool convertTensorIteratorToSequence(const std::shared_ptr<ngraph::opset5::TensorIterator>& ti,
                                      const std::shared_ptr<ngraph::op::util::RNNCellBase>& found_cell,

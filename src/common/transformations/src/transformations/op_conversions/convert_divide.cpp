@@ -16,7 +16,6 @@
 #include "transformations/rt_info/nonconvertible_divide.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 namespace {
 bool convert_divide(std::shared_ptr<ngraph::Node> node) {
     auto div = std::dynamic_pointer_cast<ngraph::opset1::Divide>(node);
