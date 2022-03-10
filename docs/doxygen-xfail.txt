@@ -69,3 +69,4 @@ workbench/docs/workbench_dg/run_single_inference.md
 omz_tools_downloader.rst
 warning
 attribute
+omz_python_model_api.rst

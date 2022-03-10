@@ -57,8 +57,8 @@ To install POT, follow the [Installation Guide](docs/InstallationGuide.md).
 The POT provides three basic usage options:
 * **Command-line interface (CLI)**:
   * [**Simplified mode**](@ref pot_docs_simplified_mode):  use this option if the model belongs to the **Computer Vision** domain and you have an **unannotated dataset** for optimization. This optimization method does not allow measuring model accuracy and might cause its deviation.
-  * [**Model Zoo flow**](@ref pot_compression_cli_README): this option is recommended if the model is similar to the model from OpenVINO&trade; [Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) or there is a valid [Accuracy Checker Tool](@ref omz_tools_accuracy_checker_README)
-configuration file for the model that allows validating model accuracy using [Accuracy Checker Tool](@ref omz_tools_accuracy_checker_README).
+  * [**Model Zoo flow**](@ref pot_compression_cli_README): this option is recommended if the model is similar to the model from OpenVINO&trade; [Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) or there is a valid [Accuracy Checker Tool](@ref omz_tools_accuracy_checker)
+configuration file for the model that allows validating model accuracy using [Accuracy Checker Tool](@ref omz_tools_accuracy_checker).
 * [**Python\* API**](@ref pot_compression_api_README): this option allows integrating the optimization methods implemented in POT into
 a Python* inference script that uses [OpenVINO Python* API](https://docs.openvino.ai/latest/openvino_inference_engine_ie_bridges_python_docs_api_overview.html).
 
