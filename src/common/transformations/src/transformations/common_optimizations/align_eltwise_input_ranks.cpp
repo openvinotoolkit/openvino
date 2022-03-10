@@ -34,8 +34,9 @@ ngraph::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
         // So we skip extending Multiply's constant input rank here.
         if (ov::is_type<opset8::Multiply>(node)) {
             auto inputs = node->input_values();
-            if (std::any_of(inputs.begin(), inputs.end(),
-                [] (const Output<Node>& input) -> bool { return ov::is_type<opset8::NormalizeL2>(input.get_node()); }))
+            if (std::any_of(inputs.begin(), inputs.end(), [](const Output<Node>& input) -> bool {
+                    return ov::is_type<opset8::NormalizeL2>(input.get_node());
+                }))
                 return false;
         }
 

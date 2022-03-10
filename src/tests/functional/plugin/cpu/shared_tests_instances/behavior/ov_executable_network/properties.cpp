@@ -30,6 +30,7 @@ const std::vector<ov::AnyMap> auto_inproperties = {
 
 const std::vector<ov::AnyMap> auto_batch_inproperties = {
         {ov::num_streams(-100)},
+        {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , std::string(CommonTestUtils::DEVICE_CPU) + "(4)"}, {ov::auto_batch_timeout(-1)}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVCompiledModelPropertiesIncorrectTests,
@@ -107,11 +108,9 @@ const std::vector<ov::AnyMap> multi_properties = {
 };
 
 const std::vector<ov::AnyMap> auto_batch_properties = {
-        {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , CommonTestUtils::DEVICE_CPU}, ov::num_streams(ov::streams::AUTO)},
-        {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , CommonTestUtils::DEVICE_CPU},
-         {InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}},
-        {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , CommonTestUtils::DEVICE_CPU},
-         {CONFIG_KEY(AUTO_BATCH_TIMEOUT) , "1"}, ov::num_streams(ov::streams::AUTO)},
+        {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , std::string(CommonTestUtils::DEVICE_CPU) + "(4)"}},
+        {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , std::string(CommonTestUtils::DEVICE_CPU) + "(4)"}, {CONFIG_KEY(AUTO_BATCH_TIMEOUT) , "1"}},
+        {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , std::string(CommonTestUtils::DEVICE_CPU) + "(4)"}, {ov::auto_batch_timeout(10)}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVCompiledModelPropertiesTests,
