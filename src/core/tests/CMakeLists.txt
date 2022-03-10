@@ -326,6 +326,7 @@ set(SRC
     visitors/op/interpolate.cpp
     visitors/op/if.cpp
     visitors/op/idft.cpp
+    visitors/op/irdft.cpp
     visitors/op/less_equal.cpp
     visitors/op/less.cpp
     visitors/op/log.cpp
@@ -362,6 +363,7 @@ set(SRC
     visitors/op/proposal.cpp
     visitors/op/psroi_pooling.cpp
     visitors/op/random_uniform.cpp
+    visitors/op/rdft.cpp
     visitors/op/reduce_l1.cpp
     visitors/op/reduce_l2.cpp
     visitors/op/reduce_logical_and.cpp

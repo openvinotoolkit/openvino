@@ -128,6 +128,3 @@ NGRAPH_OP(Exp, op::v0)
 NGRAPH_OP(Log, op::v0)
 NGRAPH_OP(PriorBox, ngraph::op::v8)
 NGRAPH_OP(PRelu, op::v0)
-
-NGRAPH_OP(IRDFT, op::v9)
-NGRAPH_OP(RDFT, op::v9)

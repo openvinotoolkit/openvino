@@ -5,8 +5,8 @@
 #pragma once
 
 #include <memory>
-#include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -16,7 +16,7 @@ class TRANSFORMATIONS_API ConvertOpSet2ToOpSet1;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertOpSet2ToOpSet1: public ngraph::pass::FunctionPass {
+class ngraph::pass::ConvertOpSet2ToOpSet1 : public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;

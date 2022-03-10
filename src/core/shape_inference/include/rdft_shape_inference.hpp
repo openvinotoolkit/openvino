@@ -5,8 +5,12 @@
 #include <openvino/op/rdft.hpp>
 
 #include "openvino/core/axis_vector.hpp"
+#include "rfft_common_validation.hpp"
 #include "utils.hpp"
 
+namespace ov {
+namespace op {
+namespace util {
 template <typename B>
 B get_ouput_dimension_bound(B b) {
     if (b <= 0) {
@@ -34,64 +38,10 @@ void rdft_shape_infer(const ov::op::v9::RDFT* op,
     std::vector<int64_t> axes;
     bool axes_are_known = get_data_as_int64<T>(1, op, axes, constant_data);
 
-    if (input_shape.rank().is_static()) {
-        const auto input_rank = input_shape.size();
-        NODE_VALIDATION_CHECK(op,
-                              input_rank >= 1,
-                              "The input rank must be greater or equal to 1. Got input rank: ",
-                              input_rank);
-
-        if (axes_shape.is_static()) {
-            NODE_VALIDATION_CHECK(op,
-                                  input_rank >= static_cast<int64_t>(axes_shape[0].get_length()),
-                                  "The input rank must be greater than or equal to the number of RDFT op axes. Got "
-                                  "input rank: ",
-                                  input_rank,
-                                  ", number of axes: ",
-                                  axes_shape[0].get_length());
-        }
-
-        // RDFT operation supports for negative axes to transform. More precisely, according to
-        // the RDFT operation specification, axes should be integers from -r to (r - 1)
-        // inclusively, where r = rank(data). A negative axis 'a' is interpreted as an axis 'r+ a'.
-        if (axes_shape.rank().is_static() && axes_are_known) {
-            for (int64_t& axis : axes) {
-                if (axis < 0) {
-                    axis += input_rank;
-                }
-            }
-
-            ov::AxisSet axes_set;
-            for (const auto& axis : axes) {
-                axes_set.insert(static_cast<size_t>(axis));
-            }
-
-            NODE_VALIDATION_CHECK(op, axes.size() == axes_set.size(), "RDFT op axes must be unique.");
-        }
-    }
-
-    NODE_VALIDATION_CHECK(op, axes_shape.rank().compatible(1), "RDFT op axes input must be 1D tensor.");
-
-    if (input_shapes.size() == 3) {
-        const auto& signal_size_shape = input_shapes[2];
-        NODE_VALIDATION_CHECK(op,
-                              signal_size_shape.rank().compatible(1),
-                              "RDFT op signal size input must be 1D tensor. Got signal: ",
-                              signal_size_shape);
-
-        if (axes_shape.is_static() && signal_size_shape.is_static()) {
-            NODE_VALIDATION_CHECK(op,
-                                  axes_shape[0].compatible(signal_size_shape[0]),
-                                  "Sizes of inputs 'axes' and 'signal_size' must be equal. Got "
-                                  "size of 'axes': ",
-                                  axes_shape[0],
-                                  "size of 'signal_size': ",
-                                  signal_size_shape[0]);
-        }
-    }
+    rfft_common_validation::shape_validation(op, input_shapes, axes, axes_are_known, rfft_common_validation::RFFTKind::Forward);
 
     if (input_shape.rank().is_dynamic()) {
-        output_shape = ov::PartialShape();
+        output_shape = ov::PartialShape::dynamic();
         return;
     }
 
@@ -108,8 +58,8 @@ void rdft_shape_infer(const ov::op::v9::RDFT* op,
     }
 
     const auto last_axis = axes.back();
-    
-    if (input_shapes.size() == 2) {        
+
+    if (input_shapes.size() == 2) {
         output_shape[last_axis] = get_rdft_output_dimension(input_shape[last_axis]);
         return;
     }
@@ -132,3 +82,6 @@ void rdft_shape_infer(const ov::op::v9::RDFT* op,
     }
     output_shape[last_axis] = get_rdft_output_dimension(output_shape[last_axis]);
 }
+}  // namespace util
+}  // namespace op
+}  // namespace ov
