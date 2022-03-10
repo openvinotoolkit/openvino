@@ -37,7 +37,7 @@ The rest of the document explains how to optimize your _runtime_ performance wit
 In many cases, a network expects a pre-processed image, so make sure you do not perform unnecessary steps in your code:
 - Model Optimizer can efficiently bake the mean and normalization (scale) values into the model (for example, to the weights of the first convolution). Please see [relevant Model Optimizer command-line options](../MO_DG/prepare_model/Additional_Optimizations.md).
 - Let the OpenVINO accelerate other means of [Image Pre-processing and Conversion](../OV_Runtime_UG/preprocessing_overview.md).
-- Note that in many cases, you can directly share the (input) data with the OpenVINO, for example consider [remote tensors API of the GPU Plugin](../OV_Runtime_UG//supported_plugins/GPU_RemoteBlob_API.md).
+- Note that in many cases, you can directly share the (input) data with the OpenVINO, for example consider [remote tensors API of the GPU Plugin](../OV_Runtime_UG//supported_plugins/gpu_remotetensor_api.md).
 
 ## High-level Performance Presets (Hints): Throughput and Latency
 Traditionally, each of the OpenVINO's [supported devices](../OV_Runtime_UG/supported_plugins/Supported_Devices.md) offers a bunch of low-level performance settings. 
@@ -127,7 +127,7 @@ Few important points on the callbacks:
 
 `get_tensor` is a recommended way to populate the inference inputs (and read back the outputs), as it internally allocates the data with right padding/alignment for the device. For example, the GPU inputs/outputs tensors are mapped to the host (which is fast) only when the `get_blob` is used, while for the `set_tensor` a copy into the internal GPU structures may happen.
 Please consider the [API examples](../OV_Runtime_UG/ov_infer_request.md).
-In contrast, the `set_tensor` is a preferable way to handle [remote tensors for example with the GPU device](../OV_Runtime_UG//supported_plugins/GPU_RemoteBlob_API.md).
+In contrast, the `set_tensor` is a preferable way to handle [remote tensors for example with the GPU device](../OV_Runtime_UG//supported_plugins/gpu_remotetensor_api.md).
 
 ## Additional GPU Checklist <a name="gpu-checklist"></a>
 
@@ -138,7 +138,7 @@ OpenVINO relies on the OpenCL&trade; kernels for the GPU implementation. Thus, m
 -	Consider [caching](../OV_Runtime_UG/Model_caching_overview.md) to minimize model load time
 -	If your application is simultaneously using the inference on the CPU or otherwise loads the host heavily, make sure that the OpenCL driver threads do not starve. You can use [CPU configuration options](../OV_Runtime_UG/supported_plugins/CPU.md) to limit number of inference threads for the CPU plugin.
 -	Even in the GPU-only scenario, a GPU driver might occupy a CPU core with spin-looped polling for completion. If the _CPU_ utilization is a concern, consider the dedicated [throttling configuration option](../OV_Runtime_UG/supported_plugins/GPU.md). Notice that this option might increase the inference latency, so consider combining with multiple [GPU streams](../OV_Runtime_UG/supported_plugins/GPU.md) or [throughput performance hints](../OV_Runtime_UG/performance_hints.md).
-- When operating media inputs consider [remote tensors API of the GPU Plugin](../OV_Runtime_UG//supported_plugins/GPU_RemoteBlob_API.md).
+- When operating media inputs consider [remote tensors API of the GPU Plugin](../OV_Runtime_UG//supported_plugins/gpu_remotetensor_api.md).
 
 ## Multi-Device Execution <a name="multi-device-optimizations"></a>
 OpenVINO&trade; toolkit supports automatic multi-device execution, please see [Multi-Device execution](../OV_Runtime_UG/multi_device.md) description. 

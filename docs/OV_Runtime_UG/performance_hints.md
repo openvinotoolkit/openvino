@@ -16,7 +16,7 @@ Throughput and latency are some of the most critical factors that influence the 
 
 This why, to ease the configuration of the device, the OpenVINO already offers two dedicated hints, namely `ov::hint::PerformanceMode::THROUGHPUT` and `ov::hint::PerformanceMode::LATENCY`.
 Every OpenVINO device supports these, which makes the things portable and future-proof.
-The also allows to do a performance configuration that is fully compatible with the [automatic device selection](../auto_device_selection.md).
+The also allows to do a performance configuration that is fully compatible with the [automatic device selection](./auto_device_selection.md).
 
 The `benchmark_app`, that exists in both  [C++](../../samples/cpp/benchmark_app/README.md) and [Python](../../tools/benchmark_tool/README.md) versions, is the best way to evaluate the performance of the performance hints for a particular device:
  - benchmark_app **-hint tput** -d 'device' -m 'path to your favorite model'
