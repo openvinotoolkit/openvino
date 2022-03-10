@@ -299,7 +299,7 @@ TEST_P(OVClassGetPropertyTest_GPU, GetMetricMemoryStatisticsAndPrintNoThrow) {
 TEST_P(OVClassGetPropertyTest_GPU, GetAndSetPerformanceModeNoThrow) {
     ov::Core ie;
 
-    ov::hint::PerformanceMode defaultMode;
+    ov::hint::PerformanceMode defaultMode{};
     ASSERT_NO_THROW(defaultMode = ie.get_property(deviceName, ov::hint::performance_mode));
 
     std::cout << "Default PERFORMANCE_HINT: \"" << defaultMode << "\"" << std::endl;
