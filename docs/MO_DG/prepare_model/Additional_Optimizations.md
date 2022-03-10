@@ -2,7 +2,7 @@
 
 Input data for inference can be different from training dataset and requires additional preprocessing before inference.
 In order to accelerate the whole pipeline including preprocessing and inference, Model Optimizer provides special parameters such as `--mean_values`,
-`--scale_values`, `--reverse_input_channels` and `--layout`. Based on these parameters, Model Optimizer generates IR with additionally
+`--scale_values`, `--reverse_input_channels`, and `--layout`. Based on these parameters, Model Optimizer generates IR with additionally
 inserted sub-graph that performs defined preprocessing. This preprocessing block can perform mean-scale normalization of input data,
 reverting data along channel dimension and changing layout of data. For more details about these parameters, refer to paragraphs below.
 
