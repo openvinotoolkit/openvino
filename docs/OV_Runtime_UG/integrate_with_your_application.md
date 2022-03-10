@@ -249,6 +249,7 @@ Congratulations, you have made your first application with OpenVINO™ toolkit, 
 ## See also
 
  - [OpenVINO™ Runtime Preprocessing](./preprocessing_overview.md)
+ - [Using Encrypted Models with OpenVINO&trade;](./protecting_model_guide.md)
 
 [ie_api_flow_cpp]: img/BASIC_IE_API_workflow_Cpp.svg
 [ie_api_use_cpp]: img/IMPLEMENT_PIPELINE_with_API_C.svg
