@@ -4,12 +4,10 @@
 
 #pragma once
 
-#include <vector>
 #include <memory>
-
-#include <transformations_visibility.hpp>
-
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
+#include <vector>
 
 #include "ngraph/op/gelu.hpp"
 
@@ -21,7 +19,7 @@ class TRANSFORMATIONS_API ConvertGELU;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertGELU: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertGELU : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertGELU", "0");
     ConvertGELU();

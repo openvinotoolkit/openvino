@@ -6,9 +6,8 @@
 
 #include <functional>
 #include <memory>
-#include <numeric>
-
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <numeric>
 
 namespace ngraph {
 namespace pass {

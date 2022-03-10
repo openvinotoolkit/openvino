@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
 
 /**
  * @ingroup ie_transformation_common_api
@@ -15,7 +15,7 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API AlignEltwiseInputRanks: public MatcherPass {
+class TRANSFORMATIONS_API AlignEltwiseInputRanks : public MatcherPass {
 public:
     OPENVINO_RTTI("TRANSFORMATIONS_API", "0");
     AlignEltwiseInputRanks();

@@ -4,13 +4,12 @@
 
 #pragma once
 
-#include <vector>
 #include <memory>
-
-#include <transformations_visibility.hpp>
-
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
+#include <vector>
+
 #include "ngraph/pattern/matcher.hpp"
 
 namespace ngraph {
@@ -25,7 +24,7 @@ class TRANSFORMATIONS_API ReduceL1Decomposition;
  * @ingroup ie_transformation_common_api
  * @brief Decomposes ReduceL1 into ReduceSum(abs(x)).
  */
-class ngraph::pass::ReduceL1Decomposition: public ngraph::pass::MatcherPass {
+class ngraph::pass::ReduceL1Decomposition : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ReduceL1Decomposition", "0");
     ReduceL1Decomposition();

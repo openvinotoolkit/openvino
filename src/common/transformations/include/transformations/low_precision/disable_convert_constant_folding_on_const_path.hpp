@@ -5,10 +5,9 @@
 #pragma once
 
 #include <memory>
-#include <utility>
-
-#include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
+#include <utility>
 
 namespace ngraph {
 namespace pass {
@@ -21,6 +20,5 @@ class TRANSFORMATIONS_API DisableConvertConstantFoldingOnConstPath;
 class ngraph::pass::DisableConvertConstantFoldingOnConstPath : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("DisableConvertConstantFoldingOnConstPath", "0");
-    DisableConvertConstantFoldingOnConstPath(
-        const element::TypeVector & inputPrecisions = {});
+    DisableConvertConstantFoldingOnConstPath(const element::TypeVector& inputPrecisions = {});
 };

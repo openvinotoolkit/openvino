@@ -104,8 +104,7 @@ ngraph::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
             shrink_axis_mask,
             ellipsis_mask);
 
-        return replace_output_update_name(squeeze->output(0),
-                                          new_slice->output(squeeze->input_value(0).get_index()));
+        return replace_output_update_name(squeeze->output(0), new_slice->output(squeeze->input_value(0).get_index()));
     };
     auto m = std::make_shared<ngraph::pattern::Matcher>(squeeze_label /*, matcher_name */);
     register_matcher(m, callback);
@@ -121,11 +120,13 @@ ngraph::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
 
     matcher_pass_callback callback = [](pattern::Matcher& m) -> bool {
         auto slice = std::dynamic_pointer_cast<ngraph::opset5::StridedSlice>(m.get_match_root());
-        if (!slice) return false;
+        if (!slice)
+            return false;
         auto squeeze = slice->get_input_node_shared_ptr(0);
         const auto& const_axes =
             std::dynamic_pointer_cast<ngraph::opset5::Constant>(squeeze->get_input_node_shared_ptr(1));
-        if (!const_axes) return false;
+        if (!const_axes)
+            return false;
 
         auto begin = std::dynamic_pointer_cast<ngraph::opset5::Constant>(slice->input_value(1).get_node_shared_ptr());
         auto end = std::dynamic_pointer_cast<ngraph::opset5::Constant>(slice->input_value(2).get_node_shared_ptr());

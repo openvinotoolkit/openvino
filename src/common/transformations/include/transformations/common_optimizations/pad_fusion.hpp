@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
-
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -29,7 +28,7 @@ class TRANSFORMATIONS_API PadFusionGroupConvolutionBackpropData;
  * - pad value is 0
  * - exclude_pad in AvgPool is set to false or pads_begin, pads_end are set to zero
  */
-class ngraph::pass::PadFusionAvgPool: public ngraph::pass::MatcherPass {
+class ngraph::pass::PadFusionAvgPool : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("PadFusionAvgPool", "0");
     PadFusionAvgPool();
@@ -42,7 +41,7 @@ public:
  * - pad mode is op::PadMode::CONSTANT
  * - pad value is 0
  */
-class ngraph::pass::PadFusionConvolution: public ngraph::pass::MatcherPass {
+class ngraph::pass::PadFusionConvolution : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("PadFusionConvolution", "0");
     PadFusionConvolution();
@@ -56,7 +55,7 @@ public:
  * - pad value is 0
  * - pads in ConvolutionBackpropData are greater than pads in Pad node
  */
-class ngraph::pass::PadFusionConvolutionBackpropData: public ngraph::pass::MatcherPass {
+class ngraph::pass::PadFusionConvolutionBackpropData : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("PadFusionConvolutionBackpropData", "0");
     PadFusionConvolutionBackpropData();
@@ -69,7 +68,7 @@ public:
  * - pad mode is op::PadMode::CONSTANT
  * - pad value is 0
  */
-class ngraph::pass::PadFusionGroupConvolution: public ngraph::pass::MatcherPass {
+class ngraph::pass::PadFusionGroupConvolution : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("PadFusionGroupConvolution", "0");
     PadFusionGroupConvolution();
@@ -83,13 +82,13 @@ public:
  * - pad value is 0
  * - pads in GroupConvolutionBackpropData are greater than pads in Pad node
  */
-class ngraph::pass::PadFusionGroupConvolutionBackpropData: public ngraph::pass::MatcherPass {
+class ngraph::pass::PadFusionGroupConvolutionBackpropData : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("PadFusionGroupConvolutionBackpropData", "0");
     PadFusionGroupConvolutionBackpropData();
 };
 
-class ngraph::pass::PadFusion: public ngraph::pass::GraphRewrite {
+class ngraph::pass::PadFusion : public ngraph::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("PadFusion", "0");
     PadFusion() {

@@ -5,19 +5,17 @@
 #pragma once
 
 #include <memory>
-#include <vector>
-
-#include <transformations_visibility.hpp>
-
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
+#include <vector>
 
 namespace ngraph {
 namespace pass {
 
 class TRANSFORMATIONS_API FakeQuantizeMulFusion;
 
-} // namespace pass
-} // namespace ngraph
+}  // namespace pass
+}  // namespace ngraph
 
 /**
  * @ingroup ie_transformation_common_api
@@ -28,6 +26,6 @@ class TRANSFORMATIONS_API FakeQuantizeMulFusion;
 
 class ngraph::pass::FakeQuantizeMulFusion : public ngraph::pass::MatcherPass {
 public:
-  OPENVINO_RTTI("FakeQuantizeMulFusion", "0");
-  FakeQuantizeMulFusion();
+    OPENVINO_RTTI("FakeQuantizeMulFusion", "0");
+    FakeQuantizeMulFusion();
 };

@@ -4,13 +4,12 @@
 
 #pragma once
 
-#include <vector>
 #include <memory>
-
-#include <transformations_visibility.hpp>
-
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
+#include <vector>
+
 #include "ngraph/pattern/matcher.hpp"
 
 namespace ngraph {
@@ -25,7 +24,7 @@ class TRANSFORMATIONS_API NormalizeL2Decomposition;
  * @ingroup ie_transformation_common_api
  * @brief Decomposes NormalizeL2 into subgraph
  */
-class ngraph::pass::NormalizeL2Decomposition: public ngraph::pass::MatcherPass {
+class ngraph::pass::NormalizeL2Decomposition : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("NormalizeL2Decomposition", "0");
     NormalizeL2Decomposition();

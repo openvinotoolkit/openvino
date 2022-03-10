@@ -4,13 +4,11 @@
 
 #pragma once
 
-#include <vector>
 #include <memory>
-
-#include <transformations_visibility.hpp>
-
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pass/pass.hpp>
+#include <transformations_visibility.hpp>
+#include <vector>
 
 namespace ngraph {
 namespace pass {
@@ -32,7 +30,7 @@ class TRANSFORMATIONS_API NopElimination;
  * @ingroup ie_transformation_common_api
  * @brief EliminatePad eliminates pad that does nothing
  */
-class ngraph::pass::EliminatePad: public ngraph::pass::MatcherPass {
+class ngraph::pass::EliminatePad : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("EliminatePad", "0");
     EliminatePad();
@@ -42,7 +40,7 @@ public:
  * @ingroup ie_transformation_common_api
  * @brief EliminateConvert eliminates convert that does nothing
  */
-class ngraph::pass::EliminateConvert: public ngraph::pass::MatcherPass {
+class ngraph::pass::EliminateConvert : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("EliminateConvert", "0");
     EliminateConvert();
@@ -52,7 +50,7 @@ public:
  * @ingroup ie_transformation_common_api
  * @brief EliminateConvertNonZero eliminates convert before NonZero
  */
-class ngraph::pass::EliminateConvertNonZero: public ngraph::pass::MatcherPass {
+class ngraph::pass::EliminateConvertNonZero : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("EliminateConvertNonZero", "0");
     EliminateConvertNonZero();
@@ -62,7 +60,7 @@ public:
  * @ingroup ie_transformation_common_api
  * @brief EliminateConcat eliminates concat that does nothing
  */
-class ngraph::pass::EliminateConcat: public ngraph::pass::MatcherPass {
+class ngraph::pass::EliminateConcat : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("EliminateConcat", "0");
     EliminateConcat();
@@ -72,7 +70,7 @@ public:
  * @ingroup ie_transformation_common_api
  * @brief EliminateSplit eliminates split that does nothing
  */
-class ngraph::pass::EliminateSplit: public ngraph::pass::MatcherPass {
+class ngraph::pass::EliminateSplit : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("EliminateSplit", "0");
     EliminateSplit();
@@ -92,7 +90,7 @@ public:
  * @ingroup ie_transformation_common_api
  * @brief EliminateTranspose eliminates transpose that does nothing
  */
-class ngraph::pass::EliminateTranspose: public ngraph::pass::MatcherPass {
+class ngraph::pass::EliminateTranspose : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("EliminateTranspose", "0");
     EliminateTranspose();
@@ -102,13 +100,13 @@ public:
  * @ingroup ie_transformation_common_api
  * @brief EliminateEltwise eliminates eltwise ops that do nothing
  */
-class ngraph::pass::EliminateEltwise: public ngraph::pass::MatcherPass {
+class ngraph::pass::EliminateEltwise : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("EliminateEltwise", "0");
     EliminateEltwise();
 };
 
-class ngraph::pass::NopElimination: public GraphRewrite {
+class ngraph::pass::NopElimination : public GraphRewrite {
 public:
     OPENVINO_RTTI("NopElimination", "0");
     NopElimination(bool use_shape_for_elimination = true);

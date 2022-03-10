@@ -3,11 +3,13 @@
 //
 
 #include "transformations/op_conversions/convert_gather_downgrade.hpp"
+
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/opsets/opset8.hpp>
-#include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+
 #include "itt.hpp"
 
 using namespace std;
