@@ -11,6 +11,7 @@
    openvino_docs_OV_UG_supported_plugins_GPU
    openvino_docs_IE_DG_supported_plugins_VPU
    openvino_docs_OV_UG_supported_plugins_GNA
+   openvino_docs_OV_UG_supported_plugins_ARM_CPU
 
 @endsphinxdirective
 
@@ -22,6 +23,7 @@ The OpenVINO Runtime provides capabilities to infer deep learning models on the 
 |[GPU plugin](GPU.md)            |Intel® Graphics, including Intel® HD Graphics, Intel® UHD Graphics, Intel® Iris® Graphics, Intel® Xe Graphics, Intel® Xe MAX Graphics |
 |[VPU plugins](VPU.md)            |Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X, Intel® Vision Accelerator Design with Intel® Movidius™ VPUs                                                                                           |
 |[GNA plugin](GNA.md)              |Intel&reg; Speech Enabling Developer Kit, Amazon Alexa* Premium Far-Field Developer Kit, Intel&reg; Pentium&reg; Silver J5005 Processor, Intel&reg; Pentium&reg; Silver N5000 Processor, Intel&reg; Celeron&reg; J4005 Processor, Intel&reg; Celeron&reg; J4105 Processor, Intel&reg; Celeron&reg; Processor N4100, Intel&reg; Celeron&reg; Processor N4000, Intel&reg; Core&trade; i3-8121U Processor, Intel&reg; Core&trade; i7-1065G7 Processor, Intel&reg; Core&trade; i7-1060G7 Processor, Intel&reg; Core&trade; i5-1035G4 Processor, Intel&reg; Core&trade; i5-1035G7 Processor, Intel&reg; Core&trade; i5-1035G1 Processor, Intel&reg; Core&trade; i5-1030G7 Processor, Intel&reg; Core&trade; i5-1030G4 Processor, Intel&reg; Core&trade; i3-1005G1 Processor, Intel&reg; Core&trade; i3-1000G1 Processor, Intel&reg; Core&trade; i3-1000G4 Processor|
+|[ARM CPU plugin](ARM_CPU.md) |Raspberry Pi&trade; 4 Model B, Apple&reg; Mac mini with M1 chip    |
 
 OpenVINO runtime also has several execution capabilities which work on top of other devices:
 
@@ -38,17 +40,17 @@ Devices similar to the ones we have used for benchmarking can be accessed using 
 ## Features support matrix
 The table below demonstrates support of key features by OpenVINO device plugins.
 
-| Capability | CPU | [GPU](./GPU.md) | GNA | VPU |
-| ---------- | --- | --- | --- | --- |
-| [Heterogeneous execution](../hetero_execution.md)| Yes | Yes | ? | ? |
-| [Multi-device execution](../multi_device.md) | Yes | Yes | ? | ? |
-| [Automatic batching](../automatic_batching.md) | No | Yes | ? | ? |
-| [Multi-stream execution](@ref openvino_docs_optimization_guide_dldt_optimization_guide) | Yes | Yes | ? | ? |
-| [Models caching](../Model_caching_overview.md) | Yes | Partial | ? | ? |
-| [Dynamic shapes](../ov_dynamic_shapes.md) | Yes | Partial | ? | ? |
-| Import/Export | Yes | No | ? | ? |
-| [Preprocessing acceleration](../preprocessing_overview.md) | Yes | Yes | ? | ? |
-| [Stateful models](../network_state_intro.md) | Yes | No | ? | ? |
-| [Extensibility](@ref openvino_docs_Extensibility_UG_Intro) | Yes | Yes | ? | ? |
+| Capability | CPU | [GPU](./GPU.md) | GNA | VPU | [ARM CPU](ARM_CPU.md) |
+| ---------- | --- | --- | --- | --- | --- |
+| [Heterogeneous execution](../hetero_execution.md)| Yes | Yes | ? | ? | No |
+| [Multi-device execution](../multi_device.md) | Yes | Yes | ? | ? | No |
+| [Automatic batching](../automatic_batching.md) | No | Yes | ? | ? | No |
+| [Multi-stream execution](@ref openvino_docs_optimization_guide_dldt_optimization_guide) | Yes | Yes | ? | ? | Yes |
+| [Models caching](../Model_caching_overview.md) | Yes | Partial | ? | ? | No |
+| [Dynamic shapes](../ov_dynamic_shapes.md) | Yes | Partial | ? | ? | No |
+| Import/Export | Yes | No | ? | ? | No |
+| [Preprocessing acceleration](../preprocessing_overview.md) | Yes | Yes | ? | ? | No |
+| [Stateful models](../network_state_intro.md) | Yes | No | ? | ? | No |
+| [Extensibility](@ref openvino_docs_Extensibility_UG_Intro) | Yes | Yes | ? | ? | Yes |
 
 For more details on plugin specific feature limitation see corresponding plugin pages.
