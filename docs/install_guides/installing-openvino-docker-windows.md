@@ -9,7 +9,7 @@ This guide provides steps for creating a Docker image with Intel® Distribution 
 
   +------------------------------------+--------------------------+
   | Operating System                   | Supported Python Version |
-  +------------------------------------+--------------------------+
+  +====================================+==========================+
   | Windows Server Core base LTSC 2019 | 3.8                      |
   +------------------------------------+--------------------------+
   | Windows 10, version 20H2           | 3.8                      |
@@ -107,8 +107,7 @@ You can use the [available Dockerfiles on GitHub](https://github.com/openvinotoo
 
 ### <a name="config-image-for-gpu"></a>Configuring the Image for GPU
 
-> **NOTE**: Since GPU is not supported in <a href="#get-prebuilt-image">prebuilt images</a> or [default Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles), you must make sure 
-the Additional Requirements for GPU in <a href="#system-requirements">System Requirements</a> are met, and do the following steps to build the image manually.
+> **NOTE**: Since GPU is not supported in <a href="#get-prebuilt-image">prebuilt images</a> or [default Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles), you must make sure the Additional Requirements for GPU in <a href="#system-requirements">System Requirements</a> are met, and do the following steps to build the image manually.
 
 1. Reuse one of [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles). You can also use your own Dockerfile. 
 2. Check your [Windows host and container isolation process compatibility](https://docs.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/version-compatibility).
@@ -148,8 +147,8 @@ cmd /S /C "omz_downloader --name googlenet-v1 --precisions FP16 && omz_converter
 
 ### Running the Image on GPU
 
-> **NOTE**: Since GPU is not supported in <a href="#get-prebuilt-image">prebuilt images</a> or [default Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles), you must make sure 
-the Additional Requirements for GPU in <a href="#system-requirements">System Requirements</a> are met, and <a href="#config-image-for-gpu">configure and build the image manually</a> before you can run inferences on a GPU.
+> **NOTE**: Since GPU is not supported in <a href="#get-prebuilt-image">prebuilt images</a> or [default Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles), you must make sure the Additional Requirements for GPU in <a href="#system-requirements">System Requirements</a> are met, and <a href="#config-image-for-gpu">configure and build the image manually</a> before you can run inferences on a GPU.
+
 
 1. To try inference on a GPU, run the image with the following command:
    ```bat
