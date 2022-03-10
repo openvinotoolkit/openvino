@@ -107,8 +107,7 @@ You can use the [available Dockerfiles on GitHub](https://github.com/openvinotoo
 
 ### <a name="config-image-for-gpu"></a>Configuring the Image for GPU
 
-> **NOTE**: Since GPU is not supported in <a href="#get-prebuilt-image">prebuilt images</a> or [default Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles), you must make sure 
-the Additional Requirements for GPU in <a href="#system-requirements">System Requirements</a> are met, and do the following steps to build the image manually.
+> **NOTE**: Since GPU is not supported in <a href="#get-prebuilt-image">prebuilt images</a> or [default Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles), you must make sure the Additional Requirements for GPU in <a href="#system-requirements">System Requirements</a> are met, and do the following steps to build the image manually.
 
 1. Reuse one of [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles). You can also use your own Dockerfile. 
 2. Check your [Windows host and container isolation process compatibility](https://docs.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/version-compatibility).
