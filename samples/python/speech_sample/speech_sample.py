@@ -203,7 +203,7 @@ def main():
         if ':' in compiled_model.outputs[0].any_name:
             output_layer_names = [f'{output_layer_names[i]}:{output_layer_ports[i]}' for i in range(len(output_layer_names))]
     else:
-        output_layer_names = [compiled_model.outputs[0].any_name]
+        output_layer_names = [output.any_name for output in compiled_model.outputs]
 
     if args.output:
         output_file_names = re.split(', |,', args.output)
