@@ -20,12 +20,12 @@ for both inputs and outputs. For layout syntax check the [Layout API overview](.
 To specify layout, you can use either `--layout` or `--source_layout` followed by the layout value. 
 Additionally, if a model has more than one input or needs both input and output layouts specified,
 each layout needs to be given a name. Here are examples of the two cases:
-`NCHW` layout specified for a model with a single input:
+* `NCHW` layout specified for a model with a single input:
 ```
 mo --input_model /path/to/model --source_layout nchw
 mo --input_model /path/to/model --layout nchw
 ```
-`NCHW` and `NC` layouts specified for a model with two inputs:
+* `NCHW` and `NC` layouts specified for a model with two inputs:
 ```
 mo --input_model /path/to/model --source_layout name1(nchw),name2(nc)
 mo --input_model /path/to/model --layout name1(nchw),name2(nc)
@@ -35,16 +35,17 @@ application of mean or scales, and reversing input channels (BGR<->RGB).
 
 ## How to Change Layout of a Model 
 
-It is possible to change layout of the model. It may be needed if input data has different
-layout then model was trained on. There are 2 options that can be used to change layout of
-model inputs or outputs --layout and --target_layout. For example to change layout of the
-model with one input from `NHWC` to `NCHW`:
+Changing model layout may be necessary if it differs from the one presented by input data. 
+Similarly to specifying layout, to change it you can use one of two commands: either
+`--layout` or `--target_layout`. Again, if a model has more than one input or needs both input
+and output layouts specified, each layout needs to be given a name. Here are examples of the
+two cases:
+* `NHWC` layout of a single-input model changed to `NCHW`:
 ```
 mo --input_model /path/to/model --source_layout nhwc --target_layout nchw
 mo --input_model /path/to/model --layout "nhwc->nchw"
 ```
-Similarly, if model has multiple inputs or if it is required to change layout of output,
-names must be specified:
+* `NHWC` layout of a multi-input model changed to `NCHW`:
 ```
 mo --input_model /path/to/model --source_layout name1(nhwc),name2(nc) --target_layout name1(nchw)
 mo --input_model /path/to/model --layout "name1(nhwc->nchw),name2(nc)"
