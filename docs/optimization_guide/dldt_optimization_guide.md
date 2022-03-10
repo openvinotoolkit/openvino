@@ -24,7 +24,7 @@ With the OpenVINO there are two primary ways of improving the inference performa
 
 - **Deployment optimization**  includes tuning inference parameters and optimizing model execution. To read more visit [Deployment Optimization Guide](../optimization_guide/dldt_deployment_optimization_guide.md).
 
-### **Runtime**/Deployment optimizations
+### Runtime (Deployment) Optimizations
 Runtime optimizations include tuning of the inference parameters (e.g. optimal number of the inference requests executed simultaneously) and other means of how a model is _executed_. 
 
 Here, possible optimization should start with defining the use-case. For example, whether the target scenario emphasizes throughput over latency. For example processing millions of samples by overnight jobs in the data centers.
