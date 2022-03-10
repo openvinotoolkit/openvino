@@ -36,7 +36,7 @@ OpenVINO™ provides extensions for:
     - Provides a shape inference mechanism for custom operations
     - Provides an evaluate method which allow to support the operation on CPU or perform constant folding
  * [Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md):
-    - Enables support of new operations by Model Optimizer to generate IR
+    - Enables support of new operations to generate IR
     - Enables support of custom transformations to replace sub-graphs for performance optimization
 
 > **NOTE**: This documentation is written based on the [Template extension](https://github.com/openvinotoolkit/openvino/tree/master/docs/template_extension/new), which demonstrates extension development details. You can review the complete code, which is fully compilable and up-to-date, to see how it works.

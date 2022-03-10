@@ -54,14 +54,14 @@ mo --input_model INPUT_MODEL
 ```
 
 To override original input shapes for model conversion, Model Optimizer provides two parameters: `--input` and `--input_shape`.
-For more information about these parameters, please refer to [Setting Input Shapes](prepare_model/convert_model/Converting_Model.md).
+For more information about these parameters, refer to [Setting Input Shapes](prepare_model/convert_model/Converting_Model.md).
 
 To cut off unwanted parts of a model, such as unsupported operations and training sub-graphs,
 the `--input` and `--output` parameters can be used, defining new inputs and outputs of the converted model.
 For a more detailed description, refer to [Cutting Off Parts of a Model](prepare_model/convert_model/Cutting_Model.md).
 
-Also, Model Optimizer can insert additional input pre-processing sub-graphs into the converted model.
-For this, there exist `--mean_values`, `scales_values`, `--layout`, and other parameters described
+Also, you can insert additional input pre-processing sub-graphs into the converted model using
+the `--mean_values`, `scales_values`, `--layout`, and other parameters described
 in [Embedding Preprocessing Computation](prepare_model/Additional_Optimizations.md).
 
 Model Optimizer provides compression parameter `--data_type` to generate IR of `FP16` data type. For more details,
