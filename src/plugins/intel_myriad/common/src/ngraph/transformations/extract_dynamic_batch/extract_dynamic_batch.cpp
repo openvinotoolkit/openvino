@@ -416,7 +416,7 @@ bool ExtractBatch::run_on_model(const std::shared_ptr<ngraph::Function>& functio
 
     Nodes sources;
     for (const auto& operation : function.get_ordered_ops()) {
-        if (targets.count(operation->get_type_info())) {
+        if (operation->is_dynamic() && targets.count(operation->get_type_info())) {
             sources.emplace(operation.get());
         }
     }
