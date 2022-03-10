@@ -8,7 +8,8 @@ import io
 from threading import Thread
 import numpy as np
 
-from openvino.runtime import Core, Model, AsyncInferQueue, opset8 as ops
+from openvino.runtime import Core, Model, AsyncInferQueue, PartialShape, Layout, Type, opset8 as ops
+from openvino.preprocess import PrePostProcessor
 from openvino.runtime.passes import Manager
 
 
@@ -186,3 +187,19 @@ def test_get_profiling_info():
 
 def test_query_state():
     check_gil_released_safe(request.query_state, [])
+
+
+# Preprocessing
+
+def test_pre_post_process_build():
+    p = PrePostProcessor(model)
+    p.input().model().set_layout(Layout("NC"))
+    check_gil_released_safe(p.build, [])
+
+
+def test_model_reshape():
+    check_gil_released_safe(model.reshape, [PartialShape([128, 128])])
+    check_gil_released_safe(model.reshape, [[164, 164]])
+    check_gil_released_safe(model.reshape, [(178, 178)])
+    check_gil_released_safe(model.reshape, ["194, 194"])
+    check_gil_released_safe(model.reshape, [{0: [224, 224]}])

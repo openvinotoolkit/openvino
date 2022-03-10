@@ -264,6 +264,7 @@ void regclass_graph_Model(py::module m) {
         [](ov::Model& self, const ov::PartialShape& partial_shape) {
             self.reshape(partial_shape);
         },
+        py::call_guard<py::gil_scoped_release>(),
         py::arg("partial_shape"),
         R"(
                 :param partial_shape: New shape.
@@ -274,7 +275,9 @@ void regclass_graph_Model(py::module m) {
     function.def(
         "reshape",
         [](ov::Model& self, const py::list& partial_shape) {
-            self.reshape(Common::partial_shape_from_list(partial_shape));
+            ov::PartialShape new_shape(Common::partial_shape_from_list(partial_shape));
+            py::gil_scoped_release release;
+            self.reshape(new_shape);
         },
         py::arg("partial_shape"),
         R"(
@@ -286,7 +289,9 @@ void regclass_graph_Model(py::module m) {
     function.def(
         "reshape",
         [](ov::Model& self, const py::tuple& partial_shape) {
-            self.reshape(Common::partial_shape_from_list(partial_shape.cast<py::list>()));
+            ov::PartialShape new_shape(Common::partial_shape_from_list(partial_shape.cast<py::list>()));
+            py::gil_scoped_release release;
+            self.reshape(new_shape);
         },
         py::arg("partial_shape"),
         R"(
@@ -300,6 +305,7 @@ void regclass_graph_Model(py::module m) {
         [](ov::Model& self, const std::string& partial_shape) {
             self.reshape(Common::partial_shape_from_str(partial_shape));
         },
+        py::call_guard<py::gil_scoped_release>(),
         py::arg("partial_shape"),
         R"(
                 :param partial_shape: New shape.
@@ -338,6 +344,7 @@ void regclass_graph_Model(py::module m) {
                 }
                 new_shapes.insert(new_shape);
             }
+            py::gil_scoped_release release;
             self.reshape(new_shapes);
         },
         py::arg("partial_shapes"),
