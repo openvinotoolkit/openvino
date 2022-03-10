@@ -82,8 +82,7 @@ Options:
                                 Use "-d MULTI:<comma-separated_devices_list>" format to specify MULTI plugin.
                                 Use "-d GPU.X" format to specify device id for GPU devices.
                                 The application looks for a suitable plugin for the specified device.
-    -l "<absolute_path>"        Required for CPU custom layers. Absolute path to a shared library with the kernels implementations.
-          Or
+    -extensions "<absolute_path>" Required for custom layers (extensions). Absolute path to a shared library with the kernels implementations.
     -c "<absolute_path>"        Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.
     -hint "performance hint (latency or throughput or none)"   Optional. Performance hint allows the OpenVINO device to select the right network-specific settings.
                                  'throughput' or 'tput': device performance mode will be set to THROUGHPUT.
