@@ -163,6 +163,7 @@ struct format {
         os_is_yx_osa2_isa8_osv16_isv4,
         is_os_yx_isa2_osa8_isv8_osv2,
         is_os_yx_isa4_osa8_isv8_osv4,
+        is_os_yx_isa8_osv8_isv2,
         is_o_yx_isv32,                                ///< format for weights for 1x1 MMAD convolutions
         is_o32_yx_isv32_swizzled_by_4,                ///< format for weights for 1x1 MMAD convolutions
         os_is_y_x8_osv8_isv4,                         ///< format for weights for 1x1 MMAD convolutions
