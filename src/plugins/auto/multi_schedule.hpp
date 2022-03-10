@@ -37,7 +37,7 @@ public:
         const std::vector<std::shared_ptr<const ov::Node>>& inputs,
         const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;
     void run(IE::Task inferTask) override;
-    void init(const Context::Ptr& context) override;
+    void init(const ScheduleContext::Ptr& sContext) override;
     Pipeline GetPipeline(const IInferPtr& syncRequestImpl,
         WorkerInferRequest** WorkerInferRequest) override;
     virtual ~MultiSchedule();
@@ -66,7 +66,7 @@ protected:
     DeviceMap<std::vector<WorkerInferRequest>> _workerRequests;
     mutable std::mutex _mutex;
     std::atomic_size_t  _numRequestsCreated = {0};
-    MultiContext::Ptr _multiContext;
+    MultiScheduleContext::Ptr _multiSContext;
 };
 
 struct IdleGuard {

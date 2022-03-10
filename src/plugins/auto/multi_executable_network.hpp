@@ -20,7 +20,7 @@ class MultiExecutableNetwork : public BaseExecutableNetwork {
 public:
     using Ptr = std::shared_ptr<MultiExecutableNetwork>;
 
-    explicit MultiExecutableNetwork(MultiContext::Ptr& context,
+    explicit MultiExecutableNetwork(MultiScheduleContext::Ptr& context,
         const MultiSchedule::Ptr& schedule);
 
     void SetConfig(const std::map<std::string, IE::Parameter>& config) override;
@@ -30,7 +30,7 @@ public:
     ~MultiExecutableNetwork() override;
 
 private:
-    MultiContext::Ptr                                           _multiContext;
+    MultiScheduleContext::Ptr _multiSContext;
 };
 
 }  // namespace MultiDevicePlugin

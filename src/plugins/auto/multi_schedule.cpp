@@ -15,10 +15,10 @@ thread_local WorkerInferRequest* MultiSchedule::_thisWorkerInferRequest =
 // TODO: revert to the plain variable (see header file), when we moved to the next CentOS 8.x in our support matrix
 thread_local const char* MultiSchedule::_thisPreferredDeviceName = "";
 
-void MultiSchedule::init(const Context::Ptr& context) {
-    Schedule::init(context);
-    _multiContext = std::dynamic_pointer_cast<MultiContext>(_context);
-    for (auto&& networkValue : _multiContext->_networksPerDevice) {
+void MultiSchedule::init(const ScheduleContext::Ptr& sContext) {
+    Schedule::init(sContext);
+    _multiSContext = std::dynamic_pointer_cast<MultiScheduleContext>(_sContext);
+    for (auto&& networkValue : _multiSContext->_networksPerDevice) {
         auto& device  = networkValue.first;
         auto& network = networkValue.second;
         GenerateWorkers(device, network);
@@ -34,7 +34,7 @@ Pipeline MultiSchedule::GetPipeline(const IInferPtr& syncInferRequest,
             /*task*/ [this, &syncInferRequest]() {
                 // by default, no preferred device:
                 _thisPreferredDeviceName = "";
-                auto execNetwork = _multiContext->_executableNetwork.lock();
+                auto execNetwork = _multiSContext->_executableNetwork.lock();
                 // if any input is remote (e.g. was set with SetBlob), let' use the corresponding device
                 for (const auto& it : execNetwork->GetInputsInfo()) {
                     auto b = syncInferRequest->GetBlob(it.first);
@@ -42,13 +42,13 @@ Pipeline MultiSchedule::GetPipeline(const IInferPtr& syncInferRequest,
                     if (r) {
                         const auto name = r->getDeviceName();
                         const auto res = std::find_if(
-                            _multiContext->_devicePrioritiesInitial.cbegin(),
-                            _multiContext->_devicePrioritiesInitial.cend(),
+                            _multiSContext->_devicePrioritiesInitial.cbegin(),
+                            _multiSContext->_devicePrioritiesInitial.cend(),
                         [&name](const MultiDevicePlugin::DeviceInformation & d) {
                             return (d.defaultDeviceID.empty() ? d.deviceName : (d.deviceName + "." +
                                     d.defaultDeviceID)) == name;
                         });
-                        if (_multiContext->_devicePrioritiesInitial.cend() == res) {
+                        if (_multiSContext->_devicePrioritiesInitial.cend() == res) {
                             IE_THROW() <<
                                 "None of the devices (for which current MULTI-device configuration was "
                                 "initialized) supports a remote blob created on the device named " << name;
@@ -79,7 +79,7 @@ Pipeline MultiSchedule::GetPipeline(const IInferPtr& syncInferRequest,
                 if (nullptr != (*workerInferRequest)->_exceptionPtr) {
                     std::rethrow_exception((*workerInferRequest)->_exceptionPtr);
                 }
-                if (_multiContext->_needPerfCounters) {
+                if (_multiSContext->_needPerfCounters) {
                     auto multiSyncInferRequest = std::dynamic_pointer_cast<MultiDeviceInferRequest>
                         (syncInferRequest);
                     multiSyncInferRequest->_perfMap =
@@ -93,8 +93,8 @@ Pipeline MultiSchedule::GetPipeline(const IInferPtr& syncInferRequest,
 
 void MultiSchedule::GenerateWorkers(const std::string& device,
     const SoExecNetwork& executableNetwork) {
-    auto itNumRequests = std::find_if(_multiContext->_devicePriorities.cbegin(),
-            _multiContext->_devicePriorities.cend(),
+    auto itNumRequests = std::find_if(_multiSContext->_devicePriorities.cbegin(),
+            _multiSContext->_devicePriorities.cend(),
     [&device](const DeviceInformation & d) {
         return d.deviceName == device;
     });
@@ -109,7 +109,7 @@ void MultiSchedule::GenerateWorkers(const std::string& device,
                     << "Failed to query the metric for the " << device << " with error:" <<
                     iie.what();
     }
-    const auto numRequests = (_multiContext->_devicePriorities.end() ==
+    const auto numRequests = (_multiSContext->_devicePriorities.end() ==
             itNumRequests ||
             itNumRequests->numRequestsPerDevices == -1) ? optimalNum :
         itNumRequests->numRequestsPerDevices;
@@ -156,8 +156,8 @@ void MultiSchedule::ScheduleToWorkerInferRequest(IE::Task inferPipelineTask,
     DeviceName preferred_device) {
     std::vector<DeviceInformation> devices;
     devices = [&] {
-        std::lock_guard<std::mutex> lock(_multiContext->_mutex);
-        return _multiContext->_devicePriorities;
+        std::lock_guard<std::mutex> lock(_multiSContext->_mutex);
+        return _multiSContext->_devicePriorities;
     }();
     for (auto&& device : devices) {
         if (!preferred_device.empty() && (device.deviceName != preferred_device)) {
@@ -203,8 +203,8 @@ void MultiSchedule::run(IE::Task inferPipelineTask) {
 
 MultiSchedule::~MultiSchedule() {
     {
-        std::lock_guard<std::mutex> lock(_multiContext->_mutex);
-        _multiContext->_devicePriorities.clear();
+        std::lock_guard<std::mutex> lock(_multiSContext->_mutex);
+        _multiSContext->_devicePriorities.clear();
     }
     /* NOTE: The only threads that use `MultiSchedule` worker infer requests' threads.
      *       But AsyncInferRequest destructor should wait for all asynchronous tasks by the request
@@ -232,7 +232,7 @@ IE::IInferRequestInternal::Ptr MultiSchedule::CreateInferRequestImpl(
     IE::RemoteContext::Ptr ctx = nullptr;
     // borrowing device-specific blobs from the underlying requests for the device-agnostic, user-facing requests
     // this allows to potentially save on the data-copy later (if the requests are scheduled in the same order)
-    for (const auto& device : _multiContext->_devicePrioritiesInitial) {
+    for (const auto& device : _multiSContext->_devicePrioritiesInitial) {
         auto& dev_requests = _workerRequests[device.deviceName];
         if ((num - sum) < dev_requests.size()) {
             request_to_share_blobs_with = dev_requests.at(num - sum)._inferRequest;
@@ -253,7 +253,7 @@ MultiSchedule::CreateInferRequestImpl(IE::InputsDataMap networkInputs,
     IE::RemoteContext::Ptr ctx = nullptr;
     // borrowing device-specific blobs from the underlying requests for the device-agnostic, user-facing requests
     // this allows to potentially save on the data-copy later (if the requests are scheduled in the same order)
-    for (const auto& device : _multiContext->_devicePrioritiesInitial) {
+    for (const auto& device : _multiSContext->_devicePrioritiesInitial) {
         auto& dev_requests = _workerRequests[device.deviceName];
         if ((num - sum) < dev_requests.size()) {
             request_to_share_blobs_with = dev_requests.at(num - sum)._inferRequest;
@@ -268,8 +268,8 @@ MultiSchedule::CreateInferRequestImpl(IE::InputsDataMap networkInputs,
 IInferPtr MultiSchedule::CreateInferRequest() {
     IInferPtr syncRequestImpl;
     auto execNetwork = std::dynamic_pointer_cast<MultiExecutableNetwork>(
-            _multiContext->_executableNetwork.lock());
-    if (_multiContext->_core && _multiContext->_core->isNewAPI())
+            _multiSContext->_executableNetwork.lock());
+    if (_multiSContext->_core && _multiSContext->_core->isNewAPI())
         syncRequestImpl = CreateInferRequestImpl(execNetwork->_parameters,
                 execNetwork->_results);
     if (!syncRequestImpl)

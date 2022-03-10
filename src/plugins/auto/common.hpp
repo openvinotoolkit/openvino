@@ -49,30 +49,30 @@ struct DeviceInformation {
     unsigned int devicePriority;
 };
 
-class Context : public std::enable_shared_from_this<Context>  {
+class ScheduleContext : public std::enable_shared_from_this<ScheduleContext> {
 public:
-    using Ptr = std::shared_ptr<Context>;
+    using Ptr = std::shared_ptr<ScheduleContext>;
     std::shared_ptr<IE::ICore> _core;
     std::weak_ptr<IExecNetwork> _executableNetwork;
-    virtual ~Context() = default;
+    virtual ~ScheduleContext() = default;
 };
 
-class MultiContext : public Context {
+class MultiScheduleContext : public ScheduleContext {
 public:
-    using Ptr = std::shared_ptr<MultiContext>;
+    using Ptr = std::shared_ptr<MultiScheduleContext>;
     std::vector<DeviceInformation>  _devicePriorities;
     std::vector<DeviceInformation>  _devicePrioritiesInitial;
     std::unordered_map<std::string, IE::Parameter> _config;
     DeviceMap<SoExecNetwork> _networksPerDevice;
     std::mutex _mutex;
     bool _needPerfCounters;
-    virtual ~MultiContext() = default;
+    virtual ~MultiScheduleContext() = default;
 };
 
 class MultiDeviceInferencePlugin;
-class AutoContext : public MultiContext {
+class AutoScheduleContext : public MultiScheduleContext {
 public:
-    using Ptr = std::shared_ptr<AutoContext>;
+    using Ptr = std::shared_ptr<AutoScheduleContext>;
     std::string _modelPath;
     IE::CNNNetwork _network;
     std::string _strDevices;
@@ -80,7 +80,7 @@ public:
     bool _batchingDisabled = {false};
     std::mutex _confMutex;
     MultiDeviceInferencePlugin* _plugin;
-    virtual ~AutoContext() = default;
+    virtual ~AutoScheduleContext() = default;
 };
 
 struct WorkerInferRequest {

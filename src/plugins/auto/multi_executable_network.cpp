@@ -7,23 +7,24 @@
 #include "plugin.hpp"
 // ------------------------------MultiExecutableNetwork----------------------------
 namespace MultiDevicePlugin {
-MultiExecutableNetwork::MultiExecutableNetwork(MultiContext::Ptr& context,
+MultiExecutableNetwork::MultiExecutableNetwork(MultiScheduleContext::Ptr&
+    context,
     const MultiSchedule::Ptr& schedule):
     BaseExecutableNetwork(schedule, context) {
-    _schedule->init(_context);
-    _multiContext = std::dynamic_pointer_cast<MultiContext>(_context);
+    _schedule->init(_sContext);
+    _multiSContext = std::dynamic_pointer_cast<MultiScheduleContext>(_sContext);
 }
 
 MultiExecutableNetwork::~MultiExecutableNetwork() {}
 std::shared_ptr<IE::RemoteContext> MultiExecutableNetwork::GetContext() const {
     auto devices = [&] {
-        std::lock_guard<std::mutex> lock(_multiContext->_mutex);
-        return _multiContext->_devicePriorities;
+        std::lock_guard<std::mutex> lock(_multiSContext->_mutex);
+        return _multiSContext->_devicePriorities;
     }();
     std::string devices_names;
     for (auto&& device : devices) {
         devices_names += device.deviceName + " ";
-        const auto& n  = _multiContext->_networksPerDevice.at(device.deviceName);
+        const auto& n  = _multiSContext->_networksPerDevice.at(device.deviceName);
         try {
             return n->GetContext();
         } catch (const IE::NotImplemented&) {}
@@ -55,19 +56,19 @@ void MultiExecutableNetwork::SetConfig(const
                 << " with the Network's SetConfig(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES!";
         }
         {
-            std::lock_guard<std::mutex> lock{_multiContext->_mutex};
+            std::lock_guard<std::mutex> lock{_multiSContext->_mutex};
             for (auto&& device : metaDevices) {
-                if (_multiContext->_networksPerDevice.find(device.deviceName) ==
-                    _multiContext->_networksPerDevice.end()) {
+                if (_multiSContext->_networksPerDevice.find(device.deviceName) ==
+                    _multiSContext->_networksPerDevice.end()) {
                     IE_THROW(NotFound) <<
                         "You can only change device priorities but not add new devices with"
                         << " the Network's SetConfig(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES. "
                         << device.deviceName << " device was not in the original device list!";
                 }
             }
-            _multiContext->_devicePriorities = metaDevices;
+            _multiSContext->_devicePriorities = metaDevices;
             // update value in config
-            _multiContext->_config[IE::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES]
+            _multiSContext->_config[IE::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES]
                 = priorities->second;
         }
     }
@@ -75,13 +76,13 @@ void MultiExecutableNetwork::SetConfig(const
 
 IE::Parameter MultiExecutableNetwork::GetConfig(const std::string& name) const {
     {
-        auto it = _multiContext->_config.find(name);
-        if (it != _multiContext->_config.end()) {
+        auto it = _multiSContext->_config.find(name);
+        if (it != _multiSContext->_config.end()) {
             return it->second;
         }
     }
     // find config key among networks config keys
-    for (const auto& desc : _multiContext->_networksPerDevice) {
+    for (const auto& desc : _multiSContext->_networksPerDevice) {
         const auto& execNetwork = desc.second;
         auto param = execNetwork->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
         for (auto&& configKey : param.as<std::vector<std::string>>()) {
@@ -108,7 +109,7 @@ IE::Parameter MultiExecutableNetwork::GetMetric(const std::string& name) const {
         };
     } else if (name == ov::optimal_number_of_infer_requests) {
         unsigned int res = 0u;
-        for (auto n : _multiContext->_networksPerDevice) {
+        for (auto n : _multiSContext->_networksPerDevice) {
             try {
                 res += n.second->GetMetric(METRIC_KEY(
                             OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
@@ -122,8 +123,8 @@ IE::Parameter MultiExecutableNetwork::GetMetric(const std::string& name) const {
         }
         return decltype(ov::optimal_number_of_infer_requests)::value_type {res};
     } else if (name == ov::model_name) {
-        auto it = _multiContext->_networksPerDevice.begin();
-        IE_ASSERT(it != _multiContext->_networksPerDevice.end());
+        auto it = _multiSContext->_networksPerDevice.begin();
+        IE_ASSERT(it != _multiSContext->_networksPerDevice.end());
         return decltype(ov::model_name)::value_type {it->second->GetMetric(METRIC_KEY(NETWORK_NAME)).as<std::string>()};
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, {

@@ -24,7 +24,7 @@ class AutoExecutableNetwork : public BaseExecutableNetwork {
 public:
     using Ptr = std::shared_ptr<AutoExecutableNetwork>;
 
-    explicit AutoExecutableNetwork(AutoContext::Ptr& context,
+    explicit AutoExecutableNetwork(AutoScheduleContext::Ptr& context,
         const AutoSchedule::Ptr& schedule);
 
     void SetConfig(const std::map<std::string, IE::Parameter>& config) override;
@@ -34,7 +34,7 @@ public:
     virtual ~AutoExecutableNetwork() = default;
 
 private:
-    AutoContext::Ptr _autoContext;
+    AutoScheduleContext::Ptr _autoSContext;
     AutoSchedule::Ptr _autoSchedule;
 };
 }  // namespace MultiDevicePlugin

@@ -27,13 +27,13 @@ public:
         const std::vector<std::shared_ptr<const ov::Node>>& inputs,
         const std::vector<std::shared_ptr<const ov::Node>>& outputs);
     virtual void release();
-    virtual void init(const Context::Ptr& context);
+    virtual void init(const ScheduleContext::Ptr& context);
     virtual Pipeline GetPipeline(const IInferPtr& syncRequestImpl,
         WorkerInferRequest** WorkerInferRequest);
     virtual ~Schedule() = default;
 
 protected:
-    Context::Ptr _context;
+    ScheduleContext::Ptr _sContext;
 };
 
 }  // namespace MultiDevicePlugin

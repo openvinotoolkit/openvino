@@ -5,7 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "base_schedule.hpp"
 
-// ------------------------------MultiDeviceExecutableNetwork----------------------------
+// ------------------------------Schedule----------------------------
 namespace MultiDevicePlugin {
 
 IInferPtr Schedule::CreateInferRequest() {
@@ -23,8 +23,8 @@ IInferPtr Schedule::CreateInferRequestImpl(const
 void Schedule::release() {
 }
 
-void Schedule::init(const Context::Ptr& context) {
-    _context = context;
+void Schedule::init(const ScheduleContext::Ptr& context) {
+    _sContext = context;
 }
 
 Pipeline Schedule::GetPipeline(const IInferPtr& syncRequestImpl,

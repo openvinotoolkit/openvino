@@ -41,7 +41,7 @@ enum AutoLoadContextIndex {
 class AutoSchedule : public MultiSchedule {
 public:
     using Ptr = std::shared_ptr<AutoSchedule>;
-    void init(const Context::Ptr& context) override;
+    void init(const ScheduleContext::Ptr& sContext) override;
     IInferPtr CreateInferRequest() override;
     IInferPtr CreateInferRequestImpl(
         IE::InputsDataMap networkInputs,
@@ -76,7 +76,7 @@ private:
     bool                                     _exitFlag = {false};
     int                                      _cpuHelpInferCount = 0;
     std::atomic_size_t                       _numRequestsCreated = {0};
-    AutoContext::Ptr                         _autoContext;
+    AutoScheduleContext::Ptr                 _autoSContext;
 };
 
 }  // namespace MultiDevicePlugin

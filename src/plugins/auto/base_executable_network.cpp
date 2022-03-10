@@ -9,9 +9,9 @@ namespace MultiDevicePlugin {
 using namespace InferenceEngine;
 
 BaseExecutableNetwork::BaseExecutableNetwork(const Schedule::Ptr& schedule,
-    const Context::Ptr& context):
+    const ScheduleContext::Ptr& sContext):
     _schedule(schedule),
-    _context(context) {
+    _sContext(sContext) {
     //_executableNetwork = _schedule->GetExecNetwork();
 }
 BaseExecutableNetwork::~BaseExecutableNetwork() {
@@ -59,7 +59,7 @@ void BaseExecutableNetwork::SetExeNetworkForContext() {
     // Maybe different API will call this function, so add call once here
     // for every AutoSchedule instance
     std::call_once(_oc, [this]() {
-        _context->_executableNetwork = shared_from_this();
+        _sContext->_executableNetwork = shared_from_this();
     });
 }
 }  // namespace MultiDevicePlugin

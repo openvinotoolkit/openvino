@@ -212,9 +212,9 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetConfig(const std::stri
 }
 
 void MultiDeviceInferencePlugin::SetConfig(const std::map<std::string, std::string> & config) {
-    auto context = std::make_shared<AutoContext>();
+    auto autoSContext = std::make_shared<AutoScheduleContext>();
     std::map<std::string, std::string> filterConfig;
-    CheckConfig(config, context, filterConfig);
+    CheckConfig(config, autoSContext, filterConfig);
     for (auto && kvp : config) {
         const auto& name = kvp.first;
         _config[name] = kvp.second;
@@ -312,9 +312,9 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         // and set filter configure
 
         OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl::AutoMode");
-        auto autoContext = std::make_shared<AutoContext>();
+        auto autoSContext = std::make_shared<AutoScheduleContext>();
         std::map<std::string, std::string> filterConfig;
-        CheckConfig(fullConfig, autoContext, filterConfig);
+        CheckConfig(fullConfig, autoSContext, filterConfig);
         // filter the device that supports filter configure
         auto strDevices = GetDeviceList(fullConfig);
         auto metaDevices = ParseMetaDevices(strDevices, fullConfig);
@@ -349,14 +349,14 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
              strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
              LOG_INFO("[AUTOPLUGIN]:device:%s, priority:%ld", iter->deviceName.c_str(), iter->devicePriority);
         }
-        autoContext->_modelPath = modelPath;
-        autoContext->_network = network;
-        autoContext->_devicePriorities = supportDevices;
-        autoContext->_devicePrioritiesInitial = supportDevices;
-        autoContext->_strDevices = strDevices;
-        autoContext->_plugin = this;
-        autoContext->_core = GetCore();
-        return std::make_shared<AutoExecutableNetwork>(autoContext, std::make_shared<AutoSchedule>());
+        autoSContext->_modelPath = modelPath;
+        autoSContext->_network = network;
+        autoSContext->_devicePriorities = supportDevices;
+        autoSContext->_devicePrioritiesInitial = supportDevices;
+        autoSContext->_strDevices = strDevices;
+        autoSContext->_plugin = this;
+        autoSContext->_core = GetCore();
+        return std::make_shared<AutoExecutableNetwork>(autoSContext, std::make_shared<AutoSchedule>());
     }
     OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl:MultiMode");
     if (priorities == fullConfig.end()) {
@@ -412,14 +412,14 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     }
     // MULTI can enable the perf counters only if all  devices support/enable that
     bool enablePerfCounters = num_plugins_supporting_perf_counters == executableNetworkPerDevice.size();
-    auto multiContext = std::make_shared<MultiContext>();
-    multiContext->_devicePriorities = metaDevices;
-    multiContext->_devicePrioritiesInitial = metaDevices;
-    multiContext->_networksPerDevice = executableNetworkPerDevice;
-    multiContext->_config = multiNetworkConfig;
-    multiContext->_needPerfCounters = enablePerfCounters;
-    multiContext->_core = GetCore();
-    auto impl = std::make_shared<MultiExecutableNetwork>(multiContext, std::make_shared<MultiSchedule>());
+    auto multiSContext = std::make_shared<MultiScheduleContext>();
+    multiSContext->_devicePriorities = metaDevices;
+    multiSContext->_devicePrioritiesInitial = metaDevices;
+    multiSContext->_networksPerDevice = executableNetworkPerDevice;
+    multiSContext->_config = multiNetworkConfig;
+    multiSContext->_needPerfCounters = enablePerfCounters;
+    multiSContext->_core = GetCore();
+    auto impl = std::make_shared<MultiExecutableNetwork>(multiSContext, std::make_shared<MultiSchedule>());
     if (!modelPath.empty()) {
         SetExeNetworkInfo(impl,
                           executableNetworkPerDevice.begin()->second->GetInputsInfo(),
@@ -628,7 +628,7 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
 }
 
 void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::string>& config,
-        AutoContext::Ptr& context, std::map<std::string, std::string>& filterConfig) {
+        AutoScheduleContext::Ptr& context, std::map<std::string, std::string>& filterConfig) {
     // TODO need to optimize this code, too much duplicated code
 
     const auto perf_hints_configs = PerfHintsConfig::SupportedKeys();

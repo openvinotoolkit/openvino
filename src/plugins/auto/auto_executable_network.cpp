@@ -8,11 +8,11 @@
 // ------------------------------AutoExecutableNetwork----------------------------
 //
 namespace MultiDevicePlugin {
-AutoExecutableNetwork::AutoExecutableNetwork(AutoContext::Ptr& context,
+AutoExecutableNetwork::AutoExecutableNetwork(AutoScheduleContext::Ptr& context,
     const AutoSchedule::Ptr& schedule):
     BaseExecutableNetwork(schedule, context) {
-    _schedule->init(_context);
-    _autoContext = std::dynamic_pointer_cast<AutoContext>(_context);
+    _schedule->init(_sContext);
+    _autoSContext = std::dynamic_pointer_cast<AutoScheduleContext>(_sContext);
     _autoSchedule = std::dynamic_pointer_cast<AutoSchedule>(_schedule);
 }
 
@@ -28,9 +28,9 @@ void AutoExecutableNetwork::SetConfig(const std::map<std::string, IE::Parameter>
 
 IE::Parameter AutoExecutableNetwork::GetConfig(const std::string& name) const {
     {
-        std::lock_guard<std::mutex> lock(_autoContext->_confMutex);
-        auto it = _autoContext->_config.find(name);
-        if (it != _autoContext->_config.end()) {
+        std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
+        auto it = _autoSContext->_config.find(name);
+        if (it != _autoSContext->_config.end()) {
             return it->second;
         }
     }
@@ -49,11 +49,11 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
             ov::PropertyName{ov::device::priorities.name(), ov::PropertyMutability::RO}
         };
     } else if (name == ov::device::priorities) {
-        auto value = _autoContext->_config.find(ov::device::priorities.name());
+        auto value = _autoSContext->_config.find(ov::device::priorities.name());
         return decltype(ov::device::priorities)::value_type {value->second.as<std::string>()};
     } else if (name == ov::hint::model_priority) {
-        auto value = _autoContext->_modelPriority;
-        if (_autoContext->_core->isNewAPI()) {
+        auto value = _autoSContext->_modelPriority;
+        if (_autoSContext->_core->isNewAPI()) {
             return value ? ((value > 1) ? ov::hint::Priority::LOW :
                     ov::hint::Priority::MEDIUM) : ov::hint::Priority::HIGH;
         } else {
@@ -69,7 +69,7 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
                 executableNetwork->GetMetric(name).as<unsigned int>();
         } else {
             IE_ASSERT(_autoSchedule->_loadContext[CPU].isAlready == true);
-            std::unique_lock<std::mutex> lock(_autoContext->_confMutex);
+            std::unique_lock<std::mutex> lock(_autoSContext->_confMutex);
             auto deviceInfo = _autoSchedule->_loadContext[ACTUALDEVICE].deviceInfo;
             lock.unlock();
             unsigned int optimalBatchSize = 0;
@@ -79,7 +79,7 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
                 // for benchmark through AUTO:CPU,GPU
                 // SetConfig directly set to CPU/GPU in this case
                 bThroughputEnabledInPlugin =
-                    _autoContext->_core->GetConfig(deviceInfo.deviceName,
+                    _autoSContext->_core->GetConfig(deviceInfo.deviceName,
                         CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() == CONFIG_VALUE(THROUGHPUT);
             } catch (...) {
                 LOG_DEBUG("[AUTOPLUGIN]GetMetric:%s for %s", "PERF_HINT config not supported",
@@ -91,18 +91,18 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
                 unsigned int upperBoundStreamsNum = 0;
                 std::map<std::string, IE::Parameter> options;
                 options["MODEL_PTR"] = std::const_pointer_cast<ngraph::Function>
-                    (_autoContext->_network.getFunction());
+                    (_autoSContext->_network.getFunction());
                 try {
-                    auto rangeOfStreams = _autoContext->_core->GetMetric(deviceInfo.deviceName,
+                    auto rangeOfStreams = _autoSContext->_core->GetMetric(deviceInfo.deviceName,
                             METRIC_KEY(RANGE_FOR_STREAMS),
                             options).as<std::tuple<unsigned int, unsigned int>>();
                     upperBoundStreamsNum = std::get<1>(rangeOfStreams);
                 } catch (const IE::Exception& iie) {
                     LOG_DEBUG("[AUTOPLUGIN] GetMetric RANGE_FOR_STREAMS failed");
                 }
-                if (!_autoContext->_batchingDisabled) {
+                if (!_autoSContext->_batchingDisabled) {
                     try {
-                        optimalBatchSize = _autoContext->_core->GetMetric(deviceInfo.deviceName,
+                        optimalBatchSize = _autoSContext->_core->GetMetric(deviceInfo.deviceName,
                                 METRIC_KEY(OPTIMAL_BATCH_SIZE), options).as<unsigned int>();
                         LOG_DEBUG("[AUTOPLUGIN]BATCHING:%s:%ld", "optimal batch size",
                             optimalBatchSize);
@@ -116,7 +116,7 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
                     try {
                         // check if app have set preferred value
                         auto res =
-                            _autoContext->_core->GetConfig(deviceInfo.deviceName,
+                            _autoSContext->_core->GetConfig(deviceInfo.deviceName,
                                 CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)).as<std::string>();
                         requests = IE::PerfHintsConfig::CheckPerformanceHintRequestValue(res);
                         const auto& reqs = deviceInfo.config.find(CONFIG_KEY(
