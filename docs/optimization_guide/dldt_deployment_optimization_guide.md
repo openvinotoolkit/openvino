@@ -8,8 +8,19 @@
    
 @endsphinxdirective
 
-As explained in the general [parent topic](./dldt_optimization_guide.md), there are model and runtime level optimizations. 
-This document explains how to optimize your _runtime_ inference performance with the following options: 
+Runtime or deployment optimizations focus is inference parameters (e.g. optimal number of the inference requests executed simultaneously) tuning and other means of how a model is _executed_. 
+
+Here, possible optimization should start with defining the use-case. For example, whether the target scenario emphasizes throughput over latency. For example processing millions of samples by overnight jobs in the data centers.
+In contrast, real-time usages would likely trade off the throughput to deliver the results at minimal latency. 
+Often this is a combined scenario that targets highest possible throughput while maintaining a specific latency threshold.
+
+Each of the [OpenVINO supported devices](../OV_Runtime_UG/supported_plugins/Device_Plugins.md) offers low-level performance configuration. This allows to leverage the optimal model performance on the _specific_ device, but may require careful re-tuning when the model or device has changed.
+**If the performance portability is of concern, consider using the [OpenVINO High-Level Performance Hints](../OV_Runtime_UG/performance_hints.md) first.**  
+
+Finally, how the full-stack application uses the inference component _end-to-end_ is important.  
+For example, what are the stages that needs to be orchestrated? In some cases a significant part of the workload time is spent on bringing and preparing the input data. Here the asynchronous inference should  increases performance by overlapping the compute with inputs population. Also, in many cases the (image) pre-processing can be offloaded to the OpenVINO. For variably-sized inputs, consider [dynamic shapes](../OV_Runtime_UG/ov_dynamic_shapes.md) to efficiently connect the data input pipeline and the model inference.
+
+The rest of the document explains how to optimize your _runtime_ performance with the following options: 
 
 * Inputs Pre-processing with the OpenVINO
 
@@ -56,7 +67,7 @@ So each time you start inference requests (potentially from different applicatio
 If there is a vacant stream, it pops the request from the queue and actually expedites that to the on-device execution.
 
 ### Throughput on the CPU: Internals <a name="cpu-streams"></a>
-In order to best serve multiple inference requests simultaneously, the inference threads are grouped/pinned to the particular CPU cores, constituting execution "streams".
+In order to best serve multiple inference requests simultaneously, the inference threads are grouped/pinned to the particular CPU cores, constituting the CPU streams.
 This provides much better performance for the networks than batching especially for the many-core machines:
 ![](../img/cpu_streams_explained_1.png)
 
