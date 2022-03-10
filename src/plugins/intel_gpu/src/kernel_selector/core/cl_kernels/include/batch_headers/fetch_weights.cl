@@ -419,6 +419,32 @@ inline uint get_giy_xs_os_xsv2_osv_index(uint g, uint o, uint i, uint y, uint x,
         CAT(prefix, _OFFSET),                                                   \
         sub_group_size)
 
+inline uint get_is_os_yx_isa8_osv8_isv2_index(uint o, uint i, uint y, uint x, uint size_x, uint size_y, uint size_ifm, uint size_ofm, uint offset)
+{
+    const uint f_16_aligned = ((size_ifm + 15)/16) * 16;
+	const uint isv2_idx = i % 2;
+	const uint osv_idx = o % 8;
+	const uint isv1_idx = (i / 2) % 8;
+	const uint is_idx = i / 16;
+	const uint os_idx = o / 8;
+
+	size_t idx = offset + isv2_idx + 2 * (osv_idx + 8 * isv1_idx);
+	idx += x * 2 * 8 * 8;
+	idx += y * size_x * 2 * 8 * 8;
+	idx += is_idx * size_y * size_x * 2 * 8 * 8;
+	idx += os_idx * (f_16_aligned/16) * size_y * size_x * 2 * 8 * 8;
+
+    return idx;
+}
+
+#define GET_FILTER_IS_OS_YX_ISA8_OSV8_ISV2_INDEX(prefix, o, i, y, x) \
+    get_is_os_yx_isa8_osv8_isv2_index(                    \
+        o, i, y, x, CAT(prefix, _SIZE_X ),                           \
+        CAT(prefix, _SIZE_Y),                                        \
+        CAT(prefix, _IFM_NUM),                                       \
+        CAT(prefix, _OFM_NUM),                                       \
+        CAT(prefix, _OFFSET))
+
 inline uint get_os_is_yx_isa8_osv8_isv4_index(uint o, uint i, uint y, uint x, uint size_x, uint size_y, uint size_ifm, uint size_ofm, uint offset)
 {
     const uint f_32_aligned = ((size_ifm + 31)/32) * 32;
