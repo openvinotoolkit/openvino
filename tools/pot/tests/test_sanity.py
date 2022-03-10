@@ -54,7 +54,9 @@ TEST_MODELS = [
     ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 1, {'recall': 0.76, 'map': 0.6844}, {}, 'CPU'),
 
     ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 2, {'recall': 0.76, 'map': 0.6638},
-     {'use_fast_bias': False}, 'CPU')
+     {'use_fast_bias': False}, 'CPU'),
+    ('octave-resnet-26-0.25', 'mxnet', 'DefaultQuantization', 'performance', 300,
+     {'accuracy@top1': 0.766, 'accuracy@top5': 0.927}, {'use_fast_bias': False}, 'CPU'),
 ]
 CASCADE_MAP = Dict({
     'mtcnn': {
