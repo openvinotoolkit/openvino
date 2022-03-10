@@ -222,11 +222,11 @@ To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalli
       
    To learn more about converting models from specific frameworks, go to:
       
-   * [Convert Your Caffe Model](@ref openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe)
-   * [Convert Your TensorFlow Model](@ref openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow)
-   * [Convert Your MXNet Model](@ref openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet)
-   * [Convert Your Kaldi Model](@ref openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi)
-   * [Convert Your ONNX Model](@ref openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX)
+   * :ref:`Convert Your Caffe Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe>`
+   * :ref:`Convert Your TensorFlow Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>`
+   * :ref:`Convert Your MXNet Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet>`
+   * :ref:`Convert Your Kaldi Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi>`
+   * :ref:`Convert Your ONNX Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX>`
       
    .. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
 

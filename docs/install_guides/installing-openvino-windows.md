@@ -114,13 +114,18 @@ The environment variables are set. Next, you can download some additional tools.
       
    There are three ways to run the script:
    
-   a. GUI: right-click the script and select ``Run with PowerShell``
+   a. GUI: right-click the script and select ``Run with PowerShell``.
       
-   b. Command prompt (CMD) console::
+   b. Command prompt (CMD) console:
+   
+   .. code-block:: sh
    
       powershell <INSTALL_DIR>\extras\scripts\download_opencv.ps1
-         
-   c. PowerShell console::
+      
+      
+   c. PowerShell console:
+   
+   .. code-block:: sh
    
       .\<INSTALL_DIR>\scripts\download_opencv.ps1 
       
@@ -173,11 +178,11 @@ To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalli
       
    To learn more about converting models from specific frameworks, go to:
       
-   * [Convert Your Caffe Model](@ref openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe)
-   * [Convert Your TensorFlow Model](@ref openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow)
-   * [Convert Your MXNet Model](@ref openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet)
-   * [Convert Your Kaldi Model](@ref openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi)
-   * [Convert Your ONNX Model](@ref openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX)
+   * :ref:`Convert Your Caffe Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe>`
+   * :ref:`Convert Your TensorFlow Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>`
+   * :ref:`Convert Your MXNet Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet>`
+   * :ref:`Convert Your Kaldi Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi>`
+   * :ref:`Convert Your ONNX Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX>`
       
    .. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
 
