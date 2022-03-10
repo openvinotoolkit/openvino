@@ -6,16 +6,28 @@ This guide provides device specifics for a Docker* image creation with Intel® D
 
 ## System Requirements
 
-**Target Operating Systems**
+@sphinxdirective
 
-- Ubuntu\* 18.04 long-term support (LTS), 64-bit
-- Ubuntu\* 20.04 long-term support (LTS), 64-bit
-- CentOS\* 7
-- Red Hat\* Enterprise Linux* 8 (64 bit)
+.. tab:: Target Operating Systems with Python Version
+  
+  +----------------------------------------------+--------------------------+
+  | Operating System                             | Supported Python Version |
+  +==============================================+==========================+
+  | Ubuntu 18.04 long-term support (LTS), 64-bit |  3.6                     |
+  +----------------------------------------------+--------------------------+
+  | Ubuntu 20.04 long-term support (LTS), 64-bit |  3.8                     |
+  +----------------------------------------------+--------------------------+
+  | CentOS 7                                     |                          |
+  +----------------------------------------------+--------------------------+
+  | Red Hat Enterprise Linux 8, 64-bit           |  3.6                     |
+  +----------------------------------------------+--------------------------+
 
-**Host Operating Systems**
+.. tab:: Host Operating System
 
-- Linux
+  * Linux
+
+@endsphinxdirective
+
 
 ## Prebuilt images
 
