@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace opset1 {
 // clang-format off
 /// \brief Elementwise sine operation.
 ///
@@ -41,6 +41,16 @@ public:
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 };
-}  // namespace v0
+}  // namespace opset1
+
+namespace v0 {
+
+using opset1::Sin;
+
+}
 }  // namespace op
 }  // namespace ov
+
+#define OPERATION_DEFINED_Sin 1
+#include "openvino/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_Sin

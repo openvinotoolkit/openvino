@@ -10,8 +10,8 @@
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/builder/split.hpp"
 #include "ngraph/op/util/recurrent_sequence.hpp"
-#include "ngraph/opsets/opset1.hpp"
 #include "ngraph/opsets/opset4.hpp"
+#include "openvino/opsets/opset1.hpp"
 
 using namespace ngraph;
 using namespace std;
@@ -156,17 +156,17 @@ shared_ptr<Node> op::v0::LSTMSequence::get_masked_node(const Output<Node>& data,
     Output<Node> mask_value = default_value;
     // Create zero mask value node.
     if (!mask_value.get_node_shared_ptr()) {
-        mask_value = opset1::Constant::create(data.get_element_type(),
-                                              data.get_shape(),
-                                              vector<float>(shape_size(data.get_shape()), 0.f));
+        mask_value = ov::opset1::Constant::create(data.get_element_type(),
+                                                  data.get_shape(),
+                                                  vector<float>(shape_size(data.get_shape()), 0.f));
     }
 
     // Create predicate nodes. The condition is whether current time step value
     // is greater than sequence length for respective batch inputs.
     shared_ptr<Node> curr_time_step_node =
-        opset1::Constant::create(element::i32,
-                                 data.get_shape(),
-                                 vector<int32_t>(shape_size(data.get_shape()), time_step));
+        ov::opset1::Constant::create(element::i32,
+                                     data.get_shape(),
+                                     vector<int32_t>(shape_size(data.get_shape()), time_step));
 
     Output<Node> batch_seq_length =
         builder::opset1::legacy_broadcast_for_binary_operation(curr_time_step_node,
@@ -174,11 +174,11 @@ shared_ptr<Node> op::v0::LSTMSequence::get_masked_node(const Output<Node>& data,
                                                                batch_axis);
 
     // Create mask node deciding whether or not to mask batch data.
-    shared_ptr<Node> mask_condition = make_shared<opset1::Greater>(curr_time_step_node, batch_seq_length);
+    shared_ptr<Node> mask_condition = make_shared<ov::opset1::Greater>(curr_time_step_node, batch_seq_length);
 
     // Select values depnding on mask_condition.
     // Select(<condition>, <true_value>, <false_value>)
-    return make_shared<opset1::Select>(mask_condition, mask_value, data);
+    return make_shared<ov::opset1::Select>(mask_condition, mask_value, data);
 }
 
 OutputVector op::v0::LSTMSequence::lstm_pass(bool is_reverse) const {
@@ -213,7 +213,7 @@ OutputVector op::v0::LSTMSequence::lstm_pass(bool is_reverse) const {
     shared_ptr<Node> P = prepare_input(input_value(7), is_reverse);
 
     if (is_reverse) {
-        X = make_shared<opset1::ReverseSequence>(X, seq_lengths, 0 /*batch_axis*/, 1 /*seq_axis*/);
+        X = make_shared<ov::opset1::ReverseSequence>(X, seq_lengths, 0 /*batch_axis*/, 1 /*seq_axis*/);
     }
 
     OutputVector in_seqs = builder::opset1::split(X, X->get_shape().at(1), 1);
@@ -225,20 +225,20 @@ OutputVector op::v0::LSTMSequence::lstm_pass(bool is_reverse) const {
 
     int32_t time_step{1};
     for (const auto& in_x : in_seqs) {
-        shared_ptr<Node> lstm_cell = make_shared<opset1::LSTMCell>(in_x,
-                                                                   H_t,
-                                                                   C_t,
-                                                                   W,
-                                                                   R,
-                                                                   B,
-                                                                   P,
-                                                                   m_hidden_size,
-                                                                   m_weights_format,
-                                                                   m_activations,
-                                                                   m_activations_alpha,
-                                                                   m_activations_beta,
-                                                                   m_clip_threshold,
-                                                                   m_input_forget);
+        shared_ptr<Node> lstm_cell = make_shared<ov::opset1::LSTMCell>(in_x,
+                                                                       H_t,
+                                                                       C_t,
+                                                                       W,
+                                                                       R,
+                                                                       B,
+                                                                       P,
+                                                                       m_hidden_size,
+                                                                       m_weights_format,
+                                                                       m_activations,
+                                                                       m_activations_alpha,
+                                                                       m_activations_beta,
+                                                                       m_clip_threshold,
+                                                                       m_input_forget);
 
         Output<Node> H = lstm_cell->output(0);
         Output<Node> C = lstm_cell->output(1);
@@ -259,11 +259,11 @@ OutputVector op::v0::LSTMSequence::lstm_pass(bool is_reverse) const {
     }
     // The tensor that concats all the intermediate output values of the hidden.
     // It has shape [batch_size, seq_length, hidden_size]
-    shared_ptr<Node> Y{make_shared<opset1::Concat>(h_list, 1)};
+    shared_ptr<Node> Y{make_shared<ov::opset1::Concat>(h_list, 1)};
 
     // Get back the original order of the output data.
     if (is_reverse) {
-        Y = make_shared<opset1::ReverseSequence>(Y, seq_lengths, 0 /*batch_axis*/, 1 /*seq_axis*/);
+        Y = make_shared<ov::opset1::ReverseSequence>(Y, seq_lengths, 0 /*batch_axis*/, 1 /*seq_axis*/);
     }
 
     // Expand Y so that it has expected shape:

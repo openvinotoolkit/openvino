@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace opset1 {
 /// \brief Elementwise cosine operation.
 class OPENVINO_API Cos : public util::UnaryElementwiseArithmetic {
 public:
@@ -29,6 +29,16 @@ public:
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 };
-}  // namespace v0
+}  // namespace opset1
+
+namespace v0 {
+
+using opset1::Cos;
+
+}
 }  // namespace op
 }  // namespace ov
+
+#define OPERATION_DEFINED_Cos 1
+#include "openvino/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_Cos

@@ -3,8 +3,13 @@
 //
 
 #ifndef _OPENVINO_OP_REG
+#ifndef _REGISTER_OV_OP
 #    warning "_OPENVINO_OP_REG not defined"
 #    define _OPENVINO_OP_REG(x, y)
+#else
+#    define _OPENVINO_AUTO_OPSET_REGISTRATOR 1
+#    define _OPENVINO_OP_REG(x, y)           _REGISTER_OV_OP(opset7, x, y)
+#endif
 #endif
 
 _OPENVINO_OP_REG(Abs, ov::op::v0)
@@ -175,3 +180,8 @@ _OPENVINO_OP_REG(Einsum, ov::op::v7)
 _OPENVINO_OP_REG(Gelu, ov::op::v7)
 _OPENVINO_OP_REG(IDFT, ov::op::v7)
 _OPENVINO_OP_REG(Roll, ov::op::v7)
+
+#ifdef _OPENVINO_AUTO_OPSET_REGISTRATOR
+#undef _OPENVINO_AUTO_OPSET_REGISTRATOR
+#undef _OPENVINO_OP_REG
+#endif

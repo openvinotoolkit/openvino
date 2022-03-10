@@ -34,8 +34,13 @@
 // It's that easy. You can use this for fun and profit.
 
 #ifndef _OPENVINO_OP_REG
+#ifndef _REGISTER_OV_OP
 #    warning "_OPENVINO_OP_REG not defined"
 #    define _OPENVINO_OP_REG(x, y)
+#else
+#    define _OPENVINO_AUTO_OPSET_REGISTRATOR 1
+#    define _OPENVINO_OP_REG(x, y)           _REGISTER_OV_OP(opset1, x, y)
+#endif
 #endif
 
 _OPENVINO_OP_REG(Abs, ov::op::v0)
@@ -148,3 +153,8 @@ _OPENVINO_OP_REG(Transpose, ov::op::v1)
 _OPENVINO_OP_REG(Unsqueeze, ov::op::v0)
 _OPENVINO_OP_REG(VariadicSplit, ov::op::v1)
 _OPENVINO_OP_REG(Xor, ov::op::v0)
+
+#ifdef _OPENVINO_AUTO_OPSET_REGISTRATOR
+#undef _OPENVINO_AUTO_OPSET_REGISTRATOR
+#undef _OPENVINO_OP_REG
+#endif

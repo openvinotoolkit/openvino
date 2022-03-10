@@ -14,6 +14,8 @@
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/variant.hpp"
+#include "openvino/op/cos.hpp"
+#include "openvino/op/sin.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -61,4 +63,26 @@ TEST(op, opset_multi_thread) {
     doTest(ngraph::get_opset5);
     doTest(ngraph::get_opset6);
     doTest(ngraph::get_opset7);
+}
+
+TEST(op, cos_op_use_different_opsets) {
+    ov::op::opset1::Cos op1;
+    ov::op::opset2::Cos op2;
+    ov::op::opset3::Cos op3;
+    ov::op::opset4::Cos op4;
+    ov::op::opset5::Cos op5;
+    ov::op::opset6::Cos op6;
+    ov::op::opset7::Cos op7;
+    ov::op::opset8::Cos op8;
+}
+
+TEST(op, sin_op_use_different_opsets) {
+    ov::op::opset1::Sin op1;
+    ov::op::opset2::Sin op2;
+    ov::op::opset3::Sin op3;
+    ov::op::opset4::Sin op4;
+    ov::op::opset5::Sin op5;
+    ov::op::opset6::Sin op6;
+    ov::op::opset7::Sin op7;
+    ov::op::opset8::Sin op8;
 }
