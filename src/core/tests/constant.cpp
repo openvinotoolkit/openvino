@@ -1728,9 +1728,9 @@ TEST(constant, lazy_bitwise_identical) {
     auto aligned_weights_buffer = std::make_shared<ngraph::runtime::AlignedBuffer>(byte_size);
     std::memset(aligned_weights_buffer->get_ptr<char>(), 1, byte_size);
     auto weights = std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
-            aligned_weights_buffer->get_ptr<char>(),
-            aligned_weights_buffer->size(),
-            aligned_weights_buffer);
+        aligned_weights_buffer->get_ptr<char>(),
+        aligned_weights_buffer->size(),
+        aligned_weights_buffer);
 
     using namespace std::chrono;
     auto create_constant = [&]() {
@@ -1742,7 +1742,7 @@ TEST(constant, lazy_bitwise_identical) {
     {
         auto start = steady_clock::now();
         while (duration_cast<milliseconds>(steady_clock::now() - start).count() < TIMEOUT_MS) {
-            create_constant(); // shall be O(1)
+            create_constant();  // shall be O(1)
             created_count++;
         }
     }
@@ -1751,25 +1751,23 @@ TEST(constant, lazy_bitwise_identical) {
         auto start = steady_clock::now();
         while (duration_cast<milliseconds>(steady_clock::now() - start).count() < TIMEOUT_MS) {
             auto constant1 = create_constant();
-            EXPECT_TRUE(constant1->get_all_data_elements_bitwise_identical()); // can be O(N)
+            EXPECT_TRUE(constant1->get_all_data_elements_bitwise_identical());  // can be O(N)
             bitwise_check_count++;
         }
     }
 
     size_t bitwise_check_count_only = 0;
     auto constant1 = create_constant();
-    EXPECT_TRUE(constant1->get_all_data_elements_bitwise_identical()); // first time calculation can be O(N)
+    EXPECT_TRUE(constant1->get_all_data_elements_bitwise_identical());  // first time calculation can be O(N)
     {
         auto start = steady_clock::now();
         while (duration_cast<milliseconds>(steady_clock::now() - start).count() < TIMEOUT_MS) {
-            EXPECT_TRUE(constant1->get_all_data_elements_bitwise_identical()); // next calls shall be O(1)
+            EXPECT_TRUE(constant1->get_all_data_elements_bitwise_identical());  // next calls shall be O(1)
             bitwise_check_count_only++;
         }
     }
-    std::cout << "Created: " << created_count
-              << ", Created+Checked=" << bitwise_check_count
-              << ", Checked_cached_value=" << bitwise_check_count_only
-              << "\n";
+    std::cout << "Created: " << created_count << ", Created+Checked=" << bitwise_check_count
+              << ", Checked_cached_value=" << bitwise_check_count_only << "\n";
     // Comparing creation from pre-allocated buffer with creation + checking identical
     // '10' times is guaranteed to be faster here (typical value is ~10'000)
     EXPECT_GT(created_count, bitwise_check_count * 10);
