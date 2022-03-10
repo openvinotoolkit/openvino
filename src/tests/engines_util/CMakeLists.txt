@@ -8,7 +8,7 @@ add_library(engines_test_util STATIC EXCLUDE_FROM_ALL ${ENGINES_UTIL_SRC})
 
 ie_faster_build(engines_test_util UNITY)
 
-target_link_libraries(engines_test_util PUBLIC openvino::runtime openvino::runtime::dev gtest gmock ngraph_test_util commonTestUtils)
+target_link_libraries(engines_test_util PUBLIC openvino::runtime openvino::runtime::dev gtest gmock commonTestUtils)
 target_include_directories(engines_test_util PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(engines_test_util PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
