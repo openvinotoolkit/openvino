@@ -23,29 +23,6 @@ The ARM CPU plugin supports the following data types as inference precision of i
 
 [Hello Query Device C++ Sample](../../../samples/cpp/hello_query_device/README.md) can be used to print out supported data types for all detected devices.
 
-## Supported features
-
-### Multi-device execution
-TBD
-
-### Automatic batching
-TBD
-
-### Multi-stream execution
-TBD
-
-### Dynamic shapes
-TBD
-
-### Preprocessing acceleration
-TBD
-
-### Models caching
-TBD
-
-### Extensibility
-TBD
-
 
 ## Supported properties
 The plugin supports the properties listed below.
@@ -53,34 +30,16 @@ The plugin supports the properties listed below.
 ### Read-write properties
 All parameters must be set before calling `ov::Core::compile_model()` in order to take effect or passed as additional argument to `ov::Core::compile_model()`
 
-- ov::cache_dir
 - ov::enable_profiling
-- ov::hint::model_priority
-- ov::hint::performance_mode
-- ov::hint::num_requests
-- ov::num_streams
-- ov::compilation_num_threads
-- ov::device::id
-- ov::intel_gpu::hint::host_task_priority
-- ov::intel_gpu::hint::queue_priority
-- ov::intel_gpu::hint::queue_throttle
-- ov::intel_gpu::enable_loop_unrolling
 
 ### Read-only properties
 - ov::supported_properties
 - ov::available_devices
 - ov::range_for_async_infer_requests
 - ov::range_for_streams
-- ov::optimal_batch_size
-- ov::max_batch_size
 - ov::device::full_name
-- ov::device::type
-- ov::device::gops
 - ov::device::capabilities
-- ov::intel_gpu::device_total_mem_size
-- ov::intel_gpu::uarch_version
-- ov::intel_gpu::execution_units_count
-- ov::intel_gpu::memory_statistics
+
 
 ## Known Layers Limitation
 * `'AvgPool'` layer is supported via arm_compute library for 4D input tensor and via reference implementation for another cases.
