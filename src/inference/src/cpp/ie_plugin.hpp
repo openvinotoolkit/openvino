@@ -51,7 +51,7 @@ struct InferencePlugin {
         PLUGIN_CALL_STATEMENT(_ptr->SetName(deviceName));
     }
 
-    void SetCore(std::weak_ptr<InferenceEngine::ICore> core) {
+    void SetCore(std::weak_ptr<ov::ICore> core) {
         PLUGIN_CALL_STATEMENT(_ptr->SetCore(core));
     }
 
@@ -164,7 +164,7 @@ public:
         OV_PLUGIN_CALL_STATEMENT(_ptr->SetName(deviceName));
     }
 
-    void set_core(std::weak_ptr<ie::ICore> core) {
+    void set_core(std::weak_ptr<ICore> core) {
         OV_PLUGIN_CALL_STATEMENT(_ptr->SetCore(core));
     }
 
@@ -240,20 +240,24 @@ public:
                 try {
                     return {_ptr->GetMetric(name, arguments), _so};
                 } catch (ie::Exception&) {
-                    auto ro_properties = _ptr->GetMetric(METRIC_KEY(SUPPORTED_METRICS), arguments)
-                                            .as<std::vector<std::string>>();
-                    auto rw_properties = _ptr->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), arguments)
-                                            .as<std::vector<std::string>>();
                     std::vector<ov::PropertyName> supported_properties;
-                    for (auto&& ro_property : ro_properties) {
-                        if (ro_property != METRIC_KEY(SUPPORTED_METRICS) &&
-                            ro_property != METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-                            supported_properties.emplace_back(ro_property, PropertyMutability::RO);
+                    try {
+                        auto ro_properties = _ptr->GetMetric(METRIC_KEY(SUPPORTED_METRICS), arguments)
+                                                .as<std::vector<std::string>>();
+                        for (auto&& ro_property : ro_properties) {
+                            if (ro_property != METRIC_KEY(SUPPORTED_METRICS) &&
+                                ro_property != METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
+                                supported_properties.emplace_back(ro_property, PropertyMutability::RO);
+                            }
                         }
-                    }
-                    for (auto&& rw_property : rw_properties) {
-                        supported_properties.emplace_back(rw_property, PropertyMutability::RW);
-                    }
+                    } catch (ie::Exception&) {}
+                    try {
+                        auto rw_properties = _ptr->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), arguments)
+                                                .as<std::vector<std::string>>();
+                        for (auto&& rw_property : rw_properties) {
+                            supported_properties.emplace_back(rw_property, PropertyMutability::RW);
+                        }
+                    } catch (ie::Exception&) {}
                     supported_properties.emplace_back(ov::supported_properties.name(), PropertyMutability::RO);
                     return supported_properties;
                 }
@@ -268,21 +272,12 @@ public:
 
     template <typename T, PropertyMutability M>
     T get_property(const ov::Property<T, M>& property) const {
-        auto to = Any::make<T>();
-        get_property(property.name(), {}, to);
-        return to.template as<T>();
+        return get_property(property.name(), {}).template as<T>();
     }
 
     template <typename T, PropertyMutability M>
     T get_property(const ov::Property<T, M>& property, const AnyMap& arguments) const {
-        auto to = Any::make<T>();
-        get_property(property.name(), arguments, to);
-        return to.template as<T>();
-    }
-
-private:
-    void get_property(const std::string& name, const AnyMap& arguments, Any& to) const {
-        any_lexical_cast(get_property(name, arguments), to);
+        return get_property(property.name(), arguments).template as<T>();
     }
 };
 

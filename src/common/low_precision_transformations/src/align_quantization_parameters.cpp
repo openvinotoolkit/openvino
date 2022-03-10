@@ -9,11 +9,15 @@
 #include "low_precision/rt_info/quantization_alignment_attribute.hpp"
 #include "low_precision/rt_info/per_tensor_quantization_attribute.hpp"
 #include "low_precision/update_shared_precision_preserved.hpp"
+#include "low_precision/rt_info/attribute_parameters.hpp"
 
 using namespace ngraph;
 using namespace ngraph::pass::low_precision;
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::AlignQuantizationParameters, "AlignQuantizationParameters", 0);
+
+ngraph::pass::low_precision::AlignQuantizationParameters::AlignQuantizationParameters(const std::vector<ngraph::element::Type> defaultPrecisions)
+    : defaultPrecisions(defaultPrecisions) {}
 
 bool ngraph::pass::low_precision::AlignQuantizationParameters::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     ngraph::pass::Manager manager;

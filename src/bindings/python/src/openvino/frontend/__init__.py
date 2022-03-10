@@ -3,7 +3,7 @@
 
 """
 Package: openvino
-Low level wrappers for the FrontEnd c++ api.
+Low level wrappers for the FrontEnd C++ API.
 """
 
 # flake8: noqa
@@ -23,6 +23,7 @@ from openvino.pyopenvino import Place
 from openvino.pyopenvino import DecoderTransformationExtension
 from openvino.pyopenvino import JsonConfigExtension
 from openvino.pyopenvino import ConversionExtension
+from openvino.pyopenvino import OpExtension
 from openvino.pyopenvino import ProgressReporterExtension
 from openvino.pyopenvino import TelemetryExtension
 

@@ -53,12 +53,14 @@ ConvolutionBackpropDataTransformation::ConvolutionBackpropDataTransformation(con
     this->register_matcher(m, callback);
 }
 
-bool ConvolutionBackpropDataTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const {
-    return ConvolutionBackpropDataTransformation::isQuantizedStatic(layer);
+bool ConvolutionBackpropDataTransformation::isQuantized(const std::shared_ptr<const Node>& layer,
+    const std::vector<ngraph::element::Type>& defaultPrecisions) const {
+    return ConvolutionBackpropDataTransformation::isQuantizedStatic(layer, defaultPrecisions);
 }
 
-bool ConvolutionBackpropDataTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer) {
-    return WeightableLayerTransformation::isQuantizedStatic(layer, false);
+bool ConvolutionBackpropDataTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer,
+    const std::vector<ngraph::element::Type>& defaultPrecisions) {
+    return WeightableLayerTransformation::isQuantizedStatic(layer, false, defaultPrecisions);
 }
 
 size_t ConvolutionBackpropDataTransformation::getInputChannels(const std::shared_ptr<ngraph::Node> conv) const {
@@ -74,8 +76,8 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
         auto weightsInput = convolutionBackpropData->get_input_node_shared_ptr(1);
         std::shared_ptr<opset1::Reshape> reshapeFromWeights = ov::as_type_ptr<opset1::Reshape>(weightsInput);
         FakeQuantizeDequantization dequantization = reshapeFromWeights == nullptr ?
-                         NetworkHelper::getDequantization(convolutionBackpropData, 1ul) :
-                         NetworkHelper::getDequantization(reshapeFromWeights);
+                         NetworkHelper::getDequantization(convolutionBackpropData, defaultPrecisions, 1ul) :
+                         NetworkHelper::getDequantization(reshapeFromWeights, defaultPrecisions);
         if (dequantization.empty()) {
             const auto fqOnWeights = getFakeQuantizeOnWeights(convolutionBackpropData);
             auto constantShape = fqOnWeights->input(1).get_partial_shape();
@@ -97,13 +99,13 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
                 replace_node(weightsInput, resultConstant);
             }
         } else {
-            NetworkHelper::foldDequantization(dequantization.multiply, 0, true);
+            NetworkHelper::foldDequantization(dequantization.multiply, 0, defaultPrecisions, true);
         }
         return true;
     }
 
-    convolutionBackpropData = NetworkHelper::separateInStandaloneBranch(convolutionBackpropData);
-    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(convolutionBackpropData);
+    convolutionBackpropData = NetworkHelper::separateInStandaloneBranch(convolutionBackpropData, defaultPrecisions);
+    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(convolutionBackpropData, defaultPrecisions);
     std::shared_ptr<Node> newMultiplyAfter;
     {
         if (dequantization.subtract != nullptr) {
@@ -141,7 +143,7 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
 
     {
         decomposeFakeQuantizeForWeightsPath(convolutionBackpropData, 1ul);
-        dequantization = NetworkHelper::getDequantization(convolutionBackpropData, 1ul);
+        dequantization = NetworkHelper::getDequantization(convolutionBackpropData, defaultPrecisions, 1ul);
 
         if (ov::is_type<opset1::FakeQuantize>(dequantization.data.get_node())) {
             const std::shared_ptr<opset1::FakeQuantize> fq = ov::as_type_ptr<opset1::FakeQuantize>(dequantization.data.get_node_shared_ptr());
@@ -229,7 +231,7 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
 }
 
 bool ConvolutionBackpropDataTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
-    return canConvolutionBeTransformed(context, op);
+    return canConvolutionBeTransformed(context, op, defaultPrecisions);
 }
 
 } // namespace low_precision

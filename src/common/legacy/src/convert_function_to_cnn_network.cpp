@@ -2069,8 +2069,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         }
     }
 
-    if (!cnnNetworkImpl) IE_THROW() << "Cannot convert nGraph function to CNNNetworkImpl!";
-
     // update input preprocessing info
     InputsDataMap resultInputDataMap;
     cnnNetworkImpl->getInputsInfo(resultInputDataMap);

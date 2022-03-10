@@ -806,6 +806,45 @@ class ConvertGroupedStridedSliceTests(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, graph_ref, 'concat_1_data', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
+    # one unuque StridedSlice
+    def test_12(self):
+        graph = build_graph(nodes_attributes,
+                            [('placeholder_1', 'placeholder_1_data'),
+                             ('placeholder_1_data', 'sslice_1'),
+                             ('sslice_1', 'sslice_1_data'),
+                             ('placeholder_1_data', 'sslice_2'),
+                             ('sslice_2', 'sslice_2_data'),
+                             ],
+                            {'placeholder_1_data': {'shape': np.array([1, 511])},
+
+                             'sslice_1': {'slices': np.array([slice(0, 1, 1), slice(0, 1, 1)]),
+                                          'begin_mask': np.array([0, 1, 0]),
+                                          'end_mask': np.array([0, 1, 0]),
+                                          'new_axis_mask': np.array([0, 0, 0]),
+                                          'shrink_axis_mask': np.array([0, 0, 0]),
+                                          'ellipsis_mask': np.array([0, 0, 0])},
+                             'sslice_1_data': {'shape': np.array([1, 1, 511])},
+
+                             'sslice_2': {'slices': np.array([slice(0, 1, 1), slice(0, 1, 1)]),
+                                          'begin_mask': np.array([0, 1, 0]),
+                                          'end_mask': np.array([0, 1, 0]),
+                                          'new_axis_mask': np.array([0, 0, 0]),
+                                          'shrink_axis_mask': np.array([0, 0, 0]),
+                                          'ellipsis_mask': np.array([0, 0, 0])},
+                             'sslice_2_data': {'shape': np.array([1, 1, 511])},
+                             })
+        graph.graph['layout'] = 'NHWC'
+
+        graph_ref = graph.copy()
+
+        pattern = ConvertGroupedStridedSlice()
+        pattern.find_and_replace_pattern(graph)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'sslice_1_data', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'sslice_2_data', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
 
 class AddReshapeAfterStridedSliceTests(unittest.TestCase):
     def test_ss_1_shrink_last(self):

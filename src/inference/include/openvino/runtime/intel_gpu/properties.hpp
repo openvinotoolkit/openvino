@@ -13,6 +13,10 @@
 #include "openvino/runtime/properties.hpp"
 
 namespace ov {
+
+/**
+ * @brief Namespace with Intel GPU specific properties
+ */
 namespace intel_gpu {
 
 /**
@@ -59,9 +63,9 @@ using ThrottleLevel = ov::hint::Priority;
 /**
  * @brief This key instructs the GPU plugin to use OpenCL queue throttle hints
  * as defined in https://www.khronos.org/registry/OpenCL/specs/opencl-2.1-extensions.pdf,
- * chapter 9.19. This option should be used with ov::intl_gpu::hint::ThrottleLevel values.
+ * chapter 9.19. This option should be used with ov::intel_gpu::hint::ThrottleLevel values.
  */
-static constexpr Property<ov::hint::Priority> queue_throttle{"GPU_QUEUE_THROTTLE"};
+static constexpr Property<ThrottleLevel> queue_throttle{"GPU_QUEUE_THROTTLE"};
 
 /**
  * @brief This key instructs the GPU plugin to use the OpenCL queue priority hint
@@ -80,7 +84,7 @@ static constexpr Property<ov::hint::Priority> queue_priority{"GPU_QUEUE_PRIORITY
  * - MEDIUM (DEFAULT) - instructs the GPU Plugin to use any available cores (BIG or LITTLE cores)
  * - HIGH - instructs the GPU Plugin to use BIG cores if they are available
  */
-static constexpr Property<ov::hint::Priority> host_task_priority{"OV_GPU_HOST_TASK_PRIORITY"};
+static constexpr Property<ov::hint::Priority> host_task_priority{"GPU_HOST_TASK_PRIORITY"};
 
 /**
  * @brief This key identifies available device memory size in bytes
@@ -88,18 +92,18 @@ static constexpr Property<ov::hint::Priority> host_task_priority{"OV_GPU_HOST_TA
 static constexpr Property<int64_t> available_device_mem{"AVAILABLE_DEVICE_MEM_SIZE"};
 }  // namespace hint
 
-namespace memory_type {
 /**
  * @brief These keys instruct the GPU plugin to use surface/buffer memory type.
  */
+namespace memory_type {
 static constexpr auto surface = "GPU_SURFACE";  //!< Native video decoder surface
 static constexpr auto buffer = "GPU_BUFFER";    //!< OpenCL buffer
 }  // namespace memory_type
 
-namespace capability {
 /**
  * @brief Possible return value for ov::device::capabilities property
  */
+namespace capability {
 constexpr static const auto HW_MATMUL = "GPU_HW_MATMUL";  //!< Device has hardware block for matrix multiplication
 }  // namespace capability
 }  // namespace intel_gpu

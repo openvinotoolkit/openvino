@@ -7,6 +7,8 @@
 #    include <cxxabi.h>
 #endif
 
+#include <memory>
+
 #include "atomic_guard.hpp"
 #include "ngraph/pass/pass.hpp"
 #include "openvino/pass/manager.hpp"
@@ -33,7 +35,10 @@ std::string ov::pass::PassBase::get_name() const {
         std::string pass_name = typeid(*p).name();
 #ifndef _WIN32
         int status;
-        pass_name = abi::__cxa_demangle(pass_name.c_str(), nullptr, nullptr, &status);
+        std::unique_ptr<char, void (*)(void*)> demangled_name(
+            abi::__cxa_demangle(pass_name.c_str(), nullptr, nullptr, &status),
+            std::free);
+        pass_name = demangled_name.get();
 #endif
         return pass_name;
     } else {

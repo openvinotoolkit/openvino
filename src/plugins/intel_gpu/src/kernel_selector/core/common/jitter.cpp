@@ -340,6 +340,7 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                        layout == DataLayout::bs_fs_yx_bsv16_fsv16 ||
                        layout == DataLayout::bs_fs_yx_bsv4_fsv4 ||
                        layout == DataLayout::bs_fs_yx_bsv8_fsv4 ||
+                       layout == DataLayout::bs_fs_yx_bsv8_fsv2 ||
                        layout == DataLayout::bs_fs_yx_bsv4_fsv2 ||
                        layout == DataLayout::bs_fs_yx_bsv32_fsv16 ||
                        layout == DataLayout::bs_fs_yx_bsv32_fsv32) {
@@ -353,6 +354,7 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                     layout == DataLayout::bs_fs_yx_bsv32_fsv16  ||
                     layout == DataLayout::bs_fs_yx_bsv4_fsv4  ||
                     layout == DataLayout::bs_fs_yx_bsv8_fsv4  ||
+                    layout == DataLayout::bs_fs_yx_bsv8_fsv2  ||
                     layout == DataLayout::bs_fs_yx_bsv4_fsv2  ||
                     layout == DataLayout::bs_fs_yx_bsv16_fsv16 ||
                     layout == DataLayout::fs_b_yx_fsv32)
@@ -454,15 +456,18 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
         // We support broadcast only if corresponding dimension is equal to 1.
         // Otherwise, dimensions should be equal and using "f" should be safe.
         if (_tensor.PitchesDifferFromLogicalDims() && _tensor.SimpleLayout()) {
-            std::string f_pitch = toCodeString(_tensor.Feature().pitch);
-            definitions.push_back({ safe_index_func_name, "(" + offset + " + (f) * " + f_pitch + ")" });
+            auto f_pitch = toCodeString(_tensor.Feature().pitch);
+            auto f_size = toCodeString(_tensor.Feature().v);
+            definitions.push_back({ safe_index_func_name, "(" + offset + " + ((f) % " + f_size + ")  * " + f_pitch + ")" });
             definitions.push_back({ index_func_name, "(" + offset + " + (f) * " + f_pitch + ")" });
         } else if (_tensor.PitchesDifferFromLogicalDims()) {
             // TODO This should be solved differently, by setting the macro arguments to zero
             definitions.push_back({ safe_index_func_name, safe_index_func_val });
             definitions.push_back({ index_func_name, index_func_val });
         } else {
-            definitions.push_back({ safe_index_func_name, "(" + toCodeString(_tensor.Feature().pad.before) + " + (f))" });
+            auto f_pad = toCodeString(_tensor.Feature().pad.before);
+            auto f_size = toCodeString(_tensor.Feature().v);
+            definitions.push_back({ safe_index_func_name, "((" + f_pad + " + (f)) % " + f_size + ")" });
             definitions.push_back({ index_func_name, "(" + toCodeString(_tensor.Feature().pad.before) + " + (f))" });
         }
     } else {

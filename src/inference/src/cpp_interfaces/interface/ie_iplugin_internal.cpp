@@ -30,6 +30,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/runtime_attribute.hpp"
+#include "threading/ie_executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace InferenceEngine {
@@ -74,6 +75,8 @@ OutputsDataMap copyInfo(const OutputsDataMap& networkOutputs) {
     }
     return _networkOutputs;
 }
+
+IInferencePlugin::IInferencePlugin() : _executorManager(InferenceEngine::executorManager()) {}
 
 void IInferencePlugin::VersionStore::copyFrom(const Version& v) {
     _dsc = v.description;
@@ -253,6 +256,10 @@ void IInferencePlugin::SetCore(std::weak_ptr<ICore> core) {
 
 std::shared_ptr<ICore> IInferencePlugin::GetCore() const noexcept {
     return _core.lock();
+}
+
+const std::shared_ptr<ExecutorManager>& IInferencePlugin::executorManager() const {
+    return _executorManager;
 }
 
 QueryNetworkResult IInferencePlugin::QueryNetwork(const CNNNetwork& network,

@@ -6,6 +6,7 @@
 
 #include <vector>
 
+#include "openvino/core/layout.hpp"
 #include "openvino/core/partial_shape.hpp"
 
 namespace ov {
@@ -32,6 +33,8 @@ std::vector<int64_t> find_permutation(const Layout& src_layout,
                                       const PartialShape& src_shape,
                                       const Layout& dst_layout);
 Layout apply_permutation(const Layout& src_layout, const std::vector<uint64_t>& dims);
+
+bool is_compatible(const Layout& layout, const PartialShape& shape);
 
 }  // namespace utils
 }  // namespace layout

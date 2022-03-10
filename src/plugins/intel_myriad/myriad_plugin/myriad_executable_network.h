@@ -140,8 +140,7 @@ private:
         _taskExecutorGetResultIds.pop();
         _taskExecutorGetResultIds.push(id);
 
-        ie::ExecutorManager *executorManager = ie::ExecutorManager::getInstance();
-        ie::ITaskExecutor::Ptr taskExecutor = executorManager->getExecutor(id);
+        ie::ITaskExecutor::Ptr taskExecutor = ie::executorManager()->getExecutor(id);
 
         return taskExecutor;
     }

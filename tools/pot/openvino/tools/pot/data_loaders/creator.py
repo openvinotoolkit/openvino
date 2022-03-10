@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.pot.data_loaders.image_loader import ImageLoader
-from openvino.tools.pot.data_loaders.synthetic_image_loader import SyntheticImageLoader
 from openvino.tools.pot.graph.model_utils import get_nodes_by_type
 
 
@@ -10,7 +9,7 @@ def create_data_loader(config, model):
     """
     Factory to create instance of engine class based on config
     :param config: engine config section from toolkit config file
-    :param model: NXModel instance to find out input shape
+    :param model: CompressedModel instance to find out input shape
     :return: instance of DataLoader descendant class
     """
 
@@ -25,14 +24,9 @@ def create_data_loader(config, model):
     data_loader = None
     for in_node in inputs:
         if tuple(in_node.shape) != (1, 3):
-            if config.type == 'simplified':
-                data_loader = ImageLoader(config)
-                data_loader.shape = in_node.shape
-                data_loader.get_layout(in_node)
-            elif config.type == 'data_free':
-                if not config.shape:
-                    config.shape = in_node.shape
-                data_loader = SyntheticImageLoader(config)
+            data_loader = ImageLoader(config)
+            data_loader.shape = in_node.shape
+            data_loader.get_layout(in_node)
             return data_loader
 
     if data_loader is None:

@@ -171,7 +171,6 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
 
     _core = _multiPlugin->GetCore(); // shared_ptr that holds the Core
     _config[MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] = strDevices;
-
     std::string profilingTask = "MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork:AutoMode";
 
     // loadContext[ACTUALDEVICE] is always enabled,
@@ -253,7 +252,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         // will not wait for loading accelerator network,
         // so the executor can't be destroyed before finished the task,
         // so use executor as a member of MultiDeviceExecutableNetwork.
-        _executor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(
+        _executor = _multiPlugin->executorManager()->getIdleCPUStreamsExecutor(
                 IStreamsExecutor::Config{"AutoDeviceAsyncLoad",
                 static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
                 0 /*default threads per stream, workaround for ticket 62376*/,
@@ -310,6 +309,29 @@ void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
     auto& deviceConfig = context.deviceInfo.config;
     auto& deviceList = context.metaDevices;
     bool curDevIsCPU = (device.find("CPU") != std::string::npos);
+    bool curDevIsGPU = (device.find("GPU") != std::string::npos);
+    {
+        std::lock_guard<std::mutex> lock(_confMutex);
+        if (curDevIsGPU && _loadContext[CPU].isEnabled) {
+            // user does not set the compiling threads
+            // limit the threads num for compiling
+            int maxNumThreads = 0;
+            try {
+                maxNumThreads = _core->GetConfig(device, GPU_CONFIG_KEY(MAX_NUM_THREADS)).as<int>();
+            } catch (...) {
+                LOG_DEBUG("[AUTOPLUGIN]: cannot get MAX_NUM_THREADS from GPU");
+            }
+            if (maxNumThreads == static_cast<int>(std::thread::hardware_concurrency())) {
+                int threadNum = maxNumThreads / 2;
+                deviceConfig[GPU_CONFIG_KEY(MAX_NUM_THREADS)] = std::to_string(threadNum).c_str();
+                LOG_DEBUG("[AUTO PLUGIN]:gpu streams number for compiling: %s", deviceConfig[GPU_CONFIG_KEY(MAX_NUM_THREADS)].c_str());
+            } else {
+                // user set the compiling threads num
+                // use the user's val anyway
+                LOG_DEBUG("[AUTOPLUGIN]:user defined compiling threads: %d", maxNumThreads);
+            }
+        }
+    }
     try {
         if (!modelPath.empty()) {
             context.executableNetwork = _core->LoadNetwork(modelPath, device, deviceConfig);
@@ -506,7 +528,7 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
             _loadContext[CPU].future.wait();
             WaitActualNetworkReady();
             // it's necessary to wait the loading network threads to stop here.
-            InferenceEngine::ExecutorManager::getInstance()->clear("AutoDeviceAsyncLoad");
+            _multiPlugin->executorManager()->clear("AutoDeviceAsyncLoad");
             _executor.reset();
         }
         _multiPlugin->UnregisterPriority(_context.modelPriority,
@@ -571,7 +593,6 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
     const std::vector<std::shared_ptr<const ov::Node>>& inputs,
     const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
     auto num = _numRequestsCreated++;
-    size_t sum = 0;
     InferenceEngine::SoIInferRequestInternal request_to_share_blobs_with;
     InferenceEngine::RemoteContext::Ptr ctx = nullptr;
 
@@ -593,23 +614,12 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
         return std::make_shared<MultiDeviceInferRequest>(inputs, outputs, request_to_share_blobs_with, ctx);
     }
 
-    // borrowing device-specific blobs from the underlying requests for the device-agnostic, user-facing requests
-    // this allows to potentially save on the data-copy later (if the requests are scheduled in the same order)
-    for (const auto& device : _devicePrioritiesInitial) {
-        auto& dev_requests = _workerRequests[device.deviceName];
-        if ((num - sum) < dev_requests.size()) {
-            request_to_share_blobs_with = dev_requests.at(num - sum)._inferRequest;
-            break;
-        }
-        sum += dev_requests.size();
-    }
     return std::make_shared<MultiDeviceInferRequest>(inputs, outputs, request_to_share_blobs_with);
 }
 
 InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                                                 InferenceEngine::OutputsDataMap networkOutputs) {
     auto num = _numRequestsCreated++;
-    size_t sum = 0;
     InferenceEngine::SoIInferRequestInternal request_to_share_blobs_with;
     InferenceEngine::RemoteContext::Ptr ctx = nullptr;
 
@@ -630,16 +640,6 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
         return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with, ctx);
     }
 
-    // borrowing device-specific blobs from the underlying requests for the device-agnostic, user-facing requests
-    // this allows to potentially save on the data-copy later (if the requests are scheduled in the same order)
-    for (const auto& device : _devicePrioritiesInitial) {
-        auto& dev_requests = _workerRequests[device.deviceName];
-        if ((num - sum) < dev_requests.size()) {
-            request_to_share_blobs_with = dev_requests.at(num - sum)._inferRequest;
-            break;
-        }
-        sum += dev_requests.size();
-    }
     return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with);
 }
 
@@ -665,7 +665,7 @@ void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, Inferen
         IE_THROW(NotImplemented);
     }
 
-    auto priorities = config.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
+    auto priorities = config.find(ov::device::priorities.name());
     if (priorities == config.end() || config.size() > 1) {
         IE_THROW() << "The only config supported for the Network's SetConfig is MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES";
     } else {
@@ -723,7 +723,27 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetConfig(const std::st
 
 InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::string &name) const {
     if (_workModeIsAUTO) {
-        if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
+        if (name == ov::supported_properties) {
+            return decltype(ov::supported_properties)::value_type {
+                // Metrics
+                ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RO},
+                ov::PropertyName{ov::hint::performance_mode.name(), ov::PropertyMutability::RO},
+                ov::PropertyName{ov::model_name.name(), ov::PropertyMutability::RO},
+                ov::PropertyName{ov::optimal_number_of_infer_requests.name(), ov::PropertyMutability::RO},
+                ov::PropertyName{ov::hint::model_priority.name(), ov::PropertyMutability::RO},
+                ov::PropertyName{ov::device::priorities.name(), ov::PropertyMutability::RO}
+            };
+        } else if (name == ov::device::priorities) {
+            auto value = _config.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
+            return decltype(ov::device::priorities)::value_type {value->second.as<std::string>()};
+        } else if (name == ov::hint::model_priority) {
+            auto value = _context.modelPriority;
+            if (_core->isNewAPI()) {
+                return value ? ((value > 1) ? ov::hint::Priority::LOW : ov::hint::Priority::MEDIUM) : ov::hint::Priority::HIGH;
+            } else {
+                return value ? ((value > 1) ? CONFIG_VALUE(MODEL_PRIORITY_LOW) : CONFIG_VALUE(MODEL_PRIORITY_MED)) : CONFIG_VALUE(MODEL_PRIORITY_HIGH);
+            }
+        } else if (name == ov::optimal_number_of_infer_requests) {
             const unsigned int defaultNumForTPUT = 4u;
             const unsigned int defaultNumForLatency = 1u;
             unsigned int real = 0;
@@ -797,7 +817,7 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
                     real = defaultNumForLatency;
                 }
             }
-            IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, real);
+            return decltype(ov::optimal_number_of_infer_requests)::value_type {real};
         }
 
         if (_loadContext[ACTUALDEVICE].isAlready) {
@@ -806,7 +826,18 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
         return _loadContext[CPU].executableNetwork->GetMetric(name);
     }
 
-    if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
+    if (name == ov::supported_properties) {
+        return decltype(ov::supported_properties)::value_type {
+            // Metrics
+            ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::model_name.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::optimal_number_of_infer_requests.name(), ov::PropertyMutability::RO},
+
+            // Configs
+            // device priority can be changed on-the-fly in MULTI
+            ov::PropertyName{ov::device::priorities.name(), ov::PropertyMutability::RW}
+        };
+    } else if (name == ov::optimal_number_of_infer_requests) {
         unsigned int res = 0u;
         for (auto n : _networksPerDevice) {
             try {
@@ -818,12 +849,11 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
                         << "Failed to query the metric for the " << n.first << " with error:" << iie.what();
            }
         }
-        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, res);
-    } else if (name == METRIC_KEY(NETWORK_NAME)) {
+        return decltype(ov::optimal_number_of_infer_requests)::value_type {res};
+    } else if (name == ov::model_name) {
         auto it = _networksPerDevice.begin();
         IE_ASSERT(it != _networksPerDevice.end());
-        IE_SET_METRIC_RETURN(NETWORK_NAME, it->second->GetMetric(
-            METRIC_KEY(NETWORK_NAME)).as<std::string>());
+        return decltype(ov::model_name)::value_type {it->second->GetMetric(METRIC_KEY(NETWORK_NAME)).as<std::string>()};
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, {
             METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS),

@@ -59,7 +59,14 @@ openvino_docs_ie_dg_lpt_updatesharedprecisionpreserved.rst
 openvino_docs_ie_dg_lpt_variadicsplittransformation.rst
 openvino_docs_ie_plugin_dg_lp_representation.rst
 openvino_docs_ie_dg_lpt.rst
-omz_models_model_age_gender_recognition_retail_0013.rst
-omz_models_model_emotions_recognition_retail_0003.rst
-ngraph_transformation.rst
 notebooks/notebook_utils-with-output.rst
+ovms_extras_nginx-mtls-auth-readme.rst
+ovms_client_python_lib_readme.rst
+ovms_docs_shape_batch_layout.rst
+api/api_reference.rst
+workbench/docs/workbench_dg/key_concepts.md
+workbench/docs/workbench_dg/run_single_inference.md
+omz_tools_downloader.rst
+warning
+attribute
+omz_python_model_api.rst

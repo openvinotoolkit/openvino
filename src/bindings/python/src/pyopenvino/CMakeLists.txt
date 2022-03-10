@@ -78,6 +78,8 @@ endif()
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB})
 
+addVersionDefines(pyopenvino.cpp CI_BUILD_NUMBER)
+
 # perform copy
 if(OpenVINO_SOURCE_DIR)
     add_custom_command(TARGET ${PROJECT_NAME}
@@ -92,7 +94,7 @@ if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
 
     ie_cpack_add_component(pyopenvino_${PYTHON_VERSION})
 
-    install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../openvino
+    install(DIRECTORY ${PYTHON_SOURCE_DIR}/openvino
             DESTINATION python/${PYTHON_VERSION}
             COMPONENT pyopenvino_${PYTHON_VERSION}
             USE_SOURCE_PERMISSIONS
@@ -101,6 +103,10 @@ if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
     install(TARGETS ${PROJECT_NAME}
             DESTINATION python/${PYTHON_VERSION}/openvino
             COMPONENT pyopenvino_${PYTHON_VERSION})
+
+    install(DIRECTORY ${PYTHON_BINDINGS_ROOT_DIR}/tests
+            DESTINATION tests/${PROJECT_NAME}
+            COMPONENT tests EXCLUDE_FROM_ALL)
 endif()
 
 if(TARGET ie_wheel)

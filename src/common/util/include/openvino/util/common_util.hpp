@@ -93,6 +93,17 @@ inline bool ends_with(const std::string& src, const char* with) {
     return 0 == strncmp(with, &src[so], wl);
 }
 
+/**
+ * @brief check string/wstring end with given substring
+ * @param src - string/wstring to check
+ * @param with - given substring
+ * @return true if string end with given substring
+ */
+template <typename T>
+inline bool ends_with(const std::basic_string<T>& str, const std::basic_string<T>& suffix) {
+    return str.length() >= suffix.length() && 0 == str.compare(str.length() - suffix.length(), suffix.length(), suffix);
+}
+
 std::vector<std::string> split(const std::string& s, char delimiter, bool trim = false);
 
 template <typename T>

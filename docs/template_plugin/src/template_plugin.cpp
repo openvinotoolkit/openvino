@@ -38,18 +38,17 @@ Plugin::Plugin() {
     _backend = ngraph::runtime::Backend::create();
 
     // create default stream executor with a given name
-    _waitExecutor =
-        InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor({"TemplateWaitExecutor"});
+    _waitExecutor = executorManager()->getIdleCPUStreamsExecutor({"TemplateWaitExecutor"});
 }
 // ! [plugin:ctor]
 
 // ! [plugin:dtor]
 Plugin::~Plugin() {
     // Plugin should remove executors from executor cache to avoid threads number growth in the whole application
-    InferenceEngine::ExecutorManager::getInstance()->clear("TemplateStreamsExecutor");
-    InferenceEngine::ExecutorManager::getInstance()->clear("TemplateWaitExecutor");
+    executorManager()->clear("TemplateStreamsExecutor");
+    executorManager()->clear("TemplateWaitExecutor");
     // NOTE: Uncomment this if Inference Engine Executor cache is used to create callback executor
-    // ExecutorManager::getInstance()->clear("TemplateCallbackExecutor");
+    // executorManager()->clear("TemplateCallbackExecutor");
 }
 // ! [plugin:dtor]
 
@@ -83,8 +82,8 @@ std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const n
             precisions_array{{ngraph::element::f16, ngraph::element::f32}});
     }
     // Example: register plugin specific transformation
-    passManager.register_pass<ngraph::pass::DecomposeDivideMatcher>();
-    passManager.register_pass<ngraph::pass::ReluReluFusionMatcher>();
+    passManager.register_pass<ov::pass::DecomposeDivideMatcher>();
+    passManager.register_pass<ov::pass::ReluReluFusionMatcher>();
     // Register any other transformations
     // ..
 

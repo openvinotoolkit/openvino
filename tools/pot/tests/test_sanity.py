@@ -51,11 +51,12 @@ TEST_MODELS = [
     # {'drop_type': 'relative', 'max_iter_num': 1, 'accuracy_drop': 0.005, 'metrics': [
     #     {'name': 'accuracy@top1', 'baseline_value': 0.431}]}, 'GNA'),
 
-    #TODO: Enable after the problem with the shapes will be fixed
-    # ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 1, {'recall': 0.76, 'map': 0.6844}, {}, 'CPU'),
+    ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 1, {'recall': 0.76, 'map': 0.6844}, {}, 'CPU'),
 
-    ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 2, {'recall': 0.8, 'map': 0.7445},
-     {'use_fast_bias': False}, 'CPU')
+    ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 2, {'recall': 0.76, 'map': 0.6638},
+     {'use_fast_bias': False}, 'CPU'),
+    ('octave-resnet-26-0.25', 'mxnet', 'DefaultQuantization', 'performance', 300,
+     {'accuracy@top1': 0.766, 'accuracy@top5': 0.927}, {'use_fast_bias': False}, 'CPU'),
 ]
 CASCADE_MAP = Dict({
     'mtcnn': {
@@ -114,7 +115,9 @@ def test_compression(_params, tmp_path, models):
 
 
 TEST_SAMPLE_MODELS = [
-    ('mobilenet-v2-1.0-224', 'tf', 'DefaultQuantization', 'performance', {'accuracy@top1': 0.716})
+    ('mobilenet-v2-1.0-224', 'tf', 'DefaultQuantization', 'performance', {'accuracy@top1': 0.716}, []),
+    ('mobilenet-v2-1.0-224', 'tf', 'DefaultQuantization', 'performance', {'accuracy@top1': 0.716},
+     ['--input_shape=[1,?,?,3]'])
 ]
 
 
@@ -125,7 +128,7 @@ def _sample_params(request):
 
 
 def test_sample_compression(_sample_params, tmp_path, models):
-    model_name, model_framework, algorithm, preset, expected_accuracy = _sample_params
+    model_name, model_framework, algorithm, preset, expected_accuracy, custom_mo_config = _sample_params
 
     # hack for sample imports because sample app works only from sample directory
     pot_dir = Path(__file__).parent.parent
@@ -133,7 +136,7 @@ def test_sample_compression(_sample_params, tmp_path, models):
     # pylint: disable=C0415
     from openvino.tools.pot.api.samples.classification.classification_sample import optimize_model
 
-    model = models.get(model_name, model_framework, tmp_path)
+    model = models.get(model_name, model_framework, tmp_path, custom_mo_config=custom_mo_config)
     data_source, annotations = get_dataset_info('imagenet_1001_classes')
 
     args = Dict({
@@ -168,15 +171,17 @@ def test_sample_compression(_sample_params, tmp_path, models):
 
 SIMPLIFIED_TEST_MODELS = [
     ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'performance',
-     {'accuracy@top1': 0.701, 'accuracy@top5': 0.91})
+     {'accuracy@top1': 0.701, 'accuracy@top5': 0.91}, []),
+    ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'performance',
+     {'accuracy@top1': 0.707, 'accuracy@top5': 0.904}, ['--input_shape=[1,3,?,?]'])
 ]
 
 
-def launch_simplified_mode(tmp_path, models, engine_config):
-    model_name, model_framework, algorithm, preset, _ = SIMPLIFIED_TEST_MODELS[0]
+def launch_simplified_mode(_simplified_params, tmp_path, models, engine_config):
+    model_name, model_framework, algorithm, preset, _, custom_mo_config = _simplified_params
     algorithm_config = make_algo_config(algorithm, preset)
 
-    model = models.get(model_name, model_framework, tmp_path)
+    model = models.get(model_name, model_framework, tmp_path, custom_mo_config=custom_mo_config)
     config = merge_configs(model.model_params, engine_config, algorithm_config)
 
     _ = optimize(config)
@@ -206,7 +211,12 @@ def launch_simplified_mode(tmp_path, models, engine_config):
     return metrics
 
 
-def test_simplified_mode(tmp_path, models):
+@pytest.fixture(scope='module', params=SIMPLIFIED_TEST_MODELS,
+                ids=['{}_{}_{}_{}'.format(*m) for m in SIMPLIFIED_TEST_MODELS])
+def _simplified_params(request):
+    return request.param
+
+def test_simplified_mode(_simplified_params, tmp_path, models):
     with open(PATHS2DATASETS_CONFIG.as_posix()) as f:
         data_source = Dict(json.load(f))['ImageNet2012'].pop('source_dir')
 
@@ -215,27 +225,9 @@ def test_simplified_mode(tmp_path, models):
                           'device': 'CPU',
                           'central_fraction': 0.875})
 
-    _, _, _, _, expected_accuracy = SIMPLIFIED_TEST_MODELS[0]
-    metrics = launch_simplified_mode(tmp_path, models, engine_config)
+    _, _, _, _, expected_accuracy, _ = _simplified_params
+    metrics = launch_simplified_mode(_simplified_params, tmp_path, models, engine_config)
     assert metrics == pytest.approx(expected_accuracy, abs=0.006)
-
-
-DATAFREE_TEST_MODELS = [
-    ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'performance',
-     {'accuracy@top1': 0.679, 'accuracy@top5': 0.888})
-]
-
-
-def test_datafree_mode(tmp_path, models):
-    engine_config = Dict({'type': 'data_free',
-                          'data_source': os.path.join(tmp_path, 'pot_dataset'),
-                          'generate_data': 'True',
-                          'subset_size': 30,
-                          'device': 'CPU'})
-
-    _, _, _, _, expected_accuracy = DATAFREE_TEST_MODELS[0]
-    metrics = launch_simplified_mode(tmp_path, models, engine_config)
-    assert metrics == pytest.approx(expected_accuracy, abs=0.06)
 
 
 def test_frame_extractor_tool():

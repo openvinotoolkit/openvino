@@ -28,7 +28,7 @@ namespace benchmark_app {
 bool InputInfo::is_image() const {
     if ((layout != "NCHW") && (layout != "NHWC") && (layout != "CHW") && (layout != "HWC"))
         return false;
-    // If tensor_shape is still empty, assume this is still an Image and tensor shape will be filled later
+    // If data_shape is still empty, assume this is still an Image and tensor shape will be filled later
     return (dataShape.empty() || channels() == 3);
 }
 bool InputInfo::is_image_info() const {
@@ -109,17 +109,23 @@ std::vector<std::string> parse_devices(const std::string& device_string) {
     std::string comma_separated_devices = device_string;
     auto colon = comma_separated_devices.find(":");
     if (colon != std::string::npos) {
+        if (comma_separated_devices.substr(0, colon) == "AUTO") {
+            std::vector<std::string> result;
+            result.push_back("AUTO");
+            return result;
+        }
         auto bracket = comma_separated_devices.find("(");  // e.g. in BATCH:GPU(4)
         comma_separated_devices = comma_separated_devices.substr(colon + 1, bracket - colon - 1);
     }
     if ((comma_separated_devices == "MULTI") || (comma_separated_devices == "HETERO"))
         return std::vector<std::string>();
+
     auto devices = split(comma_separated_devices, ',');
     return devices;
 }
 
-std::map<std::string, std::string> parse_nstreams_value_per_device(const std::vector<std::string>& devices,
-                                                                   const std::string& values_string) {
+std::map<std::string, std::string> parse_value_per_device(const std::vector<std::string>& devices,
+                                                          const std::string& values_string) {
     //  Format: <device1>:<value1>,<device2>:<value2> or just <value>
     std::map<std::string, std::string> result;
     auto device_value_strings = split(values_string, ',');
@@ -316,7 +322,11 @@ std::map<std::string, std::vector<std::string>> parse_input_arguments(const std:
             }
 
             for (auto& file : files.second) {
-                readInputFilesArguments(mapped_files[files.first], file);
+                if (file == "image_info" || file == "random") {
+                    mapped_files[files.first].push_back(file);
+                } else {
+                    readInputFilesArguments(mapped_files[files.first], file);
+                }
             }
         }
         args_it = files_end;
@@ -406,7 +416,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
             throw std::logic_error(
                 "Shapes number for every input should be either 1 or should be equal to shapes number of other inputs");
         }
-        slog::info << "Number of test configurations is calculated basing on -tensor_shape parameter" << slog::endl;
+        slog::info << "Number of test configurations is calculated basing on -data_shape parameter" << slog::endl;
     } else if (fileNames.size() > 0) {
         slog::info << "Number of test configurations is calculated basing on number of input images" << slog::endl;
         min_size = std::min_element(fileNames.begin(),
@@ -441,6 +451,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
     for (size_t i = 0; i < min_size; ++i) {
         benchmark_app::InputsInfo info_map;
 
+        bool is_there_at_least_one_batch_dim = false;
         for (auto& item : input_info) {
             benchmark_app::InputInfo info;
             auto name = item.get_any_name();
@@ -511,7 +522,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                 if (contains_binaries(namesVector)) {
                     throw std::logic_error("Input files list for input " + item.get_any_name() +
                                            " contains binary file(s) and input shape is dynamic. Tensor shape should "
-                                           "be defined explicitly (using -tensor_shape).");
+                                           "be defined explicitly (using -data_shape).");
                 }
 
                 info.dataShape = ov::Shape(info.partialShape.size(), 0);
@@ -538,12 +549,12 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                     if (fileIdx >= namesVector.size()) {
                         throw std::logic_error(
                             "Not enough files to fill in full batch (number of files should be a multiple of batch "
-                            "size if -tensor_shape parameter is omitted and shape is dynamic)");
+                            "size if -data_shape parameter is omitted and shape is dynamic)");
                     }
                     FormatReader::ReaderPtr reader(namesVector[fileIdx].c_str());
                     if ((w && w != reader->width()) || (h && h != reader->height())) {
                         throw std::logic_error("Image sizes putting into one batch should be of the same size if input "
-                                               "shape is dynamic and -tensor_shape is omitted. Problem file: " +
+                                               "shape is dynamic and -data_shape is omitted. Problem file: " +
                                                namesVector[fileIdx]);
                     }
                     w = reader->width();
@@ -592,6 +603,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                         }
                         info.dataShape[batch_index] = batch_size;
                         reshape_required = true;
+                        is_there_at_least_one_batch_dim = true;
                     }
                 } else {
                     slog::warn << "Input '" << item.get_any_name()
@@ -600,6 +612,12 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                 }
             }
             info_map[name] = info;
+        }
+
+        if (batch_size > 1 && !is_there_at_least_one_batch_dim) {
+            throw std::runtime_error("-b option is provided in command line, but there's no inputs with batch(B) "
+                                     "dimension in input layout, so batch cannot be set. "
+                                     "You may specify layout explicitly using -layout option.");
         }
 
         // Update scale and mean
@@ -803,7 +821,7 @@ std::string parameter_name_to_tensor_name(const std::string& name,
                                           const std::vector<ov::Output<const ov::Node>>& outputs_info) {
     if (std::any_of(inputs_info.begin(), inputs_info.end(), [name](const ov::Output<const ov::Node>& port) {
             try {
-                return name == port.get_any_name();
+                return port.get_names().count(name) > 0;
             } catch (const ov::Exception&) {
                 return false;  // Some ports might have no names - so this is workaround
             }
@@ -811,7 +829,7 @@ std::string parameter_name_to_tensor_name(const std::string& name,
         return name;
     } else if (std::any_of(outputs_info.begin(), outputs_info.end(), [name](const ov::Output<const ov::Node>& port) {
                    try {
-                       return name == port.get_any_name();
+                       return port.get_names().count(name) > 0;
                    } catch (const ov::Exception&) {
                        return false;  // Some ports might have no names - so this is workaround
                    }

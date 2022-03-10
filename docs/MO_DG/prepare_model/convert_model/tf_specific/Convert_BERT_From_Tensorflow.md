@@ -1,4 +1,4 @@
-# Convert TensorFlow* BERT Model to the Intermediate Representation {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_BERT_From_Tensorflow}
+# Convert TensorFlow BERT Model {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_BERT_From_Tensorflow}
 
 Pre-trained models for BERT (Bidirectional Encoder Representations from Transformers) are
 [publicly available](https://github.com/google-research/bert).
@@ -112,8 +112,8 @@ Run the Model Optimizer with the following command line parameters to generate r
 ```sh
  mo \
 --input_model inference_graph.pb \
---input "IteratorGetNext:0{i32}[1 128],IteratorGetNext:1{i32}[1 128],IteratorGetNext:4{i32}[1 128]" 
+--input "IteratorGetNext:0{i32}[1 128],IteratorGetNext:1{i32}[1 128],IteratorGetNext:4{i32}[1 128]"
 ```
 For other applicable parameters, refer to [Convert Model from TensorFlow](../Convert_Model_From_TensorFlow.md).
 
-For more information about reshape abilities, refer to [Using Shape Inference](../../../../IE_DG/ShapeInference.md).
+For more information about reshape abilities, refer to [Using Shape Inference](../../../../OV_Runtime_UG/ShapeInference.md).

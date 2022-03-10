@@ -4,7 +4,7 @@
 
 #include "common_test_utils/file_utils.hpp"
 
-#include "read_ir/read_ir_query_model.hpp"
+#include "read_ir_test/read_ir_query_model.hpp"
 #include "conformance.hpp"
 
 namespace ov {
@@ -18,7 +18,7 @@ namespace {
 INSTANTIATE_TEST_SUITE_P(conformance,
                         ReadIRTest,
                         ::testing::Combine(
-                                ::testing::ValuesIn(CommonTestUtils::getFileListByPatternRecursive(IRFolderPaths,  std::regex(R"(.*\.xml)"))),
+                                ::testing::ValuesIn(CommonTestUtils::getFileListByPatternRecursive(IRFolderPaths,  {std::regex(R"(.*\.xml)")})),
                                 ::testing::Values(targetDevice),
                                 ::testing::Values(pluginConfig)),
                         ReadIRTest::getTestCaseName);
