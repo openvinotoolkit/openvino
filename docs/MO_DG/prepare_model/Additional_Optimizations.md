@@ -2,9 +2,47 @@
 
 Input data for inference can be different from training dataset and requires additional preprocessing before inference.
 In order to accelerate the whole pipeline including preprocessing and inference, Model Optimizer provides special parameters such as `--mean_values`,
-`--scale_values` and `--reverse_input_channels`. Based on these parameters, Model Optimizer generates IR with additionally
+`--scale_values`, `--reverse_input_channels` and `--layout`. Based on these parameters, Model Optimizer generates IR with additionally
 inserted sub-graph that performs defined preprocessing. This preprocessing block can perform mean-scale normalization of input data,
-reverting data along channel dimension. For more details about these parameters, refer to paragraphs below.
+reverting data along channel dimension and changing layout of data. For more details about these parameters, refer to paragraphs below.
+
+## When to Specify Layout
+
+Layout defines which dimensions are located in shape and can be specified
+for both inputs and outputs. For layout syntax check the [Layout API overview](../../OV_Runtime_UG/layout_overview.md). 
+To specify layout, you can use either `--layout` or `--source_layout` followed by the layout value. 
+Additionally, if a model has more than one input or needs both input and output layouts specified,
+each layout needs to be given a name. Here are examples of the two cases:
+* `NCHW` layout specified for a model with a single input:
+```
+mo --input_model /path/to/model --source_layout nchw
+mo --input_model /path/to/model --layout nchw
+```
+* `NCHW` and `NC` layouts specified for a model with two inputs:
+```
+mo --input_model /path/to/model --source_layout name1(nchw),name2(nc)
+mo --input_model /path/to/model --layout name1(nchw),name2(nc)
+```
+Some preprocessing may require setting of input layouts, for example: batch setting,
+application of mean or scales, and reversing input channels (BGR<->RGB).
+
+## How to Change Layout of a Model 
+
+Changing model layout may be necessary if it differs from the one presented by input data. 
+Similarly to specifying layout, to change it you can use one of two commands: either
+`--layout` or `--target_layout`. Again, if a model has more than one input or needs both input
+and output layouts specified, each layout needs to be given a name. Here are examples of the
+two cases:
+* `NHWC` layout of a single-input model changed to `NCHW`:
+```
+mo --input_model /path/to/model --source_layout nhwc --target_layout nchw
+mo --input_model /path/to/model --layout "nhwc->nchw"
+```
+* `NHWC` layout of a multi-input model changed to `NCHW`:
+```
+mo --input_model /path/to/model --source_layout name1(nhwc),name2(nc) --target_layout name1(nchw)
+mo --input_model /path/to/model --layout "name1(nhwc->nchw),name2(nc)"
+```
 
 ## When to Specify Mean and Scale Values
 Usually neural network models are trained with the normalized input data. This means that the input data values are converted to be in a specific range,
