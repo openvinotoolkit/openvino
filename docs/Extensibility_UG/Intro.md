@@ -7,12 +7,12 @@
    :hidden:
 
    openvino_docs_Extensibility_UG_add_openvino_ops
-   openvino_docs_Extensibility_UG_GPU
+   openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer
 
 @endsphinxdirective
 
 The Intel® Distribution of OpenVINO™ toolkit supports neural network models trained with multiple frameworks including
-TensorFlow, Caffe, MXNet, Kaldi, PaddlePaddle, and ONNX. The list of supported operations (layers) is different for
+TensorFlow*, PyTorch*, ONNX*, PaddlePaddle*, MXNet*, Caffe, and Kaldi. The list of supported operations (layers) is different for
 each of the supported frameworks. To see the operations supported by your framework, refer to
 [Supported Framework Operations](../MO_DG/prepare_model/Supported_Frameworks_Layers.md).
 
@@ -34,6 +34,9 @@ An OpenVINO™ provides extensions for:
     - Enables the use of `ov::Core::read_model` to read models with unsupported operations
     - Provides a shape inference mechanism for custom operations
     - Provides an evaluate method which allow to support the operation on CPU or perform constant folding
+ * [Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md):
+    - Enables support of new operations by Model Optimizer to generate IR
+    - Enables support of custom transformations to replace sub-graphs for performance optimization
 
 > **NOTE**: This documentation is written based on the [Template extension](https://github.com/openvinotoolkit/openvino/tree/master/docs/template_extension/new), which demonstrates extension development details. You can review the complete code, which is fully compilable and up-to-date, to see how it works.
 
