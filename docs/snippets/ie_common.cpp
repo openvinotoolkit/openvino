@@ -54,6 +54,32 @@ int main() {
     infer_request.Infer();
     //! [ie:inference]
 
+    //! [ie:start_async_and_wait]
+    // Start inference without blocking current thread
+    auto restart_once = true;
+    infer_request.SetCompletionCallback<std::function<void(InferenceEngine::InferRequest, InferenceEngine::StatusCode)>>(
+        [&, restart_once](InferenceEngine::InferRequest request, InferenceEngine::StatusCode status) mutable {
+            if (status != InferenceEngine::OK) {
+                // Process error code
+            } else {
+                // Extract inference result
+                InferenceEngine::Blob::Ptr output_blob = request.GetBlob(outputs.begin()->first);
+                // Restart inference if needed
+                if (restart_once) {
+                    request.StartAsync();
+                    restart_once = false;
+                }
+            }
+        });
+    infer_request.StartAsync();
+    // Get inference status
+    InferenceEngine::StatusCode status = infer_request.Wait(InferenceEngine::InferRequest::STATUS_ONLY);
+    // Wait for 1 miliseconds
+    status = infer_request.Wait(1);
+    // Wait for inference complition
+    infer_request.Wait(InferenceEngine::InferRequest::RESULT_READY);
+    //! [ie:start_async_and_wait]
+
     //! [ie:get_output_tensor]
     InferenceEngine::Blob::Ptr output_blob = infer_request.GetBlob(outputs.begin()->first);
     InferenceEngine::MemoryBlob::Ptr moutput = InferenceEngine::as<InferenceEngine::MemoryBlob>(output_blob);
