@@ -43,7 +43,7 @@ class OPENVINO_API Model : public std::enable_shared_from_this<Model> {
 
 public:
     static const ::ov::DiscreteTypeInfo& get_type_info_static() {
-        static const ::ov::DiscreteTypeInfo type_info_static{"Model", 0ul};
+        static const ::ov::DiscreteTypeInfo type_info_static{"Model", static_cast<uint64_t>(0)};
         return type_info_static;
     }
     const ::ov::DiscreteTypeInfo& get_type_info() const {
