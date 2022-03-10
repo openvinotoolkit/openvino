@@ -87,9 +87,18 @@ html_theme_options = {
 html_context = {
     'current_language': 'English',
     'languages': (('English', '/latest'), ('Chinese', '/cn/latest')),
-    'doxygen_mapping_file': '@DOXYGEN_MAPPING_FILE@',
+    'label_to_page_mapping_file': '@LABEL_TO_PAGE_MAPPING_FILE@',
     'doxygen_snippet_root': '@OpenVINO_SOURCE_DIR@'
 }
+
+try:
+    ref_mapping = '@DOC_REF_MAPPING@'
+    with open(ref_mapping, 'r', encoding='utf-8') as f:
+        ref_mapping = json.load(f)
+except JSONDecodeError:
+    ref_mapping = dict()
+except FileNotFoundError:
+    ref_mapping = dict()
 
 repositories = {
     'openvino': {
@@ -117,15 +126,6 @@ repositories = {
         'host_url': 'https://github.com'
     }
 }
-
-try:
-    doxygen_mapping_file = '@DOXYGEN_MAPPING_FILE@'
-    with open(doxygen_mapping_file, 'r', encoding='utf-8') as f:
-        doxygen_mapping_file = json.load(f)
-except JSONDecodeError:
-    doxygen_mapping_file = dict()
-except FileNotFoundError:
-    doxygen_mapping_file = dict()
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -160,9 +160,8 @@ def autodoc_skip_member(app, what, name, obj, skip, options):
 
 def setup(app):
     logger = logging.getLogger(__name__)
-    app.add_config_value('doxygen_mapping_file',
-                         doxygen_mapping_file, rebuild=True)
     app.add_config_value('repositories', repositories, rebuild=True)
+    app.add_config_value('ref_mapping', ref_mapping, rebuild=True)
     app.connect('autodoc-skip-member', autodoc_skip_member)
     app.add_js_file('js/custom.js')
     app.add_js_file('js/graphs.js')

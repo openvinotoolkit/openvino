@@ -76,7 +76,8 @@ function(build_docs)
     set(COPY_IMAGES_SCRIPT "${SCRIPTS_DIR}/copy_images.py")
     set(DOC_TEST_DIR "${SCRIPTS_DIR}/tests")
     set(DOXYGEN_MAPPING_SCRIPT "${SCRIPTS_DIR}/create_mapping.py")
-    set(DOXYGEN_MAPPING_FILE "${DOCS_BUILD_DIR}/mapping.json")
+    set(LABEL_TO_PAGE_MAPPING_FILE "${DOCS_BUILD_DIR}/label_mapping.json")
+    set(DOC_REF_MAPPING "${DOCS_BUILD_DIR}/ref_mapping.json")
 
     # out dirs
     set(XML_OUTPUT "${DOCS_BUILD_DIR}/xml")

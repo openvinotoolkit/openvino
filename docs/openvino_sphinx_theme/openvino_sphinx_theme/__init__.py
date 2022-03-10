@@ -16,9 +16,9 @@ def setup_edit_url(app, pagename, templatename, context, doctree):
     """Add a function that jinja can access for returning the edit URL of a page."""
 
     def has_github_page():
-        doxygen_mapping_file = app.config.html_context.get('doxygen_mapping_file')
+        label_to_page_mapping_file = app.config.html_context.get('label_to_page_mapping_file')
         name = pagename.rsplit('-')[0]
-        if name in doxygen_mapping_file:
+        if name in label_to_page_mapping_file:
             return True
         return False
 
@@ -47,9 +47,9 @@ def setup_edit_url(app, pagename, templatename, context, doctree):
         url_template = '{{ github_url }}/{{ github_user }}/{{ github_repo }}' \
                        '/edit/{{ github_version }}/{{ doc_path }}{{ file_name }}'
 
-        doxygen_mapping_file = app.config.html_context.get('doxygen_mapping_file')
+        label_to_page_mapping_file = app.config.html_context.get('label_to_page_mapping_file')
         rst_name = pagename.rsplit('-')[0]
-        file_name = doxygen_mapping_file[rst_name]
+        file_name = label_to_page_mapping_file[rst_name]
         parent_folder = Path(os.path.dirname(file_name)).parts[0]
         file_name = Path(*Path(file_name).parts[1:]).as_posix()
 
@@ -212,12 +212,12 @@ def add_toctree_functions(app, pagename, templatename, context, doctree):
 
 
 def read_doxygen_configs(app, env, docnames):
-    if app.config.html_context.get('doxygen_mapping_file'):
+    if app.config.html_context.get('label_to_page_mapping_file'):
         try:
-            with open(app.config.html_context.get('doxygen_mapping_file'), 'r', encoding='utf-8') as f:
-                app.config.html_context['doxygen_mapping_file'] = json.load(f)
+            with open(app.config.html_context.get('label_to_page_mapping_file'), 'r', encoding='utf-8') as f:
+                app.config.html_context['label_to_page_mapping_file'] = json.load(f)
         except (JSONDecodeError, FileNotFoundError):
-            app.config.html_context['doxygen_mapping_file'] = dict()
+            app.config.html_context['label_to_page_mapping_file'] = dict()
 
 
 def setup(app):

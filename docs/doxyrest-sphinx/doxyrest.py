@@ -61,9 +61,23 @@ else:
 #  Sphinx nodes
 #
 
+
 class HighlightedText(nodes.General, nodes.TextElement):
     def __init__(self, *args, **kwargs):
         nodes.TextElement.__init__(self, *args, **kwargs)
+
+
+class PRef(nodes.reference):
+    pass
+
+
+def visit_pref(self, node):
+    refuri = node['refuri']
+    return self.body.append(f'<a class="pref" href="{refuri}.html">')
+
+
+def depart_pref(self, node):
+    self.body.append('</a>')
 
 
 def visit_highlighted_text_node(self, node):
@@ -96,7 +110,6 @@ def visit_highlighted_text_node(self, node):
     raise nodes.SkipNode
 
 
-
 def visit_doxyrest_literalblock_node(self, node):
     classes = ' '.join(node.attributes['classes'])
     self.body.append('<div class="{}"><div class="highlight"><pre>'.format(classes))
@@ -119,6 +132,16 @@ def create_ref_node(raw_text, text, target):
     node['reftarget'] = target
     node['refwarn'] = True
     node['refexplicit'] = True
+    node += nodes.Text(text, text)
+    return node
+
+
+def create_pref_node(raw_text, text, target):
+    node = PRef(raw_text)
+    node['internal'] = True
+    node['refuri'] = target
+    inline = nodes.inline()
+    inline['classes'] += ['doc']
     node += nodes.Text(text, text)
     return node
 
@@ -168,7 +191,7 @@ class RefCodeBlock(Directive):
     def __init__(self, *args, **kwargs):
         Directive.__init__(self, *args, **kwargs)
 
-        role_re_src = '(:ref:|:cref:|:target:)'
+        role_re_src = '(:ref:|:cref:|:pref:|:target:)'
         if self.state.document.settings.env.config.default_role == 'cref':
             role_re_src += '?' # explicit role is optional
 
@@ -228,7 +251,6 @@ class RefCodeBlock(Directive):
                     self.state.document,
                     ['doxyrest-code-target']
                     )
-
             else:
                 if not role or role == ':cref:':
                     target = get_cref_target(target if target else text)
@@ -276,12 +298,13 @@ class DoxygenSnippet(RefCodeBlock):
 
         reader = LiteralIncludeReader(filename, self.options, config)
         text, lines = reader.read(location=location)
-
-        code = self.insert_refs(text)
-        # code = ':ref:`ov::Core <doxid-classov_1_1_core>`'
-
         language = self.options.get('language')
-
+        if language == 'cpp':
+            code = self.insert_refs_cpp(text)
+        else:
+            # code = self.insert_refs_python(text)
+            code = self.insert_refs_cpp(text)
+            code = self.insert_refs_python(code)
         while True:
             match = self.role_re_prog.search(code, pos)
             if match is None:
@@ -321,13 +344,28 @@ class DoxygenSnippet(RefCodeBlock):
                     self.state.document,
                     ['doxyrest-code-target']
                 )
+            elif role == ':pref:':
+                if not target:
+                    target = text
+                    text = None
+                    ws_match = self.ws_re_prog.match(code, pos)
+                    if ws_match:
+                        pos = ws_match.end()
 
+                new_node = create_pref_node(
+                    raw_text,
+                    text,
+                    target
+                )
             else:
                 if not role or role == ':cref:':
                     target = get_cref_target(target if target else text)
                 elif not target:
                     target = text
-
+                # if language == 'python':
+                #     new_node = create_python_ref_node(raw_text, text, target)
+                # else:
+                #     new_node = create_ref_node(raw_text, text, target)
                 new_node = create_ref_node(raw_text, text, target)
 
             node += new_node
@@ -335,14 +373,30 @@ class DoxygenSnippet(RefCodeBlock):
         self.add_name(node)
         return [node]
 
-    def insert_refs(self, text):
+    def insert_refs_python(self, text):
+        pattern = r'\w+(?:\.\w+)+'
         result = []
         for line in text.split('\n'):
-            for occur in re.finditer(r'\w+(?::{2}\w+)+', line):
-                code_entity = 'class' + occur.group().replace('::', '_1_1')
+            for occur in re.finditer(pattern, line):
+                match = occur.group()
+                if 'ov.' in match:
+                    match = match.replace('ov.', 'openvino.runtime.')
+                code_entity = f'api/ie_python_api/_autosummary/{match}'
                 if code_entity in self.state.document.settings.env.all_docs:
-                    code_entity = code_entity.replace('_1_1', '_1_1_')
-                    line = line.replace(occur.group(), f':ref:`{occur.group()} <doxid-{code_entity.lower()}>`')
+                    line = line.replace(occur.group(), f':pref:`{occur.group()} <{code_entity}>`')
+            result.append(line)
+        return '\n'.join(result)
+
+    def insert_refs_cpp(self, text):
+        ref_mapping = self.state.document.settings.env.config.ref_mapping
+        pattern = r'\w+(?::{2}\w+)+'
+        result = []
+        for line in text.split('\n'):
+            for occur in re.finditer(pattern, line):
+                match = occur.group()
+                if match in ref_mapping:
+                    ref = ref_mapping[match]
+                    line = line.replace(match, f':ref:`{match} <doxid-{ref}>`')
             result.append(line)
         return '\n'.join(result)
 
@@ -425,6 +479,7 @@ def cref_role(typ, raw_text, text, lineno, inliner, options={}, content=[]):
     node['classes'] += ['doxyrest-cref']
     node += create_ref_node(raw_text, text, target)
     return [node], []
+
 
 def target_role(typ, raw_text, text, lineno, inliner, options={}, content=[]):
     node = create_target_node(raw_text, None, text, None, lineno, inliner.document)
@@ -581,6 +636,12 @@ def setup(app):
         DoxyrestLiteralBlock,
         html=(visit_doxyrest_literalblock_node, depart_doxyrest_literalblock_node),
         latex=(visit_doxyrest_literalblock_node, depart_doxyrest_literalblock_node)
+    )
+
+    app.add_node(
+        PRef,
+        html=(visit_pref, depart_pref),
+        latex=(visit_pref, depart_pref)
     )
 
     app.add_role('cref', cref_role)

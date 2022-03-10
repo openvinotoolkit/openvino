@@ -68,7 +68,37 @@ def create_mapping(xml_input: Path, output_dir: Path, strip_path: Path):
         except etree.XMLSyntaxError as e:
             logging.warning('{}: {}.'.format(xml_file, e))
 
-    with open(output_dir.joinpath('mapping.json'), 'w') as f:
+    with open(output_dir.joinpath('label_mapping.json'), 'w') as f:
+        json.dump(mapping, f)
+
+
+def create_member_mapping(xml_input, output_dir, strip_path):
+    mapping = dict()
+    xml_files = xml_input.glob('*.xml')
+    for xml_file in xml_files:
+        try:
+            root = etree.parse(xml_file.as_posix()).getroot()
+            compounddef = root.xpath('//compounddef')
+            if compounddef:
+                cd = compounddef[0]
+                cd_id = cd.attrib['id']
+                compoundname = cd.find('compoundname').text
+                mapping[compoundname] = cd_id
+                memberdefs = root.xpath('//memberdef')
+                for md in memberdefs:
+                    md_id = md.attrib['id']
+                    md_definition = compoundname + '::' + md.find('name').text
+                    mapping[md_definition] = md_id
+                    enums = md.findall('enumvalue')
+                    for en in enums:
+                        en_id = en.attrib['id']
+                        en_name = md_definition + '::' + en.find('name').text
+                        mapping[en_name] = en_id
+        except AttributeError:
+            logging.warning('{}: Cannot find the origin file.'.format(xml_file))
+        except etree.XMLSyntaxError as e:
+            logging.warning('{}: {}.'.format(xml_file, e))
+    with open(output_dir.joinpath('ref_mapping.json'), 'w') as f:
         json.dump(mapping, f)
 
 
@@ -83,6 +113,7 @@ def main():
     output_dir = args.output_dir
     strip_path = args.strip_path
     create_mapping(xml_input, output_dir, strip_path)
+    create_member_mapping(xml_input, output_dir, strip_path)
 
 
 if __name__ == '__main__':

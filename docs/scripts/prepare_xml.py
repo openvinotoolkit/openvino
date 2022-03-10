@@ -21,10 +21,10 @@ def prepare_xml(xml_dir: Path):
             with open(xml_file, 'r', encoding='utf-8') as f:
                 contents = f.read()
 
-            matches = re.findall(pattern, contents, flags=re.DOTALL)
-            if matches:
-                for match in matches:
-                    contents = contents.replace(match, saxutils.escape(match))
+            sphinxdirectives = re.findall(pattern, contents, flags=re.DOTALL)
+            if sphinxdirectives:
+                for sd in sphinxdirectives:
+                    contents = contents.replace(sd, saxutils.escape(sd))
             contents = str.encode(contents)
             root = etree.fromstring(contents)
             anchors = root.xpath('//anchor')
@@ -40,6 +40,15 @@ def prepare_xml(xml_dir: Path):
                 sphinxdirective.text = '\n\n.. _' + text[2:] + ':\n\n'
                 new_para.append(sphinxdirective)
                 dd.insert(index, new_para)
+
+            # memberdefs
+            # memberdefs = root.xpath('//memberdef')
+            # for member in memberdefs:
+            #     name = member.find('name').text
+            #     id = member.attrib['id'].replace('__', '_').replace('_1_1_', '_').replace('_1_1', '_')
+            #     id = '_'.join(id.split('_')[:-1]) + '_' + name
+            #     member.attrib['id'] = id.lower()
+            #     _type = member.find('type')
 
             with open(xml_file, 'wb') as f:
                 f.write(etree.tostring(root))
