@@ -185,6 +185,9 @@ void ReadIRTest::SetUp() {
                                                                                     midShape }});
             }
         }
+        if (inputShapes.empty()) {
+            GTEST_SKIP() << "The graph is constant. The case is not applicable for Operation conformance scenario";
+        }
         init_input_shapes(inputShapes);
     } else {
         IE_THROW() << "Crash happens";
