@@ -114,16 +114,16 @@ The environment variables are set. Next, you can download some additional tools.
       
    There are three ways to run the script:
    
-   a. GUI: right-click the script and select ``Run with PowerShell``.
+   * GUI: right-click the script and select ``Run with PowerShell``.
       
-   b. Command prompt (CMD) console:
+   * Command prompt (CMD) console:
    
    .. code-block:: sh
    
       powershell <INSTALL_DIR>\extras\scripts\download_opencv.ps1
       
       
-   c. PowerShell console:
+   * PowerShell console:
    
    .. code-block:: sh
    
