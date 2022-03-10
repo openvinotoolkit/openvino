@@ -61,7 +61,9 @@ public:
         ASSERT_TRUE(res.valid) << res.message;
 
         if (m_enable_accuracy_check) {
-            accuracy_check(cloned_function, function);
+            comparator.enable(FunctionsComparator::ACCURACY);
+            auto res2 = comparator.compare(function, cloned_function);
+            ASSERT_TRUE(res2.valid) << res2.message;
         }
     }
 

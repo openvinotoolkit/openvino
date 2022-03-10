@@ -19,8 +19,9 @@ void TransformationTestsF::accuracy_check(const std::shared_ptr<ov::Model>& ref_
         std::map<std::shared_ptr<ov::Node>, ov::Tensor> ref_input_data;
         std::map<std::shared_ptr<ov::Node>, ov::Tensor> cur_input_data;
         for (size_t i=0; i < ref_function->get_parameters().size(); i++) {
-            const auto &tensor = ov::test::utils::create_and_fill_tensor(ref_function->get_parameters()[i]->get_element_type(),
-                                                                         ref_function->get_parameters()[i]->get_shape());
+            const auto &tensor = ov::test::utils::create_and_fill_tensor(
+                    ref_function->get_parameters()[i]->get_element_type(),
+                    ref_function->get_parameters()[i]->get_shape());
             ref_input_data[ref_function->get_parameters()[i]] = tensor;
             cur_input_data[cur_function->get_parameters()[i]] = tensor;
         }
