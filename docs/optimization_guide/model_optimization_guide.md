@@ -17,7 +17,7 @@
 
 - **Neural Network Compression Framework [(NNCF)](./nncf_introduction.md)** provides a suite of advanced algorithms for Neural Networks inference optimization with minimal accuracy drop, for example, quantization, pruning algorithms.
 
-- **Model Optimizer** implements optimization to a model, most of them added by default, but you can configure mean/scale values, batch size RGB vs BGR input channels, and other parameters to speed-up preprocess of a model ([Optimizing Preprocessing Computation](../MO_DG/prepare_model/convert_model/Additional_Optimizations.md)) 
+- **Model Optimizer** implements optimization to a model, most of them added by default, but you can configure mean/scale values, batch size RGB vs BGR input channels, and other parameters to speed-up preprocess of a model ([Optimizing Preprocessing Computation](../MO_DG/prepare_model/Additional_Optimizations.md)) 
 
 
 ## Detailed workflow: 

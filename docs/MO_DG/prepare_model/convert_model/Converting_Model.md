@@ -41,7 +41,7 @@ becomes invalid. Resulting Intermediate Representation will not be resizable wit
 ## See Also
 * [Introduction](../../Deep_Learning_Model_Optimizer_DevGuide.md)
 * [Cutting Off Parts of a Model](Cutting_Model.md)
-* [Optimizing Preprocessing Computation](Additional_Optimizations.md)
+* [Optimizing Preprocessing Computation](../Additional_Optimizations.md)
 * [Converting TensorFlow Models](Convert_Model_From_TensorFlow.md)
 * [Converting ONNX Models](Convert_Model_From_ONNX.md)
 * [Converting PyTorch Models](Convert_Model_From_PyTorch.md)
