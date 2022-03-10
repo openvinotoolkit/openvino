@@ -8,13 +8,13 @@ import io
 from threading import Thread
 import numpy as np
 
-from openvino.runtime import Core, Model, AsyncInferQueue, PartialShape, Layout, Type, opset8 as ops
+from openvino.runtime import Core, Model, AsyncInferQueue, PartialShape, Layout, opset8 as ops
 from openvino.preprocess import PrePostProcessor
 from openvino.runtime.passes import Manager
 
 
 # check if func releases the GIL and doens't increment reference counters of args while GIL is released
-def check_gil_released_safe(func, args = []):
+def check_gil_released_safe(func, args=[]):  # noqa: B006
     global gil_released
     gil_released = False
 
