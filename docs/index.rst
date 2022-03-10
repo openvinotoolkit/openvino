@@ -72,9 +72,9 @@ OpenVINO™ Documentation
 	    <h3>DL Workbench </h3>
 	    <p> Learn about the alternative, web-based version of OpenVINO. DL Workbench container installation Required. </p>
 	 </a>
-	 <a href="openvino_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide.html" >
-	    <h3>Inference Engine </h3>
-	    <p> Learn about OpenVINO's inference mechanism which executes the IR and ONNX models on target devices. </p>  
+	 <a href="openvino_docs_OV_Runtime_User_Guide.html" >
+	    <h3>OpenVINO™ Runtime </h3>
+	    <p> Learn about OpenVINO's inference mechanism which executes the IR, ONNX, Paddle models on target devices. </p>  
 	 </a>
 	 <a href="openvino_docs_optimization_guide_dldt_optimization_guide.html" >
 	    <h3>Tune & Optimize </h3>
