@@ -14,7 +14,7 @@ from openvino.runtime.passes import Manager
 
 
 # check if func releases the GIL and doens't increment reference counters of args while GIL is released
-def check_gil_released_safe(func, args):
+def check_gil_released_safe(func, args = []):
     global gil_released
     gil_released = False
 
@@ -50,31 +50,31 @@ def test_gil_released_async_infer_queue_init():
 
 def test_gil_released_async_infer_queue_start_async():
     infer_queue.start_async()
-    check_gil_released_safe(infer_queue.start_async, [])
+    check_gil_released_safe(infer_queue.start_async)
 
 
 def test_gil_released_async_infer_queue_is_ready():
     infer_queue.start_async()
-    check_gil_released_safe(infer_queue.is_ready, [])
+    check_gil_released_safe(infer_queue.is_ready)
 
 
 def test_gil_released_async_infer_queue_wait_all():
     infer_queue.start_async()
-    check_gil_released_safe(infer_queue.wait_all, [])
+    check_gil_released_safe(infer_queue.wait_all)
 
 
 # CompiledModel
 
 def test_gil_released_create_infer_request():
-    check_gil_released_safe(compiled.create_infer_request, [])
+    check_gil_released_safe(compiled.create_infer_request)
 
 
 def test_gil_released_infer_new_request():
-    check_gil_released_safe(compiled, [])
+    check_gil_released_safe(compiled)
 
 
 def test_gil_released_export():
-    check_gil_released_safe(compiled.export_model, [])
+    check_gil_released_safe(compiled.export_model)
 
 
 def test_gil_released_export_advanced():
@@ -82,7 +82,7 @@ def test_gil_released_export_advanced():
 
 
 def test_gil_released_get_runtime_model():
-    check_gil_released_safe(compiled.get_runtime_model, [])
+    check_gil_released_safe(compiled.get_runtime_model)
 
 
 # Core
@@ -178,15 +178,15 @@ def test_start_async():
 def test_wait():
     data = [np.random.normal(size=list(compiled.input().shape))]
     request.start_async(data)
-    check_gil_released_safe(request.wait, [])
+    check_gil_released_safe(request.wait)
 
 
 def test_get_profiling_info():
-    check_gil_released_safe(request.get_profiling_info, [])
+    check_gil_released_safe(request.get_profiling_info)
 
 
 def test_query_state():
-    check_gil_released_safe(request.query_state, [])
+    check_gil_released_safe(request.query_state)
 
 
 # Preprocessing
@@ -194,7 +194,7 @@ def test_query_state():
 def test_pre_post_process_build():
     p = PrePostProcessor(model)
     p.input().model().set_layout(Layout("NC"))
-    check_gil_released_safe(p.build, [])
+    check_gil_released_safe(p.build)
 
 
 def test_model_reshape():
