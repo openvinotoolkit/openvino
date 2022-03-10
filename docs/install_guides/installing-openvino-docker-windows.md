@@ -148,8 +148,8 @@ cmd /S /C "omz_downloader --name googlenet-v1 --precisions FP16 && omz_converter
 
 ### Running the Image on GPU
 
-> **NOTE**: Since GPU is not supported in <a href="#get-prebuilt-image">prebuilt images</a> or [default Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles), you must make sure 
-the Additional Requirements for GPU in <a href="#system-requirements">System Requirements</a> are met, and <a href="#config-image-for-gpu">configure and build the image manually</a> before you can run inferences on a GPU.
+> **NOTE**: Since GPU is not supported in <a href="#get-prebuilt-image">prebuilt images</a> or [default Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles), you must make sure the Additional Requirements for GPU in <a href="#system-requirements">System Requirements</a> are met, and <a href="#config-image-for-gpu">configure and build the image manually</a> before you can run inferences on a GPU.
+
 
 1. To try inference on a GPU, run the image with the following command:
    ```bat
