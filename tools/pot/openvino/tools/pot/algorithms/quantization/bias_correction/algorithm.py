@@ -260,6 +260,7 @@ class BiasCorrection(Algorithm):
         outputs_shapes = {nu.create_node_name(n): nu.get_output_shape(n, 0).copy() for n in input_nodes}
         inputs_data = []
         param_type = 'Parameter'
+        nodes_data = []
         for input_node in input_nodes:
             input_node_name = nu.create_node_name(input_node)
             c_input_shape = outputs_shapes[input_node_name]
@@ -271,15 +272,18 @@ class BiasCorrection(Algorithm):
                 parameter_name = input_node_name + '/parameter'
                 param_node = ge.create_node(input_node.graph, parameter_name, param_type,
                                             {'shape': c_input_shape, 'data_type': input_node_data_type})
-                for _, port in input_node.out_ports().items():
-                    for in_port in port.get_destinations():
-                        in_port.disconnect()
-                        in_port.connect(param_node.out_port(0))
+                nodes_data.append((input_node, param_node))
             inputs_data.append({
                 'param_name': parameter_name,
                 'param_shape': tuple(c_input_shape),
                 'input_name': input_node_name
             })
+
+        for input_node, param_node in nodes_data:
+            for _, port in input_node.out_ports().items():
+                for in_port in port.get_destinations():
+                    in_port.disconnect()
+                    in_port.connect(param_node.out_port(0))
 
         return inputs_data
 
