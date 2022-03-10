@@ -30,7 +30,7 @@ model.reshape("?, ?")
 #! [reshape_undefined]
 
 #! [reshape_bounds]
-# Both dimensions are dynamic, first may have size within 1..10 and the second is withing 8..512
+# Both dimensions are dynamic, first has a size within 1..10 and the second has a size within 8..512
 model.reshape([ov.Dimension(1, 10), ov.Dimension(8, 512)])
 
 # The same as above
@@ -39,7 +39,7 @@ model.reshape([(1, 10), (8, 512)])
 # The same as above
 model.reshape("1..10, 8..512")
 
-# Both dimensions are dynamic, first doesn't have bounds, the second is in 8..512
+# Both dimensions are dynamic, first doesn't have bounds, the second is in the range of 8..512
 model.reshape([-1, (8, 512)])
 #! [reshape_bounds]
 
@@ -76,11 +76,11 @@ infer_request = executable.create_infer_request()
 # The first inference call
 
 # Create tensor compatible to the model input
-# Shape {1, 128} is compatible to any reshape statements made in previous examples
+# Shape {1, 128} is compatible with any reshape statements made in previous examples
 input_tensor1 = ov.Tensor(model.input().element_type, [1, 128])
 # ... write values to input_tensor_1
 
-# Set the tensor as a model input within infer request
+# Set the tensor as an input for the infer request
 infer_request.set_input_tensor(input_tensor1)
 
 # Do the inference
@@ -89,14 +89,14 @@ infer_request.infer()
 # Or pass a tensor in infer to set the tensor as a model input and make the inference
 infer_request.infer([input_tensor1])
 
-# You can also pass a numpy array in infer to set input data to the model
+# Or pass the numpy array to set inputs of the infer request
 input_data = np.ones(shape=[1, 128])
 infer_request.infer([input_data])
 
 # Retrieve a tensor representing the output data
 output_tensor = infer_request.get_output_tensor()
 
-# Take a numpy array with output tensor data and store a copy of it
+# Copy data from tensor to numpy array
 data1 = output_tensor.data[:]
 
 # The second inference call, repeat steps:
