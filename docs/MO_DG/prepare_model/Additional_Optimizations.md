@@ -8,47 +8,52 @@ reverting data along channel dimension, and changing layout of data. For more de
 
 ## When to Specify Layout
 
+Some preprocessing may require setting of input layouts, for example: batch setting,
+application of mean or scales, and reversing input channels (BGR<->RGB).
+
 Layout defines which dimensions are located in shape and can be specified
 for both inputs and outputs. For layout syntax check the [Layout API overview](../../OV_Runtime_UG/layout_overview.md). 
 To specify layout, you can use either `--layout` or `--source_layout` followed by the layout value. 
+
+For example, for Tensorflow\* `nasnet_large` model that was exported to ONNX format and thus has input with `NHWC` layout:
+
+```
+mo --input_model tf_nasnet_large.onnx --source_layout nhwc
+mo --input_model tf_nasnet_large.onnx --layout nhwc
+```
+
 Additionally, if a model has more than one input or needs both input and output layouts specified,
-each layout needs to be given a name. Here are examples of the two cases:
-* `NCHW` layout specified for a model with a single input:
+each layout needs to be given a name.
+
+For example, for ONNX\* `Yolo v3 Tiny` model that has first input `input_1` in `NCHW` layout and second input `image_shape`
+with 2 dimensions: batch and size of the image which can be expressed as `N?` layout:
 
 ```
-mo --input_model /path/to/model --source_layout nchw
-mo --input_model /path/to/model --layout nchw
+mo --input_model yolov3-tiny.onnx --source_layout input_1(nchw),image_shape(n?)
+mo --input_model yolov3-tiny.onnx --layout input_1(nchw),image_shape(n?)
 ```
-
-* `NCHW` and `NC` layouts specified for a model with two inputs:
-
-```
-mo --input_model /path/to/model --source_layout name1(nchw),name2(nc)
-mo --input_model /path/to/model --layout name1(nchw),name2(nc)
-```
-
-Some preprocessing may require setting of input layouts, for example: batch setting,
-application of mean or scales, and reversing input channels (BGR<->RGB).
 
 ## How to Change Layout of a Model 
 
 Changing model layout may be necessary if it differs from the one presented by input data. 
 Similarly to specifying layout, to change it you can use one of two commands: either
-`--layout` or `--target_layout`. Again, if a model has more than one input or needs both input
-and output layouts specified, each layout needs to be given a name. Here are examples of the
-two cases:
-* `NHWC` layout of a single-input model changed to `NCHW`:
+`--layout` or `--target_layout`.
+
+For example, for the same `nasnet_large` that were mentioned previously we may want to provide data in `NCHW` layout:
 
 ```
-mo --input_model /path/to/model --source_layout nhwc --target_layout nchw
-mo --input_model /path/to/model --layout "nhwc->nchw"
+mo --input_model tf_nasnet_large.onnx --source_layout nhwc --target_layout nchw
+mo --input_model tf_nasnet_large.onnx --layout "nhwc->nchw"
 ```
 
-* `NHWC` layout of a multi-input model changed to `NCHW`:
+Again, if a model has more than one input or needs both input and output layouts specified, each layout needs to be
+given a name.
+
+For example, if for the mentioned earlier `Yolo v3 Tiny` model we want to provide data in `NHWC` layout:
 
 ```
-mo --input_model /path/to/model --source_layout name1(nhwc),name2(nc) --target_layout name1(nchw)
-mo --input_model /path/to/model --layout "name1(nhwc->nchw),name2(nc)"
+mo --input_model yolov3-tiny.onnx --source_layout "input_1(nchw),image_shape(n?)" --target_layout "input_1(nhwc)"
+mo --input_model yolov3-tiny.onnx --layout "input_1(nchw->nhwc),image_shape(n?)"
 ```
 
 ## When to Specify Mean and Scale Values
