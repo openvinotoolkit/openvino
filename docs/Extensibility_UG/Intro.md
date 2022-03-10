@@ -34,7 +34,7 @@ OpenVINO™ provides extensions for:
     - Enables the creation of unsupported operations
     - Enables the use of `ov::Core::read_model` to read models with unsupported operations
     - Provides a shape inference mechanism for custom operations
-    - Provides an evaluate method which allow to support the operation on CPU or perform constant folding
+    - Provides an evaluate method that allows you to support the operation on CPU or perform constant folding
  * [Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md):
     - Enables support of new operations to generate IR
     - Enables support of custom transformations to replace sub-graphs for performance optimization

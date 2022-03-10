@@ -1,6 +1,6 @@
 # Setting Input Shapes {#openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model}
 
-Paragraphs below provide details about specifing input shapes for model conversion.
+Paragraphs below provide details about specifying input shapes for model conversion.
 
 ## When to Specify `--input_shape` Command Line Parameter <a name="when_to_specify_input_shapes"></a>
 There are situations when Model Optimizer is unable to deduce input shapes of the model. In this case, user has to specify input shapes explicitly

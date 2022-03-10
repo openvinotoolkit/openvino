@@ -1,10 +1,10 @@
 # Embedding Preprocessing Computation {#openvino_docs_MO_DG_Additional_Optimization_Use_Cases}
 
-Input data for inference can be different from training dataset and requires additional preprocessing before inference.
-In order to accelerate the whole pipeline including preprocessing and inference, Model Optimizer provides special parameters such as `--mean_values`,
+Input data for inference can be different from the training dataset and requires additional preprocessing before inference.
+To accelerate the whole pipeline including preprocessing and inference, Model Optimizer provides special parameters such as `--mean_values`,
 `--scale_values`, `--reverse_input_channels`, and `--layout`. Based on these parameters, Model Optimizer generates IR with additionally
-inserted sub-graph that performs defined preprocessing. This preprocessing block can perform mean-scale normalization of input data,
-reverting data along channel dimension, and changing layout of data. For more details about these parameters, refer to paragraphs below.
+inserted sub-graph that performs the defined preprocessing. This preprocessing block can perform mean-scale normalization of input data,
+reverting data along channel dimension, and changing the data layout. For more details about these parameters, refer to paragraphs below.
 
 ## When to Specify Layout
 
@@ -66,8 +66,8 @@ In the second case, information about mean/scale values should be provided to th
 Model Optimizer provides a number of command line parameters to specify them: `--mean_values`, `--scale_values`, `--scale`.
 
 > **NOTE:** If both mean and scale values are specified, the mean is subtracted first and then scale is applied regardless of the order of options
-in command line. Input values are *divided* by the scale value(s). If also `--reverse_input_channels` option is used, the reverse_input_channels
-will be applied first, then mean and after that scale. In other words, the data flow in the model looks as following:
+in command line. Input values are *divided* by the scale value(s). If also `--reverse_input_channels` option is used, the `reverse_input_channels`
+will be applied first, then `mean` and after that `scale`. In other words, the data flow in the model looks as following:
 `Parameter -> ReverseInputChannels -> Mean apply-> Scale apply -> the original body of the model`.
 
 

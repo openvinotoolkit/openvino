@@ -64,7 +64,7 @@ Also, you can insert additional input pre-processing sub-graphs into the convert
 the `--mean_values`, `scales_values`, `--layout`, and other parameters described
 in [Embedding Preprocessing Computation](prepare_model/Additional_Optimizations.md).
 
-Model Optimizer provides compression parameter `--data_type` to generate IR of `FP16` data type. For more details,
+Model Optimizer's compression parameter `--data_type` allows to generate IR of the `FP16` data type. For more details,
 please refer to [Compression of a Model to FP16](prepare_model/FP16_Compression.md).
 
 To get the full list of conversion parameters available in Model Optimizer, run the following command:
@@ -75,57 +75,66 @@ mo --help
 
 ## Examples of CLI Commands
 
-Launch the Model Optimizer for the TensorFlow* BERT model in binary protobuf format with three inputs and explicitly specify input shapes
-where the batch size and the sequence length equal 2 and 30. For more information about TensorFlow* models conversion,
-please refer to [Converting a TensorFlow* Model](prepare_model/convert_model/Convert_Model_From_TensorFlow.md).
+Launch Model Optimizer for a TensorFlow BERT model in the binary protobuf format, with three inputs. Explicitly specify input shapes
+where the batch size and the sequence length equal 2 and 30 respectively.
 
 ```sh
 mo --input_model bert.pb --input input_mask,input_word_ids,input_type_ids --input_shape [2,30],[2,30],[2,30]
 ```
 
-Launch the Model Optimizer for the TensorFlow* MobileNet model in SavedModel format.
+Launch Model Optimizer for a TensorFlow MobileNet model in the SavedModel format.
 
 ```sh
 mo --saved_model_dir MobileNet
 ```
 
-Launch the Model Optimizer for the ONNX* OCR model and explicitly specify new output. For more information about ONNX* models conversion,
-please refer to [Converting a ONNX* Model](prepare_model/convert_model/Convert_Model_From_ONNX.md).
-Note that PyTorch* models must be exported to ONNX* format before its conversion into IR,
-follow details from [Converting a PyTorch* Model](prepare_model/convert_model/Convert_Model_From_PyTorch.md).
+For more information on TensorFlow model conversion,
+refer to [Converting a TensorFlow Model](prepare_model/convert_model/Convert_Model_From_TensorFlow.md).
+
+Launch Model Optimizer for an ONNX OCR model and explicitly specify new output.
 
 ```sh
 mo --input_model ocr.onnx --output probabilities
 ```
 
-Launch the Model Optimizer for the PaddlePaddle* UNet model and apply mean-scale normalization to the input.
-For more information about ONNX* models conversion, please refer to
-[Converting a PaddlePaddle* Model](prepare_model/convert_model/Convert_Model_From_Paddle.md).
+For more information on ONNX model conversion,
+please refer to [Converting an ONNX Model](prepare_model/convert_model/Convert_Model_From_ONNX.md).
+Note that PyTorch models must be exported to the ONNX format before its conversion into IR.
+More details can be found in [Converting a PyTorch Model](prepare_model/convert_model/Convert_Model_From_PyTorch.md).
+
+Launch Model Optimizer for a PaddlePaddle UNet model and apply mean-scale normalization to the input.
 
 ```sh
 mo --input_model unet.pdmodel --mean_values [123,117,104] --scale 255
 ```
 
-Launch the Model Optimizer for the MXNet* SSD Inception V3 model and specify input layout.
-For more information about MXNet* models conversion, please refer to [Converting a MXNet* Model](prepare_model/convert_model/Convert_Model_From_MxNet.md).
+For more information on PaddlePaddle model conversion, please refer to
+[Converting a PaddlePaddle Model](prepare_model/convert_model/Convert_Model_From_Paddle.md).
+
+Launch Model Optimizer for an MXNet SSD Inception V3 model and specify input layout.
 
 ```sh
 mo --input_model ssd_inception_v3-0000.params --layout NCHW
 ```
 
-Launch the Model Optimizer for the Caffe* AlexNet model with reversed input channels order between RGB and BGR.
-For more information about Caffe* models conversion, please refer to [Converting a Caffe* Model](prepare_model/convert_model/Convert_Model_From_Caffe.md).
+For more information on MXNet models conversion, please refer to [Converting an MXNet Model](prepare_model/convert_model/Convert_Model_From_MxNet.md).
+
+Launch Model Optimizer for a Caffe AlexNet model with input channels in the RGB format, which needs to be reversed.
 
 ```sh
 mo --input_model alexnet.caffemodel --reverse_input_channels
 ```
 
-Launch the Model Optimizer for the Kaldi* LibriSpeech nnet2 model. For more information about Kaldi* models conversion,
-please refer to [Converting a Kaldi* Model](prepare_model/convert_model/Convert_Model_From_Kaldi.md).
+For more information on Caffe model conversion, please refer to [Converting a Caffe Model](prepare_model/convert_model/Convert_Model_From_Caffe.md).
+
+Launch Model Optimizer for a Kaldi LibriSpeech nnet2 model.
 
 ```sh
 mo --input_model librispeech_nnet2.mdl --input_shape [1,140]
 ```
+
+For more information on Kaldi model conversion,
+refer to [Converting a Kaldi Model](prepare_model/convert_model/Convert_Model_From_Kaldi.md).
 
 ## Videos
 
