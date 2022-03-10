@@ -42,7 +42,7 @@ becomes invalid. Resulting Intermediate Representation will not be resizable wit
 * [Introduction](../../Deep_Learning_Model_Optimizer_DevGuide.md)
 * [Cutting Off Parts of a Model](Cutting_Model.md)
 * [Optimizing Preprocessing Computation](../Additional_Optimizations.md)
-* [Compression Of Model To FP16](../FP16_Compression.md)
+* [Compression of a Model to FP16](../FP16_Compression.md)
 * [Converting TensorFlow Models](Convert_Model_From_TensorFlow.md)
 * [Converting ONNX Models](Convert_Model_From_ONNX.md)
 * [Converting PyTorch Models](Convert_Model_From_PyTorch.md)

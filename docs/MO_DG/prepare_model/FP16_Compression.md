@@ -1,4 +1,4 @@
-# Compression Of Model To FP16 {#openvino_docs_MO_DG_FP16_Compression}
+# Compression of a Model to FP16 {#openvino_docs_MO_DG_FP16_Compression}
 
 Model Optimizer can compress models to `FP16` data type. This makes them occupy less space 
 in the file system and, most importantly, increase performance when particular hardware is used. 
