@@ -4,7 +4,7 @@ Input data for inference can be different from training dataset and requires add
 In order to accelerate the whole pipeline including preprocessing and inference, Model Optimizer provides special parameters such as `--mean_values`,
 `--scale_values`, `--reverse_input_channels`, and `--layout`. Based on these parameters, Model Optimizer generates IR with additionally
 inserted sub-graph that performs defined preprocessing. This preprocessing block can perform mean-scale normalization of input data,
-reverting data along channel dimension and changing layout of data. For more details about these parameters, refer to paragraphs below.
+reverting data along channel dimension, and changing layout of data. For more details about these parameters, refer to paragraphs below.
 
 ## When to Specify Layout
 
@@ -14,15 +14,19 @@ To specify layout, you can use either `--layout` or `--source_layout` followed b
 Additionally, if a model has more than one input or needs both input and output layouts specified,
 each layout needs to be given a name. Here are examples of the two cases:
 * `NCHW` layout specified for a model with a single input:
+
 ```
 mo --input_model /path/to/model --source_layout nchw
 mo --input_model /path/to/model --layout nchw
 ```
+
 * `NCHW` and `NC` layouts specified for a model with two inputs:
+
 ```
 mo --input_model /path/to/model --source_layout name1(nchw),name2(nc)
 mo --input_model /path/to/model --layout name1(nchw),name2(nc)
 ```
+
 Some preprocessing may require setting of input layouts, for example: batch setting,
 application of mean or scales, and reversing input channels (BGR<->RGB).
 
@@ -34,11 +38,14 @@ Similarly to specifying layout, to change it you can use one of two commands: ei
 and output layouts specified, each layout needs to be given a name. Here are examples of the
 two cases:
 * `NHWC` layout of a single-input model changed to `NCHW`:
+
 ```
 mo --input_model /path/to/model --source_layout nhwc --target_layout nchw
 mo --input_model /path/to/model --layout "nhwc->nchw"
 ```
+
 * `NHWC` layout of a multi-input model changed to `NCHW`:
+
 ```
 mo --input_model /path/to/model --source_layout name1(nhwc),name2(nc) --target_layout name1(nchw)
 mo --input_model /path/to/model --layout "name1(nhwc->nchw),name2(nc)"
@@ -79,7 +86,7 @@ In this case, inference results using the OpenVINO samples may be incorrect. The
 Taking this parameter, the Model Optimizer performs first convolution or other channel dependent operation weights modification so these operations output
 will be like the image is passed with RGB channels order.
 
-For example, launch the Model Optimizer for the TensorFlow\* AlexNet model with reversed input channels order between RGB and BGR.
+For example, launch the Model Optimizer for the TensorFlow* AlexNet model with reversed input channels order between RGB and BGR.
 
 ```sh
 mo --input_model alexnet.pb --reverse_input_channels

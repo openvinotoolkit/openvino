@@ -61,8 +61,11 @@ In order to cut off undesirable parts of a model such as unsupported operations 
 For more description, please refer to [Cutting Off Parts of a Model](prepare_model/convert_model/Cutting_Model.md).
 
 Also, Model Optimizer can insert additional input pre-processing sub-graphs into the converted model.
-For this, there exist `--mean_values`, `scales_values`, `--layout` and other parameters described
+For this, there exist `--mean_values`, `scales_values`, `--layout`, and other parameters described
 in [Optimizing Preprocessing Computation](prepare_model/Additional_Optimizations.md).
+
+Model Optimizer provides compression parameter `--data_type` to generate IR of `FP16` data type. For more details,
+please refer to [Compression of a Model to FP16](prepare_model/FP16_Compression.md).
 
 To get the full list of conversion parameters available in Model Optimizer, run the following command:
 
