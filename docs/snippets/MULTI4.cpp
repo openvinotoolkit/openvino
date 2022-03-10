@@ -1,8 +1,8 @@
 #include <openvino/openvino.hpp>
 
 int main() {
-auto hddl_config  = ov::enable_profiling(true);
-auto gpu_config = ov::enable_profiling(true);
+ov::AnyMap hddl_config  = {{ov::enable_profiling.name(), ov::Any(true)}};
+ov::AnyMap gpu_config = {{ov::enable_profiling.name(), ov::Any(true)}};
 //! [part4]
 // configure the HDDL device first
 ov::Core core;
