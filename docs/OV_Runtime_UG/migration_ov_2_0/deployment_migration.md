@@ -1,18 +1,20 @@
-# Install & Deployment {#openvino_2_0_deployment}
+# Updates on Installation & Deployment {#openvino_2_0_deployment}
 
-## Introduction
+"Easy to use" is one of the main concepts for OpenVINO API 2.0. This includes not only simplifying the migration from frameworks to OpenVINO, but also how OpenVINO is organized, how the development tools are used, and how to develop and deploy OpenVINO-based applications.
 
-"Easy to use" is one of the main points for OpenVINO 2.0 concept. This includes not only simplification of migration from frameworks to OpenVINO Toolkit, but also how OpenVINO is organized, how the development tools are used, how to develop and deploy OpenVINO-based applications.
+To accomplish that, we have made some changes on the installation and deployment of OpenVINO for the 2022.1 release. This guide will walk you through them.
 
-Starting from OpenVINO 2.0, Model Optimizer, Post Training Optimization tool, Open Model Zoo tools and other Python-based Development tools are distributed via [PyPi](https://pypi.org/project/openvino-dev/) only. This simplifies user experience, because in older versions of OpenVINO development tools should be installed and used differently dependning on distribution type (OpenVINO Installer versus PyPi), but also ensures that dependencies are handled properly via `pip` package manager as well as supports virtual environments for development tools.
+## Structure of Installer Package
 
-Regarding the OpenVINO Installer, we have tried further to reorganize package structure to have it in a good shape:
+Starting from OpenVINO 2.0, Model Optimizer, Post-Training Optimization tool, Open Model Zoo tools and other Python-based Development tools are distributed via [PyPi](https://pypi.org/project/openvino-dev/) only. This simplifies user experience, because in older versions of OpenVINO development tools should be installed and used differently dependning on distribution type (OpenVINO Installer versus PyPi), but also ensures that dependencies are handled properly via `pip` package manager as well as supports virtual environments for development tools.
 
-- `runtime` folder with OpenVINO Runtime include headers, libraries and CMake interfaces.
-- `tools` folder with [compile_tool](../../../tools/compile_tool/README.md), [deployment manager](../../install_guides/deployment-manager-tool.md), `requirement.txt` files with link to corresponding version of `openvino-dev` package.
-- `python` folder with OpenVINO Python Runtime.
+The structure of OpenVINO installer package has been reorganized:
 
-## Installing development tools
+- The `runtime` folder contains OpenVINO Runtime include headers, libraries and CMake interfaces.
+- The `tools` folder contains [compile_tool](../../../tools/compile_tool/README.md), [deployment manager](../../install_guides/deployment-manager-tool.md), `requirement.txt` files with link to corresponding version of `openvino-dev` package.
+- The `python` folder contains the Python version for OpenVINO Runtime.
+
+## Installation of OpenVINO Development Tools
 
 In older versions of OpenVINO, Development tools were a part of main package. Once the package is installed, users need to install additional tools dependencies (e.g. `requirements_tf.txt` to convert TensorFlow models via Model Optimizer, install POT and AC tools via `setup.py` scripts), then use `setupvars` scripts to make the tools available in command line:
 
@@ -37,7 +39,7 @@ $ pot -h
 
 Without installations of other dependencies. See [Install OpenVINO™ Development Tools](../../install_guides/installing-model-dev-tools.md) for more details.
 
-## Build C / C++ applications
+## Build C/C++ Applications
 
 ### CMake interface
 
