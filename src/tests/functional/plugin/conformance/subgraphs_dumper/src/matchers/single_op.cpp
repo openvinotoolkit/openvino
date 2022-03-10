@@ -160,7 +160,6 @@ bool SingleOpMatcher::match(const std::shared_ptr<ov::Node> &node,
                             const LayerTestsUtils::OPInfo &op_info) const {
     for (const auto& input_node : node->inputs()) {
         if (input_node.get_partial_shape().is_dynamic()) {
-            std::cout << "[ DEBUG ] " << node->get_friendly_name() << std::endl;
             break;
         }
     }
