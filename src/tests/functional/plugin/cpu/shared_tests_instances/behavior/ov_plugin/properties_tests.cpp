@@ -13,7 +13,6 @@ namespace {
 const std::vector<ov::AnyMap> cpu_properties = {
         {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
         {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
-        {ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)},
         {ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)},
 };
 
