@@ -8,8 +8,8 @@
 #include "openvino/frontend/extension/op.hpp"
 #include "openvino/frontend/onnx/extension/op.hpp"
 #include "openvino/frontend/onnx/frontend.hpp"
-#include "so_extension.hpp"
 #include "openvino/runtime/core.hpp"
+#include "so_extension.hpp"
 #include "utils.hpp"
 
 using namespace ov::frontend;
