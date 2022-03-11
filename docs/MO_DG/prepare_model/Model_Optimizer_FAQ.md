@@ -589,7 +589,7 @@ For all frameworks:
 2. [OpenVINO™ Extensibility Mechanism](../../Extensibility_UG/Intro.md)
 
 or
-* Edit network in original framework to exclude cycle.
+* Edit model in original framework to exclude cycle.
 
 #### 98. What does the message "Can not transpose attribute '..' with value .. for node '..' .." mean?  <a name="question-98"></a>
 

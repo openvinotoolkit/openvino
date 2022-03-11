@@ -2,7 +2,7 @@
 
 Paragraphs below provide details about specifying input shapes for model conversion.
 
-## When to Specify `--input_shape` Command Line Parameter <a name="when_to_specify_input_shapes"></a>
+## When to Specify `--input_shape` Command-line Parameter <a name="when_to_specify_input_shapes"></a>
 There are situations when Model Optimizer is unable to deduce input shapes of the model. In this case, user has to specify input shapes explicitly
 using `--input_shape` parameter. For example, run the Model Optimizer for the TensorFlow* MobileNet model with the single input
 and specify input shape `[2,300,300,3]`.
@@ -20,7 +20,7 @@ and specify shapes `[3,150,200,1]` and `[3]` for them.
 mo --input_model ocr.onnx --input data,seq_len --input_shape [3,150,200,1],[3]
 ```
 
-The parameter `--input_shape` allows to override original input shapes to ones compatible for a given model.
+The parameter `--input_shape` allows overriding original input shapes to the shapes compatible for a given model.
 Dynamic shapes, i.e. with dynamic dimensions, in the original model can be replaced with static shapes for the converted model, and vice versa.
 The dynamic dimension can be marked in Model Optimizer command-line as `-1` or `?`.
 For example, launch the Model Optimizer for the ONNX* OCR model and specify dynamic batch dimension for inputs.
@@ -29,7 +29,7 @@ For example, launch the Model Optimizer for the ONNX* OCR model and specify dyna
 mo --input_model ocr.onnx --input data,seq_len --input_shape [-1,150,200,1],[-1]
 ```
 
-## When to Specify `--static_shape` Command Line Parameter
+## When to Specify `--static_shape` Command-line Parameter
 If the `--static_shape` command line parameter is specified, the Model Optimizer evaluates shapes of all operations in the model (shape propagation)
 for a fixed input(s) shape(s). During the shape propagation the Model Optimizer evaluates operations *Shape* and removes them from the computation graph.
 With that approach, the initial model which can consume inputs of different shapes may be converted to IR working with the input of one fixed shape only.
