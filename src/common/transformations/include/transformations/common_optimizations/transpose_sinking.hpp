@@ -4,13 +4,12 @@
 
 #pragma once
 
-#include <vector>
 #include <memory>
-
-#include <transformations_visibility.hpp>
-
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
+#include <vector>
+
 #include "ngraph/pattern/matcher.hpp"
 
 namespace ngraph {
@@ -38,7 +37,8 @@ public:
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief TransposeFQReduction transformation sinks Transpose through FakeQuantize in case it is followed by reduction or squeeze
+ * @brief TransposeFQReduction transformation sinks Transpose through FakeQuantize in case it is followed by reduction
+ * or squeeze
  */
 class ngraph::pass::TransposeFQReduction : public ngraph::pass::MatcherPass {
 public:
@@ -68,8 +68,8 @@ public:
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief TransposeFuse transformation eliminates 2 consequtive Transposes if they result in no changes to input or fuses them
- * to single Transpose if input gets changed
+ * @brief TransposeFuse transformation eliminates 2 consequtive Transposes if they result in no changes to input or
+ * fuses them to single Transpose if input gets changed
  */
 class ngraph::pass::TransposeFuse : public ngraph::pass::MatcherPass {
 public:
@@ -81,7 +81,7 @@ public:
  * @ingroup ie_transformation_common_api
  * @brief TransposeSinking transformation sinks Transposes through known operations
  */
-class ngraph::pass::TransposeSinking: public ngraph::pass::GraphRewrite {
+class ngraph::pass::TransposeSinking : public ngraph::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
     TransposeSinking() {
