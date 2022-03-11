@@ -9,10 +9,16 @@
 #include "openvino/frontend/onnx/extension/op.hpp"
 #include "openvino/frontend/onnx/frontend.hpp"
 #include "so_extension.hpp"
+#include "openvino/runtime/core.hpp"
+#include "utils.hpp"
 
 using namespace ov::frontend;
 
 using ONNXOpExtensionTest = FrontEndOpExtensionTest;
+
+inline std::string get_extension_path() {
+    return ov::util::make_plugin_library_name<char>({}, std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
+}
 
 static const std::string translator_name = "Relu";
 
@@ -142,3 +148,20 @@ INSTANTIATE_TEST_SUITE_P(ONNXOpExtensionViaCommonConstructor,
                          FrontEndOpExtensionTest,
                          ::testing::Values(getTestDataOpExtensionViaCommonConstructor()),
                          FrontEndOpExtensionTest::getTestCaseName);
+
+TEST(FrontEndOpExtensionTest, load_identity_from_library) {
+    ov::Core core;
+    core.add_extension(get_extension_path());
+    std::string m_modelsPath = std::string(TEST_ONNX_MODELS_DIRNAME);
+    std::string m_modelName = "identity.onnx";
+    auto model = core.read_model(FrontEndTestUtils::make_model_path(m_modelsPath + m_modelName));
+    bool has_identiry(false);
+    for (const auto& op : model->get_ops()) {
+        std::string name = op->get_type_info().name;
+        std::string version = op->get_type_info().version_id;
+        if (name == "Identity" && version == "extension")
+            has_identiry = true;
+    }
+    EXPECT_TRUE(has_identiry);
+    EXPECT_EQ(3, model->get_ops().size());
+}
