@@ -483,9 +483,11 @@ public:
         return InferenceEngine::details::ReadNetwork(modelPath, binPath, extensions, ov_extensions, newAPI);
     }
 
-    ie::CNNNetwork ReadNetwork(const std::string& model, const ie::Blob::CPtr& weights) const override {
+    ie::CNNNetwork ReadNetwork(const std::string& model,
+                               const ie::Blob::CPtr& weights,
+                               bool frontendMode = false) const override {
         OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::ReadNetwork from memory");
-        return InferenceEngine::details::ReadNetwork(model, weights, extensions, ov_extensions, newAPI);
+        return InferenceEngine::details::ReadNetwork(model, weights, extensions, ov_extensions, newAPI, frontendMode);
     }
 
     bool isNewAPI() const override {

@@ -987,7 +987,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
 
     CNNNetworkDeserializer deserializer(networkModel,
         [this](const std::string& model, const Blob::CPtr& weights) {
-            return GetCore()->ReadNetwork(model, weights);
+            return GetCore()->ReadNetwork(model, weights, true);
         });
 
     CNNNetwork cnnnetwork;
