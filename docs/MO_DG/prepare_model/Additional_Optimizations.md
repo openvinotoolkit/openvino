@@ -55,9 +55,9 @@ mo --input_model yolov3-tiny.onnx --layout "input_1(nchw->nhwc),image_shape(n?)"
 ## When to Specify Mean and Scale Values
 Usually neural network models are trained with the normalized input data. This means that the input data values are converted to be in a specific range,
 for example, `[0, 1]` or `[-1, 1]`. Sometimes the mean values (mean images) are subtracted from the input data values as part of the pre-processing.
-There are two cases how the input data pre-processing is implemented.
+There are two cases of how the input data pre-processing is implemented.
  * The input pre-processing operations are a part of a model. In this case, the application does not pre-process the input data as a separate step: everything is embedded into the model itself.
- * The input pre-processing operations are not a part of a topology and the pre-processing is performed within the application which feeds the model with an input data.
+ * The input pre-processing operations are not a part of a model and the pre-processing is performed within the application which feeds the model with input data.
 
 In the first case, the Model Optimizer generates the IR with required pre-processing operations and OpenVINO Samples may be used to infer the model.
 
