@@ -18,7 +18,7 @@ compiled_model = core.compile_model(model, "GPU", config)
 
 # [query_optimal_num_requests]
 # when the batch size is automatically selected by the implementation
-# it is important to query/create and run the sufficient #requests
+# it is important to query/create and run the sufficient requests
 config = {"PERFORMANCE_HINT": "THROUGHPUT"}
 compiled_model = core.compile_model(model, "GPU", config)
 num_requests = compiled_model.get_property("OPTIMAL_NUMBER_OF_INFER_REQUESTS")
