@@ -57,7 +57,7 @@ quantization time. Default value is `False`.
 
 ## Examples
 
-A template and full specification for AccuracyAwareQuantization algorithm can be found:
+A template and full specification for AccuracyAwareQuantization algorithm:
  * [Template](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/accuracy_aware_quantization_template.json)
  * [Full specification](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/accuracy_aware_quantization_spec.json)
 
