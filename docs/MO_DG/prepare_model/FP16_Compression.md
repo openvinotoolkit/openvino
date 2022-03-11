@@ -12,10 +12,9 @@ mo --input_model /path/to/model --data_type FP16
 > **NOTE**: Using `--data_type FP32` will give no result and will not force `FP32` 
 > precision in the model. If the model was `FP16` it will have `FP16` precision in IR as well.
 
-The resulting model will occupy about twice as less space in the file system, but it will have slightly worse accuracy
-on hardware that support `FP16` inference, although for the majority of models accuracy degradation is negligible. 
-For details about which plugins can utilize inference in `FP16` please refer to each plugin 
-documentation: [Working with devices](../../OV_Runtime_UG/supported_plugins/Device_Plugins.md).
+The resulting model will occupy about twice as less space in the file system, but it may have some accuracy drop,
+although for the majority of models accuracy degradation is negligible. For details on how plugins handle
+compressed `FP16` models refer to [Working with devices](../../OV_Runtime_UG/supported_plugins/Device_Plugins.md) page.
 
 > **NOTE**: `FP16` compression is sometimes used as initial step for `INT8` quantization, please refer to
 > [Post-Training Optimization tool](../../../tools/pot/README.md) for more information about that.
