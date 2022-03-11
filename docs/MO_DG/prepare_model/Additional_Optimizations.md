@@ -8,8 +8,8 @@ reverting data along channel dimension, and changing the data layout. For more d
 
 ## When to Specify Layout
 
-Some preprocessing may require setting of input layouts, for example: batch setting,
-application of mean or scales, and reversing input channels (BGR<->RGB).
+You may need to set input layouts, as it is required by some preprocessing, for example, setting a batch,
+applying mean or scales, and reversing input channels (BGR<->RGB).
 
 Layout defines the meaning of dimensions in shape and can be specified for both inputs and outputs.
 For the layout syntax, check the [Layout API overview](../../OV_Runtime_UG/layout_overview.md). 
