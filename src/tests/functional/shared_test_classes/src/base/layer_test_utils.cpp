@@ -30,45 +30,50 @@ void LayerTestsCommon::Run() {
         functionRefs = ngraph::clone_function(*function);
         functionRefs->set_friendly_name("refFunction");
     }
-    auto crashHandler = [](int errCode) {
+
+    // in case of crash jump will be made and work will be continued
+    auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
+
+    // place to jump in case of a crash
+#ifdef _WIN32
+    if (setjmp(CommonTestUtils::env) == 0) {
+#else
+    if (sigsetjmp(CommonTestUtils::env, 1) == 0) {
+#endif
         auto &s = Summary::getInstance();
-        s.saveReport();
-        std::cout << "Unexpected application crash!" << std::endl;
-        std::abort();
-    };
-    signal(SIGSEGV, crashHandler);
+        s.setDeviceName(targetDevice);
 
-    auto &s = Summary::getInstance();
-    s.setDeviceName(targetDevice);
+        if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+            s.updateOPsStats(functionRefs, PassRate::Statuses::SKIPPED);
+            GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+        } else {
+            s.updateOPsStats(functionRefs, PassRate::Statuses::CRASHED);
+        }
 
-    if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
-        s.updateOPsStats(functionRefs, PassRate::Statuses::SKIPPED);
-        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+        try {
+            auto externalOptimizationFunction = ngraph::clone_function(*function);
+            ExternalOptimizationLoad();
+            LoadNetwork();
+            GenerateInputs();
+            DumpInputs();
+            ExternalOptimizationDump(externalOptimizationFunction);
+            SKIP_VALIDATION_IF_OPTIMIZATION_MODE_IS_DUMP();
+            Infer();
+            Validate();
+            s.updateOPsStats(functionRefs, PassRate::Statuses::PASSED);
+        }
+        catch (const std::runtime_error &re) {
+            s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
+            GTEST_FATAL_FAILURE_(re.what());
+        } catch (const std::exception &ex) {
+            s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
+            GTEST_FATAL_FAILURE_(ex.what());
+        } catch (...) {
+            s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
+            GTEST_FATAL_FAILURE_("Unknown failure occurred.");
+        }
     } else {
-        s.updateOPsStats(functionRefs, PassRate::Statuses::CRASHED);
-    }
-
-    try {
-        auto externalOptimizationFunction = ngraph::clone_function(*function);
-        ExternalOptimizationLoad();
-        LoadNetwork();
-        GenerateInputs();
-        DumpInputs();
-        ExternalOptimizationDump(externalOptimizationFunction);
-        SKIP_VALIDATION_IF_OPTIMIZATION_MODE_IS_DUMP();
-        Infer();
-        Validate();
-        s.updateOPsStats(functionRefs, PassRate::Statuses::PASSED);
-    }
-    catch (const std::runtime_error &re) {
-        s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
-        GTEST_FATAL_FAILURE_(re.what());
-    } catch (const std::exception &ex) {
-        s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
-        GTEST_FATAL_FAILURE_(ex.what());
-    } catch (...) {
-        s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
-        GTEST_FATAL_FAILURE_("Unknown failure occurred.");
+        IE_THROW() << "Crash happens";
     }
 }
 

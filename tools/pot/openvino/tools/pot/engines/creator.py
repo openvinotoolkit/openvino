@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.pot.engines.ac_engine import ACEngine
-from openvino.tools.pot.engines.data_free_engine import DataFreeEngine
 from openvino.tools.pot.engines.simplified_engine import SimplifiedEngine
 
 
@@ -17,6 +16,4 @@ def create_engine(config, **kwargs):
         return ACEngine(config)
     if config.type == 'simplified':
         return SimplifiedEngine(config, **kwargs)
-    if config.type == 'data_free':
-        return DataFreeEngine(config, **kwargs)
     raise RuntimeError('Unsupported engine type')

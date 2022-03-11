@@ -4,14 +4,13 @@
 
 #include "transformations/opset_conversions/convert_opset2_to_opset1.hpp"
 
-#include "transformations/op_conversions/convert_batch_to_space.hpp"
-#include "transformations/op_conversions/convert_space_to_batch.hpp"
-#include "itt.hpp"
-
 #include <memory>
+#include <ngraph/pass/manager.hpp>
 #include <vector>
 
-#include <ngraph/pass/manager.hpp>
+#include "itt.hpp"
+#include "transformations/op_conversions/convert_batch_to_space.hpp"
+#include "transformations/op_conversions/convert_space_to_batch.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertOpSet2ToOpSet1, "ConvertOpSet2ToOpSet1", 0);
 

@@ -8,7 +8,6 @@
    :hidden:
 
    openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide
-   openvino_docs_HOWTO_Custom_Layers_Guide
    omz_tools_downloader
 
 
@@ -27,11 +26,11 @@
    :caption: Tuning for Performance
    :hidden:
 
-   openvino_docs_performance_benchmarks
    openvino_docs_optimization_guide_dldt_optimization_guide
    openvino_docs_MO_DG_Getting_Performance_Numbers
-   pot_README
+   openvino_docs_model_optimization_guide
    openvino_docs_tuning_utilities
+   openvino_docs_performance_benchmarks
 
 
 .. toctree::
@@ -53,8 +52,6 @@
 
    Intel® Deep Learning Streamer <openvino_docs_dlstreamer>
    openvino_docs_gapi_gapi_intro
-   OpenVX Developer Guide <https://software.intel.com/en-us/openvino-ovx-guide>
-   OpenVX API Reference <https://khronos.org/openvx>
    OpenCV* Developer Guide <https://docs.opencv.org/master/>
    OpenCL™ Developer Guide <https://software.intel.com/en-us/openclsdk-devguide>   
 
@@ -63,14 +60,16 @@
    :caption: Add-Ons
    :hidden:
 
-   openvino_docs_ovms
+   ovms_what_is_openvino_model_server
    ovsa_get_started
 
 .. toctree::
    :maxdepth: 1
-   :caption: Developing Inference Engine Plugins 
+   :caption: OpenVINO Extensibility
    :hidden:
 
+   openvino_docs_Extensibility_UG_Intro
+   openvino_docs_transformations
    Inference Engine Plugin Developer Guide <openvino_docs_ie_plugin_dg_overview>
    groupie_dev_api
    Plugin Transformation Pipeline <openvino_docs_IE_DG_plugin_transformation_pipeline>
@@ -93,7 +92,7 @@ This section provides reference documents that guide you through developing your
 With the [Model Downloader](@ref omz_tools_downloader) and [Model Optimizer](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) guides, you will learn to download pre-trained models and convert them for use with the OpenVINO™ toolkit. You can provide your own model or choose a public or Intel model from a broad selection provided in the [Open Model Zoo](model_zoo.md).
 
 ## Deploying Inference
-The [OpenVINO™ Runtime User Guide](OV_Runtime_UG/OpenVINO_Runtime_User_Guide.md) explains the process of creating your own application that runs inference with the OpenVINO™ toolkit. The [API Reference](./api_references.html) defines the Inference Engine API for Python, C++, and C and the nGraph API for Python and C++. The Inference Engine API is what you'll use to create an OpenVINO™ application, while the nGraph API is available for using enhanced operations sets and other features. After writing your application, you can use the [Deployment Manager](install_guides/deployment-manager-tool.md) for deploying to target devices.
+The [OpenVINO™ Runtime User Guide](OV_Runtime_UG/openvino_intro.md) explains the process of creating your own application that runs inference with the OpenVINO™ toolkit. The [API Reference](./api_references.html) defines the OpenVINO Runtime API for Python, C++, and C. The OpenVINO Runtime API is what you'll use to create an OpenVINO™ inference application, use enhanced operations sets and other features. After writing your application, you can use the [Deployment Manager](install_guides/deployment-manager-tool.md) for deploying to target devices.
 
 ## Tuning for Performance
 The toolkit provides a [Performance Optimization Guide](optimization_guide/dldt_optimization_guide.md) and utilities for squeezing the best performance out of your application, including [Accuracy Checker](@ref omz_tools_accuracy_checker), [Post-Training Optimization Tool](@ref pot_README), and other tools for measuring accuracy, benchmarking performance, and tuning your application.
@@ -108,5 +107,5 @@ The OpenVINO™ toolkit also works with the following media processing framework
 * [Intel® Deep Learning Streamer (Intel® DL Streamer)](@ref openvino_docs_dlstreamer) — A streaming media analytics framework based on GStreamer, for creating complex media analytics pipelines optimized for Intel hardware platforms. Go to the Intel® DL Streamer [documentation](https://dlstreamer.github.io/) website to learn more.
 * [Intel® oneAPI Video Processing Library (oneVPL)](https://www.intel.com/content/www/us/en/develop/documentation/oneapi-programming-guide/top/api-based-programming/intel-oneapi-video-processing-library-onevpl.html) — A programming interface for video decoding, encoding, and processing to build portable media pipelines on CPUs, GPUs, and other accelerators.
 
-You can also add computer vision capabilities to your application using optimized versions of [OpenCV](https://opencv.org/) and [OpenVX](https://khronos.org/openvx).
+You can also add computer vision capabilities to your application using optimized versions of [OpenCV](https://opencv.org/).
 

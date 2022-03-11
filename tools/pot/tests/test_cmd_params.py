@@ -21,7 +21,7 @@ test_params = [('', 'Either --config or --quantize option should be specified', 
                ('-e -m path_model', 'Either --config or --quantize option should be specified', ValueError),
                ('--quantize default -w path_weights -m path_model',
                 '--quantize option requires AC config to be specified '
-                'or --engine should be `data_free` or `simplified`.', ValueError),
+                'or --engine should be `simplified`.', ValueError),
                ('--quantize accuracy_aware -m path_model --ac-config path_config',
                 '--quantize option requires model and weights to be specified.', ValueError),
                ('-c path_config -m path_model', 'Either --config or --model option should be specified', ValueError),

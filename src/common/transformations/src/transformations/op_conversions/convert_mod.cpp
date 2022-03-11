@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "itt.hpp"
 #include "transformations/op_conversions/convert_mod.hpp"
 
 #include <memory>
+#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
 #include <vector>
 
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include "itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMod, "ConvertMod", 0);
 
@@ -19,7 +19,7 @@ ngraph::pass::ConvertMod::ConvertMod() {
     auto mod = ngraph::pattern::wrap_type<opset1::Mod>();
 
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto mod = std::dynamic_pointer_cast<ngraph::opset1::Mod> (m.get_match_root());
+        auto mod = std::dynamic_pointer_cast<ngraph::opset1::Mod>(m.get_match_root());
         if (!mod) {
             return false;
         }
@@ -42,7 +42,9 @@ ngraph::pass::ConvertMod::ConvertMod() {
         auto mul = std::make_shared<opset1::Multiply>(dividend_sign, sub);
 
         mul->set_friendly_name(mod->get_friendly_name());
-        ngraph::copy_runtime_info(mod, {dividend, dividend_sign, divisor, div, convert_to_i64, convert, multiplication, sub, mul});
+        ngraph::copy_runtime_info(
+            mod,
+            {dividend, dividend_sign, divisor, div, convert_to_i64, convert, multiplication, sub, mul});
         ngraph::replace_node(mod, mul);
         return true;
     };
