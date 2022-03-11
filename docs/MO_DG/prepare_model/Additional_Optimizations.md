@@ -22,7 +22,7 @@ mo --input_model tf_nasnet_large.onnx --layout nhwc
 ```
 
 Additionally, if a model has more than one input or needs both input and output layouts specified,
-each layout needs to be given a name.
+you need to provide the name of each input or output to which you apply the layout.
 
 For example, for ONNX\* `Yolo v3 Tiny` model that has first input `input_1` in `NCHW` layout and second input `image_shape`
 with 2 dimensions: batch and size of the image which can be expressed as `N?` layout:
@@ -43,8 +43,7 @@ mo --input_model tf_nasnet_large.onnx --source_layout nhwc --target_layout nchw
 mo --input_model tf_nasnet_large.onnx --layout "nhwc->nchw"
 ```
 
-Again, if a model has more than one input or needs both input and output layouts specified, each layout needs to be
-given a name.
+Again, if a model has more than one input or needs both input and output layouts specified, you need to provide the name of each input or output to which you apply the layout.
 
 For example, to provide data in the `NHWC` layout for the `Yolo v3 Tiny` model mentioned earlier:
 
