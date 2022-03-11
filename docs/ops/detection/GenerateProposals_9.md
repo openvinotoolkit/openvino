@@ -18,7 +18,7 @@ indicates whether the proposal bboxes are normalized or not.
 5.  Removes predicted boxes with either height or width < *min_size*.
 6.  Applies non-maximum suppression with *adaptive_nms_threshold*. The initial value of *adaptive_nms_threshold* is
 *nms_threshold*. If `nms_eta < 1` and `adaptive_threshold > 0.5`, update `adaptive_threshold *= nms_eta`.
-7.  Takes and returns top proposals after nms operation. The number of returned proposals is dynamic. And the max number of proposals is specified by attribute *post_nms_count*.
+7.  Takes and returns top proposals after nms operation. The number of returned proposals in each image is dynamic and is specified by output port 3 `rpnroisnum`. And the max number of proposals in each image is specified by attribute *post_nms_count*.
 
 All proposals of the whole batch are concated image by image, and distinguishable through outputs.
 
@@ -84,7 +84,7 @@ The `height` and `width` from inputs `anchors`, `boxesdeltas` and `scores` are t
 
 **Outputs**
 
-* **1**: `rpnrois` - tensor of type *T* with shape `[num_rois, 4]` providing proposed ROIs. The proposals are layouted as `[xmin, ymin, xmax, ymax]`.
+* **1**: `rpnrois` - tensor of type *T* with shape `[num_rois, 4]` providing proposed ROIs. The proposals are layouted as `[xmin, ymin, xmax, ymax]`. The `num_rois` means the total proposals number of all the images in one batch.
 
 * **2**: `rpnscores` - tensor of type *T* with shape `[num_rois, 1]` providing proposed ROIs scores.
 
