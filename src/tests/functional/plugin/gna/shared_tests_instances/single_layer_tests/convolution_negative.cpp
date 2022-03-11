@@ -166,8 +166,9 @@ protected:
         GnaLayerTestCheck::SkipTestCheck();
 
         if (!GnaLayerTestCheck::skipTest) {
+            auto externalOptimizationFunction = ngraph::clone_function(*function);
             try {
-                ConvolutionLayerTest::ExternalOptimization();
+                ConvolutionLayerTest::ExternalOptimizationLoad();
                 ConvolutionLayerTest::LoadNetwork();
                 FAIL() << "GNA's unsupported configuration of Convolution2D was not detected in ConvolutionLayerTest::LoadNetwork()";
             }
@@ -178,6 +179,7 @@ protected:
                 EXPECT_TRUE(errorMsg.find(expected) != std::string::npos) << "Wrong error message, actula error message: " << errorMsg <<
                                                                           ", expected: " << expected;
             }
+            ConvolutionLayerTest::ExternalOptimizationDump(externalOptimizationFunction);
         }
     }
     void SetUp() override {

@@ -56,10 +56,12 @@ public:
         functionRefs = ngraph::clone_function(*function);
 
         configuration.insert(exportConfiguration.begin(), exportConfiguration.end());
-        ExternalOptimization();
+        auto externalOptimizationFunction = ngraph::clone_function(*function);
+        ExternalOptimizationLoad();
         LoadNetwork();
         GenerateInputs();
         DumpInputs();
+        ExternalOptimizationDump(externalOptimizationFunction);
         SKIP_VALIDATION_IF_OPTIMIZATION_MODE_IS_DUMP();
         Infer();
 

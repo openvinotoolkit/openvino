@@ -152,7 +152,8 @@ protected:
 
     virtual void Infer();
 
-    virtual void ExternalOptimization();
+    virtual void ExternalOptimizationDump(const std::shared_ptr<ngraph::Function>& fun) const;
+    virtual void ExternalOptimizationLoad();
 
     virtual void DumpInputs();
 

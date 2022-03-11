@@ -75,7 +75,8 @@ namespace LayerTestsDefinitions {
         }
 
         try {
-            ExternalOptimization();
+            auto externalOptimizationFunction = ngraph::clone_function(*function);
+            ExternalOptimizationLoad();
             if (transformation != ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
                 LoadNetwork();
             } else {
@@ -85,6 +86,7 @@ namespace LayerTestsDefinitions {
             }
             GenerateInputs();
             DumpInputs();
+            ExternalOptimizationDump(externalOptimizationFunction);
             SKIP_VALIDATION_IF_OPTIMIZATION_MODE_IS_DUMP();
             for (int64_t i = 0; i < iteration_count; ++i) {
                 Infer();

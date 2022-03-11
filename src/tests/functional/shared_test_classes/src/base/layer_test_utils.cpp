@@ -49,10 +49,12 @@ void LayerTestsCommon::Run() {
     }
 
     try {
-        ExternalOptimization();
+        auto externalOptimizationFunction = ngraph::clone_function(*function);
+        ExternalOptimizationLoad();
         LoadNetwork();
         GenerateInputs();
         DumpInputs();
+        ExternalOptimizationDump(externalOptimizationFunction);
         SKIP_VALIDATION_IF_OPTIMIZATION_MODE_IS_DUMP();
         Infer();
         Validate();
@@ -345,15 +347,23 @@ void LayerTestsCommon::ConfigureNetwork() {
     }
 }
 
-void LayerTestsCommon::ExternalOptimization() {
-    std::string testName = GetTestCaseName() + "_" + GetTestName();
-
-    if (ExtOptUtil::toDumpModel()) {
-        ExtOptUtil::dumpNetworkToFile(function, testName);
-    } else if (ExtOptUtil::toLoad()) {
-        function = ExtOptUtil::loadNetworkFromFile(testName);
-        functionRefs = ngraph::clone_function(*function);
+void LayerTestsCommon::ExternalOptimizationDump(const std::shared_ptr<ngraph::Function>& fun) const {
+    if (!ExtOptUtil::toDumpModel()) {
+        return;
     }
+
+    IE_ASSERT(!ExtOptUtil::toLoad());
+    ExtOptUtil::dumpNetworkToFile(fun, GetTestCaseName() + "_" + GetTestName());
+}
+
+void LayerTestsCommon::ExternalOptimizationLoad() {
+    if (!ExtOptUtil::toLoad()) {
+        return;
+    }
+
+    IE_ASSERT(!ExtOptUtil::toDumpModel());
+    function = ExtOptUtil::loadNetworkFromFile(GetTestCaseName() + "_" + GetTestName());
+    functionRefs = ngraph::clone_function(*function);
 }
 
 void LayerTestsCommon::LoadNetwork() {

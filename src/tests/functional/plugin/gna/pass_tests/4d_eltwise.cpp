@@ -165,7 +165,7 @@ protected:
             ::testing::ValuesIn(eltwiseOpTypes)),
         Eltwise4dBroadcast::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Eltwise4d, Eltwise4dMultipleInput,
+    INSTANTIATE_TEST_SUITE_P(smoke_Eltwise4d, Eltwise4dMultipleInput,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),

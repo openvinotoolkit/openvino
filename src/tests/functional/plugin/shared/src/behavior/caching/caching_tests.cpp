@@ -177,13 +177,15 @@ void LoadNetworkCacheTestBase::Run() {
         GTEST_COUT << "Plugin doesn't support import and export - skipping test" << std::endl;
         GTEST_SKIP();
     }
-    ExternalOptimization();
+    auto externalOptimizationFunction = ngraph::clone_function(*function);
+    ExternalOptimizationLoad();
     cnnNetwork = CNNNetwork{function};
     ConfigureNetwork();
     try {
         executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
         GenerateInputs();
         DumpInputs();
+        ExternalOptimizationDump(externalOptimizationFunction);
         SKIP_VALIDATION_IF_OPTIMIZATION_MODE_IS_DUMP();
         Infer();
     } catch (const Exception &ex) {

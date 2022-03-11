@@ -483,7 +483,7 @@ const std::vector<unsigned int> concatAxisConcatNHWC_pos = {2, 3}; // TODO: 0 fa
                                                                    // because the transposes are not removed
 
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_concat_restrictions, ConvConcatNHWCRestrictionsPos,
+INSTANTIATE_TEST_SUITE_P(smoke_concat_restrictions, ConvConcatNHWCRestrictionsPos,
     ::testing::Combine(
         ::testing::ValuesIn(inputShapesConcatNHWC_pos),
         ::testing::ValuesIn(concatAxisConcatNHWC_pos),

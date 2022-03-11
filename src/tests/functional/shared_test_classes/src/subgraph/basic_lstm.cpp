@@ -140,10 +140,12 @@ void Basic_LSTM_S::Run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     functionRefs = ngraph::clone_function(*function);
 
-    ExternalOptimization();
+    auto externalOptimizationFunction = ngraph::clone_function(*function);
+    ExternalOptimizationLoad();
     LoadNetwork();
     GenerateInputs();
     DumpInputs();
+    ExternalOptimizationDump(externalOptimizationFunction);
     SKIP_VALIDATION_IF_OPTIMIZATION_MODE_IS_DUMP();
     Infer();
 

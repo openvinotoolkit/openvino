@@ -40,8 +40,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_NegativeTestsUnsupportedLayer, Negative##test_cla
 class NegativeExtOpt##test_class : public test_class {                                                          \
 public:                                                                                                         \
         void Run() override {                                                                                   \
+                auto externalOptimizationFunction = ngraph::clone_function(*function);                          \
                 try {                                                                                           \
-                        test_class::ExternalOptimization();                                                     \
+                        test_class::ExternalOptimizationLoad();                                                 \
                         test_class::LoadNetwork();                                                              \
                         FAIL() << "GNA's unsupported layers were not detected during LoadNetwork()";            \
                 }                                                                                               \
@@ -53,6 +54,7 @@ public:                                                                         
                         << "Wrong error message, actual error message: " << errorMsg                            \
                         << ", expected: " << expectedMsg;                                                       \
                 }                                                                                               \
+                test_class::ExternalOptimizationDump(externalOptimizationFunction);                   \
         }                                                                                                       \
 };                                                                                                              \
                                                                                                                 \

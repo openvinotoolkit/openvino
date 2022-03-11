@@ -79,7 +79,8 @@ namespace SubgraphTestsDefinitions {
     void ConvReshapeAct::Run() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-        ExternalOptimization();
+        auto externalOptimizationFunction = ngraph::clone_function(*function);
+        ExternalOptimizationLoad();
         LoadNetwork();
 
         inferRequest = executableNetwork.CreateInferRequest();
@@ -102,6 +103,7 @@ namespace SubgraphTestsDefinitions {
         }
 
         DumpInputs();
+        ExternalOptimizationDump(externalOptimizationFunction);
         SKIP_VALIDATION_IF_OPTIMIZATION_MODE_IS_DUMP();
 
         inferRequest.Infer();
