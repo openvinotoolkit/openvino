@@ -541,7 +541,7 @@ bool ov::op::v0::Constant::visit_attributes(AttributeVisitor& visitor) {
     bool need_to_reallocate = (m_shape != prev_shape || prev_type != m_element_type);
     if (m_alloc_buffer_on_visit_attributes && need_to_reallocate) {
         // Filling in a fresh constant
-        allocate_buffer(true);
+        allocate_buffer(false);
     }
     visitor.on_attribute("value", m_data);
     m_all_elements_bitwise_identical = are_all_data_elements_bitwise_identical();
