@@ -115,7 +115,7 @@ Enabling this option may increase compressed model accuracy, but will result in 
 
 ## Examples
             
- A template and full specification for DefaultQuantization algorithm can be found:
+ A template and full specification for DefaultQuantization algorithm:
  * [Template](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/default_quantization_template.json)
  * [Full specification](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/default_quantization_spec.json)
 
