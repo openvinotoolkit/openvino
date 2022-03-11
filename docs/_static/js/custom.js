@@ -25,6 +25,14 @@ var wapSection = 'openvinotoolkit';
     s.appendChild(po);
 })();
 
+// legal notice for benchmarks
+function addLegalNotice() {
+    if (window.location.href.indexOf('openvino_docs_performance_') !== -1) {
+        var legalNotice = $('<div class="opt-notice-wrapper"><p class="opt-notice">Results may vary. For workloads and configurations visit: <a href="https://www.intel.com/PerformanceIndex">www.intel.com/PerformanceIndex</a> and <a class="el" href="openvino_docs_Legal_Information.html">Legal Information</a>.  </p></div>');
+        $('body').append(legalNotice);
+    }
+}
+
 $(document).ready(function () {
     createVersions();
     updateTitleTag();
@@ -36,6 +44,7 @@ $(document).ready(function () {
     if (TABLE_SORT) {
         addTableSort();
     }
+    addLegalNotice();
 });
 
 // Determine where we'd go if clicking on a version selector option
