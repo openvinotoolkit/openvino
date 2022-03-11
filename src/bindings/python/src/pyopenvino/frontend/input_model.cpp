@@ -25,15 +25,10 @@ void regclass_frontend_InputModel(py::module m) {
                 Returns a tensor place by a tensor name following framework conventions, or
                 nullptr if a tensor with this name doesn't exist.
 
-                Parameters
-                ----------
-                tensor_name : str
-                    Name of tensor.
-
-                Returns
-                ----------
-                get_place_by_tensor_name : Place
-                    Tensor place corresponding to specified tensor name.
+                :param tensor_name: Name of tensor.
+                :type tensor_name: str
+                :return: Tensor place corresponding to specified tensor name.
+                :rtype: openvino.frontend.Place
              )");
 
     im.def("get_place_by_operation_name",
@@ -43,15 +38,10 @@ void regclass_frontend_InputModel(py::module m) {
                 Returns an operation place by an operation name following framework conventions, or
                 nullptr if an operation with this name doesn't exist.
 
-                Parameters
-                ----------
-                operation_name : str
-                    Name of operation.
-
-                Returns
-                ----------
-                get_place_by_operation_name : Place
-                    Place representing operation.
+                :param operation_name: Name of operation.
+                :type operation_name: str
+                :return: Place representing operation.
+                :rtype: openvino.frontend.Place
              )");
 
     im.def("get_place_by_operation_name_and_input_port",
@@ -61,18 +51,12 @@ void regclass_frontend_InputModel(py::module m) {
            R"(
                 Returns an input port place by operation name and appropriate port index.
 
-                Parameters
-                ----------
-                operation_name : str
-                    Name of operation.
-
-                input_port_index : int
-                    Index of input port for this operation.
-
-                Returns
-                ----------
-                get_place_by_operation_name_and_input_port : Place
-                    Place representing input port of operation.
+                :param operation_name: Name of operation.
+                :type operation_name: str
+                :param input_port_index: Index of input port for this operation.
+                :type input_port_index: int
+                :return: Place representing input port of operation.
+                :rtype: openvino.frontend.Place
              )");
 
     im.def("get_place_by_operation_name_and_output_port",
@@ -82,18 +66,12 @@ void regclass_frontend_InputModel(py::module m) {
            R"(
                 Returns an output port place by operation name and appropriate port index.
 
-                Parameters
-                ----------
-                operation_name : str
-                    Name of operation.
-
-                output_port_index : int
-                    Index of output port for this operation.
-
-                Returns
-                ----------
-                get_place_by_operation_name_and_output_port : Place
-                    Place representing output port of operation.
+                :param operation_name: Name of operation.
+                :type operation_name: str
+                :param output_port_index: Index of output port for this operation.
+                :type output_port_index: int
+                :return: Place representing output port of operation.
+                :rtype: openvino.frontend.Place
              )");
 
     im.def("set_name_for_tensor",
@@ -103,13 +81,10 @@ void regclass_frontend_InputModel(py::module m) {
            R"(
                 Sets name for tensor. Overwrites existing names of this place.
 
-                Parameters
-                ----------
-                tensor : Place
-                    Tensor place.
-
-                new_name : str
-                    New name for this tensor.
+                :param tensor: Tensor place.
+                :type tensor: openvino.frontend.Place
+                :param new_name: New name for this tensor.
+                :type new_name: str
             )");
 
     im.def("add_name_for_tensor",
@@ -119,13 +94,10 @@ void regclass_frontend_InputModel(py::module m) {
            R"(
                 Adds new name for tensor
 
-                Parameters
-                ----------
-                tensor : Place
-                    Tensor place.
-
-                new_name : str
-                    New name to be added to this place.
+                :param tensor: Tensor place.
+                :type tensor: openvino.frontend.Place
+                :param new_name: New name to be added to this place.
+                :type new_name: str
             )");
 
     im.def("set_name_for_operation",
@@ -135,13 +107,10 @@ void regclass_frontend_InputModel(py::module m) {
            R"(
                 Adds new name for tensor.
 
-                Parameters
-                ----------
-                operation : Place
-                    Operation place.
-
-                new_name : str
-                    New name for this operation.
+                :param operation: Operation place.
+                :type operation: openvino.frontend.Place
+                :param new_name: New name for this operation.
+                :type new_name: str
             )");
 
     im.def("free_name_for_tensor",
@@ -150,10 +119,8 @@ void regclass_frontend_InputModel(py::module m) {
            R"(
                 Unassign specified name from tensor place(s).
 
-                Parameters
-                ----------
-                name : str
-                    Name of tensor.
+                :param name: Name of tensor.
+                :type name: str
             )");
 
     im.def("free_name_for_operation",
@@ -162,10 +129,8 @@ void regclass_frontend_InputModel(py::module m) {
            R"(
                 Unassign specified name from operation place(s).
 
-                Parameters
-                ----------
-                name : str
-                    Name of operation.
+                :param name: Name of operation.
+                :type name: str
             )");
 
     im.def("set_name_for_dimension",
@@ -176,16 +141,12 @@ void regclass_frontend_InputModel(py::module m) {
            R"(
                 Set name for a particular dimension of a place (e.g. batch dimension).
 
-                Parameters
-                ----------
-                place : Place
-                    Model's place.
-
-                dim_index : int
-                    Dimension index.
-
-                dim_name : str
-                    Name to assign on this dimension.
+                :param place: Model's place.
+                :type place: openvino.frontend.Place
+                :param dim_index: Dimension index.
+                :type dim_index: int
+                :param dim_name: Name to assign on this dimension.
+                :type dum_name: str
             )");
 
     im.def("cut_and_add_new_input",
@@ -196,13 +157,10 @@ void regclass_frontend_InputModel(py::module m) {
                 Cut immediately before this place and assign this place as new input; prune
                 all nodes that don't contribute to any output.
 
-                Parameters
-                ----------
-                place : Place
-                    New place to be assigned as input.
-
-                new_name_optional : str
-                    Optional new name assigned to this input place.
+               :param place: New place to be assigned as input.
+               :type place: openvino.frontend.Place
+               :param new_name: Optional new name assigned to this input place.
+               :type new_name: str
             )");
 
     im.def("cut_and_add_new_output",
@@ -213,13 +171,10 @@ void regclass_frontend_InputModel(py::module m) {
                 Cut immediately before this place and assign this place as new output; prune
                 all nodes that don't contribute to any output.
 
-                Parameters
-                ----------
-                place : Place
-                    New place to be assigned as output.
-
-                new_name_optional : str
-                    Optional new name assigned to this output place.
+                :param place: New place to be assigned as output.
+                :type place: openvino.frontend.Place
+                :param new_name: Optional new name assigned to this output place.
+                :type new_name: str
             )");
 
     im.def("add_output",
@@ -228,10 +183,8 @@ void regclass_frontend_InputModel(py::module m) {
            R"(
                 Assign this place as new output or add necessary nodes to represent a new output.
 
-                Parameters
-                ----------
-                place : Place
-                    Anchor point to add an output.
+                :param place: Anchor point to add an output.
+                :type place: openvino.frontend.Place
             )");
 
     im.def("remove_output",
@@ -241,10 +194,8 @@ void regclass_frontend_InputModel(py::module m) {
                 Removes any sinks directly attached to this place with all inbound data flow
                 if it is not required by any other output.
 
-                Parameters
-                ----------
-                place : Place
-                    Model place
+                :param place: Model place.
+                :type place: openvino.frontend.Place
             )");
 
     im.def("set_partial_shape",
@@ -257,13 +208,10 @@ void regclass_frontend_InputModel(py::module m) {
                 shape of results ngraph nodes and will define shape inference when the model is
                 converted to ngraph.
 
-                Parameters
-                ----------
-                place : Place
-                    Model place.
-
-                shape : PartialShape
-                    Partial shape for this place.
+                :param place: Model place.
+                :type place: openvino.frontend.Place
+                :param shape: Partial shape for this place.
+                :type shape: openvino.runtime.PartialShape
             )");
 
     im.def("get_partial_shape",
@@ -272,15 +220,10 @@ void regclass_frontend_InputModel(py::module m) {
            R"(
                 Returns current partial shape used for this place.
 
-                Parameters
-                ----------
-                place : Place
-                    Model place
-
-                Returns
-                ----------
-                get_partial_shape : PartialShape
-                    Partial shape for this place.
+                :param place: Model place.
+                :type place: openvino.frontend.Place
+                :return: Partial shape for this place.
+                :rtype: openvino.runtime.PartialShape
             )");
 
     im.def("get_inputs",
@@ -288,10 +231,8 @@ void regclass_frontend_InputModel(py::module m) {
            R"(
                 Returns all inputs for a model.
 
-                Returns
-                ----------
-                get_inputs : List[Place]
-                    A list of input places.
+                :return: A list of input places.
+                :rtype: List[openvino.frontend.Place]
             )");
 
     im.def("get_outputs",
@@ -299,10 +240,8 @@ void regclass_frontend_InputModel(py::module m) {
            R"(
                 Returns all outputs for a model. An output is a terminal place in a graph where data escapes the flow.
 
-                Returns
-                ----------
-                get_outputs : List[Place]
-                    A list of output places
+                :return: A list of output places.
+                :rtype: List[openvino.frontend.Place]
             )");
 
     im.def("extract_subgraph",
@@ -312,13 +251,10 @@ void regclass_frontend_InputModel(py::module m) {
            R"(
                 Leaves only subgraph that are defined by new inputs and new outputs.
 
-                Parameters
-                ----------
-                inputs : List[Place]
-                    Array of new input places.
-
-                outputs : List[Place]
-                    Array of new output places.
+                :param inputs: Array of new input places.
+                :type inputs: List[openvino.frontend.Place]
+                :param outputs: Array of new output places.
+                :type outputs: List[openvino.frontend.Place]
             )");
 
     im.def("override_all_inputs",
@@ -328,10 +264,8 @@ void regclass_frontend_InputModel(py::module m) {
                 Modifies the graph to use new inputs instead of existing ones. New inputs
                 should completely satisfy all existing outputs.
 
-                Parameters
-                ----------
-                inputs : List[Place]
-                    Array of new input places.
+                :param inputs: Array of new input places.
+                :type inputs: List[openvino.frontend.Place]
             )");
 
     im.def("override_all_outputs",
@@ -341,10 +275,8 @@ void regclass_frontend_InputModel(py::module m) {
                 Replaces all existing outputs with new ones removing all data flow that
                 is not required for new outputs.
 
-                Parameters
-                ----------
-                outputs : List[Place]
-                    Vector with places that will become new outputs; may intersect existing outputs.
+                :param outputs: Vector with places that will become new outputs; may intersect existing outputs.
+                :type outputs: List[openvino.frontend.Place]
             )");
 
     im.def("set_element_type",
@@ -354,13 +286,10 @@ void regclass_frontend_InputModel(py::module m) {
            R"(
                 Sets new element type for a place.
 
-                Parameters
-                ----------
-                place : Place
-                    Model place.
-
-                type : ngraph.Type
-                    New element type.
+                :param place: Model place.
+                :type place: openvino.frontend.Place
+                :param type: New element type.
+                :type type: openvino.runtime.Type
             )");
 
     im.def(
@@ -375,12 +304,9 @@ void regclass_frontend_InputModel(py::module m) {
         R"(
             Sets new element type for a place.
 
-            Parameters
-            ----------
-            place : Place
-                Model place.
-
-            value : ndarray
-                New value to assign.
+            :param place: Model place.
+            :type place: openvino.frontend.Place
+            :param value: New value to assign.
+            :type value: numpy.ndarray
         )");
 }
