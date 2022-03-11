@@ -55,6 +55,11 @@ TEST_P(SerializationTest, CompareFunctions) {
     EXPECT_TRUE(res2.valid) << res2.message;
 }
 
+TEST_P(SerializationTest, SerializeHelper) {
+    auto model = ov::test::readModel(m_model_path, m_binary_path);
+    ASSERT_NO_THROW(ov::serialize(model, m_out_xml_path, m_out_bin_path));
+}
+
 INSTANTIATE_TEST_SUITE_P(
     IRSerialization,
     SerializationTest,
