@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "mmap_object.hpp"
-
 #include <windows.h>
 
+#include "mmap_object.hpp"
 #include "ngraph/runtime/shared_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 
@@ -57,15 +56,13 @@ public:
     }
 
     void set(const std::string& path) {
-        auto h = ::CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ,
-                               0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+        auto h = ::CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
         map(path, h);
     }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     void set(const std::wstring& path) {
-        auto h = ::CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ,
-                               0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+        auto h = ::CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
         map(ov::util::wstring_to_string(path), h);
     }
 #endif
@@ -78,7 +75,6 @@ public:
     }
 
 private:
-
     void map(const std::string& path, HANDLE h) {
         OPENVINO_ASSERT(h != INVALID_HANDLE_VALUE,
                         "Can not open file ",
@@ -98,18 +94,14 @@ private:
 
         m_size = static_cast<uint64_t>(file_size_large.QuadPart);
         std::cout << "Size: " << m_size << "\n";
-        m_mapping = HandleHolder(::CreateFileMapping(m_handle.get(), 0, access,
-            m_size >> 32,
-            m_size & 0xffffffff,
-            0));
+        m_mapping = HandleHolder(::CreateFileMapping(m_handle.get(), 0, access, m_size >> 32, m_size & 0xffffffff, 0));
         OPENVINO_ASSERT(m_mapping.get() != INVALID_HANDLE_VALUE, "Can not create file mapping for ", path);
 
-        m_data = ::MapViewOfFile(
-            m_mapping.get(),
-            map_mode,
-            0, //offset_align >> 32,
-            0, //offset_align & 0xffffffff,
-            m_size);
+        m_data = ::MapViewOfFile(m_mapping.get(),
+                                 map_mode,
+                                 0,  // offset_align >> 32,
+                                 0,  // offset_align & 0xffffffff,
+                                 m_size);
         OPENVINO_ASSERT(m_data, "Can not create map view for ", path);
     }
 
@@ -118,7 +110,6 @@ private:
     size_t m_size = 0;
     HandleHolder m_handle;
     HandleHolder m_mapping;
-
 };
 
 std::shared_ptr<ngraph::runtime::AlignedBuffer> load_mmap_object(const std::string& path) {
