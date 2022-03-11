@@ -11,7 +11,7 @@ cd mmdetection
 
 > **NOTE**: To set up an environment refer to this [instruction](https://github.com/open-mmlab/mmdetection/blob/master/docs/en/get_started.md#installation).
 
-* Download the pre-trained [model](https://download.openmmlab.com/mmdetection/v2.0/cascade_rcnn/cascade_rcnn_r101_fpn_1x_coco/cascade_rcnn_r101_fpn_1x_coco_20200317-0b6a2fbf.pth). Link to the model can also be found [here](https://github.com/open-mmlab/mmdetection/blob/master/configs/cascade_rcnn/README.md) 
+* Download the pre-trained [model](https://download.openmmlab.com/mmdetection/v2.0/cascade_rcnn/cascade_rcnn_r101_fpn_1x_coco/cascade_rcnn_r101_fpn_1x_coco_20200317-0b6a2fbf.pth). Link to the model can also be found [here](https://github.com/open-mmlab/mmdetection/blob/master/configs/cascade_rcnn/README.md).
 
 * To convert model to ONNX* format use this [script](https://github.com/open-mmlab/mmdetection/blob/master/tools/deployment/pytorch2onnx.py).
 
