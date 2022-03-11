@@ -5,6 +5,7 @@ from cv2 import imread, IMREAD_GRAYSCALE
 
 from openvino.runtime import Layout, Dimension # pylint: disable=E0611,E0401
 from openvino.tools.mo.utils.cli_parser import get_layout_values
+from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined
 from ..api.data_loader import DataLoader
 from ..data_loaders.utils import prepare_image, collect_img_files
 from ..utils.logger import get_logger
@@ -34,6 +35,7 @@ class ImageLoader(DataLoader):
 
     @shape.setter
     def shape(self, shape):
+        self._is_shape_static = is_fully_defined(shape)
         self._shape = tuple(shape)
 
     def _read_and_preproc_image(self, img_path):
@@ -47,7 +49,9 @@ class ImageLoader(DataLoader):
         if image is None:
             raise Exception('Can not read the image: {}'.format(img_path))
 
-        return prepare_image(image, self._layout, (self.shape[H], self.shape[W]),
+        dst_shape = (self.shape[H], self.shape[W]) if self._is_shape_static else None
+
+        return prepare_image(image, self._layout, dst_shape,
                              self._crop_central_fraction, self._shape[C] == 1)
 
     def get_layout(self, input_node=None):
@@ -64,9 +68,6 @@ class ImageLoader(DataLoader):
             layout_from_ir = get_layout_values(input_node.graph.meta_data.get('layout', None))
             if layout_from_ir is not None:
                 layout_from_ir = layout_from_ir[next(iter(layout_from_ir))].get('source_layout', None)
-                # SyntheticImageLoader uses only H,W,C dimensions
-                if self._shape is not None and 'N' in layout_from_ir and len(self._shape) == 3:
-                    layout_from_ir = layout_from_ir[1:]
                 self._layout = Layout(layout_from_ir)
                 return
 
