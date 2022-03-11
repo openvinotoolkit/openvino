@@ -87,7 +87,7 @@ OutputVector scan(const Node& node) {
         if (direction == 0) {
             tensor_iterator->set_sliced_input(body_inputs[i], ng_inputs[i], 0, 1, 1, -1, axis);
         } else {
-            NGRAPH_CHECK(false);
+            tensor_iterator->set_sliced_input(body_inputs[i], ng_inputs[i], -1, -1, 1, 0, axis);
         }
     }
 
