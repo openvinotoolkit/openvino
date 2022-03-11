@@ -1919,6 +1919,63 @@ void FakeQuantize::appendBinPostOps(dnnl::post_ops& ops, const VectorDims& postO
     appendBinary(dnnl::algorithm::binary_add, outputShiftSize, outputShiftMemory, &outputShiftData.shifts_[0]);
 }
 
+void FakeQuantize::appendBinPostOpsOptimized(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem,
+                                             bool isLastPostOp, dnnl::memory::data_type outDataType) {
+    static const size_t bufferAlignment = 1;
+
+    initializePostOpData(postOpDims, bufferAlignment);
+
+    VectorDims broadcastBinaryShape(postOpDims.size(), 1);
+
+    auto appendBinary = [&](const dnnl::algorithm alg, const size_t dataSize, MemoryPtr &memPtr, const void *data) {
+        DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, dataSize == 1 ? Shape(broadcastBinaryShape) : Shape(postOpDims));
+        ops.append_binary(alg, memoryDesc.getDnnlDesc());
+
+        if (!memPtr) {
+            memPtr.reset(new Memory(getEngine()));
+            memPtr->Create(memoryDesc, data);
+
+            binaryPostOpsMem.push_back(memPtr);
+        }
+    };
+
+    dnnl::algorithm alg = getAlgorithm() == Algorithm::FQCommon || getAlgorithm() == Algorithm::FQRequantization
+                                ? dnnl::algorithm::quantization_quantize_dequantize
+                                : dnnl::algorithm::quantization_quantize;
+
+    if (isLastPostOp &&
+        outDataType == memory::data_type::u8 &&
+        getAlgorithm() == Algorithm::FQQuantization
+        /*levels == 256*/) {
+        auto &cl = getCropLow();
+        auto &isc = getInputScale();
+        auto &ish = getInputShift();
+
+        if (std::all_of(cl.cbegin(), cl.cend(), [](float val) { return val == 0.0f; }) &&
+            std::all_of(isc.cbegin(), isc.cend(), [&](float val) { return val == isc[0]; }) &&
+            std::all_of(ish.cbegin(), ish.cend(), [&](float val) { return val == ish[0]; })) {
+            ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, isc[0], ish[0]);
+
+            return;
+        } else if (std::all_of(cl.cbegin(), cl.cend(), [](float val) { return val == 0.0f; })) {
+            appendBinary(dnnl::algorithm::binary_mul, inputScaleSize, inputScaleMemory, &inputScaleData.scales_[0]);
+            appendBinary(dnnl::algorithm::binary_add, inputShiftSize, inputShiftMemory, &inputShiftData.shifts_[0]);
+
+            return;
+        }
+    }
+
+    appendBinary(dnnl::algorithm::binary_min, cropHighSize, cropHighMemory, &cropHighData.shifts_[0]);
+    appendBinary(dnnl::algorithm::binary_max, cropLowSize, cropLowMemory, &cropLowData.shifts_[0]);
+    appendBinary(dnnl::algorithm::binary_mul, inputScaleSize, inputScaleMemory, &inputScaleData.scales_[0]);
+    appendBinary(dnnl::algorithm::binary_add, inputShiftSize, inputShiftMemory, &inputShiftData.shifts_[0]);
+    if (alg == dnnl::algorithm::quantization_quantize_dequantize) {
+        ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_round_half_to_even, 0, 0);
+    }
+    appendBinary(dnnl::algorithm::binary_mul, outputScaleSize, outputScaleMemory, &outputScaleData.scales_[0]);
+    appendBinary(dnnl::algorithm::binary_add, outputShiftSize, outputShiftMemory, &outputShiftData.shifts_[0]);
+}
+
 FakeQuantize::FakeQuantizeJitExecutor::FakeQuantizeJitExecutor(const jit_quantize_params &_jqp) {
     bool isBinarization = _jqp.op_type == Algorithm::FQBinarization;
     if (mayiuse(cpu::x64::avx512_core)) {
