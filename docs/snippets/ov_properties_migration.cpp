@@ -42,7 +42,7 @@ auto nireq = compiled_model.get_property(ov::optimal_number_of_infer_requests);
 
 {
 //! [compiled_model_get_rw_property]
-ov::hint::PerformanceMode perf_model = compiled_model.get_property(ov::hint::performance_mode);
+ov::hint::PerformanceMode perf_mode = compiled_model.get_property(ov::hint::performance_mode);
 //! [compiled_model_get_rw_property]
 }
 
