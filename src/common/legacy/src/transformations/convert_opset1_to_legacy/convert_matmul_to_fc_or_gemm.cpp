@@ -110,7 +110,9 @@ ngraph::pass::ConvertMatMulToFC::ConvertMatMulToFC() {
         // we replace MatMul with FullyConnected operation.
         // Otherwise we replace MatMul with Gemm.
         auto fq_after_const = std::dynamic_pointer_cast<opset1::FakeQuantize>(fc_input_b.get_node_shared_ptr());
-        if ((std::dynamic_pointer_cast<opset1::Constant>    (fc_input_b.get_node_shared_ptr())  || fq_after_const) &&
+        bool is_fq_after_const = fq_after_const &&
+            std::dynamic_pointer_cast<opset1::Constant>(fc_input_b.get_node_shared_ptr()->input_value(0).get_node_shared_ptr());
+        if ((std::dynamic_pointer_cast<opset1::Constant>    (fc_input_b.get_node_shared_ptr())  || is_fq_after_const) &&
              std::count_if(shape_b.begin(), shape_b.end(), [](size_t x) {
                 return x != 1;
             }) <= 2) {
