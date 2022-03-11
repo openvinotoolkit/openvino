@@ -93,7 +93,6 @@ private:
         OPENVINO_ASSERT(::GetFileSizeEx(m_handle.get(), &file_size_large) != 0, "Can not get file size for ", path);
 
         m_size = static_cast<uint64_t>(file_size_large.QuadPart);
-        std::cout << "Size: " << m_size << "\n";
         m_mapping = HandleHolder(::CreateFileMapping(m_handle.get(), 0, access, m_size >> 32, m_size & 0xffffffff, 0));
         OPENVINO_ASSERT(m_mapping.get() != INVALID_HANDLE_VALUE, "Can not create file mapping for ", path);
 
