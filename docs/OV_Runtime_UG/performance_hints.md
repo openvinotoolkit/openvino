@@ -1,8 +1,8 @@
 # High-level Performance Hints {#openvino_docs_OV_UG_Performance_Hints}
 
 Each of the OpenVINO's [supported devices](supported_plugins/Supported_Devices.md) offers low-level performance settings. Tweaking this detailed configuration requires deep architecture understanding.
-Also, while the performance may be optimal for the specific combination of the device and the model that is inferred, the resulting configuration is not  necessarily optimal for another device or model.
-The OpenVINO performance hints is the new way fo configuring the performance with the _portability_ in mind. 
+Also, while the performance may be optimal for the specific combination of the device and the inferred model, the resulting configuration is not necessarily optimal for another device or model.
+The OpenVINO performance hints are the new way to configure the performance with the _portability_ in mind. 
 
 The hints also "reverse" the direction of the configuration in the right fashion: rather than map the application needs to the low-level performance settings, and keep an associated application logic to configure each possible device separately, the idea is to express a target scenario with a single config key and let the *device* to configure itself in response.
 As the hints are supported by every OpenVINO device, this is completely portable and future-proof solution. 
@@ -129,10 +129,10 @@ For example, you can let the device prepare a configuration `ov::hint::Performan
 @endsphinxdirective
 ## Testing the Performance of The Hints with the Benchmark_App
 The `benchmark_app`, that exists in both  [C++](../../samples/cpp/benchmark_app/README.md) and [Python](../../tools/benchmark_tool/README.md) versions, is the best way to evaluate the performance of the performance hints for a particular device:
- - benchmark_app **-hint tput** -d 'device' -m 'path to your favorite model'
- - benchmark_app **-hint latency** -d 'device' -m 'path to your favorite model'
--  Disabling the hints to emulate the pre-hints era (highly recommended before playing the individual low-level settings like number of streams, threads, etc):
-- - benchmark_app **-hint none -nstreams 1**  -d 'device' -m 'path to your favorite model'
+ - benchmark_app **-hint tput** -d 'device' -m 'path to your model'
+ - benchmark_app **-hint latency** -d 'device' -m 'path to your model'
+-  Disabling the hints to emulate the pre-hints era (highly recommended before trying the individual low-level settings, such as the number of streams, threads, etc):
+- - benchmark_app **-hint none -nstreams 1**  -d 'device' -m 'path to your model'
  
 
 ### See Also

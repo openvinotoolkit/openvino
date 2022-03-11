@@ -53,7 +53,8 @@ Beyond execution _parameters_ there are potentially many device-specific details
 Specifically, GPU-oriented tricks like batching, which combines many (potentially tens) of input images to achieve optimal throughput, do not always map well to the CPU, as e.g. detailed in the next sections.
 The hints allow to really hide _execution_ specifics required to saturate the device. For example, no need to explicitly combine multiple inputs into a batch to achieve good GPU performance.
 Instead, it is possible to keep a separate infer request per camera or another source of input and process the requests in parallel using <a href="#ov-async-api">OpenVINO Async API</a>.
-The only requirement for the application is about running multiple inference requests in parallel.
+
+The only requirement for the application tp leverage the throughput is about **running multiple inference requests in parallel**.
 OpenVINO's device-specific implementation of the hints will take care of the rest. This allows a developer to greatly simplify the app-logic.
 
 In summary, when the performance _portability_ is of concern, consider the [High-Level Performance Hints](../OV_Runtime_UG/performance_hints.md). 
@@ -62,8 +63,10 @@ Keep in mind that while multiple scheduling and/or batching approaches (combinin
 
 ### OpenVINO Streams <a name="cpu-streams"></a>
 As detailed in the section <a href="#ov-async-api">OpenVINO Async API</a>) running multiple inference requests asynchronously is important for general application efficiency.
-Additionally, most devices support running multiple inference requests in parallel in order to improve the device utilization. The _level_ of the parallelism (i.e. how many requests are really executed in parallel on the device) is commonly referred as a number of 'streams'.  Notice that for efficient asynchronous execution, the streams are actually handling inference with special pool of the threads.
-So each time you start inference requests (potentially from different application threads), they are actually muxed into a inference queue of the particular `ov:compiled_model`.  
+Additionally, most devices support running multiple inference requests in parallel in order to improve the device utilization. The _level_ of the parallelism (i.e. how many requests are really executed in parallel on the device) is commonly referred as a number of 'streams'. Some devices run several requests per stream to amortize the host-side costs. 
+
+Notice that for efficient asynchronous execution, the streams are actually handling inference with special pool of the threads.
+So each time you start inference requests (potentially from different application threads), they are actually muxed into a inference queue of the particular `ov:compiled_model`. 
 If there is a vacant stream, it pops the request from the queue and actually expedites that to the on-device execution.
 
 ### Throughput on the CPU: Internals <a name="cpu-streams"></a>
@@ -86,7 +89,11 @@ individual inference requests followed by the actual batched execution, with no 
 ![](../img/BATCH_device.PNG)
 
 Essentially, the Automatic Batching shifts the asynchronousity from the individual requests to the groups of requests that constitute the batches. Thus, for the execution to be efficient it is very important that the requests arrive timely, without causing a batching timeout. 
-Normally, the timeout should never be hit. It is rather a graceful way to handle the application exit (when the inputs are not arriving anymore, so the full batch is not possible to collect). So if your workload experiences the timeouts (resulting in the performance drop, as the timeout value adds itself to the latency of every request), consider balancing the timeout value vs the batch size. For example in many cases having smaller timeout value/batch size may yield better performance than large batch size, but coupled with the timeout value that is cannot guarantee accommodating the full number of the required requests.
+Normally, the timeout should never be hit. It is rather a graceful way to handle the application exit (when the inputs are not arriving anymore, so the full batch is not possible to collect).
+
+So if your workload experiences the timeouts (resulting in the performance drop, as the timeout value adds itself to the latency of every request), consider balancing the timeout value vs the batch size. For example in many cases having smaller timeout value/batch size may yield better performance than large batch size, but coupled with the timeout value that is cannot guarantee accommodating the full number of the required requests.
+
+Finally, as explained in the "get_tensor idiom" section below the Automatic Batching saves on inputs/outputs copies when the application code prefers the "get" versions of the tensor data access APIs. 
 
 ## OpenVINO Async API <a name="ov-async-api"></a>
 
@@ -125,7 +132,7 @@ Few important points on the callbacks:
 
 ## "get_tensor" Idiom <a name="new-request-based-api"></a>
 
-`get_tensor` is a recommended way to populate the inference inputs (and read back the outputs), as it internally allocates the data with right padding/alignment for the device. For example, the GPU inputs/outputs tensors are mapped to the host (which is fast) only when the `get_blob` is used, while for the `set_tensor` a copy into the internal GPU structures may happen.
+`get_tensor` is a recommended way to populate the inference inputs (and read back the outputs), as it internally allocates the data with right padding/alignment for the device. For example, the GPU inputs/outputs tensors are mapped to the host (which is fast) only when the `get_tesnor` is used, while for the `set_tensor` a copy into the internal GPU structures may happen.
 Please consider the [API examples](../OV_Runtime_UG/ov_infer_request.md).
 In contrast, the `set_tensor` is a preferable way to handle [remote tensors for example with the GPU device](../OV_Runtime_UG//supported_plugins/gpu_remotetensor_api.md).
 

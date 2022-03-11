@@ -21,7 +21,7 @@ You need to build your performance conclusions on reproducible data. Do the perf
 
 ## Getting performance numbers using OpenVINO's benchmark_app 
 
-To get performance numbers please use the dedicated [Benchmark App](../../../samples/cpp/benchmark_app/README.md) sample that is the best way to produce the performance reference.
+To get performance numbers, use the dedicated [Benchmark App](../../../samples/cpp/benchmark_app/README.md) sample which is the best way to produce the performance reference.
 It has a lot of device-specific knobs, but the primary usage is as simple as: 
 ```bash
 $ ./benchmark_app –d GPU –m <model> -i <input>
@@ -33,10 +33,10 @@ $ ./benchmark_app –d CPU –m <model> -i <input>
 ```
 to execute on the CPU instead.
 
-Each of the [OpenVINO supported devices](../../OV_Runtime_UG/supported_plugins/Supported_Devices.md) offers a bunch of performance settings that have a command-line equivalents in the [Benchmark App](../../../samples/cpp/benchmark_app/README.md).
-While these settings provide really low-level control and allow to leverage the optimal model performance on the _specific_ device, we suggest to always start the performance evaluation with trying the [OpenVINO High-Level Performance Hints](../../OV_Runtime_UG/performance_hints.md) first:
- - benchmark_app **-hint tput** -d 'device' -m 'path to your favorite model'
- - benchmark_app **-hint latency** -d 'device' -m 'path to your favorite model'
+Each of the [OpenVINO supported devices](../../OV_Runtime_UG/supported_plugins/Supported_Devices.md) offers performance settings that have command-line equivalents in the [Benchmark App](../../../samples/cpp/benchmark_app/README.md).
+While these settings provide really low-level control and allow to leverage the optimal model performance on the _specific_ device, we suggest always starting the performance evaluation with the [OpenVINO High-Level Performance Hints](../../OV_Runtime_UG/performance_hints.md) first:
+ - benchmark_app **-hint tput** -d 'device' -m 'path to your model'
+ - benchmark_app **-hint latency** -d 'device' -m 'path to your model'
 
 ## Comparing Performance with Native/Framework Code 
 
