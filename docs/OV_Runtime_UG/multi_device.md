@@ -1,4 +1,4 @@
-# Running on multiple device simultaneously {#openvino_docs_OV_UG_Running_on_multiple_devices}
+# Running on multiple devices simultaneously {#openvino_docs_OV_UG_Running_on_multiple_devices}
 
 ## Introducing the Multi-Device Plugin (C++)
 
