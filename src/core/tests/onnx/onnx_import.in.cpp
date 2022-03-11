@@ -4738,8 +4738,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unsqueeze_ai_onnx_domain_opset13) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_scan9_fixed) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/scan9_fixed.onnx"));
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/scan9_fixed.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{1, 2}, {0, 0});
@@ -4751,8 +4750,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_scan9_fixed) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_scan9_orig) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/scan9_orig.onnx"));
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/scan9_orig.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{2}, {0, 0});
@@ -4760,5 +4758,69 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_scan9_orig) {
 
     test_case.add_expected_output<float>(Shape{2}, {9, 12});
     test_case.add_expected_output<float>(Shape{3, 2}, {1, 2, 4, 6, 9, 12});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_scan9_fib_like) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/scan9_fib_like.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{}, {0});
+    test_case.add_input<float>(Shape{}, {1});
+    test_case.add_input<float>(Shape{10}, std::vector<float>(10, 1));
+
+    test_case.add_expected_output<float>(Shape{}, {55});
+    test_case.add_expected_output<float>(Shape{}, {89});
+    test_case.add_expected_output<float>(Shape{10}, {1., 2., 3., 5., 8., 13., 21., 34., 55., 89.});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_scan9_fib_like_out_rev) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/scan9_fib_like_out_rev.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{}, {0});
+    test_case.add_input<float>(Shape{}, {1});
+    test_case.add_input<float>(Shape{10}, std::vector<float>(10, 1));
+
+    test_case.add_expected_output<float>(Shape{}, {55});
+    test_case.add_expected_output<float>(Shape{}, {89});
+    test_case.add_expected_output<float>(Shape{10}, {89., 55., 34., 21., 13., 8., 5., 3., 2., 1.});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_scan9_fib_like_input_rev) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/scan9_fib_like_input_rev.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{}, {0});
+    test_case.add_input<float>(Shape{}, {1});
+    test_case.add_input<float>(Shape{10}, std::vector<float>{0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9});
+
+    test_case.add_expected_output<float>(Shape{}, {0.14897026});
+    test_case.add_expected_output<float>(Shape{}, {0.});
+    test_case.add_expected_output<float>(
+        Shape{10},
+        {0.9, 1.52, 1.694, 1.9284, 1.8112, 1.4958401, 0.9921121, 0.49759045, 0.14897026, 0.});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_scan9_fib_like_input_out_rev) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/scan9_fib_like_input_out_rev.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{}, {0});
+    test_case.add_input<float>(Shape{}, {1});
+    test_case.add_input<float>(Shape{10}, std::vector<float>{0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9});
+
+    test_case.add_expected_output<float>(Shape{}, {0.14897026});
+    test_case.add_expected_output<float>(Shape{}, {0.});
+    test_case.add_expected_output<float>(
+        Shape{10},
+        {0., 0.14897026, 0.49759045, 0.9921121, 1.4958401, 1.8112, 1.9284, 1.694, 1.52, 0.9});
     test_case.run();
 }
