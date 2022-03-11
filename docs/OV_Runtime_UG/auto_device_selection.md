@@ -123,7 +123,7 @@ The following commands are accepted by the API:
       ov::Core core; 
 
       // Read a network in IR, PaddlePaddle, or ONNX format:
-      std::shared_ptr<ov::Model> model = core.read_model("sample.xml");    
+      std::shared_ptr<ov::Model> model = core.read_model("sample.xml");
 
       // Load a network to AUTO using the default list of device candidates.
       // The following lines are equivalent:
@@ -138,7 +138,7 @@ The following commands are accepted by the API:
       // the AUTO plugin is pre-configured (globally) with the explicit option:
       core.set_property("AUTO", ov::device::priorities("GPU,CPU"));
 
-.. tab:: C++ legacy API
+.. tab:: C++ Inference Engine 1.0 API
 
    .. code-block:: cpp
 
@@ -176,19 +176,19 @@ The following commands are accepted by the API:
 
       # Load a network to AUTO using the default list of device candidates.
       # The following lines are equivalent:
-      model = core.compile_model(model=model) 
+      compiled_model = core.compile_model(model=model)
       compiled_model = core.compile_model(model=model, device_name="AUTO")
       compiled_model = core.compile_model(model=model, device_name="AUTO", config={})
 
       # You can also specify the devices to be used by AUTO in its selection process.
       # The following lines are equivalent:
-      compiled_model = core.compile_model(model=model, device_name="AUTO:CPU,GPU")
-      compiled_model = core.compile_model(model=model, device_name="AUTO", config={"MULTI_DEVICE_PRIORITIES": "CPU,GPU"})
+      compiled_model = core.compile_model(model=model, device_name="AUTO:GPU,CPU")
+      compiled_model = core.compile_model(model=model, device_name="AUTO", config={"MULTI_DEVICE_PRIORITIES": "GPU,CPU"})
 
       # the AUTO plugin is pre-configured (globally) with the explicit option:
-      core.set_config(config={"MULTI_DEVICE_PRIORITIES":"CPU,GPU"}, device_name="AUTO")
+      core.set_property(device_name="AUTO", properties={"MULTI_DEVICE_PRIORITIES":"GPU,CPU"})
 
-.. tab:: Python legacy API
+.. tab:: Python Inference Engine 1.0 API
 
    .. code-block:: python
 
@@ -207,11 +207,11 @@ The following commands are accepted by the API:
 
       # You can also specify the devices to be used by AUTO in its selection process.
       # The following lines are equivalent:
-      exec_net = ie.load_network(network=net, device_name="AUTO:CPU,GPU")
-      exec_net = ie.load_network(network=net, device_name="AUTO", config={"MULTI_DEVICE_PRIORITIES": "CPU,GPU"})
+      exec_net = ie.load_network(network=net, device_name="AUTO:GPU,CPU")
+      exec_net = ie.load_network(network=net, device_name="AUTO", config={"MULTI_DEVICE_PRIORITIES": "GPU,CPU"})
 
       # the AUTO plugin is pre-configured (globally) with the explicit option:
-      ie.SetConfig(config={"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}, device_name="AUTO");
+      ie.set_config(config={"MULTI_DEVICE_PRIORITIES":"GPU,CPU"}, device_name="AUTO");
 
 @endsphinxdirective
 
@@ -323,18 +323,18 @@ The property enables you to control the priorities of networks in the Auto-Devic
 
       # Example 1
       # Compile and load networks:
-      compiled_model0 = core.compile_model(model=model, device_name="AUTO:CPU,GPU,MYRIAD", config={"AUTO_NETWORK_PRIORITY":"0"})
-      compiled_model1 = core.compile_model(model=model, device_name="AUTO:CPU,GPU,MYRIAD", config={"AUTO_NETWORK_PRIORITY":"1"})
-      compiled_model2 = core.compile_model(model=model, device_name="AUTO:CPU,GPU,MYRIAD", config={"AUTO_NETWORK_PRIORITY":"2"})
+      compiled_model0 = core.compile_model(model=model, device_name="AUTO:GPU,MYRIAD,CPU", config={"MODEL_PRIORITY":"HIGH"})
+      compiled_model1 = core.compile_model(model=model, device_name="AUTO:GPU,MYRIAD,CPU", config={"MODEL_PRIORITY":"MEDIUM"})
+      compiled_model2 = core.compile_model(model=model, device_name="AUTO:GPU,MYRIAD,CPU", config={"MODEL_PRIORITY":"LOW"})
 
       # Assume that all the devices (CPU, GPU, and MYRIAD) can support all the networks.
       # Result: compiled_model0 will use GPU, compiled_model1 will use MYRIAD, compiled_model3 will use CPU.
-      
+
       # Example 2
       # Compile and load networks:
-      compiled_model0 = core.compile_model(model=model, device_name="AUTO:CPU,GPU,MYRIAD", config={"AUTO_NETWORK_PRIORITY":"2"})
-      compiled_model1 = core.compile_model(model=model, device_name="AUTO:CPU,GPU,MYRIAD", config={"AUTO_NETWORK_PRIORITY":"1"})
-      compiled_model2 = core.compile_model(model=model, device_name="AUTO:CPU,GPU,MYRIAD", config={"AUTO_NETWORK_PRIORITY":"2"})
+      compiled_model0 = core.compile_model(model=model, device_name="AUTO:GPU,MYRIAD,CPU", config={"MODEL_PRIORITY":"HIGH"})
+      compiled_model1 = core.compile_model(model=model, device_name="AUTO:GPU,MYRIAD,CPU", config={"MODEL_PRIORITY":"MEDIUM"})
+      compiled_model2 = core.compile_model(model=model, device_name="AUTO:GPU,MYRIAD,CPU", config={"MODEL_PRIORITY":"LOW"})
 
       # Assume that all the devices (CPU, GPU, and MYRIAD) can support all the networks.
       # Result: compiled_model0 will use GPU, compiled_model1 will use GPU, compiled_model3 will use MYRIAD.
@@ -353,9 +353,9 @@ Although the methods described above are currently the preferred way to execute 
       // Read a network in IR, PaddlePaddle, or ONNX format
       std::shared_ptr<ov::Model> model = core.read_model("sample.xml");
 
-      // Configure the VPUX and the Myriad devices separately and load the network to the Auto-Device plugin
+      // Configure the CPU and the Myriad devices separately and load the network to the Auto-Device plugin
       // set VPU config
-      core.set_property("VPUX", {});
+      core.set_property("CPU", {});
 
       // set MYRIAD config
       core.set_property("MYRIAD", {});
@@ -366,24 +366,17 @@ Although the methods described above are currently the preferred way to execute 
    .. code-block:: python
 
       from openvino.runtime import Core
-      
+
       core = Core()
-      
+
       # Read a network in IR, PaddlePaddle, or ONNX format:
       model = core.read_model(model_path)
-      
-      # Configure the VPUX and the Myriad devices separately and load the network to the Auto-Device plugin:
-      core.set_config(config=vpux_config, device_name="VPUX")
-      core.set_config (config=vpux_config, device_name="MYRIAD")
-      compiled_model = core.compile_model(model=model)
-      
-      # Alternatively, you can combine the individual device settings into one configuration and load the network.
-      # The AUTO plugin will parse and apply the settings to the right devices.
-      # The 'device_name' of "AUTO:VPUX,MYRIAD" will configure auto-device to use devices.
-      compiled_model = core.compile_model(model=model, device_name=device_name, config=full_config)
-      
-      # To query the optimization capabilities:
-      device_cap = core.get_metric("CPU", "OPTIMIZATION_CAPABILITIES")
+
+      # Configure the CPU and the Myriad devices separately and load the network to the Auto-Device plugin:
+      core.set_property(device_name="CPU", properties={})
+      core.set_property(device_name="MYRIAD", properties={})
+      compiled_model = core.compile_model(model=model, device_name="AUTO")
+
 @endsphinxdirective
 
 <a name="Benchmark App Info"></a>
