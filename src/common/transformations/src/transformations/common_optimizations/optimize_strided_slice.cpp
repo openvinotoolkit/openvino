@@ -273,8 +273,9 @@ bool ngraph::pass::StridedSliceOptimization::run_on_model(const std::shared_ptr<
     bool rewritten = false;
     if (m_use_shapes) {
         rewritten = UselessStridedSliceEraser().run_on_model(f);
-        rewritten = rewritten || SharedStridedSliceEraser().run_on_model(f);
-        rewritten = rewritten || GroupedStridedSliceOptimizer().run_on_model(f);
+        // Execution of other passes is also needed even if 'rewritten' is already 'true'
+        rewritten = SharedStridedSliceEraser().run_on_model(f) || rewritten;
+        rewritten = GroupedStridedSliceOptimizer().run_on_model(f) || rewritten;
     }
     return rewritten;
 }
