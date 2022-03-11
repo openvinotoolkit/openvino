@@ -13,8 +13,8 @@
 #include "transformations/utils/utils.hpp"
 
 bool ov::pass::MarkPrecisionSensitiveDivides::run_on_model(const std::shared_ptr<ov::Model>& m) {
-    std::deque<Node *> nodes;
-    std::unordered_set<Node *> visited, precision_sensitive_visited;
+    std::deque<Node*> nodes;
+    std::unordered_set<Node*> visited, precision_sensitive_visited;
     for (auto& r : m->get_results()) {
         nodes.push_back(r.get());
         visited.insert(r.get());
@@ -48,7 +48,8 @@ bool ov::pass::MarkPrecisionSensitiveDivides::run_on_model(const std::shared_ptr
         for (auto& input_value : curr_node->input_values()) {
             // continue searching
             const auto& input_node = input_value.get_node();
-            if (visited.count(input_node)) continue;
+            if (visited.count(input_node))
+                continue;
             nodes.push_front(input_node);
             visited.insert(input_node);
         }

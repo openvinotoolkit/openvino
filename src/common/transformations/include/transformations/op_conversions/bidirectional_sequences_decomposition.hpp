@@ -4,13 +4,11 @@
 
 #pragma once
 
-#include <vector>
 #include <memory>
-#include <string>
-
-#include <transformations_visibility.hpp>
-
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <string>
+#include <transformations_visibility.hpp>
+#include <vector>
 
 namespace ngraph {
 namespace pass {
