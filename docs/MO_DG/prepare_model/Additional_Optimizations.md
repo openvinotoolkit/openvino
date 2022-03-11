@@ -11,7 +11,7 @@ reverting data along channel dimension, and changing the data layout. For more d
 Some preprocessing may require setting of input layouts, for example: batch setting,
 application of mean or scales, and reversing input channels (BGR<->RGB).
 
-Layout defines meaning of dimensions in shape and can be specified for both inputs and outputs.
+Layout defines the meaning of dimensions in shape and can be specified for both inputs and outputs.
 For the layout syntax, check the [Layout API overview](../../OV_Runtime_UG/layout_overview.md). 
 To specify the layout, you can use `--layout` option followed by the layout value. 
 
@@ -46,7 +46,7 @@ mo --input_model tf_nasnet_large.onnx --layout "nhwc->nchw"
 Again, if a model has more than one input or needs both input and output layouts specified, each layout needs to be
 given a name.
 
-For example, if for the mentioned earlier `Yolo v3 Tiny` model we want to provide data in `NHWC` layout:
+For example, to provide data in the `NHWC` layout for the `Yolo v3 Tiny` model mentioned earlier:
 
 ```
 mo --input_model yolov3-tiny.onnx --source_layout "input_1(nchw),image_shape(n?)" --target_layout "input_1(nhwc)"
