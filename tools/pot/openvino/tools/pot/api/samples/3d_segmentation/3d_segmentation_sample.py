@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -6,7 +6,6 @@ import os
 import nibabel as nib
 import numpy as np
 from scipy.ndimage import interpolation
-from addict import Dict
 
 from openvino.tools.pot import Metric, DataLoader, IEEngine, \
     load_model, save_model, compress_model_weights, create_pipeline
@@ -23,8 +22,6 @@ class BRATSDataLoader(DataLoader):
 
     # Required methods:
     def __init__(self, config):
-        if not isinstance(config, Dict):
-            config = Dict(config)
         super().__init__(config)
         self._img_ids = sorted(os.listdir(self.config.data_source))
 
@@ -41,9 +38,8 @@ class BRATSDataLoader(DataLoader):
         mask_path = os.path.join(self.config.mask_dir, self._img_ids[index])
         image_path = os.path.join(self.config.data_source, self._img_ids[index])
 
-        annotation = (index, self._read_image(mask_path))
         image, image_meta = self._preprocess_image(self._read_image(image_path))
-        return annotation, image, image_meta
+        return image, self._read_image(mask_path), image_meta
 
     def __len__(self):
         """ Returns size of the dataset """
@@ -124,13 +120,6 @@ class DiceIndex(Metric):
         self._overall_metric = []
 
     @property
-    def value(self):
-        """ Returns accuracy metric value for the last model output.
-        Possible format: {metric_name: [metric_values_per_image]}
-        """
-        return {self._name: [np.mean(self._overall_metric[-1])]}
-
-    @property
     def avg_value(self):
         """ Returns accuracy metric value for all model outputs.
         Possible format: {metric_name: metric_value}
@@ -190,13 +179,15 @@ class SegmentationEngine(IEEngine):
         """
         Processes model raw output for future metric and loss calculation.
         Uses image metadata that can be passed using dataloader.
-        :param outputs: network infer result in format of numpy ndarray (batch x image shape)
+        :param outputs: network infer result in the format of dictionary numpy ndarray
+                        by layer name (batch x image shape)
         :param metadata: dictionary of image metadata
         :return: processed numpy ndarray with the same shape as the original output
         """
         processed_outputs = []
-        for output, meta in zip(outputs, metadata):
+        for output, meta in zip(outputs.values(), metadata):
             # Resize to bounding box size and extend to mask size
+            output = output[0]
             low = meta['bbox'][0]
             high = meta['bbox'][1]
             box_shape = tuple((high - low).astype(np.int32))
@@ -246,24 +237,24 @@ def main():
     if not args.weights:
         args.weights = '{}.bin'.format(os.path.splitext(args.model)[0])
 
-    model_config = Dict({
+    model_config = {
         'model_name': 'brain-tumor-segmentation-0002',
         'model': os.path.expanduser(args.model),
         'weights': os.path.expanduser(args.weights)
-    })
+    }
 
-    engine_config = Dict({
+    engine_config = {
         'device': 'CPU',
         'stat_requests_number': 4,
         'eval_requests_number': 4
-    })
+    }
 
-    dataset_config = Dict({
+    dataset_config = {
         'data_source': os.path.expanduser(args.dataset),
         'mask_dir': os.path.expanduser(args.mask_dir),
         'modality_order': [1, 2, 3, 0],
         'size': (128, 128, 128)
-    })
+    }
 
     algorithms = [
         {

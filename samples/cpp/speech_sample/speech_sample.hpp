@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #pragma once
 
 #include <gflags/gflags.h>
@@ -86,7 +90,8 @@ static const char quantization_bits_message[] = "Optional. Weight bits for quant
 static const char scale_factor_message[] =
     "Optional. User-specified input scale factor for quantization (use with -q user). "
     "If the network contains multiple inputs, provide scale factors by separating them with "
-    "commas.";
+    "commas. "
+    "For example: <input_name1>:<sf1>,<input_name2>:<sf2> or just <sf> to be applied to all inputs";
 
 /// @brief message for batch size argument
 static const char batch_size_message[] = "Optional. Batch size 1-8 (default 1)";
@@ -99,13 +104,13 @@ static const char infer_num_threads_message[] = "Optional. Number of threads to 
 static const char context_window_message_l[] =
     "Optional. Number of frames for left context windows (default is 0). "
     "Works only with context window networks."
-    " If you use the cw_l or cw_r flag, then batch size and nthreads arguments are ignored.";
+    " If you use the cw_l or cw_r flag, then batch size argument is ignored.";
 
 /// @brief message for right context window argument
 static const char context_window_message_r[] =
     "Optional. Number of frames for right context windows (default is 0). "
     "Works only with context window networks."
-    " If you use the cw_r or cw_l flag, then batch size and nthreads arguments are ignored.";
+    " If you use the cw_r or cw_l flag, then batch size argument is ignored.";
 
 /// @brief message for output layer names
 static const char output_layer_names_message[] = "Optional. Layer names for output blobs. "
@@ -116,6 +121,11 @@ static const char output_layer_names_message[] = "Optional. Layer names for outp
 static const char input_layer_names_message[] = "Optional. Layer names for input blobs. "
                                                 "The names are separated with \",\" "
                                                 "Example: Input1,Input2 ";
+/// @brief message for inputs layer names
+static const char layout_message[] =
+    "Optional. Prompts how network layouts should be treated by application. "
+    "For example, \"input1[NCHW],input2[NC]\" or \"[NCHW]\" in case of one input size.";
+;
 
 /// @brief message for PWL max error percent
 static const char pwl_max_error_percent_message[] = "Optional. The maximum percent of error for PWL function."
@@ -171,8 +181,8 @@ DEFINE_int32(qb, 16, quantization_bits_message);
 /// @brief Scale factor for quantization
 DEFINE_string(sf, "", scale_factor_message);
 
-/// @brief Batch size (default 1)
-DEFINE_int32(bs, 1, batch_size_message);
+/// @brief Batch size (default 0)
+DEFINE_int32(bs, 0, batch_size_message);
 
 /// @brief Number of threads to use for inference on the CPU (also affects Hetero cases)
 DEFINE_int32(nthreads, 1, infer_num_threads_message);
@@ -189,13 +199,16 @@ DEFINE_string(oname, "", output_layer_names_message);
 /// @brief Input layer name
 DEFINE_string(iname, "", input_layer_names_message);
 
+/// @brief Input layer name
+DEFINE_string(layout, "", layout_message);
+
 /// @brief PWL max error percent
 DEFINE_double(pwl_me, 1.0, pwl_max_error_percent_message);
 
 /**
  * \brief This function show a help message
  */
-static void showUsage() {
+static void show_usage() {
     std::cout << std::endl;
     std::cout << "speech_sample [OPTION]" << std::endl;
     std::cout << "Options:" << std::endl;
@@ -214,11 +227,11 @@ static void showUsage() {
     std::cout << "    -rg \"<path>\"               " << read_gna_model_message << std::endl;
     std::cout << "    -wg \"<path>\"               " << write_gna_model_message << std::endl;
     std::cout << "    -we \"<path>\"               " << write_embedded_model_message << std::endl;
-    std::cout << "    -nthreads \"<integer>\"      " << infer_num_threads_message << std::endl;
     std::cout << "    -cw_l \"<integer>\"          " << context_window_message_l << std::endl;
     std::cout << "    -cw_r \"<integer>\"          " << context_window_message_r << std::endl;
     std::cout << "    -oname \"<string>\"          " << output_layer_names_message << std::endl;
     std::cout << "    -iname \"<string>\"          " << input_layer_names_message << std::endl;
+    std::cout << "    -layout \"<string>\"         " << layout_message << std::endl;
     std::cout << "    -pwl_me \"<double>\"         " << pwl_max_error_percent_message << std::endl;
     std::cout << "    -exec_target \"<string>\"    " << execution_target_message << std::endl;
     std::cout << "    -compile_target \"<string>\" " << compile_target_message << std::endl;
@@ -230,12 +243,12 @@ static void showUsage() {
  * @param argv list of input arguments
  * @return bool status true(Success) or false(Fail)
  */
-bool ParseAndCheckCommandLine(int argc, char* argv[]) {
+bool parse_and_check_command_line(int argc, char* argv[]) {
     slog::info << "Parsing input parameters" << slog::endl;
 
     gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
     if (FLAGS_h) {
-        showUsage();
+        show_usage();
         showAvailableDevices();
         return false;
     }
@@ -243,7 +256,7 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
 
     // input not required only in dump mode and if external scale factor provided
     if (FLAGS_i.empty() && (!isDumpMode || FLAGS_q.compare("user") != 0)) {
-        showUsage();
+        show_usage();
         if (isDumpMode) {
             throw std::logic_error("In model dump mode either static quantization is used (-i) or user scale"
                                    " factor need to be provided. See -q user option");
@@ -252,7 +265,7 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
     }
 
     if (FLAGS_m.empty() && FLAGS_rg.empty()) {
-        showUsage();
+        show_usage();
         throw std::logic_error("Either IR file (-m) or GNAModel file (-rg) need to be set.");
     }
 
@@ -266,12 +279,10 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
                                                  "GNA_HW",
                                                  "GNA_HW_WITH_SW_FBACK",
                                                  "GNA_SW_EXACT",
-                                                 "GNA_SW",
                                                  "GNA_SW_FP32",
                                                  "HETERO:GNA,CPU",
                                                  "HETERO:GNA_HW,CPU",
                                                  "HETERO:GNA_SW_EXACT,CPU",
-                                                 "HETERO:GNA_SW,CPU",
                                                  "HETERO:GNA_SW_FP32,CPU",
                                                  "MYRIAD"};
 
@@ -280,7 +291,7 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
     }
 
     uint32_t batchSize = (uint32_t)FLAGS_bs;
-    if ((batchSize < 1) || (batchSize > 8)) {
+    if (batchSize && ((batchSize < 1) || (batchSize > 8))) {
         throw std::logic_error("Batch size out of range (1..8).");
     }
 
@@ -295,10 +306,6 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
 
     if (FLAGS_qb != 16 && FLAGS_qb != 8) {
         throw std::logic_error("Only 8 or 16 bits supported.");
-    }
-
-    if (FLAGS_nthreads <= 0) {
-        throw std::logic_error("Invalid value for 'nthreads' argument. It must be greater that or equal to 0");
     }
 
     if (FLAGS_cw_r < 0) {

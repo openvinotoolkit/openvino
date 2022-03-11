@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,18 +38,17 @@ Plugin::Plugin() {
     _backend = ngraph::runtime::Backend::create();
 
     // create default stream executor with a given name
-    _waitExecutor =
-        InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor({"TemplateWaitExecutor"});
+    _waitExecutor = executorManager()->getIdleCPUStreamsExecutor({"TemplateWaitExecutor"});
 }
 // ! [plugin:ctor]
 
 // ! [plugin:dtor]
 Plugin::~Plugin() {
     // Plugin should remove executors from executor cache to avoid threads number growth in the whole application
-    InferenceEngine::ExecutorManager::getInstance()->clear("TemplateStreamsExecutor");
-    InferenceEngine::ExecutorManager::getInstance()->clear("TemplateWaitExecutor");
+    executorManager()->clear("TemplateStreamsExecutor");
+    executorManager()->clear("TemplateWaitExecutor");
     // NOTE: Uncomment this if Inference Engine Executor cache is used to create callback executor
-    // ExecutorManager::getInstance()->clear("TemplateCallbackExecutor");
+    // executorManager()->clear("TemplateCallbackExecutor");
 }
 // ! [plugin:dtor]
 
@@ -83,8 +82,8 @@ std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const n
             precisions_array{{ngraph::element::f16, ngraph::element::f32}});
     }
     // Example: register plugin specific transformation
-    passManager.register_pass<ngraph::pass::DecomposeDivideMatcher>();
-    passManager.register_pass<ngraph::pass::ReluReluFusionMatcher>();
+    passManager.register_pass<ov::pass::DecomposeDivideMatcher>();
+    passManager.register_pass<ov::pass::ReluReluFusionMatcher>();
     // Register any other transformations
     // ..
 
@@ -262,6 +261,7 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name,
     } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         std::vector<std::string> configKeys = {CONFIG_KEY(DEVICE_ID),
                                                CONFIG_KEY(PERF_COUNT),
+                                               ov::hint::performance_mode.name(),
                                                TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS)};
         auto streamExecutorConfigKeys = InferenceEngine::IStreamsExecutor::Config{}.SupportedKeys();
         for (auto&& configKey : streamExecutorConfigKeys) {
@@ -298,6 +298,6 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name,
 // ! [plugin:get_metric]
 
 // ! [plugin:create_plugin_engine]
-static const InferenceEngine::Version version = {{2, 1}, CI_BUILD_NUMBER, "ov_template_plugin"};
+static const InferenceEngine::Version version = {{2, 1}, CI_BUILD_NUMBER, "openvino_template_plugin"};
 IE_DEFINE_PLUGIN_CREATE_FUNCTION(Plugin, version)
 // ! [plugin:create_plugin_engine]

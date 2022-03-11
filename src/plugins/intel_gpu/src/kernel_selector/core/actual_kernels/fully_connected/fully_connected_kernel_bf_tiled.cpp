@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -262,7 +262,7 @@ KernelsPriority FullyConnected_bf_tiled::GetKernelsPriority(const Params& params
     if (fc_params.output.GetLayout() == DataLayout::bfyx)
         output_b *= fc_params.output.Feature().v;
 
-    float estimated_time = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    float estimated_time = FORCE_PRIORITY_9;
     if (output_b > 1 && fc_params.inputs[0].GetDType() == Datatype::F32)
         estimated_time = FORCE_PRIORITY_3;
     else if (output_b > 1 && fc_params.inputs[0].GetDType() == Datatype::F16)
@@ -289,9 +289,10 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     jit.AddConstant(MakeJitConstant("REALIGN_FP16_OFFSET", realign_fp16_offset));
 
     auto activation_dt = GetActivationType(params);
-    jit.Merge(MakeTypeJitConstants(params.inputs[0].GetDType(), "ACCUMULATOR"));
+    auto accumulator_dt = GetAccumulatorType(params);
     jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
     jit.Merge(MakeActivationJitConstants(params.activations, activation_dt, "_TYPED"));
+    jit.Merge(MakeTypeJitConstants(accumulator_dt, "ACCUMULATOR"));
 
     // for 3d output we are treating spatial as features
     if (params.output.GetLayout() == DataLayout::bfyx) {
@@ -307,27 +308,29 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         jit.AddConstant(MakeJitConstant("TILE_OUT_B_PITCH", params.output.Batch().pitch));
     }
 
-    size_t output_f = params.output.GetLayout() == DataLayout::bfyx ? params.output.Y().v : params.output.Feature().v;
     if (!params.fused_ops.empty()) {
-        auto boundary_check = BoundaryCheck::DISABLED;
-        if (output_f % (dispatchData.tile_n * simd) != 0)
-            boundary_check = BoundaryCheck::ENABLED;
+        std::vector<std::string> idx_order_scalar = { "(out_b + bi)", "(out_f + sglid)", "0", "0" };
+        std::vector<std::string> idx_order_vec = { "(out_b + bi)", "(out_f + fi + sglid)", "0", "0" };
+        if (params.output.GetLayout() == DataLayout::bfyx) {
+            idx_order_scalar = { "(out_b + bi) / OUTPUT_FEATURE_NUM", "(out_b + bi) % OUTPUT_FEATURE_NUM", "sglid", "0" };
+            idx_order_vec = { "(out_b + bi) / OUTPUT_FEATURE_NUM", "(out_b + bi) % OUTPUT_FEATURE_NUM", "sglid", "0" };
+        }
 
-        std::vector<std::string> idx_order = {"(out_b + bi)", "out_f", "0", "0"};
-        if (params.output.GetLayout() == DataLayout::bfyx)
-            idx_order = {"(out_b + bi) % OUTPUT_BATCH_NUM", "(out_b + bi) / OUTPUT_BATCH_NUM", "out_f", "0"};
-        FusedOpsConfiguration conf = { "",
-                                       idx_order,
-                                       "activated[bi]",
-                                       activation_dt,
-                                       dispatchData.tile_n,
-                                       LoadType::LT_ALIGNED_READ,
-                                       boundary_check,
-                                       IndexType::TENSOR_COORD,
-                                       Tensor::DataChannelName::FEATURE };
-        conf.SetLoopAxes({ Tensor::DataChannelName::BATCH }, true);
-        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+        // Simplify fused ops configuration to prevent mixed layout exception in jitter
+        // for common cases with bfyx -> bf layouts and eltwise fusing (such scenarios currently don't work for vectors)
+        FusedOpsConfiguration conf_scalar = { "_SCALAR",
+                                              idx_order_scalar,
+                                              "activated[bi]",
+                                              activation_dt,
+                                              1 };
+        FusedOpsConfiguration conf_vec = { "_VEC",
+                                           idx_order_vec,
+                                           "activated[bi][fi]",
+                                           activation_dt,
+                                           1 };
+        jit.Merge(MakeFusedOpsJitConstants(params, { conf_scalar, conf_vec }));
     }
+
     return jit;
 }
 
@@ -365,6 +368,7 @@ KernelsData FullyConnected_bf_tiled::GetKernelsDataForAutoTune(const Params& par
             res.emplace_back(kds[0]);
         }
     }
+
     return res;
 }
 

@@ -1,56 +1,53 @@
 # Automatic Speech Recognition C++ Sample {#openvino_inference_engine_samples_speech_sample_README}
 
-This sample demonstrates how to execute an Asynchronous Inference of acoustic model based on Kaldi\* neural networks and speech feature vectors.
+This sample demonstrates how to execute an Asynchronous Inference of acoustic model based on Kaldi\* neural networks and speech feature vectors.  
 
 The sample works with Kaldi ARK or Numpy* uncompressed NPZ files, so it does not cover an end-to-end speech recognition scenario (speech to text), requiring additional preprocessing (feature extraction) to get a feature vector from a speech signal, as well as postprocessing (decoding) to produce text from scores.
 
-Automatic Speech Recognition C++ sample application demonstrates how to use the following Inference Engine C++ API in applications:
+The following C++ API is used in the application:
 
-| Feature    | API  | Description |
-|:---     |:--- |:---
-|OpenVINO Runtime Version| `ov::get_openvino_versio` | Get Openvino API version
-|Available Devices|`ov::runtime::Core::get_available_devices`| Get version information of the devices for inference
-| Model Operations | `ov::set_batch`, `ov::get_batch` |  Managing of model, operate with its batch size. Setting batch size using input image count.
-|Model Operations|`ov::Model::add_output`| Change names of output layers in the model
-|Import Model|`ov::runtime::CompiledModel::export_model`,`ov::runtime::Core::import_model`| Creates a CompiledModel from a previously exported model
-|Asynchronous Infer| `ov::runtime::InferRequest::start_async`, `ov::runtime::InferRequest::wait`| Do asynchronous inference and waits until inference result becomes available
-|InferRequest Operations|`ov::runtime::InferRequest::query_state`, `ov::runtime::VariableState::reset`| Gets and resets state control interface for given CompiledModel
-|InferRequest Operations|`ov::runtime::InferRequest::get_profiling_info`| Get profiling info for infer request
+| Feature | API | Description |
+| :--- | :--- | :--- |
+| Available Devices | `ov::Core::get_available_devices`, `ov::Core::get_property` | Get information of the devices for inference |
+| Import/Export Model | `ov::Core::import_model`, `ov::CompiledModel::export_model` | The GNA plugin supports loading and saving of the GNA-optimized model |
+| Model Operations | `ov::set_batch`, `ov::Model::add_output`, `ov::CompiledModel::inputs`, `ov::CompiledModel::outputs` | Managing of model: configure batch_size, input and output tensors |
+| Node Operations | `ov::OutputVector::size`, `ov::Output::get_shape` | Get node shape |
+| Asynchronous Infer | `ov::InferRequest::start_async`, `ov::InferRequest::wait` | Do asynchronous inference and waits until inference result becomes available |
+| InferRequest Operations | `ov::InferRequest::query_state`, `ov::VariableState::reset` | Gets and resets CompiledModel state control |
+| Tensor Operations | `ov::Tensor::get_size`, `ov::Tensor::data`, `ov::InferRequest::get_tensor` | Get a tensor, its size and data |
+| Profiling | `ov::InferRequest::get_profiling_info` | Get infer request profiling info |
 
-Basic Inference Engine API is covered by [Hello Classification C++ sample](../hello_classification/README.md).
+Basic OpenVINO™ Runtime API is covered by [Hello Classification C++ sample](../hello_classification/README.md).
 
-| Options  | Values |
-|:---                              |:---
-| Validated Models                 | Acoustic model based on Kaldi\* neural networks (see [Model Preparation](#model-preparation) section)
-| Model Format                     | Inference Engine Intermediate Representation (\*.xml + \*.bin)
-| Supported devices                | See [Execution Modes](#execution-modes) section below and [List Supported Devices](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
+| Options | Values |
+| :--- | :--- |
+| Validated Models | Acoustic model based on Kaldi\* neural networks (see [Model Preparation](#model-preparation) section) |
+| Model Format | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin) |
+| Supported devices | See [Execution Modes](#execution-modes) section below and [List Supported Devices](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
 
 ## How It Works
 
-On startup, the application reads command line parameters, loads a specified model and input data to the Inference Engine plugin, performs synchronous inference on all speech utterances stored in the input file. Context-windowed speech frames are processed in batches of 1-8
-frames according to the `-bs` parameter.  Batching across utterances is not supported by this sample.  When inference is done, the application creates an output file.  If the `-r` option is given, error
-statistics are provided for each speech utterance as shown above.
+At startup, the sample application reads command-line parameters, loads a specified model and input data to the OpenVINO™ Runtime plugin, performs inference on all speech utterances stored in the input file(s), logging each step in a standard output stream.  
+If the `-r` option is given, error statistics are provided for each speech utterance as shown above.
 
 You can see the explicit description of
-each sample step at [Integration Steps](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
+each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/integrate_with_your_application.md) section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
 ### GNA-specific details
 
 #### Quantization
 
-If the GNA device is selected (for example, using the `-d` GNA flag), the GNA Inference Engine plugin quantizes the model and input feature vector sequence to integer representation before performing inference.
+If the GNA device is selected (for example, using the `-d` GNA flag), the GNA OpenVINO™ Runtime plugin quantizes the model and input feature vector sequence to integer representation before performing inference.
 Several parameters control neural network quantization. The `-q` flag determines the quantization mode.
 Three modes are supported:
 
-- *static* - The first
-utterance in the input file is scanned for dynamic range.  The scale factor (floating point scalar multiplier) required to scale the maximum input value of the first utterance to 16384 (15 bits) is used
-for all subsequent inputs.  The neural network is quantized to accommodate the scaled input dynamic range.
-- *dynamic* - The scale factor for each input batch is computed
-just before inference on that batch.  The input and network are (re)quantized on the fly using an efficient procedure.
+- *static* - The first utterance in the input file is scanned for dynamic range. The scale factor (floating point scalar multiplier) required to scale the maximum input value of the first utterance to 16384 (15 bits) is used for all subsequent inputs. The neural network is quantized to accommodate the scaled input dynamic range.
+- *dynamic* - The scale factor for each input batch is computed just before inference on that batch. The input and network are (re)quantized on the fly using an efficient procedure.
 - *user-defined* - The user may specify a scale factor via the `-sf` flag that will be used for static quantization.
 
-The `-qb` flag provides a hint to the GNA plugin regarding the preferred target weight resolution for all layers.  For example, when `-qb 8` is specified, the plugin will use 8-bit weights wherever possible in the
+The `-qb` flag provides a hint to the GNA plugin regarding the preferred target weight resolution for all layers. For example, when `-qb 8` is specified, the plugin will use 8-bit weights wherever possible in the
 network.
+
 > **NOTE**:
 >
 > - It is not always possible to use 8-bit weights due to GNA hardware limitations. For example, convolutional layers always use 16-bit weights (GNA hardware version 1 and 2). This limitation will be removed in GNA hardware version 3 and higher.
@@ -80,131 +77,130 @@ In addition to performing inference directly from a GNA model file, these combin
 
 ## Building
 
-To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/IE_DG/Samples_Overview.md) section in Inference Engine Samples guide.
+To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/OV_Runtime_UG/Samples_Overview.md) section in OpenVINO™ Toolkit Samples guide.
 
 ## Running
 
-Running the application with the `-h` option yields the following usage message:
+Run the application with the -h option to see the usage message:
 
-```sh
-./speech_sample -h
-[ INFO ] InferenceEngine:
-        API version ............ <version>
-        Build .................. <number>
-        Description ....... API
+```
+speech_sample -h
+```
+
+Usage message:
+
+```
+[ INFO ] OpenVINO Runtime version ......... <version>
+[ INFO ] Build ........... <build>
+[ INFO ]
 [ INFO ] Parsing input parameters
 
 speech_sample [OPTION]
 Options:
 
-    -h                      Print a usage message.
-    -i "<path>"             Required. Paths to input files. Example of usage: <file1.ark,file2.ark> or <file.ark> or <file.npz>.
-    -m "<path>"             Required. Path to an .xml file with a trained model (required if -rg is missing).
-    -o "<path>"             Optional. Output file name to save scores. Example of usage: <output.ark> or <output.npz>
-    -d "<device>"           Optional. Specify a target device to infer on. CPU, GPU, MYRIAD, GNA_AUTO, GNA_HW, GNA_SW_FP32, GNA_SW_EXACT and HETERO with combination of GNA
-     as the primary device and CPU as a secondary (e.g. HETERO:GNA,CPU) are supported. The list of available devices is shown below. The sample will look for a suitable plugin for device specified.
-    -pc                     Optional. Enables per-layer performance report.
-    -q "<mode>"             Optional. Input quantization mode:  static (default), dynamic, or user (use with -sf).
-    -qb "<integer>"         Optional. Weight bits for quantization: 8 or 16 (default)
-    -sf "<double>"          Optional. User-specified input scale factor for quantization (use with -q user). If the network contains multiple inputs, provide scale factors by separating them with commas.
-    -bs "<integer>"         Optional. Batch size 1-8 (default 1)
-    -r "<path>"             Optional. Read referefile and compare scores. Example of usage: <reference.ark> or <reference.npz>
-    -rg "<path>"            Read GNA model from file using path/filename provided (required if -m is missing).
-    -wg "<path>"            Optional. Write GNA model to file using path/filename provided.
-    -we "<path>"            Optional. Write GNA embedded model to file using path/filename provided.
-    -nthreads "<integer>"   Optional. Number of threads to use for concurrent async inference requests on the GNA.
-    -cw_l "<integer>"       Optional. Number of frames for left context windows (default is 0). Works only with context window networks.
-                            If you use the cw_l or cw_r flag, then batch size and nthreads arguments are ignored.
-    -cw_r "<integer>"       Optional. Number of frames for right context windows (default is 0). Works only with context window networks.
-                            If you use the cw_r or cw_l flag, then batch size and nthreads arguments are ignored.
-    -oname "<string>"       Optional. Layer names for output blobs. The names are separated with "," Example: Output1:port,Output2:port
-    -iname "<string>"       Optional. Layer names for input blobs. The names are separated with "," Example: Input1,Input2
-    -pwl_me "<double>"      Optional. The maximum percent of error for PWL function.The value must be in <0, 100> range. The default value is 1.0.
+    -h                         Print a usage message.
+    -i "<path>"                Required. Paths to input files. Example of usage: <file1.ark,file2.ark> or <file.ark> or <file.npz>.
+    -m "<path>"                Required. Path to an .xml file with a trained model (required if -rg is missing).
+    -o "<path>"                Optional. Output file name to save scores. Example of usage: <output.ark> or <output.npz>
+    -d "<device>"              Optional. Specify a target device to infer on. CPU, GPU, MYRIAD, GNA_AUTO, GNA_HW, GNA_HW_WITH_SW_FBACK, GNA_SW_FP32, GNA_SW_EXACT and HETERO with combination of GNA as the primary device and CPU as a secondary (e.g. HETERO:GNA,CPU) are supported. The sample will look for a suitable plugin for device specified.
+    -pc                        Optional. Enables per-layer performance report.
+    -q "<mode>"                Optional. Input quantization mode:  static (default), dynamic, or user (use with -sf).
+    -qb "<integer>"            Optional. Weight bits for quantization: 8 or 16 (default)
+    -sf "<double>"             Optional. User-specified input scale factor for quantization (use with -q user). If the network contains multiple inputs, provide scale factors by separating them with commas.
+    -bs "<integer>"            Optional. Batch size 1-8
+    -layout "<string>"         Optional. Prompts how network layouts should be treated by application.For example, \"input1[NCHW],input2[NC]\" or \"[NCHW]\" in case of one input size.
+    -r "<path>"                Optional. Read reference score file and compare scores. Example of usage: <reference.ark> or <reference.npz>
+    -rg "<path>"               Read GNA model from file using path/filename provided (required if -m is missing).
+    -wg "<path>"               Optional. Write GNA model to file using path/filename provided.
+    -we "<path>"               Optional. Write GNA embedded model to file using path/filename provided.
+    -cw_l "<integer>"          Optional. Number of frames for left context windows (default is 0). Works only with context window networks. If you use the cw_l or cw_r flag, then batch size argument is ignored.
+    -cw_r "<integer>"          Optional. Number of frames for right context windows (default is 0). Works only with context window networks. If you use the cw_r or cw_l flag, then batch size argument is ignored.
+    -oname "<string>"          Optional. Layer names for output blobs. The names are separated with "," Example: Output1:port,Output2:port
+    -iname "<string>"          Optional. Layer names for input blobs. The names are separated with "," Example: Input1,Input2
+    -pwl_me "<double>"         Optional. The maximum percent of error for PWL function.The value must be in <0, 100> range. The default value is 1.0.
+    -exec_target "<string>"    Optional. Specify GNA execution target generation. May be one of GNA_TARGET_2_0, GNA_TARGET_3_0. By default, generation corresponds to the GNA HW available in the system or the latest fully supported generation by the software. See the GNA Plugin's GNA_EXEC_TARGET config option description.
+    -compile_target "<string>" Optional. Specify GNA compile target generation. May be one of GNA_TARGET_2_0, GNA_TARGET_3_0. By default, generation corresponds to the GNA HW available in the system or the latest fully supported generation by the software. See the GNA Plugin's GNA_COMPILE_TARGET config option description.
 
-Available target devices: <devices>
-
+Available target devices:  CPU  GNA  GPU
 ```
-
-Running the application with the empty list of options yields the usage message given above and an error message.
 
 ### Model Preparation
 
-Run Model Optimizer to convert a Kaldi nnet1 or nnet2 neural network to Inference Engine Intermediate Representation format:
+You can use the following model optimizer command to convert a Kaldi nnet1 or nnet2 neural model to OpenVINO™ toolkit Intermediate Representation format:
 
+```
 mo --framework kaldi --input_model wsj_dnn5b.nnet --counts wsj_dnn5b.counts --remove_output_softmax --output_dir <OUTPUT_MODEL_DIR>
-
-Assuming that the Kaldi-trained neural network, `wsj_dnn5b.nnet`, and Kaldi class counts file, `wsj_dnn5b.counts`, are in the working directory this produces the IR network consisting of `wsj_dnn5b.xml` and `wsj_dnn5b.bin`.
+```
 
 The following pre-trained models are available:
 
-- wsj\_dnn5b\_smbr
-- rm\_lstm4f
-- rm\_cnn4a\_smbr
+- wsj_dnn5b_smbr
+- rm_lstm4f
+- rm_cnn4a_smbr
 
-All of them can be downloaded from [https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/).
+All of them can be downloaded from [https://storage.openvinotoolkit.org/models_contrib/speech/2021.2](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2).
 
 ### Speech Inference
 
-Once the IR is created, you can use the following command to do inference on Intel® Processors with the GNA co-processor (or emulation library):
+Once the IR is created, you can do inference on Intel® Processors with the GNA co-processor (or emulation library):
 
-```sh
-<path_to_sample>/speech_sample -d GNA_AUTO -bs 2 -i <path_to_ark>/dev93_10.ark -m <path_to_model>/wsj_dnn5b.xml -o scores.ark -r <path_to_ark>/dev93_scores_10.ark
+```
+speech_sample -m wsj_dnn5b.xml -i dev93_10.ark -r dev93_scores_10.ark -d GNA_AUTO -o result.ark
 ```
 
-Here, the floating point Kaldi-generated reference neural network scores (`dev93_scores_10.ark`) corresponding to the input feature file (`dev93_10.ark`) are assumed to be available
-for comparison.
-
-All of them can be downloaded from [https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/wsj_dnn5b_smbr](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/wsj_dnn5b_smbr). Inference Engine Intermediate Representation `wsj_dnn5b.xml` file was generated in the previous [Model Preparation](#model-preparation) section.
+Here, the floating point Kaldi-generated reference neural network scores (`dev93_scores_10.ark`) corresponding to the input feature file (`dev93_10.ark`) are assumed to be available for comparison.
 
 > **NOTES**:
 >
-> - Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
-
+> - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+>
+> - The sample supports input and output in numpy file format (.npz)
 
 ## Sample Output
 
-The acoustic log likelihood sequences for all utterances are stored in the file. Example `scores.ark` or `scores.npz`.  If the `-r` option is used, a report on the statistical score error is generated for each utterance such as
-the following:
+The sample application logs each step in a standard output stream.
 
-```sh
-./speech_sample -d GNA_AUTO -bs 2 -i dev93_10.ark -m wsj_dnn5b.xml -o scores.ark -r dev93_scores_10.ark
-[ INFO ] InferenceEngine:
-        API version ............ <version>
-        Build .................. <build>
-        Description ....... API
+```
+[ INFO ] OpenVINO runtime: OpenVINO Runtime version ......... 2022.1.0
+[ INFO ] Build ........... 2022.1.0-6311-a90bb1ff017
+[ INFO ]
 [ INFO ] Parsing input parameters
-[ INFO ] No extensions provided
-[ INFO ] Loading Inference Engine
-[ INFO ] Device info:
-        GNA
-        GNAPlugin version ......... <version>
-        Build ........... <build>
-
-[ INFO ] Loading network files
-[ INFO ] Batch size is 2
+[ INFO ] Loading model files:
+[ INFO ] \test_data\models\wsj_dnn5b_smbr_fp32\wsj_dnn5b_smbr_fp32.xml
 [ INFO ] Using scale factor of 2175.43 calculated from first utterance.
+[ INFO ] Model loading time 0.0034 ms
+[ INFO ] Loading model to the device GNA_AUTO
 [ INFO ] Loading model to the device
-[ INFO ] Model loading time 124.21 ms
-[ INFO ] Number scores per frame : 6850
+[ INFO ] Number scores per frame : 3425
 Utterance 0:
-Total time in Infer (HW and SW):        2291.64 ms
+Total time in Infer (HW and SW):        5687.53 ms
 Frames in utterance:                    1294 frames
-Average Infer time per frame:           1.77097 ms
+Average Infer time per frame:           4.39531 ms
          max error: 0.705184
          avg error: 0.0448388
-     avg rms error: 0.0287733
+     avg rms error: 0.0574098
        stdev error: 0.0371649
 
 
 End of Utterance 0
 
-[ INFO ] Number scores per frame : 6850
-Utterance X:
+[ INFO ] Number scores per frame : 3425
+Utterance 1:
+Total time in Infer (HW and SW):        4341.34 ms
+Frames in utterance:                    1005 frames
+Average Infer time per frame:           4.31974 ms
+         max error: 0.757597
+         avg error: 0.0452166
+     avg rms error: 0.0578436
+       stdev error: 0.0372769
+
+
+End of Utterance 1
+
 ...
 End of Utterance X
-[ INFO ] Execution successful
 
-[ INFO ] This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
+[ INFO ] Execution successful
 ```
 
 ## Use of Sample in Kaldi* Speech Recognition Pipeline
@@ -223,7 +219,7 @@ nnet-forward --use-gpu=no final.feature_transform "ark,s,cs:copy-feats scp:feats
 ```sh
 ./speech_sample -d GNA_AUTO -bs 8 -i feat.ark -m wsj_dnn5b.xml -o scores.ark
 ```
-Inference Engine Intermediate Representation `wsj_dnn5b.xml` file was generated in the previous [Model Preparation](#model-preparation) section.
+OpenVINO™ toolkit Intermediate Representation `wsj_dnn5b.xml` file was generated in the previous [Model Preparation](#model-preparation) section.
 
 3. Run the Kaldi decoder to produce n-best text hypotheses and select most likely text given the WFST (`HCLG.fst`), vocabulary (`words.txt`), and TID/PID mapping (`final.mdl`):
 
@@ -241,7 +237,7 @@ All of mentioned files can be downloaded from [https://storage.openvinotoolkit.o
 
 ## See Also
 
-- [Integrate the Inference Engine with Your Application](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
-- [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
+- [Integrate the OpenVINO™ Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md)
+- [Using OpenVINO™ Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)

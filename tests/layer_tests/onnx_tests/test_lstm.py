@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -143,20 +143,25 @@ class TestLSTM(Caffe2OnnxLayerTest):
     @pytest.mark.timeout(250)
     @pytest.mark.parametrize('direction', ["forward", "bidirectional", "reverse"])
     @pytest.mark.parametrize('cell_type', ["LSTM", "GRU", "RNN"])
-    def test_lstm_simple_precommit(self, direction, cell_type, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_lstm(direction, cell_type), ie_device, precision, ir_version, temp_dir=temp_dir,
-                   infer_timeout=150)
+    def test_lstm_simple_precommit(self, direction, cell_type, ie_device, precision, ir_version,
+                                   temp_dir, api_2):
+        self._test(*self.create_lstm(direction, cell_type), ie_device, precision, ir_version,
+                   temp_dir=temp_dir, infer_timeout=150, api_2=api_2)
 
     # LSTM/RNN/GRU Sequence Generation
     @pytest.mark.parametrize('direction', ["forward", "bidirectional", "reverse"])
     @pytest.mark.parametrize('cell_type', ["LSTM", "GRU", "RNN"])
-    def test_lstm_sequence_generate(self, direction, cell_type, ie_device, precision, ir_version, temp_dir):
+    def test_lstm_sequence_generate(self, direction, cell_type, ie_device, precision, ir_version,
+                                    temp_dir, api_2):
         self._test(*self.create_lstm(direction, cell_type), ie_device, precision, ir_version,
-                   disabled_transforms='lstm_to_tensor_iterator,gru_and_rnn_to_tensor_iterator', temp_dir=temp_dir)
+                   disabled_transforms='lstm_to_tensor_iterator,gru_and_rnn_to_tensor_iterator',
+                   temp_dir=temp_dir, api_2=api_2)
 
     # TODO: add more params for nightly
     @pytest.mark.nightly
     @pytest.mark.parametrize('direction', ["forward", "bidirectional", "reverse"])
     @pytest.mark.parametrize('cell_type', ["LSTM", "GRU", "RNN"])
-    def test_lstm_nightly(self, direction, cell_type, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_lstm(direction, cell_type), ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_lstm_nightly(self, direction, cell_type, ie_device, precision, ir_version, temp_dir,
+                          api_2):
+        self._test(*self.create_lstm(direction, cell_type), ie_device, precision, ir_version,
+                   temp_dir=temp_dir, api_2=api_2)

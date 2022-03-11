@@ -2,37 +2,10 @@
 
 A summary of the steps for optimizing and deploying a model that was trained with Caffe\*:
 
-1. [Configure the Model Optimizer](../Config_Model_Optimizer.md) for Caffe\*.
+1. [Configure the Model Optimizer](../../Deep_Learning_Model_Optimizer_DevGuide.md) for Caffe\*.
 2. [Convert a Caffe\* Model](#Convert_From_Caffe) to produce an optimized [Intermediate Representation (IR)](../../IR_and_opsets.md) of the model based on the trained network topology, weights, and biases values
-3. Test the model in the Intermediate Representation format using the [Inference Engine](../../../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) in the target environment via provided Inference Engine [sample applications](../../../IE_DG/Samples_Overview.md)
-4. [Integrate](../../../IE_DG/Samples_Overview.md) the [Inference Engine](../../../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) in your application to deploy the model in the target environment
-
-## Supported Topologies
-
-* **Classification models:**
-	* AlexNet
-	* VGG-16, VGG-19
-	* SqueezeNet v1.0, SqueezeNet v1.1
-	* ResNet-50, ResNet-101, Res-Net-152
-	* Inception v1, Inception v2, Inception v3, Inception v4
-	* CaffeNet
-	* MobileNet
-	* Squeeze-and-Excitation Networks: SE-BN-Inception, SE-Resnet-101, SE-ResNet-152, SE-ResNet-50, SE-ResNeXt-101, SE-ResNeXt-50
-	* ShuffleNet v2
-
-* **Object detection models:**
-	* SSD300-VGG16, SSD500-VGG16
-	* Faster-RCNN
-	* RefineDet (MYRIAD plugin only)
-
-* **Face detection models:**
-	* VGG Face
-    * SSH: Single Stage Headless Face Detector
-
-* **Semantic segmentation models:**
-	* FCN8
-
-> **NOTE**: It is necessary to specify mean and scale values for most of the Caffe\* models to convert them with the Model Optimizer. The exact values should be determined separately for each model. For example, for Caffe\* models trained on ImageNet, the mean values usually are `123.68`, `116.779`, `103.939` for blue, green and red channels respectively. The scale value is usually `127.5`. Refer to the General Conversion Parameters section in [Converting a Model to Intermediate Representation (IR)](Converting_Model.md) for the information on how to specify mean and scale values.
+3. Test the model in the Intermediate Representation format using the [OpenVINO™ Runtime](../../../OV_Runtime_UG/openvino_intro.md) in the target environment via provided [OpenVINO samples](../../../OV_Runtime_UG/Samples_Overview.md)
+4. [Integrate](../../../OV_Runtime_UG/Samples_Overview.md) the [OpenVINO™ Runtime](../../../OV_Runtime_UG/openvino_intro.md) in your application to deploy the model in the target environment
 
 ## Convert a Caffe* Model <a name="Convert_From_Caffe"></a>
 
@@ -44,7 +17,7 @@ To convert a Caffe\* model, run Model Optimizer with the path to the input model
 
 Two groups of parameters are available to convert your model:
 
-* Framework-agnostic parameters are used to convert a model trained with any supported framework. For details, see see the General Conversion Parameters section on the [Converting a Model to Intermediate Representation (IR)](Converting_Model.md) page.
+* Framework-agnostic parameters are used to convert a model trained with any supported framework. For details, see the General Conversion Parameters section on the [Converting a Model to Intermediate Representation (IR)](Converting_Model.md) page.
 * [Caffe-specific parameters](#caffe_specific_conversion_params) are used to convert only Caffe\* models.
 
 ### Using Caffe\*-Specific Conversion Parameters <a name="caffe_specific_conversion_params"></a>
@@ -90,10 +63,10 @@ Caffe*-specific parameters:
 #### Command-Line Interface (CLI) Examples Using Caffe\*-Specific Parameters
 
 * Launching the Model Optimizer for the [bvlc_alexnet.caffemodel](https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet) with a specified `prototxt` file. This is needed when the name of the Caffe\* model and the `.prototxt` file are different or are placed in different directories. Otherwise, it is enough to provide only the path to the input `model.caffemodel` file. You must have write permissions for the output directory.
-   ```sh    
+   ```sh
    mo --input_model bvlc_alexnet.caffemodel --input_proto bvlc_alexnet.prototxt --output_dir <OUTPUT_MODEL_DIR>
    ```
-* Launching the Model Optimizer for the [bvlc_alexnet.caffemodel](https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet) with a specified `CustomLayersMapping` file. This is the legacy method of quickly enabling model conversion if your model has custom layers. This requires the Caffe\* system on the computer. To read more about this, see [Legacy Mode for Caffe* Custom Layers](../customize_model_optimizer/Legacy_Mode_for_Caffe_Custom_Layers.md).
+* Launching the Model Optimizer for the [bvlc_alexnet.caffemodel](https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet) with a specified `CustomLayersMapping` file. This is the legacy method of quickly enabling model conversion if your model has custom layers. This requires the Caffe\* system on the computer.
 Optional parameters without default values and not specified by the user in the `.prototxt` file are removed from the Intermediate Representation, and nested parameters are flattened:
    ```sh
    mo --input_model bvlc_alexnet.caffemodel -k CustomLayersMapping.xml --disable_omitting_optional --enable_flattening_nested_params --output_dir <OUTPUT_MODEL_DIR>
@@ -140,3 +113,6 @@ In this document, you learned:
 * Basic information about how the Model Optimizer works with Caffe\* models
 * Which Caffe\* models are supported
 * How to convert a trained Caffe\* model using the Model Optimizer with both framework-agnostic and Caffe-specific command-line options
+
+## See Also
+[Model Conversion Tutorials](Convert_Model_Tutorials.md)

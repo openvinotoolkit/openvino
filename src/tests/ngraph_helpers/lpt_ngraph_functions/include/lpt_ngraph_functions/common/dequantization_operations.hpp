@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,8 +43,8 @@ public:
             const size_t constantIndex = 1ul,
             const ngraph::element::Type constantPrecision = ngraph::element::undefined,
             const bool addConvert = false,
-            const std::vector<std::string>& attributes = {},
-            const std::vector<std::string>& convertAttributes = {});
+            const ov::Node::RTMap& attributes = {},
+            const ov::Node::RTMap& convertAttributes = {});
         bool empty() const noexcept;
         bool equal(const DequantizationOperations::Subtract& value) const noexcept;
         bool operator==(const Subtract& value) const noexcept {
@@ -62,8 +62,8 @@ public:
         size_t constantIndex = 1ul;
         ngraph::element::Type constantPrecision = ngraph::element::undefined;
         bool addConvert = false;
-        std::vector<std::string> attributes;
-        std::vector<std::string> convertAttributes;
+        ov::Node::RTMap attributes;
+        ov::Node::RTMap convertAttributes;
 
     private:
         bool isEmpty;
@@ -117,10 +117,16 @@ public:
 };
 
 inline std::ostream& operator<<(std::ostream& out, const DequantizationOperations::Convert& convert) {
+    if (convert.empty()) {
+        return out << "{}";
+    }
     return out << "_" << (convert.outPrecision != element::undefined ? convert.outPrecision.get_type_name() : "");
 }
 
 inline std::ostream& operator<<(std::ostream& out, const DequantizationOperations::Subtract& subtract) {
+    if (subtract.empty()) {
+        return out << "{}";
+    }
     return out << "_" <<
         subtract.values << "_" <<
         subtract.outPrecision << "_" <<
@@ -132,6 +138,9 @@ inline std::ostream& operator<<(std::ostream& out, const DequantizationOperation
 }
 
 inline std::ostream& operator<<(std::ostream& out, const DequantizationOperations::Multiply& multiply) {
+    if (multiply.empty()) {
+        return out << "{}";
+    }
     return out << "_" <<
         multiply.values << "_" <<
         multiply.outPrecision << "_" <<
@@ -142,6 +151,9 @@ inline std::ostream& operator<<(std::ostream& out, const DequantizationOperation
 }
 
 inline std::ostream& operator<<(std::ostream& out, const DequantizationOperations& data) {
+    if (data.empty()) {
+        return out << "{}";
+    }
     return out << "_" << data.convert << "_" << data.subtract << "_" << data.multiply;
 }
 

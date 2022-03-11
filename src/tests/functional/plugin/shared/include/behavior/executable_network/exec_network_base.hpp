@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 #include "base/behavior_test_utils.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include "openvino/core/model.hpp"
 
 namespace BehaviorTestsDefinitions {
 class ExecutableNetworkBaseTest : public testing::WithParamInterface<BehaviorTestsUtils::InferRequestParams>,
@@ -29,7 +30,7 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(targetDevice, configuration) = this->GetParam();
         ie = PluginCache::get().ie(targetDevice);
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(targetDevice);
         cnnNet = InferenceEngine::CNNNetwork(function);
     }
 
@@ -296,7 +297,7 @@ TEST_P(ExecutableNetworkBaseTest, canExport) {
 TEST_P(ExecutableNetworkBaseTest, pluginDoesNotChangeOriginalNetwork) {
     // compare 2 networks
     auto referenceNetwork = ngraph::builder::subgraph::makeConvPoolRelu();
-    compare_functions(referenceNetwork, cnnNet.getFunction());
+    compare_functions(cnnNet.getFunction(), referenceNetwork);
 }
 
 using ExecNetSetPrecision = BehaviorTestsUtils::BehaviorTestsBasic;
@@ -316,4 +317,50 @@ TEST_P(ExecNetSetPrecision, canSetOutputPrecisionForNetwork) {
     outputs_info.begin()->second->setPrecision(netPrecision);
     ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
 }
+TEST_P(ExecutableNetworkBaseTest, loadIncorrectV10Model) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::CompiledModel execNet;
+
+    // Create simple function
+    {
+        auto param1 = std::make_shared<ov::opset8::Parameter>(ov::element::Type_t::f32, ov::Shape({1, 3, 24, 24}));
+        param1->set_friendly_name("param1");
+        param1->output(0).get_tensor().set_names({"data1"});
+        auto relu = std::make_shared<ov::opset8::Relu>(param1);
+        relu->set_friendly_name("data1");
+        relu->output(0).get_tensor().set_names({"relu"});
+        auto result = std::make_shared<ov::opset8::Result>(relu);
+        result->set_friendly_name("result");
+        function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param1});
+        function->get_rt_info()["version"] = int64_t(10);
+        function->set_friendly_name("SimpleReLU");
+    }
+    InferenceEngine::CNNNetwork cnnNet(function);
+    EXPECT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
+}
+
+TEST_P(ExecutableNetworkBaseTest, loadIncorrectV11Model) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::CompiledModel execNet;
+
+    // Create simple function
+    {
+        auto param1 = std::make_shared<ov::opset8::Parameter>(ov::element::Type_t::f32, ov::Shape({1, 3, 24, 24}));
+        param1->set_friendly_name("param1");
+        param1->output(0).get_tensor().set_names({"data1"});
+        auto relu = std::make_shared<ov::opset8::Relu>(param1);
+        relu->set_friendly_name("data1");
+        relu->output(0).get_tensor().set_names({"relu"});
+        auto result = std::make_shared<ov::opset8::Result>(relu);
+        result->set_friendly_name("result");
+        function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param1});
+        function->get_rt_info()["version"] = int64_t(11);
+        function->set_friendly_name("SimpleReLU");
+    }
+    InferenceEngine::CNNNetwork cnnNet(function);
+    EXPECT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
+}
+
 }  // namespace BehaviorTestsDefinitions

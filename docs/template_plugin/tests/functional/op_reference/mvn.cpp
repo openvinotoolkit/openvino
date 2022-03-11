@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,20 +14,20 @@ using namespace reference_tests;
 // ------------------------------ V0 ------------------------------
 
 struct MVN1Params {
-    MVN1Params(const Tensor& paramInput, const ngraph::AxisSet& paramReductionAxes, const bool paramAcrossChannels, const bool paramNormalizeVariance,
-               const double paramEps, const Tensor& paramExpected)
+    MVN1Params(const reference_tests::Tensor& paramInput, const ngraph::AxisSet& paramReductionAxes, const bool paramAcrossChannels, const bool paramNormalizeVariance,
+               const double paramEps, const reference_tests::Tensor& paramExpected)
         : input(paramInput),
           reductionAxes(paramReductionAxes),
           acrossChannels(paramAcrossChannels),
           normalizeVariance(paramNormalizeVariance),
           eps(paramEps),
           expected(paramExpected) {}
-    Tensor input;
+    reference_tests::Tensor input;
     ngraph::AxisSet reductionAxes;
     bool acrossChannels;
     bool normalizeVariance;
     double eps;
-    Tensor expected;
+    reference_tests::Tensor expected;
 };
 
 class ReferenceMVN1LayerTest : public testing::TestWithParam<MVN1Params>, public CommonReferenceTest {
@@ -54,7 +54,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(const Tensor& input, const ngraph::AxisSet& reductionAxes, const bool acrossChannels,
+    static std::shared_ptr<Model> CreateFunction(const reference_tests::Tensor& input, const ngraph::AxisSet& reductionAxes, const bool acrossChannels,
                                                     const bool normalizeVariance, const double eps) {
         const auto in = std::make_shared<op::v0::Parameter>(input.type, input.shape);
         auto mvn = std::make_shared<op::v0::MVN>(in, acrossChannels, normalizeVariance, eps);
@@ -75,62 +75,62 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_MVN1_With_Hardcoded_Refs, ReferenceMVN1LayerTest,
     ::testing::Values(
         // across_channels=false, variance=false
-        MVN1Params(Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
+        MVN1Params(reference_tests::Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
                                                                                    6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9}},
                    emptyReductionAxes,
                    false,
                    false,
                    1e-9,
-                   Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {-4, -3, -2, -1, 0,  1,  2,  3,  4, -4, -3, -2, -1, 0,
+                   reference_tests::Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {-4, -3, -2, -1, 0,  1,  2,  3,  4, -4, -3, -2, -1, 0,
                                                                                    1,  2,  3,  4,  -4, -3, -2, -1, 0, 1,  2,  3,  4}}),
         // across_channels=true, variance=false
         MVN1Params(
-            Tensor {{1, 3, 2, 2}, ov::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3}},
+            reference_tests::Tensor {{1, 3, 2, 2}, ov::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3}},
             emptyReductionAxes,
             true,
             false,
             1e-9,
-            Tensor {{1, 3, 2, 2}, ov::element::f32, std::vector<float> {-3.25, -2.25, -1.25, -0.25, 0.75, 1.75, 2.75, 3.75, 4.75, -3.25, -2.25, -1.25}}),
+            reference_tests::Tensor {{1, 3, 2, 2}, ov::element::f32, std::vector<float> {-3.25, -2.25, -1.25, -0.25, 0.75, 1.75, 2.75, 3.75, 4.75, -3.25, -2.25, -1.25}}),
         // across_channels=false, variance=true
-        MVN1Params(Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
+        MVN1Params(reference_tests::Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
                                                                                    6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9}},
                    emptyReductionAxes,
                    false,
                    true,
                    1e-9,
-                   Tensor {{1, 3, 3, 3},
+                   reference_tests::Tensor {{1, 3, 3, 3},
                            ov::element::f32,
                            std::vector<float> {-1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
                                                -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
                                                -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934}}),
         // across_channels=true, variance=true
-        MVN1Params(Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
+        MVN1Params(reference_tests::Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
                                                                                    6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9}},
                    emptyReductionAxes,
                    true,
                    true,
                    1e-9,
-                   Tensor {{1, 3, 3, 3},
+                   reference_tests::Tensor {{1, 3, 3, 3},
                            ov::element::f32,
                            std::vector<float> {-1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
                                                -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
                                                -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934}}),
         // reductionAxes, variance=false
         MVN1Params(
-            Tensor {{1, 3, 2, 2}, ov::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3}},
+            reference_tests::Tensor {{1, 3, 2, 2}, ov::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3}},
             {1, 2, 3},
             false,
             false,
             1e-9,
-            Tensor {{1, 3, 2, 2}, ov::element::f32, std::vector<float> {-3.25, -2.25, -1.25, -0.25, 0.75, 1.75, 2.75, 3.75, 4.75, -3.25, -2.25, -1.25}}),
+            reference_tests::Tensor {{1, 3, 2, 2}, ov::element::f32, std::vector<float> {-3.25, -2.25, -1.25, -0.25, 0.75, 1.75, 2.75, 3.75, 4.75, -3.25, -2.25, -1.25}}),
         // reductionAxes, variance=true
-        MVN1Params(Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
+        MVN1Params(reference_tests::Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
                                                                                    6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9}},
                    {2, 3},
                    false,
                    true,
                    1e-9,
-                   Tensor {{1, 3, 3, 3},
+                   reference_tests::Tensor {{1, 3, 3, 3},
                            ov::element::f32,
                            std::vector<float> {-1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
                                                -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
@@ -140,20 +140,20 @@ INSTANTIATE_TEST_SUITE_P(
 // ------------------------------ V6 ------------------------------
 
 struct MVN6Params {
-    MVN6Params(const Tensor& paramInput, const Tensor& paramReductionAxes, const bool paramNormalizeVariance, const double paramEps,
-               const op::MVNEpsMode mode, const Tensor& paramExpected)
+    MVN6Params(const reference_tests::Tensor& paramInput, const reference_tests::Tensor& paramReductionAxes, const bool paramNormalizeVariance, const double paramEps,
+               const op::MVNEpsMode mode, const reference_tests::Tensor& paramExpected)
         : input(paramInput),
           reductionAxes(paramReductionAxes),
           normalizeVariance(paramNormalizeVariance),
           eps(paramEps),
           epsMode(mode),
           expected(paramExpected) {}
-    Tensor input;
-    Tensor reductionAxes;
+    reference_tests::Tensor input;
+    reference_tests::Tensor reductionAxes;
     bool normalizeVariance;
     double eps;
     op::MVNEpsMode epsMode;
-    Tensor expected;
+    reference_tests::Tensor expected;
 };
 
 class ReferenceMVN6LayerTest : public testing::TestWithParam<MVN6Params>, public CommonReferenceTest {
@@ -177,7 +177,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(const Tensor& input, const Tensor& reductionAxes, const bool normalizeVariance, const double eps,
+    static std::shared_ptr<Model> CreateFunction(const reference_tests::Tensor& input, const reference_tests::Tensor& reductionAxes, const bool normalizeVariance, const double eps,
                                                     const op::MVNEpsMode epsMode) {
         std::vector<int64_t> dataVector(reductionAxes.shape[0]);
         const auto in = std::make_shared<op::v0::Parameter>(input.type, input.shape);
@@ -199,46 +199,46 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_MVN6_With_Hardcoded_Refs, ReferenceMVN6LayerTest,
     ::testing::Values(
         // variance=false, OUTSIDE_SQRT
-        MVN6Params(Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
+        MVN6Params(reference_tests::Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
                                                                                    6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9}},
-                   Tensor {Shape {2}, ov::element::i64, std::vector<int64_t> {2, 3}},
+                   reference_tests::Tensor {Shape {2}, ov::element::i64, std::vector<int64_t> {2, 3}},
                    false,
                    1e-9,
                    op::MVNEpsMode::OUTSIDE_SQRT,
-                   Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {-4, -3, -2, -1, 0,  1,  2,  3,  4, -4, -3, -2, -1, 0,
+                   reference_tests::Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {-4, -3, -2, -1, 0,  1,  2,  3,  4, -4, -3, -2, -1, 0,
                                                                                    1,  2,  3,  4,  -4, -3, -2, -1, 0, 1,  2,  3,  4}}),
         // variance=true, OUTSIDE_SQRT
-        MVN6Params(Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
+        MVN6Params(reference_tests::Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
                                                                                    6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9}},
-                   Tensor {Shape {2}, ov::element::i64, std::vector<int64_t> {2, 3}},
+                   reference_tests::Tensor {Shape {2}, ov::element::i64, std::vector<int64_t> {2, 3}},
                    true,
                    1e-9,
                    op::MVNEpsMode::OUTSIDE_SQRT,
-                   Tensor {{1, 3, 3, 3},
+                   reference_tests::Tensor {{1, 3, 3, 3},
                            ov::element::f32,
                            std::vector<float> {-1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
                                                -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
                                                -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934}}),
         // variance=true, INSIDE_SQRT
-        MVN6Params(Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
+        MVN6Params(reference_tests::Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
                                                                                    6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9}},
-                   Tensor {Shape {2}, ov::element::i64, std::vector<int64_t> {2, 3}},
+                   reference_tests::Tensor {Shape {2}, ov::element::i64, std::vector<int64_t> {2, 3}},
                    true,
                    1e-9,
                    op::MVNEpsMode::INSIDE_SQRT,
-                   Tensor {{1, 3, 3, 3},
+                   reference_tests::Tensor {{1, 3, 3, 3},
                            ov::element::f32,
                            std::vector<float> {-1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
                                                -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
                                                -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934}}),
         // variance=true, another reductionAxes, OUTSIDE_SQRT
-        MVN6Params(Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float>({1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
+        MVN6Params(reference_tests::Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float>({1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
                                                                                    6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9})},
-                   Tensor {Shape {3}, ov::element::i64, std::vector<int64_t>({1, 2, 3})},
+                   reference_tests::Tensor {Shape {3}, ov::element::i64, std::vector<int64_t>({1, 2, 3})},
                    true,
                    1e-9,
                    op::MVNEpsMode::OUTSIDE_SQRT,
-                   Tensor {{1, 3, 3, 3},
+                   reference_tests::Tensor {{1, 3, 3, 3},
                            ov::element::f32,
                            std::vector<float> {-1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
                                                -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,

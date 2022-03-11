@@ -1,9 +1,8 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <node_context.hpp>
-
+#include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset6.hpp"
 
 namespace ov {
@@ -11,14 +10,14 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs scale(const NodeContext& node) {
-    auto data = node.get_ng_input("X");
+    auto data = node.get_input("X");
     auto dtype = data.get_element_type();
     // Note: paddle Scale output data_type is the same with input
     Output<Node> scale;
     Output<Node> bias;
 
-    if (node.has_ng_input("ScaleTensor")) {
-        auto scale_tensor_node = node.get_ng_input("ScaleTensor");
+    if (node.has_input("ScaleTensor")) {
+        auto scale_tensor_node = node.get_input("ScaleTensor");
         if (scale_tensor_node.get_element_type() == dtype)
             scale = scale_tensor_node;
         else

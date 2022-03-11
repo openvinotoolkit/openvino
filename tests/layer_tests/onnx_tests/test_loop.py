@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -10,7 +10,6 @@ from common.onnx_layer_test_class import OnnxRuntimeLayerTest
 class TestLoop(OnnxRuntimeLayerTest):
     @staticmethod
     def create_const(name, tensor_type, value):
-        import onnx
         from onnx import helper
         from onnx import TensorProto
 
@@ -29,12 +28,12 @@ class TestLoop(OnnxRuntimeLayerTest):
                                                          vals=value.flatten().astype(np_type)))
 
     @staticmethod
-    def create_body_graph(input_nodes, output_nodes, input_names, output_names, input_shape, graph_name):
+    def create_body_graph(input_nodes, output_nodes, input_names, output_names, input_shape,
+                          graph_name):
         # input_nodes - list of input nodes with structure {counter, condition, <other inputs>}
         # output_nodes - list of output nodes with structure {condition, <back edges>, <external outputs>}.
         # In this function I assume that every <other input> have <back edge> and <external output>
         # input_shape - shape of all inputs from <other inputs>
-        import onnx
         from onnx import helper
         from onnx import TensorProto
 
@@ -45,27 +44,29 @@ class TestLoop(OnnxRuntimeLayerTest):
         other_inputs_count = len(input_nodes) - 2
         one_value = np.ones(input_shape, dtype=np.float)
 
-        one = TestLoop.create_const('one_'+graph_name, TensorProto.FLOAT, one_value)
-        one_int = TestLoop.create_const('one_int_'+graph_name, TensorProto.INT64, np.ones([1]))
+        one = TestLoop.create_const('one_' + graph_name, TensorProto.FLOAT, one_value)
+        one_int = TestLoop.create_const('one_int_' + graph_name, TensorProto.INT64, np.ones([1]))
 
         # add one to all inputs except counter and condition
         add_one_nodes = []
         for i in range(2, len(input_names)):
-            add_one_nodes.append(helper.make_node('Add', inputs=[input_names[i], 'one_'+graph_name],
-                                                  outputs=[output_names[other_inputs_count + i - 1]]))
+            add_one_nodes.append(
+                helper.make_node('Add', inputs=[input_names[i], 'one_' + graph_name],
+                                 outputs=[output_names[other_inputs_count + i - 1]]))
 
         # add 1 to counter
         add_one_to_m_node = helper.make_node(
             'Add',
-            inputs=[input_names[0], 'one_int_'+graph_name],
-            outputs=['counter_plus_1_'+graph_name]
+            inputs=[input_names[0], 'one_int_' + graph_name],
+            outputs=['counter_plus_1_' + graph_name]
         )
 
         # map inputs to outputs - back edges
         identity_nodes = []
         for i in range(1, len(input_nodes)):
             identity_nodes.append(helper.make_node('Identity',
-                                                   inputs=[input_names[i]], outputs=[output_names[i-1]]))
+                                                   inputs=[input_names[i]],
+                                                   outputs=[output_names[i - 1]]))
 
         body_nodes = [one, one_int]
         body_nodes.extend(add_one_nodes)
@@ -87,7 +88,6 @@ class TestLoop(OnnxRuntimeLayerTest):
             Input->Loop->Output   =>   Only accuracy check
 
         """
-        import onnx
         from onnx import helper
         from onnx import TensorProto
 
@@ -113,7 +113,8 @@ class TestLoop(OnnxRuntimeLayerTest):
         M_1 = self.create_const('M_1', TensorProto.INT64, m_1_value)
         cond = self.create_const('cond', TensorProto.BOOL, cond_value)
 
-        body_graph_1 = self.create_body_graph([m_1, cond_int_1, in_1_int], [cond_out_1, in_1_int_out, out_1],
+        body_graph_1 = self.create_body_graph([m_1, cond_int_1, in_1_int],
+                                              [cond_out_1, in_1_int_out, out_1],
                                               ['m_1', 'cond_int_1', 'in_1_int'],
                                               ['cond_out_1', 'in_1_int_out', 'OUT_1'],
                                               input_shape, 'body_graph_1')
@@ -150,7 +151,6 @@ class TestLoop(OnnxRuntimeLayerTest):
             Input->Loop(Loop)->Output   =>   Only accuracy check
 
         """
-        import onnx
         from onnx import helper
         from onnx import TensorProto
 
@@ -204,9 +204,11 @@ class TestLoop(OnnxRuntimeLayerTest):
         cond_2 = self.create_const('cond_2', TensorProto.BOOL, cond_value)
 
         # create body for internal loop
-        body_graph_2 = self.create_body_graph([m_2, cond_int_2, in_2_int], [cond_out_2, in_2_int_out, out_2],
+        body_graph_2 = self.create_body_graph([m_2, cond_int_2, in_2_int],
+                                              [cond_out_2, in_2_int_out, out_2],
                                               ['m_2', 'cond_int_2', 'in_2_int'],
-                                              ['cond_out_2', 'in_2_int_out', 'OUT_2'], input_shape, 'body_graph_2')
+                                              ['cond_out_2', 'in_2_int_out', 'OUT_2'], input_shape,
+                                              'body_graph_2')
         node_loop_2 = helper.make_node(
             'Loop',
             inputs=['M_2', 'cond_2', 'IN_2'],
@@ -234,7 +236,8 @@ class TestLoop(OnnxRuntimeLayerTest):
         )
 
         body_graph_1 = helper.make_graph(
-            [one, add_one_node, one_int, add_one_to_m_node, M_2, cond_2, node_loop_2, out_1_node, cond_1_node,
+            [one, add_one_node, one_int, add_one_to_m_node, M_2, cond_2, node_loop_2, out_1_node,
+             cond_1_node,
              in_1_int_node],
             'body_graph_1',
             [m_1, cond_int_1, in_1_int],
@@ -270,16 +273,15 @@ class TestLoop(OnnxRuntimeLayerTest):
 
     @pytest.mark.precommit
     @pytest.mark.timeout(250)
-    def test_loop_simple_precommit(self, ie_device, precision, ir_version, temp_dir):
+    def test_loop_simple_precommit(self, ie_device, precision, ir_version, temp_dir, api_2):
         if ie_device == 'GPU':
             pytest.skip('Loop not supported on GPU')
         self._test(*self.create_loop(), ie_device, precision, ir_version, temp_dir=temp_dir,
-                   infer_timeout=150)
+                   infer_timeout=150, api_2=api_2)
 
     @pytest.mark.precommit
     @pytest.mark.timeout(250)
-    def test_loop_in_loop_simple_precommit(self, ie_device, precision, ir_version, temp_dir):
-        if ie_device == 'GPU':
-            pytest.skip('Loop not supported on GPU')
+    def test_loop_in_loop_simple_precommit(self, ie_device, precision, ir_version, temp_dir, api_2):
+        pytest.skip('The model used in the test is incorrect according to ONNX standart: 70158')
         self._test(*self.create_loop_in_loop(), ie_device, precision, ir_version, temp_dir=temp_dir,
-                   infer_timeout=150)
+                   infer_timeout=150, api_2=api_2)

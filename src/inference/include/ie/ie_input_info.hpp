@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -137,21 +137,6 @@ public:
             IE_THROW() << "Data is empty!";
         }
         return _inputData->getTensorDesc();
-    }
-
-    /**
-     * @deprecated Use OpenVINO 2.0 API for dynamic shapes support
-     * @brief Returns the input shape. May have undefined dimensions.
-     * @return PartialShape object describing input shape.
-     */
-    INFERENCE_ENGINE_DEPRECATED("Use OpenVINO 2.0 API for dynamic shapes support")
-    ngraph::PartialShape getPartialShape() const {
-        if (!_inputData) {
-            IE_THROW() << "Data is empty!";
-        }
-        IE_SUPPRESS_DEPRECATED_START
-        return _inputData->getPartialShape();
-        IE_SUPPRESS_DEPRECATED_END
     }
 
     /**

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -77,4 +77,3 @@ class Parameter(Op):
         shape = node.soft_get('shape', None)
         if shape is None and node.out_port(0).data.get_shape() is not None:
             node['shape'] = node.out_port(0).data.get_shape()
-

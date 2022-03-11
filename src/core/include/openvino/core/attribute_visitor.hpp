@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,9 +8,7 @@
 #include <unordered_map>
 #include <utility>
 
-#include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type.hpp"
-#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 class Node;
@@ -28,7 +26,7 @@ class VisitorAdapter;
 /// attributes.
 ///
 /// Attributes have a wide variety of types, but serialization formats are more restricted.
-/// We asume serialation easily supports scalar types of bool 64-bit signed, string, and double,
+/// We assume serialization easily supports scalar types of bool 64-bit signed, string, and double,
 /// and has specialized ways to support numeric arrays and raw data+size. The visitor and
 /// adapter convert between the limited serialization types and the unlimited attribute types.
 ///
@@ -119,7 +117,7 @@ public:
     /// \brief Finish visiting a nested structure
     virtual std::string finish_structure();
     using node_id_t = std::string;
-    static constexpr char invalid_node_id[] = "";
+    static constexpr const char* invalid_node_id = "";
     /// \brief Associate a node with an id.
     ///
     /// No node may be used as an attribute unless it has already been registered with an ID.

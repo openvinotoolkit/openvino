@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 #include <memory>
+#include <thread>
 
 #include <ie_compound_blob.h>
 
@@ -25,6 +26,7 @@ class RemoteBlob_Test : public CommonTestUtils::TestsCommon, public testing::Wit
 protected:
     std::shared_ptr<ngraph::Function> fn_ptr;
     std::string deviceName;
+    std::map<std::string, std::string> config;
 
 public:
     void SetUp() override {
@@ -33,6 +35,7 @@ public:
         auto with_auto_batching = this->GetParam();
         if (with_auto_batching) { // BATCH:GPU
             deviceName = std::string(CommonTestUtils::DEVICE_BATCH) + ":" + deviceName;
+            config = {{CONFIG_KEY(ALLOW_AUTO_BATCHING), CONFIG_VALUE(YES)}};
         }
     }
     static std::string getTestCaseName(const testing::TestParamInfo<bool>& obj) {
@@ -96,6 +99,64 @@ TEST_P(RemoteBlob_Test, smoke_canInputUserBlob) {
     }
 }
 
+TEST_P(RemoteBlob_Test, smoke_canUseRemoteBlobSimultaneously) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    const int batch = 2;
+    const int channels = 3;
+    const int height = 512;
+    const int width = 512;
+    const size_t img_size = batch * channels * height * width;
+    cl_int err;
+
+    const InferenceEngine::TensorDesc tensor_desc{InferenceEngine::Precision::U8,
+                                                  {batch, channels, height, width},
+                                                  InferenceEngine::Layout::NHWC};
+
+    InferenceEngine::Blob::Ptr ref_blob = FuncTestUtils::createAndFillBlob(tensor_desc);
+
+    auto ie = PluginCache::get().ie();
+    auto ocl_instance = std::make_shared<OpenCL>();
+    ocl_instance->_queue = cl::CommandQueue(ocl_instance->_context, ocl_instance->_device);
+
+    // Allocate OpenCL buffer for data
+    cl::Buffer shared_buffer(ocl_instance->_context, CL_MEM_READ_WRITE, img_size, NULL, &err);
+
+    // Create shared context
+    auto remote_context = make_shared_context(*ie, deviceName, ocl_instance->_queue.get());
+
+    // Wrap buffer above with IE blob
+    Blob::Ptr shared_blob = make_shared_blob(tensor_desc, remote_context, shared_buffer);
+    // Allocate is needed to actually trigger memory handle sharing. For other buffers it's called inside SetBlob impl
+    // TODO: Why do we need to call it explicitly? Consider doing it internally
+    shared_blob->allocate();
+
+    // Copy data from ordinary blob to OpenCL buffer
+    {
+        void* buffer = ref_blob->buffer();
+        ocl_instance->_queue.enqueueWriteBuffer(shared_buffer, true, 0, img_size, buffer);
+    }
+
+    // Lock remote buffer in multiple threads and compare data with ordinary one
+    const int threads_num = 8;
+    std::vector<std::thread> threads;
+    for (int i = 0; i < threads_num; i++) {
+        threads.emplace_back(std::thread{[&] {
+            auto ref_blob_buf = ref_blob->cbuffer();
+            auto ref_blob_ptr = ref_blob_buf.as<const char*>();
+            auto remote_blob_buf = shared_blob->cbuffer();
+            auto remote_blob_ptr = remote_blob_buf.as<const char*>();
+            ASSERT_EQ(ref_blob->size(), shared_blob->size());
+            for (size_t j = 0; j < ref_blob->size(); j++) {
+                ASSERT_EQ(ref_blob_ptr[j], remote_blob_ptr[j]);
+            }
+        }});
+    }
+
+    for (auto& t : threads)
+        t.join();
+}
 
 TEST_P(RemoteBlob_Test, smoke_canInputPluginRemoteBlob) {
 #if defined(ANDROID)
@@ -174,7 +235,10 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserContext) {
     // inference using remote blob
     auto ocl_instance = std::make_shared<OpenCL>();
     auto remote_context = make_shared_context(*ie, deviceName, ocl_instance->_context.get());
-    auto exec_net_shared = ie->LoadNetwork(net, remote_context);
+    // since there is no way to enable the Auto-Batching thru the device name when loading with the RemoteContext
+    // (as the device name is deduced from the context, which is the "GPU")
+    // the only-way to test the auto-batching is explicit config with ALLOW_AUTO_BATCHING set to YES
+    auto exec_net_shared = ie->LoadNetwork(net, remote_context, config);
     auto inf_req_shared = exec_net_shared.CreateInferRequest();
     inf_req_shared.SetBlob(net.getInputsInfo().begin()->first, fakeImageData);
 

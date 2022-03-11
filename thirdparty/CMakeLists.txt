@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -88,7 +88,7 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         if(VERBOSE_BUILD)
             set(Protobuf_DEBUG ON)
         endif()
-        find_package(Protobuf 3.9.0 REQUIRED)
+        find_package(Protobuf 3.18.2 REQUIRED)
         set(Protobuf_LITE_LIBRARIES protobuf::libprotobuf-lite)
         set(Protobuf_LIBRARIES protobuf::libprotobuf)
         set(SYSTEM_PROTOC protobuf::protoc)
@@ -107,6 +107,7 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
     set(Protobuf_LIBRARIES ${Protobuf_LIBRARIES} PARENT_SCOPE)
     set(Protobuf_LITE_LIBRARIES ${Protobuf_LITE_LIBRARIES} PARENT_SCOPE)
     set(Protobuf_INCLUDE_DIRS ${Protobuf_INCLUDE_DIRS} PARENT_SCOPE)
+    set(Protobuf_IN_FRONTEND ON PARENT_SCOPE)
 
     # set public / interface compile options
     foreach(target IN LISTS Protobuf_LITE_LIBRARIES Protobuf_LIBRARIES)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,6 +48,39 @@ TEST_F(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinaries) {
         FAIL() << ex.what() << std::endl;
     }
 }
+
+TEST_F(CompiledKernelsCacheTest, TwoNetworksWithSameModelCreatesSameCache) {
+    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
+    // Create two CNNNetwork from same ngraph::Function
+    InferenceEngine::CNNNetwork cnnNet1(function);
+    InferenceEngine::CNNNetwork cnnNet2(function);
+    std::map<std::string, std::string> config = {{ CONFIG_KEY(CACHE_DIR), cache_path }};
+    try {
+        // Load 1st CNNNetwork
+        auto execNet1 = ie->LoadNetwork(cnnNet1, "GPU", config);
+        auto n_cache_files = CommonTestUtils::listFilesWithExt(cache_path, "cl_cache").size();
+
+        // Check that directory with cached kernels exists after loading network
+        ASSERT_TRUE(CommonTestUtils::directoryExists(cache_path)) << "Directory with cached kernels doesn't exist";
+        // Load 2nd CNNNetwork
+        auto execNet2 = ie->LoadNetwork(cnnNet2, "GPU", config);
+
+        // Check that two loaded networks with same function creates same caches
+        ASSERT_EQ(CommonTestUtils::removeFilesWithExt(cache_path, "cl_cache"), n_cache_files);
+
+        // Remove directory and check that it doesn't exist anymore
+        ASSERT_EQ(CommonTestUtils::removeDir(cache_path), 0);
+        ASSERT_FALSE(CommonTestUtils::directoryExists(cache_path));
+    } catch (std::exception& ex) {
+        // Cleanup in case of any exception
+        if (CommonTestUtils::directoryExists(cache_path)) {
+            ASSERT_GE(CommonTestUtils::removeFilesWithExt(cache_path, "cl_cache"), 0);
+            ASSERT_EQ(CommonTestUtils::removeDir(cache_path), 0);
+        }
+        FAIL() << ex.what() << std::endl;
+    }
+}
+
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 

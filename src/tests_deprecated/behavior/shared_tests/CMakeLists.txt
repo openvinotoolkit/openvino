@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -8,14 +8,14 @@ file(GLOB_RECURSE SHARED_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
 add_library(${TARGET_NAME} STATIC ${SHARED_TESTS_SRC})
-add_dependencies(${TARGET_NAME} inference_engine_preproc)
+add_dependencies(${TARGET_NAME} openvino_gapi_preproc)
 
 if(ENABLE_AUTO OR ENABLE_MULTI)
-    add_dependencies(${TARGET_NAME} ov_auto_plugin)
+    add_dependencies(${TARGET_NAME} openvino_auto_plugin)
 endif()
 
 if(ENABLE_AUTO_BATCH)
-    add_dependencies(${TARGET_NAME} ov_auto_batch_plugin)
+    add_dependencies(${TARGET_NAME} openvino_auto_batch_plugin)
 endif()
 
 

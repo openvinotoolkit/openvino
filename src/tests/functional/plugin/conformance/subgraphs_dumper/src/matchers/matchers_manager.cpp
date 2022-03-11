@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,8 @@
 
 using namespace SubgraphsDumper;
 
-bool MatchersManager::match_any(const std::shared_ptr<ngraph::Node> &node,
-                                const std::shared_ptr<ngraph::Node> &ref,
+bool MatchersManager::match_any(const std::shared_ptr<ov::Node> &node,
+                                const std::shared_ptr<ov::Node> &ref,
                                 const LayerTestsUtils::OPInfo &op_info) {
     for (const auto &it : m_matchers) {
         if (it.second->match(node, ref, op_info)) return true;
@@ -15,8 +15,8 @@ bool MatchersManager::match_any(const std::shared_ptr<ngraph::Node> &node,
     return false;
 }
 
-bool MatchersManager::match_all(const std::shared_ptr<ngraph::Node> &node,
-                                const std::shared_ptr<ngraph::Node> &ref,
+bool MatchersManager::match_all(const std::shared_ptr<ov::Node> &node,
+                                const std::shared_ptr<ov::Node> &ref,
                                 const LayerTestsUtils::OPInfo &op_info) {
     const auto matches = this->run_matchers(node, ref, op_info);
     return std::all_of(matches.begin(), matches.end(), [](bool i) { return i; });
@@ -31,8 +31,8 @@ MatchersManager::MatchersManager(const std::string &cfg_path) {
     }
 }
 
-std::vector<bool> MatchersManager::run_matchers(const std::shared_ptr<ngraph::Node> &node,
-                                                const std::shared_ptr<ngraph::Node> &ref,
+std::vector<bool> MatchersManager::run_matchers(const std::shared_ptr<ov::Node> &node,
+                                                const std::shared_ptr<ov::Node> &ref,
                                                 const LayerTestsUtils::OPInfo &op_info) {
     std::vector<bool> matches;
     for (const auto &it : m_matchers) {

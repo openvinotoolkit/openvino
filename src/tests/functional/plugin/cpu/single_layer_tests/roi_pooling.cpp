@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <shared_test_classes/single_layer/roi_pooling.hpp>
@@ -118,10 +118,10 @@ protected:
 
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            ov::runtime::Tensor tensor;
+            ov::Tensor tensor;
 
             if (i == 1) {
-                tensor = ov::runtime::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+                tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
                 if (propMode == ULTIMATE_RIGHT_BORDER) {
                     // because of nonalgebraic character of floating point operation, the following values causes inequity:
                     // ((end_h - start_h) * (input_h - 1) / (pooled_h - 1)) * (pooled_h - 1) > (end_h - start_h) * (input_h - 1)
@@ -220,7 +220,7 @@ protected:
 TEST_P(ROIPoolingCPULayerTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    CheckPluginRelatedResults(executableNetwork, "ROIPooling");
+    CheckPluginRelatedResults(compiledModel, "ROIPooling");
 }
 
 namespace {
@@ -259,7 +259,7 @@ const std::vector<roiPoolingShapes> inShapes = {
             {-1, -1, -1, -1},
             // static
             {
-                {3, 4, 50, 50}, {3, 4, 50, 50}, {3, 4, 50, 50}, {1, 3, 8, 8}, {1, 3, 8, 8}, {1, 3, 8, 8}
+                {3, 4, 50, 50}, {3, 4, 50, 50}, {3, 4, 50, 50}, {1, 3, 8, 8}, {1, 3, 8, 8}, {3, 4, 50, 50}
             }
         },
         // input 1
@@ -279,7 +279,7 @@ const std::vector<roiPoolingShapes> inShapes = {
             {-1, {3, 5}, {7, 60}, -1},
             // static
             {
-                {3, 4, 50, 50}, {1, 3, 7, 8}, {1, 5, 59, 8}, {3, 5, 60, 8},
+                {3, 4, 50, 50}, {1, 3, 7, 8}, {3, 4, 50, 50}, {1, 3, 7, 8},
             }
         },
         // input 1
@@ -288,7 +288,7 @@ const std::vector<roiPoolingShapes> inShapes = {
             {{1, 5}, 5},
             // static
             {
-                {1, 5}, {3, 5}, {4, 5}, {5, 5}
+                {1, 5}, {2, 5}, {1, 5}, {2, 5}
             }
         },
     },
@@ -299,7 +299,7 @@ const std::vector<roiPoolingShapes> inShapes = {
             {{1, 8}, {3, 5}, {7, 60}, {5, 50}},
             // static
             {
-                {3, 4, 50, 50}, {1, 3, 7, 8}, {8, 5, 59, 5}, {3, 5, 60, 8},
+                {3, 4, 50, 50}, {1, 3, 7, 8}, {8, 5, 59, 5}, {1, 3, 7, 8},
             }
         },
         // input 1
@@ -308,7 +308,7 @@ const std::vector<roiPoolingShapes> inShapes = {
             {{1, 5}, 5},
             // static
             {
-                {1, 5}, {2, 5}, {4, 5}, {5, 5}
+                {1, 5}, {2, 5}, {1, 5}, {2, 5}
             }
         },
     },

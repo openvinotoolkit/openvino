@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 using namespace BehaviorTestsDefinitions;
 namespace {
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, VersionTest,
-                                    ::testing::Values(ConformanceTests::targetDevice),
+                                    ::testing::Values(ov::test::conformance::targetDevice),
                             VersionTest::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, VersionTest,

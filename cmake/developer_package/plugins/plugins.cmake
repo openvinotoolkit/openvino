@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -102,31 +102,32 @@ function(ie_add_plugin)
         endif()
 
         add_dependencies(ie_plugins ${IE_PLUGIN_NAME})
-        if(TARGET inference_engine_preproc)
+        if(TARGET openvino_gapi_preproc)
             if(BUILD_SHARED_LIBS)
-                add_dependencies(${IE_PLUGIN_NAME} inference_engine_preproc)
+                add_dependencies(${IE_PLUGIN_NAME} openvino_gapi_preproc)
             else()
-                target_link_libraries(${IE_PLUGIN_NAME} PRIVATE inference_engine_preproc)
+                target_link_libraries(${IE_PLUGIN_NAME} PRIVATE openvino_gapi_preproc)
             endif()
         endif()
 
         # fake dependencies to build in the following order:
         # IE -> IE readers -> IE inference plugins -> IE-based apps
         if(BUILD_SHARED_LIBS)
-            if(TARGET ov_ir_frontend)
-                add_dependencies(${IE_PLUGIN_NAME} ov_ir_frontend)
+            if(TARGET openvino_ir_frontend)
+                add_dependencies(${IE_PLUGIN_NAME} openvino_ir_frontend)
             endif()
+            if(TARGET openvino_onnx_frontend)
+                add_dependencies(${IE_PLUGIN_NAME} openvino_onnx_frontend)
+            endif()
+            if(TARGET openvino_paddle_frontend)
+                add_dependencies(${IE_PLUGIN_NAME} openvino_paddle_frontend)
+            endif()
+            if(TARGET openvino_tensorflow_frontend)
+                add_dependencies(${IE_PLUGIN_NAME} openvino_tensorflow_frontend)
+            endif()
+            # TODO: remove with legacy CNNNLayer API / IR v7
             if(TARGET inference_engine_ir_v7_reader)
                 add_dependencies(${IE_PLUGIN_NAME} inference_engine_ir_v7_reader)
-            endif()
-            if(TARGET ov_onnx_frontend)
-                add_dependencies(${IE_PLUGIN_NAME} ov_onnx_frontend)
-            endif()
-            if(TARGET ov_paddle_frontend)
-                add_dependencies(${IE_PLUGIN_NAME} ov_paddle_frontend)
-            endif()
-            if(TARGET ov_tensorflow_frontend)
-                add_dependencies(${IE_PLUGIN_NAME} ov_tensorflow_frontend)
             endif()
         endif()
 
@@ -186,19 +187,24 @@ macro(ie_register_plugins_dynamic)
 
     # Unregister <device_name>.xml files for plugins from current build tree
 
-    set(plugins_to_remove ${IE_REGISTER_POSSIBLE_PLUGINS})
     set(config_output_file "$<TARGET_FILE_DIR:${IE_REGISTER_MAIN_TARGET}>/plugins.xml")
 
-    foreach(plugin IN LISTS plugins_to_remove)
+    foreach(name IN LISTS PLUGIN_FILES)
+        string(REPLACE ":" ";" name "${name}")
+        list(LENGTH name length)
+        if(NOT ${length} EQUAL 2)
+            message(FATAL_ERROR "Unexpected error, please, contact developer of this script")
+        endif()
+        list(GET name 0 device_name)
         add_custom_command(TARGET ${IE_REGISTER_MAIN_TARGET} POST_BUILD
                   COMMAND
                     "${CMAKE_COMMAND}"
                     -D "IE_CONFIG_OUTPUT_FILE=${config_output_file}"
-                    -D "IE_PLUGIN_NAME=${plugin}"
+                    -D "IE_PLUGIN_NAME=${device_name}"
                     -D "IE_CONFIGS_DIR=${CMAKE_BINARY_DIR}/plugins"
                     -P "${IEDevScripts_DIR}/plugins/unregister_plugin_cmake.cmake"
                   COMMENT
-                    "Remove ${plugin} from the plugins.xml file"
+                    "Remove ${device_name} from the plugins.xml file"
                   VERBATIM)
     endforeach()
 
@@ -314,7 +320,7 @@ function(ie_generate_plugins_hpp)
     endforeach()
 
     # add plugins to libraries including ie_plugins.hpp
-    ie_target_link_plugins(ov_runtime)
+    ie_target_link_plugins(openvino)
     if(TARGET inference_engine_s)
         ie_target_link_plugins(inference_engine_s)
     endif()
@@ -341,7 +347,7 @@ function(ie_generate_plugins_hpp)
     # for some reason dependency on source files does not work
     # so, we have to use explicit target and make it dependency for inference_engine
     add_custom_target(_ie_plugins_hpp DEPENDS ${ie_plugins_hpp})
-    add_dependencies(inference_engine _ie_plugins_hpp)
+    add_dependencies(inference_engine_obj _ie_plugins_hpp)
 
     # add dependency for object files
     get_target_property(sources inference_engine_obj SOURCES)

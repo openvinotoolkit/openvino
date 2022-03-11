@@ -23,16 +23,16 @@ jobs:
 - job: Lin
   strategy:
     matrix:
-      Dynamic:
-        CMAKE_BUILD_SHARED_LIBS: 'ON'
-        PYTHON_STATIC_ARGS:
+      # Dynamic:
+      #   CMAKE_BUILD_SHARED_LIBS: 'ON'
+      #   PYTHON_STATIC_ARGS:
       Static:
         CMAKE_BUILD_SHARED_LIBS: 'OFF'
         PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
     maxParallel: 2
 
   # About 150% of total time
-  timeoutInMinutes: 90
+  timeoutInMinutes: 120
 
   pool:
     name: LIN_VMSS_VENV_F16S_U20_WU2
@@ -56,7 +56,7 @@ jobs:
     SETUPVARS: $(INSTALL_DIR)/setupvars.sh
     TMP_DIR: /mnt/tmp
     SHARE_DIR: /mount/cinfsshare/onnxtestdata
-    CCACHE_DIR: $(SHARE_DIR)/ccache
+    CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux
 
   steps:
   - script: |
@@ -112,10 +112,10 @@ jobs:
       sudo apt --assume-yes install openjdk-11-jdk
       # For opencv-python: python3-setuptools and pip upgrade
       python3 -m pip install --upgrade pip
-      python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/requirements.txt
-      python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/wheel/requirements-dev.txt
+      python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements.txt
+      python3 -m pip install -r $(REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
       # For running Python API tests
-      python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/src/requirements-dev.txt
+      python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
       # For running Paddle frontend unit tests
       python3 -m pip install -r $(REPO_DIR)/src/core/tests/frontend/paddle/requirements_dev.txt
       # For running ONNX frontend unit tests
@@ -147,7 +147,6 @@ jobs:
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_PYTHON=ON
         -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS)
-        -DENABLE_INTEL_GNA=$(CMAKE_BUILD_SHARED_LIBS)
         -DENABLE_ONEDNN_FOR_GPU=$(CMAKE_BUILD_SHARED_LIBS)
         -DPYTHON_EXECUTABLE=/usr/bin/python3.8
         -DENABLE_WHEEL=ON
@@ -165,12 +164,14 @@ jobs:
   - script: ls -alR $(REPO_DIR)/temp/
     displayName: 'List temp SDKs'
 
-  - script: ccache --zero-stats --max-size=1T --show-config
+  - script: ccache --zero-stats --max-size=50G --show-config
     displayName: 'Clean ccache stats'
 
   - script: |
       export CCACHE_DIR=$(CCACHE_DIR)
       export CCACHE_TEMPDIR=$(TMP_DIR)/ccache
+      export CCACHE_BASEDIR=$(Pipeline.Workspace)
+      export CCACHE_MAXSIZE=50G
       ninja
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Lin'
@@ -235,8 +236,16 @@ jobs:
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
-      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph $(PYTHON_STATIC_ARGS) --junitxml=TEST-Pyngraph.xml --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_utils/test_utils.py --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_backend.py
-    displayName: 'nGraph Python Bindings Tests'
+      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph $(PYTHON_STATIC_ARGS) --junitxml=TEST-Pyngraph.xml --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_backend.py
+    displayName: 'nGraph and IE Python Bindings Tests'
+    continueOnError: false
+
+    # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
+  - script: |
+      export DATA_PATH=$(MODELS_PATH)
+      export MODELS_PATH=$(MODELS_PATH)
+      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_TEST_DIR)/pyopenvino $(PYTHON_STATIC_ARGS) --junitxml=TEST-Pyngraph.xml --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_zoo_models.py --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_backend.py
+    displayName: 'Python API 2.0 Tests'
     continueOnError: false
 
   - script: |
@@ -244,7 +253,6 @@ jobs:
       . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_DIR)/tests/mo/unit_tests --junitxml=TEST-ModelOptimizer.xml
     displayName: 'Model Optimizer UT'
     continueOnError: false
-    enabled: true
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
     workingDirectory: $(INSTALL_TEST_DIR)
@@ -275,7 +283,6 @@ jobs:
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/gnaUnitTests --gtest_output=xml:TEST-gnaUnitTests.xml
     displayName: 'GNA UT'
     continueOnError: false
-    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/vpuUnitTests --gtest_output=xml:TEST-vpuUnitTests.xml
     displayName: 'VPU UT'
@@ -336,16 +343,6 @@ jobs:
     workingDirectory: $(INSTALL_DIR)/samples_bin
     displayName: 'Samples Smoke Tests'
     continueOnError: false
-    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
-    enabled: true
-
-  - script: |
-      export DATA_PATH=$(MODELS_PATH)
-      export MODELS_PATH=$(MODELS_PATH)
-      cd $(REPO_DIR)/inference-engine/ie_bridges/python/tests
-      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest --junitxml=TEST-PythonAPI.xml $(PYTHON_STATIC_ARGS)
-    displayName: 'Python API Tests'
-    continueOnError: false
 
   - script: |
       . $(SETUPVARS)
@@ -356,7 +353,6 @@ jobs:
     workingDirectory: $(LAYER_TESTS_DIR)
     displayName: 'Layer Tests'
     continueOnError: false
-    enabled: true
 
   - task: PublishTestResults@2
     condition: always()

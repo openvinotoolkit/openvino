@@ -1,20 +1,19 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/common_optimizations/conv_mul_fusion.hpp"
-#include "itt.hpp"
 
 #include <memory>
+#include <ngraph/ngraph.hpp>
+#include <ngraph/opsets/opset4.hpp>
+#include <ngraph/pattern/matcher.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+#include <transformations/utils/utils.hpp>
 #include <vector>
 
-#include <ngraph/ngraph.hpp>
-#include <ngraph/pattern/matcher.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/opsets/opset4.hpp>
-
-#include <transformations/utils/utils.hpp>
+#include "itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvolutionMultiplyFusion, "ConvolutionMultiplyFusion", 0);
 
@@ -26,18 +25,18 @@ ngraph::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
     auto mul_const = ngraph::pattern::wrap_type<opset4::Constant>(pattern::has_static_shape());
     auto mul = ngraph::pattern::wrap_type<opset4::Multiply>({conv, mul_const});
 
-    matcher_pass_callback callback = [conv, input, weights, mul, mul_const](pattern::Matcher & m) -> bool {
-        const auto & pattern_to_output = m.get_pattern_value_map();
+    matcher_pass_callback callback = [conv, input, weights, mul, mul_const](pattern::Matcher& m) -> bool {
+        const auto& pattern_to_output = m.get_pattern_value_map();
 
-        const auto & m_weights = pattern_to_output.at(weights);
-        const auto & m_const = pattern_to_output.at(mul_const);
-        const auto & m_input = pattern_to_output.at(input);
-        const auto & m_conv = pattern_to_output.at(conv).get_node_shared_ptr();
-        const auto & m_mul = pattern_to_output.at(mul).get_node_shared_ptr();
+        const auto& m_weights = pattern_to_output.at(weights);
+        const auto& m_const = pattern_to_output.at(mul_const);
+        const auto& m_input = pattern_to_output.at(input);
+        const auto& m_conv = pattern_to_output.at(conv).get_node_shared_ptr();
+        const auto& m_mul = pattern_to_output.at(mul).get_node_shared_ptr();
 
-        const auto & channel_dim = m_weights.get_partial_shape()[0].get_length();
-        const auto & weights_rank = m_weights.get_partial_shape().rank().get_length();
-        const auto & const_shape = m_const.get_shape();
+        const auto& channel_dim = m_weights.get_partial_shape()[0].get_length();
+        const auto& weights_rank = m_weights.get_partial_shape().rank().get_length();
+        const auto& const_shape = m_const.get_shape();
 
         bool is_scalar_multiplier(shape_size(const_shape) == 1);
 
@@ -60,9 +59,12 @@ ngraph::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
         if (!is_scalar_multiplier) {
             auto final_const_shape = Shape(weights_rank, 1);
             final_const_shape[0] = channel_dim;
-            final_const = std::make_shared<opset4::Reshape>(m_const,
-                                                            opset4::Constant::create(ngraph::element::i64, ngraph::Shape{final_const_shape.size()},
-                                                                                     final_const_shape), true);
+            final_const =
+                std::make_shared<opset4::Reshape>(m_const,
+                                                  opset4::Constant::create(ngraph::element::i64,
+                                                                           ngraph::Shape{final_const_shape.size()},
+                                                                           final_const_shape),
+                                                  true);
         }
 
         // Multiply convolution weights with aligned Constant values
@@ -87,22 +89,22 @@ ngraph::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
     auto input = pattern::any_input();
     auto weights = ngraph::pattern::any_input(pattern::has_static_dims({0, 1}) /* has GOIYX layout */);
     auto conv = ngraph::pattern::wrap_type<opset4::GroupConvolution>({input, weights}, pattern::consumers_count(1));
-    auto mul_const = ngraph::pattern::wrap_type<opset4::Constant>();//pattern::has_static_shape());
+    auto mul_const = ngraph::pattern::wrap_type<opset4::Constant>();  // pattern::has_static_shape());
     auto mul = ngraph::pattern::wrap_type<opset4::Multiply>({conv, mul_const});
 
-    matcher_pass_callback callback = [conv, input, weights, mul, mul_const](pattern::Matcher & m) -> bool {
-        const auto & pattern_to_output = m.get_pattern_value_map();
+    matcher_pass_callback callback = [conv, input, weights, mul, mul_const](pattern::Matcher& m) -> bool {
+        const auto& pattern_to_output = m.get_pattern_value_map();
 
         auto m_weights = pattern_to_output.at(weights);
-        const auto & m_const = pattern_to_output.at(mul_const);
-        const auto & m_conv = pattern_to_output.at(conv).get_node_shared_ptr();
-        const auto & m_mul = pattern_to_output.at(mul).get_node_shared_ptr();
+        const auto& m_const = pattern_to_output.at(mul_const);
+        const auto& m_conv = pattern_to_output.at(conv).get_node_shared_ptr();
+        const auto& m_mul = pattern_to_output.at(mul).get_node_shared_ptr();
 
-        const auto & weights_shape = m_weights.get_partial_shape();
-        const auto & G = weights_shape[0].get_length();
-        const auto & O = weights_shape[1].get_length();
-        const auto & weights_rank = weights_shape.rank().get_length();
-        const auto & const_shape = m_const.get_shape();
+        const auto& weights_shape = m_weights.get_partial_shape();
+        const auto& G = weights_shape[0].get_length();
+        const auto& O = weights_shape[1].get_length();
+        const auto& weights_rank = weights_shape.rank().get_length();
+        const auto& const_shape = m_const.get_shape();
 
         bool is_scalar_multiplier(shape_size(const_shape) == 1);
 
@@ -144,9 +146,12 @@ ngraph::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
                 final_const_shape[0] = G;
                 final_const_shape[1] = O;
             }
-            final_const = std::make_shared<opset4::Reshape>(m_const,
-                                                            opset4::Constant::create(ngraph::element::i64, ngraph::Shape{final_const_shape.size()},
-                                                                                     final_const_shape), true);
+            final_const =
+                std::make_shared<opset4::Reshape>(m_const,
+                                                  opset4::Constant::create(ngraph::element::i64,
+                                                                           ngraph::Shape{final_const_shape.size()},
+                                                                           final_const_shape),
+                                                  true);
         }
 
         // Multiply convolution weights with aligned Constant values
@@ -173,22 +178,23 @@ ngraph::pass::ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMult
     MATCHER_SCOPE(ConvolutionBackpropDataMultiplyFusion);
     auto input = pattern::any_input();
     auto weights = ngraph::pattern::any_input(pattern::has_static_dim(1) /* has IOYX layout */);
-    auto conv = ngraph::pattern::wrap_type<opset4::ConvolutionBackpropData>({input, weights}, pattern::consumers_count(1));
+    auto conv =
+        ngraph::pattern::wrap_type<opset4::ConvolutionBackpropData>({input, weights}, pattern::consumers_count(1));
     auto mul_const = ngraph::pattern::wrap_type<opset4::Constant>(pattern::has_static_shape());
     auto mul = ngraph::pattern::wrap_type<opset4::Multiply>({conv, mul_const});
 
-    matcher_pass_callback callback = [conv, input, weights, mul, mul_const](pattern::Matcher & m) -> bool {
-        const auto & pattern_to_output = m.get_pattern_value_map();
+    matcher_pass_callback callback = [conv, input, weights, mul, mul_const](pattern::Matcher& m) -> bool {
+        const auto& pattern_to_output = m.get_pattern_value_map();
 
-        const auto & m_weights = pattern_to_output.at(weights);
-        const auto & m_const = pattern_to_output.at(mul_const);
-        const auto & m_input = pattern_to_output.at(input);
-        const auto & m_conv = pattern_to_output.at(conv).get_node_shared_ptr();
-        const auto & m_mul = pattern_to_output.at(mul).get_node_shared_ptr();
+        const auto& m_weights = pattern_to_output.at(weights);
+        const auto& m_const = pattern_to_output.at(mul_const);
+        const auto& m_input = pattern_to_output.at(input);
+        const auto& m_conv = pattern_to_output.at(conv).get_node_shared_ptr();
+        const auto& m_mul = pattern_to_output.at(mul).get_node_shared_ptr();
 
-        const auto & channel_dim = m_weights.get_partial_shape()[1].get_length();
-        const auto & weights_rank = m_weights.get_partial_shape().rank().get_length();
-        const auto & const_shape = m_const.get_shape();
+        const auto& channel_dim = m_weights.get_partial_shape()[1].get_length();
+        const auto& weights_rank = m_weights.get_partial_shape().rank().get_length();
+        const auto& const_shape = m_const.get_shape();
 
         bool is_scalar_multiplier(shape_size(const_shape) == 1);
 
@@ -211,9 +217,12 @@ ngraph::pass::ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMult
         if (!is_scalar_multiplier) {
             auto final_const_shape = Shape(weights_rank - 1, 1);
             final_const_shape[0] = channel_dim;
-            final_const = std::make_shared<opset4::Reshape>(m_const,
-                                                            opset4::Constant::create(ngraph::element::i64, ngraph::Shape{final_const_shape.size()},
-                                                                                     final_const_shape), true);
+            final_const =
+                std::make_shared<opset4::Reshape>(m_const,
+                                                  opset4::Constant::create(ngraph::element::i64,
+                                                                           ngraph::Shape{final_const_shape.size()},
+                                                                           final_const_shape),
+                                                  true);
         }
 
         // Multiply convolution weights with aligned Constant values
@@ -231,29 +240,32 @@ ngraph::pass::ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMult
     register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion, "GroupConvolutionBackpropDataMultiplyFusion", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion,
+                       "GroupConvolutionBackpropDataMultiplyFusion",
+                       0);
 
 ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion::GroupConvolutionBackpropDataMultiplyFusion() {
     MATCHER_SCOPE(GroupConvolutionBackpropDataMultiplyFusion);
     auto input = pattern::any_input();
     auto weights = ngraph::pattern::any_input(pattern::has_static_dims({0, 2}) /* has GIOYX layout */);
-    auto conv = ngraph::pattern::wrap_type<opset4::GroupConvolutionBackpropData>({input, weights}, pattern::consumers_count(1));
+    auto conv =
+        ngraph::pattern::wrap_type<opset4::GroupConvolutionBackpropData>({input, weights}, pattern::consumers_count(1));
     auto mul_const = ngraph::pattern::wrap_type<opset4::Constant>(pattern::has_static_shape());
     auto mul = ngraph::pattern::wrap_type<opset4::Multiply>({conv, mul_const});
 
-    matcher_pass_callback callback = [conv, input, weights, mul, mul_const](pattern::Matcher & m) -> bool {
-        const auto & pattern_to_output = m.get_pattern_value_map();
+    matcher_pass_callback callback = [conv, input, weights, mul, mul_const](pattern::Matcher& m) -> bool {
+        const auto& pattern_to_output = m.get_pattern_value_map();
 
-        const auto & m_weights = pattern_to_output.at(weights);
-        const auto & m_const = pattern_to_output.at(mul_const);
-        const auto & m_input = pattern_to_output.at(input);
-        const auto & m_conv = pattern_to_output.at(conv).get_node_shared_ptr();
-        const auto & m_mul = pattern_to_output.at(mul).get_node_shared_ptr();
+        const auto& m_weights = pattern_to_output.at(weights);
+        const auto& m_const = pattern_to_output.at(mul_const);
+        const auto& m_input = pattern_to_output.at(input);
+        const auto& m_conv = pattern_to_output.at(conv).get_node_shared_ptr();
+        const auto& m_mul = pattern_to_output.at(mul).get_node_shared_ptr();
 
-        const auto & G = m_weights.get_partial_shape()[0].get_length();
-        const auto & O = m_weights.get_partial_shape()[2].get_length();
-        const auto & weights_rank = m_weights.get_partial_shape().rank().get_length();
-        const auto & const_shape = m_const.get_shape();
+        const auto& G = m_weights.get_partial_shape()[0].get_length();
+        const auto& O = m_weights.get_partial_shape()[2].get_length();
+        const auto& weights_rank = m_weights.get_partial_shape().rank().get_length();
+        const auto& const_shape = m_const.get_shape();
 
         bool is_scalar_multiplier(shape_size(const_shape) == 1);
 
@@ -277,9 +289,12 @@ ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion::GroupConvolutionBackpr
             auto final_const_shape = Shape(weights_rank, 1);
             final_const_shape[0] = G;
             final_const_shape[2] = O;
-            final_const = std::make_shared<opset4::Reshape>(m_const,
-                                                            opset4::Constant::create(ngraph::element::i64, ngraph::Shape{final_const_shape.size()},
-                                                                                     final_const_shape), true);
+            final_const =
+                std::make_shared<opset4::Reshape>(m_const,
+                                                  opset4::Constant::create(ngraph::element::i64,
+                                                                           ngraph::Shape{final_const_shape.size()},
+                                                                           final_const_shape),
+                                                  true);
         }
 
         // Multiply convolution weights with aligned Constant values

@@ -1,4 +1,4 @@
-# OpenVINO™ Security Add-on  {#ovsa_get_started}
+# OpenVINO™ Security Add-on {#ovsa_get_started}
 
 This guide provides instructions for people who use the OpenVINO™ Security Add-on to create, distribute, and use models that are created with the OpenVINO™ toolkit:
 
@@ -11,7 +11,7 @@ In this release, one person performs the role of both the Model Developer and th
 
 ## Overview
 
-The OpenVINO™ Security Add-on works with the [OpenVINO™ Model Server](@ref openvino_docs_ovms) on Intel® architecture. Together, the OpenVINO™ Security Add-on and the OpenVINO™ Model Server provide a way for Model Developers and Independent Software Vendors to use secure packaging and secure model execution to enable access control to the OpenVINO™ models, and for model Users to run inference within assigned limits.
+The OpenVINO™ Security Add-on works with the [OpenVINO™ Model Server](@ref ovms_what_is_openvino_model_server) on Intel® architecture. Together, the OpenVINO™ Security Add-on and the OpenVINO™ Model Server provide a way for Model Developers and Independent Software Vendors to use secure packaging and secure model execution to enable access control to the OpenVINO™ models, and for model Users to run inference within assigned limits.
 
 The OpenVINO™ Security Add-on consists of three components that run in Kernel-based Virtual Machines (KVMs). These components provide a way to run security-sensitive operations in an isolated environment. A brief description of the three components are as follows. Click each triangled line for more information about each. 
 

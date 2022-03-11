@@ -13,7 +13,6 @@
 #include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/utils/utils.hpp>
 
-#include "exceptions.hpp"
 #include "ngraph_ops/channel_fake_quant_internal.hpp"
 #include "ngraph_ops/fake_dequant_internal.hpp"
 #include "ngraph_ops/fake_quant_dequant_internal.hpp"
@@ -21,6 +20,7 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
+#include "paddle_utils.hpp"
 
 using namespace std;
 using namespace ov;

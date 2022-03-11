@@ -1,11 +1,12 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
 from openvino.tools.mo.front.caffe.extractors.utils import get_canonical_axis_index
 from openvino.tools.mo.front.common.layout import get_batch_dim, get_height_dim, get_width_dim, shape_for_layout
-from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined, dynamic_dimension_value
+from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined, dynamic_dimension_value, \
+    undefined_shape_of_rank
 from openvino.tools.mo.front.extractor import attr_getter, bool_to_str
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.op import Op
@@ -22,6 +23,7 @@ class RegionYoloOp(Op):
             'version': 'opset1',
             'in_ports_count': 1,
             'out_ports_count': 1,
+            'reverse_infer': self.reverse_infer,
             'infer': RegionYoloOp.regionyolo_infer
         }
         super().__init__(graph, mandatory_props, attrs)
@@ -73,3 +75,8 @@ class RegionYoloOp(Op):
                                                              features=(node.classes + node.coords + 1) * len(node.mask),
                                                              height=input_shape[get_height_dim(layout, 4)],
                                                              width=input_shape[get_width_dim(layout, 4)]))
+
+    @staticmethod
+    def reverse_infer(node):
+        if node.in_port(0).data.get_shape() is None:
+            node.in_port(0).data.set_shape(undefined_shape_of_rank(4))

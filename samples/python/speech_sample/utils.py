@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
 import logging as log
 import re
 import sys
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
+from openvino.runtime import Output
 
 # Operating Frequency for GNA HW devices for Core and Atom architecture
 GNA_CORE_FREQUENCY = 400
@@ -78,3 +79,11 @@ def parse_outputs_from_args(args: argparse.Namespace) -> Tuple[List[str], List[i
     except ValueError:
         log.error('Incorrect value for -oname/--output_layers option, please specify a port for each output layer.')
         sys.exit(-4)
+
+
+def parse_input_layouts(args: argparse.Namespace, inputs: List[Output]) -> Dict[str, str]:
+    if args.layout[0] == '[':
+        return {_input.get_any_name(): args.layout[1:-1] for _input in inputs}
+    else:
+        sep = '],' if ',' in args.layout else ']'
+        return dict([_input.split('[') for _input in args.layout[:-1].split(sep)])

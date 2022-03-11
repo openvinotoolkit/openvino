@@ -1,9 +1,8 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <node_context.hpp>
-
+#include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset6.hpp"
 
 namespace ov {
@@ -11,7 +10,7 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs softmax(const NodeContext& node) {
-    auto data = node.get_ng_input("X");
+    auto data = node.get_input("X");
     auto axis = node.get_attribute<int32_t>("axis");
     if (axis < 0) {
         PADDLE_OP_CHECK(node, data.get_partial_shape().rank().is_static(), "Softmax rank must be static");

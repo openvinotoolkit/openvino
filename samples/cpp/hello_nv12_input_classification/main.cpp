@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -97,15 +97,15 @@ int main(int argc, char* argv[]) {
         // -----------------------------------------------------------------------------------------------------
 
         // -------- Step 1. Initialize OpenVINO Runtime Core ---------
-        ov::runtime::Core core;
+        ov::Core core;
 
         // -------- Step 2. Read a model --------
         slog::info << "Loading model files: " << model_path << slog::endl;
         std::shared_ptr<ov::Model> model = core.read_model(model_path);
         printInputAndOutputsInfo(*model);
 
-        OPENVINO_ASSERT(model->get_parameters().size() == 1, "Sample supports models with 1 input only");
-        OPENVINO_ASSERT(model->get_results().size() == 1, "Sample supports models with 1 output only");
+        OPENVINO_ASSERT(model->inputs().size() == 1, "Sample supports models with 1 input only");
+        OPENVINO_ASSERT(model->outputs().size() == 1, "Sample supports models with 1 output only");
 
         std::string input_tensor_name = model->input().get_any_name();
         std::string output_tensor_name = model->output().get_any_name();
@@ -138,17 +138,15 @@ int main(int argc, char* argv[]) {
         model = ppp.build();
 
         // -------- Step 4. Loading a model to the device --------
-        ov::runtime::CompiledModel compiled_model = core.compile_model(model, device_name);
+        ov::CompiledModel compiled_model = core.compile_model(model, device_name);
 
         // -------- Step 5. Create an infer request --------
-        ov::runtime::InferRequest infer_request = compiled_model.create_infer_request();
+        ov::InferRequest infer_request = compiled_model.create_infer_request();
 
         // -------- Step 6. Prepare input data  --------
         std::shared_ptr<unsigned char> image_data = reader->getData(input_width, input_height);
 
-        ov::runtime::Tensor input_tensor{ov::element::u8,
-                                         {batch, input_height * 3 / 2, input_width, 1},
-                                         image_data.get()};
+        ov::Tensor input_tensor{ov::element::u8, {batch, input_height * 3 / 2, input_width, 1}, image_data.get()};
 
         // Read labels from file (e.x. AlexNet.labels)
         std::string labelFileName = fileNameNoExt(model_path) + ".labels";
@@ -173,7 +171,7 @@ int main(int argc, char* argv[]) {
         infer_request.infer();
 
         // -------- Step 8. Process output --------
-        ov::runtime::Tensor output = infer_request.get_tensor(output_tensor_name);
+        ov::Tensor output = infer_request.get_tensor(output_tensor_name);
 
         // Print classification results
         ClassificationResult classification_result(output, {image_path}, batch, N_TOP_RESULTS, labels);

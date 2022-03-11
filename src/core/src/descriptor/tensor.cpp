@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,6 +41,7 @@ OPENVINO_SUPPRESS_DEPRECATED_END
 void ov::descriptor::Tensor::invalidate_values() {
     m_upper_value = nullptr;
     m_lower_value = nullptr;
+    m_value_label.clear();
 }
 
 void ov::descriptor::Tensor::set_lower_value(const ngraph::HostTensorPtr& value) {
@@ -55,6 +56,17 @@ void ov::descriptor::Tensor::set_upper_value(const ngraph::HostTensorPtr& value)
     NGRAPH_CHECK(m_partial_shape.same_scheme(value->get_partial_shape()));
     NGRAPH_CHECK(m_element_type == value->get_element_type());
     m_upper_value = value;
+}
+
+void ov::descriptor::Tensor::set_value_label(const TensorLabel& value_label) {
+    const auto& labels_size = value_label.size();
+    if (labels_size == 0) {
+        m_value_label.clear();
+    } else {
+        NGRAPH_CHECK(m_partial_shape.is_static());
+        NGRAPH_CHECK(shape_size(m_partial_shape.to_shape()) == labels_size);
+        m_value_label = value_label;
+    }
 }
 
 const ov::Shape& ov::descriptor::Tensor::get_shape() const {

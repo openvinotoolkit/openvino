@@ -1,9 +1,8 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <node_context.hpp>
-
+#include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset6.hpp"
 
 namespace ov {
@@ -15,8 +14,8 @@ NamedOutputs fill_constant(const NodeContext& node) {
     auto dtype = node.get_attribute<ov::element::Type>("dtype");
     Output<Node> value_node;
     Output<Node> shape_node;
-    if (node.has_ng_input("ValueTensor")) {
-        value_node = node.get_ng_input("ValueTensor");
+    if (node.has_input("ValueTensor")) {
+        value_node = node.get_input("ValueTensor");
     } else if (dtype == element::i32) {
         int32_t value = static_cast<int32_t>(node.get_attribute<float>("value"));
         value_node = opset6::Constant::create(dtype, {1}, {value});
@@ -31,12 +30,12 @@ NamedOutputs fill_constant(const NodeContext& node) {
     }
 
     PADDLE_OP_CHECK(node,
-                    shape.size() > 0 || node.has_ng_input("ShapeTensor") || node.has_ng_input("ShapeTensorList"),
+                    shape.size() > 0 || node.has_input("ShapeTensor") || node.has_input("ShapeTensorList"),
                     "fill_constant shape not set");
 
-    if (node.has_ng_input("ShapeTensor")) {
-        shape_node = node.get_ng_input("ShapeTensor");
-    } else if (node.has_ng_input("ShapeTensorList")) {
+    if (node.has_input("ShapeTensor")) {
+        shape_node = node.get_input("ShapeTensor");
+    } else if (node.has_input("ShapeTensorList")) {
         auto shape_tensor_list = node.get_ng_inputs("ShapeTensorList");
         shape_node = Output<Node>{std::make_shared<opset6::Concat>(shape_tensor_list, 0)};
     } else {

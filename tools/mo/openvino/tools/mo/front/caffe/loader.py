@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import importlib
@@ -94,11 +94,7 @@ def load_caffe_proto_model(caffe_pb2, proto_path: str, model_path: [str, None] =
                            'Run: set PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp \n'
         except ImportError:
             # 3. cpp implementation is not available
-            message += 'However you can use the C++ protobuf implementation that is supplied with the OpenVINO toolkit ' \
-                       'or build protobuf library from sources. \n' \
-                       'Navigate to "install_prerequisites" folder and run: ' \
-                       'python -m easy_install protobuf-3.5.1-py($your_python_version)-win-amd64.egg \n' \
-                       'set PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp'
+            message += 'Check that your protobuf package version is aligned with requirements_caffe.txt.'
         print(message + '\n\n' + refer_to_faq_msg(80))
 
     # Read proto layers

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,6 +54,9 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& valu
 }
 
 inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeOnData& data) {
+    if (data.empty()) {
+        return out << "{}";
+    }
     return out <<  "_" << data.quantizationLevel << data.constantShape << "_" << data.inputLowValues << "_" << data.inputHighValues <<
         "_" << data.outputLowValues << "_" << data.outputHighValues << "_" <<
         (data.outputPrecision == ngraph::element::undefined ? "" : data.outputPrecision.get_type_name());
@@ -71,8 +74,8 @@ public:
         const std::vector<float>& outputLowValues,
         const std::vector<float>& outputHighValues,
         const ngraph::element::Type outputPrecision = ngraph::element::undefined,
-
-        const std::vector<ov::Any>& attributes = {});
+        const std::vector<ov::Any>& attributes = {},
+        const bool addConverts = false);
     virtual ~FakeQuantizeOnDataWithConstant();
 
     virtual bool empty() const;
@@ -85,9 +88,13 @@ public:
     std::vector<float> outputHighValues;
     ngraph::element::Type outputPrecision;
     std::vector<ov::Any> attributes;
+    bool addConverts;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeOnDataWithConstant& data) {
+    if (data.empty()) {
+        return out << "{}";
+    }
     return out <<  "_" << data.quantizationLevel <<
         (data.constantShapes.empty() ? ngraph::Shape{} : data.constantShapes[0]) << "_" <<
         data.inputLowValues << "_" << data.inputHighValues << "_" <<

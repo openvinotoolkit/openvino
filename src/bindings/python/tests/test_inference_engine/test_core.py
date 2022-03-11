@@ -1,4 +1,4 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -8,7 +8,8 @@ from sys import platform
 from pathlib import Path
 
 import openvino.runtime.opset8 as ov
-from openvino.runtime import Model, Core, CompiledModel, Tensor, tensor_from_file, compile_model
+from openvino.runtime import Model, Core, CompiledModel, Tensor, PartialShape, Extension,\
+    tensor_from_file, compile_model
 
 from ..conftest import model_path, model_onnx_path, plugins_path, read_image
 
@@ -61,6 +62,13 @@ def test_compile_model(device):
     func = ie.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = ie.compile_model(func, device)
     assert isinstance(exec_net, CompiledModel)
+
+
+def test_compile_model_without_device():
+    core = Core()
+    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    compiled_model = core.compile_model(model)
+    assert isinstance(compiled_model, CompiledModel)
 
 
 def test_read_model_from_ir():
@@ -145,17 +153,17 @@ def test_available_devices(device):
                               f"available devices '{', '.join(devices)}'"
 
 
-def test_get_config():
+def test_get_property():
     ie = Core()
-    conf = ie.get_config("CPU", "CPU_BIND_THREAD")
+    conf = ie.get_property("CPU", "CPU_BIND_THREAD")
     assert conf == "YES"
 
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
                     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
-def test_get_metric_list_of_str():
+def test_get_property_list_of_str():
     ie = Core()
-    param = ie.get_metric("CPU", "OPTIMIZATION_CAPABILITIES")
+    param = ie.get_property("CPU", "OPTIMIZATION_CAPABILITIES")
     assert isinstance(param, list), "Parameter value for 'OPTIMIZATION_CAPABILITIES' " \
                                     f"metric must be a list but {type(param)} is returned"
     assert all(isinstance(v, str) for v in param), \
@@ -164,9 +172,9 @@ def test_get_metric_list_of_str():
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
                     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
-def test_get_metric_tuple_of_two_ints():
+def test_get_property_tuple_of_two_ints():
     ie = Core()
-    param = ie.get_metric("CPU", "RANGE_FOR_STREAMS")
+    param = ie.get_property("CPU", "RANGE_FOR_STREAMS")
     assert isinstance(param, tuple), "Parameter value for 'RANGE_FOR_STREAMS' " \
                                      f"metric must be tuple but {type(param)} is returned"
     assert all(isinstance(v, int) for v in param), \
@@ -175,9 +183,9 @@ def test_get_metric_tuple_of_two_ints():
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
                     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
-def test_get_metric_tuple_of_three_ints():
+def test_get_property_tuple_of_three_ints():
     ie = Core()
-    param = ie.get_metric("CPU", "RANGE_FOR_ASYNC_INFER_REQUESTS")
+    param = ie.get_property("CPU", "RANGE_FOR_ASYNC_INFER_REQUESTS")
     assert isinstance(param, tuple), "Parameter value for 'RANGE_FOR_ASYNC_INFER_REQUESTS' " \
                                      f"metric must be tuple but {type(param)} is returned"
     assert all(isinstance(v, int) for v in param), "Not all of the parameter values for " \
@@ -186,9 +194,9 @@ def test_get_metric_tuple_of_three_ints():
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
                     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
-def test_get_metric_str():
+def test_get_property_str():
     ie = Core()
-    param = ie.get_metric("CPU", "FULL_DEVICE_NAME")
+    param = ie.get_property("CPU", "FULL_DEVICE_NAME")
     assert isinstance(param, str), "Parameter value for 'FULL_DEVICE_NAME' " \
                                    f"metric must be string but {type(param)} is returned"
 
@@ -208,7 +216,7 @@ def test_query_model(device):
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
 def test_register_plugin():
     ie = Core()
-    ie.register_plugin("ov_intel_cpu_plugin", "BLA")
+    ie.register_plugin("openvino_intel_cpu_plugin", "BLA")
     func = ie.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = ie.compile_model(func, "BLA")
     assert isinstance(exec_net, CompiledModel), \
@@ -244,48 +252,46 @@ def test_unregister_plugin(device):
     assert f"Device with '{device}' name is not registered in the InferenceEngine" in str(e.value)
 
 
-@pytest.mark.skip(reason="dlSym cannot locate method 'create_extensions': libtemplate_extension.so")
 @pytest.mark.template_extension
-def test_add_extension(device):
-    model = bytes(b"""<net name="Network" version="10">
+def test_add_extension_template_extension(device):
+    ir = bytes(b"""<net name="Activation" version="10">
     <layers>
         <layer name="in1" type="Parameter" id="0" version="opset1">
-            <data element_type="f32" shape="2,2,2,1"/>
+            <data shape="1,3,22,22" element_type="f32"/>
             <output>
-                <port id="0" precision="FP32">
-                    <dim>2</dim>
-                    <dim>2</dim>
-                    <dim>2</dim>
+                <port id="0" precision="FP32" names="in_data">
                     <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
                 </port>
             </output>
         </layer>
-        <layer name="operation" id="1" type="Template" version="custom_opset">
-            <data  add="11"/>
+        <layer name="activation" id="1" type="Identity" version="extension">
             <input>
                 <port id="1" precision="FP32">
-                    <dim>2</dim>
-                    <dim>2</dim>
-                    <dim>2</dim>
                     <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
                 </port>
             </input>
             <output>
-                <port id="2" precision="FP32">
-                    <dim>2</dim>
-                    <dim>2</dim>
-                    <dim>2</dim>
+                <port id="2" precision="FP32" names="out_data">
                     <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
                 </port>
             </output>
         </layer>
         <layer name="output" type="Result" id="2" version="opset1">
             <input>
                 <port id="0" precision="FP32">
-                    <dim>2</dim>
-                    <dim>2</dim>
-                    <dim>2</dim>
                     <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
                 </port>
             </input>
         </layer>
@@ -298,23 +304,33 @@ def test_add_extension(device):
 
     core = Core()
     if platform == "win32":
-        core.add_extension(library_path="template_extension.dll")
+        core.add_extension(library_path="openvino_template_extension.dll")
     else:
-        core.add_extension(library_path="libtemplate_extension.so")
-    func = core.read_model(model=model, init_from_buffer=True)
-    assert isinstance(func, Model)
+        core.add_extension(library_path="libopenvino_template_extension.so")
+    model = core.read_model(model=ir)
+    assert isinstance(model, Model)
 
-    # input_blob = next(iter(network.input_info))
-    # n, c, h, w = network.input_info[input_blob].input_data.shape
+    before_reshape = PartialShape([1, 3, 22, 22])
+    after_reshape = PartialShape([8, 9, 33, 66])
+    new_shapes = {"in_data": after_reshape}
+    assert model.input().partial_shape == before_reshape
+    model.reshape(new_shapes)
+    assert model.input().partial_shape == after_reshape
 
-    # input_values = np.ndarray(buffer=np.array([1, 2, 3, 4, 5, 6, 7, 8]), shape = (n, c, h, w), dtype=int)
-    # expected = np.ndarray(buffer=np.array([12, 13, 14, 15, 16, 17, 18, 19]),
-    # shape = (n, c, h, w), dtype=int)
-    #
-    # exec_network = core.compile_model(func, device)
-    # computed = exec_network.infer_new_request(inputs={input_blob : input_values})
-    # output_blob = next(iter(network.outputs))
-    # assert np.allclose(expected, computed[output_blob], atol=1e-2, rtol=1e-2)
+    # CVS-74584
+    del model
+
+
+def test_add_extension():
+    class EmptyExtension(Extension):
+        def __init__(self) -> None:
+            super().__init__()
+
+    core = Core()
+    core.add_extension(EmptyExtension())
+    core.add_extension([EmptyExtension(), EmptyExtension()])
+    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    assert isinstance(model, Model)
 
 
 def test_read_model_from_buffer_no_weights(device):

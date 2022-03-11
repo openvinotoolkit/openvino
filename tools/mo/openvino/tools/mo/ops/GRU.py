@@ -1,9 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.ops.RNN import rnn_infer
 from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.ops.RNN import rnn_infer, RNN
 from openvino.tools.mo.ops.op import Op
 
 
@@ -18,6 +18,7 @@ class GRU(Op):
             'has_num_directions': False,
             'direction': 'forward',
             'infer': __class__.infer,
+            'reverse_infer': RNN.reverse_infer,
             'multiplier': 3,
             'multilayers': False,
             'gate_order': mo_array([0, 1, 2]),  # TODO: change it later
@@ -53,9 +54,11 @@ class GRU(Op):
             'direction',  # one of 'forward', 'reverse', or 'bidirectional'
             'axis',
 
-            'activation_alpha',
-            'activation_beta',
-            ('activations', lambda node: ','.join(node.activations) if node.activations is not None else None),
+            ('activations', lambda node: ','.join(node['activations']) if node.has_and_set('activations') else None),
+            ('activations_alpha', lambda node: ','.join(map(str, node['activations_alpha']))
+                if node.has_and_set('activations_alpha') else None),
+            ('activations_beta', lambda node: ','.join(map(str, node['activations_beta']))
+                if node.has_and_set('activations_beta') else None),
             'clip',
             'linear_before_reset',
         ]

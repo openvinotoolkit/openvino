@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,7 @@ void add_required_reorders::add_reorder(program& p, program_node* node, program_
 
     auto new_reorder = std::make_shared<reorder>(node->id() + "_reorder_" + usr->id(), node->id(), reorder_layout);
     auto& new_reorder_node = p.get_or_create(new_reorder);
+    new_reorder_node.set_output_layout(reorder_layout, false);
 
     // ToDo: add a method to program class which adds an intermediate node given a node and its user
     auto it = std::find(usr->get_dependencies().begin(), usr->get_dependencies().end(), node);
@@ -51,7 +52,6 @@ void add_required_reorders::run(program& p) {
             continue;  // only nodes with dependencies
         if (usr->is_type<data>())
             continue;
-
         if (usr->type()->does_an_implementation_exist(*usr)) {
             if (usr->get_preferred_impl_type() != impl_types::onednn) {
                 continue;
@@ -62,17 +62,40 @@ void add_required_reorders::run(program& p) {
                     if (!input.is_in_data_flow() || input.is_constant())
                         continue;
 
-                    if (static_cast<bool>(input.get_output_layout().data_padding)) {
-                        cldnn::layout layout_wo_padding = input.get_output_layout();
-                        layout_wo_padding.data_padding = cldnn::padding{};
-                        auto new_reorder = std::make_shared<reorder>(input.id() + "_padding_reorder_" + usr->id(), input.id(), layout_wo_padding);
-                        auto& new_reorder_node = p.get_or_create(new_reorder);
-                        p.add_intermediate(new_reorder_node, *usr, i);
+                    auto in_padding = input.get_output_layout().data_padding;
+                    if (static_cast<bool>(in_padding)) {
+                        bool spatial_padding = false;
+                        for (size_t i = 0; i < in_padding.lower_size().spatial.size(); ++i) {
+                            spatial_padding |= (in_padding.lower_size().spatial[i] != 0);
+                        }
+                        for (size_t i = 0; i < in_padding.upper_size().spatial.size(); ++i) {
+                            spatial_padding |= (in_padding.upper_size().spatial[i] != 0);
+                        }
+                        bool batch_padding = false;
+                        for (size_t i = 0; i < in_padding.lower_size().batch.size(); ++i) {
+                            batch_padding |= (in_padding.lower_size().batch[i] != 0);
+                        }
+                        for (size_t i = 0; i < in_padding.upper_size().batch.size(); ++i) {
+                            batch_padding |= (in_padding.upper_size().batch[i] != 0);
+                        }
+                        if (spatial_padding || batch_padding) {
+                            cldnn::layout layout_padding = input.get_output_layout();
+                            cldnn::layout layout_wo_padding = input.get_output_layout();
+                            layout_wo_padding.data_padding = cldnn::padding{};
+                            layout_wo_padding.data_padding.lower_size().feature = layout_padding.data_padding.lower_size().feature;
+                            layout_wo_padding.data_padding.upper_size().feature = layout_padding.data_padding.upper_size().feature;
+                            auto new_reorder = std::make_shared<reorder>(input.id() + "_padding_reorder_" + usr->id(), input.id(), layout_wo_padding);
+                            auto& new_reorder_node = p.get_or_create(new_reorder);
+                            p.add_intermediate(new_reorder_node, *usr, i);
+                        } else {
+                            continue;
+                        }
                     }
                 }
                 continue;
             }
         }
+
         bool correct_layout_selected = false;
         bool weights_data = (usr->is_type<convolution>() || usr->is_type<deconvolution>() ||
                              usr->is_type<deformable_conv>() || usr->is_type<fully_connected>());

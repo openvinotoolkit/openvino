@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,12 +57,13 @@ struct OpenCL {
 using BufferType = void*;
 #endif
 
-std::map<std::string, ov::runtime::TensorVector> getRemoteInputTensors(
+std::map<std::string, ov::TensorVector> get_remote_input_tensors(
     const std::map<std::string, std::vector<std::string>>& inputFiles,
     const std::vector<benchmark_app::InputsInfo>& app_inputs_info,
-    const ov::runtime::CompiledModel& compiledModel,
-    std::vector<BufferType>& clBuffer);
+    const ov::CompiledModel& compiledModel,
+    std::vector<BufferType>& clBuffer,
+    size_t num_requests);
 
-std::map<std::string, ov::runtime::Tensor> getRemoteOutputTensors(const ov::runtime::CompiledModel& compiledModel,
-                                                                  std::map<std::string, ::gpu::BufferType>& clBuffer);
+std::map<std::string, ov::Tensor> get_remote_output_tensors(const ov::CompiledModel& compiledModel,
+                                                            std::map<std::string, ::gpu::BufferType>& clBuffer);
 }  // namespace gpu

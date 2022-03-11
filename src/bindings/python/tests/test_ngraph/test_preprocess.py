@@ -1,4 +1,4 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -39,7 +39,7 @@ def test_ngraph_preprocess_mean_vector():
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     model = parameter_a
     function = Model(model, [parameter_a], "TestFunction")
-    layout = ov.Layout("NCHW")
+    layout = ov.Layout("NC")
 
     p = PrePostProcessor(function)
     p.input().tensor().set_layout(layout)
@@ -60,7 +60,7 @@ def test_ngraph_preprocess_scale_vector():
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     model = parameter_a
     function = Model(model, [parameter_a], "TestFunction")
-    layout = ov.Layout("NCHW")
+    layout = ov.Layout("NC")
 
     p = PrePostProcessor(function)
     inp = p.input()
@@ -90,7 +90,7 @@ def test_ngraph_preprocess_mean_scale_convert():
     p = PrePostProcessor(function)
     inp2 = p.input(1)
     inp2.tensor().set_element_type(Type.i32)
-    inp2.preprocess().convert_element_type(Type.f32).mean(1.).scale(2.)
+    inp2.preprocess().convert_element_type(Type.f32).mean(1.).scale(2.).convert_element_type()
     inp1 = p.input(0)
     inp1.preprocess().convert_element_type(Type.f32).mean(1.).custom(custom_preprocess)
     function = p.build()
@@ -142,13 +142,13 @@ def test_ngraph_preprocess_input_output_by_name():
 
 
 def test_ngraph_preprocess_output_postprocess():
-    shape = [2, 2]
+    shape = [2, 3]
     parameter_a = ops.parameter(shape, dtype=np.int32, name="A")
     model = parameter_a
     function = Model(model, [parameter_a], "TestFunction")
-    layout1 = ov.Layout("NCHW")
-    layout2 = ov.Layout("NHWC")
-    layout3 = [0, 1]
+    layout1 = ov.Layout("NC")
+    layout2 = ov.Layout("CN")
+    layout3 = [1, 0]
 
     @custom_preprocess_function
     def custom_postprocess(output: Output):
@@ -157,15 +157,20 @@ def test_ngraph_preprocess_output_postprocess():
     p = PrePostProcessor(function)
     inp = p.input()
     inp.tensor().set_layout(layout1)
-    inp.preprocess().convert_element_type(Type.f32).mean([1., 2.])
+    inp.preprocess().convert_element_type(Type.f32).mean([1., 2., 3.])
     out = p.output()
+    out.tensor().set_element_type(Type.f32)
+    out.model().set_layout(layout1)
     out.postprocess().convert_element_type(Type.f32) \
                      .convert_layout(layout2) \
-                     .convert_layout(layout3).custom(custom_postprocess)
+                     .convert_layout(layout3) \
+                     .custom(custom_postprocess) \
+                     .convert_element_type(Type.f16) \
+                     .convert_element_type()
     function = p.build()
 
-    input_data = np.array([[-1, -2], [-3, -4]]).astype(np.int32)
-    expected_output = np.array([[2, 4], [4, 6]]).astype(np.float32)
+    input_data = np.array([[-1, -2, -3], [-4, -5, -6]]).astype(np.int32)
+    expected_output = np.array([[2, 4, 6], [5, 7, 9]]).astype(np.float32)
 
     runtime = get_runtime()
     computation = runtime.computation(function)
@@ -184,7 +189,7 @@ def test_ngraph_preprocess_spatial_static_shape():
 
     p = PrePostProcessor(function)
     inp = p.input()
-    inp.tensor().set_layout(layout).set_spatial_static_shape(2, 2).set_color_format(color_format, [])
+    inp.tensor().set_layout(layout).set_spatial_static_shape(2, 2).set_color_format(color_format)
     inp.preprocess().convert_element_type(Type.f32).mean([1., 2.])
     inp.model().set_layout(layout)
     out = p.output()
@@ -230,6 +235,20 @@ def test_ngraph_preprocess_set_shape():
     computation = runtime.computation(function)
     output = computation(input_data)
     assert np.equal(output, expected_output).all()
+
+
+def test_ngraph_preprocess_set_memory_type():
+    shape = [1, 1, 1]
+    parameter_a = ops.parameter(shape, dtype=np.int32, name="A")
+    op = ops.relu(parameter_a)
+    model = op
+    function = Model(model, [parameter_a], "TestFunction")
+
+    p = PrePostProcessor(function)
+    p.input().tensor().set_memory_type("some_memory_type")
+    function = p.build()
+
+    assert any(key for key in function.input().rt_info if "memory_type" in key)
 
 
 @pytest.mark.parametrize(
@@ -431,3 +450,33 @@ def test_ngraph_preprocess_model():
     output = computation(input_data, input_data)
 
     assert np.equal(output, expected_output).all()
+
+
+def test_ngraph_preprocess_dump():
+    shape = [1, 3, 224, 224]
+    parameter_a = ops.parameter(shape, dtype=np.float32, name="RGB_input")
+    model = parameter_a
+    function = Model(model, [parameter_a], "TestFunction")
+
+    p = PrePostProcessor(function)
+    p.input().tensor()\
+        .set_layout(ov.Layout("NHWC"))\
+        .set_element_type(Type.u8)\
+        .set_spatial_dynamic_shape()
+    p.input().preprocess()\
+        .convert_element_type(Type.f32)\
+        .reverse_channels()\
+        .mean([1, 2, 3])\
+        .scale([4, 5, 6])\
+        .resize(ResizeAlgorithm.RESIZE_LINEAR)
+    p.input().model().set_layout(ov.Layout("NCHW"))
+    p_str = str(p)
+    print(p)
+    assert "Pre-processing steps (5):" in p_str
+    assert "convert type (f32):" in p_str
+    assert "reverse channels:" in p_str
+    assert "mean (1,2,3):" in p_str
+    assert "scale (4,5,6):" in p_str
+    assert "resize to model width/height:" in p_str
+    assert "Implicit pre-processing steps (1):" in p_str
+    assert "convert layout " + ov.Layout("NCHW").to_string() in p_str

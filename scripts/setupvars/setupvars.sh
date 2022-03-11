@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" >/dev/null 2>&1 && pwd )"
@@ -34,8 +34,8 @@ if [ -e "$INSTALLDIR/runtime" ]; then
 
     export HDDL_INSTALL_DIR=$INSTALLDIR/runtime/3rdparty/hddl
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        export DYLD_LIBRARY_PATH=${IE_PLUGINS_PATH}${DYLD_LIBRARY_PATH:+:DYLD_LIBRARY_PATH}
-        export LD_LIBRARY_PATH=${IE_PLUGINS_PATH}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+        export DYLD_LIBRARY_PATH=${IE_PLUGINS_PATH}/Release:${IE_PLUGINS_PATH}/Debug${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}
+        export LD_LIBRARY_PATH=${IE_PLUGINS_PATH}/Release:${IE_PLUGINS_PATH}/Debug${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     else
         export LD_LIBRARY_PATH=$HDDL_INSTALL_DIR/lib:${IE_PLUGINS_PATH}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     fi
@@ -49,7 +49,7 @@ fi
 
 if [ -e "$INSTALLDIR/runtime/3rdparty/tbb" ]; then
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        export DYLD_LIBRARY_PATH=$INSTALLDIR/runtime/3rdparty/tbb/lib:${DYLD_LIBRARY_PATH:+:DYLD_LIBRARY_PATH}
+        export DYLD_LIBRARY_PATH=$INSTALLDIR/runtime/3rdparty/tbb/lib:${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}
     fi
     export LD_LIBRARY_PATH=$INSTALLDIR/runtime/3rdparty/tbb/lib:${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     export TBB_DIR=$INSTALLDIR/runtime/3rdparty/tbb/cmake
@@ -78,16 +78,6 @@ if [ "${#version_arr[@]}" -ge "2" ]; then
     python_version_minor=${version_arr[1]}
 fi
 
-OS_NAME=""
-if command -v lsb_release >/dev/null 2>&1; then
-    OS_NAME=$(lsb_release -i -s)
-fi
-
-python_bitness=$(python3 -c 'import sys; print(64 if sys.maxsize > 2**32 else 32)')
-if [ "$python_bitness" != "" ] && [ "$python_bitness" != "64" ] && [ "$OS_NAME" != "Raspbian" ]; then
-    echo "[setupvars.sh] 64 bitness for Python $python_version is required"
-fi
-
 PYTHON_VERSION_MAJOR="3"
 MIN_REQUIRED_PYTHON_VERSION_MINOR="6"
 MAX_SUPPORTED_PYTHON_VERSION_MINOR="9"
@@ -99,6 +89,16 @@ if  [ "$PYTHON_VERSION_MAJOR" != "$python_version_major" ] ||
     "${PYTHON_VERSION_MAJOR}.${MIN_REQUIRED_PYTHON_VERSION_MINOR} -" \
     "${PYTHON_VERSION_MAJOR}.${MAX_SUPPORTED_PYTHON_VERSION_MINOR} (64-bit) from https://www.python.org/downloads/"
     return 1
+fi
+
+OS_NAME=""
+if command -v lsb_release >/dev/null 2>&1; then
+    OS_NAME=$(lsb_release -i -s)
+fi
+
+python_bitness=$(python"$python_version" -c 'import sys; print(64 if sys.maxsize > 2**32 else 32)')
+if [ "$python_bitness" != "" ] && [ "$python_bitness" != "64" ] && [ "$OS_NAME" != "Raspbian" ]; then
+    echo "[setupvars.sh] WARNING: 64 bitness for Python $python_version is required"
 fi
 
 if [ -n "$python_version" ]; then

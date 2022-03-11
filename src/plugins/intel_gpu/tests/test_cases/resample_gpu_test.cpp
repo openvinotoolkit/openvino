@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -2168,10 +2168,13 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
         prim_opt.pads_begin = params.pads_begin;
         prim_opt.pads_end = params.pads_end;
         topo_opt.add(prim_opt);
-        topo_opt.add(reorder("res_to_bfyx", "resample_opt", format::bfyx, params.input_type));
+        topo_opt.add(reorder("to_output_type", "resample_opt", params.out_format, params.input_type));
+        topo_opt.add(reorder("res_to_bfyx", "to_output_type", format::bfyx, params.input_type));
 
         auto build_opts_opt = build_options();
-        build_opts_opt.set_option(build_option::outputs({"resample_opt", "res_to_bfyx"}));
+        build_opts_opt.set_option(build_option::outputs({"to_output_type", "res_to_bfyx"}));
+        // optimize_data is turned on to test cross-layout
+        build_opts_opt.set_option(build_option::optimize_data(true));
 
         network net_opt(engine, topo_opt, build_opts_opt);
 
@@ -2227,5 +2230,6 @@ INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_linear_onnx,
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample_type::linear_onnx, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {}},
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample_type::linear_onnx, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {}},
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample_type::linear_onnx, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}},
+                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample_type::linear_onnx, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32, {}, {}},
                             }
                         ));

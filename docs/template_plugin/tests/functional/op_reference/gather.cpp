@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,15 +15,15 @@ using namespace ov;
 namespace {
 struct GatherParams {
     GatherParams(
-        const Tensor& dataTensor, const Tensor& indicesTensor, const Tensor& axisTensor,
-        const Tensor& expectedTensor, const std::string& testcaseName = "") :
+        const reference_tests::Tensor& dataTensor, const reference_tests::Tensor& indicesTensor, const reference_tests::Tensor& axisTensor,
+        const reference_tests::Tensor& expectedTensor, const std::string& testcaseName = "") :
         dataTensor(dataTensor), indicesTensor(indicesTensor), axisTensor(axisTensor),
         expectedTensor(expectedTensor), testcaseName(testcaseName) {}
 
-    Tensor dataTensor;
-    Tensor indicesTensor;
-    Tensor axisTensor;
-    Tensor expectedTensor;
+    reference_tests::Tensor dataTensor;
+    reference_tests::Tensor indicesTensor;
+    reference_tests::Tensor axisTensor;
+    reference_tests::Tensor expectedTensor;
     std::string testcaseName;
 };
 
@@ -73,16 +73,16 @@ TEST_P(ReferenceGatherTest, CompareWithRefs) {
 
 struct GatherParamsV7 {
     GatherParamsV7(
-        const Tensor& dataTensor, const Tensor& indicesTensor, const Tensor& axisTensor, int64_t batchDims,
-        const Tensor& expectedTensor, const std::string& testcaseName = "") :
+        const reference_tests::Tensor& dataTensor, const reference_tests::Tensor& indicesTensor, const reference_tests::Tensor& axisTensor, int64_t batchDims,
+        const reference_tests::Tensor& expectedTensor, const std::string& testcaseName = "") :
         dataTensor(dataTensor), indicesTensor(indicesTensor), axisTensor(axisTensor), batchDims(batchDims),
         expectedTensor(expectedTensor), testcaseName(testcaseName) {}
 
-    Tensor dataTensor;
-    Tensor indicesTensor;
-    Tensor axisTensor;
+    reference_tests::Tensor dataTensor;
+    reference_tests::Tensor indicesTensor;
+    reference_tests::Tensor axisTensor;
     int64_t batchDims;
-    Tensor expectedTensor;
+    reference_tests::Tensor expectedTensor;
     std::string testcaseName;
 };
 
@@ -155,25 +155,25 @@ std::vector<GatherParams> generateParams() {
     using T_A = typename element_type_traits<ET_A>::value_type;
     std::vector<GatherParams> params {
         GatherParams(
-            Tensor(ET, {3, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {3, 2}, std::vector<T>{
                 10, 11, 20, 21, 30, 31}),
-            Tensor(ET_I, {2, 2, 3, 4}, std::vector<T_I>{
+            reference_tests::Tensor(ET_I, {2, 2, 3, 4}, std::vector<T_I>{
                 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2,
                 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2}),
-            Tensor(ET_A, {}, std::vector<T_A>{0}),
-            Tensor(ET, {2, 2, 3, 4, 2}, std::vector<T>{
+            reference_tests::Tensor(ET_A, {}, std::vector<T_A>{0}),
+            reference_tests::Tensor(ET, {2, 2, 3, 4, 2}, std::vector<T>{
                 10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31,
                 10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31,
                 10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31,
                 10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31}),
             "gather_4d_indices_axis_0"),
         GatherParams(
-            Tensor(ET, {3, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {3, 2}, std::vector<T>{
                 10, 11, 20, 21, 30, 31}),
-            Tensor(ET_I, {2, 2}, std::vector<T_I>{
+            reference_tests::Tensor(ET_I, {2, 2}, std::vector<T_I>{
                 0, 1, 1, 2}),
-            Tensor(ET_A, {}, std::vector<T_A>{0}),
-            Tensor(ET, {2, 2, 2}, std::vector<T>{
+            reference_tests::Tensor(ET_A, {}, std::vector<T_A>{0}),
+            reference_tests::Tensor(ET, {2, 2, 2}, std::vector<T>{
                 10, 11, 20, 21, 20, 21, 30, 31}),
             "gather_axis_0"),
     };
@@ -187,11 +187,11 @@ std::vector<GatherParams> generateParamsFloatValue() {
     using T_A = typename element_type_traits<ET_A>::value_type;
     std::vector<GatherParams> params {
         GatherParams(
-            Tensor(ET, {3, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {3, 2}, std::vector<T>{
                 1.0f, 1.1f,
                 2.0f, 2.1f,
                 3.0f, 3.1f}),
-            Tensor(ET_I, {2, 2, 3, 4}, std::vector<T_I>{
+            reference_tests::Tensor(ET_I, {2, 2, 3, 4}, std::vector<T_I>{
                 0, 1, 1, 2,
                 0, 1, 1, 2,
                 0, 1, 1, 2,
@@ -208,8 +208,8 @@ std::vector<GatherParams> generateParamsFloatValue() {
                 0, 1, 1, 2,
                 0, 1, 1, 2,
                 0, 1, 1, 2}),
-            Tensor(ET_A, {}, std::vector<T_A>{0}),
-            Tensor(ET, {2, 2, 3, 4, 2}, std::vector<T>{
+            reference_tests::Tensor(ET_A, {}, std::vector<T_A>{0}),
+            reference_tests::Tensor(ET, {2, 2, 3, 4, 2}, std::vector<T>{
                 1.0f, 1.1f,
                 2.0f, 2.1f,
                 2.0f, 2.1f,
@@ -276,11 +276,11 @@ std::vector<GatherParams> generateParamsFloatValue() {
                 3.0f, 3.1f}),
             "gather_4d_indices_axis_0_2d_input"),
         GatherParams(
-            Tensor(ET, {3, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {3, 2}, std::vector<T>{
                 1.0f, 1.1f,
                 2.0f, 2.1f,
                 3.0f, 3.1f}),
-            Tensor(ET_I, {2, 3, 4}, std::vector<T_I>{
+            reference_tests::Tensor(ET_I, {2, 3, 4}, std::vector<T_I>{
                 0, 1, 1, 2,
                 0, 1, 1, 2,
                 0, 1, 1, 2,
@@ -288,8 +288,8 @@ std::vector<GatherParams> generateParamsFloatValue() {
                 0, 1, 1, 2,
                 0, 1, 1, 2,
                 0, 1, 1, 2}),
-            Tensor(ET_A, {}, std::vector<T_A>{0}),
-            Tensor(ET, {2, 3, 4, 2}, std::vector<T>{
+            reference_tests::Tensor(ET_A, {}, std::vector<T_A>{0}),
+            reference_tests::Tensor(ET, {2, 3, 4, 2}, std::vector<T>{
                 1.0f, 1.1f,
                 2.0f, 2.1f,
                 2.0f, 2.1f,
@@ -322,14 +322,14 @@ std::vector<GatherParams> generateParamsFloatValue() {
                 3.0f, 3.1f}),
             "gather_3d_indices_axis_0_2d_input"),
         GatherParams(
-            Tensor(ET, {3, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {3, 2}, std::vector<T>{
                 1.0f, 1.1f,
                 2.0f, 2.1f,
                 3.0f, 3.1f}),
-            Tensor(ET_I, {2, 2}, std::vector<T_I>{
+            reference_tests::Tensor(ET_I, {2, 2}, std::vector<T_I>{
                 0, 1, 1, 2}),
-            Tensor(ET_A, {}, std::vector<T_A>{0}),
-            Tensor(ET, {2, 2, 2}, std::vector<T>{
+            reference_tests::Tensor(ET_A, {}, std::vector<T_A>{0}),
+            reference_tests::Tensor(ET, {2, 2, 2}, std::vector<T>{
                 1.0f, 1.1f,
                 2.0f, 2.1f,
 
@@ -337,14 +337,14 @@ std::vector<GatherParams> generateParamsFloatValue() {
                 3.0f, 3.1f}),
             "gather_2d_indices_axis_0_2d_input"),
         GatherParams(
-            Tensor(ET, {3, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {3, 2}, std::vector<T>{
                 1.0f, 1.1f,
                 2.0f, 2.1f,
                 3.0f, 3.1f}),
-            Tensor(ET_I, {2, 2}, std::vector<T_I>{
+            reference_tests::Tensor(ET_I, {2, 2}, std::vector<T_I>{
                 0, -2, 1, 2}),
-            Tensor(ET_A, {}, std::vector<T_A>{0}),
-            Tensor(ET, {2, 2, 2}, std::vector<T>{
+            reference_tests::Tensor(ET_A, {}, std::vector<T_A>{0}),
+            reference_tests::Tensor(ET, {2, 2, 2}, std::vector<T>{
                 1.0f, 1.1f,
                 2.0f, 2.1f,
 
@@ -352,37 +352,37 @@ std::vector<GatherParams> generateParamsFloatValue() {
                 3.0f, 3.1f}),
             "gather_2d_negative_and_positive_indices_axis_0_2d_input"),
         GatherParams(
-            Tensor(ET, {3}, std::vector<T>{
+            reference_tests::Tensor(ET, {3}, std::vector<T>{
                 1.0f, 2.0f, 3.0f}),
-            Tensor(ET_I, {2}, std::vector<T_I>{
+            reference_tests::Tensor(ET_I, {2}, std::vector<T_I>{
                 1, 0}),
-            Tensor(ET_A, {}, std::vector<T_A>{0}),
-            Tensor(ET, {2}, std::vector<T>{
+            reference_tests::Tensor(ET_A, {}, std::vector<T_A>{0}),
+            reference_tests::Tensor(ET, {2}, std::vector<T>{
                 2.0f, 1.0f}),
             "gather_1d_indices_axis_0_1d_input"),
         GatherParams(
-            Tensor(ET, {3, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {3, 2}, std::vector<T>{
                 1.0f, 1.1f, 2.0f, 2.1f, 3.0f, 3.1f}),
-            Tensor(ET_I, {}, std::vector<T_I>{1}),
-            Tensor(ET_A, {}, std::vector<T_A>{0}),
-            Tensor(ET, {2}, std::vector<T>{
+            reference_tests::Tensor(ET_I, {}, std::vector<T_I>{1}),
+            reference_tests::Tensor(ET_A, {}, std::vector<T_A>{0}),
+            reference_tests::Tensor(ET, {2}, std::vector<T>{
                 2.0f, 2.1f}),
             "gather_scalar_indices_axis_0_2d_input"),
         GatherParams(
-            Tensor(ET, {3, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {3, 3}, std::vector<T>{
                 1.0f, 1.1f, 1.2f,
                 2.0f, 2.1f, 2.2f,
                 3.0f, 3.1f, 3.2f}),
-            Tensor(ET_I, {1, 2}, std::vector<T_I>{
+            reference_tests::Tensor(ET_I, {1, 2}, std::vector<T_I>{
                 0, 2}),
-            Tensor(ET_A, {}, std::vector<T_A>{1}),
-            Tensor(ET, {3, 1, 2}, std::vector<T>{
+            reference_tests::Tensor(ET_A, {}, std::vector<T_A>{1}),
+            reference_tests::Tensor(ET, {3, 1, 2}, std::vector<T>{
                 1.0f, 1.2f,
                 2.0f, 2.2f,
                 3.0f, 3.2f}),
             "gather_2d_indices_axis_1_2d_input"),
         GatherParams(
-            Tensor(ET, {2, 2, 3, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 2, 3, 3}, std::vector<T>{
                 1.0f,   1.1f,   1.2f,
                 2.0f,   2.1f,   2.2f,
                 3.0f,   3.1f,   3.2f,
@@ -399,10 +399,10 @@ std::vector<GatherParams> generateParamsFloatValue() {
                 111.0f, 111.1f, 111.2f,
                 112.0f, 112.1f, 112.2f,
                 113.0f, 113.1f, 113.2f}),
-            Tensor(ET_I, {2}, std::vector<T_I>{
+            reference_tests::Tensor(ET_I, {2}, std::vector<T_I>{
                 0, 2}),
-            Tensor(ET_A, {}, std::vector<T_A>{2}),
-            Tensor(ET, {2, 2, 2, 3}, std::vector<T>{
+            reference_tests::Tensor(ET_A, {}, std::vector<T_A>{2}),
+            reference_tests::Tensor(ET, {2, 2, 2, 3}, std::vector<T>{
                 1.0f,   1.1f,   1.2f,
                 3.0f,   3.1f,   3.2f,
 
@@ -417,11 +417,11 @@ std::vector<GatherParams> generateParamsFloatValue() {
                 113.0f, 113.1f, 113.2f}),
             "gather_1d_indices_axis_2_4d_input"),
         GatherParams(
-            Tensor(ET, {3, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {3, 3}, std::vector<T>{
                 1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f, 3.0f, 3.1f, 3.2f}),
-            Tensor(ET_I, {}, std::vector<T_I>{0}),
-            Tensor(ET_A, {}, std::vector<T_A>{1}),
-            Tensor(ET, {3}, std::vector<T>{
+            reference_tests::Tensor(ET_I, {}, std::vector<T_I>{0}),
+            reference_tests::Tensor(ET_A, {}, std::vector<T_A>{1}),
+            reference_tests::Tensor(ET, {3}, std::vector<T>{
                 1.0f, 2.0f, 3.0f}),
             "gather_scalar_indices_axis_1_2d_input"),
     };
@@ -461,38 +461,38 @@ std::vector<GatherParamsV7> generateParamsV7() {
     using T_A = typename element_type_traits<ET_A>::value_type;
     std::vector<GatherParamsV7> params {
         GatherParamsV7(
-            Tensor(ET, {3}, std::vector<T>{
+            reference_tests::Tensor(ET, {3}, std::vector<T>{
                 1, 2, 3}),
-            Tensor(ET_I, {2}, std::vector<T_I>{
+            reference_tests::Tensor(ET_I, {2}, std::vector<T_I>{
                 2, 0}),
-            Tensor(ET_A, {}, std::vector<T_A>{0}),
+            reference_tests::Tensor(ET_A, {}, std::vector<T_A>{0}),
             0,
-            Tensor(ET, {2}, std::vector<T>{
+            reference_tests::Tensor(ET, {2}, std::vector<T>{
                 3, 1}),
             "gather_v7_1d"),
         GatherParamsV7(
-            Tensor(ET, {3, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {3, 2}, std::vector<T>{
                 10, 11, 20, 21, 30, 31}),
-            Tensor(ET_I, {2, 2}, std::vector<T_I>{
+            reference_tests::Tensor(ET_I, {2, 2}, std::vector<T_I>{
                 0, 1, 1, 2}),
-            Tensor(ET_A, {}, std::vector<T_A>{0}),
+            reference_tests::Tensor(ET_A, {}, std::vector<T_A>{0}),
             0,
-            Tensor(ET, {2, 2, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 2, 2}, std::vector<T>{
                 10, 11, 20, 21, 20, 21, 30, 31}),
             "gather_v7_axis_0"),
         GatherParamsV7(
-            Tensor(ET, {2, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 3}, std::vector<T>{
                 1, 2, 3,
                 4, 5, 6}),
-            Tensor(ET_I, {2, 2, 2}, std::vector<T_I>{
+            reference_tests::Tensor(ET_I, {2, 2, 2}, std::vector<T_I>{
                 0, 1,
                 1, 2,
 
                 2, 0,
                 1, 2}),
-            Tensor(ET_A, {}, std::vector<T_A>{1}),
+            reference_tests::Tensor(ET_A, {}, std::vector<T_A>{1}),
             1,
-            Tensor(ET, {2, 2, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 2, 2}, std::vector<T>{
                 1, 2,
                 2, 3,
 
@@ -500,33 +500,33 @@ std::vector<GatherParamsV7> generateParamsV7() {
                 5, 6}),
             "gather_v7_data_int32_3d_indices_axis_1_batch_dims_1"),
         GatherParamsV7(
-            Tensor(ET, {2, 5}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 5}, std::vector<T>{
                 1, 2, 3, 4, 5,
                 6, 7, 8, 9, 10}),
-            Tensor(ET_I, {2, 3}, std::vector<T_I>{
+            reference_tests::Tensor(ET_I, {2, 3}, std::vector<T_I>{
                 0, 0, 4,
                 4, 0, 0}),
-            Tensor(ET_A, {}, std::vector<T_A>{1}),
+            reference_tests::Tensor(ET_A, {}, std::vector<T_A>{1}),
             1,
-            Tensor(ET, {2, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 3}, std::vector<T>{
                 1,  1, 5,
                 10, 6, 6}),
             "gather_v7_data_int32_2d_indices_axis_1_batch_dims_1"),
         GatherParamsV7(
-            Tensor(ET, {2, 5}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 5}, std::vector<T>{
                 1, 2, 3, 4, 5,
                 6, 7, 8, 9, 10}),
-            Tensor(ET_I, {2, 3}, std::vector<T_I>{
+            reference_tests::Tensor(ET_I, {2, 3}, std::vector<T_I>{
                 0, 0, 4,
                 4, 0, 0}),
-            Tensor(ET_A, {}, std::vector<T_A>{1}),
+            reference_tests::Tensor(ET_A, {}, std::vector<T_A>{1}),
             -1,
-            Tensor(ET, {2, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 3}, std::vector<T>{
                 1,  1, 5,
                 10, 6, 6}),
             "gather_v7_data_int32_2d_indices_axis_1_negative_batch_dims"),
         GatherParamsV7(
-            Tensor(ET, {2, 1, 5, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 1, 5, 4}, std::vector<T>{
                 1,  2,  3,  4,
                 5,  6,  7,  8,
                 9,  10, 11, 12,
@@ -538,12 +538,12 @@ std::vector<GatherParamsV7> generateParamsV7() {
                 29, 30, 31, 32,
                 33, 34, 35, 36,
                 37, 38, 39, 40}),
-            Tensor(ET_I, {2, 3}, std::vector<T_I>{
+            reference_tests::Tensor(ET_I, {2, 3}, std::vector<T_I>{
                 1, 2, 4,
                 4, 3, 2}),
-            Tensor(ET_A, {}, std::vector<T_A>{2}),
+            reference_tests::Tensor(ET_A, {}, std::vector<T_A>{2}),
             1,
-            Tensor(ET, {2, 1, 3, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 1, 3, 4}, std::vector<T>{
                 5,  6,  7,  8,
                 9,  10, 11, 12,
                 17, 18, 19, 20,
@@ -560,13 +560,13 @@ template <>
 std::vector<GatherParamsV7> generateParamsV7<element::boolean, element::i32, element::i64>() {
     std::vector<GatherParamsV7> params {
         GatherParamsV7(
-            Tensor(element::boolean, {3, 2}, std::vector<char>{
+            reference_tests::Tensor(element::boolean, {3, 2}, std::vector<char>{
                 1, 1, 1, 0, 0, 1}),
-            Tensor(element::i32, {2, 2}, std::vector<int32_t>{
+            reference_tests::Tensor(element::i32, {2, 2}, std::vector<int32_t>{
                 0, 1, 1, 2}),
-            Tensor(element::i64, {}, std::vector<int64_t>{0}),
+            reference_tests::Tensor(element::i64, {}, std::vector<int64_t>{0}),
             0,
-            Tensor(element::boolean, {2, 2, 2}, std::vector<char>{
+            reference_tests::Tensor(element::boolean, {2, 2, 2}, std::vector<char>{
                 1, 1, 1, 0, 1, 0, 0, 1}),
             "gather_v7_axis_0_bool"),
     };
@@ -580,11 +580,11 @@ std::vector<GatherParamsV7> generateParamsFloatValueV7() {
     using T_A = typename element_type_traits<ET_A>::value_type;
     std::vector<GatherParamsV7> params {
         GatherParamsV7(
-            Tensor(ET, {3, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {3, 2}, std::vector<T>{
                 1.0f, 1.1f,
                 2.0f, 2.1f,
                 3.0f, 3.1f}),
-            Tensor(ET_I, {2, 2, 3, 4}, std::vector<T_I>{
+            reference_tests::Tensor(ET_I, {2, 2, 3, 4}, std::vector<T_I>{
                 0, 1, 1, 2,
                 0, 1, 1, 2,
                 0, 1, 1, 2,
@@ -601,9 +601,9 @@ std::vector<GatherParamsV7> generateParamsFloatValueV7() {
                 0, 1, 1, 2,
                 0, 1, 1, 2,
                 0, 1, 1, 2}),
-            Tensor(ET_A, {}, std::vector<T_A>{0}),
+            reference_tests::Tensor(ET_A, {}, std::vector<T_A>{0}),
             0,
-            Tensor(ET, {2, 2, 3, 4, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 2, 3, 4, 2}, std::vector<T>{
                 1.0f, 1.1f,
                 2.0f, 2.1f,
                 2.0f, 2.1f,
@@ -670,11 +670,11 @@ std::vector<GatherParamsV7> generateParamsFloatValueV7() {
                 3.0f, 3.1f}),
             "gather_v7_4d_indices_axis_0_2d_input"),
         GatherParamsV7(
-            Tensor(ET, {3, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {3, 2}, std::vector<T>{
                 1.0f, 1.1f,
                 2.0f, 2.1f,
                 3.0f, 3.1f}),
-            Tensor(ET_I, {2, 3, 4}, std::vector<T_I>{
+            reference_tests::Tensor(ET_I, {2, 3, 4}, std::vector<T_I>{
                 0, 1, 1, 2,
                 0, 1, 1, 2,
                 0, 1, 1, 2,
@@ -682,9 +682,9 @@ std::vector<GatherParamsV7> generateParamsFloatValueV7() {
                 0, 1, 1, 2,
                 0, 1, 1, 2,
                 0, 1, 1, 2}),
-            Tensor(ET_A, {}, std::vector<T_A>{0}),
+            reference_tests::Tensor(ET_A, {}, std::vector<T_A>{0}),
             0,
-            Tensor(ET, {2, 3, 4, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 3, 4, 2}, std::vector<T>{
                 1.0f, 1.1f,
                 2.0f, 2.1f,
                 2.0f, 2.1f,
@@ -717,15 +717,15 @@ std::vector<GatherParamsV7> generateParamsFloatValueV7() {
                 3.0f, 3.1f}),
             "gather_v7_3d_indices_axis_0_2d_input"),
         GatherParamsV7(
-            Tensor(ET, {3, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {3, 2}, std::vector<T>{
                 1.0f, 1.1f,
                 2.0f, 2.1f,
                 3.0f, 3.1f}),
-            Tensor(ET_I, {2, 2}, std::vector<T_I>{
+            reference_tests::Tensor(ET_I, {2, 2}, std::vector<T_I>{
                 0, 1, 1, 2}),
-            Tensor(ET_A, {}, std::vector<T_A>{0}),
+            reference_tests::Tensor(ET_A, {}, std::vector<T_A>{0}),
             0,
-            Tensor(ET, {2, 2, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 2, 2}, std::vector<T>{
                 1.0f, 1.1f,
                 2.0f, 2.1f,
 
@@ -733,15 +733,15 @@ std::vector<GatherParamsV7> generateParamsFloatValueV7() {
                 3.0f, 3.1f}),
             "gather_v7_2d_indices_axis_0_2d_input"),
         GatherParamsV7(
-            Tensor(ET, {3, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {3, 2}, std::vector<T>{
                 1.0f, 1.1f,
                 2.0f, 2.1f,
                 3.0f, 3.1f}),
-            Tensor(ET_I, {2, 2}, std::vector<T_I>{
+            reference_tests::Tensor(ET_I, {2, 2}, std::vector<T_I>{
                 0, -2, 1, 2}),
-            Tensor(ET_A, {}, std::vector<T_A>{0}),
+            reference_tests::Tensor(ET_A, {}, std::vector<T_A>{0}),
             0,
-            Tensor(ET, {2, 2, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 2, 2}, std::vector<T>{
                 1.0f, 1.1f,
                 2.0f, 2.1f,
 
@@ -749,40 +749,40 @@ std::vector<GatherParamsV7> generateParamsFloatValueV7() {
                 3.0f, 3.1f}),
             "gather_v7_2d_negative_and_positive_indices_axis_0_2d_input"),
         GatherParamsV7(
-            Tensor(ET, {3}, std::vector<T>{
+            reference_tests::Tensor(ET, {3}, std::vector<T>{
                 1.0f, 2.0f, 3.0f}),
-            Tensor(ET_I, {2}, std::vector<T_I>{
+            reference_tests::Tensor(ET_I, {2}, std::vector<T_I>{
                 1, 0}),
-            Tensor(ET_A, {}, std::vector<T_A>{0}),
+            reference_tests::Tensor(ET_A, {}, std::vector<T_A>{0}),
             0,
-            Tensor(ET, {2}, std::vector<T>{
+            reference_tests::Tensor(ET, {2}, std::vector<T>{
                 2.0f, 1.0f}),
             "gather_v7_1d_indices_axis_0_1d_input"),
         GatherParamsV7(
-            Tensor(ET, {3, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {3, 2}, std::vector<T>{
                 1.0f, 1.1f, 2.0f, 2.1f, 3.0f, 3.1f}),
-            Tensor(ET_I, {}, std::vector<T_I>{1}),
-            Tensor(ET_A, {}, std::vector<T_A>{0}),
+            reference_tests::Tensor(ET_I, {}, std::vector<T_I>{1}),
+            reference_tests::Tensor(ET_A, {}, std::vector<T_A>{0}),
             0,
-            Tensor(ET, {2}, std::vector<T>{
+            reference_tests::Tensor(ET, {2}, std::vector<T>{
                 2.0f, 2.1f}),
             "gather_v7_scalar_indices_axis_0_2d_input"),
         GatherParamsV7(
-            Tensor(ET, {3, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {3, 3}, std::vector<T>{
                 1.0f, 1.1f, 1.2f,
                 2.0f, 2.1f, 2.2f,
                 3.0f, 3.1f, 3.2f}),
-            Tensor(ET_I, {1, 2}, std::vector<T_I>{
+            reference_tests::Tensor(ET_I, {1, 2}, std::vector<T_I>{
                 0, 2}),
-            Tensor(ET_A, {}, std::vector<T_A>{1}),
+            reference_tests::Tensor(ET_A, {}, std::vector<T_A>{1}),
             0,
-            Tensor(ET, {3, 1, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {3, 1, 2}, std::vector<T>{
                 1.0f, 1.2f,
                 2.0f, 2.2f,
                 3.0f, 3.2f}),
             "gather_v7_2d_indices_axis_1_2d_input"),
         GatherParamsV7(
-            Tensor(ET, {2, 2, 3, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 2, 3, 3}, std::vector<T>{
                 1.0f,   1.1f,   1.2f,
                 2.0f,   2.1f,   2.2f,
                 3.0f,   3.1f,   3.2f,
@@ -799,11 +799,11 @@ std::vector<GatherParamsV7> generateParamsFloatValueV7() {
                 111.0f, 111.1f, 111.2f,
                 112.0f, 112.1f, 112.2f,
                 113.0f, 113.1f, 113.2f}),
-            Tensor(ET_I, {2}, std::vector<T_I>{
+            reference_tests::Tensor(ET_I, {2}, std::vector<T_I>{
                 0, 2}),
-            Tensor(ET_A, {}, std::vector<T_A>{2}),
+            reference_tests::Tensor(ET_A, {}, std::vector<T_A>{2}),
             0,
-            Tensor(ET, {2, 2, 2, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 2, 2, 3}, std::vector<T>{
                 1.0f,   1.1f,   1.2f,
                 3.0f,   3.1f,   3.2f,
 
@@ -818,16 +818,16 @@ std::vector<GatherParamsV7> generateParamsFloatValueV7() {
                 113.0f, 113.1f, 113.2f}),
             "gather_v7_1d_indices_axis_2_4d_input"),
         GatherParamsV7(
-            Tensor(ET, {3, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {3, 3}, std::vector<T>{
                 1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f, 3.0f, 3.1f, 3.2f}),
-            Tensor(ET_I, {}, std::vector<T_I>{0}),
-            Tensor(ET_A, {}, std::vector<T_A>{1}),
+            reference_tests::Tensor(ET_I, {}, std::vector<T_I>{0}),
+            reference_tests::Tensor(ET_A, {}, std::vector<T_A>{1}),
             0,
-            Tensor(ET, {3}, std::vector<T>{
+            reference_tests::Tensor(ET, {3}, std::vector<T>{
                 1.0f, 2.0f, 3.0f}),
             "gather_v7_scalar_indices_axis_1_2d_input"),
         GatherParamsV7(
-            Tensor(ET, {2, 5, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 5, 2}, std::vector<T>{
                 1.0f, 2.0f,
                 3.0f, 4.0f,
                 5.0f, 6.0f,
@@ -839,15 +839,15 @@ std::vector<GatherParamsV7> generateParamsFloatValueV7() {
                 15.0f, 16.0f,
                 17.0f, 18.0f,
                 19.0f, 20.0f}),
-            Tensor(ET_I, {2, 2, 3}, std::vector<T_I>{
+            reference_tests::Tensor(ET_I, {2, 2, 3}, std::vector<T_I>{
                 0, 0, 4,
                 4, 0, 0,
 
                 1, 2, 4,
                 4, 3, 2}),
-            Tensor(ET_A, {}, std::vector<T_A>{1}),
+            reference_tests::Tensor(ET_A, {}, std::vector<T_A>{1}),
             1,
-            Tensor(ET, {2, 2, 3, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 2, 3, 2}, std::vector<T>{
                 1.0f, 2.0f,
                 1.0f, 2.0f,
                 9.0f, 10.0f,
@@ -903,13 +903,13 @@ std::vector<GatherParamsV7> generateParamsV8() {
     using T_A = typename element_type_traits<ET_A>::value_type;
     std::vector<GatherParamsV7> params {
         GatherParamsV7(
-            Tensor(ET, {5}, std::vector<T>{
+            reference_tests::Tensor(ET, {5}, std::vector<T>{
                 1, 2, 3, 4, 5}),
-            Tensor(ET_I, {3}, std::vector<T_I>{
+            reference_tests::Tensor(ET_I, {3}, std::vector<T_I>{
                 0, -2, -1}),
-            Tensor(ET_A, {}, std::vector<T_A>{0}),
+            reference_tests::Tensor(ET_A, {}, std::vector<T_A>{0}),
             0,
-            Tensor(ET, {3}, std::vector<T>{
+            reference_tests::Tensor(ET, {3}, std::vector<T>{
                 1, 4, 5}),
             "gather_v8_1d_negative_indices"),
     };

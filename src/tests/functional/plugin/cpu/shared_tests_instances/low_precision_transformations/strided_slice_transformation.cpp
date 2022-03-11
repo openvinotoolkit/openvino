@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,10 +18,7 @@ const std::vector<ngraph::element::Type> netPrecisions = {
 };
 
 const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
-    // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
-    // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8(),
-    // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams()
 };
 
 const std::vector<LayerTestsDefinitions::StridedSliceTransformationParam> params = {
@@ -64,6 +61,25 @@ const std::vector<LayerTestsDefinitions::StridedSliceTransformationParam> params
         { 1, 1, 1, 1 },
         { 1, 0, 1, 1 },
         { 1, 0, 1, 1 },
+        {},
+        {},
+        {}
+    },
+    // channel slice, per-channel quantization
+    {
+        {
+            256ul,
+            ngraph::Shape{ 1, 3, 1, 1 },
+            { 0.f, 0.f, 0.f },
+            { 255.f, 25.5f, 2.55f },
+            { 0.f, 0.f, 0.f },
+            { 255.f, 25.5f, 2.55f },
+        },
+        { 0, 0 },
+        { 1, 2 },
+        { 1, 1 },
+        { 1, 0 },
+        { 1, 0 },
         {},
         {},
         {}

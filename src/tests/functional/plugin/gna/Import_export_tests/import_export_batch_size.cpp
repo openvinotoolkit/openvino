@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@
 #include <ie_layouts.h>
 
 #include "ngraph_functions/builders.hpp"
-#include "base/import_export_base/import_export_base.hpp"
+#include "base/import_export_base.hpp"
 
 namespace LayerTestDefinitions {
 

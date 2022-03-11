@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/broadcast.hpp"
 
+#include <broadcast_shape_inference.hpp>
 #include <ngraph/validation_util.hpp>
 #include <numeric>
 
@@ -38,7 +39,7 @@ namespace {
 std::pair<bool, AxisSet> get_broadcast_axes_bidirectional(const ov::Shape& arg_shape, const ov::Shape& result_shape) {
     AxisSet broadcast_axes;
     bool axes_known = false;
-    const auto start_axis = result_shape.size() - arg_shape.size();
+    const auto start_axis = static_cast<int64_t>(result_shape.size()) - static_cast<int64_t>(arg_shape.size());
     NGRAPH_CHECK(start_axis >= 0);
     for (size_t i = 0; i < result_shape.size(); i++) {
         if (i < start_axis || result_shape[i] != arg_shape[i - start_axis]) {
@@ -141,25 +142,39 @@ void op::v3::Broadcast::validate_and_infer_types() {
                               "axes_mapping input should not be provided for mode other than explicit");
     }
 
-    util::BroadcastBase::validate_and_infer_types();
-
-    auto result_shape = get_output_partial_shape(0);
-    if (m_mode.m_type == BroadcastType::BIDIRECTIONAL) {
-        if (get_input_partial_shape(0).rank().is_static() && get_input_partial_shape(1).is_static()) {
-            auto arg_shape = get_input_partial_shape(0);
-
-            PartialShape target_shape;
-            if (evaluate_as_partial_shape(input_value(1), target_shape)) {
-                result_shape = get_result_shape_bidirectional(this, arg_shape, target_shape);
-            }
-        }
+    const auto& shape_et = get_input_element_type(1);
+    NODE_VALIDATION_CHECK(this,
+                          shape_et.is_integral_number(),
+                          "Broadcast shape must be an integral number, but is: ",
+                          shape_et);
+    if (m_mode.m_type == BroadcastType::NONE) {
+        // axes_mapping node should have integer data type. For now we only allow i64
+        const auto& axes_et = get_input_element_type(2);
+        NODE_VALIDATION_CHECK(this,
+                              axes_et.is_integral_number(),
+                              "Broadcast axes must be integral numbers, but are: ",
+                              axes_et);
     }
+
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape()};
+    std::vector<ov::PartialShape> input_shapes;
+    const auto& arg_shape = get_input_partial_shape(0);
+    const auto& target_shape = get_input_partial_shape(1);
+    if (input_values().size() == 2) {
+        input_shapes = {arg_shape, target_shape};
+    } else {
+        const auto& axes_mapping = get_input_partial_shape(2);
+        input_shapes = {arg_shape, target_shape, axes_mapping};
+    }
+
+    shape_infer(this, input_shapes, output_shapes);
+
     set_input_is_relevant_to_shape(0);  // arg - Result element type
     set_input_is_relevant_to_shape(1);  // target_shape - Result shape
     if (get_input_size() == 3) {
         set_input_is_relevant_to_shape(2);  // axes_mapping - Broadcast type
     }
-    set_output_type(0, get_input_element_type(0), result_shape);
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
 shared_ptr<Node> op::v3::Broadcast::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -253,10 +268,32 @@ void op::v1::Broadcast::validate_and_infer_types() {
         util::BroadcastBase::m_mode = base_spec;
     }
 
-    util::BroadcastBase::validate_and_infer_types();
+    const auto& shape_et = get_input_element_type(1);
+    NODE_VALIDATION_CHECK(this,
+                          shape_et.is_integral_number(),
+                          "Broadcast shape must be an integral number, but is: ",
+                          shape_et);
+    if (m_mode.m_type == BroadcastType::NONE) {
+        // axes_mapping node should have integer data type. For now we only allow i64
+        const auto& axes_et = get_input_element_type(2);
+        NODE_VALIDATION_CHECK(this,
+                              axes_et.is_integral_number(),
+                              "Broadcast axes must be integral numbers, but are: ",
+                              axes_et);
+    }
+
+    const auto& arg_shape = get_input_partial_shape(0);
+    const auto& target_shape = get_input_partial_shape(1);
+    const auto& axes_mapping = get_input_partial_shape(2);
+
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape()};
+    std::vector<ov::PartialShape> input_shapes = {arg_shape, target_shape, axes_mapping};
+    shape_infer(this, input_shapes, output_shapes);
+
     set_input_is_relevant_to_shape(0);  // arg - Result element type
     set_input_is_relevant_to_shape(1);  // target_shape - Result shape
     set_input_is_relevant_to_shape(2);  // axes_mapping - Broadcast type
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
 shared_ptr<Node> op::v1::Broadcast::clone_with_new_inputs(const OutputVector& new_args) const {

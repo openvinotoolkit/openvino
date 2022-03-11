@@ -1,8 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension_value, shape_array, set_input_shapes
 from openvino.tools.mo.ops.op import Op
 
 
@@ -16,6 +17,7 @@ class ExperimentalDetectronDetectionOutput(Op):
             op=self.op,
             version='opset6',
             infer=self.infer,
+            reverse_infer=self.reverse_infer,
             type_infer=self.type_infer,
             in_ports_count=4,
             out_ports_count=3,
@@ -54,3 +56,11 @@ class ExperimentalDetectronDetectionOutput(Op):
         node.out_port(2).set_data_type(in_data_type)
         if node.is_out_port_connected(3):
             node.out_port(3).set_data_type(np.int32)  # the fourth output contains batch indices
+
+    @staticmethod
+    def reverse_infer(node):
+        set_input_shapes(node,
+                         shape_array([dynamic_dimension_value, 4]),
+                         shape_array([dynamic_dimension_value, node['num_classes'] * 4]),
+                         shape_array([dynamic_dimension_value, node['num_classes']]),
+                         shape_array([1, 3]))

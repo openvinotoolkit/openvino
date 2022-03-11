@@ -1,4 +1,4 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -49,6 +49,16 @@ from openvino.frontend import FrontEndManager
 #      |             |
 #     out1          out2
 #
+#
+# ------Test input model 3------
+#    in1         in2
+#     |         /   \
+#     +--------+     +------+
+#     |  Add   |     | Relu |
+#     +--------+     +------+
+#         |              |
+#        out1          out2
+#
 def create_test_onnx_models():
     models = {}
     # Input model 1
@@ -89,6 +99,23 @@ def create_test_onnx_models():
     ]
     graph = make_graph([add, split_2, abs, sin], "test_graph_2", input_tensors, output_tensors)
     models["input_model_2.onnx"] = make_model(graph, producer_name="ONNX Importer",
+                                              opset_imports=[onnx.helper.make_opsetid("", 13)])
+
+    # Input model 3
+    add_2 = onnx.helper.make_node("Add", inputs=["in1", "in2"], outputs=["out1"], name="onnx_add_op")
+    relu_2 = onnx.helper.make_node("Relu", inputs=["in2"], outputs=["out2"])
+
+    input_tensors = [
+        make_tensor_value_info("in1", onnx.TensorProto.FLOAT, (2, 2)),
+        make_tensor_value_info("in2", onnx.TensorProto.FLOAT, (2, 2)),
+    ]
+    output_tensors = [
+        make_tensor_value_info("out1", onnx.TensorProto.FLOAT, (2, 2)),
+        make_tensor_value_info("out1", onnx.TensorProto.FLOAT, (2, 2)),
+        make_tensor_value_info("out2", onnx.TensorProto.FLOAT, (2, 2)),
+    ]
+    graph = make_graph([add_2, relu_2], "test_graph_3", input_tensors, output_tensors)
+    models["input_model_3.onnx"] = make_model(graph, producer_name="ONNX Importer",
                                               opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for extract_subgraph
@@ -186,6 +213,19 @@ def create_test_onnx_models():
     ]
     graph = make_graph([add, mul], "test_graph", input_tensors, output_tensors)
     models["test_override_all_outputs_2.onnx"] = make_model(graph, producer_name="ONNX Importer",
+                                                            opset_imports=[onnx.helper.make_opsetid("", 13)])
+
+    # Expected for test_override_all_outputs 3
+    input_tensors = [
+        make_tensor_value_info("in1", onnx.TensorProto.FLOAT, (2, 2)),
+        make_tensor_value_info("in2", onnx.TensorProto.FLOAT, (2, 2)),
+    ]
+    output_tensors = [
+        make_tensor_value_info("out1", onnx.TensorProto.FLOAT, (2, 2)),
+        make_tensor_value_info("out1", onnx.TensorProto.FLOAT, (2, 2)),
+    ]
+    graph = make_graph([add_2], "test_graph_3", input_tensors, output_tensors)
+    models["test_override_all_outputs_3.onnx"] = make_model(graph, producer_name="ONNX Importer",
                                                             opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for test_override_all_inputs
@@ -594,6 +634,50 @@ def test_override_all_outputs_2():
     assert res
 
 
+def test_override_all_outputs_3():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+
+    model = fe.load("input_model_3.onnx")
+    assert model
+
+    place1 = model.get_place_by_tensor_name(tensor_name="out1")
+    place2 = model.get_place_by_tensor_name(tensor_name="out1")
+    model.override_all_outputs(outputs=[place1, place2])
+    result_func = fe.convert(model)
+
+    expected_model = fe.load("test_override_all_outputs_3.onnx")
+    expected_func = fe.convert(expected_model)
+
+    res = compare_functions(result_func, expected_func)
+    assert res
+
+
+def test_override_all_outputs_invalid_place():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+
+    model = fe.load("input_model_3.onnx")
+    assert model
+
+    model2 = fe.load("input_model.onnx")
+    assert model2
+    invalid_place = model2.get_place_by_tensor_name(tensor_name="out3")
+
+    place1 = model.get_place_by_tensor_name(tensor_name="out1")
+    place2 = model.get_place_by_tensor_name(tensor_name="out1")
+    model.override_all_outputs(outputs=[place1, place2, invalid_place])
+    result_func = fe.convert(model)
+
+    expected_model = fe.load("test_override_all_outputs_3.onnx")
+    expected_func = fe.convert(expected_model)
+
+    res = compare_functions(result_func, expected_func)
+    assert res
+
+
 def test_override_all_inputs():
     skip_if_onnx_frontend_is_disabled()
     fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
@@ -618,26 +702,31 @@ def test_override_all_inputs():
     assert res
 
 
-def test_override_all_inputs_exceptions():
+def test_override_all_inputs_invalid_place():
     skip_if_onnx_frontend_is_disabled()
     fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     assert fe
 
-    model = fe.load("input_model.onnx")
+    model = fe.load("input_model_3.onnx")
     assert model
 
-    place1 = model.get_place_by_tensor_name(tensor_name="in1")
-    place2 = model.get_place_by_tensor_name(tensor_name="in2")
-    place3 = model.get_place_by_operation_name_and_input_port(operation_name="split1", input_port_index=0)
-    place4 = model.get_place_by_tensor_name(tensor_name="in3")
+    model2 = fe.load("input_model.onnx")
+    assert model2
 
-    with pytest.raises(Exception) as e:
-        model.override_all_inputs(inputs=[place1, place2])
-    assert "Unexpected number of inputs after override_all_inputs" in str(e)
+    out3_tensor = model2.get_place_by_tensor_name(tensor_name="out3")
+    invalid_place = out3_tensor.get_producing_operation().get_input_port(input_port_index=0)
 
-    with pytest.raises(Exception) as e:
-        model.override_all_inputs(inputs=[place3, place4])
-    assert "Unexpected number of inputs after override_all_inputs" in str(e)
+    out1_tensor = model.get_place_by_tensor_name(tensor_name="out1")
+    place1 = out1_tensor.get_producing_operation().get_input_port(input_port_index=0)
+    place2 = out1_tensor.get_producing_operation().get_input_port(input_port_index=1)
+    model.override_all_inputs(inputs=[place1, place2, invalid_place])
+    result_func = fe.convert(model)
+
+    expected_model = fe.load("input_model_3.onnx")
+    expected_func = fe.convert(expected_model)
+
+    res = compare_functions(result_func, expected_func)
+    assert res
 
 
 def test_is_input_output():
@@ -1278,12 +1367,14 @@ def test_set_tensor_value():
 
 def test_not_supported_methods():
     skip_if_onnx_frontend_is_disabled()
+    from openvino.frontend import GeneralFailure
+
     fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     model = fe.load("test_place_names.onnx")
 
-    with pytest.raises(Exception) as e:
+    with pytest.raises(GeneralFailure) as e:
         model.free_name_for_tensor("add_out")
-    assert "not applicable for ONNX model" in str(e)
+    assert "not applicable for ONNX model" in str(e.value)
 
 
 def test_set_name_for_tensor():
@@ -1300,18 +1391,18 @@ def test_set_name_for_tensor():
 
     with pytest.raises(Exception) as e:
         model.set_name_for_tensor(tensor=tensor, new_name="")
-    assert "name must not be empty" in str(e)
+    assert "name must not be empty" in str(e.value)
 
     # ONNX model stores tensor info separately for inputs, outputs and between nodes tensors
     with pytest.raises(Exception) as e:
         model.set_name_for_tensor(tensor=tensor, new_name="in1")
-    assert "already used by another tensor" in str(e)
+    assert "already used by another tensor" in str(e.value)
     with pytest.raises(Exception) as e:
         model.set_name_for_tensor(tensor=tensor, new_name="out1")
-    assert "already used by another tensor" in str(e)
+    assert "already used by another tensor" in str(e.value)
     with pytest.raises(Exception) as e:
         model.set_name_for_tensor(tensor=tensor, new_name="sub_out")
-    assert "already used by another tensor" in str(e)
+    assert "already used by another tensor" in str(e.value)
 
     # actual rename
     model.set_name_for_tensor(tensor=tensor, new_name=new_name)
@@ -1408,12 +1499,12 @@ def test_set_name_for_dimension():
 
     with pytest.raises(Exception) as e:
         model.set_name_for_dimension(input1, 0, "")
-    assert "name must not be empty" in str(e)
+    assert "name must not be empty" in str(e.value)
 
     one_const = model.get_place_by_tensor_name(tensor_name="one_const")
     with pytest.raises(Exception) as e:
         model.set_name_for_dimension(one_const, 0, dim_name)
-    assert "ONNX initializer shape dimension cannot be dynamic." in str(e)
+    assert "ONNX initializer shape dimension cannot be dynamic." in str(e.value)
 
 
 def test_set_input_partial_shape_using_input_edge():

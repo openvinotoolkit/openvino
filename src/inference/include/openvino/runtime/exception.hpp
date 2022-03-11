@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,15 +8,19 @@
 #include "openvino/runtime/common.hpp"
 
 namespace ov {
-namespace runtime {
-/// Thrown in case of canceled asynchronous operation
+
+/**
+ * @brief Thrown in case of cancelled asynchronous operation.
+ */
 class OPENVINO_RUNTIME_API Cancelled : public Exception {
     using Exception::Exception;
 };
 
-/// Thrown in case of busy infer request
+/**
+ * @brief Thrown in case of calling the InferRequest methods while the request is busy with compute operation.
+ */
 class OPENVINO_RUNTIME_API Busy : public Exception {
     using Exception::Exception;
 };
-}  // namespace runtime
+
 }  // namespace ov

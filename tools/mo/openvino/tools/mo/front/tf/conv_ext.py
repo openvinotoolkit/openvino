@@ -1,7 +1,7 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.front.common.partial_infer.utils import convert_tf_padding_to_str, int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import convert_tf_padding_to_str, int64_array, dynamic_dimension
 from openvino.tools.mo.front.extractor import FrontExtractorOp
 from openvino.tools.mo.front.tf.extractors.utils import tf_data_format_channel, tf_data_format_batch, \
     tf_int_list
@@ -16,9 +16,21 @@ class Conv2DFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         attrs = tf_create_attrs(node, 2, 3)
+
+        def get_num_groups(node):
+            if 'group' in node:
+                return node.group
+            elif node.in_node(0).shape is not None and node.kernel_shape is not None \
+                    and node.in_node(0).shape[node.channel_dims[0]] is not dynamic_dimension \
+                    and node.kernel_shape[node.input_feature_channel] is not dynamic_dimension:
+                # if group attribute is not defined, number of groups is calculated
+                # from number of input channels and filter channel size
+                return node.in_node(0).shape[node.channel_dims] // node.kernel_shape[node.input_feature_channel]
+            else:
+                return 1
+
         attrs.update({'op': __class__.op,
-                      'get_group': lambda node: node.group if 'group' in node and node.group is not None else
-                      node.in_node(0).shape[node.channel_dims] // node.kernel_shape[node.input_feature_channel],
+                      'get_group': get_num_groups,
                       'get_output_feature_dim': lambda node: node.kernel_shape[node.output_feature_channel],
                       'get_weights_permute': PermuteAttrs.Permutation(perm=int64_array([3, 2, 0, 1]),
                                                                       inv=int64_array([2, 3, 1, 0]))

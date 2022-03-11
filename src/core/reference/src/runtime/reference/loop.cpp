@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -171,8 +171,9 @@ void loop(const std::shared_ptr<Function>& func,
 
         for (const auto& desc : out_descs) {
             if (const auto& body_desc = std::dynamic_pointer_cast<opset5::Loop::BodyOutputDescription>(desc)) {
-                out[body_desc->m_output_index]->write(body_outputs[body_desc->m_body_value_index]->get_data_ptr(),
-                                                      body_outputs[body_desc->m_body_value_index]->get_size_in_bytes());
+                const auto& res = body_outputs[body_desc->m_body_value_index];
+                out[body_desc->m_output_index]->set_shape(res->get_shape());
+                out[body_desc->m_output_index]->write(res->get_data_ptr(), res->get_size_in_bytes());
             }
         }
 

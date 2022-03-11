@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,8 @@ std::string MultiplyToGroupConvolutionTransformation::getTestCaseName(const test
         param.fqOnData << "_" <<
         param.constant << "_" <<
         param.layerName << "_" <<
-        param.expectedKernelType;
+        param.expectedKernelType << "_" <<
+        param.parentHasOneConsumer;
     return result.str();
 }
 
@@ -48,7 +49,8 @@ void MultiplyToGroupConvolutionTransformation::SetUp() {
         precision,
         shape,
         param.fqOnData,
-        param.constant);
+        param.constant,
+        param.parentHasOneConsumer);
 }
 
 void MultiplyToGroupConvolutionTransformation::Run() {

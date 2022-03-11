@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,15 +8,15 @@ using namespace SubgraphsDumper;
 ConvolutionsMatcher::ConvolutionsMatcher() {
     default_configs = {
             std::make_shared<MatcherConfig<
-                    ngraph::op::v1::Convolution,
-                    ngraph::op::v1::ConvolutionBackpropData,
-                    ngraph::op::v1::GroupConvolution,
-                    ngraph::op::v1::GroupConvolutionBackpropData>>(std::vector<std::string>{}, std::vector<size_t>{0, 1})
+                    ov::op::v1::Convolution,
+                    ov::op::v1::ConvolutionBackpropData,
+                    ov::op::v1::GroupConvolution,
+                    ov::op::v1::GroupConvolutionBackpropData>>(std::vector<std::string>{}, std::vector<size_t>{0, 1})
     };
 }
 
-bool ConvolutionsMatcher::match(const std::shared_ptr<ngraph::Node> &node,
-                            const std::shared_ptr<ngraph::Node> &ref,
+bool ConvolutionsMatcher::match(const std::shared_ptr<ov::Node> &node,
+                            const std::shared_ptr<ov::Node> &ref,
                             const LayerTestsUtils::OPInfo &op_info) const {
     const auto &cfg = get_config(node);
     if (match_only_configured_ops() && cfg->is_fallback_config) {
@@ -31,8 +31,8 @@ bool ConvolutionsMatcher::match(const std::shared_ptr<ngraph::Node> &node,
            same_attrs(node, ref, op_info) &&
            match_ports(node, ref, op_info);
 }
-bool ConvolutionsMatcher::match_inputs(const std::shared_ptr<ngraph::Node> &node,
-                                       const std::shared_ptr<ngraph::Node> &ref,
+bool ConvolutionsMatcher::match_inputs(const std::shared_ptr<ov::Node> &node,
+                                       const std::shared_ptr<ov::Node> &ref,
                                        const LayerTestsUtils::OPInfo &op_info) const {
     if (node->get_input_size() != ref->get_input_size()) {
         return false;
@@ -46,8 +46,8 @@ bool ConvolutionsMatcher::match_inputs(const std::shared_ptr<ngraph::Node> &node
     if (!(rankIsEqual && elemTypeIsEqual && is_dynamic)) {
         return false;
     }
-    bool has_groups = std::dynamic_pointer_cast<ngraph::op::v1::GroupConvolution>(node) != nullptr ||
-                      std::dynamic_pointer_cast<ngraph::op::v1::GroupConvolutionBackpropData>(node);
+    bool has_groups = std::dynamic_pointer_cast<ov::op::v1::GroupConvolution>(node) != nullptr ||
+                      std::dynamic_pointer_cast<ov::op::v1::GroupConvolutionBackpropData>(node);
     size_t kernel_size_offset = has_groups ? 3 : 2;
     auto ref_weights_shape = ref->get_input_tensor(1).get_shape();
     auto cur_weights_shape = node->get_input_tensor(1).get_shape();

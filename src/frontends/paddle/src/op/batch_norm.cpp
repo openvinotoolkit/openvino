@@ -1,9 +1,8 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <node_context.hpp>
-
+#include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset6.hpp"
 
 namespace ov {
@@ -11,11 +10,11 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs batch_norm(const NodeContext& node) {
-    auto data = node.get_ng_input("X");
-    auto gamma = node.get_ng_input("Scale");
-    auto beta = node.get_ng_input("Bias");
-    auto mean = node.get_ng_input("Mean");
-    auto variance = node.get_ng_input("Variance");
+    auto data = node.get_input("X");
+    auto gamma = node.get_input("Scale");
+    auto beta = node.get_input("Bias");
+    auto mean = node.get_input("Mean");
+    auto variance = node.get_input("Variance");
     auto data_layout = node.get_attribute<std::string>("data_layout");
 
     PADDLE_OP_CHECK(node, (data_layout == "NCHW" || data_layout == "NHWC"), "Not supported input data layout!");

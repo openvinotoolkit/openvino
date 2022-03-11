@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1518,6 +1518,9 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(Gna2Model *gnaModel, const 
                 if (i == 0) {
                     THROW_GNA_EXCEPTION << "Pooling component with no preceeding component";
                 } else if (gnaOperation->Type == Gna2OperationTypeConvolution) {
+                    if (gnaOperation->Operands == nullptr || gnaOperation->NumberOfOperands <= PwlOpIdx) {
+                        THROW_GNA_EXCEPTION << "Number and details of operands are wrong";
+                    }
                     auto pwlOperand = gnaOperation->Operands[PwlOpIdx];
                     if (pwlOperand != nullptr && pwlOperand->Shape.Dimensions[0] != 0 &&
                         gnaOperation->Operands[InOpIdx]->Shape.NumberOfDimensions == 2) { // kDnnConvolutional1dOp

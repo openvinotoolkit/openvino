@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,14 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief ReduceSumTransformation propagates dequantization operations through ReduceSum operation.
+ *
+ * For more details about the transformation, refer to
+ * [ReduceSumTransformation](@ref openvino_docs_IE_DG_lpt_ReduceSumTransformation) page
+ * in the Inference Engine Developer Guide.
+ */
 class LP_TRANSFORMATIONS_API ReduceSumTransformation : public ReduceBaseTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;

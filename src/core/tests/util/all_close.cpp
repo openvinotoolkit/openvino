@@ -1,13 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "all_close.hpp"
 
-::testing::AssertionResult ov::test::all_close(const ov::runtime::Tensor& a,
-                                               const ov::runtime::Tensor& b,
-                                               float rtol,
-                                               float atol) {
+::testing::AssertionResult ov::test::all_close(const ov::Tensor& a, const ov::Tensor& b, float rtol, float atol) {
     if (a.get_element_type() != b.get_element_type()) {
         return ::testing::AssertionFailure() << "Cannot compare tensors with different element types";
     }
@@ -48,6 +45,12 @@
             b,
             static_cast<ov::element_type_traits<ov::element::i16>::value_type>(rtol),
             static_cast<ov::element_type_traits<ov::element::i16>::value_type>(atol));
+    case ov::element::boolean:
+        return all_close<ov::element_type_traits<ov::element::boolean>::value_type>(
+            a,
+            b,
+            static_cast<ov::element_type_traits<ov::element::boolean>::value_type>(rtol),
+            static_cast<ov::element_type_traits<ov::element::boolean>::value_type>(atol));
     case ov::element::i32:
         return all_close<ov::element_type_traits<ov::element::i32>::value_type>(
             a,

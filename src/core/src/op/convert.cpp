@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -131,18 +131,25 @@ bool evaluate_bound(const Node* node, const HostTensorVector& output_values, boo
     NGRAPH_CHECK(node, validate_host_tensor_vector(output_values, 1));
     const auto& input = node->input_value(0);
     if (const auto& value = is_upper ? input.get_tensor().get_upper_value() : input.get_tensor().get_lower_value()) {
-        // constants for dynamic values translation
-        auto input_maximum_value = get_constant_max_of_type(input.get_element_type());
-        auto output_maximum_value = get_constant_max_of_type(output_values[0]->get_element_type());
-        if (input_maximum_value == nullptr || output_maximum_value == nullptr)
-            return false;
-
         OPENVINO_SUPPRESS_DEPRECATED_START
         bool status = node->evaluate(output_values, {value});
         OPENVINO_SUPPRESS_DEPRECATED_END
 
         if (!status)
             return status;
+
+        const auto& input_element_type = input.get_element_type();
+        const auto& output_element_type = output_values[0]->get_element_type();
+        if ((input_element_type.is_integral() && input_element_type.bitwidth() <= 16) ||
+            (output_element_type.is_integral() && output_element_type.bitwidth() <= 16)) {
+            return status;
+        }
+
+        // constants for dynamic values translation
+        auto input_maximum_value = get_constant_max_of_type(input_element_type);
+        auto output_maximum_value = get_constant_max_of_type(output_values[0]->get_element_type());
+        if (input_maximum_value == nullptr || output_maximum_value == nullptr)
+            return false;
 
         // dynamic values translation
         auto input_dynamic_mask = std::make_shared<HostTensor>(element::boolean, input.get_shape());
@@ -220,4 +227,12 @@ bool op::v0::Convert::evaluate_lower(const HostTensorVector& output_values) cons
 
 bool op::v0::Convert::evaluate_upper(const HostTensorVector& output_values) const {
     return convert::evaluate_bound(this, output_values, true);
+}
+
+bool op::v0::Convert::evaluate_label(TensorLabelVector& output_labels) const {
+    const auto input_labels = get_input_tensor(0).get_value_label();
+    if (input_labels.empty())
+        return false;
+    output_labels[0] = input_labels;
+    return true;
 }

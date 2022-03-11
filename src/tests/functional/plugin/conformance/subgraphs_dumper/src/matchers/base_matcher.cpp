@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 #include "common_test_utils/common_utils.hpp"
 
 
-SubgraphsDumper::iMatcherConfig::Ptr SubgraphsDumper::Matcher::get_config(const std::shared_ptr<ngraph::Node> &node) const {
+SubgraphsDumper::iMatcherConfig::Ptr SubgraphsDumper::Matcher::get_config(const std::shared_ptr<ov::Node> &node) const {
     for (const auto &cfg : default_configs) {
         if (cfg->op_in_config(node)) {
             return cfg;

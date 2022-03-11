@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -409,7 +409,7 @@ TEST_F(NGraphReaderTests, MatMulBiasFusionNoBroadcast) {
             </output>
         </layer>
         <layer id="3" name="add" precision="FP32" type="FullyConnected">
-            <data alpha="0" beta="0" out-size="1000" originalLayersNames="add,fc"/>
+            <data alpha="0" beta="0" out-size="1000" originalLayersNames="add,fc,weights"/>
             <input>
                 <port id="0">
                     <dim>1</dim>

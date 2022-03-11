@@ -1,8 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import reverse_bypass_infer
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.graph.perm_inputs import PermuteInputs
 from openvino.tools.mo.ops.op import Op
@@ -22,7 +23,8 @@ class NormalizeL2Op(Op):
             'eps_mode': None,
             'in_ports_count': 2,
             'out_ports_count': 1,
-            'infer': self.infer
+            'infer': self.infer,
+            'reverse_infer': lambda node: reverse_bypass_infer(node, in_ports=[0]),
         }, attrs)
 
     def supported_attrs(self):

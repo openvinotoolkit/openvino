@@ -1,11 +1,10 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
 
 import numpy as np
 from generator import generator, generate
-
 from openvino.tools.mo.front.common.partial_infer.utils import strict_compare_tensors
 from openvino.tools.mo.front.extractor import input_user_data_repack, output_user_data_repack, update_ie_fields, add_input_op, \
     get_node_id_with_ports
@@ -14,6 +13,7 @@ from openvino.tools.mo.front.extractor import spatial_attr_getter, add_input_ops
 from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
+from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from unit_tests.utils.extractors import FakeMultiParam
 from unit_tests.utils.graph import build_graph, build_graph_with_edge_attrs, build_graph_with_attrs
 
@@ -174,7 +174,7 @@ class TestAddInputOp(unittest.TestCase):
         self.assertTrue(flag, resp)
 
 
-class TestInputAddition(unittest.TestCase):
+class TestInputAddition(UnitTestWithMockedTelemetry):
     # Tests for input
     nodes = {'node_1': {'type': 'Identity', 'kind': 'op', 'op': 'Parameter'},
              'conv_1': {'type': 'Convolution', 'kind': 'op', 'op': 'NotPlaceholder'},
@@ -480,7 +480,7 @@ class TestOutputCut(unittest.TestCase):
         self.assertEqual(len(graph.nodes()), 2)
 
 
-class TestUserDataRepack(unittest.TestCase):
+class TestUserDataRepack(UnitTestWithMockedTelemetry):
     nodes = {'A': {'name': 'Aa', 'op': 'Parameter', 'kind': 'op'},
              'B': {'name': 'Bb', 'op': 'Parameter', 'kind': 'op'},
              'C': {'name': 'Cc', 'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Identity'},

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,6 +48,7 @@ public:
      */
     virtual void emit_data() const {
     }
+    virtual ~Emitter() = default;
 };
 
 } // namespace snippets

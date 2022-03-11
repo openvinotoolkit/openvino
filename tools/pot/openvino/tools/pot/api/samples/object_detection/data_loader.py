@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -12,8 +12,8 @@ from openvino.tools.pot import DataLoader
 class COCOLoader(DataLoader):
     def __init__(self, config):
         super().__init__(config)
-        self.images_path = config.images_path
-        self.annotation_path = config.annotation_path
+        self.images_path = self.config.images_path
+        self.annotation_path = self.config.annotation_path
         self.images = os.listdir(self.images_path)
         self.labels = None
         self.data, self.bbox = self.prepare_annotation()
@@ -61,8 +61,8 @@ class COCOLoader(DataLoader):
 
         annotation = {'boxes': bbox, 'labels': labels, 'iscrowd': iscrowd,
                       'x_maxs': x_maxs, 'x_mins': x_mins, 'y_maxs': y_maxs, 'y_mins': y_mins}
-        annotation = (index, [annotation, shape_image])
-        return annotation, self._read_and_preprocess_image(self.images_path + self.data[index]['file_name'])
+        annotation = [annotation, shape_image]
+        return self._read_and_preprocess_image(self.images_path + self.data[index]['file_name']), annotation
 
     def __len__(self):
         return len(self.images)
@@ -71,7 +71,7 @@ class COCOLoader(DataLoader):
     def _read_and_preprocess_image(image_path):
         image = cv2.imread(image_path, cv2.IMREAD_COLOR)
         image = cv2.resize(image, (640, 640))
-        return image.transpose(2, 0, 1)
+        return image
 
     @staticmethod
     def prepare_bbox(x, y, weight, height):

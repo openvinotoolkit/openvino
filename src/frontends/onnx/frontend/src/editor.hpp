@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,8 @@
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "onnx_import/onnx_importer_visibility.hpp"
+#include "openvino/frontend/extension/holder.hpp"
+#include "openvino/frontend/extension/progress_reporter.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 
 namespace ov {
@@ -29,11 +31,9 @@ public:
     ///        is parsed and loaded into the m_model_proto member variable.
     ///
     /// \param model_path Path to the file containing the model.
-    ONNXModelEditor(const std::string& model_path,
-                    const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
+    ONNXModelEditor(const std::string& model_path, frontend::ExtensionHolder extensions = {});
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    ONNXModelEditor(const std::wstring& model_path,
-                    const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
+    ONNXModelEditor(const std::wstring& model_path, frontend::ExtensionHolder extensions = {});
 #endif
 
     /// \brief Creates an editor from a model stream. The stream is parsed and loaded
@@ -44,7 +44,7 @@ public:
     ///                   for ONNX external weights feature support.
     ONNXModelEditor(std::istream& model_stream,
                     const std::string& path = "",
-                    const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
+                    frontend::ExtensionHolder extensions = {});
 
     /// \brief Modifies the in-memory representation of the model by setting
     ///        custom input types for all inputs specified in the provided map.
@@ -296,7 +296,7 @@ public:
 private:
     void update_mapper_if_needed() const;
 
-    std::shared_ptr<ov::frontend::TelemetryExtension> m_telemetry;
+    frontend::ExtensionHolder m_extensions;
     const std::string m_model_path;
 
     struct Impl;

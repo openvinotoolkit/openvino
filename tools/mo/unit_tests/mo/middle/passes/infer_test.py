@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
@@ -9,6 +9,7 @@ from openvino.tools.mo.front.common.partial_infer.concat import concat_infer
 from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.middle.passes.infer import override_placeholder_shapes, partial_infer
 from openvino.tools.mo.utils.error import Error
+from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op'},
@@ -39,7 +40,7 @@ nodes_attributes = {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op'},
                     }
 
 
-class TestInferPass(unittest.TestCase):
+class TestInferPass(UnitTestWithMockedTelemetry):
     def test_override_placeholder_shapes(self):
         """
         Test for overriding shape in placeholder by shape from user_shapes.
@@ -243,7 +244,7 @@ class TestInferPass(unittest.TestCase):
         self.assertRaises(Error, partial_infer, graph, start_node)
 
 
-class CycleTest(unittest.TestCase):
+class CycleTest(UnitTestWithMockedTelemetry):
     def test_is_not_fully_inferred_param(self):
         # Node that have is_not_fully_inferred=True
         graph = build_graph(nodes_attributes,

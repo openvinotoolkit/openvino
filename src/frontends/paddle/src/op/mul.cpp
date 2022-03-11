@@ -3,15 +3,16 @@
 //
 
 #include <ngraph/opsets/opset6.hpp>
-#include <node_context.hpp>
+
+#include "openvino/frontend/paddle/node_context.hpp"
 
 namespace ov {
 namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs mul(const NodeContext& node) {
-    auto x = node.get_ng_input("X");
-    auto y = node.get_ng_input("Y");
+    auto x = node.get_input("X");
+    auto y = node.get_input("Y");
     PADDLE_OP_CHECK(node, x.get_partial_shape().rank().is_static(), "matmul: X rank must be static!");
     int64_t x_rank = x.get_partial_shape().rank().get_length();
     PADDLE_OP_CHECK(node,

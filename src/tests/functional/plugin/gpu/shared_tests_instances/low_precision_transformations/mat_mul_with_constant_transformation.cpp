@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         { 256ul, {{2, 1}, {2, 1}, {2, 1}, {2, 1}}, {-128.f, -12.8f}, {127.f, 12.7f}, {-128.f, -12.8f}, {127.f, 12.7f} },
         { {}, {}, {} },
         "FullyConnected",
-        "FP32"
+        "U8"
     },
     {
         { 2, 3, 4 },
@@ -33,7 +33,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         {},
         { ngraph::element::f32, {}, {0.1f} },
         "FullyConnected",
-        "FP32"
+        "U8"
     },
     {
         { 1, 3, 4 },
@@ -42,7 +42,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         { 256ul, {{2, 1}, {2, 1}, {2, 1}, {2, 1}}, {-128.f, -12.8f}, {127.f, 12.7f}, {-128.f, -12.8f}, {127.f, 12.7f} },
         { {}, {}, {} },
         "FullyConnected",
-        "FP32"
+        "U8"
     },
     {
         { 1, 1, 3, 4 },
@@ -69,7 +69,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         { 256ul, {{1}, {1}, {1}, {1}}, {-128.f}, {127.f}, {-128.f}, {127.f} },
         { {}, {}, {} },
         "FullyConnected",
-        "FP32"
+        "U8"
     },
     {
         { 2, 3 },

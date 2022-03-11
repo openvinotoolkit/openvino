@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -180,6 +180,7 @@ public:
     explicit layout_optimizer(bool output_size_handling_enabled = true);
 
     format get_preferred_format(program_node& node);
+    bool all_users_simple_format_until_output(program_node& origin_node, program_node& cur_node, int32_t cur_depth, int32_t max_depth);
     impl_types get_preferred_impl_type(program_node& node, format preferred_format);
 
     bool are_data_types_suitable_for_onednn(program_node& node);
@@ -208,6 +209,10 @@ public:
     /// This validation is used by selecting onednn type as preferred impl and handling reorders at reorder_inputs and remove_redundant_reorders.
     /// As an example, if a reorder has 2 reorder users that each reorder has a convolution user, then merge is not done when those 2 convolutions
     /// have different result from this function.
-    bool needs_onednn_bfyx_to_blocked(format fmt_prev, format fmt_next, layout& prev_output_layout, const convolution_node& node);
+    bool needs_onednn_small_ic_to_blocked(format fmt_next, layout& prev_output_layout, const convolution_node& node);
+
+    /// @brief Validates all user node of the target 'node'.
+    /// All user nodes are convolutions which satisfy options for onednn first conv using 'needs_onednn_small_ic_to_blocked'.
+    bool needs_all_usr_onednn_small_ic_to_blocked(const program_node& node);
 };
 }  // namespace cldnn

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -48,9 +48,10 @@ def import_core_modules(silent: bool, path_to_module: str):
     :return: True if all imports were successful and False otherwise
     """
     try:
-        from openvino.offline_transformations_pybind import apply_moc_transformations, apply_low_latency_transformation  # pylint: disable=import-error,no-name-in-module
-        from openvino.offline_transformations_pybind import apply_make_stateful_transformation, generate_mapping_file  # pylint: disable=import-error,no-name-in-module
-        from openvino.offline_transformations_pybind import generate_mapping_file, apply_make_stateful_transformation, serialize  # pylint: disable=import-error,no-name-in-module
+        from openvino.offline_transformations import apply_moc_transformations, apply_moc_legacy_transformations,\
+            apply_low_latency_transformation  # pylint: disable=import-error,no-name-in-module
+        from openvino.offline_transformations import apply_make_stateful_transformation, generate_mapping_file  # pylint: disable=import-error,no-name-in-module
+        from openvino.offline_transformations import generate_mapping_file, apply_make_stateful_transformation, serialize  # pylint: disable=import-error,no-name-in-module
 
         from openvino.runtime import Model, get_version  # pylint: disable=import-error,no-name-in-module
         from openvino.runtime.op import Parameter  # pylint: disable=import-error,no-name-in-module
@@ -65,12 +66,21 @@ def import_core_modules(silent: bool, path_to_module: str):
         ie_version = str(get_version())
         mo_version = str(v.get_version())  # pylint: disable=no-member,no-name-in-module
 
-        print("\t- {}: \t{}".format("OpenVINO runtime found in", os.path.dirname(openvino.__file__)))
+        print("{}: \t{}".format("OpenVINO runtime found in", os.path.dirname(openvino.__file__)))
         print("{}: \t{}".format("OpenVINO runtime version", ie_version))
         print("{}: \t{}".format("Model Optimizer version", mo_version))
 
         versions_mismatch = False
-        if mo_version != ie_version:
+
+        mo_hash = v.extract_hash_from_version(mo_version)
+        ie_hash = v.extract_hash_from_version(ie_version)
+
+        if mo_hash is not None and ie_hash is not None:
+            min_length = min(len(mo_hash), len(ie_hash))
+            mo_hash = mo_hash[:min_length]
+            ie_hash = ie_hash[:min_length]
+
+        if mo_hash != ie_hash or mo_hash is None or ie_hash is None:
             versions_mismatch = True
             extracted_mo_release_version = v.extract_release_version(mo_version)
             mo_is_custom = extracted_mo_release_version == (None, None)

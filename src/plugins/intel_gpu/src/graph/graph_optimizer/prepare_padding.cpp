@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ void prepare_padding::run(program& p) {
                 continue;
 
             auto add_required_padding = [&p](program_node& node, padding& needed_padding) {
-                // Add extra reorder for cldnn primitive to handle required padding if needed
+                // Add extra reorder if a previous node or one of its user nodes is an onednn kernel not to add padding to the onednn kernel
                 auto& input = node.get_dependency(0);
                 bool is_usr_onednn = false;
                 for (auto& input_usr : input.get_users())

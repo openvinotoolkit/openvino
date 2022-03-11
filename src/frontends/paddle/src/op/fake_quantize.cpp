@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <node_context.hpp>
-
 #include "default_opset.hpp"
 #include "ngraph_ops/channel_fake_quant_internal.hpp"
 #include "ngraph_ops/fake_dequant_internal.hpp"
 #include "ngraph_ops/fake_quant_dequant_internal.hpp"
 #include "ngraph_ops/fake_quant_internal.hpp"
+#include "openvino/frontend/paddle/node_context.hpp"
 
 namespace ov {
 namespace frontend {
@@ -18,8 +17,8 @@ namespace op {
 // about quant in paddle: https://github.com/PaddlePaddle/PaddleSlim/issues/937
 
 NamedOutputs fake_quantize_range_abs_max(const NodeContext& node) {
-    const auto x = node.get_ng_input("X");
-    const auto scale = node.get_ng_input("InScale");
+    const auto x = node.get_input("X");
+    const auto scale = node.get_input("InScale");
     const auto bit_length = node.get_attribute<int32_t>("bit_length");
 
     auto fake =
@@ -31,8 +30,8 @@ NamedOutputs fake_quantize_range_abs_max(const NodeContext& node) {
 }
 
 NamedOutputs fake_quantize_moving_average_abs_max(const NodeContext& node) {
-    const auto x = node.get_ng_input("X");
-    const auto scale = node.get_ng_input("InScale");
+    const auto x = node.get_input("X");
+    const auto scale = node.get_input("InScale");
     const auto bit_length = node.get_attribute<int32_t>("bit_length");
 
     auto fake = std::make_shared<ngraph::op::internal::FakeQuantInternal>(x,
@@ -46,8 +45,8 @@ NamedOutputs fake_quantize_moving_average_abs_max(const NodeContext& node) {
 }
 
 NamedOutputs fake_quantize_dequantize_moving_average_abs_max(const NodeContext& node) {
-    const auto x = node.get_ng_input("X");
-    const auto scale = node.get_ng_input("InScale");
+    const auto x = node.get_input("X");
+    const auto scale = node.get_input("InScale");
     const auto bit_length = node.get_attribute<int32_t>("bit_length");
 
     auto fake = std::make_shared<ngraph::op::internal::FakeQuantDequantInternal>(
@@ -63,7 +62,7 @@ NamedOutputs fake_quantize_dequantize_moving_average_abs_max(const NodeContext& 
 }
 
 NamedOutputs fake_channel_wise_dequantize_max_abs(const NodeContext& node) {
-    const auto x = node.get_ng_input("X");
+    const auto x = node.get_input("X");
     const auto scales = node.get_ng_inputs("Scales");
     PADDLE_OP_CHECK(node, scales.size() <= 2, "scales size should be 1 or 2");
     const auto quant_bits = node.get_attribute<std::vector<int32_t>>("quant_bits");
@@ -85,8 +84,8 @@ NamedOutputs fake_channel_wise_dequantize_max_abs(const NodeContext& node) {
 }
 
 NamedOutputs fake_dequantize_max_abs(const NodeContext& node) {
-    const auto x = node.get_ng_input("X");
-    const auto scale = node.get_ng_input("Scale");
+    const auto x = node.get_input("X");
+    const auto scale = node.get_input("Scale");
     const auto max_range = node.get_attribute<float>("max_range");
 
     // find previous quantize node
@@ -109,7 +108,7 @@ NamedOutputs fake_dequantize_max_abs(const NodeContext& node) {
 }
 
 NamedOutputs fake_quantize_dequantize_abs_max(const NodeContext& node) {
-    const auto x = node.get_ng_input("X");
+    const auto x = node.get_input("X");
     const auto bit_length = node.get_attribute<int32_t>("bit_length");
 
     auto fake = std::make_shared<ngraph::op::internal::FakeQuantDequantInternal>(x,
@@ -124,10 +123,10 @@ NamedOutputs fake_quantize_dequantize_abs_max(const NodeContext& node) {
 }
 
 NamedOutputs fake_channel_wise_quantize_dequantize_abs_max(const NodeContext& node) {
-    const auto x = node.get_ng_input("X");
+    const auto x = node.get_input("X");
     const auto bit_length = node.get_attribute<int32_t>("bit_length");
     // no InScale and should get scale from OutScale
-    const auto scale = node.get_ng_input("OutScale");
+    const auto scale = node.get_input("OutScale");
     const auto quant_axis = node.get_attribute<int32_t>("quant_axis", 0);
 
     auto fake = std::make_shared<ngraph::op::internal::FakeQuantDequantInternal>(

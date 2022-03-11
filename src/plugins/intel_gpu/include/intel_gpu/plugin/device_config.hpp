@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,9 @@
 #include <string>
 
 #include "intel_gpu/plugin/custom_layer.hpp"
-#include <ie_performance_hints.hpp>
 #include "intel_gpu/graph/network.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
+#include <ie_performance_hints.hpp>
 #include <threading/ie_cpu_streams_executor.hpp>
 
 namespace ov {
@@ -28,8 +29,8 @@ struct Config {
                                           enableInt8(true),
                                           nv12_two_inputs(false),
                                           enable_fp16_for_quantized_models(true),
-                                          queuePriority(cldnn::priority_mode_types::disabled),
-                                          queueThrottle(cldnn::throttle_mode_types::disabled),
+                                          queuePriority(cldnn::priority_mode_types::med),
+                                          queueThrottle(cldnn::throttle_mode_types::med),
                                           max_dynamic_batch(1),
                                           customLayers({}),
                                           tuningConfig(),
@@ -53,6 +54,8 @@ struct Config {
     }
     void UpdateFromMap(const std::map<std::string, std::string>& configMap);
     void adjustKeyMapValues();
+    static bool isNewApiProperty(std::string property);
+    static std::string ConvertPropertyToLegacy(const std::string& key, const std::string& value);
 
     std::string device_id;
     uint16_t throughput_streams;

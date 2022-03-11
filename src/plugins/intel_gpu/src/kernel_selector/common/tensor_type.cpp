@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,7 @@ DataTensor::DataChannelArray DataTensor::dataChannelArray {{
     { DataLayout::bs_fs_yx_bsv16_fsv16,  {  0,  1, -1, -1,  2,  3 } },
     { DataLayout::bs_fs_yx_bsv4_fsv4,    {  0,  1, -1, -1,  2,  3 } },
     { DataLayout::bs_fs_yx_bsv8_fsv4,    {  0,  1, -1, -1,  2,  3 } },
+    { DataLayout::bs_fs_yx_bsv8_fsv2,    {  0,  1, -1, -1,  2,  3 } },
     { DataLayout::bs_fs_yx_bsv4_fsv2,    {  0,  1, -1, -1,  2,  3 } },
     { DataLayout::bs_fs_yx_bsv32_fsv32,  {  0,  1, -1, -1,  2,  3 } },
     { DataLayout::bs_fs_yx_bsv32_fsv16,  {  0,  1, -1, -1,  2,  3 } },
@@ -53,6 +54,7 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::ioyx,                                        {  0,  1, -1,   3,   2, -1 } },
     { WeightsLayout::oyxi,                                        {  1,  2, -1,   0,   3, -1 } },
     { WeightsLayout::iyxo,                                        {  1,  2, -1,   3,   0, -1 } },
+    { WeightsLayout::oyxi,                                        {  1,  2, -1,   0,   3, -1 } },
     { WeightsLayout::yxio,                                        {  2,  3, -1,   1,   0, -1 } },
     { WeightsLayout::os_iyx_osv16,                                {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_iyx_osv32,                                {  0,  1, -1,   2,   3, -1 } },
@@ -84,6 +86,7 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::os_is_yx_isa8_osv16_isv4,                    {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_is_yx_isa8_osv8_isv4_swizzled_by_4,       {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_is_yx_osa4_isa8_osv8_isv4,                {  0,  1, -1,   2,   3, -1 } },
+    { WeightsLayout::g_os_is_yx_osa2_isa8_osv8_isv2,              {  0,  1, -1,   2,   3,  4 } },
     { WeightsLayout::g_os_is_yx_osa4_isa8_osv8_isv4,              {  0,  1, -1,   2,   3,  4 } },
     { WeightsLayout::g_os_is_zyx_osa4_isa8_osv8_isv4,             {  0,  1,  2,   3,   4,  5 } },
     { WeightsLayout::os_is_yx_osa4_isa8_osv8_isv2,                {  0,  1, -1,   2,   3, -1 } },
@@ -117,6 +120,8 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::os_is_yx_isv16_osv16,                        {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::is_os_zyx_isv16_osv16,                       {  0,  1,  2,   4,   3, -1 } },
     { WeightsLayout::is_os_yx_isv16_osv16,                        {  0,  1, -1,   3,   2, -1 } },
+    { WeightsLayout::is_os_yx_isa2_osa8_isv8_osv2,                {  0,  1, -1,   3,   2, -1 } },
+    { WeightsLayout::is_os_yx_isa4_osa8_isv8_osv4,                {  0,  1, -1,   3,   2, -1 } },
     { WeightsLayout::os_is_osv32_isv32_swizzled_by_4,             { -1, -1, -1,   0,   1, -1 } },
     { WeightsLayout::os_is_zyx_isv8_osv16_isv2,                   {  0,  1,  2,   3,   4, -1 } },
     { WeightsLayout::os_is_yx_isv8_osv16_isv2,                    {  0,  1, -1,   2,   3, -1 } },
@@ -210,6 +215,11 @@ NDims DataTensor::GetSimpleDims(const std::vector<size_t>& d, DataLayout l) {
         case bs_fs_yx_bsv8_fsv4:
             assert(newDims.size() == 4);
             newDims[2] = RoundUp(newDims[2], 4);
+            newDims[3] = RoundUp(newDims[3], 8);
+            break;
+        case bs_fs_yx_bsv8_fsv2:
+            assert(newDims.size() == 4);
+            newDims[2] = RoundUp(newDims[2], 2);
             newDims[3] = RoundUp(newDims[3], 8);
             break;
         case bs_fs_yx_bsv4_fsv2:
@@ -534,6 +544,8 @@ NDims WeightsTensor::GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l
             newDims[3] = RoundUp(newDims[3], 32);
             break;
         case os_is_yx_osa2_isa8_osv8_isv2:
+        case is_os_yx_isa2_osa8_isv8_osv2:
+        case g_os_is_yx_osa2_isa8_osv8_isv2:
             newDims[2] = RoundUp(newDims[2], 16);
             newDims[3] = RoundUp(newDims[3], 16);
             break;
@@ -541,6 +553,7 @@ NDims WeightsTensor::GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l
         case g_os_is_yx_osa4_isa8_osv8_isv4:
         case os_is_yx_osa2_isa8_osv16_isv4:
         case g_os_is_yx_osa2_isa8_osv16_isv4:
+        case is_os_yx_isa4_osa8_isv8_osv4:
             newDims[3] = RoundUp(newDims[3], 32);
             newDims[2] = RoundUp(newDims[2], 32);
             break;

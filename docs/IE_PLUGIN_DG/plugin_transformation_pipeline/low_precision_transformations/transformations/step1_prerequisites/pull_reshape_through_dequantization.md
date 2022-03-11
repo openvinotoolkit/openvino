@@ -1,0 +1,3 @@
+# PullReshapeThroughDequantization transformation {#openvino_docs_IE_DG_lpt_PullReshapeThroughDequantization}
+
+ngraph::pass::low_precision::PullReshapeThroughDequantization class represents the `PullReshapeThroughDequantization` transformation.

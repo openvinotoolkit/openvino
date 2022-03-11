@@ -6,7 +6,7 @@
    :hidden:
    
    openvino_docs_performance_benchmarks_faq
-   Download Performance Data Spreadsheet in MS Excel* Format <https://docs.openvinotoolkit.org/downloads/benchmark_files/OV-2021.4-Download-Excel.xlsx>
+   Download Performance Data Spreadsheet in MS Excel* Format <https://docs.openvino.ai/downloads/benchmark_files/OV-2021.4-Download-Excel.xlsx>
    openvino_docs_performance_int8_vs_fp32
 
       
@@ -14,7 +14,7 @@
 
 This benchmark setup includes a single machine on which both the benchmark application and the OpenVINO™ installation reside.  
 
-The benchmark application loads the Inference Engine (SW) at run time and executes inferences on the specified hardware inference engine, (CPU, GPU or VPU). The benchmark application measures the time spent on actual inferencing (excluding any pre or post processing) and then reports on the inferences per second (or Frames Per Second). For more information on the benchmark application, please also refer to the entry 5 of the [FAQ section](performance_benchmarks_faq.md). 
+The benchmark application loads the OpenVINO Runtime (SW) at runtime and executes inferences on the specified hardware (CPU, GPU or VPU). The benchmark application measures the time spent on actual inferencing (excluding any pre or post processing) and then reports on the inferences per second (or Frames Per Second). For more information on the benchmark application, please also refer to the entry 5 of the [FAQ section](performance_benchmarks_faq.md). 
 
 Devices similar to the ones we have used for benchmarking can be accessed using [Intel® DevCloud for the Edge](https://devcloud.intel.com/edge/), a remote development environment with access to Intel® hardware and the latest versions of the Intel® Distribution of the OpenVINO™ Toolkit. [Learn more](https://devcloud.intel.com/edge/get_started/devcloud/) or [Register here](https://inteliot.force.com/DevcloudForEdge/s/).
 
@@ -365,6 +365,6 @@ Testing by Intel done on: see test date for each HW platform below.
 | BIOS Release                            | September 21, 2018                    | September 21, 2018                    |
 | Test Date                               | June 18, 2021                        | June 18, 2021                      |        
 
-Please follow this link for more detailed configuration descriptions: [Configuration Details](https://docs.openvinotoolkit.org/resources/benchmark_files/system_configurations_2021.4.html)
+Please follow this link for more detailed configuration descriptions: [Configuration Details](https://docs.openvino.ai/resources/benchmark_files/system_configurations_2021.4.html)
 
 Results may vary. For workloads and configurations visit: [www.intel.com/PerformanceIndex](https://www.intel.com/PerformanceIndex) and [Legal Information](../Legal_Information.md).

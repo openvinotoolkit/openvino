@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -48,7 +48,6 @@ def replaceArgsHelper(log_level='DEBUG',
                       model_name='abc',
                       input_model='abc.test_mo_mock_mdl',
                       transform=[],
-                      legacy_ir_generation=False,
                       scale=None,
                       output=None,
                       _input=None,
@@ -67,7 +66,6 @@ def replaceArgsHelper(log_level='DEBUG',
         model_name=model_name,
         input_model=input_model,
         transform=transform,
-        legacy_ir_generation=legacy_ir_generation,
         scale=scale,
         output=output,
         input=_input,
@@ -97,7 +95,7 @@ class TestMainFrontend(unittest.TestCase):
     def test_simple_convert(self, mock_argparse):
         f = io.StringIO()
         with redirect_stdout(f):
-            main(argparse.ArgumentParser(), fem, 'ov_mock_mo_frontend')
+            main(argparse.ArgumentParser(), fem, 'openvino_mock_mo_frontend')
             out = f.getvalue()
 
         xml_file = re.search(r'\[ SUCCESS \] XML file: (.*)', out).\
@@ -112,7 +110,7 @@ class TestMainFrontend(unittest.TestCase):
         assert stat.supported == 0
         # verify that meta info is added to XML file
         with open(xml_file) as file:
-            assert 'ov_mock_mo_frontend' in file.read()
+            assert 'openvino_mock_mo_frontend' in file.read()
 
     @mock_needed
     @patch('argparse.ArgumentParser.parse_args',
@@ -137,14 +135,14 @@ class TestMainFrontend(unittest.TestCase):
 
         # verify that meta info is added to XML file
         with open(xml_file) as file:
-            assert 'ov_mock_mo_frontend' in file.read()
+            assert 'openvino_mock_mo_frontend' in file.read()
 
     @mock_needed
     @patch('argparse.ArgumentParser.parse_args',
            return_value=replaceArgsHelper(_input='newInput1,mock_input2'))
     def test_override_inputs(self, mock_argparse):
 
-        main(argparse.ArgumentParser(), fem, 'ov_mock_mo_frontend')
+        main(argparse.ArgumentParser(), fem, 'openvino_mock_mo_frontend')
         stat = get_model_statistic()
 
         # verify that 'override_all_inputs' was called
@@ -156,7 +154,7 @@ class TestMainFrontend(unittest.TestCase):
     @patch('argparse.ArgumentParser.parse_args',
            return_value=replaceArgsHelper(output='newOut1,mock_output2'))
     def test_override_outputs(self, mock_argparse):
-        main(argparse.ArgumentParser(), fem, 'ov_mock_mo_frontend')
+        main(argparse.ArgumentParser(), fem, 'openvino_mock_mo_frontend')
         stat = get_model_statistic()
 
         # verify that 'override_all_outputs' was called
@@ -169,7 +167,7 @@ class TestMainFrontend(unittest.TestCase):
            return_value=replaceArgsHelper(_input='newIn1,newIn2',
                                           output='newOut1,newOut2'))
     def test_extract_subgraph(self, mock_argparse):
-        main(argparse.ArgumentParser(), fem, 'ov_mock_mo_frontend')
+        main(argparse.ArgumentParser(), fem, 'openvino_mock_mo_frontend')
         stat = get_model_statistic()
 
         # verify that 'extract_subgraph' was called
@@ -183,7 +181,7 @@ class TestMainFrontend(unittest.TestCase):
                                           output='new_output2,mock_output1'))
     def test_override_same_inputs(self, mock_argparse):
 
-        main(argparse.ArgumentParser(), fem, 'ov_mock_mo_frontend')
+        main(argparse.ArgumentParser(), fem, 'openvino_mock_mo_frontend')
         stat = get_model_statistic()
 
         # verify that 'override_all_outputs' was called
@@ -198,7 +196,7 @@ class TestMainFrontend(unittest.TestCase):
                                           output='mock_output2,mock_output1'))
     def test_override_same_outputs(self, mock_argparse):
 
-        main(argparse.ArgumentParser(), fem, 'ov_mock_mo_frontend')
+        main(argparse.ArgumentParser(), fem, 'openvino_mock_mo_frontend')
         stat = get_model_statistic()
 
         # verify that 'override_all_inputs' was called
@@ -213,7 +211,7 @@ class TestMainFrontend(unittest.TestCase):
                                           input_shape='[1,2,3,4]'))
     @pytest.mark.skip(reason="Unskip as 8301 will be merged")
     def test_input_shape(self, mock_argparse):
-        main(argparse.ArgumentParser(), fem, 'ov_mock_mo_frontend')
+        main(argparse.ArgumentParser(), fem, 'openvino_mock_mo_frontend')
         stat = get_model_statistic()
 
         # verify that 'set_partial_shape' was called
@@ -225,7 +223,7 @@ class TestMainFrontend(unittest.TestCase):
            return_value=replaceArgsHelper(_input='newIn1{i8}'))
     @pytest.mark.skip(reason="Unskip as 8301 will be merged")
     def test_element_type(self, mock_argparse):
-        main(argparse.ArgumentParser(), fem, 'ov_mock_mo_frontend')
+        main(argparse.ArgumentParser(), fem, 'openvino_mock_mo_frontend')
         stat = get_model_statistic()
 
         # verify that 'set_element_type' was called
@@ -238,7 +236,7 @@ class TestMainFrontend(unittest.TestCase):
     @pytest.mark.skip(reason="Unskip as 8301 will be merged")
     def test_set_batch_size(self, mock_argparse):
         mock_return_partial_shape(PartialShape([-1, 2, 3, 4]))
-        main(argparse.ArgumentParser(), fem, 'ov_mock_mo_frontend')
+        main(argparse.ArgumentParser(), fem, 'openvino_mock_mo_frontend')
         stat = get_model_statistic()
 
         # verify that 'set_element_type' was called
@@ -255,7 +253,7 @@ class TestMainFrontend(unittest.TestCase):
         # so MO shall not convert anything and produce specified error
         mock_return_partial_shape(PartialShape([122, 2, 3, 4]))
         with self.assertLogs() as logger:
-            main(argparse.ArgumentParser(), fem, 'ov_mock_mo_frontend')
+            main(argparse.ArgumentParser(), fem, 'openvino_mock_mo_frontend')
 
         stat = get_model_statistic()
 

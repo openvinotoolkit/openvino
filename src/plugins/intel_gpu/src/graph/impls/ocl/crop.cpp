@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -92,16 +92,24 @@ attach_crop_impl::attach_crop_impl() {
         std::make_tuple(data_types::i32, format::bfwzyx),
         std::make_tuple(data_types::i8, format::bfwzyx),
         std::make_tuple(data_types::u8, format::bfwzyx),
+
         std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
         std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
         std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
         std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
+
+        std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
+
         std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
         std::make_tuple(data_types::f16, format::b_fs_zyx_fsv16),
         std::make_tuple(data_types::i64, format::b_fs_zyx_fsv16),
         std::make_tuple(data_types::i32, format::b_fs_zyx_fsv16),
         std::make_tuple(data_types::i8, format::b_fs_zyx_fsv16),
         std::make_tuple(data_types::u8, format::b_fs_zyx_fsv16),
+
         std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),
         std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv16_fsv16),
@@ -110,6 +118,20 @@ attach_crop_impl::attach_crop_impl() {
         std::make_tuple(data_types::i32, format::bs_fs_zyx_bsv16_fsv16),
         std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv16_fsv16),
         std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv16_fsv16),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv32),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv32),
+        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv32_fsv32),
+        std::make_tuple(data_types::i64, format::bs_fs_yx_bsv32_fsv32),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv16),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv16),
+        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv32_fsv16),
+        std::make_tuple(data_types::i64, format::bs_fs_yx_bsv32_fsv16),
     });
 }
 

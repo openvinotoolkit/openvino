@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -93,6 +93,8 @@ public:
 
     int m_max_batch;
     int m_curBatch;
+    std::map<std::string, std::pair<int64_t, int64_t>> m_input_batch_dim;
+    std::map<std::string, int64_t> m_output_batch_dim;
 
     std::shared_ptr<cldnn::program> GetCompiledProgram(int program_id = 0);
     const std::map<std::string, cldnn::layout>& GetInputLayouts() const { return inputLayouts; }
@@ -104,6 +106,9 @@ public:
     int GetMaxBatchSizeForSingleProgram();
 
     bool IsOpSupported(const InferenceEngine::CNNNetwork& network, const std::shared_ptr<ngraph::Node>& op);
+    bool IsDynBatchModel(const std::shared_ptr<ov::Model>& model,
+                         std::map<std::string, ov::PartialShape>& shapes,
+                         std::map<std::string, std::pair<int64_t, int64_t>>& batch_dim);
 
     // Profiling utils
     void InitProfileInfo(const std::string& layerName,
@@ -170,7 +175,6 @@ private:
                                                  bool createTopologyOnly = false, bool partialBuild = false);
 
     void CreateSingleLayerPrimitive(cldnn::topology& topology, const std::shared_ptr<ngraph::Node>& op);
-    bool CanProcessDynBatch(std::vector<std::shared_ptr<ngraph::Node>> ops, InferenceEngine::InputsDataMap networkInputs) const;
     void ChangeInputBatch(int batch);
 };
 

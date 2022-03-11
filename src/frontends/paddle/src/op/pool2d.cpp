@@ -1,11 +1,10 @@
 //*****************************************************************************
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 //*****************************************************************************
 
-#include <node_context.hpp>
-
+#include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/opsets/opset8.hpp"
 
@@ -15,7 +14,7 @@ namespace paddle {
 namespace op {
 // helper func - get pad_begin and pad_end
 static void get_paddings(const NodeContext& node, ov::Shape& pad_begin, ov::Shape& pad_end, ov::op::PadType& auto_pad) {
-    if (node.has_attribute<std::string>("padding_algorithm")) {
+    if (node.has_attribute("padding_algorithm")) {
         auto pad_algo = node.get_attribute<std::string>("padding_algorithm");
         if (pad_algo == "SAME") {
             auto_pad = ov::op::PadType::SAME_UPPER;
@@ -59,7 +58,7 @@ static void get_paddings(const NodeContext& node, ov::Shape& pad_begin, ov::Shap
 }
 
 NamedOutputs pool2d(const NodeContext& node) {
-    auto data = node.get_ng_input("X");
+    auto data = node.get_input("X");
 
     auto pooling_type = node.get_attribute<std::string>("pooling_type", {});
     auto global_pooling = node.get_attribute<bool>("global_pooling");

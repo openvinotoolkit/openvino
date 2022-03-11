@@ -1,11 +1,11 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 # [cmake:extension]
 set(CMAKE_CXX_STANDARD 11)
 
-set(TARGET_NAME "ov_template_extension")
+set(TARGET_NAME "openvino_template_extension")
 
 find_package(OpenVINO)
 
@@ -14,7 +14,13 @@ set(SRC identity.cpp ov_extension.cpp)
 add_library(${TARGET_NAME} MODULE ${SRC})
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_OPENVINO_EXTENSION_API)
-target_link_libraries(${TARGET_NAME} PRIVATE openvino::core)
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
+
+# To map custom operation to framework
+if(OpenVINO_Frontend_ONNX_FOUND)
+    target_link_libraries(${TARGET_NAME} PRIVATE openvino::frontend::onnx)
+    target_compile_definitions(${TARGET_NAME} PRIVATE OPENVINO_ONNX_FRONTEND_ENABLED)
+endif()
 # [cmake:extension]
 
 # Enable code style check

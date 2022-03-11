@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,7 +45,7 @@ public:
 
 private:
     Shape m_output_size{0, 0};
-    float m_spatial_scale;
+    float m_spatial_scale{0};
     std::string m_method = "max";
 };
 }  // namespace v0

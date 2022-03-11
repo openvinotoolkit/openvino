@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <map>
-#include <node_context.hpp>
 
 #include "default_opset.hpp"
+#include "openvino/frontend/paddle/node_context.hpp"
 
 namespace ov {
 namespace frontend {
@@ -13,8 +13,8 @@ namespace paddle {
 namespace op {
 template <typename T>
 NamedOutputs elementwise_ops(const NodeContext& node) {
-    auto x = node.get_ng_input("X");
-    auto y = node.get_ng_input("Y");
+    auto x = node.get_input("X");
+    auto y = node.get_input("Y");
 
     auto axis = node.get_attribute<int>("axis");
 

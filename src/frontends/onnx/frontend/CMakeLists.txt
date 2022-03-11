@@ -1,9 +1,10 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 ov_add_frontend(NAME onnx
                 LINKABLE_FRONTEND
+                SHUTDOWN_PROTOBUF
                 PROTOBUF_LITE
                 SKIP_NCC_STYLE
                 FILEDESCRIPTION "FrontEnd to load and convert ONNX file format"
@@ -13,7 +14,7 @@ set(ONNX_OPSET_VERSION 15 CACHE INTERNAL "Supported version of ONNX operator set
 target_compile_definitions(${TARGET_NAME} PRIVATE ONNX_OPSET_VERSION=${ONNX_OPSET_VERSION})
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
-                    INCLUDE_DIRECTORY "${${TARGET_NAME}_INCLUDE_DIR}"
+                    SOURCE_DIRECTORY "${${TARGET_NAME}_INCLUDE_DIR}"
                     DEFINITIONS
                         $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>
                     ADDITIONAL_INCLUDE_DIRECTORIES

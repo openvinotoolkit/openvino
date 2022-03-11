@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,9 +42,9 @@ struct SwishParams {
     ov::PartialShape pshape;
     ov::element::Type inType;
     ov::element::Type outType;
-    ov::runtime::Tensor inputData;
-    ov::runtime::Tensor refData;
-    ov::runtime::Tensor betaBlob;
+    ov::Tensor inputData;
+    ov::Tensor refData;
+    ov::Tensor betaBlob;
 
     float beta;
 };

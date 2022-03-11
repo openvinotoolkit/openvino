@@ -1,4 +1,4 @@
-# "Hot Topic" How-To Links {#openvino_docs_how_tos_how_to_links}
+# "Hot Topic" How-To Links
 
 ## Blogs & Articles
 
@@ -13,7 +13,7 @@
 * [Accelerate Vision-based AI with Intel® Distribution of OpenVINO™ Toolkit](https://www.intel.ai/accelerate-vision-based-ai-with-intel-distribution-of-openvino-toolkit/)
 
 ## Custom Operations Guide
-To learn about what is *custom operation* and how to work with them in the Deep Learning Deployment Toolkit, see the [Custom Operations Guide](../HOWTO/Custom_Layers_Guide.md).
+To learn about what is *custom operation* and how to work with them in the Deep Learning Deployment Toolkit, see the [Custom Operations Guide](../Extensibility_UG/Intro.md).
  
 ## Introducing OpenVINO™ and Computer Vision | IoT Developer Show Season 2 | Intel Software
 

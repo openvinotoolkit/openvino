@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -94,6 +94,18 @@ void regclass_graph_descriptor_Tensor(py::module m) {
                py::arg("names"),
                R"(
                 Set names for tensor
+
+                Parameters
+                ----------
+                names : set
+                    Set of names
+             )");
+
+    tensor.def("add_names",
+               &ov::descriptor::Tensor::add_names,
+               py::arg("names"),
+               R"(
+                Adds names for tensor.
 
                 Parameters
                 ----------

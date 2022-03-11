@@ -1,19 +1,19 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
+#include "openvino/pass/graph_rewrite.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class DecomposeDivideMatcher;
 class ReluReluFusionMatcher;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 // ! [graph_rewrite:template_transformation_hpp]
 // transformations/template_pattern_transformation.hpp
@@ -21,15 +21,15 @@ class ReluReluFusionMatcher;
  * @ingroup ie_transformation_common_api
  * @brief Add transformation description.
  */
-class ngraph::pass::DecomposeDivideMatcher : public ngraph::pass::MatcherPass {
+class ov::pass::DecomposeDivideMatcher : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("DecomposeDivideMatcher", "0");
     DecomposeDivideMatcher();
 };
 // ! [graph_rewrite:template_transformation_hpp]
 
-class ngraph::pass::ReluReluFusionMatcher : public ngraph::pass::MatcherPass {
+class ov::pass::ReluReluFusionMatcher : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ReluReluFusionMatcher", "0");
     ReluReluFusionMatcher();
 };

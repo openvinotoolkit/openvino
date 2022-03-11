@@ -1,13 +1,15 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/op_conversions/convert_maxpool_upgrade.hpp"
+
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset8.hpp>
-#include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
 #include <transformations/utils/utils.hpp>
+
 #include "itt.hpp"
 
 ngraph::pass::ConvertMaxPool1ToMaxPool8::ConvertMaxPool1ToMaxPool8() {

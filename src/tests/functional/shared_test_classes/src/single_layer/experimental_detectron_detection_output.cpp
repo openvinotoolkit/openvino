@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -97,9 +97,9 @@ void ExperimentalDetectronDetectionOutputLayerTest::SetUp() {
 }
 
 void ExperimentalDetectronDetectionOutputLayerTest::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
-    static const std::vector<ov::runtime::Tensor> inputTensors = {
+    static const std::vector<ov::Tensor> inputTensors = {
         // 16 x 4 = 64
-        CommonTestUtils::create_tensor<float>(ov::element::f32, Shape{16, 4}, {
+        ov::test::utils::create_tensor<float>(ov::element::f32, Shape{16, 4}, {
             1.0f, 1.0f, 10.0f, 10.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
             1.0f, 1.0f, 1.0f,  4.0f,  1.0f, 8.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
             1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
@@ -107,7 +107,7 @@ void ExperimentalDetectronDetectionOutputLayerTest::generate_inputs(const std::v
             1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f
         }),
         // 16 x 8
-        CommonTestUtils::create_tensor<float>(ov::element::f32, Shape{16, 8}, {
+        ov::test::utils::create_tensor<float>(ov::element::f32, Shape{16, 8}, {
             5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
             1.0f, 1.0f, 1.0f, 1.0f, 4.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
             1.0f, 1.0f, 8.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
@@ -119,13 +119,13 @@ void ExperimentalDetectronDetectionOutputLayerTest::generate_inputs(const std::v
             1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f
         }),
         // 16 x 2 = 32
-        CommonTestUtils::create_tensor<float>(ov::element::f32, Shape{16, 2}, {
+        ov::test::utils::create_tensor<float>(ov::element::f32, Shape{16, 2}, {
             1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
             1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
             1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f
         }),
         // 1 x 3 = 3
-        CommonTestUtils::create_tensor<float>(ov::element::f32, Shape{1, 3}, {1.0f, 1.0f, 1.0f})
+        ov::test::utils::create_tensor<float>(ov::element::f32, Shape{1, 3}, {1.0f, 1.0f, 1.0f})
     };
 
     inputs.clear();

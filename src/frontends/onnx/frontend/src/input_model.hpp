@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,26 +8,24 @@
 #include <fstream>
 #include <openvino/frontend/input_model.hpp>
 
+#include "openvino/frontend/extension/holder.hpp"
+
 namespace ov {
 namespace frontend {
 namespace onnx {
 
 class InputModel : public ov::frontend::InputModel {
 public:
-    InputModel(const std::string& path, const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
+    InputModel(const std::string& path, ExtensionHolder extensions = {});
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    InputModel(const std::wstring& path, const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
+    InputModel(const std::wstring& path, ExtensionHolder extensions = {});
 #endif
-    InputModel(std::istream& model_stream, const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
+    InputModel(std::istream& model_stream, ExtensionHolder extensions = {});
     // The path can be required even if the model is passed as a stream because it is necessary
     // for ONNX external data feature
-    InputModel(std::istream& model_stream,
-               const std::string& path,
-               const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
+    InputModel(std::istream& model_stream, const std::string& path, ExtensionHolder extensions = {});
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-    InputModel(std::istream& model_stream,
-               const std::wstring& path,
-               const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
+    InputModel(std::istream& model_stream, const std::wstring& path, ExtensionHolder extensions = {});
 #endif
 
     std::vector<ov::frontend::Place::Ptr> get_inputs() const override;
@@ -80,6 +78,7 @@ public:
 
 private:
     std::shared_ptr<ov::onnx_editor::ONNXModelEditor> m_editor;
+    bool is_correct_place(const ov::frontend::Place::Ptr& place) const;
 
     std::unordered_map<std::string, std::unordered_set<std::string>> m_additional_tensor_names;
     void add_tensor_names(std::shared_ptr<Model>& model);

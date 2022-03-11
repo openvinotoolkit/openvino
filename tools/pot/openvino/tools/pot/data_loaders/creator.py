@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.pot.data_loaders.image_loader import ImageLoader
@@ -9,7 +9,7 @@ def create_data_loader(config, model):
     """
     Factory to create instance of engine class based on config
     :param config: engine config section from toolkit config file
-    :param model: NXModel instance to find out input shape
+    :param model: CompressedModel instance to find out input shape
     :return: instance of DataLoader descendant class
     """
 

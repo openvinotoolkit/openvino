@@ -1,14 +1,12 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <memory>
-
-#include <transformations_visibility.hpp>
-
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -24,7 +22,7 @@ class TRANSFORMATIONS_API MOCTransformations;
  * with transformations pipeline but now it remains empty.
  */
 
-class ngraph::pass::MOCTransformations: public ngraph::pass::FunctionPass {
+class ngraph::pass::MOCTransformations : public ngraph::pass::FunctionPass {
     bool m_use_shapes;
     bool m_low_precision_enabled;
 
@@ -38,7 +36,8 @@ public:
      * low_precision sub-graphs as is.
      */
     explicit MOCTransformations(bool use_shapes, bool low_precision_enabled = true)
-        : m_use_shapes(use_shapes), m_low_precision_enabled(low_precision_enabled) {}
+        : m_use_shapes(use_shapes),
+          m_low_precision_enabled(low_precision_enabled) {}
 
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };

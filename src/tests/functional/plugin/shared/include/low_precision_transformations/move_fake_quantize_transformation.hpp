@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,12 +19,7 @@ namespace LayerTestsDefinitions {
 
 class MoveFakeQuantizeTransformationParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeBefore1;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convertBefore1;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationBefore1;
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeBefore2;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convertBefore2;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationBefore2;
+    size_t concatInputsCount;
     std::string operation;
     ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeAfter;
     ngraph::builder::subgraph::DequantizationOperations::Convert convertAfter;
@@ -36,9 +31,10 @@ public:
 
 typedef std::tuple <
     ngraph::element::Type,
-    ngraph::Shape,
+    std::vector<ngraph::PartialShape>,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
+    bool,
     MoveFakeQuantizeTransformationParam
 > MoveFakeQuantizeTransformationParams;
 

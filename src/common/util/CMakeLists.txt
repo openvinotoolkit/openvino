@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -40,6 +40,6 @@ ov_install_static_lib(${TARGET_NAME} core)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
-                    INCLUDE_DIRECTORY ${UTIL_INCLUDE_DIR})
+                    SOURCE_DIRECTORY ${UTIL_INCLUDE_DIR})
 
 openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME})

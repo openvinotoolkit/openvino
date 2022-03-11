@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -218,7 +218,7 @@ public:
     }
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<std::shared_ptr<Function>>& adapter) override {
-        throw ngraph_error("Function type is unsupported for rt info serialization");
+        throw ngraph_error("Model type is unsupported for rt info serialization");
     }
 
     void check_attribute_name(const std::string& name) const {
@@ -304,7 +304,7 @@ class XmlSerializer : public ngraph::AttributeVisitor {
         const std::vector<std::string>& result_mapping,
         pugi::xml_node& port_map,
         const std::string& portmap_name) {
-        NGRAPH_CHECK(!result_mapping.empty(), "No results found in body Function.");
+        NGRAPH_CHECK(!result_mapping.empty(), "No results found in body Model.");
 
         if (!port_map) {
             port_map = m_xml_node.parent().insert_child_before(portmap_name.c_str(), m_xml_node.parent().first_child());
@@ -394,7 +394,7 @@ public:
 
             pugi::xml_node port_map = m_xml_node.parent().child(portmap_name.c_str());
             // Bodies can be without parameters(dependig on constants), but can not be without results
-            NGRAPH_CHECK(!result_mapping.empty(), "No results found in body Function.");
+            NGRAPH_CHECK(!result_mapping.empty(), "No results found in body Model.");
             // TI, Loop do not have attributtes as regular ops, it is necessary to append "port_map" and
             // "back_edges" to layer above (m_xml_node.parent()) as in ngfunction_2_ir() layer (here "m_xml_node")
             // with empty attributes is removed.
@@ -522,7 +522,7 @@ public:
                             m_version,
                             m_deterministic);
         } else {
-            NGRAPH_CHECK(false, "Unsupported Function name.");
+            NGRAPH_CHECK(false, "Unsupported Model name.");
         }
     }
 };
@@ -568,9 +568,7 @@ const std::vector<Edge> create_edge_mapping(const std::unordered_map<ngraph::Nod
 
 std::string get_opset_name(const ngraph::Node* n, const std::map<std::string, ngraph::OpSet>& custom_opsets) {
     OPENVINO_ASSERT(n != nullptr);
-    if (n->get_type_info().version_id != nullptr) {
-        return n->get_type_info().version_id;
-    }
+
     // Try to find opset name from RT info
     auto opset_it = n->get_rt_info().find("opset");
     if (opset_it != n->get_rt_info().end()) {
@@ -580,6 +578,10 @@ std::string get_opset_name(const ngraph::Node* n, const std::map<std::string, ng
                 return opset_name;
             }
         }
+    }
+
+    if (n->get_type_info().version_id != nullptr) {
+        return n->get_type_info().version_id;
     }
 
     for (const auto& custom_opset : custom_opsets) {
@@ -712,74 +714,6 @@ bool has_dynamic_output(const std::shared_ptr<Node>& n) {
     return false;
 }
 
-bool resolve_dynamic_shapes(const ngraph::Function& f) {
-    const auto& f_ops = f.get_ordered_ops();
-    if (std::all_of(f_ops.begin(), f_ops.end(), [](const std::shared_ptr<Node>& results) {
-            return !results->is_dynamic() && !has_dynamic_output(results);
-        })) {
-        return false;
-    }
-
-    auto f_clone = ngraph::clone_function(f);
-    const auto& f_clone_ops = f_clone->get_ordered_ops();
-    NGRAPH_CHECK(f_ops.size() == f_clone_ops.size(), "Unexpected get_ordered_ops method behaviour");
-
-    for (size_t id = 0; id < f_ops.size(); ++id) {
-        auto& op = f_ops[id];
-        auto& clone_op = f_clone_ops[id];
-        ov::pass::enable_constant_folding(clone_op);  // to be able to fold ShapeOfs
-        if (auto op_subgraph = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(op)) {
-            resolve_dynamic_shapes(*op_subgraph->get_function());
-        }
-
-        op->validate_and_infer_types();
-        clone_op->validate_and_infer_types();
-
-        // dynamic_to_static function converts dynamic dimensions to static using
-        // upperbound (get_max_length) dimension value.
-        auto dynamic_to_static = [&op](const PartialShape& shape) -> PartialShape {
-            if (shape.is_static() || shape.rank().is_dynamic()) {
-                return shape;
-            }
-            std::vector<Dimension> out_shape;
-            std::transform(std::begin(shape),
-                           std::end(shape),
-                           std::back_inserter(out_shape),
-                           [](const Dimension& d) -> Dimension {
-                               return d.get_max_length();
-                           });
-            return out_shape;
-        };
-
-        OutputVector replacements(clone_op->get_output_size());
-        if (!clone_op->constant_fold(replacements, clone_op->input_values())) {
-            for (size_t output_id = 0; output_id < clone_op->get_output_size(); ++output_id) {
-                clone_op->set_output_type(output_id,
-                                          clone_op->output(output_id).get_element_type(),
-                                          dynamic_to_static(clone_op->output(output_id).get_partial_shape()));
-                op->set_output_type(output_id,
-                                    clone_op->output(output_id).get_element_type(),
-                                    clone_op->output(output_id).get_partial_shape());
-            }
-        } else {
-            for (size_t output_id = 0; output_id < clone_op->get_output_size(); ++output_id) {
-                op->set_output_type(output_id,
-                                    replacements[output_id].get_element_type(),
-                                    replacements[output_id].get_partial_shape());
-            }
-
-            for (size_t i = 0; i < replacements.size(); ++i) {
-                auto node_output = clone_op->output(i);
-                auto replacement = replacements.at(i);
-                if (replacement.get_node_shared_ptr() && (node_output != replacement)) {
-                    node_output.replace(replacement);
-                }
-            }
-        }
-    }
-    return true;
-}
-
 void auto_pad_resolving(ov::Node* node) {
     const std::set<ov::op::PadType> pad_agnostic_types = {
         ov::op::PadType::SAME_LOWER,
@@ -845,9 +779,6 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
 
     const std::unordered_map<ngraph::Node*, int> layer_ids = create_layer_ids(f);
     std::unordered_set<std::string> unique_names;
-
-    // TODO remove resolve_dynamic_shapes function completely when support for -1 will be implemented in the MO
-    bool has_dynamic_shapes = resolve_dynamic_shapes(f);
 
     const bool exec_graph = is_exec_graph(f);
 
@@ -1021,10 +952,6 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         edge.append_attribute("to-layer").set_value(e.to_layer);
         edge.append_attribute("to-port").set_value(e.to_port);
     }
-    // move back dynamic shapes
-    if (has_dynamic_shapes) {
-        f.validate_nodes_and_infer_types();
-    }
 }
 
 std::string valid_xml_path(const std::string& path) {
@@ -1063,7 +990,7 @@ void serializeFunc(std::ostream& xml_file,
     }
 
     if (version != static_cast<int64_t>(ver) && ver != ov::pass::Serialize::Version::UNSPECIFIED)
-        throw ngraph_error("Cannot serialize function to incompatible IR version");
+        throw ngraph_error("Cannot serialize Model to incompatible IR version");
 
     if (version == static_cast<int64_t>(ov::pass::Serialize::Version::UNSPECIFIED))
         version = static_cast<int64_t>(ov::pass::Serialize::Version::IR_V11);
@@ -1087,7 +1014,8 @@ void serializeFunc(std::ostream& xml_file,
 }  // namespace
 
 namespace ov {
-bool pass::Serialize::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+bool pass::Serialize::run_on_model(const std::shared_ptr<ngraph::Function>& f_orig) {
+    auto f = ov::clone_model(*f_orig);
     if (m_xmlFile && m_binFile) {
         serializeFunc(*m_xmlFile, *m_binFile, f, m_version, m_custom_opsets);
     } else {
@@ -1136,6 +1064,7 @@ pass::Serialize::Serialize(const std::string& xmlPath,
                            std::map<std::string, ngraph::OpSet> custom_opsets,
                            pass::Serialize::Version version)
     : m_xmlFile{nullptr},
+      m_binFile{nullptr},
       m_xmlPath{valid_xml_path(xmlPath)},
       m_binPath{provide_bin_path(xmlPath, binPath)},
       m_version{version},
@@ -1186,7 +1115,7 @@ bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ngraph::Function>
     }
 
     if (version != static_cast<int64_t>(m_version) && m_version != Serialize::Version::UNSPECIFIED)
-        throw ngraph_error("Cannot serialize function to incompatible IR version");
+        throw ngraph_error("Cannot serialize model to incompatible IR version");
 
     if (version == static_cast<int64_t>(Serialize::Version::UNSPECIFIED)) {
         version = static_cast<int64_t>(Serialize::Version::IR_V11);

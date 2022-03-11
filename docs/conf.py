@@ -37,6 +37,7 @@ language = 'en'
 extensions = [
     'sphinx_inline_tabs',
     'sphinx_copybutton',
+    'sphinx_panels',
     'doxyrest',
     'cpplexer',
     'sphinx.ext.autodoc',
@@ -62,8 +63,11 @@ templates_path = ['_templates']
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'openvino/inference-engine']
+exclude_patterns = ['_build', 'Thumbs.db',
+                    '.DS_Store', 'openvino/inference-engine']
 
+
+panels_add_bootstrap_css = False
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -81,16 +85,10 @@ html_theme_options = {
 }
 
 html_context = {
-    'current_version': 'nightly',
     'current_language': 'English',
     'languages': (('English', '/latest'), ('Chinese', '/cn/latest')),
-    'versions': (('Latest', '/latest'), ('nightly', '/nightly'), ('2021.4', '/2021.4'),
-                ('2021.3', '/2021.3'), ('2021.2', '/2021.2'), ('2021.1', '/2021.1'),
-                 ('2020.4', '/2020.4'), ('2020.3', '/2020.3'), ('2020.2', '/2020.1'),
-                  ('2020.1', '/2020.1'), ('2019_R3.1', '/2019_R3.1'), ('2019_R3', '/2019_R3'),
-                   ('2019_R2', '/2019_R2'), ('2019_R1.1', '/2019_R1.1'),  ('2019_R1.01', '/2019_R1.01'),
-                    ('2019_R1', '/2019_R1'), ('2018_R5', '/2018_R5'),),
-    'download_docs_url': '/archives/2021.4.zip'
+    'doxygen_mapping_file': '@DOXYGEN_MAPPING_FILE@',
+    'doxygen_snippet_root': '@OpenVINO_SOURCE_DIR@'
 }
 
 repositories = {
@@ -100,10 +98,22 @@ repositories = {
         'github_version': 'master',
         'host_url': 'https://github.com'
     },
+    'pot': {
+        'github_user': 'openvinotoolkit',
+        'github_repo': 'openvino',
+        'github_version': 'master',
+        'host_url': 'https://github.com'
+    },
     'open_model_zoo': {
         'github_user': 'openvinotoolkit',
         'github_repo': 'open_model_zoo',
         'github_version': 'master',
+        'host_url': 'https://github.com'
+    },
+    'ovms': {
+        'github_user': 'openvinotoolkit',
+        'github_repo': 'model_server',
+        'github_version': 'main',
         'host_url': 'https://github.com'
     }
 }
@@ -125,6 +135,7 @@ html_static_path = ['_static']
 # monkeypatch sphinx api doc to prevent showing inheritance from object and enum.Enum
 add_line = ClassDocumenter.add_line
 
+
 def add_line_no_base_object(self, line, *args, **kwargs):
     if line.strip() in ['Bases: :class:`object`', 'Bases: :class:`enum.Enum`']:
         return
@@ -134,17 +145,30 @@ def add_line_no_base_object(self, line, *args, **kwargs):
 
 ClassDocumenter.add_line = add_line_no_base_object
 
+# OpenVINO Python API Reference Configuration
+exclude_pyapi_methods = ('__weakref__',
+                         '__doc__',
+                         '__module__',
+                         '__dict__',
+                         'add_openvino_libs_to_path'
+                         )
+
+
+def autodoc_skip_member(app, what, name, obj, skip, options):
+    return name in exclude_pyapi_methods
+
 
 def setup(app):
     logger = logging.getLogger(__name__)
-    app.add_config_value('doxygen_mapping_file', doxygen_mapping_file, rebuild=True)
+    app.add_config_value('doxygen_mapping_file',
+                         doxygen_mapping_file, rebuild=True)
     app.add_config_value('repositories', repositories, rebuild=True)
-    app.add_css_file('css/viewer.min.css')
-    app.add_css_file('css/custom.css')
-    app.add_js_file('js/viewer.min.js')
+    app.connect('autodoc-skip-member', autodoc_skip_member)
     app.add_js_file('js/custom.js')
     app.add_js_file('js/graphs.js')
+    app.add_js_file('js/graphs_ov_tf.js')
     try:
-        shutil.copytree(os.path.join(app.srcdir, 'csv'), os.path.join(app.outdir, 'csv'), dirs_exist_ok=True)
+        shutil.copytree(os.path.join(app.srcdir, 'csv'), os.path.join(
+            app.outdir, 'csv'), dirs_exist_ok=True)
     except FileNotFoundError:
         logger.warning('csv directory not found.')

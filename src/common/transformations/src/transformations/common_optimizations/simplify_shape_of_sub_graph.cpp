@@ -1,22 +1,22 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <memory>
-#include <vector>
-
-#include "itt.hpp"
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/opsets/opset8.hpp>
-#include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
-#include <transformations/common_optimizations/simplify_shape_of_sub_graph.hpp>
-#include <transformations/common_optimizations/eliminate_unsqueeze_gather.hpp>
-#include <transformations/utils/utils.hpp>
+#include <ngraph/rt_info.hpp>
 #include <numeric>
+#include <transformations/common_optimizations/eliminate_unsqueeze_gather.hpp>
+#include <transformations/common_optimizations/simplify_shape_of_sub_graph.hpp>
+#include <transformations/utils/utils.hpp>
+#include <vector>
+
+#include "itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SharedShapeOf, "SharedShapeOf", 0);
 
@@ -28,7 +28,7 @@ bool ngraph::pass::SharedShapeOf::run_on_model(const std::shared_ptr<ngraph::Fun
     bool graph_rewritten = false;
 
     std::map<ngraph::Output<Node>, std::vector<std::shared_ptr<ngraph::Node>>> source_to_shape_of;
-    for (const auto & node : f->get_ordered_ops()) {
+    for (const auto& node : f->get_ordered_ops()) {
         // Recursively apply transformation for sub-graph based operations
         if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node))
             if (auto sub_graph = sub_graph_node->get_function())
@@ -74,27 +74,41 @@ ngraph::pass::GroupedGatherElimination::GroupedGatherElimination() {
         while (inputs.size() > i + 1) {
             auto curr = inputs[i].get_node_shared_ptr(), next = inputs[i + 1].get_node_shared_ptr();
             if (curr->get_type_info() != next->get_type_info() ||
-                (!ov::is_type<opset1::Gather>(curr) && !ov::is_type<opset7::Gather>(curr)) ||
+                (!ov::is_type<opset1::Gather>(curr) && !ov::is_type<opset7::Gather>(curr) &&
+                 !ov::is_type<opset8::Gather>(curr)) ||
                 (curr->input_value(0) != next->input_value(0))) {
                 ++i;
                 continue;
-            } // curr and next are the same type of gather which takes data from the same source
-            bool is_opset1 = ov::is_type<opset1::Gather>(curr);
-            auto joint_indices = ngraph::op::util::make_try_fold<opset1::Concat>(OutputVector{curr->input_value(1), next->input_value(1)}, 0);
+            }  // curr and next are the same type of gather which takes data from the same source
+            auto joint_indices = ngraph::op::util::make_try_fold<opset1::Concat>(
+                OutputVector{curr->input_value(1), next->input_value(1)},
+                0);
             std::shared_ptr<Node> new_gather;
-            if (is_opset1)
+            if (ov::is_type<opset1::Gather>(curr)) {
                 new_gather = register_new_node<ngraph::opset1::Gather>(
-                    curr->input_value(0), joint_indices->output(0), ngraph::opset1::Constant::create(element::i64, {}, {0})->output(0));
-            else
+                    curr->input_value(0),
+                    joint_indices->output(0),
+                    ngraph::opset1::Constant::create(element::i64, {}, {0})->output(0));
+            } else if (ov::is_type<opset7::Gather>(curr)) {
                 new_gather = register_new_node<ngraph::opset7::Gather>(
-                        curr->input_value(0), joint_indices->output(0), ngraph::opset1::Constant::create(element::i64, {}, {0})->output(0));
+                    curr->input_value(0),
+                    joint_indices->output(0),
+                    ngraph::opset1::Constant::create(element::i64, {}, {0})->output(0));
+            } else if (ov::is_type<opset8::Gather>(curr)) {
+                new_gather = register_new_node<ngraph::opset8::Gather>(
+                    curr->input_value(0),
+                    joint_indices->output(0),
+                    ngraph::opset1::Constant::create(element::i64, {}, {0})->output(0));
+            } else {
+                OPENVINO_UNREACHABLE("Unexpected Gather version");
+            }
             new_ops.push_back(joint_indices);
             new_ops.push_back(new_gather);
             inputs.erase(inputs.begin() + i);
             inputs[i] = new_gather->output(0);
         }
         ngraph::copy_runtime_info(concat, new_ops);
-        if (inputs.size() == 1) // we can optimize out concat
+        if (inputs.size() == 1)  // we can optimize out concat
             return replace_output_update_name(concat->output(0), inputs[0]);
         if (original_inputs_size > inputs.size()) {
             auto new_concat = std::make_shared<opset1::Concat>(inputs, 0);
@@ -115,14 +129,15 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::GatherNopElimination, "GatherNopElimination
 ngraph::pass::GatherNopElimination::GatherNopElimination() {
     MATCHER_SCOPE(GatherNopElimination);
     const auto gather_label = ngraph::pattern::wrap_type<ngraph::op::util::GatherBase>(
-            {ngraph::pattern::any_input(pattern::has_static_shape()),
-             ngraph::pattern::wrap_type<ngraph::op::Constant>(),
-             ngraph::pattern::wrap_type<ngraph::op::Constant>()});
+        {ngraph::pattern::any_input(pattern::has_static_shape()),
+         ngraph::pattern::wrap_type<ngraph::op::Constant>(),
+         ngraph::pattern::wrap_type<ngraph::op::Constant>()});
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto gather = m.get_match_root();
         const auto& number_of_indices = shape_size(gather->get_input_shape(1));
-        if (gather->get_input_shape(0) != gather->get_output_shape(0) || shape_size(gather->get_input_shape(2)) != 1 || number_of_indices > 10)
+        if (gather->get_input_shape(0) != gather->get_output_shape(0) || shape_size(gather->get_input_shape(2)) != 1 ||
+            number_of_indices > 10)
             return false;
         std::vector<int64_t> expected_vector(number_of_indices);
         std::iota(expected_vector.begin(), expected_vector.end(), 0);
@@ -153,8 +168,7 @@ ngraph::pass::SimplifyGatherShapeOf::SimplifyGatherShapeOf() {
         auto gather_in_rank = gather->get_input_partial_shape(0).rank();
         auto indices_rank = gather->get_input_partial_shape(1).rank();
         auto axis = gather->get_axis();
-        if (gather_in_rank.is_dynamic() || indices_rank.is_dynamic() ||
-            axis == opset3::Gather::AXIS_NOT_SET_VALUE) {
+        if (gather_in_rank.is_dynamic() || indices_rank.is_dynamic() || axis == opset3::Gather::AXIS_NOT_SET_VALUE) {
             return false;
         }
 
@@ -180,7 +194,8 @@ ngraph::pass::SimplifyGatherShapeOf::SimplifyGatherShapeOf() {
                 new_ops.push_back(new_gather);
                 concat_inputs.push_back(new_gather);
             }
-            auto shapeof_indices = std::make_shared<opset3::ShapeOf>(gather->input_value(1), node->get_output_element_type(0));
+            auto shapeof_indices =
+                std::make_shared<opset3::ShapeOf>(gather->input_value(1), node->get_output_element_type(0));
             new_ops.push_back(shapeof_indices);
 
             concat_inputs.push_back(shapeof_indices);
@@ -215,7 +230,7 @@ ngraph::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
         return pattern::has_static_shape()(output) && pattern::rank_equals(1)(output);
     };
     const auto concat = pattern::wrap_type<opset8::Concat>(has_static_1d_shape);
-    const auto reshape_pattern = pattern::wrap_type<opset8::Reshape>({ input, concat });
+    const auto reshape_pattern = pattern::wrap_type<opset8::Reshape>({input, concat});
 
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto node = m.get_match_root();
@@ -239,8 +254,7 @@ ngraph::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
 
         auto check_shape_of_gather = [&](const std::shared_ptr<Node>& gather) {
             auto shape_of = gather->get_input_node_shared_ptr(0);
-            if ((!is_type<opset8::ShapeOf>(shape_of) && !is_type<opset1::ShapeOf>(shape_of)) ||
-                (shape_of->get_output_target_inputs(0).size() > 1)) {
+            if (!is_type<opset8::ShapeOf>(shape_of) && !is_type<opset1::ShapeOf>(shape_of)) {
                 return false;
             }
             return shape_of->input_value(0) == data;
@@ -257,6 +271,7 @@ ngraph::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
             if (const auto gather = as_type_ptr<op::util::GatherBase>(input.get_node_shared_ptr())) {
                 auto indices_constant = as_type_ptr<opset8::Constant>(gather->get_input_node_shared_ptr(1));
                 if (!indices_constant || !check_shape_of_gather(gather)) {
+                    gather_dims_expected_location++;
                     continue;
                 }
 
@@ -272,12 +287,13 @@ ngraph::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
                 if (gather_can_be_fused) {
                     const size_t num_of_unchanged_dimensions = indices.size();
                     const auto subgraph_et = gather->get_input_element_type(0);
-                    input = opset8::Constant::create(subgraph_et, Shape{ num_of_unchanged_dimensions }, { 0 });
+                    input = opset8::Constant::create(subgraph_et, Shape{num_of_unchanged_dimensions}, {0});
                     gather_folded = true;
                 }
             } else {
                 const auto concat_input_shape = input.get_shape();
-                OPENVINO_ASSERT(concat_input_shape.size() == 1, "concat input rank is not valid for matched Concat with 1D output");
+                OPENVINO_ASSERT(concat_input_shape.size() == 1,
+                                "concat input rank is not valid for matched Concat with 1D output");
                 gather_dims_expected_location += concat_input_shape[0];
             }
         }
@@ -290,7 +306,7 @@ ngraph::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
         new_concat->set_friendly_name(concat->get_friendly_name());
         copy_runtime_info(concat, new_concat);
 
-        const auto new_reshape = reshape->clone_with_new_inputs({ reshape->input_value(0), new_concat });
+        const auto new_reshape = reshape->clone_with_new_inputs({reshape->input_value(0), new_concat});
         new_reshape->set_friendly_name(reshape->get_friendly_name());
 
         copy_runtime_info(reshape, new_reshape);

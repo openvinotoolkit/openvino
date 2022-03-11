@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,17 +11,18 @@
 #include <ngraph/partial_shape.hpp>
 #include "cpu_types.h"
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class Shape {
 public:
     Shape() = default;
 
-    explicit Shape(const ngraph::PartialShape& shape) {
+    explicit Shape(const ov::PartialShape& shape) {
         minDims = shape.get_min_shape();
-        std::transform(minDims.begin(), minDims.end(), minDims.begin(), [](Dim x){ return ngraph::Interval::s_max == x ? UNDEFINED_DIM : x;});
+        std::transform(minDims.begin(), minDims.end(), minDims.begin(), [](Dim x){ return ov::Interval::s_max == x ? UNDEFINED_DIM : x;});
         maxDims = shape.get_max_shape();
-        std::transform(maxDims.begin(), maxDims.end(), maxDims.begin(), [](Dim x){ return ngraph::Interval::s_max == x ? UNDEFINED_DIM : x;});
+        std::transform(maxDims.begin(), maxDims.end(), maxDims.begin(), [](Dim x){ return ov::Interval::s_max == x ? UNDEFINED_DIM : x;});
         type = shape.is_static() ? ShapeType::Static : ShapeType::Dynamic;
 
         initDims();
@@ -29,10 +30,42 @@ public:
         hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } );
     }
 
-    explicit Shape(const InferenceEngine::SizeVector& shape) {
+    explicit Shape(const VectorDims& shape) {
         minDims = shape;
         maxDims = shape;
         type = ShapeType::Static;
+
+        initDims();
+
+        hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } );
+    }
+
+    Shape(const VectorDims& minDims, const VectorDims& maxDims) {
+        if (minDims.size() != maxDims.size()) {
+            IE_THROW() << "Can't create shape due to min/max vectors dims size mismatch";
+        }
+        this->minDims = minDims;
+        this->maxDims = maxDims;
+
+        initDims();
+
+        if (std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == Shape::UNDEFINED_DIM; } ))  {
+            type = ShapeType::Dynamic;
+        } else {
+            type = ShapeType::Static;
+        }
+
+        hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } );
+    }
+
+    Shape(const std::initializer_list<Dim>& shape) {
+        minDims.reserve(shape.size());
+        maxDims.reserve(shape.size());
+        type = ShapeType::Static;
+        for (auto dim : shape) {
+            minDims.push_back(dim);
+            maxDims.push_back(dim);
+        }
 
         initDims();
 
@@ -132,8 +165,8 @@ public:
         return size;
     }
 
-    ngraph::PartialShape toPartialShape() const {
-        using ngraph::Dimension;
+    ov::PartialShape toPartialShape() const {
+        using ov::Dimension;
         std::vector<Dimension> nGraphDims;
         nGraphDims.reserve(minDims.size());
         for (int i = 0; i < minDims.size(); i++) {
@@ -141,7 +174,7 @@ public:
             Dimension::value_type maxDim = Shape::UNDEFINED_DIM == maxDims[i] ? -1 : maxDims[i];
             nGraphDims.emplace_back(minDim, maxDim);
         }
-        return ngraph::PartialShape(nGraphDims);
+        return ov::PartialShape(nGraphDims);
     }
 
     bool isCompatible(const VectorDims& vecDims) const;
@@ -183,4 +216,6 @@ private:
     VectorDims maxDims;
     VectorDims dims;
 };
-}  // namespace MKLDNNPlugin
+
+}   // namespace intel_cpu
+}   // namespace ov

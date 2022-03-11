@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassCommon, IEClassBasicTestP,
-        ::testing::Values(std::make_pair("ov_intel_cpu_plugin", "CPU")));
+        ::testing::Values(std::make_pair("openvino_intel_cpu_plugin", "CPU")));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassNetworkTestP, IEClassNetworkTestP,

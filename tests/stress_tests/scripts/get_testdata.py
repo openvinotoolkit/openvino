@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """ Script to acquire model IRs for stress tests.
@@ -181,8 +181,8 @@ def main():
         # check selected precision with model info from Open Model Zoo
         if precision not in model_info['precisions']:
             log.warning("Please specify precision for the model "
-                        "{model_name} from the list: {model_info}".format(model_name=model_name,
-                                                                          model_info=model_info['precisions']))
+                        f"{model_name} from the list: {model_info['precisions']}")
+            model_recs.remove(model_rec)
             continue
         model_rec.attrib.update(info_to_add)
         model_rec.attrib["path"] = str(
@@ -215,6 +215,12 @@ def main():
                                        precision=precision, model_name=model_name, irs_dir=args.omz_irs_out_dir,
                                        models_dir=args.omz_models_out_dir, mo_tool=args.mo_tool)
         run_in_subprocess(cmd, check_call=not args.skip_omz_errors)
+
+    for model_rec in model_recs:
+        if model_rec.attrib.get("full_path") is None:
+            log.warning(f"Model {model_rec.attrib['name']} does not have 'full_path' attribute! "
+                        f"This model will not be verified in this run.")
+            model_recs.remove(model_rec)
 
     # rewrite test config with updated records
     test_conf_obj.write(args.test_conf)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -38,7 +38,6 @@ setup(
     },
     classifiers=[
         'Programming Language :: Python :: 3',
-        'OSI Approved :: Apache Software License',
         'Operating System :: OS Independent',
     ],
     packages=find_packages(),

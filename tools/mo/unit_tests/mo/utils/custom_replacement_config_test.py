@@ -1,14 +1,14 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import unittest
 from fnmatch import fnmatch
 from generator import generator, generate
 
 from openvino.tools.mo.utils.custom_replacement_config import load_and_validate_json_config
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.utils import get_mo_root_dir
+from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 
 
 def get_json_configs(mo_root_dir):
@@ -22,7 +22,7 @@ def get_json_configs(mo_root_dir):
     return config_files_list
 
 @generator
-class TestSchema(unittest.TestCase):
+class TestSchema(UnitTestWithMockedTelemetry):
     base_dir = get_mo_root_dir()
     schema_file = os.path.join(base_dir, 'mo', 'utils', 'schema.json')
     transformation_configs = get_json_configs(base_dir)

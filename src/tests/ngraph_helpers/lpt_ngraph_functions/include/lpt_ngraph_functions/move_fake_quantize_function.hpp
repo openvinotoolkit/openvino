@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,21 +19,19 @@ class MoveFakeQuantize {
 public:
     static std::shared_ptr<ngraph::Function> get(
         const ngraph::element::Type inputPrecision,
-        const ngraph::PartialShape& inputShape,
-        const FakeQuantizeOnDataWithConstant& fqOnData1,
-        const DequantizationOperations::Convert& convert1,
-        const DequantizationOperations& dequantization1,
-        const FakeQuantizeOnDataWithConstant& fqOnData2,
-        const DequantizationOperations::Convert& convert2,
-        const DequantizationOperations& dequantization2,
+        const std::vector<ngraph::PartialShape>& inputShape,
+        const size_t concatInputsCount,
+        const std::vector<FakeQuantizeOnDataWithConstant>& fqBefore,
+        const DequantizationOperations::Convert& convertBefore,
+        const DequantizationOperations& dequantizationBefore,
         const std::string& operation,
-        const FakeQuantizeOnDataWithConstant& fqOnData3,
-        const DequantizationOperations::Convert& convert3,
-        const DequantizationOperations& dequantization3,
+        const FakeQuantizeOnDataWithConstant& fqOnDataAfter,
+        const DequantizationOperations::Convert& convertAfter,
+        const DequantizationOperations& dequantizationAfter,
         const std::vector<ov::Any>& concatAttributes,
         const ngraph::element::Type precisionAfterOperation,
-        const DequantizationOperations& dequantizationAfter,
-        const std::int64_t& axis);
+        const std::int64_t& axis,
+        const bool oneInputWithSplit);
 };
 
 }  // namespace subgraph
