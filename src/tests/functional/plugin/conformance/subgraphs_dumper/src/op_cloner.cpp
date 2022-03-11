@@ -77,8 +77,7 @@ std::shared_ptr<ov::Node> clone(const std::shared_ptr<ov::Node> &node, LayerTest
         const auto input = node->input(i).get_source_output();
         auto port_info = LayerTestsUtils::PortInfo();
         const auto constant = ov::get_constant_from_source(input);
-        if (constant != nullptr) {
-            has_parameters = true;
+        if (constant) {
             get_port_range(constant, port_info);
             float weights_size =
                     static_cast<float>(ov::shape_size(constant->get_shape()) *
@@ -99,6 +98,7 @@ std::shared_ptr<ov::Node> clone(const std::shared_ptr<ov::Node> &node, LayerTest
                 op_inputs.push_back(clone);
             }
         } else {
+            has_parameters = true;
             auto param = std::make_shared<ov::op::v0::Parameter>(input.get_element_type(),
                                                                  input.get_partial_shape());
             op_inputs.push_back(param);
