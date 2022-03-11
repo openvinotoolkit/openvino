@@ -36,7 +36,7 @@ full_device_name = core.get_property("CPU", "FULL_DEVICE_NAME")
 # ! [core_get_ro_property]
 
 # ! [compiled_model_get_rw_property]
-perf_model = compiled_model.get_property("PERFORMANCE_HINT")
+perf_mode = compiled_model.get_property("PERFORMANCE_HINT")
 # ! [compiled_model_get_rw_property]
 
 # ! [compiled_model_get_ro_property]
