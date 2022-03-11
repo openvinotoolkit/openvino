@@ -5,7 +5,7 @@
 #include "program_node.h"
 #include "program_helpers.h"
 #include "primitive_inst.h"
-
+#include "loop_inst.h"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "convolution_inst.h"
 #include "quantize_inst.h"
@@ -36,6 +36,11 @@ void program_node::replace_dependency(size_t idx, program_node& new_dep) {
         return;
     if (dependencies[idx] == &new_dep)
         return;
+
+    if (is_type<loop>()) {
+        loop_node& loop = *this;
+        loop.update_primitive_map(dependencies[idx]->id(), new_dep.id(), true);
+    }
 
     auto it = std::find(dependencies[idx]->users.begin(), dependencies[idx]->users.end(), this);
     if (it != dependencies[idx]->users.end()) {
@@ -388,7 +393,11 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
                 float scale;
                 dnnl::memory::data_type data_type;
                 cur_p_ops.get_params_sum(idx, scale, data_type);
-                new_p_ops.append_sum(scale, data_type);
+                if (is_type<convolution>()) {
+                    new_p_ops.append_sum(scale, data_type);
+                } else {
+                    new_p_ops.append_sum(scale);
+                }
                 break;
             }
 
@@ -665,7 +674,6 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
             } else if (sum_and_eltw) {
                 dnnl::algorithm alg;
                 float sum_scale, eltw_scale, alpha, beta;
-                dnnl::memory::data_type data_type;
 
                 dnnl::algorithm next_alg;
                 float next_scale, next_alpha, next_beta;
@@ -686,14 +694,18 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
 
                 // Try to optimize eltwise (any) + sum + eltwise_linear (with beta = 0) chain of operations
                 if (can_optimize_eltw_and_sum) {
+                    dnnl::memory::data_type data_type;
                     p_ops.get_params_sum(cur_idx, sum_scale, data_type);
                     p_ops.get_params_eltwise(prev_idx, eltw_scale, alg, alpha, beta);
 
                     dnnl::post_ops eltw_p_op_prev, sum_p_op;
 
                     eltw_p_op_prev.append_eltwise(eltw_scale * next_alpha * next_scale, alg, alpha, beta);
-                    sum_p_op.append_sum(sum_scale * next_alpha, data_type);
-
+                    if (is_type<convolution>()) {
+                        sum_p_op.append_sum(sum_scale * next_alpha, data_type);
+                    } else {
+                        sum_p_op.append_sum(sum_scale * next_alpha);
+                    }
                     add_post_op(prev_type, eltw_p_op_prev, optimized_p_ops, 0);
                     add_post_op(cur_type, sum_p_op, optimized_p_ops, 0);
 
@@ -823,7 +835,11 @@ void program_node::init_onednn_primitive_attributes() {
 
             if (e_node.get_primitive()->mode == eltwise_mode::sum) {
                 if (program_helpers::needs_onednn_sum_post_op(e_node, in)) {
-                    post_ops.append_sum(1.0f, onednn::convert_data_type(in.data_type));
+                    if (is_type<convolution>()) {
+                        post_ops.append_sum(1.0f, onednn::convert_data_type(in.data_type));
+                    } else {
+                        post_ops.append_sum(1.0f);
+                    }
                     update_onednn_post_op_list(onednn_post_op_type::sum, dep_idx);
                 } else {
                     dnnl::memory::desc in_desc = onednn::layout_to_memory_desc(in);

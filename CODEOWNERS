@@ -47,6 +47,9 @@ Jenkinsfile  @openvinotoolkit/openvino-admins
 /src/inference/include/ie/cldnn/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
 /src/inference/include/openvino/runtime/intel_gpu/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
 /src/plugins/intel_gpu/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
+/docs/snippets/gpu/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
+/docs/OV_Runtime_UG/supported_plugins/GPU.md  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
+/docs/OV_Runtime_UG/supported_plugins/GPU_RemoteTensor_API.md  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
 
 # IE VPU:
 /src/plugins/intel_myriad  @openvinotoolkit/openvino-ie-vpu-maintainers

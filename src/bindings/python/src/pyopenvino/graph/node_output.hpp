@@ -101,7 +101,7 @@ void regclass_graph_Output(py::module m, std::string typestring)
     output.def("get_target_inputs",
                &ov::Output<VT>::get_target_inputs,
                R"(
-                A set containing handles for all inputs targeted by the output
+                A set containing handles for all inputs, targeted by the output,
                 referenced by this output handle.
 
                 :return: Set of Inputs.

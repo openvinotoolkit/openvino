@@ -30,7 +30,7 @@ target_link_libraries(${TARGET_NAME}_obj PRIVATE ngraph_reference openvino::itt 
 target_include_directories(${TARGET_NAME}_obj PRIVATE $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
                                               "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
-add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
+add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}_obj)
 
 ie_mark_target_as_cc(${TARGET_NAME}_obj)
 
