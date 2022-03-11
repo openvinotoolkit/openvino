@@ -213,6 +213,10 @@ function(build_docs)
     set_target_properties(doxygen_xml sphinx_docs
                           PROPERTIES FOLDER docs)
 
+    install(FILES ${SPHINX_OUTPUT}
+            DESTINATION openvino_docs
+            COMPONENT openvino_docs
+            )
 
     find_program(browser NAMES xdg-open)
     if(browser)
