@@ -2,8 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+#! [ov_imports]
 from openvino.runtime import Core, Layout, Type
-from openvino.preprocess import PrePostProcessor
+from openvino.preprocess import ColorFormat, PrePostProcessor, ResizeAlgorithm
+#! [ov_imports]
+
+#! [imports]
+import openvino.inference_engine as ie
+#! [imports]
 
 #include "inference_engine.hpp"
 
@@ -14,7 +20,6 @@ core = Core()
 model = core.read_model(model=model_path)
 
 #! [ov_mean_scale]
-from openvino.runtime import Layout
 ppp = PrePostProcessor(model)
 input = ppp.input(tensor_name)
 # we only need to know where is C dimension
@@ -26,7 +31,6 @@ model = ppp.build()
 #! [ov_mean_scale]
 
 #! [ov_conversions]
-from openvino.runtime import Layout, Type
 ppp = PrePostProcessor(model)
 input = ppp.input(tensor_name)
 input.tensor().set_layout(Layout('NCHW')).set_element_type(Type.u8)
@@ -37,8 +41,6 @@ model = ppp.build()
 #! [ov_conversions]
 
 #! [ov_color_space]
-from openvino.preprocess import ColorFormat
-from openvino.runtime import Layout, Type
 ppp = PrePostProcessor(model)
 input = ppp.input(tensor_name)
 input.tensor().set_color_format(ColorFormat.NV12_TWO_PLANES)
@@ -49,8 +51,6 @@ model = ppp.build()
 #! [ov_color_space]
 
 #! [ov_image_scale]
-from openvino.preprocess import ResizeAlgorithm
-from openvino.runtime import Layout, Type
 ppp = PrePostProcessor(model)
 input = ppp.input(tensor_name)
 # need to specify H and W dimensions in model, others are not important
@@ -71,7 +71,6 @@ network = core.ReadNetwork(model_path)
 
 
 #! [mean_scale]
-from openvino.inference_engine import ie_api as ie
 preProcess = network.getInputsInfo()[operation_name].getPreProcess()
 preProcess.init(3)
 preProcess[0].meanValue = 116.78
@@ -84,7 +83,6 @@ preProcess.setVariant(ie.MEAN_VALUE)
 #! [mean_scale]
 
 #! [conversions]
-from openvino.inference_engine import ie_api as ie
 inputInfo = network.getInputsInfo()[operation_name]
 inputInfo.setPrecision(ie.Precision.U8)
 inputInfo.setLayout(ie.Layout.NHWC)
@@ -93,7 +91,7 @@ inputInfo.setLayout(ie.Layout.NHWC)
 #! [conversions]
 
 #! [color_space]
-from openvino.inference_engine import ie_api as ie
+
 preProcess = network.getInputsInfo()[operation_name].getPreProcess()
 # Inference Engine supposes NV12 as two inputs which need to be passed
 # as InferenceEngine::NV12Blob composed of two Y and UV planes
@@ -101,7 +99,6 @@ preProcess.setColorFormat(ie.NV12)
 #! [color_space]
 
 #! [image_scale]
-from openvino.inference_engine import ie_api as ie
 preProcess = network.getInputsInfo()[operation_name].getPreProcess()
 # Inference Engine supposes input for resize is always in NCHW layout
 # while for OpenVINO Runtime API 2.0 `H` and `W` dimensions must be specified

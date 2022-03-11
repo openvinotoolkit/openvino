@@ -19,6 +19,33 @@ It's also important to mention that since OpenVINO 2.0, the Runtime API does not
 The steps below demonstrates how to migrate preprocessing scenarios from Inference Engine API to OpenVINO Runtime API 2.0.
 The snippets suppose we need to preprocess a model input with tensor name `tensor_name`, in Inferenece Engine API using operation names to address the data, it's called `operation_name`.
 
+#### Importing preprocessing in Python
+
+In order to utilize preprocessing following imports must be added.
+
+Inference Engine API:
+
+@sphinxdirective
+
+.. doxygensnippet:: docs/snippets/ov_preprocessing_migration.py
+         :language: python
+         :fragment: [imports]
+
+@endsphinxdirective
+
+OpenVINO Runtime API 2.0:
+
+@sphinxdirective
+
+.. doxygensnippet:: docs/snippets/ov_preprocessing_migration.py
+         :language: python
+         :fragment: [ov_imports]
+
+@endsphinxdirective
+
+There are two different namespaces `runtime`, which contains OpenVINO Runtime API classes and `preprocess` which provides Preprocessing API.
+
+
 ### Mean and scale values
 
 Inference Engine API:
