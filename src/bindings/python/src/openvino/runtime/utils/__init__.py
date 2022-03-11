@@ -3,7 +3,5 @@
 
 """Generic utilities. Factor related functions out to separate files."""
 
-from openvino.pyopenvino import util
-
-numpy_to_c = util.numpy_to_c
-get_constant_from_source = util.get_constant_from_source
+from openvino.pyopenvino.util import numpy_to_c
+from openvino.pyopenvino.util import get_constant_from_source
