@@ -82,7 +82,7 @@ All parameters must be set before calling `ov::Core::compile_model()` in order t
 * `SpaceToBatch` layer is supported 4D tensors only and constant nodes: `shapes`, `pads_begin` or `pads_end` with zero paddings for batch or channels and one values `shapes` for batch and channels.
 * `SpaceToDepth` layer is supported 4D tensors only and for `BLOCKS_FIRST` of `mode` attribute.
 * `StridedSlice` layer is supported via arm_compute library for tensors with dims < 5 and zero values of `ellipsis_mask` or zero values of `new_axis_mask` and `shrink_axis_mask`, for another cases layer is implemented via runtime reference.
-
+* `FakeQuantize` layer is supported via arm_compute library in Low Precision evaluation mode for suitable models and via runtime reference otherwise.
 
 ## See Also
 * [How to run YOLOv4 model inference using OpenVINO&trade; and OpenCV on Arm&reg;](https://opencv.org/how-to-run-yolov4-using-openvino-and-opencv-on-arm/)
