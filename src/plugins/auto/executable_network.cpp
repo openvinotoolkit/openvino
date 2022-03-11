@@ -296,9 +296,11 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
             }
         };
         _executor->run(std::move(recycleTask));
+        _requestWrapper = std::make_shared<AutoRequestWrapper>();
     } else {
         // only one device need to load network, do not need to load it async
         _loadContext[ACTUALDEVICE].task();
+        _requestWrapper = std::make_shared<RequestWrapper>(_loadContext[ACTUALDEVICE].executableNetwork);
     }
     WaitFirstNetworkReady();
 }
@@ -644,6 +646,13 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
 }
 
 IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateInferRequest() {
+    if (_workModeIsAUTO) {
+        // try enable multi deivice schedule
+        _requestWrapper->SetExecutableNetworkInternal(
+            std::static_pointer_cast<MultiDeviceExecutableNetwork>(shared_from_this()));
+        _requestWrapper->SetCallBackExecutor(_callbackExecutor);
+        return _requestWrapper->CreateInferRequest();
+    }
     IInferRequestInternal::Ptr syncRequestImpl;
     if (this->_plugin) {
         const auto& core = _plugin->GetCore();

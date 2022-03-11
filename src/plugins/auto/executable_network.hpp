@@ -19,6 +19,7 @@
 #include "ie_icore.hpp"
 #include <ie_performance_hints.hpp>
 #include "openvino/runtime/properties.hpp"
+#include "auto_request_wrapper.hpp"
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
@@ -161,6 +162,7 @@ private:
     bool                                                                _exitFlag = {false};
     const InferenceEngine::CNNNetwork                                   _network;
     int                                                                 _cpuHelpInferCount = 0;
+    RequestWrapper::Ptr                                                 _requestWrapper;
 };
 
 }  // namespace MultiDevicePlugin
