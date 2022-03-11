@@ -97,7 +97,7 @@ OutputVector scan(const Node& node) {
         if (direction == 0) {
             outputs.push_back(tensor_iterator->get_concatenated_slices(ti_body_results[i], 0, 1, 1, -1, axis));
         } else {
-            NGRAPH_CHECK(false);
+            outputs.push_back(tensor_iterator->get_concatenated_slices(ti_body_results[i], -1, -1, 1, 0, axis));
         }
     }
 
