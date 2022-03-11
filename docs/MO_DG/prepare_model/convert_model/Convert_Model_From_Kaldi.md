@@ -56,7 +56,7 @@ Kaldi-specific parameters:
 	\f$|C|\f$ - number of elements in the counts array;
   * The normalized counts are subtracted from biases of the last or next to last layer (if last layer is SoftMax).
 
-  > **NOTE:** Model Optimizer will show warning if model contains counts values inside model and `--counts` option is not used.
+  > **NOTE**: Model Optimizer will show warning if model contains counts values inside model and `--counts` option is not used.
 
 * If you want to remove the last SoftMax layer in the topology, launch the Model Optimizer with the
 `--remove_output_softmax` flag:

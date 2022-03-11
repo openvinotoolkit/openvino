@@ -20,7 +20,7 @@ To convert a PaddlePaddle model:
 Parameters to convert your model:
 
 * [Framework-agnostic parameters](Converting_Model.md): These parameters are used to convert a model trained with any supported framework.
-> **NOTE:** `--scale`, `--scale_values`, `--mean_values` are not supported in the current version of mo_paddle.
+> **NOTE**: `--scale`, `--scale_values`, `--mean_values` are not supported in the current version of mo_paddle.
 
 ### Example of Converting a PaddlePaddle Model
 Below is the example command to convert yolo v3 PaddlePaddle network to OpenVINO IR network with Model Optimizer.

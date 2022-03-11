@@ -64,7 +64,7 @@ In the first case, the Model Optimizer generates the IR with required pre-proces
 In the second case, information about mean/scale values should be provided to the Model Optimizer to embed it to the generated IR.
 Model Optimizer provides a number of command line parameters to specify them: `--mean_values`, `--scale_values`, `--scale`.
 
-> **NOTE:** If both mean and scale values are specified, the mean is subtracted first and then scale is applied regardless of the order of options
+> **NOTE**: If both mean and scale values are specified, the mean is subtracted first and then scale is applied regardless of the order of options
 in command line. Input values are *divided* by the scale value(s). If also `--reverse_input_channels` option is used, the `reverse_input_channels`
 will be applied first, then `mean` and after that `scale`. In other words, the data flow in the model looks as following:
 `Parameter -> ReverseInputChannels -> Mean apply-> Scale apply -> the original body of the model`.
@@ -77,7 +77,7 @@ There is no a universal recipe for determining the mean/scale values for a parti
 For example, run the Model Optimizer for the PaddlePaddle* UNet model and apply mean-scale normalization to the input data.
 
 ```sh
-mo --input_model unet.pdmodel --input data --mean_values data[123,117,104] --scale_values data[255,255,255]
+mo --input_model unet.pdmodel --mean_values [123,117,104] --scale 255
 ```
 
 ## When to Reverse Input Channels <a name="when_to_reverse_input_channels"></a>
