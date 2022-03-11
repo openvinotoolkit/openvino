@@ -85,6 +85,6 @@ Jenkinsfile  @openvinotoolkit/openvino-admins
 *.md  @openvinotoolkit/openvino-docs-maintainers
 
 # Control 3d party dependencies
-**/*requirements*.*  @openvino-configuration-mgmt
-**/setup.py  @openvino-configuration-mgmt
-/scripts/install_dependencies/  @openvino-configuration-mgmt
+**/*requirements*.*  @openvinotoolkit/openvino-configuration-mgmt
+**/setup.py  @openvinotoolkit/openvino-configuration-mgmt
+/scripts/install_dependencies/  @openvinotoolkit/openvino-configuration-mgmt
