@@ -32,12 +32,18 @@ OutputVector scan(const Node& node) {
     const int64_t num_scan_inputs = node.get_attribute_value<int64_t>("num_scan_inputs");
     const size_t num_initial_values = ng_inputs.size() - num_scan_inputs;
 
-    std::vector<int64_t> scan_input_axes = node.get_attribute_value<std::vector<int64_t>>("scan_input_axes", std::vector<int64_t>(num_scan_inputs, 0));
-    std::vector<int64_t> scan_input_directions = node.get_attribute_value<std::vector<int64_t>>("scan_input_directions", std::vector<int64_t>(num_scan_inputs, 0));
+    std::vector<int64_t> scan_input_axes =
+        node.get_attribute_value<std::vector<int64_t>>("scan_input_axes", std::vector<int64_t>(num_scan_inputs, 0));
+    std::vector<int64_t> scan_input_directions =
+        node.get_attribute_value<std::vector<int64_t>>("scan_input_directions",
+                                                       std::vector<int64_t>(num_scan_inputs, 0));
 
-    std::vector<int64_t> scan_output_axes = node.get_attribute_value<std::vector<int64_t>>("scan_output_axes", std::vector<int64_t>(body_outputs.size(), 0));
-    std::vector<int64_t> scan_output_directions = node.get_attribute_value<std::vector<int64_t>>("scan_output_directions", std::vector<int64_t>(body_outputs.size(), 0));
-
+    std::vector<int64_t> scan_output_axes =
+        node.get_attribute_value<std::vector<int64_t>>("scan_output_axes",
+                                                       std::vector<int64_t>(body_outputs.size(), 0));
+    std::vector<int64_t> scan_output_directions =
+        node.get_attribute_value<std::vector<int64_t>>("scan_output_directions",
+                                                       std::vector<int64_t>(body_outputs.size(), 0));
 
     for (size_t i = 0; i < body_inputs.size(); i++) {
         body_inputs[i]->set_element_type(ng_inputs[i].get_element_type());
