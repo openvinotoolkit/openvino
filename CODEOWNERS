@@ -66,6 +66,9 @@ Jenkinsfile  @openvinotoolkit/openvino-admins
 /src/plugins/intel_gna/  @openvinotoolkit/openvino-ie-gna-maintainers
 /src/inference/include/ie/gna/  @openvinotoolkit/openvino-ie-gna-maintainers
 
+# IE ARM CPU:
+/docs/OV_Runtime_UG/supported_plugins/ARM_CPU.md  @openvinotoolkit/openvino_contrib-arm_plugin-maintainers
+
 # IE Auto (MULTI) plugin:
 /src/plugins/auto/  @openvinotoolkit/openvino-ie-auto-multi-maintainers
 /src/inference/include/ie/multi-device/  @openvinotoolkit/openvino-ie-auto-multi-maintainers
