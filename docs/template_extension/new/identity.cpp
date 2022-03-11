@@ -37,7 +37,6 @@ bool Identity::visit_attributes(ov::AttributeVisitor& visitor) {
 bool Identity::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     auto in = inputs[0];
     auto out = outputs[0];
-    out.set_shape(in.get_shape());
     memcpy(out.data(), in.data(), in.get_size());
     return true;
 }
