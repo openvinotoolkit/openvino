@@ -35,7 +35,6 @@ Let's consider the example, there is an original `ONNX` model which takes one `f
 @endsphinxdirective
 
 - Preprocessing & Saving to IR code
-
 @sphinxdirective
 
 .. tab:: C++

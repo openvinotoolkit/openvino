@@ -200,7 +200,7 @@ void save_example() {
 void load_aftersave_example() {
  //! [ov:preprocess:save_load]
  ov::Core core;
- core.set_property({{CONFIG_KEY(CACHE_DIR), "/path/to/cache/dir"}});
+ core.set_property(ov::cache_dir("/path/to/cache/dir"));
 
  // In case that no preprocessing is needed anymore, we can load model on target device directly
  // With cached model available, it will also save some time on reading original model

@@ -173,7 +173,7 @@ ppp.output("result_image").postprocess()\
 # ! [ov:preprocess:save_headers]
 from openvino.preprocess import PrePostProcessor, ColorFormat, ResizeAlgorithm
 from openvino.runtime import Core, Layout, Type, set_batch
-from openvino.offline_transformations import serialize
+from openvino.runtime.passes import Manager
 # ! [ov:preprocess:save_headers]
 
 # ! [ov:preprocess:save]
@@ -210,8 +210,11 @@ model = ppp.build()
 set_batch(model, 2)
 
 # ======== Step 3: Save the model ================
-serialize(model, '/path/to/some_model_saved.xml', '/path/to/some_model_saved.bin')
-
+pass_manager = Manager()
+pass_manager.register_pass(pass_name="Serialize",
+                           xml_path='/path/to/some_model_saved.xml',
+                           bin_path='/path/to/some_model_saved.bin')
+pass_manager.run_passes(model)
 # ! [ov:preprocess:save]
 
 # ! [ov:preprocess:save_load]
