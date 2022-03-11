@@ -1,133 +1,110 @@
-# # Copyright (C) 2018-2022 Intel Corporation
-# # SPDX-License-Identifier: Apache-2.0
-# #
+# Copyright (C) 2018-2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+from openvino.runtime import Core, Layout, Type
+from openvino.preprocess import PrePostProcessor
+
+#include "inference_engine.hpp"
+
+model_path = ''
+tensor_name = ''
+
+core = Core()
+model = core.read_model(model=model_path)
+
+#! [ov_mean_scale]
+from openvino.runtime import Layout
+ppp = PrePostProcessor(model)
+input = ppp.input(tensor_name)
+# we only need to know where is C dimension
+input.model().set_layout(Layout('...C'))
+# specify scale and mean values, order of operations is important
+input.preprocess().mean([116.78]).scale([57.21, 57.45, 57.73])
+# insert preprocessing operations to the 'model'
+model = ppp.build()
+#! [ov_mean_scale]
+
+#! [ov_conversions]
+from openvino.runtime import Layout, Type
+ppp = PrePostProcessor(model)
+input = ppp.input(tensor_name)
+input.tensor().set_layout(Layout('NCHW')).set_element_type(Type.u8)
+input.model().set_layout(Layout('NCHW'))
+# layout and precision conversion is inserted automatically,
+# because tensor format != model input format
+model = ppp.build()
+#! [ov_conversions]
+
+#! [ov_color_space]
+from openvino.preprocess import ColorFormat
+from openvino.runtime import Layout, Type
+ppp = PrePostProcessor(model)
+input = ppp.input(tensor_name)
+input.tensor().set_color_format(ColorFormat.NV12_TWO_PLANES)
+# add NV12 to BGR conversion
+input.preprocess().convert_color(ColorFormat.BGR)
+# and insert operations to the model
+model = ppp.build()
+#! [ov_color_space]
+
+#! [ov_image_scale]
+from openvino.preprocess import ResizeAlgorithm
+from openvino.runtime import Layout, Type
+ppp = PrePostProcessor(model)
+input = ppp.input(tensor_name)
+# need to specify H and W dimensions in model, others are not important
+input.model().set_layout(Layout('??HW'))
+# scale to model shape
+input.preprocess().resize(ResizeAlgorithm.RESIZE_LINEAR, 448, 448)
+# and insert operations to the model
+model = ppp.build()
+#! [ov_image_scale]
 
 
-# ! [ov:preprocess:test]
 
-from openvino.runtime import Core
+model_path = ''
+operation_name = ''
 
-# ! [ov:preprocess:test]
+core = Core()
+network = core.ReadNetwork(model_path)
 
 
-# from openvino.runtime import Core
-# import openvino.runtime.opset8 as ops
-# from openvino.preprocess import PrePostProcessor
+#! [mean_scale]
+from openvino.inference_engine import ie_api as ie
+preProcess = network.getInputsInfo()[operation_name].getPreProcess()
+preProcess.init(3)
+preProcess[0].meanValue = 116.78
+preProcess[1].meanValue = 116.78
+preProcess[2].meanValue = 116.78
+preProcess[0].stdScale = 57.21
+preProcess[1].stdScale = 57.45
+preProcess[2].stdScale = 57.73
+preProcess.setVariant(ie.MEAN_VALUE)
+#! [mean_scale]
 
-# #include "inference_engine.hpp"
+#! [conversions]
+from openvino.inference_engine import ie_api as ie
+inputInfo = network.getInputsInfo()[operation_name]
+inputInfo.setPrecision(ie.Precision.U8)
+inputInfo.setLayout(ie.Layout.NHWC)
+# model input layout is always NCHW in Inference Engine
+# for shapes with 4 dimensions
+#! [conversions]
 
-# int main_new() {
-#     std::string model_path;
-#     std::string tensor_name;
+#! [color_space]
+from openvino.inference_engine import ie_api as ie
+preProcess = network.getInputsInfo()[operation_name].getPreProcess()
+# Inference Engine supposes NV12 as two inputs which need to be passed
+# as InferenceEngine::NV12Blob composed of two Y and UV planes
+preProcess.setColorFormat(ie.NV12)
+#! [color_space]
 
-#     ov::Core core;
-#     std::shared_ptr<ov::Model> model = core.read_model(model_path);
-#     ov::preprocess::PrePostProcessor ppp(model);
-
-#     {
-#     //! [ov_mean_scale]
-# ov::preprocess::PrePostProcessor ppp(model);
-# ov::preprocess::InputInfo& input = ppp.input(tensor_name);
-# // we only need to know where is C dimension
-# input.model().set_layout("...C");
-# // specify scale and mean values, order of operations is important
-# input.preprocess().mean(116.78f).scale({ 57.21f, 57.45f, 57.73f });
-# // insert preprocessing operations to the 'model'
-# model = ppp.build();
-#     //! [ov_mean_scale]
-#     }
-
-#     {
-#     //! [ov_conversions]
-# ov::preprocess::PrePostProcessor ppp(model);
-# ov::preprocess::InputInfo& input = ppp.input(tensor_name);
-# input.tensor().set_layout("NHWC").set_element_type(ov::element::u8);
-# input.model().set_layout("NCHW");
-# // layout and precision conversion is inserted automatically,
-# // because tensor format != model input format
-# model = ppp.build();
-#     //! [ov_conversions]
-#     }
-
-#     {
-#     //! [ov_color_space]
-# ov::preprocess::PrePostProcessor ppp(model);
-# ov::preprocess::InputInfo& input = ppp.input(tensor_name);
-# input.tensor().set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES);
-# // add NV12 to BGR conversion
-# input.preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
-# // and insert operations to the model
-# model = ppp.build();
-#     //! [ov_color_space]
-#     }
-
-#     {
-#     //! [ov_image_scale]
-# ov::preprocess::PrePostProcessor ppp(model);
-# ov::preprocess::InputInfo& input = ppp.input(tensor_name);
-# // scale from the specified tensor size
-# input.tensor().set_spatial_static_shape(448, 448);
-# // need to specify H and W dimensions in model, others are not important
-# input.model().set_layout("??HW");
-# // scale to model shape
-# input.preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
-# // and insert operations to the model
-# model = ppp.build();
-#     //! [ov_image_scale]
-#     }
-
-# return 0;
-# }
-
-# int main_old() {
-#     std::string model_path;
-#     std::string operation_name;
-
-#     InferenceEngine::Core core;
-#     InferenceEngine::CNNNetwork network = core.ReadNetwork(model_path);
-
-#     {
-#     //! [mean_scale]
-# auto preProcess = network.getInputsInfo()[operation_name]->getPreProcess();
-# preProcess.init(3);
-# preProcess[0]->meanValue = 116.78f;
-# preProcess[1]->meanValue = 116.78f;
-# preProcess[2]->meanValue = 116.78f;
-# preProcess[0]->stdScale = 57.21f;
-# preProcess[1]->stdScale = 57.45f;
-# preProcess[2]->stdScale = 57.73f;
-# preProcess.setVariant(InferenceEngine::MEAN_VALUE);
-#     //! [mean_scale]
-#     }
-
-#     {
-#     //! [conversions]
-# auto inputInfo = network.getInputsInfo()[operation_name];
-# inputInfo->setPrecision(InferenceEngine::Precision::U8);
-# inputInfo->setLayout(InferenceEngine::Layout::NHWC);
-# // model input layout is always NCHW in Inference Engine
-# // for shapes with 4 dimensions
-#     //! [conversions]
-#     }
-
-#     {
-#     //! [color_space]
-# auto preProcess = network.getInputsInfo()[operation_name]->getPreProcess();
-# // Inference Engine supposes NV12 as two inputs which need to be passed
-# // as InferenceEngine::NV12Blob composed of two Y and UV planes
-# preProcess.setColorFormat(InferenceEngine::NV12);
-#     //! [color_space]
-#     }
-
-#     {
-#     //! [image_scale]
-# auto preProcess = network.getInputsInfo()[operation_name]->getPreProcess();
-# // Inference Engine supposes input for resize is always in NCHW layout
-# // while for OpenVINO Runtime API 2.0 `H` and `W` dimensions must be specified
-# // Also, current code snippet supposed resize from dynamic shapes
-# preProcess.setResizeAlgorithm(InferenceEngine::ResizeAlgorithm::RESIZE_BILINEAR);
-#     //! [image_scale]
-#     }
-
-#     return 0;
-# }
+#! [image_scale]
+from openvino.inference_engine import ie_api as ie
+preProcess = network.getInputsInfo()[operation_name].getPreProcess()
+# Inference Engine supposes input for resize is always in NCHW layout
+# while for OpenVINO Runtime API 2.0 `H` and `W` dimensions must be specified
+# Also, current code snippet supposed resize from dynamic shapes
+preProcess.setResizeAlgorithm(ie.ResizeAlgorithm.RESIZE_BILINEAR)
+#! [image_scale]
