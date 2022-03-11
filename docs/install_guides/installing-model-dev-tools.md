@@ -8,8 +8,7 @@ If you want to download, convert, optimize and tune pre-trained deep learning mo
 * Post-Training Optimization Tool
 * Model Downloader and other Open Model Zoo tools
 
-From the 2022.1 release, OpenVINO Development Tools can only be installed via PyPI.
-
+> **NOTE**: From the 2022.1 release, the OpenVINO™ Development Tools can only be installed via PyPI. 
 
 ## For C++ Developers
 
