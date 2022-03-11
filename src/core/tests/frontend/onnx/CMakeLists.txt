@@ -18,12 +18,13 @@ install(TARGETS ${TARGET_NAME}
         COMPONENT tests
         EXCLUDE_FROM_ALL)
 
-set(TEST_ONNX_MODELS_DIRNAME ${TEST_MODEL_ZOO}/src/core/models/onnx)
+set(TEST_ONNX_MODELS_DIRNAME ${TEST_MODEL_ZOO}/core/models/onnx)
 target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_ONNX_MODELS_DIRNAME=\"${TEST_ONNX_MODELS_DIRNAME}/\")
 set(MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/unit_test.manifest)
 target_compile_definitions(${TARGET_NAME} PRIVATE -D MANIFEST=\"${MANIFEST}\")
 
 add_dependencies(${TARGET_NAME} openvino_onnx_frontend)
+add_dependencies(${TARGET_NAME} openvino_template_extension)
 add_dependencies(${TARGET_NAME} test_model_zoo)
 
 add_subdirectory(standalone_build)
