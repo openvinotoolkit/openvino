@@ -37,6 +37,8 @@ public:
      */
     void ThrowIfCanceled() const;
 
+    void SetBlobsImpl(const std::string& name, const InferenceEngine::BatchedBlob::Ptr& batched_blob) override;
+
 protected:
     InferRequestBase(InferenceEngine::InputsDataMap networkInputs,
                      InferenceEngine::OutputsDataMap networkOutputs,

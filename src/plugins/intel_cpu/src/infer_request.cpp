@@ -156,6 +156,7 @@ void InferRequestBase::InferImpl() {
     graph = &(graphLock._graph);
 
     ThrowIfCanceled();
+    convertBatchedInputBlobs();
 
     if (graph->hasDynamicInput()) {
         redefineMemoryForInputNodes();
@@ -337,6 +338,10 @@ InferRequestBase::normToInputSupportedPrec(const std::pair<const std::string, In
     }
 
     return inPrec;
+}
+
+void InferRequestBase::SetBlobsImpl(const std::string& name, const InferenceEngine::BatchedBlob::Ptr& batched_blob) {
+    _batched_inputs[name] = batched_blob;
 }
 
 /* ========================================== LegacyInferRequest ========================================== */
@@ -724,6 +729,7 @@ void InferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob:
             externalPtr.erase(name);
         }
         _inputs[name] = data;
+        _batched_inputs.erase(name);
     } else {
         if (compoundBlobPassed) {
             IE_THROW(NotImplemented) << "Can't set compound blob: supported only for input pre-processing";
