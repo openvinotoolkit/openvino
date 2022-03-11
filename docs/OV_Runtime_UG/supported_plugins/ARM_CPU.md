@@ -1,16 +1,16 @@
-# ARM CPU device {#openvino_docs_OV_UG_supported_plugins_ARM_CPU}
+# Arm&reg; CPU device {#openvino_docs_OV_UG_supported_plugins_ARM_CPU}
 
 
-## Introducing the ARM CPU Plugin
-The ARM CPU plugin is developed in order to enable deep neural networks inference on ARM CPU, using [ARM Compute Library (ACL)](https://github.com/ARM-software/ComputeLibrary) as a backend.
+## Introducing the Arm&reg; CPU Plugin
+The ARM&reg; CPU plugin is developed in order to enable deep neural networks inference on Arm&reg; CPU, using [Compute Library](https://github.com/ARM-software/ComputeLibrary) as a backend.
 
-The ARM CPU plugin is not a part of the Intel® Distribution of OpenVINO™ toolkit and is not distributed in pre-built form. To use the plugin, it should be buid from source code. Plugin build procedure is described on [How to build ARM CPU plugin](https://github.com/openvinotoolkit/openvino_contrib/wiki/How-to-build-ARM-CPU-plugin). 
+The Arm&reg; CPU plugin is not a part of the Intel® Distribution of OpenVINO™ toolkit and is not distributed in pre-built form. To use the plugin, it should be buid from source code. Plugin build procedure is described on [How to build Arm&reg; CPU plugin](https://github.com/openvinotoolkit/openvino_contrib/wiki/How-to-build-ARM-CPU-plugin). 
 
 The set of supported layers is defined on [Operation set specification](https://github.com/openvinotoolkit/openvino_contrib/wiki/ARM-plugin-operation-set-specification).
 
 
 ## Supported inference data types
-The ARM CPU plugin supports the following data types as inference precision of internal primitives:
+The Arm&reg; CPU plugin supports the following data types as inference precision of internal primitives:
 
 - Floating-point data types:
   - f32
@@ -70,3 +70,7 @@ All parameters must be set before calling `ov::Core::compile_model()` in order t
 * `SpaceToDepth` layer is supported 4D tensors only and for `BLOCKS_FIRST` of `mode` attribute.
 * `StridedSlice` layer is supported via arm_compute library for tensors with dims < 5 and zero values of `ellipsis_mask` or zero values of `new_axis_mask` and `shrink_axis_mask`, for another cases layer is implemented via runtime reference.
 * `Transpose` layer is supported via arm_compute library for tensors with dims < 5, for another cases layer is implemented via runtime reference.
+
+## See Also
+* [How to run YOLOv4 model inference using OpenVINO&trade; and OpenCV on Arm&reg;](https://opencv.org/how-to-run-yolov4-using-openvino-and-opencv-on-arm/)
+* [Face recognition on Android&trade; using OpenVINO&trade; toolkit with Arm&reg; plugin](https://opencv.org/face-recognition-on-android-using-openvino-toolkit-with-arm-plugin/)

@@ -23,7 +23,7 @@ The OpenVINO Runtime provides capabilities to infer deep learning models on the 
 |[GPU plugin](GPU.md)            |Intel® Graphics, including Intel® HD Graphics, Intel® UHD Graphics, Intel® Iris® Graphics, Intel® Xe Graphics, Intel® Xe MAX Graphics |
 |[VPU plugins](VPU.md)            |Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X, Intel® Vision Accelerator Design with Intel® Movidius™ VPUs                                                                                           |
 |[GNA plugin](GNA.md)              |Intel&reg; Speech Enabling Developer Kit, Amazon Alexa* Premium Far-Field Developer Kit, Intel&reg; Pentium&reg; Silver J5005 Processor, Intel&reg; Pentium&reg; Silver N5000 Processor, Intel&reg; Celeron&reg; J4005 Processor, Intel&reg; Celeron&reg; J4105 Processor, Intel&reg; Celeron&reg; Processor N4100, Intel&reg; Celeron&reg; Processor N4000, Intel&reg; Core&trade; i3-8121U Processor, Intel&reg; Core&trade; i7-1065G7 Processor, Intel&reg; Core&trade; i7-1060G7 Processor, Intel&reg; Core&trade; i5-1035G4 Processor, Intel&reg; Core&trade; i5-1035G7 Processor, Intel&reg; Core&trade; i5-1035G1 Processor, Intel&reg; Core&trade; i5-1030G7 Processor, Intel&reg; Core&trade; i5-1030G4 Processor, Intel&reg; Core&trade; i3-1005G1 Processor, Intel&reg; Core&trade; i3-1000G1 Processor, Intel&reg; Core&trade; i3-1000G4 Processor|
-|[ARM CPU plugin](ARM_CPU.md) |Raspberry Pi&trade; 4 Model B, Apple&reg; Mac mini with M1 chip, NVIDIA&reg; Jetson Nano&trade;, Android&trade; devices    |
+|[Arm&reg; CPU plugin](ARM_CPU.md) |Raspberry Pi&trade; 4 Model B, Apple&reg; Mac mini with M1 chip, NVIDIA&reg; Jetson Nano&trade;, Android&trade; devices    |
 
 OpenVINO runtime also has several execution capabilities which work on top of other devices:
 
@@ -40,7 +40,7 @@ Devices similar to the ones we have used for benchmarking can be accessed using 
 ## Features support matrix
 The table below demonstrates support of key features by OpenVINO device plugins.
 
-| Capability | CPU | [GPU](./GPU.md) | GNA | VPU | [ARM CPU](ARM_CPU.md) |
+| Capability | CPU | [GPU](./GPU.md) | GNA | VPU | [Arm&reg; CPU](ARM_CPU.md) |
 | ---------- | --- | --- | --- | --- | --- |
 | [Heterogeneous execution](../hetero_execution.md)| Yes | Yes | ? | ? | No |
 | [Multi-device execution](../multi_device.md) | Yes | Yes | ? | ? | No |

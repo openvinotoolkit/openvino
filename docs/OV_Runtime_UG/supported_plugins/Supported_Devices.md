@@ -13,7 +13,7 @@ The OpenVINO Runtime provides unique capabilities to infer deep learning models 
 |[CPU plugin](CPU.md)              |Intel&reg; Xeon&reg; with Intel® Advanced Vector Extensions 2 (Intel® AVX2), Intel® Advanced Vector Extensions 512 (Intel® AVX-512), and AVX512_BF16, Intel&reg; Core&trade; Processors with Intel&reg; AVX2, Intel&reg; Atom&reg; Processors with Intel® Streaming SIMD Extensions (Intel® SSE) |
 |[VPU plugins](VPU.md) (available in the Intel® Distribution of OpenVINO™ toolkit)            |Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X, Intel® Vision Accelerator Design with Intel® Movidius™ VPUs                                                                                           |
 |[GNA plugin](GNA.md) (available in the Intel® Distribution of OpenVINO™ toolkit)              |Intel&reg; Speech Enabling Developer Kit, Amazon Alexa* Premium Far-Field Developer Kit, Intel&reg; Pentium&reg; Silver J5005 Processor, Intel&reg; Pentium&reg; Silver N5000 Processor, Intel&reg; Celeron&reg; J4005 Processor, Intel&reg; Celeron&reg; J4105 Processor, Intel&reg; Celeron&reg; Processor N4100, Intel&reg; Celeron&reg; Processor N4000, Intel&reg; Core&trade; i3-8121U Processor, Intel&reg; Core&trade; i7-1065G7 Processor, Intel&reg; Core&trade; i7-1060G7 Processor, Intel&reg; Core&trade; i5-1035G4 Processor, Intel&reg; Core&trade; i5-1035G7 Processor, Intel&reg; Core&trade; i5-1035G1 Processor, Intel&reg; Core&trade; i5-1030G7 Processor, Intel&reg; Core&trade; i5-1030G4 Processor, Intel&reg; Core&trade; i3-1005G1 Processor, Intel&reg; Core&trade; i3-1000G1 Processor, Intel&reg; Core&trade; i3-1000G4 Processor|
-|[ARM CPU plugin](ARM_CPU.md) (unavailable in the Intel® Distribution of OpenVINO™ toolkit) |Raspberry Pi&trade; 4 Model B, Apple&reg; Mac mini with M1 chip, NVIDIA&reg; Jetson Nano&trade;, Android&trade; devices    |
+|[Arm&reg; CPU plugin](ARM_CPU.md) (unavailable in the Intel® Distribution of OpenVINO™ toolkit) |Raspberry Pi&trade; 4 Model B, Apple&reg; Mac mini with M1 chip, NVIDIA&reg; Jetson Nano&trade;, Android&trade; devices    |
 |[Multi-Device execution](../multi_device.md) |Multi-Device execution enables simultaneous inference of the same model on several devices in parallel    |
 |[Auto-Device plugin](../auto_device_selection.md) |Auto-Device plugin enables selecting Intel&reg; device for inference automatically |
 |[Heterogeneous plugin](../hetero_execution.md) |Heterogeneous execution enables automatic inference splitting between several devices (for example if a device doesn't [support certain operation](#supported-layers)).                                                           |
@@ -29,7 +29,7 @@ The table below shows the plugin libraries and additional dependencies for Linux
 | MYRIAD | `libopenvino_intel_myriad_plugin.so` | `libusb.so`                                                 | `openvino_intel_myriad_plugin.dll`| `usb.dll`                                                                                              | `libopenvino_intel_myriad_plugin.so`   | `libusb.dylib`                              |
 | HDDL   | `libintel_hddl_plugin.so`          | `libbsl.so`, `libhddlapi.so`, `libmvnc-hddl.so`             | `intel_hddl_plugin.dll`         | `bsl.dll`, `hddlapi.dll`, `json-c.dll`, `libcrypto-1_1-x64.dll`, `libssl-1_1-x64.dll`, `mvnc-hddl.dll` |  Is not supported            |  -                                          |
 | GNA    | `libopenvino_intel_gna_plugin.so`           | `libgna.so`,                                                | `openvino_intel_gna_plugin.dll`          | `gna.dll`                                                                                              |  Is not supported            |  -                                          |
-| ARM CPU    | `libopenvino_arm_cpu_plugin.so`           |                                                 | Is not supported          | -                                                                                              |  `libopenvino_arm_cpu_plugin.so`            |  -                                          |
+| Arm&reg; CPU    | `libopenvino_arm_cpu_plugin.so`           |                                                 | Is not supported          | -                                                                                              |  `libopenvino_arm_cpu_plugin.so`            |  -                                          |
 | HETERO | `libopenvino_hetero_plugin.so`        | Same as for selected plugins                                | `openvino_hetero_plugin.dll`       | Same as for selected plugins                                                                           | `libopenvino_hetero_plugin.so`      |  Same as for selected plugins               |
 | MULTI  | `libopenvino_auto_plugin.so`   | Same as for selected plugins                                | `openvino_auto_plugin.dll`  | Same as for selected plugins                                                                           | `libopenvino_auto_plugin.so` |  Same as for selected plugins               |
 | AUTO | `libopenvino_auto_plugin.so`   | Same as for selected plugins                                | `openvino_auto_plugin.dll`  | Same as for selected plugins                                                                           | `libopenvino_auto_plugin.so` |  Same as for selected plugins               |
@@ -74,7 +74,7 @@ For example, the CHW value at index (c,h,w) is physically located at index (c\*H
 |GPU plugin    |Supported               |Supported and preferred |Supported               |
 |VPU plugins   |Not supported           |Supported               |Not supported           |
 |GNA plugin    |Supported               |Supported               |Not supported           |
-|ARM CPU plugin|Supported and preferred |Supported               |Supported (partially)   |
+|Arm&reg; CPU plugin|Supported and preferred |Supported               |Supported (partially)   |
 
 For [Multi-Device](../multi_device.md) and [Heterogeneous](../hetero_execution.md) executions
 the supported models formats depends on the actual underlying devices. _Generally, FP16 is preferable as it is most ubiquitous and performant_.
@@ -87,7 +87,7 @@ the supported models formats depends on the actual underlying devices. _Generall
 |GPU plugin    |Supported |Supported\*    |Supported\*    |Supported\*    |Not supported |Supported\*    |
 |VPU plugins   |Supported |Supported      |Supported      |Not supported  |Not supported |Not supported  |
 |GNA plugin    |Supported |Not supported  |Supported      |Not supported  |Supported     |Supported      |
-|ARM CPU plugin|Supported |Supported      |Supported      |Supported      |Not supported |Not supported  |
+|Arm&reg; CPU plugin|Supported |Supported      |Supported      |Supported      |Not supported |Not supported  |
 
 <br>\* - Supported via `SetBlob` only, `GetBlob` returns FP32<br>
 For [Multi-Device](../multi_device.md) and [Heterogeneous](../hetero_execution.md) executions
@@ -101,7 +101,7 @@ the supported input precision  depends on the actual underlying devices. _Genera
 |GPU plugin    |Supported |Supported     |
 |VPU plugins   |Supported |Supported     |
 |GNA plugin    |Supported |Not supported |
-|ARM CPU plugin|Supported |Supported     |
+|Arm&reg; CPU plugin|Supported |Supported     |
 
 For [Multi-Device](../multi_device.md) and [Heterogeneous](../hetero_execution.md) executions
 the supported output precision  depends on the actual underlying devices. _Generally, FP32 is preferable as it is most ubiquitous_.
@@ -114,7 +114,7 @@ the supported output precision  depends on the actual underlying devices. _Gener
 |GPU plugin    |Supported     |Supported     |Supported     |Supported     |
 |VPU plugins   |Supported     |Supported     |Supported     |Supported     |
 |GNA plugin    |Not supported |Supported     |Supported     |Supported     |
-|ARM CPU plugin|Not supported |Supported     |Supported     |Supported     |
+|Arm&reg; CPU plugin|Not supported |Supported     |Supported     |Supported     |
 
 ### Supported Output Layout
 
@@ -129,7 +129,7 @@ For setting relevant configuration, refer to the
 ### Supported Layers
 The following layers are supported by the plugins and by [Shape Inference feature](../ShapeInference.md):
 
-| Layers                         | GPU           | CPU           | VPU           | GNA           | ARM CPU       | ShapeInfer    |
+| Layers                         | GPU           | CPU           | VPU           | GNA           | Arm&reg; CPU       | ShapeInfer    |
 |:-------------------------------|:-------------:|:-------------:|:-------------:|:-------------:|:-------------:|:-------------:|
 | Abs                            | Supported     | Supported\*\* | Supported     | Not Supported | Supported     | Supported     |
 | Acos                           | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*|Supported|
