@@ -7,12 +7,11 @@
 #include "openvino/op/util/unary_elementwise_arithmetic.hpp"
 
 namespace ov {
-namespace op {
 namespace opset1 {
 /// \brief Elementwise cosine operation.
-class OPENVINO_API Cos : public util::UnaryElementwiseArithmetic {
+class OPENVINO_API Cos : public op::util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_OP("Cos", "opset1", util::UnaryElementwiseArithmetic);
+    OPENVINO_OP("Cos", "opset1", op::util::UnaryElementwiseArithmetic);
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a cosine operation.
@@ -31,9 +30,10 @@ public:
 };
 }  // namespace opset1
 
+namespace op {
 namespace v0 {
 
-using opset1::Cos;
+using ::ov::opset1::Cos;
 
 }
 }  // namespace op

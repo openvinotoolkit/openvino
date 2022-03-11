@@ -22,6 +22,11 @@ TEST(opset, opset1) {
     EXPECT_TRUE(ov::op::util::is_parameter(op));
 }
 
+TEST(opset, opset1_cos) {
+    auto op = std::make_shared<ov::opset1::Cos>();
+    ASSERT_NE(nullptr, op);
+}
+
 TEST(opset, opset1_dump) {
     const auto& opset = ov::get_opset1();
     std::cout << "All opset1 operations: ";

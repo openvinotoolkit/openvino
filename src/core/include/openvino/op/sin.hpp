@@ -7,7 +7,6 @@
 #include "openvino/op/util/unary_elementwise_arithmetic.hpp"
 
 namespace ov {
-namespace op {
 namespace opset1 {
 // clang-format off
 /// \brief Elementwise sine operation.
@@ -24,9 +23,9 @@ namespace opset1 {
 /// | ---------------------- | ------------------------------------------------------------------------------------ |
 /// | \f$N[d_1,\dots,d_n]\f$ | The tensor \f$T\f$, where \f$T[i_1,\dots,i_n] = \sin(\texttt{arg}[i_1,\dots,i_n])\f$ |
 // clang-format on
-class OPENVINO_API Sin : public util::UnaryElementwiseArithmetic {
+class OPENVINO_API Sin : public op::util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_OP("Sin", "opset1", util::UnaryElementwiseArithmetic);
+    OPENVINO_OP("Sin", "opset1", op::util::UnaryElementwiseArithmetic);
     BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a sine operation.
     ///
@@ -43,9 +42,10 @@ public:
 };
 }  // namespace opset1
 
+namespace op {
 namespace v0 {
 
-using opset1::Sin;
+using ::ov::opset1::Sin;
 
 }
 }  // namespace op
