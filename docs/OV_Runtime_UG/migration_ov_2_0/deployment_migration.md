@@ -73,26 +73,34 @@ Older OpenVINO packages:
 
 .. tab:: Include dirs
 
-  <openvino_root>/deployment_tools/inference_engine/include
-  <openvino_root>/deployment_tools/ngraph/include
+  .. code-block:: sh
+
+    <openvino_root>/deployment_tools/inference_engine/include
+    <openvino_root>/deployment_tools/ngraph/include
 
 .. tab:: Path to libs
 
-  <openvino_root>/deployment_tools/inference_engine/lib/intel64/Release
-  <openvino_root>/deployment_tools/ngraph/lib/
+  .. code-block:: sh
+
+    <openvino_root>/deployment_tools/inference_engine/lib/intel64/Release
+    <openvino_root>/deployment_tools/ngraph/lib/
 
 .. tab:: Shared libs
 
-  // Unix systems
-  inference_engine.so ngraph.so
+  .. code-block:: sh
 
-  // Windows OS
-  inference_engine.dll ngraph.dll
+    # Unix systems
+    inference_engine.so ngraph.so
+
+    # Windows OS
+    inference_engine.dll ngraph.dll
 
 .. tab:: (Win) .lib files
 
-  ngraph.lib
-  inference_engine.lib
+  .. code-block:: sh
+
+    ngraph.lib
+    inference_engine.lib
 
 @endsphinxdirective
 
@@ -102,23 +110,31 @@ OpenVINO 2.0 package:
 
 .. tab:: Include dirs
 
-  <openvino_root>/runtime/include
+  .. code-block:: sh
+
+    <openvino_root>/runtime/include
 
 .. tab:: Path to libs
 
-  <openvino_root>/runtime/lib/intel64/Release
+  .. code-block:: sh
+
+    <openvino_root>/runtime/lib/intel64/Release
 
 .. tab:: Shared libs
 
-  // Unix systems
-  openvino.so
+  .. code-block:: sh
 
-  // Windows OS
-  openvino.dll
+    # Unix systems
+    openvino.so
+
+    # Windows OS
+    openvino.dll
 
 .. tab:: (Win) .lib files
 
-  openvino.lib
+  .. code-block:: sh
+
+    openvino.lib
 
 @endsphinxdirective
 
