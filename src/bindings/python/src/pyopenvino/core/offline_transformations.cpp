@@ -20,19 +20,7 @@
 
 #include "openvino/pass/low_latency.hpp"
 #include "openvino/pass/manager.hpp"
-
-using Version = ov::pass::Serialize::Version;
-
-inline Version convert_to_version(const std::string& version) {
-    if (version == "UNSPECIFIED")
-        return Version::UNSPECIFIED;
-    if (version == "IR_V10")
-        return Version::IR_V10;
-    if (version == "IR_V11")
-        return Version::IR_V11;
-    throw ov::Exception("Invoked with wrong version argument: '" + version +
-                        "'! The supported versions are: 'UNSPECIFIED'(default), 'IR_V10', 'IR_V11'.");
-}
+#include "pyopenvino/core/common.hpp"
 
 namespace py = pybind11;
 
@@ -138,7 +126,7 @@ void regmodule_offline_transformations(py::module m) {
            const std::string& path_to_bin,
            const std::string& version) {
             ov::pass::Manager manager;
-            manager.register_pass<ov::pass::Serialize>(path_to_xml, path_to_bin, convert_to_version(version));
+            manager.register_pass<ov::pass::Serialize>(path_to_xml, path_to_bin, Common::convert_to_version(version));
             manager.run_passes(model);
         },
         py::arg("model"),

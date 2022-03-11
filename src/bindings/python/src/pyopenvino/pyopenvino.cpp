@@ -3,6 +3,7 @@
 
 #include <pybind11/pybind11.h>
 
+#include <openvino/core/graph_util.hpp>
 #include <openvino/core/model.hpp>
 #include <openvino/core/node.hpp>
 #include <openvino/core/version.hpp>
@@ -94,6 +95,19 @@ PYBIND11_MODULE(pyopenvino, m) {
         },
         py::arg("model"),
         py::arg("batch_size") = -1);
+
+    m.def(
+        "serialize",
+        [](std::shared_ptr<ov::Model>& model,
+           const std::string& xml_path,
+           const std::string& bin_path,
+           const std::string& version) {
+            ov::serialize(model, xml_path, bin_path, Common::convert_to_version(version));
+        },
+        py::arg("model"),
+        py::arg("model_path"),
+        py::arg("weights_path"),
+        py::arg("version") = "UNSPECIFIED");
 
     regclass_graph_PyRTMap(m);
     regmodule_graph_types(m);

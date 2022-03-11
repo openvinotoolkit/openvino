@@ -3,9 +3,10 @@
 
 import os
 import numpy as np
+from openvino.runtime import serialize
 from openvino.offline_transformations import apply_moc_transformations, apply_pot_transformations, \
     apply_low_latency_transformation, apply_pruning_transformation, apply_make_stateful_transformation, \
-    compress_model_transformation, serialize
+    compress_model_transformation
 
 from openvino.runtime import Model, PartialShape, Core
 import openvino.runtime as ov
