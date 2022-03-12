@@ -59,7 +59,7 @@ There are two cases of how the input data pre-processing is implemented.
  * The input pre-processing operations are a part of a model. In this case, the application does not pre-process the input data as a separate step: everything is embedded into the model itself.
  * The input pre-processing operations are not a part of a model and the pre-processing is performed within the application which feeds the model with input data.
 
-In the first case, the Model Optimizer generates the IR with required pre-processing operations and OpenVINO Samples may be used to infer the model.
+In the first case, the Model Optimizer generates the IR with required pre-processing operations.
 
 In the second case, information about mean/scale values should be provided to the Model Optimizer to embed it to the generated IR.
 Model Optimizer provides a number of command line parameters to specify them: `--mean_values`, `--scale_values`, `--scale`.
@@ -68,7 +68,6 @@ Model Optimizer provides a number of command line parameters to specify them: `-
 in command line. Input values are *divided* by the scale value(s). If also `--reverse_input_channels` option is used, the `reverse_input_channels`
 will be applied first, then `mean` and after that `scale`. In other words, the data flow in the model looks as following:
 `Parameter -> ReverseInputChannels -> Mean apply-> Scale apply -> the original body of the model`.
-
 
 There is no a universal recipe for determining the mean/scale values for a particular model. The steps below could help to determine them:
 * Read the model documentation. Usually the documentation describes mean/scale value if the pre-processing is required.
@@ -81,13 +80,11 @@ mo --input_model unet.pdmodel --mean_values [123,117,104] --scale 255
 ```
 
 ## When to Reverse Input Channels <a name="when_to_reverse_input_channels"></a>
-Input data for your application can be of RGB or BRG color input order. For example, OpenVINO Samples load input images in the BGR channels order.
-However, the model may be trained on images loaded with the opposite order (for example, most TensorFlow models are trained with images in RGB order).
-In this case, inference results using the OpenVINO samples may be incorrect. The solution is to provide `--reverse_input_channels` command line parameter.
-Taking this parameter, the Model Optimizer performs first convolution or other channel dependent operation weights modification so these operations output
-will be like the image is passed with RGB channels order.
+Sometimes input images for your application can be of the RGB (BGR) format and the model is trained on images of the BGR (RGB) format,
+the opposite color channel order. In this case, it is important to preprocess the input images by reverting the color channels before inference.
+To embed this preprocessing step into IR, Model Optimizer provides the `--reverse_input_channels` command-line parameter to shuffle the color channels.
 
-For example, launch the Model Optimizer for the TensorFlow* AlexNet model with reversed input channels order between RGB and BGR.
+For example, launch the Model Optimizer for the TensorFlow* AlexNet model and embed `reverse_input_channel` preprocessing block into IR.
 
 ```sh
 mo --input_model alexnet.pb --reverse_input_channels

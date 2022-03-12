@@ -75,97 +75,54 @@ mo --help
 
 ## Examples of CLI Commands
 
-Launch Model Optimizer for a TensorFlow BERT model in the binary protobuf format, with three inputs. Explicitly specify input shapes
+Below is a list of separate examples for different frameworks and Model Optimizer parameters.
+
+1. Launch Model Optimizer for a TensorFlow MobileNet model in the binary protobuf format.
+```sh
+mo --input_model MobileNet.pb
+```
+Launch Model Optimizer for a TensorFlow BERT model in the SavedModel format, with three inputs. Explicitly specify input shapes
 where the batch size and the sequence length equal 2 and 30 respectively.
-
 ```sh
-mo --input_model bert.pb --input input_mask,input_word_ids,input_type_ids --input_shape [2,30],[2,30],[2,30]
+mo --saved_model_dir BERT --input mask,word_ids,type_ids --input_shape [2,30],[2,30],[2,30]
 ```
-
-Launch Model Optimizer for a TensorFlow MobileNet model in the SavedModel format.
-
-```sh
-mo --saved_model_dir MobileNet
-```
-
 For more information on TensorFlow model conversion,
 refer to [Converting a TensorFlow Model](prepare_model/convert_model/Convert_Model_From_TensorFlow.md).
 
-Launch Model Optimizer for an ONNX OCR model and explicitly specify new output.
-
+2. Launch Model Optimizer for an ONNX OCR model and explicitly specify new output.
 ```sh
 mo --input_model ocr.onnx --output probabilities
 ```
-
 For more information on ONNX model conversion,
 please refer to [Converting an ONNX Model](prepare_model/convert_model/Convert_Model_From_ONNX.md).
 Note that PyTorch models must be exported to the ONNX format before its conversion into IR.
 More details can be found in [Converting a PyTorch Model](prepare_model/convert_model/Convert_Model_From_PyTorch.md).
 
-Launch Model Optimizer for a PaddlePaddle UNet model and apply mean-scale normalization to the input.
-
+3. Launch Model Optimizer for a PaddlePaddle UNet model and apply mean-scale normalization to the input.
 ```sh
 mo --input_model unet.pdmodel --mean_values [123,117,104] --scale 255
 ```
-
 For more information on PaddlePaddle model conversion, please refer to
 [Converting a PaddlePaddle Model](prepare_model/convert_model/Convert_Model_From_Paddle.md).
 
-Launch Model Optimizer for an MXNet SSD Inception V3 model and specify input layout.
-
+4. Launch Model Optimizer for an MXNet SSD Inception V3 model and specify first-channel layout for the input.
 ```sh
 mo --input_model ssd_inception_v3-0000.params --layout NCHW
 ```
-
 For more information on MXNet models conversion, please refer to [Converting an MXNet Model](prepare_model/convert_model/Convert_Model_From_MxNet.md).
 
-Launch Model Optimizer for a Caffe AlexNet model with input channels in the RGB format, which needs to be reversed.
-
+5. Launch Model Optimizer for a Caffe AlexNet model with input channels in the RGB format, which needs to be reversed.
 ```sh
 mo --input_model alexnet.caffemodel --reverse_input_channels
 ```
-
 For more information on Caffe model conversion, please refer to [Converting a Caffe Model](prepare_model/convert_model/Convert_Model_From_Caffe.md).
 
-Launch Model Optimizer for a Kaldi LibriSpeech nnet2 model.
-
+6. Launch Model Optimizer for a Kaldi LibriSpeech nnet2 model.
 ```sh
 mo --input_model librispeech_nnet2.mdl --input_shape [1,140]
 ```
-
 For more information on Kaldi model conversion,
 refer to [Converting a Kaldi Model](prepare_model/convert_model/Convert_Model_From_Kaldi.md).
 
-## Videos
-
-@sphinxdirective
-
-.. list-table::
-
-   * - .. raw:: html
-
-           <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="220"
-           src="https://www.youtube.com/embed/Kl1ptVb7aI8">
-           </iframe>
-
-     - .. raw:: html
-
-           <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="220"
-           src="https://www.youtube.com/embed/BBt1rseDcy0">
-           </iframe>
-
-     - .. raw:: html
-
-           <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="220"
-           src="https://www.youtube.com/embed/RF8ypHyiKrY">
-           </iframe>
-
-   * - **Model Optimizer Concept.**
-     - **Model Optimizer Basic Operation.**
-     - **Choosing the Right Precision.**
-
-   * - Duration: 3:56
-     - Duration: 2:57
-     - Duration: 4:18
-
-@endsphinxdirective
+To get conversion recipes for specific TensorFlow, ONNX, PyTorch, MXNet, and Kaldi models,
+refer to [Model Conversion Tutorials](prepare_model/convert_model/Convert_Model_Tutorials.md).
