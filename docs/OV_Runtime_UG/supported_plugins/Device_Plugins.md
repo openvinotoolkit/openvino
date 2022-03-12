@@ -42,8 +42,8 @@ The table below demonstrates support of key features by OpenVINO device plugins.
 
 | Capability | CPU | [GPU](./GPU.md) | GNA | VPU | [Arm&reg; CPU](ARM_CPU.md) |
 | ---------- | --- | --- | --- | --- | --- |
-| [Heterogeneous execution](../hetero_execution.md)| Yes | Yes | ? | ? | No |
-| [Multi-device execution](../multi_device.md) | Yes | Yes | ? | ? | No |
+| [Heterogeneous execution](../hetero_execution.md)| Yes | Yes | ? | ? | Yes |
+| [Multi-device execution](../multi_device.md) | Yes | Yes | ? | ? | Yes |
 | [Automatic batching](../automatic_batching.md) | No | Yes | ? | ? | No |
 | [Multi-stream execution](@ref openvino_docs_optimization_guide_dldt_optimization_guide) | Yes | Yes | ? | ? | Yes |
 | [Models caching](../Model_caching_overview.md) | Yes | Partial | ? | ? | No |
