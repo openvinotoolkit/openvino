@@ -72,12 +72,3 @@ mo --input_model ocr.onnx --input data[3 150 200 1],seq_len[3] --static_shape
 ## See Also
 * [Introduction](../../Deep_Learning_Model_Optimizer_DevGuide.md)
 * [Cutting Off Parts of a Model](Cutting_Model.md)
-* [Embedding Preprocessing Computation](../Additional_Optimizations.md)
-* [Compression of a Model to FP16](../FP16_Compression.md)
-* [Converting TensorFlow Models](Convert_Model_From_TensorFlow.md)
-* [Converting ONNX Models](Convert_Model_From_ONNX.md)
-* [Converting PyTorch Models](Convert_Model_From_PyTorch.md)
-* [Converting PaddlePaddle Models](Convert_Model_From_Paddle.md)
-* [Converting MXNet Models](Convert_Model_From_MxNet.md)
-* [Converting Caffe Models](Convert_Model_From_Caffe.md)
-* [Converting Kaldi Models](Convert_Model_From_Kaldi.md)
