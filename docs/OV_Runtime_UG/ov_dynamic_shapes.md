@@ -59,7 +59,8 @@ If the input model has undefined dimensions that you are not going to change dur
 From the API perspective any combination of dynamic and static dimensions can be configured.
 
 Model Optimizer provides capability to reshape the model during the conversion, including specifying dynamic dimensions.
-Use this capability to save time on calling `reshape` method in the end application. <TODO: Link to MO setting shape doc>
+Use this capability to save time on calling `reshape` method in the end application.
+To get information about setting input shapes using Model Optimizer, refer to [Setting Input Shapes](../MO_DG/prepare_model/convert_model/Converting_Model.md)
 
 ### Dimension Bounds
 
