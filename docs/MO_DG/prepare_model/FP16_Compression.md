@@ -6,7 +6,7 @@ compressed `FP16` model.
 To compress the model use the `--data_type` option like this:
 
 ```
-mo --input_model /path/to/model --data_type FP16
+ mo --input_model INPUT_MODEL --data_type FP16
 ```
 
 > **NOTE**: Using `--data_type FP32` will give no result and will not force `FP32` 

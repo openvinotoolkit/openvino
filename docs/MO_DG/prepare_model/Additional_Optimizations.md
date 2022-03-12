@@ -59,19 +59,12 @@ There are two cases of how the input data pre-processing is implemented.
  * The input pre-processing operations are a part of a model. In this case, the application does not pre-process the input data as a separate step: everything is embedded into the model itself.
  * The input pre-processing operations are not a part of a model and the pre-processing is performed within the application which feeds the model with input data.
 
-In the first case, the Model Optimizer generates the IR with required pre-processing operations.
+In the first case, the Model Optimizer generates the IR with required pre-processing operations and no `mean` and `scale` parameters are required.
 
 In the second case, information about mean/scale values should be provided to the Model Optimizer to embed it to the generated IR.
 Model Optimizer provides a number of command line parameters to specify them: `--mean_values`, `--scale_values`, `--scale`.
-
-> **NOTE**: If both mean and scale values are specified, the mean is subtracted first and then scale is applied regardless of the order of options
-in command line. Input values are *divided* by the scale value(s). If also `--reverse_input_channels` option is used, the `reverse_input_channels`
-will be applied first, then `mean` and after that `scale`. In other words, the data flow in the model looks as following:
-`Parameter -> ReverseInputChannels -> Mean apply-> Scale apply -> the original body of the model`.
-
-There is no a universal recipe for determining the mean/scale values for a particular model. The steps below could help to determine them:
-* Read the model documentation. Usually the documentation describes mean/scale value if the pre-processing is required.
-* Open the example script/application executing the model and track how the input data is read and passed to the framework.
+Using these parameters Model Optimizer will embed the corresponding preprocessing block for mean-value normalization of the input data
+and will optimize this block so that the preprocessing takes negligible time for inference.
 
 For example, run the Model Optimizer for the PaddlePaddle* UNet model and apply mean-scale normalization to the input data.
 
@@ -84,11 +77,23 @@ Sometimes input images for your application can be of the RGB (BGR) format and t
 the opposite color channel order. In this case, it is important to preprocess the input images by reverting the color channels before inference.
 To embed this preprocessing step into IR, Model Optimizer provides the `--reverse_input_channels` command-line parameter to shuffle the color channels.
 
+The `--reverse_input_channels` parameter applies to input of the model in two cases.
+ * Only one dimension in the input shape has a size equal to 3.
+ * One dimension has undefined size and is marked as `C` channel using `layout` parameters.
+
+Using the `--reverse_input_channels` parameter Model Optimizer will embed the corresponding preprocessing block for reverting
+the input data along channel dimension and will optimize this block so that the preprocessing takes negligible time for inference.
+
 For example, launch the Model Optimizer for the TensorFlow* AlexNet model and embed `reverse_input_channel` preprocessing block into IR.
 
 ```sh
 mo --input_model alexnet.pb --reverse_input_channels
 ```
+
+> **NOTE**: If both mean and scale values are specified, the mean is subtracted first and then scale is applied regardless of the order of options
+in command line. Input values are *divided* by the scale value(s). If also `--reverse_input_channels` option is used, the `reverse_input_channels`
+will be applied first, then `mean` and after that `scale`. In other words, the data flow in the model looks as following:
+`Parameter -> ReverseInputChannels -> Mean apply-> Scale apply -> the original body of the model`.
 
 ## See Also
 * [Overview of Preprocessing API](../../OV_Runtime_UG/preprocessing_overview.md)

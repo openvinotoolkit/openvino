@@ -1,4 +1,4 @@
-# Converting a PaddlePaddle Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle}
+# Converting a PaddlePaddle* Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle}
 
 ## Convert a PaddlePaddle Model <a name="Convert_From_Paddle"></a>
 To convert a PaddlePaddle model, use the `mo` script and specify the path to the input model `.pdmodel` file:

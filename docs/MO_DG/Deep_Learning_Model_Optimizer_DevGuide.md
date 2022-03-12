@@ -42,6 +42,9 @@ The IR is a pair of files describing the model:
 
 *  <code>.bin</code> - Contains the weights and biases binary data.
 
+> **NOTE**: The generated IR can be additionally optimized for inference by [Post-training Optimization tool](../../../tools/pot/README.md)
+> that applies post-training quantization methods.
+
 > **TIP**: You also can work with the Model Optimizer inside the OpenVINO™ [Deep Learning Workbench](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Introduction.html) (DL Workbench).
 > [DL Workbench](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Introduction.html) is a web-based graphical environment that enables you to optimize, fine-tune, analyze, visualize, and compare performance of deep learning models.
 
@@ -52,6 +55,9 @@ To convert the model to IR, run Model Optimizer:
 ```sh
 mo --input_model INPUT_MODEL
 ```
+
+If out-of-the-box conversion (only the `--input_model` parameter is specified) is not succeed,
+try to use parameters for overriding input shapes and cutting the model, mentioned below.
 
 To override original input shapes for model conversion, Model Optimizer provides two parameters: `--input` and `--input_shape`.
 For more information about these parameters, refer to [Setting Input Shapes](prepare_model/convert_model/Converting_Model.md).

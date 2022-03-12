@@ -2,7 +2,7 @@
 
 Paragraphs below provide details about specifying input shapes for model conversion.
 
-## When to Specify `--input_shape` Command-line Parameter <a name="when_to_specify_input_shapes"></a>
+## When to Specify --input_shape Command-line Parameter <a name="when_to_specify_input_shapes"></a>
 Model Optimizer supports conversion of models with input dynamic shapes that contain undefined dimensions.
 However, if the shape of inference data is not going to change from one inference request to another,
 it is recommended to set up static shapes (when all dimensions are fully defined) for the inputs.
@@ -57,7 +57,7 @@ For example, launch the Model Optimizer for the ONNX* OCR model and specify a bo
 mo --input_model ocr.onnx --input data,seq_len --input_shape [1..3,150,200,1],[1..3]
 ```
 
-## When to Specify `--static_shape` Command-line Parameter
+## When to Specify --static_shape Command-line Parameter
 Model Optimizer provides the `--static_shape` parameter that allows to evaluate shapes of all operations in the model for fixed input shapes
 and to fold shape computing sub-graphs into constants. The resulted IR can be more compact in size and the loading time for such IR can be decreased.
 However, the resulted IR will not be reshape-able with the help of the `reshape` method from OpenVINO Runtime API.

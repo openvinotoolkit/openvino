@@ -10,7 +10,7 @@ PyTorch* framework is supported through export to ONNX\* format. A summary of th
 PyTorch models are defined in a Python\* code, to export such models use `torch.onnx.export()` method. Usually code to
 evaluate or test the model is provided with the model code and can be used to initialize and export model.
 Only the basics will be covered here, the step to export to ONNX\* is crucial but it is covered by PyTorch\* framework.
-For more information, please refer to [PyTorch\* documentation](https://pytorch.org/docs/stable/onnx.html).
+For more information, please refer to [Exporting PyTorch models to ONNX format](https://pytorch.org/docs/stable/onnx.html).
 
 To export a PyTorch\* model you need to obtain the model as an instance of `torch.nn.Module` class and call the `export` function.
 
