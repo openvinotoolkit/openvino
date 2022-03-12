@@ -2,9 +2,9 @@
 
 
 ## Introducing the Arm&reg; CPU Plugin
-The ARM&reg; CPU plugin is developed in order to enable deep neural networks inference on Arm&reg; CPU, using [Compute Library](https://github.com/ARM-software/ComputeLibrary) as a backend.
+The Arm&reg; CPU plugin is developed in order to enable deep neural networks inference on Arm&reg; CPU, using [Compute Library](https://github.com/ARM-software/ComputeLibrary) as a backend.
 
-The Arm&reg; CPU plugin is not a part of the Intel® Distribution of OpenVINO™ toolkit and is not distributed in pre-built form. To use the plugin, it should be buid from source code. Plugin build procedure is described on [How to build Arm&reg; CPU plugin](https://github.com/openvinotoolkit/openvino_contrib/wiki/How-to-build-ARM-CPU-plugin). 
+The Arm&reg; CPU plugin is not a part of the Intel® Distribution of OpenVINO™ toolkit and is not distributed in pre-built form. To use the plugin, it should be built from source code. Plugin build procedure is described on page [How to build Arm&reg; CPU plugin](https://github.com/openvinotoolkit/openvino_contrib/wiki/How-to-build-ARM-CPU-plugin). 
 
 The set of supported layers is defined on [Operation set specification](https://github.com/openvinotoolkit/openvino_contrib/wiki/ARM-plugin-operation-set-specification).
 
@@ -28,10 +28,10 @@ The Arm&reg; CPU plugin supports the following data types as inference precision
 ### Preprocessing acceleration
 The Arm&reg; CPU plugin supports the following accelerated preprocessing operations:
 - Precision conversion:
-    - U8  -> U16, S16, S32
-    - U16 -> U8, U32
-    - S16 -> U8, S32
-    - F16 -> F32
+    - u8  -> u16, s16, s32
+    - u16 -> u8, u32
+    - s16 -> u8, s32
+    - f16 -> f32
 - Transposion of tensors with dims < 5
 - Interpolation of 4D tensors with no padding (`pads_begin` and `pads_end` equal 0).
 
@@ -73,7 +73,7 @@ All parameters must be set before calling `ov::Core::compile_model()` in order t
 * `LessEqual` does not support `broadcast` for inputs.
 * `LRN` layer is supported `axes = {1}` or `axes = {2, 3}` only.
 * `MaxPool-1` layer is supported via arm_compute library for 4D input tensor and via reference implementation for another cases.
-* `Mod` layer is supported for FP32 only.
+* `Mod` layer is supported for f32 only.
 * `MVN` layer is supported via arm_compute library for 2D inputs and `false` value of `normalize_variance` and `false` value of `across_channels`, for another cases layer is implemented via runtime reference.
 * `Normalize` layer is supported via arm_compute library with `MAX` value of `eps_mode` and `axes = {2 | 3}`, and for `ADD` value of `eps_mode` layer uses `'DecomposeNormalizeL2Add'`, for another cases layer is implemented via runtime reference.
 * `NotEqual` does not support `broadcast` for inputs.
