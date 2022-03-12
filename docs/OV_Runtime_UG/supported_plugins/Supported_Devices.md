@@ -137,11 +137,11 @@ The following layers are supported by the plugins and by [Shape Inference featur
 | Activation-Clamp               | Supported     |Supported\*\*\*| Supported     | Supported     | Supported     | Supported     |
 | Activation-ELU                 | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported     | Supported     |
 | Activation-Exp                 | Supported     |Supported\*\*\*| Supported     | Supported     | Supported     | Supported     |
-| Activation-Leaky ReLU          | Supported     |Supported\*\*\*| Supported     | Supported     | ?     | Supported     |
-| Activation-Not                 | Supported     |Supported\*\*\*| Supported     | Not Supported | ?     | Supported     |
+| Activation-Leaky ReLU          | Supported     |Supported\*\*\*| Supported     | Supported     | Not Supported | Supported     |
+| Activation-Not                 | Supported     |Supported\*\*\*| Supported     | Not Supported | Not Supported | Supported     |
 | Activation-PReLU               | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported     | Supported     |
 | Activation-ReLU                | Supported     |Supported\*\*\*| Supported     | Supported     | Supported     | Supported     |
-| Activation-ReLU6               | Supported     |Supported\*\*\*| Supported     | Not Supported | ?     | Supported     |
+| Activation-ReLU6               | Supported     |Supported\*\*\*| Supported     | Not Supported | Not Supported | Supported     |
 | Activation-Sigmoid/Logistic    | Supported     |Supported\*\*\*| Supported     | Supported     | Supported     | Supported     |
 | Activation-TanH                | Supported     |Supported\*\*\*| Supported     | Supported     | Supported     | Supported     |
 | ArgMax                         | Supported     | Supported\*\* | Supported     | Not Supported | Not Supported | Supported     |
@@ -155,24 +155,24 @@ The following layers are supported by the plugins and by [Shape Inference featur
 | Ceil                           | Supported     | Supported\*\* | Supported     | Not Supported | Supported     | Supported     |
 | Concat                         | Supported     |Supported\*\*\*| Supported     | Supported     | Supported     | Supported     |
 | Const                          | Supported     | Supported     | Supported     | Supported     | Supported     | Not Supported |
-| Convolution-Dilated            | Supported     | Supported     | Supported     | Not Supported | ?     | Supported     |
-| Convolution-Dilated 3D         | Supported     | Supported     | Not Supported | Not Supported | ? | Not Supported |
-| Convolution-Grouped            | Supported     | Supported     | Supported     | Not Supported | ?     | Supported     |
-| Convolution-Grouped 3D         | Supported     | Supported     | Not Supported | Not Supported | ? | Not Supported |
-| Convolution-Ordinary           | Supported     | Supported     | Supported     | Supported\*   | ?     | Supported     |
-| Convolution-Ordinary 3D        | Supported     | Supported     | Not Supported | Not Supported | ? | Not Supported |
+| Convolution-Dilated            | Supported     | Supported     | Supported     | Not Supported | Supported     | Supported     |
+| Convolution-Dilated 3D         | Supported     | Supported     | Not Supported | Not Supported | Not Supported | Not Supported |
+| Convolution-Grouped            | Supported     | Supported     | Supported     | Not Supported | Supported     | Supported     |
+| Convolution-Grouped 3D         | Supported     | Supported     | Not Supported | Not Supported | Not Supported | Not Supported |
+| Convolution-Ordinary           | Supported     | Supported     | Supported     | Supported\*   | Supported     | Supported     |
+| Convolution-Ordinary 3D        | Supported     | Supported     | Not Supported | Not Supported | Not Supported | Not Supported |
 | Cos                            | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*| Supported     |
 | Cosh                           | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*| Supported     |
-| Crop                           | Supported     | Supported     | Supported     | Supported     | ?     | Supported     |
+| Crop                           | Supported     | Supported     | Supported     | Supported     | Not Supported | Supported     |
 | CTCGreedyDecoder               | Supported\*\* | Supported\*\* | Supported\*   | Not Supported |Supported\*\*\*\*| Supported     |
-| Deconvolution                  | Supported     | Supported     | Supported     | Not Supported | ? | Supported     |
-| Deconvolution 3D               | Supported     | Supported     | Not Supported | Not Supported | ? | Not Supported |
+| Deconvolution                  | Supported     | Supported     | Supported     | Not Supported | Not Supported | Supported     |
+| Deconvolution 3D               | Supported     | Supported     | Not Supported | Not Supported | Not Supported | Not Supported |
 | DeformableConvolution          | Supported     | Supported     | Not Supported | Not Supported | Not Supported | Supported     |
 | DepthToSpace                   | Supported     | Supported\*\* | Not Supported | Not Supported | Supported\*   | Supported     |
 | DetectionOutput                | Supported     | Supported\*\* | Supported\*   | Not Supported |Supported\*\*\*\*| Supported     |
-| Eltwise-And                    | Supported     |Supported\*\*\*| Supported     | Not Supported | ?     | Supported     |
+| Eltwise-And                    | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported     | Supported     |
 | Eltwise-Add                    | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported     | Supported     |
-| Eltwise-Div                    | Supported     |Supported\*\*\*| Supported     | Not Supported | ?     | Supported     |
+| Eltwise-Div                    | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported     | Supported     |
 | Eltwise-Equal                  | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported\*   | Supported     |
 | Eltwise-FloorMod               | Supported     |Supported\*\*\*| Supported     | Not Supported |Supported\*\*\*\*| Supported     |
 | Eltwise-Greater                | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported     | Supported     |
@@ -187,17 +187,17 @@ The following layers are supported by the plugins and by [Shape Inference featur
 | Eltwise-Mul                    | Supported     |Supported\*\*\*| Supported     | Supported     | Supported     | Supported     |
 | Eltwise-NotEqual               | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported\*   | Supported     |
 | Eltwise-Pow                    | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported     | Supported     |
-| Eltwise-Prod                   | Supported     |Supported\*\*\*| Supported     | Supported     | ?     | Supported     |
+| Eltwise-Prod                   | Supported     |Supported\*\*\*| Supported     | Supported     | Not Supported | Supported     |
 | Eltwise-SquaredDiff            | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported     | Supported     |
 | Eltwise-Sub                    | Supported     |Supported\*\*\*| Supported     | Supported     | Supported     | Supported     |
-| Eltwise-Sum                    | Supported     |Supported\*\*\*| Supported     | Supported     | ?     | Supported     |
+| Eltwise-Sum                    | Supported     |Supported\*\*\*| Supported     | Supported     |Supported\*\*\*\*| Supported     |
 | Erf                            | Supported     | Supported\*\* | Supported     | Not Supported |Supported\*\*\*\*| Supported     |
 | Exp                            | Supported     | Supported     | Supported     | Supported     | Supported     | Supported     |
-| FakeQuantize                   | Not Supported | Supported     | Not Supported | Not Supported | ?     | Supported     |
+| FakeQuantize                   | Not Supported | Supported     | Not Supported | Not Supported | Supported\*   | Supported     |
 | Fill                           | Not Supported | Supported\*\* | Not Supported | Not Supported | Not Supported | Supported     |
 | Flatten                        | Supported     | Supported     | Supported     | Not Supported | Not Supported | Supported     |
 | Floor                          | Supported     | Supported\*\* | Supported     | Not Supported | Supported     | Supported     |
-| FullyConnected (Inner Product) | Supported     |Supported\*\*\*| Supported     | Supported     | ?     | Supported     |
+| FullyConnected (Inner Product) | Supported     |Supported\*\*\*| Supported     | Supported     | Supported     | Supported     |
 | Gather                         | Supported     | Supported\*\* | Supported     | Not Supported | Supported\*   | Supported     |
 | GatherTree                     | Not Supported | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*| Supported     |
 | Gemm                           | Supported     | Supported     | Supported     | Not Supported | Not Supported | Supported     |
@@ -220,9 +220,9 @@ The following layers are supported by the plugins and by [Shape Inference featur
 | Normalize                      | Supported     | Supported\*\* | Supported\*   | Not Supported | Supported\*   | Supported     |
 | OneHot                         | Supported     | Supported\*\* | Supported     | Not Supported |Supported\*\*\*\*| Supported     |
 | Pad                            | Supported     | Supported\*\* | Supported\*   | Not Supported | Supported\*   | Supported     |
-| Permute                        | Supported     | Supported     | Supported     | Supported\*   | ?     | Supported     |
+| Permute                        | Supported     | Supported     | Supported     | Supported\*   | Not Supported | Supported     |
 | Pooling(AVG,MAX)               | Supported     | Supported     | Supported     | Supported     | Supported     | Supported     |
-| Pooling(AVG,MAX) 3D            | Supported     | Supported     | Not Supported | Not Supported | ? | Not Supported |
+| Pooling(AVG,MAX) 3D            | Supported     | Supported     | Not Supported | Not Supported | Supported\*   | Not Supported |
 | Power                          | Supported     | Supported\*\* | Supported     | Supported\*   | Supported     | Supported     |
 | PowerFile                      | Not Supported | Supported\*\* | Not Supported | Not Supported | Not Supported | Not Supported |
 | PriorBox                       | Supported     | Supported\*\* | Supported     | Not Supported | Supported     | Supported     |
