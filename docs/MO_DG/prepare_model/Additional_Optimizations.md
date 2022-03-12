@@ -91,4 +91,4 @@ mo --input_model alexnet.pb --reverse_input_channels
 ```
 
 ## See Also
-* [Overview of Preprocessing API](../../OV_Runtime_UG\preprocessing_overview.md)
+* [Overview of Preprocessing API](../../OV_Runtime_UG/preprocessing_overview.md)
