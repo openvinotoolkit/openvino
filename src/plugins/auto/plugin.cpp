@@ -721,9 +721,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDeviceByNetwork
                                                 InferenceEngine::CNNNetwork network) {
     if (metaDevices.empty()) {
         IE_THROW(NotFound) << "No available device to filter " << GetName() <<  " plugin";
-    }
-
-    if (metaDevices.size() == 1) {
+    } else if (metaDevices.size() == 1) {
         return metaDevices;
     }
 
