@@ -54,9 +54,9 @@ def test_statistics_collector_subsets(tmp_path, models, model_name, model_framew
     out = {'MinMaxQuantization': collector.get_statistics_for_algorithm('MinMaxQuantization'),
            'BiasCorrection': collector.get_statistics_for_algorithm('BiasCorrection')}
 
-    refs_file = Path(__file__).parent / 'data/test_cases_refs/statistics_data.txt'
+    refs_file = Path(__file__).parent / 'data/test_cases_refs/statistics_data.json'
     with open(refs_file.as_posix()) as file:
-        refs = json.loads(json.load(file))
+        refs = json.load(file)
 
     eps = 1e-3
     for algo_name, algo_val in out.items():
