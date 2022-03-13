@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,16 +11,16 @@ namespace snippets {
 namespace op {
 
 /**
- * @interface FMA
+ * @interface FusedMulAdd
  * @brief Fused Multiply Add
  * @ingroup snippets
  */
-class FMA : public ngraph::op::Op {
+class FusedMulAdd : public ngraph::op::Op {
 public:
-    OPENVINO_OP("FMA", "SnippetsOpset");
+    OPENVINO_OP("FusedMulAdd", "SnippetsOpset");
 
-    FMA() = default;
-    FMA(const Output<Node>& a, const Output<Node>& b, const Output<Node>& c);
+    FusedMulAdd() = default;
+    FusedMulAdd(const Output<Node>& a, const Output<Node>& b, const Output<Node>& c);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 

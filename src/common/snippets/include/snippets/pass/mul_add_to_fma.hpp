@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ namespace pass {
 
 /**
 * @interface MulAddToFMA
-* @brief Replaces mul and add with FMA node
+* @brief Replaces mul and add with FusedMulAdd node
 * @ingroup snippets
 */
 class MulAddToFMA : public ngraph::pass::MatcherPass {
