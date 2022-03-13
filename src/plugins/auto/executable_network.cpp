@@ -90,6 +90,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<Infer
         auto& network = networkValue.second;
         GenerateWorkers(device, network);
     }
+    _requestWrapper = std::make_shared<AutoRequestWrapper>();
 }
 
 void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, const SoExecutableNetworkInternal& executableNetwork) {
@@ -591,82 +592,12 @@ std::shared_ptr<InferenceEngine::ICore> MultiDeviceExecutableNetwork::GetCore() 
     return _plugin->GetCore();
 }
 
-InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateInferRequestImpl(
-    const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-    const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
-    auto num = _numRequestsCreated++;
-    InferenceEngine::SoIInferRequestInternal request_to_share_blobs_with;
-    InferenceEngine::RemoteContext::Ptr ctx = nullptr;
-
-    if (_workModeIsAUTO) {
-        if (!_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isAlready) {
-            try {
-                ctx = GetCore()->GetDefaultContext(_loadContext[ACTUALDEVICE].deviceInfo.deviceName);
-            } catch (InferenceEngine::Exception& ex) {
-                // plugin does not support context, say CPU
-                LOG_DEBUG("[AUTOPLUGIN]context not supported for %s, fallback to default memory",
-                                _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str());
-                // for dynamic shape support
-                auto& dev_requests = _workerRequests[_loadContext[ACTUALDEVICE].deviceInfo.deviceName];
-                if (num < dev_requests.size()) {
-                    request_to_share_blobs_with = dev_requests.at(num)._inferRequest;
-                }
-            }
-        }
-        return std::make_shared<MultiDeviceInferRequest>(inputs, outputs, request_to_share_blobs_with, ctx);
-    }
-
-    return std::make_shared<MultiDeviceInferRequest>(inputs, outputs, request_to_share_blobs_with);
-}
-
-InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
-                                                                                                InferenceEngine::OutputsDataMap networkOutputs) {
-    auto num = _numRequestsCreated++;
-    InferenceEngine::SoIInferRequestInternal request_to_share_blobs_with;
-    InferenceEngine::RemoteContext::Ptr ctx = nullptr;
-
-    if (_workModeIsAUTO) {
-        if (!_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isAlready) {
-            try {
-                ctx = GetCore()->GetDefaultContext(_loadContext[ACTUALDEVICE].deviceInfo.deviceName);
-            } catch (InferenceEngine::Exception& ex) {
-                // plugin does not support context
-                LOG_DEBUG("[AUTOPLUGIN]context not supported for %s, fallback to default memory",
-                                _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str());
-                auto& dev_requests = _workerRequests[_loadContext[ACTUALDEVICE].deviceInfo.deviceName];
-                if (num < dev_requests.size()) {
-                    request_to_share_blobs_with = dev_requests.at(num)._inferRequest;
-                }
-            }
-        }
-        return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with, ctx);
-    }
-
-    return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with);
-}
-
 IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateInferRequest() {
-    if (_workModeIsAUTO) {
-        // try enable multi deivice schedule
-        _requestWrapper->SetExecutableNetworkInternal(
-            std::static_pointer_cast<MultiDeviceExecutableNetwork>(shared_from_this()));
-        _requestWrapper->SetCallBackExecutor(_callbackExecutor);
-        return _requestWrapper->CreateInferRequest();
-    }
-    IInferRequestInternal::Ptr syncRequestImpl;
-    if (this->_plugin) {
-        const auto& core = _plugin->GetCore();
-        if (core && core->isNewAPI())
-            syncRequestImpl = CreateInferRequestImpl(_parameters, _results);
-    }
-
-    if (!syncRequestImpl)
-        syncRequestImpl = CreateInferRequestImpl(_networkInputs, _networkOutputs);
-    syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
-    return std::make_shared<MultiDeviceAsyncInferRequest>(std::static_pointer_cast<MultiDeviceInferRequest>(syncRequestImpl),
-                                                          _needPerfCounters,
-                                                          std::static_pointer_cast<MultiDeviceExecutableNetwork>(shared_from_this()),
-                                                          _callbackExecutor);
+    // try enable multi deivice schedule
+    _requestWrapper->SetExecutableNetworkInternal(
+        std::static_pointer_cast<MultiDeviceExecutableNetwork>(shared_from_this()));
+    _requestWrapper->SetCallBackExecutor(_callbackExecutor);
+    return _requestWrapper->CreateInferRequest();
 }
 
 void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, InferenceEngine::Parameter> &config) {
