@@ -23,6 +23,6 @@ class TRANSFORMATIONS_API BroadcastConstRangeReplacement;
 
 class ngraph::pass::BroadcastConstRangeReplacement : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("BroadcastConstRangeReplacement", "0");
     BroadcastConstRangeReplacement();
 };

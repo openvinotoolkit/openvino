@@ -21,8 +21,6 @@
 #include <numeric>
 #include <climits>
 
-NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::TokenizeSnippets, "Snippets::TokenizeSnippets", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::EnumerateNodes, "Snippets::EnumerateNodes", 0);
 
 namespace ngraph {
 namespace snippets {
