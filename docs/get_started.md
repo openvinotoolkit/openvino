@@ -69,12 +69,8 @@
    <p>With OpenVINO installed, you are ready to run your first inference and learn the workflow. <br /> Here is a set of hands-on demonstrations of various complexity levels to guide you through the process: from performing sample inference with just one command, to running code samples, demo application or Jupyter notebooks. If you prefer working with GUI, you can also get started with the DL Workbench application. This way you can choose the right level for you.<br /></p>
 
    <h3>Choose how you want to progress:</h3>
-
-   <div id="GSG_nextstepchoice">
-     <a href="openvino_docs_get_started_get_started_scripts.html" >
-        <h4>One-command demo 		</h4>
-        <p>Execute just one command and watch all the steps happening before your eyes. </p>
-     </a>
+ 
+   <div id="GSG_nextstepchoice"> 		
      <a href="openvino_docs_get_started_get_started_demos.html" >
         <h4>Step-by-step demo		</h4>
         <p>Follow the step-by-step instructions to execute simple tasks with OpenVINO. </p>
