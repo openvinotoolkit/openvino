@@ -74,7 +74,7 @@ The table below demonstrates which behavior **old** or **new** is used depending
 |API 2.0                        |     Old |     New |       New |                   New |
 
 Please look at next transition guides to understand how migrate Inference Engine-based application to API 2.0:
- - [Updates on installation & deployment](deployment_migration.md)
+ - [Installation & Deployment](deployment_migration.md)
  - [OpenVINO™ Common Inference pipeline](common_inference_pipeline.md)
  - [Preprocess your model](./preprocessing.md)
  - [Configure device](./configure_devices.md)

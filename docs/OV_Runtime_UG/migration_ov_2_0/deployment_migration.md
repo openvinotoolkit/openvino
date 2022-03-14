@@ -1,4 +1,4 @@
-# Updates on Installation & Deployment {#openvino_2_0_deployment}
+# Installation & Deployment {#openvino_2_0_deployment}
 
 "Easy to use" is one of the main concepts for OpenVINO™ API 2.0. It includes not only simplifying the migration from frameworks to OpenVINO, but also how OpenVINO is organized, how the development tools are used, and how to develop and deploy OpenVINO-based applications.
 
@@ -50,7 +50,7 @@ You don't have to install any other dependencies. For more details on the instal
 
 ## Interface Changes for Building C/C++ Applications
 
-The new OpenVINO Runtime with API 2.0 has also caused some changes in terms of builiding your C/C++ applications.
+The new OpenVINO Runtime with API 2.0 has also brought some changes for builiding your C/C++ applications.
 
 ### CMake Interface
 
@@ -153,20 +153,20 @@ To build applications without CMake interface, you can also use MSVC IDE, UNIX m
 
 ## Clearer Library Structure for Deployment
 
-OpenVINO 2022.1 has reorganized the libraries to make it easier for deployment. In previous versions, to perform deployment steps, you have to use several core files. Now you can just use one `openvino` or `openvino_c` depending on you developing language plus necessary plugins solve your task. For example, using `openvino_intel_cpu_plugin` and `openvino_ir_frontend` plugins is able to load OpenVINO IRs and perform inference on CPU device.
+OpenVINO 2022.1 has reorganized the libraries to make it easier for deployment. In previous versions, to perform deployment steps, you have to use several libraries. Now you can just use `openvino` or `openvino_c` based on your developing language plus necessary plugins to complete your task. For example, `openvino_intel_cpu_plugin` and `openvino_ir_frontend` plugins will enable you to load OpenVINO IRs and perform inference on CPU device.
 
-Here you can find some detailed comparisons on library structure between OpenVINO 2022.1 and previous verisons:
+Here you can find some detailed comparisons on library structure between OpenVINO 2022.1 and previous versions:
 
 * A single core library with all the functionalities (`openvino` for C++ Runtime, `openvino_c` for Inference Engine API C interface) is used in 2022.1, instead of the previous core libraries which contain `inference_engine`, `ngraph`, `inference_engine_transformations` and `inference_engine_lp_transformations`.
-* The optional `inference_engine_preproc` preprocessing library (if `InferenceEngine::PreProcessInfo::setColorFormat` or `InferenceEngine::PreProcessInfo::setResizeAlgorithm` is used) is deprecated in 2022.1. See more details on [Preprocessing capabilities of OpenVINO API 2.0](preprocessing_overview.md).
+* The optional `inference_engine_preproc` preprocessing library (if `InferenceEngine::PreProcessInfo::setColorFormat` or `InferenceEngine::PreProcessInfo::setResizeAlgorithm` is used) is deprecated in 2022.1. See more details on [Preprocessing capabilities of OpenVINO API 2.0](preprocessing.md).
 * The libraries of plugins are renamed as below:
-   * `MKLDNNPlugin` for [CPU](../supported_plugins/CPU.md) device is renamed to `openvino_intel_cpu_plugin`.
-   * `clDNNPlugin` for [GPU](../supported_plugins/GPU.md) device is renamed to `openvino_intel_gpu_plugin`.
+   * `openvino_intel_cpu_plugin` is used for [CPU](../supported_plugins/CPU.md) device instead of `MKLDNNPlugin` in previous versions.
+   * `openvino_intel_gpu_plugin` is used for [GPU](../supported_plugins/GPU.md) device instead of `clDNNPlugin` in previous versions.
    * `openvino_auto_plugin` is used for [Auto-Device Plugin](../auto_device_selection.md) in 2022.1.
 * The plugins for reading and converting models have been changed as below:
-   * `openvino_ir_frontend` is used to read IRs instead of the previous `inference_engine_ir_reader`.
-   * `openvino_onnx_frontend` is used to read ONNX models instead of the previous`inference_engine_onnx_reader` (with its dependencies). 
-   * `openvino_paddle_frontend` is added to read PaddlePaddle models.
+   * `openvino_ir_frontend` is used to read IRs instead of `inference_engine_ir_reader` in previous versions.
+   * `openvino_onnx_frontend` is used to read ONNX models instead of `inference_engine_onnx_reader` (with its dependencies) in previous versions. 
+   * `openvino_paddle_frontend` is added in 2022.1 to read PaddlePaddle models.
 
 <!-----
 Older versions of OpenVINO had several core libraries and plugin modules:
