@@ -14,8 +14,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::StridedSliceTransformation, "StridedSliceTransformation", 0);
-
 namespace {
 
 std::shared_ptr<opset1::Constant> stridedSliceDeqConstant(

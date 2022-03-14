@@ -46,7 +46,7 @@ ov::op::v0::Constant::Constant(const shared_ptr<ngraph::runtime::Tensor>& tensor
             tensor);
     } else {
         constructor_validate_and_infer_types();
-        allocate_buffer();
+        allocate_buffer(false);
         tensor->read(get_data_ptr_nc(), tensor->get_size_in_bytes());
     }
     constructor_validate_and_infer_types();
@@ -55,7 +55,7 @@ ov::op::v0::Constant::Constant(const shared_ptr<ngraph::runtime::Tensor>& tensor
 ov::op::v0::Constant::Constant(const element::Type& type,
                                const ov::Shape& shape,
                                const std::vector<std::string>& values)
-    : Constant(type, shape) {
+    : Constant(false, type, shape) {
     NGRAPH_SUPPRESS_DEPRECATED_START
     NODE_VALIDATION_CHECK(this,
                           values.size() == shape_size(m_shape) || values.size() == 1,
@@ -186,20 +186,24 @@ ov::op::v0::Constant::Constant(const element::Type& type,
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
-ov::op::v0::Constant::Constant(const element::Type& type, const ov::Shape& shape)
+ov::op::v0::Constant::Constant(const element::Type& type, const ov::Shape& shape) : Constant(true, type, shape) {}
+
+ov::op::v0::Constant::Constant(bool memset_allocation, const element::Type& type, const ov::Shape& shape)
     : m_element_type(type),
       m_shape(shape) {
-    allocate_buffer();
+    allocate_buffer(memset_allocation);
     constructor_validate_and_infer_types();
 }
 
-void ov::op::v0::Constant::allocate_buffer() {
+void ov::op::v0::Constant::allocate_buffer(bool memset_allocation) {
     m_data = make_shared<ngraph::runtime::AlignedBuffer>(mem_size(), host_alignment());
-    std::memset(m_data->get_ptr(), 0, m_data->size());
+    if (memset_allocation) {
+        std::memset(m_data->get_ptr(), 0, m_data->size());
+    }
 }
 
 ov::op::v0::Constant::Constant(const element::Type& type, const ov::Shape& shape, const void* data)
-    : Constant(type, shape) {
+    : Constant(false, type, shape) {
     size_t size = ceil(shape_size(m_shape) * m_element_type.bitwidth() / 8.f);
     std::memcpy(get_data_ptr_nc(), data, size);
 }
@@ -540,7 +544,7 @@ bool ov::op::v0::Constant::visit_attributes(AttributeVisitor& visitor) {
     bool need_to_reallocate = (m_shape != prev_shape || prev_type != m_element_type);
     if (m_alloc_buffer_on_visit_attributes && need_to_reallocate) {
         // Filling in a fresh constant
-        allocate_buffer();
+        allocate_buffer(false);
     }
     visitor.on_attribute("value", m_data);
     update_identical_flags(false, false);
