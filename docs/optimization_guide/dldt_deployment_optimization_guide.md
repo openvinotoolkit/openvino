@@ -18,7 +18,7 @@ Each of the [OpenVINO supported devices](../OV_Runtime_UG/supported_plugins/Devi
 **If the performance portability is of concern, consider using the [OpenVINO High-Level Performance Hints](../OV_Runtime_UG/performance_hints.md) first.**  
 
 Finally, how the full-stack application uses the inference component _end-to-end_ is important.  
-For example, what are the stages that needs to be orchestrated? In some cases a significant part of the workload time is spent on bringing and preparing the input data. Here the asynchronous inference should  increases performance by overlapping the compute with inputs population. Also, in many cases the (image) pre-processing can be offloaded to the OpenVINO. For variably-sized inputs, consider [dynamic shapes](../OV_Runtime_UG/ov_dynamic_shapes.md) to efficiently connect the data input pipeline and the model inference.
+For example, what are the stages that needs to be orchestrated? In some cases a significant part of the workload time is spent on bringing and preparing the input data. inputs population. Also, in many cases the (image) pre-processing can be offloaded to the OpenVINO. For variably-sized inputs, consider [dynamic shapes](../OV_Runtime_UG/ov_dynamic_shapes.md) to efficiently connect the data input pipeline and the model inference.
 
 The rest of the document explains how to optimize your _runtime_ performance with the following options: 
 
@@ -162,21 +162,3 @@ Please refer to the code of the [Benchmark App](../../samples/cpp/benchmark_app/
 -	Multi-device logic always attempts to save on the (e.g. inputs) data copies between device-agnostic, user-facing inference requests 
     and device-specific 'worker' requests that are being actually scheduled behind the scene. 
     To facilitate the copy savings, it is recommended to run the requests in the order that they were created.
-
-### Internal Inference Performance Counters and Execution Graphs <a name="performance-counters"></a>
-
-Both [C++](../../samples/cpp/benchmark_app/README.md) and [Python](../../tools/benchmark_tool/README.md) versions of the `benchmark_app` supports a `-pc` command-line parameter that outputs internal execution breakdown.
-
-Below is example of CPU plugin output for a network (since the device is CPU, the layers wall clock `realTime` and the `cpu` time are the same):
-
-```
-conv1      EXECUTED       layerType: Convolution        realTime: 706        cpu: 706            execType: jit_avx2
-conv2_1_x1  EXECUTED       layerType: Convolution        realTime: 137        cpu: 137            execType: jit_avx2_1x1
-fc6        EXECUTED       layerType: Convolution        realTime: 233        cpu: 233            execType: jit_avx2_1x1
-fc6_nChw8c_nchw      EXECUTED  layerType: Reorder           realTime: 20         cpu: 20             execType: reorder
-out_fc6         EXECUTED       layerType: Output            realTime: 3          cpu: 3              execType: unknown
-relu5_9_x2    OPTIMIZED_OUT     layerType: ReLU             realTime: 0          cpu: 0              execType: undef
-```
-
-This contains layers name (as seen in IR), layers type and execution statistics. Notice the `OPTIMIZED_OUT`, which indicates that the particular activation was fused into adjacent convolution.
-Both benchmark_app versions also support "exec_graph_path" command-line option governing the OpenVINO to output the same per-layer execution statistics, but in the form of the plugin-specific [Netron-viewable](https://netron.app/) graph to the specified file.

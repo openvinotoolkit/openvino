@@ -17,7 +17,7 @@ You need to build your performance conclusions on reproducible data. Do the perf
 
 -	If the warm-up run does not help or execution time still varies, you can try running a large number of iterations and then average or find a mean of the results.
 -	For time values that range too much, consider geomean.
-
+-   Beware of the throttling and other power oddities. A device can exist in one of several different power states. When optimizing your model, for better performance data reproducibility consider fixing the device frequency. However the end to end  (application) benchmarking should be also performed under real operational conditions.
 
 ## Getting performance numbers using OpenVINO's benchmark_app 
 
@@ -47,3 +47,22 @@ When comparing the OpenVINO Runtime performance with the framework or another re
 -	Ensure the inputs are identical for the OpenVINO Runtime and the framework. For example, beware of random values that can be used to populate the inputs.
 -	Consider [Image Pre-processing and Conversion](../../OV_Runtime_UG/preprocessing_overview.md), while any user-side pre-processing should be tracked separately.
 -	If possible, demand the same accuracy. For example, TensorFlow allows `FP16` execution, so when comparing to that, make sure to test the OpenVINO Runtime with the `FP16` as well.
+
+### Internal Inference Performance Counters and Execution Graphs <a name="performance-counters"></a>
+Further, finer-grained insights into inference performance breakdown can be achieved with device-specific performance counters and/or execution graphs.
+Both [C++](../../samples/cpp/benchmark_app/README.md) and [Python](../../tools/benchmark_tool/README.md) versions of the `benchmark_app` supports a `-pc` command-line parameter that outputs internal execution breakdown.
+
+Below is example of CPU plugin output for a network (since the device is CPU, the layers wall clock `realTime` and the `cpu` time are the same):
+
+```
+conv1      EXECUTED       layerType: Convolution        realTime: 706        cpu: 706            execType: jit_avx2
+conv2_1_x1  EXECUTED       layerType: Convolution        realTime: 137        cpu: 137            execType: jit_avx2_1x1
+fc6        EXECUTED       layerType: Convolution        realTime: 233        cpu: 233            execType: jit_avx2_1x1
+fc6_nChw8c_nchw      EXECUTED  layerType: Reorder           realTime: 20         cpu: 20             execType: reorder
+out_fc6         EXECUTED       layerType: Output            realTime: 3          cpu: 3              execType: unknown
+relu5_9_x2    OPTIMIZED_OUT     layerType: ReLU             realTime: 0          cpu: 0              execType: undef
+```
+This contains layers name (as seen in IR), layers type and execution statistics. Notice the `OPTIMIZED_OUT`, which indicates that the particular activation was fused into adjacent convolution.
+Both benchmark_app versions also support "exec_graph_path" command-line option governing the OpenVINO to output the same per-layer execution statistics, but in the form of the plugin-specific [Netron-viewable](https://netron.app/) graph to the specified file.
+
+Notice that on some devices, the execution graphs/counters may be pretty intrusive overhead-wise. Also these do not reflect the time spent in the plugin/device/driver/etc queues. If the sum of the counters is too different from the latency of an inference request, consider testing with less inference requests.
