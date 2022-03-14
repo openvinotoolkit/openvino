@@ -21,8 +21,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::ReshapeTransformation, "ReshapeTransformation", 0);
-
 ReshapeTransformation::ReshapeTransformation(const Params& params) : LayerTransformation(params) {
     auto input = pattern::any_input();
     auto mul_const_m = pattern::wrap_type<opset1::Constant>();
@@ -238,18 +236,20 @@ bool ReshapeTransformation::canBeTransformed(const TransformationContext& contex
         multiplyShapeWithBatch.insert(multiplyShapeWithBatch.begin(), 1ul);
     }
 
-    const size_t outputChannel = static_cast<size_t>(outputPShape[1].get_length());
-    if (!subtractShapeWithBatch.empty() && (outputChannel < subtractShapeWithBatch[1])) {
-        return false;
-    }
-    if (!multiplyShapeWithBatch.empty() && (outputChannel < multiplyShapeWithBatch[1])) {
-        return false;
-    }
+    if (subtractShapeWithBatch.size() > 1 && multiplyShapeWithBatch.size() > 1) {
+        const size_t outputChannel = static_cast<size_t>(outputPShape[1].get_length());
+        if (!subtractShapeWithBatch.empty() && (outputChannel < subtractShapeWithBatch[1])) {
+            return false;
+        }
+        if (!multiplyShapeWithBatch.empty() && (outputChannel < multiplyShapeWithBatch[1])) {
+            return false;
+        }
 
-    if (outputPShape.is_static() &&
-        ((!subtractShapeWithBatch.empty() && ((outputChannel % subtractShapeWithBatch[1]) != 0)) ||
-        (!multiplyShapeWithBatch.empty() && (outputChannel % multiplyShapeWithBatch[1] != 0)))) {
-        return false;
+        if (outputPShape.is_static() &&
+            ((!subtractShapeWithBatch.empty() && ((outputChannel % subtractShapeWithBatch[1]) != 0)) ||
+             (!multiplyShapeWithBatch.empty() && (outputChannel % multiplyShapeWithBatch[1] != 0)))) {
+            return false;
+        }
     }
 
     return canBeTransformed(subtractShapeWithBatch, multiplyShapeWithBatch, inputPShape, outputPShape);
