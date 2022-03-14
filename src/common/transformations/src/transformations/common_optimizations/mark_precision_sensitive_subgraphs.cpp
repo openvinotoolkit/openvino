@@ -20,7 +20,7 @@ using namespace std;
 bool ov::pass::MarkPrecisionSensitiveSubgraphs::run_on_model(const std::shared_ptr<ov::Model>& f) {
     deque<Node*> nodes;
     unordered_set<Node*> visited, precision_sensitive_visited;
-    bool rewritten = true;
+
     for (const auto& r : f->get_results()) {
         nodes.push_back(r.get());
         visited.insert(r.get());
@@ -58,12 +58,12 @@ bool ov::pass::MarkPrecisionSensitiveSubgraphs::run_on_model(const std::shared_p
                 size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
                 for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
                     auto sub_graph = sub_graph_node->get_function(sub_graph_ind);
-                    rewritten |= run_on_model(sub_graph);
+                    run_on_model(sub_graph);
                 }
             }
             nodes.push_front(input_node_ptr.get());
             visited.insert(input_node_ptr.get());
         }
     }
-    return rewritten;
+    return true;
 }
