@@ -3,7 +3,7 @@
 int main() {
 //! [part0]
 	/*********************
-	 * With Inference Engine 2.0 API
+	 * With OpenVINO Runtime API 2.0
 	 *********************/
 	ov::Core core;
 

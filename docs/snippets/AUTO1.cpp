@@ -3,7 +3,7 @@
 int main() {
 //! [part1]
 	/*********************
-	 * With API Prior to 2022.1 Release
+	 * With Inference Engine API
 	 *********************/
 	InferenceEngine::Core ie;
 

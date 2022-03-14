@@ -116,7 +116,7 @@ The following commands are accepted by the API:
 
    .. code-block:: cpp
 
-      /*** With Inference Engine 2.0 API ***/
+      /*** With OpenVINO Runtime API 2.0 ***/
       ov::Core core; 
 
       // Read a network in IR, PaddlePaddle, or ONNX format:
@@ -135,11 +135,11 @@ The following commands are accepted by the API:
       // the AUTO plugin is pre-configured (globally) with the explicit option:
       core.set_property("AUTO", ov::device::priorities("GPU,CPU"));
 
-.. tab:: C++ Inference Engine 1.0 API
+.. tab:: C++ API
 
    .. code-block:: cpp
 
-      /*** With API Prior to 2022.1 Release ***/
+      /*** With Inference Engine API ***/
       InferenceEngine::Core ie;
 
       // Read a network in IR, PaddlePaddle, or ONNX format:
@@ -163,7 +163,7 @@ The following commands are accepted by the API:
 
    .. code-block:: python
 
-      ### New IE 2.0 API ###
+      ### OpenVINO Runtime API 2.0 ###
 
       from openvino.runtime import Core
       core = Core()
@@ -185,11 +185,11 @@ The following commands are accepted by the API:
       # the AUTO plugin is pre-configured (globally) with the explicit option:
       core.set_property(device_name="AUTO", properties={"MULTI_DEVICE_PRIORITIES":"GPU,CPU"})
 
-.. tab:: Python Inference Engine 1.0 API
+.. tab:: Python API
 
    .. code-block:: python
 
-      ### API before 2022.1 ###
+      ### Inference Engine API ###
       from openvino.inference_engine import IECore
       ie = IECore()
 
