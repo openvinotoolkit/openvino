@@ -16,6 +16,8 @@
 #include <utility>
 #include <vector>
 
+#define Gna2DeviceVersionEmbedded3_6 ((Gna2DeviceVersion)0x36E)
+
 struct GnaAllocation {
     void* ptr = nullptr;
     size_t sizeRequested = 0;
