@@ -38,6 +38,7 @@ InferenceEngine::IInferRequestInternal::Ptr AutoRequestWrapper::CreateInferReque
 
 IInferRequestInternal::Ptr AutoRequestWrapper::CreateInferRequest() {
     InferenceEngine::IExecutableNetworkInternal::Ptr exenetwork = GetExecutableNetworkInternal();
+    assert(exenetwork != nullptr);
     auto syncRequestImpl = CreateInferRequestImpl(exenetwork->getInputs(), exenetwork->getOutputs());
     syncRequestImpl->setPointerToExecutableNetworkInternal(std::static_pointer_cast<MultiDeviceExecutableNetwork>(exenetwork));
     return std::make_shared<MultiDeviceAsyncInferRequest>(std::static_pointer_cast<MultiDeviceInferRequest>(syncRequestImpl),

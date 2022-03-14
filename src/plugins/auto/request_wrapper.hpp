@@ -41,7 +41,7 @@ public:
     }
 
     void SetCallBackExecutor(const InferenceEngine::ITaskExecutor::Ptr& callbackexe) { _callbackExecutor = callbackexe; }
-    InferenceEngine::ITaskExecutor::Ptr& GetCallbackExe() { return _callbackExecutor; }
+    InferenceEngine::ITaskExecutor::Ptr GetCallbackExe() { return _callbackExecutor; }
     void SetExecutableNetworkInternal(const InferenceEngine::IExecutableNetworkInternal::Ptr& exeNetwork) { _exeNetwork = exeNetwork; }
     InferenceEngine::IExecutableNetworkInternal::Ptr GetExecutableNetworkInternal() { return _exeNetwork.lock(); }
     virtual ~RequestWrapper() { _soExeNetwork = {}; }
