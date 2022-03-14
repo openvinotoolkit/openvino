@@ -293,7 +293,8 @@ namespace {
 
 CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                                  const std::vector<IExtensionPtr>& exts,
-                                 bool newAPI) {
+                                 bool newAPI,
+                                 bool frontendMode = false) {
     auto& rt_info = function->get_rt_info();
     const auto it = rt_info.find("version");
     const bool is_ir = it != rt_info.end();
@@ -309,9 +310,11 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             std::unordered_map<std::string, std::shared_ptr<ov::descriptor::Tensor>> leaf_names;
             const auto inputs = function->inputs();
             for (size_t i = 0; i < inputs.size(); ++i) {
-                const auto ngraph_type = inputs[i].get_element_type();
-                const auto legacy_type = details::toLegacyType(ngraph_type, true);
-                prepost.input(i).tensor().set_element_type(legacy_type);
+                if (!frontendMode) {
+                    const auto ngraph_type = inputs[i].get_element_type();
+                    const auto legacy_type = details::toLegacyType(ngraph_type, true);
+                    prepost.input(i).tensor().set_element_type(legacy_type);
+                }
                 for (const auto& name : inputs[i].get_names()) {
                     OPENVINO_ASSERT(leaf_names.find(name) == leaf_names.end(),
                                     "Model tensor names have collisions.",
@@ -322,10 +325,11 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
 
             const auto outputs = function->outputs();
             for (size_t i = 0; i < outputs.size(); ++i) {
-                const auto ngraph_type = outputs[i].get_element_type();
-                const auto legacy_type = details::toLegacyType(ngraph_type, false);
-
-                prepost.output(i).tensor().set_element_type(legacy_type);
+                if (!frontendMode) {
+                    const auto ngraph_type = outputs[i].get_element_type();
+                    const auto legacy_type = details::toLegacyType(ngraph_type, false);
+                    prepost.output(i).tensor().set_element_type(legacy_type);
+                }
                 for (const auto& name : outputs[i].get_names()) {
                     auto tensor_it = leaf_names.find(name);
                     OPENVINO_ASSERT(tensor_it == leaf_names.end() || tensor_it->second == outputs[i].get_tensor_ptr(),
@@ -526,7 +530,8 @@ CNNNetwork details::ReadNetwork(const std::string& model,
                                 const Blob::CPtr& weights,
                                 const std::vector<IExtensionPtr>& exts,
                                 const std::vector<ov::Extension::Ptr>& ov_exts,
-                                bool newAPI) {
+                                bool newAPI,
+                                bool frontendMode) {
     std::istringstream modelStringStream(model);
     std::istream& modelStream = modelStringStream;
 
@@ -571,7 +576,7 @@ CNNNetwork details::ReadNetwork(const std::string& model,
     }
     if (inputModel) {
         auto ngFunc = FE->convert(inputModel);
-        return convert_to_cnnnetwork(ngFunc, exts, newAPI);
+        return convert_to_cnnnetwork(ngFunc, exts, newAPI, frontendMode);
     }
 
     IE_THROW(NetworkNotRead)

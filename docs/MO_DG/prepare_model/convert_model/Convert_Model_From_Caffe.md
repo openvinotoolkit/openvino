@@ -1,26 +1,11 @@
 # Converting a Caffe* Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe}
 
-A summary of the steps for optimizing and deploying a model that was trained with Caffe\*:
-
-1. [Configure the Model Optimizer](../../Deep_Learning_Model_Optimizer_DevGuide.md) for Caffe\*.
-2. [Convert a Caffe\* Model](#Convert_From_Caffe) to produce an optimized [Intermediate Representation (IR)](../../IR_and_opsets.md) of the model based on the trained network topology, weights, and biases values
-3. Test the model in the Intermediate Representation format using the [OpenVINO™ Runtime](../../../OV_Runtime_UG/openvino_intro.md) in the target environment via provided [OpenVINO samples](../../../OV_Runtime_UG/Samples_Overview.md)
-4. [Integrate](../../../OV_Runtime_UG/Samples_Overview.md) the [OpenVINO™ Runtime](../../../OV_Runtime_UG/openvino_intro.md) in your application to deploy the model in the target environment
-
 ## Convert a Caffe* Model <a name="Convert_From_Caffe"></a>
-
-To convert a Caffe\* model, run Model Optimizer with the path to the input model `.caffemodel` file and the path to an output directory with write permissions:
+To convert a Caffe\* model, run Model Optimizer with the path to the input model `.caffemodel` file:
 
 ```sh
- mo --input_model <INPUT_MODEL>.caffemodel --output_dir <OUTPUT_MODEL_DIR>
+ mo --input_model <INPUT_MODEL>.caffemodel
 ```
-
-Two groups of parameters are available to convert your model:
-
-* Framework-agnostic parameters are used to convert a model trained with any supported framework. For details, see the General Conversion Parameters section on the [Converting a Model to Intermediate Representation (IR)](Converting_Model.md) page.
-* [Caffe-specific parameters](#caffe_specific_conversion_params) are used to convert only Caffe\* models.
-
-### Using Caffe\*-Specific Conversion Parameters <a name="caffe_specific_conversion_params"></a>
 
 The following list provides the Caffe\*-specific parameters.
 
@@ -60,16 +45,16 @@ Caffe*-specific parameters:
                         attributes without flattening nested parameters.
 ```
 
-#### Command-Line Interface (CLI) Examples Using Caffe\*-Specific Parameters
+### Command-Line Interface (CLI) Examples Using Caffe\*-Specific Parameters
 
-* Launching the Model Optimizer for the [bvlc_alexnet.caffemodel](https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet) with a specified `prototxt` file. This is needed when the name of the Caffe\* model and the `.prototxt` file are different or are placed in different directories. Otherwise, it is enough to provide only the path to the input `model.caffemodel` file. You must have write permissions for the output directory.
+* Launching the Model Optimizer for the [bvlc_alexnet.caffemodel](https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet) with a specified `prototxt` file. This is needed when the name of the Caffe\* model and the `.prototxt` file are different or are placed in different directories. Otherwise, it is enough to provide only the path to the input `model.caffemodel` file.
    ```sh
-   mo --input_model bvlc_alexnet.caffemodel --input_proto bvlc_alexnet.prototxt --output_dir <OUTPUT_MODEL_DIR>
+   mo --input_model bvlc_alexnet.caffemodel --input_proto bvlc_alexnet.prototxt
    ```
 * Launching the Model Optimizer for the [bvlc_alexnet.caffemodel](https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet) with a specified `CustomLayersMapping` file. This is the legacy method of quickly enabling model conversion if your model has custom layers. This requires the Caffe\* system on the computer.
 Optional parameters without default values and not specified by the user in the `.prototxt` file are removed from the Intermediate Representation, and nested parameters are flattened:
    ```sh
-   mo --input_model bvlc_alexnet.caffemodel -k CustomLayersMapping.xml --disable_omitting_optional --enable_flattening_nested_params --output_dir <OUTPUT_MODEL_DIR>
+   mo --input_model bvlc_alexnet.caffemodel -k CustomLayersMapping.xml --disable_omitting_optional --enable_flattening_nested_params
    ```
    This example shows a multi-input model with input layers: `data`, `rois`
    ```
@@ -91,9 +76,9 @@ Optional parameters without default values and not specified by the user in the 
    }
    ```
 
-* Launching the Model Optimizer for a multi-input model with two inputs and providing a new shape for each input in the order they are passed to the Model Optimizer along with a writable output directory. In particular, for data, set the shape to `1,3,227,227`. For rois, set the shape to `1,6,1,1`:
+* Launching the Model Optimizer for a multi-input model with two inputs and providing a new shape for each input in the order they are passed to the Model Optimizer. In particular, for data, set the shape to `1,3,227,227`. For rois, set the shape to `1,6,1,1`:
    ```sh
-   mo --input_model /path-to/your-model.caffemodel --input data,rois --input_shape (1,3,227,227),[1,6,1,1] --output_dir <OUTPUT_MODEL_DIR>
+   mo --input_model /path-to/your-model.caffemodel --input data,rois --input_shape (1,3,227,227),[1,6,1,1]
    ```
 ## Custom Layer Definition
 

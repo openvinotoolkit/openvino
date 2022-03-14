@@ -15,8 +15,6 @@
 
 using namespace GNAPluginNS;
 
-NGRAPH_RTTI_DEFINITION(Unfuse2dto4dReshapeAndTranspose, "Unfuse2dto4dReshapeAndTranspose", 0);
-
 Unfuse2dto4dReshapeAndTranspose::Unfuse2dto4dReshapeAndTranspose() {
     MATCHER_SCOPE(Unfuse2dto4dReshapeAndTranspose);
     auto is_required_reshape = [](const ngraph::Output<ngraph::Node>& value) {
@@ -63,8 +61,6 @@ Unfuse2dto4dReshapeAndTranspose::Unfuse2dto4dReshapeAndTranspose() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(conv, matcher_name);
     this->register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(Unfuse4dto2dReshapeAndTranspose, "Unfuse4dto2dReshapeAndTranspose", 0);
 
 Unfuse4dto2dReshapeAndTranspose::Unfuse4dto2dReshapeAndTranspose() {
     MATCHER_SCOPE(Unfuse4dto2dReshapeAndTranspose);
