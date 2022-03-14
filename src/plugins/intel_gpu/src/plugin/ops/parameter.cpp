@@ -293,7 +293,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
 
             if (inputDims[0] > 1) {
                 auto concatPrimID = "concat:" + inputName + Program::m_preProcessTag;
-                p.AddPrimitive(cldnn::concatenation(concatPrimID, reorders, cldnn::concatenation::along_b, op->get_friendly_name()));
+                p.AddPrimitive(cldnn::concatenation(concatPrimID, reorders, 0, op->get_friendly_name()));
                 p.primitiveIDs[inputName] = concatPrimID;
             }
         } else {

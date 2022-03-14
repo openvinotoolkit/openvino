@@ -35,13 +35,13 @@ TEST(DISABLED_oooq_test, simple)
     tpl.add(reorder("r4", "r2", input_mem->get_layout(), std::vector<float>{ 4 }));
     tpl.add(reorder("r5", "r4", input_mem->get_layout(), std::vector<float>{ 5 }));
 
-    tpl.add(concatenation("c6", { "r3", "r5" }, concatenation::along_x));
+    tpl.add(concatenation("c6", { "r3", "r5" }, 3));
     layout concat_lay = input_mem->get_layout();
     concat_lay.size.spatial[0] *= 2;
 
     tpl.add(reorder("r7", "c6", concat_lay, std::vector<float>{ 7 }));
     tpl.add(reorder("r8", "c6", concat_lay, std::vector<float>{ 8 }));
-    tpl.add(concatenation("c9", { "r7", "r8" }, concatenation::along_y));
+    tpl.add(concatenation("c9", { "r7", "r8" }, 2));
     concat_lay.size.spatial[1] *= 2;
 
     build_options options;

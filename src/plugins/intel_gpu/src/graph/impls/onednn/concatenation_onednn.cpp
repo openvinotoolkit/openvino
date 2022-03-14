@@ -54,18 +54,9 @@ protected:
             input_mds.push_back(onednn::layout_to_memory_desc(input->get_output_layout()));
         }
         auto output_md = onednn::layout_to_memory_desc(arg.get_output_layout());
-        int axis = 0;
-        switch (prim->axis) {
-            case concatenation::concatenation_axis::along_b: axis = 0; break;
-            case concatenation::concatenation_axis::along_f: axis = 1; break;
-            case concatenation::concatenation_axis::along_y: axis = 2; break;
-            case concatenation::concatenation_axis::along_x: axis = 3; break;
-            default: throw std::runtime_error("unsupported concat axis");
-        }
-
         return std::make_shared<dnnl::concat::primitive_desc>(
             output_md,
-            axis,
+            prim->axis,
             input_mds,
             engine.get_onednn_engine());
     }

@@ -126,7 +126,7 @@ void concat_input_order::run(program& p) {
         auto& concat_node = node->as<concatenation>();
         auto prim = concat_node.get_primitive();
 
-        bool along_f = prim->axis == concatenation::along_f;
+        bool along_f = prim->axis == 1;
         size_t inputs_count = prim->input_size();
         bool no_fusing = !concat_node.has_fused_primitives() && concat_node.get_dependencies().size() == inputs_count;
 

@@ -822,7 +822,7 @@ TEST_P(conv_fp32_eltwise_fusing_extend_ops, pattern01_simple_sub) {
         eltwise("eltwise2_sub", "conv_prim", "eltwise_data2", eltwise_mode::sub),
         eltwise("eltwise3_prod", "eltwise1_sum", "eltwise2_sub", eltwise_mode::prod),
         eltwise("eltwise4_sum", "eltwise3_prod", "eltwise_data4", eltwise_mode::sum),
-        concatenation("concat", { "eltwise4_sum", "eltwise4_sum" }, cldnn::concatenation::along_f),
+        concatenation("concat", { "eltwise4_sum", "eltwise4_sum" }, 1),
         reorder("reorder_bfyx", "concat", p.default_format, data_types::f32)
     );
     implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
@@ -850,7 +850,7 @@ TEST_P(conv_fp32_eltwise_fusing_extend_ops, pattern02_sub_scale) {
         eltwise("eltwise2_sub", "conv_prim", "eltwise1_sum", eltwise_mode::sub),
         eltwise("eltwise3_prod", "eltwise2_sub", "eltwise_data2", eltwise_mode::prod),
         scale("scale", "eltwise3_prod", "scale_data"),
-        concatenation("concat", { "scale", "scale" }, cldnn::concatenation::along_f),
+        concatenation("concat", { "scale", "scale" }, 1),
         reorder("reorder_bfyx", "concat", p.default_format, data_types::f32)
     );
     implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
@@ -879,7 +879,7 @@ TEST_P(conv_fp32_eltwise_fusing_extend_ops, pattern03_sub_div) {
         eltwise("eltwise2_div", "eltwise1_sum", "eltwise_data2", eltwise_mode::div),
         eltwise("eltwise3_prod", "eltwise2_div", "eltwise_data3", eltwise_mode::prod),
         eltwise("eltwise4_sum", "eltwise3_prod", "eltwise_data4", eltwise_mode::sum),
-        concatenation("concat", { "eltwise4_sum", "eltwise4_sum" }, cldnn::concatenation::along_f),
+        concatenation("concat", { "eltwise4_sum", "eltwise4_sum" }, 1),
         reorder("reorder_bfyx", "concat", p.default_format, data_types::f32)
     );
     implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
@@ -917,7 +917,7 @@ TEST_P(conv_fp32_eltwise_fusing_2conv, basic) {
         eltwise("eltwise1", "conv_prim0", "conv_prim", eltwise_mode::sum),
         eltwise("eltwise2", "conv_prim0", "conv_prim", eltwise_mode::sum),
         eltwise("eltwise3", "eltwise1", "eltwise2", eltwise_mode::prod),
-        concatenation("concat", { "eltwise3", "eltwise3" }, cldnn::concatenation::along_f),
+        concatenation("concat", { "eltwise3", "eltwise3" }, 1),
         reorder("reorder_bfyx", "concat", p.default_format, data_types::f32)
     );
     implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
@@ -1023,7 +1023,7 @@ TEST_P(conv_fp32_multi_eltwise_concat, basic) {
         eltwise("eltwise2", "conv_prim", "eltwise_data2", eltwise_mode::sum),
         concatenation("concat",
             { "eltwise1", "eltwise2" },
-            concatenation::concatenation_axis::along_f,
+            1,
             data_types::i8,
             "",
             padding{ { 0, 0, 0, 0 }, 0 }),
