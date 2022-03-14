@@ -10,8 +10,6 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 
-NGRAPH_RTTI_DEFINITION(ov::intel_cpu::ReshapeFullyConnectedFusion, "ReshapeFullyConnectedFusion", 0);
-
 ov::intel_cpu::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
     auto m_reshape = ngraph::pattern::wrap_type<ngraph::opset1::Reshape>({ngraph::pattern::any_input(ov::pass::pattern::has_static_shape()),
                                                                           ngraph::pattern::any_input()},
