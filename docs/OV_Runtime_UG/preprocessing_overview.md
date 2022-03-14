@@ -8,6 +8,7 @@
 
    openvino_docs_OV_Runtime_UG_Preprocessing_Details
    openvino_docs_OV_Runtime_UG_Layout_Overview
+   openvino_docs_OV_Runtime_UG_Preprocess_Usecase_save
 
 @endsphinxdirective
 
