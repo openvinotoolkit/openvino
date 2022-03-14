@@ -8,7 +8,7 @@ properties([
         booleanParam(defaultValue: true,
                      description: 'Whether to propagate commit status to GitHub',
                      name: 'propagateStatus'),
-        string(defaultValue: '',
+        string(defaultValue: 'pull/352/head',
                description: 'Pipeline shared library version (branch/tag/commit). Determined automatically if empty',
                name: 'library_version')
     ])
