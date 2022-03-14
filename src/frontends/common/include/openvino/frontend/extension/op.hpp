@@ -59,6 +59,23 @@ public:
     OpExtensionBase(const std::string& fw_type_name,
                     const std::map<std::string, std::string>& attr_names_map = {},
                     const std::map<std::string, ov::Any>& attr_values_map = {});
+
+    OpExtensionBase(const std::vector<std::string>& in_names_vec,
+                    const std::vector<std::string>& out_names_vec,
+                    const std::map<std::string, std::string>& attr_names_map = {},
+                    const std::map<std::string, ov::Any>& attr_values_map = {})
+        : OpExtensionBase(OVOpType::get_type_info_static().name,
+                          in_names_vec,
+                          out_names_vec,
+                          attr_names_map,
+                          attr_values_map) {}
+
+    // Maps op with output names, a given type in FW and OV type given in template parameter
+    OpExtensionBase(const std::string& fw_type_name,
+                    const std::vector<std::string>& in_names_vec,
+                    const std::vector<std::string>& out_names_vec,
+                    const std::map<std::string, std::string>& attr_names_map = {},
+                    const std::map<std::string, ov::Any>& attr_values_map = {});
 };
 
 template <typename BaseConversionType>
@@ -141,6 +158,57 @@ public:
 
 private:
     std::function<std::shared_ptr<ov::Node>()> m_op_creator;
+    std::map<std::string, std::string> m_attr_names_map;
+    std::map<std::string, ov::Any> m_attr_values_map;
+};
+
+class OpConversionFunctionNamed {
+public:
+    explicit OpConversionFunctionNamed(const std::function<std::shared_ptr<ov::Node>()>& op_creator,
+                                       const std::vector<std::string>& in_names_vec,
+                                       const std::vector<std::string>& out_names_vec,
+                                       const std::map<std::string, std::string>& attr_names_map = {},
+                                       const std::map<std::string, ov::Any>& attr_values_map = {})
+        : m_op_creator(op_creator),
+          m_in_names_vec(in_names_vec),
+          m_out_names_vec(out_names_vec),
+          m_attr_names_map(attr_names_map),
+          m_attr_values_map(attr_values_map) {}
+
+    std::map<std::string, OutputVector> operator()(const NodeContext& context) {
+        auto node = m_op_creator();
+
+        std::vector<Output<Node>> inputs;
+        for (const auto& name : m_in_names_vec) {
+            for (size_t i = 0; i < context.get_input_size(name); ++i) {
+                inputs.push_back(context.get_input(name, i));
+            }
+        }
+
+        node->set_arguments(inputs);
+        FWVisitor fw_visitor(context, m_attr_names_map, m_attr_values_map);
+        node->visit_attributes(fw_visitor);
+        node->validate_and_infer_types();
+        std::map<std::string, OutputVector> out;
+        OPENVINO_ASSERT(m_out_names_vec.size() == node->get_output_size(),
+                        "each output should has a name, names number: ",
+                        m_out_names_vec.size(),
+                        ", output size: ",
+                        node->get_output_size());
+        int i = 0;
+        for (const auto& name : m_out_names_vec) {
+            if (out.find(name) == out.end()) {
+                out.insert({name, OutputVector()});
+            }
+            out[name].emplace_back(node->output(i++));
+        }
+        return out;
+    }
+
+private:
+    std::function<std::shared_ptr<ov::Node>()> m_op_creator;
+    std::vector<std::string> m_in_names_vec;
+    std::vector<std::string> m_out_names_vec;
     std::map<std::string, std::string> m_attr_names_map;
     std::map<std::string, ov::Any> m_attr_values_map;
 };
@@ -234,6 +302,22 @@ OpExtensionBase<BaseConversionType, OVOpType>::OpExtensionBase(const std::string
                              attr_names_map,
                              attr_values_map)) {}
 
+template <typename BaseConversionType, typename OVOpType>
+OpExtensionBase<BaseConversionType, OVOpType>::OpExtensionBase(const std::string& fw_type_name,
+                                                               const std::vector<std::string>& in_names_vec,
+                                                               const std::vector<std::string>& out_names_vec,
+                                                               const std::map<std::string, std::string>& attr_names_map,
+                                                               const std::map<std::string, ov::Any>& attr_values_map)
+    : BaseConversionType(fw_type_name,
+                         OpConversionFunctionNamed(
+                             []() {
+                                 return std::make_shared<OVOpType>();
+                             },
+                             in_names_vec,
+                             out_names_vec,
+                             attr_names_map,
+                             attr_values_map)) {}
+
 template <typename OVOpType = void>
 using OpExtension = ov::frontend::OpExtensionBase<ov::frontend::ConversionExtension, OVOpType>;
 
@@ -258,5 +342,32 @@ using OpExtension = ov::frontend::OpExtensionBase<ov::frontend::ConversionExtens
         }                                                                                                \
     };
 
+#define OPENVINO_FRAMEWORK_MAP_PADDLE(in_names, out_names, ...)                               \
+    template <typename T>                                                                     \
+    struct __openvino_framework_map_helper_paddle {                                           \
+        static auto get() -> std::shared_ptr<ov::frontend::paddle::OpExtension<T>> {          \
+            auto make_spec_tuple = [](const std::string& s = "",                              \
+                                      const std::map<std::string, std::string>& attr_mp = {}, \
+                                      const std::map<std::string, ov::Any>& val_mp = {}) {    \
+                return std::make_tuple(s, attr_mp, val_mp);                                   \
+            };                                                                                \
+            auto params = make_spec_tuple(__VA_ARGS__);                                       \
+            const auto& name = std::get<0>(params);                                           \
+            const auto& attr_mp = std::get<1>(params);                                        \
+            const auto& val_mp = std::get<2>(params);                                         \
+            const std::vector<std::string> in_names_vec(in_names);                            \
+            const std::vector<std::string> out_names_vec(out_names);                          \
+            if (!name.empty())                                                                \
+                return std::make_shared<ov::frontend::paddle::OpExtension<T>>(name,           \
+                                                                              in_names_vec,   \
+                                                                              out_names_vec,  \
+                                                                              attr_mp,        \
+                                                                              val_mp);        \
+            return std::make_shared<ov::frontend::paddle::OpExtension<T>>(in_names_vec,       \
+                                                                          out_names_vec,      \
+                                                                          attr_mp,            \
+                                                                          val_mp);            \
+        }                                                                                     \
+    };
 }  // namespace frontend
 }  // namespace ov
