@@ -176,6 +176,7 @@ public:
     bool is_internal() const { return _internal; }
     bool is_dynamic() const { return _is_dynamic; }
     bool is_primary_stream() { return _is_primary_stream; }
+    bool shape_changed() { return _shape_changed; }
 
     /// Create memory object with specified @p layout and allocation @p type for primitive with @p id
     /// Underlying memory handle can be reused with other primitives from memory pool based on @p dependencies
@@ -197,6 +198,7 @@ private:
     bool _internal;
     bool _is_primary_stream;
     bool _is_dynamic = false;
+    bool _shape_changed = false;
     bool _reset_arguments;
 
     std::map<primitive_id, std::shared_ptr<primitive_inst>> _primitives;

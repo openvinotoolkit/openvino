@@ -24,6 +24,7 @@
 #include <algorithm>
 
 
+#if 0
 #define PRINT_TIME(func) \
 { \
  auto start = std::chrono::high_resolution_clock::now(); \
@@ -31,6 +32,9 @@
  auto duration = std::chrono::high_resolution_clock::now() - start; \
  std::cerr << id() << " " <<  #func <<  " " << std::chrono::duration_cast<std::chrono::microseconds>(duration).count() << "us\n"; \
 }
+#else
+#define PRINT_TIME(func)
+#endif
 
 namespace {
 
@@ -107,6 +111,9 @@ void primitive_inst::update_shape() {
     // if (!_node.is_dynamic())
     //     return;
     GPU_DEBUG_GET_INSTANCE(debug_config);
+
+    if (!_network.shape_changed())
+        return;
 
     auto new_layout = _node.type()->calc_output_layout(_node);
 

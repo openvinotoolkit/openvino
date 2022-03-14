@@ -677,10 +677,13 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     GPU_DEBUG_IF(debug_config->verbose >= 1)
         GPU_DEBUG_COUT << "----------------------------------------------" << std::endl;
 
+    _shape_changed = false;
     std::vector<memory::ptr> in_out_mem;
     for (auto& inst : _inputs) {
         if (inst->output_memory_ptr())
             in_out_mem.push_back(inst->output_memory_ptr());
+        if (inst->shape_changed())
+            _shape_changed = true;
     }
 
     for (auto& inst : _outputs) {
