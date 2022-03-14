@@ -78,8 +78,6 @@
 #include "low_precision/fuse_multiply_to_fake_quantize.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::LowPrecision, "LowPrecision", 0);
-
 ngraph::pass::low_precision::LowPrecision::LowPrecision(
     const std::vector<OperationPrecisionRestriction>& precisionRestrictions,
     const std::vector<OperationPerTensorQuantizationRestriction>& quantizationRestrictions,
@@ -135,8 +133,6 @@ void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::TypeRelaxedReplacer, "TypeRelaxedReplacer", 0);
-
 ngraph::pass::low_precision::TypeRelaxedReplacer::TypeRelaxedReplacer() {
     make_matcher_type_relaxed<opset1::Add>(this);
     make_matcher_type_relaxed<opset1::AvgPool>(this);
@@ -157,8 +153,6 @@ ngraph::pass::low_precision::TypeRelaxedReplacer::TypeRelaxedReplacer() {
     make_matcher_type_relaxed<opset1::NormalizeL2>(this);
     make_matcher_type_relaxed<opset4::Interpolate>(this);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MarkupOptimizations, "MarkupOptimizations", 0);
 
 MarkupOptimizations::MarkupOptimizations(
     const std::vector<OperationPrecisionRestriction>& precisionRestrictions,

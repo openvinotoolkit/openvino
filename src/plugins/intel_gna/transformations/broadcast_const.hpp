@@ -46,7 +46,7 @@ namespace GNAPluginNS {
  */
 class BroadcastAddMultiplyConst : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
+  OPENVINO_RTTI("BroadcastAddMultiplyConst", "0");
   BroadcastAddMultiplyConst();
 };
 

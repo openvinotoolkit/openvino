@@ -13,8 +13,6 @@
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SkipGatherBeforeTransposeAndReshape, "SkipGatherBeforeTransposeAndReshape", 0);
-
 ngraph::pass::SkipGatherBeforeTransposeAndReshape::SkipGatherBeforeTransposeAndReshape() {
     MATCHER_SCOPE(SkipGatherBeforeTransposeAndReshape);
 
