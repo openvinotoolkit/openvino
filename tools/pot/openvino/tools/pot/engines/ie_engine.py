@@ -230,20 +230,26 @@ class IEEngine(Engine):
         """
         input_info = model.inputs
 
+        def is_dynamic_input(input_blob):
+            return input_blob.partial_shape.is_dynamic
+
+        def process_input(input_blob, input_data):
+            return input_data if is_dynamic_input(input_blob) else np.reshape(input_data, input_blob.shape)
+
         if isinstance(image_batch[0], dict):
             feed_dict = {}
             input_blobs = {get_clean_name(in_node.get_node().friendly_name): in_node for in_node in input_info}
             for input_name in image_batch[0].keys():
                 input_blob = input_blobs[input_name]
                 input_blob_name = self._get_input_any_name(input_blob)
-                feed_dict[input_blob_name] = np.reshape(image_batch[0][input_name], input_blob.shape)
+                feed_dict[input_blob_name] = process_input(input_blob, image_batch[0][input_name])
             return feed_dict
 
         if len(input_info) == 1:
             input_blob = next(iter(input_info))
             input_blob_name = self._get_input_any_name(input_blob)
-            image_batch = {input_blob_name: np.reshape(image_batch, input_blob.shape)}
-            if Shape(image_batch[input_blob_name].shape) != input_info[0].shape:
+            image_batch = {input_blob_name: process_input(input_blob, image_batch)}
+            if not is_dynamic_input(input_blob) and Shape(image_batch[input_blob_name].shape) != input_info[0].shape:
                 raise ValueError(f"Incompatible input shapes. "
                                  f"Cannot infer {Shape(image_batch[input_blob_name].shape)} into {input_info[0].shape}."
                                  f"Try to specify the layout of the model.")
@@ -262,8 +268,9 @@ class IEEngine(Engine):
                 lambda x: x.get_any_name() != image_info_name, input_info)))
             image_tensor_name = image_tensor_node.get_any_name()
 
-            image_tensor = (image_tensor_name, np.reshape(image_batch, input_blob.shape))
-            if Shape(image_tensor[1].shape) != image_tensor_node.shape:
+            image_tensor = (image_tensor_name, process_input(image_tensor_node, image_batch))
+            if not is_dynamic_input(image_tensor_node) and \
+                    Shape(image_tensor[1].shape) != image_tensor_node.shape:
                 raise ValueError(f"Incompatible input shapes. "
                                  f"Cannot infer {Shape(image_tensor[1].shape)} into {image_tensor_node.shape}."
                                  f"Try to specify the layout of the model.")
@@ -403,11 +410,15 @@ class IEEngine(Engine):
             raise RuntimeError('Inconsistent data in the batch. '
                                'Some items contain annotation, and some do not.')
 
+        if not all([isinstance(item[0], tuple) for item in batch]):
+            images, image_annotation = [data[0] for data in batch], [(idx, data[1]) for idx, data in enumerate(batch)]
+        else:
+            images, image_annotation = [data[1] for data in batch], [data[0] for data in batch]
+
         if all([len(item) == 2 for item in batch]):
-            image_annotation, images = map(list, zip(*batch))
             meta_data = [{}]*len(images)
         elif all([len(item) == 3 for item in batch]):
-            image_annotation, images, meta_data = map(list, zip(*batch))
+            meta_data = [data[2] for data in batch]
         else:
             raise RuntimeError('Inconsistent data in the batch. '
                                'Some items contain meta data, and some do not.')

@@ -4,13 +4,12 @@
 
 #pragma once
 
-#include <vector>
 #include <memory>
-
-#include <transformations_visibility.hpp>
-
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
+#include <vector>
+
 #include "ngraph/pattern/matcher.hpp"
 
 namespace ngraph {
@@ -27,6 +26,6 @@ class TRANSFORMATIONS_API TransposeToReshape;
  */
 class ngraph::pass::TransposeToReshape : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("TransposeToReshape", "0");
     TransposeToReshape();
 };

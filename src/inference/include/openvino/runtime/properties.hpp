@@ -463,6 +463,12 @@ static constexpr Property<unsigned int, PropertyMutability::RO> optimal_batch_si
 static constexpr Property<uint32_t, PropertyMutability::RO> max_batch_size{"MAX_BATCH_SIZE"};
 
 /**
+ * @brief Read-write property to set the timeout used to collect the inputs for the auto-batching
+ * impact.
+ */
+static constexpr Property<uint32_t, PropertyMutability::RW> auto_batch_timeout{"AUTO_BATCH_TIMEOUT"};
+
+/**
  * @brief Read-only property to provide a hint for a range for number of async infer requests. If device supports
  * streams, the metric provides range for number of IRs per stream.
  *
@@ -652,23 +658,11 @@ namespace streams {
 struct Num {
     using Base = std::tuple<int32_t>;  //!< NumStreams is representable as int32_t
 
-    /**
-     * @brief Special value for ov::execution::num_streams property.
-     */
-    enum Special {
-        AUTO = -1,  //!< Creates bare minimum of streams to improve the performance
-        NUMA = -2,  //!< Creates as many streams as needed to accommodate NUMA and avoid associated penalties
-    };
-
-    constexpr Num() : num{AUTO} {};
+    constexpr Num() : num{-1} {};
 
     constexpr Num(const int32_t num_) : num{num_} {}
 
-    operator int32_t() {
-        return num;
-    }
-
-    operator int32_t() const {
+    constexpr operator int32_t() const {
         return num;
     }
 
@@ -680,32 +674,32 @@ struct Num {
  */
 static constexpr Property<Num, PropertyMutability::RW> num{"NUM_STREAMS"};
 
-static constexpr Num AUTO{Num::AUTO};  //!< Creates bare minimum of streams to improve the performance
+static constexpr Num AUTO{-1};  //!< Creates bare minimum of streams to improve the performance
 static constexpr Num NUMA{
-    Num::NUMA};  //!< Creates as many streams as needed to accommodate NUMA and avoid associated penalties
+    -2};  //!< Creates as many streams as needed to accommodate NUMA and avoid associated penalties
 
 /** @cond INTERNAL */
-inline std::ostream& operator<<(std::ostream& os, const Num& num) {
-    switch (num.num) {
-    case Num::AUTO:
+inline std::ostream& operator<<(std::ostream& os, const Num& num_val) {
+    switch (num_val) {
+    case AUTO:
         return os << "AUTO";
-    case Num::NUMA:
+    case NUMA:
         return os << "NUMA";
     default:
-        return os << num.num;
+        return os << num_val.num;
     }
 }
 
-inline std::istream& operator>>(std::istream& is, Num& num) {
+inline std::istream& operator>>(std::istream& is, Num& num_val) {
     std::string str;
     is >> str;
     if (str == "AUTO") {
-        num = AUTO;
+        num_val = AUTO;
     } else if (str == "NUMA") {
-        num = NUMA;
+        num_val = NUMA;
     } else {
         try {
-            num = {std::stoi(str)};
+            num_val = {std::stoi(str)};
         } catch (const std::exception& e) {
             throw ov::Exception{std::string{"Could not read number of streams from str: "} + str + "; " + e.what()};
         }
@@ -714,11 +708,6 @@ inline std::istream& operator>>(std::istream& is, Num& num) {
 }
 /** @endcond */
 }  // namespace streams
-
-/**
- * @brief Class to represent number of streams in streams executor
- */
-using NumStreams = streams::Num;
 
 /**
  * @brief The number of executor logical partitions

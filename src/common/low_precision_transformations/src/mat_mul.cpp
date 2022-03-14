@@ -18,8 +18,6 @@ using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::pass::low_precision;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MatMulTransformation, "MatMulTransformation", 0);
-
 MatMulTransformation::MatMulTransformation(const Params& params) : LayerTransformation(params) {
     auto mul1 = pattern::wrap_type<opset1::Multiply>();
     auto mul2 = pattern::wrap_type<opset1::Multiply>();
