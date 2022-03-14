@@ -114,7 +114,7 @@ KERNEL(fully_connected_gpu_imad)(
             __global INPUT0_TYPE* current_input = &input[GET_DATA_INDEX(INPUT0, batch + ob_idx, skip_f, 0, 0)];
         #endif
 
-        #if IF_NUMBER % PACK_SIZE == 0
+        #if !HAS_IFM_LEFTOVERS
             int input_data = as_int(intel_sub_group_block_read((const __global uint*)(current_input + idx_i)));
         #else
             MAKE_VECTOR_TYPE(INPUT0_TYPE, PACK_SIZE) temp_input = { current_input[idx_i + sglid * PACK_SIZE],
@@ -183,9 +183,9 @@ KERNEL(fully_connected_gpu_imad)(
     for (uint ob_idx = 0; ob_idx < TILE_BATCH; ob_idx++) {
         // Loading inputs
     #if OUTPUT_3D
-        __global INPUT0_TYPE* current_input = &input[GET_DATA_INDEX(INPUT0, batch, skip_f + ob_idx, 0, 0)];
+        __global INPUT0_TYPE* current_input = &input[INPUT0_GET_INDEX(batch, skip_f + ob_idx, 0, 0)];
     #else
-        __global INPUT0_TYPE* current_input = &input[GET_DATA_INDEX(INPUT0, batch + ob_idx, skip_f, 0, 0)];
+        __global INPUT0_TYPE* current_input = &input[INPUT0_GET_INDEX(batch + ob_idx, skip_f, 0, 0)];
     #endif
         int input_data = 0;
         MAKE_VECTOR_TYPE(INPUT0_TYPE, PACK_SIZE) temp_input = 0;
