@@ -249,6 +249,11 @@ InputTensorInfo& InputTensorInfo::set_shape(const PartialShape& shape) {
     return *this;
 }
 
+InputTensorInfo& InputTensorInfo::set_from(const ov::Tensor& runtime_tensor) {
+    m_impl->set_from(runtime_tensor);
+    return *this;
+}
+
 // --------------------- PreProcessSteps ------------------
 
 PreProcessSteps::PreProcessSteps() : m_impl(std::unique_ptr<PreProcessStepsImpl>(new PreProcessStepsImpl())) {}
