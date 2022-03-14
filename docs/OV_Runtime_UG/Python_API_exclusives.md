@@ -94,7 +94,7 @@ Python API provides different synchronous calls to infer model, which block the 
 
 Asynchronous mode pipelines can be supported with wrapper class called `AsyncInferQueue`. This class automatically spawns pool of `InferRequest` objects (also called "jobs") and provides synchronization mechanisms to control flow of the pipeline.
 
-Each job is distinguishable by unique `id`, which is in range of 0 up to number of jobs specified in `AsyncInferQueue` constructor.
+Each job is distinguishable by unique `id`, which is in the range from 0 up to number of jobs specified in `AsyncInferQueue` constructor.
 
 Function call `start_async` is not required to be synchronized, it waits for any available job if queue is busy/overloaded. Every `AsyncInferQueue` code block should end with `wait_all` function. It provides "global" synchronization of all jobs in the pool and ensure that access to them is safe.
 
