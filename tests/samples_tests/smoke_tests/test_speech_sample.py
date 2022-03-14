@@ -39,6 +39,20 @@ test_data = get_tests(
     use_device=False,
 )
 
+test_data_simple_infer = get_tests(
+    cmd_params={
+        'm': [os.path.join('wsj', 'FP32', 'wsj_dnn5b.xml')],
+        'i': [os.path.join('ark', 'dev93_10.ark')],
+        'r': [os.path.join('ark', 'dev93_scores_10.ark')],
+        'layout': ['[NC]'],
+        'bs': [1, 2, 3, 4],
+        'o': ['output.ark'],
+        'd': ['CPU', 'GNA_SW_EXACT'],
+        'sample_type': ['C++', 'Python'],
+    },
+    use_device=False,
+)
+
 
 class TestSpeechSample(SamplesCommonTestClass):
     @classmethod
@@ -49,6 +63,15 @@ class TestSpeechSample(SamplesCommonTestClass):
 
     @pytest.mark.parametrize('param', test_data)
     def test_speech_sample(self, param):
+        stdout = self._test(param).split('\n')
+        assert os.path.isfile(param['o']), 'Ark file after infer was not found'
+
+        avg_error = parse_avg_err(stdout)
+        log.info(f'Average scores diff: {avg_error}')
+        assert avg_error <= self.threshold
+
+    @pytest.mark.parametrize('param', test_data_simple_infer)
+    def test_speech_sample_simple_infer(self, param):
         stdout = self._test(param).split('\n')
         assert os.path.isfile(param['o']), 'Ark file after infer was not found'
 
