@@ -69,11 +69,7 @@
  
    <h3>Choose how you want to progress:</h3>
  
-   <div id="GSG_nextstepchoice">
-     <a href="openvino_docs_get_started_get_started_scripts.html" >
-        <h4>One-command demo 		</h4>
-        <p>Execute just one command and watch all the steps happening before your eyes. </p>
-     </a>  		
+   <div id="GSG_nextstepchoice"> 		
      <a href="openvino_docs_get_started_get_started_demos.html" >
         <h4>Step-by-step demo		</h4>
         <p>Follow the step-by-step instructions to execute simple tasks with OpenVINO. </p>
