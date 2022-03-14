@@ -7,8 +7,6 @@
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::AlignEltwiseInputRanks, "AlignEltwiseInputRanks", 0);
-
 ngraph::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
     auto eltwise_pattern = pattern::wrap_type<opset8::SquaredDifference,
                                               op::util::BinaryElementwiseComparison,

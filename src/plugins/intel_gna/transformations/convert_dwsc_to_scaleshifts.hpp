@@ -14,7 +14,7 @@ namespace GNAPluginNS {
  */
 class ConvertDWSCToScaleShifts : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertDWSCToScaleShifts", "0");
     ConvertDWSCToScaleShifts();
 };
 
