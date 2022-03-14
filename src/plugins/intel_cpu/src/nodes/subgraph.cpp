@@ -47,7 +47,7 @@ Snippet::Snippet(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& en
             auto new_input = std::make_shared<ngraph::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
             subgraph_node_inputs.push_back(new_input);
         }
-        auto new_body = ov::clone_model(*tmp_snippet->get_body().get());
+        auto new_body = ov::clone_model(tmp_snippet->body());
         snippet = std::make_shared<ngraph::snippets::op::Subgraph>(subgraph_node_inputs, new_body);
         ngraph::copy_runtime_info(tmp_snippet, snippet);
         snippet->set_friendly_name(tmp_snippet->get_friendly_name());
@@ -278,13 +278,13 @@ void Snippet::define_schedule() {
     // Canonicalization broadcasts inputs and outputs to max input rank, which can be smaller than tensorRank
     // prepend to enable 6D scheduler
     exec_domain = prependWithOnes(exec_domain);
-    const auto &body = snippet->get_body();
-    for (const auto& p : body->get_parameters()) {
+    const auto &body = snippet->body();
+    for (const auto& p : body.get_parameters()) {
         dims_in.emplace_back(prependWithOnes(p->get_shape()));
     }
 
-    for (size_t i = 0; i < body->get_output_size(); i++) {
-        dims_out.push_back(prependWithOnes(body->get_output_shape(i)));
+    for (size_t i = 0; i < body.get_output_size(); i++) {
+        dims_out.push_back(prependWithOnes(body.get_output_shape(i)));
     }
 
     const auto config = getSelectedPrimitiveDescriptor()->getConfig();

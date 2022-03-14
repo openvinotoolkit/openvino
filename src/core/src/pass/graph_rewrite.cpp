@@ -9,6 +9,7 @@
 #include <iostream>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <regex>
+#include <string>
 #include <unordered_set>
 #include <vector>
 
@@ -173,10 +174,12 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
 
         // Recursive apply Matchers for sub-graph based nodes
         if (auto sub_graph_node = std::dynamic_pointer_cast<ngraph::op::util::MultiSubGraphOp>(node)) {
-            size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
-            for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
-                auto sub_graph = sub_graph_node->get_function(sub_graph_ind);
-                run_on_model(sub_graph);
+            if (sub_graph_node->transformations_allowed()) {
+                size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
+                for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
+                    auto sub_graph = sub_graph_node->get_function(sub_graph_ind);
+                    run_on_model(sub_graph);
+                }
             }
         }
         // Temporary keep this GraphRewrite property for backward compatibility

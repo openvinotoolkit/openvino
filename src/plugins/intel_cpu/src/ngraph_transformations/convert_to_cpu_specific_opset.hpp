@@ -19,12 +19,15 @@
 #include "transformations/utils/utils.hpp"
 #include "rnn_sequences_optimization.hpp"
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
+#include "snippets_disable_subgraph_transforms.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
 inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphFunc) {
     ngraph::pass::Manager manager;
+    SnippetsDisableSubgraphTransforms::Subgraphs subgraphs;
+    manager.register_pass<SnippetsDisableSubgraphTransforms>(subgraphs);
     manager.register_pass<ConvertMatMulToFC>();
     manager.register_pass<AlignMatMulInputRanks>();
     manager.register_pass<ConvertTileToSeqTiles>();
@@ -42,6 +45,9 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::i64, ngraph::element::i32 }});
 
     manager.run_passes(nGraphFunc);
+
+    for (auto & subgraph : subgraphs)
+        subgraph->allow_transformations(true);
 }
 
 }   // namespace intel_cpu
