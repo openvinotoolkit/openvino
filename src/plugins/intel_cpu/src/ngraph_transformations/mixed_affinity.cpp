@@ -20,6 +20,7 @@
 #include "switch_affinity.hpp"
 
 #include <ngraph/pass/serialize.hpp>
+#include <ngraph/pass/visualize_tree.hpp>
 
 NGRAPH_RTTI_DEFINITION(ov::intel_cpu::MixedAffinity, "MixedAffinity", 0);
 
@@ -51,9 +52,8 @@ std::unordered_map<size_t, ov::intel_cpu::Subgraph> formSubgraphs(const std::sha
 
         const size_t opt_bs = ov::intel_cpu::get_optimal_bs(node);
         for (const auto& input : node->inputs()) {
-            const auto node = input.get_source_output().get_node_shared_ptr();
-
-            if (!ov::is_type<ngraph::opset1::Constant>(node) && !optimal_bs_is_equal(node, opt_bs))
+            const auto input_node = input.get_source_output().get_node_shared_ptr();
+            if (!ov::is_type<ngraph::opset1::Constant>(input_node) && !optimal_bs_is_equal(input_node, opt_bs))
                 add_start(input, opt_bs);
         }
 
@@ -76,6 +76,7 @@ bool ov::intel_cpu::MixedAffinity::run_on_model(const std::shared_ptr<ov::Model>
     //markup_manager.register_pass<ngraph::pass::Serialize>("C://models//test.xml", "C://models//test.bin");
     markup_manager.register_pass<ov::intel_cpu::MarkupOptimalBS>();
     markup_manager.register_pass<ov::intel_cpu::PropagateOptimalBS>();
+    //markup_manager.register_pass<ngraph::pass::VisualizeTree>("C://models//model//test.before");
     markup_manager.run_passes(m);
 
     // get graph components separated by batch size
@@ -84,7 +85,9 @@ bool ov::intel_cpu::MixedAffinity::run_on_model(const std::shared_ptr<ov::Model>
     ov::pass::Manager switch_affinity_manager(get_pass_config());
     // TODO: remove 'share_constants' parameter
     switch_affinity_manager.register_pass<ov::intel_cpu::SwitchAffinity>(subgraphs, false);
-    //switch_affinity_manager.register_pass<ngraph::pass::Serialize>("C://models//affinity.xml", "C://models//affinity.bin");
+    //markup_manager.register_pass<ngraph::pass::VisualizeTree>("C://models//model//test.after");
+    //switch_affinity_manager.register_pass<ngraph::pass::Serialize>("C://models//affinity.xml",
+    //                                                               "C://models//affinity.bin");
     switch_affinity_manager.run_passes(m);
 
     return false;

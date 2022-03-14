@@ -15,6 +15,8 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "transformations/utils/utils.hpp"
 
+#include "ngraph_transformations/op/fully_connected.hpp"
+
 namespace {
 using namespace ngraph;
 
@@ -51,14 +53,25 @@ bool switchToImageAffinity(const std::set<ov::Input<ov::Node>>& starts,
     // insert split by batch in the original ov::Model and
     // create parameters to extract graph component from original ov::Model
     for (const auto& start : starts) {
-        // TODO: in general, batch could be nonzero dimension
-        const size_t axis_value = 0;
-        const auto split_axis = opset1::Constant::create(element::i32, {}, {axis_value});
-        const auto split = std::make_shared<opset1::Split>(start.get_source_output(), split_axis, num_splits);
-        const auto main_param = std::make_shared<ngraph::opset1::Parameter>(start.get_element_type(), start.get_partial_shape());
+        const size_t cur_batch_size = start.get_partial_shape()[0].get_length();
 
+        // weights will be shared between clones and mustn't be splitted
+        const bool is_weights = start.get_index() == 1 && (ov ::is_type<ngraph::opset1::Convolution>(start.get_node()) ||
+                                                           ov ::is_type<ngraph::opset1::GroupConvolution>(start.get_node()) ||
+                                                           ov ::is_type<ngraph::opset1::ConvolutionBackpropData>(start.get_node()) ||
+                                                           ov ::is_type<ov::intel_cpu::FullyConnectedNode>(start.get_node()));
+        if (is_weights || cur_batch_size == 1) {
+            start_splits.push_back(start.get_source_output().get_node_shared_ptr());
+        } else {
+            // TODO: in general, batch could be nonzero dimension
+            const size_t axis_value = 0;
+            const auto split_axis = opset1::Constant::create(element::i32, {}, {axis_value});
+            const auto split = std::make_shared<opset1::Split>(start.get_source_output(), split_axis, num_splits);
+            start_splits.push_back(split);
+        }
+
+        const auto main_param = std::make_shared<ngraph::opset1::Parameter>(start.get_element_type(), start.get_partial_shape());
         start.replace_source_output(main_param);
-        start_splits.push_back(split);
         main_params.push_back(main_param);
     }
 
@@ -93,7 +106,10 @@ bool switchToImageAffinity(const std::set<ov::Input<ov::Node>>& starts,
         // starts processing
         for (size_t start_idx = 0; start_idx < start_splits.size(); ++start_idx) {
             const auto& cur_param = subgraph_with_opt_batch->get_parameters()[start_idx];
-            replace_output_update_name(cur_param, start_splits[start_idx]->output(batch_idx));
+            const auto out_to_replace = start_splits[start_idx]->get_output_size() == 1
+                                            ? start_splits[start_idx]->output(0)
+                                            : start_splits[start_idx]->output(batch_idx);
+            replace_output_update_name(cur_param, out_to_replace);
         }
 
         // ends processing
