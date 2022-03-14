@@ -23,7 +23,7 @@ Intel® Distribution of OpenVINO™ toolkit is a comprehensive toolkit for quick
 
 ### Choose Your Installation Method
 
-For Python developers, you can [install OpenVINO from PyPI](installing-openvino-pip.md), which contains both OpenVINO Python Runtime and Development Tools and less steps.
+For Python developers, you can [install OpenVINO from PyPI](installing-openvino-pip.md), which contains both OpenVINO Runtime and Development Tools and less steps.
 
 For C++ developers, you may choose one of the following installation options to install OpenVINO Runtime on your specific operating system:
 
