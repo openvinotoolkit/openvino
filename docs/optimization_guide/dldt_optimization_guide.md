@@ -17,7 +17,7 @@ For the end-to-end scenario though, consider the image pre-processing thru the O
 
 "First-inference latency" is another specific case (e.g. when fast application start-up is required) where the resulting performance may be well dominated by the model loading time. Consider [model caching](../OV_Runtime_UG/Model_caching_overview.md) as a way to improve model loading/compilation time.
 
-Finally, memory footprint restrictions is another possible concern when designing an application. While this is a motivation for the model optimization techniques referenced in the next section, notice that the the throughput-oriented execution is usually much more memory-hungry, as detailed in the [Deployment Optimization Guide](../optimization_guide/dldt_deployment_optimization_guide.md). 
+Finally, memory footprint restrictions is another possible concern when designing an application. While this is a motivation for the _model_ optimization techniques referenced in the next section, notice that the the throughput-oriented execution is usually much more memory-hungry, as detailed in the [Deployment Optimization Guide](../optimization_guide/dldt_deployment_optimization_guide.md). 
 
 
 > **NOTE**: To get performance numbers for OpenVINO, as well as tips how to measure it and compare with native framework, check [Getting performance numbers](../MO_DG/prepare_model/Getting_performance_numbers.md) page.

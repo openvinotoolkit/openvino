@@ -50,7 +50,7 @@ When comparing the OpenVINO Runtime performance with the framework or another re
 
 ### Internal Inference Performance Counters and Execution Graphs <a name="performance-counters"></a>
 Further, finer-grained insights into inference performance breakdown can be achieved with device-specific performance counters and/or execution graphs.
-Both [C++](../../samples/cpp/benchmark_app/README.md) and [Python](../../tools/benchmark_tool/README.md) versions of the `benchmark_app` supports a `-pc` command-line parameter that outputs internal execution breakdown.
+Both [C++](../../../samples/cpp/benchmark_app/README.md) and [Python](../../../tools/benchmark_tool/README.md) versions of the `benchmark_app` supports a `-pc` command-line parameter that outputs internal execution breakdown.
 
 Below is example of CPU plugin output for a network (since the device is CPU, the layers wall clock `realTime` and the `cpu` time are the same):
 

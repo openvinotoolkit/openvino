@@ -135,7 +135,7 @@ For example, you can let the device prepare a configuration `ov::hint::Performan
 The `benchmark_app`, that exists in both  [C++](../../samples/cpp/benchmark_app/README.md) and [Python](../../tools/benchmark_tool/README.md) versions, is the best way to evaluate the performance of the performance hints for a particular device:
  - benchmark_app **-hint tput** -d 'device' -m 'path to your model'
  - benchmark_app **-hint latency** -d 'device' -m 'path to your model'
--  Disabling the hints to emulate the pre-hints era (highly recommended before trying the individual low-level settings, such as the number of streams, threads, etc):
+-  Disabling the hints to emulate the pre-hints era (highly recommended before trying the individual low-level settings, such as the number of streams as below, threads, etc):
 - - benchmark_app **-hint none -nstreams 1**  -d 'device' -m 'path to your model'
  
 
