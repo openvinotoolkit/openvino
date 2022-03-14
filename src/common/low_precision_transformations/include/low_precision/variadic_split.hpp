@@ -23,7 +23,7 @@ namespace low_precision {
  */
 class LP_TRANSFORMATIONS_API VariadicSplitTransformation : public SplitTransformation {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("VariadicSplitTransformation", "0");
     VariadicSplitTransformation(const Params& params = Params());
 };
 } // namespace low_precision
