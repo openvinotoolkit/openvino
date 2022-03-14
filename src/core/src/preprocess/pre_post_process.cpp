@@ -297,6 +297,11 @@ PreProcessSteps& PreProcessSteps::resize(ResizeAlgorithm alg) {
     return *this;
 }
 
+PreProcessSteps& PreProcessSteps::crop(const std::vector<int>& begin, const std::vector<int>& end) {
+    m_impl->add_crop_impl(begin, end);
+    return *this;
+}
+
 PreProcessSteps& PreProcessSteps::convert_layout(const Layout& dst_layout) {
     m_impl->add_convert_layout_impl(dst_layout);
     return *this;
