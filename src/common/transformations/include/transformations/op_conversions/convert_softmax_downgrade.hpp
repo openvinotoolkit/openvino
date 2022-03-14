@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API ConvertSoftMax8ToSoftMax1;
  */
 class ngraph::pass::ConvertSoftMax8ToSoftMax1 : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertSoftMax8ToSoftMax1", "0");
     ConvertSoftMax8ToSoftMax1();
 };
