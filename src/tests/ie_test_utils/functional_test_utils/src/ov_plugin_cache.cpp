@@ -3,6 +3,7 @@
 //
 
 #include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/test_common.hpp"
 
 #include <gtest/gtest.h>
 
@@ -17,11 +18,13 @@ namespace {
 class TestListener : public testing::EmptyTestEventListener {
 public:
     void OnTestEnd(const testing::TestInfo &testInfo) override {
+        CommonTestUtils::TestsCommon::PrintMemUsage("in OnTestEnd start");
         if (auto testResult = testInfo.result()) {
             if (testResult->Failed()) {
                 PluginCache::get().reset();
             }
         }
+        CommonTestUtils::TestsCommon::PrintMemUsage("in OnTestEnd finish");
     }
 };
 }  // namespace

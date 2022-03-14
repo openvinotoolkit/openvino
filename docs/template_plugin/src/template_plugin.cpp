@@ -31,6 +31,7 @@ using namespace TemplatePlugin;
 
 // ! [plugin:ctor]
 Plugin::Plugin() {
+    std::cout << "TEMPLATE plugin Plugin start \n";
     // TODO: fill with actual device name, backend engine
     _pluginName = "TEMPLATE";
 
@@ -39,14 +40,17 @@ Plugin::Plugin() {
 
     // create default stream executor with a given name
     _waitExecutor = executorManager()->getIdleCPUStreamsExecutor({"TemplateWaitExecutor"});
+    std::cout << "TEMPLATE plugin Plugin end \n";
 }
 // ! [plugin:ctor]
 
 // ! [plugin:dtor]
 Plugin::~Plugin() {
     // Plugin should remove executors from executor cache to avoid threads number growth in the whole application
+    std::cout << "TEMPLATE plugin destructor start \n";
     executorManager()->clear("TemplateStreamsExecutor");
     executorManager()->clear("TemplateWaitExecutor");
+    std::cout << "TEMPLATE plugin destructor end \n";
     // NOTE: Uncomment this if Inference Engine Executor cache is used to create callback executor
     // executorManager()->clear("TemplateCallbackExecutor");
 }

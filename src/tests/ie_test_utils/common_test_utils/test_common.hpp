@@ -12,6 +12,8 @@
 namespace CommonTestUtils {
 
 class TestsCommon : virtual public ::testing::Test {
+public:
+    static void PrintMemUsage(std::string comment);
 protected:
     TestsCommon();
     ~TestsCommon() override;

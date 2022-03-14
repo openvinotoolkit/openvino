@@ -37,6 +37,8 @@ std::ostream& operator <<(std::ostream& os, const InputShape& inputShape) {
 }
 
 void SubgraphBaseTest::run() {
+    CommonTestUtils::TestsCommon::PrintMemUsage("in SubgraphBaseTest::run start");
+
     // in case of crash jump will be made and work will be continued
     auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
 
@@ -90,6 +92,7 @@ void SubgraphBaseTest::run() {
             GTEST_FATAL_FAILURE_(errorMessage.c_str());
         }
     } else {
+        std::cout << "Crash happens after jmp " << std::endl;
         IE_THROW() << "Crash happens";
     }
 }

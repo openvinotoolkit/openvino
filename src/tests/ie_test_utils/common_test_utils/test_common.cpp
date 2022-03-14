@@ -70,6 +70,13 @@ TestsCommon::TestsCommon() {
     InferenceEngine::executorManager()->clear();
 }
 
+void TestsCommon::PrintMemUsage(std::string comment) {
+    auto memsize = getVmSizeInKB();
+    if (memsize != 0) {
+        std::cout << "\nMEM_USAGE=" << memsize << "KB " << comment << std::endl;
+    }
+}
+
 std::string TestsCommon::GetTimestamp() {
     return CommonTestUtils::GetTimestamp();
 }

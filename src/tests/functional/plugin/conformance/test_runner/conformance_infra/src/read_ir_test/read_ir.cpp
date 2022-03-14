@@ -54,6 +54,8 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParam
 }
 
 void ReadIRTest::query_model() {
+    CommonTestUtils::TestsCommon::PrintMemUsage("in query_model start");
+
     // in case of crash jump will be made and work will be continued
     auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
 
@@ -89,6 +91,7 @@ void ReadIRTest::query_model() {
 }
 
 void ReadIRTest::SetUp() {
+    CommonTestUtils::TestsCommon::PrintMemUsage("in ReadIRTest::SetUp start");
     // in case of crash jump will be made and work will be continued
     auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
 
@@ -216,6 +219,8 @@ void ReadIRTest::SetUp() {
     } else {
         IE_THROW() << "Crash happens";
     }
+
+    CommonTestUtils::TestsCommon::PrintMemUsage("in ReadIRTest::SetUp finish");
 }
 
 } // namespace subgraph

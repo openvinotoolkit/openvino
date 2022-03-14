@@ -16,17 +16,23 @@ CrashHandler::CrashHandler() {
         // reset custom signal handler to avoid infinit loop
         // if for some reasons sigsetjmp will not be available
         signal(SIGABRT, SIG_DFL);
+        std::cerr << "in crash 1 " << std::endl;
         signal(SIGSEGV, SIG_DFL);
+        std::cerr << "in crash 2 " << std::endl;
         signal(SIGILL, SIG_DFL);
+        std::cerr << "in crash 3 " << std::endl;
 #ifndef _WIN32
         signal(SIGBUS, SIG_DFL);
+        std::cerr << "in crash 4 " << std::endl;
         signal(SIGFPE, SIG_DFL);
+        std::cerr << "in crash 5 " << std::endl;
 #endif
 
         // goto sigsetjmp
 #ifdef _WIN32
         longjmp(env, 1);
 #else
+        std::cerr << "in crash 6 " << std::endl;
         siglongjmp(env, 1);
 #endif
     };
