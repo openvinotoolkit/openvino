@@ -161,9 +161,11 @@ struct format {
         os_is_yx_osa2_isa8_osv8_isv2,
         os_is_yx_osa2_isa8_osv16_isv2,
         os_is_yx_osa2_isa8_osv16_isv4,
+        os_is_yx_isa8_osv8_isv2,
+        is_os_yx_isa8_osv8_isv2,
         is_os_yx_isa2_osa8_isv8_osv2,
         is_os_yx_isa4_osa8_isv8_osv4,
-        is_os_yx_isa8_osv8_isv2,
+        is_os_yx_osa4_isa8_osv8_isv4,
         is_o_yx_isv32,                                ///< format for weights for 1x1 MMAD convolutions
         is_o32_yx_isv32_swizzled_by_4,                ///< format for weights for 1x1 MMAD convolutions
         os_is_y_x8_osv8_isv4,                         ///< format for weights for 1x1 MMAD convolutions
@@ -201,6 +203,7 @@ struct format {
         g_os_is_yx_osv16_isv4,
         g_os_is_zyx_osv16_isv16,
         g_is_os_yx_isv16_osv16,
+        g_os_is_yx_isa8_osv8_isv2,
         g_os_is_zyx_isv8_osv16_isv2,
         g_os_is_yx_isv8_osv16_isv2,
         g_os_is_zyx_isv16_osv16,

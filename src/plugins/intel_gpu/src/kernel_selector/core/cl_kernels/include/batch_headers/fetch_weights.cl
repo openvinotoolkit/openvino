@@ -419,26 +419,72 @@ inline uint get_giy_xs_os_xsv2_osv_index(uint g, uint o, uint i, uint y, uint x,
         CAT(prefix, _OFFSET),                                                   \
         sub_group_size)
 
-inline uint get_is_os_yx_isa8_osv8_isv2_index(uint o, uint i, uint y, uint x, uint size_x, uint size_y, uint size_ifm, uint size_ofm, uint offset)
+inline uint get_is_os_yx_isa8_osv8_isv2_index(uint o, uint i, uint y, uint x, uint size_x,
+                                                uint size_y, uint size_ifm, uint size_ofm, uint offset)
 {
-    const uint f_16_aligned = ((size_ifm + 15)/16) * 16;
 	const uint isv2_idx = i % 2;
 	const uint osv_idx = o % 8;
 	const uint isv1_idx = (i / 2) % 8;
 	const uint is_idx = i / 16;
 	const uint os_idx = o / 8;
 
-	size_t idx = offset + isv2_idx + 2 * (osv_idx + 8 * isv1_idx);
-	idx += x * 2 * 8 * 8;
-	idx += y * size_x * 2 * 8 * 8;
-	idx += is_idx * size_y * size_x * 2 * 8 * 8;
-	idx += os_idx * (f_16_aligned/16) * size_y * size_x * 2 * 8 * 8;
+    const uint of_8_aligned = ((size_ofm + 7) / 8);
+
+	size_t idx = offset +
+                 isv2_idx +
+                 osv_idx * 2 +
+                 isv1_idx * 8 * 2 +
+                 x * 8 * 8 * 2 +
+                 y * size_x * 8 * 8 * 2 +
+                 os_idx * size_y * size_x * 2 * 8 * 8 +
+                 is_idx * of_8_aligned * size_y * size_x * 2 * 8 * 8;
 
     return idx;
 }
 
+inline uint get_g_os_is_yx_isa8_osv8_isv2_index(uint g, uint o, uint i, uint y, uint x, uint size_x,
+                                                uint size_y, uint size_ifm, uint size_ofm, uint offset)
+{
+	const uint isv2_idx = i % 2;
+	const uint osv_idx = o % 8;
+	const uint isv1_idx = (i / 2) % 8;
+	const uint is_idx = i / 16;
+	const uint os_idx = o / 8;
+
+    const uint if_16_aligned = ((size_ifm + 15) / 16);
+    const uint of_8_aligned = ((size_ofm + 7) / 8);
+
+	size_t idx = offset +
+                 isv2_idx +
+                 osv_idx * 2 +
+                 isv1_idx * 8 * 2 +
+                 x * 8 * 8 * 2 +
+                 y * size_x * 8 * 8 * 2 +
+                 is_idx * size_y * size_x * 2 * 8 * 8 +
+                 os_idx * if_16_aligned * size_y * size_x * 2 * 8 * 8 +
+                 g * of_8_aligned * if_16_aligned * size_y * size_x * 2 * 8 * 8;
+
+    return idx;
+}
+
+#define GET_FILTER_G_OS_IS_YX_ISA8_OSV8_ISV2_INDEX(prefix, g, o, i, y, x) \
+    get_g_os_is_yx_isa8_osv8_isv2_index(                    \
+        g, o, i, y, x, CAT(prefix, _SIZE_X ),                        \
+        CAT(prefix, _SIZE_Y),                                        \
+        CAT(prefix, _IFM_NUM),                                       \
+        CAT(prefix, _OFM_NUM),                                       \
+        CAT(prefix, _OFFSET))
+
+#define GET_FILTER_OS_IS_YX_ISA8_OSV8_ISV2_INDEX(prefix, o, i, y, x) \
+    get_g_os_is_yx_isa8_osv8_isv2_index(                    \
+        0, o, i, y, x, CAT(prefix, _SIZE_X ),                        \
+        CAT(prefix, _SIZE_Y),                                        \
+        CAT(prefix, _IFM_NUM),                                       \
+        CAT(prefix, _OFM_NUM),                                       \
+        CAT(prefix, _OFFSET))
+
 #define GET_FILTER_IS_OS_YX_ISA8_OSV8_ISV2_INDEX(prefix, o, i, y, x) \
-    get_is_os_yx_isa8_osv8_isv2_index(                    \
+    get_is_os_yx_isa8_osv8_isv2_index(                               \
         o, i, y, x, CAT(prefix, _SIZE_X ),                           \
         CAT(prefix, _SIZE_Y),                                        \
         CAT(prefix, _IFM_NUM),                                       \
@@ -632,6 +678,34 @@ inline uint get_os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4_index(uint o, uint i
     return idx;
 }
 
+inline uint get_g_is_os_yx_osa4_isa8_osv8_isv4(uint g, uint o, uint i, uint z, uint y, uint x,
+                                                     uint size_x, uint size_y, uint size_z, uint size_ifm, uint size_ofm, uint offset)
+{
+    const uint isv_idx = i % 4;
+    const uint isa_idx = (i / 4) % 8;
+    const uint is_idx = (i / 32);
+    const uint osv_idx = o % 8;
+    const uint osa_idx = (o / 8) % 4;
+    const uint os_idx = (o / 32);
+
+    const uint ifm_32_aligned = ((size_ifm + 31)/32);
+    const uint ofm_32_aligned = ((size_ofm + 31)/32);
+
+    size_t idx = offset +
+                 isv_idx +
+                 osv_idx * 4 +
+                 isa_idx * 8 * 4 +
+                 osa_idx * 8 * 32 +
+                 x * 32 * 32 +
+                 y * size_x * 32 * 32 +
+                 z * size_y * size_x * 32 * 32 +
+                 os_idx * 32 * 32 * size_x * size_y * size_z +
+                 is_idx * 32 * 32 * ofm_32_aligned * size_x * size_y * size_z +
+                 g * 32 * 32 * ifm_32_aligned * ofm_32_aligned * size_x * size_y * size_z;
+
+    return idx;
+}
+
 inline uint get_g_os_is_yx_osa4_isa8_osv8_isv4(uint g, uint o, uint i, uint z, uint y, uint x,
                                                      uint size_x, uint size_y, uint size_z, uint size_ifm, uint size_ofm, uint offset)
 {
@@ -779,6 +853,16 @@ inline uint get_g_is_os_yx_isa4_osa8_isv8_osv4(uint g, uint o, uint i, uint z, u
 {
     return get_g_os_is_yx_osa4_isa8_osv8_isv4(g, i, o, z, y, x, size_x, size_y, size_z, size_ofm, size_ifm, offset);
 }
+
+#define GET_FILTER_IS_OS_YX_OSA4_ISA8_OSV8_ISV4_INDEX(prefix, o, i, y, x) \
+    get_g_is_os_yx_osa4_isa8_osv8_isv4(                        \
+        0, o, i, 0, y, x,                                                 \
+        CAT(prefix, _SIZE_X),                                             \
+        CAT(prefix, _SIZE_Y),                                             \
+        1,                                                                \
+        CAT(prefix, _IFM_NUM),                                            \
+        CAT(prefix, _OFM_NUM),                                            \
+        CAT(prefix, _OFFSET))
 
 #define GET_FILTER_OS_IS_YX_OSA4_ISA8_OSV8_ISV4_INDEX(prefix, o, i, y, x) \
     get_g_os_is_yx_osa4_isa8_osv8_isv4(                        \

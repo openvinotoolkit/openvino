@@ -108,6 +108,7 @@ enum WeightsLayout {
     os_is_zyx_isa8_osv16_isv4,               // for fully connected MMAD
     os_is_yx_osa4_isa8_osv8_isv4,            // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
     is_os_yx_isa4_osa8_isv8_osv4,            // for onednn deconvolution
+    is_os_yx_osa4_isa8_osv8_isv4,
     g_os_is_yx_osa2_isa8_osv8_isv2,          // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
     g_os_is_yx_osa4_isa8_osv8_isv4,          // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
     g_os_is_zyx_osa4_isa8_osv8_isv4,         // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
@@ -119,6 +120,7 @@ enum WeightsLayout {
     os_is_yx_osa2_isa8_osv8_isv2,
     os_is_yx_osa2_isa8_osv16_isv4,
     os_is_yx_osa2_isa8_osv16_isv2,
+    os_is_yx_isa8_osv8_isv2,
     is_os_yx_isa8_osv8_isv2,
     is_os_yx_isa2_osa8_isv8_osv2,
     g_os_is_yx_osa2_isa8_osv16_isv4,
@@ -159,6 +161,7 @@ enum WeightsLayout {
     gi_yxs_os_yxsv2_osv16,
     g_is_os_zyx_isv16_osv16,
     g_is_os_yx_isv16_osv16,
+    g_os_is_yx_isa8_osv8_isv2,
     g_os_is_zyx_isv8_osv16_isv2,
     g_os_is_yx_isv8_osv16_isv2,
     g_os_is_zyx_isv16_osv16,
