@@ -93,15 +93,20 @@ private:
         OPENVINO_ASSERT(::GetFileSizeEx(m_handle.get(), &file_size_large) != 0, "Can not get file size for ", path);
 
         m_size = static_cast<uint64_t>(file_size_large.QuadPart);
-        m_mapping = HandleHolder(::CreateFileMapping(m_handle.get(), 0, access, m_size >> 32, m_size & 0xffffffff, 0));
-        OPENVINO_ASSERT(m_mapping.get() != INVALID_HANDLE_VALUE, "Can not create file mapping for ", path);
+        if (m_size > 0) {
+            m_mapping =
+                HandleHolder(::CreateFileMapping(m_handle.get(), 0, access, m_size >> 32, m_size & 0xffffffff, 0));
+            OPENVINO_ASSERT(m_mapping.get() != INVALID_HANDLE_VALUE, "Can not create file mapping for ", path);
 
-        m_data = ::MapViewOfFile(m_mapping.get(),
-                                 map_mode,
-                                 0,  // offset_align >> 32,
-                                 0,  // offset_align & 0xffffffff,
-                                 m_size);
-        OPENVINO_ASSERT(m_data, "Can not create map view for ", path);
+            m_data = ::MapViewOfFile(m_mapping.get(),
+                                     map_mode,
+                                     0,  // offset_align >> 32,
+                                     0,  // offset_align & 0xffffffff,
+                                     m_size);
+            OPENVINO_ASSERT(m_data, "Can not create map view for ", path);
+        } else {
+            m_data = NULL;
+        }
     }
 
 private:

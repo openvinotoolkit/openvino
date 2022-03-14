@@ -74,8 +74,12 @@ public:
                         " for mapping. Ensure that file exists and has appropriate permissions");
         OPENVINO_ASSERT(fstat(m_handle.get(), &sb) != -1, "Can not get file size for ", path);
         m_size = sb.st_size;
-        m_data = mmap(nullptr, m_size, prot, MAP_PRIVATE, m_handle.get(), 0);
-        OPENVINO_ASSERT(m_data != MAP_FAILED, "Can not create file mapping for ", path);
+        if (m_size > 0) {
+            m_data = mmap(nullptr, m_size, prot, MAP_PRIVATE, m_handle.get(), 0);
+            OPENVINO_ASSERT(m_data != MAP_FAILED, "Can not create file mapping for ", path);
+        } else {
+            m_data = MAP_FAILED;
+        }
     }
 
     ~MapHolder() {
