@@ -137,10 +137,12 @@ void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, co
                     // let's try to pop a task, as we know there is at least one idle request, schedule if succeeded
                     // if no device-agnostic tasks, let's try pop the device specific task, schedule if succeeded
                     Task t;
-                    if (_inferPipelineTasks.try_pop(t))
-                        ScheduleToWorkerInferRequest(std::move(t));
-                    else if (_inferPipelineTasksDeviceSpecific[device]->try_pop(t))
-                        ScheduleToWorkerInferRequest(std::move(t), device);
+                    do {
+                        _inferPipelineTasks.try_pop(t);
+                    } while (t && ScheduleToWorkerInferRequest(std::move(t)));
+                    do {
+                        _inferPipelineTasksDeviceSpecific[device]->try_pop(t);
+                    } while (t && ScheduleToWorkerInferRequest(std::move(t), device));
                 }
             });
     }
@@ -291,6 +293,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                     _workerRequests["CPU_HELP"].clear();
                     _loadContext[CPU].executableNetwork._ptr.reset();
                     _loadContext[CPU].executableNetwork._so.reset();
+                    LOG_INFO("[AUTOPLUGIN]:helper released!!");
                     break;
                 }
             }
@@ -452,7 +455,7 @@ void MultiDeviceExecutableNetwork::WaitActualNetworkReady() const {
                });
 }
 
-void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipelineTask, DeviceName preferred_device) {
+bool MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipelineTask, DeviceName preferred_device) {
     std::vector<DeviceInformation> devices;
     // AUTO work mode
     if (_workModeIsAUTO) {
@@ -486,7 +489,7 @@ void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipeli
         if (!preferred_device.empty() && (device.deviceName != preferred_device))
             continue;
         if (RunPipelineTask(inferPipelineTask, _idleWorkerRequests[device.deviceName], preferred_device)) {
-            return;
+            return true;
         }
     }
 
@@ -495,6 +498,7 @@ void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipeli
         _inferPipelineTasksDeviceSpecific[preferred_device]->push(std::move(inferPipelineTask));
     else
         _inferPipelineTasks.push(std::move(inferPipelineTask));
+    return false;
 }
 
 bool MultiDeviceExecutableNetwork::RunPipelineTask(Task& inferPipelineTask,
