@@ -126,6 +126,9 @@ public:
     /// tensor with particular memory type - you should still specify appropriate memory type manually using
     /// `set_memory_type`
     ///
+    /// \note As for `InputTensorInfo::set_shape`, this method shall not be used together with methods
+    /// 'set_spatial_dynamic_shape' and 'set_spatial_static_shape', otherwise ov::AssertFailure exception will be thrown
+    ///
     /// \param runtime_tensor User's created tensor.
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.

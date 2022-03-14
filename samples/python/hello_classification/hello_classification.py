@@ -71,7 +71,7 @@ def main():
     # - precision of tensor is supposed to be 'f32'
     ppp.output().tensor().set_element_type(Type.f32)
 
-    # 5) Apply preprocessing modifing the original 'model'
+    # 5) Apply preprocessing modifying the original 'model'
     model = ppp.build()
 
 # --------------------------- Step 5. Loading model to the device -----------------------------------------------------
