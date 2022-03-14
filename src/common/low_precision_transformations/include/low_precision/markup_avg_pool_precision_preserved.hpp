@@ -29,7 +29,7 @@ class LP_TRANSFORMATIONS_API MarkupAvgPoolPrecisionPreserved;
  */
 class ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved : public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("MarkupAvgPoolPrecisionPreserved", "0");
     MarkupAvgPoolPrecisionPreserved(const std::vector<ngraph::element::Type> defaultPrecisions = ngraph::pass::low_precision::precision_set::int8_support);
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 private:

@@ -16,7 +16,7 @@ namespace op {
 ///
 class SoftSign : public ov::op::util::UnaryElementwiseArithmetic {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SoftSign", "0");
 
     SoftSign() = default;
     /// \brief Constructs an SoftSign operation.
