@@ -10,20 +10,20 @@ Intel® Distribution of OpenVINO™ toolkit is a comprehensive toolkit for quick
 
 ### Decide What to Install
 
-**If you have already finished your model development and want to deploy your applications on various devices, install OpenVINO Runtime**, which contains a set of libraries for an easy inference integration into your applications and supports heterogeneous execution across Intel® CPU and Intel® GPU hardware.
+**If you have already finished your model development and want to deploy your applications on various devices, [install OpenVINO Runtime](installing-openvino-runtime.md)**, which contains a set of libraries for an easy inference integration into your applications and supports heterogeneous execution across Intel® CPU and Intel® GPU hardware.
 
-**If you want to download, convert, optimize and tune pre-trained deep learning models**, [install OpenVINO Development Tools](installing-model-dev-tools.md), which provides the following tools:
+**If you want to download model from [Open Model Zoo](../model_zoo.md), convert to [OpenVINO IR](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md), [optimize](../optimization_guide/model_optimization_guide.md) and tune pre-trained deep learning models**, [install OpenVINO Development Tools](installing-model-dev-tools.md), which provides the following tools:
 
   * Model Optimizer
+  * Post-Training Optimization Tool
   * Benchmark Tool
   * Accuracy Checker and Annotation Converter
-  * Post-Training Optimization Tool
   * Model Downloader and other Open Model Zoo tools
 
 
 ### Choose Your Installation Method
 
-For Python developers, you can [install OpenVINO from PyPI](installing-openvino-pip.md), which contains both OpenVINO Runtime and Development Tools and less steps. 
+For Python developers, you can [install OpenVINO from PyPI](installing-openvino-pip.md), which contains both OpenVINO Python Runtime and Development Tools and less steps.
 
 For C++ developers, you may choose one of the following installation options to install OpenVINO Runtime on your specific operating system:
 
