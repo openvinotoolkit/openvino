@@ -8,12 +8,13 @@
 #include "openvino/opsets/opset.hpp"
 #include "openvino/util/common_util.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 TEST(type_info, compare_old_type) {
-    ov::DiscreteTypeInfo type1("type1", 0);
-    ov::DiscreteTypeInfo type2("type2", 0);
-    ov::DiscreteTypeInfo type3("type1", 1);
-    ov::DiscreteTypeInfo type4("type3", 0, &type1);
-    ov::DiscreteTypeInfo type5("type3", 0, &type2);
+    ov::DiscreteTypeInfo type1("type1", static_cast<uint64_t>(0));
+    ov::DiscreteTypeInfo type2("type2", static_cast<uint64_t>(0));
+    ov::DiscreteTypeInfo type3("type1", 1ul);
+    ov::DiscreteTypeInfo type4("type3", static_cast<uint64_t>(0), &type1);
+    ov::DiscreteTypeInfo type5("type3", static_cast<uint64_t>(0), &type2);
     ASSERT_TRUE(type1 != type2);
     ASSERT_TRUE(type1 == type1);
     ASSERT_TRUE(type1 < type2);
@@ -27,11 +28,11 @@ TEST(type_info, compare_old_type) {
 }
 
 TEST(type_info, compare_new_type) {
-    ov::DiscreteTypeInfo type1("type1", 0, "version1");
-    ov::DiscreteTypeInfo type2("type2", 0, "version1");
-    ov::DiscreteTypeInfo type3("type1", 1, "version2");
-    ov::DiscreteTypeInfo type4("type3", 0, "version3", &type1);
-    ov::DiscreteTypeInfo type5("type3", 0, "version3", &type2);
+    ov::DiscreteTypeInfo type1("type1", "version1");
+    ov::DiscreteTypeInfo type2("type2", "version1");
+    ov::DiscreteTypeInfo type3("type1", "version2");
+    ov::DiscreteTypeInfo type4("type3", "version3", &type1);
+    ov::DiscreteTypeInfo type5("type3", "version3", &type2);
     ASSERT_TRUE(type1 != type2);
     ASSERT_TRUE(type1 == type1);
     ASSERT_TRUE(type1 < type2);
@@ -45,8 +46,8 @@ TEST(type_info, compare_new_type) {
 }
 
 TEST(type_info, compare_new_with_old_type) {
-    ov::DiscreteTypeInfo type1("type1", 0, "version1");
-    ov::DiscreteTypeInfo type1_o("type1", 0);
+    ov::DiscreteTypeInfo type1("type1", static_cast<uint64_t>(0), "version1");
+    ov::DiscreteTypeInfo type1_o("type1", static_cast<uint64_t>(0));
     ASSERT_TRUE(type1 == type1_o);
 }
 
@@ -61,8 +62,8 @@ TEST(type_info, check_hash_value) {
     ov::DiscreteTypeInfo type("type1", 0, "version1");
     ov::DiscreteTypeInfo type_old("type1", 1);
     ov::DiscreteTypeInfo type_with_version("type1", 1, "version1");
-    ov::DiscreteTypeInfo type_empty_name("", 0);
-    ov::DiscreteTypeInfo type_empty_ver("type", 0, "");
+    ov::DiscreteTypeInfo type_empty_name("", static_cast<uint64_t>(0));
+    ov::DiscreteTypeInfo type_empty_ver("type", static_cast<uint64_t>(0), "");
     EXPECT_EQ(hash_val(type.name, type.version_id, type.version), type.hash());
     EXPECT_EQ(hash_val(type_old.name, type_old.version_id, type_old.version), type_old.hash());
     EXPECT_EQ(hash_val(type_with_version.name, type_with_version.version_id, type_with_version.version),
@@ -74,11 +75,11 @@ TEST(type_info, check_hash_value) {
 
 TEST(type_info, find_in_map) {
     std::vector<std::string> vector_names;
-    ov::DiscreteTypeInfo a("Mod", 1, "opset1");
-    ov::DiscreteTypeInfo b("Prelu", 0, "opset1");
-    ov::DiscreteTypeInfo c("Vector", 0);
-    ov::DiscreteTypeInfo d("Mod", 1, "opset3");
-    ov::DiscreteTypeInfo f("Mod", 2);
+    ov::DiscreteTypeInfo a("Mod", 1ul, "opset1");
+    ov::DiscreteTypeInfo b("Prelu", static_cast<uint64_t>(0), "opset1");
+    ov::DiscreteTypeInfo c("Vector", static_cast<uint64_t>(0));
+    ov::DiscreteTypeInfo d("Mod", 1ul, "opset3");
+    ov::DiscreteTypeInfo f("Mod", 2ul);
 
     std::map<ov::DiscreteTypeInfo, int> test_map;
     test_map[a] = 1;
@@ -94,19 +95,19 @@ TEST(type_info, find_in_map) {
         std::string name = type.name;
         vector_names.emplace_back(name);
         ov::DiscreteTypeInfo t(vector_names.rbegin()->c_str(), 1000);
-        ov::DiscreteTypeInfo t2(vector_names.rbegin()->c_str(), 0);
+        ov::DiscreteTypeInfo t2(vector_names.rbegin()->c_str(), static_cast<uint64_t>(0));
         test_map[t] = 3;
         test_map[t2] = 4;
         std::string name1 = "a" + name;
         vector_names.emplace_back(name1);
         ov::DiscreteTypeInfo t3(vector_names.rbegin()->c_str(), 1000);
-        ov::DiscreteTypeInfo t4(vector_names.rbegin()->c_str(), 0);
+        ov::DiscreteTypeInfo t4(vector_names.rbegin()->c_str(), static_cast<uint64_t>(0));
         test_map[t3] = 5;
         test_map[t4] = 6;
         std::string name2 = name + "z";
         vector_names.emplace_back(name2);
         ov::DiscreteTypeInfo t5(vector_names.rbegin()->c_str(), 1000);
-        ov::DiscreteTypeInfo t6(vector_names.rbegin()->c_str(), 0);
+        ov::DiscreteTypeInfo t6(vector_names.rbegin()->c_str(), static_cast<uint64_t>(0));
         test_map[t5] = 7;
         test_map[t6] = 8;
     }

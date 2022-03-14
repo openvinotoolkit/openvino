@@ -23,6 +23,7 @@ ngraph::pass::low_precision::MarkupPrecisions::MarkupPrecisions(const std::vecto
     const std::vector<ngraph::element::Type>& defaultPrecisions) : defaultPrecisions(defaultPrecisions) {
     for (const auto& restriction : restrictions) {
         const auto it = restrictionsByOperation.find(restriction.operationType.name);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         if (it == restrictionsByOperation.end()) {
             Restriction r(restriction.specifyVersion);
             r.precisionsByVersion.emplace(restriction.operationType.version, restriction.precisionsByPort);
@@ -30,6 +31,7 @@ ngraph::pass::low_precision::MarkupPrecisions::MarkupPrecisions(const std::vecto
         } else {
             it->second.add(restriction.operationType.version, restriction.precisionsByPort);
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 }
 
@@ -92,7 +94,9 @@ bool ngraph::pass::low_precision::MarkupPrecisions::run_on_model(const std::shar
         if (it != restrictionsByOperation.end()) {
             const Restriction& r = it->second;
             if (r.versionIsRequired) {
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 const auto it2 = r.precisionsByVersion.find(typeInfo.version);
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 if (it2 == r.precisionsByVersion.end()) {
                     continue;
                 }

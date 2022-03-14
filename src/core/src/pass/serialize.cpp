@@ -942,9 +942,11 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         // WA for LSTMCellv0, peephole input shall not be serialized
         if (e.to_port == 6) {
             auto type_info = f.get_ordered_ops()[e.to_layer]->get_type_info();
+            OPENVINO_SUPPRESS_DEPRECATED_START
             if (!strcmp(type_info.name, "LSTMCell") && type_info.version == 0) {
                 continue;
             }
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
         pugi::xml_node edge = edges.append_child("edge");
         edge.append_attribute("from-layer").set_value(e.from_layer);

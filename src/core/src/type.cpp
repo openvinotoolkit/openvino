@@ -18,7 +18,9 @@ size_t DiscreteTypeInfo::hash() const {
     if (hash_value != 0)
         return hash_value;
     size_t name_hash = name ? std::hash<std::string>()(std::string(name)) : 0;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     size_t version_hash = std::hash<decltype(version)>()(version);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     size_t version_id_hash = version_id ? std::hash<std::string>()(std::string(version_id)) : 0;
 
     return ov::util::hash_combine(std::vector<size_t>{name_hash, version_hash, version_id_hash});
@@ -38,7 +40,9 @@ std::string DiscreteTypeInfo::get_version() const {
     if (version_id) {
         return std::string(version_id);
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return std::to_string(version);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 DiscreteTypeInfo::operator std::string() const {
@@ -47,8 +51,10 @@ DiscreteTypeInfo::operator std::string() const {
 
 std::ostream& operator<<(std::ostream& s, const DiscreteTypeInfo& info) {
     std::string version_id = info.version_id ? info.version_id : "(empty)";
+    OPENVINO_SUPPRESS_DEPRECATED_START
     s << "DiscreteTypeInfo{name: " << info.name << ", version_id: " << version_id << ", old_version: " << info.version
       << ", parent: ";
+    OPENVINO_SUPPRESS_DEPRECATED_END
     if (!info.parent)
         s << info.parent;
     else
@@ -60,6 +66,7 @@ std::ostream& operator<<(std::ostream& s, const DiscreteTypeInfo& info) {
 
 // parent is commented to fix type relaxed operations
 bool DiscreteTypeInfo::operator<(const DiscreteTypeInfo& b) const {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (version < b.version)
         return true;
     if (version == b.version && name != nullptr && b.name != nullptr) {
@@ -74,12 +81,15 @@ bool DiscreteTypeInfo::operator<(const DiscreteTypeInfo& b) const {
         }
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return false;
 }
 bool DiscreteTypeInfo::operator==(const DiscreteTypeInfo& b) const {
     if (hash_value != 0 && b.hash_value != 0)
         return hash() == b.hash();
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return version == b.version && strcmp(name, b.name) == 0;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 bool DiscreteTypeInfo::operator<=(const DiscreteTypeInfo& b) const {
     return *this == b || *this < b;

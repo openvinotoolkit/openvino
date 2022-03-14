@@ -29,7 +29,7 @@ using namespace std;
 
 class ControlDependencyOp : public ngraph::op::Op {
 public:
-    static constexpr NodeTypeInfo type_info{"ControlDependencyOp", 0};
+    static constexpr NodeTypeInfo type_info{"ControlDependencyOp", static_cast<uint64_t>(0)};
     const NodeTypeInfo& get_type_info() const override {
         return type_info;
     }
