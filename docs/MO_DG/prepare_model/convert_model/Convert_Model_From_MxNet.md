@@ -1,25 +1,11 @@
 # Converting an MXNet* Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet}
 
-A summary of the steps for optimizing and deploying a model that was trained with the MXNet\* framework:
-
-1. [Configure the Model Optimizer](../../Deep_Learning_Model_Optimizer_DevGuide.md) for MXNet* (MXNet was used to train your model)
-2. [Convert a MXNet model](#ConvertMxNet) to produce an optimized [Intermediate Representation (IR)](../../IR_and_opsets.md) of the model based on the trained network topology, weights, and biases values
-3. Test the model in the Intermediate Representation format using the [OpenVINO™ Runtime](../../../OV_Runtime_UG/openvino_intro.md) in the target environment via provided [OpenVINO Samples](../../../OV_Runtime_UG/Samples_Overview.md)
-4. [Integrate](../../../OV_Runtime_UG/Samples_Overview.md) the [OpenVINO™ Runtime](../../../OV_Runtime_UG/openvino_intro.md) in your application to deploy the model in the target environment
-
 ## Convert an MXNet* Model <a name="ConvertMxNet"></a>
-
-To convert an MXNet\* model, run Model Optimizer with a path to the input model `.params` file and to an output directory where you have write permissions:
+To convert an MXNet\* model, run Model Optimizer with a path to the input model `.params` file:
 
 ```sh
- mo --input_model model-file-0000.params --output_dir <OUTPUT_MODEL_DIR>
+ mo --input_model model-file-0000.params
 ```
-
-Two groups of parameters are available to convert your model:
-
-* Framework-agnostic parameters are used to convert a model trained with any supported framework. For details, see the General Conversion Parameters section on the [Converting a Model to Intermediate Representation (IR)](Converting_Model.md) page.
-* [MXNet-specific parameters](#mxnet_specific_conversion_params) are used to convert only MXNet models.
-
 
 ### Using MXNet\*-Specific Conversion Parameters <a name="mxnet_specific_conversion_params"></a>
 The following list provides the MXNet\*-specific parameters.
@@ -54,7 +40,7 @@ MXNet-specific parameters:
 Internally, when you run the Model Optimizer, it loads the model, goes through the topology, and tries to find each layer type in a list of known layers. Custom layers are layers that are not included in the list of known layers. If your topology contains any layers that are not in this list of known layers, the Model Optimizer classifies them as custom.
 
 ## Supported MXNet\* Layers
-Refer to [Supported Framework Layers ](../Supported_Frameworks_Layers.md) for the list of supported standard layers.
+Refer to [Supported Framework Layers](../Supported_Frameworks_Layers.md) for the list of supported standard layers.
 
 ## Frequently Asked Questions (FAQ)
 
