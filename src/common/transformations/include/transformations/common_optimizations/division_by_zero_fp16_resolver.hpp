@@ -30,6 +30,6 @@ class TRANSFORMATIONS_API DivisionByZeroFP16Resolver;
  */
 class ov::pass::DivisionByZeroFP16Resolver : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("DivisionByZeroFP16Resolver", "0");
     DivisionByZeroFP16Resolver();
 };
