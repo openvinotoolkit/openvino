@@ -23,6 +23,15 @@
 #include <memory>
 #include <algorithm>
 
+
+#define PRINT_TIME(func) \
+{ \
+ auto start = std::chrono::high_resolution_clock::now(); \
+ func; \
+ auto duration = std::chrono::high_resolution_clock::now() - start; \
+ std::cerr << id() << " " <<  #func <<  " " << std::chrono::duration_cast<std::chrono::microseconds>(duration).count() << "us\n"; \
+}
+
 namespace {
 
 bool is_optimized_output_user(const program_node* user) {
@@ -127,9 +136,9 @@ void primitive_inst::realloc_if_needed() {
 
 void primitive_inst::update_impl() {
     if (!_node.is_type<data>() && !(_node.is_type<mutable_data>() && _node.get_dependencies().empty())) {
-        _impl = std::move(_node.type()->choose_impl(_node));
-        _network.get_program()->compile();
-        _impl->init_kernels();
+        PRINT_TIME(_impl = std::move(_node.type()->choose_impl(_node)));
+        PRINT_TIME(_network.get_program()->compile());
+        PRINT_TIME(_impl->init_kernels());
         reset_shape_change();
         GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(debug_config->verbose >= 4) {
@@ -204,11 +213,11 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         // Lock for program nodes
         // To be removed once concurrency issue for program node is resolved
         std::lock_guard<std::mutex> lock(m);
-        update_shape();
+        PRINT_TIME(update_shape());
         if (shape_changed()) {
-            update_impl();
-            update_weights();
-            realloc_if_needed();
+            PRINT_TIME(update_impl());
+            PRINT_TIME(update_weights());
+            PRINT_TIME(realloc_if_needed());
         }
     }
 
