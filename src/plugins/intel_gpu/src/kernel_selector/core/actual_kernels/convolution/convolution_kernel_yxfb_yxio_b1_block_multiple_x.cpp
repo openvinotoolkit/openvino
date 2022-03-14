@@ -8,7 +8,7 @@ namespace kernel_selector {
 
 constexpr size_t local_work_size = 16;
 
-ParamsKey ConvolutionKernel_yxfb_yxio_b1_block_mulitple_x::GetSupportedKey() const {
+ParamsKey ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputWeightsType(WeightsType::F16);
@@ -37,7 +37,7 @@ size_t GetOfmPerWorkitem(size_t filter_ofm_num, size_t localWorkSize) {
 }
 }  // namespace
 
-ConvolutionKernelBase::DispatchData ConvolutionKernel_yxfb_yxio_b1_block_mulitple_x::SetDefault(
+ConvolutionKernelBase::DispatchData ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::SetDefault(
     const convolution_params& arg,
     int autoTuneIndex) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(arg, autoTuneIndex);
@@ -73,11 +73,11 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_yxfb_yxio_b1_block_mulitpl
     return dispatchData;
 }
 
-KernelsPriority ConvolutionKernel_yxfb_yxio_b1_block_mulitple_x::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
-JitConstants ConvolutionKernel_yxfb_yxio_b1_block_mulitple_x::GetJitConstants(const convolution_params& params,
+JitConstants ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::GetJitConstants(const convolution_params& params,
                                                                               const DispatchData& dispatchData) const {
     auto cldnn_jit = ConvolutionKernelBase::GetJitConstants(params, dispatchData);
 
@@ -98,7 +98,7 @@ JitConstants ConvolutionKernel_yxfb_yxio_b1_block_mulitple_x::GetJitConstants(co
     return cldnn_jit;
 }
 
-bool ConvolutionKernel_yxfb_yxio_b1_block_mulitple_x::Validate(const Params& p, const optional_params& o) const {
+bool ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::Validate(const Params& p, const optional_params& o) const {
     if (!ConvolutionKernelBase::Validate(p, o)) {
         return false;
     }
@@ -129,7 +129,7 @@ bool ConvolutionKernel_yxfb_yxio_b1_block_mulitple_x::Validate(const Params& p, 
     return true;
 }
 
-KernelsData ConvolutionKernel_yxfb_yxio_b1_block_mulitple_x::GetKernelsData(const Params& params,
+KernelsData ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::GetKernelsData(const Params& params,
                                                                             const optional_params& options) const {
     return GetTunedKernelsDataByIndex(params, options);
 }
