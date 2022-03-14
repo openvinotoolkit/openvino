@@ -113,7 +113,7 @@ For example, to install and configure the components for working with TensorFlow
 
 ### zsh: no matches found : openvino-dev[...]
 
-If you use zsh (Z shell) iterperter, that is the default shell for macOS starting with version 10.15 (Catalina), you may encounter the following error while installing `openvino-dev` package with extras:
+If you use zsh (Z shell) interpreter, that is the default shell for macOS starting with version 10.15 (Catalina), you may encounter the following error while installing `openvino-dev` package with extras:
 
 ```sh
 pip install openvino-dev[tensorflow2,mxnet,caffe]
