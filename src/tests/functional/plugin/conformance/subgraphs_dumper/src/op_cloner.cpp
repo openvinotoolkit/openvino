@@ -72,13 +72,12 @@ void get_port_range(const std::shared_ptr<ov::op::v0::Constant> &constant_input,
 
 std::shared_ptr<ov::Node> clone(const std::shared_ptr<ov::Node> &node, LayerTestsUtils::OPInfo &meta) {
     ov::OutputVector op_inputs;
-    bool static_inputs = true;
+    bool has_parameters = false;
     for (size_t i = 0; i < node->get_input_size(); ++i) {
         const auto input = node->input(i).get_source_output();
-        static_inputs &= input.get_partial_shape().is_static();
         auto port_info = LayerTestsUtils::PortInfo();
         const auto constant = ov::get_constant_from_source(input);
-        if (constant != nullptr) {
+        if (constant) {
             get_port_range(constant, port_info);
             float weights_size =
                     static_cast<float>(ov::shape_size(constant->get_shape()) *
@@ -99,26 +98,31 @@ std::shared_ptr<ov::Node> clone(const std::shared_ptr<ov::Node> &node, LayerTest
                 op_inputs.push_back(clone);
             }
         } else {
+            has_parameters = true;
             auto param = std::make_shared<ov::op::v0::Parameter>(input.get_element_type(),
                                                                  input.get_partial_shape());
             op_inputs.push_back(param);
         }
         meta.ports_info[i] = port_info;
     }
-    auto op_clone = node->clone_with_new_inputs(op_inputs);
-    return op_clone;
+    if (!has_parameters) {
+        return nullptr;
+    }
+    return node->clone_with_new_inputs(op_inputs);
 }
 
 std::shared_ptr<ov::Node> clone_weightable_node(const std::shared_ptr<ov::Node> &node,
-                                                    const std::vector<size_t> &weight_ports,
-                                                    LayerTestsUtils::OPInfo &meta) {
+                                                const std::vector<size_t> &weight_ports,
+                                                LayerTestsUtils::OPInfo &meta) {
     ov::OutputVector op_inputs;
+    bool has_parameters = false;
     for (size_t i = 0; i < node->get_input_size(); ++i) {
         const auto input = node->input(i).get_source_output();
         const auto constant_input = ov::get_constant_from_source(input);
         auto port_info = LayerTestsUtils::PortInfo();
         // Input is Parameter or dynamic data pass
         if (!constant_input) {
+            has_parameters = true;
             auto param = std::make_shared<ov::op::v0::Parameter>(input.get_element_type(),
                                                                  input.get_partial_shape());
             op_inputs.push_back(param);
@@ -154,6 +158,9 @@ std::shared_ptr<ov::Node> clone_weightable_node(const std::shared_ptr<ov::Node> 
         port_info.convert_to_const = true;
         meta.ports_info[i] = port_info;
         op_inputs.push_back(param);
+    }
+    if (!has_parameters) {
+        return nullptr;
     }
     auto op_clone = node->clone_with_new_inputs(op_inputs);
     return op_clone;
