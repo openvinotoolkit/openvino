@@ -14,8 +14,6 @@
 using namespace ngraph;
 using namespace ngraph::pass::low_precision;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::AlignQuantizationParameters, "AlignQuantizationParameters", 0);
-
 ngraph::pass::low_precision::AlignQuantizationParameters::AlignQuantizationParameters(const std::vector<ngraph::element::Type> defaultPrecisions)
     : defaultPrecisions(defaultPrecisions) {}
 

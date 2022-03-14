@@ -30,6 +30,6 @@ class LP_TRANSFORMATIONS_API PullTransposeThroughDequantization;
  */
 class ngraph::pass::low_precision::PullTransposeThroughDequantization : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("PullTransposeThroughDequantization", "0");
     PullTransposeThroughDequantization(const std::vector<ngraph::element::Type>& inputPrecisions = {});
 };
