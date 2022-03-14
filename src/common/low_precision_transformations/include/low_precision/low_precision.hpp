@@ -37,9 +37,9 @@ class LP_TRANSFORMATIONS_API LowPrecision;
 }  // namespace pass
 }  // namespace ngraph
 
-class LP_TRANSFORMATIONS_API ngraph::pass::low_precision::MarkupOptimizations : public ngraph::pass::FunctionPass {
+class ngraph::pass::low_precision::MarkupOptimizations : public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("MarkupOptimizations", "0");
     MarkupOptimizations(
         const std::vector<OperationPrecisionRestriction>& precisionRestrictions,
         const std::vector<OperationPerTensorQuantizationRestriction>& quantizationRestrictions,
@@ -51,15 +51,15 @@ private:
     const AttributeParameters& params;
 };
 
-class LP_TRANSFORMATIONS_API ngraph::pass::low_precision::TypeRelaxedReplacer : public ngraph::pass::GraphRewrite {
+class ngraph::pass::low_precision::TypeRelaxedReplacer : public ngraph::pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("TypeRelaxedReplacer", "0");
     TypeRelaxedReplacer();
 };
 
-class LP_TRANSFORMATIONS_API ngraph::pass::low_precision::LowPrecision : public ngraph::pass::FunctionPass {
+class ngraph::pass::low_precision::LowPrecision : public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("LowPrecision", "0");
     LowPrecision(
         const std::vector<OperationPrecisionRestriction>& precisionRestrictions = {},
         const std::vector<OperationPerTensorQuantizationRestriction>& quantizationRestrictions = {},

@@ -14,8 +14,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::ClampTransformation, "ClampTransformation", 0);
-
 ClampTransformation::ClampTransformation(const Params& params) : LayerTransformation(params) {
     auto matcher = pattern::wrap_type<opset1::Clamp>({ pattern::wrap_type<opset1::Multiply>() });
 

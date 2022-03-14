@@ -63,7 +63,7 @@ class ZeroPointOptimizer;
 */
 class ngraph::pass::CompressQuantizeWeights: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("CompressQuantizeWeights", "0");
     CompressQuantizeWeights();
 };
 
@@ -90,6 +90,6 @@ public:
 */
 class ngraph::pass::ZeroPointOptimizer: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ZeroPointOptimizer");
     ZeroPointOptimizer();
 };

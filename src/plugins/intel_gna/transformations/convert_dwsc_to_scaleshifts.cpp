@@ -17,8 +17,6 @@
 
 using namespace GNAPluginNS;
 
-NGRAPH_RTTI_DEFINITION(ConvertDWSCToScaleShifts, "ConvertDWSCToScaleShifts", 0);
-
 static std::shared_ptr<ngraph::Node> DecomposeDWSC(std::shared_ptr<ngraph::opset7::GroupConvolution> dwsc,
     std::shared_ptr<ngraph::opset7::Constant> bias_const, std::shared_ptr<ngraph::opset7::FakeQuantize> fq_bias,
     std::shared_ptr<ngraph::opset7::Reshape> flat_input_plane, std::shared_ptr<ngraph::Node> flat_filters_plane) {
