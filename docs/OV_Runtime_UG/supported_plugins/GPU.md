@@ -81,7 +81,7 @@ Selected precision of each primitive depends on the operation precision in IR, q
 u1/u8/i8 data types are used for quantized operations only, i.e. those are not selected automatically for non-quantized operations.
 See [low-precision optimization guide](@ref pot_docs_LowPrecisionOptimizationGuide) for more details on how to get quantized model.
 
-Floating-point precision of a GPU primitive is selected based on operation precision in IR except [compressed f16 IR form](../model_representation.md) which is executed in f16 precision.
+Floating-point precision of a GPU primitive is selected based on operation precision in IR except [compressed f16 IR form](../../MO_DG/prepare_model/FP16_Compression.md) which is executed in f16 precision.
 
 > **NOTE**: Harware acceleration for i8/u8 precision may be unavailable on some platforms. In that case model is executed in floating-point precision taken from IR. Hardware support of u8/i8 acceleration can be queried via `ov::device::capabilities` property.
 
