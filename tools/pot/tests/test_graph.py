@@ -11,7 +11,7 @@ from openvino.tools.pot.configs.hardware_config import HardwareConfig
 from openvino.tools.pot.graph.transformer import GraphTransformer
 from openvino.tools.pot.graph.model_utils import get_nodes_by_type, get_node_by_name
 from openvino.tools.pot.graph.node_utils import get_node_inputs, get_first_convolutions
-from tests.utils.path import TEST_ROOT, HARDWARE_CONFIG_PATH
+from tests.utils.path import HARDWARE_CONFIG_PATH
 from tests.utils.check_graph import check_model
 
 CPU_CONFIG_PATH = HARDWARE_CONFIG_PATH / 'cpu.json'
