@@ -105,7 +105,7 @@ PYBIND11_MODULE(pyopenvino, m) {
             ov::serialize(model, xml_path, bin_path, Common::convert_to_version(version));
         },
         py::arg("model"),
-        py::arg("model_path"), // TODO: rename to xml_path, bin_path ?
+        py::arg("model_path"),  // TODO: rename to xml_path, bin_path ?
         py::arg("weights_path"),
         py::arg("version") = "UNSPECIFIED");
 

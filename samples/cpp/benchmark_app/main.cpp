@@ -1094,9 +1094,9 @@ int main(int argc, char* argv[]) {
 
         if (!FLAGS_exec_graph_path.empty()) {
             try {
-                std::string fileName = fileNameNoExt(FLAGS_exec_graph_path);
-                ov::pass::Serialize serializer(fileName + ".xml", fileName + ".bin");
-                serializer.run_on_model(std::const_pointer_cast<ov::Model>(compiledModel.get_runtime_model()));
+                ov::serialize(std::const_pointer_cast<ov::Model>(compiledModel.get_runtime_model()),
+                              FLAGS_exec_graph_path,
+                              "");
                 slog::info << "executable graph is stored to " << FLAGS_exec_graph_path << slog::endl;
             } catch (const std::exception& ex) {
                 slog::err << "Can't get executable graph: " << ex.what() << slog::endl;
