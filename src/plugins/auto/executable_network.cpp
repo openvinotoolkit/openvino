@@ -594,10 +594,16 @@ std::shared_ptr<InferenceEngine::ICore> MultiDeviceExecutableNetwork::GetCore() 
 
 IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateInferRequest() {
     // try enable multi deivice schedule
+    bool newAPI = false;
+    if (this->_plugin) {
+        const auto& core = _plugin->GetCore();
+        if (core && core->isNewAPI())
+            newAPI = true;
+    }
     _requestWrapper->SetExecutableNetworkInternal(
         std::static_pointer_cast<MultiDeviceExecutableNetwork>(shared_from_this()));
     _requestWrapper->SetCallBackExecutor(_callbackExecutor);
-    return _requestWrapper->CreateInferRequest();
+    return _requestWrapper->CreateInferRequest(newAPI);
 }
 
 void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, InferenceEngine::Parameter> &config) {

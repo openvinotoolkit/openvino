@@ -30,16 +30,23 @@ InferenceEngine::IInferRequestInternal::Ptr AutoRequestWrapper::CreateInferReque
 }
 
 InferenceEngine::IInferRequestInternal::Ptr AutoRequestWrapper::CreateInferRequestImpl(
-    InferenceEngine::InputsDataMap networkInputs,
-    InferenceEngine::OutputsDataMap networkOutputs) {
+    InferenceEngine::InputsDataMap& networkInputs,
+    InferenceEngine::OutputsDataMap& networkOutputs) {
     InferenceEngine::SoIInferRequestInternal request_to_share_blobs_with;
     return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with);
 }
 
-IInferRequestInternal::Ptr AutoRequestWrapper::CreateInferRequest() {
+IInferRequestInternal::Ptr AutoRequestWrapper::CreateInferRequest(bool flag) {
     InferenceEngine::IExecutableNetworkInternal::Ptr exenetwork = GetExecutableNetworkInternal();
     assert(exenetwork != nullptr);
-    auto syncRequestImpl = CreateInferRequestImpl(exenetwork->getInputs(), exenetwork->getOutputs());
+    IInferRequestInternal::Ptr syncRequestImpl;
+    if (flag)
+        syncRequestImpl = CreateInferRequestImpl(exenetwork->getInputs(), exenetwork->getOutputs());
+    if (!syncRequestImpl) {
+        InferenceEngine::InputsDataMap networkInputs = constMapCast(exenetwork->GetInputsInfo());
+        InferenceEngine::OutputsDataMap networkOutputs = constMapCast(exenetwork->GetOutputsInfo());
+        syncRequestImpl = CreateInferRequestImpl(networkInputs, networkOutputs);
+    }
     syncRequestImpl->setPointerToExecutableNetworkInternal(std::static_pointer_cast<MultiDeviceExecutableNetwork>(exenetwork));
     return std::make_shared<MultiDeviceAsyncInferRequest>(std::static_pointer_cast<MultiDeviceInferRequest>(syncRequestImpl),
                                                           std::static_pointer_cast<MultiDeviceExecutableNetwork>(exenetwork)->_needPerfCounters,

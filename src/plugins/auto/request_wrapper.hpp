@@ -34,7 +34,7 @@ public:
     RequestWrapper() {}
     RequestWrapper(InferenceEngine::SoExecutableNetworkInternal& exenetwork) { _soExeNetwork = exenetwork; }
 
-    virtual InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() {
+    virtual InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest(bool flag) {
         auto res = _soExeNetwork->CreateInferRequest();
         res->setPointerToExecutableNetworkInternal(_exeNetwork.lock());
         return res;

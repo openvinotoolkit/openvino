@@ -33,9 +33,9 @@ public:
     using Ptr = std::shared_ptr<AutoRequestWrapper>;
     AutoRequestWrapper() = default;
     AutoRequestWrapper(InferenceEngine::SoExecutableNetworkInternal& exenetwork) : RequestWrapper(exenetwork) {}
-    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
-    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
-            InferenceEngine::OutputsDataMap networkOutputs);
+    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest(bool flag) override;
+    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap& networkInputs,
+            InferenceEngine::OutputsDataMap& networkOutputs);
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
             const std::vector<std::shared_ptr<const ov::Node>>& outputs);
     ~AutoRequestWrapper() {}
