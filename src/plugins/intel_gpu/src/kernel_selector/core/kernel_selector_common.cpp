@@ -357,6 +357,7 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::is_os_zyx_isv16_osv16:                       return "IS_OS_ZYX_ISV16_OSV16";
         case WeightsLayout::is_os_yx_isv16_osv16:                        return "IS_OS_YX_ISV16_OSV16";
         case WeightsLayout::is_os_yx_isa8_osv8_isv2:                     return "IS_OS_YX_ISA8_OSV8_ISV2";
+        case WeightsLayout::os_is_yx_isa8_osv8_isv2:                     return "OS_IS_YX_ISA8_OSV8_ISV2";
         case WeightsLayout::os_is_zyx_isv8_osv16_isv2:                   return "OS_IS_ZYX_ISV8_OSV16_ISV2";
         case WeightsLayout::os_zyxi_osv16:                               return "OS_ZYXI_OSV16";
         case WeightsLayout::os_is_yx_isv8_osv16_isv2:                    return "OS_IS_YX_ISV8_OSV16_ISV2";
@@ -392,6 +393,8 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::os_is_yx_osa4_isa8_osv8_isv2:                return "OS_IS_YX_OSA4_ISA8_OSV8_ISV2";
         case WeightsLayout::os_is_zyx_osa4_isa8_osv8_isv2:               return "OS_IS_ZYX_OSA4_ISA8_OSV8_ISV2";
         case WeightsLayout::os_is_zyx_osa4_isa8_osv8_isv4:               return "OS_IS_ZYX_OSA4_ISA8_OSV8_ISV4";
+        case WeightsLayout::is_os_yx_osa4_isa8_osv8_isv4:                return "IS_OS_YX_OSA4_ISA8_OSV8_ISV4";
+        case WeightsLayout::g_os_is_yx_isa8_osv8_isv2:                   return "G_OS_IS_YX_ISA8_OSV8_ISV2";
         case WeightsLayout::g_os_is_yx_osa4_isa8_osv8_isv2:              return "G_OS_IS_YX_OSA4_ISA8_OSV8_ISV2";
         case WeightsLayout::g_os_is_zyx_osa4_isa8_osv8_isv2:             return "G_OS_IS_ZYX_OSA4_ISA8_OSV8_ISV2";
         case WeightsLayout::os_is_yx_osa2_isa8_osv16_isv4:               return "OS_IS_YX_OSA2_ISA8_OSV16_ISV4";
