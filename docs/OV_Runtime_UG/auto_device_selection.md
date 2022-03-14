@@ -28,7 +28,7 @@ The Auto-Device plugin, or AUTO, is a virtual device which automatically selects
 | 2        | | iGPU                                               | FP32, FP16, BIN,                    |
 |          | | (e.g. Intel® UHD Graphics 620 (iGPU))              |                                     |
 +----------+------------------------------------------------------+-------------------------------------+
-| 3        | | MYRIAD                                             | FP16                                |
+| 3        | | Intel® Movidius™ Myriad™ X VPU                     | FP16                                |
 |          | | (e.g. Intel® Neural Compute Stick 2 (Intel® NCS2)) |                                     |
 +----------+------------------------------------------------------+-------------------------------------+
 | 4        | | Intel® CPU                                         | FP32, FP16, INT8, BIN               |
