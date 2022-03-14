@@ -86,7 +86,7 @@ index d83703b..f8c787c 100644
 +    boxes = torch.cat((priors[:, :2] + loc[:, :, :2] * variances[0] * priors[:, 2:], priors[:, 2:] * torch.exp(loc[:, :, 2:] * variances[1])), 2)
 +
 +    boxes_result1 = boxes[:, :, :2] - boxes[:, :, 2:] / 2
-+    boxes_result2 = boxes[:, :, 2:] + boxes[:, :, :2]
++    boxes_result2 = boxes[:, :, 2:] + boxes_result1
 +    boxes_result = torch.cat((boxes_result1, boxes_result2), 2)
 +
 +    return boxes_result
