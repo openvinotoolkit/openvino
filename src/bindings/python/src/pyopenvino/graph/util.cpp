@@ -16,7 +16,7 @@ void* numpy_to_c(py::array a) {
 }
 
 void regmodule_graph_util(py::module m) {
-    py::module mod = m.def_submodule("util", "openvino.runtime.util");
+    py::module mod = m.def_submodule("util", "openvino.runtime.utils");
     mod.def("numpy_to_c", &numpy_to_c);
     mod.def("get_constant_from_source",
             &ov::get_constant_from_source,
