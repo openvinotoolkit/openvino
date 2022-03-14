@@ -6,8 +6,8 @@ Paragraphs below provide details about specifying input shapes for model convers
 Model Optimizer supports conversion of models with input dynamic shapes that contain undefined dimensions.
 However, if the shape of inference data is not going to change from one inference request to another,
 it is recommended to set up static shapes (when all dimensions are fully defined) for the inputs.
-It can be beneficial from performance perpective and memory consumption.
-To set up static shapes, Model Optimizer provides the `--input_shape` parameter. This is offline approach to set static shapes and
+It can be beneficial from a performance perspective and memory consumption.
+To set up static shapes, Model Optimizer provides the `--input_shape` parameter. This is an offline approach to set static shapes and
 can save time on calling `reshape` method.
 For more information about the `reshape` method and dynamic shapes, refer to [Dynamic Shapes](../../../OV_Runtime_UG/ov_dynamic_shapes.md)
 
@@ -40,7 +40,7 @@ The alternative way to specify input shapes is to use the `--input` parameter as
 mo --input_model ocr.onnx --input data[3 150 200 1],seq_len[3]
 ```
 
-The parameter `--input_shape` allows overriding original input shapes to the shapes compatible for a given model.
+The parameter `--input_shape` allows overriding original input shapes to the shapes compatible with a given model.
 Dynamic shapes, i.e. with dynamic dimensions, in the original model can be replaced with static shapes for the converted model, and vice versa.
 The dynamic dimension can be marked in Model Optimizer command-line as `-1` or `?`.
 For example, launch the Model Optimizer for the ONNX* OCR model and specify dynamic batch dimension for inputs.
@@ -49,7 +49,7 @@ For example, launch the Model Optimizer for the ONNX* OCR model and specify dyna
 mo --input_model ocr.onnx --input data,seq_len --input_shape [-1,150,200,1],[-1]
 ```
 
-To optimize memory consumption for models with undefined dimensions in run-time, Model Optimizer provides capability to define boundaries of dimensions.
+To optimize memory consumption for models with undefined dimensions in run-time, Model Optimizer provides the capability to define boundaries of dimensions.
 The boundaries of undefined dimension can be specified with ellipsis.
 For example, launch the Model Optimizer for the ONNX* OCR model and specify a boundary for the batch dimension.
 
@@ -58,10 +58,10 @@ mo --input_model ocr.onnx --input data,seq_len --input_shape [1..3,150,200,1],[1
 ```
 
 ## When to Specify --static_shape Command-line Parameter
-Model Optimizer provides the `--static_shape` parameter that allows to evaluate shapes of all operations in the model for fixed input shapes
-and to fold shape computing sub-graphs into constants. The resulted IR can be more compact in size and the loading time for such IR can be decreased.
-However, the resulted IR will not be reshape-able with the help of the `reshape` method from OpenVINO Runtime API.
-It is worth to note that the `--input_shape` parameter does not affect reshape-ability of the model.
+Model Optimizer provides the `--static_shape` parameter that allows evaluating shapes of all operations in the model for fixed input shapes
+and to fold shape computing sub-graphs into constants. The resulting IR can be more compact in size and the loading time for such IR can be decreased.
+However, the resulting IR will not be reshape-able with the help of the `reshape` method from OpenVINO Runtime API.
+It is worth noting that the `--input_shape` parameter does not affect reshape-ability of the model.
 
 For example, launch the Model Optimizer for the ONNX* OCR model using `--static_shape`.
 

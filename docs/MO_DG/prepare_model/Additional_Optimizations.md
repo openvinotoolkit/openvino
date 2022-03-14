@@ -4,7 +4,7 @@ Input data for inference can be different from the training dataset and requires
 To accelerate the whole pipeline including preprocessing and inference, Model Optimizer provides special parameters such as `--mean_values`,
 `--scale_values`, `--reverse_input_channels`, and `--layout`. Based on these parameters, Model Optimizer generates IR with additionally
 inserted sub-graph that performs the defined preprocessing. This preprocessing block can perform mean-scale normalization of input data,
-reverting data along channel dimension, and changing the data layout. For more details about these parameters, refer to paragraphs below.
+reverting data along channel dimension, and changing the data layout. For more details about these parameters, refer to the paragraphs below.
 
 ## When to Specify Layout
 
@@ -62,9 +62,9 @@ There are two cases of how the input data pre-processing is implemented.
 In the first case, the Model Optimizer generates the IR with required pre-processing operations and no `mean` and `scale` parameters are required.
 
 In the second case, information about mean/scale values should be provided to the Model Optimizer to embed it to the generated IR.
-Model Optimizer provides a number of command line parameters to specify them: `--mean_values`, `--scale_values`, `--scale`.
-Using these parameters Model Optimizer will embed the corresponding preprocessing block for mean-value normalization of the input data
-and will optimize this block so that the preprocessing takes negligible time for inference.
+Model Optimizer provides command-line parameters to specify the values: `--mean_values`, `--scale_values`, `--scale`.
+Using these parameters, Model Optimizer embeds the corresponding preprocessing block for mean-value normalization of the input data
+and optimizes this block so that the preprocessing takes negligible time for inference.
 
 For example, run the Model Optimizer for the PaddlePaddle* UNet model and apply mean-scale normalization to the input data.
 
@@ -77,12 +77,12 @@ Sometimes input images for your application can be of the RGB (BGR) format and t
 the opposite color channel order. In this case, it is important to preprocess the input images by reverting the color channels before inference.
 To embed this preprocessing step into IR, Model Optimizer provides the `--reverse_input_channels` command-line parameter to shuffle the color channels.
 
-The `--reverse_input_channels` parameter applies to input of the model in two cases.
+The `--reverse_input_channels` parameter applies to an input of the model in two cases.
  * Only one dimension in the input shape has a size equal to 3.
- * One dimension has undefined size and is marked as `C` channel using `layout` parameters.
+ * One dimension has an undefined size and is marked as `C` channel using `layout` parameters.
 
-Using the `--reverse_input_channels` parameter Model Optimizer will embed the corresponding preprocessing block for reverting
-the input data along channel dimension and will optimize this block so that the preprocessing takes negligible time for inference.
+Using the `--reverse_input_channels` parameter, Model Optimizer embeds the corresponding preprocessing block for reverting
+the input data along channel dimension and optimizes this block so that the preprocessing takes negligible time for inference.
 
 For example, launch the Model Optimizer for the TensorFlow* AlexNet model and embed `reverse_input_channel` preprocessing block into IR.
 
@@ -90,9 +90,9 @@ For example, launch the Model Optimizer for the TensorFlow* AlexNet model and em
 mo --input_model alexnet.pb --reverse_input_channels
 ```
 
-> **NOTE**: If both mean and scale values are specified, the mean is subtracted first and then scale is applied regardless of the order of options
-in command line. Input values are *divided* by the scale value(s). If also `--reverse_input_channels` option is used, the `reverse_input_channels`
-will be applied first, then `mean` and after that `scale`. In other words, the data flow in the model looks as following:
+> **NOTE**: If both mean and scale values are specified, the mean is subtracted first and then the scale is applied regardless of the order of options
+in the command line. Input values are *divided* by the scale value(s). If also `--reverse_input_channels` option is used, the `reverse_input_channels`
+will be applied first, then `mean` and after that `scale`. The data flow in the model looks as follows:
 `Parameter -> ReverseInputChannels -> Mean apply-> Scale apply -> the original body of the model`.
 
 ## See Also

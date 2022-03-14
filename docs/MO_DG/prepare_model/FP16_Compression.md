@@ -1,9 +1,9 @@
 # Compression of a Model to FP16 {#openvino_docs_MO_DG_FP16_Compression}
 
-Model Optimizer can convert all floating point weights to `FP16` data type. The resulting IR is called
+Model Optimizer can convert all floating-point weights to `FP16` data type. The resulting IR is called
 compressed `FP16` model.
 
-To compress the model use the `--data_type` option like this:
+To compress the model, use the `--data_type` option:
 
 ```
  mo --input_model INPUT_MODEL --data_type FP16
