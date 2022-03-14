@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <windows.h>
-
 #include "mmap_object.hpp"
 #include "ngraph/runtime/shared_buffer.hpp"
 #include "openvino/util/file_util.hpp"
+
+// clang-format-off
+#include <windows.h>
+// clang-format-on
 
 namespace ov {
 
