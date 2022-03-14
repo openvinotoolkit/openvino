@@ -192,8 +192,11 @@ def get_quantized_input_key(quantized_node):
     Otherwise, key is tuple (fq_input name, output port number)
     """
     quantized_input = get_node_input(quantized_node, 0)
-    quantized_key = create_node_name(quantized_input)
-    return quantized_key
+    key = quantized_input.fullname
+    if len(quantized_input.out_ports()) > 1:
+        port_number = quantized_node.in_port(0).get_source().out
+        key = (quantized_input.fullname, port_number)
+    return key
 
 
 def node_with_quantized_weights(node):
