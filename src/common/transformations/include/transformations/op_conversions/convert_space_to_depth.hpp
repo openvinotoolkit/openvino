@@ -19,6 +19,6 @@ class TRANSFORMATIONS_API ConvertSpaceToDepth;
 
 class ngraph::pass::ConvertSpaceToDepth : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertSpaceToDepth", "0");
     ConvertSpaceToDepth();
 };

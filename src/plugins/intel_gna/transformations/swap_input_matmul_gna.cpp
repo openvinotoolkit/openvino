@@ -20,12 +20,6 @@
 
 namespace GNAPluginNS {
 
-NGRAPH_RTTI_DEFINITION(SwapInputMatMul, "SwapInputMatMul", 0);
-NGRAPH_RTTI_DEFINITION(SwapInputMatMulWithBias, "SwapInputMatMulWithBias", 0);
-NGRAPH_RTTI_DEFINITION(SwapInputMatMulWithFq, "SwapInputMatMulWithFq", 0);
-NGRAPH_RTTI_DEFINITION(SwapInputMatMulWithAct, "SwapInputMatMulWithAct", 0);
-NGRAPH_RTTI_DEFINITION(SwapInputMatMulWithTrailingTranspose, "SwapInputMatMulWithTrailingTranspose", 0);
-
 static void SwapAndTransposeInputs(
     std::shared_ptr<ngraph::opset8::MatMul> matmul_node,
     const std::string& last_layer_name,
