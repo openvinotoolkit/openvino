@@ -37,7 +37,8 @@ public:
     /// \param values A vector of literals for initializing the tensor constant. The
     ///               size of values must match the size of the shape.
     template <typename T>
-    Constant(const element::Type& type, const Shape& shape, const std::vector<T>& values) : Constant(type, shape) {
+    Constant(const element::Type& type, const Shape& shape, const std::vector<T>& values)
+        : Constant(false, type, shape) {
         NODE_VALIDATION_CHECK(this,
                               values.size() == 1 || values.size() == shape_size(m_shape),
                               "Did not get the expected number of literals for a constant of shape ",
@@ -65,7 +66,7 @@ public:
     /// \param value A scalar for initializing the uniform tensor constant. The
     ///               value is broadcast to the specified shape.
     template <class T, class = typename std::enable_if<std::is_fundamental<T>::value>::type>
-    Constant(const element::Type& type, const Shape& shape, T value) : Constant(type, shape) {
+    Constant(const element::Type& type, const Shape& shape, T value) : Constant(false, type, shape) {
         fill_data(type, value);
     }
 
@@ -385,6 +386,8 @@ public:
     }
 
 private:
+    Constant(bool memset_allocation, const element::Type& type, const Shape& shape);
+
     template <element::Type_t Type,
               typename StorageDataType = fundamental_type_for<Type>,
               typename std::enable_if<Type != element::Type_t::u1 && Type != element::Type_t::u4 &&
@@ -526,7 +529,7 @@ private:
         std::fill_n(get_data_ptr_nc<Type>(), mem_size(), v);
     }
 
-    void allocate_buffer();
+    void allocate_buffer(bool memset_allocation);
 
     void* get_data_ptr_nc() {
         return (m_data ? m_data->get_ptr() : nullptr);
