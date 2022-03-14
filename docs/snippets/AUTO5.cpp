@@ -8,7 +8,7 @@ int main() {
 	std::shared_ptr<ov::Model> model = core.read_model("sample.xml");
 
 	// Configure the CPU and the Myriad devices separately and load the network to Auto-Device plugin:
-	// set VPU config
+	// set CPU config
 	core.set_property("CPU", {});
 	// set MYRIAD config
 	core.set_property("MYRIAD", {});

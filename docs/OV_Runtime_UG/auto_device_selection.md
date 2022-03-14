@@ -18,25 +18,22 @@ The Auto-Device plugin, or AUTO, is a virtual device which automatically selects
 4. If the network’s precision is FP32 but there is no device capable of supporting it, offload the network to a device supporting FP16. 
 
 @sphinxdirective
-+----------+-------------------------------------------------+-------------------------------------+
-| Choice   | | Supported                                     | | Supported                         |
-| Priority | | Device                                        | | model precision                   |
-+==========+=================================================+=====================================+
-| 1        | | dGPU                                          | FP32, FP16, INT8, BIN               |
-|          | | (e.g. Intel® Iris® Xe MAX)                    |                                     |
-+----------+-------------------------------------------------+-------------------------------------+
-| 2        | | VPUX                                          | INT8                                |
-|          | | (e.g. Intel® Movidius® VPU 3700VE)            |                                     |
-+----------+-------------------------------------------------+-------------------------------------+
-| 3        | | iGPU                                          | FP32, FP16, BIN,                    |
-|          | | (e.g. Intel® UHD Graphics 620 (iGPU))         |                                     |
-+----------+-------------------------------------------------+-------------------------------------+
-| 4        | | Intel® Neural Compute Stick 2 (Intel® NCS2)   | FP16                                |
-|          |                                                 |                                     |
-+----------+-------------------------------------------------+-------------------------------------+
-| 5        | | Intel® CPU                                    | FP32, FP16, INT8, BIN               |
-|          | | (e.g. Intel® Core™ i7-1165G7)                 |                                     |
-+----------+-------------------------------------------------+-------------------------------------+
++----------+------------------------------------------------------+-------------------------------------+
+| Choice   | | Supported                                          | | Supported                         |
+| Priority | | Device                                             | | model precision                   |
++==========+======================================================+=====================================+
+| 1        | | dGPU                                               | FP32, FP16, INT8, BIN               |
+|          | | (e.g. Intel® Iris® Xe MAX)                         |                                     |
++----------+------------------------------------------------------+-------------------------------------+
+| 2        | | iGPU                                               | FP32, FP16, BIN,                    |
+|          | | (e.g. Intel® UHD Graphics 620 (iGPU))              |                                     |
++----------+------------------------------------------------------+-------------------------------------+
+| 3        | | MYRIAD                                             | FP16                                |
+|          | | (e.g. Intel® Neural Compute Stick 2 (Intel® NCS2)) |                                     |
++----------+------------------------------------------------------+-------------------------------------+
+| 4        | | Intel® CPU                                         | FP32, FP16, INT8, BIN               |
+|          | | (e.g. Intel® Core™ i7-1165G7)                      |                                     |
++----------+------------------------------------------------------+-------------------------------------+
 @endsphinxdirective
 
 To put it simply, when loading the network to the first device on the list fails, AUTO will try to load it to the next device in line, until one of them succeeds. For example: 
@@ -91,9 +88,9 @@ Following the OpenVINO™ naming convention, the Auto-Device plugin is assigned 
 | ov::hint::performance_mode| | ov::hint::PerformanceMode::LATENCY          | | Specifies the performance mode preferred                |
 |                           | | ov::hint::PerformanceMode::THROUGHPUT       | | by the application.                                     |
 +---------------------------+-----------------------------------------------+-----------------------------------------------------------+
-| ov::hint::model_priority  | | ov::hint::MEDIUM                            | | Indicates the priority for a network.                   |
-|                           | | ov::hint::HIGH                              | | Importantly!                                            |
-|                           | | ov::hint::LOW                               | | This property is still not fully supported              |
+| ov::hint::model_priority  | | ov::hint::Priority::HIGH                    | | Indicates the priority for a network.                   |
+|                           | | ov::hint::Priority::MEDIUM                  | | Importantly!                                            |
+|                           | | ov::hint::Priority::LOW                     | | This property is still not fully supported              |
 +---------------------------+-----------------------------------------------+-----------------------------------------------------------+
 @endsphinxdirective
 
@@ -332,7 +329,7 @@ The property enables you to control the priorities of networks in the Auto-Devic
 
       # Example 2
       # Compile and load networks:
-      compiled_model0 = core.compile_model(model=model, device_name="AUTO:GPU,MYRIAD,CPU", config={"MODEL_PRIORITY":"HIGH"})
+      compiled_model0 = core.compile_model(model=model, device_name="AUTO:GPU,MYRIAD,CPU", config={"MODEL_PRIORITY":"LOW"})
       compiled_model1 = core.compile_model(model=model, device_name="AUTO:GPU,MYRIAD,CPU", config={"MODEL_PRIORITY":"MEDIUM"})
       compiled_model2 = core.compile_model(model=model, device_name="AUTO:GPU,MYRIAD,CPU", config={"MODEL_PRIORITY":"LOW"})
 
@@ -341,7 +338,7 @@ The property enables you to control the priorities of networks in the Auto-Devic
 @endsphinxdirective
 
 ## Configuring Individual Devices and Creating the Auto-Device plugin on Top
-Although the methods described above are currently the preferred way to execute inference with AUTO, the following steps can be also used as an alternative. It is currently available as a legacy feature and used if the device candidate list includes VPUX or Myriad (devices uncapable of utilizing the Performance Hints option). 
+Although the methods described above are currently the preferred way to execute inference with AUTO, the following steps can be also used as an alternative. It is currently available as a legacy feature and used if the device candidate list includes Myriad (devices uncapable of utilizing the Performance Hints option). 
 
 @sphinxdirective
 .. tab:: C++ API
@@ -354,7 +351,7 @@ Although the methods described above are currently the preferred way to execute 
       std::shared_ptr<ov::Model> model = core.read_model("sample.xml");
 
       // Configure the CPU and the Myriad devices separately and load the network to the Auto-Device plugin
-      // set VPU config
+      // set CPU config
       core.set_property("CPU", {});
 
       // set MYRIAD config
