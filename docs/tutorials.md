@@ -17,8 +17,11 @@ This collection of Python tutorials are written for running on [Jupyter*](https:
 
 @sphinxdirective
 
-.. image:: _static/images/badge_logo.svg
-   :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F001-hello-world%2F001-hello-world.ipynb
+|binder_link|
+
+.. |binder_link| raw:: html 
+
+   <a href="https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F001-hello-world%2F001-hello-world.ipynb" target="_blank"><img src="https://mybinder.org/badge_logo.svg" alt="Binder"></a>
 
 @endsphinxdirective
 
