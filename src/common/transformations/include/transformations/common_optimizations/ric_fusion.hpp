@@ -24,6 +24,6 @@ class TRANSFORMATIONS_API ReverseInputChannelsFusion;
 
 class ngraph::pass::ReverseInputChannelsFusion : public ov::pass::ModelPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ReverseInputChannelsFusion", "0");
     bool run_on_model(const std::shared_ptr<ov::Model>&) override;
 };

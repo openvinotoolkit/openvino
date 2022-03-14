@@ -20,8 +20,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::ConcatTransformation, "ConcatTransformation", 0);
-
 ConcatTransformation::ConcatTransformation(const Params& params) : LayerTransformation(params) {
     auto matcher = ngraph::pattern::wrap_type<opset1::Concat>();
 

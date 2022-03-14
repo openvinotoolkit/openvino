@@ -16,8 +16,6 @@
 
 #include <numeric>
 
-NGRAPH_RTTI_DEFINITION(vpu::MergeGatherGatherElements, "MergeGatherGatherElements", 0);
-
 namespace vpu {
 
 bool MergeGatherGatherElements::run_on_model(const std::shared_ptr<ngraph::Function>& f) {

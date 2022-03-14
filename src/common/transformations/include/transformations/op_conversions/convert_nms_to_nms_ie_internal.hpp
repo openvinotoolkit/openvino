@@ -20,6 +20,6 @@ class TRANSFORMATIONS_API ConvertNMSToNMSIEInternal;
 
 class ngraph::pass::ConvertNMSToNMSIEInternal : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertNMSToNMSIEInternal", "0");
     ConvertNMSToNMSIEInternal();
 };

@@ -14,7 +14,7 @@ namespace GNAPluginNS {
  */
 class ReorderActivationAndPooling : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
+  OPENVINO_RTTI("ReorderActivationAndPooling", "0");
   ReorderActivationAndPooling();
 };
 

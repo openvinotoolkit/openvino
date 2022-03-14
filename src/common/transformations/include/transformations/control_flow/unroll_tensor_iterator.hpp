@@ -27,6 +27,6 @@ class TRANSFORMATIONS_API UnrollTensorIterator;
 
 class ngraph::pass::UnrollTensorIterator : public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("UnrollTensorIterator", "0");
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };

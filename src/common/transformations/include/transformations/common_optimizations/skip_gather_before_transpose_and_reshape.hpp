@@ -25,6 +25,6 @@ class TRANSFORMATIONS_API SkipGatherBeforeTransposeAndReshape;
  */
 class ngraph::pass::SkipGatherBeforeTransposeAndReshape : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SkipGatherBeforeTransposeAndReshape", "0");
     SkipGatherBeforeTransposeAndReshape();
 };

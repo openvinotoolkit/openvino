@@ -44,7 +44,7 @@ public:
         std::unordered_map<uint64_t, std::vector<size_t>> portsByVersion;
     };
 
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("MarkupPerTensorQuantization", "0");
     explicit MarkupPerTensorQuantization(const std::vector<OperationPerTensorQuantizationRestriction>& restrictions = {});
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 

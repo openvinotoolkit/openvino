@@ -23,7 +23,7 @@ namespace ngraph {
 namespace pass {
 class InitNMSPath : public pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("InitNMSPath", "0");
     InitNMSPath() {
         MATCHER_SCOPE(InitNMSPath);
         auto nms_pattern =
@@ -41,7 +41,7 @@ public:
 };
 class PropagateNMSPath : public pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("PropagateNMSPath", "0");
     PropagateNMSPath() {
         MATCHER_SCOPE(PropagateNMSPath);
         auto node_pattern = pattern::wrap_type<opset8::Squeeze,
@@ -70,7 +70,7 @@ public:
 };
 class UpdateConvertGather : public pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("UpdateConvertGather", "0");
     UpdateConvertGather() {
         MATCHER_SCOPE(UpdateConvertGather);
         auto node_pattern = pattern::wrap_type<op::util::GatherBase>();
@@ -99,14 +99,8 @@ public:
 }  // namespace pass
 }  // namespace ngraph
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::InitNMSPath, "InitNMSPath", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::PropagateNMSPath, "PropagateNMSPath", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::UpdateConvertGather, "UpdateConvertGather", 0);
-
 ngraph::pass::ConvertNmsGatherPathToUnsigned::ConvertNmsGatherPathToUnsigned() {
     add_matcher<InitNMSPath>();
     add_matcher<PropagateNMSPath>();
     add_matcher<UpdateConvertGather>();
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNmsGatherPathToUnsigned, "ConvertNmsGatherPathToUnsigned", 0);

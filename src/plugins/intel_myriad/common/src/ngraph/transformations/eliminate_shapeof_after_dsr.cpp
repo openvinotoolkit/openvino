@@ -9,8 +9,6 @@
 
 #include <ngraph/opsets/opset3.hpp>
 
-NGRAPH_RTTI_DEFINITION(vpu::EliminateShapeOfAfterDSR, "EliminateShapeOfAfterDSR", 0);
-
 namespace vpu {
 
 EliminateShapeOfAfterDSR::EliminateShapeOfAfterDSR() {

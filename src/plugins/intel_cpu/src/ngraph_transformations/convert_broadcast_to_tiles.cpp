@@ -8,8 +8,6 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ov::intel_cpu::ConvertBroadcastToTiles, "ConvertBroadcastToTiles", 0);
-
 ov::intel_cpu::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
     auto broadcast = ngraph::pattern::wrap_type<ngraph::opset1::Broadcast>();
 

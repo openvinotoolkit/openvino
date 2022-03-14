@@ -31,7 +31,7 @@ class ConvertRNNSequenceMatcher;
 
 class ngraph::pass::ConvertLSTMSequenceMatcher : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertLSTMSequenceMatcher", "0");
     ConvertLSTMSequenceMatcher();
 };
 
@@ -44,7 +44,7 @@ public:
 
 class ngraph::pass::ConvertGRUSequenceMatcher : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertGRUSequenceMatcher", "0");
     ConvertGRUSequenceMatcher();
 };
 
@@ -57,6 +57,6 @@ public:
 
 class ngraph::pass::ConvertRNNSequenceMatcher : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertRNNSequenceMatcher", "0");
     ConvertRNNSequenceMatcher();
 };

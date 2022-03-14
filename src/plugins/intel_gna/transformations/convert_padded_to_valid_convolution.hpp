@@ -30,7 +30,7 @@ namespace GNAPluginNS {
  */
 class ConvertPaddedToValidConv : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
+  OPENVINO_RTTI("ConvertPaddedToValidConv", "0");
   ConvertPaddedToValidConv();
 };
 

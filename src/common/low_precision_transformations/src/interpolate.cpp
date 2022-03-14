@@ -17,8 +17,6 @@ using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::pass::low_precision;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::InterpolateTransformation, "InterpolateTransformation", 0);
-
 InterpolateTransformation::InterpolateTransformation(const Params& params) : LayerTransformation(params) {
     auto mul = pattern::wrap_type<opset1::Multiply>();
 

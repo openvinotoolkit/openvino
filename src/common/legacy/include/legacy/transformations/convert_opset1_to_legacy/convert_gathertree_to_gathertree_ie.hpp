@@ -24,6 +24,6 @@ class ConvertGatherTreeToGatherTreeIEMatcher;
 
 class ngraph::pass::ConvertGatherTreeToGatherTreeIEMatcher: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertGatherTreeToGatherTreeIEMatcher", "0");
     ConvertGatherTreeToGatherTreeIEMatcher();
 };

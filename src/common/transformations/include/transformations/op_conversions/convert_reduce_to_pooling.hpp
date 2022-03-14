@@ -34,25 +34,25 @@ public:
 
 class ngraph::pass::ConvertReduceMeanToPooling : public ConvertReduceBase {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertReduceMeanToPooling", "0");
     ConvertReduceMeanToPooling();
 };
 
 class ngraph::pass::ConvertReduceMaxToPooling : public ConvertReduceBase {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertReduceMaxToPooling", "0");
     ConvertReduceMaxToPooling();
 };
 
 class ngraph::pass::ConvertReduceSumToPooling : public ConvertReduceBase {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertReduceSumToPooling", "0");
     ConvertReduceSumToPooling();
 };
 
 class ngraph::pass::ConvertReduceToPooling : public ngraph::pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertReduceToPooling", "0");
     ConvertReduceToPooling() {
         add_matcher<ConvertReduceMeanToPooling>();
         add_matcher<ConvertReduceMaxToPooling>();

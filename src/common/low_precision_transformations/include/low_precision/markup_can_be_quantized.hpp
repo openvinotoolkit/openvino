@@ -30,7 +30,7 @@ class LP_TRANSFORMATIONS_API MarkupCanBeQuantized;
  */
 class ngraph::pass::low_precision::MarkupCanBeQuantized : public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("MarkupCanBeQuantized", "0");
     MarkupCanBeQuantized(const std::vector<ngraph::element::Type> defaultPrecisions = { ngraph::element::u8, ngraph::element::i8 });
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 private:

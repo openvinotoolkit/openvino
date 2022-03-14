@@ -16,8 +16,6 @@
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(pass::PadFusion, "PadFusion", 0);
-
 template <typename T>
 static bool can_be_fused(const std::shared_ptr<opset5::Pad>& pad,
                          const std::shared_ptr<T>& node,
@@ -81,8 +79,6 @@ static std::tuple<Shape, Shape> new_pooling_pad_values(const std::shared_ptr<ops
 
     return std::make_tuple(node_pads_begin, node_pads_end);
 }
-
-NGRAPH_RTTI_DEFINITION(pass::PadFusionAvgPool, "PadFusionAvgPool", 0);
 
 pass::PadFusionAvgPool::PadFusionAvgPool() {
     MATCHER_SCOPE(PadFusionAvgPool);
@@ -183,8 +179,6 @@ static std::tuple<CoordinateDiff, CoordinateDiff> new_conv_pad_values(
     return std::make_tuple(node_pads_begin, node_pads_end);
 }
 
-NGRAPH_RTTI_DEFINITION(pass::PadFusionConvolution, "PadFusionConvolution", 0);
-
 pass::PadFusionConvolution::PadFusionConvolution() {
     MATCHER_SCOPE(PadFusionConvolution);
     auto data_pattern = pattern::any_input();
@@ -231,8 +225,6 @@ pass::PadFusionConvolution::PadFusionConvolution() {
     auto m = std::make_shared<pattern::Matcher>(conv_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(pass::PadFusionConvolutionBackpropData, "PadFusionConvolutionBackpropData", 0);
 
 pass::PadFusionConvolutionBackpropData::PadFusionConvolutionBackpropData() {
     MATCHER_SCOPE(PadFusionConvolutionBackpropData);
@@ -292,8 +284,6 @@ pass::PadFusionConvolutionBackpropData::PadFusionConvolutionBackpropData() {
     this->register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(pass::PadFusionGroupConvolution, "PadFusionGroupConvolution", 0);
-
 pass::PadFusionGroupConvolution::PadFusionGroupConvolution() {
     MATCHER_SCOPE(PadFusionGroupConvolution);
     auto data_pattern = pattern::any_input();
@@ -341,8 +331,6 @@ pass::PadFusionGroupConvolution::PadFusionGroupConvolution() {
     auto m = std::make_shared<pattern::Matcher>(conv_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(pass::PadFusionGroupConvolutionBackpropData, "PadFusionGroupConvolutionBackpropData", 0);
 
 pass::PadFusionGroupConvolutionBackpropData::PadFusionGroupConvolutionBackpropData() {
     MATCHER_SCOPE(PadFusionGroupConvolutionBackpropData);

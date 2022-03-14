@@ -14,8 +14,6 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMSToNMSIEMatcher, "ConvertNMSToNMSIEMatcher", 0);
-
 ngraph::pass::ConvertNMSToNMSIEMatcher::ConvertNMSToNMSIEMatcher() {
     auto nms = ngraph::pattern::wrap_type<opset3::NonMaxSuppression>();
 

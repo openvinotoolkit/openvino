@@ -21,7 +21,7 @@ namespace low_precision {
  */
 class LP_TRANSFORMATIONS_API SubtractTransformation : public LayerTransformation {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SubtractTransformation", "0");
     SubtractTransformation(const Params& params);
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
 };

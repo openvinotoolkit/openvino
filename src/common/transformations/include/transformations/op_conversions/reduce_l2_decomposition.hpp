@@ -26,6 +26,6 @@ class TRANSFORMATIONS_API ReduceL2Decomposition;
  */
 class ngraph::pass::ReduceL2Decomposition : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ReduceL2Decomposition", "0");
     ReduceL2Decomposition();
 };

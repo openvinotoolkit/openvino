@@ -18,10 +18,6 @@
 
 namespace GNAPluginNS {
 
-NGRAPH_RTTI_DEFINITION(HandleTransposesAroundMatMul, "HandleTransposesAroundMatMul", 0);
-NGRAPH_RTTI_DEFINITION(HandleTransposeBeforeMatMul, "HandleTransposeBeforeMatMul", 0);
-NGRAPH_RTTI_DEFINITION(HandleTransposeAfterMatMul, "HandleTransposeAfterMatMul", 0);
-
 namespace {
 
 void ReplaceTransposeWithReshape(std::shared_ptr<ngraph::Node> transpose_node) {

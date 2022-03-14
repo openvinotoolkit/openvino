@@ -12,8 +12,6 @@
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MarkupPerTensorQuantization, "MarkupPerTensorQuantization", 0);
-
 ngraph::pass::low_precision::MarkupPerTensorQuantization::MarkupPerTensorQuantization(
     const std::vector<OperationPerTensorQuantizationRestriction>& restrictions) {
     for (const OperationPerTensorQuantizationRestriction& restriction : restrictions) {

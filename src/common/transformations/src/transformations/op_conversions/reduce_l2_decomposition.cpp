@@ -11,8 +11,6 @@
 
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ReduceL2Decomposition, "ReduceL2Decomposition", 0);
-
 ngraph::pass::ReduceL2Decomposition::ReduceL2Decomposition() {
     MATCHER_SCOPE(ReduceL2Decomposition);
     // decomposes ReduceL2 operations into sqrt(ReduceSum(x * x))

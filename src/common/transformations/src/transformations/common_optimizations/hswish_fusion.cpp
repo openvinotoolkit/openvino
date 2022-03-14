@@ -12,10 +12,6 @@
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::HSwishFusion, "HSwishFusion", 0);
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::HSwishFusionWithReluDiv, "HSwishFusionWithReluDiv", 0);
-
 ngraph::pass::HSwishFusionWithReluDiv::HSwishFusionWithReluDiv() {
     MATCHER_SCOPE(HSwishFusionWithReluDiv);
     // Replaces a sub-graph (x * (min(Relu(x + 3), 6)) / 6 with a HSwish op.
@@ -71,8 +67,6 @@ ngraph::pass::HSwishFusionWithReluDiv::HSwishFusionWithReluDiv() {
     register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::HSwishFusionWithReluMul, "HSwishFusionWithReluMul", 0);
-
 ngraph::pass::HSwishFusionWithReluMul::HSwishFusionWithReluMul() {
     MATCHER_SCOPE(HSwishFusionWithReluMul);
     // Replaces a sub-graph (x * (min(Relu(x + 3), 6)) * const(1/6) with a HSwish op.
@@ -125,8 +119,6 @@ ngraph::pass::HSwishFusionWithReluMul::HSwishFusionWithReluMul() {
     register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::HSwishFusionWithHSigmoid, "HSwishFusionWithHSigmoid", 0);
-
 ngraph::pass::HSwishFusionWithHSigmoid::HSwishFusionWithHSigmoid() {
     MATCHER_SCOPE(HSwishFusionWithHSigmoid);
     // Replaces a sub-graph x * HSigmoid(x) with a HSwish op.
@@ -149,8 +141,6 @@ ngraph::pass::HSwishFusionWithHSigmoid::HSwishFusionWithHSigmoid() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(mul_pattern, matcher_name);
     register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::HSwishFusionWithClamp, "HSwishFusionWithClamp", 0);
 
 ngraph::pass::HSwishFusionWithClamp::HSwishFusionWithClamp() {
     MATCHER_SCOPE(HSwishFusionWithClampMul);

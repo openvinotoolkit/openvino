@@ -19,7 +19,7 @@ namespace intel_cpu {
 
 class AlignMatMulInputRanks: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("AlignMatMulInputRanks", "0");
     AlignMatMulInputRanks();
 };
 

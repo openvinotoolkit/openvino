@@ -12,8 +12,6 @@
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved, "MarkupAvgPoolPrecisionPreserved", 0);
-
 ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved::MarkupAvgPoolPrecisionPreserved(const std::vector<ngraph::element::Type> defaultPrecisions)
     : defaultPrecisions(defaultPrecisions) {}
 

@@ -17,8 +17,6 @@
 
 namespace vpu {
 
-NGRAPH_RTTI_DEFINITION(vpu::ExtractBatch, "ExtractBatch", 0);
-
 ExtractBatch::ExtractBatch(std::unordered_set<ngraph::Node::type_info_t> targets) : targets(std::move(targets)) {}
 
 namespace {

@@ -24,6 +24,6 @@ class ConvertInterpolateToInterpOrResampleMatcher;
 
 class ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertInterpolateToInterpOrResampleMatcher", "0");
     ConvertInterpolateToInterpOrResampleMatcher();
 };

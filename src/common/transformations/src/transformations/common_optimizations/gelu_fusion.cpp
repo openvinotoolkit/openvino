@@ -16,10 +16,6 @@
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::GeluFusion, "GeluFusion", 0);
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::GeluFusionWithErfOne, "GeluFusionWithErfOne", 0);
-
 ngraph::pass::GeluFusionWithErfOne::GeluFusionWithErfOne() {
     MATCHER_SCOPE(GeluFusionWithErfOne);
     // Replaces a sub-graph with a Gelu op
@@ -79,8 +75,6 @@ ngraph::pass::GeluFusionWithErfOne::GeluFusionWithErfOne() {
     register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::GeluFusionWithErfTwo, "GeluFusionWithErfTwo", 0);
-
 ngraph::pass::GeluFusionWithErfTwo::GeluFusionWithErfTwo() {
     MATCHER_SCOPE(GeluFusionWithErfTwo);
     // Replaces a sub-graph with a Gelu op
@@ -139,8 +133,6 @@ ngraph::pass::GeluFusionWithErfTwo::GeluFusionWithErfTwo() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
     register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::GeluFusionWithErfThree, "GeluFusionWithErfThree", 0);
 
 ngraph::pass::GeluFusionWithErfThree::GeluFusionWithErfThree() {
     MATCHER_SCOPE(GeluFusionWithErfThree);

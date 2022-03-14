@@ -9,8 +9,6 @@
 #include <openvino/pass/constant_folding.hpp>
 #include <compress_quantize_weights.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::CompressQuantizeWeights, "CompressQuantizeWeights", 0);
-
 static bool has_dequantization_subgraph(const std::shared_ptr<ngraph::Node>& first_convert) {
     auto first_convert_users = first_convert->get_users();
     const auto second_convert = std::find_if(first_convert_users.begin(), first_convert_users.end(),
@@ -160,8 +158,6 @@ ngraph::pass::CompressQuantizeWeights::CompressQuantizeWeights() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(fq_pattern, "CompressQuantizeWeights");
     this->register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ZeroPointOptimizer, "ZeroPointOptimizer", 0);
 
 ngraph::pass::ZeroPointOptimizer::ZeroPointOptimizer() {
     auto weights_pattern = pattern::wrap_type<opset8::Constant>();

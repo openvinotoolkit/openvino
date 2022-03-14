@@ -18,8 +18,6 @@
 #include "legacy/ngraph_ops/gru_cell_ie.hpp"
 #include "legacy/ngraph_ops/rnn_cell_ie.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertLSTMCellMatcher, "ConvertLSTMCellMatcher", 0);
-
 ngraph::pass::ConvertLSTMCellMatcher::ConvertLSTMCellMatcher() {
     auto is_supported_lstm_cell = [](const std::shared_ptr<Node>& n) {
         return pattern::has_class<ngraph::opset1::LSTMCell>()(n) || pattern::has_class<ngraph::opset4::LSTMCell>()(n);
@@ -62,8 +60,6 @@ ngraph::pass::ConvertLSTMCellMatcher::ConvertLSTMCellMatcher() {
     this->register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGRUCellMatcher, "ConvertGRUCellMatcher", 0);
-
 ngraph::pass::ConvertGRUCellMatcher::ConvertGRUCellMatcher() {
     auto gru_cell_ngraph = ngraph::pattern::wrap_type<ngraph::opset3::GRUCell>();
 
@@ -104,8 +100,6 @@ ngraph::pass::ConvertGRUCellMatcher::ConvertGRUCellMatcher() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(gru_cell_ngraph, "ConvertGRUCellToGRUCellIE");
     this->register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertRNNCellMatcher, "ConvertRNNCellMatcher", 0);
 
 ngraph::pass::ConvertRNNCellMatcher::ConvertRNNCellMatcher() {
     auto rnn_cell_ngraph = ngraph::pattern::wrap_type<ngraph::opset3::RNNCell>();

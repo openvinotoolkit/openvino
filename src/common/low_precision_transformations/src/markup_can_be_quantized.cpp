@@ -16,8 +16,6 @@
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MarkupCanBeQuantized, "MarkupCanBeQuantized", 0);
-
 ngraph::pass::low_precision::MarkupCanBeQuantized::MarkupCanBeQuantized(const std::vector<ngraph::element::Type> defaultPrecisions)
     : defaultPrecisions(defaultPrecisions) {}
 

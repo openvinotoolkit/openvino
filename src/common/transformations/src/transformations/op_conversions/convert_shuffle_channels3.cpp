@@ -15,8 +15,6 @@
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertShuffleChannels3, "ConvertShuffleChannels3", 0);
-
 ngraph::pass::ConvertShuffleChannels3::ConvertShuffleChannels3() {
     MATCHER_SCOPE(ConvertShuffleChannels3);
     auto shuffle_channels = pattern::wrap_type<opset3::ShuffleChannels>();

@@ -13,8 +13,6 @@
 #include <transformations/utils/utils.hpp>
 #include <ngraph/rt_info.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertOneHotToOneHotIEMatcher, "ConvertOneHotToOneHotIEMatcher", 0);
-
 ngraph::pass::ConvertOneHotToOneHotIEMatcher::ConvertOneHotToOneHotIEMatcher() {
     auto input = std::make_shared<pattern::op::Label>(element::i32, Shape{1, 1, 1, 1});
     auto depth = std::make_shared<pattern::op::Label>(element::i64, Shape{});

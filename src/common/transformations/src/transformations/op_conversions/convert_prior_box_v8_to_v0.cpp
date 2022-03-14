@@ -11,8 +11,6 @@
 
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPriorBox8To0, "ConvertPriorBox8To0", 0);
-
 ngraph::pass::ConvertPriorBox8To0::ConvertPriorBox8To0() {
     MATCHER_SCOPE(ConvertPriorBox8To0);
 

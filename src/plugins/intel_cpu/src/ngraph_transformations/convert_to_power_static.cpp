@@ -96,8 +96,6 @@ std::shared_ptr<ngraph::Node> convert(const std::shared_ptr<BaseOp> &node) {
 
 } // namespace
 
-NGRAPH_RTTI_DEFINITION(ov::intel_cpu::ConvertToPowerStatic, "ConvertToPowerStatic", 0);
-
 ov::intel_cpu::ConvertToPowerStatic::ConvertToPowerStatic() {
     ngraph::OutputVector twoInputs = {ngraph::pattern::any_input(ngraph::pattern::has_static_rank()),
                                       ngraph::pattern::any_input(ngraph::pattern::has_static_rank())};

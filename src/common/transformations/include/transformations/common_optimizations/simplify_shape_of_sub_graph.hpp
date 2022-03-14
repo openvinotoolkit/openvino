@@ -33,7 +33,7 @@ class TRANSFORMATIONS_API SimplifySecondInputOfReshape;
  */
 class ngraph::pass::SharedShapeOf : public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SharedShapeOf", "0");
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };
 
@@ -45,7 +45,7 @@ public:
  */
 class ngraph::pass::GroupedGatherElimination : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("GroupedGatherElimination", "0");
     GroupedGatherElimination();
 };
 
@@ -55,7 +55,7 @@ public:
  */
 class ngraph::pass::SimplifyShapeOfSubGraph : public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SimplifyShapeOfSubGraph", "0");
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };
 
@@ -65,7 +65,7 @@ public:
  */
 class ngraph::pass::GatherNopElimination : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("GatherNopElimination", "0");
     GatherNopElimination();
 };
 
@@ -77,7 +77,7 @@ public:
  */
 class ngraph::pass::SimplifyGatherShapeOf : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SimplifyGatherShapeOf", "0");
     SimplifyGatherShapeOf();
 };
 
@@ -88,6 +88,6 @@ public:
  */
 class ngraph::pass::SimplifySecondInputOfReshape : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SimplifySecondInputOfReshape", "0");
     SimplifySecondInputOfReshape();
 };

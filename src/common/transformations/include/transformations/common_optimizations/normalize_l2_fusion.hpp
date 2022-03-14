@@ -27,6 +27,6 @@ class TRANSFORMATIONS_API NormalizeL2Fusion;
  */
 class ngraph::pass::NormalizeL2Fusion : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("NormalizeL2Fusion", "0");
     NormalizeL2Fusion();
 };

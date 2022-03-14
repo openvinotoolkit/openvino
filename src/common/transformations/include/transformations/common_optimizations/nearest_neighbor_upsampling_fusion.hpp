@@ -25,6 +25,6 @@ class TRANSFORMATIONS_API NearestNeighborUpsamplingFusion;
  */
 class ngraph::pass::NearestNeighborUpsamplingFusion : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("NearestNeighborUpsamplingFusion", "0");
     NearestNeighborUpsamplingFusion();
 };

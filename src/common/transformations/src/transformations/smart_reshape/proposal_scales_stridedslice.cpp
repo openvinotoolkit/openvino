@@ -37,8 +37,6 @@ bool crop_scales_for_proposal(const ngraph::pattern::PatternValueMap& pattern_to
 
 }  // namespace
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::Proposal1Scales, "Proposal1Scales", 0);
-
 ngraph::pass::Proposal1Scales::Proposal1Scales() {
     // TODO: enable conditional compile
     // MATCHER_SCOPE(Proposal1Scales);
@@ -64,8 +62,6 @@ ngraph::pass::Proposal1Scales::Proposal1Scales() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(proposal_label /*, matcher_name */);
     register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::Proposal4Scales, "Proposal4Scales", 0);
 
 ngraph::pass::Proposal4Scales::Proposal4Scales() {
     // TODO: enable conditional compile

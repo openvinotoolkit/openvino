@@ -11,8 +11,6 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPadToLegacyMatcher, "ConvertPadToLegacyMatcher", 0);
-
 ngraph::pass::ConvertPadToLegacyMatcher::ConvertPadToLegacyMatcher() {
     auto m_pad = ngraph::pattern::wrap_type<ngraph::opset1::Pad>(pattern::has_static_shape());
 

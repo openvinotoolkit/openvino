@@ -13,8 +13,6 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 
-NGRAPH_RTTI_DEFINITION(ov::intel_cpu::MoveEltwiseUpThroughDataMov, "MoveEltwiseUpThroughDataMov", 0);
-
 namespace {
     bool is_data_movement_operation(const std::shared_ptr<ngraph::Node>& node) {
         return ov::is_type<ngraph::op::v0::Squeeze>(node) ||

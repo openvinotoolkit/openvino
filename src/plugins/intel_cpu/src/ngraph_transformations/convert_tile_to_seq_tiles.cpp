@@ -12,8 +12,6 @@
 
 #include <ngraph/rt_info.hpp>
 
-NGRAPH_RTTI_DEFINITION(ov::intel_cpu::ConvertTileToSeqTiles, "ConvertTileToSeqTiles", 0);
-
 ov::intel_cpu::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
     auto tile = ngraph::pattern::wrap_type<ngraph::opset1::Tile>({ngraph::pattern::any_input(ngraph::pattern::has_static_rank()),
                                                                   ngraph::pattern::wrap_type<ngraph::opset1::Constant>()});

@@ -75,7 +75,7 @@ using precisions_array = std::vector<std::pair<ngraph::element::Type, ngraph::el
 
 class ngraph::pass::ConvertPrecision : public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertPrecision", "0");
     ConvertPrecision(ngraph::element::Type_t from,
                      ngraph::element::Type_t to,
                      type_to_fuse_map additional_type_to_fuse_map = {})

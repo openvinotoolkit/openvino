@@ -13,8 +13,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::VariadicSplitTransformation, "VariadicSplitTransformation", 0);
-
 VariadicSplitTransformation::VariadicSplitTransformation(const Params& params) : SplitTransformation(params) {
     auto matcher = pattern::wrap_type<opset1::VariadicSplit>({
         pattern::wrap_type<opset1::Multiply>(),

@@ -34,6 +34,6 @@ class TRANSFORMATIONS_API WrapInterpolateIntoTransposes;
  */
 class ngraph::pass::WrapInterpolateIntoTransposes : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("WrapInterpolateIntoTransposes", "0");
     WrapInterpolateIntoTransposes();
 };

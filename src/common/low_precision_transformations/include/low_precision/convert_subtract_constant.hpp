@@ -31,6 +31,6 @@ class LP_TRANSFORMATIONS_API ConvertSubtractConstant;
  */
 class ngraph::pass::low_precision::ConvertSubtractConstant : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertSubtractConstant", "0");
     ConvertSubtractConstant(const std::vector<ngraph::element::Type>& constantPrecisions = {});
 };

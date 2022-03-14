@@ -9,8 +9,6 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/log.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::InitMasks, "InitMasks", 0);
-
 namespace ngraph {
 namespace pass {
 namespace init_masks {

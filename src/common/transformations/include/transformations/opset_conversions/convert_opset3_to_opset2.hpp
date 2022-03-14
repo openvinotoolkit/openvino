@@ -18,6 +18,6 @@ class TRANSFORMATIONS_API ConvertOpSet3ToOpSet2;
 
 class ngraph::pass::ConvertOpSet3ToOpSet2 : public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertOpSet3ToOpSet2", "0");
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };

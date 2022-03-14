@@ -20,6 +20,6 @@ class TRANSFORMATIONS_API ConvertMulticlassNmsToMulticlassNmsIE;
 
 class ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("public", "0");
     ConvertMulticlassNmsToMulticlassNmsIE(bool force_i32_output_type = true);
 };

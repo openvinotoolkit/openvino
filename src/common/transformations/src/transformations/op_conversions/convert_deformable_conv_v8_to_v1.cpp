@@ -11,8 +11,6 @@
 
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDeformableConv8To1, "ConvertDeformableConv8To1", 0);
-
 ngraph::pass::ConvertDeformableConv8To1::ConvertDeformableConv8To1() {
     MATCHER_SCOPE(ConvertDeformableConv8To1);
 

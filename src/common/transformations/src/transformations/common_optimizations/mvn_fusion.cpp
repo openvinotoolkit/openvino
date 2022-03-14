@@ -14,8 +14,6 @@
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::MVNFusion, "MVNFusion", 0);
-
 template <class T>
 std::function<bool(ngraph::Output<ngraph::Node>)> value_is_equal_to(const std::vector<T>& ref_values) {
     return [ref_values](ngraph::Output<ngraph::Node> output) -> bool {
@@ -26,8 +24,6 @@ std::function<bool(ngraph::Output<ngraph::Node>)> value_is_equal_to(const std::v
         return false;
     };
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::MVNFusionWithoutConstants, "MVNFusionWithoutConstants", 0);
 
 ngraph::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
     MATCHER_SCOPE(MVNFusionWithoutConstants);
@@ -194,8 +190,6 @@ ngraph::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(powerMulOrDiv, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::MVNFusionWithConstantsInside, "MVNFusionWithConstantsInside", 0);
 
 ngraph::pass::MVNFusionWithConstantsInside::MVNFusionWithConstantsInside() {
     MATCHER_SCOPE(MVNFusionWithConstantsInside);

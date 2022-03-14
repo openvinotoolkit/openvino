@@ -14,8 +14,6 @@
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::ConvertSubtractConstant, "ConvertSubtractConstant", 0);
-
 // Original (FP16 as example, I8 in constantPrecisions):
 //
 //   Constant

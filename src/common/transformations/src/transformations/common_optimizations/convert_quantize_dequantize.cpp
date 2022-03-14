@@ -56,8 +56,6 @@
 //                                        v
 //
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertQuantizeDequantize, "ConvertQuantizeDequantize", 0);
-
 ngraph::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
     MATCHER_SCOPE(ConvertQuantizeDequantize);
     auto data_pattern = ngraph::pattern::any_input();

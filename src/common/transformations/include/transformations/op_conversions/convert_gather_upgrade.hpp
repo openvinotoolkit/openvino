@@ -23,7 +23,7 @@ class TRANSFORMATIONS_API ConvertGather7ToGather8;
  */
 class ngraph::pass::ConvertGather1ToGather7 : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertGather1ToGather7", "0");
     ConvertGather1ToGather7();
 };
 
@@ -33,6 +33,6 @@ public:
  */
 class ngraph::pass::ConvertGather7ToGather8 : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertGather7ToGather8", "0");
     ConvertGather7ToGather8();
 };

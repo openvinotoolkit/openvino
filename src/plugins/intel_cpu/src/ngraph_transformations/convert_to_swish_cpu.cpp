@@ -9,8 +9,6 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "op/swish_cpu.hpp"
 
-NGRAPH_RTTI_DEFINITION(ov::intel_cpu::ConvertToSwishCPU, "ConvertToSwishCPU", 0);
-
 ov::intel_cpu::ConvertToSwishCPU::ConvertToSwishCPU() {
     auto swish = ngraph::pattern::wrap_type<ngraph::opset4::Swish>();
 

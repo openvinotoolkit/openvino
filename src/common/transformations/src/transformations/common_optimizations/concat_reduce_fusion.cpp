@@ -16,10 +16,6 @@
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/utils/utils.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ReplaceConcatReduceByMinOrMax, "ReplaceConcatReduceByMinOrMax", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::PullSqueezeThroughEltwise, "PullSqueezeThroughEltwise", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConcatReduceFusion, "ConcatReduceFusion", 0);
-
 namespace {
 enum class ReduceType { NONE, MAX, MIN };
 

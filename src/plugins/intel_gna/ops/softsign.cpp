@@ -12,8 +12,6 @@
 #include <cmath>
 #include <cstddef>
 
-NGRAPH_RTTI_DEFINITION(GNAPluginNS::SoftSign, "SoftSign", 0);
-
 namespace GNAPluginNS {
 
 template <typename T>

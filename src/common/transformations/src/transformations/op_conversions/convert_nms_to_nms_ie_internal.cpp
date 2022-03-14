@@ -15,8 +15,6 @@
 #include "ngraph_ops/nms_ie_internal.hpp"
 #include "transformations/utils/utils.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMSToNMSIEInternal, "ConvertNMSToNMSIEInternal", 0);
-
 ngraph::pass::ConvertNMSToNMSIEInternal::ConvertNMSToNMSIEInternal() {
     MATCHER_SCOPE(ConvertNMSToNMSIEInternal);
     auto nms = ngraph::pattern::wrap_type<ngraph::opset5::NonMaxSuppression>();

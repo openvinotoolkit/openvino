@@ -9,8 +9,6 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <transformations/rt_info/disable_constant_folding.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::DisableRandomUniformConstantFolding, "DisableRandomUniformConstantFolding", 0);
-
 ngraph::pass::DisableRandomUniformConstantFolding::DisableRandomUniformConstantFolding() {
     auto random_uniform = pattern::wrap_type<opset8::RandomUniform>();
 

@@ -13,8 +13,6 @@
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::DilatedConvolutionConverter, "DilatedConvolutionConverter", 0);
-
 ngraph::pass::DilatedConvolutionConverter::DilatedConvolutionConverter() {
     MATCHER_SCOPE(DilatedConvolutionConverter);
     auto data_pattern = pattern::any_input();

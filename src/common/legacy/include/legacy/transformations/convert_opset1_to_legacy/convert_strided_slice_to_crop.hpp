@@ -22,6 +22,6 @@ class ConvertStridedSliceToCropMatcher;
 
 class ngraph::pass::ConvertStridedSliceToCropMatcher: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertStridedSliceToCropMatcher", "0");
     ConvertStridedSliceToCropMatcher();
 };

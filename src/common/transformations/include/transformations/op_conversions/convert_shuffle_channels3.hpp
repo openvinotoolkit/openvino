@@ -19,6 +19,6 @@ class TRANSFORMATIONS_API ConvertShuffleChannels3;
 
 class ngraph::pass::ConvertShuffleChannels3 : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertShuffleChannels3", "0");
     ConvertShuffleChannels3();
 };

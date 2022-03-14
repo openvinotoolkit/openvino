@@ -27,7 +27,7 @@ class TRANSFORMATIONS_API SwishFusionWithoutBeta;
  */
 class ngraph::pass::SwishFusionWithSigmoid : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SwishFusionWithSigmoid", "0");
     SwishFusionWithSigmoid();
 };
 
@@ -37,7 +37,7 @@ public:
  */
 class ngraph::pass::SwishFusionWithSigmoidWithBeta : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SwishFusionWithSigmoidWithBeta", "0");
     SwishFusionWithSigmoidWithBeta();
 };
 
@@ -47,7 +47,7 @@ public:
  */
 class ngraph::pass::SwishFusionWithBeta : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SwishFusionWithBeta", "0");
     SwishFusionWithBeta();
 };
 
@@ -57,7 +57,7 @@ public:
  */
 class ngraph::pass::SwishFusionWithoutBeta : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SwishFusionWithoutBeta", "0");
     SwishFusionWithoutBeta();
 };
 
@@ -67,7 +67,7 @@ public:
  */
 class ngraph::pass::SwishFusion : public ngraph::pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SwishFusion", "0");
     SwishFusion() {
         add_matcher<ngraph::pass::SwishFusionWithSigmoid>();
         add_matcher<ngraph::pass::SwishFusionWithSigmoidWithBeta>();

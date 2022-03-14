@@ -17,8 +17,6 @@
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::BatchNormDecomposition, "BatchNormDecomposition", 0);
-
 ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
     MATCHER_SCOPE(BatchNormDecomposition);
     auto bn_1 = pattern::wrap_type<opset1::BatchNormInference>({pattern::any_input(pattern::has_static_shape()),

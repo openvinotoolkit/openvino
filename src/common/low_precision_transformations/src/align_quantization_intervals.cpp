@@ -13,8 +13,6 @@
 using namespace ngraph;
 using namespace ngraph::pass::low_precision;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::AlignQuantizationIntervals, "AlignQuantizationIntervals", 0);
-
 ngraph::pass::low_precision::AlignQuantizationIntervals::AlignQuantizationIntervals(const std::vector<ngraph::element::Type>& defaultPrecisions)
     : defaultPrecisions(defaultPrecisions) {}
 

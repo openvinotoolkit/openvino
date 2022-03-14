@@ -102,8 +102,6 @@ std::pair<std::shared_ptr<ngraph::opset8::Split>, uint64_t> get_split_before_con
 }
 }  // namespace
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SplitConcatPairToInterpolateFusion, "SplitConcatPairToInterpolateFusion", 0);
-
 ngraph::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFusion(bool use_shape_for_elimination) {
     MATCHER_SCOPE(SplitConcatPairToInterpolateFusion);
     // This transformation looks for Interpolate layer implemented using simple operations, namely Split and Concat,
