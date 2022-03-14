@@ -76,7 +76,7 @@ public:
         m_size = sb.st_size;
         if (m_size > 0) {
             m_data = mmap(nullptr, m_size, prot, MAP_PRIVATE, m_handle.get(), 0);
-            OPENVINO_ASSERT(m_data != MAP_FAILED, "Can not create file mapping for ", path);
+            OPENVINO_ASSERT(m_data != MAP_FAILED, "Can not create file mapping for ", path, ", err=", strerror(errno));
         } else {
             m_data = MAP_FAILED;
         }

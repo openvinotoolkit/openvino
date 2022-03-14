@@ -200,7 +200,7 @@ void ov::op::v0::Constant::allocate_buffer() {
 
 ov::op::v0::Constant::Constant(const element::Type& type, const ov::Shape& shape, const void* data)
     : Constant(type, shape) {
-    size_t size = ceil(shape_size(m_shape) * m_element_type.bitwidth() / 8.f);
+    size_t size = std::ceil(shape_size(m_shape) * m_element_type.bitwidth() / 8.L);
     std::memcpy(get_data_ptr_nc(), data, size);
 }
 
