@@ -30,7 +30,7 @@ class TRANSFORMATIONS_API BidirectionalRNNSequenceDecomposition;
 
 class ngraph::pass::BidirectionalLSTMSequenceDecomposition : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("BidirectionalLSTMSequenceDecomposition", "0");
     BidirectionalLSTMSequenceDecomposition();
 };
 
@@ -42,7 +42,7 @@ public:
 
 class ngraph::pass::BidirectionalGRUSequenceDecomposition : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("BidirectionalGRUSequenceDecomposition", "0");
     BidirectionalGRUSequenceDecomposition();
 };
 
@@ -54,7 +54,7 @@ public:
 
 class ngraph::pass::BidirectionalRNNSequenceDecomposition : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("BidirectionalRNNSequenceDecomposition", "0");
     BidirectionalRNNSequenceDecomposition();
 };
 
@@ -66,7 +66,7 @@ public:
 
 class ngraph::pass::BidirectionalSequenceDecomposition : public ngraph::pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("BidirectionalSequenceDecomposition", "0");
     BidirectionalSequenceDecomposition() {
         add_matcher<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
         add_matcher<ngraph::pass::BidirectionalGRUSequenceDecomposition>();
