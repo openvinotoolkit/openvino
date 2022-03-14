@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <array>
+
 #include "intel_gpu/plugin/program.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 
