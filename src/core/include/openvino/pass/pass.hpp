@@ -108,5 +108,28 @@ private:
     bool call_on_model{false};
 };
 
+class OPENVINO_API Base {
+public:
+    virtual ~Base() {};
+};
+
+class OPENVINO_API TestPassBase : public Base {
+public:
+    virtual bool run_on_model(std::shared_ptr<ov::Model> model) = 0;
+};
+
+OPENVINO_API inline void check_test_pass(std::shared_ptr<PassBase> pass) {
+    std::vector<std::shared_ptr<PassBase>> passes{pass};
+
+    for (auto item : passes) {
+        if (auto p = std::dynamic_pointer_cast<ModelPass>(item)) {
+            p->run_on_model(nullptr);
+        } else {
+            std::cout << "Dynamic cast failed.\n";
+        }
+    }
+}
+
+
 }  // namespace pass
 }  // namespace ov

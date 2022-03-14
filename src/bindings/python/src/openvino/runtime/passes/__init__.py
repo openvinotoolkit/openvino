@@ -3,4 +3,5 @@
 
 # flake8: noqa
 
-from openvino.pyopenvino.passes import Manager
+from openvino.pyopenvino.passes import ModelPass, Matcher, MatcherPass, PassBase, WrapType, Serialize
+from openvino.runtime.passes.manager import Manager

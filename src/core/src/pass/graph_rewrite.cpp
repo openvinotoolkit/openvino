@@ -290,7 +290,7 @@ void ov::pass::GraphRewrite::set_pass_config(const std::shared_ptr<PassConfig>& 
 
 void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pattern::Matcher>& m,
                                              const ov::graph_rewrite_callback& callback,
-                                             const PassPropertyMask& property) {
+                                             const PassPropertyMask& property = PassProperty::CHANGE_DYNAMIC_STATE) {
     set_name(m->get_name());
     set_property(property, true);
     m_matcher = m;
@@ -306,6 +306,11 @@ void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pat
         m->clear_state();
         return false;
     };
+}
+
+void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pattern::Matcher>& m,
+                                             const ov::graph_rewrite_callback& callback) {
+    register_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }
 
 bool ov::pass::MatcherPass::apply(std::shared_ptr<ov::Node> node) {

@@ -61,6 +61,13 @@ public:
         set_property(property, true);
     }
 
+    MatcherPass(const std::shared_ptr<pattern::Matcher>& m,
+                const matcher_pass_callback & callback)
+        : PassBase() {
+        register_matcher(m, callback);
+    }
+
+
     bool apply(std::shared_ptr<ov::Node> node);
 
     template <typename T, class... Args>
@@ -88,8 +95,11 @@ public:
 
 protected:
     void register_matcher(const std::shared_ptr<pattern::Matcher>& m,
-                          const graph_rewrite_callback& callback,
-                          const PassPropertyMask& property = PassProperty::CHANGE_DYNAMIC_STATE);
+                          const matcher_pass_callback & callback,
+                          const PassPropertyMask& property);
+
+    void register_matcher(const std::shared_ptr<pattern::Matcher>& m,
+                          const matcher_pass_callback & callback);
 
 private:
     handler_callback m_handler;
