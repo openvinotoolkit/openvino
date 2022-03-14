@@ -116,7 +116,8 @@ public:
     std::shared_ptr<InferenceEngine::ICore> GetCore() const;
     ~MultiDeviceExecutableNetwork() override;
 
-    void ScheduleToWorkerInferRequest(InferenceEngine::Task, DeviceName preferred_device = "");
+    // return true if current schedule success, fail otherwise
+    bool ScheduleToWorkerInferRequest(InferenceEngine::Task, DeviceName preferred_device = "");
 
     static thread_local WorkerInferRequest*                     _thisWorkerInferRequest;
     // have to use the const char* ptr rather than std::string due to a bug in old gcc versions,
