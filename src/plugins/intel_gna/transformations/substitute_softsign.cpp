@@ -17,8 +17,6 @@
 
 using namespace GNAPluginNS;
 
-NGRAPH_RTTI_DEFINITION(SubstituteSoftsign, "SubstituteSoftsign", 0);
-
 using Node = std::shared_ptr<ngraph::Node>;
 
 namespace {

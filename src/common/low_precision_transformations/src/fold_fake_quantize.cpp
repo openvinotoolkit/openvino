@@ -15,8 +15,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::FoldFakeQuantizeTransformation, "FoldFakeQuantizeTransformation", 0);
-
 FoldFakeQuantizeTransformation::FoldFakeQuantizeTransformation(const Params& params) : LayerTransformation(params) {
     auto fakeQuantize = pattern::wrap_type<opset1::FakeQuantize>();
 

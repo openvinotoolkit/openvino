@@ -6,6 +6,7 @@
 #include "ngraph/ngraph.hpp"
 #include "ngraph/ops.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
+#include "openvino/util/common_util.hpp"
 #include "util/test_tools.hpp"
 
 using namespace ov;
@@ -1253,6 +1254,72 @@ TEST(pre_post_process, preprocess_memory_type_not_cleared) {
     ASSERT_EQ(f->input().get_rt_info().count(TensorInfoMemoryType::get_type_info_static()), 1);
     auto var0 = f->input().get_rt_info()[TensorInfoMemoryType::get_type_info_static()].as<TensorInfoMemoryType>().value;
     EXPECT_EQ(var0, "abc");
+}
+
+TEST(pre_post_process, preprocess_crop) {
+    auto model = create_n_inputs<1>(element::f32, PartialShape::dynamic());
+    auto p = PrePostProcessor(model);
+
+    p.input().tensor().set_shape(Shape{1, 3, 200, 400});
+    auto begin = std::vector<int>{0, 0, 50, 100};
+    auto end = std::vector<int>{1, 3, 150, 300};
+    auto begin_dump = ov::util::vector_to_string(begin);
+    auto end_dump = ov::util::vector_to_string(end);
+    p.input().preprocess().crop(begin, end);
+
+    std::stringstream dump;
+    dump << p;
+    EXPECT_TRUE(dump.str().find(begin_dump) != std::string::npos)
+        << "Dump doesn't contain begin coordinate. " << dump.str() << begin_dump;
+    EXPECT_TRUE(dump.str().find(end_dump) != std::string::npos)
+        << "Dump doesn't contain end coordinate. " << dump.str() << end_dump;
+    p.build();
+
+    // Verify that output will be {1, 3, 100, 200}
+    EXPECT_EQ(model->output().get_partial_shape(), (PartialShape{1, 3, 100, 200}));
+}
+
+TEST(pre_post_process, preprocess_crop_wrong_dims) {
+    auto model = create_n_inputs<1>(element::f32, PartialShape::dynamic());
+    auto p = PrePostProcessor(model);
+
+    p.input().tensor().set_shape(Shape{1, 3, 200, 400});
+    auto begin = std::vector<int>{0, 0, 50, 100};
+    auto end = std::vector<int>{1, 3, 150};
+    auto begin_dump = ov::util::vector_to_string(begin);
+    auto end_dump = ov::util::vector_to_string(end);
+    try {
+        p.input().preprocess().crop(begin, end);
+        FAIL() << "crop with wrong dims shall throw";
+    } catch (const ov::Exception& err) {
+        EXPECT_TRUE(std::string(err.what()).find(begin_dump) != std::string::npos) << err.what();
+        EXPECT_TRUE(std::string(err.what()).find(end_dump) != std::string::npos) << err.what();
+    } catch (...) {
+        FAIL() << "Expected ov::Exception";
+    }
+}
+
+TEST(pre_post_process, preprocess_crop_wrong_dims_not_aligned) {
+    auto model = create_n_inputs<1>(element::f32, PartialShape{1, 3, 100, 200});
+    auto p = PrePostProcessor(model);
+
+    p.input().tensor().set_shape(Shape{1, 3, 200});
+    auto begin = std::vector<int>{0, 0, 50};
+    auto end = std::vector<int>{1, 3, 150};
+    std::stringstream exp_dump, act_dump;
+    exp_dump << model->input().get_partial_shape();
+    act_dump << PartialShape{1, 3, 100};
+    try {
+        p.input().preprocess().crop(begin, end);
+        p.build();
+        FAIL() << "crop with wrong dims rank shall throw";
+    } catch (const ov::Exception& err) {
+        EXPECT_TRUE(std::string(err.what()).find(exp_dump.str()) != std::string::npos) << err.what();
+        EXPECT_TRUE(std::string(err.what()).find(act_dump.str()) != std::string::npos) << err.what();
+        std::cout << err.what();
+    } catch (...) {
+        FAIL() << "Expected ov::Exception";
+    }
 }
 
 // --- PostProcess - set/convert element type ---
