@@ -158,7 +158,7 @@ OpenVINO 2022.1 has reorganized the libraries to make it easier for deployment. 
 Here you can find some detailed comparisons on library structure between OpenVINO 2022.1 and previous versions:
 
 * A single core library with all the functionalities (`openvino` for C++ Runtime, `openvino_c` for Inference Engine API C interface) is used in 2022.1, instead of the previous core libraries which contain `inference_engine`, `ngraph`, `inference_engine_transformations` and `inference_engine_lp_transformations`.
-* The optional `inference_engine_preproc` preprocessing library (if `InferenceEngine::PreProcessInfo::setColorFormat` or `InferenceEngine::PreProcessInfo::setResizeAlgorithm` is used) is deprecated in 2022.1. See more details on [Preprocessing capabilities of OpenVINO API 2.0](preprocessing.md).
+* The optional `inference_engine_preproc` preprocessing library (if `InferenceEngine::PreProcessInfo::setColorFormat` or `InferenceEngine::PreProcessInfo::setResizeAlgorithm` is used) is renamed as `openvino_gapi_preproc` and deprecated in 2022.1. See more details on [Preprocessing capabilities of OpenVINO API 2.0](preprocessing.md).
 * The libraries of plugins are renamed as below:
    * `openvino_intel_cpu_plugin` is used for [CPU](../supported_plugins/CPU.md) device instead of `MKLDNNPlugin` in previous versions.
    * `openvino_intel_gpu_plugin` is used for [GPU](../supported_plugins/GPU.md) device instead of `clDNNPlugin` in previous versions.
