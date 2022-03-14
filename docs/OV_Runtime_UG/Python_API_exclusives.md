@@ -4,7 +4,7 @@ OpenVINO™ Runtime Python API is exposing additional features and helpers to el
 
 ## Easier model compilation 
 
-`CompiledModel` can be easily created with helper method. It hides `Core` creation and applies `AUTO` device by default.
+`CompiledModel` can be easily created with the helper method. It hides `Core` creation and applies `AUTO` device by default.
 
 @sphinxdirective
 
@@ -16,7 +16,7 @@ OpenVINO™ Runtime Python API is exposing additional features and helpers to el
 
 ## Model/CompiledModel inputs and outputs
 
-Besides functions aligned to C++ API, some of them have their Pythonic counterparts or extensions. For the example, `Model` and `CompiledModel` inputs/outputs can be accessed via properties.
+Besides functions aligned to C++ API, some of them have their Pythonic counterparts or extensions. For example, `Model` and `CompiledModel` inputs/outputs can be accessed via properties.
 
 @sphinxdirective
 
@@ -78,9 +78,19 @@ All infer methods allow users to pass data as popular numpy arrays, gathered in 
 
 @endsphinxdirective
 
+Results from inference can be obtained in various ways:
+
+@sphinxdirective
+
+.. doxygensnippet:: docs/snippets/ov_python_exclusives.py
+    :language: python
+    :fragment: [getting_results]
+
+@endsphinxdirective
+
 ### Synchronous mode - extended
 
-Python API provides different synchronous calls to infer model, which block the application execution, calls return results of inference:
+Python API provides different synchronous calls to infer model, which block the application execution. Additionally these calls return results of inference:
 
 @sphinxdirective
 
