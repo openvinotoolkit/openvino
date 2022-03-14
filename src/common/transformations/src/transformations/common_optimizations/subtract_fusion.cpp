@@ -13,8 +13,6 @@
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SubtractFusion, "SubtractFusion", 0);
-
 ngraph::pass::SubtractFusion::SubtractFusion() {
     MATCHER_SCOPE(SubtractFusion);
     auto p_input = pattern::any_input();
