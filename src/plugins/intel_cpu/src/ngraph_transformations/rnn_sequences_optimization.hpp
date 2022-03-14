@@ -11,25 +11,25 @@ namespace intel_cpu {
 
 class OptimizeGRUSequenceTransposes : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("OptimizeGRUSequenceTransposes", "0");
     OptimizeGRUSequenceTransposes();
 };
 
 class OptimizeLSTMSequenceTransposes : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("OptimizeLSTMSequenceTransposes", "0");
     OptimizeLSTMSequenceTransposes();
 };
 
 class OptimizeRNNSequenceTransposes : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("OptimizeRNNSequenceTransposes", "0");
     OptimizeRNNSequenceTransposes();
 };
 
 class OptimizeSequenceTransposes : public ngraph::pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("OptimizeSequenceTransposes", "0");
     OptimizeSequenceTransposes();
 };
 

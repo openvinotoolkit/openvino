@@ -52,7 +52,7 @@ You can find prebuilt images on:
 
 ## <a name="prepare-dockerfile"></a>Preparing a Dockerfile
 
-You can use the [available Dockerfiles on GitHub](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate a Dockerfile with your settings via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci) which can generate a Dockerfile, build, test and deploy an image with the the Intel® Distribution of OpenVINO™ toolkit.
+You can use the [available Dockerfiles on GitHub](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate a Dockerfile with your settings via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci) which can generate a Dockerfile, build, test and deploy an image with the Intel® Distribution of OpenVINO™ toolkit.
 
 ## <a name="configure-image"></a>Configuring the Docker Image for Different Devices
 

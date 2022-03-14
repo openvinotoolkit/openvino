@@ -58,7 +58,7 @@ When comparing the OpenVINO Runtime performance with the framework or another re
 
 ## Using Tools <a name="using-tools"></a>
 
-Whether you are tuning for the first time or doing advanced performance optimization, you need a a tool that provides accurate insights. Intel&reg; VTune&trade; Amplifier gives you the tool to mine it and interpret the profiling data.
+Whether you are tuning for the first time or doing advanced performance optimization, you need a tool that provides accurate insights. Intel&reg; VTune&trade; Amplifier gives you the tool to mine it and interpret the profiling data.
 
 Alternatively, you can gather the raw profiling data that samples report, the second chapter provides example of how to interpret these.
 

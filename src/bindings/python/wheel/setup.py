@@ -27,7 +27,7 @@ WHEEL_LIBS_PACKAGE = 'openvino.libs'
 PYTHON_VERSION = f'python{sys.version_info.major}.{sys.version_info.minor}'
 
 LIBS_DIR = 'bin' if platform.system() == 'Windows' else 'lib'
-CONFIG = 'Release' if platform.system() == 'Windows' else ''
+CONFIG = 'Release' if platform.system() in {'Windows' , 'Darwin'} else ''
 
 machine = platform.machine()
 if machine == 'x86_64' or machine == 'AMD64':
@@ -428,6 +428,15 @@ def get_package_dir(install_cfg):
     return py_package_path
 
 
+def concat_files(output_file, input_files):
+    with open(output_file, 'w', encoding='utf-8') as outfile:
+        for filename in input_files:
+            with open(filename, 'r', encoding='utf-8') as infile:
+                content = infile.read()
+                outfile.write(content)
+    return output_file
+
+
 platforms = ['linux', 'win32', 'darwin']
 if not any(pl in sys.platform for pl in platforms):
     sys.exit(f'Unsupported platform: {sys.platform}, expected: linux, win32, darwin')
@@ -442,6 +451,17 @@ package_data: typing.Dict[str, list] = {}
 pkg_name = os.getenv('WHEEL_PACKAGE_NAME', 'openvino')
 ext_modules = find_prebuilt_extensions(get_dir_list(PY_INSTALL_CFG)) if pkg_name == 'openvino' else []
 
+description_md = SCRIPT_DIR.parents[3] / 'docs' / 'install_guides' / 'pypi-openvino-rt.md'
+md_files = [description_md, SCRIPT_DIR.parents[3] / 'docs' / 'install_guides' / 'pre-release-note.md']
+docs_url = 'https://docs.openvino.ai/latest/index.html'
+
+if(os.getenv('CI_BUILD_DEV_TAG')):
+    output = Path.cwd() / 'build' / 'pypi-openvino-rt.md'
+    output.parent.mkdir(exist_ok=True)
+    description_md = concat_files(output, md_files)
+    docs_url = 'https://docs.openvino.ai/nightly/index.html'
+
+
 setup(
     version=os.getenv('WHEEL_VERSION', '0.0.0'),
     build=os.getenv('WHEEL_BUILD', '000'),
@@ -451,10 +471,10 @@ setup(
     author=os.getenv('WHEEL_AUTHOR', 'Intel(R) Corporation'),
     description=os.getenv('WHEEL_DESC', 'OpenVINO(TM) Runtime'),
     install_requires=get_dependencies(os.getenv('WHEEL_REQUIREMENTS', SCRIPT_DIR.parents[0] / 'requirements.txt')),
-    long_description=get_description(os.getenv('WHEEL_OVERVIEW', SCRIPT_DIR.parents[3] / 'docs/install_guides/pypi-openvino-rt.md')),
+    long_description=get_description(os.getenv('WHEEL_OVERVIEW', description_md)),
     long_description_content_type='text/markdown',
     download_url=os.getenv('WHEEL_DOWNLOAD_URL', 'https://github.com/openvinotoolkit/openvino/tags'),
-    url=os.getenv('WHEEL_URL', 'https://docs.openvino.ai/latest/index.html'),
+    url=os.getenv('WHEEL_URL', docs_url),
     cmdclass={
         'build': CustomBuild,
         'install': CustomInstall,

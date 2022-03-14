@@ -631,7 +631,7 @@ void regclass_graph_Model(py::module m) {
 
                     Return -1 if parameter not matched.
 
-                    :param parameter: Parameter which index is to be found.
+                    :param parameter: Parameter, which index is to be found.
                     :type parameter: op.Parameter
                     :return: Index for parameter
                     :rtype: int
