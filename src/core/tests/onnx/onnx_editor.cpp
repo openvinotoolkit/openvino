@@ -14,6 +14,7 @@
 #include "ngraph/opsets/opset1.hpp"
 #include "onnx_import/onnx.hpp"
 #include "onnx_test_util.hpp"
+#include "openvino/util/file_util.hpp"
 #include "util/test_control.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
@@ -43,6 +44,26 @@ std::shared_ptr<op::v0::Parameter> find_input(const ParameterVector& inputs, con
     return *input_pos;
 }
 }  // namespace
+
+inline std::string get_extension_path() {
+    return ov::util::make_plugin_library_name<char>({}, std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
+}
+
+// TODO: remove this test after enabling ov_onnx_frontend_tests in CI
+TEST(FrontEndOpExtensionTest, load_identity_from_library) {
+    ov::Core core;
+    core.add_extension(get_extension_path());
+    auto model = core.read_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/identity.onnx"));
+    bool has_identiry(false);
+    for (const auto& op : model->get_ops()) {
+        std::string name = op->get_type_info().name;
+        std::string version = op->get_type_info().version_id;
+        if (name == "Identity" && version == "extension")
+            has_identiry = true;
+    }
+    EXPECT_TRUE(has_identiry);
+    EXPECT_EQ(3, model->get_ops().size());
+}
 
 NGRAPH_TEST(onnx_editor, types__single_input_type_substitution) {
     // the original model contains 2 inputs with i64 data type and one f32 input
