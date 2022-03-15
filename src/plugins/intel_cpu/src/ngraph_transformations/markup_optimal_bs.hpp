@@ -9,7 +9,25 @@
 namespace ov {
 namespace intel_cpu {
 
-class MarkupOptimalBS: public ov::pass::MatcherPass {
+class MarkupConvolutionOptimalBS: public ov::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    MarkupConvolutionOptimalBS();
+};
+
+class MarkupGroupConvolutionOptimalBS : public ov::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    MarkupGroupConvolutionOptimalBS();
+};
+
+class MarkupFullyConnectedOptimalBS : public ov::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    MarkupFullyConnectedOptimalBS();
+};
+
+class MarkupOptimalBS : public ov::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
     MarkupOptimalBS();
