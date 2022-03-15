@@ -33,6 +33,7 @@ namespace memory {
  */
 template<class Allocator = std::allocator<uint8_t>>
 class GNAMemory : public GNAMemRequestsQueue {
+protected:
     std::vector<MemRequest> _future_heap;
     std::list<std::vector<char>> _local_storage;
     size_t _total = 0;
