@@ -23,7 +23,7 @@ These are common performance tricks that help both latency and throughput scenar
 
  Similarly, the _model-level_ optimizations like [quantization that unlocks the int8 inference](../OV_Runtime_UG/Int8Inference.md) are general and help any scenario. As referenced in the parent topic, these are covered in the [dedicated document](./model_optimization_guide.md). Additionally, the  `ov::hint::inference_precision` allows the devices to trade the accuracy for the performance at the _runtime_ (e.g. by allowing the fp16/bf16 execution for the layers that remain in fp32 after quantization of the original fp32 model). 
  
-The rest of the document explains how to optimize your _runtime_ performance. Please also consider [matrix support of the features by the individual devices](../OV_Runtime_UG/supported_plugins/Device_Plugins.md#features-support-matrix).
+The rest of the document explains how to optimize your _runtime_ performance. Please also consider [matrix support of the features by the individual devices](../OV_Runtime_UG/supported_plugins/Device_Plugins.md).
 
 General, application-level optimizations:
  
@@ -103,7 +103,7 @@ As expected, the lowest latency is achieved with only one concurrent inference a
 However, for example, specific configurations, like multi-socket CPUs can deliver as high number of requests (at the same minimal latency) as there are NUMA nodes in the machine.
 Thus, human expertise is required to get the most out of the device even in the latency case. As explained in the next section, the only device-agnostic way to configure for the latency is [OpenVINO High-Level Performance Hints](../OV_Runtime_UG/performance_hints.md).
 
-In the case when there are multiple models to be used simultaneously, consider using different devices for inferencing the different models. Finally, when multiple models are executed in parallel on the device, using additional `ov::hint::model_priority` may help to define relative priorities of the models (please refer to the documentation on the [OpenVINO supported devices](../OV_Runtime_UG/supported_plugins/Device_Plugins.md#features-support-matrix) to check for the support of the feature by the specific device).
+In the case when there are multiple models to be used simultaneously, consider using different devices for inferencing the different models. Finally, when multiple models are executed in parallel on the device, using additional `ov::hint::model_priority` may help to define relative priorities of the models (please refer to the documentation on the [matrix features support for OpenVINO devices](../OV_Runtime_UG/supported_plugins/Device_Plugins.md) to check for the support of the feature by the specific device).
 
 ### First-Inference Latency and Model Load/Compile Time
 There are cases when model loading/compilation are heavily contributing to the end-to-end latencies.

@@ -26,7 +26,7 @@ Notice that if there are other performance factors (other than inference time) l
 ## Performance Hints: How It Works?
 Internally, every device "translates" the value of the hint to the actual performance settings.
 For example the `ov::hint::PerformanceMode::THROUGHPUT` selects number of CPU or GPU streams.
-For the GPU, additionally the optimal batch size is selected and the [automatic batching](../OV_Runtime_UG/automatic_batching.md) is applied whenever possible (and also [when the device supports that](./supported_plugins/Device_Plugins.md#features-support-matrix)).
+For the GPU, additionally the optimal batch size is selected and the [automatic batching](../OV_Runtime_UG/automatic_batching.md) is applied whenever possible (and also if the device supports that [refer to the devices/features support matrix](./supported_plugins/Device_Plugins.md)).
 
 The resulting (device-specific) settings can be queried back from the instance of the `ov:compiled_model`.  
 Notice that the `benchmark_app`, outputs the actual settings, for example:
