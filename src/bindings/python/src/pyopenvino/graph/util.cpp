@@ -37,6 +37,21 @@ void regmodule_graph_util(py::module m) {
                 :rtype: openvino.runtime.op.Constant or openvino.runtime.Node
             )");
 
+    mod.def("replace_output_update_name",
+            &ov::replace_output_update_name,
+            py::arg("output"),
+            py::arg("target_output"),
+            R"(
+                Runs an estimation of source tensor.
+
+                :param index: Output node.
+                :type index: openvino.runtime.Output
+                :return: If it succeeded to calculate both bounds and
+                         they are the same, returns Constant operation
+                         from the resulting bound, otherwise Null.
+                :rtype: openvino.runtime.op.Constant or openvino.runtime.Node
+            )");
+
     mod.def("replace_node",
             overload_cast_<const std::shared_ptr<ov::Node>&,
                            const std::shared_ptr<ov::Node>&>()(&ov::replace_node),
@@ -89,6 +104,4 @@ void regmodule_graph_util(py::module m) {
                          from the resulting bound, otherwise Null.
                 :rtype: openvino.runtime.op.Constant or openvino.runtime.Node
             )");
-
-    mod.def("check_test_pass", &ov::pass::check_test_pass);
 }

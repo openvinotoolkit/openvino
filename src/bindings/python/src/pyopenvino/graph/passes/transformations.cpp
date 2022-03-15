@@ -11,10 +11,15 @@
 #include "pyopenvino/graph/passes/transformations.hpp"
 
 void regclass_transformations(py::module m) {
-    py::class_<ov::pass::Serialize, std::shared_ptr<ov::pass::Serialize>, ov::pass::PassBase> serialize(m, "Serialize");
+    py::class_<ov::pass::Serialize, std::shared_ptr<ov::pass::Serialize>, ov::pass::ModelPass, ov::pass::PassBase> serialize(m, "Serialize");
     serialize.doc() = "openvino.impl.Serialize transformation";
     serialize.def(py::init([](const std::string & path_to_xml,
                               const std::string & path_to_bin) {
         return std::make_shared<ov::pass::Serialize>(path_to_xml, path_to_bin);
+    }));
+    serialize.def(py::init([](const std::string & path_to_xml,
+                              const std::string & path_to_bin,
+                              ov::pass::Serialize::Version version) {
+        return std::make_shared<ov::pass::Serialize>(path_to_xml, path_to_bin, version);
     }));
 }

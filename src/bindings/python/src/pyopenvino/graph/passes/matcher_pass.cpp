@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@
 #include <string>
 #include <transformations/serialize.hpp>
 
-#include "pyopenvino/graph/passes/matcher.hpp"
+#include "pyopenvino/graph/passes/matcher_pass.hpp"
 
 namespace py = pybind11;
 
@@ -64,24 +64,33 @@ void regclass_Matcher(py::module m) {
                         String to set as function's friendly name.
                  )");
 
+    matcher.def("get_name", &ov::pass::pattern::Matcher::get_name);
     matcher.def("get_match_root", &ov::pass::pattern::Matcher::get_match_root);
+    matcher.def("get_match_value", &ov::pass::pattern::Matcher::get_match_value);
+    matcher.def("get_match_nodes", &ov::pass::pattern::Matcher::get_matched_nodes);
+    matcher.def("get_match_values", static_cast<const ov::OutputVector& (ov::pass::pattern::Matcher::*)() const>(&ov::pass::pattern::Matcher::get_matched_values));
     matcher.def("get_pattern_value_map", &ov::pass::pattern::Matcher::get_pattern_value_map);
 }
 
-// WA: to expose protected method
+// Work around to expose protected methods
 class PyMatcherPass: public ov::pass::MatcherPass {
 public:
+    using ov::pass::MatcherPass::MatcherPass;
     using ov::pass::MatcherPass::register_matcher;
+
+    std::shared_ptr<ov::Node> register_new_node_(const std::shared_ptr<ov::Node>& node) {
+        return register_new_node(node);
+    }
 };
 
 void regclass_MatcherPass(py::module m) {
     py::class_<ov::pass::MatcherPass,
     std::shared_ptr<ov::pass::MatcherPass>,
     ov::pass::PassBase> matcher_pass(m, "MatcherPass");
-    matcher_pass.doc() = "openvino.impl.MatcherPass wraps ov::pass::MatcherPass";
+    matcher_pass.doc() = "openvino.runtime.passses.MatcherPass wraps ov::pass::MatcherPass";
     matcher_pass.def(py::init<>());
     matcher_pass.def(py::init([](const std::shared_ptr<ov::pass::pattern::Matcher>& m,
-                                 ov::graph_rewrite_callback callback) {
+                                 ov::matcher_pass_callback callback) {
                          return std::make_shared<ov::pass::MatcherPass>(m, callback);
                      }),
                      py::arg("m"),
@@ -99,7 +108,8 @@ void regclass_MatcherPass(py::module m) {
                     name : str
                         String to set as function's friendly name.
                  )");
-    // matcher_pass.def("register_new_node", &PyMatcherPass::register_new_node);
+    matcher_pass.def("apply", &ov::pass::MatcherPass::apply);
+    matcher_pass.def("register_new_node", &ov::pass::MatcherPass::register_new_node_);
     matcher_pass.def("register_matcher", static_cast<void (ov::pass::MatcherPass::*)(const std::shared_ptr<ov::pass::pattern::Matcher>&,
                                                                                      const ov::graph_rewrite_callback& callback)>(&PyMatcherPass::register_matcher));
 }

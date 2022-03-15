@@ -83,6 +83,10 @@ public:
         return node;
     }
 
+    std::shared_ptr<ov::Node> register_new_node_(const std::shared_ptr<ov::Node>& node) {
+        return register_new_node(node);
+    }
+
     const std::vector<std::shared_ptr<ov::Node>>& get_new_nodes() {
         return m_new_nodes;
     }
@@ -203,6 +207,13 @@ public:
             pass->set_pass_config(pass_config);
             m_matchers.push_back(matcher);
         }
+    }
+
+    std::shared_ptr<MatcherPass> add_matcher(std::shared_ptr<MatcherPass> pass) {
+        auto pass_config = get_pass_config();
+        pass->set_pass_config(pass_config);
+        m_matchers.push_back(pass);
+        return pass;
     }
 
     OPENVINO_DEPRECATED("Use MatcherPass instead")
