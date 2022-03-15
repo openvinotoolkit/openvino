@@ -17,6 +17,7 @@
 #include "gna_lib_ver_selector.hpp"
 #include "memory_solver.hpp"
 #include "gna_plugin_log.hpp"
+#include "memory/gna_allocator.hpp"
 
 #ifdef GNA_HEAP_PROFILER
 #include <iomanip>
