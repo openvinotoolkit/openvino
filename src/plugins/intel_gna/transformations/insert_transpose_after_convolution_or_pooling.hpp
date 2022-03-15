@@ -21,7 +21,7 @@ namespace GNAPluginNS {
  */
 class InsertTransposeAfterConvOrPool : public ngraph::pass::FunctionPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
+  OPENVINO_RTTI("InsertTransposeAfterConvOrPool", "0");
   bool run_on_model(const std::shared_ptr<ngraph::Function>& f) override;
 };
 

@@ -19,8 +19,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::ConvolutionTransformation, "ConvolutionTransformation", 0);
-
 ConvolutionTransformation::ConvolutionTransformation(const Params& params) : WeightableLayerTransformation(params) {
     auto matcher = ngraph::pattern::wrap_type<opset1::Convolution>({
         ngraph::pattern::wrap_type<opset1::Multiply>(),
