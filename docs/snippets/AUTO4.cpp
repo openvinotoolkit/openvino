@@ -1,10 +1,10 @@
 #include <openvino/openvino.hpp>
 
 int main() {
-	ov::Core core;
+    ov::Core core;
 
-	// Read a network in IR, PaddlePaddle, or ONNX format:
-	std::shared_ptr<ov::Model> model = core.read_model("sample.xml");
+    // Read a network in IR, PaddlePaddle, or ONNX format:
+    std::shared_ptr<ov::Model> model = core.read_model("sample.xml");
 {
 //! [part4]
 // Example 1
