@@ -17,7 +17,7 @@ std::string OVCompiledModelEmptyPropertiesTests::getTestCaseName(testing::TestPa
 void OVCompiledModelEmptyPropertiesTests::SetUp() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     device_name = this->GetParam();
-    model = ngraph::builder::subgraph::makeConvPoolRelu();
+    model = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(device_name);
 }
 
 std::string OVCompiledModelPropertiesTests::getTestCaseName(testing::TestParamInfo<PropertiesParams> obj) {
@@ -35,7 +35,7 @@ std::string OVCompiledModelPropertiesTests::getTestCaseName(testing::TestParamIn
 void OVCompiledModelPropertiesTests::SetUp() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     std::tie(device_name, properties) = this->GetParam();
-    model = ngraph::builder::subgraph::makeConvPoolRelu();
+    model = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(device_name);
 }
 
 void OVCompiledModelPropertiesTests::TearDown() {

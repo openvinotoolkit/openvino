@@ -12,8 +12,6 @@
 
 using namespace GNAPluginNS;
 
-NGRAPH_RTTI_DEFINITION(RemoveExtraReshapes, "RemoveExtraReshapes", 0);
-
 RemoveExtraReshapes::RemoveExtraReshapes() {
     MATCHER_SCOPE(RemoveExtraReshapes);
     const auto reshape = ngraph::pattern::wrap_type<ngraph::opset7::Reshape>(

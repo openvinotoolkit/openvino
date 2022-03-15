@@ -23,6 +23,6 @@ class TRANSFORMATIONS_API DivideFusion;
  */
 class ngraph::pass::DivideFusion : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("DivideFusion", "0");
     DivideFusion();
 };
