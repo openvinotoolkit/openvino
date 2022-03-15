@@ -30,29 +30,34 @@ The complete list of supported hardware is available in the [Release Notes](http
       sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
       ```
       > **NOTE**: You might need to install GnuPG: `sudo apt-get install gnupg`   
-      
-2.	Add the repository via the following command:
 
-   * On Ubuntu 18
-   ```sh
-   echo "deb https://apt.repos.intel.com/openvino/2022 bionic main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
-   ```
-   
-   * On Ubuntu 20
-   ```sh
-   echo "deb https://apt.repos.intel.com/openvino/2022 focal main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
-   ```  
+2.	Add the repository via the following command:
+    @sphinxdirective
+
+    .. tab:: Ubuntu 18
+
+        .. code-block:: sh
+
+            echo "deb https://apt.repos.intel.com/openvino/2022 bionic main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
+
+    .. tab:: Ubuntu 20
+
+        .. code-block:: sh
+
+            echo "deb https://apt.repos.intel.com/openvino/2022 focal main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
+
+    @endsphinxdirective
 
 3.	Update the list of packages via the update command:
    ```sh
    sudo apt update
    ```       
-   
+
 4.	Verify that the APT repository is properly set up. Run the apt-cache command to see a list of all available OpenVINO packages and components:
    ```sh
    apt-cache search openvino
    ```   
-   
+
 
 ### Step 2: Install OpenVINO Runtime Using the APT Package Manager
 
@@ -106,7 +111,7 @@ sudo apt autoremove openvino-<VERSION>.<UPDATE>.<PATCH>
 
 ### Step 3 (Optional): Install OpenCV from APT
 
-OpenCV is necessary to run C++ demos from Open Model Zoo. Some C++ samples and demos also use OpenCV as a dependency. OpenVINO provides a package to install OpenCV from APT:
+OpenCV is necessary to run C++ demos from Open Model Zoo. Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. OpenVINO provides a package to install OpenCV from APT:
 
 #### To Install the Latest Version of OpenCV
 
