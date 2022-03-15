@@ -125,6 +125,8 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
 
     auto eliminations = manager.register_pass<ngraph::pass::GraphRewrite>();
     eliminations->add_matcher<ngraph::pass::EliminateUnsqueezeGather>();
+    eliminations->add_matcher<ngraph::pass::EliminateUselessMul>();
+    eliminations->add_matcher<ngraph::pass::EliminateUselessDiv>();
     eliminations->add_matcher<ngraph::pass::NopElimination>(m_use_shapes /* do not use shape for elimination */);
     eliminations->set_name("ngraph::pass::CommonEliminations");
 
