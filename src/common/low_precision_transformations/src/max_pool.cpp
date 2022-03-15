@@ -16,8 +16,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MaxPoolTransformation, "MaxPoolTransformation", 0);
-
 MaxPoolTransformation::MaxPoolTransformation(const Params& params) : LayerTransformation(params) {
     auto matcher = pattern::wrap_type<opset1::MaxPool>({ pattern::wrap_type<opset1::Multiply>() });
 

@@ -13,8 +13,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::ReduceMinTransformation, "ReduceMinTransformation", 0);
-
 ReduceMinTransformation::ReduceMinTransformation(const Params& params) : ReduceBaseTransformation(params) {
     auto matcher = pattern::wrap_type<opset1::ReduceMin>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
 

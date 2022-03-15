@@ -27,7 +27,7 @@ class ConvertNMS5ToLegacyMatcher;
 
 class ngraph::pass::ConvertNMS5ToLegacyMatcher: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertNMS5ToLegacyMatcher", "0");
     ConvertNMS5ToLegacyMatcher(bool force_i32_output_type = true);
 };
 

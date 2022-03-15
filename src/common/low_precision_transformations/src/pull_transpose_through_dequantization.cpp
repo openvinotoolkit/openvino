@@ -16,8 +16,6 @@
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::PullTransposeThroughDequantization, "PullTransposeThroughDequantization", 0);
-
 namespace pull_transpose_through_dequantization {
 namespace {
 
