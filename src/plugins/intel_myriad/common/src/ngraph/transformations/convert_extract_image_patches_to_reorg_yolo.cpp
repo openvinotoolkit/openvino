@@ -10,8 +10,6 @@
 #include <memory>
 #include <vector>
 
-NGRAPH_RTTI_DEFINITION(vpu::ConvertExtractImagePatchesToReorgYolo, "ConvertExtractImagePatchesToReorgYolo", 0);
-
 namespace vpu {
 
 ConvertExtractImagePatchesToReorgYolo::ConvertExtractImagePatchesToReorgYolo() {

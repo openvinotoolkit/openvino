@@ -1,25 +1,13 @@
 # Converting a Kaldi* Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi}
 
-A summary of the steps for optimizing and deploying a model that was trained with Kaldi\*:
-
-1. [Configure the Model Optimizer](../../Deep_Learning_Model_Optimizer_DevGuide.md) for Kaldi\*.
-2. [Convert a Kaldi\* Model](#Convert_From_Kaldi) to produce an optimized [Intermediate Representation (IR)](../../IR_and_opsets.md) of the model based on the trained network topology, weights, and biases values.
-3. Test the model in the Intermediate Representation format using the [OpenVINO™ Runtime](../../../OV_Runtime_UG/openvino_intro.md) in the target environment via provided [OpenVINO Samples](../../../OV_Runtime_UG/Samples_Overview.md).
-4. [Integrate](../../../OV_Runtime_UG/Samples_Overview.md) the [OpenVINO™ Runtime](../../../OV_Runtime_UG/openvino_intro.md) in your application to deploy the model in the target environment.
-
 > **NOTE**: The Model Optimizer supports the [nnet1](http://kaldi-asr.org/doc/dnn1.html) and [nnet2](http://kaldi-asr.org/doc/dnn2.html) formats of Kaldi models. Support of the [nnet3](http://kaldi-asr.org/doc/dnn3.html) format is limited.
 
 ## Convert a Kaldi* Model <a name="Convert_From_Kaldi"></a>
+To convert a Kaldi\* model, run Model Optimizer with the path to the input model `.nnet` or `.mdl` file:
 
-To convert a Kaldi\* model, run Model Optimizer with the path to the input model `.nnet` or `.mdl` file and to an output directory where you have write permissions:
 ```sh
-mo --input_model <INPUT_MODEL>.nnet --output_dir <OUTPUT_MODEL_DIR>
+ mo --input_model <INPUT_MODEL>.nnet
 ```
-
-Two groups of parameters are available to convert your model:
-
-* Framework-agnostic parameters are used to convert a model trained with any supported framework. For details, see the General Conversion Parameters section on the [Converting a Model to Intermediate Representation (IR)](Converting_Model.md) page.
-* [Kaldi-specific parameters](#kaldi_specific_conversion_params) are used to convert only Kaldi\* models.
 
 ### Using Kaldi\*-Specific Conversion Parameters <a name="kaldi_specific_conversion_params"></a>
 
@@ -35,14 +23,14 @@ Kaldi-specific parameters:
 
 ### Examples of CLI Commands
 
-* To launch the Model Optimizer for the wsj_dnn5b_smbr model with the specified `.nnet` file and an output directory where you have write permissions:
+* To launch the Model Optimizer for the wsj_dnn5b_smbr model with the specified `.nnet` file:
    ```sh
-   mo --input_model wsj_dnn5b_smbr.nnet --output_dir <OUTPUT_MODEL_DIR>
+   mo --input_model wsj_dnn5b_smbr.nnet
    ```
 
-* To launch the Model Optimizer for the wsj_dnn5b_smbr model with existing file that contains counts for the last layer with biases and a writable output directory:
+* To launch the Model Optimizer for the wsj_dnn5b_smbr model with existing file that contains counts for the last layer with biases:
    ```sh
-   mo --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts --output_dir <OUTPUT_MODEL_DIR>
+   mo --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts
    ```
 
   * The Model Optimizer normalizes сounts in the following way:
@@ -56,12 +44,12 @@ Kaldi-specific parameters:
 	\f$|C|\f$ - number of elements in the counts array;
   * The normalized counts are subtracted from biases of the last or next to last layer (if last layer is SoftMax).
 
-  > **NOTE:** Model Optimizer will show warning if model contains counts values inside model and `--counts` option is not used.
+  > **NOTE**: Model Optimizer will show warning if model contains counts values inside model and `--counts` option is not used.
 
 * If you want to remove the last SoftMax layer in the topology, launch the Model Optimizer with the
 `--remove_output_softmax` flag:
    ```sh
-   mo --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts --remove_output_softmax --output_dir <OUTPUT_MODEL_DIR>_
+   mo --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts --remove_output_softmax
    ```
 
 The Model Optimizer finds the last layer of the topology and removes this layer only if it is a SoftMax layer.

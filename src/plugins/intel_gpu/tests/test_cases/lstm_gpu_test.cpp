@@ -390,7 +390,7 @@ void generate_lstm_topology(topology& t, memory::ptr input, memory::ptr hidden, 
         }
         output_ids_offsets.push_back(hiddenStr);
     }
-    t.add(concatenation("concatenation", output_ids_offsets, concatenation::along_f));
+    t.add(concatenation("concatenation", output_ids_offsets, 1));
 }
 
 template<typename T>
@@ -1056,7 +1056,7 @@ void lstm_gpu_users_test() {
                       { activation_func::logistic, activation_func::hyperbolic_tan, activation_func::hyperbolic_tan }, {},
                       lstm_output_selection::hidden, default_offset_type));
     std::vector<primitive_id> output_ids_offsets {"lstm", "hidden"};
-    topology.add(concatenation("concatenation", output_ids_offsets, concatenation::along_f));
+    topology.add(concatenation("concatenation", output_ids_offsets, 1));
 
     network network(engine, topology);
     std::map<primitive_id, network_output> outputs;
