@@ -289,7 +289,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'parameter, this scale ' +
                                    'is not applied for any input that does not match with ' +
                                    'the original input of the model.' +
-                                   'If both --mean and --scale  are specified, ' +
+                                   'If both --mean_values and --scale  are specified, ' +
                                    'the mean is subtracted first and then scale is applied ' +
                                    'regardless of the order of options in command line.')
     common_group.add_argument('--reverse_input_channels',
@@ -775,7 +775,7 @@ def get_all_cli_parser(frontEndManager=None):
     parser = argparse.ArgumentParser(usage='%(prog)s [options]')
 
     frameworks = list(set(['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'] +
-                          (frontEndManager.get_available_front_ends() if frontEndManager else [])))
+                          (get_available_front_ends(frontEndManager) if frontEndManager else [])))
 
     parser.add_argument('--framework',
                         help='Name of the framework used to train the input model.',
@@ -1620,3 +1620,14 @@ def get_meta_info(argv: argparse.Namespace):
         if key in meta_data:
             meta_data[key] = ','.join([os.path.join('DIR', os.path.split(i)[1]) for i in meta_data[key].split(',')])
     return meta_data
+
+
+def get_available_front_ends(fem=None):
+    # Use this function as workaround to avoid IR frontend usage by MO
+    if fem is None:
+        return []
+    available_moc_front_ends = fem.get_available_front_ends()
+    if 'ir' in available_moc_front_ends:
+        available_moc_front_ends.remove('ir')
+
+    return available_moc_front_ends
