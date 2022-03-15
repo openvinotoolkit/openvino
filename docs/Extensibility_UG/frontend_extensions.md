@@ -24,6 +24,7 @@ This section covers the case when a single operation in framework representation
 
 The next example maps ONNX operation with type [“Identity”]( https://github.com/onnx/onnx/blob/main/docs/Operators.md#Identity) to OpenVINO template extension `Identity` class.
 
+@snippet ov_extensions.cpp frontend_extension_Identity_header
 @snippet ov_extensions.cpp frontend_extension_Identity
 
 The mapping doesn’t involve any attributes, as operation Identity doesn’t have them.
@@ -91,6 +92,7 @@ The next example illustrates using `ConversionExtension` for conversion of “Th
 
 > **NOTE**: `ThresholdedRelu` is one of the standard ONNX operators which is supported by ONNX frontend natively out-of-the-box. Here we are re-implementing it to illustrate how you can add a similar support for your custom operation instead of `ThresholdedRelu`.
 
+@snippet ov_extensions.cpp frontend_extension_ThresholdedReLU_header
 @snippet ov_extensions.cpp frontend_extension_ThresholdedReLU
 
 To access original framework operation attribute value and connect to inputs, `node` object of type `NodeContext` is used. It has two main methods:

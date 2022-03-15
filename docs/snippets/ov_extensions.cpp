@@ -9,13 +9,13 @@
 #include <openvino/frontend/extension.hpp>
 //! [add_frontend_extension]
 
-//! [frontend_extension_Identity]
+//! [frontend_extension_Identity_header]
 #include <openvino/frontend/extension.hpp>
-//! [frontend_extension_Identity]
+//! [frontend_extension_Identity_header]
 
-//! [frontend_extension_ThresholdedReLU]
+//! [frontend_extension_ThresholdedReLU_header]
 #include <openvino/opsets/opset8.hpp>
-//! [frontend_extension_ThresholdedReLU]
+//! [frontend_extension_ThresholdedReLU_header]
 
 #include <identity.hpp>
 
@@ -85,11 +85,9 @@ public:
     }
 
     // ... implement other required methods
-//! [frontend_extension_CustomOperation]
+    //! [frontend_extension_CustomOperation]
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector&) const override { return nullptr; }
-//! [frontend_extension_CustomOperation]
 };
-//! [frontend_extension_CustomOperation]
 
 //! [frontend_extension_CustomOperation_as_is]
 core.add_extension(ov::frontend::OpExtension<CustomOperation>());
