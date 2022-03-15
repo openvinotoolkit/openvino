@@ -457,8 +457,8 @@ TEST(NetworkContext_CNNNetwork, HashWithDifferentResults) {
               NetworkCompilationContext::computeFasterHash(net3, {}));
 }
 
-
-TEST(NetworkContext_CNNNetwork, HashSpeed_10kNodes) {
+// Disabled just because it compares performance with computeHash, no expectations/asserts
+TEST(NetworkContext_CNNNetwork, DISABLED_HashSpeed_10kNodes) {
     auto param = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
     std::shared_ptr<Node> data = param;
     data->set_friendly_name("Parameter");
@@ -489,7 +489,8 @@ TEST(NetworkContext_CNNNetwork, HashSpeed_10kNodes) {
     std::cout << "10k Relu: Faster: " << static_cast<float>(cnt) / duration_sec << " FPS \n";
 }
 
-TEST(NetworkContext_CNNNetwork, HashSpeed_100k_rt_infos) {
+// Disabled just because it compares performance with computeHash, no expectations/asserts
+TEST(NetworkContext_CNNNetwork, DISABLED_HashSpeed_100k_rt_infos) {
     auto param = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
     std::shared_ptr<Node> data = param;
     data->set_friendly_name("Parameter");
@@ -533,8 +534,8 @@ TEST(NetworkContext_CNNNetwork, HashSpeed_100k_rt_infos) {
     std::cout << "100k_rt_infos: Faster: " << static_cast<float>(cnt) / duration_sec << " FPS \n";
 }
 
-
-TEST(NetworkContext_CNNNetwork, HashSpeed_400MB_Weights) {
+// Disabled just because it compares performance with computeHash, no expectations/asserts
+TEST(NetworkContext_CNNNetwork, DISABLED_HashSpeed_400MB_Weights) {
     auto param = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{1000, 1000});
     std::shared_ptr<Node> data = param;
     data->set_friendly_name("Parameter");
