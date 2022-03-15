@@ -221,7 +221,7 @@ TEST(split_gpu_f32, basic_split_concat_optimization) {
     }
 
     topology.add(split("split", "input", offsets));
-    topology.add(concatenation("concat", ids, concatenation::along_f));
+    topology.add(concatenation("concat", ids, 1));
     topology.add(reorder("output", "concat", format::bfyx, data_types::f32));
 
     build_options opts;
@@ -261,7 +261,7 @@ TEST(split_gpu_i64, basic_split_concat_optimization) {
     }
 
     topology.add(split("split", "input", offsets));
-    topology.add(concatenation("concat", ids, concatenation::along_f));
+    topology.add(concatenation("concat", ids, 1));
     topology.add(reorder("output", "concat", format::bfyx, data_types::i64));
 
     build_options opts;

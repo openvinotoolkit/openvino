@@ -27,7 +27,7 @@ class ngraph::pass::MOCTransformations : public ngraph::pass::FunctionPass {
     bool m_low_precision_enabled;
 
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("MOCTransformations", "0");
     /**
      * use_shapes = True enables transformations which are depends on shapes and also it
      * enables ConstantFolding for all ShapeOf operations.
