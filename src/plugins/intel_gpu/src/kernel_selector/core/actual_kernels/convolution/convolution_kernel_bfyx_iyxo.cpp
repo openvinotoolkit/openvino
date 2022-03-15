@@ -46,7 +46,7 @@ KernelsPriority ConvolutionKernel_bfyx_iyxo::GetKernelsPriority(const Params& /*
 }
 
 bool ConvolutionKernel_bfyx_iyxo::Validate(const Params& p, const optional_params& o) const {
-    if (!ConvolutionKernelBase::Validate(p, o) || !CovolutionCheckInput(p, o)) {
+    if (!ConvolutionKernelBase::Validate(p, o) || !ConvolutionCheckInput(p, o)) {
         return false;
     }
 

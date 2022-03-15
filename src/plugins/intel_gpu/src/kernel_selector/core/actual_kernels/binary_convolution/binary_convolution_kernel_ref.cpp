@@ -75,7 +75,7 @@ KernelsData BinaryConvolutionKernelRef::GetKernelsData(const Params& params, con
 }
 
 bool BinaryConvolutionKernelRef::Validate(const Params& p, const optional_params& o) const {
-    if (!BinaryConvolutionKernelBase::Validate(p, o) || !CovolutionBinaryCheckInput(p, o))
+    if (!BinaryConvolutionKernelBase::Validate(p, o) || !ConvolutionBinaryCheckInput(p, o))
         return false;
 
     const auto& params = static_cast<const binary_convolution_params&>(p);

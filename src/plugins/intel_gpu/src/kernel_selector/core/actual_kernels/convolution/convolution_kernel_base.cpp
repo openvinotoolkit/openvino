@@ -213,7 +213,7 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
     }
 
     if (NeedPaddedInput()) {
-        kd.reorderInput = CovolutionUpdateInputParams(newParams);
+        kd.reorderInput = ConvolutionUpdateInputParams(newParams);
 
         if (kd.reorderInput && !options.allowInputReordering)
             return {};
@@ -321,7 +321,7 @@ static DataTensor GetConvolutionBFYXPaddedTensor(const convolution_params& cp) {
     return {dims, t.GetDType(), t.GetLayout()};
 }
 
-bool CovolutionCheckInput(const Params& p, const optional_params& o) {
+bool ConvolutionCheckInput(const Params& p, const optional_params& o) {
     const convolution_params& params = static_cast<const convolution_params&>(p);
     const convolution_optional_params& optParams = static_cast<const convolution_optional_params&>(o);
 
@@ -336,7 +336,7 @@ bool CovolutionCheckInput(const Params& p, const optional_params& o) {
     return true;
 }
 
-bool CovolutionUpdateInputParams(convolution_params& params) {
+bool ConvolutionUpdateInputParams(convolution_params& params) {
     const auto req_input = GetConvolutionBFYXPaddedTensor(params);
     const bool bProperInputDesc = CheckConvolutionPaddedInputDesc(params, req_input);
 
