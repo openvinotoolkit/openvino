@@ -96,7 +96,7 @@ sudo yum autoremove openvino-<VERSION>.<UPDATE>.<PATCH>
 
 ### Step 3 (Optional): Install OpenCV from YUM
 
-OpenCV is necessary to run C++ demos from Open Model Zoo. Some C++ samples and demos also use OpenCV as a dependency. OpenVINO provides a package to install OpenCV from YUM:
+OpenCV is necessary to run C++ demos from Open Model Zoo. Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. OpenVINO provides a package to install OpenCV from YUM:
 
 #### To Install the Latest Version of OpenCV
 
