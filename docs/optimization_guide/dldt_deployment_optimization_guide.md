@@ -23,7 +23,7 @@ These are common performance tricks that help both latency and throughput scenar
 
  Similarly, the _model-level_ optimizations like [quantization that unlocks the int8 inference](../OV_Runtime_UG/Int8Inference.md) are general and help any scenario. As referenced in the parent topic, these are covered in the [dedicated document](./model_optimization_guide.md). Additionally, the  `ov::hint::inference_precision` allows the devices to trade the accuracy for the performance at the _runtime_ (e.g. by allowing the fp16/bf16 execution for the layers that remain in fp32 after quantization of the original fp32 model). 
  
-The rest of the document explains how to optimize your _runtime_ performance.
+The rest of the document explains how to optimize your _runtime_ performance. Please also consider [matrix support of the features by the individual devices](../OV_Runtime_UG/supported_plugins/Device_Plugins.md#features-support-matrix).
 
 General, application-level optimizations:
  
@@ -105,7 +105,7 @@ Thus, human expertise is required to get the most out of the device even in the 
 In the case when there are multiple models to be used simultaneously, consider using different devices for inferencing the different models. "First-inference latency" scenario however may pose an additional limitation on the model load\compilation time, as inference accelerators (other than the CPU) usually require certain level of model compilation upon loading.
 The [model caching](../OV_Runtime_UG/Model_caching_overview.md) is a way to amortize the loading/compilation time over multiple application runs. If the model caching is not possible (as e.g. it requires write permissions for the applications), the CPU device is almost exclusively offers the fastest model load time. Also, consider using the [AUTO device](../OV_Runtime_UG/auto_device_selection.md). It allows to transparently use the CPU for inference, while the actual accelerator loads the model (upon that, the inference hot-swapping also happens automatically).
 
-Finally, when multiple models are executed in parallel on the device, using additional `ov::hint::model_priority` may help to define relative priorities of the models (please refer to the documentation on the [OpenVINO supported devices](../OV_Runtime_UG/supported_plugins/Device_Plugins.md) to check for the support of the feature by the specific device).
+Finally, when multiple models are executed in parallel on the device, using additional `ov::hint::model_priority` may help to define relative priorities of the models (please refer to the documentation on the [OpenVINO supported devices](../OV_Runtime_UG/supported_plugins/Device_Plugins.md#features-support-matrix) to check for the support of the feature by the specific device).
 
 Throughput on the other hand, is about inference scenarios in which potentially large number of inference requests are served simultaneously.
 Here, the overall application throughput can be significantly improved  with the right performance configuration.
