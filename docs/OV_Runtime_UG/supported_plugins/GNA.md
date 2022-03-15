@@ -43,7 +43,7 @@ Use the following properties to check interoperability in your application: `ov:
 
 ## Software emulation mode
 
-On platforms without GNA hardware support plugin chooses software emulation mode default. This means model will anyway run even if you don't have GNA HW within your platform.
+On platforms without GNA hardware support plugin chooses software emulation mode by default. It means, model runs even if you do not have GNA HW within your platform.
 GNA plugin enables you to switch the execution between software emulation mode and hardware execution mode after the model is loaded.
 For details, see description of the `ov::intel_gna::execution_mode` property.
 
