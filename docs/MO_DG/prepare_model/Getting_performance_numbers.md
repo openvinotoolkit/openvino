@@ -9,7 +9,7 @@ When evaluating performance of your model with the OpenVINO Runtime, you must me
 
 - Track separately the operations that happen outside the OpenVINO Runtime, like video decoding. 
 
-> **NOTE**: Some image pre-processing can be baked into the IR and accelerated. For more information, refer to [Model Optimizer Knobs Related to Performance](Additional_Optimizations.md)
+> **NOTE**: Some image pre-processing can be baked into the IR and accelerated. For more information, refer to [Embedding Preprocessing Computation](Additional_Optimizations.md)
 
 ## Tip 2. Getting Credible Performance Numbers 
 
@@ -58,7 +58,7 @@ When comparing the OpenVINO Runtime performance with the framework or another re
 
 ## Using Tools <a name="using-tools"></a>
 
-Whether you are tuning for the first time or doing advanced performance optimization, you need a a tool that provides accurate insights. Intel&reg; VTune&trade; Amplifier gives you the tool to mine it and interpret the profiling data.
+Whether you are tuning for the first time or doing advanced performance optimization, you need a tool that provides accurate insights. Intel&reg; VTune&trade; Amplifier gives you the tool to mine it and interpret the profiling data.
 
 Alternatively, you can gather the raw profiling data that samples report, the second chapter provides example of how to interpret these.
 

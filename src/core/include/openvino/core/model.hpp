@@ -42,8 +42,8 @@ class OPENVINO_API Model : public std::enable_shared_from_this<Model> {
     std::shared_ptr<void> m_shared_object;  // Frontend plugin shared object handle.
 
 public:
-    static const ::ov::DiscreteTypeInfo& get_type_info_static() {
-        static const ::ov::DiscreteTypeInfo type_info_static{"Model", 0};
+    _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() {
+        static const ::ov::DiscreteTypeInfo type_info_static{"Model", static_cast<uint64_t>(0)};
         return type_info_static;
     }
     const ::ov::DiscreteTypeInfo& get_type_info() const {
@@ -398,8 +398,8 @@ OPENVINO_API ov::Dimension get_batch(const std::shared_ptr<const ov::Model>& f);
 /// applied. Possible reason could be that layout was not set for some parameters, or batch size can't be applied to
 /// model at all
 ///
-/// \param f model where to set batch_size value
+/// \param model model where to set batch_size value
 /// \param batch_size Batch size value. For dynamic batch size, Dimension::dynamic() can be passed.
-OPENVINO_API void set_batch(const std::shared_ptr<ov::Model>& f, ov::Dimension batch_size);
+OPENVINO_API void set_batch(const std::shared_ptr<ov::Model>& model, ov::Dimension batch_size);
 
 }  // namespace ov

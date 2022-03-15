@@ -6,7 +6,7 @@ If your question is not covered by the topics below, use the [OpenVINO&trade; Su
 
 Internally, the Model Optimizer uses a protobuf library to parse and load Caffe\* models. This library requires a file grammar and a generated parser. For a Caffe fallback, the Model Optimizer uses a Caffe-generated parser for a Caffe-specific `.proto` file (which is usually located in the `src/caffe/proto` directory). So, if you have Caffe installed on your machine with Python* interface available, make sure that this is exactly the version of Caffe that was used to create the model.
 
-If you just want to experiment with the Model Optimizer and test a Python extension for working with your custom 
+If you just want to experiment with the Model Optimizer and test a Python extension for working with your custom
 layers without building Caffe, add the layer description to the `caffe.proto` file and generate a parser for it.
 
 For example, to add the description of the `CustomReshape` layer, which is an artificial layer not present in any `caffe.proto` files:
@@ -25,17 +25,17 @@ For example, to add the description of the `CustomReshape` layer, which is an ar
       optional BlobShape shape = 1; // we just use the same parameter type as some other Caffe layers
     }
 ```
-    
+
 2.  Generate a new parser:
 ```shell
 cd <SITE_PACKAGES_WITH_INSTALLED_OPENVINO>/openvino/tools/mo/front/caffe/proto
 python3 generate_caffe_pb2.py --input_proto <PATH_TO_CUSTOM_CAFFE>/src/caffe/proto/caffe.proto
 ```
 where `PATH_TO_CUSTOM_CAFFE` is the path to the root directory of custom Caffe\*.
-    
+
 3.  Now, the Model Optimizer is able to load the model into memory and start working with your extensions if there are any.
 
-However, because your model has custom layers, you must register your custom layers as custom. To learn more about it, refer to the section [Custom Layers in Model Optimizer](customize_model_optimizer/Customize_Model_Optimizer.md). 
+However, because your model has custom layers, you must register your custom layers as custom. To learn more about it, refer to the section [Custom Layers in Model Optimizer](customize_model_optimizer/Customize_Model_Optimizer.md).
 
 #### 2. How do I create a bare caffemodel, if I have only prototxt? <a name="question-2"></a>
 
@@ -48,8 +48,8 @@ net.save('<PATH_TO_PROTOTXT>/my_net.caffemodel')
 ```
 #### 3. What does the message "[ ERROR ]: Unable to create ports for node with id" mean? <a name="question-3"></a>
 
-Most likely, the Model Optimizer does not know how to infer output shapes of some layers in the given topology. 
-To lessen the scope, compile the list of layers that are custom for the Model Optimizer: present in the topology, 
+Most likely, the Model Optimizer does not know how to infer output shapes of some layers in the given topology.
+To lessen the scope, compile the list of layers that are custom for the Model Optimizer: present in the topology,
 absent in [list of supported layers](Supported_Frameworks_Layers.md) for the target framework. Then refer to available options in the corresponding section in [Custom Layers in Model Optimizer](customize_model_optimizer/Customize_Model_Optimizer.md).
 
 #### 4. What does the message "Input image of shape is larger than mean image from file" mean? <a name="question-4"></a>
@@ -100,7 +100,7 @@ message NetParameter {
 ```
 So, the input layer of the provided model must be specified in one of the following styles:
 
-*   
+*
 ```sh
 input: "data"
 input_shape
@@ -111,8 +111,8 @@ input_shape
     dim: 227
 }
 ```
-    
-*   
+
+*
 ```sh
 input: "data"
 input_shape
@@ -129,7 +129,7 @@ input_shape
      dim: 3
 }
 ```
-*   
+*
 ```sh
 layer
 {
@@ -146,7 +146,7 @@ layer
     input_param {shape: {dim: 1 dim: 3}}
 }
 ```
-*   
+*
 ```sh
 input: "data"
 input_dim: 1
@@ -252,7 +252,7 @@ Looks like you have provided only one shape for the placeholder, however there a
 
 #### 33. What does the message "The amount of input nodes for port is not equal to 1" mean? <a name="question-33"></a>
 
-This error occurs when the `SubgraphMatch.single_input_node` function is used for an input port that supplies more than one node in a sub-graph. The `single_input_node` function can be used only for ports that has a single consumer inside the matching sub-graph. When multiple nodes are connected to the port, use the `input_nodes` function or `node_by_pattern` function instead of `single_input_node`. Please, refer to [Sub-Graph Replacement in the Model Optimizer](customize_model_optimizer/Subgraph_Replacement_Model_Optimizer.md) for more details.
+This error occurs when the `SubgraphMatch.single_input_node` function is used for an input port that supplies more than one node in a sub-graph. The `single_input_node` function can be used only for ports that has a single consumer inside the matching sub-graph. When multiple nodes are connected to the port, use the `input_nodes` function or `node_by_pattern` function instead of `single_input_node`. Please, refer to **Graph Transformation Extensions** section in the [Model Optimizer Extensibility](customize_model_optimizer/Customize_Model_Optimizer.md) documentation for more details.
 
 #### 34. What does the message "Output node for port has already been specified" mean? <a name="question-34"></a>
 
@@ -350,7 +350,7 @@ You cannot specify the batch and the input shape at the same time. You should sp
 
 The specified input shape cannot be parsed. Please, define it in one of the following ways:
 
-*   
+*
 ```shell
  mo --input_model <INPUT_MODEL>.caffemodel --input_shape (1,3,227,227)
 ```
@@ -447,7 +447,7 @@ This message may appear when the `--data_type=FP16` command line option is used.
 
 #### 78. What does the message "The amount of nodes matched pattern ... is not equal to 1" mean? <a name="question-78"></a>
 
-This error occurs when the `SubgraphMatch.node_by_pattern` function is used with a pattern that does not uniquely identify a single node in a sub-graph. Try to extend the pattern string to make unambiguous match to a single sub-graph node. For more details, refer to [Sub-graph Replacement in the Model Optimizer](customize_model_optimizer/Subgraph_Replacement_Model_Optimizer.md).
+This error occurs when the `SubgraphMatch.node_by_pattern` function is used with a pattern that does not uniquely identify a single node in a sub-graph. Try to extend the pattern string to make unambiguous match to a single sub-graph node. For more details, refer to **Graph Transformation Extensions** section in the [Model Optimizer Extensibility](customize_model_optimizer/Customize_Model_Optimizer.md) documentation.
 
 #### 79. What does the message "The topology contains no "input" layers" mean? <a name="question-79"></a>
 
@@ -459,18 +459,18 @@ You are using an unsupported Python\* version. Use only versions 3.4 - 3.6 for t
 
 #### 81. What does the message "Arguments --nd_prefix_name, --pretrained_model_name and --input_symbol should be provided. Please provide all or do not use any." mean? <a name="question-81"></a>
 
-This error occurs if you do not provide `--nd_prefix_name`, `--pretrained_model_name` and `--input_symbol` parameters. 
-Model Optimizer requires both `.params` and `.nd` model files to merge into the result file (`.params`). Topology 
+This error occurs if you do not provide `--nd_prefix_name`, `--pretrained_model_name` and `--input_symbol` parameters.
+Model Optimizer requires both `.params` and `.nd` model files to merge into the result file (`.params`). Topology
 description (`.json` file) should be prepared (merged) in advance and provided with `--input_symbol` parameter.
 
-If you add to your model additional layers and weights that are in `.nd` files, the Model Optimizer can build a model 
+If you add to your model additional layers and weights that are in `.nd` files, the Model Optimizer can build a model
 from one `.params` file and two additional `.nd` files (`*_args.nd`, `*_auxs.nd`).
 To do that, provide both CLI options or do not pass them if you want to convert an MXNet model without additional weights.
 For more information, refer to [Converting a MXNet* Model](convert_model/Convert_Model_From_MxNet.md).
 
 #### 82. What does the message "You should specify input for mean/scale values" mean? <a name="question-82"></a>
 
-In case when the model has multiple inputs and you want to provide mean/scale values, you need to pass those values for each input. More specifically, a number of passed values should be the same as the number of inputs of the model. 
+In case when the model has multiple inputs and you want to provide mean/scale values, you need to pass those values for each input. More specifically, a number of passed values should be the same as the number of inputs of the model.
 For more information, refer to [Converting a Model to Intermediate Representation](convert_model/Converting_Model.md).
 
 #### 83. What does the message "Input with name ... not found!" mean? <a name="question-83"></a>
@@ -490,7 +490,7 @@ For more information, refer to [Converting a MXNet* Model](convert_model/Convert
 
 #### 86. What does the message "Operation ... not supported. Please register it as custom op" mean? <a name="question-86"></a>
 
-Model Optimizer tried to load the model that contains some unsupported operations. 
+Model Optimizer tried to load the model that contains some unsupported operations.
 If you want to convert model that contains unsupported operations you need to prepare extension for all such operations.
 For more information, refer to [OpenVINO™ Extensibility Mechanism](../../Extensibility_UG/Intro.md).
 
@@ -499,7 +499,7 @@ For more information, refer to [OpenVINO™ Extensibility Mechanism](../../Exten
 This error appears if the class of implementation of op for Python Caffe layer could not be used by Model Optimizer. Python layers should be handled differently compared to ordinary Caffe layers.
 
 In particular, you need to call the function `register_caffe_python_extractor` and pass `name` as the second argument of the function.
-The name should be the compilation of the layer name and the module name separated by a dot. 
+The name should be the compilation of the layer name and the module name separated by a dot.
 
 For example, your topology contains this layer with type `Python`:
 
@@ -520,7 +520,7 @@ What you do first is implementing an extension for this layer in the Model Optim
 ```
 class ProposalPythonExampleOp(Op):
        op = 'Proposal'
-   
+
        def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
            ...
 ```
@@ -536,25 +536,25 @@ Op.excluded_classes.append(ProposalPythonExampleOp)
 
 Note that the first call <code>register_caffe_python_extractor(ProposalPythonExampleOp, 'rpn.proposal_layer.ProposalLayer')</code> registers extension of the layer in the Model Optimizer that will be found by the specific name (mandatory to join module name and layer name): <code>rpn.proposal_layer.ProposalLayer</code>.
 
-The second call prevents Model Optimizer from using this extension as if it is an extension for 
+The second call prevents Model Optimizer from using this extension as if it is an extension for
 a layer with type `Proposal`. Otherwise, this layer can be chosen as an implementation of extension that can lead to potential issues.
 For more information, refer to the [OpenVINO™ Extensibility Mechanism](../../Extensibility_UG/Intro.md).
 
 #### 88. What does the message "Model Optimizer is unable to calculate output shape of Memory node .." mean? <a name="question-88"></a>
 
-Model Optimizer supports only `Memory` layers, in which `input_memory` goes before `ScaleShift` or `FullyConnected` layer.  
+Model Optimizer supports only `Memory` layers, in which `input_memory` goes before `ScaleShift` or `FullyConnected` layer.
 This error message means that in your model the layer after input memory is not of type `ScaleShift` or `FullyConnected`.
 This is a known limitation.
 
 #### 89. What do the messages "File ...  does not appear to be a Kaldi file (magic number does not match)", "Kaldi model should start with <Nnet> tag" mean? <a name="question-89"></a>
 
-These error messages mean that the Model Optimizer does not support your Kaldi\* model, because check sum of the model is not 
+These error messages mean that the Model Optimizer does not support your Kaldi\* model, because check sum of the model is not
 16896 (the model should start with this number) or model file does not contain tag `<Net>` as a starting one.
 Double check that you provide a path to a true Kaldi model and try again.
 
 #### 90. What do the messages "Expect counts file to be one-line file." or "Expect counts file to contain list of integers" mean? <a name="question-90"></a>
 
-These messages mean that you passed the file counts containing not one line. The count file should start with 
+These messages mean that you passed the file counts containing not one line. The count file should start with
 `[` and end with  `]`,  and integer values should be separated by space between those signs.
 
 #### 91. What does the message "Model Optimizer is not able to read Kaldi model .." mean? <a name="question-91"></a>
@@ -570,8 +570,8 @@ file is not available or does not exist. Also refer to FAQ [#90](#question-90).
 #### 93. What does the message "For legacy MXNet models Model Optimizer does not support conversion of old MXNet models (trained with 1.0.0 version of MXNet and lower) with custom layers." mean? <a name="question-93"></a>
 
 This message means that if you have model with custom layers and its json file has been generated with MXNet version
-lower than 1.0.0, Model Optimizer does not support such topologies. If you want to convert it you have to rebuild 
-MXNet with unsupported layers or generate new json with MXNet version 1.0.0 and higher. Also you need to implement 
+lower than 1.0.0, Model Optimizer does not support such topologies. If you want to convert it you have to rebuild
+MXNet with unsupported layers or generate new json with MXNet version 1.0.0 and higher. Also you need to implement
 OpenVINO extension for used custom layers.
 For more information, refer to the [OpenVINO™ Extensibility Mechanism](../../Extensibility_UG/Intro.md).
 
@@ -581,22 +581,22 @@ Model Optimizer supports only straightforward models without cycles.
 
 There are multiple ways to avoid cycles:
 
-For Tensorflow: 
+For Tensorflow:
 * [Convert models, created with TensorFlow Object Detection API](convert_model/tf_specific/Convert_Object_Detection_API_Models.md)
 
-For all frameworks: 
-1. [Replace cycle containing Sub-graph in Model Optimizer](customize_model_optimizer/Subgraph_Replacement_Model_Optimizer.md)
+For all frameworks:
+1. [Replace cycle containing Sub-graph in Model Optimizer](customize_model_optimizer/Customize_Model_Optimizer.md)
 2. [OpenVINO™ Extensibility Mechanism](../../Extensibility_UG/Intro.md)
 
 or
-* Edit network in original framework to exclude cycle.
+* Edit model in original framework to exclude cycle.
 
 #### 98. What does the message "Can not transpose attribute '..' with value .. for node '..' .." mean?  <a name="question-98"></a>
 
 This message means that model is not supported. It may be caused by using shapes larger than 4-D.
 There are two ways to avoid such message:
 
-1. [Cut model part containing such layers in Model Optimizer](convert_model/Cutting_Model.md) 
+1. [Cutting Off Parts of a Model](convert_model/Cutting_Model.md)
 2. Edit network in original framework to exclude such layers.
 
 #### 99. What does the message "Expected token `</ParallelComponent>`, has `...`" mean?  <a name="question-99"></a>
@@ -611,7 +611,7 @@ But there are exceptions. For example, output value of layer Interp is calculate
 
 #### 101. What does the message "Mean/scale values should ..." mean? <a name="question-101"></a>
 
-It means that your mean/scale values have wrong format. Specify mean/scale values using the form `layer_name(val1,val2,val3)`. 
+It means that your mean/scale values have wrong format. Specify mean/scale values using the form `layer_name(val1,val2,val3)`.
 You need to specify values for each input of the model. For more information, refer to [Converting a Model to Intermediate Representation](convert_model/Converting_Model.md).
 
 #### 102. What does the message "Operation _contrib_box_nms is not supported ..." mean? <a name="question-102"></a>
@@ -632,10 +632,10 @@ Note that you might have conflicts between previously installed PyPI dependencie
 
 #### 105. What does the message "The IR preparation was executed by the legacy MO path. ..." mean? <a name="question-105"></a>
 
-For the models in ONNX* format, there are two available paths of IR conversion. 
-The old one is handled by the old Python* implementation, while the new one uses new C++ frontends. 
-Starting from the 2022.1 version, the default IR conversion path for ONNX models is processed using the new ONNX frontend. 
-Certain features, such as `--extensions` and `--transformations_config`, are not yet fully supported on the new frontends. 
-For `--extensions`, the new frontends support only paths to shared libraries (.dll and .so). For `--transformations_config`, they support JSON configurations with defined library fields. 
-Inputs freezing (enabled by `--freeze_placeholder_with_value` or `--input` arguments) is not supported on the new frontends. 
+For the models in ONNX* format, there are two available paths of IR conversion.
+The old one is handled by the old Python* implementation, while the new one uses new C++ frontends.
+Starting from the 2022.1 version, the default IR conversion path for ONNX models is processed using the new ONNX frontend.
+Certain features, such as `--extensions` and `--transformations_config`, are not yet fully supported on the new frontends.
+For `--extensions`, the new frontends support only paths to shared libraries (.dll and .so). For `--transformations_config`, they support JSON configurations with defined library fields.
+Inputs freezing (enabled by `--freeze_placeholder_with_value` or `--input` arguments) is not supported on the new frontends.
 The IR conversion falls back to the old path if a user does not select any expected path of conversion explicitly (by `--use_new_frontend` or `--use_legacy_frontend` MO arguments) and unsupported pre-defined scenario is detected on the new frontend path.

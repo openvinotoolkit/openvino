@@ -4,10 +4,9 @@
 
 #pragma once
 
-#include <vector>
 #include <memory>
-
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <vector>
 
 namespace ngraph {
 namespace pass {
@@ -35,12 +34,12 @@ class NGRAPH_API Proposal4Scales;
 
 class ngraph::pass::Proposal1Scales : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("Proposal1Scales", "0");
     Proposal1Scales();
 };
 
 class ngraph::pass::Proposal4Scales : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("Proposal4Scales", "0");
     Proposal4Scales();
 };
