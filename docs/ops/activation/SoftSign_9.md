@@ -13,7 +13,7 @@
 A *SoftSign Activation Function* is a neuron activation function based on the mathematical function:
 
 \f[
-SoftSign(x) = \frac{x}-{1+|x|}
+SoftSign(x) = \frac{x}{1+|x|}
 \f]
 
 **Inputs**:
