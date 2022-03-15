@@ -6,7 +6,7 @@ The following questions and answers are related to [performance benchmarks](./pe
 New performance benchmarks are typically published on every `major.minor` release of the Intel® Distribution of OpenVINO™ toolkit.
 
 #### 2. Where can I find the models used in the performance benchmarks?
-All of the models used are included in the toolkit's [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) GitHub repository. 
+All of the models used are included in the toolkit's [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) GitHub repository.
 
 #### 3. Will there be new models added to the list used for benchmarking?
 The models used in the performance benchmarks were chosen based on general adoption and usage in deployment scenarios. We're continuing to add new models that support a diverse set of workloads and usage.
@@ -15,13 +15,13 @@ The models used in the performance benchmarks were chosen based on general adopt
 CF means Caffe*, while TF means TensorFlow*.
 
 #### 5. How can I run the benchmark results on my own?
-All of the performance benchmarks were generated using the open-sourced tool within the Intel® Distribution of OpenVINO™ toolkit called `benchmark_app`, which is available in both [C++](../../samples/cpp/benchmark_app/README.md) and [Python](../../tools/benchmark_tool/README.md). 
+All of the performance benchmarks were generated using the open-sourced tool within the Intel® Distribution of OpenVINO™ toolkit called `benchmark_app`, which is available in both [C++](../../samples/cpp/benchmark_app/README.md) and [Python](../../tools/benchmark_tool/README.md).
 
 #### 6. What image sizes are used for the classification network models?
 The image size used in the inference depends on the network being benchmarked. The following table shows the list of input sizes for each network model.
 |   **Model**																														 |   **Public Network**               |     **Task**                | **Input Size** (Height x Width)   |
 |------------------------------------------------------------------------------------------------------------------------------------|------------------------------------|-----------------------------|-----------------------------------|
-| [bert-large-uncased-whole-word-masking-squad](https://github.com/openvinotoolkit/open_model_zoo/tree/develop/models/intel/bert-large-uncased-whole-word-masking-squad-int8-0001) | BERT-large	|question / answer	|384|
+| [bert-large-uncased-whole-word-masking-squad](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/intel/bert-large-uncased-whole-word-masking-squad-int8-0001) | BERT-large	|question / answer	|384|
 | [brain-tumor-segmentation-0001-MXNET](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/brain-tumor-segmentation-0001) | brain-tumor-segmentation-0001 | semantic segmentation       | 128x128x128 |
 | [brain-tumor-segmentation-0002-CF2](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/brain-tumor-segmentation-0002)   | brain-tumor-segmentation-0002 | semantic segmentation       | 128x128x128 |
 | [deeplabv3-TF](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/deeplabv3)                                    |	DeepLab v3 Tf	                      | semantic segmentation	    | 513x513                          |
@@ -46,7 +46,7 @@ The image size used in the inference depends on the network being benchmarked. T
 | [yolo-v3-tiny-tf](https://github.com/openvinotoolkit/open_model_zoo/tree/develop/models/public/yolo-v3-tiny-tf)                 | YOLO v3 Tiny                          | object detection            | 416x416 |
 | [ssd-resnet34-1200-onnx](https://github.com/openvinotoolkit/open_model_zoo/tree/develop/models/public/ssd-resnet34-1200-onnx)   | ssd-resnet34 onnx model               | object detection            | 1200x1200 |
 | [vgg19-caffe](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/vgg19-caffe2)                         | VGG-19                                | classification              | 224x224|
- 
+
 #### 7. Where can I purchase the specific hardware used in the benchmarking?
 Intel partners with various vendors all over the world. Visit the [Intel® AI: In Production Partners & Solutions Catalog](https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/partners-solutions-catalog.html) for a list of Equipment Makers and the [Supported Devices](../OV_Runtime_UG/supported_plugins/Supported_Devices.md) documentation. You can also remotely test and run models before purchasing any hardware by using [Intel® DevCloud for the Edge](http://devcloud.intel.com/edge/).
 

@@ -1,211 +1,4 @@
-# INT8 vs FP32 Comparison on Select Networks and Platforms {#openvino_docs_performance_int8_vs_fp32}
-
-The table below illustrates the speed-up factor for the performance gain by switching from an FP32 representation of an OpenVINO™ supported model to its INT8 representation. 
-
-@sphinxdirective
-.. raw:: html
-
-    <table class="table">
-      <tr align="left">
-        <th></th>
-        <th></th>
-        <th>Intel® Core™ <br>i7-8700T</th>
-        <th>Intel® Core™ <br>i7-1185G7</th>
-        <th>Intel® Xeon® <br>W-1290P</th>
-        <th>Intel® Xeon® <br>Platinum <br>8270</th>
-      </tr>
-      <tr align="left">
-        <th>OpenVINO <br>benchmark <br>model name</th>
-        <th>Dataset</th>
-        <th colspan="4" align="center">Throughput speed-up FP16-INT8 vs FP32</th>
-      </tr>
-      <tr>
-        <td>bert-large-<br>uncased-whole-word-<br>masking-squad-0001</td>
-        <td>SQuAD</td>
-        <td>1.6</td>
-        <td>3.1</td>
-        <td>1.5</td>
-        <td>2.5</td>
-      </tr>
-      <tr>
-        <td>brain-tumor-<br>segmentation-<br>0001-MXNET</td>
-        <td>BraTS</td>
-        <td>1.6</td>
-        <td>2.0</td>
-        <td>1.8</td>
-        <td>1.8</td>
-      </tr>
-      <tr>
-        <td>deeplabv3-TF</td>
-        <td>VOC 2012<br>Segmentation</td>
-        <td>1.9</td>
-        <td>3.0</td>
-        <td>2.8</td>
-        <td>3.1</td>
-      </tr>
-      <tr>
-        <td>densenet-121-TF</td>
-        <td>ImageNet</td>
-        <td>1.8</td>
-        <td>3.5</td>
-        <td>1.9</td>
-        <td>3.8</td>
-      </tr>
-      <tr>
-        <td>facenet-<br>20180408-<br>102900-TF</td>
-        <td>LFW</td>
-        <td>2.1</td>
-        <td>3.6</td>
-        <td>2.2</td>
-        <td>3.7</td>
-      </tr>
-      <tr>
-        <td>faster_rcnn_<br>resnet50_coco-TF</td>
-        <td>MS COCO</td>
-        <td>1.9</td>
-        <td>3.7</td>
-        <td>2.0</td>
-        <td>3.4</td>
-      </tr>
-      <tr>
-        <td>inception-v3-TF</td>
-        <td>ImageNet</td>
-        <td>1.9</td>
-        <td>3.8</td>
-        <td>2.0</td>
-        <td>4.1</td>
-      </tr>
-      <tr>
-        <td>mobilenet-<br>ssd-CF</td>
-        <td>VOC2012</td>
-        <td>1.6</td>
-        <td>3.1</td>
-        <td>1.9</td>
-        <td>3.6</td>
-      </tr>
-      <tr>
-        <td>mobilenet-v2-1.0-<br>224-TF</td>
-        <td>ImageNet</td>
-        <td>1.5</td>
-        <td>2.4</td>
-        <td>1.8</td>
-        <td>3.9</td>
-      </tr>
-      <tr>
-        <td>mobilenet-v2-<br>pytorch</td>
-        <td>ImageNet</td>
-        <td>1.7</td>
-        <td>2.4</td>
-        <td>1.9</td>
-        <td>4.0</td>
-      </tr>
-      <tr>
-        <td>resnet-18-<br>pytorch</td>
-        <td>ImageNet</td>
-        <td>1.9</td>
-        <td>3.7</td>
-        <td>2.1</td>
-        <td>4.2</td>
-      </tr>
-      <tr>
-        <td>resnet-50-<br>pytorch</td>
-        <td>ImageNet</td>
-        <td>1.9</td>
-        <td>3.6</td>
-        <td>2.0</td>
-        <td>3.9</td>
-      </tr>
-      <tr>
-        <td>resnet-50-<br>TF</td>
-        <td>ImageNet</td>
-        <td>1.9</td>
-        <td>3.6</td>
-        <td>2.0</td>
-        <td>3.9</td>
-      </tr>
-      <tr>
-        <td>squeezenet1.1-<br>CF</td>
-        <td>ImageNet</td>
-        <td>1.7</td>
-        <td>3.2</td>
-        <td>1.8</td>
-        <td>3.4</td>
-      </tr>
-      <tr>
-        <td>ssd_mobilenet_<br>v1_coco-tf</td>
-        <td>VOC2012</td>
-        <td>1.8</td>
-        <td>3.1</td>
-        <td>2.0</td>
-        <td>3.6</td>
-      </tr>
-      <tr>
-        <td>ssd300-CF</td>
-        <td>MS COCO</td>
-        <td>1.8</td>
-        <td>4.2</td>
-        <td>1.9</td>
-        <td>3.9</td>
-      </tr>
-      <tr>
-        <td>ssdlite_<br>mobilenet_<br>v2-TF</td>
-        <td>MS COCO</td>
-        <td>1.7</td>
-        <td>2.5</td>
-        <td>2.4</td>
-        <td>3.5</td>
-      </tr>
-      <tr>
-        <td>yolo_v4-TF</td>
-        <td>MS COCO</td>
-        <td>1.9</td>
-        <td>3.6</td>
-        <td>2.0</td>
-        <td>3.4</td>
-      </tr>
-      <tr>
-        <td>unet-camvid-onnx-0001</td>
-        <td>MS COCO</td>
-        <td>1.7</td>
-        <td>3.9</td>
-        <td>1.7</td>
-        <td>3.7</td>
-      </tr>
-      <tr>
-        <td>ssd-resnet34-<br>1200-onnx</td>
-        <td>MS COCO</td>
-        <td>1.7</td>
-        <td>4.0</td>
-        <td>1.7</td>
-        <td>3.4</td>
-      </tr>
-      <tr>
-        <td>googlenet-v4-tf</td>
-        <td>ImageNet</td>
-        <td>1.9</td>
-        <td>3.9</td>
-        <td>2.0</td>
-        <td>4.1</td>
-      </tr>
-      <tr>
-        <td>vgg19-caffe</td>
-        <td>ImageNet</td>
-        <td>1.9</td>
-        <td>4.7</td>
-        <td>2.0</td>
-        <td>4.5</td>
-      </tr>
-      <tr>
-        <td>yolo-v3-tiny-tf</td>
-        <td>MS COCO</td>
-        <td>1.7</td>
-        <td>3.4</td>
-        <td>1.9</td>
-        <td>3.5</td>
-      </tr>
-    </table>
-
-@endsphinxdirective
+# Model Accuracy for INT8 and FP32 Precision {#openvino_docs_performance_int8_vs_fp32}
 
 The following table shows the absolute accuracy drop that is calculated as the difference in accuracy between the FP32 representation of a model and its INT8 representation.
 
@@ -434,6 +227,213 @@ The following table shows the absolute accuracy drop that is calculated as the d
         <td>0.6</td>
         <td>0.6</td>
         <td>0.02</td>
+      </tr>
+    </table>
+
+@endsphinxdirective
+
+The table below illustrates the speed-up factor for the performance gain by switching from an FP32 representation of an OpenVINO™ supported model to its INT8 representation.
+
+@sphinxdirective
+.. raw:: html
+
+    <table class="table">
+      <tr align="left">
+        <th></th>
+        <th></th>
+        <th>Intel® Core™ <br>i7-8700T</th>
+        <th>Intel® Core™ <br>i7-1185G7</th>
+        <th>Intel® Xeon® <br>W-1290P</th>
+        <th>Intel® Xeon® <br>Platinum <br>8270</th>
+      </tr>
+      <tr align="left">
+        <th>OpenVINO <br>benchmark <br>model name</th>
+        <th>Dataset</th>
+        <th colspan="4" align="center">Throughput speed-up FP16-INT8 vs FP32</th>
+      </tr>
+      <tr>
+        <td>bert-large-<br>uncased-whole-word-<br>masking-squad-0001</td>
+        <td>SQuAD</td>
+        <td>1.6</td>
+        <td>3.1</td>
+        <td>1.5</td>
+        <td>2.5</td>
+      </tr>
+      <tr>
+        <td>brain-tumor-<br>segmentation-<br>0001-MXNET</td>
+        <td>BraTS</td>
+        <td>1.6</td>
+        <td>2.0</td>
+        <td>1.8</td>
+        <td>1.8</td>
+      </tr>
+      <tr>
+        <td>deeplabv3-TF</td>
+        <td>VOC 2012<br>Segmentation</td>
+        <td>1.9</td>
+        <td>3.0</td>
+        <td>2.8</td>
+        <td>3.1</td>
+      </tr>
+      <tr>
+        <td>densenet-121-TF</td>
+        <td>ImageNet</td>
+        <td>1.8</td>
+        <td>3.5</td>
+        <td>1.9</td>
+        <td>3.8</td>
+      </tr>
+      <tr>
+        <td>facenet-<br>20180408-<br>102900-TF</td>
+        <td>LFW</td>
+        <td>2.1</td>
+        <td>3.6</td>
+        <td>2.2</td>
+        <td>3.7</td>
+      </tr>
+      <tr>
+        <td>faster_rcnn_<br>resnet50_coco-TF</td>
+        <td>MS COCO</td>
+        <td>1.9</td>
+        <td>3.7</td>
+        <td>2.0</td>
+        <td>3.4</td>
+      </tr>
+      <tr>
+        <td>inception-v3-TF</td>
+        <td>ImageNet</td>
+        <td>1.9</td>
+        <td>3.8</td>
+        <td>2.0</td>
+        <td>4.1</td>
+      </tr>
+      <tr>
+        <td>mobilenet-<br>ssd-CF</td>
+        <td>VOC2012</td>
+        <td>1.6</td>
+        <td>3.1</td>
+        <td>1.9</td>
+        <td>3.6</td>
+      </tr>
+      <tr>
+        <td>mobilenet-v2-1.0-<br>224-TF</td>
+        <td>ImageNet</td>
+        <td>1.5</td>
+        <td>2.4</td>
+        <td>1.8</td>
+        <td>3.9</td>
+      </tr>
+      <tr>
+        <td>mobilenet-v2-<br>pytorch</td>
+        <td>ImageNet</td>
+        <td>1.7</td>
+        <td>2.4</td>
+        <td>1.9</td>
+        <td>4.0</td>
+      </tr>
+      <tr>
+        <td>resnet-18-<br>pytorch</td>
+        <td>ImageNet</td>
+        <td>1.9</td>
+        <td>3.7</td>
+        <td>2.1</td>
+        <td>4.2</td>
+      </tr>
+      <tr>
+        <td>resnet-50-<br>pytorch</td>
+        <td>ImageNet</td>
+        <td>1.9</td>
+        <td>3.6</td>
+        <td>2.0</td>
+        <td>3.9</td>
+      </tr>
+      <tr>
+        <td>resnet-50-<br>TF</td>
+        <td>ImageNet</td>
+        <td>1.9</td>
+        <td>3.6</td>
+        <td>2.0</td>
+        <td>3.9</td>
+      </tr>
+      <tr>
+        <td>squeezenet1.1-<br>CF</td>
+        <td>ImageNet</td>
+        <td>1.7</td>
+        <td>3.2</td>
+        <td>1.8</td>
+        <td>3.4</td>
+      </tr>
+      <tr>
+        <td>ssd_mobilenet_<br>v1_coco-tf</td>
+        <td>VOC2012</td>
+        <td>1.8</td>
+        <td>3.1</td>
+        <td>2.0</td>
+        <td>3.6</td>
+      </tr>
+      <tr>
+        <td>ssd300-CF</td>
+        <td>MS COCO</td>
+        <td>1.8</td>
+        <td>4.2</td>
+        <td>1.9</td>
+        <td>3.9</td>
+      </tr>
+      <tr>
+        <td>ssdlite_<br>mobilenet_<br>v2-TF</td>
+        <td>MS COCO</td>
+        <td>1.7</td>
+        <td>2.5</td>
+        <td>2.4</td>
+        <td>3.5</td>
+      </tr>
+      <tr>
+        <td>yolo_v4-TF</td>
+        <td>MS COCO</td>
+        <td>1.9</td>
+        <td>3.6</td>
+        <td>2.0</td>
+        <td>3.4</td>
+      </tr>
+      <tr>
+        <td>unet-camvid-onnx-0001</td>
+        <td>MS COCO</td>
+        <td>1.7</td>
+        <td>3.9</td>
+        <td>1.7</td>
+        <td>3.7</td>
+      </tr>
+      <tr>
+        <td>ssd-resnet34-<br>1200-onnx</td>
+        <td>MS COCO</td>
+        <td>1.7</td>
+        <td>4.0</td>
+        <td>1.7</td>
+        <td>3.4</td>
+      </tr>
+      <tr>
+        <td>googlenet-v4-tf</td>
+        <td>ImageNet</td>
+        <td>1.9</td>
+        <td>3.9</td>
+        <td>2.0</td>
+        <td>4.1</td>
+      </tr>
+      <tr>
+        <td>vgg19-caffe</td>
+        <td>ImageNet</td>
+        <td>1.9</td>
+        <td>4.7</td>
+        <td>2.0</td>
+        <td>4.5</td>
+      </tr>
+      <tr>
+        <td>yolo-v3-tiny-tf</td>
+        <td>MS COCO</td>
+        <td>1.7</td>
+        <td>3.4</td>
+        <td>1.9</td>
+        <td>3.5</td>
       </tr>
     </table>
 
