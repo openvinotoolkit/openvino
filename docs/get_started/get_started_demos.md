@@ -10,9 +10,8 @@ You will perform the following steps:
 3. <a href="download-media">Download media files to run inference on.</a>
 4. <a href="run-image-classification">Run inference on the sample and see the results:</a>
     - <a href="run-image-classification">Image Classification Code Sample</a>
-    - <a href="run-security-barrier">Security Barrier Camera Demo application</a>
 
-If you installed OpenVINO™ via `pip` you need to change commands listed below. Details are listed in one of [tutorials](https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/002-openvino-api/002-openvino-api.ipynb).
+If you installed OpenVINO™ via `pip` you can quickly getting started with the product by trying these [tutorials](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks).
 
 This guide assumes you completed all installation and configuration steps. If you have not yet installed and configured the toolkit:
 
@@ -30,6 +29,13 @@ This guide assumes you completed all installation and configuration steps. If yo
    See :doc:`Install Intel® Distribution of OpenVINO™ toolkit for macOS* <openvino_docs_install_guides_installing_openvino_macos>`
   
 @endsphinxdirective
+
+## Install OpenVINO Development Tools
+
+To install OpenVINO Development Tools for working with Caffe* models use following command: 
+``` sh
+   pip install openvino-dev[caffe]
+```
 
 ## Build Samples and Demos
 
@@ -90,29 +96,26 @@ This guide uses the OpenVINO™ Model Downloader to get pre-trained models. You 
 
    .. code-block:: sh
 
-      cd /opt/intel/openvino_2021/deployment_tools/tools/model_downloader/
-      python3 info_dumper.py --print_all
+      info_dumper --print_all
 
 .. tab:: Windows
 
    .. code-block:: bat
 
-      cd <INSTALL_DIR>\deployment_tools\tools\model_downloader\
-      python info_dumper.py --print_all
+      info_dumper --print_all
 
 .. tab:: macOS
 
    .. code-block:: sh
 
-      cd /opt/intel/openvino_2021/deployment_tools/tools/model_downloader/
-      python3 info_dumper.py --print_all
+      info_dumper --print_all
 
 @endsphinxdirective
 
-### Use `grep` to list models that have a specific name pattern
+### Use 'grep' to list models that have a specific name pattern
 
 ``` sh
-   python3 info_dumper.py --print_all | grep <model_name>
+   info_dumper --print_all | grep <model_name>
 ```
 
 Use the Model Downloader to download the models to a models directory. This guide uses `<models_dir>` and `<models_name>` as placeholders for the models directory and model name:
@@ -122,20 +125,20 @@ Use the Model Downloader to download the models to a models directory. This guid
    Don't run downloader with `sudo`. It will further lead to complications
    .. code-block:: sh
 
-      python3 downloader.py --name <model_name> --output_dir <models_dir>
+      omz_downloader --name <model_name> --output_dir <models_dir>
 
 .. tab:: Windows
 
    .. code-block:: bat
 
-      python downloader.py --name <model_name> --output_dir <models_dir>
+      omz_downloader --name <model_name> --output_dir <models_dir>
 
 .. tab:: macOS
 
    Don't run downloader with `sudo`. It will further lead to complications
    .. code-block:: sh
 
-      python3 downloader.py --name <model_name> --output_dir <models_dir>
+      omz_downloader --name <model_name> --output_dir <models_dir>
 
 @endsphinxdirective
 
@@ -144,9 +147,6 @@ Download the following models to run the Image Classification Sample and Securit
 |Model Name                                     | Code Sample or Demo App                  |
 |-----------------------------------------------|------------------------------------------|
 |`squeezenet1.1`                                | Image Classification Sample              |
-|`vehicle-license-plate-detection-barrier-0106` | Security Barrier Camera Demo             |
-|`vehicle-attributes-recognition-barrier-0039`  | Security Barrier Camera Demo             |
-|`license-plate-recognition-barrier-0001`       | Security Barrier Camera Demo             |
 
 @sphinxdirective
 .. raw:: html
@@ -162,19 +162,19 @@ To download the SqueezeNet 1.1 Caffe* model to the `models` folder:
 
    .. code-block:: sh
 
-      python3 downloader.py --name squeezenet1.1 --output_dir ~/models
+      omz_downloader --name squeezenet1.1 --output_dir ~/models
 
 .. tab:: Windows
 
    .. code-block:: bat
 
-      python downloader.py --name squeezenet1.1 --output_dir C:\Users\<USER_ID>\Documents\models
+      omz_downloader --name squeezenet1.1 --output_dir C:\Users\<USER_ID>\Documents\models
 
 .. tab:: macOS
 
    .. code-block:: sh
 
-      python3 downloader.py --name squeezenet1.1 --output_dir ~/models
+      omz_downloader --name squeezenet1.1 --output_dir ~/models
 
 @endsphinxdirective
 
@@ -236,126 +236,6 @@ Your screen looks similar to this after the download and shows the paths of down
 
 @endsphinxdirective
 
-@sphinxdirective
-.. raw:: html
-
-   <div class="collapsible-section" data-title="Click for an example of downloading models for the Security Barrier Camera Demo application">
-
-@endsphinxdirective
-
-To download all three pre-trained models in FP16 precision to the `models` folder in your home folder:
-
-@sphinxdirective
-.. tab:: Linux
-
-   .. code-block:: sh
-
-      python3 downloader.py --name vehicle-license-plate-detection-barrier-0106,vehicle-attributes-recognition-barrier-0039,license-plate-recognition-barrier-0001 --output_dir ~/models --precisions FP16
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      python downloader.py --name vehicle-license-plate-detection-barrier-0106,vehicle-attributes-recognition-barrier-0039,license-plate-recognition-barrier-0001 --output_dir C:\Users\<USER_ID>\Documents\models --precisions FP16
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      python3 downloader.py --name vehicle-license-plate-detection-barrier-0106,vehicle-attributes-recognition-barrier-0039,license-plate-recognition-barrier-0001 --output_dir ~/models --precisions FP16
-
-@endsphinxdirective
-
-Your screen looks similar to this after the download:
-
-@sphinxdirective
-.. tab:: Linux
-
-   .. code-block:: sh
-
-      ################|| Downloading models ||################
-
-      ========== Downloading /home/username/models/intel/vehicle-license-plate-detection-barrier-0106/FP16/vehicle-license-plate-detection-barrier-0106.xml
-      ... 100%, 204 KB, 183949 KB/s, 0 seconds passed
-
-      ========== Downloading /home/username/models/intel/vehicle-license-plate-detection-barrier-0106/FP16/vehicle-license-plate-detection-barrier-0106.bin
-      ... 100%, 1256 KB, 3948 KB/s, 0 seconds passed
-
-      ========== Downloading /home/username/models/intel/vehicle-attributes-recognition-barrier-0039/FP16/vehicle-attributes-recognition-barrier-0039.xml
-      ... 100%, 32 KB, 133398 KB/s, 0 seconds passed
-
-      ========== Downloading /home/username/models/intel/vehicle-attributes-recognition-barrier-0039/FP16/vehicle-attributes-recognition-barrier-0039.bin
-      ... 100%, 1222 KB, 3167 KB/s, 0 seconds passed
-
-      ========== Downloading /home/username/models/intel/license-plate-recognition-barrier-0001/FP16/license-plate-recognition-barrier-0001.xml
-      ... 100%, 47 KB, 85357 KB/s, 0 seconds passed
-
-      ========== Downloading /home/username/models/intel/license-plate-recognition-barrier-0001/FP16/license-plate-recognition-barrier-0001.bin
-      ... 100%, 2378 KB, 5333 KB/s, 0 seconds passed
-
-      ################|| Post-processing ||################
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      ################|| Downloading models ||################
-
-      ========== Downloading C:\Users\username\Documents\models\intel\vehicle-license-plate-detection-barrier-0106\FP16\vehicle-license-plate-detection-barrier-0106.xml
-      ... 100%, 207 KB, 13810 KB/s, 0 seconds passed
-
-      ========== Downloading C:\Users\username\Documents\models\intel\vehicle-license-plate-detection-barrier-0106\FP16\vehicle-license-plate-detection-barrier-0106.bin
-      ... 100%, 1256 KB, 70 KB/s, 17 seconds passed
-
-      ========== Downloading C:\Users\username\Documents\models\intel\vehicle-attributes-recognition-barrier-0039\FP16\vehicle-attributes-recognition-barrier-0039.xml
-      ... 100%, 32 KB, ? KB/s, 0 seconds passed
-
-      ========== Downloading C:\Users\username\Documents\models\intel\vehicle-attributes-recognition-barrier-0039\FP16\vehicle-attributes-recognition-barrier-0039.bin
-      ... 100%, 1222 KB, 277 KB/s, 4 seconds passed
-
-      ========== Downloading C:\Users\username\Documents\models\intel\license-plate-recognition-barrier-0001\FP16\license-plate-recognition-barrier-0001.xml
-      ... 100%, 47 KB, ? KB/s, 0 seconds passed
-
-      ========== Downloading C:\Users\username\Documents\models\intel\license-plate-recognition-barrier-0001\FP16\license-plate-recognition-barrier-0001.bin
-      ... 100%, 2378 KB, 120 KB/s, 19 seconds passed
-
-      ################|| Post-processing ||################
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      ################|| Downloading models ||################
-
-      ========== Downloading /Users/username/models/intel/vehicle-license-plate-detection-barrier-0106/FP16/vehicle-license-plate-detection-barrier-0106.xml
-      ... 100%, 207 KB, 313926 KB/s, 0 seconds passed
-
-      ========== Downloading /Users/username/models/intel/vehicle-license-plate-detection-barrier-0106/FP16/vehicle-license-plate-detection-barrier-0106.bin
-      ... 100%, 1256 KB, 2552 KB/s, 0 seconds passed
-
-      ========== Downloading /Users/username/models/intel/vehicle-attributes-recognition-barrier-0039/FP16/vehicle-attributes-recognition-barrier-0039.xml
-      ... 100%, 32 KB, 172042 KB/s, 0 seconds passed
-
-      ========== Downloading /Users/username/models/intel/vehicle-attributes-recognition-barrier-0039/FP16/vehicle-attributes-recognition-barrier-0039.bin
-      ... 100%, 1222 KB, 2712 KB/s, 0 seconds passed
-
-      ========== Downloading /Users/username/models/intel/license-plate-recognition-barrier-0001/FP16/license-plate-recognition-barrier-0001.xml
-      ... 100%, 47 KB, 217130 KB/s, 0 seconds passed
-
-      ========== Downloading /Users/username/models/intel/license-plate-recognition-barrier-0001/FP16/license-plate-recognition-barrier-0001.bin
-      ... 100%, 2378 KB, 4222 KB/s, 0 seconds passed
-
-      ################|| Post-processing ||################
-
-@endsphinxdirective
-
-@sphinxdirective
-.. raw:: html
-
-   </div>
-
-@endsphinxdirective
-
 ## <a name="convert-models-to-intermediate-representation"></a>Step 2: Convert the Model with Model Optimizer
 
 In this step, your trained models are ready to run through the Model Optimizer to convert them to the IR (Intermediate Representation) format. For most model types, this is required before using the OpenVINO Runtime with the model.
@@ -368,7 +248,7 @@ OPTIONAL: `model_name.json`, `model_name.mapping`, etc.
 
 This tutorial uses the public SqueezeNet 1.1 Caffe* model to run the Image Classification Sample. See the example in the Download Models section of this page to learn how to download this model.
 
-The SqueezeNet1.1 model is downloaded in the Caffe* format. You must use the Model Optimizer to convert the model to IR. The `vehicle-license-plate-detection-barrier-0106`, `vehicle-attributes-recognition-barrier-0039`, and `license-plate-recognition-barrier-0001` models are downloaded in IR format. You don't need to use the Model Optimizer on them because they are Intel models that have previously been converted. Public models will need converting with Model Optimizer.
+The SqueezeNet1.1 model is downloaded in the Caffe* format. You must use the Model Optimizer to convert the model to IR.
 
 Create an `<ir_dir>` directory to contain the model's Intermediate Representation (IR).
 
@@ -402,22 +282,19 @@ Generic Model Optimizer script:
 
    .. code-block:: sh
 
-      cd /opt/intel/openvino/deployment_tools/model_optimizer
-      python3 mo.py --input_model <model_dir>/<model_file> --data_type <model_precision> --output_dir <ir_dir>
+      mo --input_model <model_dir>/<model_file> --data_type <model_precision> --output_dir <ir_dir>
 
 .. tab:: Windows
 
    .. code-block:: bat
 
-      cd <INSTALL_DIR>\deployment_tools\model_optimizer
-      python mo.py --input_model <model_dir>\<model_file> --data_type <model_precision> --output_dir <ir_dir>
+      mo --input_model <model_dir>\<model_file> --data_type <model_precision> --output_dir <ir_dir>
 
 .. tab:: macOS
 
    .. code-block:: sh
 
-      cd /opt/intel/openvino/deployment_tools/model_optimizer
-      python3 ./mo.py --input_model <model_dir>/<model_file> --data_type <model_precision> --output_dir <ir_dir>
+      mo --input_model <model_dir>/<model_file> --data_type <model_precision> --output_dir <ir_dir>
 
 @endsphinxdirective
 
@@ -430,22 +307,19 @@ The command with most placeholders filled in and FP16 precision:
 
    .. code-block:: sh
 
-      cd /opt/intel/openvino/deployment_tools/model_optimizer
-      python3 mo.py --input_model ~/models/public/squeezenet1.1/squeezenet1.1.caffemodel --data_type FP16 --output_dir ~/ir
+      mo --input_model ~/models/public/squeezenet1.1/squeezenet1.1.caffemodel --data_type FP16 --output_dir ~/ir
 
 .. tab:: Windows
 
    .. code-block:: bat
 
-      cd <INSTALL_DIR>\deployment_tools\model_optimizer
-      python mo.py --input_model C:\Users\<USER_ID>\Documents\models\public\squeezenet1.1\squeezenet1.1.caffemodel --data_type FP16 --output_dir C:\Users\<USER_ID>\Documents\ir
+      mo --input_model C:\Users\<USER_ID>\Documents\models\public\squeezenet1.1\squeezenet1.1.caffemodel --data_type FP16 --output_dir C:\Users\<USER_ID>\Documents\ir
 
 .. tab:: macOS
 
    .. code-block:: sh
 
-      cd /opt/intel/openvino/deployment_tools/model_optimizer
-      python3 mo.py --input_model ~/models/public/squeezenet1.1/squeezenet1.1.caffemodel --data_type FP16 --output_dir ~/ir
+      mo --input_model ~/models/public/squeezenet1.1/squeezenet1.1.caffemodel --data_type FP16 --output_dir ~/ir
 
 @endsphinxdirective
 
@@ -460,22 +334,16 @@ As an alternative, the Intel® Distribution of OpenVINO™ toolkit includes seve
 @sphinxdirective
 .. tab:: Linux
 
-   - ``/opt/intel/openvino_2021/deployment_tools/demo/car.png``
-   - ``/opt/intel/openvino_2021/deployment_tools/demo/car_1.bmp``
    - `Sample images and video <https://storage.openvinotoolkit.org/data/test_data/>`_
    - `Sample videos <https://github.com/intel-iot-devkit/sample-videos>`_
 
 .. tab:: Windows
 
-   - ``<INSTALL_DIR>\deployment_tools\demo\car.png``
-   - ``<INSTALL_DIR>\deployment_tools\demo\car_1.bmp``
    - `Sample images and video <https://storage.openvinotoolkit.org/data/test_data/>`_
    - `Sample videos <https://github.com/intel-iot-devkit/sample-videos>`_
 
 .. tab:: macOS
 
-   - ``/opt/intel/openvino_2021/deployment_tools/demo/car.png``
-   - ``/opt/intel/openvino_2021/deployment_tools/demo/car_1.bmp``
    - `Sample images and video <https://storage.openvinotoolkit.org/data/test_data/>`_
    - `Sample videos <https://github.com/intel-iot-devkit/sample-videos>`_
 
@@ -493,19 +361,19 @@ To run the **Image Classification** code sample with an input image using the IR
 
    .. code-block:: sh
 
-      source /opt/intel/openvino/bin/setupvars.sh
+      source  <INSTALL_DIR>/setupvars.sh
 
 .. tab:: Windows
 
    .. code-block:: bat
 
-      <INSTALL_DIR>\openvino\bin\setupvars.bat
+      <INSTALL_DIR>\setupvars.bat
 
 .. tab:: macOS
 
    .. code-block:: sh
 
-      source /opt/intel/openvino/bin/setupvars.sh
+      source <INSTALL_DIR>/setupvars.sh
 
 @endsphinxdirective
 
@@ -561,7 +429,7 @@ To run the **Image Classification** code sample with an input image using the IR
 
 @endsphinxdirective
 
-The following commands run the Image Classification Code Sample using the `car.png` file from the `demo` directory as an input image, the model in IR format from the `ir` directory, and on different hardware devices:
+The following commands run the Image Classification Code Sample using the [`car.png`](https://storage.openvinotoolkit.org/data/test_data/images/car.png) file as an input image, the model in IR format from the `ir` directory, and on different hardware devices:
 
    **CPU:**  
 @sphinxdirective
@@ -569,19 +437,19 @@ The following commands run the Image Classification Code Sample using the `car.p
 
    .. code-block:: sh
 
-      ./classification_sample_async -i /opt/intel/openvino/deployment_tools/demo/car.png -m ~/models/public/squeezenet1.1/ir/squeezenet1.1.xml -d CPU
+      ./classification_sample_async -i ~/Downloads/car.png -m ~/ir/squeezenet1.1.xml -d CPU
 
 .. tab:: Windows
 
    .. code-block:: bat
 
-      .\classification_sample_async.exe -i <INSTALL_DIR>\deployment_tools\demo\car.png -m C:\Users\<USER_ID>\Documents\models\public\squeezenet1.1\ir\squeezenet1.1.xml -d CPU
+      .\classification_sample_async.exe -i %USERPROFILE%\Downloads\car.png -m C:\Users\<USER_ID>\Documents\ir\squeezenet1.1.xml -d CPU
 
 .. tab:: macOS
 
    .. code-block:: sh
 
-      ./classification_sample_async -i /opt/intel/openvino/deployment_tools/demo/car.png -m ~/models/public/squeezenet1.1/ir/squeezenet1.1.xml -d CPU
+      ./classification_sample_async -i ~/Downloads/car.png -m ~/ir/squeezenet1.1.xml -d CPU
 
 @endsphinxdirective
 
@@ -594,13 +462,13 @@ The following commands run the Image Classification Code Sample using the `car.p
 
    .. code-block:: sh
 
-      ./classification_sample -i /opt/intel/openvino/deployment_tools/demo/car.png -m ~/models/public/squeezenet1.1/ir/squeezenet1.1.xml -d GPU
+      ./classification_sample_async -i ~/Downloads/car.png -m ~/ir/squeezenet1.1.xml -d GPU
 
 .. tab:: Windows
 
    .. code-block:: bat
 
-      .\classification_sample_async.exe -i <INSTALL_DIR>\deployment_tools\demo\car.png -m C:\Users\<USER_ID>\Documents\models\public\squeezenet1.1\ir\squeezenet1.1.xml -d GPU
+      .\classification_sample_async.exe -i %USERPROFILE%\Downloads\car.png -m C:\Users\<USER_ID>\Documents\ir\squeezenet1.1.xml -d GPU
 
 @endsphinxdirective
 
@@ -614,19 +482,19 @@ The following commands run the Image Classification Code Sample using the `car.p
 
    .. code-block:: sh
 
-      ./classification_sample -i /opt/intel/openvino/deployment_tools/demo/car.png -m ~/models/public/squeezenet1.1/ir/squeezenet1.1.xml -d MYRIAD
+      ./classification_sample_async -i ~/Downloads/car.png -m ~/ir/squeezenet1.1.xml -d MYRIAD
 
 .. tab:: Windows
 
    .. code-block:: bat
 
-      .\classification_sample_async.exe -i <INSTALL_DIR>\deployment_tools\demo\car.png -m C:\Users\<USER_ID>\Documents\models\public\squeezenet1.1\ir\squeezenet1.1.xml -d MYRIAD
+      .\classification_sample_async.exe -i %USERPROFILE%\Downloads\car.png -m C:\Users\<USER_ID>\Documents\ir\squeezenet1.1.xml -d MYRIAD
 
 .. tab:: macOS
 
    .. code-block:: sh
 
-      ./classification_sample -i /opt/intel/openvino/deployment_tools/demo/car.png -m ~/models/public/squeezenet1.1/ir/squeezenet1.1.xml -d MYRIAD
+      ./classification_sample_async -i ~/Downloads/car.png -m ~/ir/squeezenet1.1.xml -d MYRIAD
 
 @endsphinxdirective
 
@@ -639,7 +507,7 @@ When the sample application is complete, you see the label and confidence for th
 
       Top 10 results:
 
-      Image /opt/intel/deployment-tools/demo/car.png
+      Image /home/<userid>/Downloads/car.png
 
       classid probability label
       ------- ----------- -----
@@ -664,7 +532,7 @@ When the sample application is complete, you see the label and confidence for th
 
    Top 10 results:
 
-   Image C:\Program Files (x86)\Intel\openvino_2021\deployment_tools\demo\car.png
+   Image C:\Users\<userid>\Downloads\car.png
 
       classid probability label
       ------- ----------- -----
@@ -689,7 +557,7 @@ When the sample application is complete, you see the label and confidence for th
 
       Top 10 results:
 
-      Image /opt/intel/deployment-tools/demo/car.png
+      Image /Users/<useid>/Downloads/car.png
 
       classid probability label
       ------- ----------- -----
@@ -707,154 +575,6 @@ When the sample application is complete, you see the label and confidence for th
       [ INFO ] Execution successful
       
       [ INFO ] This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
-
-@endsphinxdirective
-
-@sphinxdirective
-.. raw:: html
-
-   </div>
-
-@endsphinxdirective
-
-### <a name="run-security-barrier"></a>Run the Security Barrier Camera Demo Application
-
-To run the **Security Barrier Camera Demo Application** using an input image on the prepared IR models:
-
-1. Set up the OpenVINO environment variables:
-@sphinxdirective
-.. tab:: Linux
-
-   .. code-block:: sh
-
-      source /opt/intel/openvino/bin/setupvars.sh
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      <INSTALL_DIR>\bin\setupvars.bat
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      source /opt/intel/openvino/bin/setupvars.sh
-
-@endsphinxdirective
-
-2. Go to the demo application build directory:
-@sphinxdirective
-.. tab:: Linux
-
-   .. code-block:: sh
-
-      cd ~/inference_engine_demos_build/intel64/Release
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      cd C:\Users\<USER_ID>\Documents\Intel\OpenVINO\inference_engine_demos_build\intel64\Release
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      cd ~/inference_engine_demos_build/intel64/Release
-
-@endsphinxdirective
-
-3. Run the demo executable, specifying the input media file, list of model IRs, and a target device for performing inference:
-@sphinxdirective
-.. tab:: Linux
-
-   .. code-block:: sh
-
-      ./security_barrier_camera_demo -i <path_to_media> -m <path_to_model>/vehicle-license-plate-detection-barrier-0106.xml -m_va <path_to_vehicle_attributes model>/vehicle-attributes-recognition-barrier-0039.xml -m_lpr <path_to_license_plate_recognition_model>/license-plate-recognition-barrier-0001.xml -d <target_device>
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      .\security_barrier_camera_demo.exe -i <path_to_media> -m <path_to_vehicle-license-plate-detection_model_xml> -m_va <path_to_vehicle_attributes_model_xml> -m_lpr <path_to_license_plate_recognition_model_xml> -d <target_device>
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      ./security_barrier_camera_demo -i <path_to_media> -m <path_to_model>/vehicle-license-plate-detection-barrier-0106.xml -m_va <path_to_vehicle_attributes model>/vehicle-attributes-recognition-barrier-0039.xml -m_lpr <path_to_license_plate_recognition_model>/license-plate-recognition-barrier-0001.xml -d <target_device>
-
-@endsphinxdirective
-
-@sphinxdirective
-.. raw:: html
-
-   <div class="collapsible-section" data-title="Click for examples of running the Security Barrier Camera demo application on different devices">
-
-@endsphinxdirective
-
-**CPU:**
-@sphinxdirective
-.. tab:: Linux
-
-   .. code-block:: sh
-
-      ./security_barrier_camera_demo -i /opt/intel/openvino/deployment_tools/demo/car_1.bmp -m <path_to_model>/vehicle-license-plate-detection-barrier-0106.xml -m_va <path_to_model>/vehicle-attributes-recognition-barrier-0039.xml -m_lpr <path_to_model>/license-plate-recognition-barrier-0001.xml -d CPU
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      .\security_barrier_camera_demo.exe -i <INSTALL_DIR>\deployment_tools\demo\car_1.bmp -m C:\Users\username\Documents\models\intel\vehicle-license-plate-detection-barrier-0106\FP16\vehicle-license-plate-detection-barrier-0106.xml -m_va C:\Users\username\Documents\models\intel\vehicle-attributes-recognition-barrier-0039\FP16\vehicle-attributes-recognition-barrier-0039.xml -m_lpr C:\Users\username\Documents\models\intel\license-plate-recognition-barrier-0001\FP16\license-plate-recognition-barrier-0001.xml -d CPU
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      ./security_barrier_camera_demo -i /opt/intel/openvino/deployment_tools/demo/car_1.bmp -m <path_to_model>/vehicle-license-plate-detection-barrier-0106.xml -m_va <path_to_model>/vehicle-attributes-recognition-barrier-0039.xml -m_lpr <path_to_model>/license-plate-recognition-barrier-0001.xml -d CPU
-
-@endsphinxdirective
-
-**GPU:**
-> **NOTE**: Running inference on Intel® Processor Graphics (GPU) requires [additional hardware configuration steps](https://docs.openvino.ai/latest/_docs_install_guides_installing_openvino_linux.html#additional-GPU-steps), as described earlier on this page. Running on GPU is not compatible with macOS*.
-
-@sphinxdirective
-.. tab:: Linux
-
-   .. code-block:: sh
-
-      ./security_barrier_camera_demo -i /opt/intel/openvino/deployment_tools/demo/car_1.bmp -m <path_to_model>/vehicle-license-plate-detection-barrier-0106.xml -m_va <path_to_model>/vehicle-attributes-recognition-barrier-0039.xml -m_lpr <path_to_model>/license-plate-recognition-barrier-0001.xml -d GPU
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      .\security_barrier_camera_demo.exe -i <INSTALL_DIR>\deployment_tools\demo\car_1.bmp -m <path_to_model>/vehicle-license-plate-detection-barrier-0106.xml -m_va <path_to_model>/vehicle-attributes-recognition-barrier-0039.xml -m_lpr <path_to_model>/license-plate-recognition-barrier-0001.xml -d GPU
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      ./security_barrier_camera_demo -i /opt/intel/openvino/deployment_tools/demo/car_1.bmp -m <path_to_model>/vehicle-license-plate-detection-barrier-0106.xml -m_va <path_to_model>/vehicle-attributes-recognition-barrier-0039.xml -m_lpr <path_to_model>/license-plate-recognition-barrier-0001.xml -d GPU
-
-@endsphinxdirective
-
-**MYRIAD:**
-> **NOTE**: Running inference on VPU devices (Intel® Movidius™ Neural Compute Stick or Intel® Neural Compute Stick 2) with the MYRIAD plugin requires     [additional hardware configuration steps](https://docs.openvino.ai/latest/_docs_install_guides_installing_openvino_linux.html#additional-NCS-steps), as described earlier on this page.
-
-@sphinxdirective
-.. tab:: Linux
-
-   .. code-block:: sh
-
-      ./security_barrier_camera_demo -i /opt/intel/openvino/deployment_tools/demo/car_1.bmp -m <path_to_model>/vehicle-license-plate-detection-barrier-0106.xml -m_va <path_to_model>/vehicle-attributes-recognition-barrier-0039.xml -m_lpr <path_to_model>/license-plate-recognition-barrier-0001.xml -d MYRIAD
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      .\security_barrier_camera_demo.exe -i <INSTALL_DIR>\deployment_tools\demo\car_1.bmp -m <path_to_model>/vehicle-license-plate-detection-barrier-0106.xml -m_va <path_to_model>/vehicle-attributes-recognition-barrier-0039.xml -m_lpr <path_to_model>/license-plate-recognition-barrier-0001.xml -d MYRIAD
 
 @endsphinxdirective
 
