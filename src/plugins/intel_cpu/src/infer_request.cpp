@@ -25,6 +25,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include <transformations/utils/utils.hpp>
 #include <ie_ngraph_utils.hpp>
+#include <ie_parallel.hpp>
 
 namespace ov {
 namespace intel_cpu {
@@ -338,10 +339,6 @@ InferRequestBase::normToInputSupportedPrec(const std::pair<const std::string, In
     }
 
     return inPrec;
-}
-
-void InferRequestBase::SetBlobsImpl(const std::string& name, const InferenceEngine::BatchedBlob::Ptr& batched_blob) {
-    _batched_inputs[name] = batched_blob;
 }
 
 /* ========================================== LegacyInferRequest ========================================== */
@@ -762,6 +759,48 @@ void InferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob:
         }
         _outputs[name] = data;
     }
+}
+
+void InferRequest::SetBlobsImpl(const std::string& name, const InferenceEngine::BatchedBlob::Ptr& batched_blob) {
+    _batched_inputs[name] = batched_blob;
+}
+
+void InferRequest::convertBatchedInputBlob(const std::string& name, const InferenceEngine::BatchedBlob::Ptr& batched_blob) {
+    auto tmp_desc = batched_blob->getBlob(0)->getTensorDesc();
+    tmp_desc.getDims()[0] = batched_blob->size();
+    auto blockingDims = tmp_desc.getBlockingDesc().getBlockDims();
+    blockingDims[0] = batched_blob->size();
+    auto blockingDesc = InferenceEngine::BlockingDesc(blockingDims, tmp_desc.getBlockingDesc().getOrder());
+    auto batched_desc = InferenceEngine::TensorDesc(tmp_desc.getPrecision(), tmp_desc.getDims(), blockingDesc);
+
+    InferenceEngine::MemoryBlob::Ptr mem_blob = std::dynamic_pointer_cast<InferenceEngine::MemoryBlob>(make_blob_with_precision(batched_desc));
+    mem_blob->allocate();
+    auto ptr = mem_blob->wmap();
+
+    InferenceEngine::parallel_for(batched_blob->size(), [&](size_t i) {
+        const auto& blob = InferenceEngine::as<InferenceEngine::MemoryBlob>(batched_blob->getBlob(i));
+        OPENVINO_ASSERT(mem_blob, "Internal error - can't cast blob ", i, " to MemoryBlob");
+        const auto& blob_desc = blob->getTensorDesc().getBlockingDesc();
+        bool offsets_0 = std::all_of(blob_desc.getOffsetPaddingToData().begin(),
+                                     blob_desc.getOffsetPaddingToData().end(),
+                                     [](size_t dim) {
+                                         return dim == 0;
+                                     });
+        OPENVINO_ASSERT(offsets_0,
+                        "set_tensors/set_input_tensors - default combining is not supported for "
+                        "ROI tensors. All tensors offsets shall be 0");
+        OPENVINO_ASSERT(mem_blob->getTensorDesc().getBlockingDesc().getOrder() == blob_desc.getOrder(),
+                        "set_tensors/set_input_tensors - default combining is not supported for "
+                        "ROI tensors. Axis order shall be default");
+        OPENVINO_ASSERT(mem_blob->getTensorDesc().getBlockingDesc().getStrides() == blob_desc.getStrides(),
+                        "set_tensors/set_input_tensors - default combining is not supported for "
+                        "ROI tensors. Input blobs shall have default strides set");
+        memcpy(ptr.as<uint8_t*>() + i * blob->byteSize(),
+               blob->rmap().as<uint8_t*>() +
+               blob->getTensorDesc().getBlockingDesc().getOffsetPadding() * blob->element_size(),
+               blob->byteSize());
+    });
+    SetBlob(name, mem_blob);
 }
 
 InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
