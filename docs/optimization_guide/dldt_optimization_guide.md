@@ -1,4 +1,4 @@
-# Performance Optimization Guide {#openvino_docs_optimization_guide_dldt_optimization_guide}
+# Introduction to Performance Optimization {#openvino_docs_optimization_guide_dldt_optimization_guide}
 Before exploring possible optimization techniques, let us first define what the inference performance is and how to measure that.
 Notice that reported inference performance often tends to focus on the speed of execution. 
 In fact these are at least four connected factors of accuracy, throughput/latency and efficiency. The rest of the document discusses how to balance these key factors. 

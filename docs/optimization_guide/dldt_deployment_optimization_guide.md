@@ -5,9 +5,10 @@
 .. toctree::
    :maxdepth: 1
    :hidden:
-   
+
 @endsphinxdirective
 
+## Deployment Optimizations Overview {#openvino_docs_deployment_optimization_guide_overview}
 Runtime or deployment optimizations focus is tuning of the inference parameters (e.g. optimal number of the requests executed simultaneously) and other means of how a model is _executed_. 
 
 Here, possible optimization should start with defining the use-case. For example, whether the target scenario emphasizes throughput over latency like processing millions of samples by overnight jobs in the data centers.
