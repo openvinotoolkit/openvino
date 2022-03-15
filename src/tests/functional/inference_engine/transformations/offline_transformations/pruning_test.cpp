@@ -8,6 +8,7 @@
 #include <memory>
 #include <queue>
 
+#include <ngraph/pass/serialize.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset5.hpp>
@@ -104,6 +105,11 @@ TEST(TransformationTests, PruneIRTest) {
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneIRTest.svg").run_on_function(function);
     m.run_passes(function);
+    {
+        pass::Manager m;
+        m.register_pass<pass::Serialize>("/tmp/ir_model_pruned.xml", "/tmp/ir_model_pruned.bin");
+        m.run_passes(function);
+    }
 }
 
 

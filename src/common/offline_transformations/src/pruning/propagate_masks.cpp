@@ -442,13 +442,12 @@ public:
             // In case if first of the inputs is constant
             InitConstMask({0, 1, 2/* potential output channel dim */}).apply(m_input.get_node_shared_ptr());
             auto input_mask = getMask(m_input);
+            InitConstMask({0, 1}).apply(m_weights.get_node_shared_ptr());
+            auto weights_mask = getMask(m_weights);
             if (!input_mask) {
                 NGRAPH_DEBUG << "No input mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
                 return false;
             }
-
-            InitConstMask({0, 1}).apply(m_weights.get_node_shared_ptr());
-            auto weights_mask = getMask(m_weights);
             if (!weights_mask) {
                 NGRAPH_DEBUG << "No weights mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
                 return false;
@@ -506,6 +505,8 @@ public:
             if (!inp_has_masks_on_broadcasted_dims && weights_has_masks_on_broadcasted_dims) {
                 // Swap input and weights
                 std::swap(input_mask, weights_mask);
+                std::swap(input_shape_broadcasted_dims, weights_shape_broadcasted_dims);
+                std::swap(input_shape_ones_dims, weights_shape_ones_dims);
             }
             auto input_mask_row = input_mask.get();
             auto weights_mask_row = weights_mask.get();
@@ -1020,7 +1021,7 @@ public:
 
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
             const auto & pattern_map = m.get_pattern_value_map();
-            const auto m_weights = pattern_map.at(weights);
+            auto m_weights = pattern_map.at(weights);
             const auto & m_input = pattern_map.at(inputs);
             const auto & m_output = pattern_map.at(reshape);
 
@@ -1039,6 +1040,16 @@ public:
                                      << " as shape input.";
                         return false;
                     }
+
+                    auto consumers = m_weights.get_target_inputs();
+                    if (consumers.size() > 1) {
+                        NGRAPH_DEBUG << "Can't process reshape node " << m_output.get_node()->get_friendly_name()
+                                     << " because reshape weights node" << m_weights.get_node()->get_friendly_name()
+                                     << " has more than one consumer.";
+                        return false;
+                    }
+                    consumers.begin()->replace_source_output(constant);
+                    m_weights = constant->output(0);
             }
 
             // Check reshape operation reshape only dimension without masks
