@@ -225,7 +225,6 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
 void concat_in_place_optimization::optimize_cascade(concatenation_node& node, std::list<concatenation_node*>& need_reoptimization) {
     auto out_layout = node.get_output_layout();
     auto out_rank = out_layout.get_rank();
-    auto def_fmt = format::get_default_format(out_rank);
     auto concat_axis = node.get_primitive()->axis;
     // We need to transform axis from bf[w][z]yx order to bfxy[z][w] due to tensor.sizes() usages here
     // should be removed once pad representation is changed
