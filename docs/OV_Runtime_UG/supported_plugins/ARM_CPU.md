@@ -4,7 +4,9 @@
 ## Introducing the Arm&reg; CPU Plugin
 The Arm&reg; CPU plugin is developed in order to enable deep neural networks inference on Arm&reg; CPU, using [Compute Library](https://github.com/ARM-software/ComputeLibrary) as a backend.
 
-The Arm&reg; CPU plugin is not a part of the Intel® Distribution of OpenVINO™ toolkit and is not distributed in pre-built form. To use the plugin, it should be built from source code. Plugin build procedure is described on page [How to build Arm&reg; CPU plugin](https://github.com/openvinotoolkit/openvino_contrib/wiki/How-to-build-ARM-CPU-plugin). 
+> **NOTE**: Note that this is a community-level add-on to OpenVINO&trade;. Intel&reg; welcomes community participation in the OpenVINO&trade; ecosystem and technical questions on community forums as well as code contributions are welcome. However, this component has not undergone full release validation or qualification from Intel&reg;, and no official support is offered. 
+
+The Arm&reg; CPU plugin is not a part of the Intel&reg; Distribution of OpenVINO&trade; toolkit and is not distributed in pre-built form. To use the plugin, it should be built from source code. Plugin build procedure is described on page [How to build Arm&reg; CPU plugin](https://github.com/openvinotoolkit/openvino_contrib/wiki/How-to-build-ARM-CPU-plugin). 
 
 The set of supported layers is defined on [Operation set specification](https://github.com/openvinotoolkit/openvino_contrib/wiki/ARM-plugin-operation-set-specification).
 
