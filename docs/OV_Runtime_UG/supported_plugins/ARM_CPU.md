@@ -37,13 +37,13 @@ The Arm® CPU plugin supports the following accelerated preprocessing operations
 - Transposion of tensors with dims < 5
 - Interpolation of 4D tensors with no padding (`pads_begin` and `pads_end` equal 0).
 
-> **NOTE**: The Arm® CPU plugin supports the following preprocessing operations, however they are not accelerated:
-> - Precision conversion that are not mentioned above
-> - Color conversion:
->      - NV12 to RGB
->      - NV12 to BGR
->      - i420 to RGB
->      - i420 to BGR
+The Arm® CPU plugin supports the following preprocessing operations, however they are not accelerated:
+- Precision conversion that are not mentioned above
+- Color conversion:
+    - NV12 to RGB
+    - NV12 to BGR
+    - i420 to RGB
+    - i420 to BGR
 
 See [preprocessing API guide](../preprocessing_overview.md) for more details.
 

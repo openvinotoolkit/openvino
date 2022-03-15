@@ -74,7 +74,7 @@ For example, the CHW value at index (c,h,w) is physically located at index (c\*H
 |GPU plugin         |Supported               |Supported and preferred |Supported               |
 |VPU plugins        |Not supported           |Supported               |Not supported           |
 |GNA plugin         |Supported               |Supported               |Not supported           |
-|Arm® CPU plugin|Supported and preferred |Supported               |Supported (partially)   |
+|Arm® CPU plugin    |Supported and preferred |Supported               |Supported (partially)   |
 
 For [Multi-Device](../multi_device.md) and [Heterogeneous](../hetero_execution.md) executions
 the supported models formats depends on the actual underlying devices. _Generally, FP16 is preferable as it is most ubiquitous and performant_.
@@ -87,7 +87,7 @@ the supported models formats depends on the actual underlying devices. _Generall
 |GPU plugin         |Supported |Supported\*    |Supported\*    |Supported\*    |Not supported |Supported\*    |
 |VPU plugins        |Supported |Supported      |Supported      |Not supported  |Not supported |Not supported  |
 |GNA plugin         |Supported |Not supported  |Supported      |Not supported  |Supported     |Supported      |
-|Arm® CPU plugin|Supported |Supported      |Supported      |Supported      |Not supported |Not supported  |
+|Arm® CPU plugin    |Supported |Supported      |Supported      |Supported      |Not supported |Not supported  |
 
 <br>\* - Supported via `SetBlob` only, `GetBlob` returns FP32<br>
 For [Multi-Device](../multi_device.md) and [Heterogeneous](../hetero_execution.md) executions
@@ -101,7 +101,7 @@ the supported input precision  depends on the actual underlying devices. _Genera
 |GPU plugin         |Supported |Supported     |
 |VPU plugins        |Supported |Supported     |
 |GNA plugin         |Supported |Not supported |
-|Arm® CPU plugin|Supported |Supported     |
+|Arm® CPU plugin    |Supported |Supported     |
 
 For [Multi-Device](../multi_device.md) and [Heterogeneous](../hetero_execution.md) executions
 the supported output precision  depends on the actual underlying devices. _Generally, FP32 is preferable as it is most ubiquitous_.
