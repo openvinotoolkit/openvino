@@ -18,7 +18,7 @@ Each of the [OpenVINO supported devices](../OV_Runtime_UG/supported_plugins/Devi
 **If the performance portability is of concern, consider using the [OpenVINO High-Level Performance Hints](../OV_Runtime_UG/performance_hints.md) first.**  
 
 Finally, how the full-stack application uses the inference component _end-to-end_ is important.  
-For example, what are the stages that needs to be orchestrated? In some cases a significant part of the workload time is spent on bringing and preparing the input data. As detailed in the section on the _execution time_ optimizations, the inputs population can be performed asynchronously to the inference. Also, in many cases the (image) pre-processing can be offloaded to the OpenVINO. For variably-sized inputs, consider [dynamic shapes](../OV_Runtime_UG/ov_dynamic_shapes.md) to efficiently connect the data input pipeline and the model inference.
+For example, what are the stages that needs to be orchestrated? In some cases a significant part of the workload time is spent on bringing and preparing the input data. As detailed in the section on the _execution time_ optimizations, the inputs population can be performed asynchronously to the inference. Also, in many cases the (image) [pre-processing can be offloaded to the OpenVINO](../OV_Runtime_UG/preprocessing_overview.md). For variably-sized inputs, consider [dynamic shapes](../OV_Runtime_UG/ov_dynamic_shapes.md) to efficiently connect the data input pipeline and the model inference.
 These are common performance tricks that help both latency and throughput scenarios. 
 
  Similarly, the _model-level_ optimizations like [quantization that unlocks the int8 inference](../OV_Runtime_UG/Int8Inference.md) are general and help any scenario. As referenced in the parent topic, these are covered in the [dedicated document](./model_optimization_guide.md). Additionally, the  `ov::hint::inference_precision` allows the devices to trade the accuracy for the performance at the _runtime_ (e.g. by allowing the fp16/bf16 execution for the layers that remain in fp32 after quantization of the original fp32 model). 
@@ -48,9 +48,9 @@ Finally, the guide provides low-level details on:
 In many cases, a network expects a pre-processed image, so make sure you do not perform unnecessary steps in your code:
 - Model Optimizer can efficiently bake the mean and normalization (scale) values into the model (for example, to the weights of the first convolution). Please see [relevant Model Optimizer command-line options](../MO_DG/prepare_model/Additional_Optimizations.md).
 - Let the OpenVINO accelerate other means of [Image Pre-processing and Conversion](../OV_Runtime_UG/preprocessing_overview.md).
-- Note that in many cases, you can directly share the (input) data with the OpenVINO, for example consider [remote tensors API of the GPU Plugin](../OV_Runtime_UG//supported_plugins/gpu_remotetensor_api.md).
+- Note that in many cases, you can directly share the (input) data with the OpenVINO, for example consider [remote tensors API of the GPU Plugin](../OV_Runtime_UG//supported_plugins/GPU_RemoteTensor_API.md).
 
-## OpenVINO Async API <a name="ov-async-api"></a>
+## Prefer OpenVINO Async API <a name="ov-async-api"></a>
 The API of the inference requests offers Sync and Async execution. While the `ov::InferRequest::infer()` is inherently synchronous and executes immediately (effectively serializing the execution flow in the current application thread), the Async "splits" the `infer()` into `ov::InferRequest::start_async()` and `ov::InferRequest::wait()`. Please consider the [API examples](../OV_Runtime_UG/ov_infer_request.md).
 
 A typical use-case for the `ov::InferRequest::infer()` is running a dedicated application thread per source of inputs (e.g. a camera), so that every step (frame capture, processing, results parsing and associated logic) is kept serial within the thread.
@@ -91,9 +91,10 @@ Few important points on the callbacks:
 
 `get_tensor` is a recommended way to populate the inference inputs (and read back the outputs), as it internally allocates the data with right padding/alignment for the device. For example, the GPU inputs/outputs tensors are mapped to the host (which is fast) only when the `get_tensor` is used, while for the `set_tensor` a copy into the internal GPU structures may happen.
 Please consider the [API examples](../OV_Runtime_UG/ov_infer_request.md).
-In contrast, the `set_tensor` is a preferable way to handle remote tensors, [for example with the GPU device](../OV_Runtime_UG//supported_plugins/gpu_remotetensor_api.md).
+In contrast, the `set_tensor` is a preferable way to handle remote tensors, [for example with the GPU device](../OV_Runtime_UG//supported_plugins/GPU_RemoteTensor_API.md).
 
 ## Optimizing for the Throughput and Latency
+### Latency Specifics
 A significant fraction of applications focused on the situations where typically a single model is loaded (and single input is used) at a time.
 This is a regular "consumer" use case and a default (also for the legacy reasons) performance setup for any OpenVINO device.
 Notice that an application can  create more than one request if needed (for example to support asynchronous inputs population), the question is really about how many requests are being executed in parallel.
@@ -102,11 +103,17 @@ As expected, the lowest latency is achieved with only one concurrent inference a
 However, for example, specific configurations, like multi-socket CPUs can deliver as high number of requests (at the same minimal latency) as there are NUMA nodes in the machine.
 Thus, human expertise is required to get the most out of the device even in the latency case. As explained in the next section, the only device-agnostic way to configure for the latency is [OpenVINO High-Level Performance Hints](../OV_Runtime_UG/performance_hints.md).
 
-In the case when there are multiple models to be used simultaneously, consider using different devices for inferencing the different models. "First-inference latency" scenario however may pose an additional limitation on the model load\compilation time, as inference accelerators (other than the CPU) usually require certain level of model compilation upon loading.
+In the case when there are multiple models to be used simultaneously, consider using different devices for inferencing the different models. Finally, when multiple models are executed in parallel on the device, using additional `ov::hint::model_priority` may help to define relative priorities of the models (please refer to the documentation on the [OpenVINO supported devices](../OV_Runtime_UG/supported_plugins/Device_Plugins.md#features-support-matrix) to check for the support of the feature by the specific device).
+
+### First-Inference Latency and Model Load/Compile Time
+There are cases when model loading/compilation are heavily contributing to the end-to-end latencies.
+For example when the model is used exactly once, or when due to on-device memory limitations the model is unloaded (to free the memory for another inference) and reloaded at some cadence.
+Such a "first-inference latency" scenario however may pose an additional limitation on the model load\compilation time, as inference accelerators (other than the CPU) usually require certain level of model compilation upon loading.
 The [model caching](../OV_Runtime_UG/Model_caching_overview.md) is a way to amortize the loading/compilation time over multiple application runs. If the model caching is not possible (as e.g. it requires write permissions for the applications), the CPU device is almost exclusively offers the fastest model load time. Also, consider using the [AUTO device](../OV_Runtime_UG/auto_device_selection.md). It allows to transparently use the CPU for inference, while the actual accelerator loads the model (upon that, the inference hot-swapping also happens automatically).
 
-Finally, when multiple models are executed in parallel on the device, using additional `ov::hint::model_priority` may help to define relative priorities of the models (please refer to the documentation on the [OpenVINO supported devices](../OV_Runtime_UG/supported_plugins/Device_Plugins.md#features-support-matrix) to check for the support of the feature by the specific device).
+Finally, notice that any throughput-oriented options described below, may increase the model up time significantly. 
 
+### General Throughput Considerations
 Throughput on the other hand, is about inference scenarios in which potentially large number of inference requests are served simultaneously.
 Here, the overall application throughput can be significantly improved  with the right performance configuration.
 Also, if the model is not already compute- or memory bandwidth-limited, the associated increase in latency is not linearly dependent on the number of requests executed in parallel.
@@ -115,7 +122,7 @@ With the OpenVINO there two major means of running the multiple requests simulta
 Yet, different GPUs behave differently with batch sizes, just like different CPUs require different number of execution streams to maximize the throughput.
 Predicting inference performance is difficult and and finding optimal execution parameters require direct experiments measurements.
 One possible throughput optimization strategy is to set an upper bound for latency and then increase the batch size or number of the streams until that tail latency is met (or the throughput is not growing anymore).
-Also, consider [Deep Learning Workbench](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Introduction.html) 
+Also, consider [Deep Learning Workbench](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Introduction.html).
 
 Finally, the [automatic multi-device execution](../OV_Runtime_UG/multi_device.md) helps to improve the throughput, please also see the section below. 
 While earlier approach of optimizing the parameters of each device separately does work, the resulting multi-device performance is a fraction of the “ideal” (plain sum) performance that is different for different topologies. 
@@ -131,7 +138,7 @@ Also, while the resulting performance may be optimal for the specific combinatio
 - Similarly the optimal batch size is very much specific to the particular instance of the GPU.
 - Compute vs memory-bandwidth requirements for the model being inferenced, as well as inference precision, possible model's quantization and other factors add more unknowns to the resulting performance equation.
 - Finally, the optimal execution parameters of one device do not transparently map to another device type, for example:
- - - Both the CPU and GPU devices support the notion of the 'streams' (i.e. inference instances that are executed in parallel), yet the optimal number of the streams is deduced very differently.
+    - Both the CPU and GPU devices support the notion of the 'streams' (i.e. inference instances that are executed in parallel, please see `ov::num_streams`), yet the optimal number of the streams is deduced very differently.
  
 Beyond execution _parameters_ there are potentially many device-specific details like _scheduling_ that greatly affect the performance. 
 Specifically, GPU-oriented tricks like batching, which combines many (potentially tens) of input images to achieve optimal throughput, do not always map well to the CPU, as e.g. detailed in the next sections.
@@ -146,7 +153,7 @@ Below you can find the implementation details (particularly how the OpenVINO imp
 Keep in mind that while different scheduling approaches (like the batching or other means of executing individual inference requests) can work together, the hints make these decisions to be transparent to the application.
 
 ### OpenVINO Streams <a name="cpu-streams"></a>
-As detailed in the section <a href="#ov-async-api">OpenVINO Async API</a>) running multiple inference requests asynchronously is important for general application efficiency.
+As detailed in the section <a href="#ov-async-api">OpenVINO Async API</a> running multiple inference requests asynchronously is important for general application efficiency.
 Additionally, most devices support running multiple inference requests in parallel in order to improve the device utilization. The _level_ of the parallelism (i.e. how many requests are really executed in parallel on the device) is commonly referred as a number of 'streams'. Some devices run several requests per stream to amortize the host-side costs.
 Notice that streams (that can be considered as independent queues) are really executing the requests in parallel, but not in the lock step (as e.g. the batching does). 
 
@@ -195,7 +202,7 @@ OpenVINO relies on the OpenCL&trade; kernels for the GPU implementation. Thus, m
 -	Consider [caching](../OV_Runtime_UG/Model_caching_overview.md) to minimize model load time
 -	If your application is simultaneously using the inference on the CPU or otherwise loads the host heavily, make sure that the OpenCL driver threads do not starve. You can use [CPU configuration options](../OV_Runtime_UG/supported_plugins/CPU.md) to limit number of inference threads for the CPU plugin.
 -	Even in the GPU-only scenario, a GPU driver might occupy a CPU core with spin-looped polling for completion. If the _CPU_ utilization is a concern, consider the dedicated [throttling configuration option](../OV_Runtime_UG/supported_plugins/GPU.md). Notice that this option might increase the inference latency, so consider combining with multiple [GPU streams](../OV_Runtime_UG/supported_plugins/GPU.md) or [throughput performance hints](../OV_Runtime_UG/performance_hints.md).
-- When operating media inputs consider [remote tensors API of the GPU Plugin](../OV_Runtime_UG//supported_plugins/gpu_remotetensor_api.md).
+- When operating media inputs consider [remote tensors API of the GPU Plugin](../OV_Runtime_UG//supported_plugins/GPU_RemoteTensor_API.md).
 
 ## Multi-Device Execution <a name="multi-device-optimizations"></a>
 OpenVINO&trade; toolkit supports automatic multi-device execution, please see [Multi-Device execution](../OV_Runtime_UG/multi_device.md) description. 
