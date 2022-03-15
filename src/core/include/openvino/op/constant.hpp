@@ -55,7 +55,6 @@ public:
         } else {
             write_values(values);
         }
-        m_all_elements_bitwise_identical = are_all_data_elements_bitwise_identical();
     }
 
     /// \brief Create uninitialized constant
@@ -69,7 +68,6 @@ public:
     template <class T, class = typename std::enable_if<std::is_fundamental<T>::value>::type>
     Constant(const element::Type& type, const Shape& shape, T value) : Constant(false, type, shape) {
         fill_data(type, value);
-        m_all_elements_bitwise_identical = true;
     }
 
     template <typename T>
@@ -373,6 +371,9 @@ public:
     }
 
     bool get_all_data_elements_bitwise_identical() const {
+        if (!m_all_elements_bitwise_identical_checked) {
+            update_identical_flags(true, are_all_data_elements_bitwise_identical());
+        }
         return m_all_elements_bitwise_identical;
     }
     std::string convert_value_to_string(size_t index) const;
@@ -693,6 +694,8 @@ private:
     }
 
     bool are_all_data_elements_bitwise_identical() const;
+    // This is 'const' as it updates only mutable data
+    void update_identical_flags(bool is_checked, bool identical_value) const;
     static constexpr size_t host_alignment() {
         return 64;
     }
@@ -712,7 +715,8 @@ private:
     element::Type m_element_type;
     Shape m_shape{};
     std::shared_ptr<ngraph::runtime::AlignedBuffer> m_data;
-    bool m_all_elements_bitwise_identical = false;
+    mutable std::atomic_bool m_all_elements_bitwise_identical{false};
+    mutable std::atomic_bool m_all_elements_bitwise_identical_checked{false};
     bool m_alloc_buffer_on_visit_attributes = true;
 };
 }  // namespace v0

@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/single_layer/prior_box.hpp"
 
-namespace LayerTestDefinitions {
+namespace LayerTestsDefinitions {
 std::string PriorBoxLayerTest::getTestCaseName(const testing::TestParamInfo<priorBoxLayerParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
@@ -91,4 +91,4 @@ void PriorBoxLayerTest::SetUp() {
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(priorBox)};
     function = std::make_shared <ngraph::Function>(results, params, "PriorBoxFunction");
 }
-} // namespace LayerTestDefinitions
+} // namespace LayerTestsDefinitions
