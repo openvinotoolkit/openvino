@@ -303,6 +303,75 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         // only one device need to load network, do not need to load it async
         _loadContext[ACTUALDEVICE].task();
     }
+
+    auto* contextPtr = &_loadContext[ACTUALDEVICE];
+    auto loadRemainDevicesTask = [this, contextPtr, modelPath, network]() mutable {
+        WaitActualNetworkReady();
+        while (!_exitFlag && !contextPtr->metaDevices.empty()) {
+            auto& device = contextPtr->deviceInfo.deviceName;
+            auto& deviceList = contextPtr->metaDevices;
+
+            _multiPlugin->UnregisterPriority(_context.modelPriority, contextPtr->deviceInfo.uniqueName);
+
+            auto eraseDevice = std::find_if(deviceList.begin(), deviceList.end(), [device](DeviceInformation& d) {
+                return d.deviceName == device;
+            });
+
+            LOG_INFO("[AUTOPLUGIN]:erase device:%s", device.c_str());
+
+            deviceList.erase(eraseDevice);
+
+            if (!deviceList.empty()) {
+                // select next candidate device
+                try {
+                    std::lock_guard<std::mutex> lock(_confMutex);
+                    contextPtr->deviceInfo =
+                        _multiPlugin->SelectDevice(deviceList, contextPtr->networkPrecision, _context.modelPriority);
+                } catch (const std::exception& e) {
+                    LOG_ERROR("[AUTOPLUGIN]:select device fail:%s", e.what());
+                    break;
+                }
+
+                LOG_DEBUG("[AUTOPLUGIN]:try to load %s", contextPtr->deviceInfo.deviceName.c_str());
+                // try to load this candidate device
+                TryToLoadNetWork(*contextPtr, modelPath, network);
+                if (contextPtr->isLoadSuccess) {
+                    if (contextPtr->workName.empty()) {
+                        contextPtr->workName = contextPtr->deviceInfo.deviceName;
+                    }
+                    GenerateWorkers(contextPtr->workName, contextPtr->executableNetwork);
+                    // need lock
+                    {
+                        std::lock_guard<std::mutex> lock(_confMutex);
+                        _config.insert(contextPtr->deviceInfo.config.begin(), contextPtr->deviceInfo.config.end());
+                    }
+                    contextPtr->isAlready = true;
+                    auto& deviceName = contextPtr->deviceInfo.deviceName;
+                    LOG_INFO("[AUTOPLUGIN]:device:%s loading Network finished", deviceName.c_str());
+                    auto supported_config_keys =
+                        _core->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
+                    // there is log mutex in LOG_DEBUG, add _configMutex just want to print them all together
+                    // toDo maybe neet to implement LOG_RUN(task, LOG_LEVEL) to run some debug code.
+                    std::lock_guard<std::mutex> lock(_confMutex);
+                    for (const auto& cfg : supported_config_keys) {
+                        try {
+                            LOG_DEBUG("[AUTOPLUGIN]:device:%s, GetConfig:%s=%s",
+                                      deviceName.c_str(),
+                                      cfg.c_str(),
+                                      contextPtr->executableNetwork->GetConfig(cfg).as<std::string>().c_str());
+                        } catch (...) {
+                        }
+                    }
+                }
+            }
+        }
+
+        LOG_INFO("[AUTOPLUGIN]:load remain devices finished");
+    };
+
+    // cumulative_throughput load remain devices one by one
+    _executor->run(std::move(loadRemainDevicesTask));
+
     WaitFirstNetworkReady();
 }
 void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
@@ -416,9 +485,12 @@ void MultiDeviceExecutableNetwork::WaitFirstNetworkReady() {
         _firstLoadFuture.wait();
     }
 
+    LOG_INFO("[AUTOPLUGIN]:first load finished");
+
     // check if there is any device that have loaded network successfully
     for (int i = CONTEXTNUM - 1; i >= 0; i--) {
         if (_loadContext[i].isEnabled && _loadContext[i].isAlready) {
+            LOG_INFO("[AUTOPLUGIN]:device:%s loaded network successfully", _loadContext[i].deviceInfo.deviceName.c_str());
             return;
         }
     }
