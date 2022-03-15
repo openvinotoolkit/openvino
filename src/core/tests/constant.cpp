@@ -1777,7 +1777,8 @@ TEST(constant, lazy_bitwise_identical) {
     EXPECT_GT(bitwise_check_count_only, bitwise_check_count * 10);
 }
 
-TEST(constant, nightly_huge_size_4GB) {
+// Disabled just because of long execution time. Enable for nightly builds in future
+TEST(constant, DISABLED_nightly_huge_size_4GB) {
     size_t start = 1llu << 32;
     size_t s = start + 5;
     std::vector<uint8_t> data(s);

@@ -278,7 +278,9 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> getCons
 namespace {
 
 std::string toString(const NodeTypeInfo& typeInfo) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return std::string(typeInfo.name) + " ver. " + std::to_string(typeInfo.version);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void CompareShapes(const PartialShape& actual, const PartialShape& expected) {
@@ -339,7 +341,9 @@ std::shared_ptr<ngraph::Node> getNodeSharedPtr(const ngraph::NodeTypeInfo &type_
             ngraphNode->validate_and_infer_types();
             return ngraphNode;
         }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_UNREACHABLE("supported opsets does not contain op with name: ", type_info.name, " version: ", type_info.version);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 bool is_tensor_iterator_exist(const std::shared_ptr<ngraph::Function> & func) {

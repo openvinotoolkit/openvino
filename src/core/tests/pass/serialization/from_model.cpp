@@ -164,7 +164,8 @@ public:
     }
 };
 
-TEST_P(SerializationFromModelTest_large, Model_very_large) {
+// Disabled just because of long execution time. Enable for nightly builds in future
+TEST_P(SerializationFromModelTest_large, DISABLED_Model_very_large) {
     using namespace ov;
     std::string test_name = GetTimestamp();
     size_t s = (1llu << GetParam()) + 5;
