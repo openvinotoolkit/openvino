@@ -31,7 +31,7 @@ General, application-level optimizations:
 
 * Async API and 'get_tensor' Idiom
 
- Use-case specific optimizations along with some implementation details:
+Use-case specific optimizations along with some implementation details:
  
 * Optimizing for throughput and latency
  
@@ -95,23 +95,32 @@ In contrast, the `set_tensor` is a preferable way to handle remote tensors, [for
 
 ## Optimizing for the Throughput and Latency
 A significant fraction of applications focused on the situations where typically a single model is loaded (and single input is used) at a time.
-This is default (also for the legacy reasons), performance setup for any OpenVINO device.
-Notice that an application if free to create more requests if needed (for example to support asynchronous inputs population), the question is really about how many requests are being executed in parallel.
+This is a regular "consumer" use case and a default (also for the legacy reasons) performance setup for any OpenVINO device.
+Notice that an application can  create more than one request if needed (for example to support asynchronous inputs population), the question is really about how many requests are being executed in parallel.
+Similarly, when multiple models are served on the same device, it is important whether the models are executed simultaneously, or in chain (for example in the inference pipeline).
+As expected, the lowest latency is achieved with only one concurrent inference at a moment. Accordingly, any additional concurrency usually results in the latency growing fast.
+However, for example, specific configurations, like multi-socket CPUs can deliver as high number of requests (at the same minimal latency) as there are NUMA nodes in the machine.
+Thus, human expertise is required to get the most out of the device even in the latency case. As explained in the next section, the only device-agnostic way to configure for the latency is [OpenVINO High-Level Performance Hints](../OV_Runtime_UG/performance_hints.md).
 
 In the case when there are multiple models to be used simultaneously, consider using different devices for inferencing the different models. "First-inference latency" scenario however may pose an additional limitation on the model load\compilation time, as inference accelerators (other than the CPU) usually require certain level of model compilation upon loading.
-The [model caching](../OV_Runtime_UG/Model_caching_overview.md) is a way to amortize the loading/compilation time over multiple application runs. If the model caching is not possible (as e.g. it requires write permissions for the applications), the CPU device is almost exclusive option as it typically offers the fastest model load time. If CPU _inference_ speed is insufficient though (as e.g. it may need to run multiple models), consider using the [AUTO device](../OV_Runtime_UG/auto_device_selection.md). It allows to transparently use the CPU for inference, while the actual accelerator loads the model (upon that, the inference hot-swapping also happens automatically).
+The [model caching](../OV_Runtime_UG/Model_caching_overview.md) is a way to amortize the loading/compilation time over multiple application runs. If the model caching is not possible (as e.g. it requires write permissions for the applications), the CPU device is almost exclusively offers the fastest model load time. Also, consider using the [AUTO device](../OV_Runtime_UG/auto_device_selection.md). It allows to transparently use the CPU for inference, while the actual accelerator loads the model (upon that, the inference hot-swapping also happens automatically).
 
-When multiple models executed in parallel on the device, using additional `ov::hint::model_priority` may help to define relative priorities of the models (please refer to the documentation on the [OpenVINO supported devices](../OV_Runtime_UG/supported_plugins/Device_Plugins.md) to check for the support of the feature).
+Finally, when multiple models are executed in parallel on the device, using additional `ov::hint::model_priority` may help to define relative priorities of the models (please refer to the documentation on the [OpenVINO supported devices](../OV_Runtime_UG/supported_plugins/Device_Plugins.md) to check for the support of the feature by the specific device).
 
+Throughput on the other hand, is about inference scenarios in which potentially large number of inference requests are served simultaneously.
+Here, the overall application throughput can be significantly improved  with the right performance configuration.
+Also, if the model is not already compute- or memory bandwidth-limited, the associated increase in latency is not linearly dependent on the number of requests executed in parallel.
 
-Running more inference models than there are available devices
+With the OpenVINO there two major means of running the multiple requests simultaneously: batching and "streams", explained in this document. 
+Yet, different GPUs behave differently with batch sizes, just like different CPUs require different number of execution streams to maximize the throughput.
+Predicting inference performance is difficult and and finding optimal execution parameters require direct experiments measurements.
+One possible throughput optimization strategy is to set an upper bound for latency and then increase the batch size or number of the streams until that tail latency is met (or the throughput is not growing anymore).
+Also, consider [Deep Learning Workbench](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Introduction.html) 
 
-Throughput on the other hand, is about inference scenarios in which potentially large number of inference requests are served (whther it is one or multiple models).
+Finally, the [automatic multi-device execution](../OV_Runtime_UG/multi_device.md) helps to improve the throughput, please also see the section below. 
+While earlier approach of optimizing the parameters of each device separately does work, the resulting multi-device performance is a fraction of the “ideal” (plain sum) performance that is different for different topologies. 
 
-
-Combined scenarios.  Hence, one possible throughput optimization strategy is to set an upper bound
-for latency and the batch size or streams until that bound is met.
-
+Overall, the latency-throughput is not linearly dependent and very _device_ specific. It is also tightly integrated with _model_ characteristics.
 As for the possible inference devices the scenery had already become pretty diverse, the OpenVINO has introduced the dedicated notion of the high-level performance configuration "hints" to describe the target application scenarios. The hints are described below. 
 
 ## High-level Performance Hints (Presets)
@@ -138,9 +147,10 @@ Keep in mind that while different scheduling approaches (like the batching or ot
 
 ### OpenVINO Streams <a name="cpu-streams"></a>
 As detailed in the section <a href="#ov-async-api">OpenVINO Async API</a>) running multiple inference requests asynchronously is important for general application efficiency.
-Additionally, most devices support running multiple inference requests in parallel in order to improve the device utilization. The _level_ of the parallelism (i.e. how many requests are really executed in parallel on the device) is commonly referred as a number of 'streams'. Some devices run several requests per stream to amortize the host-side costs. 
+Additionally, most devices support running multiple inference requests in parallel in order to improve the device utilization. The _level_ of the parallelism (i.e. how many requests are really executed in parallel on the device) is commonly referred as a number of 'streams'. Some devices run several requests per stream to amortize the host-side costs.
+Notice that streams (that can be considered as independent queues) are really executing the requests in parallel, but not in the lock step (as e.g. the batching does). 
 
-Notice that for efficient asynchronous execution, the streams are actually handling inference with special pool of the threads.
+Also, notice that for efficient asynchronous execution, the streams are actually handling inference with special pool of the threads.
 So each time you start inference requests (potentially from different application threads), they are actually muxed into a inference queue of the particular `ov:compiled_model`. 
 If there is a vacant stream, it pops the request from the queue and actually expedites that to the on-device execution.
 
@@ -162,7 +172,7 @@ Notice that [high-level performance hints](../OV_Runtime_UG/performance_hints.md
 While the GPU plugin fully supports general notion of the streams, the associated performance (throughput) improvements are usually modest.
 The primary reason is that, while the streams allow to hide the communication overheads and hide certain bubbles in device utilization, running multiple OpenCL kernels on the GPU simultaneously is less efficient, compared to calling a kernel on the multiple inputs at once.   
 
-When the parallel slack is small (e.g. only 2-4 requests executed simultaneously), then suing the streams for the GPU may suffice. 
+When the parallel slack is small (e.g. only 2-4 requests executed simultaneously), then using the streams for the GPU may suffice. 
 Typically, for 4 and more requests the batching delivers better throughput for the GPUs. Using the [High-Level Performance Hints](../OV_Runtime_UG/performance_hints.md) is the most portable and future-proof option, allowing the OpenVINO to find best combination of streams and batching for a given scenario. 
 As explained in the section on the [automatic batching](../OV_Runtime_UG/automatic_batching.md), the feature performs on-the-fly grouping of the inference requests to improve device utilization.
 The Automatic Batching relaxes the requirement for an application to saturate devices like GPU by _explicitly_ using a large batch. It essentially it performs transparent inputs gathering from 
