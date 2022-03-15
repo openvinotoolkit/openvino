@@ -26,13 +26,6 @@
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Troubleshooting
-   
-   Troubleshooting Guide <openvino_docs_get_started_guide_troubleshooting>
-   
-.. toctree::
-   :maxdepth: 1
-   :hidden:
    :caption: Get Started Guides
    
    Get Started with Step-by-step Demo <openvino_docs_get_started_get_started_demos>
@@ -45,7 +38,13 @@
 
    openvino_docs_IE_DG_Samples_Overview
 
-
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: Troubleshooting
+   
+   Installation & Configuration Issues <openvino_docs_get_started_guide_troubleshooting>
+   
 @endsphinxdirective
  
 @sphinxdirective
@@ -70,10 +69,6 @@
    <h3>Choose how you want to progress:</h3>
  
    <div id="GSG_nextstepchoice">
-     <a href="openvino_docs_get_started_get_started_scripts.html" >
-        <h4>One-command demo 		</h4>
-        <p>Execute just one command and watch all the steps happening before your eyes. </p>
-     </a>  		
      <a href="openvino_docs_get_started_get_started_demos.html" >
         <h4>Step-by-step demo		</h4>
         <p>Follow the step-by-step instructions to execute simple tasks with OpenVINO. </p>

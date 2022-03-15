@@ -22,12 +22,24 @@ To avoid dependency conflicts, use a virtual environment. Skip this step only if
 
 Use the following command to create a virtual environment:
 
-```sh
-python -m pip install --user virtualenv 
-python -m venv openvino_env
-```
+@sphinxdirective
 
-> **NOTE**: On Linux and macOS, you may need to type `python3` instead of `python`. You may also need to [install PIP](https://pip.pypa.io/en/stable/installing/). For example, on Ubuntu, you can use this command to install PIP: `sudo apt install python3-venv python3-pip`.
+.. tab:: On Linux and macOS
+
+   .. code-block:: sh
+   
+      # Depending on your OS, this step may require installing python3-venv
+      python3 -m venv openvino_env
+   
+.. tab:: On Windows
+
+   .. code-block:: sh
+   
+      python -m venv openvino_env
+     
+     
+@endsphinxdirective
+
 
 ### Step 2. Activate Virtual Environment
 
