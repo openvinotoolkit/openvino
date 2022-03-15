@@ -19,7 +19,7 @@ In the rest of this documentation, "GNA 2.0" refers to Intel® GNA hardware deli
 
 ### Intel® GNA Forward and Backward Compatibility
 
-When you run a model using the GNA plugin, it is compiled internally for the specific hardware target. It is possible to export compiled model using <a href="#import-export">Import/Export</a> functionality to use it later, but in the general case, there is no guarantee that a model compiled and exported for GNA 2.0 will run on GNA 3.0, or vice versa.
+When you run a model using the GNA plugin, it is compiled internally for the specific hardware target. It is possible to export compiled model using <a href="#import-export">Import/Export</a> functionality to use it later, but in the general case, there is no guarantee that a model compiled and exported for GNA 2.0 runs on GNA 3.0, or vice versa.
 
 @sphinxdirective
 
