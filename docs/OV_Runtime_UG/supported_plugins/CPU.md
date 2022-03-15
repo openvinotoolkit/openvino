@@ -1,148 +1,147 @@
 # CPU device {#openvino_docs_OV_UG_supported_plugins_CPU}
 
-@sphinxdirective
+The CPU plugin is developed to achieve high performance inference of neural networks on Intel® x86-64 CPUs.
+The plugin extensively use optimized DL operation implementations from the Intel® oneAPI Deep Neural Network Library (Intel® [oneDNN](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onednn.html)).
+For an in-depth description of CPU plugin, see
 
-.. toctree::
-   :maxdepth: 1
-   :hidden:
+- [CPU plugin developers documentation](https://github.com/openvinotoolkit/openvino/wiki/CPUPluginDevelopersDocs)
 
-   openvino_docs_IE_DG_Bfloat16Inference
-
-@endsphinxdirective
-
-## Introducing the CPU Plugin
-The CPU plugin was developed to achieve high performance of neural networks on CPU, using the Intel® Math Kernel Library for Deep Neural Networks (Intel® MKL-DNN).
-
-Currently, the CPU plugin uses Intel® Threading Building Blocks (Intel® TBB) in order to parallelize calculations. Please refer to the [Optimization Guide](../../optimization_guide/dldt_optimization_guide.md) for associated performance considerations.
-
-The set of supported layers can be expanded with [the Extensibility mechanism](../../Extensibility_UG/Intro.md).
-
-## Supported Platforms
-
-OpenVINO™ toolkit, including the CPU plugin, is officially supported and validated on the following platforms:
-
-| Host              | OS (64-bit)                              |
-| :---              | :---                                     |
-| Development       | Ubuntu* 18.04 or 20.04, CentOS* 7.6, MS Windows* 10, macOS* 10.15 |
-| Target            | Ubuntu* 18.04 or 20.04, CentOS* 7.6, MS Windows* 10, macOS* 10.15 |
-
-The CPU plugin supports inference on Intel® Xeon® with Intel® Advanced Vector Extensions 2 (Intel® AVX2), Intel® Advanced Vector Extensions 512 (Intel® AVX-512), and AVX512_BF16, Intel® Core™
-Processors with Intel® AVX2, Intel Atom® Processors with Intel® Streaming SIMD Extensions (Intel® SSE).
-
-You can use the `-pc` flag for samples to know which configuration is used by a layer.
-This flag shows execution statistics that you can use to get information about layer name, layer type, 
-execution status, execution time, and the type of the execution primitive.
-
-## Internal CPU Plugin Optimizations
-
-The CPU plugin supports several graph optimization algorithms, such as fusing or removing layers.
-Refer to the sections below for details.
-
-> **NOTE**: For layer descriptions, see the [IR Notation Reference](../../ops/opset.md).
-
-### Lowering Inference Precision
-
-The CPU plugin follows a default optimization approach. This approach means that inference is made with lower precision if it is possible on a given platform to reach better performance with an acceptable range of accuracy.
-
-> **NOTE**: For details, see the [Using Bfloat16 Inference](../Bfloat16Inference.md).
-
-### Fusing Convolution and Simple Layers
-
-Merge of a convolution layer and any of the simple layers listed below:
-- Activation: ReLU, ELU, Sigmoid, Clamp
-- Depthwise: ScaleShift, PReLU
-- FakeQuantize
-
-> **NOTE**: You can have any number and order of simple layers.
-
-A combination of a convolution layer and simple layers results in a single fused layer called 
-*Convolution*:
-
-![conv_simple_01]
+- [OpenVINO Runtime CPU plugin source files](https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_cpu/)
 
 
-### Fusing Pooling and FakeQuantize Layers
+The CPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit.
 
-A combination of Pooling and FakeQuantize layers results in a single fused layer called *Pooling*:  
+## Device name
+For the CPU plugin `"CPU"` device name is used. On multi-socket platforms, load balancing and memory usage distribution between NUMA nodes are handled automatically.   
+In order to use CPU for inference the device name should be passed to `ov::Core::compile_model()` method:
 
-![pooling_fakequant_01]
+@snippet snippets/cpu/compile_model.cpp compile_model_default
 
-### Fusing FullyConnected and Activation Layers
+## Supported inference data types
+CPU plugin supports the following data types as inference precision of internal primitives:
 
-A combination of FullyConnected and Activation layers results in a single fused layer called 
-*FullyConnected*:
+- Floating-point data types:
+  - f32
+  - i32
+  - bf16
+- Quantized data types:
+  - u8
+  - i8
+  - u1
 
-![fullyconnected_activation_01]
+Selected precision of each primitive depends on the operation precision in IR, quantization primitives, and available hardware capabilities.
+u1/u8/i8 data types are used for quantized operations only, i.e. those are not selected automatically for non-quantized operations.
 
+See [low-precision optimization guide](@ref pot_docs_LowPrecisionOptimizationGuide) for more details on how to get quantized model.
 
-### Fusing Convolution and Depthwise Convolution Layers Grouped with Simple Layers
+> **NOTE**: Calculation results in u8/i8 precisions may be different between platforms with and without Intel® AVX512-VNNI extension support. Platforms that do not support VNNI have a known [saturation (overflow) issue](@ref pot_saturation_issue), which in some cases leads to reduced computational accuracy.
 
-> **NOTE**: This pattern is possible only on CPUs with support of Streaming SIMD Extensions 4.2 
-> (SSE 4.2) and Intel AVX2 Instruction Set Architecture (ISA).
+Default floating-point precision of a CPU primitive is f32, but on platforms that natively support bfloat16 calculations (have AVX512_BF16 extension) bfloat16 type is automatically used to achieve better performance (for details see [Using Bfloat16 Inference](../Bfloat16Inference.md)).
+This means that to infer a model with bfloat16 precision no special actions is required, only CPU with native support for bfloat16.
 
-A combination of a group of a Convolution (or Binary Convolution) layer and simple layers and a group of a Depthwise Convolution
-layer and simple layers results in a single layer called *Convolution* (or *Binary Convolution*):
-> **NOTE**: Depthwise convolution layers should have the same values for the `group`, input channels, and output channels parameters.
-
-![conv_depth_01]
-
-### Fusing Convolution and Sum Layers
-
-A combination of convolution, simple, and Eltwise layers with the sum operation results in a single layer called *Convolution*:  
-
-![conv_sum_relu_01]
-
-### Fusing a Group of Convolutions
-
-If a topology contains the following pipeline, a CPU plugin merges split, convolution, and concatenation layers into a single convolution layer with the group parameter:   
-
-![group_convolutions_01]
-
-> **NOTE**: Parameters of the convolution layers must coincide.
-
-
-### Removing a Power Layer
-
-CPU plugin removes a Power layer from a topology if it has the following parameters:
-  - <b>power</b> = 1
-  - <b>scale</b> = 1
-  - <b>offset</b> = 0
-
+[Hello Query Device C++ Sample](../../../samples/cpp/hello_query_device/README.md) can be used to print out supported data types for all detected devices.
   
-## Supported Configuration Parameters
+## Supported features
 
-The plugin supports the configuration parameters listed below.
-All parameters must be set with the `InferenceEngine::Core::LoadNetwork()` method.
-When specifying key values as raw strings (that is, when using Python API), omit the `KEY_` prefix.
-Refer to the OpenVINO samples for usage examples: [Benchmark App](../../../samples/cpp/benchmark_app/README.md).
+### Multi-device execution
+If a machine has OpenVINO supported devices other than CPU (for example integrated GPU), then any supported model can be executed on CPU and all the other devices simultaneously.
+This can be achieved by specifying `"MULTI:CPU,GPU.0"` as a target device in case of simultaneous usage of CPU and GPU.
 
-These are general options, also supported by other plugins:
+@snippet snippets/cpu/compile_model.cpp compile_model_multi
 
-| Parameter name                  | Parameter values      | Default            | Description                                                                                                                  |
-| :---                            | :---                  | :---               | :----------------------------------------------------------------------------------------------------------------------------|
-| KEY_EXCLUSIVE_ASYNC_REQUESTS    | YES/NO                | NO                 | Forces async requests (also from different executable networks) to execute serially. This prevents potential oversubscription|
-| KEY_PERF_COUNT                  | YES/NO                | NO                 | Enables gathering performance counters                                                                                       |
+See [Multi-device execution page](../multi_device.md) for more details.
 
-CPU-specific settings:
+### Multi-stream execution
+If either `ov::num_streams(n_streams)` with `n_streams > 1` or `ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)` property is set for CPU plugin,
+then multiple streams are created for the model. In case of CPU plugin each stream has its own host thread which means that incoming infer requests can be processed simultaneously.
+Each stream is pinned to its own group of physical cores with respect to NUMA nodes physical memory usage to minimize overhead on data transfer between NUMA nodes.
 
-| Parameter name              | Parameter values      | Default            | Description                                               |
-| :---                        | :---                  | :---               | :--- |
-| KEY_CPU_THREADS_NUM         | positive integer values| 0                 | Specifies the number of threads that CPU plugin should use for inference. Zero (default) means using all (logical) cores|
-| KEY_CPU_BIND_THREAD         | YES/NUMA/NO           | YES                | Binds inference threads to CPU cores. 'YES' (default) binding option maps threads to cores - this works best for static/synthetic scenarios like benchmarks. The 'NUMA' binding is more relaxed, binding inference threads only to NUMA nodes, leaving further scheduling to specific cores to the OS. This option might perform better in the real-life/contended scenarios. Note that for the latency-oriented cases (number of the streams is less or equal to the number of NUMA nodes, see below) both YES and NUMA options limit number of inference threads to the number of hardware cores (ignoring hyper-threading) on the multi-socket machines. |
-| KEY_CPU_THROUGHPUT_STREAMS  | KEY_CPU_THROUGHPUT_NUMA, KEY_CPU_THROUGHPUT_AUTO, or positive integer values| 1 | Specifies number of CPU "execution" streams for the throughput mode. Upper bound for the number of inference requests that can be executed simultaneously. All available CPU cores are evenly distributed between the streams. The default value is 1, which implies latency-oriented behavior for single NUMA-node machine, with all available cores processing requests one by one. On the multi-socket (multiple NUMA nodes) machine, the best latency numbers usually achieved with a number of streams matching the number of NUMA-nodes. <br>KEY_CPU_THROUGHPUT_NUMA creates as many streams as needed to accommodate NUMA and avoid associated penalties.<br>KEY_CPU_THROUGHPUT_AUTO creates bare minimum of streams to improve the performance; this is the most portable option if you don't know how many cores your target machine has (and what would be the optimal number of streams). Note that your application should provide enough parallel slack (for example, run many inference requests) to leverage the throughput mode. <br> Non-negative integer value creates the requested number of streams. If a number of streams is 0, no internal streams are created and user threads are interpreted as stream master threads.|
-| KEY_ENFORCE_BF16            | YES/NO| YES | The name for setting to execute in [bfloat16 precision](../Bfloat16Inference.md) whenever it is possible. This option lets plugin know to downscale the precision where it sees performance benefits from bfloat16 execution. Such option does not guarantee accuracy of the network, you need to verify the accuracy in this mode separately, based on performance and accuracy results. It should be your decision whether to use this option or not. |
+See [optimization guide](@ref openvino_docs_deployment_optimization_guide_dldt_optimization_guide) for more details.
 
-> **NOTE**: To disable all internal threading, use the following set of configuration parameters: `KEY_CPU_THROUGHPUT_STREAMS=0`, `KEY_CPU_THREADS_NUM=1`, `KEY_CPU_BIND_THREAD=NO`.
+> **NOTE**: When it comes to latency, one needs to keep in mind that running only one stream on multi-socket platform may introduce additional overheads on data transfer between NUMA nodes.
+> In that case it is better to run inference on one socket (please see [deployment optimization guide (additional configurations)](@ref openvino_docs_deployment_optimization_guide_dldt_optimization_guide_additional) for details).
+
+### Dynamic shapes
+CPU plugin provides full support for models with dynamic shapes. 
+But from the performance standpoint, it should be understood that the more degrees of freedom we have, the more difficult it is to achieve the best performance.
+The most flexible configuration is the fully undefined shape, when we do not apply any constraints to the shape dimensions. 
+
+@snippet snippets/cpu/dynamic_shape.cpp undefined_shape
+
+In such configuration we will have high memory consumption since we can not estimate the total memory amount that can be allocated in advance and effectively reused.
+To reduce memory consumption through memory reuse, and as a result achieve better cache locality, which in its turn leads to better inference performance, it is better to use dynamic shapes with defined upper bounds.
+
+@snippet snippets/cpu/dynamic_shape.cpp defined_upper_bound
+
+> **NOTE**: Some runtime optimizations works better if the model shapes are known in advance. This means that for the best performance, it is better to use static shapes, of course if it is applicable to the specific problem.
+
+See [dynamic shapes guide](../ov_dynamic_shapes.md) for more details.
+
+### Preprocessing acceleration
+CPU plugin supports a full set of the preprocessing operations, providing high performance implementations for them.
+
+See [preprocessing API guide](../preprocessing_overview.md) for more details.
+
+The CPU plugin precision conversion operation implementation supports the following element types:
+- bf16
+- f16
+- f32
+- f64
+- i8
+- i16
+- i32
+- i64
+- u8
+- u16
+- u32
+- u64
+- boolean
+
+### Models caching
+CPU plugin supports Import/Export network capability. If the model caching is enabled via common OpenVINO `ov::cache_dir` property, the plugin will automatically create a cached blob inside the specified directory during model compilation.
+This cached blob contains some intermediate representation of the network that it has after common runtime optimizations and low precision transformations.
+The next time the model is compiled, the cached representation will be loaded to the plugin instead of the initial IR, so the aforementioned transformation steps will be skipped.
+These transformations take a significant amount of time during model compilation, so caching this representation reduces time spent for subsequent compilations of the model,
+thereby reducing first inference latency (FIL).
+
+See [model caching overview](@ref openvino_docs_IE_DG_Model_caching_overview) for more details.
+
+### Extensibility
+CPU plugin supports fallback on `ov::Op` reference implementation if the plugin do not have its own implementation for such operation.
+That means that [OpenVINO™ Extensibility Mechanism](@ref openvino_docs_Extensibility_UG_Intro) can be used for the plugin extension as well.
+To enable fallback on a custom operation implementation, one have to re-implement `ov::Op::evaluate` method in the derived operation class (see [custom OpenVINO™ operations](@ref openvino_docs_Extensibility_UG_add_openvino_ops) for details).
+
+### Stateful models
+CPU plugin supports stateful models without any limitations.
+
+See [stateful models guide](@ref openvino_docs_IE_DG_network_state_intro) for details.
+
+## Supported properties
+The plugin supports the properties listed below.
+
+### Read-write properties
+All parameters must be set before calling `ov::Core::compile_model()` in order to take effect or passed as additional argument to `ov::Core::compile_model()`
+
+- ov::enable_profiling
+- ov::hint::inference_precision
+- ov::hint::performance_mode
+- ov::hint::num_request
+- ov::num_streams
+- ov::affinity
+- ov::inference_num_threads
+
+
+### Read-only properties
+- ov::cache_dir
+- ov::supported_properties
+- ov::available_devices
+- ov::range_for_async_infer_requests
+- ov::range_for_streams
+- ov::device::full_name
+- ov::device::capabilities
 
 ## See Also
 * [Supported Devices](Supported_Devices.md)
+* [Optimization guide](@ref openvino_docs_optimization_guide_dldt_optimization_guide)
+* [СPU plugin developers documentation](https://github.com/openvinotoolkit/openvino/wiki/CPUPluginDevelopersDocs)
 
-[mkldnn_group_conv]: ../img/mkldnn_group_conv.png
-[mkldnn_conv_sum]: ../img/mkldnn_conv_sum.png
-[mkldnn_conv_sum_result]: ../img/mkldnn_conv_sum_result.png
-[conv_simple_01]: ../img/conv_simple_01.png
-[pooling_fakequant_01]: ../img/pooling_fakequant_01.png
-[fullyconnected_activation_01]: ../img/fullyconnected_activation_01.png
-[conv_depth_01]: ../img/conv_depth_01.png
-[group_convolutions_01]: ../img/group_convolutions_01.png
-[conv_sum_relu_01]: ../img/conv_sum_relu_01.png
