@@ -161,28 +161,55 @@ void ReadIRTest::SetUp() {
                 }
             }
         }
+
+        bool hasDynamic = false;
+        for (const auto& param : function->get_parameters()) {
+            if (param->get_partial_shape().is_dynamic()) {
+                hasDynamic = true;
+                break;
+            }
+        }
+        if (hasDynamic && ov::test::subgraph::shapeMode == ov::test::subgraph::ShapeMode::STATIC) {
+            GTEST_SKIP() << "Dynamic cases are skipped according `shape_mode`";
+        } else if (!hasDynamic && ov::test::subgraph::shapeMode == ov::test::subgraph::ShapeMode::DYNAMIC) {
+            GTEST_SKIP() << "Static cases are skipped according `shape_mode`";
+        }
+
         std::vector<InputShape> inputShapes;
         for (const auto& param : function -> get_parameters()) {
             if (param->get_partial_shape().is_static()) {
-                if (ov::test::subgraph::shapeMode == ov::test::subgraph::ShapeMode::DYNAMIC) {
-                    GTEST_SKIP() << "Static cases are skipped according `shape_mode`";
-                }
                 inputShapes.push_back(InputShape{{}, {param->get_shape()}});
             } else {
-                if (ov::test::subgraph::shapeMode == ov::test::subgraph::ShapeMode::STATIC) {
-                    GTEST_SKIP() << "Dynamic cases are skipped according `shape_mode`";
-                }
+                std::vector<ov::Shape> staticShapes = { param->get_partial_shape().get_min_shape(),
+                                                        param->get_partial_shape().get_min_shape(),
+                                                        param->get_partial_shape().get_max_shape() };
                 ov::Shape midShape;
                 for (const auto s : param->get_partial_shape()) {
-                    int dimValue = s.get_length();
+                    int dimValue = 1;
                     if (s.is_dynamic()) {
-                        CommonTestUtils::fill_data_random(&dimValue, 1, s.get_max_length() - s.get_min_length(), s.get_min_length(), 1);
+                        size_t range = s.get_max_length() - s.get_min_length();
+                        if (range > std::numeric_limits<char>::max()) {
+                            CommonTestUtils::fill_data_random(&range, 1, std::numeric_limits<char>::max(), s.get_min_length(), 1);
+                        }
+                        CommonTestUtils::fill_data_random(&dimValue, 1, range, s.get_min_length(), 1);
+                    } else {
+                        dimValue = s.get_length();
                     }
                     midShape.push_back(dimValue);
                 }
-                inputShapes.push_back(InputShape{param->get_partial_shape(), { param->get_partial_shape().get_min_shape(),
-                                                                                    param->get_partial_shape().get_max_shape(),
-                                                                                    midShape }});
+                staticShapes[1] = midShape;
+
+                // Shape validation to avoid large values
+                for (auto& shape : staticShapes) {
+                    for (auto& dim : shape) {
+                        if (dim == 0) {
+                            dim = 1;
+                        } else if (dim > std::numeric_limits<char>::max()) {
+                            dim = std::numeric_limits<char>::max();
+                        }
+                    }
+                }
+                inputShapes.push_back(InputShape{param->get_partial_shape(), staticShapes});
             }
         }
         if (inputShapes.empty()) {

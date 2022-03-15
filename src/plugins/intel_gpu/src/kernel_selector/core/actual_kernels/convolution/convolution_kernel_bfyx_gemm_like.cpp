@@ -92,7 +92,7 @@ KernelsPriority ConvolutionKernel_bfyx_GEMMLike::GetKernelsPriority(const Params
 }
 
 bool ConvolutionKernel_bfyx_GEMMLike::Validate(const Params& p, const optional_params& o) const {
-    if (!Parent::Validate(p, o) || !CovolutionCheckInput(p, o)) {
+    if (!Parent::Validate(p, o) || !ConvolutionCheckInput(p, o)) {
         return false;
     }
 
