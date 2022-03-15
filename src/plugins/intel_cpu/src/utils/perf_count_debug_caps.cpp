@@ -4,7 +4,7 @@
 
 #ifdef CPU_DEBUG_CAPS
 
-#include "perf_count.h"
+#include "perf_count_debug_caps.h"
 #include "exec_network.h"
 #include <fstream>
 #include <iomanip>
@@ -73,15 +73,15 @@ PerfKey perfGetKey(MKLDNNGraph& graph) {
 
 void perfDump(const MKLDNNExecNetwork& execNet) {
     auto& graphs = execNet._graphs;
-    const auto graphNum = graphs.size();
+    const auto graphsNum = graphs.size();
     auto& graph = graphs[0];
 
-    if (graphNum == 0 ||
+    if (graphsNum == 0 ||
         graph.config.perfTablesPath.empty() || graph.perfKeysMap.size() == 0)
         return;
 
     // use 1st graph to accamulate perf data (save memory and time)
-    for (auto graphIdx = 1; graphIdx < graphNum; graphIdx++) {
+    for (auto graphIdx = 1; graphIdx < graphsNum; graphIdx++) {
         if (graphs[graphIdx].perfKeysMap.size() == 0)
             continue;
 
