@@ -56,15 +56,14 @@ public:
 
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
 
-    InferenceEngine::Parameter GetConfig(const std::string& name) const override;
-
-    InferenceEngine::Parameter GetMetric(const std::string& name) const override;
-
     void Export(std::ostream& modelFile) override;
 
 private:
     void InitCNNImpl(const InferenceEngine::CNNNetwork& network);
     void InitNgraph(const InferenceEngine::CNNNetwork& network);
+
+    void init_properties(const std::map<std::string, std::string>& properties);
+    void init_device_properties();
 
     struct NetworkDesc {
         std::string _device;
@@ -75,7 +74,6 @@ private:
     std::vector<NetworkDesc> _networks;
     Engine* _heteroPlugin;
     std::string _name;
-    std::map<std::string, std::string> _config;
     std::unordered_map<std::string, std::string> _blobNameMap;
 };
 

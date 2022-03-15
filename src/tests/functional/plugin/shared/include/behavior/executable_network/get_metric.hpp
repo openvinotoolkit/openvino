@@ -303,7 +303,7 @@ TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMet
     // check that all device config values are present in hetero case
     for (auto &&deviceConf : deviceConfigValues) {
         auto it = std::find(heteroConfigValues.begin(), heteroConfigValues.end(), deviceConf);
-        ASSERT_TRUE(it != heteroConfigValues.end());
+        ASSERT_TRUE(it != heteroConfigValues.end()) << deviceConf;
 
         InferenceEngine::Parameter heteroConfigValue = heteroExeNetwork.GetConfig(deviceConf);
         InferenceEngine::Parameter deviceConfigValue = deviceExeNetwork.GetConfig(deviceConf);
@@ -335,20 +335,21 @@ TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS, GetMetricN
 
     const std::vector<std::string> heteroSpecificMetrics = {
             METRIC_KEY(SUPPORTED_METRICS),
-            METRIC_KEY(SUPPORTED_CONFIG_KEYS)
+            METRIC_KEY(SUPPORTED_CONFIG_KEYS),
+            "SUPPORTED_PROPERTIES"
     };
 
     // check that all device metric values are present in hetero case
     for (auto &&deviceMetricName : deviceMetricValues) {
         auto it = std::find(heteroMetricValues.begin(), heteroMetricValues.end(), deviceMetricName);
-        ASSERT_TRUE(it != heteroMetricValues.end());
+        ASSERT_TRUE(it != heteroMetricValues.end()) << deviceMetricName;
 
         InferenceEngine::Parameter heteroMetricValue = heteroExeNetwork.GetMetric(deviceMetricName);
         InferenceEngine::Parameter deviceMetricValue = deviceExeNetwork.GetMetric(deviceMetricName);
 
         if (std::find(heteroSpecificMetrics.begin(), heteroSpecificMetrics.end(), deviceMetricName) ==
             heteroSpecificMetrics.end()) {
-            ASSERT_TRUE(heteroMetricValue == deviceMetricValue);
+            ASSERT_TRUE(heteroMetricValue == deviceMetricValue) << deviceMetricName;
         }
     }
 }

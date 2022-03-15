@@ -7,6 +7,8 @@
 #include <limits>
 #include <string>
 
+#include "openvino/util/common_util.hpp"
+
 namespace ov {
 
 bool Any::equal(std::type_index lhs, std::type_index rhs) {
@@ -235,6 +237,32 @@ void Read<Any>::operator()(std::istream& is, Any& any) const {
     any.read(is);
 }
 
+void Read<AnyMap>::operator()(std::istream& is, AnyMap& any_map) const {
+    while (is.good()) {
+        std::function<AnyMap::iterator(const std::vector<std::string>&, AnyMap&)> find =
+            [&](const std::vector<std::string>& path, AnyMap& any_map) {
+                auto it_any = any_map.find(path.front());
+                OPENVINO_ASSERT(it_any != any_map.end(),
+                                "Could not read content of ov::AnyMap: ",
+                                util::to_string(path));
+                if (it_any->second.is<AnyMap>()) {
+                    OPENVINO_ASSERT((path.begin() + 1) != path.end(),
+                                    "Could not read content of ov::AnyMap: ",
+                                    util::to_string(path));
+                    return find({path.begin() + 1, path.end()}, it_any->second.as<AnyMap>());
+                } else {
+                    return it_any;
+                }
+            };
+        std::string str;
+        is >> str;
+        if (str.empty())
+            break;
+        auto it_any = find(util::split(str, '.'), any_map);
+        it_any->second.read(is);
+    }
+}
+
 void Write<bool>::operator()(std::ostream& os, const bool& b) const {
     os << (b ? "YES" : "NO");
 }
@@ -242,17 +270,56 @@ void Write<bool>::operator()(std::ostream& os, const bool& b) const {
 void Write<std::tuple<unsigned int, unsigned int, unsigned int>>::operator()(
     std::ostream& os,
     const std::tuple<unsigned int, unsigned int, unsigned int>& tuple) const {
-    os << std::get<0>(tuple) << " " << std::get<1>(tuple) << " " << std::get<2>(tuple);
+    os << std::get<0>(tuple) << ' ' << std::get<1>(tuple) << ' ' << std::get<2>(tuple);
 }
 
 void Write<std::tuple<unsigned int, unsigned int>>::operator()(
     std::ostream& os,
     const std::tuple<unsigned int, unsigned int>& tuple) const {
-    os << std::get<0>(tuple) << " " << std::get<1>(tuple);
+    os << std::get<0>(tuple) << ' ' << std::get<1>(tuple);
 }
 
 void Write<Any>::operator()(std::ostream& os, const Any& any) const {
     any.print(os);
+}
+
+std::string maybe_empty_string(const std::string& str) {
+    if (str.empty()) {
+        return "\"\"";
+    }
+    return str;
+}
+
+void Write<AnyMap>::operator()(std::ostream& os, const AnyMap& any_map) const {
+    std::function<AnyMap(const AnyMap&)> flatten = [&](const AnyMap& any_map) {
+        AnyMap result;
+        for (auto&& v : any_map) {
+            if (v.second.is<AnyMap>()) {
+                for (auto&& sub_v : flatten(v.second.as<AnyMap>())) {
+                    result.emplace(v.first + '.' + sub_v.first, sub_v.second);
+                }
+            } else {
+                result.emplace(v.first, v.second);
+            }
+        }
+        return result;
+    };
+    auto flattened_map = flatten(any_map);
+    if (!flattened_map.empty()) {
+        std::stringstream strm;
+        std::size_t i = 0;
+        for (auto&& v : flattened_map) {
+            strm << v.first << ' ';
+            std::stringstream value_strm;
+            v.second.print(value_strm);
+            strm << maybe_empty_string(value_strm.str());
+            if (i < (flattened_map.size() - 1)) {
+                strm << ' ';
+            }
+            i++;
+        }
+        os << strm.str();
+    }
 }
 
 }  // namespace util

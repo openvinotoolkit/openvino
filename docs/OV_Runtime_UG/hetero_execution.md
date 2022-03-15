@@ -85,7 +85,7 @@ The fallback policy does not work if at least one operation has an initialized `
 > **NOTE**: ov::Core::query_model does not depend on affinities set by a user. Instead, it queries for an operation support based on device capabilities.
 
 ### Configure fallback devices
-If you want different devices in Hetero execution to have different device-specific configuration options, you can use the special helper property ov::device::properties:
+If you want different devices in Hetero execution to have different device-specific configuration options, you can use the special helper property ov::property:
 
 @sphinxdirective
 

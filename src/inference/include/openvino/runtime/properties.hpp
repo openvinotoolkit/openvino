@@ -60,7 +60,6 @@ private:
 
 /** @cond INTERNAL */
 namespace util {
-struct PropertyTag {};
 
 template <typename... Args>
 struct StringAny;
@@ -79,12 +78,18 @@ struct StringAny<T> {
 template <typename T, typename... Args>
 using EnableIfAllStringAny = typename std::enable_if<StringAny<Args...>::value, T>::type;
 
+struct PropertyTag {};
+
+template <typename P>
+using EnableIfProperty = typename std::enable_if<std::is_base_of<util::PropertyTag, P>::value, P>::type::value_type;
+
 /**
  * @brief This class is used to bind property name with property type
  * @tparam T type of value used to pass or get property
  */
 template <typename T, PropertyMutability mutability_ = PropertyMutability::RW>
 struct BaseProperty : public PropertyTag {
+    friend class NamedProperties;
     using value_type = T;                                  //!< Property type
     constexpr static const auto mutability = mutability_;  //!< Property readability
 
@@ -96,7 +101,7 @@ struct BaseProperty : public PropertyTag {
 
     /**
      * @brief return property name
-     * @return Pointer to const string key representation
+     * @return name string
      */
     const char* name() const {
         return _name;
@@ -107,7 +112,7 @@ struct BaseProperty : public PropertyTag {
      * @return true if string is the same
      */
     bool operator==(const std::string& str) const {
-        return _name == str;
+        return name() == str;
     }
 
     /**
@@ -194,6 +199,133 @@ template <typename T>
 struct Property<T, PropertyMutability::RO> : public util::BaseProperty<T, PropertyMutability::RO> {
     using util::BaseProperty<T, PropertyMutability::RO>::BaseProperty;
 };
+
+/** @cond INTERNAL */
+namespace util {
+struct Prefix {
+    std::string str;
+};
+template <typename T, PropertyMutability M>
+struct PrefixedProperty : protected Prefix, public Property<T, M> {
+    PrefixedProperty(const std::string& prefix, const std::string& name)
+        : Prefix{prefix + "." + name},
+          Property<T, M>{str.c_str()} {}
+    const std::string& name() const {
+        return str;
+    }
+};
+}  // namespace util
+/** @endcond */
+
+/**
+ * @brief Type for property to pass set of properties with predefined name
+ */
+struct NamedProperties {
+    /**
+     * @brief Constructs property access variable
+     * @param str_ property name
+     */
+    explicit constexpr NamedProperties(const char* name_) : _name{name_} {}
+
+    /**
+     * @brief Constructs property
+     * @param config set of property values with names
+     * @return Pair of string key representation and type erased property value.
+     */
+    inline std::pair<std::string, Any> operator()(const AnyMap& config) const {
+        return {_name, config};
+    }
+
+    /**
+     * @brief Constructs property
+     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
+     * @param configs Optional pack of pairs: (config parameter name, config parameter value)
+     * @return Pair of string key representation and type erased property value.
+     */
+    template <typename... Properties>
+    inline util::EnableIfAllStringAny<std::pair<std::string, Any>, Properties...> operator()(
+        Properties&&... configs) const {
+        return {_name, AnyMap{std::pair<std::string, Any>{configs}...}};
+    }
+
+    /**
+     * @brief Constructs property object with prefix that contains property set name
+     * @tparam Property property type
+     * @tparam T property value type
+     * @tparam M property mutability type
+     * @param property property object without prefix
+     * @return property object with prefix
+     */
+    template <template <typename, PropertyMutability> class Property, typename T, PropertyMutability M>
+    inline util::PrefixedProperty<T, M> operator()(const Property<T, M>& property) const {
+        return {_name, property.name()};
+    }
+
+    /**
+     * @brief return property set name
+     * @return name string
+     */
+    const std::string name() const {
+        return _name;
+    }
+
+private:
+    const char* _name = nullptr;
+};
+
+/**
+ * @brief Type for property to pass set of properties with name defined in runtime
+ */
+struct Properties {
+    /**
+     * @brief Constructs property
+     * @param name properties set alias
+     * @param config set of property values with names
+     * @return Pair of string key representation and type erased property value.
+     */
+    inline std::pair<std::string, Any> operator()(const std::string& name, const AnyMap& config) const {
+        return {name, config};
+    }
+
+    /**
+     * @brief Constructs property
+     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
+     * @param name properties set alias
+     * @param configs Optional pack of pairs: (config parameter name, config parameter value)
+     * @return Pair of string key representation and type erased property value.
+     */
+    template <typename... Properties>
+    inline util::EnableIfAllStringAny<std::pair<std::string, Any>, Properties...> operator()(
+        const std::string& name,
+        Properties&&... configs) const {
+        return {name, AnyMap{std::pair<std::string, Any>{configs}...}};
+    }
+
+    /**
+     * @brief Constructs property object with prefix that contains property set name
+     * @tparam Property property type
+     * @tparam T property value type
+     * @tparam M property mutability type
+     * @param property property object without prefix
+     * @return property object with prefix
+     */
+    template <template <typename, PropertyMutability> class Property, typename T, PropertyMutability M>
+    util::PrefixedProperty<T, M> operator()(const std::string& name, const Property<T, M>& property) const {
+        return {name, property.name()};
+    }
+};
+
+/**
+ * @brief Property to pass set of property values to specified device
+ * Usage Example:
+ * @code
+ * core.compile_model("HETERO"
+ *     ov::target_falLback("GPU", "CPU"),
+ *     ov::properties("CPU", ov::enable_profiling(true)),
+ *     ov::properties("GPU", ov::enable_profiling(false)));
+ * @endcode
+ */
+static constexpr Properties properties;
 
 /**
  * @brief Read-only property to get a std::vector<PropertyName> of supported read-only properties.
@@ -527,47 +659,6 @@ public:
 static constexpr Priorities priorities{"MULTI_DEVICE_PRIORITIES"};
 
 /**
- * @brief Type for property to pass set of properties to specified device
- */
-struct Properties {
-    /**
-     * @brief Constructs property
-     * @param device_name device plugin alias
-     * @param config set of property values with names
-     * @return Pair of string key representation and type erased property value.
-     */
-    inline std::pair<std::string, Any> operator()(const std::string& device_name, const AnyMap& config) const {
-        return {device_name, config};
-    }
-
-    /**
-     * @brief Constructs property
-     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
-     * @param device_name device plugin alias
-     * @param configs Optional pack of pairs: (config parameter name, config parameter value)
-     * @return Pair of string key representation and type erased property value.
-     */
-    template <typename... Properties>
-    inline util::EnableIfAllStringAny<std::pair<std::string, Any>, Properties...> operator()(
-        const std::string& device_name,
-        Properties&&... configs) const {
-        return {device_name, AnyMap{std::pair<std::string, Any>{configs}...}};
-    }
-};
-
-/**
- * @brief Property to pass set of property values to specified device
- * Usage Example:
- * @code
- * core.compile_model("HETERO"
- *     ov::device::priorities("GPU", "CPU"),
- *     ov::device::properties("CPU", ov::enable_profiling(true)),
- *     ov::device::properties("GPU", ov::enable_profiling(false)));
- * @endcode
- */
-static constexpr Properties properties;
-
-/**
  * @brief Read-only property to get a std::string value representing a full device name.
  */
 static constexpr Property<std::string, PropertyMutability::RO> full_name{"FULL_DEVICE_NAME"};
@@ -715,6 +806,11 @@ inline std::istream& operator>>(std::istream& is, Num& num_val) {
 static constexpr Property<streams::Num, PropertyMutability::RW> num_streams{"NUM_STREAMS"};
 
 /**
+ * @brief Maximum number of threads that can be used by executor
+ */
+static constexpr Property<int32_t, PropertyMutability::RW> num_threads{"NUM_THREADS"};
+
+/**
  * @brief Maximum number of threads that can be used for inference tasks
  */
 static constexpr Property<int32_t, PropertyMutability::RW> inference_num_threads{"INFERENCE_NUM_THREADS"};
@@ -776,4 +872,14 @@ inline std::istream& operator>>(std::istream& is, Affinity& affinity) {
  * environment variable is set (as affinity is configured explicitly)
  */
 static constexpr Property<Affinity> affinity{"AFFINITY"};
+
+/**
+ * @brief Sub set of properties used for inference
+ */
+static constexpr NamedProperties infer_property{"INFER"};
+
+/**
+ * @brief Sub set of properties used for inference
+ */
+static constexpr NamedProperties compile_property{"COMPILE"};
 }  // namespace ov

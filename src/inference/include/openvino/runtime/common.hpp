@@ -10,6 +10,7 @@
 #pragma once
 
 #include <map>
+#include <openvino/core/any.hpp>
 #include <string>
 
 #include "openvino/core/any.hpp"

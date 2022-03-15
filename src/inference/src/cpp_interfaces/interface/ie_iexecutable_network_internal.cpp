@@ -91,16 +91,16 @@ void IExecutableNetworkInternal::SetPointerToPlugin(const std::shared_ptr<IInfer
     _plugin = plugin;
 }
 
-void IExecutableNetworkInternal::SetConfig(const std::map<std::string, Parameter>&) {
-    IE_THROW(NotImplemented);
+void IExecutableNetworkInternal::SetConfig(const std::map<std::string, Parameter>& properties) {
+    _properties.set(properties);
 }
 
-Parameter IExecutableNetworkInternal::GetConfig(const std::string&) const {
-    IE_THROW(NotImplemented);
+Parameter IExecutableNetworkInternal::GetConfig(const std::string& name) const {
+    return _properties.get(name);
 }
 
-Parameter IExecutableNetworkInternal::GetMetric(const std::string&) const {
-    IE_THROW(NotImplemented);
+Parameter IExecutableNetworkInternal::GetMetric(const std::string& name) const {
+    return _properties.get(name);
 }
 
 std::shared_ptr<RemoteContext> IExecutableNetworkInternal::GetContext() const {
@@ -117,6 +117,10 @@ std::shared_ptr<IInferRequestInternal> IExecutableNetworkInternal::CreateInferRe
     const std::vector<std::shared_ptr<const ov::Node>>& inputs,
     const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
     IE_THROW(NotImplemented);
+}
+
+ov::PropertyAccess IExecutableNetworkInternal::get_properties() const {
+    return _properties;
 }
 
 }  // namespace InferenceEngine

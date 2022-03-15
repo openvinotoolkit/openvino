@@ -20,6 +20,7 @@
 #include "ie_input_info.hpp"
 #include "ie_parameter.hpp"
 #include "openvino/util/pp.hpp"
+#include "properties.hpp"
 #include "so_ptr.hpp"
 
 namespace ov {
@@ -339,6 +340,7 @@ protected:
     std::map<std::string, std::string> _config;         //!< A map config keys -> values
     std::weak_ptr<ov::ICore> _core;                     //!< A pointer to ICore interface
     std::shared_ptr<ExecutorManager> _executorManager;  //!< A tasks execution manager
+    ov::PropertyAccess _properties;                     //!< Properties access interface
 };
 
 /**

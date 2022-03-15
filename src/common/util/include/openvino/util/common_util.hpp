@@ -117,5 +117,10 @@ bool contains(const std::vector<T, A>& vec, const V& v) {
         return x == v;
     });
 }
+
+template <typename K, typename T, typename C, typename A, template <typename...> class Map, typename V>
+bool contains(const Map<K, T, C, A>& map, const V& v) {
+    return map.find(v) != map.end();
+}
 }  // namespace util
 }  // namespace ov

@@ -46,9 +46,9 @@ auto compiled_model = core.compile_model(model, device);
         // GPU with fallback to CPU
         ov::device::priorities("GPU", "CPU"),
         // profiling is enabled only for GPU
-        ov::device::properties("GPU", ov::enable_profiling(true)),
+        ov::properties("GPU", ov::enable_profiling(true)),
         // FP32 inference precision only for CPU
-        ov::device::properties("CPU", ov::hint::inference_precision(ov::element::f32))
+        ov::properties("CPU", ov::hint::inference_precision(ov::element::f32))
     );
 //! [configure_fallback_devices]
 }

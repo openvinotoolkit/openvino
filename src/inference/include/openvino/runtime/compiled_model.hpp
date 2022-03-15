@@ -198,9 +198,9 @@ public:
      * @param property  Property  object.
      * @return Value of property.
      */
-    template <typename T, PropertyMutability mutability>
-    T get_property(const ov::Property<T, mutability>& property) const {
-        return get_property(property.name()).template as<T>();
+    template <typename P>
+    util::EnableIfProperty<P> get_property(const P& property) const {
+        return get_property(property.name()).template as<typename P::value_type>();
     }
 
     /**

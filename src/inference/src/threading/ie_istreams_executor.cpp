@@ -21,6 +21,92 @@
 namespace InferenceEngine {
 IStreamsExecutor::~IStreamsExecutor() {}
 
+IStreamsExecutor::Config::Config(std::string name,
+                                 int streams,
+                                 int threadsPerStream,
+                                 ThreadBindingType threadBindingType,
+                                 int threadBindingStep,
+                                 int threadBindingOffset,
+                                 int threads,
+                                 PreferredCoreType threadPreferredCoreType)
+    : _name{name},
+      _streams{streams},
+      _threadsPerStream{threadsPerStream},
+      _threadBindingType{threadBindingType},
+      _threadBindingStep{threadBindingStep},
+      _threadBindingOffset{threadBindingOffset},
+      _threads{threads},
+      _threadPreferredCoreType(threadPreferredCoreType) {
+    properties
+        .add(
+            ov::streams::num,
+            [this] {
+                return _streams;
+            },
+            [this](const int32_t& streams) {
+                if (streams == ov::streams::NUMA) {
+                    _streams = static_cast<int32_t>(getAvailableNUMANodes().size());
+                } else if (streams == ov::streams::AUTO) {
+                    // bare minimum of streams (that evenly divides available number of cores)
+                    _streams = GetDefaultNumStreams();
+                } else {
+                    _streams = streams;
+                }
+            },
+            [](const int32_t& streams) {
+                OPENVINO_ASSERT((streams == ov::streams::NUMA) || (streams == ov::streams::AUTO) || (streams >= 0),
+                                "Wrong value for property key ",
+                                ov::streams::num.name(),
+                                ". Expected non negative numbers (#streams) or ",
+                                "ov::streams::NUMA|ov::streams::AUTO: ",
+                                streams);
+            })
+        .add(ov::num_threads,
+             std::ref(_threads),
+             [](const int32_t& threads) {
+                 OPENVINO_ASSERT(threads >= 0);
+             })
+        .add(
+            ov::affinity,
+            [this] {
+                switch (_threadBindingType) {
+                case ThreadBindingType::NONE:
+                    return ov::Affinity::NONE;
+                case ThreadBindingType::CORES:
+                    return ov::Affinity::CORE;
+                case ThreadBindingType::NUMA:
+                    return ov::Affinity::NUMA;
+                case ThreadBindingType::HYBRID_AWARE:
+                    return ov::Affinity::HYBRID_AWARE;
+                default:
+                    OPENVINO_UNREACHABLE("Unsupported thread binding type");
+                };
+            },
+            [this](const ov::Affinity& affinity) {
+                switch (affinity) {
+                case ov::Affinity::NONE:
+                    _threadBindingType = ThreadBindingType::NONE;
+                    break;
+                case ov::Affinity::CORE: {
+#if (defined(__APPLE__) || defined(_WIN32))
+                    _threadBindingType = ThreadBindingType::NUMA;
+#else
+                    _threadBindingType = ThreadBindingType::CORES;
+#endif
+                    break;
+                }
+                case ov::Affinity::NUMA:
+                    _threadBindingType = ThreadBindingType::NUMA;
+                    break;
+                case ov::Affinity::HYBRID_AWARE:
+                    _threadBindingType = ThreadBindingType::HYBRID_AWARE;
+                    break;
+                default:
+                    OPENVINO_UNREACHABLE("Unsupported affinity type");
+                };
+            });
+}
+
 std::vector<std::string> IStreamsExecutor::Config::SupportedKeys() const {
     return {
         CONFIG_KEY(CPU_THROUGHPUT_STREAMS),

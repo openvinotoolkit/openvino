@@ -885,7 +885,6 @@ TEST_P(IEClassQueryNetworkTest, QueryNetworkHETEROWithBigDeviceIDThrows) {
 //
 // LoadNetwork
 //
-
 TEST(IEClassBasicTest, smoke_LoadNetworkToDefaultDeviceNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     InferenceEngine::CNNNetwork actualCnnNetwork;

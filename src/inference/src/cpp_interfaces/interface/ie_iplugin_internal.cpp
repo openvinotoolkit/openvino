@@ -204,16 +204,16 @@ void IInferencePlugin::AddExtension(const std::shared_ptr<IExtension>&) {
     IE_THROW(NotImplemented);
 }
 
-void IInferencePlugin::SetConfig(const std::map<std::string, std::string>&) {
-    IE_THROW(NotImplemented);
+void IInferencePlugin::SetConfig(const std::map<std::string, std::string>& config) {
+    _properties.set(config);
 }
 
-Parameter IInferencePlugin::GetConfig(const std::string&, const std::map<std::string, Parameter>&) const {
-    IE_THROW(NotImplemented);
+Parameter IInferencePlugin::GetConfig(const std::string& name, const std::map<std::string, Parameter>& args) const {
+    return _properties.get(name, args);
 }
 
-Parameter IInferencePlugin::GetMetric(const std::string&, const std::map<std::string, Parameter>&) const {
-    IE_THROW(NotImplemented);
+Parameter IInferencePlugin::GetMetric(const std::string& name, const std::map<std::string, Parameter>& args) const {
+    return _properties.get(name, args);
 }
 
 std::shared_ptr<RemoteContext> IInferencePlugin::CreateContext(const ParamMap&) {

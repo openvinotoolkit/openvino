@@ -271,7 +271,7 @@ TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMet
         ov::Any deviceConfigValue = deviceExeNetwork.get_property(deviceConf);
 
         // HETERO returns EXCLUSIVE_ASYNC_REQUESTS as a boolean value
-        if (CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS) != deviceConf) {
+        if (CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS) != deviceConf && !(ov::supported_properties == deviceConf)) {
             std::stringstream strm;
             deviceConfigValue.print(strm);
             strm << " ";
@@ -307,7 +307,7 @@ TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS, GetMetricN
         ov::Any deviceConfigValue = deviceExeNetwork.get_property(deviceConf);
 
         // HETERO returns EXCLUSIVE_ASYNC_REQUESTS as a boolean value
-        if (CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS) != deviceConf) {
+        if (CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS) != deviceConf && !(ov::supported_properties == deviceConf)) {
             std::stringstream strm;
             deviceConfigValue.print(strm);
             strm << " ";

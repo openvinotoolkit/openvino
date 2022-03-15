@@ -13,6 +13,7 @@
 #include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
 #include "ie_parameter.hpp"
 #include "ie_remote_context.hpp"
+#include "properties.hpp"
 #include "so_ptr.hpp"
 
 namespace ov {
@@ -148,6 +149,12 @@ public:
      */
     virtual std::shared_ptr<RemoteContext> GetContext() const;
 
+    /**
+     * @brief Return properties access API
+     * @return A reference to property access API
+     */
+    ov::PropertyAccess get_properties() const;
+
 protected:
     virtual ~IExecutableNetworkInternal() = default;
 
@@ -177,6 +184,7 @@ protected:
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
     std::vector<std::shared_ptr<const ov::Node>> _parameters;
     std::vector<std::shared_ptr<const ov::Node>> _results;
+    ov::PropertyAccess _properties;  //!< Properties access interface
 
     /**
      * @brief A pointer to a IInferencePlugin interface.

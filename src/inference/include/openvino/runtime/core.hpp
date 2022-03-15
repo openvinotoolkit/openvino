@@ -524,15 +524,14 @@ public:
      * The method is needed to request common device or system properties.
      * It can be device name, temperature, and other devices-specific values.
      *
-     * @tparam T Type of a returned value.
-     * @tparam M Property mutability.
-     * @param deviceName  Name of a device to get a property value.
-     * @param property  Property object.
+     * @tparam P - Property type
+     * @param deviceName  - A name of a device to get a properties value.
+     * @param property  - property object.
      * @return Property value.
      */
-    template <typename T, PropertyMutability M>
-    T get_property(const std::string& deviceName, const ov::Property<T, M>& property) const {
-        return get_property(deviceName, property.name(), {}).template as<T>();
+    template <typename P>
+    util::EnableIfProperty<P> get_property(const std::string& deviceName, const P& property) const {
+        return get_property(deviceName, property.name(), {}).template as<typename P::value_type>();
     }
 
     /**
@@ -541,16 +540,17 @@ public:
      * The method is needed to request common device or system properties.
      * It can be device name, temperature, other devices-specific values.
      *
-     * @tparam T Type of a returned value.
-     * @tparam M Property mutability.
-     * @param deviceName  Name of a device to get a property value.
-     * @param property  Property object.
-     * @param arguments  Additional arguments to get a property.
+     * @tparam P - Property type
+     * @param deviceName  - A name of a device to get a properties value.
+     * @param property  - property object.
+     * @param arguments  - additional arguments to get property
      * @return Property value.
      */
-    template <typename T, PropertyMutability M>
-    T get_property(const std::string& deviceName, const ov::Property<T, M>& property, const AnyMap& arguments) const {
-        return get_property(deviceName, property.name(), arguments).template as<T>();
+    template <typename P>
+    util::EnableIfProperty<P> get_property(const std::string& deviceName,
+                                           const P& property,
+                                           const AnyMap& arguments) const {
+        return get_property(deviceName, property.name(), arguments).template as<typename P::value_type>();
     }
 
     /**
@@ -559,19 +559,19 @@ public:
      * The method is needed to request common device or system properties.
      * It can be device name, temperature, other devices-specific values.
      *
-     * @tparam T Type of a returned value.
-     * @tparam M Property mutability.
-     * @tparam Args Set of additional arguments ended with property object variable.
-     * @param deviceName  Name of a device to get a property value.
-     * @param property  Property object.
-     * @param args Optional pack of pairs: (argument name, argument value) ended with property object.
+     * @tparam P - Property type
+     * @tparam Args - set of additional arguments ended with property object variable
+     * @param deviceName  - A name of a device to get a properties value.
+     * @param property  - property object.
+     * @param args - Optional pack of pairs: (argument name, argument value) ended with property object
      * @return Property value.
      */
-    template <typename T, PropertyMutability M, typename... Args>
-    util::EnableIfAllStringAny<T, Args...> get_property(const std::string& deviceName,
-                                                        const ov::Property<T, M>& property,
-                                                        Args&&... args) const {
-        return get_property(deviceName, property.name(), AnyMap{std::forward<Args>(args)...}).template as<T>();
+    template <typename P, typename... Args>
+    util::EnableIfAllStringAny<util::EnableIfProperty<P>, Args...> get_property(const std::string& deviceName,
+                                                                                const P& property,
+                                                                                Args&&... args) const {
+        return get_property(deviceName, property.name(), AnyMap{std::forward<Args>(args)...})
+            .template as<typename P::value_type>();
     }
 
     /**

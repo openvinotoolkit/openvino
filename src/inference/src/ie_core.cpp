@@ -119,21 +119,6 @@ void allowNotImplemented(F&& f) {
     }
 }
 
-ov::AnyMap flatten_sub_properties(const std::string& device, const ov::AnyMap& properties) {
-    ov::AnyMap result = properties;
-    for (auto&& property : properties) {
-        auto parsed = parseDeviceNameIntoConfig(property.first);
-        if (device.find(parsed._deviceName) != std::string::npos) {
-            if (property.second.is<ov::AnyMap>()) {
-                for (auto&& sub_property : property.second.as<ov::AnyMap>()) {
-                    result[sub_property.first] = sub_property.second;
-                }
-            }
-        }
-    }
-    return result;
-}
-
 }  // namespace
 
 class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore> {
@@ -785,8 +770,11 @@ public:
                         "set_property is supported only for AUTO itself (without devices). "
                         "You can configure the devices with set_property before creating the AUTO on top.");
 
-        ExtractAndSetDeviceConfig(properties);
-        SetConfigForPlugins(any_copy(properties), device_name);
+        AnyMap flattened_properties = properties;
+        for (auto&& device : GetListOfDevicesInRegistry()) {
+            flattened_properties = flatten_device_properties(device, flattened_properties);
+        }
+        SetConfigForPlugins(any_copy(flattened_properties), device_name);
     }
 
     Any get_property(const std::string& deviceName, const std::string& name, const AnyMap& arguments) const override {
@@ -1110,23 +1098,24 @@ public:
     }
 
     /**
-     * @brief Get device config it is passed as pair of device_name and `AnyMap`
-     * @param configs All set of configs
+     * @brief Get device config if is passed as pair of device_name and `AnyMap`
+     * @param device device name
+     * @param properties All set of properties
      * @note  `device_name` is not allowed in form of MULTI:CPU, HETERO:GPU,CPU, AUTO:CPU
      *        just simple forms like CPU, GPU, MULTI, GPU.0, etc
      */
-    void ExtractAndSetDeviceConfig(const ov::AnyMap& configs) {
-        for (auto&& config : configs) {
-            auto parsed = parseDeviceNameIntoConfig(config.first);
-            auto devices = GetListOfDevicesInRegistry();
-            auto config_is_device_name_in_regestry =
-                std::any_of(devices.begin(), devices.end(), [&](const std::string& device) {
-                    return device == parsed._deviceName;
-                });
-            if (config_is_device_name_in_regestry) {
-                SetConfigForPlugins(any_copy(config.second.as<ov::AnyMap>()), config.first);
+    ov::AnyMap flatten_device_properties(const std::string& device, const ov::AnyMap& properties) {
+        ov::AnyMap result;
+        for (auto&& property : properties) {
+            if (property.first == device && property.second.is<AnyMap>()) {
+                for (auto&& sub_property : property.second.as<AnyMap>()) {
+                    result.emplace(sub_property.first, sub_property.second);
+                }
+            } else {
+                result.insert(property);
             }
         }
+        return result;
     }
 
     std::map<std::string, std::string> GetSupportedConfig(const std::string& deviceName,
@@ -1138,7 +1127,8 @@ public:
         } catch (ov::Exception&) {
         }
         try {
-            for (auto&& property : ICore::get_property(deviceName, ov::supported_properties)) {
+            for (auto&& property :
+                 ICore::get_property(deviceName, ov::supported_properties, {{"OV_FULL_PROPERTIES_ROUTS", {}}})) {
                 if (property.is_mutable()) {
                     supportedConfigKeys.emplace_back(std::move(property));
                 }
@@ -1705,7 +1695,9 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const std::string& deviceName,
                                   const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->LoadNetwork(toCNN(model), deviceName, any_copy(flatten_sub_properties(deviceName, config)));
+        auto exec = _impl->LoadNetwork(toCNN(model),
+                                       deviceName,
+                                       any_copy(_impl->flatten_device_properties(deviceName, config)));
         return {exec._ptr, exec._so};
     });
 }
@@ -1716,7 +1708,8 @@ CompiledModel Core::compile_model(const std::string& modelPath, const AnyMap& co
 
 CompiledModel Core::compile_model(const std::string& modelPath, const std::string& deviceName, const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->LoadNetwork(modelPath, deviceName, any_copy(flatten_sub_properties(deviceName, config)));
+        auto exec =
+            _impl->LoadNetwork(modelPath, deviceName, any_copy(_impl->flatten_device_properties(deviceName, config)));
         return {exec._ptr, exec._so};
     });
 }
@@ -1727,7 +1720,7 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->LoadNetwork(toCNN(model),
                                        context._impl,
-                                       any_copy(flatten_sub_properties(context.get_device_name(), config)));
+                                       any_copy(_impl->flatten_device_properties(context.get_device_name(), config)));
         return {exec._ptr, exec._so};
     });
 }
@@ -1755,7 +1748,9 @@ void Core::add_extension(const std::vector<std::shared_ptr<ov::Extension>>& exte
 CompiledModel Core::import_model(std::istream& modelStream, const std::string& deviceName, const AnyMap& config) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->ImportNetwork(modelStream, deviceName, any_copy(flatten_sub_properties(deviceName, config)));
+        auto exec = _impl->ImportNetwork(modelStream,
+                                         deviceName,
+                                         any_copy(_impl->flatten_device_properties(deviceName, config)));
         return {exec._ptr, exec._so};
     });
 }
@@ -1789,8 +1784,9 @@ SupportedOpsMap Core::query_model(const std::shared_ptr<const ov::Model>& model,
                                   const std::string& deviceName,
                                   const AnyMap& config) const {
     OV_CORE_CALL_STATEMENT({
-        auto qnResult =
-            _impl->QueryNetwork(toCNN(model), deviceName, any_copy(flatten_sub_properties(deviceName, config)));
+        auto qnResult = _impl->QueryNetwork(toCNN(model),
+                                            deviceName,
+                                            any_copy(_impl->flatten_device_properties(deviceName, config)));
         return qnResult.supportedLayersMap;
     });
 }
@@ -1838,7 +1834,7 @@ RemoteContext Core::create_context(const std::string& deviceName, const AnyMap& 
     OPENVINO_ASSERT(deviceName.find("AUTO") != 0, "AUTO device does not support remote context");
 
     OV_CORE_CALL_STATEMENT({
-        auto parsed = parseDeviceNameIntoConfig(deviceName, flatten_sub_properties(deviceName, params));
+        auto parsed = parseDeviceNameIntoConfig(deviceName, params);
         auto remoteContext = _impl->GetCPPPluginByName(parsed._deviceName).create_context(parsed._config);
         return {remoteContext._ptr, remoteContext._so};
     });

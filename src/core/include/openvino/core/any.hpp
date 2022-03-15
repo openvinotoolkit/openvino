@@ -28,6 +28,9 @@ class ExecutableNetwork;
 namespace ov {
 /** @cond INTERNAL */
 class Any;
+
+using AnyMap = std::map<std::string, Any>;
+
 namespace util {
 template <typename T, typename = void>
 struct Read;
@@ -125,24 +128,27 @@ struct OPENVINO_API Read<std::tuple<unsigned int, unsigned int>> {
 
 template <typename T>
 auto from_string(const std::string& str) -> const
-    typename std::enable_if<std::is_same<T, std::string>::value, T>::type& {
+    typename std::enable_if<std::is_same<T, std::string>::value, T>::type {
+    if (str == "\"\"") {
+        return {};
+    }
     return str;
 }
 
 template <typename T>
-auto from_string(const std::string& val) ->
+auto from_string(const std::string& str) ->
     typename std::enable_if<Readable<T>::value && !std::is_same<T, std::string>::value, T>::type {
-    std::stringstream ss(val);
+    std::stringstream ss(from_string<std::string>(str));
     T value;
     Read<T>{}(ss, value);
     return value;
 }
 
 template <typename T>
-auto from_string(const std::string& val) ->
+auto from_string(const std::string& str) ->
     typename std::enable_if<!Readable<T>::value && Istreamable<T>::value && !std::is_same<T, std::string>::value,
                             T>::type {
-    std::stringstream ss(val);
+    std::stringstream ss(from_string<std::string>(str));
     T value;
     ss >> value;
     return value;
@@ -163,8 +169,8 @@ struct ValueTyped {
 
 template <typename T,
           typename std::enable_if<ValueTyped<T>::value && Readable<typename T::value_type>::value, bool>::type = true>
-typename T::value_type from_string(const std::string& val, const T&) {
-    std::stringstream ss(val);
+typename T::value_type from_string(const std::string& str, const T&) {
+    std::stringstream ss(from_string<std::string>(str));
     typename T::value_type value;
     Read<typename T::value_type, void>{}(ss, value);
     return value;
@@ -174,8 +180,8 @@ template <typename T,
           typename std::enable_if<ValueTyped<T>::value && !Readable<typename T::value_type>::value &&
                                       Istreamable<typename T::value_type>::value,
                                   bool>::type = true>
-typename T::value_type from_string(const std::string& val, const T&) {
-    std::stringstream ss(val);
+typename T::value_type from_string(const std::string& str, const T&) {
+    std::stringstream ss(from_string<std::string>(str));
     typename T::value_type value;
     ss >> value;
     return value;
@@ -216,6 +222,11 @@ struct Read<
             map.emplace(std::move(k), std::move(v));
         }
     }
+};
+
+template <>
+struct OPENVINO_API Read<AnyMap> {
+    void operator()(std::istream& is, AnyMap& map) const;
 };
 
 template <typename T>
@@ -269,7 +280,7 @@ struct OPENVINO_API Write<std::tuple<unsigned int, unsigned int>> {
 };
 
 template <typename T>
-auto to_string(const T& str) -> const typename std::enable_if<std::is_same<T, std::string>::value, T>::type& {
+auto to_string(const T& str) -> const typename std::enable_if<std::is_same<T, std::string>::value, T>::type {
     return str;
 }
 
@@ -290,14 +301,7 @@ auto to_string(const T& value) ->
     return ss.str();
 }
 
-template <typename T>
-auto to_string(const T&) ->
-    typename std::enable_if<!Writable<T>::value && !Ostreamable<T>::value && !std::is_same<T, std::string>::value,
-                            std::string>::type {
-    OPENVINO_UNREACHABLE("Could convert to string from type without std::ostream& operator>>(std::ostream&, const T&)",
-                         " defined or ov::util::Write<T> class specialization, T: ",
-                         typeid(T).name());
-}
+OPENVINO_API std::string maybe_empty_string(const std::string& str);
 
 template <typename T, typename A>
 struct Write<std::vector<T, A>> {
@@ -305,7 +309,7 @@ struct Write<std::vector<T, A>> {
         if (!vec.empty()) {
             std::size_t i = 0;
             for (auto&& v : vec) {
-                os << to_string(v);
+                os << maybe_empty_string(to_string(v));
                 if (i < (vec.size() - 1))
                     os << ' ';
                 ++i;
@@ -322,7 +326,7 @@ struct Write<std::map<K, T, C, A>> {
             for (auto&& v : map) {
                 os << to_string(v.first);
                 os << ' ';
-                os << to_string(v.second);
+                os << maybe_empty_string(to_string(v.second));
                 if (i < (map.size() - 1))
                     os << ' ';
                 ++i;
@@ -330,6 +334,12 @@ struct Write<std::map<K, T, C, A>> {
         }
     }
 };
+
+template <>
+struct OPENVINO_API Write<AnyMap> {
+    void operator()(std::ostream& is, const AnyMap& map) const;
+};
+
 }  // namespace util
 /** @endcond */
 
@@ -998,8 +1008,6 @@ struct AsTypePtr<Any> {
 };
 }  // namespace util
 /** @endcond */
-
-using AnyMap = std::map<std::string, Any>;
 
 using RTMap = AnyMap;
 

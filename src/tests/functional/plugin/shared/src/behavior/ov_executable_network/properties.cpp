@@ -106,7 +106,7 @@ TEST_P(OVCompiledModelPropertiesDefaultTests, CheckDefaultValues) {
         ASSERT_TRUE(supported) << "default_property=" << default_property.first;
         Any property;
         OV_ASSERT_NO_THROW(property = compiled_model.get_property(default_property.first));
-        ASSERT_EQ(default_property.second, property);
+        ASSERT_EQ(default_property.second, property) << default_property.first;
     }
 }
 
