@@ -47,6 +47,7 @@ The target is able to take the following command-line arguments:
 * `--extract_body` allows to count extracted operation bodies to report.
 * `--shape_mode` Optional. Allows to run `static`, `dynamic` or both scenarios. Default value is empty string allows to run both scenarios. Possible values 
   are `static`, `dynamic`, ``
+* `--test_timeout` Setup timeout for each test in seconds, default timeout 900seconds (15 minutes).
 * All `gtest` command-line parameters
 
 The result of execution is `report.xml` file. It demonstrates tests statistic like pass rate, passed, crashed, skipped failed tests and plugin implementation 
