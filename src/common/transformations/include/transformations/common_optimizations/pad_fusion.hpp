@@ -30,7 +30,7 @@ class TRANSFORMATIONS_API PadFusionGroupConvolutionBackpropData;
  */
 class ngraph::pass::PadFusionAvgPool : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("PadFusionAvgPool", "0");
     PadFusionAvgPool();
 };
 
@@ -43,7 +43,7 @@ public:
  */
 class ngraph::pass::PadFusionConvolution : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("PadFusionConvolution", "0");
     PadFusionConvolution();
 };
 
@@ -57,7 +57,7 @@ public:
  */
 class ngraph::pass::PadFusionConvolutionBackpropData : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("PadFusionConvolutionBackpropData", "0");
     PadFusionConvolutionBackpropData();
 };
 
@@ -70,7 +70,7 @@ public:
  */
 class ngraph::pass::PadFusionGroupConvolution : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("PadFusionGroupConvolution", "0");
     PadFusionGroupConvolution();
 };
 
@@ -84,13 +84,13 @@ public:
  */
 class ngraph::pass::PadFusionGroupConvolutionBackpropData : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("PadFusionGroupConvolutionBackpropData", "0");
     PadFusionGroupConvolutionBackpropData();
 };
 
 class ngraph::pass::PadFusion : public ngraph::pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("PadFusion", "0");
     PadFusion() {
         add_matcher<ngraph::pass::PadFusionAvgPool>();
         add_matcher<ngraph::pass::PadFusionConvolution>();

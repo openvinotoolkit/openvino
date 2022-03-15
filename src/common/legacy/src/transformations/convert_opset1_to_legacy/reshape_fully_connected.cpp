@@ -14,8 +14,6 @@
 #include "legacy/ngraph_ops/fully_connected.hpp"
 #include "transformations/utils/utils.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ReshapeFullyConnected, "ReshapeFullyConnected", 0);
-
 ngraph::pass::ReshapeFullyConnected::ReshapeFullyConnected() {
     auto fc = pattern::wrap_type<op::FullyConnected>({pattern::any_input(pattern::has_static_shape()),
                                                       pattern::any_input(),

@@ -3,13 +3,20 @@
 //
 
 #include "crash_handler.hpp"
+#include <limits.h>
 
 namespace CommonTestUtils {
 
 // enviroment to restore in case of crash
 jmp_buf env;
+unsigned int CrashHandler::MAX_TEST_WORK_TIME = UINT_MAX;
 
 CrashHandler::CrashHandler() {
+    // setup default value for timeout in 15 minutes
+    if (MAX_TEST_WORK_TIME == UINT_MAX) {
+        MAX_TEST_WORK_TIME = 900;
+    }
+
     auto crashHandler = [](int errCode) {
         std::cerr << "Unexpected application crash with code: " << errCode << std::endl;
 
@@ -21,13 +28,21 @@ CrashHandler::CrashHandler() {
 #ifndef _WIN32
         signal(SIGBUS, SIG_DFL);
         signal(SIGFPE, SIG_DFL);
+        signal(SIGALRM, SIG_DFL);
 #endif
 
-        // goto sigsetjmp
 #ifdef _WIN32
-        longjmp(env, 1);
+        longjmp(env, JMP_STATUS::anyError);
 #else
-        siglongjmp(env, 1);
+// reset timeout
+        alarm(0);
+
+        if (errCode == SIGALRM) {
+            std::cerr << "Test finished by timeout" << std::endl;
+            siglongjmp(env, JMP_STATUS::alarmErr);
+        } else {
+            siglongjmp(env, JMP_STATUS::anyError);
+        }
 #endif
     };
 
@@ -38,6 +53,7 @@ CrashHandler::CrashHandler() {
 #ifndef _WIN32
     signal(SIGFPE, crashHandler);
     signal(SIGBUS, crashHandler);
+    signal(SIGALRM, crashHandler);
 #endif
 }
 
@@ -49,7 +65,23 @@ CrashHandler::~CrashHandler() {
 #ifndef _WIN32
     signal(SIGFPE, SIG_DFL);
     signal(SIGBUS, SIG_DFL);
+    signal(SIGALRM, SIG_DFL);
 #endif
+
+    // reset timeout
+#ifndef _WIN32
+    alarm(0);
+#endif
+}
+
+void CrashHandler::StartTimer() {
+#ifndef _WIN32
+    alarm(MAX_TEST_WORK_TIME);
+#endif
+}
+
+void CrashHandler::SetUpTimeout(unsigned int timeout) {
+    MAX_TEST_WORK_TIME = timeout;
 }
 
 }  // namespace CommonTestUtils
