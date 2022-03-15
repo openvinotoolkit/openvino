@@ -30,7 +30,7 @@ OutputVector scan(const Node& node) {
     auto body_inputs = body_graph->get_ng_parameters();
 
     const int64_t num_scan_inputs = node.get_attribute_value<int64_t>("num_scan_inputs");
-    const size_t num_initial_values = ng_inputs.size() - num_scan_inputs;
+    const size_t num_initial_values = body_inputs.size() - num_scan_inputs;
     const size_t num_scan_outputs = body_outputs.size() - num_initial_values;
 
     std::vector<int64_t> scan_input_axes =
@@ -43,19 +43,16 @@ OutputVector scan(const Node& node) {
     std::vector<int64_t> scan_output_directions =
         node.get_attribute_value<std::vector<int64_t>>("scan_output_directions",
                                                        std::vector<int64_t>(num_scan_outputs, 0));
-
+    // Body inputs shape alignment
     for (size_t i = 0; i < num_initial_values; ++i) {
         body_inputs[i]->set_element_type(ng_inputs[i].get_element_type());
         body_inputs[i]->set_partial_shape(ng_inputs[i].get_partial_shape());
         body_inputs[i]->validate_and_infer_types();
     }
-
     // Single slice of TensorIterator sliced input has the same rank as the input,
-    // but in ONNX Scan the body scan_input can has one dimension less,
+    // but in ONNX Scan the slice of input can has one dimension less,
     // so the parameter needs to have aligned rank with 1 at sliced axis,
     // and then squeezed to restore original shape.
-
-    // Body inputs shape alignment
     for (size_t i = 0; i < num_scan_inputs; ++i) {
         const auto in_idx = num_initial_values + i;
         const auto axis = scan_input_axes[i];
@@ -74,7 +71,7 @@ OutputVector scan(const Node& node) {
             input.replace_source_output(squeeze);
         }
     }
-    // Body outputs shape alignment
+    // Body outputs shape alignment, add dimension along which scan outputs will be concatenated
     for (size_t i = 0; i < num_scan_outputs; ++i) {
         const auto out_idx = num_initial_values + i;
         const auto axis = scan_output_axes[i];
@@ -101,6 +98,7 @@ OutputVector scan(const Node& node) {
     // Set Scan (TensorIterator) outputs
     OutputVector outputs;
     for (size_t i = 0; i < num_initial_values; ++i) {
+        // Back edge for state input/output
         tensor_iterator->set_merged_input(body_inputs[i], ng_inputs[i], body_outputs[i]);
         outputs.push_back(tensor_iterator->get_iter_value(body_outputs[i], -1));
     }
