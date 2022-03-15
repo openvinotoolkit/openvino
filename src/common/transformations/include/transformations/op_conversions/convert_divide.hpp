@@ -20,12 +20,12 @@ class TRANSFORMATIONS_API ConvertDivideWithConstant;
 
 class ngraph::pass::ConvertDivide : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertDivide", "0");
     ConvertDivide();
 };
 
 class ngraph::pass::ConvertDivideWithConstant : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertDivideWithConstant", "0");
     ConvertDivideWithConstant();
 };

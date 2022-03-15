@@ -283,7 +283,7 @@ protected:
                 input_layouts.push_back({ input_id1, input_layout1 });
                 input_layouts.push_back({ input_id2, input_layout2 });
 
-                topology.add(cldnn::concatenation(id, { input_id1,input_id2 }, cldnn::concatenation::along_f));
+                topology.add(cldnn::concatenation(id, { input_id1,input_id2 }, 1));
                 return true;
             }
         };

@@ -13,8 +13,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::FoldConvertTransformation, "FoldConvertTransformation", 0);
-
 FoldConvertTransformation::FoldConvertTransformation(const Params& params) : LayerTransformation(params) {
     auto subtract = pattern::wrap_type<opset1::Subtract>();
     auto matcher = std::make_shared<ngraph::pattern::Matcher>(subtract, "FoldConvertTransformation");

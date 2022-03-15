@@ -178,10 +178,10 @@ TEST(memory_pool, oooq) {
     topology.add(activation("relu1", "input", activation_func::relu));
     topology.add(activation("relu2", "input", activation_func::relu));
     topology.add(activation("relu3", "input", activation_func::relu));
-    topology.add(concatenation("concat1", { "relu1", "relu2" },concatenation::along_f));
+    topology.add(concatenation("concat1", { "relu1", "relu2" }, 1));
     topology.add(activation("relu4", "concat1", activation_func::relu));
     topology.add(activation("relu5", "relu3", activation_func::relu));
-    topology.add(concatenation("concat2", { "relu4", "relu5" }, concatenation::along_f));
+    topology.add(concatenation("concat2", { "relu4", "relu5" }, 1));
     topology.add(activation("relu6", "concat2", activation_func::relu));
 
     build_options bo;
@@ -223,10 +223,10 @@ TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice) {
     topology.add(activation("relu1", "input", activation_func::relu));
     topology.add(activation("relu2", "input", activation_func::sqrt));
     topology.add(activation("relu3", "input", activation_func::square));
-    topology.add(concatenation("concat1", { "relu1", "relu2" }, concatenation::along_f));
+    topology.add(concatenation("concat1", { "relu1", "relu2" }, 1));
     topology.add(activation("relu4", "concat1", activation_func::relu));
     topology.add(activation("relu5", "relu3", activation_func::relu));
-    topology.add(concatenation("concat2", { "relu4", "relu5" }, concatenation::along_f));
+    topology.add(concatenation("concat2", { "relu4", "relu5" }, 1));
     topology.add(activation("relu6", "concat2", activation_func::linear, { 1.0f, 0.5f }));
 
     build_options bo;
@@ -430,12 +430,12 @@ TEST(memory_pool, shared_dep_two_output) {
     auto result_1_0 = cldnn::concatenation(
         "result_1_0",
         { constant_0_0 },
-        cldnn::concatenation::along_b
+        0
     );
     auto result_2_0 = cldnn::concatenation(
         "result_2_0",
         { constant_0_0 },
-        cldnn::concatenation::along_b
+        0
     );
 
     //build and execute network
@@ -469,7 +469,7 @@ TEST(memory_pool, non_opt_intermidate_opt_after) {
     auto reshape_tensor = cldnn::tensor(8, 1, 1, 1);
     auto input = cldnn::input_layout("input1", input_layout1);
     auto input2 = cldnn::input_layout("input2", input_layout2);
-    auto concat = cldnn::concatenation("concat", { "input1", "input2" }, cldnn::concatenation::along_b);
+    auto concat = cldnn::concatenation("concat", { "input1", "input2" }, 0);
     auto reshape = cldnn::reshape("reshape", "concat", reshape_tensor);
     auto crop1 = cldnn::crop("crop1", "reshape", { 1, 1, 1, 1 }, { 0, 0, 0, 0 });
     auto crop2 = cldnn::crop("crop2", "reshape", { 1, 1, 1, 1 }, { 1, 0, 0, 0 });
