@@ -345,11 +345,9 @@ Although the methods described above are currently the preferred way to execute 
       std::shared_ptr<ov::Model> model = core.read_model("sample.xml");
 
       // Configure the CPU and the Myriad devices separately and load the network to the Auto-Device plugin
-      // set CPU config
-      core.set_property("CPU", {});
-
-      // set MYRIAD config
-      core.set_property("MYRIAD", {});
+      // set CPU and GPU config
+      core.set_property({ov::device::properties("CPU", ov::enable_profiling(true)),
+          ov::device::properties("GPU", ov::enable_profiling(false))});
       ov::CompiledModel compiled_model = core.compile_model(model, "AUTO");
 
 .. tab:: OpenVINO Runtime API Python
