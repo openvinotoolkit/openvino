@@ -54,13 +54,11 @@ def main():
 
     # 1) Set input tensor information:
     # - input() provides information about a single model input
-    # - precision of tensor is supposed to be 'u8'
+    # - reuse precision and shape from already available `input_tensor`
     # - layout of data is 'NHWC'
-    # - set static spatial dimensions to input tensor to resize from
     ppp.input().tensor() \
-        .set_element_type(Type.u8) \
-        .set_layout(Layout('NHWC')) \
-        .set_spatial_static_shape(h, w)  # noqa: ECE001, N400
+        .set_from(input_tensor) \
+        .set_layout(Layout('NHWC'))  # noqa: ECE001, N400
 
     # 2) Adding explicit preprocessing steps:
     # - apply linear resize from tensor spatial dims to model spatial dims
@@ -73,7 +71,7 @@ def main():
     # - precision of tensor is supposed to be 'f32'
     ppp.output().tensor().set_element_type(Type.f32)
 
-    # 5) Apply preprocessing modifing the original 'model'
+    # 5) Apply preprocessing modifying the original 'model'
     model = ppp.build()
 
 # --------------------------- Step 5. Loading model to the device -----------------------------------------------------

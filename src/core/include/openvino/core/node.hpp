@@ -424,8 +424,11 @@ public:
     NodeVector get_users(bool check_is_used = false) const;
 
     /// \return Version of this node
+    OPENVINO_DEPRECATED("This method is deprecated and will be removed soon.")
     virtual size_t get_version() const {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         return get_type_info().version;
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     OPENVINO_DEPRECATED("This method is deprecated and will be removed soon.")
