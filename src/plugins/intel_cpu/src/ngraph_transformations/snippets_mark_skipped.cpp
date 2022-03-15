@@ -7,8 +7,6 @@
 #include <utils/general_utils.h>
 #include <utils/cpu_utils.hpp>
 
-NGRAPH_RTTI_DEFINITION(ov::intel_cpu::SnippetsMarkSkipped, "SnippetsMarkSkipped", 0);
-
 using namespace ngraph;
 
 namespace ov {
