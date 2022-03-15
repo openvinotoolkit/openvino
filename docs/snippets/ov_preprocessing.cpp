@@ -192,7 +192,7 @@ void save_example() {
  // ======== Step 3: Save the model ================
  std::string xml = "/path/to/some_model_saved.xml";
  std::string bin = "/path/to/some_model_saved.bin";
- ov::pass::Serialize(xml, bin).run_on_model(model);
+ ov::serialize(model, xml, bin);
  //! [ov:preprocess:save]
 
 }
