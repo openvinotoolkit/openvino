@@ -77,3 +77,12 @@ div.highlight {
     width:100%;
     color: #fff;
 }
+
+.transition-banner {
+    top: 60px;
+    position: fixed;
+    text-align: center;
+    color: white;
+    z-index: 10000;
+    display: none;
+}
