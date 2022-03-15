@@ -66,7 +66,6 @@ int tmain(int argc, tchar* argv[]) {
         // just wrap image data by ov::Tensor without allocating of new memory
         ov::Tensor input_tensor = ov::Tensor(input_type, input_shape, input_data.get());
 
-        const ov::Shape tensor_shape = input_tensor.get_shape();
         const ov::Layout tensor_layout{"NHWC"};
 
         // -------- Step 4. Configure preprocessing --------
@@ -75,15 +74,9 @@ int tmain(int argc, tchar* argv[]) {
 
         // 1) Set input tensor information:
         // - input() provides information about a single model input
-        // - precision of tensor is supposed to be 'u8'
+        // - reuse precision and shape from already available `input_tensor`
         // - layout of data is 'NHWC'
-        // - set static spatial dimensions to input tensor to resize from
-        ppp.input()
-            .tensor()
-            .set_element_type(ov::element::u8)
-            .set_layout(tensor_layout)
-            .set_spatial_static_shape(tensor_shape[ov::layout::height_idx(tensor_layout)],
-                                      tensor_shape[ov::layout::width_idx(tensor_layout)]);
+        ppp.input().tensor().set_from(input_tensor).set_layout(tensor_layout);
         // 2) Adding explicit preprocessing steps:
         // - convert layout to 'NCHW' (from 'NHWC' specified above at tensor layout)
         // - apply linear resize from tensor spatial dims to model spatial dims
@@ -94,7 +87,7 @@ int tmain(int argc, tchar* argv[]) {
         // - precision of tensor is supposed to be 'f32'
         ppp.output().tensor().set_element_type(ov::element::f32);
 
-        // 6) Apply preprocessing modifing the original 'model'
+        // 6) Apply preprocessing modifying the original 'model'
         model = ppp.build();
 
         // -------- Step 5. Loading a model to the device --------
