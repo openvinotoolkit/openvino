@@ -25,7 +25,7 @@ pip install openvino-dev[tensorflow2,mxnet,caffe]
 
 > **NOTE**: For TensorFlow, use the `tensorflow2` value as much as possible. The `tensorflow` value is provided only for compatibility reasons.
 
-For more details, see <https://pypi.org/project/openvino-dev/>.
+For system requirements and more detailed steps, see <https://pypi.org/project/openvino-dev>.
 
 ## For C++ Developers
 
