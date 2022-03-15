@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/hash.hpp"
-
 #include "ngraph/ops.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "openvino/op/util/framework_node.hpp"
+#include "transformations/hash.hpp"
 
 using namespace ngraph;
 
@@ -131,7 +130,7 @@ public:
 
     void check_attribute_name(const std::string& name) {
         OPENVINO_ASSERT(name != "name" && name != "version",
-            "Attribute key with name: " + name + " is not allowed. Please use another name");
+                        "Attribute key with name: " + name + " is not allowed. Please use another name");
         m_hash = hash_combine(m_hash, name);
     }
 };
@@ -150,7 +149,7 @@ class HashSerializer : public ov::AttributeVisitor {
     size_t& m_hash;
 
     void input_descriptions_on_adapter(
-            const std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::InputDescription>>& input_descriptions) {
+        const std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::InputDescription>>& input_descriptions) {
         for (const auto& input_description : input_descriptions) {
             m_hash = hash_combine(m_hash, input_description->m_input_index);
             m_hash = hash_combine(m_hash, input_description->m_body_parameter_index);
@@ -162,14 +161,14 @@ class HashSerializer : public ov::AttributeVisitor {
                 m_hash = hash_combine(m_hash, slice_input->m_stride);
                 m_hash = hash_combine(m_hash, slice_input->m_part_size);
             } else if (auto merged_input =
-                    ov::as_type_ptr<ov::op::util::SubGraphOp::MergedInputDescription>(input_description)) {
+                           ov::as_type_ptr<ov::op::util::SubGraphOp::MergedInputDescription>(input_description)) {
                 m_hash = hash_combine(m_hash, merged_input->m_body_value_index);
             }
         }
     }
 
     void output_descriptions_on_adapter(
-            const std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::OutputDescription>>& output_descriptions) {
+        const std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::OutputDescription>>& output_descriptions) {
         for (const auto& output_description : output_descriptions) {
             m_hash = hash_combine(m_hash, output_description->m_output_index);
             m_hash = hash_combine(m_hash, output_description->m_body_value_index);
@@ -186,36 +185,32 @@ class HashSerializer : public ov::AttributeVisitor {
     }
 
 public:
-    explicit HashSerializer(size_t& hash)
-            : m_hash(hash) {}
+    explicit HashSerializer(size_t& hash) : m_hash(hash) {}
 
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
         m_hash = hash_combine(m_hash, name);
 
-        if (const auto& a_id = ov::as_type<ov::AttributeAdapter<
-                std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::InputDescription>>>>(&adapter)) {
+        if (const auto& a_id = ov::as_type<
+                ov::AttributeAdapter<std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::InputDescription>>>>(
+                &adapter)) {
             input_descriptions_on_adapter(a_id->get());
         } else if (const auto& a_od = ov::as_type<ov::AttributeAdapter<
-                std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::OutputDescription>>>>(
-                &adapter)) {
+                       std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::OutputDescription>>>>(&adapter)) {
             output_descriptions_on_adapter(a_od->get());
         } else if (const auto& a_ports =
-                ov::as_type<ov::AttributeAdapter<ov::op::v5::Loop::SpecialBodyPorts>>(
-                        &adapter)) {
+                       ov::as_type<ov::AttributeAdapter<ov::op::v5::Loop::SpecialBodyPorts>>(&adapter)) {
             m_hash = hash_combine(m_hash, a_ports->get().current_iteration_input_idx);
             m_hash = hash_combine(m_hash, a_ports->get().body_condition_output_idx);
         } else if (const auto& a_v =
-                ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::op::util::Variable>>>(&adapter)) {
+                       ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::op::util::Variable>>>(&adapter)) {
             m_hash = hash_combine(m_hash, a_v->get()->get_info().variable_id);
             std::stringstream stream;
             stream << a_v->get()->get_info().data_shape << a_v->get()->get_info().data_type;
             m_hash = hash_combine(m_hash, stream.str());
         } else if (const auto& a_ab =
-                ov::as_type<ov::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
-                        &adapter)) {
+                       ov::as_type<ov::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
             m_hash = hash_combine(m_hash, hash_combine(a_ab->get()->get_ptr(), a_ab->get()->size()));
-        } else if (const auto& a_fn =
-                ov::as_type<ov::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
+        } else if (const auto& a_fn = ov::as_type<ov::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
             const auto& attrs = a_fn->get();
 
             m_hash = hash_combine(m_hash, attrs.get_type_name());
@@ -299,8 +294,8 @@ void hash_runtime_info(uint64_t& hash, const RTMap& attributes) {
     for (const auto& item : attributes) {
         hash = hash_combine(hash, item.first);
         if (item.second.is<ov::RuntimeAttribute>()) {
-            auto &rt_attribute = item.second.as<ov::RuntimeAttribute>();
-            const auto &type_info = rt_attribute.get_type_info();
+            auto& rt_attribute = item.second.as<ov::RuntimeAttribute>();
+            const auto& type_info = rt_attribute.get_type_info();
             hash = hash_combine(hash, type_info.name);
             hash = hash_combine(hash, type_info.get_version());
             rt_info::RTInfoHasher rt_hasher(hash);
@@ -336,8 +331,7 @@ void hash_runtime_info(uint64_t& hash, const RTMap& attributes) {
     }
 }
 
-void model_2_hash(uint64_t& hash,
-                     const ov::Model& f) {
+void model_2_hash(uint64_t& hash, const ov::Model& f) {
     auto& rt_info = f.get_rt_info();
     if (rt_info.count("version")) {
         hash = hash_combine(hash, rt_info.at("version").as<int64_t>());
@@ -415,7 +409,7 @@ void model_2_hash(uint64_t& hash,
 }  // namespace
 
 namespace ov {
-pass::FasterHash::FasterHash(uint64_t& hash): m_hash(hash) {}
+pass::FasterHash::FasterHash(uint64_t& hash) : m_hash(hash) {}
 
 bool pass::FasterHash::run_on_model(const std::shared_ptr<ov::Model>& model) {
     m_hash = 0;
