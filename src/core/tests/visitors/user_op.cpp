@@ -31,7 +31,7 @@ class AttributeAdapter<TuringModel> : public EnumAttributeAdapterBase<TuringMode
 public:
     AttributeAdapter(TuringModel& value) : EnumAttributeAdapterBase<TuringModel>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<TuringModel>", 0};
+    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<TuringModel>", static_cast<uint64_t>(0)};
     const DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }
@@ -64,7 +64,7 @@ public:
         visitor.on_attribute("z", m_ref.z);
         return true;
     }
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<Position>", 0};
+    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<Position>", static_cast<uint64_t>(0)};
     const DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }

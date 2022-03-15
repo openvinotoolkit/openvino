@@ -12,8 +12,6 @@
 #include <transformations/smart_reshape/set_batch_size.hpp>
 #include <transformations/smart_reshape/strided_slice_squeeze.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SetBatchSize, "SetBatchSize", 0);
-
 bool ngraph::pass::SetBatchSize::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(SetBatchSize);
 

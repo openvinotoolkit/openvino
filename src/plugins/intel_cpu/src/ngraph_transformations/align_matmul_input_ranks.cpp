@@ -13,8 +13,6 @@
 
 #include <algorithm>
 
-NGRAPH_RTTI_DEFINITION(ov::intel_cpu::AlignMatMulInputRanks, "AlignMatMulInputRanks", 0);
-
 ov::intel_cpu::AlignMatMulInputRanks::AlignMatMulInputRanks() {
     ngraph::OutputVector twoInputs = {
         ngraph::pattern::any_input(ngraph::pattern::has_static_rank()),
