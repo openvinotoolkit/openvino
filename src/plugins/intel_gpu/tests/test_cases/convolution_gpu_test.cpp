@@ -5280,7 +5280,7 @@ TEST_P(convolution_gpu_fs_byx_fsv32_crop, fs_byx_fsv32_crop)
 
 
     topology.add(reorder("reorder", "conv_fsv", { data_types::f16, format::bfyx, input_size }));
-    topology.add(concatenation("concat", { "left_crop", "reorder" }, concatenation::concatenation_axis::along_f));
+    topology.add(concatenation("concat", { "left_crop", "reorder" }, 1));
 
     auto ref_result = VVVVF<FLOAT16>(batch_num);
     // concatenate half ref input and ref conv output, by features

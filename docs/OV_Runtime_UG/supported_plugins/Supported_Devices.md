@@ -1,11 +1,11 @@
 Supported Devices {#openvino_docs_IE_DG_supported_plugins_Supported_Devices}
 ==================
 
-The Inference Engine can infer models in different formats with various input and output formats. This section provides supported and optimal configurations per device. In OpenVINO™ documentation, "device" refers to an Intel® processors used for inference, which can be a supported CPU, GPU, VPU (vision processing unit), or GNA (Gaussian neural accelerator coprocessor), or a combination of those devices.
+The OpenVINO Runtime can infer models in different formats with various input and output formats. This section provides supported and optimal configurations per device. In OpenVINO™ documentation, "device" refers to an Intel® processors used for inference, which can be a supported CPU, GPU, VPU (vision processing unit), or GNA (Gaussian neural accelerator coprocessor), or a combination of those devices.
 
 > **NOTE**: With OpenVINO™ 2020.4 release, Intel® Movidius™ Neural Compute Stick is no longer supported.
 
-The Inference Engine provides unique capabilities to infer deep learning models on the following device types with corresponding plugins:
+The OpenVINO Runtime provides unique capabilities to infer deep learning models on the following device types with corresponding plugins:
 
 | Plugin                                   | Device types                                                                                                                                                |
 |------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -13,8 +13,8 @@ The Inference Engine provides unique capabilities to infer deep learning models 
 |[CPU plugin](CPU.md)              |Intel&reg; Xeon&reg; with Intel® Advanced Vector Extensions 2 (Intel® AVX2), Intel® Advanced Vector Extensions 512 (Intel® AVX-512), and AVX512_BF16, Intel&reg; Core&trade; Processors with Intel&reg; AVX2, Intel&reg; Atom&reg; Processors with Intel® Streaming SIMD Extensions (Intel® SSE) |
 |[VPU plugins](VPU.md) (available in the Intel® Distribution of OpenVINO™ toolkit)            |Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X, Intel® Vision Accelerator Design with Intel® Movidius™ VPUs                                                                                           |
 |[GNA plugin](GNA.md) (available in the Intel® Distribution of OpenVINO™ toolkit)              |Intel&reg; Speech Enabling Developer Kit, Amazon Alexa* Premium Far-Field Developer Kit, Intel&reg; Pentium&reg; Silver J5005 Processor, Intel&reg; Pentium&reg; Silver N5000 Processor, Intel&reg; Celeron&reg; J4005 Processor, Intel&reg; Celeron&reg; J4105 Processor, Intel&reg; Celeron&reg; Processor N4100, Intel&reg; Celeron&reg; Processor N4000, Intel&reg; Core&trade; i3-8121U Processor, Intel&reg; Core&trade; i7-1065G7 Processor, Intel&reg; Core&trade; i7-1060G7 Processor, Intel&reg; Core&trade; i5-1035G4 Processor, Intel&reg; Core&trade; i5-1035G7 Processor, Intel&reg; Core&trade; i5-1035G1 Processor, Intel&reg; Core&trade; i5-1030G7 Processor, Intel&reg; Core&trade; i5-1030G4 Processor, Intel&reg; Core&trade; i3-1005G1 Processor, Intel&reg; Core&trade; i3-1000G1 Processor, Intel&reg; Core&trade; i3-1000G4 Processor|
-|[Multi-Device execution](../multi_device.md) |Multi-Device execution enables simultaneous inference of the same model on several devices in parallel    |   
-|[Auto-Device plugin](../auto_device_selection.md) |Auto-Device plugin enables selecting Intel&reg; device for inference automatically |   
+|[Multi-Device execution](../multi_device.md) |Multi-Device execution enables simultaneous inference of the same model on several devices in parallel    |
+|[Auto-Device plugin](../auto_device_selection.md) |Auto-Device plugin enables selecting Intel&reg; device for inference automatically |
 |[Heterogeneous plugin](../hetero_execution.md) |Heterogeneous execution enables automatic inference splitting between several devices (for example if a device doesn't [support certain operation](#supported-layers)).                                                           |
 
 Devices similar to the ones we have used for benchmarking can be accessed using [Intel® DevCloud for the Edge](https://devcloud.intel.com/edge/), a remote development environment with access to Intel® hardware and the latest versions of the Intel® Distribution of the OpenVINO™ Toolkit. [Learn more](https://devcloud.intel.com/edge/get_started/devcloud/) or [Register here](https://inteliot.force.com/DevcloudForEdge/s/).
@@ -35,7 +35,7 @@ The table below shows the plugin libraries and additional dependencies for Linux
 
 ## Supported Configurations
 
-The Inference Engine can inference models in different formats with various input and output formats.
+The OpenVINO Runtime can inference models in different formats with various input and output formats.
 This page shows supported and optimal configurations for each plugin.
 
 ### Terminology
@@ -69,10 +69,9 @@ For example, the CHW value at index (c,h,w) is physically located at index (c\*H
 |Plugin        |FP32                    |FP16                    |I8                      |
 |:-------------|:----------------------:|:----------------------:|:----------------------:|
 |CPU plugin    |Supported and preferred |Supported               |Supported               |
-|GPU plugin    |Supported               |Supported and preferred |Supported\*             |
+|GPU plugin    |Supported               |Supported and preferred |Supported               |
 |VPU plugins   |Not supported           |Supported               |Not supported           |
 |GNA plugin    |Supported               |Supported               |Not supported           |
-<br>\* - currently, only limited set of topologies might benefit from enabling I8 model on GPU<br>
 For [Multi-Device](../multi_device.md) and [Heterogeneous](../hetero_execution.md) executions
 the supported models formats depends on the actual underlying devices. _Generally, FP16 is preferable as it is most ubiquitous and performant_.
 
@@ -116,7 +115,7 @@ the supported output precision  depends on the actual underlying devices. _Gener
 |Layout              |NCDHW|NCHW |CHW  |NC   |C    |
 
 For setting relevant configuration, refer to the
-[Integrate with Customer Application New Request API](../Integrate_with_customer_application_new_API.md) topic
+[Integrate with Customer Application](../integrate_with_your_application.md) topic
 (step 3 "Configure input and output").
 
 ### Supported Layers

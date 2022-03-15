@@ -26,7 +26,7 @@
 .. tab:: Software Requirements
 
   * `CMake 3.13 or higher <https://cmake.org/download/>`_ (choose "macOS 10.13 or later"). Add `/Applications/CMake.app/Contents/bin` to path (for default install). 
-  * `Python 3.6 - 3.9 <https://www.python.org/downloads/mac-osx/>`_ (choose 3.6.x - 3.9.x). Install and	add to path.
+  * `Python 3.6 - 3.9 <https://www.python.org/downloads/mac-osx/>`_ (choose 3.6 - 3.9). Install and	add to path.
   * Apple Xcode Command Line Tools. In the terminal, run `xcode-select --install` from any directory
   * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
 
@@ -60,7 +60,7 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
 
    @endsphinxdirective
 
-5. Follow the instructions on your screen. During the installation you will be asked to accept the license agreement. The acceptance is required to continue.
+5. Follow the instructions on your screen. During the installation you will be asked to accept the license agreement. Your acceptance is required to continue.
    ![](../img/openvino-install-macos-run-boostrapper-script.gif)
    Click on the image to see the details.
 
@@ -150,11 +150,11 @@ To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalli
       
    To learn more about converting models from specific frameworks, go to:
       
-   * :ref:`Convert Your Caffe Model <convert model caffe>`
-   * :ref:`Convert Your TensorFlow Model <convert model tf>`
-   * :ref:`Convert Your MXNet Modele <convert model mxnet>`
-   * :ref:`Convert Your Kaldi Model <convert model kaldi>`
-   * :ref:`Convert Your ONNX Model <convert model onnx>`
+   * :ref:`Convert Your Caffe Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe>`
+   * :ref:`Convert Your TensorFlow Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>`
+   * :ref:`Convert Your MXNet Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet>`
+   * :ref:`Convert Your Kaldi Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi>`
+   * :ref:`Convert Your ONNX Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX>`
       
    .. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
 

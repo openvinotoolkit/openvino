@@ -2,14 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <signal.h>
+#ifdef _WIN32
+#include <process.h>
+#endif
+
 #include "gtest/gtest.h"
 
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "functional_test_utils/layer_test_utils/environment.hpp"
 
+#include "read_ir_test/read_ir.hpp"
 #include "gflag_config.hpp"
 #include "conformance.hpp"
+
+#include "common_test_utils/crash_handler.hpp"
 
 using namespace ov::test::conformance;
 
@@ -42,6 +50,15 @@ int main(int argc, char* argv[]) {
     LayerTestsUtils::Summary::setSaveReportWithUniqueName(FLAGS_report_unique_name);
     LayerTestsUtils::Summary::setOutputFolder(FLAGS_output_folder);
     LayerTestsUtils::Summary::setSaveReportTimeout(FLAGS_save_report_timeout);
+    if (FLAGS_shape_mode == std::string("static")) {
+        ov::test::subgraph::shapeMode = ov::test::subgraph::ShapeMode::STATIC;
+    } else if (FLAGS_shape_mode == std::string("dynamic")) {
+        ov::test::subgraph::shapeMode = ov::test::subgraph::ShapeMode::DYNAMIC;
+    } else if (FLAGS_shape_mode != std::string("")) {
+        throw std::runtime_error("Incorrect value for `--shape_mode`. Should be `dynamic`, `static` or ``. Current value is `" + FLAGS_shape_mode + "`");
+    }
+
+    CommonTestUtils::CrashHandler::SetUpTimeout(FLAGS_test_timeout);
 
     // ---------------------------Initialization of Gtest env -----------------------------------------------
     ov::test::conformance::targetDevice = FLAGS_device.c_str();
