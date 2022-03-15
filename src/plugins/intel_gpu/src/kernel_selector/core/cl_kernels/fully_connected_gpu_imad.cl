@@ -109,9 +109,9 @@ KERNEL(fully_connected_gpu_imad)(
         for (uint ob_idx = 0; ob_idx < TILE_BATCH; ob_idx++) {
             // Loading inputs
         #if OUTPUT_3D
-            __global INPUT0_TYPE* current_input = &input[GET_DATA_INDEX(INPUT0, batch, skip_f + ob_idx, 0, 0)];
+            __global INPUT0_TYPE* current_input = &input[INPUT0_GET_INDEX(batch, skip_f + ob_idx, 0, 0)];
         #else
-            __global INPUT0_TYPE* current_input = &input[GET_DATA_INDEX(INPUT0, batch + ob_idx, skip_f, 0, 0)];
+            __global INPUT0_TYPE* current_input = &input[INPUT0_GET_INDEX(batch + ob_idx, skip_f, 0, 0)];
         #endif
 
         #if !HAS_IFM_LEFTOVERS
@@ -145,10 +145,10 @@ KERNEL(fully_connected_gpu_imad)(
     MAKE_VECTOR_TYPE(int, SIMD_SIZE) weights_data[TILE_OFM];
     __attribute__((opencl_unroll_hint))
     for (uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
-        weights_data[of_idx] = 0;
+        weights_data[of_idx] = (MAKE_VECTOR_TYPE(int, SIMD_SIZE))0;
         __attribute__((opencl_unroll_hint))
         for (uint if_idx = 0; if_idx < SIMD_SIZE; if_idx++) {
-            char4 temp_weights = 0;
+            char4 temp_weights = (char4)0;
         #if !HAS_OFM_LEFTOVERS
             if (if_idx * PACK_SIZE < IF_NUMBER % BYTES_PER_READ) {
         #else
@@ -188,7 +188,7 @@ KERNEL(fully_connected_gpu_imad)(
         __global INPUT0_TYPE* current_input = &input[INPUT0_GET_INDEX(batch + ob_idx, skip_f, 0, 0)];
     #endif
         int input_data = 0;
-        MAKE_VECTOR_TYPE(INPUT0_TYPE, PACK_SIZE) temp_input = 0;
+        MAKE_VECTOR_TYPE(INPUT0_TYPE, PACK_SIZE) temp_input = (MAKE_VECTOR_TYPE(INPUT0_TYPE, PACK_SIZE))0;
 
         if (sglid * PACK_SIZE < IF_NUMBER % BYTES_PER_READ) {
             uint in_offset = IF_NUMBER - IF_NUMBER % BYTES_PER_READ + sglid * PACK_SIZE;
