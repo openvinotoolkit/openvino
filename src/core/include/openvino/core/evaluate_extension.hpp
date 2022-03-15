@@ -21,7 +21,8 @@ public:
      * @return ov::DiscreteTypeInfo
      */
     virtual const ov::DiscreteTypeInfo& get_type_info() const = 0;
-    virtual bool has_evaluate(const std::shared_ptr<const ov::Node>& node) const = 0;
+    virtual std::vector<ov::Node::SupportedConfig> support_evaluate(
+        const std::shared_ptr<const ov::Node>& node) const = 0;
     virtual bool evaluate(const std::shared_ptr<const ov::Node>& node,
                           ov::TensorVector& output_values,
                           const ov::TensorVector& input_values) const = 0;

@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/evaluate_extension.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/op_extension.hpp"
@@ -48,12 +49,25 @@ public:
     const ov::DiscreteTypeInfo& get_type_info() const override {
         return ov::op::v0::Relu::get_type_info_static();
     }
-    bool has_evaluate(const std::shared_ptr<const ov::Node>& node) const override {
-        return node->get_type_info() == ov::op::v0::Relu::get_type_info_static();
+    std::vector<ov::Node::SupportedConfig> support_evaluate(
+        const std::shared_ptr<const ov::Node>& node) const override {
+        std::vector<ov::Node::SupportedConfig> configs;
+        if (node->get_type_info() == ov::op::v0::Relu::get_type_info_static() &&
+            node->get_input_element_type(0) == ov::element::i64) {
+            ov::Node::SupportedConfig config;
+            config.inputs.emplace_back(
+                ov::descriptor::Tensor{node->get_input_element_type(0), node->get_input_partial_shape(0)});
+            config.inputs.emplace_back(
+                ov::descriptor::Tensor{node->get_input_element_type(0), node->get_output_partial_shape(0)});
+            configs.emplace_back(config);
+        }
+        return configs;
     }
     bool evaluate(const std::shared_ptr<const ov::Node>& node,
                   ov::TensorVector& output_values,
                   const ov::TensorVector& input_values) const override {
+        if (input_values[0].get_element_type() != ov::element::i64)
+            return false;
         auto input_tensor = input_values[0];
         auto output_tensor = output_values[0];
 
@@ -79,8 +93,20 @@ public:
     const ov::DiscreteTypeInfo& get_type_info() const override {
         return T::get_type_info_static();
     }
-    bool has_evaluate(const std::shared_ptr<const ov::Node>& node) const override {
-        return node->get_type_info() == T::get_type_info_static();
+    std::vector<ov::Node::SupportedConfig> support_evaluate(
+        const std::shared_ptr<const ov::Node>& node) const override {
+        std::vector<ov::Node::SupportedConfig> configs;
+        if (node->get_type_info() == T::get_type_info_static()) {
+            ov::Node::SupportedConfig config;
+            for (size_t i = 0; i < node->get_input_size(); i++)
+                config.inputs.emplace_back(
+                    ov::descriptor::Tensor{node->get_input_element_type(i), node->get_input_partial_shape(i)});
+            for (size_t i = 0; i < node->get_output_size(); i++)
+                config.inputs.emplace_back(
+                    ov::descriptor::Tensor{node->get_output_element_type(i), node->get_output_partial_shape(i)});
+            configs.emplace_back(config);
+        }
+        return configs;
     }
     bool evaluate(const std::shared_ptr<const ov::Node>& node,
                   ov::TensorVector& output_values,
@@ -130,12 +156,13 @@ public:
     }
 };
 
+template <class T>
 class TestReluEvaluate {
 public:
     TestReluEvaluate(const ov::element::Type& el_type,
                      const ov::Shape& shape,
-                     const std::vector<int64_t>& in_data,
-                     const std::vector<int64_t>& out_data,
+                     const std::vector<T>& in_data,
+                     const std::vector<T>& out_data,
                      bool add_extension = false) {
         if (add_extension)
             ext = std::make_shared<TestExtension<ov::opset8::Relu, Add1Evaluate>>();
@@ -169,12 +196,29 @@ TEST(extension, evaluate_extension_relu) {
     ov::element::Type el_type = ov::element::i64;
     ov::Shape shape({1, 1, 2, 2});
     {
-        TestReluEvaluate test_eval(el_type, shape, orig_data, ref_data, true);
+        TestReluEvaluate<int64_t> test_eval(el_type, shape, orig_data, ref_data, true);
         EXPECT_TRUE(test_eval.success());
     }
 
     {
-        TestReluEvaluate test_eval(el_type, shape, orig_data, ref_orig_data, false);
+        TestReluEvaluate<int64_t> test_eval(el_type, shape, orig_data, ref_orig_data, false);
+        EXPECT_TRUE(test_eval.success());
+    }
+}
+
+TEST(extension, evaluate_extension_relu_i32) {
+    std::vector<int32_t> orig_data = {-2, -1, 1, 2};
+    std::vector<int32_t> ref_orig_data = {0, 0, 1, 2};
+    std::vector<int32_t> ref_data = {-1, 0, 2, 3};
+    ov::element::Type el_type = ov::element::i32;
+    ov::Shape shape({1, 1, 2, 2});
+    {
+        TestReluEvaluate<int32_t> test_eval(el_type, shape, orig_data, ref_data, true);
+        EXPECT_FALSE(test_eval.success());
+    }
+
+    {
+        TestReluEvaluate<int32_t> test_eval(el_type, shape, orig_data, ref_orig_data, false);
         EXPECT_TRUE(test_eval.success());
     }
 }

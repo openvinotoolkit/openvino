@@ -12,19 +12,6 @@
 #include "ngraph/runtime/reference/relu.hpp"
 #include "openvino/core/evaluate_extension.hpp"
 
-namespace {
-
-const ov::EvaluateExtension::Ptr get_evaluate_extension(const ov::DiscreteTypeInfo& type) {
-    for (const auto ext : ov::get_extensions_for_type(type)) {
-        if (auto eval_ext = std::dynamic_pointer_cast<ov::EvaluateExtension>(ext)) {
-            return eval_ext;
-        }
-    }
-    return nullptr;
-}
-
-}  // namespace
-
 BWDCMP_RTTI_DEFINITION(ov::op::v0::Relu);
 
 ov::op::v0::Relu::Relu(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
@@ -75,9 +62,12 @@ bool ov::op::v0::Relu::evaluate(const ngraph::HostTensorVector& outputs, const n
 
 bool ov::op::v0::Relu::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_Relu_has_evaluate);
-    auto ext = get_evaluate_extension(get_type_info());
-    if (ext)
-        return ext->has_evaluate(shared_from_this());
+    auto exts = get_evaluate_extensions();
+    const auto shared_this = shared_from_this();
+    for (const auto ext : exts) {
+        if (ext && !ext->support_evaluate(shared_this).empty())
+            return true;
+    }
     switch (get_input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:

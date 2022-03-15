@@ -31,10 +31,11 @@ namespace descriptor {
 /// \brief Compile-time descriptor of a first-class value that is a tensor.
 class OPENVINO_API Tensor {
 public:
+    Tensor(const element::Type& element_type, const PartialShape& pshape);
     Tensor(const element::Type& element_type, const PartialShape& pshape, const std::string& name);
     Tensor(const element::Type& element_type, const PartialShape& pshape, Node* node, size_t node_output_number);
 
-    Tensor(const Tensor&) = delete;
+    Tensor(const Tensor& tensor);
     Tensor& operator=(const Tensor&) = delete;
 
     OPENVINO_DEPRECATED("get_name() is deprecated! Please use get_names() instead.")

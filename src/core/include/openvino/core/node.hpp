@@ -79,6 +79,8 @@ class Model;
 
 class SharedRTInfo;
 
+class EvaluateExtension;
+
 /// EvaluationContext stores and manages a context (additional parameters, values and
 /// environment) for evaluating ov::Model.
 using EvaluationContext = ov::RTMap;
@@ -176,7 +178,15 @@ protected:
     /// function to mark value-irrelevant inputs.
     void set_input_is_relevant_to_value(size_t i, bool relevant = true);
 
+    const std::vector<std::shared_ptr<ov::EvaluateExtension>> get_evaluate_extensions() const;
+
 public:
+    /// \brief Structure defines supported evaluate configurations
+    struct SupportedConfig {
+        std::vector<ov::descriptor::Tensor> inputs;
+        std::vector<ov::descriptor::Tensor> outputs;
+        ov::AnyMap params;
+    };
     /// \brief Verifies that attributes and inputs are consistent and computes output shapes
     /// and element types. Must be implemented by concrete child classes so that it
     /// can be run any number of times.
@@ -196,6 +206,10 @@ public:
     }
     /// \returns the autobroadcasr spec
     virtual const ov::op::AutoBroadcastSpec& get_autob() const;
+
+    /// \brief Allows to get information about supported configuration for evaluate method.
+    /// \returns vector of supported configurations
+    virtual std::vector<SupportedConfig> support_evaluate() const;
 
     /// \brief Allows to get information about availability of evaluate method for the current
     /// operation
