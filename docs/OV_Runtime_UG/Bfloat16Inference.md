@@ -26,11 +26,11 @@ There are two ways to check if CPU device can support bfloat16 computations for 
 1. Query the instruction set using one of these system commands:
    * `lscpu | grep avx512_bf16`
    * `cat /proc/cpuinfo | grep avx512_bf16`
-2. Use the [Configure devices](supported_plugins/config_properties.md) with `METRIC_KEY(OPTIMIZATION_CAPABILITIES)`, which should return `BF16` in the list of CPU optimization options:
+2. Use the [query device properties](supported_plugins/config_properties.md) to query ov::device::capabilities property, which should contain `BF16` in the list of CPU capabilities:
 
-@snippet snippets/Bfloat16Inference0.cpp part0
+@snippet snippets/cpu/Bfloat16Inference0.cpp part0
 
-The current Inference Engine solution for bfloat16 inference uses the Intel® Math Kernel Library for Deep Neural Networks (Intel® MKL-DNN) and supports inference of the significant number of layers in BF16 computation mode.
+The current Inference Engine solution for bfloat16 inference uses the Intel® oneAPI Deep Neural Network Library (Intel® [oneDNN](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onednn.html)) and supports inference of the significant number of layers in BF16 computation mode.
 
 ### Lowering Inference Precision
 
@@ -44,13 +44,13 @@ Using Bfloat16 precision provides the following performance benefits:
 4. Reduced size of data in memory, as a result, larger models fit in the same memory bounds.
 5. Reduced amount of data that must be transferred, as a result, reduced data transition time.
 
-For default optimization on CPU, the source model is converted from FP32 or FP16 to BF16 and executed internally on platforms with native BF16 support. In this case, `KEY_ENFORCE_BF16` is set to `YES` in the `PluginConfigParams` for `GetConfig()`. The code below demonstrates how to check if the key is set:
+For default optimization on CPU, the source model is converted from FP32 or FP16 to BF16 and executed internally on platforms with native BF16 support. In this case, ov::hint::inference_precision is set to ov::element::bf16 and can be checked via ov::CompiledModel::get_property call. The code below demonstrates how to get the element type:
 
-@snippet snippets/Bfloat16Inference1.cpp part1
+@snippet snippets/cpu/Bfloat16Inference1.cpp part1
 
-To disable BF16 internal transformations in C++ API, set the `KEY_ENFORCE_BF16` to `NO`. In this case, the model infers as is without modifications with precisions that were set on each layer edge.
+To disable BF16 internal transformations in C++ API, set the ov::hint::inference_precision to ov::element::f32. In this case, the model infers as is without modifications with precisions that were set on each layer edge.
 
-@snippet snippets/Bfloat16Inference2.cpp part2
+@snippet snippets/cpu/Bfloat16Inference2.cpp part2
 
 To disable BF16 in C API:
 
@@ -59,17 +59,15 @@ ie_config_t config = { "ENFORCE_BF16", "NO", NULL};
 ie_core_load_network(core, network, device_name, &config, &exe_network);
 ```
 
-An exception with the message `Platform doesn't support BF16 format` is formed in case of setting `KEY_ENFORCE_BF16` to `YES` on CPU without native BF16 support or BF16 simulation mode.
-
-Low-Precision 8-bit integer models cannot be converted to BF16, even if bfloat16 optimization is set by default.
+An exception with the message `Platform doesn't support BF16 format` is formed in case of setting ov::hint::inference_precision to ov::element::bf16 on CPU without native BF16 support or BF16 simulation mode.
 
 ### Bfloat16 Simulation Mode
 
 Bfloat16 simulation mode is available on CPU and Intel® AVX-512 platforms that do not support the native `avx512_bf16` instruction. The simulator does not guarantee good performance. Note that the CPU must still support the AVX-512 extensions.
 
 To enable the simulation of Bfloat16:
-* In the [Benchmark App](../../samples/cpp/benchmark_app/README.md), add the `-enforcebf16=true` option
-* In C++ API, set `KEY_ENFORCE_BF16` to `YES`
+* In the [Benchmark App](../../samples/cpp/benchmark_app/README.md), add the `-infer_precision=bf16` option
+* In C++ API, set ov::hint::inference_precision to ov::element::bf16
 * In C API:
 ```
 ie_config_t config = { "ENFORCE_BF16", "YES", NULL};
