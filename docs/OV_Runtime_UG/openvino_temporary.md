@@ -2,8 +2,6 @@
 
 @sphinxdirective
 
-.. _deep learning inference engine:
-
 .. toctree::
    :maxdepth: 1
    :hidden:

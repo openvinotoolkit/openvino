@@ -49,7 +49,7 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
 @sphinxdirective
 
 .. important::
-   Before you start your journey with installation of the Intel® Distribution of OpenVINO™, we encourage you to check up our :ref:`code samples <code samples>` in C, C++, and Python and :ref:`notebook tutorials <notebook tutorials>` that we prepared for you, so you could see all amazing things that you can achieve with our tool.
+   Before you start your journey with installation of the Intel® Distribution of OpenVINO™, we encourage you to check our :ref:`code samples <code samples>` in C, C++, Python and :ref:`notebook tutorials <notebook tutorials>` that we prepared for you, so you could see all the amazing things that you can achieve with our tool.
 
 @endsphinxdirective
 
@@ -85,9 +85,9 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
    ```sh
    ./l_openvino_toolkit_p_<version>.sh -a --cli
    ```
-   > **NOTE**: To get additional information on all parameters that can be used, check up the help option: `--help`. Among others, you can find there `-s` option which offers silent mode, which together with `--eula approve` allows you to run whole installation with default values without any user inference.
+   > **NOTE**: To get additional information on all parameters that can be used, use the help option: `--help`. Among others, you can find there `-s` option which offers silent mode, which together with `--eula approve` allows you to run whole installation with default values without any user inference.
    
-6. Follow the instructions on your screen. During the installation you will be asked to accept the license agreement. The acceptance is required to continue. Check out the installation process on the image below:<br>
+6. Follow the instructions on your screen. During the installation you will be asked to accept the license agreement. Your acceptance is required to continue. Check the installation process on the image below:<br>
 
    ![](../img/openvino-install-linux-run-boostrapper-script.gif)
    Click on the image to see the details.
@@ -104,7 +104,7 @@ The core components are now installed. Continue to the next section to install a
 
 ## <a name="install-external-dependencies"></a>Step 2: Install External Software Dependencies
 
-This script allows to install Linux platform development tools and components to work with the product.
+This script enables you to install Linux platform development tools and components to work with the product.
 
 1. Go to the `install_dependencies` directory:
    ```sh
@@ -153,17 +153,17 @@ The environment variables are set. Next, you can download some additional tools.
 @sphinxdirective
 .. tab:: GPU
 
-   Only if you want to enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide>`.
+   To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide>`.
 
 .. tab:: NCS 2
 
-   Only if you want to perform inference on Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X VPU, follow the steps on :ref:`NCS2 Setup Guide <ncs guide>`.
+   To perform inference on Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X VPU, follow the steps on :ref:`NCS2 Setup Guide <ncs guide>`.
    <!--For more details, see the `Get Started page for Intel® Neural Compute Stick 2 <https://software.intel.com/en-us/neural-compute-stick/get-started>`.-->
 
 .. tab:: VPU
 
-   To install and configure your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, see the :ref:`VPUs Configuration Guide <vpu guide>`.
-   After configuration is done, you are ready to run the verification scripts with the HDDL Plugin for your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs. Check up our :ref:`Movidius VPU demos <vpu demos>`.
+   To install and configure your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, see the :ref:`VPU Configuration Guide <vpu guide>`.
+   After configuration is done, you are ready to run the verification scripts with the HDDL Plugin for your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs. 
 
    .. warning::
       While working with either HDDL or NCS, choose one of them as they cannot run simultaneously on the same machine.
@@ -222,11 +222,11 @@ To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalli
       
    To learn more about converting models from specific frameworks, go to:
       
-   * :ref:`Convert Your Caffe Model <convert model caffe>`
-   * :ref:`Convert Your TensorFlow Model <convert model tf>`
-   * :ref:`Convert Your MXNet Modele <convert model mxnet>`
-   * :ref:`Convert Your Kaldi Model <convert model kaldi>`
-   * :ref:`Convert Your ONNX Model <convert model onnx>`
+   * :ref:`Convert Your Caffe Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe>`
+   * :ref:`Convert Your TensorFlow Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>`
+   * :ref:`Convert Your MXNet Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet>`
+   * :ref:`Convert Your Kaldi Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi>`
+   * :ref:`Convert Your ONNX Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX>`
       
    .. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
 
