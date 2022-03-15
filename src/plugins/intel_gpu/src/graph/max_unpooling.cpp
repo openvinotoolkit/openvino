@@ -37,8 +37,8 @@ layout max_unpooling_inst::calc_output_layout(max_unpooling_node const& node) {
                           "Argmax data type is not fp32.");
 
     if (desc->with_output_size) {
-        tensor output_size(input_layout.size.batch[0],
-                           input_layout.size.feature[0],
+        tensor output_size(input_layout.batch(),
+                           input_layout.feature(),
                            desc->output_size.spatial[0],
                            desc->output_size.spatial[1]);
         return {input_layout.data_type, input_layout.format, output_size};
@@ -81,8 +81,8 @@ layout max_unpooling_inst::calc_output_layout(max_unpooling_node const& node) {
                                                                true,
                                                                1);
 
-    tensor output_size(input_layout.size.batch[0],
-                       input_layout.size.feature[0],
+    tensor output_size(input_layout.batch(),
+                       input_layout.feature(),
                        output_range.spatial[0],
                        output_range.spatial[1]);
     return {input_layout.data_type, input_layout.format, output_size};

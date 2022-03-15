@@ -103,10 +103,10 @@ layout program_helpers::get_weights_layout(typed_program_node<cldnn::data>& data
 
     return layout(mem_layout.data_type,
                   mem_layout.format,
-                  {split * mem_layout.size.batch[0],
-                   mem_layout.size.feature[0],
-                   mem_layout.size.spatial[0],
-                   mem_layout.size.spatial[1]});
+                  {split * mem_layout.batch(),
+                   mem_layout.feature(),
+                   mem_layout.spatial(0),
+                   mem_layout.spatial(1)});
 }
 
 // pair.first tells whether l1 and l2 are absolutely identical

@@ -33,7 +33,7 @@ layout proposal_inst::calc_output_layout(proposal_node const& node) {
 
     return layout(input_layout.data_type,
                   format::bfyx,
-                  {input_layout.size.batch[0] * desc->post_nms_topn, CLDNN_ROI_VECTOR_SIZE, 1, 1});
+                  {input_layout.batch() * desc->post_nms_topn, CLDNN_ROI_VECTOR_SIZE, 1, 1});
 }
 
 static inline std::string stringify_vector(std::vector<float> v) {
