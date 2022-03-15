@@ -35,6 +35,7 @@
 #include <transformations/common_optimizations/normalize_l2_fusion.hpp>
 #include <transformations/common_optimizations/optimize_strided_slice.hpp>
 #include <transformations/common_optimizations/pad_fusion.hpp>
+#include <transformations/common_optimizations/prelu_fusion.hpp>
 #include <transformations/common_optimizations/random_uniform_fusion.hpp>
 #include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
 #include <transformations/common_optimizations/remove_filtering_boxes_by_size.hpp>
@@ -153,6 +154,7 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
     common_fusions->add_matcher<ngraph::pass::TransposeToReshape>();
     common_fusions->add_matcher<ngraph::pass::ReshapeSequenceFusion>(m_use_shapes);
     common_fusions->add_matcher<ngraph::pass::MatMulConstTransposesExtraction>();
+    common_fusions->add_matcher<ngraph::pass::PReluFusion>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
     manager.register_pass<ngraph::pass::BinarizeWeights>();
