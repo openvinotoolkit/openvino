@@ -33,7 +33,7 @@ ngraph::pass::PReluFusionNegativeAdd::PReluFusionNegativeAdd() {
     auto add = ngraph::pattern::wrap_type<ngraph::opset8::Add>({relu_pos, mul});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        auto &pattern_to_output = m.get_pattern_value_map();
+        const auto &pattern_to_output = m.get_pattern_value_map();
         auto input_output = pattern_to_output.at(input);
         auto slope_output = pattern_to_output.at(mul_constant);
         auto add_node = pattern_to_output.at(add).get_node_shared_ptr();
@@ -65,7 +65,7 @@ ngraph::pass::PReluFusionNegativeSub::PReluFusionNegativeSub() {
     auto sub = ngraph::pattern::wrap_type<ngraph::opset8::Subtract>({relu_pos, mul});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        auto &pattern_to_output = m.get_pattern_value_map();
+        const auto &pattern_to_output = m.get_pattern_value_map();
         auto input_output = pattern_to_output.at(input);
         auto slope_output = pattern_to_output.at(mul_constant);
         auto sub_node = pattern_to_output.at(sub).get_node_shared_ptr();
@@ -112,7 +112,7 @@ ngraph::pass::PReluFusionMultiplyAdd::PReluFusionMultiplyAdd() {
     auto add = ngraph::pattern::wrap_type<ngraph::opset8::Add>({relu_pos, mul});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        auto &pattern_to_output = m.get_pattern_value_map();
+        const auto &pattern_to_output = m.get_pattern_value_map();
         auto input_output = pattern_to_output.at(input);
         auto slope_output = pattern_to_output.at(mul_constant);
         auto add_node = pattern_to_output.at(add).get_node_shared_ptr();
@@ -125,7 +125,7 @@ ngraph::pass::PReluFusionMultiplyAdd::PReluFusionMultiplyAdd() {
                                         pattern_to_output.at(relu_neg).get_node_shared_ptr(),
                                         pattern_to_output.at(mul).get_node_shared_ptr(),
                                         pattern_to_output.at(add).get_node_shared_ptr()};
-        ngraph::copy_runtime_info(copy_from, prelu);
+        ngraph::copy_runtime_info(copy_from, {prelu, negative});
         ngraph::replace_node(add_node, prelu);
         return true;
     };
@@ -147,7 +147,7 @@ ngraph::pass::PReluFusionMultiplySub::PReluFusionMultiplySub() {
     auto sub = ngraph::pattern::wrap_type<ngraph::opset8::Subtract>({relu_pos, mul});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        auto &pattern_to_output = m.get_pattern_value_map();
+        const auto &pattern_to_output = m.get_pattern_value_map();
         auto input_output = pattern_to_output.at(input);
         auto slope_output = pattern_to_output.at(mul_constant);
         auto sub_node = pattern_to_output.at(sub).get_node_shared_ptr();
