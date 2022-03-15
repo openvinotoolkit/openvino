@@ -151,6 +151,7 @@ The environment variables are set. Next, you can download some additional tools.
 ## <a name="optional-steps"></a>Step 5 (Optional): Configure Inference on Non-CPU Devices
 
 @sphinxdirective
+
 .. tab:: GPU
 
    To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide>`.
@@ -184,7 +185,7 @@ Developing in C++:
    * [Hello Classification C++ Sample](@ref openvino_inference_engine_samples_hello_classification_README)
    * [Hello Reshape SSD C++ Sample](@ref openvino_inference_engine_samples_hello_reshape_ssd_README)
 
-## <a name="uninstall"></a>Uninstall the Intel® Distribution of OpenVINO™ Toolkit
+## <a name="uninstall"></a>Uninstalling the Intel® Distribution of OpenVINO™ Toolkit
 
 To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalling-openvino.md).
 
@@ -214,20 +215,20 @@ To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalli
 
 .. dropdown:: Additional Resources
       
-   * Convert models for use with OpenVINO™: :ref:`Model Optimizer Developer Guide <deep learning model optimizer>`
-   * Write your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning inference engine>`
-   * Information on sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
-   * Information on a supplied set of models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
+   * Converting models for use with OpenVINO™: :ref:`Model Optimizer Developer Guide <deep learning model optimizer>`
+   * Writing your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning inference engine>`
+   * Sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
+   * Pre-trained deep learning models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
    * IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit`_ 
-      
-   To learn more about converting models from specific frameworks, go to:
-      
+
+<!---
+   To learn more about converting models from specific frameworks, go to:  
    * :ref:`Convert Your Caffe Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe>`
    * :ref:`Convert Your TensorFlow Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>`
    * :ref:`Convert Your MXNet Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet>`
    * :ref:`Convert Your Kaldi Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi>`
    * :ref:`Convert Your ONNX Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX>`
-      
+--->   
    .. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
 
 @endsphinxdirective
