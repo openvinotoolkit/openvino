@@ -7,7 +7,7 @@
 #include "shared_test_classes/single_layer/prior_box.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestDefinitions;
+using namespace LayerTestsDefinitions;
 
 namespace {
     TEST_P(PriorBoxLayerTest, Serialize) {

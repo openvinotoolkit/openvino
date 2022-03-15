@@ -15,7 +15,7 @@
 #include "ngraph_functions/builders.hpp"
 #include "base/import_export_base.hpp"
 
-namespace LayerTestDefinitions {
+namespace LayerTestsDefinitions {
 
 class ImportBatchTest : public FuncTestUtils::ImportNetworkTestBase {
 protected:
@@ -88,4 +88,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_ImportNetworkBatchCase, ImportBatchTest,
                                 ::testing::ValuesIn(importConfigs),
                                 ::testing::ValuesIn(appHeader)),
                         ImportBatchTest::getTestCaseName);
-} // namespace LayerTestDefinitions
+} // namespace LayerTestsDefinitions
