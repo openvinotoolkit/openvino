@@ -98,6 +98,7 @@ enum class Type {
     ExperimentalDetectronROIFeatureExtractor,
     ExperimentalDetectronPriorGridGenerator,
     ExperimentalDetectronGenerateProposalsSingleImage,
+    GenerateProposalsSingleImage,
     ExtractImagePatches,
     NonMaxSuppression,
     MatrixNms,
