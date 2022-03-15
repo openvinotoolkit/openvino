@@ -258,8 +258,7 @@ TEST_F(GNAMemoryCompactTest, canOptimizeReservePtrWithOffset) {
     ASSERT_EQ(mem.getTotalBytes(), 4 * sizeof(float));
 }
 
-
-class GNAMemoryTest : public GNAPluginNS::memory::GNAMemory<GNAPluginNS::memory::PolymorphAllocator<uint8_t>> {
+class GNAMemoryTested : public GNAPluginNS::memory::GNAMemory<GNAPluginNS::memory::PolymorphAllocator<uint8_t>> {
 using GNAMemory::GNAMemory;
 
 public:
@@ -290,9 +289,9 @@ public:
 
 class GNAPluginTested : public GNAPluginNS::GNAPlugin {
 public:
-    std::shared_ptr<GNAMemoryTest> gnamem_t;
+    std::shared_ptr<GNAMemoryTested> gnamem_t;
     GNAPluginTested() : GNAPluginNS::GNAPlugin() {
-        gnamem_t = std::make_shared<GNAMemoryTest>(make_polymorph<std::allocator<uint8_t>>());
+        gnamem_t = std::make_shared<GNAMemoryTested>(make_polymorph<std::allocator<uint8_t>>());
         gnamem = gnamem_t;
         graphCompiler.setGNAMemoryPtr(gnamem);
     }
@@ -301,9 +300,9 @@ public:
     }
 };
 
-class GNACompactTest : public ::testing::Test {};
+class GNAMemoryOrderTest : public ::testing::Test {};
 
-TEST_F(GNACompactTest, orderingFusedLayersActivation) {
+TEST_F(GNAMemoryOrderTest, orderingFusedLayersActivation) {
     auto plugin = GNAPluginTested();
 
     ov::Shape input_shape =  { 1, 8, 20, 16 };
@@ -323,7 +322,7 @@ TEST_F(GNACompactTest, orderingFusedLayersActivation) {
     plugin.Test();
 }
 
-TEST_F(GNACompactTest, orderingFusedLayersMaxPool) {
+TEST_F(GNAMemoryOrderTest, orderingFusedLayersMaxPool) {
     auto plugin = GNAPluginTested();
 
     ov::Shape input_shape =  { 1, 8, 20, 16 };
@@ -344,7 +343,7 @@ TEST_F(GNACompactTest, orderingFusedLayersMaxPool) {
     plugin.Test();
 }
 
-TEST_F(GNACompactTest, orderingFusedLayersActivationMaxPool) {
+TEST_F(GNAMemoryOrderTest, orderingFusedLayersActivationMaxPool) {
     auto plugin = GNAPluginTested();
 
     ov::Shape input_shape =  { 1, 8, 20, 16 };
