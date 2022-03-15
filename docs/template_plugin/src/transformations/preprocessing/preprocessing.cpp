@@ -10,8 +10,6 @@
 #include "transformations/preprocessing/mean_image_or_value.hpp"
 #include "transformations/preprocessing/std_scale.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::AddPreprocessing, "AddPreprocessing", 0);
-
 ngraph::pass::AddPreprocessing::AddPreprocessing(const InferenceEngine::InputsDataMap& inputInfoMap)
     : m_inputInfoMap(inputInfoMap) {}
 

@@ -28,6 +28,6 @@ class TRANSFORMATIONS_API DilatedConvolutionConverter;
 
 class ngraph::pass::DilatedConvolutionConverter : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("DilatedConvolutionConverter", "0");
     DilatedConvolutionConverter();
 };

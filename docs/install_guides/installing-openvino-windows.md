@@ -71,7 +71,7 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
    
    @endsphinxdirective
    
-3. Follow the instructions on your screen. During the installation you will be asked to accept the license agreement. The acceptance is required to continue. Check out the installation process in the image below:<br>
+3. Follow the instructions on your screen. During the installation you will be asked to accept the license agreement. Your acceptance is required to continue. Check out the installation process in the image below:<br>
    ![](../img/openvino-install-win-run-boostrapper-script.gif)
    Click on the image to see the details.
    <br>
@@ -112,18 +112,23 @@ The environment variables are set. Next, you can download some additional tools.
    .. note::
       No prerequisites are needed.
       
-   There are 3 ways to run the script:
+   There are three ways to run the script:
    
-   a. GUI: right click and select ``Run with PowerShell``
-   b. Command prompt (CMD) console:
+   * GUI: right-click the script and select ``Run with PowerShell``.
+      
+   * Command prompt (CMD) console:
+   
    .. code-block:: sh
-
+   
       powershell <INSTALL_DIR>\extras\scripts\download_opencv.ps1
-
-   c. PowerShell console:
+      
+      
+   * PowerShell console:
+   
    .. code-block:: sh
-
+   
       .\<INSTALL_DIR>\scripts\download_opencv.ps1 
+      
 
    If the Intel® Distribution of OpenVINO™ is installed to the system location (e.g. ``Program Files (x86)``) then privilege elevation dialog will be shown. The script can be run from CMD/PowerShell Administrator console to avoid this dialog in case of system-wide installation. 
    The script is interactive by default, so during the execution it will wait for user to press ``Enter`` If you want to avoid this, use the ``-batch`` option, e.g. ``powershell <openvino>\extras\scripts\download_opencv.ps1 -batch``. After the execution of the script, you will find OpenCV extracted to ``<INSTALL_DIR>/extras/opencv``.
@@ -135,11 +140,11 @@ The environment variables are set. Next, you can download some additional tools.
 @sphinxdirective
 .. tab:: GPU
 
-   Only do this if you want to enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide windows>`.
+   To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide windows>`.
 
 .. tab:: VPU
 
-   To install and configure your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, see the :ref:`VPUs Configuration Guide <vpu guide windows>`.
+   To install and configure your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, see the :ref:`VPU Configuration Guide <vpu guide windows>`.
 
 @endsphinxdirective
 
@@ -173,11 +178,11 @@ To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalli
       
    To learn more about converting models from specific frameworks, go to:
       
-   * :ref:`Convert Your Caffe Model <convert model caffe>`
-   * :ref:`Convert Your TensorFlow Model <convert model tf>`
-   * :ref:`Convert Your MXNet Modele <convert model mxnet>`
-   * :ref:`Convert Your Kaldi Model <convert model kaldi>`
-   * :ref:`Convert Your ONNX Model <convert model onnx>`
+   * :ref:`Convert Your Caffe Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe>`
+   * :ref:`Convert Your TensorFlow Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>`
+   * :ref:`Convert Your MXNet Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet>`
+   * :ref:`Convert Your Kaldi Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi>`
+   * :ref:`Convert Your ONNX Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX>`
       
    .. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
 

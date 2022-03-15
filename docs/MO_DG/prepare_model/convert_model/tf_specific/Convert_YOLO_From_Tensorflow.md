@@ -35,7 +35,7 @@ python keras-YOLOv3-model-set/tools/model_converter/convert.py <path_to_cfg_file
 
 4. Run Model Optimizer to converter the model from the TensorFlow 2 format to an IR:
 
-> **NOTE:** Before you run the conversion, make sure you have installed all the Model Optimizer dependencies for TensorFlow 2.
+> **NOTE**: Before you run the conversion, make sure you have installed all the Model Optimizer dependencies for TensorFlow 2.
 ```sh
 mo --saved_model_dir yolov4 --output_dir models/IRs --input_shape [1,608,608,3] --model_name yolov4
 ```
