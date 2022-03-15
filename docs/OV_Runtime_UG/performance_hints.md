@@ -17,13 +17,11 @@ Throughput and latency are some of the most critical factors that influence the 
 This is why, to ease the configuration of the device, the OpenVINO already offers two dedicated hints, namely `ov::hint::PerformanceMode::THROUGHPUT` and `ov::hint::PerformanceMode::LATENCY`.
 Every OpenVINO device supports these, which makes the things portable and future-proof.
 The also allows to do a performance configuration that is fully compatible with the [automatic device selection](./auto_device_selection.md).
+A special `ov::hint::PerformanceMode::UNDEFINED` acts same just as specifying no hint.
 
-The `benchmark_app`, that exists in both  [C++](../../samples/cpp/benchmark_app/README.md) and [Python](../../tools/benchmark_tool/README.md) versions, is the best way to evaluate the performance of the performance hints for a particular device:
- - benchmark_app **-hint tput** -d 'device' -m 'path to your favorite model'
- - benchmark_app **-hint latency** -d 'device' -m 'path to your favorite model'
-A special `ov::hint::PerformanceMode::UNDEFINED` acts same as specifying no hint, please also see the last section in the document on conducting the performance measurements with the `benchmark_app`.
+Please also see the last section in the document on conducting the performance measurements with the `benchmark_app`.
 
-Notice that if there are other performance factors (other than inference time) like memory footprint and model load/compilation time are of concern, a typical model may take significantly more time to load with `ov::hint::PerformanceMode::THROUGHPUT` and consumes  much more memory, compared to the `ov::hint::PerformanceMode::LATENCY`.  
+Notice that if there are other performance factors (other than inference time) like memory footprint and model load/compilation time are of concern, a typical model may take significantly more time to load with `ov::hint::PerformanceMode::THROUGHPUT` and then consume  much more memory, compared to the `ov::hint::PerformanceMode::LATENCY`.  
 
 ## Performance Hints: How It Works?
 Internally, every device "translates" the value of the hint to the actual performance settings.
@@ -108,10 +106,15 @@ Using the hints assumes that the application queries the `ov::optimal_number_of_
 
 @endsphinxdirective
 
-While an application if free to create more requests if needed (for example to support asynchronous inputs population) **it is very important to at least run the `ov::optimal_number_of_infer_requests` of the inference requests in parallel**, for efficiency (device utilization) reasons.
+While an application if free to create more requests if needed (for example to support asynchronous inputs population) **it is very important to at least run the `ov::optimal_number_of_infer_requests` of the inference requests in parallel**, for efficiency (device utilization) reasons. 
 
-Also, notice that `ov::hint::PerformanceMode::LATENCY` does not necessarily imply using single inference request. For example, multi-socket CPUs can deliver as high number of requests (at the same minimal latency) as there are NUMA nodes on the machine. 
+Also, notice that `ov::hint::PerformanceMode::LATENCY` does not necessarily imply using single inference request. For example, multi-socket CPUs can deliver as high number of requests (at the same minimal latency) as there are NUMA nodes on the machine.
+To make your application fully scalable, prefer to query the `ov::optimal_number_of_infer_requests` directly.
 
+## Prefer Async API
+The API of the inference requests offers Sync and Async execution. While the `ov::InferRequest::infer()` is inherently synchronous and simple to operate (as it serializes the execution flow in the current application thread), the Async "splits" the `infer()` into `ov::InferRequest::start_async()` and use of the `ov::InferRequest::wait()` (or callbacks). Please consider the [API examples](../OV_Runtime_UG/ov_infer_request.md).
+ Although the Synchronous API can be somewhat easier to start with, in the production code always prefer to use the Asynchronous (callbacks-based) API, as it is the most general and scalable way to implement the flow control for any possible number of requests (and hence both latency and throughput scenarios).
+ 
 ## Combining the Hints and Individual Low-Level Settings
 While sacrificing the portability at a some extent, it is possible to combine the hints with individual device-specific settings. 
 For example, you can let the device prepare a configuration `ov::hint::PerformanceMode::THROUGHPUT` while overriding any specific value:  

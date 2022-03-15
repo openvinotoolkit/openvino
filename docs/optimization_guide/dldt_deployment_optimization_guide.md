@@ -8,9 +8,9 @@
    
 @endsphinxdirective
 
-Runtime or deployment optimizations focus is inference parameters (e.g. optimal number of the inference requests executed simultaneously) tuning and other means of how a model is _executed_. 
+Runtime or deployment optimizations focus is tuning of the inference parameters (e.g. optimal number of the requests executed simultaneously) and other means of how a model is _executed_. 
 
-Here, possible optimization should start with defining the use-case. For example, whether the target scenario emphasizes throughput over latency. For example processing millions of samples by overnight jobs in the data centers.
+Here, possible optimization should start with defining the use-case. For example, whether the target scenario emphasizes throughput over latency like processing millions of samples by overnight jobs in the data centers.
 In contrast, real-time usages would likely trade off the throughput to deliver the results at minimal latency. 
 Often this is a combined scenario that targets highest possible throughput while maintaining a specific latency threshold.
 
@@ -18,12 +18,12 @@ Each of the [OpenVINO supported devices](../OV_Runtime_UG/supported_plugins/Devi
 **If the performance portability is of concern, consider using the [OpenVINO High-Level Performance Hints](../OV_Runtime_UG/performance_hints.md) first.**  
 
 Finally, how the full-stack application uses the inference component _end-to-end_ is important.  
-For example, what are the stages that needs to be orchestrated? In some cases a significant part of the workload time is spent on bringing and preparing the input data. inputs population. Also, in many cases the (image) pre-processing can be offloaded to the OpenVINO. For variably-sized inputs, consider [dynamic shapes](../OV_Runtime_UG/ov_dynamic_shapes.md) to efficiently connect the data input pipeline and the model inference.
-These are general optimizations that help both latency and throughput scenarios.
+For example, what are the stages that needs to be orchestrated? In some cases a significant part of the workload time is spent on bringing and preparing the input data. As detailed in the section on the _execution time_ optimizations, the inputs population can be performed asynchronously to the inference. Also, in many cases the (image) pre-processing can be offloaded to the OpenVINO. For variably-sized inputs, consider [dynamic shapes](../OV_Runtime_UG/ov_dynamic_shapes.md) to efficiently connect the data input pipeline and the model inference.
+These are common performance tricks that help both latency and throughput scenarios. 
 
- _Model-level_ optimizations like [quantization that unlocks the int8 inference](../OV_Runtime_UG/Int8Inference.md) are covered in the [dedicated document](./model_optimization_guide.md), the `ov::hint::inference_precision` allows the devices to trade the accuracy for the performance at the runtime (e.g. by using the fp16/bf16 execution for the layers that remain in fp32 after quantization of the original fp32 model). 
+ Similarly, the _model-level_ optimizations like [quantization that unlocks the int8 inference](../OV_Runtime_UG/Int8Inference.md) are general and help any scenario. As referenced in the parent topic, these are covered in the [dedicated document](./model_optimization_guide.md). Additionally, the  `ov::hint::inference_precision` allows the devices to trade the accuracy for the performance at the _runtime_ (e.g. by allowing the fp16/bf16 execution for the layers that remain in fp32 after quantization of the original fp32 model). 
  
- The rest of the document explains how to optimize your _runtime_ performance.
+The rest of the document explains how to optimize your _runtime_ performance.
 
 General, application-level optimizations:
  
@@ -51,8 +51,14 @@ In many cases, a network expects a pre-processed image, so make sure you do not 
 - Note that in many cases, you can directly share the (input) data with the OpenVINO, for example consider [remote tensors API of the GPU Plugin](../OV_Runtime_UG//supported_plugins/gpu_remotetensor_api.md).
 
 ## OpenVINO Async API <a name="ov-async-api"></a>
+The API of the inference requests offers Sync and Async execution. While the `ov::InferRequest::infer()` is inherently synchronous and executes immediately (effectively serializing the execution flow in the current application thread), the Async "splits" the `infer()` into `ov::InferRequest::start_async()` and `ov::InferRequest::wait()`. Please consider the [API examples](../OV_Runtime_UG/ov_infer_request.md).
 
-OpenVINO Async API can improve overall throughput rate of the application. While a device is busy with the inference, the application can do other things in parallel (e.g. populating inputs or scheduling other requests) rather than wait for the inference to complete.
+A typical use-case for the `ov::InferRequest::infer()` is running a dedicated application thread per source of inputs (e.g. a camera), so that every step (frame capture, processing, results parsing and associated logic) is kept serial within the thread.
+In contrast, the `ov::InferRequest::start_async()` and `ov::InferRequest::wait()` allow the application to continue its activities and poll or wait for the inference completion when really needed. So one reason for using asynchronous code is _efficiency_.
+
+**NOTE**: Although the Synchronous API can be somewhat easier to start with, in the production code always prefer to use the Asynchronous (callbacks-based, below) API, as it is the most general and scalable way to implement the flow control for any possible number of requests (and hence both latency and throughput scenarios).
+
+Let's see how the OpenVINO Async API can improve overall throughput rate of the application. The key advantage of the Async approach is as follows:  while a device is busy with the inference, the application can do other things in parallel (e.g. populating inputs or scheduling other requests) rather than wait for the inference to complete.
 
 In the example below, inference is applied to the results of the video decoding. So it is possible to keep two parallel infer requests, and while the current is processed, the input frame for the next is being captured. This essentially hides the latency of capturing, so that the overall frame rate is rather determined only by the slowest part of the pipeline (decoding IR inference) and not by the sum of the stages.
 
@@ -73,15 +79,9 @@ You can compare the pseudo-codes for the regular and async-based approaches:
 The technique can be generalized to any available parallel slack. For example, you can do inference and simultaneously encode the resulting or previous frames or run further inference, like emotion detection on top of the face detection results.
 Refer to the [Object Detection С++ Demo](@ref omz_demos_object_detection_demo_cpp), [Object Detection Python Demo](@ref omz_demos_object_detection_demo_python)(latency-oriented Async API showcase) and [Benchmark App Sample](../../samples/cpp/benchmark_app/README.md) for complete examples of the Async API in action.
 
-The API of the inference requests offers Sync and Async execution. While the `ov::InferRequest::infer()` is inherently synchronous and executes immediately (effectively serializing the execution flow in the current application thread), the Async "splits" the `infer()` into `ov::InferRequest::start_async()` and `ov::InferRequest::wait()`. Please consider the [API examples](../OV_Runtime_UG/ov_infer_request.md).
-
-A typical use-case for the `ov::InferRequest::infer()` is running a dedicated application thread per source of inputs (e.g. a camera), so that every step (frame capture, processing, results parsing and associated logic) is kept serial within the thread.
-In contrast, the `ov::InferRequest::start_async()` and `ov::InferRequest::wait()` allow the application to continue its activities and poll or wait for the inference completion. So one reason for using asynchronous code is _efficiency_.
-
-Notice that the `ov::InferRequest::wait()` waits for the specific request only. However, running multiple inference requests in parallel provides no guarantees on the completion order. This may complicate a possible logic based on the `ov::InferRequest::wait`. The most scalable approach is using callbacks (set via the `ov::InferRequest::set_callback`) that are executed upon completion of the request. The callback functions will be used by the OpenVINO runtime to notify on the results (or errors). 
+### Notes on Callbacks
+Notice that the Async's `ov::InferRequest::wait()` waits for the specific request only. However, running multiple inference requests in parallel provides no guarantees on the completion order. This may complicate a possible logic based on the `ov::InferRequest::wait`. The most scalable approach is using callbacks (set via the `ov::InferRequest::set_callback`) that are executed upon completion of the request. The callback functions will be used by the OpenVINO runtime to notify on the results (or errors. 
 This is more event-driven approach.
-
-**NOTE**: Although the Synchronous API can be somewhat easier to start with, in the production code always prefer to use the Asynchronous (callbacks-based) API, as it is the most general and scalable way to implement the flow control for any possible number of requests (and hence both latency and throughput scenarios).
 
 Few important points on the callbacks:
 - It is the application responsibility to ensure that any callback function is thread-safe
@@ -95,9 +95,8 @@ In contrast, the `set_tensor` is a preferable way to handle remote tensors, [for
 
 ## Optimizing for the Throughput and Latency
 A significant fraction of applications focused on the situations where typically a single model is loaded (and single input is used) at a time.
-While an application if free to create more requests if needed (for example to support asynchronous inputs population)
-
-This is default (also for the legacy reasons), performance setup for any OpenVINO device. 
+This is default (also for the legacy reasons), performance setup for any OpenVINO device.
+Notice that an application if free to create more requests if needed (for example to support asynchronous inputs population), the question is really about how many requests are being executed in parallel.
 
 In the case when there are multiple models to be used simultaneously, consider using different devices for inferencing the different models. "First-inference latency" scenario however may pose an additional limitation on the model load\compilation time, as inference accelerators (other than the CPU) usually require certain level of model compilation upon loading.
 The [model caching](../OV_Runtime_UG/Model_caching_overview.md) is a way to amortize the loading/compilation time over multiple application runs. If the model caching is not possible (as e.g. it requires write permissions for the applications), the CPU device is almost exclusive option as it typically offers the fastest model load time. If CPU _inference_ speed is insufficient though (as e.g. it may need to run multiple models), consider using the [AUTO device](../OV_Runtime_UG/auto_device_selection.md). It allows to transparently use the CPU for inference, while the actual accelerator loads the model (upon that, the inference hot-swapping also happens automatically).
