@@ -81,10 +81,10 @@ ngraph::pass::EliminateUselessDiv::EliminateUselessDiv() {
         }
 
         auto& m_input = patternValue.at(input_1);
-        const auto& m_mul = patternValue.at(div);
+        const auto& m_div = patternValue.at(div);
 
-        ngraph::copy_runtime_info(m_mul.get_node_shared_ptr(), m_input.get_node_shared_ptr());
-        m_input.replace(m_mul);
+        ngraph::copy_runtime_info(m_div.get_node_shared_ptr(), m_input.get_node_shared_ptr());
+        m_input.replace(m_div);
 
         return true;
     };
