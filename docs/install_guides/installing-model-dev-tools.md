@@ -10,6 +10,23 @@ If you want to download, convert, optimize and tune pre-trained deep learning mo
 
 > **NOTE**: From the 2022.1 release, the OpenVINO™ Development Tools can only be installed via PyPI. 
 
+## For Python Developers
+
+You can use the following command to install the latest package version available in the index:
+```
+pip install openvino-dev[EXTRAS]
+```
+where the EXTRAS parameter specifies one or more deep learning frameworks via these values: `caffe`, `kaldi`, `mxnet`, `onnx`, `pytorch`, `tensorflow`, `tensorflow2`. Make sure that you install the corresponding frameworks for your models.
+
+For example, to install and configure the components for working with TensorFlow 2.x, MXNet and Caffe, use the following command:
+```
+pip install openvino-dev[tensorflow2,mxnet,caffe]
+```
+
+> **NOTE**: For TensorFlow, use the `tensorflow2` value as much as possible. The `tensorflow` value is provided only for compatibility reasons.
+
+For more details, see <https://pypi.org/project/openvino-dev/>.
+
 ## For C++ Developers
 
 Note the following things:
@@ -49,20 +66,7 @@ pip install openvino-dev[tensorflow2,mxnet,caffe]==2022.1
 
 For more details, see <https://pypi.org/project/openvino-dev/>.
 
-    
-## For Python Developers
+## Next Steps
 
-You can use the following command to install the latest package version available in the index:
-```
-pip install openvino-dev[EXTRAS]
-```
-where the EXTRAS parameter specifies one or more deep learning frameworks via these values: `caffe`, `kaldi`, `mxnet`, `onnx`, `pytorch`, `tensorflow`, `tensorflow2`. Make sure that you install the corresponding frameworks for your models.
 
-For example, to install and configure the components for working with TensorFlow 2.x, MXNet and Caffe, use the following command:
-```
-pip install openvino-dev[tensorflow2,mxnet,caffe]
-```
 
-> **NOTE**: For TensorFlow, use the `tensorflow2` value as much as possible. The `tensorflow` value is provided only for compatibility reasons.
-
-For more details, see <https://pypi.org/project/openvino-dev/>.
