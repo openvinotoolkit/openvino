@@ -25,6 +25,11 @@ inline uint16_t getCNNLayerId(InferenceEngine::CNNLayerPtr layer) {
     IE_SUPPRESS_DEPRECATED_END
 }
 
+inline uint16_t getCNNLayerId(ov::Node*) {
+    // TODO
+    return 0;
+}
+
 /**
  * Adapter for requests submission and actual request queue
  */
@@ -50,7 +55,8 @@ public:
         }
     }
 
-    void push_ptr(InferenceEngine::CNNLayerPtr layer,
+    template<class NodeType>
+    void push_ptr(NodeType layer,
                   void *ptr_out,
                   const void *ptr_in,
                   size_t num_bytes,

@@ -9,6 +9,7 @@
 #include <utility>
 
 #include <ie_common.h>
+#include "legacy/ie_layers.h"
 
 namespace GNAPluginNS {
 namespace backend {
