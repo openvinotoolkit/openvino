@@ -18,10 +18,14 @@ namespace set_1 {
 ///
 /// \param[in]  node  The input ONNX node representing this operation.
 ///
-/// \return     Vector of nodes containting resulting nGraph nodes.
+/// \return     OutputVector of resulting OpenVino nodes.
 ///
 OutputVector scan(const Node& node);
 }  // namespace set_1
+
+namespace set_9 {
+OutputVector scan(const Node& node);
+}  // namespace set_9
 
 }  // namespace op
 

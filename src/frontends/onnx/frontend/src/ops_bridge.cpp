@@ -420,6 +420,7 @@ void OperatorsBridge::_load_initial_state() {
     REGISTER_OPERATOR("RoiAlign", 1, roi_align);
     REGISTER_OPERATOR("Round", 1, round);
     REGISTER_OPERATOR("Scan", 1, scan);
+    REGISTER_OPERATOR("Scan", 9, scan);
     REGISTER_OPERATOR("ScatterElements", 1, scatter_elements);
     REGISTER_OPERATOR("ScatterND", 1, scatter_nd);
     REGISTER_OPERATOR("Selu", 1, selu);
