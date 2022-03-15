@@ -12,8 +12,6 @@
 
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMVN1ToMVN6, "ConvertMVN1ToMVN6", 0);
-
 ngraph::pass::ConvertMVN1ToMVN6::ConvertMVN1ToMVN6() {
     MATCHER_SCOPE(ConvertMVN1ToMVN6);
     auto mvn = pattern::wrap_type<ngraph::opset2::MVN>();

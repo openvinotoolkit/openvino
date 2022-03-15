@@ -29,7 +29,7 @@ namespace GNAPluginNS {
  */
 class HandleTransposeBeforeMatMul : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
+  OPENVINO_RTTI("HandleTransposeBeforeMatMul", "0");
   HandleTransposeBeforeMatMul();
 };
 
@@ -58,13 +58,13 @@ public:
  */
 class HandleTransposeAfterMatMul: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("HandleTransposeAfterMatMul", "0");
     HandleTransposeAfterMatMul();
 };
 
 class HandleTransposesAroundMatMul : public ngraph::pass::GraphRewrite {
 public:
-  NGRAPH_RTTI_DECLARATION;
+  OPENVINO_RTTI("HandleTransposesAroundMatMul", "0");
   HandleTransposesAroundMatMul();
 };
 
