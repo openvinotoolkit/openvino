@@ -6,6 +6,8 @@
 
 @endsphinxdirective
 
+This page introduces additional configurations for Intel® Neural Compute Stick 2 with Intel® Distribution of OpenVINO™ toolkit on Linux, Raspbian OS and macOS.
+
 ## Linux
 
 Once you have your Intel® Distribution of OpenVINO™ toolkit installed, follow the steps to be able to work on NCS2:
@@ -83,9 +85,9 @@ Proceed to the [Get Started Guide](@ref get_started) section to learn the basic 
 
 These steps are required only if you want to perform inference on Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X VPU.
 
-To perform inference on Intel® Neural Compute Stick 2, the `libusb` library is required. You can build it from the [source code](https://github.com/libusb/libusb) or install using the macOS package manager you prefer: [Homebrew*](https://brew.sh/), [MacPorts*](https://www.macports.org/) or other.
+To perform inference on Intel® Neural Compute Stick 2, the `libusb` library is required. You can build it from the [source code](https://github.com/libusb/libusb) or install using the macOS package manager you prefer: [Homebrew](https://brew.sh/), [MacPorts](https://www.macports.org/) or other.
 
-For example, to install the `libusb` library using Homebrew\*, use the following command:
+For example, to install the `libusb` library using Homebrew, use the following command:
 ```sh
 brew install libusb
 ```
