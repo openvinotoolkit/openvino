@@ -96,7 +96,7 @@ The environment variables are set. Continue to the next section if you want to d
 
 .. dropdown:: OpenCV
 
-   OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples and demos also use OpenCV as a dependency. The Intel® Distribution of OpenVINO™ provides a script to install OpenCV: ``<INSTALL_DIR>/extras/scripts/download_opencv.sh``.
+   OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. The Intel® Distribution of OpenVINO™ provides a script to install OpenCV: ``<INSTALL_DIR>/extras/scripts/download_opencv.sh``.
 
    .. note::
       Make sure you have 2 prerequisites installed: ``curl`` and ``tar``.
