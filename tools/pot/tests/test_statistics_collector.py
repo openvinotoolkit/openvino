@@ -2,6 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import json
+import os
+
+from copy import copy
 from pathlib import Path
 import pytest
 import numpy as np
@@ -54,11 +57,20 @@ def test_statistics_collector_subsets(tmp_path, models, model_name, model_framew
     out = {'MinMaxQuantization': collector.get_statistics_for_algorithm('MinMaxQuantization'),
            'BiasCorrection': collector.get_statistics_for_algorithm('BiasCorrection')}
 
-    refs_file = Path(__file__).parent / 'data/test_cases_refs/statistics_data.txt'
+    refs_file = Path(__file__).parent / 'data/test_cases_refs/statistics_data.json'
+    local_path = os.path.join(tmp_path, '{}_{}.json'.format(model_name, 'statistics_data'))
+    local_file = open(local_path, 'w')
+
     with open(refs_file.as_posix()) as file:
-        refs = json.loads(json.load(file))
+        refs = json.load(file)
 
     eps = 1e-3
+    local_out = copy(out)
+    for algo_name, algo_val in local_out.items():
+        for node_name, node_val in algo_val.items():
+            for stats_name, stats_val in node_val.items():
+                local_out[algo_name][node_name][stats_name] = [v.tolist() for v in stats_val]
+    json.dump(local_out, local_file)
     for algo_name, algo_val in out.items():
         for node_name, node_val in algo_val.items():
             for stats_name, stats_val in node_val.items():

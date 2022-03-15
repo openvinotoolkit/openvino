@@ -9,10 +9,7 @@ from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_i
 from openvino.tools.mo.utils.logger import init_logger
 from openvino.runtime import Core  # pylint: disable=E0401,E0611
 from openvino.runtime.passes import Manager # pylint: disable=E0401,E0611
-try:
-    from openvino.offline_transformations import apply_pot_transformations # pylint: disable=import-error,no-name-in-module
-except ImportError:
-    from openvino.offline_transformations_pybind import apply_pot_transformations # pylint: disable=import-error,no-name-in-module
+from openvino.offline_transformations import apply_pot_transformations # pylint: disable=import-error,no-name-in-module
 
 from ..graph.passes import ModelPreprocessor, remove_converts, add_removed_converts
 from ..utils.logger import stdout_redirect
