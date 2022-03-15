@@ -1,18 +1,18 @@
-# Arm&reg; CPU device {#openvino_docs_OV_UG_supported_plugins_ARM_CPU}
+# Arm® CPU device {#openvino_docs_OV_UG_supported_plugins_ARM_CPU}
 
 
-## Introducing the Arm&reg; CPU Plugin
-The Arm&reg; CPU plugin is developed in order to enable deep neural networks inference on Arm&reg; CPU, using [Compute Library](https://github.com/ARM-software/ComputeLibrary) as a backend.
+## Introducing the Arm® CPU Plugin
+The Arm® CPU plugin is developed in order to enable deep neural networks inference on Arm® CPU, using [Compute Library](https://github.com/ARM-software/ComputeLibrary) as a backend.
 
-> **NOTE**: Note that this is a community-level add-on to OpenVINO&trade;. Intel&reg; welcomes community participation in the OpenVINO&trade; ecosystem and technical questions on community forums as well as code contributions are welcome. However, this component has not undergone full release validation or qualification from Intel&reg;, and no official support is offered. 
+> **NOTE**: Note that this is a community-level add-on to OpenVINO™. Intel® welcomes community participation in the OpenVINO™; ecosystem and technical questions on community forums as well as code contributions are welcome. However, this component has not undergone full release validation or qualification from Intel®, and no official support is offered. 
 
-The Arm&reg; CPU plugin is not a part of the Intel&reg; Distribution of OpenVINO&trade; toolkit and is not distributed in pre-built form. To use the plugin, it should be built from source code. Plugin build procedure is described on page [How to build Arm&reg; CPU plugin](https://github.com/openvinotoolkit/openvino_contrib/wiki/How-to-build-ARM-CPU-plugin). 
+The Arm® CPU plugin is not a part of the Intel® Distribution of OpenVINO™ toolkit and is not distributed in pre-built form. To use the plugin, it should be built from source code. Plugin build procedure is described on page [How to build Arm® CPU plugin](https://github.com/openvinotoolkit/openvino_contrib/wiki/How-to-build-ARM-CPU-plugin). 
 
 The set of supported layers is defined on [Operation set specification](https://github.com/openvinotoolkit/openvino_contrib/wiki/ARM-plugin-operation-set-specification).
 
 
 ## Supported inference data types
-The Arm&reg; CPU plugin supports the following data types as inference precision of internal primitives:
+The Arm® CPU plugin supports the following data types as inference precision of internal primitives:
 
 - Floating-point data types:
   - f32
@@ -28,7 +28,7 @@ The Arm&reg; CPU plugin supports the following data types as inference precision
 ## Supported features
 
 ### Preprocessing acceleration
-The Arm&reg; CPU plugin supports the following accelerated preprocessing operations:
+The Arm® CPU plugin supports the following accelerated preprocessing operations:
 - Precision conversion:
     - u8  -> u16, s16, s32
     - u16 -> u8, u32
@@ -37,7 +37,7 @@ The Arm&reg; CPU plugin supports the following accelerated preprocessing operati
 - Transposion of tensors with dims < 5
 - Interpolation of 4D tensors with no padding (`pads_begin` and `pads_end` equal 0).
 
-> **NOTE**: The Arm&reg; CPU plugin supports the following preprocessing operations, however they are not accelerated:
+> **NOTE**: The Arm® CPU plugin supports the following preprocessing operations, however they are not accelerated:
 > - Precision conversion that are not mentioned above
 > - Color conversion:
 >      - NV12 to RGB
@@ -87,5 +87,5 @@ All parameters must be set before calling `ov::Core::compile_model()` in order t
 * `FakeQuantize` layer is supported via arm_compute library in Low Precision evaluation mode for suitable models and via runtime reference otherwise.
 
 ## See Also
-* [How to run YOLOv4 model inference using OpenVINO&trade; and OpenCV on Arm&reg;](https://opencv.org/how-to-run-yolov4-using-openvino-and-opencv-on-arm/)
-* [Face recognition on Android&trade; using OpenVINO&trade; toolkit with Arm&reg; plugin](https://opencv.org/face-recognition-on-android-using-openvino-toolkit-with-arm-plugin/)
+* [How to run YOLOv4 model inference using OpenVINO™ and OpenCV on Arm®](https://opencv.org/how-to-run-yolov4-using-openvino-and-opencv-on-arm/)
+* [Face recognition on Android™ using OpenVINO™ toolkit with Arm® plugin](https://opencv.org/face-recognition-on-android-using-openvino-toolkit-with-arm-plugin/)
