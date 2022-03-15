@@ -24,7 +24,7 @@ Older versions of OpenVINO™ (prior to 2022.1) required to change the logic of 
 - Inference Engine API (`InferenceEngine::CNNNetwork`) also applied some conversion rules for input and output precisions because of device plugins limitations.
 - Users need to specify input shapes during model conversions in Model Optimizer and work with static shapes in the application.
 
-OpenVINO™ introduces API 2.0 to align logic of working with model as it is done in the frameworks - no layout and precision changes, operates with tensor names and indices to address inputs and outputs. OpenVINO Runtime is composed of Inference Engine API used for inference and nGraph API targeted to work with models, operations. The OpenVINO API 2.0 has common structure, naming convention styles, namespaces, removes duplicated structures. See [How to migrate to OpenVINO API v2](common_inference_pipeline.md) for details.
+OpenVINO™ introduces API 2.0 to align logic of working with model as it is done in the frameworks - no layout and precision changes, operates with tensor names and indices to address inputs and outputs. OpenVINO Runtime is composed of Inference Engine API used for inference and nGraph API targeted to work with models, operations. The API 2.0 has common structure, naming convention styles, namespaces, removes duplicated structures. See [How to migrate to OpenVINO API v2](common_inference_pipeline.md) for details.
 
 > **NOTE**: Most important is that your existing application can continue working with OpenVINO Runtime 2022.1 as it used to be, but we recommend migration to API 2.0 to unlock additional features like [Preprocessing](../preprocessing_overview.md) and [Dynamic shapes support](../ov_dynamic_shapes.md).
 
@@ -48,7 +48,7 @@ The following OpenVINO tools don't support IR v10 as an input, and require to ge
 - Post-Training Optimization tool
 - Deep Learning Workbench
 
-> **NOTE**: If IR v10 models need to be quantized to run with OpenVINO 2.0, the recommendation is to download and use Post-Training Optimization tool from OpenVINO 2021.4 release.
+> **NOTE**: If you need to quantize your IR v10 models to run with OpenVINO 2022.1, it's recommended to download and use Post-Training Optimization tool from OpenVINO 2021.4 release.
 
 ### Differences between Inference Engine and OpenVINO Runtime 2022.1
 
@@ -62,7 +62,7 @@ To define a difference on the API level between Inference Engine and API 2.0, le
   - Inference Engine can override input and output element types.
   - Inference Engine API operates with operation names to address inputs and outputs (e.g. InferenceEngine::InferRequest::GetBlob).
   - Does not support compiling of models with dynamic input shapes.
-- **New behavior** assumes full model aligment with the framework and is implemented in OpenVINO 2022.1:
+- **New behavior** assumes full model alignment with the framework and is implemented in OpenVINO 2022.1:
   - Model Optimizer preserves the input element types, order of dimensions (layouts) and stores tensor names from the original models.
   - OpenVINO Runtime 2022.1 reads models in any formats (IR v10, IR v11, ONNX, PaddlePaddle, etc) as is.
   - API 2.0 operates with tensor names. Note, the difference between tensor names and operations names is that in case if a single operation has several output tensors, such tensors cannot identified in a unique manner, so tensor names are used for addressing as it's usually done in the frameworks.
@@ -72,7 +72,7 @@ The table below demonstrates which behavior **old** or **new** is used depending
 
 |               API             | IR v10  | IR v11  | ONNX file | Model created in code |
 |-------------------------------|---------|---------|-----------|-----------------------|
-|Inference Engine / ngraph APIs |     Old |     Old |       Old |                   Old |
+|Inference Engine / nGraph APIs |     Old |     Old |       Old |                   Old |
 |API 2.0                        |     Old |     New |       New |                   New |
 
 Please look at next transition guides to understand how migrate Inference Engine-based application to API 2.0:
