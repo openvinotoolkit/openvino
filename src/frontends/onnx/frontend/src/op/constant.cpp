@@ -24,7 +24,7 @@ inline std::shared_ptr<default_opset::Constant> make_ng_constant_impl(const elem
     try {
         constant = std::make_shared<default_opset::Constant>(type, tensor.get_shape(), tensor.get_data<T>());
     } catch (const ngraph::ngraph_error&) {
-        constant = std::make_shared<default_opset::Constant>(type, Shape{}, 0);
+        constant = common::make_failsafe_constant(type);
     }
 
     return constant;
