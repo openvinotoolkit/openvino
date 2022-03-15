@@ -138,7 +138,7 @@ public:
     GraphRewrite() = default;
 
     explicit GraphRewrite(const std::shared_ptr<MatcherPass>& pass) : ModelPass() {
-        m_matchers.push_back(pass);
+        add_matcher(pass);
     }
 
     /// \brief Register given transformation class type to GraphRewrite execution list
@@ -209,7 +209,7 @@ public:
         }
     }
 
-    std::shared_ptr<MatcherPass> add_matcher(std::shared_ptr<MatcherPass> pass) {
+    std::shared_ptr<MatcherPass> add_matcher(const std::shared_ptr<MatcherPass>& pass) {
         auto pass_config = get_pass_config();
         pass->set_pass_config(pass_config);
         m_matchers.push_back(pass);

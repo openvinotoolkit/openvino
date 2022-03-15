@@ -97,7 +97,6 @@ void ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
                     function_changed = false;
                 }
             } else {
-                std::cout << "ModelPass: " << pass->get_name() << std::endl;
                 function_changed = function_pass->run_on_model(func);
             }
         } else if (auto node_pass = dynamic_pointer_cast<ngraph::pass::NodePass>(pass)) {

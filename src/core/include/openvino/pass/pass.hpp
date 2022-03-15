@@ -107,5 +107,6 @@ private:
     bool call_on_function{false};
     bool call_on_model{false};
 };
+
 }  // namespace pass
 }  // namespace ov

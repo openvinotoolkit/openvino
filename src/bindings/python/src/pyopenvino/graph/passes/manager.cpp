@@ -39,83 +39,83 @@ void regclass_Manager(py::module m) {
     manager.def("set_per_pass_validation", &ov::pass::Manager::set_per_pass_validation);
     manager.def("run_passes", &ov::pass::Manager::run_passes);
 
-//    manager.def("register_pass", [](ov::pass::Manager& self, const std::string& pass_name) -> void {
-//        if (pass_name == "ConstantFolding") {
-//            self.register_pass<ov::pass::ConstantFolding>();
-//        }
-//    }, py::arg("pass_name"));
-//
-//    manager.def("register_pass", [](ov::pass::Manager& self,
-//                                    const std::string& pass_name,
-//                                    const FilePaths& file_paths,
-//                                    const std::string& version) -> void {
-//        if (pass_name == "Serialize") {
-//            self.register_pass<ov::pass::Serialize>(file_paths.first, file_paths.second, convert_to_version(version));
-//        }
-//    },  py::arg("pass_name"),
-//        py::arg("output_files"),
-//        py::arg("version") = "UNSPECIFIED",
-//        R"(
-//        Set the type of register pass for pass manager.
-//        Parameters
-//        ----------
-//        pass_name : str
-//            string to set the type of a pass
-//        output_files : Tuple[str, str]
-//            tuple which contains paths where .xml and .bin files will be saved
-//        version : str
-//            sets the version of the IR which will be generated.
-//            Supported versions are:
-//                            - "UNSPECIFIED" (default) : Use the latest or function version
-//                            - "IR_V10" : v10 IR
-//                            - "IR_V11" : v11 IR
-//        Examples
-//        ----------
-//        1. Default Version
-//            pass_manager = Manager()
-//            pass_manager.register_pass("Serialize", output_files=("example.xml", "example.bin"))
-//        2. IR version 11
-//            pass_manager = Manager()
-//            pass_manager.register_pass("Serialize", output_files=("example.xml", "example.bin"), version="IR_V11")
-//    // )");
-//
-//    manager.def("register_pass", [](ov::pass::Manager& self,
-//                                    const std::string& pass_name,
-//                                    const std::string& xml_path,
-//                                    const std::string& bin_path,
-//                                    const std::string& version) -> void {
-//        if (pass_name == "Serialize") {
-//            self.register_pass<ov::pass::Serialize>(xml_path, bin_path, convert_to_version(version));
-//        }
-//    },  py::arg("pass_name"),
-//        py::arg("xml_path"),
-//        py::arg("bin_path"),
-//        py::arg("version") = "UNSPECIFIED",
-//        R"(
-//        Set the type of register pass for pass manager.
-//        Parameters
-//        ----------
-//        pass_name : str
-//            string to set the type of a pass
-//        xml_path : str
-//            path where .xml file will be saved
-//        bin_path : str
-//            path where .bin file will be saved
-//        version : str
-//            sets the version of the IR which will be generated.
-//            Supported versions are:
-//                            - "UNSPECIFIED" (default) : Use the latest or function version
-//                            - "IR_V10" : v10 IR
-//                            - "IR_V11" : v11 IR
-//        Examples
-//        ----------
-//        1. Default Version
-//            pass_manager = Manager()
-//            pass_manager.register_pass("Serialize", xml_path="example.xml", bin_path="example.bin")
-//        2. IR version 11
-//            pass_manager = Manager()
-//            pass_manager.register_pass("Serialize", xml_path="example.xml", bin_path="example.bin", version="IR_V11")
-//    // )");
+    manager.def("register_pass", [](ov::pass::Manager& self, const std::string& pass_name) -> void {
+        if (pass_name == "ConstantFolding") {
+            self.register_pass<ov::pass::ConstantFolding>();
+        }
+    }, py::arg("pass_name"));
+
+    manager.def("register_pass", [](ov::pass::Manager& self,
+                                    const std::string& pass_name,
+                                    const FilePaths& file_paths,
+                                    const std::string& version) -> void {
+        if (pass_name == "Serialize") {
+            self.register_pass<ov::pass::Serialize>(file_paths.first, file_paths.second, convert_to_version(version));
+        }
+    },  py::arg("pass_name"),
+        py::arg("output_files"),
+        py::arg("version") = "UNSPECIFIED",
+        R"(
+        Set the type of register pass for pass manager.
+        Parameters
+        ----------
+        pass_name : str
+            string to set the type of a pass
+        output_files : Tuple[str, str]
+            tuple which contains paths where .xml and .bin files will be saved
+        version : str
+            sets the version of the IR which will be generated.
+            Supported versions are:
+                            - "UNSPECIFIED" (default) : Use the latest or function version
+                            - "IR_V10" : v10 IR
+                            - "IR_V11" : v11 IR
+        Examples
+        ----------
+        1. Default Version
+            pass_manager = Manager()
+            pass_manager.register_pass("Serialize", output_files=("example.xml", "example.bin"))
+        2. IR version 11
+            pass_manager = Manager()
+            pass_manager.register_pass("Serialize", output_files=("example.xml", "example.bin"), version="IR_V11")
+    // )");
+
+    manager.def("register_pass", [](ov::pass::Manager& self,
+                                    const std::string& pass_name,
+                                    const std::string& xml_path,
+                                    const std::string& bin_path,
+                                    const std::string& version) -> void {
+        if (pass_name == "Serialize") {
+            self.register_pass<ov::pass::Serialize>(xml_path, bin_path, convert_to_version(version));
+        }
+    },  py::arg("pass_name"),
+        py::arg("xml_path"),
+        py::arg("bin_path"),
+        py::arg("version") = "UNSPECIFIED",
+        R"(
+        Set the type of register pass for pass manager.
+        Parameters
+        ----------
+        pass_name : str
+            string to set the type of a pass
+        xml_path : str
+            path where .xml file will be saved
+        bin_path : str
+            path where .bin file will be saved
+        version : str
+            sets the version of the IR which will be generated.
+            Supported versions are:
+                            - "UNSPECIFIED" (default) : Use the latest or function version
+                            - "IR_V10" : v10 IR
+                            - "IR_V11" : v11 IR
+        Examples
+        ----------
+        1. Default Version
+            pass_manager = Manager()
+            pass_manager.register_pass("Serialize", xml_path="example.xml", bin_path="example.bin")
+        2. IR version 11
+            pass_manager = Manager()
+            pass_manager.register_pass("Serialize", xml_path="example.xml", bin_path="example.bin", version="IR_V11")
+    // )");
 
     manager.def("register_pass", &ov::pass::Manager::register_pass_instance);
 }

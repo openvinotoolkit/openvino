@@ -1,7 +1,7 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 from openvino.runtime import Model, PartialShape, opset8
-from openvino.runtime.passes import Manager, ModelPass, GraphRewrite, Matcher, MatcherPass, WrapType
+from openvino.runtime.passes import Manager, ModelPass, GraphRewrite, Matcher, MatcherPass, WrapType, BackwardGraphRewrite
 from openvino.runtime.utils import replace_node, replace_output_update_name
 
 
@@ -247,6 +247,13 @@ def test_registration_and_pass_name():
     d = c.add_matcher(PatternReplacement())
     d.set_name("PatterReplacement")
 
+    e = m.register_pass(BackwardGraphRewrite())
+    e.set_name("BackAnchor")
+
+    f = e.add_matcher(PatternReplacement())
+    f.set_name("PatterReplacement")
+
     PatternReplacement().set_name("PatternReplacement")
     MyModelPass().set_name("MyModelPass")
     GraphRewrite().set_name("Anchor")
+    BackwardGraphRewrite().set_name("BackAnchor")

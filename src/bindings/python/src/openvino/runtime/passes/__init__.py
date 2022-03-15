@@ -5,4 +5,4 @@
 
 from openvino.pyopenvino.passes import ModelPass, Matcher, MatcherPass, PassBase, WrapType, Serialize
 from openvino.runtime.passes.manager import Manager
-from openvino.runtime.passes.graph_rewrite import GraphRewrite
+from openvino.runtime.passes.graph_rewrite import GraphRewrite, BackwardGraphRewrite

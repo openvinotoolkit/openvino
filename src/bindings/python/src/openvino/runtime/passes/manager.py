@@ -1,6 +1,7 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 from openvino.pyopenvino.passes import Manager as ManagerBase
+from openvino.pyopenvino.passes import PassBase
 
 
 class Manager(ManagerBase):
@@ -9,6 +10,13 @@ class Manager(ManagerBase):
         super().__init__()
         self.passes_list = []  # need to keep python instances alive
 
-    def register_pass(self, transformation):
-        self.passes_list.append(transformation)
-        return super().register_pass(transformation)
+    def register_pass(self, *args, **kwargs):
+        for arg in args:
+            if isinstance(arg, PassBase):
+                self.passes_list.append(arg)
+
+        for arg in kwargs.values():
+            if isinstance(arg, PassBase):
+                self.passes_list.append(arg)
+
+        return super().register_pass(*args, **kwargs)
