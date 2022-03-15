@@ -35,6 +35,7 @@
 #include <transformations/common_optimizations/normalize_l2_fusion.hpp>
 #include <transformations/common_optimizations/optimize_strided_slice.hpp>
 #include <transformations/common_optimizations/pad_fusion.hpp>
+#include <transformations/common_optimizations/prelu_fusion.hpp>
 #include <transformations/common_optimizations/random_uniform_fusion.hpp>
 #include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
 #include <transformations/common_optimizations/remove_filtering_boxes_by_size.hpp>
@@ -53,7 +54,6 @@
 #include <transformations/common_optimizations/swish_fusion.hpp>
 #include <transformations/common_optimizations/transpose_sinking.hpp>
 #include <transformations/common_optimizations/transpose_to_reshape.hpp>
-#include <transformations/common_optimizations/prelu_fusion.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
 #include <transformations/op_conversions/batch_norm_decomposition.hpp>

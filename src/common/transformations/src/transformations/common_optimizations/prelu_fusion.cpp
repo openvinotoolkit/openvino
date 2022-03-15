@@ -5,10 +5,11 @@
 #define _USE_MATH_DEFINES
 
 #include "transformations/common_optimizations/prelu_fusion.hpp"
+
 #include <memory>
 #include <ngraph/opsets/opset8.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 
 #include "itt.hpp"
@@ -28,12 +29,11 @@ ngraph::pass::PReluFusionNegativeAdd::PReluFusionNegativeAdd() {
     auto relu_neg = ngraph::pattern::wrap_type<ngraph::opset8::Relu>({neg1});
     auto neg2 = ngraph::pattern::wrap_type<ngraph::opset8::Negative>({relu_neg});
     auto mul_constant = ngraph::pattern::wrap_type<ngraph::opset8::Constant>();
-    auto mul =
-        ngraph::pattern::wrap_type<ngraph::opset8::Multiply>({neg2, mul_constant});
+    auto mul = ngraph::pattern::wrap_type<ngraph::opset8::Multiply>({neg2, mul_constant});
     auto add = ngraph::pattern::wrap_type<ngraph::opset8::Add>({relu_pos, mul});
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        const auto &pattern_to_output = m.get_pattern_value_map();
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        const auto& pattern_to_output = m.get_pattern_value_map();
         auto input_output = pattern_to_output.at(input);
         auto slope_output = pattern_to_output.at(mul_constant);
         auto add_node = pattern_to_output.at(add).get_node_shared_ptr();
@@ -60,12 +60,11 @@ ngraph::pass::PReluFusionNegativeSub::PReluFusionNegativeSub() {
     auto neg1 = ngraph::pattern::wrap_type<ngraph::opset8::Negative>({input});
     auto relu_neg = ngraph::pattern::wrap_type<ngraph::opset8::Relu>({neg1});
     auto mul_constant = ngraph::pattern::wrap_type<ngraph::opset8::Constant>();
-    auto mul =
-        ngraph::pattern::wrap_type<ngraph::opset8::Multiply>({relu_neg, mul_constant});
+    auto mul = ngraph::pattern::wrap_type<ngraph::opset8::Multiply>({relu_neg, mul_constant});
     auto sub = ngraph::pattern::wrap_type<ngraph::opset8::Subtract>({relu_pos, mul});
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        const auto &pattern_to_output = m.get_pattern_value_map();
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        const auto& pattern_to_output = m.get_pattern_value_map();
         auto input_output = pattern_to_output.at(input);
         auto slope_output = pattern_to_output.at(mul_constant);
         auto sub_node = pattern_to_output.at(sub).get_node_shared_ptr();
@@ -103,16 +102,14 @@ ngraph::pass::PReluFusionMultiplyAdd::PReluFusionMultiplyAdd() {
     auto input = ngraph::pattern::any_input();
     auto relu_pos = ngraph::pattern::wrap_type<ngraph::opset8::Relu>({input});
     auto mul_neg_constant = ngraph::pattern::wrap_type<ngraph::opset8::Constant>(constant_value(-1.0));
-    auto mul_neg =
-        ngraph::pattern::wrap_type<ngraph::opset8::Multiply>({input, mul_neg_constant});
+    auto mul_neg = ngraph::pattern::wrap_type<ngraph::opset8::Multiply>({input, mul_neg_constant});
     auto relu_neg = ngraph::pattern::wrap_type<ngraph::opset8::Relu>({mul_neg});
     auto mul_constant = ngraph::pattern::wrap_type<ngraph::opset8::Constant>();
-    auto mul =
-        ngraph::pattern::wrap_type<ngraph::opset8::Multiply>({relu_neg, mul_constant});
+    auto mul = ngraph::pattern::wrap_type<ngraph::opset8::Multiply>({relu_neg, mul_constant});
     auto add = ngraph::pattern::wrap_type<ngraph::opset8::Add>({relu_pos, mul});
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        const auto &pattern_to_output = m.get_pattern_value_map();
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        const auto& pattern_to_output = m.get_pattern_value_map();
         auto input_output = pattern_to_output.at(input);
         auto slope_output = pattern_to_output.at(mul_constant);
         auto add_node = pattern_to_output.at(add).get_node_shared_ptr();
@@ -138,16 +135,14 @@ ngraph::pass::PReluFusionMultiplySub::PReluFusionMultiplySub() {
     auto input = ngraph::pattern::any_input();
     auto relu_pos = ngraph::pattern::wrap_type<ngraph::opset8::Relu>({input});
     auto mul_neg_constant = ngraph::pattern::wrap_type<ngraph::opset8::Constant>(constant_value(-1.0));
-    auto mul_neg =
-        ngraph::pattern::wrap_type<ngraph::opset8::Multiply>({input, mul_neg_constant});
+    auto mul_neg = ngraph::pattern::wrap_type<ngraph::opset8::Multiply>({input, mul_neg_constant});
     auto relu_neg = ngraph::pattern::wrap_type<ngraph::opset8::Relu>({mul_neg});
     auto mul_constant = ngraph::pattern::wrap_type<ngraph::opset8::Constant>();
-    auto mul =
-        ngraph::pattern::wrap_type<ngraph::opset8::Multiply>({relu_neg, mul_constant});
+    auto mul = ngraph::pattern::wrap_type<ngraph::opset8::Multiply>({relu_neg, mul_constant});
     auto sub = ngraph::pattern::wrap_type<ngraph::opset8::Subtract>({relu_pos, mul});
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        const auto &pattern_to_output = m.get_pattern_value_map();
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        const auto& pattern_to_output = m.get_pattern_value_map();
         auto input_output = pattern_to_output.at(input);
         auto slope_output = pattern_to_output.at(mul_constant);
         auto sub_node = pattern_to_output.at(sub).get_node_shared_ptr();
