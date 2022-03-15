@@ -5,7 +5,7 @@
 #include "reshape.h"
 #include <string>
 #include <mkldnn_types.h>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include <openvino/opsets/opset1.hpp>
 #include <ie_ngraph_utils.hpp>
 #include <utils/shape_inference/static_shape.hpp>

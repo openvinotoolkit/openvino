@@ -4,7 +4,7 @@
 
 #include "if.h"
 
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include "ie_ngraph_utils.hpp"
 #include "transformations/utils/utils.hpp"
 #include "common/cpu_memcpy.h"

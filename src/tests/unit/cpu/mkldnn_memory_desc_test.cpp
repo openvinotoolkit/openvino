@@ -9,7 +9,7 @@
 #include <cpu_memory.h>
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "nodes/common/blocked_desc_creator.h"
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
 using namespace ov::intel_cpu;
@@ -21,7 +21,7 @@ TEST(MemDescTest, Conversion) {
     // dnnl::memory::desc -> DnnlBlockedMemoryDesc -> CpuBlockedMemoryDesc -> DnnlBlockedMemoryDesc -> dnnl::memory::desc
     auto converted_correctly = [] (dnnl::memory::format_tag fmt, dnnl::memory::dims dims) {
         dnnl::memory::desc orig_tdesc {dims, dnnl::memory::data_type::u8, fmt};
-        DnnlMemoryDescPtr plg_tdesc = ExtensionUtils::makeDescriptor(orig_tdesc);
+        DnnlMemoryDescPtr plg_tdesc = DnnlExtensionUtils::makeDescriptor(orig_tdesc);
         BlockedMemoryDescPtr blk_tdesc = MemoryDescUtils::convertToBlockedMemoryDesc(plg_tdesc);
         MemoryDescPtr cpu_blk_tdesc = std::make_shared<CpuBlockedMemoryDesc>(blk_tdesc->getPrecision(), blk_tdesc->getShape(), blk_tdesc->getBlockDims(),
                                                                   blk_tdesc->getOrder(), blk_tdesc->getOffsetPadding(), blk_tdesc->getOffsetPaddingToData(),
@@ -90,7 +90,7 @@ TEST(MemDescTest, UndefinedStateConversion) {
 TEST(MemDescTest, CompareWithTensorDescRecomputedStrides) {
     auto converted_correctly = [] (dnnl::memory::format_tag fmt, dnnl::memory::dims dims) {
         dnnl::memory::desc orig_tdesc {dims, dnnl::memory::data_type::u8, fmt};
-        DnnlMemoryDescPtr plg_tdesc = ExtensionUtils::makeDescriptor(orig_tdesc);
+        DnnlMemoryDescPtr plg_tdesc = DnnlExtensionUtils::makeDescriptor(orig_tdesc);
         BlockedMemoryDescPtr blk_tdesc = MemoryDescUtils::convertToBlockedMemoryDesc(plg_tdesc);
 
         CpuBlockedMemoryDesc recomputed_blk_tdesc(blk_tdesc->getPrecision(), blk_tdesc->getShape(), blk_tdesc->getBlockDims(), blk_tdesc->getOrder());
@@ -118,9 +118,9 @@ TEST(MemDescTest, isPlainCheck) {
     dnnl::memory::desc permt_tdesc {dims, type, dnnl::memory::format_tag::acdb};
     dnnl::memory::desc blckd_tdesc {dims, type, dnnl::memory::format_tag::aBcd8b};
 
-    ASSERT_TRUE(ExtensionUtils::makeDescriptor(plain_tdesc)->hasLayoutType(LayoutType::ncsp));
-    ASSERT_FALSE(ExtensionUtils::makeDescriptor(permt_tdesc)->hasLayoutType(LayoutType::ncsp));
-    ASSERT_FALSE(ExtensionUtils::makeDescriptor(blckd_tdesc)->hasLayoutType(LayoutType::ncsp));
+    ASSERT_TRUE(DnnlExtensionUtils::makeDescriptor(plain_tdesc)->hasLayoutType(LayoutType::ncsp));
+    ASSERT_FALSE(DnnlExtensionUtils::makeDescriptor(permt_tdesc)->hasLayoutType(LayoutType::ncsp));
+    ASSERT_FALSE(DnnlExtensionUtils::makeDescriptor(blckd_tdesc)->hasLayoutType(LayoutType::ncsp));
 }
 
 TEST(MemDescTest, isBlockedCCheck) {
@@ -131,19 +131,19 @@ TEST(MemDescTest, isBlockedCCheck) {
     dnnl::memory::desc tailc_tdesc {dims, type, dnnl::memory::format_tag::acdb};
     dnnl::memory::desc blck8_tdesc {dims, type, dnnl::memory::format_tag::aBcd8b};
     dnnl::memory::desc blck8_permCD_tdesc {dims, type, dnnl::memory::format_tag::aBdc16b};
-    auto plain_mdesc = ExtensionUtils::makeDescriptor(plain_tdesc);
-    auto tailc_mdesc = ExtensionUtils::makeDescriptor(tailc_tdesc);
+    auto plain_mdesc = DnnlExtensionUtils::makeDescriptor(plain_tdesc);
+    auto tailc_mdesc = DnnlExtensionUtils::makeDescriptor(tailc_tdesc);
     ASSERT_FALSE(plain_mdesc->hasLayoutType(LayoutType::nCsp8c) || plain_mdesc->hasLayoutType(LayoutType::nCsp16c));
     ASSERT_FALSE(tailc_mdesc->hasLayoutType(LayoutType::nCsp8c) || tailc_mdesc->hasLayoutType(LayoutType::nCsp16c));
-    ASSERT_TRUE(ExtensionUtils::makeDescriptor(blck8_tdesc)->hasLayoutType(LayoutType::nCsp8c));
-    ASSERT_FALSE(ExtensionUtils::makeDescriptor(blck8_permCD_tdesc)->hasLayoutType(LayoutType::nCsp16c));
+    ASSERT_TRUE(DnnlExtensionUtils::makeDescriptor(blck8_tdesc)->hasLayoutType(LayoutType::nCsp8c));
+    ASSERT_FALSE(DnnlExtensionUtils::makeDescriptor(blck8_permCD_tdesc)->hasLayoutType(LayoutType::nCsp16c));
 
     const auto crop_dims = dnnl::memory::dims {2, 1, 5, 7};
     const auto crop_off = dnnl::memory::dims {1, 0, 0, 0};
     dnnl::memory::desc blck8_crop_tdesc = blck8_tdesc.submemory_desc(crop_dims, crop_off);
     dnnl::memory::desc blck8_permCD_crop_tdesc = blck8_permCD_tdesc.submemory_desc(crop_dims, crop_off);
-    ASSERT_TRUE(ExtensionUtils::makeDescriptor(blck8_crop_tdesc)->hasLayoutType(LayoutType::nCsp8c));
-    ASSERT_FALSE(ExtensionUtils::makeDescriptor(blck8_permCD_crop_tdesc)->hasLayoutType(LayoutType::nCsp8c));
+    ASSERT_TRUE(DnnlExtensionUtils::makeDescriptor(blck8_crop_tdesc)->hasLayoutType(LayoutType::nCsp8c));
+    ASSERT_FALSE(DnnlExtensionUtils::makeDescriptor(blck8_permCD_crop_tdesc)->hasLayoutType(LayoutType::nCsp8c));
 }
 
 TEST(MemDescTest, isTailCCheck) {
@@ -154,18 +154,18 @@ TEST(MemDescTest, isTailCCheck) {
     dnnl::memory::desc tailc_tdesc {dims, type, dnnl::memory::format_tag::acdb};
     dnnl::memory::desc permt_tdesc {dims, type, dnnl::memory::format_tag::bcda};
     dnnl::memory::desc blck8_tdesc {dims, type, dnnl::memory::format_tag::aBcd8b};
-    ASSERT_FALSE(ExtensionUtils::makeDescriptor(plain_tdesc)->hasLayoutType(LayoutType::nspc));
-    ASSERT_FALSE(ExtensionUtils::makeDescriptor(permt_tdesc)->hasLayoutType(LayoutType::nspc));
-    ASSERT_TRUE(ExtensionUtils::makeDescriptor(tailc_tdesc)->hasLayoutType(LayoutType::nspc));
-    ASSERT_FALSE(ExtensionUtils::makeDescriptor(blck8_tdesc)->hasLayoutType(LayoutType::nspc));
+    ASSERT_FALSE(DnnlExtensionUtils::makeDescriptor(plain_tdesc)->hasLayoutType(LayoutType::nspc));
+    ASSERT_FALSE(DnnlExtensionUtils::makeDescriptor(permt_tdesc)->hasLayoutType(LayoutType::nspc));
+    ASSERT_TRUE(DnnlExtensionUtils::makeDescriptor(tailc_tdesc)->hasLayoutType(LayoutType::nspc));
+    ASSERT_FALSE(DnnlExtensionUtils::makeDescriptor(blck8_tdesc)->hasLayoutType(LayoutType::nspc));
 
     dnnl::memory::desc blck8_permCD_tdesc {dims, type, dnnl::memory::format_tag::aBdc16b};
-    ASSERT_FALSE(ExtensionUtils::makeDescriptor(blck8_permCD_tdesc)->hasLayoutType(LayoutType::nspc));
+    ASSERT_FALSE(DnnlExtensionUtils::makeDescriptor(blck8_permCD_tdesc)->hasLayoutType(LayoutType::nspc));
 
     const auto crop_dims = dnnl::memory::dims {2, 1, 5, 7};
     const auto crop_off = dnnl::memory::dims {1, 0, 0, 0};
     dnnl::memory::desc tailc_crop_tdesc = blck8_tdesc.submemory_desc(crop_dims, crop_off);
-    ASSERT_FALSE(ExtensionUtils::makeDescriptor(tailc_crop_tdesc)->hasLayoutType(LayoutType::nspc));
+    ASSERT_FALSE(DnnlExtensionUtils::makeDescriptor(tailc_crop_tdesc)->hasLayoutType(LayoutType::nspc));
 }
 
 TEST(MemDescTest, constructWithPlainFormat) {
@@ -192,7 +192,7 @@ TEST(MemDescTest, KeepOrder) {
     using mkldnn::memory;
     Shape dims(VectorDims{7, 3, 1, 5});
     memory::data_type dataType = memory::data_type::u8;
-    DnnlBlockedMemoryDesc descPalanar(ExtensionUtils::DataTypeToIEPrecision(dataType), dims);
+    DnnlBlockedMemoryDesc descPalanar(DnnlExtensionUtils::DataTypeToIEPrecision(dataType), dims);
     ASSERT_THAT(descPalanar.getOrder(), ElementsAre(0, 1, 2, 3));
 
     DnnlBlockedMemoryDesc descTailC(dims, dataType, memory::format_tag::acdb);
@@ -204,19 +204,19 @@ TEST(MemDescTest, KeepOrder) {
     DnnlBlockedMemoryDesc descWeightBlocked(dims, dataType, memory::format_tag::ABcd16b16a2b);
     ASSERT_THAT(descWeightBlocked.getOrder(), ElementsAre(0, 1, 2, 3, 1, 0, 1));
 
-    auto dnnDims = ExtensionUtils::convertToDnnlDims(dims.getStaticDims());
+    auto dnnDims = DnnlExtensionUtils::convertToDnnlDims(dims.getStaticDims());
 
     memory::desc mkldnnDescPlanar(dnnDims, dataType, memory::format_tag::abcd);
-    ASSERT_THAT(ExtensionUtils::makeDescriptor(mkldnnDescPlanar)->as<DnnlBlockedMemoryDesc>()->getOrder(), ElementsAre(0, 1, 2, 3));
+    ASSERT_THAT(DnnlExtensionUtils::makeDescriptor(mkldnnDescPlanar)->as<DnnlBlockedMemoryDesc>()->getOrder(), ElementsAre(0, 1, 2, 3));
 
     memory::desc mkldnnDescTailC(dnnDims, dataType, memory::format_tag::acdb);
-    ASSERT_THAT(ExtensionUtils::makeDescriptor(mkldnnDescTailC)->as<DnnlBlockedMemoryDesc>()->getOrder(), ElementsAre(0, 2, 3, 1));
+    ASSERT_THAT(DnnlExtensionUtils::makeDescriptor(mkldnnDescTailC)->as<DnnlBlockedMemoryDesc>()->getOrder(), ElementsAre(0, 2, 3, 1));
 
     memory::desc mkldnnDescBlockedC(dnnDims, dataType, memory::format_tag::aBcd16b);
-    ASSERT_THAT(ExtensionUtils::makeDescriptor(mkldnnDescBlockedC)->as<DnnlBlockedMemoryDesc>()->getOrder(), ElementsAre(0, 1, 2, 3, 1));
+    ASSERT_THAT(DnnlExtensionUtils::makeDescriptor(mkldnnDescBlockedC)->as<DnnlBlockedMemoryDesc>()->getOrder(), ElementsAre(0, 1, 2, 3, 1));
 
     memory::desc mkldnnDescWeightBlocked(dnnDims, dataType, memory::format_tag::ABcd16b16a2b);
-    ASSERT_THAT(ExtensionUtils::makeDescriptor(mkldnnDescWeightBlocked)->as<DnnlBlockedMemoryDesc>()->getOrder(), ElementsAre(0, 1, 2, 3, 1, 0, 1));
+    ASSERT_THAT(DnnlExtensionUtils::makeDescriptor(mkldnnDescWeightBlocked)->as<DnnlBlockedMemoryDesc>()->getOrder(), ElementsAre(0, 1, 2, 3, 1, 0, 1));
 }
 
 TEST(MemDescTest, UndefinedState) {
@@ -289,7 +289,7 @@ TEST(MemDescTest, MemSize) {
     DnnlBlockedMemoryDesc memDescDefUpper(pluginShapeDefUpperBound, dnnlDataType, mkldnn::memory::format_tag::nhwc);
 
     ASSERT_EQ(memDescDefUpper.getCurrentMemSize(), undefSize);
-    ASSERT_EQ(memDescDefUpper.getMaxMemSize(), maxElementsCount * ExtensionUtils::sizeOfDataType(dnnlDataType));
+    ASSERT_EQ(memDescDefUpper.getMaxMemSize(), maxElementsCount * DnnlExtensionUtils::sizeOfDataType(dnnlDataType));
 
     ngraph::PartialShape ngraphShapeDefined({{16}, {16}, {10}, {7}});
     ov::intel_cpu::Shape pluginShapeDefined(ngraphShapeDefined);
@@ -318,11 +318,11 @@ TEST(MakeUndefinedDnnlDesc, checkRank) {
     const memory::desc origin({10, 20, 15, 7}, dataType, memory::format_tag::nChw16c);
 
     ov::intel_cpu::Shape pluginShapeWrongRank(ngraph::PartialShape{{-1, -1}, {-1, -1}, {-1, -1}});
-    ASSERT_THROW(ExtensionUtils::makeUndefinedDesc(origin, pluginShapeWrongRank), InferenceEngine::ParameterMismatch);
+    ASSERT_THROW(DnnlExtensionUtils::makeUndefinedDesc(origin, pluginShapeWrongRank), InferenceEngine::ParameterMismatch);
 
     ov::intel_cpu::Shape pluginShapeRightRank(ngraph::PartialShape{{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}});
     MemoryDescPtr memDesc;
-    ASSERT_NO_THROW(memDesc = ExtensionUtils::makeUndefinedDesc(origin, pluginShapeRightRank));
+    ASSERT_NO_THROW(memDesc = DnnlExtensionUtils::makeUndefinedDesc(origin, pluginShapeRightRank));
     ASSERT_FALSE(memDesc->isDefined());
 }
 
@@ -335,13 +335,13 @@ TEST(MakeUndefinedDnnlDesc, checkDims) {
     for (size_t i = 0; i < fullyUndef.size(); ++i) {
         auto partialShape = fullyUndef;
         partialShape[i] = {3}; // just a number which is not equal to any origin dims
-        ASSERT_THROW(ExtensionUtils::makeUndefinedDesc(origin, ov::intel_cpu::Shape(partialShape)), InferenceEngine::ParameterMismatch);
+        ASSERT_THROW(DnnlExtensionUtils::makeUndefinedDesc(origin, ov::intel_cpu::Shape(partialShape)), InferenceEngine::ParameterMismatch);
     }
     for (size_t i = 0; i < origin.dims().size(); ++i) {
         auto partialShape = fullyUndef;
         partialShape[i] = {origin.dims()[i]};
         MemoryDescPtr memDesc;
-        ASSERT_NO_THROW(memDesc = ExtensionUtils::makeUndefinedDesc(origin, ov::intel_cpu::Shape(fullyUndef)));
+        ASSERT_NO_THROW(memDesc = DnnlExtensionUtils::makeUndefinedDesc(origin, ov::intel_cpu::Shape(fullyUndef)));
         ASSERT_FALSE(memDesc->isDefined());
     }
 }
@@ -369,12 +369,12 @@ TEST(MakeUndefinedDnnlDesc, checkLayout) {
         std::tie(fmt, dims, strFormat) = item;
         const memory::desc origin(dims, dataType, fmt);
 
-        auto undefDesc = ExtensionUtils::makeUndefinedDesc(origin, ov::intel_cpu::Shape(fullyUndef));
+        auto undefDesc = DnnlExtensionUtils::makeUndefinedDesc(origin, ov::intel_cpu::Shape(fullyUndef));
         ASSERT_FALSE(undefDesc->isDefined());
         ov::intel_cpu::DnnlBlockedMemoryDesc referenceDesc(ov::intel_cpu::Shape(fullyUndef), dataType, fmt);
         ASSERT_TRUE(undefDesc->isCompatible(referenceDesc));
         ASSERT_EQ(undefDesc->serializeFormat(), strFormat);
-        auto defDesc = undefDesc->cloneWithNewDims(ExtensionUtils::convertToVectorDims(dims));
+        auto defDesc = undefDesc->cloneWithNewDims(DnnlExtensionUtils::convertToVectorDims(dims));
         ASSERT_TRUE(defDesc->isDefined());
         ASSERT_EQ(origin, defDesc->as<DnnlBlockedMemoryDesc>()->getDnnlDesc());
     }
@@ -406,11 +406,11 @@ TEST(MakeUndefinedDnnlDesc, extraData) {
         origin.data.extra.compensation_mask = 1;
         origin.data.extra.scale_adjust = 2.0f;
 
-        auto undefDesc = ExtensionUtils::makeUndefinedDesc(origin, ov::intel_cpu::Shape(fullyUndef));
+        auto undefDesc = DnnlExtensionUtils::makeUndefinedDesc(origin, ov::intel_cpu::Shape(fullyUndef));
         ASSERT_FALSE(undefDesc->isDefined());
-        auto defDesc = undefDesc->cloneWithNewDims(ExtensionUtils::convertToVectorDims(dims));
+        auto defDesc = undefDesc->cloneWithNewDims(DnnlExtensionUtils::convertToVectorDims(dims));
         ASSERT_TRUE(defDesc->isDefined());
-        auto referenceDesc = ExtensionUtils::makeDescriptor(origin);
+        auto referenceDesc = DnnlExtensionUtils::makeDescriptor(origin);
         ASSERT_TRUE(defDesc->isCompatible(*referenceDesc));
         ASSERT_EQ(origin, defDesc->as<DnnlBlockedMemoryDesc>()->getDnnlDesc());
     }
@@ -420,7 +420,7 @@ TEST(MakeUndefinedDnnlDesc, extraData) {
 TEST(isSameMethodTest, CheckTensorWithSameStrides) {
     auto isSameDataFormat = [] (dnnl::memory::format_tag fmt, dnnl::memory::dims dims) {
         dnnl::memory::desc oneDnnDesc {dims, dnnl::memory::data_type::u8, fmt};
-        auto pluginDesc = ExtensionUtils::makeDescriptor(oneDnnDesc);
+        auto pluginDesc = DnnlExtensionUtils::makeDescriptor(oneDnnDesc);
         return pluginDesc->isSame(fmt);
     };
 

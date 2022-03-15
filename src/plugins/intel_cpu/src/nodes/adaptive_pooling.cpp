@@ -7,7 +7,7 @@
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <math.h>
 #include <mkldnn.hpp>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include <selective_build.h>
 #include <mkldnn_types.h>
 #include <ngraph/opsets/opset8.hpp>

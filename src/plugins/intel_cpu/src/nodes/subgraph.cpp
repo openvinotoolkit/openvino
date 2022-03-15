@@ -14,7 +14,7 @@
 #include <mkldnn.hpp>
 #include <mkldnn_debug.h>
 #include <mkldnn_types.h>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/visualize_tree.hpp>

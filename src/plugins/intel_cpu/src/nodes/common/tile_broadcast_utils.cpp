@@ -92,7 +92,7 @@ bool TileBroadcastCommon::canBeExecutedInNSPCLayout(VectorDims srcBlockedDims, V
 std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node *node) {
     std::vector<NodeDesc> supportedPrimitiveDescriptors;
     auto precision = node->getOriginalInputPrecisionAtPort(0);
-    auto dataType = ExtensionUtils::IEPrecisionToDataType(precision);
+    auto dataType = DnnlExtensionUtils::IEPrecisionToDataType(precision);
 
     const auto& srcDims = node->getInputShapeAtPort(0).getDims();
     const auto& inDataShape = node->getInputShapeAtPort(0);
@@ -152,8 +152,8 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node *node)
         }
     }
 
-    auto inFmt = ExtensionUtils::GetPlainFormatByRank(inDataShape.getRank());
-    auto outFmt = ExtensionUtils::GetPlainFormatByRank(outDataShapeRank);
+    auto inFmt = DnnlExtensionUtils::GetPlainFormatByRank(inDataShape.getRank());
+    auto outFmt = DnnlExtensionUtils::GetPlainFormatByRank(outDataShapeRank);
     if (inFmt == mkldnn::memory::format_tag::undef || outFmt == mkldnn::memory::format_tag::undef) {
         config.inConfs[0].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(precision, node->getInputShapeAtPort(0)));
         for (int i = 0; i < config.outConfs.size(); i++) {

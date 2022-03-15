@@ -7,7 +7,7 @@
 
 #include <algorithm>
 #include <string>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include <common/primitive_hashing_utils.hpp>
 
 using namespace mkldnn;
@@ -160,14 +160,14 @@ void Transpose::prepareParams() {
         MemoryPtr dst_blocked = std::make_shared<Memory>(engine);
 
         dst_blocked->Create(
-            ExtensionUtils::makeDescriptor(dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc()),
+            DnnlExtensionUtils::makeDescriptor(dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc()),
             dstMemPtr->GetData(), false);
 
         const auto newDims = dst_blocked->getStaticDims();
-        auto newDesc = mkldnn::memory::desc(ExtensionUtils::convertToDnnlDims(newDims),
+        auto newDesc = mkldnn::memory::desc(DnnlExtensionUtils::convertToDnnlDims(newDims),
                                             dst_blocked->GetDataType(),
                                             memory::format_tag::acdb);
-        src_blocked->Create(ExtensionUtils::makeDescriptor(newDesc), srcMemPtr->GetData(), false);
+        src_blocked->Create(DnnlExtensionUtils::makeDescriptor(newDesc), srcMemPtr->GetData(), false);
 
         impl_desc_type impl_type = getSelectedPrimitiveDescriptor()->getImplementationType();
         TransposeAsReorderKey key = {src_blocked->GetPrimitive().get_desc(), dst_blocked->GetPrimitive().get_desc()};

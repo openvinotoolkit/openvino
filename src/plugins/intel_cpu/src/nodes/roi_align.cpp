@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 #include <math.h>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include <mkldnn_types.h>
 #include <utils/bfloat16.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>

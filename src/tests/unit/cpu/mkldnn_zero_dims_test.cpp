@@ -7,7 +7,7 @@
 #include <cpu_memory.h>
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "nodes/common/blocked_desc_creator.h"
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
 using namespace ov::intel_cpu;
@@ -30,7 +30,7 @@ protected:
             auto replaceShape = origShape;
             std::replace(replaceShape.begin(), replaceShape.end(), ngraph::Dimension(0), ngraph::Dimension(3));
             Shape dummyShape(replaceShape);
-            DnnlBlockedMemoryDesc dummyDesc(dummyShape, ExtensionUtils::IEPrecisionToDataType(precision), fmt);
+            DnnlBlockedMemoryDesc dummyDesc(dummyShape, DnnlExtensionUtils::IEPrecisionToDataType(precision), fmt);
             expectedBlkDims = dummyDesc.getBlockDims();
             expectedOrder = dummyDesc.getOrder();
             for (size_t i = 0; i < dummyShape.getRank(); i++) {
@@ -134,7 +134,7 @@ public:
     }
 
     std::pair<DnnlBlockedMemoryDesc, CpuBlockedMemoryDesc> createDescs() const override {
-        DnnlBlockedMemoryDesc descDnnl(shape, ExtensionUtils::IEPrecisionToDataType(precision), fmt);
+        DnnlBlockedMemoryDesc descDnnl(shape, DnnlExtensionUtils::IEPrecisionToDataType(precision), fmt);
         CpuBlockedMemoryDesc descCpu(precision, shape, descDnnl.getBlockDims(), descDnnl.getOrder());
         return {descDnnl, descCpu};
     }
@@ -213,7 +213,7 @@ protected:
 };
 
 TEST_P(MemDescWithZeroDimsCloneNewDimsTest, CloneWithNewDims) {
-    DnnlBlockedMemoryDesc dynamicDescDnnl(shapeDynamic, ExtensionUtils::IEPrecisionToDataType(precision), fmt);
+    DnnlBlockedMemoryDesc dynamicDescDnnl(shapeDynamic, DnnlExtensionUtils::IEPrecisionToDataType(precision), fmt);
     CpuBlockedMemoryDesc dynamicDescCpu(precision, shape, dynamicDescDnnl.getBlockDims(), dynamicDescDnnl.getOrder());
     const size_t offset = 0, offsetPadding = 0;
     VectorDims zeroStrides(dynamicDescDnnl.getBlockDims().size(), 0);

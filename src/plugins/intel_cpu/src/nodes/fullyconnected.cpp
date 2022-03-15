@@ -9,7 +9,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <string>
 #include <vector>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include <mkldnn.hpp>
 #include "utils/general_utils.h"
 #include <memory_desc/cpu_memory_desc_utils.h>
@@ -164,17 +164,17 @@ void FullyConnected::getSupportedDescriptors() {
     if (getChildEdges().empty())
         IE_THROW()<< errorPrefix << " has incorrect number of output edges";
 
-    auto inputDataType = ExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(DATA_ID));
-    auto outputDataType = ExtensionUtils::IEPrecisionToDataType(getOriginalOutputPrecisionAtPort(DATA_ID));
+    auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(DATA_ID));
+    auto outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalOutputPrecisionAtPort(DATA_ID));
 
     if (inputDataType == memory::data_type::f32) {
         outputDataType = memory::data_type::f32;
     }
 
     if (!fusedWith.empty()) {
-        outputDataType = ExtensionUtils::IEPrecisionToDataType(fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0));
+        outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0));
     }
-    auto weightsDataType = ExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(WEIGHTS_ID));
+    auto weightsDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(WEIGHTS_ID));
 
     //  We have to extend gemm_x8s8s32x_inner_product_fwd_t from oneDNN to support BF16 output data type
     if ((!one_of(inputDataType , memory::data_type::u8, memory::data_type::s8) || weightsDataType != memory::data_type::s8)
@@ -196,8 +196,8 @@ void FullyConnected::getSupportedDescriptors() {
     outDims = isDynamicNode() ? makeDummyOutputDims(inDims) : getOutputShapeAtPort(0).getStaticDims();
 
     for (auto format : getAvailableFormatsForDims(getInputShapeAtPort(0))) {
-        auto in_candidate = mkldnn::memory::desc(ExtensionUtils::convertToDnnlDims(inDims), inputDataType, format);
-        auto out_candidate = mkldnn::memory::desc(ExtensionUtils::convertToDnnlDims(outDims), outputDataType, mkldnn::memory::format_tag::any);
+        auto in_candidate = mkldnn::memory::desc(DnnlExtensionUtils::convertToDnnlDims(inDims), inputDataType, format);
+        auto out_candidate = mkldnn::memory::desc(DnnlExtensionUtils::convertToDnnlDims(outDims), outputDataType, mkldnn::memory::format_tag::any);
 
         createDescriptorInternal(in_candidate, out_candidate);
     }
@@ -273,7 +273,7 @@ void FullyConnected::prepareParams() {
                                                                           key.inp1->getDnnlDesc(),
                                                                           outDesc);
         }
-        Descriptor desc(fcDsc);
+        DnnlDesriptor desc(fcDsc);
         primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, key.attr);
         inner_product_forward::primitive_desc prim_desc;
 
@@ -400,7 +400,7 @@ void FullyConnected::setPostOps(mkldnn::primitive_attr &attr, const VectorDims &
         }
 
         if (auto* eltwiseNode = dynamic_cast<Eltwise *>(node.get())) {
-            if (eltwiseNode->getOneDNNAlgorithm() != mkldnn::algorithm::undef) {
+            if (eltwiseNode->getOneDnnAlgorithm() != mkldnn::algorithm::undef) {
                 eltwiseNode->appendPostOps(ops, dims, postOpsArgs);
             } else {
                 eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
@@ -485,35 +485,35 @@ void FullyConnected::createDescriptorInternal(const mkldnn::memory::desc &inputD
     } else if (in_candidate.data_type() == mkldnn::memory::data_type::u8 || in_candidate.data_type() == mkldnn::memory::data_type::s8) {
         wdt = memory::data_type::s8;
         if (withBiases)
-            bdt = ExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(BIAS_ID));
+            bdt = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(BIAS_ID));
     }
 
     if (in_candidate.dims().size() == 3) {
         auto inDims = in_candidate.dims();
         auto normalizedInDims = {inDims[0] * inDims[1], inDims[2]};
         in_candidate = mkldnn::memory::desc(normalizedInDims, in_candidate.data_type(),
-                                         ExtensionUtils::GetPlainFormatByRank(normalizedInDims.size()));
+                                         DnnlExtensionUtils::GetPlainFormatByRank(normalizedInDims.size()));
     }
 
     if (out_candidate.dims().size() == 3) {
         auto outDims = out_candidate.dims();
         auto normalizedOutDims = { outDims[0] * outDims[1], outDims[2] };
         out_candidate = mkldnn::memory::desc(normalizedOutDims, out_candidate.data_type(),
-                                         ExtensionUtils::GetPlainFormatByRank(normalizedOutDims.size()));
+                                         DnnlExtensionUtils::GetPlainFormatByRank(normalizedOutDims.size()));
     }
 
-    mkldnn::memory::desc wgh_candidate(ExtensionUtils::convertToDnnlDims(getInputShapeAtPort(WEIGHTS_ID).getStaticDims()),
+    mkldnn::memory::desc wgh_candidate(DnnlExtensionUtils::convertToDnnlDims(getInputShapeAtPort(WEIGHTS_ID).getStaticDims()),
                                        wdt, mkldnn::memory::format_tag::any);
 
     if (withBiases) {
-        mkldnn::memory::desc bias_candidate(ExtensionUtils::convertToDnnlDims(getInputShapeAtPort(BIAS_ID).getStaticDims()), bdt,
+        mkldnn::memory::desc bias_candidate(DnnlExtensionUtils::convertToDnnlDims(getInputShapeAtPort(BIAS_ID).getStaticDims()), bdt,
                                             mkldnn::memory::format_tag::any);
-        Descriptor desc(std::shared_ptr<inner_product_forward::desc>(
+        DnnlDesriptor desc(std::shared_ptr<inner_product_forward::desc>(
                 new inner_product_forward::desc(prop_kind::forward_scoring, in_candidate, wgh_candidate,
                                                 bias_candidate, out_candidate)));
         descs.push_back(desc);
     } else {
-        Descriptor desc(std::shared_ptr<inner_product_forward::desc>(
+        DnnlDesriptor desc(std::shared_ptr<inner_product_forward::desc>(
                 new inner_product_forward::desc(prop_kind::forward_scoring, in_candidate, wgh_candidate,
                                                 out_candidate)));
         descs.push_back(desc);
@@ -592,30 +592,30 @@ std::shared_ptr<MemoryDesc> FullyConnected::getSrcMemDesc(mkldnn::primitive_desc
     auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1) : primitive_desc_it.src_desc(idx);
 
     if (getInputShapeAtPort(idx).getRank() == 3) {
-        return std::make_shared<CpuBlockedMemoryDesc>(ExtensionUtils::DataTypeToIEPrecision(
+        return std::make_shared<CpuBlockedMemoryDesc>(DnnlExtensionUtils::DataTypeToIEPrecision(
             static_cast<mkldnn::memory::data_type>(desc.data.data_type)), getInputShapeAtPort(idx));
     }
 
     if (getInputShapeAtPort(idx).isDynamic()) {
-        return ExtensionUtils::makeUndefinedDesc(desc, getInputShapeAtPort(idx));
+        return DnnlExtensionUtils::makeUndefinedDesc(desc, getInputShapeAtPort(idx));
     }
 
-    return ExtensionUtils::makeDescriptor(desc);
+    return DnnlExtensionUtils::makeDescriptor(desc);
 }
 
 std::shared_ptr<MemoryDesc> FullyConnected::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     auto desc = primitive_desc_it.dst_desc(idx);
 
     if (getOutputShapeAtPort(idx).getRank() == 3) {
-        return std::make_shared<CpuBlockedMemoryDesc>(ExtensionUtils::DataTypeToIEPrecision(
+        return std::make_shared<CpuBlockedMemoryDesc>(DnnlExtensionUtils::DataTypeToIEPrecision(
             static_cast<mkldnn::memory::data_type>(desc.data.data_type)), getOutputShapeAtPort(idx));
     }
 
     if (getOutputShapeAtPort(idx).isDynamic()) {
-        return ExtensionUtils::makeUndefinedDesc(desc, getOutputShapeAtPort(idx));
+        return DnnlExtensionUtils::makeUndefinedDesc(desc, getOutputShapeAtPort(idx));
     }
 
-    return ExtensionUtils::makeDescriptor(desc);
+    return DnnlExtensionUtils::makeDescriptor(desc);
 }
 
 InferenceEngine::Precision FullyConnected::getRuntimePrecision() const {
@@ -625,7 +625,7 @@ InferenceEngine::Precision FullyConnected::getRuntimePrecision() const {
     for (size_t i = 0; i < std::min(getParentEdges().size(), inputsNumLimit); i++) {
         auto parentEdge = getParentEdgeAt(i);
         if (parentEdge && parentEdge->getStatus() == Edge::Status::Validated) {
-            inputPrecisions.emplace_back(ExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->GetDataType())));
+            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->GetDataType())));
         }
     }
 

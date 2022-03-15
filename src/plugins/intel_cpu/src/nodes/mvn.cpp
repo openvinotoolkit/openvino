@@ -10,7 +10,7 @@
 
 #include "fake_quantize.h"
 #include "eltwise.h"
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include "utils/bfloat16.hpp"
 #include "ie_parallel.hpp"
 #include "emitters/jit_load_store_emitters.hpp"

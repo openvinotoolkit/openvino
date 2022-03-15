@@ -7,7 +7,7 @@
 #include <string>
 #include <algorithm>
 #include <mkldnn_types.h>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include "ie_parallel.hpp"
 #include "utils/general_utils.h"
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -213,10 +213,10 @@ void Reorder::createReorderPrimitive(const mkldnn::memory::desc& srcDesc,
 
     const auto engine = getEngine();
     src_blocked = std::make_shared<Memory>(engine);
-    src_blocked->Create(ExtensionUtils::makeDescriptor(srcDesc), srcPtr, false);
+    src_blocked->Create(DnnlExtensionUtils::makeDescriptor(srcDesc), srcPtr, false);
 
     dst_blocked = std::make_shared<Memory>(engine);
-    dst_blocked->Create(ExtensionUtils::makeDescriptor(dstDesc), dstPtr, false);
+    dst_blocked->Create(DnnlExtensionUtils::makeDescriptor(dstDesc), dstPtr, false);
 
     impl_desc_type impl_type = selectedPD->getImplementationType();
     ReorderKey key = {src_blocked->GetPrimitive().get_desc(), dst_blocked->GetPrimitive().get_desc()};
@@ -250,12 +250,12 @@ void Reorder::createReorderPrimitive(const mkldnn::memory::desc& srcDesc,
     if (src_blocked->getDesc().hasLayoutType(LayoutType::ncsp) &&
         src_blocked->GetShape().getRank() != dst_blocked->GetShape().getRank()) {
         const auto newDims = dst_blocked->getStaticDims();
-        const auto newFormat = ExtensionUtils::GetPlainFormatByRank(newDims.size());
+        const auto newFormat = DnnlExtensionUtils::GetPlainFormatByRank(newDims.size());
 
-        auto newDesc = mkldnn::memory::desc(ExtensionUtils::convertToDnnlDims(newDims),
+        auto newDesc = mkldnn::memory::desc(DnnlExtensionUtils::convertToDnnlDims(newDims),
                                             src_blocked->GetDataType(),
                                             newFormat);
-        src_blocked->Create(ExtensionUtils::makeDescriptor(newDesc), srcPtr, false);
+        src_blocked->Create(DnnlExtensionUtils::makeDescriptor(newDesc), srcPtr, false);
 
         key.src = src_blocked->GetPrimitive().get_desc();
         result = cache->getOrCreate(key, builder);
@@ -428,8 +428,8 @@ void Reorder::reorderData(const Memory &input, const Memory &output) {
                 auto data = static_cast<const uint8_t *>(input.GetPtr());
                 tmpBuff.resize(input.GetSize());
 
-                const auto outPrc = ExtensionUtils::DataTypeToIEPrecision(output.GetDataType());
-                cpu_convert(data, tmpBuff.data(), ExtensionUtils::DataTypeToIEPrecision(input.GetDataType()),
+                const auto outPrc = DnnlExtensionUtils::DataTypeToIEPrecision(output.GetDataType());
+                cpu_convert(data, tmpBuff.data(), DnnlExtensionUtils::DataTypeToIEPrecision(input.GetDataType()),
                             outPrc, input.GetSize() / input.getDesc().getPrecision().size());
 
                 Memory tmpMem(output.getEngine());

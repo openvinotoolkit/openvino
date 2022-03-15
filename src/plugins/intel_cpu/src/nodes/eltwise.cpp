@@ -12,7 +12,7 @@
 #include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
 #include <cpu/ref_eltwise.hpp>
 
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include "fake_quantize.h"
 #include "pooling.h"
 #include "input.h"
@@ -1961,7 +1961,7 @@ void Eltwise::prepareParams() {
 
     auto outPrc = getChildEdgeAt(0)->getMemory().getDesc().getPrecision();
 
-    EltwiseData thisOp{getAlgorithm(), getOneDNNAlgorithm(), getAlpha(), getBeta(), getGamma()};
+    EltwiseData thisOp{getAlgorithm(), getOneDnnAlgorithm(), getAlpha(), getBeta(), getGamma()};
 
     EltwiseKey key = {{thisOp}, {getType()}, currentOutBlkDims, outOrder, dims_in, inpPrc, outPrc, mkldnn::post_ops(), isDynBatchEnabled, canUseOptimizedImpl};
 
@@ -1970,7 +1970,7 @@ void Eltwise::prepareParams() {
         key.ops_list.push_back(node->getType());
         if (node->getType() == Type::Eltwise) {
             if (auto eltwise = std::dynamic_pointer_cast<Eltwise>(node)) {
-                key.eltwise_data.push_back({eltwise->getAlgorithm(), eltwise->getOneDNNAlgorithm(), eltwise->getAlpha(),
+                key.eltwise_data.push_back({eltwise->getAlgorithm(), eltwise->getOneDnnAlgorithm(), eltwise->getAlpha(),
                                             eltwise->getBeta(), eltwise->getGamma()});
             }
         } else if (node->getType() == Type::FakeQuantize) {
@@ -2111,8 +2111,8 @@ template <typename T>
 void Eltwise::appendPostOpsImpl(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<T>& postOpsMem) {
     const std::string errorPrefix = "Appending Eltwise node with name '" + getName() + "' ";
 
-    if (getOneDNNAlgorithm() != mkldnn::algorithm::undef) {
-        switch (getOneDNNAlgorithm()) {
+    if (getOneDnnAlgorithm() != mkldnn::algorithm::undef) {
+        switch (getOneDnnAlgorithm()) {
         case mkldnn::algorithm::eltwise_relu:
         case mkldnn::algorithm::eltwise_tanh:
         case mkldnn::algorithm::eltwise_elu:
@@ -2133,7 +2133,7 @@ void Eltwise::appendPostOpsImpl(mkldnn::post_ops& ops, const VectorDims &postOpD
         case mkldnn::algorithm::eltwise_hsigmoid:
         case mkldnn::algorithm::eltwise_round_half_to_even:
         case mkldnn::algorithm::eltwise_round_half_away_from_zero:
-            ops.append_eltwise(1.0, getOneDNNAlgorithm(), getAlpha(), getBeta());
+            ops.append_eltwise(1.0, getOneDnnAlgorithm(), getAlpha(), getBeta());
             break;
         default: IE_THROW() << errorPrefix << "as post operation is not supported";
         }
@@ -2327,7 +2327,7 @@ InferenceEngine::Precision Eltwise::getRuntimePrecision() const {
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto parentEdge = getParentEdgeAt(i);
         if (parentEdge && parentEdge->getStatus() == Edge::Status::Validated && !parentEdge->getParent()->isConstant()) {
-            inputPrecisions.emplace_back(ExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->GetDataType())));
+            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->GetDataType())));
         }
     }
 

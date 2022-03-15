@@ -13,7 +13,7 @@
 #include <caseless.hpp>
 #include "cpu_memory.h"
 #include "edge.h"
-#include "descriptor.h"
+#include "dnnl_descriptor.h"
 #include "selective_build.h"
 #include "mkldnn/iml_type_mapper.h"
 #include "extension_mngr.h"
@@ -422,11 +422,11 @@ public:
         this->typeStr = typeStr;
     }
 
-    virtual size_t descInputNumbers(Descriptor desc) {
+    virtual size_t descInputNumbers(DnnlDesriptor desc) {
         return desc.inputNumbers();
     }
 
-    virtual size_t descOutputNumbers(Descriptor desc) {
+    virtual size_t descOutputNumbers(DnnlDesriptor desc) {
         return desc.outputNumbers();
     }
 
@@ -629,7 +629,7 @@ protected:
     std::unordered_map<int, mkldnn::memory> primArgs;
     std::vector<MemoryPtr> postOpsArgs;
     Primitive prim;
-    std::vector<Descriptor> descs;
+    std::vector<DnnlDesriptor> descs;
 
     WeightsSharing::Ptr weightCache;
 
@@ -771,7 +771,7 @@ private:
 
     template <class PD, class D, typename FPD>
     typename std::enable_if<!std::is_same<FPD, bool>::value, PD>::type
-    createPd(Descriptor desc) {
+    createPd(DnnlDesriptor desc) {
         std::shared_ptr<D> selected_desc_ptr = desc;
         std::shared_ptr<FPD> backward_prim_desc_ptr = desc;
         return PD(*selected_desc_ptr, engine, *backward_prim_desc_ptr);
@@ -779,7 +779,7 @@ private:
 
     template <class PD, class D, typename FPD>
     typename std::enable_if<std::is_same<FPD, bool>::value, PD>::type
-    createPd(Descriptor desc) {
+    createPd(DnnlDesriptor desc) {
         std::shared_ptr<D> selected_desc_ptr = desc;
         return PD(*selected_desc_ptr, engine);
     }

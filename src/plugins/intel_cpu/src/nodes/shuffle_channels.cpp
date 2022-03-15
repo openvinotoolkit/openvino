@@ -5,7 +5,7 @@
 #include "shuffle_channels.h"
 
 #include <ie_parallel.hpp>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include <cpu/x64/jit_generator.hpp>
 #include "common/blocked_desc_creator.h"
 

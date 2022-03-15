@@ -3,7 +3,7 @@
 //
 
 #include <extension_mngr.h>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include "generic.h"
 #include <vector>
 #include <string>
@@ -17,8 +17,8 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-Generic::Generic(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache), ngraphOp(op) {
+Generic::Generic(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache)
+    : Node(op, eng, cache), ngraphOp(op) {
 }
 
 void Generic::getSupportedDescriptors() {

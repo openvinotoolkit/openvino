@@ -7,7 +7,7 @@
 #include "common/blocked_desc_creator.h"
 #include <vector>
 #include <mkldnn_types.h>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include <ie_parallel.hpp>
 #include "utils/general_utils.h"
 #include <memory_desc/cpu_memory_desc_utils.h>

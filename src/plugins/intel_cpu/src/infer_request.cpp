@@ -3,7 +3,7 @@
 //
 
 #include "infer_request.h"
-#include "extension_utils.h"
+#include "dnnl_extension_utils.h"
 #include <vector>
 #include <string>
 #include <map>
@@ -793,7 +793,7 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
                     externalPtr[name] = _inputs[name]->buffer();
                 }
             } else {
-                IE_THROW() << "Blob with name: " << name << " exists in graph, but absents in network inputs";
+                IE_THROW() << "Blob with name: " << name << " exists in CPU plugin graph, but absents in network inputs";
             }
         }
         data = _inputs[name];
@@ -842,7 +842,7 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
                     externalPtr[name] = data->buffer();
                 }
             } else {
-                IE_THROW() << "Blob with name: " << name << " exists in graph, but absents in network outputs";
+                IE_THROW() << "Blob with name: " << name << " exists in CPU plugin graph, but absents in network outputs";
             }
         }
         data = _outputs[name];

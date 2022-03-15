@@ -8,7 +8,7 @@
 #include <vector>
 #include <math.h>
 #include <mkldnn_types.h>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"
 

@@ -4,7 +4,7 @@
 
 #include "graph_optimizer.h"
 
-#include "extension_utils.h"
+#include "dnnl_extension_utils.h"
 #include "nodes/reshape.h"
 #include "nodes/pooling.h"
 #include "nodes/eltwise.h"

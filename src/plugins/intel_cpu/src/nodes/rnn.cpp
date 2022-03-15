@@ -8,7 +8,7 @@
 #include "nodes/common/cpu_convert.h"
 #include "utils/bfloat16.hpp"
 #include "input.h"
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include <common/primitive_hashing_utils.hpp>
 
@@ -253,13 +253,13 @@ RNN::RNN(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, Weights
     }
 
     internalBlobDesc.emplace_back([&](primitive_desc_iterator& primitive_desc_it, size_t idx) -> DnnlMemoryDescPtr {
-        return ExtensionUtils::makeDescriptor(primitive_desc_it.weights_desc(0));
+        return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.weights_desc(0));
     });
     internalBlobDesc.emplace_back([&](primitive_desc_iterator& primitive_desc_it, size_t idx) -> DnnlMemoryDescPtr {
-        return ExtensionUtils::makeDescriptor(primitive_desc_it.weights_desc(1));
+        return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.weights_desc(1));
     });
     internalBlobDesc.emplace_back([&](primitive_desc_iterator& primitive_desc_it, size_t idx) -> DnnlMemoryDescPtr {
-        return ExtensionUtils::makeDescriptor(primitive_desc_it.weights_desc(2));
+        return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.weights_desc(2));
     });
 
     is_cell = one_of(op->get_type_info(),
@@ -353,7 +353,7 @@ void RNN::initCell() {
 }
 
 void RNN::fillCellDesc() {
-    const auto dataType = ExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(0));
+    const auto dataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(0));
     const Shape shapeS_4D = MemoryDescUtils::makeDummyShape({{L, D, N.minVal, SC}, {L, D, N.maxVal, SC}}),
             inShape = MemoryDescUtils::makeDummyShape({{T.minVal, N.minVal, DC}, {T.maxVal, N.maxVal, DC}}),
             outShape = MemoryDescUtils::makeDummyShape({{T.minVal, N.minVal, SC}, {T.maxVal, N.maxVal, SC}});
@@ -423,7 +423,7 @@ void RNN::initSequence() {
 }
 
 void RNN::fillSequenceDesc() {
-    const auto dataType = ExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(0));
+    const auto dataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(0));
     const Shape shapeS_4D = MemoryDescUtils::makeDummyShape({{L, D, N.minVal, SC}, {L, D, N.maxVal, SC}}),
             inShape = MemoryDescUtils::makeDummyShape({{T.minVal, N.minVal, DC}, {T.maxVal, N.maxVal, DC}}),
             outShape = MemoryDescUtils::makeDummyShape({{T.minVal, N.minVal, SC}, {T.maxVal, N.maxVal, SC}}),
@@ -599,7 +599,7 @@ void RNN::fillBiases(const int *gate_map) {
     std::vector<dataType> ie_b_vec(elementsCount);
     cpu_convert(constBlob->GetPtr(),
                 &ie_b_vec[0],
-                ExtensionUtils::DataTypeToIEPrecision(constBlob->GetDataType()),
+                DnnlExtensionUtils::DataTypeToIEPrecision(constBlob->GetDataType()),
                 Prec,
                 elementsCount);
 
@@ -686,7 +686,7 @@ void RNN::fillDescs() {
 
     switch (cell_type) {
         case mkldnn::algorithm::vanilla_rnn: {
-            Descriptor desc(std::make_shared<vanilla_rnn_forward::desc>(
+            DnnlDesriptor desc(std::make_shared<vanilla_rnn_forward::desc>(
                                         prop_kind::forward_scoring,
                                         cell_act,
                                         direction,
@@ -700,7 +700,7 @@ void RNN::fillDescs() {
             descs.push_back(desc);
         } break;
         case mkldnn::algorithm::vanilla_gru: {
-            Descriptor desc(std::make_shared<gru_forward::desc>(
+            DnnlDesriptor desc(std::make_shared<gru_forward::desc>(
                                         prop_kind::forward_scoring,
                                         direction,
                     /* In Data       */ inDataDescs[RNNInOutKind::Layer]->getDnnlDesc(),
@@ -713,7 +713,7 @@ void RNN::fillDescs() {
             descs.push_back(desc);
         } break;
         case mkldnn::algorithm::lbr_gru: {
-            Descriptor desc(std::make_shared<lbr_gru_forward::desc>(
+            DnnlDesriptor desc(std::make_shared<lbr_gru_forward::desc>(
                                         prop_kind::forward_scoring,
                                         direction,
                     /* In Data       */ inDataDescs[RNNInOutKind::Layer]->getDnnlDesc(),
@@ -726,7 +726,7 @@ void RNN::fillDescs() {
             descs.push_back(desc);
         } break;
         case mkldnn::algorithm::vanilla_lstm: {
-            Descriptor desc(std::make_shared<lstm_forward::desc>(
+            DnnlDesriptor desc(std::make_shared<lstm_forward::desc>(
                                         prop_kind::forward_scoring,
                                         direction,
                     /* In Data       */ inDataDescs[RNNInOutKind::Layer]->getDnnlDesc(),
@@ -750,12 +750,12 @@ void RNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
     if (descs.empty()) {
         wDescs.resize(3);
         const auto& dataPrecision = getOriginalInputPrecisionAtPort(0);
-        auto dataType = ExtensionUtils::IEPrecisionToDataType(dataPrecision);
-        auto weightsDims = ExtensionUtils::convertToDnnlDims(VectorDims{ L, D, DC, G, SC });
+        auto dataType = DnnlExtensionUtils::IEPrecisionToDataType(dataPrecision);
+        auto weightsDims = DnnlExtensionUtils::convertToDnnlDims(VectorDims{ L, D, DC, G, SC });
         wDescs[0] = mkldnn::memory::desc(weightsDims, dataType, wFormat);
-        auto statesDims = ExtensionUtils::convertToDnnlDims(VectorDims{ L, D, SC, G, SC });
+        auto statesDims = DnnlExtensionUtils::convertToDnnlDims(VectorDims{ L, D, SC, G, SC });
         wDescs[1] = mkldnn::memory::desc(statesDims, dataType, wFormat);
-        auto biasDims = ExtensionUtils::convertToDnnlDims(VectorDims{ L, D, Gb, SC });
+        auto biasDims = DnnlExtensionUtils::convertToDnnlDims(VectorDims{ L, D, Gb, SC });
         wDescs[2] = mkldnn::memory::desc(biasDims, memory::data_type::f32, memory::format_tag::ldgo);
 
         fillDescs();
@@ -791,7 +791,7 @@ void RNN::prepareParams() {
     }
 
     const auto& dataPrecision = getOriginalInputPrecisionAtPort(0);
-    const auto dataType = ExtensionUtils::IEPrecisionToDataType(dataPrecision);
+    const auto dataType = DnnlExtensionUtils::IEPrecisionToDataType(dataPrecision);
 
     auto dataMemPtr = getParentEdgesAtPort(0).front()->getMemoryPtr();
     const size_t B = dataMemPtr->GetShape().getStaticDims()[0];
@@ -821,9 +821,9 @@ void RNN::prepareParams() {
         wFormatWasChanged = true;
     }
     if (wFormatWasChanged) {
-        auto weightsDims = ExtensionUtils::convertToDnnlDims(VectorDims{ L, D, DC, G, SC });
+        auto weightsDims = DnnlExtensionUtils::convertToDnnlDims(VectorDims{ L, D, DC, G, SC });
         wDescs[0] = mkldnn::memory::desc(weightsDims, dataType, wFormat);
-        auto statesDims = ExtensionUtils::convertToDnnlDims(VectorDims{ L, D, SC, G, SC });
+        auto statesDims = DnnlExtensionUtils::convertToDnnlDims(VectorDims{ L, D, SC, G, SC });
         wDescs[1] = mkldnn::memory::desc(statesDims, dataType, wFormat);
     }
 

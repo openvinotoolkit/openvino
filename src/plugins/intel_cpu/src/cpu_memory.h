@@ -6,7 +6,7 @@
 
 #include "ie_layouts.h"
 #include "memory_desc/cpu_memory_desc.h"
-#include "extension_utils.h"
+#include "dnnl_extension_utils.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include <mkldnn.hpp>
 #include <mkldnn_types.h>
@@ -213,7 +213,7 @@ public:
     void* GetPtr() const;
 
     mkldnn::memory::data_type GetDataType() const {
-        return ExtensionUtils::IEPrecisionToDataType(getDesc().getPrecision());
+        return DnnlExtensionUtils::IEPrecisionToDataType(getDesc().getPrecision());
     }
 
     size_t GetSize() const;

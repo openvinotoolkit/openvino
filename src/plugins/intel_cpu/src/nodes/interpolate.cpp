@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 #include <mkldnn_types.h>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include "ie_parallel.hpp"
 #include <algorithm>
 
@@ -3356,10 +3356,10 @@ Interpolate::InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAtt
         InterpolateExecutor(interpAttrs, srcDims, dstDims, dataScales) {
     auto jcp = jit_interpolate_config_params();
     jcp.mode = mode;
-    jcp.src_dt = ExtensionUtils::IEPrecisionToDataType(interpAttrs.inPrc);
-    jcp.dst_dt = ExtensionUtils::IEPrecisionToDataType(interpAttrs.outPrc);
-    jcp.src_data_size = ExtensionUtils::sizeOfDataType(jcp.src_dt);
-    jcp.dst_data_size = ExtensionUtils::sizeOfDataType(jcp.dst_dt);
+    jcp.src_dt = DnnlExtensionUtils::IEPrecisionToDataType(interpAttrs.inPrc);
+    jcp.dst_dt = DnnlExtensionUtils::IEPrecisionToDataType(interpAttrs.outPrc);
+    jcp.src_data_size = DnnlExtensionUtils::sizeOfDataType(jcp.src_dt);
+    jcp.dst_data_size = DnnlExtensionUtils::sizeOfDataType(jcp.dst_dt);
     jcp.indices_size = sizeof(int);
     jcp.OW = dstDim5d[4];
     jcp.OH = dstDim5d[3];

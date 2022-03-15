@@ -4,7 +4,7 @@
 
 #include <string>
 #include <mkldnn_types.h>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include "memory.hpp"
 #include "common/cpu_memcpy.h"
 #include "utils/general_utils.h"

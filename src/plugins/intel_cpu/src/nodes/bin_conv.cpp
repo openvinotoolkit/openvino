@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 #include <mkldnn_types.h>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include "ie_parallel.hpp"
 #include "cpu/x64/jit_generator.hpp"
 #include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
@@ -1082,7 +1082,7 @@ void BinaryConvolution::createPrimitive() {
     auto srcPrecision = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
     auto dstPrecision = getChildEdgeAt(0)->getMemory().getDesc().getPrecision();
 
-    jcp.dst_dt = ExtensionUtils::IEPrecisionToDataType(dstPrecision);
+    jcp.dst_dt = DnnlExtensionUtils::IEPrecisionToDataType(dstPrecision);
     jcp.typesize_in = srcPrecision == Precision::BIN ? 1 : srcPrecision.size();
     jcp.typesize_out = dstPrecision == Precision::BIN ? 1 : dstPrecision.size();
 

@@ -109,7 +109,7 @@ public:
     float getBeta() const { return beta; }
     float getGamma() const { return gamma; }
 
-    mkldnn::algorithm getOneDNNAlgorithm() const { return onednnAlgorithm; }
+    mkldnn::algorithm getOneDnnAlgorithm() const { return onednnAlgorithm; }
 
     bool isWithBroadcast();
     bool isSpecialConvolutionAddFusing() const { return specialConvolutionAddFusing; }

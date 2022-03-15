@@ -4,7 +4,7 @@
 
 #include "reference.h"
 #include <ie_ngraph_utils.hpp>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include "openvino/runtime/tensor.hpp"
 #include "common/blocked_desc_creator.h"
 #include <ngraph/opsets/opset1.hpp>

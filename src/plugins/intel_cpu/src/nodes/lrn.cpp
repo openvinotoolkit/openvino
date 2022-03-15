@@ -4,7 +4,7 @@
 
 #include "lrn.h"
 #include <string>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include <ngraph/opsets/opset1.hpp>
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
@@ -136,7 +136,7 @@ void Lrn::getSupportedDescriptors() {
     InferenceEngine::Precision precision = getOriginalOutputPrecisionAtPort(0);
     if (precision != InferenceEngine::Precision::FP32 && precision != InferenceEngine::Precision::BF16)
         precision = InferenceEngine::Precision::FP32;
-    auto inputDataType = ExtensionUtils::IEPrecisionToDataType(precision);
+    auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(precision);
 
     const auto &parentShape = getInputShapeAtPort(0);
 
@@ -151,9 +151,9 @@ std::shared_ptr<MemoryDesc> Lrn::getSrcMemDesc(mkldnn::primitive_desc_iterator &
         return std::make_shared<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(idx), getInputShapeAtPort(idx));
     } else {
         if (getInputShapeAtPort(idx).isDynamic()) {
-            return ExtensionUtils::makeUndefinedDesc(primitive_desc_it.src_desc(idx), getInputShapeAtPort(idx));
+            return DnnlExtensionUtils::makeUndefinedDesc(primitive_desc_it.src_desc(idx), getInputShapeAtPort(idx));
         }
-        return ExtensionUtils::makeDescriptor(primitive_desc_it.src_desc(idx));
+        return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.src_desc(idx));
     }
 }
 
@@ -175,7 +175,7 @@ void Lrn::prepareParams() {
     auto engine = getEngine();
 
     auto builder = [&engine](const LrnKey& key) -> std::shared_ptr<mkldnn::primitive> {
-        Descriptor desc(std::shared_ptr<mkldnn::lrn_forward::desc>(
+        DnnlDesriptor desc(std::shared_ptr<mkldnn::lrn_forward::desc>(
             new mkldnn::lrn_forward::desc(mkldnn::prop_kind::forward_scoring, key.alg, key.inp0->getDnnlDesc(), key.size, key.alpha, key.beta, key.k)));
 
         mkldnn::lrn_forward::primitive_desc prim_desc;
@@ -214,7 +214,7 @@ void Lrn::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
     DnnlMemoryDescPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
     const auto& in_candidate = definedInpMemDesc->getDnnlDesc();
 
-    Descriptor desc(std::shared_ptr<mkldnn::lrn_forward::desc>(
+    DnnlDesriptor desc(std::shared_ptr<mkldnn::lrn_forward::desc>(
             new mkldnn::lrn_forward::desc(mkldnn::prop_kind::forward_scoring, alg, in_candidate, size, alpha, beta, k)));
     descs.push_back(desc);
 }

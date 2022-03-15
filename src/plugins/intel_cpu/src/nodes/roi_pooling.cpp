@@ -5,7 +5,7 @@
 #include "roi_pooling.h"
 
 #include <mkldnn.hpp>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include <selective_build.h>
 
 #include <ngraph/opsets/opset2.hpp>

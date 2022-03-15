@@ -29,7 +29,7 @@ public:
     size_t getMaxBatch() const override;
 
     InferenceEngine::Precision getRuntimePrecision() const override;
-    size_t descInputNumbers(Descriptor desc) override {
+    size_t descInputNumbers(DnnlDesriptor desc) override {
         return getOriginalInputsNumber();
     }
 

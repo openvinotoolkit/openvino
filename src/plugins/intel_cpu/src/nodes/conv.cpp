@@ -14,7 +14,7 @@
 #include <string>
 #include <vector>
 #include <mkldnn_types.h>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include <utils/general_utils.h>
 #include <ngraph/ops.hpp>
 #include <cpu/x64/jit_generator.hpp>
@@ -281,11 +281,11 @@ Convolution::Convolution(const std::shared_ptr<ngraph::Node>& op, const mkldnn::
 }
 
 bool Convolution::canBeExecutedInInt8() const {
-    auto inputDataType = ExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(0));
+    auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(0));
     if (!inputZeroPoints.empty())
         inputDataType = memory::data_type::u8;
 
-    auto weightsDataType = ExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(1));
+    auto weightsDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(1));
     if (!weightsZeroPoints.empty())
         weightsDataType = memory::data_type::s8;
 
@@ -336,15 +336,15 @@ void Convolution::getSupportedDescriptors() {
         }
     }
 
-    auto inputDataType = ExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(0));
+    auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(0));
     if (!inputZeroPoints.empty())
         inputDataType = memory::data_type::u8;
 
-    auto outputDataType = ExtensionUtils::IEPrecisionToDataType(getOriginalOutputPrecisionAtPort(0));
-    eltwisePrecision = ExtensionUtils::DataTypeToIEPrecision(outputDataType);
+    auto outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalOutputPrecisionAtPort(0));
+    eltwisePrecision = DnnlExtensionUtils::DataTypeToIEPrecision(outputDataType);
     if (!fusedWith.empty()) {
-        outputDataType = ExtensionUtils::IEPrecisionToDataType(fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0));
-        eltwisePrecision = ExtensionUtils::DataTypeToIEPrecision(outputDataType);
+        outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0));
+        eltwisePrecision = DnnlExtensionUtils::DataTypeToIEPrecision(outputDataType);
     }
 
     // We need to make sure that convolution output and second input of fused Eltwise operation
@@ -355,7 +355,7 @@ void Convolution::getSupportedDescriptors() {
                 auto* eltwiseNode = dynamic_cast<Eltwise *>(fusedWith[i].get());
                 if (eltwiseNode && eltwiseNode->isSpecialConvolutionAddFusing()) {
                     eltwisePrecision = fusedEltwisePrecision(fusedWith[i]);
-                    if (ExtensionUtils::DataTypeToIEPrecision(outputDataType).size() != eltwisePrecision.size()) {
+                    if (DnnlExtensionUtils::DataTypeToIEPrecision(outputDataType).size() != eltwisePrecision.size()) {
                         eltwisePrecision = Precision::FP32;
                         outputDataType = memory::data_type::f32;
                     }
@@ -395,9 +395,9 @@ void Convolution::getSupportedDescriptors() {
 
             if (canBeExecutedInInt8()) {
                 if (i == 0) {
-                    dw_conv_in_dt = ExtensionUtils::IEPrecisionToDataType(getOriginalOutputPrecisionAtPort(0));
+                    dw_conv_in_dt = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalOutputPrecisionAtPort(0));
                 } else {
-                    dw_conv_in_dt = ExtensionUtils::IEPrecisionToDataType(fusedWith[i - 1]->getOriginalOutputPrecisionAtPort(0));
+                    dw_conv_in_dt = DnnlExtensionUtils::IEPrecisionToDataType(fusedWith[i - 1]->getOriginalOutputPrecisionAtPort(0));
                 }
             } else {
                 dw_conv_in_dt = memory::data_type::f32;
@@ -447,7 +447,7 @@ void Convolution::getSupportedDescriptors() {
                     // bofore the fused convolution. This behaviour might be more correct regarding expected markup
                     // of the graph but performance of first and second approaches might be different. Need to verify
                     outputDataType = eltwisePrecision == Precision::BF16 ? memory::data_type::bf16 : memory::data_type::f32;
-                    eltwisePrecision = ExtensionUtils::DataTypeToIEPrecision(outputDataType);
+                    eltwisePrecision = DnnlExtensionUtils::DataTypeToIEPrecision(outputDataType);
                 }
             }
         }
@@ -521,9 +521,9 @@ void Convolution::setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dim
                 if (withSumBroadcast) {
                     break;
                 }
-                ops.append_sum(1.0, ExtensionUtils::IEPrecisionToDataType(eltwisePrecision));
+                ops.append_sum(1.0, DnnlExtensionUtils::IEPrecisionToDataType(eltwisePrecision));
             } else {
-                if (useLegacyPostOps || eltwiseNode->getOneDNNAlgorithm() != mkldnn::algorithm::undef) {
+                if (useLegacyPostOps || eltwiseNode->getOneDnnAlgorithm() != mkldnn::algorithm::undef) {
                     eltwiseNode->appendPostOps(ops, dims, postOpsArgs);
                 } else {
                     eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
@@ -605,7 +605,7 @@ void Convolution::initSupportedPrimitiveDescriptors() {
                 }
 
                 if (withDWConv) {
-                    auto weightsPrc = ExtensionUtils::IEPrecisionToDataType(dw_conv_in_dt == mkldnn_u8 ? Precision::I8 : Precision::FP32);
+                    auto weightsPrc = DnnlExtensionUtils::IEPrecisionToDataType(dw_conv_in_dt == mkldnn_u8 ? Precision::I8 : Precision::FP32);
                     auto biasPrc = memory::data_type::f32;
 
                     std::vector<size_t> dwWeightsDims({dw_conv_oc, 1, 1, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS]});
@@ -725,12 +725,12 @@ void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
         wdt = memory::data_type::s8;
     }
 
-    mkldnn::memory::desc weightDnnlDesc(ExtensionUtils::convertToDnnlDims(weightDims), wdt, memory::format_tag::any);
+    mkldnn::memory::desc weightDnnlDesc(DnnlExtensionUtils::convertToDnnlDims(weightDims), wdt, memory::format_tag::any);
     mkldnn::memory::desc biasDnnlDesc;
 
     if (withBiases) {
         memory::data_type bdt = memory::data_type::f32;
-        biasDnnlDesc = mkldnn::memory::desc(ExtensionUtils::convertToDnnlDims(biasesDims), bdt, memory::format_tag::any);
+        biasDnnlDesc = mkldnn::memory::desc(DnnlExtensionUtils::convertToDnnlDims(biasesDims), bdt, memory::format_tag::any);
     }
 
     std::vector<mkldnn::algorithm> algorithms;
@@ -825,7 +825,7 @@ void Convolution::initDescriptor(const NodeConfig& config) {
                 }
 
                 if (withDWConv) {
-                    auto weightsPrc = ExtensionUtils::IEPrecisionToDataType(dw_conv_in_dt == mkldnn_u8 ? Precision::I8 : Precision::FP32);
+                    auto weightsPrc = DnnlExtensionUtils::IEPrecisionToDataType(dw_conv_in_dt == mkldnn_u8 ? Precision::I8 : Precision::FP32);
                     auto biasPrc = memory::data_type::f32;
 
                     std::vector <size_t> dwWeightsDims({dw_conv_oc, 1, 1, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS]});
@@ -894,11 +894,11 @@ void Convolution::filterSupportedDescriptors() {
         while (itd != descs.end()) {
             bool isSuitableDesc = true;
             if (!inputMemoryFormatsFilter.empty()) {
-                auto src_tdesc = ExtensionUtils::makeDescriptor(std::shared_ptr<mkldnn::convolution_forward::desc>(*itd)->data.src_desc);
+                auto src_tdesc = DnnlExtensionUtils::makeDescriptor(std::shared_ptr<mkldnn::convolution_forward::desc>(*itd)->data.src_desc);
                 isSuitableDesc &= src_tdesc->isSame(inputMemoryFormatsFilter[0]);
             }
             if (!outputMemoryFormatsFilter.empty()) {
-                auto dst_tdesc = ExtensionUtils::makeDescriptor(std::shared_ptr<mkldnn::convolution_forward::desc>(*itd)->data.dst_desc);
+                auto dst_tdesc = DnnlExtensionUtils::makeDescriptor(std::shared_ptr<mkldnn::convolution_forward::desc>(*itd)->data.dst_desc);
                 isSuitableDesc &= dst_tdesc->isSame(outputMemoryFormatsFilter[0]);
             }
             if (!isSuitableDesc) {
@@ -910,7 +910,7 @@ void Convolution::filterSupportedDescriptors() {
     }
 }
 
-bool Convolution::isPossibleToSkipInitConfig(Descriptor &desc) const {
+bool Convolution::isPossibleToSkipInitConfig(DnnlDesriptor &desc) const {
     //  WA: In some cases, we can predict in advance the type of primitive that will be called in the future.
     //  In particular, isPossibleToSkipInitConfig() checks whether we can skip the creation of primitives with
     //  gemm implementation, which significantly increase the network load time.
@@ -933,8 +933,8 @@ bool Convolution::isPossibleToSkipInitConfig(Descriptor &desc) const {
             isPossibleJitPlanar = false;
 
     std::shared_ptr<mkldnn::convolution_forward::desc> convDesc(desc);
-    auto srcMemDesc = ExtensionUtils::makeDescriptor(convDesc->data.src_desc);
-    auto dstMemDesc = ExtensionUtils::makeDescriptor(convDesc->data.dst_desc);
+    auto srcMemDesc = DnnlExtensionUtils::makeDescriptor(convDesc->data.src_desc);
+    auto dstMemDesc = DnnlExtensionUtils::makeDescriptor(convDesc->data.dst_desc);
     auto srcDataType = convDesc->data.src_desc.data_type;
     auto dstDataType = convDesc->data.dst_desc.data_type;
     bool isPlanarFloatConv = srcMemDesc->hasLayoutType(LayoutType::ncsp)
@@ -948,9 +948,9 @@ bool Convolution::isPossibleToSkipInitConfig(Descriptor &desc) const {
 std::shared_ptr<MemoryDesc> Convolution::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1) : primitive_desc_it.src_desc(idx);
     if (getInputShapeAtPort(idx).isDynamic()) {
-        return ExtensionUtils::makeUndefinedDesc(desc, getInputShapeAtPort(idx));
+        return DnnlExtensionUtils::makeUndefinedDesc(desc, getInputShapeAtPort(idx));
     }
-    return ExtensionUtils::makeDescriptor(desc);
+    return DnnlExtensionUtils::makeDescriptor(desc);
 }
 
 bool Convolution::canFuse(const NodePtr& node) const {
@@ -982,7 +982,7 @@ InferenceEngine::Precision Convolution::getRuntimePrecision() const {
     for (size_t i = 0; i < std::min(getParentEdges().size(), inputsNumLimit); i++) {
         auto parentEdge = getParentEdgeAt(i);
         if (parentEdge && parentEdge->getStatus() == Edge::Status::Validated) {
-            inputPrecisions.emplace_back(ExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->GetDataType())));
+            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->GetDataType())));
         }
     }
 
@@ -1086,7 +1086,7 @@ InferenceEngine::Blob::Ptr Convolution::createInternalBlob(InferenceEngine::Size
 
     cpu_convert(blb->GetPtr(),
                 internalBlob->buffer(),
-                ExtensionUtils::DataTypeToIEPrecision(blb->GetDataType()),
+                DnnlExtensionUtils::DataTypeToIEPrecision(blb->GetDataType()),
                 internalBlob->getTensorDesc().getPrecision(),
                 elementsCount);
 
@@ -1163,27 +1163,27 @@ void Convolution::prepareParams() {
                                        const std::vector<ptrdiff_t>& dilation,
                                        const std::vector<ptrdiff_t>& paddingL,
                                        const std::vector<ptrdiff_t>& paddingR,
-                                       mkldnn::algorithm alg) -> std::shared_ptr<Descriptor> {
+                                       mkldnn::algorithm alg) -> std::shared_ptr<DnnlDesriptor> {
             mkldnn::memory::desc dnnlBiasDesc;
             if (biasDescPtr) {
                 // WA to align IR bias representation (3 to 5 rank tensors) to oneDNN representation (1 rank tensor)
                 dnnlBiasDesc = biasDescPtr->getDnnlDesc().reshape({dstDesc.dims()[1]});
             }
 
-            return std::make_shared<Descriptor>(createDescriptorInternal(srcDesc,
-                                                                               wghDesc,
-                                                                               dnnlBiasDesc,
-                                                                               dstDesc,
-                                                                               (biasDescPtr != nullptr),
-                                                                               stride,
-                                                                               dilation,
-                                                                               paddingL,
-                                                                               paddingR,
-                                                                               alg));
+            return std::make_shared<DnnlDesriptor>(createDescriptorInternal(srcDesc,
+                                                                            wghDesc,
+                                                                            dnnlBiasDesc,
+                                                                            dstDesc,
+                                                                            (biasDescPtr != nullptr),
+                                                                            stride,
+                                                                            dilation,
+                                                                            paddingL,
+                                                                            paddingR,
+                                                                            alg));
         };
 
         const auto alg = (key.implType & impl_desc_type::winograd) ? mkldnn::algorithm::convolution_winograd : mkldnn::algorithm::convolution_direct;
-        std::shared_ptr<Descriptor> desc = createMkldnnConvDesc(key.inp0->getDnnlDesc(),
+        std::shared_ptr<DnnlDesriptor> desc = createMkldnnConvDesc(key.inp0->getDnnlDesc(),
                                                                       key.inp1->getDnnlDesc(),
                                                                       key.out->getDnnlDesc(),
                                                                       key.bias,
@@ -1215,25 +1215,25 @@ void Convolution::prepareParams() {
         }
 
         if (!execPtr) {
-            auto inDesc = mkldnn::memory::desc(ExtensionUtils::convertToDnnlDims(key.inp0->getShape().getStaticDims()),
+            auto inDesc = mkldnn::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.inp0->getShape().getStaticDims()),
                                                                                            key.inp0->getDataType(),
                                                                                            memory::format_tag::any);
-            auto wghDesc = mkldnn::memory::desc(ExtensionUtils::convertToDnnlDims(key.inp1->getShape().getStaticDims()),
+            auto wghDesc = mkldnn::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.inp1->getShape().getStaticDims()),
                                                                                         key.inp1->getDataType(),
                                                                                         memory::format_tag::any);
-            auto outDesc = mkldnn::memory::desc(ExtensionUtils::convertToDnnlDims(key.out->getShape().getStaticDims()),
+            auto outDesc = mkldnn::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.out->getShape().getStaticDims()),
                                                                                         key.out->getDataType(),
                                                                                         memory::format_tag::any);
 
-            std::shared_ptr<Descriptor> reorderConvDesc = createMkldnnConvDesc(inDesc,
-                                                                                     wghDesc,
-                                                                                     outDesc,
-                                                                                     key.bias,
-                                                                                     key.stride,
-                                                                                     key.dilation,
-                                                                                     key.paddingL,
-                                                                                     key.paddingR,
-                                                                                     mkldnn::algorithm::convolution_direct);
+            std::shared_ptr<DnnlDesriptor> reorderConvDesc = createMkldnnConvDesc(inDesc,
+                                                                                  wghDesc,
+                                                                                  outDesc,
+                                                                                  key.bias,
+                                                                                  key.stride,
+                                                                                  key.dilation,
+                                                                                  key.paddingL,
+                                                                                  key.paddingR,
+                                                                                  mkldnn::algorithm::convolution_direct);
 
             auto reordItpd = reorderConvDesc->createPrimitiveDescriptorIterator(engine, key.attr);
             if (static_cast<bool>(reordItpd)) {
@@ -1352,9 +1352,9 @@ void Convolution::redefineOutputMemory(const std::vector<VectorDims> &newOutputS
 
 MemoryDescPtr Convolution::getSumMemDesc(primitive_desc_iterator &primitive_desc_it) {
     if (getOutputShapeAtPort(0).isDynamic()) {
-        return ExtensionUtils::makeUndefinedDesc(primitive_desc_it.dst_desc(0), getInputShapeAtPort(getParentEdges().size() - 1));
+        return DnnlExtensionUtils::makeUndefinedDesc(primitive_desc_it.dst_desc(0), getInputShapeAtPort(getParentEdges().size() - 1));
     }
-    return ExtensionUtils::makeDescriptor(primitive_desc_it.dst_desc(0));
+    return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.dst_desc(0));
 }
 
 MemoryPtr Convolution::getOutputMemory() const {

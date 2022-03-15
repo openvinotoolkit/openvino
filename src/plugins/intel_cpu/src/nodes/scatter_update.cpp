@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 #include <mkldnn_types.h>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include "ie_parallel.hpp"
 #include <algorithm>
 #include "common/cpu_memcpy.h"
@@ -160,8 +160,8 @@ void ScatterUpdate::initSupportedPrimitiveDescriptors() {
     }
 
     indicesPrec = getOriginalInputPrecisionAtPort(INDICES_ID);
-    auto indicesType = ExtensionUtils::IEPrecisionToDataType(indicesPrec);
-    indicesSize = ExtensionUtils::sizeOfDataType(indicesType);
+    auto indicesType = DnnlExtensionUtils::IEPrecisionToDataType(indicesPrec);
+    indicesSize = DnnlExtensionUtils::sizeOfDataType(indicesType);
     if (indicesSize >= 8) {
         indicesPrec = Precision::I64;
         indicesSize = 8;
@@ -172,8 +172,8 @@ void ScatterUpdate::initSupportedPrimitiveDescriptors() {
 
     if (axisRelaxed) {
         axisPrec = getOriginalInputPrecisionAtPort(AXIS_ID);
-        auto axisType = ExtensionUtils::IEPrecisionToDataType(axisPrec);
-        axisSize = ExtensionUtils::sizeOfDataType(axisType);
+        auto axisType = DnnlExtensionUtils::IEPrecisionToDataType(axisPrec);
+        axisSize = DnnlExtensionUtils::sizeOfDataType(axisType);
         if (axisSize >= 8) {
             axisPrec = Precision::I64;
             axisSize = 8;

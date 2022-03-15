@@ -6,7 +6,7 @@
 
 #include <string>
 #include <mkldnn_types.h>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include <ngraph/opsets/opset1.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
@@ -81,7 +81,7 @@ void SoftMax::getSupportedDescriptors() {
     InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(0);
     if (precision != InferenceEngine::Precision::FP32 && precision != InferenceEngine::Precision::BF16)
         precision = InferenceEngine::Precision::FP32;
-    auto inputDataType = ExtensionUtils::IEPrecisionToDataType(precision);
+    auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(precision);
 
     if (getParentEdges().size() != 1)
         IE_THROW() << "Incorrect number of input edges for layer " << getName();
@@ -134,7 +134,7 @@ void SoftMax::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
     DnnlMemoryDescPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
     auto in_candidate = definedInpMemDesc->getDnnlDesc();
 
-    Descriptor desc(std::shared_ptr<softmax_forward::desc>(
+    DnnlDesriptor desc(std::shared_ptr<softmax_forward::desc>(
             new softmax_forward::desc(prop_kind::forward_scoring, in_candidate, axis)));
     descs.push_back(desc);
 }
@@ -150,7 +150,7 @@ void SoftMax::prepareParams() {
     auto engine = getEngine();
     auto builder = [&engine](const SoftmaxKey& key) -> std::shared_ptr<mkldnn::primitive> {
         softmax_forward::primitive_desc prim_desc;
-        Descriptor desc(std::shared_ptr<softmax_forward::desc>(
+        DnnlDesriptor desc(std::shared_ptr<softmax_forward::desc>(
             new softmax_forward::desc(prop_kind::forward_scoring, key.inp0->getDnnlDesc(), key.axis)));
         primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine);
 

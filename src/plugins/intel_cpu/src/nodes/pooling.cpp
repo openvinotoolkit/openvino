@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 #include <mkldnn_types.h>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include <utils/general_utils.h>
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
@@ -256,8 +256,8 @@ void Pooling::getSupportedDescriptors() {
         outputPrecision = fusedWith.back()->getOriginalOutputPrecisionAtPort(0);
     }
 
-    auto inputDataType = ExtensionUtils::IEPrecisionToDataType(inputPrecision);
-    auto outputDataType = ExtensionUtils::IEPrecisionToDataType(outputPrecision);
+    auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(inputPrecision);
+    auto outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(outputPrecision);
 
     const auto &parentShape = getInputShapeAtPort(0);
     const auto &childShape = getOutputShapeAtPort(0);
@@ -363,7 +363,7 @@ void Pooling::prepareParams() {
                                                key.effective_pad_end,
                                                key.effective_dilation,
                                                key.data_pad_end);
-        Descriptor desc{desc_ptr};
+        DnnlDesriptor desc{desc_ptr};
         pooling_v2_forward::primitive_desc prim_desc;
         primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, key.attr);
         while (static_cast<bool>(itpd)) {

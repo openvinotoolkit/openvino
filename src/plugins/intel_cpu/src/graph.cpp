@@ -17,7 +17,7 @@
 #include "graph.h"
 #include "graph_dumper.h"
 #include "graph_optimizer.h"
-#include "extension_utils.h"
+#include "dnnl_extension_utils.h"
 #include "extension_mngr.h"
 #include "memory_solver.hpp"
 #include "itt.h"

@@ -34,7 +34,7 @@ public:
         return false;
     }
 
-    size_t descInputNumbers(Descriptor desc) override {
+    size_t descInputNumbers(DnnlDesriptor desc) override {
         return static_cast<size_t>(getParentEdges().size());
     }
 
@@ -122,15 +122,15 @@ private:
     Int8DeconvDesc createDescriptorInternalInt8(const mkldnn::memory::desc& in_candidate,
                                                 const mkldnn::memory::desc& wgh_candidate,
                                                 const mkldnn::memory::desc& out_candidate) const;
-    std::shared_ptr<Descriptor> createDefaultMkldnnDeconvDesc(const mkldnn::memory::desc& srcDesc,
-                                                                    const mkldnn::memory::desc& wghDesc,
-                                                                    const mkldnn::memory::desc& dstDesc,
-                                                                    bool isWinograd) const;
-    std::shared_ptr<Descriptor> createInt8MkldnnDeconvDesc(const mkldnn::memory::desc& srcDesc,
+    std::shared_ptr<DnnlDesriptor> createDefaultMkldnnDeconvDesc(const mkldnn::memory::desc& srcDesc,
                                                                  const mkldnn::memory::desc& wghDesc,
-                                                                 const mkldnn::memory::desc& dstDesc) const;
+                                                                 const mkldnn::memory::desc& dstDesc,
+                                                                 bool isWinograd) const;
+    std::shared_ptr<DnnlDesriptor> createInt8MkldnnDeconvDesc(const mkldnn::memory::desc& srcDesc,
+                                                              const mkldnn::memory::desc& wghDesc,
+                                                              const mkldnn::memory::desc& dstDesc) const;
 
-    void createDeconvPrim(std::shared_ptr<Descriptor> desc,
+    void createDeconvPrim(std::shared_ptr<DnnlDesriptor> desc,
                           MemoryPtr srcMemPtr,
                           MemoryPtr wghMemPtr,
                           MemoryPtr dstMemPtr,

@@ -6,7 +6,7 @@
 
 #include <string>
 #include <vector>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include <ie_ngraph_utils.hpp>
 #include <utils/general_utils.h>
 #include "common/blocked_desc_creator.h"
@@ -108,7 +108,7 @@ public:
         const auto full_mem_handler = full_mem.get_data_handle();
         mkldnn::memory chunk_mem = {chunk_desc, eng, full_mem_handler};
 
-        auto elem_size = ExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(chunk_desc.data.data_type));
+        auto elem_size = DnnlExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(chunk_desc.data.data_type));
 
         chunk_stride_in_byte = chunk_desc.data.format_desc.blocking.strides[axis] * elem_size * abs_stride;
         chunk_offset_in_byte = sign_of_stride < 0 ? (iter_count - 1) * chunk_stride_in_byte : 0;
@@ -225,7 +225,7 @@ private:
 
 DynamicBuffer::DynamicBuffer(const MemoryPtr &from_, const std::vector<MemoryPtr> &to_,
                              const PortMap &map_rule_) : from(from_), to(to_), map_rule(map_rule_) {
-    elem_size = ExtensionUtils::sizeOfDataType(from->GetDataType());
+    elem_size = DnnlExtensionUtils::sizeOfDataType(from->GetDataType());
 }
 
 void DynamicBuffer::execute(const mkldnn::engine& eng, const int iter) {
@@ -274,7 +274,7 @@ std::shared_ptr<mkldnn::memory> DynamicBuffer::create_buffer(const mkldnn::engin
         " is expected, but actual: " << from->getStaticDims()[axis];
 
     dims[axis] += abs_stride;
-    mkldnn::memory::desc new_buffer_desc(dims, old_desc.data_type(), ExtensionUtils::GetPlainFormatByRank(dims.size()));
+    mkldnn::memory::desc new_buffer_desc(dims, old_desc.data_type(), DnnlExtensionUtils::GetPlainFormatByRank(dims.size()));
 
     if (stride > 0.0f) {
         chunk_offset_in_byte += new_buffer_desc.data.format_desc.blocking.strides[axis] * elem_size * abs_stride;
@@ -307,7 +307,7 @@ void DynamicBuffer::move_data() {
 void DynamicBuffer::transfer(const Node* node) {
     if (mem_holder_buffer) {
         const auto desc = node->getBaseMemDescAtOutputPort(map_rule.from)->cloneWithNewDims(
-                ExtensionUtils::convertToVectorDims(mem_holder_buffer->get_desc().dims()));
+                DnnlExtensionUtils::convertToVectorDims(mem_holder_buffer->get_desc().dims()));
         redefineToMemories(to, desc);
 
         copy(get_ptr(*mem_holder_buffer.get()), reinterpret_cast<uint8_t*>(to.front()->GetPtr()), 0, 0, 1, to.front()->GetSize());

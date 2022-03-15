@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 #include <mkldnn_types.h>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include "ie_parallel.hpp"
 #include "utils/general_utils.h"
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -57,7 +57,7 @@ bool Deconvolution::isSupportedOperation(const std::shared_ptr<const ngraph::Nod
 Deconvolution::Deconvolution(const std::shared_ptr<ngraph::Node>& op,
                                                  const mkldnn::engine& eng, WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> DnnlMemoryDescPtr {
-        return ExtensionUtils::makeDescriptor(primitive_desc_it.weights_desc(0));
+        return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.weights_desc(0));
     });
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
@@ -157,7 +157,7 @@ InferenceEngine::Blob::Ptr Deconvolution::createWeiBlobAsIO(InferenceEngine::Siz
         orderForBlockedDesc.push_back(i);
 
     BlockingDesc blkDesc(dimsForBlockedDesc, orderForBlockedDesc);
-    InferenceEngine::TensorDesc tensorDesc(ExtensionUtils::DataTypeToIEPrecision(blb->GetDataType()), dims, blkDesc);
+    InferenceEngine::TensorDesc tensorDesc(DnnlExtensionUtils::DataTypeToIEPrecision(blb->GetDataType()), dims, blkDesc);
 
     Blob::Ptr internalBlob = InferenceEngine::make_shared_blob<int8_t>(tensorDesc);
     internalBlob->allocate();
@@ -211,10 +211,10 @@ bool Deconvolution::canBeExecutedInInt8() const {
         return false;
 
     InferenceEngine::Precision inPrecision = getOriginalInputPrecisionAtPort(0);
-    auto inputDataType = ExtensionUtils::IEPrecisionToDataType(inPrecision);
+    auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(inPrecision);
 
     InferenceEngine::Precision weiPrecision = getOriginalInputPrecisionAtPort(1);
-    auto weightsDataType = ExtensionUtils::IEPrecisionToDataType(weiPrecision);
+    auto weightsDataType = DnnlExtensionUtils::IEPrecisionToDataType(weiPrecision);
 
     if (isDW && (inputDataType == dnnl_s8 || dilation.size() == 3))
         return false;
@@ -289,12 +289,12 @@ void Deconvolution::getSupportedDescriptors() {
         if (!one_of(outPrecision, InferenceEngine::Precision::FP32, InferenceEngine::Precision::BF16))
             outPrecision = InferenceEngine::Precision::FP32;
     }
-    auto inputDataType = ExtensionUtils::IEPrecisionToDataType(inPrecision);
-    auto outputDataType = ExtensionUtils::IEPrecisionToDataType(outPrecision);
+    auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(inPrecision);
+    auto outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(outPrecision);
     if (inputDataType == memory::data_type::bf16 || outputDataType == memory::data_type::bf16)
        inputDataType = outputDataType = memory::data_type::bf16;
     if (!fusedWith.empty()) {
-        outputDataType = ExtensionUtils::IEPrecisionToDataType(fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0));
+        outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0));
     }
 
     if (getParentEdges().size() != 2 && getParentEdges().size() != 3)
@@ -384,19 +384,19 @@ void Deconvolution::filterSupportedDescriptors() {
             bool isSuitableDesc = true;
             if (!inputMemoryFormatsFilter.empty()) {
                 if (isInt8) {
-                    auto src_tdesc = ExtensionUtils::makeDescriptor(std::shared_ptr<dnnl::deconvolution_forward::desc>(*itd)->data.src_desc);
+                    auto src_tdesc = DnnlExtensionUtils::makeDescriptor(std::shared_ptr<dnnl::deconvolution_forward::desc>(*itd)->data.src_desc);
                     isSuitableDesc &= src_tdesc->isSame(inputMemoryFormatsFilter[0]);
                 } else {
-                    auto src_tdesc = ExtensionUtils::makeDescriptor(std::shared_ptr<mkldnn::convolution_backward_data::desc>(*itd)->data.diff_src_desc);
+                    auto src_tdesc = DnnlExtensionUtils::makeDescriptor(std::shared_ptr<mkldnn::convolution_backward_data::desc>(*itd)->data.diff_src_desc);
                     isSuitableDesc &= src_tdesc->isSame(inputMemoryFormatsFilter[0]);
                 }
             }
             if (!outputMemoryFormatsFilter.empty()) {
                 if (isInt8) {
-                    auto dst_tdesc = ExtensionUtils::makeDescriptor(std::shared_ptr<mkldnn::deconvolution_forward::desc>(*itd)->data.dst_desc);
+                    auto dst_tdesc = DnnlExtensionUtils::makeDescriptor(std::shared_ptr<mkldnn::deconvolution_forward::desc>(*itd)->data.dst_desc);
                     isSuitableDesc &= dst_tdesc->isSame(outputMemoryFormatsFilter[0]);
                 } else {
-                    auto dst_tdesc = ExtensionUtils::makeDescriptor(std::shared_ptr<mkldnn::convolution_backward_data::desc>(*itd)->data.diff_dst_desc);
+                    auto dst_tdesc = DnnlExtensionUtils::makeDescriptor(std::shared_ptr<mkldnn::convolution_backward_data::desc>(*itd)->data.diff_dst_desc);
                     isSuitableDesc &= dst_tdesc->isSame(outputMemoryFormatsFilter[0]);
                 }
             }
@@ -494,10 +494,10 @@ void Deconvolution::execute(mkldnn::stream strm) {
     }
 }
 
-std::shared_ptr<Descriptor> Deconvolution::createDefaultMkldnnDeconvDesc(const mkldnn::memory::desc& srcDesc,
-                                                                                         const mkldnn::memory::desc& wghDesc,
-                                                                                         const mkldnn::memory::desc& dstDesc,
-                                                                                         bool isWinograd) const {
+std::shared_ptr<DnnlDesriptor> Deconvolution::createDefaultMkldnnDeconvDesc(const mkldnn::memory::desc& srcDesc,
+                                                                            const mkldnn::memory::desc& wghDesc,
+                                                                            const mkldnn::memory::desc& dstDesc,
+                                                                            bool isWinograd) const {
     mkldnn::algorithm alg = isWinograd ? mkldnn::algorithm::convolution_winograd : mkldnn::algorithm::convolution_direct;
     std::shared_ptr<convolution_backward_data::desc> deconv_desc;
     std::shared_ptr<convolution_forward::primitive_desc> fwd_conv_pd;
@@ -505,21 +505,21 @@ std::shared_ptr<Descriptor> Deconvolution::createDefaultMkldnnDeconvDesc(const m
     if (fwd_conv_pd->get(true) == nullptr) {
         IE_THROW() << "Forward convolution primitive descriptor is nullable for node with name: " << getName();
     }
-    return std::make_shared<Descriptor>(deconv_desc, fwd_conv_pd);
+    return std::make_shared<DnnlDesriptor>(deconv_desc, fwd_conv_pd);
 }
 
-std::shared_ptr<Descriptor> Deconvolution::createInt8MkldnnDeconvDesc(const mkldnn::memory::desc& srcDesc,
-                                                                                      const mkldnn::memory::desc& wghDesc,
-                                                                                      const mkldnn::memory::desc& dstDesc) const {
-    return std::make_shared<Descriptor>(createDescriptorInternalInt8(srcDesc, wghDesc, dstDesc));
+std::shared_ptr<DnnlDesriptor> Deconvolution::createInt8MkldnnDeconvDesc(const mkldnn::memory::desc& srcDesc,
+                                                                         const mkldnn::memory::desc& wghDesc,
+                                                                         const mkldnn::memory::desc& dstDesc) const {
+    return std::make_shared<DnnlDesriptor>(createDescriptorInternalInt8(srcDesc, wghDesc, dstDesc));
 }
 
-void Deconvolution::createDeconvPrim(std::shared_ptr<Descriptor> desc,
-                                               MemoryPtr srcMemPtr,
-                                               MemoryPtr wghMemPtr,
-                                               MemoryPtr dstMemPtr,
-                                               AttrPtr attr,
-                                               impl_desc_type selectedImpl) {
+void Deconvolution::createDeconvPrim(std::shared_ptr<DnnlDesriptor> desc,
+                                     MemoryPtr srcMemPtr,
+                                     MemoryPtr wghMemPtr,
+                                     MemoryPtr dstMemPtr,
+                                     AttrPtr attr,
+                                     impl_desc_type selectedImpl) {
     auto itpd = desc->createPrimitiveDescriptorIterator(getEngine(), *attr);
 
     while (static_cast<bool>(itpd)) {
@@ -548,17 +548,17 @@ void Deconvolution::createDeconvPrim(std::shared_ptr<Descriptor> desc,
         }
 
         if (!itpd.next_impl()) {
-            auto inDesc = mkldnn::memory::desc(ExtensionUtils::convertToDnnlDims(srcMemPtr->getStaticDims()),
+            auto inDesc = mkldnn::memory::desc(DnnlExtensionUtils::convertToDnnlDims(srcMemPtr->getStaticDims()),
                                                                                        memory::data_type::f32,
                                                                                        memory::format_tag::any);
-            auto wghDesc = mkldnn::memory::desc(ExtensionUtils::convertToDnnlDims(wghMemPtr->getStaticDims()),
+            auto wghDesc = mkldnn::memory::desc(DnnlExtensionUtils::convertToDnnlDims(wghMemPtr->getStaticDims()),
                                                                                         memory::data_type::f32,
                                                                                         memory::format_tag::any);
-            auto outDesc = mkldnn::memory::desc(ExtensionUtils::convertToDnnlDims(dstMemPtr->getStaticDims()),
+            auto outDesc = mkldnn::memory::desc(DnnlExtensionUtils::convertToDnnlDims(dstMemPtr->getStaticDims()),
                                                                                         memory::data_type::f32,
                                                                                         memory::format_tag::any);
 
-            std::shared_ptr<Descriptor> anyDeconvDesc = createDefaultMkldnnDeconvDesc(inDesc, wghDesc, outDesc, false);
+            std::shared_ptr<DnnlDesriptor> anyDeconvDesc = createDefaultMkldnnDeconvDesc(inDesc, wghDesc, outDesc, false);
             auto anyDeconvItpd = anyDeconvDesc->createPrimitiveDescriptorIterator(getEngine(), *attr);
             if (static_cast<bool>(anyDeconvItpd)) {
                 auto prim_desc = convolution_backward_data::primitive_desc(anyDeconvItpd.get());
@@ -624,7 +624,7 @@ void Deconvolution::prepareParams() {
     mkldnn::memory::desc wgh_candidate;
     if (isInt8) {
         if (internalBlobMemory.empty()) {
-            wgh_candidate = mkldnn::memory::desc(ExtensionUtils::convertToDnnlDims(int8WeightDims), memory::data_type::s8, memory::format_tag::any);
+            wgh_candidate = mkldnn::memory::desc(DnnlExtensionUtils::convertToDnnlDims(int8WeightDims), memory::data_type::s8, memory::format_tag::any);
         } else {
             wgh_candidate = internalBlobMemory.front()->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
         }
@@ -632,7 +632,7 @@ void Deconvolution::prepareParams() {
         wgh_candidate = getParentEdgesAtPort(1).front()->getMemory().GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
     }
 
-    std::shared_ptr<Descriptor> desc;
+    std::shared_ptr<DnnlDesriptor> desc;
     if (isInt8) {
         desc = createInt8MkldnnDeconvDesc(in_candidate, wgh_candidate, out_candidate);
     } else {
@@ -725,10 +725,10 @@ void Deconvolution::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc
         return;
 
     if (isInt8) {
-        mkldnn::memory::desc wgh_candidate(ExtensionUtils::convertToDnnlDims(int8WeightDims), memory::data_type::s8, memory::format_tag::any);
+        mkldnn::memory::desc wgh_candidate(DnnlExtensionUtils::convertToDnnlDims(int8WeightDims), memory::data_type::s8, memory::format_tag::any);
         descs.emplace_back(createDescriptorInternalInt8(in_candidate, wgh_candidate, out_candidate));
     } else {
-        mkldnn::memory::desc wgh_candidate(ExtensionUtils::convertToDnnlDims(getWeightDims()),
+        mkldnn::memory::desc wgh_candidate(DnnlExtensionUtils::convertToDnnlDims(getWeightDims()),
                                            dnnlInDesc.getDataType(), memory::format_tag::any);
         for (auto alg : {mkldnn::algorithm::convolution_winograd, mkldnn::algorithm::convolution_direct}) {
             std::shared_ptr<convolution_backward_data::desc> deconv_desc;
@@ -752,17 +752,17 @@ std::shared_ptr<MemoryDesc> Deconvolution::getSrcMemDesc(mkldnn::primitive_desc_
 
     auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1) : isInt8 ? primitive_desc_it.src_desc(idx) : primitive_desc_it.diff_dst_desc(idx);
     if (getInputShapeAtPort(idx).isDynamic()) {
-        return ExtensionUtils::makeUndefinedDesc(desc, getInputShapeAtPort(idx));
+        return DnnlExtensionUtils::makeUndefinedDesc(desc, getInputShapeAtPort(idx));
     }
-    return ExtensionUtils::makeDescriptor(desc);
+    return DnnlExtensionUtils::makeDescriptor(desc);
 }
 
 std::shared_ptr<MemoryDesc> Deconvolution::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     auto desc =  isInt8 ? primitive_desc_it.dst_desc(idx) : primitive_desc_it.diff_src_desc(idx);
     if (getOutputShapeAtPort(idx).isDynamic()) {
-        return ExtensionUtils::makeUndefinedDesc(desc, getOutputShapeAtPort(idx));
+        return DnnlExtensionUtils::makeUndefinedDesc(desc, getOutputShapeAtPort(idx));
     }
-    return ExtensionUtils::makeDescriptor(desc);
+    return DnnlExtensionUtils::makeDescriptor(desc);
 }
 
 InferenceEngine::Precision Deconvolution::getRuntimePrecision() const {
@@ -772,7 +772,7 @@ InferenceEngine::Precision Deconvolution::getRuntimePrecision() const {
     for (size_t i = 0; i < std::min(getParentEdges().size(), inputsNumLimit); i++) {
         auto parentEdge = getParentEdgeAt(i);
         if (parentEdge && parentEdge->getStatus() == Edge::Status::Validated) {
-            inputPrecisions.emplace_back(ExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->GetDataType())));
+            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->GetDataType())));
         }
     }
 

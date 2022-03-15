@@ -35,7 +35,7 @@ public:
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
 
-    size_t descInputNumbers(Descriptor desc) override {
+    size_t descInputNumbers(DnnlDesriptor desc) override {
         return static_cast<size_t>(getOriginalInputsNumber());
     }
 

@@ -6,7 +6,7 @@
 #include <string>
 #include <cmath>
 #include <mkldnn_types.h>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include <limits>
 #include "ie_parallel.hpp"
 #include "common/cpu_memcpy.h"

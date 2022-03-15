@@ -39,7 +39,7 @@ public:
     mkldnn::memory getWeights() const;
     mkldnn::memory getBias() const;
 
-    size_t descInputNumbers(Descriptor desc) override {
+    size_t descInputNumbers(DnnlDesriptor desc) override {
         return getOriginalInputsNumber();
     }
 
@@ -92,7 +92,7 @@ private:
     void addZeroPoints(mkldnn::primitive_attr& attr);
     void setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims, bool initWeights);
     void filterSupportedDescriptors();
-    bool isPossibleToSkipInitConfig(Descriptor &desc) const;
+    bool isPossibleToSkipInitConfig(DnnlDesriptor &desc) const;
     bool isNspcAvailable() const;
     InferenceEngine::Blob::Ptr createInternalBlob(InferenceEngine::SizeVector dims, size_t edgeNum, bool isGrouped = false);
 

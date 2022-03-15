@@ -19,7 +19,7 @@
 #include "fake_quantize.h"
 #include "utils/general_utils.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include <common/primitive_hashing_utils.hpp>
 
 using namespace mkldnn;
@@ -174,7 +174,7 @@ void MatMul::setPostOps(mkldnn::primitive_attr &attr, const VectorDims& dims, bo
 
     for (const auto &node : fusedWith) {
         if (auto* eltwiseNode = dynamic_cast<Eltwise *>(node.get())) {
-            if (eltwiseNode->getOneDNNAlgorithm() != mkldnn::algorithm::undef) {
+            if (eltwiseNode->getOneDnnAlgorithm() != mkldnn::algorithm::undef) {
                 eltwiseNode->appendPostOps(ops, dims, postOpsArgs);
             } else {
                 eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
@@ -239,9 +239,9 @@ mkldnn::memory::desc MatMul::getBiasDescFrom(const DnnlMemoryDescCPtr outMemDesc
     const auto outDims = outMemDesc->getShape().getStaticDims();
     const auto chIdx = getFusingAxis();
     biasDims[chIdx] = outDims[chIdx];
-    const auto bdt = ExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(2));
+    const auto bdt = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(2));
 
-    return mkldnn::memory::desc(ExtensionUtils::convertToDnnlDims(biasDims), bdt, memory::format_tag::any);
+    return mkldnn::memory::desc(DnnlExtensionUtils::convertToDnnlDims(biasDims), bdt, memory::format_tag::any);
 }
 
 void MatMul::getSupportedDescriptors() {
@@ -457,10 +457,10 @@ MemoryDescPtr MatMul::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_d
 
     if (idx < 2) // inputs
         return std::make_shared<CpuBlockedMemoryDesc>(
-            ExtensionUtils::DataTypeToIEPrecision(static_cast<mkldnn::memory::data_type>(desc.data.data_type)),
+            DnnlExtensionUtils::DataTypeToIEPrecision(static_cast<mkldnn::memory::data_type>(desc.data.data_type)),
             getInputShapeAtPort(idx)); /* provide initial shapes, so hide transpose effect */
     else // bias
-        return ExtensionUtils::makeDescriptor(desc);
+        return DnnlExtensionUtils::makeDescriptor(desc);
 }
 
 bool MatMul::created() const {
@@ -543,7 +543,7 @@ void MatMul::prepareParams() {
                                                        key.out->getDnnlDesc()));
         }
 
-        Descriptor desc(matmul_desc);
+        DnnlDesriptor desc(matmul_desc);
         primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, key.attr);
         matmul::primitive_desc prim_desc;
 

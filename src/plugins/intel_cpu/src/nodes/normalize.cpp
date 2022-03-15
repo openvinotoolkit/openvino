@@ -10,7 +10,7 @@
 #include "eltwise.h"
 #include "utils/bfloat16.hpp"
 #include "utils/general_utils.h"
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include "emitters/jit_bf16_emitters.hpp"
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
 #include <cpu/x64/injectors/jit_uni_depthwise_injector.hpp>
@@ -985,8 +985,8 @@ public:
             IE_THROW() << "Normalaize2L executor has selected layout which is not supported";
         }
 
-        jcp.src_dt = ExtensionUtils::IEPrecisionToDataType(attrs.input_prec);
-        jcp.dst_dt = ExtensionUtils::IEPrecisionToDataType(attrs.output_prec);
+        jcp.src_dt = DnnlExtensionUtils::IEPrecisionToDataType(attrs.input_prec);
+        jcp.dst_dt = DnnlExtensionUtils::IEPrecisionToDataType(attrs.output_prec);
         jcp.src_data_size = attrs.input_prec.size();
         jcp.dst_data_size = attrs.output_prec.size();
         jcp.across_spatial = attrs.across_spatial;

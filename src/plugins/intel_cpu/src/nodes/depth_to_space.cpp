@@ -4,7 +4,7 @@
 
 #include "depth_to_space.h"
 
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include <utils/general_utils.h>
 
 #include <cmath>

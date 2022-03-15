@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 #include <set>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include "emitters/jit_load_store_emitters.hpp"
 #include "ie_parallel.hpp"
 #include <ngraph/op/topk.hpp>
@@ -101,7 +101,7 @@ struct jit_uni_topk_kernel_f32 : public jit_uni_topk_kernel, public jit_generato
         if (!shape_agnostic_alg)
             mov(reg_table, l_table);
 
-        data_type = ExtensionUtils::IEPrecisionToDataType(jcp_.precision);
+        data_type = DnnlExtensionUtils::IEPrecisionToDataType(jcp_.precision);
         if (!shape_agnostic_alg && jcp_.layout == TopKLayoutType::topk_blocked && jcp_.topk_innermost)
             blk_stride = jcp_.sort_stride * jcp_.blk_size;
 
@@ -1951,8 +1951,8 @@ void TopK::preset_params() {
     }
 
     auto selectedPD = getSelectedPrimitiveDescriptor();
-    auto data_type = ExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[TOPK_DATA].getMemDesc()->getPrecision());
-    data_size = ExtensionUtils::sizeOfDataType(data_type);
+    auto data_type = DnnlExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[TOPK_DATA].getMemDesc()->getPrecision());
+    data_size = DnnlExtensionUtils::sizeOfDataType(data_type);
 
     topk_innermost = (layout == TopKLayoutType::topk_ncsp && axis == static_cast<int>(getOutputShapeAtPort(TOPK_DATA).getRank() - 1)) ||
                     ((layout == TopKLayoutType::topk_nspc || layout == TopKLayoutType::topk_blocked) && axis == 1);

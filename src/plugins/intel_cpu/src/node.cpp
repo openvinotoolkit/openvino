@@ -46,7 +46,7 @@
 #include "nodes/shuffle_channels.h"
 #include "nodes/reference.h"
 #include "nodes/fake_quantize.h"
-#include "extension_utils.h"
+#include "dnnl_extension_utils.h"
 #include "mkldnn/iml_type_mapper.h"
 
 #include "nodes/common/cpu_memcpy.h"
@@ -609,7 +609,7 @@ void Node::filterSupportedPrimitiveDescriptors() {
     // Compare by format tag
     auto areCompatible = [](const MemoryDesc& desc, mkldnn::memory::format_tag fmt) -> bool {
         auto fmt_tdesc = DnnlBlockedMemoryDesc(desc.getShape(),
-                                               ExtensionUtils::IEPrecisionToDataType(desc.getPrecision()),
+                                               DnnlExtensionUtils::IEPrecisionToDataType(desc.getPrecision()),
                                                fmt);
         return desc.isCompatible(fmt_tdesc);
     };
@@ -1016,16 +1016,16 @@ bool Node::isConfigDefined(const NodeConfig &config) const {
 
 MemoryDescPtr Node::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     if (getInputShapeAtPort(idx).isDynamic()) {
-        return ExtensionUtils::makeUndefinedDesc(primitive_desc_it.src_desc(idx), getInputShapeAtPort(idx));
+        return DnnlExtensionUtils::makeUndefinedDesc(primitive_desc_it.src_desc(idx), getInputShapeAtPort(idx));
     }
-    return ExtensionUtils::makeDescriptor(primitive_desc_it.src_desc(idx));
+    return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.src_desc(idx));
 }
 
 MemoryDescPtr Node::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     if (getOutputShapeAtPort(idx).isDynamic()) {
-        return ExtensionUtils::makeUndefinedDesc(primitive_desc_it.dst_desc(idx), getOutputShapeAtPort(idx));
+        return DnnlExtensionUtils::makeUndefinedDesc(primitive_desc_it.dst_desc(idx), getOutputShapeAtPort(idx));
     }
-    return ExtensionUtils::makeDescriptor(primitive_desc_it.dst_desc(idx));
+    return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.dst_desc(idx));
 }
 
 int Node::batchToProcess() const {
@@ -1149,7 +1149,7 @@ std::vector<InferenceEngine::Precision> Node::getInputPrecisions() const {
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto parentEdge = getParentEdgeAt(i);
         if (parentEdge && parentEdge->getStatus() == Edge::Status::Validated) {
-            inputPrecisions.emplace_back(ExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->GetDataType())));
+            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->GetDataType())));
         }
     }
     return inputPrecisions;
@@ -1160,7 +1160,7 @@ std::vector<InferenceEngine::Precision> Node::getOutputPrecisions() const {
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto childEdge = getChildEdgeAt(i);
         if (childEdge && childEdge->getStatus() == Edge::Status::Validated) {
-            outputPrecisions.emplace_back(ExtensionUtils::DataTypeToIEPrecision((childEdge->getMemoryPtr()->GetDataType())));
+            outputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((childEdge->getMemoryPtr()->GetDataType())));
         }
     }
     return outputPrecisions;
@@ -1334,7 +1334,7 @@ std::pair<std::vector<float>, std::vector<float>> Node::getScalesAndShifts(const
         buffer.resize(elementsCount);
         cpu_convert(constBlob->GetPtr(),
                     &buffer[0],
-                    ExtensionUtils::DataTypeToIEPrecision(constBlob->GetDataType()),
+                    DnnlExtensionUtils::DataTypeToIEPrecision(constBlob->GetDataType()),
                     Precision::FP32,
                     elementsCount);
     };

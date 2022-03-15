@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 #include <cmath>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 
 #include "dft.h"
 #include "ie_parallel.hpp"

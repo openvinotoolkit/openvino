@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include "convert.h"
 #include "common/cpu_convert.h"
 #include "common/blocked_desc_creator.h"

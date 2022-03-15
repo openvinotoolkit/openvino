@@ -4,7 +4,7 @@
 
 #include "edge.h"
 #include "node.h"
-#include "extension_utils.h"
+#include "dnnl_extension_utils.h"
 #include <blob_factory.hpp>
 #include "nodes/input.h"
 

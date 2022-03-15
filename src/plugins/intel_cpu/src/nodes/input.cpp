@@ -4,7 +4,7 @@
 
 #include "input.h"
 #include "common/cpu_memcpy.h"
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 
 #include <string>
 #include <tuple>

@@ -11,7 +11,7 @@
 #include <vector>
 #include <set>
 #include <mkldnn_types.h>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include "utils/bfloat16.hpp"
 #include "emitters/jit_bf16_emitters.hpp"
 #include "ie_parallel.hpp"
@@ -1959,10 +1959,10 @@ void Reduce::createPrimitive() {
 
     auto selectedPD = getSelectedPrimitiveDescriptor();
     jcp = jit_reduce_config_params();
-    jcp.src_dt = ExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[REDUCE_DATA].getMemDesc()->getPrecision());
-    jcp.dst_dt = ExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().outConfs[0].getMemDesc()->getPrecision());
-    jcp.src_data_size = ExtensionUtils::sizeOfDataType(jcp.src_dt);
-    jcp.dst_data_size = ExtensionUtils::sizeOfDataType(jcp.dst_dt);
+    jcp.src_dt = DnnlExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[REDUCE_DATA].getMemDesc()->getPrecision());
+    jcp.dst_dt = DnnlExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().outConfs[0].getMemDesc()->getPrecision());
+    jcp.src_data_size = DnnlExtensionUtils::sizeOfDataType(jcp.src_dt);
+    jcp.dst_data_size = DnnlExtensionUtils::sizeOfDataType(jcp.dst_dt);
     jcp.layout = layout;
     jcp.reduce_mode = getAlgorithm();
 
@@ -2604,7 +2604,7 @@ inline void Reduce::create_working_memory() {
                                         : (rank == 4 ? (mayiuse(cpu::x64::avx512_common) ? memory::format_tag::nChw16c : memory::format_tag::nChw8c)
                                                      : (mayiuse(cpu::x64::avx512_common) ? memory::format_tag::nCdhw16c : memory::format_tag::nCdhw8c));
     auto prc_dims = rank == 4 ? std::vector<size_t>{OB, OC, OH, OW} : std::vector<size_t>{OB, OC, OD, OH, OW};
-    auto desc = mkldnn::memory::desc(ExtensionUtils::convertToDnnlDims(prc_dims), ExtensionUtils::IEPrecisionToDataType(output_prec), format);
+    auto desc = mkldnn::memory::desc(DnnlExtensionUtils::convertToDnnlDims(prc_dims), DnnlExtensionUtils::IEPrecisionToDataType(output_prec), format);
     prc_mem = std::make_shared<mkldnn::memory>(desc, getEngine());
     dst_size = desc.get_size();
 }

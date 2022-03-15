@@ -3,7 +3,7 @@
 //
 
 #include "memory_state.h"
-#include "extension_utils.h"
+#include "dnnl_extension_utils.h"
 #include "blob_factory.hpp"
 
 using namespace InferenceEngine;

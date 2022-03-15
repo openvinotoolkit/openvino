@@ -7,7 +7,7 @@
 #include <map>
 #include <utility>
 #include <vector>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 
 #include "mkldnn.hpp"
 #include "mkldnn/iml_type_mapper.h"
@@ -522,7 +522,7 @@ void Concat::execNspcSpecCase() {
     const Memory& dst_memory = getChildEdgeAt(0)->getMemory();
     const size_t num_src = getParentEdges().size();
     uint8_t* dst_ptr = reinterpret_cast<uint8_t*>(dst_memory.GetData());
-    const size_t dataSize = ExtensionUtils::sizeOfDataType(dst_memory.GetDataType());
+    const size_t dataSize = DnnlExtensionUtils::sizeOfDataType(dst_memory.GetDataType());
 
     std::vector<size_t> channelsDataSize;
     size_t channels_size = 0;
