@@ -116,7 +116,7 @@ function filterTable() {
         selector = [];
         select.forEach(item => {
             if (item == '100p') {
-               selector.push('.value:visible[crashed="0"][failed="0"][skipped="0"][value!="---"]');
+               selector.push('.value:visible[crashed="0"][failed="0"][skipped="0"][hanged="0"][value!="---"]');
             }
             if (item == '100f') {
                selector.push('.value:visible[passed="0"][value!="---"]');
@@ -129,6 +129,9 @@ function filterTable() {
             }
             if (item == 'c') {
                 selector.push('.value:visible[crashed!="0"][value!="---"]');
+            }
+            if (item == 'h') {
+                selector.push('.value:visible[hanged!="0"][value!="---"]');
             }
             if (item == 's') {
                 selector.push('.value:visible[value!="---"][skipped!="0"]');

@@ -74,9 +74,9 @@ namespace BehaviorTestsDefinitions {
 
         // Test failed if crash happens
 #ifdef _WIN32
-        if (setjmp(CommonTestUtils::env) == 0) {
+        if (setjmp(CommonTestUtils::env) == CommonTestUtils::JMP_STATUS::ok) {
 #else
-        if (sigsetjmp(CommonTestUtils::env, 1) == 0) {
+        if (sigsetjmp(CommonTestUtils::env, 1) == CommonTestUtils::JMP_STATUS::ok) {
 #endif
             EXPECT_NO_THROW(release_order_test(order, targetDevice, function));
         } else {
@@ -90,9 +90,9 @@ namespace BehaviorTestsDefinitions {
 
         // Test failed if crash happens
 #ifdef _WIN32
-        if (setjmp(CommonTestUtils::env) == 0) {
+        if (setjmp(CommonTestUtils::env) == CommonTestUtils::JMP_STATUS::ok) {
 #else
-        if (sigsetjmp(CommonTestUtils::env, 1) == 0) {
+        if (sigsetjmp(CommonTestUtils::env, 1) == CommonTestUtils::JMP_STATUS::ok) {
 #endif
             EXPECT_NO_THROW(release_order_test(order, targetDevice, function));
         } else {

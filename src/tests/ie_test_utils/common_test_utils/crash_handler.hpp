@@ -15,10 +15,16 @@ namespace CommonTestUtils {
 
 extern jmp_buf env;
 
+enum JMP_STATUS { ok = 0, anyError = 1, alarmErr = 2 };
+
 class CrashHandler {
+private:
+    static unsigned int MAX_TEST_WORK_TIME;
 public:
     CrashHandler();
     ~CrashHandler();
+    static void SetUpTimeout(unsigned int timeout);
+    void StartTimer();
 };
 
 }  // namespace CommonTestUtils
