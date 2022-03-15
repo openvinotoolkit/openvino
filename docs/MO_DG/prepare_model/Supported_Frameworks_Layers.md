@@ -489,7 +489,7 @@ Some TensorFlow operations do not match to any OpenVINO operation, but are still
 | Acosh |
 | And |
 | ArgMin | 
-| ArgMax |
+| ArgMax | 
 | Asin |
 | Asinh |
 | Atan |
