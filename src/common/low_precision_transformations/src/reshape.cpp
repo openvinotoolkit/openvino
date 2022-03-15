@@ -238,20 +238,18 @@ bool ReshapeTransformation::canBeTransformed(const TransformationContext& contex
         multiplyShapeWithBatch.insert(multiplyShapeWithBatch.begin(), 1ul);
     }
 
-    if (subtractShapeWithBatch.size() > 1 && multiplyShapeWithBatch.size() > 1) {
-        const size_t outputChannel = static_cast<size_t>(outputPShape[1].get_length());
-        if (!subtractShapeWithBatch.empty() && (outputChannel < subtractShapeWithBatch[1])) {
-            return false;
-        }
-        if (!multiplyShapeWithBatch.empty() && (outputChannel < multiplyShapeWithBatch[1])) {
-            return false;
-        }
+    const size_t outputChannel = static_cast<size_t>(outputPShape[1].get_length());
+    if (!subtractShapeWithBatch.empty() && (outputChannel < subtractShapeWithBatch[1])) {
+        return false;
+    }
+    if (!multiplyShapeWithBatch.empty() && (outputChannel < multiplyShapeWithBatch[1])) {
+        return false;
+    }
 
-        if (outputPShape.is_static() &&
-            ((!subtractShapeWithBatch.empty() && ((outputChannel % subtractShapeWithBatch[1]) != 0)) ||
-             (!multiplyShapeWithBatch.empty() && (outputChannel % multiplyShapeWithBatch[1] != 0)))) {
-            return false;
-        }
+    if (outputPShape.is_static() &&
+        ((!subtractShapeWithBatch.empty() && ((outputChannel % subtractShapeWithBatch[1]) != 0)) ||
+        (!multiplyShapeWithBatch.empty() && (outputChannel % multiplyShapeWithBatch[1] != 0)))) {
+        return false;
     }
 
     return canBeTransformed(subtractShapeWithBatch, multiplyShapeWithBatch, inputPShape, outputPShape);
