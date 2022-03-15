@@ -24,7 +24,6 @@ Follow the steps below to add a custom operation:
 
 Based on that, declaration of an operation class can look as follows:
 
-@snippet template_extension/new/identity.hpp op:header
 
 ### Operation Constructors
 

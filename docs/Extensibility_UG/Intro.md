@@ -7,6 +7,7 @@
    :hidden:
 
    openvino_docs_Extensibility_UG_add_openvino_ops
+   openvino_docs_Extensibility_UG_Frontend_Extensions
    openvino_docs_Extensibility_UG_GPU
    openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer
 
@@ -66,7 +67,7 @@ Remaining part of this guide uses Frontend Extension API applicable for new fron
 
 A custom operation class and a new mapping frontend extension class object should be registered to be usable in OpenVINO runtime.
 
-> **NOTE**: This documentation is written based on the [Template extension](https://github.com/openvinotoolkit/openvino/tree/master/docs/template_extension/new), which demonstrates extension development details based on minimalistic `Identity` operation that is a placeholder for your real custom operation. You can review the complete code, which is fully compliable and up-to-date, to see how it works.
+> **NOTE**: This documentation is written based on the [Template extension](https://github.com/openvinotoolkit/openvino/tree/master/docs/template_extension/new), which demonstrates extension development details based on minimalistic `Identity` operation that is a placeholder for your real custom operation. You can review the complete code, which is fully compliable, to see how it works.
 
 To load the extensions to the `ov::Core` object, use the `ov::Core::add_extension` method, this method allows to load library with extensions or extensions from the code.
 
@@ -114,9 +115,10 @@ You still can use Python for operation mapping and decomposition in case if oper
 
 ### Create library with extensions
 
-You need to create extension library in following cases:
- - Load extensions to Model Optimizer
- - Load extensions to Python application
+You need to create extension library in the following cases:
+ - Convert model with custom operations in Model Optimizer
+ - Load model with custom operations in Python application. It is applicable for both framework model and IR.
+ - Loading models with custom operations in tools that support loading extensions from a library, for example `benchmark_app`.
 
 If you want to create an extension library, for example in order to load these extensions to the Model Optimizer, you need to do next steps:
 Create an entry point for extension library. OpenVINO™ provides an `OPENVINO_CREATE_EXTENSIONS()` macro, which allows to define an entry point to a library with OpenVINO™ Extensions.
