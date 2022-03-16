@@ -7,6 +7,9 @@
 #include "openvino/core/axis_vector.hpp"
 #include "utils.hpp"
 
+namespace ov {
+namespace op {
+namespace util {
 template <class T>
 void shape_infer(const ov::op::util::FFTBase* op,
                  const std::vector<T>& input_shapes,
@@ -115,3 +118,6 @@ void shape_infer(const ov::op::util::FFTBase* op,
         }
     }
 }
+}  // namespace util
+}  // namespace op
+}  // namespace ov
