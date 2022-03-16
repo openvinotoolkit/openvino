@@ -85,7 +85,7 @@ div.highlight {
     position: fixed;
     text-align: center;
     color: white;
-    z-index: 1;
+    z-index: 1001;
     display: block;
     padding:0 2rem;
     font-size: var(--pst-sidebar-font-size);
@@ -101,4 +101,11 @@ div.highlight {
 .transition-banner .close {
     padding: 0 1.25rem;
     color: #000;
+}
+
+
+@media (max-width: 720px) {
+    .transition-banner {
+        margin-top: 2rem;
+    }
 }
