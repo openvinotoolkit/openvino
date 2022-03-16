@@ -1,4 +1,4 @@
-# Introduction to Inference Runtime Optimizations {#openvino_docs_deployment_optimization_guide_dldt_optimization_guide}
+# Runtime Inference Optimizations {#openvino_docs_deployment_optimization_guide_dldt_optimization_guide}
 
 @sphinxdirective
 
@@ -6,10 +6,10 @@
    :maxdepth: 1
    :hidden:
     
-    openvino_docs_deployment_optimization_guide_common
-    openvino_docs_deployment_optimization_guide_latency
-    openvino_docs_deployment_optimization_guide_tput
-    openvino_docs_deployment_optimization_guide_hints
+   openvino_docs_deployment_optimization_guide_common
+   openvino_docs_deployment_optimization_guide_latency
+   openvino_docs_deployment_optimization_guide_tput
+   openvino_docs_deployment_optimization_guide_hints
 
 @endsphinxdirective
 

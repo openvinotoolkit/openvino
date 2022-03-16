@@ -1,13 +1,5 @@
 # General Throughput Considerations  Optimization Guide {#openvino_docs_deployment_optimization_guide_tput}
 
-@sphinxdirective
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-@endsphinxdirective
-
 ### General Throughput Considerations
 As described in the section on the [latency-specific considerations](./dldt_deployment_optimization_latency.md) one possible use-case is focused on delivering the every single request at the minimal delay.
 Throughput on the other hand, is about inference scenarios in which potentially large number of inference requests are served simultaneously.

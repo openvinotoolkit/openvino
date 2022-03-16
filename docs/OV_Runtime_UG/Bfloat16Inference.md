@@ -1,4 +1,4 @@
-# Bfloat16 Inference {#openvino_docs_IE_DG_Bfloat16Inference}
+# Bfloat16 Inference
 
 ## Bfloat16 Inference Usage (C++)
 

@@ -1,14 +1,5 @@
 # High-level Performance Hints (Presets) {#openvino_docs_deployment_optimization_guide_hints}
 
-@sphinxdirective
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-@endsphinxdirective
-
-
 Traditionally, each of the OpenVINO's [supported devices](../OV_Runtime_UG/supported_plugins/Supported_Devices.md) offers a bunch of low-level performance settings. 
 Tweaking this detailed configuration requires deep architecture understanding.
 Also, while the resulting performance may be optimal for the specific combination of the device and the model that is inferred, it is actually neither device/model nor future-proof:

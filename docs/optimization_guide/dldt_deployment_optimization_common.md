@@ -1,13 +1,5 @@
 # General Runtime/Deployment Optimizations {#openvino_docs_deployment_optimization_guide_common}
 
-@sphinxdirective
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-@endsphinxdirective
-
 ## Inputs Pre-processing with OpenVINO
 
 In many cases, a network expects a pre-processed image, so make sure you do not perform unnecessary steps in your code:
