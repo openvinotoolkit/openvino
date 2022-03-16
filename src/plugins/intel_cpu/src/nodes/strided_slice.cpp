@@ -119,10 +119,12 @@ MKLDNNStridedSliceNode::MKLDNNStridedSliceNode(const std::shared_ptr<ov::Node>& 
         attrs.shrinkAxisMask = createMask(ss->get_shrink_axis_mask());
 
         auto origEllipsisMask = ss->get_ellipsis_mask();
+        bool isEllipsis = false;
         for (const auto &o : origEllipsisMask) {
+            isEllipsis = isEllipsis || o != 0;
             attrs.ellipsisMask.push_back(o);
         }
-        if (attrs.ellipsisMask.size() == 0) {
+        if (attrs.ellipsisMask.size() == 0 || !isEllipsis) {
             for (size_t i = attrs.ellipsisMask.size(); i < nDims; ++i) attrs.ellipsisMask.push_back(0);
         }
     } else {
