@@ -875,7 +875,7 @@ public:
                 const auto dims_to_keep = opset6::Constant::create(m_reshape_to_const.get_element_type(), {dims_to_keep_vec.size()}, dims_to_keep_vec);
                 const auto gather = std::make_shared<opset6::Gather>(shape_of, dims_to_keep, axis);
                 const auto concat = std::make_shared<opset6::Concat>(
-                                        NodeVector{opset6::Constant::create(m_reshape_to_const.get_element_type(), {2}, {-1, 1}), gather}, 0);
+                                        NodeVector{opset6::Constant::create(m_reshape_to_const.get_element_type(), {1}, {-1}), gather}, 0);
                 for (auto consumer : reshape_to_const_consumers)
                     consumer.replace_source_output(concat);
             }
@@ -1053,15 +1053,15 @@ public:
                         return false;
                     }
 
-                    auto consumers = m_weights.get_target_inputs();
-                    if (consumers.size() > 1) {
-                        NGRAPH_DEBUG << "Can't process reshape node " << m_output.get_node()->get_friendly_name()
-                                     << " because reshape weights node" << m_weights.get_node()->get_friendly_name()
-                                     << " has more than one consumer.";
-                        return false;
-                    }
-                    consumers.begin()->replace_source_output(constant);
-                    m_weights = constant->output(0);
+                    //auto consumers = m_weights.get_target_inputs();
+                    //if (consumers.size() > 1) {
+                    //    NGRAPH_DEBUG << "Can't process reshape node " << m_output.get_node()->get_friendly_name()
+                    //                 << " because reshape weights node" << m_weights.get_node()->get_friendly_name()
+                    //                 << " has more than one consumer.";
+                    //    return false;
+                    //}
+                    //consumers.begin()->replace_source_output(constant);
+                    //m_weights = constant->output(0);
             }
 
             // Check reshape operation reshape only dimension without masks

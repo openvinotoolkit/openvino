@@ -101,6 +101,7 @@ TEST(TransformationTests, PruneIRTest) {
 
     m.register_pass<ngraph::pass::VisualizeTree>(std::string(VISUALIZE_TREE_ROOT) + "PruneIRTest_with_masks.svg", modifier);
     m.register_pass<pass::ShrinkWeights>();
+    m.register_pass<ngraph::pass::VisualizeTree>(std::string(VISUALIZE_TREE_ROOT) + "PruneIRTest_with_masks_after_shrink.svg", modifier);
 
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneIRTest.svg").run_on_function(function);
@@ -2026,6 +2027,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUpWithShapeOf) {
                                                           Strides(2, 1));
 
         auto shape_of_conv = std::make_shared<opset5::ShapeOf>(conv);
+
         auto reshape = std::make_shared<opset5::Reshape>(conv, shape_of_conv, true);
 
         auto conv_1_shape = Shape{6, 6, 1, 1};
@@ -2062,6 +2064,103 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUpWithShapeOf) {
     }
     disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+
+TEST_F(TransformationTestsF, MaskPropagationReshapeUpShapeSubGraph) {
+    auto inputShapes = PartialShape{1, 6, 8, 8};
+    auto weightsShape = Shape{6, 6, 1, 1};
+
+    auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
+    auto weights = create_constant_with_zeros(weightsShape, {{1, 2, 3}, {}, {}, {}});
+    auto conv = std::make_shared<opset5::Convolution>(input, weights, Strides(2, 1),
+                                                      CoordinateDiff(2, 0),
+                                                      CoordinateDiff(2, 0),
+                                                      Strides(2, 1));
+
+    auto shape_of_conv = std::make_shared<opset5::ShapeOf>(conv);
+    const auto axis = opset6::Constant::create(ov::element::i8, {}, {0});
+    auto dims_to_keep_vec = std::vector<int64_t>{2, 3};
+    const auto dims_to_keep = opset6::Constant::create(element::i64, {dims_to_keep_vec.size()}, dims_to_keep_vec);
+    const auto gather = std::make_shared<opset6::Gather>(shape_of_conv, dims_to_keep, axis);
+    auto dims_to_keep_vec_1 = std::vector<int64_t>{0};
+    const auto dims_to_keep_1 = opset6::Constant::create(element::i64, {dims_to_keep_vec_1.size()}, dims_to_keep_vec_1);
+    const auto gather_1 = std::make_shared<opset6::Gather>(shape_of_conv, dims_to_keep_1, axis);
+    const auto concat = std::make_shared<opset6::Concat>(NodeVector{gather_1, opset6::Constant::create(element::i64, {1}, {6}), gather}, 0);
+
+    auto reshape = std::make_shared<opset5::Reshape>(conv, concat, true);
+
+    auto conv_1_shape = Shape{6, 6, 1, 1};
+    auto conv_1_weights = create_constant_with_zeros(conv_1_shape, {{1, 2, 3}, {}, {}, {}});
+    auto conv_1 = std::make_shared<opset5::Convolution>(reshape, conv_1_weights, Strides(2, 1),
+                                                        CoordinateDiff(2, 0),
+                                                        CoordinateDiff(2, 0),
+                                                        Strides(2, 1));
+
+    function = std::make_shared<ngraph::Function>(OutputVector{conv_1}, ParameterVector{input});
+    {
+        auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
+        auto weights = create_constant_with_zeros({
+                                                     weightsShape[0] - 3,
+                                                     weightsShape[1],
+                                                     weightsShape[2],
+                                                     weightsShape[3],
+                                                    }, {{}, {}, {}, {}});
+        auto conv = std::make_shared<opset5::Convolution>(input, weights, Strides(2, 1),
+                                                          CoordinateDiff(2, 0),
+                                                          CoordinateDiff(2, 0),
+                                                          Strides(2, 1));
+
+        auto shape_of_conv = std::make_shared<opset5::ShapeOf>(conv);
+
+        const auto axis = opset6::Constant::create(ov::element::i8, {}, {0});
+        auto dims_to_keep_vec = std::vector<int64_t>{2, 3};
+        const auto dims_to_keep = opset6::Constant::create(element::i64, {dims_to_keep_vec.size()}, dims_to_keep_vec);
+        const auto gather = std::make_shared<opset6::Gather>(shape_of_conv, dims_to_keep, axis);
+        auto dims_to_keep_vec_1 = std::vector<int64_t>{0};
+        const auto dims_to_keep_1 = opset6::Constant::create(element::i64, {dims_to_keep_vec_1.size()}, dims_to_keep_vec_1);
+        const auto gather_1 = std::make_shared<opset6::Gather>(shape_of_conv, dims_to_keep_1, axis);
+        const auto concat = std::make_shared<opset6::Concat>(NodeVector{gather_1, opset6::Constant::create(element::i64, {1}, {6}), gather}, 0);
+
+        const auto sub_const = opset5::Constant::create(concat->get_element_type(), {4}, {0, 3, 0, 0});
+        const auto sub = std::make_shared<opset5::Subtract>(concat, sub_const);
+
+        auto reshape = std::make_shared<opset5::Reshape>(conv, sub, true);
+
+        auto conv_1_weights = create_constant_with_zeros({
+                                                     conv_1_shape[0],
+                                                     conv_1_shape[1] - 3,
+                                                     conv_1_shape[2],
+                                                     conv_1_shape[3],
+                                                    }, {{}, {}, {}, {}});
+        auto conv_1 = std::make_shared<opset5::Convolution>(reshape, conv_1_weights, Strides(2, 1),
+                                                            CoordinateDiff(2, 0),
+                                                            CoordinateDiff(2, 0),
+                                                            Strides(2, 1));
+
+        function_ref = std::make_shared<ngraph::Function>(OutputVector{conv_1}, ParameterVector{input});
+    }
+
+    if (VISUALIZE_TESTS_TREE)
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReshapeUpShapeSubGraph.svg").run_on_function(function);
+    {
+        pass::Manager m;
+        m.register_pass<pass::InitMasks>();
+        m.register_pass<pass::PropagateMasks>();
+        m.run_passes(function);
+    }
+    compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)),  Mask({{1, 2, 3}, {}, {}, {}}));
+    compare_masks(*getMask(conv->output(0)),  Mask({{}, {1, 2, 3}, {}, {}}));
+
+    compare_masks(*getMask(conv_1_weights.get_node_shared_ptr()->output(0)),  Mask({{}, {1, 2, 3}, {}, {}}));
+    compare_masks(*getMask(conv_1->output(0)),  Mask({{}, {}, {}, {}}));
+    {
+        pass::Manager m;
+        m.register_pass<pass::ShrinkWeights>();
+        m.run_passes(function);
+    }
+    disable_rt_info_check();
+    enable_accuracy_check();
 }
 
 
@@ -3596,7 +3695,7 @@ TEST_P(TransformationTestsReshapedPassThroughF, MaskPropagationReshapedPassThrou
         const auto dims_to_keep = opset6::Constant::create(element::i64, {dims_to_keep_vec.size()}, dims_to_keep_vec);
         const auto gather = std::make_shared<opset6::Gather>(shape_of, dims_to_keep, axis);
         const auto concat = std::make_shared<opset6::Concat>(
-                                NodeVector{opset6::Constant::create(element::i64, {2}, {-1, 1}), gather}, 0);
+                                NodeVector{opset6::Constant::create(element::i64, {1}, {-1}), gather}, 0);
 
         auto rev_flat = std::make_shared<opset5::Reshape>(transpose, concat, true);
 
