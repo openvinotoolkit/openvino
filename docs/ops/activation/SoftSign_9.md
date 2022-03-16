@@ -4,13 +4,13 @@
 
 **Category**: *Activation function*
 
-**Short description**: *SoftSign* performs element-wise activation function on a given input tensor.
+**Short description**: *SoftSign* performs element-wise activation on a given input tensor.
 
 **Detailed description**: 
 
 *SoftSign* operation is introduced in this [article](https://arxiv.org/abs/2010.09458).
 
-A *SoftSign Activation Function* is a neuron activation function based on the mathematical function:
+*SoftSign Activation Function* is a neuron activation function based on the mathematical function:
 
 \f[
 SoftSign(x) = \frac{x}{1+|x|}
@@ -22,7 +22,7 @@ SoftSign(x) = \frac{x}{1+|x|}
 
 **Outputs**:
 
-* **1**: The resulting tensor of the same shape and type as input tensor.
+* **1**: The resulting tensor of the same shape and type as the input tensor.
 
 **Types**:
 
