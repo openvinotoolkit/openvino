@@ -3,6 +3,8 @@
 
 # flake8: noqa
 
-from openvino.pyopenvino.passes import ModelPass, Matcher, MatcherPass, PassBase, WrapType, Serialize
+from openvino.pyopenvino.passes import ModelPass, Matcher, MatcherPass, PassBase, WrapType, Or, AnyInput, Serialize
+from openvino.pyopenvino.passes import consumers_count, has_static_dim, has_static_dims, has_static_shape,\
+                                       has_static_rank, rank_equals, type_matches, type_matches_any
 from openvino.runtime.passes.manager import Manager
 from openvino.runtime.passes.graph_rewrite import GraphRewrite, BackwardGraphRewrite

@@ -8,6 +8,4 @@
 
 namespace py = pybind11;
 
-void regclass_Matcher(py::module m);
-
-void regclass_MatcherPass(py::module m);
+void reg_pass_pattern_ops(py::module m);

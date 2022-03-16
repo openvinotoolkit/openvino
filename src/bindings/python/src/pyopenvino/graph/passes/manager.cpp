@@ -43,7 +43,15 @@ void regclass_Manager(py::module m) {
         if (pass_name == "ConstantFolding") {
             self.register_pass<ov::pass::ConstantFolding>();
         }
-    }, py::arg("pass_name"));
+    }, py::arg("pass_name"),
+       R"(
+       This method is deprecated. Please use m.register_pass(Transformation()) instead.
+
+       Register pass by name from the list of predefined passes.
+
+       :param pass_name : String to set the type of a pass.
+       :type pass_name: str
+    // )");
 
     manager.def("register_pass", [](ov::pass::Manager& self,
                                     const std::string& pass_name,
@@ -56,19 +64,21 @@ void regclass_Manager(py::module m) {
         py::arg("output_files"),
         py::arg("version") = "UNSPECIFIED",
         R"(
+        This method is deprecated. Please use m.register_pass(Serialize(...)) instead.
+
         Set the type of register pass for pass manager.
-        Parameters
-        ----------
-        pass_name : str
-            string to set the type of a pass
-        output_files : Tuple[str, str]
-            tuple which contains paths where .xml and .bin files will be saved
-        version : str
-            sets the version of the IR which will be generated.
-            Supported versions are:
-                            - "UNSPECIFIED" (default) : Use the latest or function version
-                            - "IR_V10" : v10 IR
-                            - "IR_V11" : v11 IR
+
+        :param pass_name: String to set the type of a pass.
+        :type pass_name: str
+        :param output_files: Tuple which contains paths where .xml and .bin files will be saved.
+        :type output_files: Tuple[str, str]
+        :param version: Sets the version of the IR which will be generated.
+                                   Supported versions are:
+                                       - "UNSPECIFIED" (default) : Use the latest or function version
+                                       - "IR_V10" : v10 IR
+                                       - "IR_V11" : v11 IR
+        :type version: str
+
         Examples
         ----------
         1. Default Version
@@ -92,21 +102,23 @@ void regclass_Manager(py::module m) {
         py::arg("bin_path"),
         py::arg("version") = "UNSPECIFIED",
         R"(
+        This method is deprecated. Please use m.register_pass(Serialize(...)) instead.
+
         Set the type of register pass for pass manager.
-        Parameters
-        ----------
-        pass_name : str
-            string to set the type of a pass
-        xml_path : str
-            path where .xml file will be saved
-        bin_path : str
-            path where .bin file will be saved
-        version : str
-            sets the version of the IR which will be generated.
+
+        :param pass_name: String to set the type of a pass.
+        :type pass_name: str
+        :param xml_path: Path where *.xml file will be saved.
+        :type xml_path: str
+        :param bin_path: Path where *.bin file will be saved.
+        :type bin_path: str
+        :param version: Sets the version of the IR which will be generated.
             Supported versions are:
                             - "UNSPECIFIED" (default) : Use the latest or function version
                             - "IR_V10" : v10 IR
                             - "IR_V11" : v11 IR
+        :type version: str
+
         Examples
         ----------
         1. Default Version
