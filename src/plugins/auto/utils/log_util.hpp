@@ -53,6 +53,14 @@ inline bool setLogLevel(std::string logLevel) {
     }
 }
 
+inline void INFO_RUN(const LogTask& task) {
+   HLogger->doRun(MultiDevicePlugin::LogLevel::INFO, task);
+}
+
+inline void DEBUG_RUN(const LogTask& task) {
+   HLogger->doRun(MultiDevicePlugin::LogLevel::DEBUG, task);
+}
+
 } // namespace MultiDevicePlugin
 
 #endif //MULTIDEVICEPLUGIN_HLOG_H
