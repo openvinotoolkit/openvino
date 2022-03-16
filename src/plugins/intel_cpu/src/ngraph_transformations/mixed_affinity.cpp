@@ -53,7 +53,8 @@ std::unordered_map<size_t, ov::intel_cpu::Subgraph> formSubgraphs(const std::sha
         const size_t opt_bs = ov::intel_cpu::get_optimal_bs(node);
         for (const auto& input : node->inputs()) {
             const auto input_node = input.get_source_output().get_node_shared_ptr();
-            if (!ov::is_type<ngraph::opset1::Constant>(input_node) && !optimal_bs_is_equal(input_node, opt_bs))
+            const bool const_on_weights = input.get_index() == 1 && ov::is_type<ngraph::opset1::Constant>(input_node);
+            if (!const_on_weights && !optimal_bs_is_equal(input_node, opt_bs))
                 add_start(input, opt_bs);
         }
 
@@ -61,7 +62,7 @@ std::unordered_map<size_t, ov::intel_cpu::Subgraph> formSubgraphs(const std::sha
             for (const auto& target_input : output.get_target_inputs()) {
                 const auto node = target_input.get_node()->shared_from_this();
 
-                if (!ov::is_type<ngraph::opset1::Constant>(node) && !optimal_bs_is_equal(node, opt_bs))
+                if (!optimal_bs_is_equal(node, opt_bs))
                     add_end(output, opt_bs);
             }
         }
