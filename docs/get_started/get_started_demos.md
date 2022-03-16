@@ -123,6 +123,7 @@ Use the Model Downloader to download the models to a models directory. This guid
 .. tab:: Linux
 
    Don't run downloader with `sudo`. It will further lead to complications
+
    .. code-block:: sh
 
       omz_downloader --name <model_name> --output_dir <models_dir>
