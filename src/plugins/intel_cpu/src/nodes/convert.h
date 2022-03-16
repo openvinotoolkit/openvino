@@ -11,12 +11,13 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNConvertNode : public MKLDNNNode {
+class Convert : public Node {
 public:
-    MKLDNNConvertNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    MKLDNNConvertNode(const Shape &shape, const InferenceEngine::Precision &inPrc, const InferenceEngine::Precision &outPrc,
-                      const std::string &nodeName, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    Convert(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    Convert(const Shape &shape, const InferenceEngine::Precision &inPrc, const InferenceEngine::Precision &outPrc,
+                      const std::string &nodeName, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -29,7 +30,7 @@ public:
 
     // This is the interface extension designed to provide inp and output tensor descriptors without the CNNLayer.
     // In that case the Convert node is instantiated with default CNNLayer and inp/out tensor descriptors are set via this method.
-    // This is useful if the Convert node is added to the graph as an auxiliary operation at the MKLDNNGraph
+    // This is useful if the Convert node is added to the graph as an auxiliary operation at the Graph
     // initialization stage.
     void setDescs(const MemoryDesc& input, const MemoryDesc& output) {
         this->input = input.clone();
@@ -54,5 +55,6 @@ private:
     std::string errorPrefix;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov
