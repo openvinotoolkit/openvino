@@ -37,25 +37,29 @@ std::ostream& operator <<(std::ostream& os, const InputShape& inputShape) {
 }
 
 void SubgraphBaseTest::run() {
+    bool isCurrentTestDisabled = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled();
+
+    LayerTestsUtils::PassRate::Statuses status = isCurrentTestDisabled ?
+        LayerTestsUtils::PassRate::Statuses::SKIPPED :
+        LayerTestsUtils::PassRate::Statuses::CRASHED;
+    summary.setDeviceName(targetDevice);
+    summary.updateOPsStats(function, status);
+
+    if (isCurrentTestDisabled)
+        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+
     // in case of crash jump will be made and work will be continued
     auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
 
     // place to jump in case of a crash
+    int jmpRes = 0;
 #ifdef _WIN32
-    if (setjmp(CommonTestUtils::env) == 0) {
+    jmpRes = setjmp(CommonTestUtils::env);
 #else
-    if (sigsetjmp(CommonTestUtils::env, 1) == 0) {
+    jmpRes = sigsetjmp(CommonTestUtils::env, 1);
 #endif
-        bool isCurrentTestDisabled = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled();
-
-        LayerTestsUtils::PassRate::Statuses status = isCurrentTestDisabled ?
-            LayerTestsUtils::PassRate::Statuses::SKIPPED :
-            LayerTestsUtils::PassRate::Statuses::CRASHED;
-        summary.setDeviceName(targetDevice);
-        summary.updateOPsStats(function, status);
-
-        if (isCurrentTestDisabled)
-            GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+    if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
+        crashHandler->StartTimer();
 
         ASSERT_FALSE(targetStaticShapes.empty() && !function->get_parameters().empty()) << "Target Static Shape is empty!!!";
         std::string errorMessage;
@@ -89,7 +93,10 @@ void SubgraphBaseTest::run() {
         if (status != LayerTestsUtils::PassRate::Statuses::PASSED) {
             GTEST_FATAL_FAILURE_(errorMessage.c_str());
         }
-    } else {
+    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
+        IE_THROW() << "Crash happens";
+    } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
+        summary.updateOPsStats(function, LayerTestsUtils::PassRate::Statuses::HANGED);
         IE_THROW() << "Crash happens";
     }
 }
