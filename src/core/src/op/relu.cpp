@@ -65,7 +65,7 @@ bool ov::op::v0::Relu::has_evaluate() const {
     auto exts = get_evaluate_extensions();
     const auto shared_this = shared_from_this();
     for (const auto ext : exts) {
-        if (ext && !ext->support_evaluate(shared_this).empty())
+        if (ext && ext->support_evaluate(shared_this))
             return true;
     }
     switch (get_input_element_type(0)) {

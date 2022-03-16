@@ -15,6 +15,7 @@
 #include <string>
 #include <tuple>
 #include <typeindex>
+#include <typeinfo>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -181,12 +182,6 @@ protected:
     const std::vector<std::shared_ptr<ov::EvaluateExtension>> get_evaluate_extensions() const;
 
 public:
-    /// \brief Structure defines supported evaluate configurations
-    struct SupportedConfig {
-        std::vector<ov::descriptor::Tensor> inputs;
-        std::vector<ov::descriptor::Tensor> outputs;
-        ov::AnyMap params;
-    };
     /// \brief Verifies that attributes and inputs are consistent and computes output shapes
     /// and element types. Must be implemented by concrete child classes so that it
     /// can be run any number of times.
@@ -208,8 +203,10 @@ public:
     virtual const ov::op::AutoBroadcastSpec& get_autob() const;
 
     /// \brief Allows to get information about supported configuration for evaluate method.
-    /// \returns vector of supported configurations
-    virtual std::vector<SupportedConfig> support_evaluate() const;
+    /// \param input_tensor_types vector of input tensor types, checks supported types if vector is not empty
+    /// \param output_tensor_types vector of output tensor types, checks supported types if vector is not empty
+    virtual bool support_evaluate(const std::vector<std::type_info>& input_tensor_types = {},
+                                  const std::vector<std::type_info>& output_tensor_types = {}) const;
 
     /// \brief Allows to get information about availability of evaluate method for the current
     /// operation

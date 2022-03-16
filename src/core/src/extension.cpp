@@ -15,7 +15,6 @@
 
 ov::Extension::~Extension() = default;
 ov::BaseOpExtension::~BaseOpExtension() = default;
-ov::EvaluateExtension::~EvaluateExtension() = default;
 
 std::vector<ov::Extension::Ptr>& ov::get_extensions_for_type(const ov::DiscreteTypeInfo& type) {
     static std::unordered_map<ov::DiscreteTypeInfo, std::vector<ov::Extension::Ptr>> all_extensions;

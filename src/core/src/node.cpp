@@ -20,6 +20,7 @@
 #include "openvino/core/descriptor/input.hpp"
 #include "openvino/core/evaluate_extension.hpp"
 #include "openvino/pass/constant_folding.hpp"
+#include "openvino/runtime/remote_tensor.hpp"
 #include "shared_node_info.hpp"
 
 using namespace std;
@@ -672,15 +673,21 @@ bool ov::Node::has_evaluate() const {
     const auto exts = get_evaluate_extensions();
     auto this_shared = shared_from_this();
     for (const auto& ext : exts) {
-        if (ext && !ext->support_evaluate(this_shared).empty())
+        if (ext && ext->support_evaluate(this_shared))
             return true;
     }
     return false;
 }
 
-std::vector<ov::Node::SupportedConfig> ov::Node::support_evaluate() const {
-    std::vector<ov::Node::SupportedConfig> configs;
-    return configs;
+bool ov::Node::support_evaluate(const std::vector<std::type_info>& input_tensor_types,
+                                const std::vector<std::type_info>& output_tensor_types) const {
+    const auto exts = get_evaluate_extensions();
+    auto this_shared = shared_from_this();
+    for (const auto& ext : exts) {
+        if (ext && ext->support_evaluate(this_shared, input_tensor_types, output_tensor_types))
+            return true;
+    }
+    return false;
 }
 
 OPENVINO_SUPPRESS_DEPRECATED_START
@@ -753,11 +760,8 @@ inline void update_output_tensors(ov::TensorVector& output_values, const ngraph:
 
 inline bool is_host_tensors(const ov::TensorVector& tensors) {
     for (const auto& tensor : tensors) {
-        try {
-            tensor.data();
-        } catch (const ov::Exception&) {
+        if (tensor.is<ov::RemoteTensor>())
             return false;
-        }
     }
     return true;
 }

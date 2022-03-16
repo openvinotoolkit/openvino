@@ -49,24 +49,21 @@ public:
     const ov::DiscreteTypeInfo& get_type_info() const override {
         return ov::op::v0::Relu::get_type_info_static();
     }
-    std::vector<ov::Node::SupportedConfig> support_evaluate(
-        const std::shared_ptr<const ov::Node>& node) const override {
-        std::vector<ov::Node::SupportedConfig> configs;
-        if (node->get_type_info() == ov::op::v0::Relu::get_type_info_static() &&
-            node->get_input_element_type(0) == ov::element::i64) {
-            ov::Node::SupportedConfig config;
-            config.inputs.emplace_back(
-                ov::descriptor::Tensor{node->get_input_element_type(0), node->get_input_partial_shape(0)});
-            config.inputs.emplace_back(
-                ov::descriptor::Tensor{node->get_input_element_type(0), node->get_output_partial_shape(0)});
-            configs.emplace_back(config);
+    bool support_evaluate(const std::shared_ptr<const ov::Node>& node,
+                          const std::vector<std::type_info>& input_tensor_types = {},
+                          const std::vector<std::type_info>& output_tensor_types = {}) const override {
+        if (node->get_type_info() != ov::op::v0::Relu::get_type_info_static() ||
+            node->get_input_element_type(0) != ov::element::i64) {
+            return false;
         }
-        return configs;
+        CHECK_TENSOR_TYPES(node, input_tensor_types, output_tensor_types, ov::Tensor);
+        return true;
     }
     bool evaluate(const std::shared_ptr<const ov::Node>& node,
                   ov::TensorVector& output_values,
                   const ov::TensorVector& input_values) const override {
-        if (input_values[0].get_element_type() != ov::element::i64)
+        if (input_values[0].get_element_type() != ov::element::i64 || !is_host_tensors(input_values) ||
+            !is_host_tensors(output_values))
             return false;
         auto input_tensor = input_values[0];
         auto output_tensor = output_values[0];
@@ -77,6 +74,31 @@ public:
             output_data[i] = input_data[i] + 1;
         }
         return true;
+    }
+};
+
+class Add1EvaluateRemote : public ov::EvaluateExtension {
+public:
+    const ov::DiscreteTypeInfo& get_type_info() const override {
+        return ov::op::v0::Relu::get_type_info_static();
+    }
+    bool support_evaluate(const std::shared_ptr<const ov::Node>& node,
+                          const std::vector<std::type_info>& input_tensor_types = {},
+                          const std::vector<std::type_info>& output_tensor_types = {}) const override {
+        if (node->get_type_info() != ov::op::v0::Relu::get_type_info_static()) {
+            return false;
+        }
+        CHECK_TENSOR_TYPES(node, input_tensor_types, output_tensor_types, ov::RemoteTensor);
+        return true;
+    }
+    bool evaluate(const std::shared_ptr<const ov::Node>& node,
+                  ov::TensorVector& output_values,
+                  const ov::TensorVector& input_values) const override {
+        if (is_host_tensors(input_values) || is_host_tensors(output_values)) {
+            std::cout << "REMOTE EVALUATE false" << std::endl;
+            return false;
+        }
+        OPENVINO_ASSERT(false, "Evaluate was called for remote tensors!");
     }
 };
 
@@ -93,24 +115,20 @@ public:
     const ov::DiscreteTypeInfo& get_type_info() const override {
         return T::get_type_info_static();
     }
-    std::vector<ov::Node::SupportedConfig> support_evaluate(
-        const std::shared_ptr<const ov::Node>& node) const override {
-        std::vector<ov::Node::SupportedConfig> configs;
-        if (node->get_type_info() == T::get_type_info_static()) {
-            ov::Node::SupportedConfig config;
-            for (size_t i = 0; i < node->get_input_size(); i++)
-                config.inputs.emplace_back(
-                    ov::descriptor::Tensor{node->get_input_element_type(i), node->get_input_partial_shape(i)});
-            for (size_t i = 0; i < node->get_output_size(); i++)
-                config.inputs.emplace_back(
-                    ov::descriptor::Tensor{node->get_output_element_type(i), node->get_output_partial_shape(i)});
-            configs.emplace_back(config);
+    bool support_evaluate(const std::shared_ptr<const ov::Node>& node,
+                          const std::vector<std::type_info>& input_tensor_types = {},
+                          const std::vector<std::type_info>& output_tensor_types = {}) const override {
+        if (node->get_type_info() != T::get_type_info_static()) {
+            return false;
         }
-        return configs;
+        CHECK_TENSOR_TYPES(node, input_tensor_types, output_tensor_types, ov::Tensor);
+        return true;
     }
     bool evaluate(const std::shared_ptr<const ov::Node>& node,
                   ov::TensorVector& output_values,
                   const ov::TensorVector& input_values) const override {
+        if (!is_host_tensors(input_values) || !is_host_tensors(output_values))
+            return false;
         std::cout << "EVALUATE" << std::endl;
         std::shared_ptr<ov::Model> model;
         // Create single operation model
@@ -156,7 +174,7 @@ public:
     }
 };
 
-template <class T>
+template <class T, class Ext = Add1Evaluate>
 class TestReluEvaluate {
 public:
     TestReluEvaluate(const ov::element::Type& el_type,
@@ -165,7 +183,7 @@ public:
                      const std::vector<T>& out_data,
                      bool add_extension = false) {
         if (add_extension)
-            ext = std::make_shared<TestExtension<ov::opset8::Relu, Add1Evaluate>>();
+            ext = std::make_shared<TestExtension<ov::opset8::Relu, Ext>>();
 
         auto parameter = std::make_shared<ov::opset8::Parameter>(el_type, shape);
         std::shared_ptr<ov::Node> relu = std::make_shared<ov::opset8::Relu>(parameter);
@@ -219,6 +237,23 @@ TEST(extension, evaluate_extension_relu_i32) {
 
     {
         TestReluEvaluate<int32_t> test_eval(el_type, shape, orig_data, ref_orig_data, false);
+        EXPECT_TRUE(test_eval.success());
+    }
+}
+
+TEST(extension, evaluate_extension_relu_remote) {
+    std::vector<int64_t> orig_data = {-2, -1, 1, 2};
+    std::vector<int64_t> ref_orig_data = {0, 0, 1, 2};
+    std::vector<int64_t> ref_data = {-1, 0, 2, 3};
+    ov::element::Type el_type = ov::element::i32;
+    ov::Shape shape({1, 1, 2, 2});
+    {
+        TestReluEvaluate<int64_t, Add1EvaluateRemote> test_eval(el_type, shape, orig_data, ref_data, true);
+        EXPECT_FALSE(test_eval.success());
+    }
+
+    {
+        TestReluEvaluate<int64_t, Add1EvaluateRemote> test_eval(el_type, shape, orig_data, ref_orig_data, false);
         EXPECT_TRUE(test_eval.success());
     }
 }
