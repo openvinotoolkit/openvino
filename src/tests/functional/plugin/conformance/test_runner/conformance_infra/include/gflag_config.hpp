@@ -37,6 +37,7 @@ static const char extract_body_message[] = "Optional. Allows to count extracted 
 static const char shape_mode_message[] = "Optional. Allows to run `static`, `dynamic` or both scenarios. Default value is empty string allows to run both"
                                          " scenarios. Possible values are `static`, `dynamic`, ``";
 static const char test_timeout_message[] = "Optional. Setup timeout for each test in seconds, default timeout 900seconds (15 minutes).";
+static const char memory_limit_message[] = "Setup memory usage limit of virtual memory (address space) in KB, memory is unlimited by default. For Limux only.";
 
 
 DEFINE_bool(h, false, help_message);
@@ -53,6 +54,7 @@ DEFINE_bool(report_unique_name, false, report_unique_name_message);
 DEFINE_bool(extract_body, false, extract_body_message);
 DEFINE_string(shape_mode, "", shape_mode_message);
 DEFINE_uint32(test_timeout, UINT_MAX, test_timeout_message);
+DEFINE_uint32(memory_limit, 0, memory_limit_message);
 
 /**
 * @brief This function shows a help message
@@ -76,6 +78,7 @@ static void showUsage() {
     std::cout << "    --plugin_lib_name                " << output_folder_message << std::endl;
     std::cout << "    --shape_mode  \"<value>\"          " << shape_mode_message << std::endl;
     std::cout << "    --test_timeout  \"<value>\"        " << test_timeout_message << std::endl;
+    std::cout << "    --memory_limit  \"<value>\"        " << memory_limit_message << std::endl;
 }
 
 }  // namespace conformance

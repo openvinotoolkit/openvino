@@ -5,11 +5,16 @@
 #include "crash_handler.hpp"
 #include <limits.h>
 
+#ifndef _WIN32
+#include <sys/resource.h>
+#endif
+
 namespace CommonTestUtils {
 
 // enviroment to restore in case of crash
 jmp_buf env;
 unsigned int CrashHandler::MAX_TEST_WORK_TIME = UINT_MAX;
+unsigned long long CrashHandler::MAX_VIRTUAL_MEMORY = 0;
 
 CrashHandler::CrashHandler() {
     // setup default value for timeout in 15 minutes
@@ -84,4 +89,18 @@ void CrashHandler::SetUpTimeout(unsigned int timeout) {
     MAX_TEST_WORK_TIME = timeout;
 }
 
+void CrashHandler::SetUpVMLimit(unsigned long long memory_limit) {
+    MAX_VIRTUAL_MEMORY = long(1024)*memory_limit;
+
+    if (memory_limit == 0) {
+        return;
+    }
+
+#ifndef _WIN32
+    struct rlimit memlimit;
+    memlimit.rlim_cur = MAX_VIRTUAL_MEMORY;
+    memlimit.rlim_max = MAX_VIRTUAL_MEMORY;
+    setrlimit(RLIMIT_AS, &memlimit);
+#endif
+}
 }  // namespace CommonTestUtils

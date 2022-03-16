@@ -108,6 +108,7 @@ void ReadIRTest::SetUp() {
         crashHandler->StartTimer();
         std::tie(pathToModel, targetDevice, configuration) = this->GetParam();
         function = core->read_model(pathToModel);
+
         const auto metaFile = CommonTestUtils::replaceExt(pathToModel, "meta");
         if (CommonTestUtils::fileExists(metaFile)) {
             pugi::xml_document doc;

@@ -24,12 +24,12 @@
 
 namespace CommonTestUtils {
 
-inline size_t getVmSizeInKB() {
+inline std::vector<size_t> getVmSizeInKB() {
 #ifdef _WIN32
     PROCESS_MEMORY_COUNTERS pmc;
         pmc.cb = sizeof(PROCESS_MEMORY_COUNTERS);
         GetProcessMemoryInfo(GetCurrentProcess(), &pmc, pmc.cb);
-        return pmc.WorkingSetSize;
+        return {pmc.WorkingSetSize, 0, 0};
 #else
     auto parseLine = [](char *line) {
         // This assumes that a digit will be found and the line ends in " Kb".
@@ -42,19 +42,27 @@ inline size_t getVmSizeInKB() {
     };
 
     FILE *file = fopen("/proc/self/status", "r");
-    size_t result = 0;
+    size_t vmSize = 0;
+    size_t rssSize = 0;
+    size_t rssMaxSize = 0;
     if (file != nullptr) {
         char line[128];
 
         while (fgets(line, 128, file) != NULL) {
             if (strncmp(line, "VmSize:", 7) == 0) {
-                result = parseLine(line);
+                vmSize = parseLine(line);
+            }
+            if (strncmp(line, "VmHWM:", 6) == 0) {
+                rssMaxSize = parseLine(line);
+            }
+            if (strncmp(line, "VmRSS:", 6) == 0) {
+                rssSize = parseLine(line);
                 break;
             }
         }
         fclose(file);
     }
-    return result;
+    return {vmSize, rssSize, rssMaxSize};
 #endif
 }
 
@@ -64,9 +72,18 @@ TestsCommon::~TestsCommon() {
 
 TestsCommon::TestsCommon() {
     auto memsize = getVmSizeInKB();
-    if (memsize != 0) {
-        std::cout << "\nMEM_USAGE=" << memsize << "KB\n";
+    std::cout << "\n";
+    if (memsize.at(0) != 0) {
+        std::cout << "VM MEM_USAGE=" << memsize[0] << "KB\n";
     }
+    if (memsize.at(1) != 0) {
+        std::cout << "Rss MEM_USAGE=" << memsize[1] << "KB\n";
+    }
+    if (memsize.at(2) != 0) {
+        std::cout << "Rss Max MEM_USAGE=" << memsize[2] << "KB\n";
+    }
+    std::cout << "\n";
+
     InferenceEngine::executorManager()->clear();
 }
 

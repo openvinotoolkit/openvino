@@ -95,5 +95,9 @@ int main(int argc, char* argv[]) {
     signal(SIGINT, exernalSignalHandler);
     signal(SIGTERM , exernalSignalHandler);
 
+    if (FLAGS_memory_limit > 0) {
+        CommonTestUtils::CrashHandler::SetUpVMLimit(FLAGS_memory_limit);
+    }
+
     return RUN_ALL_TESTS();
 }
