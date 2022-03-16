@@ -74,7 +74,7 @@ def test_statistics_collector_subsets(tmp_path, models, model_name, model_framew
                 name = node_name
             local_out[algo_name][name] = {}
             for stats_name, stats_val in node_val.items():
-                local_out[algo_name][node_name][stats_name] = [np.array(v).tolist() for v in stats_val]
+                local_out[algo_name][name][stats_name] = [np.array(v).tolist() for v in stats_val]
     json.dump(local_out, local_file)
     for algo_name, algo_val in out.items():
         for node_name, node_val in algo_val.items():
