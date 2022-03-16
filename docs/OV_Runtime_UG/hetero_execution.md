@@ -49,7 +49,7 @@ It assumes setting affinities explicitly for all operations in the model using `
 
 
 
-### The Automatic Mode
+#### The Automatic Mode
 It decides automatically which operation is assigned to which device according to the support from dedicated devices (`GPU`, `CPU`, `MYRIAD`, etc.) and query model step is called implicitly by Hetero device during model compilation.
 
 The automatic mode causes "greedy" behavior and assigns all operations that can be executed on a given device to it, according to the priorities you specify (for example, `ov::device::priorities("GPU,CPU")`).
