@@ -113,7 +113,7 @@ If you want different devices in Hetero execution to have different device-speci
 
 @endsphinxdirective
 
-In the example above, the `CPU` device is configured to enable profiling data. `GPU` has the configuration property to perform inference in `f16` precision, while CPU has the default execution precision.
+In the example above, the `GPU` device is configured to enable profiling data and uses the default execution precision, while `CPU` has the configuration property to perform inference in `fp32`.
 
 ### Handling of Difficult Topologies
 
