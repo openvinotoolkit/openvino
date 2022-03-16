@@ -1,5 +1,15 @@
 ## Optimizing for the Latency {#openvino_docs_deployment_optimization_guide_latency}
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+    
+   openvino_docs_IE_DG_Model_caching_overview
+
+@endsphinxdirective
+
 ## Latency Specifics
 A significant fraction of applications focused on the situations where typically a single model is loaded (and single input is used) at a time.
 This is a regular "consumer" use case and a default (also for the legacy reasons) performance setup for any OpenVINO device.
