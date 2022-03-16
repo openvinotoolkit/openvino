@@ -1,4 +1,4 @@
-# Low-Precision 8-bit Integer Inference
+# Low-Precision 8-bit Integer Inference {#openvino_docs_IE_DG_Int8Inference}
 
 ## Disclaimer
 

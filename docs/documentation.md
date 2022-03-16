@@ -34,7 +34,7 @@
    openvino_docs_deployment_optimization_guide_latency
    openvino_docs_IE_DG_Model_caching_overview
    openvino_docs_deployment_optimization_guide_tput
-   openvino_docs_deployment_optimization_guide_hints   
+   openvino_docs_deployment_optimization_guide_hints
    openvino_docs_tuning_utilities
    openvino_docs_performance_benchmarks
 

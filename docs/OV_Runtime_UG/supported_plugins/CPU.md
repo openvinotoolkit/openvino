@@ -1,5 +1,15 @@
 # CPU device {#openvino_docs_OV_UG_supported_plugins_CPU}
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   openvino_docs_IE_DG_Bfloat16Inference
+
+@endsphinxdirective
+
 ## Introducing the CPU Plugin
 The CPU plugin was developed to achieve high performance of neural networks on CPU, using the Intel® Math Kernel Library for Deep Neural Networks (Intel® MKL-DNN).
 

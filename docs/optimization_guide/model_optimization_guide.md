@@ -8,6 +8,7 @@
    
    pot_README
    docs_nncf_introduction
+   openvino_docs_IE_DG_Int8Inference
 
 @endsphinxdirective
 
@@ -32,4 +33,3 @@ POT is the easiest way to get optimized models, and usually takes several minute
 
 ## See also
 - [Deployment optimization](./dldt_deployment_optimization_guide.md)
-- [int8 runtime specifics](../OV_Runtime_UG/Int8Inference.md)
