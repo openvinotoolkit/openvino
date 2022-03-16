@@ -1,24 +1,24 @@
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #include <common/blocked_desc_creator.h>
 #include <cpu_types.h>
+#include <edge.h>
 #include <gtest/gtest.h>
 #include <ie_common.h>
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include <memory_desc/dnnl_memory_desc.h>
+#include <node.h>
+#include <nodes/reorder.h>
 
 #include <common/memory_desc_wrapper.hpp>
 #include <dnnl.hpp>
 #include <typeinfo>
 #include <utility>
 
-#include <nodes/reorder.h>
-#include "nodes/input.h"
-#include <edge.h>
-#include <node.h>
+#include "../../../ie_test_utils/common_test_utils/common_utils.hpp"
 #include "cache/multi_cache.h"
+#include "nodes/input.h"
 
 using namespace InferenceEngine;
 using namespace ov::intel_cpu;
@@ -29,109 +29,101 @@ using namespace ov::intel_cpu;
  * test checks that dst batch strides are correctly taken into account by the custom impls (the case when the reorder is
  * followed by an inplace concat).
  */
-template <typename T>
 struct ReorderCustomImplTestParamSet {
     // logical dimension of input
     std::vector<size_t> srcDims;
     bool isNspc2Ncsp;
     uint32_t strideFactor;
+    InferenceEngine::Precision prec;
+    size_t stridedIndice;
 };
 
-using f32_f32 = std::pair<float, float>;
-using s8_s8 = std::pair<int8_t, int8_t>;
+void check_reorder(const MKLDNNMemory& inputMemory,
+                   const MKLDNNMemory& outputMemory,
+                   const InferenceEngine::Precision& prescision) {
+    auto src_data = inputMemory.GetData();
+    auto dst_data = outputMemory.GetData();
+    auto mdInput = inputMemory.GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
+    auto mdOutput = outputMemory.GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
 
-using ReorderCustomizedStrideParamF32 = ReorderCustomImplTestParamSet<f32_f32>;
-using ReorderCustomizedStrideParamS8 = ReorderCustomImplTestParamSet<s8_s8>;
-
-template <typename T>
-struct mapped_ptr_t {
-    using nonconst_type = typename std::remove_cv<T>::type;
-
-    mapped_ptr_t(std::nullptr_t) : mem_(nullptr), ptr_(nullptr) {}
-    mapped_ptr_t(const dnnl::memory* mem) : mem_(mem) {
-        ptr_ = mem->map_data<nonconst_type>();
-    }
-    mapped_ptr_t(mapped_ptr_t&& other) {
-        std::swap(mem_, other.mem_);
-        std::swap(ptr_, other.ptr_);
-    }
-
-    mapped_ptr_t(const mapped_ptr_t&) = delete;
-    mapped_ptr_t& operator=(const mapped_ptr_t&) = delete;
-
-    ~mapped_ptr_t() {
-        if (mem_ && ptr_)
-            mem_->unmap_data(ptr_);
-    }
-
-    operator T*() {
-        return ptr_;
-    }
-    operator const T*() const {
-        return ptr_;
-    }
-    operator bool() const {
-        return ptr_ != nullptr;
-    }
-
-private:
-    const dnnl::memory* mem_{nullptr};
-    nonconst_type* ptr_{nullptr};
-};
-
-template <typename T>
-mapped_ptr_t<T> map_memory(const dnnl::memory& mem) {
-    return mapped_ptr_t<T>(&mem);
-}
-
-template <typename data_i_t, typename data_o_t>
-inline void check_reorder(const dnnl::memory::desc& md_i,
-                          const dnnl::memory::desc& md_o,
-                          dnnl::memory& src,
-                          dnnl::memory& dst) {
-    auto src_data = map_memory<data_i_t>(src);
-    auto dst_data = map_memory<data_o_t>(dst);
-
-    const dnnl::impl::memory_desc_wrapper mdw_i(md_i.data);
-    const dnnl::impl::memory_desc_wrapper mdw_o(md_o.data);
+    const dnnl::impl::memory_desc_wrapper mdw_i(mdInput.data);
+    const dnnl::impl::memory_desc_wrapper mdw_o(mdOutput.data);
     auto nelems = mdw_i.nelems();
+
     for (size_t i = 0; i < nelems; ++i) {
         auto src_offset = mdw_i.off_l(i, false);
-        data_i_t s_raw = src_data[src_offset];
-        data_o_t s = static_cast<data_o_t>(s_raw);
         auto dst_offset = mdw_o.off_l(i, false);
-        data_o_t d = dst_data[dst_offset];
-        ASSERT_EQ(s, d) << "mismatch at position " << i;
+        switch (prescision) {
+        case InferenceEngine::Precision::FP32: {
+            auto s = *(static_cast<float*>(src_data) + src_offset);
+            auto d = *(static_cast<float*>(dst_data) + dst_offset);
+            ASSERT_EQ(s, d) << "mismatch at position " << i;
+            break;
+        }
+        case InferenceEngine::Precision::I8: {
+            auto s = *(static_cast<int8_t*>(src_data) + src_offset);
+            auto d = *(static_cast<int8_t*>(dst_data) + dst_offset);
+            ASSERT_EQ(s, d) << "mismatch at position " << i;
+            break;
+        }
+        default:
+            FAIL();
+        }
     }
 }
 
-template <typename T>
-std::string typeInfo(void) {
-    if (std::is_same<T, float>::value)
-        return "float";
-    if (std::is_same<T, int8_t>::value)
-        return "int8";
-    return "Unsupported type";
+std::string precisionInfo(const InferenceEngine::Precision& prescision) {
+    if (prescision == Precision::FP32)
+        return "Precision::FP32";
+    if (prescision == Precision::I8)
+        return "Precision::I8";
+    return "Unsupported precision type";
 }
-template <typename T>
-class ReorderCustomizedStrideTest : public ::testing::Test,
-                                    public ::testing::WithParamInterface<ReorderCustomImplTestParamSet<T>> {
-    using inputType = typename T::first_type;
-    using outputType = typename T::second_type;
-    using ReorderType = ReorderCustomImplTestParamSet<T>;
 
+std::string layoutInfo(const LayoutType& layout) {
+    if (layout == LayoutType::nspc)
+        return "nspc";
+    if (layout == LayoutType::ncsp)
+        return "ncsp";
+    if (layout == LayoutType::nCsp8c)
+        return "nCsp8c";
+    if (layout == LayoutType::nCsp16c)
+        return "nCsp16c";
+    return "Unsupported layout type";
+}
+
+void fillData(const MKLDNNMemory& inputMemory, const InferenceEngine::Precision& prec) {
+    ov::intel_cpu::DnnlMemoryDescPtr dnnlMdInput = inputMemory.GetDescWithType<DnnlMemoryDesc>();
+    const dnnl::impl::memory_desc_wrapper mdInput{dnnlMdInput->getDnnlDesc().data};
+    auto elemNum = mdInput.nelems();
+    auto inputReorderData = inputMemory.GetData();
+    switch (prec) {
+    case InferenceEngine::Precision::FP32:
+        for (size_t i = 0; i < elemNum; ++i)
+            *(static_cast<float*>(inputReorderData) + mdInput.off_l(i, false)) = float{i};
+        break;
+    case InferenceEngine::Precision::I8:
+        for (size_t i = 0; i < elemNum; ++i)
+            *(static_cast<int8_t*>(inputReorderData) + mdInput.off_l(i, false)) = int8_t{i};
+        break;
+    default:
+        FAIL();
+    }
+}
+
+class ReorderCustomizedStrideTest : public ::testing::Test,
+                                    public ::testing::WithParamInterface<ReorderCustomImplTestParamSet> {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<ReorderType>& obj) {
-        ReorderType p = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<ReorderCustomImplTestParamSet>& obj) {
+        ReorderCustomImplTestParamSet p = obj.param;
         std::ostringstream result;
         result << "IS:(";
-        for (const auto s : p.srcDims)
-            result << s << ".";
-        result.seekp(-1, result.cur);
-        result << ")";
-        result << "_IsNspcToNcsp:" << p.isNspc2Ncsp;
-        result << "_InputDataType:" << typeInfo<inputType>();
-        result << "_OutputDataType:" << typeInfo<outputType>();
+        result << CommonTestUtils::vec2str(p.srcDims);
+        result << (p.isNspc2Ncsp ? "_NSPC2NCSP" : "_NCSP2NSPC");
+        result << "_InputDataType:" << precisionInfo(p.prec);
+        result << "_OutputDataType:" << precisionInfo(p.prec);
+        result << "_StrideFactor:" << p.strideFactor;
+        result << "_StridedLogicChannelIndice:" << p.stridedIndice;
         result << ")";
         return result.str();
     }
@@ -139,12 +131,12 @@ public:
     void Run() {
         buildReorderGraph();
         infer();
-        validate<inputType, outputType>();
+        validate();
     }
 
 protected:
     void SetUp() override {
-        ReorderCustomImplTestParamSet<T> p = ::testing::TestWithParam<decltype(p)>::GetParam();
+        ReorderCustomImplTestParamSet p = ::testing::TestWithParam<ReorderCustomImplTestParamSet>::GetParam();
         srcDims = p.srcDims;
 
         if (p.isNspc2Ncsp) {
@@ -159,12 +151,12 @@ protected:
             srcOrder = std::vector<size_t>{0, 1, 2, 3};
             dstOrder = std::vector<size_t>{0, 2, 3, 1};
             // The custom NSPC2NCSP  impl is used only for U8
-            prec = InferenceEngine::Precision::U8;
+            prec = InferenceEngine::Precision::I8;
         }
         dstDims = srcDims;
-        // Create channel-strided dst layout for the inPlace case
-        // Other dstDims could also be supported, but fillData() and resultIsCorrect() should be updated accordingly.
-        dstDims[1] *= p.strideFactor;
+        // Create strided dst layout for the inPlace case,
+        // For example: If need C indice stride changes, need to set the H indice.
+        dstDims[p.stridedIndice + 1] *= p.strideFactor;
     }
 
     void buildReorderGraph() {
@@ -187,18 +179,18 @@ protected:
         ov::intel_cpu::MKLDNNWeightsSharing::Ptr weightsCache;
 
         inputNode = std::make_shared<ov::intel_cpu::MKLDNNInputNode>(ov::intel_cpu::Shape(srcDims),
-                                                                    prec,
-                                                                    "Reorder_Input",
-                                                                    "Input",
-                                                                    cpuEngine,
-                                                                    weightsCache);
+                                                                     prec,
+                                                                     "Reorder_Input",
+                                                                     "Input",
+                                                                     cpuEngine,
+                                                                     weightsCache);
         reorderNode = std::make_shared<ov::intel_cpu::MKLDNNReorderNode>("Reorder", cpuEngine, weightsCache);
         auto outputNode = std::make_shared<ov::intel_cpu::MKLDNNInputNode>(ov::intel_cpu::Shape(dstDims),
-                                                                          prec,
-                                                                          "Reorder_Output",
-                                                                          "Output",
-                                                                          cpuEngine,
-                                                                          weightsCache);
+                                                                           prec,
+                                                                           "Reorder_Output",
+                                                                           "Output",
+                                                                           cpuEngine,
+                                                                           weightsCache);
 
         parentEdge = std::make_shared<ov::intel_cpu::MKLDNNEdge>(inputNode, reorderNode, 0, 0);
         childEdge = std::make_shared<ov::intel_cpu::MKLDNNEdge>(reorderNode, outputNode, 0, 0);
@@ -216,16 +208,21 @@ protected:
         const std::vector<size_t> dstBlockedDims = getBlockedDims(dstDims, dstOrder);
         const std::vector<size_t> dstStrides = getStrides(dstBlockedDims);
 
-        const ov::intel_cpu::CpuBlockedMemoryDesc
-            inputDesc(prec, ov::intel_cpu::Shape(srcDims), srcBlockedDims, srcOrder, 0, offsetPaddingToData, srcStrides);
-
-        const ov::intel_cpu::CpuBlockedMemoryDesc outputDesc(prec,
+        const ov::intel_cpu::CpuBlockedMemoryDesc inputDesc(prec,
                                                             ov::intel_cpu::Shape(srcDims),
-                                                            getBlockedDims(srcDims, dstOrder),
-                                                            dstOrder,
+                                                            srcBlockedDims,
+                                                            srcOrder,
                                                             0,
                                                             offsetPaddingToData,
-                                                            dstStrides);
+                                                            srcStrides);
+
+        const ov::intel_cpu::CpuBlockedMemoryDesc outputDesc(prec,
+                                                             ov::intel_cpu::Shape(srcDims),
+                                                             getBlockedDims(srcDims, dstOrder),
+                                                             dstOrder,
+                                                             0,
+                                                             offsetPaddingToData,
+                                                             dstStrides);
 
         auto parentMemory = std::make_shared<ov::intel_cpu::MKLDNNMemory>(cpuEngine);
         auto childMemory = std::make_shared<ov::intel_cpu::MKLDNNMemory>(cpuEngine);
@@ -243,46 +240,26 @@ protected:
             n->getSupportedDescriptors();
             n->initSupportedPrimitiveDescriptors();
         }
-        //Select inputDesc as primitive descriptor for reorder node
+        // Select inputDesc as primitive descriptor for reorder node
         reorderNode->selectPrimitiveDescriptorByIndex(0);
     }
 
     void infer() {
-        fillData();
+        generateInput();
         reorderNode->createPrimitive();
         mkldnn::stream strm(cpuEngine);
         reorderNode->execute(strm);
     }
 
-    template <typename inputType, typename outputType>
     void validate(void) {
-        auto reorderInput = parentEdge->getMemory().GetPrimitive();
-        auto reorderOutput = childEdge->getMemory().GetPrimitive();
-        auto dnnlMdInput = parentEdge->getMemory().GetDescWithType<DnnlMemoryDesc>();
-        auto dnnlMdOutput = childEdge->getMemory().GetDescWithType<DnnlMemoryDesc>();
-        auto mdInput = dnnlMdInput->getDnnlDesc();
-        auto mdOutput = dnnlMdOutput->getDnnlDesc();
-        check_reorder<inputType, outputType>(mdInput, mdOutput, reorderInput, reorderOutput);
+        check_reorder(parentEdge->getMemory(), childEdge->getMemory(), prec);
     }
+
     // Fill srcData so that the results of NSPC2NCSP and NCSP2NSPC reorders are incremental numbers 0,1,2,...
     // Fill dstData with zeros
-
-    void fillData() {
-        const auto& inputMemory = parentEdge->getMemory().GetPrimitive();
-        auto inputReorderData = map_memory<inputType>(inputMemory);
-        ov::intel_cpu::DnnlMemoryDescPtr dnnlMdInput = parentEdge->getMemory().GetDescWithType<DnnlMemoryDesc>();
-        const dnnl::impl::memory_desc_wrapper mdInput{dnnlMdInput->getDnnlDesc().data};
-        auto elemNum = mdInput.nelems();
-        for (size_t i = 0; i < elemNum; ++i)
-            inputReorderData[mdInput.off_l(i, false)] = inputType(i);
-
-        const auto& outputReorder = childEdge->getMemory().GetPrimitive();
-        auto outputReorderData = map_memory<outputType>(outputReorder);
-        ov::intel_cpu::DnnlMemoryDescPtr dnnlMdOutput = childEdge->getMemory().GetDescWithType<DnnlMemoryDesc>();
-        const dnnl::impl::memory_desc_wrapper mdOutput{dnnlMdOutput->getDnnlDesc().data};
-        elemNum = mdOutput.nelems();
-        for (size_t i = 0; i < elemNum; ++i)
-            outputReorderData[mdOutput.off_l(i, false)] = outputType(0);
+    void generateInput() {
+        fillData(parentEdge->getMemory(), prec);
+        memset(childEdge->getMemory().GetData(), 0, childEdge->getMemory().GetSize());
     }
 
     size_t getNumElems(const std::vector<size_t>& dims) {
@@ -293,7 +270,6 @@ protected:
     }
 
     mkldnn::engine cpuEngine;
-
     std::vector<size_t> srcDims;
     std::vector<size_t> srcOrder;
     std::vector<size_t> dstDims;
@@ -307,61 +283,26 @@ protected:
     std::shared_ptr<ov::intel_cpu::MKLDNNEdge> childEdge;
 };
 
-using ReorderCustomizedStrideTestF32 = ReorderCustomizedStrideTest<f32_f32>;
-
-using ReorderCustomizedStrideTestS8 = ReorderCustomizedStrideTest<s8_s8>;
-
-TEST_P(ReorderCustomizedStrideTestF32, NSPC2NCSP) {
+TEST_P(ReorderCustomizedStrideTest, OutputIsStrided) {
     Run();
 }
 
-TEST_P(ReorderCustomizedStrideTestS8, NCSP2NSPC) {
-    Run();
-}
+const auto stridedParameter =
+    ::testing::Values(ReorderCustomImplTestParamSet{{2, 16, 8, 8}, true, 2, InferenceEngine::Precision::FP32, 0},
+                      ReorderCustomImplTestParamSet{{2, 16, 8, 8}, true, 4, InferenceEngine::Precision::FP32, 1},
+                      ReorderCustomImplTestParamSet{{2, 16, 8, 8}, true, 3, InferenceEngine::Precision::FP32, 1},
+                      ReorderCustomImplTestParamSet{{2, 16, 8, 8}, true, 1, InferenceEngine::Precision::FP32, 2},
+                      ReorderCustomImplTestParamSet{{2, 8, 4, 4}, false, 2, InferenceEngine::Precision::I8, 0},
+                      ReorderCustomImplTestParamSet{{2, 8, 4, 4}, false, 5, InferenceEngine::Precision::I8, 1},
+                      ReorderCustomImplTestParamSet{{2, 8, 4, 4}, false, 1, InferenceEngine::Precision::I8, 2});
 
-// NSPC to NCSP with from
-const auto NSPC2NCSPparamsFactorIs2 = ::testing::Values(ReorderCustomizedStrideParamF32{{2, 16, 8, 8}, true, 2});
-const auto NSPC2NCSPparamsFactorIs3 = ::testing::Values(ReorderCustomizedStrideParamF32{{2, 16, 8, 8}, true, 3});
-const auto NSPC2NCSPparamsFactorIs1 = ::testing::Values(ReorderCustomizedStrideParamF32{{2, 16, 8, 8}, true, 1});
-
-const auto NCSP2NSPCparamsFactorIs2 = ::testing::Values(ReorderCustomizedStrideParamS8{{2, 8, 4, 4}, false, 2});
-const auto NCSP2NSPCparamsFactorIs5 = ::testing::Values(ReorderCustomizedStrideParamS8{{2, 8, 4, 4}, false, 5});
-const auto NCSP2NSPCparamsFactorIs1 = ::testing::Values(ReorderCustomizedStrideParamS8{{2, 8, 4, 4}, false, 1});
-
-INSTANTIATE_TEST_SUITE_P(smoke_ReorderTestCustomNSPC2NCSPtrideWithFactor_2,
-                         ReorderCustomizedStrideTestF32,
-                         NSPC2NCSPparamsFactorIs2,
-                         ReorderCustomizedStrideTestF32::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_ReorderTestCustomNSPC2NCSPStrideWithFactor_3,
-                         ReorderCustomizedStrideTestF32,
-                         NSPC2NCSPparamsFactorIs3,
-                         ReorderCustomizedStrideTestF32::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_ReorderTestCustomNSPC2NCSPtrideWithFactor_1,
-                         ReorderCustomizedStrideTestF32,
-                         NSPC2NCSPparamsFactorIs1,
-                         ReorderCustomizedStrideTestF32::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_ReorderTestCustomNCSP2NSPCFactor_2,
-                         ReorderCustomizedStrideTestS8,
-                         NCSP2NSPCparamsFactorIs2,
-                         ReorderCustomizedStrideTestS8::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_ReorderTestCustomNCSP2NSPCFactor_5,
-                         ReorderCustomizedStrideTestS8,
-                         NCSP2NSPCparamsFactorIs5,
-                         ReorderCustomizedStrideTestS8::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_ReorderTestCustomNCSP2NSPCFactor_1,
-                         ReorderCustomizedStrideTestS8,
-                         NCSP2NSPCparamsFactorIs1,
-                         ReorderCustomizedStrideTestS8::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ReorderTestCustomStrideWithFactor,
+                         ReorderCustomizedStrideTest,
+                         stridedParameter,
+                         ReorderCustomizedStrideTest::getTestCaseName);
 /*
  * ReorderCPUTest to test the CPU plugin-in dynamism and RT cache
  */
-
-template <typename T>
 struct ReorderCPUTestParamSet {
     ngraph::PartialShape inputPartialShape;
     // logical dimension vector  of input
@@ -371,31 +312,20 @@ struct ReorderCPUTestParamSet {
     InferenceEngine::Precision prec;
 };
 
-using ReorderCPUTestParamSetF32 = ReorderCPUTestParamSet<f32_f32>;
-using ReorderCPUTestParamSetS8 = ReorderCPUTestParamSet<s8_s8>;
-
-template <typename T>
-class ReorderCPUTest : public ::testing::Test, public ::testing::WithParamInterface<ReorderCPUTestParamSet<T>> {
+class ReorderCPUTest : public ::testing::Test, public ::testing::WithParamInterface<ReorderCPUTestParamSet> {
 public:
-    using inputType = typename T::first_type;
-    using outputType = typename T::second_type;
-    static std::string getTestCaseName(const testing::TestParamInfo<ReorderCPUTestParamSet<T>>& obj) {
-        ReorderCPUTestParamSet<T> p = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<ReorderCPUTestParamSet>& obj) {
+        ReorderCPUTestParamSet p = obj.param;
         std::ostringstream result;
         result << "IS:(";
-        result << "InputPartialShape:" << p.inputPartialShape;
-        result << "Shapes:" << p.inputPartialShape;
+        result << "InputPartialShape:" << CommonTestUtils::partialShape2str({p.inputPartialShape});
         for (const auto inputShape : p.inputShapes) {
-            result << "[";
-            for (const auto s : inputShape)
-                result << s << ".";
-            result << "],";
+            result << CommonTestUtils::vec2str(inputShape);
         }
-        result << "_InputLayoutType:" << static_cast<int>(p.srcLayout) << ".";
-        result << "_OutputLayoutType:" << static_cast<int>(p.dstLayout) << ".";
-        result << "_InputDataType:" << typeInfo<inputType>();
-        result << "_OutputDataType:" << typeInfo<outputType>();
+        result << "_InputLayoutType:" << layoutInfo(p.srcLayout) << ".";
+        result << "_OutputLayoutType:" << layoutInfo(p.dstLayout) << ".";
+        result << "_InputDataType:" << precisionInfo(p.prec);
+        result << "_OutputDataType:" << precisionInfo(p.prec);
         result << ")";
         return result.str();
     }
@@ -410,35 +340,17 @@ public:
 
 protected:
     void generate_inputs(const std::vector<size_t> inputShape) {
-        DnnlMemoryDescPtr dnnlMdInput = parentEdge->getMemory().GetDescWithType<DnnlMemoryDesc>();
-
         auto memDesc = inputDesc.cloneWithNewDims(inputShape);
         parentEdge->getMemoryPtr()->redefineDesc(memDesc);
-
-        const auto& inputReorder = parentEdge->getMemory().GetPrimitive();
-        auto inputReorderData = map_memory<inputType>(inputReorder);
-
-        dnnlMdInput = parentEdge->getMemory().GetDescWithType<DnnlMemoryDesc>();
-        const dnnl::impl::memory_desc_wrapper mdInput{dnnlMdInput->getDnnlDesc().data};
-        auto elemNum = mdInput.nelems();
-
-        for (size_t i = 0; i < elemNum; ++i) {
-            inputReorderData[mdInput.off_l(i, false)] = inputType(i);
-        }
+        fillData(parentEdge->getMemory(), prec);
     }
     void infer() {
         reorderNode->executeDynamic(stream);
     }
-    void validate() {
-        auto reorderInput = parentEdge->getMemory().GetPrimitive();
-        auto reorderOutput = childEdge->getMemory().GetPrimitive();
-        auto dnnlMdInput = parentEdge->getMemory().GetDescWithType<DnnlMemoryDesc>();
-        auto dnnlMdOutput = childEdge->getMemory().GetDescWithType<DnnlMemoryDesc>();
-        auto mdInput = dnnlMdInput->getDnnlDesc();
-        auto mdOutput = dnnlMdOutput->getDnnlDesc();
-
-        check_reorder<inputType, outputType>(mdInput, mdOutput, reorderInput, reorderOutput);
+    void validate(void) {
+        check_reorder(parentEdge->getMemory(), childEdge->getMemory(), prec);
     }
+
     struct buildReorderParams {
         ov::intel_cpu::Shape srcDims;
         ov::intel_cpu::Shape dstDims;
@@ -448,7 +360,7 @@ protected:
     };
 
     void SetUp() override {
-        ReorderCPUTestParamSet<T> reorderTestParam = this->GetParam();
+        ReorderCPUTestParamSet reorderTestParam = this->GetParam();
         buildReorderParams reorderParams;
         reorderParams.srcLayout = reorderTestParam.srcLayout;
         reorderParams.dstLayout = reorderTestParam.dstLayout;
@@ -456,6 +368,7 @@ protected:
         reorderParams.srcDims = ov::intel_cpu::Shape(reorderTestParam.inputPartialShape);
         reorderParams.dstDims = reorderParams.srcDims;
         inputShapes = reorderTestParam.inputShapes;
+        prec = reorderTestParam.prec;
 
         auto rtParamsCache = std::make_shared<ov::intel_cpu::MultiCache>(100);
         buildReorderNode(reorderParams);
@@ -471,18 +384,18 @@ protected:
         ov::intel_cpu::MKLDNNWeightsSharing::Ptr weightsCache;
 
         auto inputNode = std::make_shared<ov::intel_cpu::MKLDNNInputNode>(reorderParams.srcDims,
-                                                                    reorderParams.prec,
-                                                                    "Reorder_Input",
-                                                                    "Parameter",
-                                                                    cpuEngine,
-                                                                    weightsCache);
-        reorderNode = std::make_shared<ov::intel_cpu::MKLDNNReorderNode>("Reorder", cpuEngine, weightsCache);
-        auto outputNode = std::make_shared<ov::intel_cpu::MKLDNNInputNode>(reorderParams.dstDims,
                                                                           reorderParams.prec,
-                                                                          "Reorder_Output",
-                                                                          "Output",
+                                                                          "Reorder_Input",
+                                                                          "Parameter",
                                                                           cpuEngine,
                                                                           weightsCache);
+        reorderNode = std::make_shared<ov::intel_cpu::MKLDNNReorderNode>("Reorder", cpuEngine, weightsCache);
+        auto outputNode = std::make_shared<ov::intel_cpu::MKLDNNInputNode>(reorderParams.dstDims,
+                                                                           reorderParams.prec,
+                                                                           "Reorder_Output",
+                                                                           "Output",
+                                                                           cpuEngine,
+                                                                           weightsCache);
 
         parentEdge = std::make_shared<ov::intel_cpu::MKLDNNEdge>(inputNode, reorderNode, 0, 0);
         childEdge = std::make_shared<ov::intel_cpu::MKLDNNEdge>(reorderNode, outputNode, 0, 0);
@@ -492,7 +405,8 @@ protected:
         reorderNode->addEdge(childEdge);
         inputDesc = srcBlockedDescCreator->createDesc(reorderParams.prec, reorderParams.srcDims);
 
-        const ov::intel_cpu::CpuBlockedMemoryDesc outputDesc = dstBlockedDescCreator->createDesc(reorderParams.prec, reorderParams.dstDims);
+        const ov::intel_cpu::CpuBlockedMemoryDesc outputDesc =
+            dstBlockedDescCreator->createDesc(reorderParams.prec, reorderParams.dstDims);
 
         auto parentMemory = std::make_shared<ov::intel_cpu::MKLDNNMemory>(cpuEngine);
         auto childMemory = std::make_shared<ov::intel_cpu::MKLDNNMemory>(cpuEngine);
@@ -509,7 +423,7 @@ protected:
             n->getSupportedDescriptors();
             n->initSupportedPrimitiveDescriptors();
         }
-        //Select inputDesc as primitive descriptor for reorder node
+        // Select inputDesc as primitive descriptor for reorder node
         reorderNode->selectPrimitiveDescriptorByIndex(0);
         stream = {cpuEngine};
     }
@@ -521,63 +435,36 @@ private:
     std::shared_ptr<ov::intel_cpu::MKLDNNEdge> childEdge;
     ov::intel_cpu::CpuBlockedMemoryDesc inputDesc{InferenceEngine::Precision::FP32, ov::intel_cpu::Shape{}};
     std::vector<std::vector<size_t>> inputShapes;
+    InferenceEngine::Precision prec;
 };
 
-using ReorderCPUTestF32 = ReorderCPUTest<f32_f32>;
-using ReorderCPUTestS8 = ReorderCPUTest<s8_s8>;
-
-TEST_P(ReorderCPUTestF32, CompareResult) {
+TEST_P(ReorderCPUTest, CompareResult) {
     Run();
 }
 
-TEST_P(ReorderCPUTestS8, CompareResult) {
-    Run();
-}
+const auto reorderCpuTestDynamismParams =
+    ::testing::Values(ReorderCPUTestParamSet{{2, 16, 8, -1},
+                                             {{2, 16, 8, 8}, {2, 16, 8, 16}, {2, 16, 8, 8}},
+                                             LayoutType::nspc,
+                                             LayoutType::ncsp,
+                                             InferenceEngine::Precision::FP32},
+                      ReorderCPUTestParamSet{{-1, -1, -1, -1},
+                                             {{2, 8, 4, 4}, {2, 8, 8, 4}, {2, 8, 4, 4}},
+                                             LayoutType::ncsp,
+                                             LayoutType::nspc,
+                                             InferenceEngine::Precision::FP32},
+                      ReorderCPUTestParamSet{{2, 32, -1, 4},
+                                             {{2, 32, 3, 4}, {2, 32, 6, 4}, {2, 32, 3, 4}},
+                                             LayoutType::ncsp,
+                                             LayoutType::nCsp8c,
+                                             InferenceEngine::Precision::FP32},
+                      ReorderCPUTestParamSet{{-1, 32, -1, -1},
+                                             {{2, 32, 3, 4}, {2, 32, 6, 4}, {2, 32, 3, 4}},
+                                             LayoutType::nCsp16c,
+                                             LayoutType::nspc,
+                                             InferenceEngine::Precision::I8});
 
-const auto reorderCpuTestParams_1 =
-    ::testing::Values(ReorderCPUTestParamSetF32{{2, 16, 8, -1},
-                                                {{2, 16, 8, 8}, {2, 16, 8, 16}, {2, 16, 8, 8}},
-                                                LayoutType::nspc,
-                                                LayoutType::ncsp,
-                                                InferenceEngine::Precision::FP32});
-
-const auto reorderCpuTestParams_2 =
-    ::testing::Values(ReorderCPUTestParamSetF32{{-1, -1, -1, -1},
-                                                {{2, 8, 4, 4}, {2, 8, 8, 4}, {2, 8, 4, 4}},
-                                                LayoutType::ncsp,
-                                                LayoutType::nspc,
-                                                InferenceEngine::Precision::FP32});
-
-const auto reorderCpuTestParams_3 =
-    ::testing::Values(ReorderCPUTestParamSetF32{{2, 32, -1, 4},
-                                                {{2, 32, 3, 4}, {2, 32, 6, 4}, {2, 32, 3, 4}},
-                                                LayoutType::ncsp,
-                                                LayoutType::nCsp8c,
-                                                InferenceEngine::Precision::FP32});
-
-const auto reorderCpuTestParams_4 =
-    ::testing::Values(ReorderCPUTestParamSetS8{{-1, 32, -1, -1},
-                                                {{2, 32, 3, 4}, {2, 32, 6, 4}, {2, 32, 3, 4}},
-                                                LayoutType::nCsp16c,
-                                                LayoutType::nspc,
-                                                InferenceEngine::Precision::U8});
-
-
-INSTANTIATE_TEST_SUITE_P(smoke_ReorderTest_1,
-                         ReorderCPUTestF32,
-                         reorderCpuTestParams_1,
-                         ReorderCPUTestF32::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_ReorderTest_2,
-                         ReorderCPUTestF32,
-                         reorderCpuTestParams_2,
-                         ReorderCPUTestF32::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_ReorderTest_3,
-                         ReorderCPUTestF32,
-                         reorderCpuTestParams_3,
-                         ReorderCPUTestF32::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_ReorderTest_4,
-                         ReorderCPUTestS8,
-                         reorderCpuTestParams_4,
-                         ReorderCPUTestS8::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ReorderTestDynamism,
+                         ReorderCPUTest,
+                         reorderCpuTestDynamismParams,
+                         ReorderCPUTest::getTestCaseName);
