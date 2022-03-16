@@ -81,13 +81,17 @@ div.highlight {
 /* Transition banner */
 .transition-banner {
     top: 60px;
-    background: #B4F0FF;
+    background: #76CEFF;
     position: fixed;
     text-align: center;
     color: white;
-    z-index: 10000;
+    z-index: 1;
     display: block;
-    padding:0;
+    padding:0 2rem;
+    font-size: var(--pst-sidebar-font-size);
+    border: none;
+    border-radius: 0;
+    font-weight: bold;
 }
 
 .transition-banner > p {
