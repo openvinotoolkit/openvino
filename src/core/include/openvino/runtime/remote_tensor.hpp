@@ -9,7 +9,7 @@
  */
 #pragma once
 
-#include "openvino/runtime/common.hpp"
+#include "openvino/core/core_visibility.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace ov {
@@ -19,7 +19,7 @@ class RemoteContext;
 /**
  * @brief Remote memory access and interpretation API.
  */
-class OPENVINO_RUNTIME_API RemoteTensor : public Tensor {
+class OPENVINO_API RemoteTensor : public Tensor {
     using Tensor::Tensor;
     friend class ov::RemoteContext;
 

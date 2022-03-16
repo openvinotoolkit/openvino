@@ -13,7 +13,7 @@ namespace ov {
 void RemoteTensor::type_check(const Tensor& tensor, const std::map<std::string, std::vector<std::string>>& type_info) {
     OPENVINO_ASSERT(tensor, "Could not check empty tensor type");
     auto remote_tensor = static_cast<const RemoteTensor*>(&tensor);
-    auto remote_impl = dynamic_cast<ie::RemoteBlob*>(remote_tensor->_impl.get());
+    auto remote_impl = dynamic_cast<InferenceEngine::RemoteBlob*>(remote_tensor->_impl.get());
     OPENVINO_ASSERT(remote_impl != nullptr, "Tensor was not initialized using remote implementation");
     if (!type_info.empty()) {
         auto params = remote_impl->getParams();
@@ -36,7 +36,7 @@ void RemoteTensor::type_check(const Tensor& tensor, const std::map<std::string, 
 AnyMap RemoteTensor::get_params() const {
     OPENVINO_ASSERT(_impl != nullptr, "Remote tensor was not initialized.");
     type_check(*this);
-    auto remote_impl = static_cast<ie::RemoteBlob*>(_impl.get());
+    auto remote_impl = static_cast<InferenceEngine::RemoteBlob*>(_impl.get());
     try {
         AnyMap paramMap;
         for (auto&& param : remote_impl->getParams()) {
@@ -52,7 +52,7 @@ AnyMap RemoteTensor::get_params() const {
 
 std::string RemoteTensor::get_device_name() const {
     OPENVINO_ASSERT(_impl != nullptr, "Remote tensor was not initialized.");
-    auto remote_impl = static_cast<ie::RemoteBlob*>(_impl.get());
+    auto remote_impl = static_cast<InferenceEngine::RemoteBlob*>(_impl.get());
     type_check(*this);
     try {
         return remote_impl->getDeviceName();
