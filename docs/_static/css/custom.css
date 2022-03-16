@@ -78,11 +78,21 @@ div.highlight {
     color: #fff;
 }
 
+/* Transition banner */
 .transition-banner {
     top: 60px;
     position: fixed;
     text-align: center;
     color: white;
     z-index: 10000;
-    display: none;
+    display: block;
+    padding:0;
+}
+
+.transition-banner > p {
+    margin-bottom: 0;
+}
+
+.transition-banner .close {
+    padding: 0 1.25rem;
 }
