@@ -1,8 +1,6 @@
 # Install Intel® Distribution of OpenVINO™ Toolkit from PyPI Repository {#openvino_docs_install_guides_installing_openvino_pip}
 
-You can install both OpenVINO™ Runtime and OpenVINO Development Tools through the PyPI repository. This page will provide the main steps on installing OpenVINO Runtime.
-
-If you want to install OpenVINO Development Tools, OpenVINO Runtime will also be installed as a dependency, so you don't need to install OpenVINO Runtime separately. See [Install OpenVINO™ Development Tools](installing-model-dev-tools.md) for detailed steps.
+You can install both OpenVINO™ Runtime and OpenVINO Development Tools through the PyPI repository. This page provides the main steps for installing OpenVINO Runtime.
 
 ## Installing OpenVINO Runtime
 
@@ -14,12 +12,23 @@ To avoid dependency conflicts, use a virtual environment. Skip this step only if
 
 Use the following command to create a virtual environment:
 
-```sh
-python -m pip install --user virtualenv 
-python -m venv openvino_env
-```
+@sphinxdirective
 
-> **NOTE**: On Linux and macOS, you may need to type `python3` instead of `python`. You may also need to [install PIP](https://pip.pypa.io/en/stable/installing/). For example, on Ubuntu, you can use this command to install PIP: `sudo apt install python3-venv python3-pip`.
+.. tab:: On Linux and macOS
+
+   .. code-block:: sh
+   
+      # Depending on your operating system, this step may require installing python3-venv
+      python3 -m venv openvino_env
+   
+.. tab:: On Windows
+
+   .. code-block:: sh
+   
+      python -m venv openvino_env
+     
+     
+@endsphinxdirective
 
 ### Step 2. Activate Virtual Environment
 
@@ -62,6 +71,12 @@ python -c "from openvino.runtime import Core"
 ```
 
 If installation was successful, you will not see any error messages (no console output).
+
+## Installing OpenVINO Development Tools
+
+OpenVINO Development Tools include Model Optimizer, Benchmark Tool, Accuracy Checker, Post-Training Optimization Tool and Open Model Zoo tools including Model Downloader. If you want to install OpenVINO Development Tools, OpenVINO Runtime will also be installed as a dependency, so you don't need to install OpenVINO Runtime separately.
+
+See [Install OpenVINO™ Development Tools](installing-model-dev-tools.md) for detailed steps.
 
 
 ## What's Next?
