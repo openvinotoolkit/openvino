@@ -413,7 +413,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
 
     DEBUG_LOG(PrintableModel(*nGraphFunc, "org_"));
 
-    Transformations transformations(nGraphFunc, enableLPT, enableBF16, isLegacyAPI(), snippetsMode, engConfig);
+    Transformations transformations(nGraphFunc, enableLPT, enableBF16, isLegacyAPI(), enableDynamicBatch, snippetsMode, engConfig);
     transformations.UpToCpuSpecificOpSet();
 
     // need to check that all outputs have static shapes
@@ -680,7 +680,13 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
 
     auto supported = GetSupportedNodes(model,
                                        [&](std::shared_ptr<ov::Model>& model) {
-                                           Transformations transformation(model, enableLPT, conf.enforceBF16, isLegacyAPI(), snippetsMode, engConfig);
+                                           Transformations transformation(model,
+                                                                          enableLPT,
+                                                                          conf.enforceBF16,
+                                                                          isLegacyAPI(),
+                                                                          conf.enableDynamicBatch,
+                                                                          snippetsMode,
+                                                                          engConfig);
                                            transformation.UpToCpuSpecificOpSet();
                                            transformation.CpuSpecificOpSet();
                                        },

@@ -27,12 +27,14 @@ public:
                     const bool                        enableLpt,
                     const bool                        enableBF16,
                     const bool                        isLegacyApi,
+                    const bool                        enableDynamicBatch,
                     Config::SnippetsMode&             snippetsMode,
                     const Config&                     config)
         : model(initialModel),
           enableLpt(enableLpt),
           enableBF16(enableBF16),
           isLegacyApi(isLegacyApi),
+          enableDynamicBatch(enableDynamicBatch),
           snippetsMode(snippetsMode),
           config(config) {
             CPU_DEBUG_CAPS_MAYBE_UNUSED(this->config);
@@ -46,6 +48,7 @@ private:
     const bool    enableLpt;
     const bool    enableBF16;
     const bool    isLegacyApi;
+    const bool    enableDynamicBatch;
     const Config::SnippetsMode snippetsMode;
     const Config& config;
 
