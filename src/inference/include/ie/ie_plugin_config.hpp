@@ -268,6 +268,7 @@ DECLARE_CONFIG_VALUE(MODEL_PRIORITY_LOW);
 DECLARE_CONFIG_KEY(PERFORMANCE_HINT);
 DECLARE_CONFIG_VALUE(LATENCY);
 DECLARE_CONFIG_VALUE(THROUGHPUT);
+DECLARE_CONFIG_VALUE(CUMULATIVE_THROUGHPUT);
 /**
  * @brief (Optional) config key that backs the (above) Performance Hints
  * by giving additional information on how many inference requests the application will be keeping in flight
