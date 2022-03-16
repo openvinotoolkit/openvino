@@ -33,6 +33,7 @@ class TransformationTestsF : public  CommonTestUtils::TestsCommon {
 public:
     TransformationTestsF() : comparator(FunctionsComparator::no_default()) {
         m_unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+        comparator.enable(FunctionsComparator::CmpValues::NODES);
         comparator.enable(FunctionsComparator::CmpValues::PRECISIONS);
         comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
         // TODO: enable attributes and constant values comparison by default XXX-68694
@@ -57,14 +58,15 @@ public:
             ASSERT_NO_THROW(check_rt_info(function));
         }
 
+        if (comparator.should_compare(FunctionsComparator::ACCURACY)) {
+            auto acc_comparator = FunctionsComparator::no_default();
+            acc_comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+            auto res = acc_comparator.compare(function, cloned_function);
+            ASSERT_TRUE(res.valid) << res.message;
+            comparator.disable(FunctionsComparator::CmpValues::ACCURACY);
+        }
         auto res = comparator.compare(function, function_ref);
         ASSERT_TRUE(res.valid) << res.message;
-
-        if (m_enable_accuracy_check) {
-            comparator.enable(FunctionsComparator::ACCURACY);
-            auto res2 = comparator.compare(function, cloned_function);
-            ASSERT_TRUE(res2.valid) << res2.message;
-        }
     }
 
     // TODO: this is temporary solution to disable rt info checks that must be applied by default
@@ -77,12 +79,6 @@ public:
         m_soft_names_comparison = true;
     }
 
-    void enable_accuracy_check() {
-        m_enable_accuracy_check = true;
-    }
-
-    void accuracy_check(const std::shared_ptr<ov::Model>& ref_function, const std::shared_ptr<ov::Model>& cur_function);
-
     std::shared_ptr<ov::Model> function, function_ref;
     ngraph::pass::Manager manager;
     FunctionsComparator comparator;
@@ -91,7 +87,6 @@ private:
     std::shared_ptr<ngraph::pass::UniqueNamesHolder> m_unh;
     bool m_disable_rt_info_check{false};
     bool m_soft_names_comparison{true};
-    bool m_enable_accuracy_check{false};
 };
 
 void init_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ngraph::pass::UniqueNamesHolder>& unh);

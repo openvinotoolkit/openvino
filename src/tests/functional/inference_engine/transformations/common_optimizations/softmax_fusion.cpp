@@ -55,7 +55,8 @@ TEST_P(SoftmaxFusionFixture, SoftmaxFusion) {
         f_ref = std::make_shared<Function>(NodeVector{softmax}, ParameterVector{data});
     }
 
-    auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
+    auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::NODES)
+            .enable(FunctionsComparator::PRECISIONS);
     auto res = fc.compare(f, f_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
@@ -113,7 +114,8 @@ TEST_P(NegativeSoftmaxFusionFixture, NegativeSoftmaxFusion) {
         f_ref = std::make_shared<Function>(NodeVector{div}, ParameterVector{data});
     }
 
-    auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
+    auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::NODES)
+            .enable(FunctionsComparator::PRECISIONS);
     auto res = fc.compare(f, f_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }

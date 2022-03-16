@@ -246,7 +246,7 @@ TEST_F(TransformationTestsF, PropagateMasksBasic) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -311,7 +311,7 @@ TEST_F(TransformationTestsF, PropagateMasksDynamicConvolution) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -491,7 +491,7 @@ TEST_F(TransformationTestsF, PropagateMaskPassThrough) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -643,7 +643,7 @@ TEST_F(TransformationTestsF, PropagateMasksHardDependencies) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -761,7 +761,7 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolution) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -899,7 +899,7 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolutionWithShapeOf)
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -915,12 +915,18 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerTensor) {
     auto convert = std::make_shared<opset5::Convert>(weights_1, element::f32);
     convert->set_friendly_name("convert");
 
-    auto sub_const = create_constant_with_zeros(Shape{8, 1, 1, 1}, {{0, 1, 2, 3, 4}, {}, {}, {}});
+    auto sub_const = create_constant_with_zeros(Shape{8, 1, 1, 1}, {{0, 1, 2, 3, 4},
+                                                                    {},
+                                                                    {},
+                                                                    {}});
 
     auto sub = std::make_shared<opset5::Subtract>(convert, sub_const);
     sub->set_friendly_name("sub");
 
-    auto mul_const = create_constant_with_zeros(Shape{8, 1, 1, 1}, {{0, 1, 2, 3, 4}, {}, {}, {}});
+    auto mul_const = create_constant_with_zeros(Shape{8, 1, 1, 1}, {{0, 1, 2, 3, 4},
+                                                                    {},
+                                                                    {},
+                                                                    {}});
     auto mul = std::make_shared<opset5::Multiply>(sub, mul_const);
     mul->set_friendly_name("mul");
 
@@ -928,7 +934,10 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerTensor) {
                                                        CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
     conv1->set_friendly_name("conv1");
 
-    auto add_const = create_constant_with_zeros(Shape{1, 8, 1, 1}, {{}, {0, 1, 2, 3, 4}, {}, {}});;
+    auto add_const = create_constant_with_zeros(Shape{1, 8, 1, 1}, {{},
+                                                                    {0, 1, 2, 3, 4},
+                                                                    {},
+                                                                    {}});;
     auto add = std::make_shared<opset5::Add>(conv1, add_const);
     add->set_friendly_name("add");
 
@@ -945,25 +954,34 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerTensor) {
     {
         auto input = std::make_shared<opset5::Parameter>(element::f32, input_shape);
         auto weights_1 = opset5::Constant::create(element::i8, {
-                                                                    weights_shape[0] - 5,
-                                                                    weights_shape[1],
-                                                                    weights_shape[2],
-                                                                    weights_shape[3],
-                                                                }, {0});
+                weights_shape[0] - 5,
+                weights_shape[1],
+                weights_shape[2],
+                weights_shape[3],
+        }, {0});
 
         auto convert = std::make_shared<opset5::Convert>(weights_1, element::f32);
 
-        auto sub_const = create_constant_with_zeros(Shape{3, 1, 1, 1}, {{}, {}, {}, {}});
+        auto sub_const = create_constant_with_zeros(Shape{3, 1, 1, 1}, {{},
+                                                                        {},
+                                                                        {},
+                                                                        {}});
 
         auto sub = std::make_shared<opset5::Subtract>(convert, sub_const);
 
-        auto mul_const = create_constant_with_zeros(Shape{3, 1, 1, 1}, {{}, {}, {}, {}});
+        auto mul_const = create_constant_with_zeros(Shape{3, 1, 1, 1}, {{},
+                                                                        {},
+                                                                        {},
+                                                                        {}});
         auto mul = std::make_shared<opset5::Multiply>(sub, mul_const);
 
         auto conv1 = std::make_shared<opset5::Convolution>(input, mul, Strides(2, 1),
                                                            CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
 
-        auto add_const = create_constant_with_zeros(Shape{1, 3, 1, 1}, {{}, {}, {}, {}});;
+        auto add_const = create_constant_with_zeros(Shape{1, 3, 1, 1}, {{},
+                                                                        {},
+                                                                        {},
+                                                                        {}});;
         auto add = std::make_shared<opset5::Add>(conv1, add_const);
 
         auto input_low = opset5::Constant::create(element::f32, Shape{1}, {0});
@@ -973,17 +991,18 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerTensor) {
         auto fq = std::make_shared<opset5::FakeQuantize>(add, input_low, input_high, output_low, output_high, 8);
 
         auto weights_2 = opset5::Constant::create(element::f32, {
-                                                                    weight_shape2[0],
-                                                                    weight_shape2[1] - 5,
-                                                                    weight_shape2[2],
-                                                                    weight_shape2[3],
-                                                                }, {0});
+                weight_shape2[0],
+                weight_shape2[1] - 5,
+                weight_shape2[2],
+                weight_shape2[3],
+        }, {0});
         auto conv2 = std::make_shared<opset5::Convolution>(fq, weights_2, Strides(2, 1),
                                                            CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
-        function_ref  = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
+        function_ref = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
-        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksFakeQuantizePerTensor.svg").run_on_function(function);
+        ngraph::pass::VisualizeTree(
+                std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksFakeQuantizePerTensor.svg").run_on_function(function);
 
     {
         pass::Manager m;
@@ -993,31 +1012,65 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerTensor) {
         m.register_pass<pass::InitMasks>();
         m.register_pass<pass::PropagateMasks>();
         m.run_passes(function);
-    }    pass::Manager m;
+    }
+    pass::Manager m;
 
-    compare_masks(*getMask(weights_1->output(0)), Mask({{0 , 1, 2, 3, 4}, {}, {}, {}}));
-    compare_masks(*getMask(sub_const.get_node_shared_ptr()->output(0)),  Mask({{0 , 1, 2, 3, 4}, {}, {}, {}}));
-    compare_masks(*getMask(sub->output(0)),  Mask({{0 , 1, 2, 3, 4}, {}, {}, {}}));
+    compare_masks(*getMask(weights_1->output(0)), Mask({{0, 1, 2, 3, 4},
+                                                        {},
+                                                        {},
+                                                        {}}));
+    compare_masks(*getMask(sub_const.get_node_shared_ptr()->output(0)), Mask({{0, 1, 2, 3, 4},
+                                                                              {},
+                                                                              {},
+                                                                              {}}));
+    compare_masks(*getMask(sub->output(0)), Mask({{0, 1, 2, 3, 4},
+                                                  {},
+                                                  {},
+                                                  {}}));
 
-    compare_masks(*getMask(mul_const.get_node_shared_ptr()->output(0)),  Mask({{0 , 1, 2, 3, 4}, {}, {}, {}}));
-    compare_masks(*getMask(mul->output(0)),  Mask({{0 , 1, 2, 3, 4}, {}, {}, {}}));
+    compare_masks(*getMask(mul_const.get_node_shared_ptr()->output(0)), Mask({{0, 1, 2, 3, 4},
+                                                                              {},
+                                                                              {},
+                                                                              {}}));
+    compare_masks(*getMask(mul->output(0)), Mask({{0, 1, 2, 3, 4},
+                                                  {},
+                                                  {},
+                                                  {}}));
 
-    compare_masks(*getMask(conv1->output(0)),  Mask({{}, {0 , 1, 2, 3, 4}, {}, {}}));
+    compare_masks(*getMask(conv1->output(0)), Mask({{},
+                                                    {0, 1, 2, 3, 4},
+                                                    {},
+                                                    {}}));
 
-    compare_masks(*getMask(add_const.get_node_shared_ptr()->output(0)),  Mask({{}, {0 , 1, 2, 3, 4}, {}, {}}));
-    compare_masks(*getMask(add->output(0)),  Mask({{}, {0 , 1, 2, 3, 4},  {}, {}}));
+    compare_masks(*getMask(add_const.get_node_shared_ptr()->output(0)), Mask({{},
+                                                                              {0, 1, 2, 3, 4},
+                                                                              {},
+                                                                              {}}));
+    compare_masks(*getMask(add->output(0)), Mask({{},
+                                                  {0, 1, 2, 3, 4},
+                                                  {},
+                                                  {}}));
 
-    compare_masks(*getMask(fq->output(0)),  Mask({{}, {0 , 1, 2, 3, 4}, {}, {}}));
+    compare_masks(*getMask(fq->output(0)), Mask({{},
+                                                 {0, 1, 2, 3, 4},
+                                                 {},
+                                                 {}}));
 
-    compare_masks(*getMask(weights_2->output(0)),  Mask({{}, {0 , 1, 2, 3, 4}, {}, {}}));
-    compare_masks(*getMask(conv2->output(0)),  Mask({{}, {}, {}, {}}));
+    compare_masks(*getMask(weights_2->output(0)), Mask({{},
+                                                        {0, 1, 2, 3, 4},
+                                                        {},
+                                                        {}}));
+    compare_masks(*getMask(conv2->output(0)), Mask({{},
+                                                    {},
+                                                    {},
+                                                    {}}));
     {
         pass::Manager m;
         m.register_pass<pass::ShrinkWeights>();
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -1202,7 +1255,7 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerChannel) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -1299,7 +1352,7 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagation) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -1406,7 +1459,7 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagationUp) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -1554,7 +1607,7 @@ TEST_F(TransformationTestsF, PruneConvIsClosingAndInGroup) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -1814,7 +1867,7 @@ TEST_F(TransformationTestsF, PruneReduceLayerDown) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -1975,7 +2028,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUp) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -2050,7 +2103,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUpWithShapeOf) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -2149,7 +2202,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeDown) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -2403,7 +2456,7 @@ TEST_F(TransformationTestsF, PruneSEBlock) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -2495,7 +2548,7 @@ TEST_F(TransformationTestsF, PropagateMasksLinear) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -2679,7 +2732,7 @@ TEST_F(TransformationTestsF, PruneMasksMatMulColsStopRowsUp) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -2760,7 +2813,7 @@ TEST_F(TransformationTestsF, PruneMasksMatMulRowsStopColsUp) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -2855,5 +2908,5 @@ TEST_F(TransformationTestsF, PropagateFlattenUp) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
