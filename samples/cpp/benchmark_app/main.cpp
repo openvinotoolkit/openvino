@@ -60,7 +60,7 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
                                "should explicitely set -hint option to none. This is not OpenVINO limitation "
                                "(those options can be used in OpenVINO together), but a benchmark_app UI rule.");
     }
-    if (FLAGS_hint.empty() && FLAGS_hint != "throughput" && FLAGS_hint != "tput" && FLAGS_hint != "latency" &&
+    if (!FLAGS_hint.empty() && FLAGS_hint != "throughput" && FLAGS_hint != "tput" && FLAGS_hint != "latency" &&
         FLAGS_hint != "none") {
         throw std::logic_error("Incorrect performance hint. Please set -hint option to"
                                "`throughput`(tput), `latency' value or 'none'.");
