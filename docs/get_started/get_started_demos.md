@@ -103,9 +103,9 @@ This guide uses the OpenVINO™ Model Downloader to get pre-trained models. You 
    info_dumper --print_all | grep <model_name>
 ```
 
-* Use the Model Downloader to download the models to a models directory. This guide uses `<models_dir>` and `<models_name>` as placeholders for the models directory and model name:
+* Use Model Downloader to download models.
 
-
+ This guide uses `<models_dir>` and `<models_name>` as placeholders for the models directory and model name:
 
 ``` sh
    omz_downloader --name <model_name> --output_dir <models_dir>
