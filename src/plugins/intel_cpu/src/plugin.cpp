@@ -198,7 +198,7 @@ public:
     }
 
     void cpuSpecificOpSet(void) {
-        CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(Specific);
+        CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(this, Specific);
 
         ConvertToCPUSpecificOpset(nGraphFunc);
     }
@@ -209,7 +209,7 @@ private:
     CPU_DEBUG_CAP_ENABLE(const Config& config);
 
     void upToCpuSpecificOpSet_common(const bool useLpt, const bool isLegacyApi) {
-        CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(Common);
+        CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(this, Common);
 
         std::vector<ov::element::Type> defaultPrecisions;
         bool hasINT16orINT32Levels = false;
@@ -475,7 +475,7 @@ private:
     }
 
     void upToCpuSpecificOpSet_lpt(const bool hasINT16orINT32Levels, const std::vector<ov::element::Type>& defaultPrecisions) {
-        CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(Lpt);
+        CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(this, Lpt);
 
         using namespace ngraph::pass::low_precision;
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "LowPrecisionTransformations");
@@ -566,7 +566,7 @@ private:
 
     void upToCpuSpecificOpSet_snippets(void) {
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
-            CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(Snippets);
+            CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(this, Snippets);
 
             ngraph::pass::Manager tokenization_manager;
             tokenization_manager.register_pass<SnippetsMarkSkipped>();

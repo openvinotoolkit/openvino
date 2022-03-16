@@ -75,13 +75,13 @@ private:
 }   // namespace intel_cpu
 }   // namespace ov
 
-#  define CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(_type)                                            \
-    if (config.disable.transformations.filter[Config::TransformationFilter::Type::_type])               \
-        return;                                                                                         \
-    auto dumperPtr = config.dumpIR.transformations.filter[Config::TransformationFilter::Type::_type] ?  \
-        std::unique_ptr<TransformationDumper>(new TransformationDumper(config,                          \
-                                              Config::TransformationFilter::Type::_type, nGraphFunc)) : \
+#  define CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(_this, _type)                                            \
+    if (_this->config.disable.transformations.filter[Config::TransformationFilter::Type::_type])               \
+        return;                                                                                                \
+    auto dumperPtr = _this->config.dumpIR.transformations.filter[Config::TransformationFilter::Type::_type] ?  \
+        std::unique_ptr<TransformationDumper>(new TransformationDumper(_this->config,                          \
+                                              Config::TransformationFilter::Type::_type, _this->nGraphFunc)) : \
         nullptr
 #else
-#  define CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(_type)
+#  define CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(_this, _type)
 #endif // CPU_DEBUG_CAPS

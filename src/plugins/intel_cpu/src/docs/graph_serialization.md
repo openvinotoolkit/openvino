@@ -18,8 +18,7 @@ Serialize graph into .dot file. Can be inspected using, for example, *graphviz* 
 
 ## Graph transformations
 
-Additionally, execution graph could be serialized at specified stages during creation\
-using environment variable **OV_CPU_DUMP_IR**:
+Additionally, IR could be serialized at specified stages using environment variable **OV_CPU_DUMP_IR**:
 ```sh
     OV_CPU_DUMP_IR=<space_separated_options> binary ...
 ```
