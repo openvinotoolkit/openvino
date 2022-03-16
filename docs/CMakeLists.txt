@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+
 if(NOT ENABLE_DOCKER)
     if(CMAKE_COMPILER_IS_GNUCXX)
         ie_add_compiler_flags(-Wall)
