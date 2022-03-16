@@ -12,9 +12,9 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 #include "rt_info/optimal_batch_size.hpp"
+#include "utils/rt_info/memory_formats_attribute.hpp"
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "transformations/utils/utils.hpp"
-
 #include "ngraph_transformations/op/fully_connected.hpp"
 
 namespace {
@@ -129,7 +129,7 @@ bool switchToImageAffinity(const std::set<ov::Input<ov::Node>>& starts,
         const size_t concat_axis = 0;
         const auto concat = std::make_shared<ngraph::opset1::Concat>(elem.second, concat_axis);
         replace_output_update_name(elem.first, concat->output(0));
-        copy_runtime_info(elem.first.get_node_shared_ptr(), concat);
+        ov::intel_cpu::cleanMemoryFormats(concat);
     }
     return true;
 }

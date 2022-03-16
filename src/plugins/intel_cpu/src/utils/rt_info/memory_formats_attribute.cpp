@@ -36,5 +36,12 @@ std::string getOutputMemoryFormats(const std::shared_ptr<ngraph::Node>& node) {
     return {};
 }
 
+void cleanMemoryFormats(const std::shared_ptr<ngraph::Node>& node) {
+    auto& rt_info = node->get_rt_info();
+    if (rt_info.find(InputMemoryFormats::get_type_info_static()) != rt_info.end())
+        rt_info.erase(InputMemoryFormats::get_type_info_static());
+    if (rt_info.find(OutputMemoryFormats::get_type_info_static()) != rt_info.end())
+        rt_info.erase(OutputMemoryFormats::get_type_info_static());
+}
 }   // namespace intel_cpu
 }   // namespace ov
