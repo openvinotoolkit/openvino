@@ -511,7 +511,7 @@ TokenizeSnippets::TokenizeSnippets() {
         for (size_t i = 0; i < act_body1->get_parameters().size(); i++) {
             act_body1->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
         }
-        subgraph->get_rt_info()["originalLayersNames"] = node->get_friendly_name();
+        subgraph->get_rt_info()["originalLayersNames"] = fusedNames;
 
         remark(1) << "Replacement (merge) done for: "
                     << subgraph->get_friendly_name()
