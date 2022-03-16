@@ -28,28 +28,20 @@ Internally, every device "translates" the value of the hint to the actual perfor
 For example the `ov::hint::PerformanceMode::THROUGHPUT` selects number of CPU or GPU streams.
 For the GPU, additionally the optimal batch size is selected and the [automatic batching](../OV_Runtime_UG/automatic_batching.md) is applied whenever possible (and also if the device supports that [refer to the devices/features support matrix](./supported_plugins/Device_Plugins.md)).
 
-The resulting (device-specific) settings can be queried back from the instance of the `ov:compiled_model`.  
-Notice that the `benchmark_app`, outputs the actual settings, for example:
+The resulting (device-specific) settings can be queried back from the instance of the `ov:Compiled_Model`.  
+Notice that the `benchmark_app`, outputs the actual settings for the THROUGHPUT hint, please the bottom of the output example:
 
-<code>
-$benchmark_app -hint tput -d CPU -m 'path to your favorite model'
-
-...
-
-[Step 8/11] Setting optimal runtime parameters
-
-[ INFO ] Device: CPU
-
-[ INFO ]   { PERFORMANCE_HINT , THROUGHPUT }
-
-...
-
-[ INFO ]   { OPTIMAL_NUMBER_OF_INFER_REQUESTS , 4 }
-
-[ INFO ]   { NUM_STREAMS , 4 }
-
-...
-</code> 
+   ```
+    $benchmark_app -hint tput -d CPU -m 'path to your favorite model'
+    ...
+    [Step 8/11] Setting optimal runtime parameters
+    [ INFO ] Device: CPU
+    [ INFO ]   { PERFORMANCE_HINT , THROUGHPUT }
+    ...
+    [ INFO ]   { OPTIMAL_NUMBER_OF_INFER_REQUESTS , 4 }
+    [ INFO ]   { NUM_STREAMS , 4 }
+    ...
+   ```
 
 ## Using the Performance Hints: Basic API
 In the example code-snippet below the  `ov::hint::PerformanceMode::THROUGHPUT` is specified for the `ov::hint::performance_mode` property for the compile_model:
@@ -106,7 +98,7 @@ Using the hints assumes that the application queries the `ov::optimal_number_of_
 
 @endsphinxdirective
 
-While an application if free to create more requests if needed (for example to support asynchronous inputs population) **it is very important to at least run the `ov::optimal_number_of_infer_requests` of the inference requests in parallel**, for efficiency (device utilization) reasons. 
+While an application is free to create more requests if needed (for example to support asynchronous inputs population) **it is very important to at least run the `ov::optimal_number_of_infer_requests` of the inference requests in parallel**, for efficiency (device utilization) reasons. 
 
 Also, notice that `ov::hint::PerformanceMode::LATENCY` does not necessarily imply using single inference request. For example, multi-socket CPUs can deliver as high number of requests (at the same minimal latency) as there are NUMA nodes the machine features.
 To make your application fully scalable, prefer to query the `ov::optimal_number_of_infer_requests` directly.
