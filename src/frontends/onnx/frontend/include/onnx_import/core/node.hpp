@@ -83,7 +83,15 @@ public:
     std::shared_ptr<ov::op::v0::Constant> get_attribute_as_constant(const std::string& name) const;
 
     template <typename T>
+    std::shared_ptr<ov::op::v0::Constant> get_attribute_as_constant(const std::string& name, element::Type type) const;
+
+    template <typename T>
     std::shared_ptr<ov::op::v0::Constant> get_attribute_as_constant(const std::string& name, T default_value) const;
+
+    template <typename T>
+    std::shared_ptr<ov::op::v0::Constant> get_attribute_as_constant(const std::string& name,
+                                                                    T default_value,
+                                                                    element::Type type) const;
 
 private:
     class Impl;
@@ -200,9 +208,18 @@ ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_c
     const std::string& name) const;
 
 template <>
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<std::vector<int64_t>>(
+    const std::string& name,
+    element::Type type) const;
+
+template <>
 ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(
     const std::string& name,
     std::vector<int64_t> default_value) const;
+
+template <>
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant>
+Node::get_attribute_as_constant(const std::string& name, std::vector<int64_t> default_value, element::Type type) const;
 
 template <>
 ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<float>(
@@ -213,6 +230,16 @@ ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_c
                                                                                         float default_value) const;
 
 template <>
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
+                                                                                        float default_value,
+                                                                                        element::Type type) const;
+
+template <>
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<float>(
+    const std::string& name,
+    element::Type type) const;
+
+template <>
 ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<double>(
     const std::string& name) const;
 
@@ -221,12 +248,37 @@ ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_c
                                                                                         double default_value) const;
 
 template <>
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<double>(
+    const std::string& name,
+    element::Type type) const;
+
+template <>
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
+                                                                                        double default_value,
+                                                                                        element::Type type) const;
+
+template <>
 ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<int64_t>(
     const std::string& name) const;
 
 template <>
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<int64_t>(
+    const std::string& name,
+    element::Type type) const;
+
+template <>
 ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
                                                                                         int64_t default_value) const;
+
+template <>
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<int64_t>(
+    const std::string& name,
+    element::Type type) const;
+
+template <>
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
+                                                                                        int64_t default_value,
+                                                                                        element::Type type) const;
 
 inline std::ostream& operator<<(std::ostream& outs, const Node& node) {
     return (outs << "<Node(" << node.op_type() << "): " << node.get_description() << ">");

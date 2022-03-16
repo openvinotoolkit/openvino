@@ -70,7 +70,15 @@ public:
     std::shared_ptr<ov::op::v0::Constant> get_attribute_as_constant(const std::string& name) const;
 
     template <typename T>
+    std::shared_ptr<ov::op::v0::Constant> get_attribute_as_constant(const std::string& name, element::Type type) const;
+
+    template <typename T>
     std::shared_ptr<ov::op::v0::Constant> get_attribute_as_constant(const std::string& name, T default_value) const;
+
+    template <typename T>
+    std::shared_ptr<ov::op::v0::Constant> get_attribute_as_constant(const std::string& name,
+                                                                    T default_value,
+                                                                    element::Type type) const;
 
     const ONNX_NAMESPACE::NodeProto& node_proto() const;
     const Graph& graph() const;
@@ -224,6 +232,25 @@ std::shared_ptr<ov::op::v0::Constant> Node::Impl::get_attribute_as_constant(cons
     return std::make_shared<ov::op::v0::Constant>(type, Shape{}, value);
 }
 
+template <typename T>
+std::shared_ptr<ov::op::v0::Constant> Node::Impl::get_attribute_as_constant(const std::string& name,
+                                                                            T default_value,
+                                                                            element::Type type) const {
+    const auto value = get_attribute_value<T>(name, default_value);
+    return std::make_shared<ov::op::v0::Constant>(type == element::undefined ? element::from<T>() : type,
+                                                  Shape{},
+                                                  value);
+}
+
+template <typename T>
+std::shared_ptr<ov::op::v0::Constant> Node::Impl::get_attribute_as_constant(const std::string& name,
+                                                                            element::Type type) const {
+    const auto value = get_attribute_value<T>(name);
+    return std::make_shared<ov::op::v0::Constant>(type == element::undefined ? element::from<T>() : type,
+                                                  Shape{},
+                                                  value);
+}
+
 template <>
 std::shared_ptr<ov::op::v0::Constant> Node::Impl::get_attribute_as_constant<std::vector<int64_t>>(
     const std::string& name) const {
@@ -232,10 +259,26 @@ std::shared_ptr<ov::op::v0::Constant> Node::Impl::get_attribute_as_constant<std:
 }
 
 template <>
+std::shared_ptr<ov::op::v0::Constant> Node::Impl::get_attribute_as_constant<std::vector<int64_t>>(
+    const std::string& name,
+    element::Type type) const {
+    const auto value = get_attribute_value<std::vector<int64_t>>(name);
+    return ov::op::v0::Constant::create(type == element::undefined ? element::i64 : type, {value.size()}, value);
+}
+
+template <>
 std::shared_ptr<ov::op::v0::Constant> Node::Impl::get_attribute_as_constant(const std::string& name,
                                                                             std::vector<int64_t> default_value) const {
     const auto value = get_attribute_value<std::vector<int64_t>>(name, default_value);
     return ov::op::v0::Constant::create(element::i64, {value.size()}, value);
+}
+
+template <>
+std::shared_ptr<ov::op::v0::Constant> Node::Impl::get_attribute_as_constant(const std::string& name,
+                                                                            std::vector<int64_t> default_value,
+                                                                            element::Type type) const {
+    const auto value = get_attribute_value<std::vector<int64_t>>(name, default_value);
+    return ov::op::v0::Constant::create(type != element::undefined ? type : element::i64, {value.size()}, value);
 }
 
 Node::Node(const ONNX_NAMESPACE::NodeProto& node_proto, const Graph& graph)
@@ -492,6 +535,19 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
 }
 
 template <>
+std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
+                                                                      float default_value,
+                                                                      element::Type type) const {
+    return m_pimpl->template get_attribute_as_constant<float>(name, default_value, std::move(type));
+}
+
+template <>
+std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<float>(const std::string& name,
+                                                                             element::Type type) const {
+    return m_pimpl->template get_attribute_as_constant<float>(name, std::move(type));
+}
+
+template <>
 std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<double>(const std::string& name) const {
     return m_pimpl->template get_attribute_as_constant<double>(name);
 }
@@ -500,6 +556,19 @@ template <>
 std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
                                                                       double default_value) const {
     return m_pimpl->template get_attribute_as_constant<double>(name, default_value);
+}
+
+template <>
+std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
+                                                                      double default_value,
+                                                                      element::Type type) const {
+    return m_pimpl->template get_attribute_as_constant<double>(name, default_value, std::move(type));
+}
+
+template <>
+std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<double>(const std::string& name,
+                                                                              element::Type type) const {
+    return m_pimpl->template get_attribute_as_constant<double>(name, std::move(type));
 }
 
 template <>
@@ -514,15 +583,43 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
 }
 
 template <>
+std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
+                                                                      int64_t default_value,
+                                                                      element::Type type) const {
+    return m_pimpl->template get_attribute_as_constant<int64_t>(name, default_value, std::move(type));
+}
+
+template <>
+std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<int64_t>(const std::string& name,
+                                                                               element::Type type) const {
+    return m_pimpl->template get_attribute_as_constant<int64_t>(name, std::move(type));
+}
+
+template <>
 std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<std::vector<int64_t>>(
     const std::string& name) const {
     return m_pimpl->template get_attribute_as_constant<std::vector<int64_t>>(name);
 }
 
 template <>
+std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<std::vector<int64_t>>(const std::string& name,
+                                                                                            element::Type type) const {
+    return m_pimpl->template get_attribute_as_constant<std::vector<int64_t>>(name, std::move(type));
+}
+
+template <>
 std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
                                                                       std::vector<int64_t> default_value) const {
     return m_pimpl->template get_attribute_as_constant<std::vector<int64_t>>(name, std::move(default_value));
+}
+
+template <>
+std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
+                                                                      std::vector<int64_t> default_value,
+                                                                      element::Type type) const {
+    return m_pimpl->template get_attribute_as_constant<std::vector<int64_t>>(name,
+                                                                             std::move(default_value),
+                                                                             std::move(type));
 }
 
 }  // namespace onnx_import
