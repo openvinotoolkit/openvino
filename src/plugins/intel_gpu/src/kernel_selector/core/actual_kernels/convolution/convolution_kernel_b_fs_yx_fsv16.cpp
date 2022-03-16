@@ -148,7 +148,7 @@ KernelsPriority ConvolutionKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params
 }
 
 bool ConvolutionKernel_b_fs_yx_fsv16::Validate(const Params& p, const optional_params& o) const {
-    if (!ConvolutionKernelBase::Validate(p, o) || !CovolutionCheckInput(p, o)) {
+    if (!ConvolutionKernelBase::Validate(p, o) || !ConvolutionCheckInput(p, o)) {
         return false;
     }
 
