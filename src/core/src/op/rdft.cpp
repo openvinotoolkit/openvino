@@ -4,7 +4,10 @@
 
 #include "ngraph/op/rdft.hpp"
 
+<<<<<<< HEAD
 #include <iostream>
+=======
+>>>>>>> upstream/master
 #include <memory>
 
 #include "itt.hpp"
@@ -58,7 +61,10 @@ void ov::op::v9::RDFT::validate_and_infer_types() {
     }
 
     ov::op::util::rdft_shape_infer(this, input_shapes, output_shapes);
+<<<<<<< HEAD
 
     std::cout << "inferred output shape: " << output_shapes[0] << "\n";
+=======
+>>>>>>> upstream/master
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }

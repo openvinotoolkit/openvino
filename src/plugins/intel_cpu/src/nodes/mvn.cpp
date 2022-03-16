@@ -916,17 +916,15 @@ void MKLDNNMVNNode::prepareParams() {
     const SizeVector in_dims = srcMemPtr->getStaticDims();
     transformTo5DCase(in_dims);
 
-    if (mayiuse(cpu::x64::sse41)) {
-        auto selectedPD = getSelectedPrimitiveDescriptor();
-        mvnAttrs.src_prc = selectedPD->getConfig().inConfs[0].getMemDesc()->getPrecision();
-        mvnAttrs.dst_prc = selectedPD->getConfig().outConfs[0].getMemDesc()->getPrecision();
-        if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp)) {
-            mvnAttrs.layout = MVNLayoutType::planar;
-        } else if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nspc)) {
-            mvnAttrs.layout = MVNLayoutType::by_channel;
-        } else {
-            mvnAttrs.layout = MVNLayoutType::block;
-        }
+    auto selectedPD = getSelectedPrimitiveDescriptor();
+    mvnAttrs.src_prc = selectedPD->getConfig().inConfs[0].getMemDesc()->getPrecision();
+    mvnAttrs.dst_prc = selectedPD->getConfig().outConfs[0].getMemDesc()->getPrecision();
+    if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp)) {
+        mvnAttrs.layout = MVNLayoutType::planar;
+    } else if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nspc)) {
+        mvnAttrs.layout = MVNLayoutType::by_channel;
+    } else {
+        mvnAttrs.layout = MVNLayoutType::block;
     }
 
     MVNKey key = {mvnAttrs, mkldnn::primitive_attr()};

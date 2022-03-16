@@ -30,7 +30,7 @@ jobs:
     maxParallel: 2
 
   # About 150% of total time
-  timeoutInMinutes: 150
+  timeoutInMinutes: 180
 
   pool:
     name: WIN_VMSS_VENV_D8S_WU2
