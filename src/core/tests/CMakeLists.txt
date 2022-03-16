@@ -265,6 +265,7 @@ set(SRC
     visitors/op/add.cpp
     visitors/op/asin.cpp
     visitors/op/asinh.cpp
+    visitors/op/assign.cpp
     visitors/op/atan.cpp
     visitors/op/atanh.cpp
     visitors/op/avg_pool.cpp
@@ -344,7 +345,6 @@ set(SRC
     visitors/op/maximum.cpp
     visitors/op/minimum.cpp
     visitors/op/mish.cpp
-    visitors/op/memory.cpp
     visitors/op/mod.cpp
     visitors/op/multiclass_nms.cpp
     visitors/op/multiply.cpp
@@ -365,6 +365,7 @@ set(SRC
     visitors/op/psroi_pooling.cpp
     visitors/op/random_uniform.cpp
     visitors/op/rdft.cpp
+    visitors/op/read_value.cpp
     visitors/op/reduce_l1.cpp
     visitors/op/reduce_l2.cpp
     visitors/op/reduce_logical_and.cpp
