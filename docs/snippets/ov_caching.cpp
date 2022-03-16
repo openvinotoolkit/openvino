@@ -12,7 +12,9 @@ auto model = core.read_model(modelPath);                    // Step 2: Read Mode
 //...                                                       // Step 4: Set device configuration
 auto compiled = core.compile_model(model, device, config);  // Step 5: LoadNetwork
 //! [ov:caching:part0]
-    assert(compiled);
+    if (!compiled) {
+        throw std::runtime_error("error");
+    }
 }
 
 void part1() {
@@ -23,7 +25,9 @@ void part1() {
 ov::Core core;                                                  // Step 1: create ov::Core object
 auto compiled = core.compile_model(modelPath, device, config);  // Step 2: Compile model by file path
 //! [ov:caching:part1]
-    assert(compiled);
+    if (!compiled) {
+        throw std::runtime_error("error");
+    }
 }
 
 void part2() {
@@ -32,9 +36,12 @@ void part2() {
     ov::AnyMap config;
 //! [ov:caching:part2]
 ov::Core core;                                                  // Step 1: create ov::Core object
-core.set_property(ov::cache_dir("/path/to/cache/dir"));              // Step 1b: Enable caching
+core.set_property(ov::cache_dir("/path/to/cache/dir"));         // Step 1b: Enable caching
 auto compiled = core.compile_model(modelPath, device, config);  // Step 2: Compile model by file path
 //! [ov:caching:part2]
+    if (!compiled) {
+        throw std::runtime_error("error");
+    }
 }
 
 void part3() {
@@ -48,7 +55,9 @@ std::vector<std::string> caps = core.get_property(deviceName, ov::device::capabi
 // Find 'EXPORT_IMPORT' capability in supported capabilities
 bool cachingSupported = std::find(caps.begin(), caps.end(), ov::device::capability::EXPORT_IMPORT) != caps.end();
 //! [ov:caching:part3]
-    assert(cachingSupported);
+    if (!cachingSupported) {
+        throw std::runtime_error("GNA should support model caching");
+    }
 }
 
 int main() {
