@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <openvino/openvino.hpp>
-//! [add_extension]
-#include <openvino/core/op_extension.hpp>
-//! [add_extension]
-//! [add_frontend_extension]
+//! [add_extension_header]
+//#include <openvino/core/op_extension.hpp>
+//! [add_extension_header]
+//! [add_frontend_extension_header]
 #include <openvino/frontend/extension.hpp>
-//! [add_frontend_extension]
+//! [add_frontend_extension_header]
 
 //! [frontend_extension_Identity_header]
 #include <openvino/frontend/extension.hpp>

@@ -6,7 +6,7 @@ This API is applicable for new frontends only, which exist for ONNX and PaddlePa
 
 > **NOTE**: This documentation is written based on the [Template extension](https://github.com/openvinotoolkit/openvino/tree/master/docs/template_extension/new), which demonstrates extension development details based on minimalistic `Identity` operation that is a placeholder for your real custom operation. You can review the complete code, which is fully compliable, to see how it works.
 
-## Single Operation Mapping with `OpExtension`
+## Single Operation Mapping with OpExtension
 
 This section covers the case when a single operation in framework representation is mapped to a single operation in OpenVINO representation. This is called *one-to-one mapping*. There is `OpExtension` class that works well if all the following conditions are satisfied:
 
@@ -53,21 +53,21 @@ As described above, `OpExtension` is useful when attributes can be mapped one by
 
 Imagine you have CustomOperation class implementation that has two attributes with names `attr1` and `attr2`:
 
-@snipet ov_extensions.cpp frontend_extension_CustomOperation
+@snippet ov_extensions.cpp frontend_extension_CustomOperation
 
 And original model in framework representation also has operation with name “CustomOperatoin” with the same `attr1` and `attr2` attributes. Then with the following code:
 
-@snipet ov_extensions.cpp frontend_extension_CustomOperation_add
+@snippet ov_extensions.cpp frontend_extension_CustomOperation_add
 
 both `attr1` and `attr2` are copied from framework representation to OpenVINO representation automatically. If for some reason names of attributes are different but values still can be copied “as-is” you can pass attribute names mapping in `OpExtension` constructor:
 
-@snipet ov_extensions.cpp frontend_extension_CustomOperation_rename
+@snippet ov_extensions.cpp frontend_extension_CustomOperation_rename
 
 Where `fw_attr1` and `fw_attr2` are names for corresponding attributes in framework operation representation.
 
 If copying of an attribute is not what you need, `OpExtension` also can set attribute to predefined constant value. For the same `CustomOperation`, imagine you want to set `attr2` to value 5 instead of copying from `fw_attr2`, to achieve that do the following:
 
-@snipet ov_extensions.cpp frontend_extension_CustomOperation_rename_set
+@snippet ov_extensions.cpp frontend_extension_CustomOperation_rename_set
 
 So the conclusion is that each attribute of target OpenVINO operation should be initialized either by
 
@@ -80,7 +80,7 @@ So the conclusion is that each attribute of target OpenVINO operation should be 
 This is achieved by specifying maps as arguments for `OpExtension` constructor.
 
 
-## Mapping to Multiple Operations with `ConversionExtension`
+## Mapping to Multiple Operations with ConversionExtension
 
 Previous sections cover the case when a single operation is mapped to a single operation with optional adjustment in names and attribute values. That is likely enough for your own custom operation with existing C++ kernel implementation. In this case your framework representation and OpenVINO representation for the operation are under your control and inputs/outpus/attributes can be aligned to make `OpExtension` usable.
 
