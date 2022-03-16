@@ -30,8 +30,6 @@ struct jit_mvn_call_args {
     float *sum;
     float *mean;
     float *variance;
-    const float *eps;
-    float *size;
     size_t src_stride;
     size_t dst_stride;
     size_t work_amount;

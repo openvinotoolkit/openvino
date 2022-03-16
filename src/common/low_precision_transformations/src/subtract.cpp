@@ -21,8 +21,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::SubtractTransformation, "SubtractTransformation", 0);
-
 SubtractTransformation::SubtractTransformation(const Params& params) : LayerTransformation(params) {
     auto convert = pattern::wrap_type<opset1::Convert>();
     auto multiply = pattern::wrap_type<opset1::Multiply>();

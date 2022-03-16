@@ -2,6 +2,8 @@
 
 @sphinxdirective
 
+.. _vpu guide:
+
 .. toctree::
    :maxdepth: 2
    :hidden:
@@ -43,6 +45,12 @@ Now the dependencies are installed and you are ready to use the Intel® Vision A
 ### Optional Steps
 
 For advanced configuration steps for your **IEI Mustang-V100-MX8-R10** accelerator, see [Configurations for IEI Mustang-V100-MX8-R10 card](movidius-setup-guide.md). **IEI Mustang-V100-MX8-R11** accelerator doesn't require any additional steps. 
+
+@sphinxdirective
+
+.. _vpu guide windows:
+
+@endsphinxdirective
 
 ## Windows
 

@@ -161,6 +161,7 @@ declared in `namespace opset9`.
 * [Slice](movement/Slice_8.md)
 * [SoftMax](activation/SoftMax_8.md)
 * [SoftPlus](activation/SoftPlus_4.md)
+* [SoftSign](activation/SoftSign_9.md)
 * [SpaceToBatch](movement/SpaceToBatch_2.md)
 * [SpaceToDepth](movement/SpaceToDepth_1.md)
 * [Split](movement/Split_1.md)

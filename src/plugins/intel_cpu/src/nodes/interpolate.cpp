@@ -1824,6 +1824,8 @@ MKLDNNInterpolateNode::MKLDNNInterpolateNode(const std::shared_ptr<ngraph::Node>
             interpAttrs.mode = InterpolateMode::linear_onnx;
         } else if (interpMode == ngInterpMode::cubic) {
             interpAttrs.mode = InterpolateMode::cubic;
+        } else {
+            IE_THROW() << errorPrefix << " has unsupported interpolate mode";
         }
 
         const auto &interpCoordTransMode = interpAttr.coordinate_transformation_mode;
@@ -1837,6 +1839,8 @@ MKLDNNInterpolateNode::MKLDNNInterpolateNode(const std::shared_ptr<ngraph::Node>
             interpAttrs.coordTransMode = InterpolateCoordTransMode::tf_half_pixel_for_nn;
         } else if (interpCoordTransMode == ngInterpCoordTransf::align_corners) {
             interpAttrs.coordTransMode = InterpolateCoordTransMode::align_corners;
+        } else {
+            IE_THROW() << errorPrefix << " has unsupported coordination transformation mode";
         }
 
         if (interpAttrs.mode == InterpolateMode::nearest) {
@@ -1851,6 +1855,8 @@ MKLDNNInterpolateNode::MKLDNNInterpolateNode(const std::shared_ptr<ngraph::Node>
                 interpAttrs.nearestMode = InterpolateNearestMode::ceil;
             } else if (interpNearestMode == ngInterpNearMode::simple) {
                 interpAttrs.nearestMode = InterpolateNearestMode::simple;
+            } else {
+                IE_THROW() << errorPrefix << " has unsupported nearest mode";
             }
         } else if (interpAttrs.mode == InterpolateMode::cubic) {
             interpAttrs.cubeCoeff = static_cast<float>(interpAttr.cube_coeff);
@@ -1862,6 +1868,8 @@ MKLDNNInterpolateNode::MKLDNNInterpolateNode(const std::shared_ptr<ngraph::Node>
             shapeCalcMode = InterpolateShapeCalcMode::scales;
         } else if (interpShapeCalcMode == ngInterpShapeCalcMode::sizes) {
             shapeCalcMode = InterpolateShapeCalcMode::sizes;
+        } else {
+            IE_THROW() << errorPrefix << " has unsupported shape calculation mode";
         }
 
         if (interpAttr.pads_begin.empty()) {
