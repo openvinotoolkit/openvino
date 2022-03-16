@@ -30,6 +30,8 @@ KERNEL(fully_connected_gpu_imad)(
 #if HAS_OFM_LEFTOVERS
     // Sign that last ofm block is in processing
     const bool last_feature_block = (uint)get_group_id(0) == ((uint)get_num_groups(0) - 1);
+#endif
+#if HAS_OFM_LEFTOVERS || HAS_IFM_LEFTOVERS
     const uint sglid = get_sub_group_local_id();
 #endif
 
@@ -49,13 +51,21 @@ KERNEL(fully_connected_gpu_imad)(
         __attribute__((opencl_unroll_hint))
         for (uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
             dotProd[ob_idx][of_idx] = 0;
+        #if !HAS_IFM_LEFTOVERS
             idx_w[of_idx] = (((feature + of_idx * SIMD_SIZE) / SIMD_SIZE) * SIMD_SIZE) * IF_NUMBER;
+        #else
+            idx_w[of_idx] = (((feature + of_idx * SIMD_SIZE) / SIMD_SIZE) * SIMD_SIZE) * (((IF_NUMBER + PACK_SIZE - 1) / PACK_SIZE) * PACK_SIZE);
+        #endif
         }
     }
 
     // Main calculation cycle by IFM
     __attribute__((opencl_unroll_hint(1)))
+#if !HAS_IFM_LEFTOVERS
     for (uint idx_i = 0; idx_i < IF_NUMBER; idx_i += BYTES_PER_READ) {
+#else
+    for (uint idx_i = 0; idx_i < IF_NUMBER - IF_NUMBER % BYTES_PER_READ; idx_i += BYTES_PER_READ) {
+#endif
         // Loading weights
         MAKE_VECTOR_TYPE(int, SIMD_SIZE) weights_data[TILE_OFM];
         __attribute__((opencl_unroll_hint))
@@ -99,11 +109,21 @@ KERNEL(fully_connected_gpu_imad)(
         for (uint ob_idx = 0; ob_idx < TILE_BATCH; ob_idx++) {
             // Loading inputs
         #if OUTPUT_3D
-            __global INPUT0_TYPE* current_input = &input[GET_DATA_INDEX(INPUT0, batch, skip_f + ob_idx, 0, 0)];
+            __global INPUT0_TYPE* current_input = &input[INPUT0_GET_INDEX(batch, skip_f + ob_idx, 0, 0)];
         #else
-            __global INPUT0_TYPE* current_input = &input[GET_DATA_INDEX(INPUT0, batch + ob_idx, skip_f, 0, 0)];
+            __global INPUT0_TYPE* current_input = &input[INPUT0_GET_INDEX(batch + ob_idx, skip_f, 0, 0)];
         #endif
+
+        #if !HAS_IFM_LEFTOVERS
             int input_data = as_int(intel_sub_group_block_read((const __global uint*)(current_input + idx_i)));
+        #else
+            MAKE_VECTOR_TYPE(INPUT0_TYPE, PACK_SIZE) temp_input = { current_input[idx_i + sglid * PACK_SIZE],
+                                                                    current_input[idx_i + sglid * PACK_SIZE + 1],
+                                                                    current_input[idx_i + sglid * PACK_SIZE + 2],
+                                                                    current_input[idx_i + sglid * PACK_SIZE + 3] };
+            int input_data = as_int(temp_input);
+        #endif
+
             __attribute__((opencl_unroll_hint))
             for (uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
                 // Mad calculation
@@ -117,6 +137,96 @@ KERNEL(fully_connected_gpu_imad)(
             }
         }
     }
+
+
+    // Main calculation cycle by IFM (leftovers)
+#if HAS_IFM_LEFTOVERS
+    // Loading weights
+    MAKE_VECTOR_TYPE(int, SIMD_SIZE) weights_data[TILE_OFM];
+    __attribute__((opencl_unroll_hint))
+    for (uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
+        weights_data[of_idx] = (MAKE_VECTOR_TYPE(int, SIMD_SIZE))0;
+        __attribute__((opencl_unroll_hint))
+        for (uint if_idx = 0; if_idx < SIMD_SIZE; if_idx++) {
+            char4 temp_weights = (char4)0;
+        #if !HAS_OFM_LEFTOVERS
+            if (if_idx * PACK_SIZE < IF_NUMBER % BYTES_PER_READ) {
+        #else
+            if (feature + of_idx * SIMD_SIZE < OF_NUMBER && if_idx * PACK_SIZE < IF_NUMBER % BYTES_PER_READ) {
+        #endif
+                uint wei_offset = idx_w[of_idx] + if_idx * BYTES_PER_READ + sglid * PACK_SIZE;
+
+                if ((if_idx + 1) * PACK_SIZE <= IF_NUMBER % BYTES_PER_READ) {
+                    temp_weights.s0 = weights[wei_offset];
+                    temp_weights.s1 = weights[wei_offset + 1];
+                    temp_weights.s2 = weights[wei_offset + 2];
+                    temp_weights.s3 = weights[wei_offset + 3];
+                } else {
+                    temp_weights.s0 = weights[wei_offset];
+                #if IF_NUMBER % PACK_SIZE > 1
+                    temp_weights.s1 = weights[wei_offset + 1];
+                #endif
+                #if IF_NUMBER % PACK_SIZE > 2
+                    temp_weights.s2 = weights[wei_offset + 2];
+                #endif
+                #if IF_NUMBER % PACK_SIZE > 3
+                    temp_weights.s3 = weights[wei_offset + 3];
+                #endif
+                }
+
+                weights_data[of_idx][if_idx] = as_int(temp_weights);
+            }
+        }
+    }
+
+    __attribute__((opencl_unroll_hint))
+    for (uint ob_idx = 0; ob_idx < TILE_BATCH; ob_idx++) {
+        // Loading inputs
+    #if OUTPUT_3D
+        __global INPUT0_TYPE* current_input = &input[INPUT0_GET_INDEX(batch, skip_f + ob_idx, 0, 0)];
+    #else
+        __global INPUT0_TYPE* current_input = &input[INPUT0_GET_INDEX(batch + ob_idx, skip_f, 0, 0)];
+    #endif
+        int input_data = 0;
+        MAKE_VECTOR_TYPE(INPUT0_TYPE, PACK_SIZE) temp_input = (MAKE_VECTOR_TYPE(INPUT0_TYPE, PACK_SIZE))0;
+
+        if (sglid * PACK_SIZE < IF_NUMBER % BYTES_PER_READ) {
+            uint in_offset = IF_NUMBER - IF_NUMBER % BYTES_PER_READ + sglid * PACK_SIZE;
+
+            if ((sglid + 1) * PACK_SIZE <= IF_NUMBER % BYTES_PER_READ) {
+                temp_input.s0 = current_input[in_offset];
+                temp_input.s1 = current_input[in_offset + 1];
+                temp_input.s2 = current_input[in_offset + 2];
+                temp_input.s3 = current_input[in_offset + 3];
+            } else {
+                temp_input.s0 = current_input[in_offset];
+            #if IF_NUMBER % PACK_SIZE > 1
+                temp_input.s1 = current_input[in_offset + 1];
+            #endif
+            #if IF_NUMBER % PACK_SIZE > 2
+                temp_input.s2 = current_input[in_offset + 2];
+            #endif
+            #if IF_NUMBER % PACK_SIZE > 3
+                temp_input.s3 = current_input[in_offset + 3];
+            #endif
+            }
+
+            input_data = as_int(temp_input);
+        }
+
+        __attribute__((opencl_unroll_hint))
+        for (uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
+            // Mad calculation
+            __attribute__((opencl_unroll_hint))
+            for (uint if_idx = 0; if_idx < SIMD_SIZE; if_idx++) {
+                // One IMAD macro produces upto 16 * 4 dot products (8 / 16 is SIMD and 4 is dp4a instruction)
+                dotProd[ob_idx][of_idx] = IMAD(dotProd[ob_idx][of_idx],
+                                               AS_INPUT0_TYPE_4(intel_sub_group_shuffle(input_data, if_idx)),
+                                               as_char4(weights_data[of_idx][if_idx]));
+            }
+        }
+    }
+#endif // HAS_IFM_LEFTOVERS
 
 #if BIAS_TERM
     #if BIAS_PER_OUTPUT

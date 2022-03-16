@@ -100,14 +100,6 @@ bool FullyConnectedKernelIMAD::Validate(const Params& params, const optional_par
         }
     }
 
-    // TODO: support ifm leftovers inside the kernel
-    if (if_num % (tuning_data.pack_size * tuning_data.sub_group_size)) {
-        // Algorithm requires 4 bytes read as one int
-        // with specific weight formats (os_is_yx_osv8_isv4 or os_is_yx_osv16_isv4)
-        // which will read SIMD (8 or 16) elements per one reading
-        return false;
-    }
-
     return true;
 }
 
@@ -193,6 +185,7 @@ JitConstants FullyConnectedKernelIMAD::GetJitConstants(const fully_connected_par
         if_num = params.inputs[0].Y().v;
     }
 
+    auto has_ifm_leftovers = (if_num % (tuning_data.pack_size * tuning_data.sub_group_size)) != 0;
     auto has_ofm_leftovers = (of_num % (tuning_data.tile_ofm * tuning_data.sub_group_size)) != 0;
 
     jit.AddConstant(MakeJitConstant("SLM_DIV_FACTOR", tuning_data.slm_div_factor));
@@ -202,6 +195,7 @@ JitConstants FullyConnectedKernelIMAD::GetJitConstants(const fully_connected_par
     jit.AddConstant(MakeJitConstant("WORK_GROUPS_NUMBER", tuning_data.work_groups_number));
     jit.AddConstant(MakeJitConstant("TILE_OFM", tuning_data.tile_ofm));
     jit.AddConstant(MakeJitConstant("TILE_BATCH", tuning_data.tile_batch));
+    jit.AddConstant(MakeJitConstant("HAS_IFM_LEFTOVERS", has_ifm_leftovers));
     jit.AddConstant(MakeJitConstant("HAS_OFM_LEFTOVERS", has_ofm_leftovers));
     jit.AddConstant(MakeJitConstant("OUTPUT_3D", output_3d));
     jit.AddConstant(MakeJitConstant("OF_NUMBER", of_num));
