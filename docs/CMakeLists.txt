@@ -214,9 +214,8 @@ function(build_docs)
                           PROPERTIES FOLDER docs)
 
     install(FILES ${SPHINX_OUTPUT}
-            DESTINATION openvino_docs
-            COMPONENT openvino_docs
-            )
+            DESTINATION openvino_docs COMPONENT openvino_docs EXCLUDE_FROM_ALL
+    )
 
     find_program(browser NAMES xdg-open)
     if(browser)
