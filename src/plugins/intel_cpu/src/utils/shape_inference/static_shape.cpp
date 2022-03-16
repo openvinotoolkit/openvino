@@ -3,31 +3,33 @@
 //
 
 #include "static_shape.hpp"
-using namespace ov;
 
-ov::StaticShape::StaticShape(std::vector<StaticDimension> dimensions)
+namespace ov {
+namespace intel_cpu {
+
+StaticShape::StaticShape(std::vector<StaticDimension> dimensions)
         : std::vector<StaticDimension>(std::move(dimensions)) {}
 
-ov::StaticShape::StaticShape(const std::vector<StaticDimension::value_type>& dimensions)
+StaticShape::StaticShape(const std::vector<StaticDimension::value_type>& dimensions)
         : std::vector<StaticDimension>(dimensions.begin(), dimensions.end()) {}
 
-ov::StaticShape::StaticShape(std::initializer_list<StaticDimension> init)
+StaticShape::StaticShape(std::initializer_list<StaticDimension> init)
         : std::vector<StaticDimension>(init.begin(), init.end()) {}
 
 
-ov::Shape ov::StaticShape::get_max_shape() const {
+ov::Shape StaticShape::get_max_shape() const {
     return (*this).to_shape();
 }
 
-ov::Shape ov::StaticShape::get_min_shape() const {
+ov::Shape StaticShape::get_min_shape() const {
     return (*this).to_shape();
 }
 
-ov::Shape ov::StaticShape::get_shape() const {
+ov::Shape StaticShape::get_shape() const {
     return (*this).to_shape();
 }
 
-ov::StaticShape ov::operator+(const StaticShape& s1, const StaticShape& s2) {
+StaticShape operator+(const StaticShape& s1, const StaticShape& s2) {
     if (s1.size() != s2.size()) {
         throw std::invalid_argument("rank mismatch");
     }
@@ -38,7 +40,7 @@ ov::StaticShape ov::operator+(const StaticShape& s1, const StaticShape& s2) {
     return result;
 }
 
-std::ostream& ov::operator<<(std::ostream& str, const StaticShape& shape) {
+std::ostream& operator<<(std::ostream& str, const StaticShape& shape) {
     str << "{";
     bool first = true;
     for (const auto& d : shape) {
@@ -49,7 +51,7 @@ std::ostream& ov::operator<<(std::ostream& str, const StaticShape& shape) {
     return (str << "}");
 }
 
-bool ov::StaticShape::compatible(const StaticShape& s) const {
+bool StaticShape::compatible(const StaticShape& s) const {
     if (size() != s.size())
         return false;
     for (size_t i = 0; i < size(); ++i)
@@ -58,7 +60,7 @@ bool ov::StaticShape::compatible(const StaticShape& s) const {
     return true;
 }
 
-bool ov::StaticShape::same_scheme(const StaticShape& s) const {
+bool StaticShape::same_scheme(const StaticShape& s) const {
     if (size() != s.size())
         return false;
     for (size_t i = 0; i < size(); ++i)
@@ -67,7 +69,7 @@ bool ov::StaticShape::same_scheme(const StaticShape& s) const {
     return true;
 }
 
-bool ov::StaticShape::merge_rank(Rank r) {
+bool StaticShape::merge_rank(Rank r) {
     if (r.is_dynamic()) {
         return true;
     } else {
@@ -75,7 +77,7 @@ bool ov::StaticShape::merge_rank(Rank r) {
     }
 }
 
-ov::Shape ov::StaticShape::to_shape() const {
+ov::Shape StaticShape::to_shape() const {
     std::vector<size_t> shape_dimensions(size());
     std::transform(begin(), end(), shape_dimensions.begin(), [](const StaticDimension& d) {
         return d.get_length();
@@ -83,7 +85,7 @@ ov::Shape ov::StaticShape::to_shape() const {
     return shape_dimensions;
 }
 
-ov::PartialShape ov::StaticShape::to_partial_shape() const {
+ov::PartialShape StaticShape::to_partial_shape() const {
     ov::PartialShape shape_dimensions = PartialShape::dynamic(size());
     std::transform(begin(), end(), shape_dimensions.begin(), [](const StaticDimension& d) {
         return d.get_length();
@@ -91,7 +93,7 @@ ov::PartialShape ov::StaticShape::to_partial_shape() const {
     return shape_dimensions;
 }
 
-bool ov::StaticShape::merge_into(StaticShape& dst, const StaticShape& src) {
+bool StaticShape::merge_into(StaticShape& dst, const StaticShape& src) {
     if (dst.size() != src.size())
         return false;
     bool success = true;
@@ -100,9 +102,9 @@ bool ov::StaticShape::merge_into(StaticShape& dst, const StaticShape& src) {
     return success;
 }
 
-bool ov::StaticShape::broadcast_merge_into(StaticShape& dst,
-                                            const StaticShape& src,
-                                            const ngraph::op::AutoBroadcastSpec& autob) {
+bool StaticShape::broadcast_merge_into(StaticShape& dst,
+                                       const StaticShape& src,
+                                       const ngraph::op::AutoBroadcastSpec& autob) {
     switch (autob.m_type) {
         case ngraph::op::AutoBroadcastType::NONE:
             return true;
@@ -158,7 +160,7 @@ bool ov::StaticShape::broadcast_merge_into(StaticShape& dst,
     return false;
 }
 
-bool ov::StaticShape::operator==(const StaticShape& shape) const {
+bool StaticShape::operator==(const StaticShape& shape) const {
     if (size() != shape.size())
         return false;
     for (auto i = 0; i < size(); ++i)
@@ -167,6 +169,9 @@ bool ov::StaticShape::operator==(const StaticShape& shape) const {
     return true;
 }
 
-bool ov::StaticShape::operator!=(const StaticShape& partial_shape) const {
+bool StaticShape::operator!=(const StaticShape& partial_shape) const {
     return !(*this == partial_shape);
 }
+
+}   // namespace intel_cpu
+}   // namespace ov

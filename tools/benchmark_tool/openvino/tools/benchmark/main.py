@@ -66,7 +66,7 @@ def run(args):
         benchmark = Benchmark(args.target_device, args.number_infer_requests,
                               args.number_iterations, args.time, args.api_type, args.inference_only)
 
-        ## CPU (MKLDNN) extensions
+        ## CPU (OneDNN) extensions
         if CPU_DEVICE_NAME in device_name and args.path_to_extension:
             benchmark.add_extension(path_to_extension=args.path_to_extension)
 

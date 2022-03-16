@@ -2,7 +2,7 @@
 
 Inference Engine Plugin usually represents a wrapper around a backend. Backends can be:
 - OpenCL-like backend (e.g. clDNN library) for GPU devices.
-- MKLDNN backend for Intel CPU devices.
+- oneDNN backend for Intel CPU devices.
 - NVIDIA cuDNN for NVIDIA GPUs.
 
 The responsibility of Inference Engine Plugin:

@@ -17,7 +17,9 @@
 namespace ov {
 namespace op {
     struct AutoBroadcastSpec;
-}
+}   // namespace op
+
+namespace intel_cpu {
 
 /// \brief Class representing a shape that must be totally static.
 class StaticShape : public std::vector<StaticDimension>  {
@@ -41,7 +43,7 @@ public:
     bool refines(const StaticShape& s) const;
     bool merge_rank(Rank r);
 
-    Shape to_shape() const;
+    ov::Shape to_shape() const;
     PartialShape to_partial_shape() const;
 
     friend std::ostream& operator<<(std::ostream& str, const StaticShape& shape);
@@ -62,4 +64,6 @@ public:
 
 StaticShape operator+(const StaticShape& s1, const StaticShape& s2);
 std::ostream& operator<<(std::ostream& str, const StaticShape& shape);
-}  // namespace ov
+
+}   // namespace intel_cpu
+}   // namespace ov

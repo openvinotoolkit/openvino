@@ -97,4 +97,3 @@ impl_desc_type parse_impl_name(std::string impl_desc_name);
 
 }   // namespace intel_cpu
 }   // namespace ov
-

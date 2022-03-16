@@ -12,10 +12,11 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNSpaceToBatchNode : public MKLDNNNode {
+class SpaceToBatch : public Node {
 public:
-    MKLDNNSpaceToBatchNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    SpaceToBatch(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -38,5 +39,6 @@ private:
     void SpaceToBatchKernel();
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

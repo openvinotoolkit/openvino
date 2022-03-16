@@ -12,6 +12,7 @@
 #include <utils/shape_inference/static_shape.hpp>
 
 using namespace ov;
+using namespace ov::intel_cpu;
 
 static std::shared_ptr<op::v1::SpaceToBatch> build_space_to_batch(
     PartialShape data_shape = PartialShape::dynamic(ov::Rank(2)),

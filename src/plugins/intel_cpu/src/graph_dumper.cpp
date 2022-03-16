@@ -24,18 +24,18 @@ using namespace InferenceEngine;
 namespace ov {
 namespace intel_cpu {
 
-void serializeToCout(const MKLDNNGraph &graph);
-void serializeToXML(const MKLDNNGraph &graph, const std::string& path);
+void serializeToCout(const Graph &graph);
+void serializeToXML(const Graph &graph, const std::string& path);
 
 namespace {
 
-std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &node) {
+std::map<std::string, std::string> extract_node_metadata(const NodePtr &node) {
     std::map<std::string, std::string> serialization_info;
 
-    if (node->getType() == Input && node->isConstant()) {
+    if (node->getType() == Type::Input && node->isConstant()) {
         // We need to separate Input and Const layers
         serialization_info[ExecGraphInfoSerialization::LAYER_TYPE] = "Const";
-    } else if (node->getType() == Generic) {
+    } else if (node->getType() == Type::Generic) {
         // Path to print actual name for extension layers
         serialization_info[ExecGraphInfoSerialization::LAYER_TYPE] = node->getTypeStr();
     } else {
@@ -114,14 +114,14 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
 
 }  // namespace
 
-std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph) {
-    std::map<MKLDNNNodePtr, std::shared_ptr<ngraph::Node> > node2layer;
+std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph) {
+    std::map<NodePtr, std::shared_ptr<ngraph::Node> > node2layer;
 
     ngraph::ResultVector results;
     ngraph::ParameterVector params;
     ngraph::NodeVector to_hold;
 
-    auto get_inputs = [&] (const MKLDNNNodePtr & node) {
+    auto get_inputs = [&] (const NodePtr & node) {
         auto pr_edges = node->getParentEdges();
         ngraph::OutputVector inputs(pr_edges.size());
 
@@ -140,7 +140,7 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph 
         return inputs;
     };
 
-    auto create_ngraph_node = [&](const MKLDNNNodePtr &node) {
+    auto create_ngraph_node = [&](const NodePtr &node) {
         bool is_input = false, is_output = false, should_be_hold = false;
         for (auto && kvp : graph.inputNodesMap) {
             if (kvp.second == node) {
@@ -209,7 +209,7 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph 
 }
 
 #ifdef CPU_DEBUG_CAPS
-void serialize(const MKLDNNGraph &graph) {
+void serialize(const Graph &graph) {
     const std::string& path = graph.getConfig().execGraphPath;
 
     if (path.empty())
@@ -223,7 +223,7 @@ void serialize(const MKLDNNGraph &graph) {
         IE_THROW() << "Unknown serialize format. Should be either 'cout' or '*.xml'. Got " << path;
 }
 
-void serializeToXML(const MKLDNNGraph &graph, const std::string& path) {
+void serializeToXML(const Graph &graph, const std::string& path) {
     if (path.empty())
         return;
 
@@ -235,7 +235,7 @@ void serializeToXML(const MKLDNNGraph &graph, const std::string& path) {
     manager.run_passes(graph.dump());
 }
 
-void serializeToCout(const MKLDNNGraph &graph) {
+void serializeToCout(const Graph &graph) {
     for (const auto& node : graph.GetNodes()) {
         std::cout << "name: " << node->getName() << " [ ";
         auto nodeDesc = node->getSelectedPrimitiveDescriptor();

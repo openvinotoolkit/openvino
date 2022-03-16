@@ -194,7 +194,7 @@ def build_parser():
     plugin.add_argument('--reference_config', '-ref_conf', type=str, action=ExistingFileAction,
                         help='Path to config file for -ref_d or -reference_device device plugin')
     plugin.add_argument('-l', type=str, action=ExistingFileAction,
-                        help='Required for MKLDNN (CPU)-targeted custom layers. Comma separated paths to a shared'
+                        help='Required for (CPU)-targeted custom layers. Comma separated paths to a shared'
                              ' libraries with the kernels implementation.')
 
     modes = parser.add_argument_group('CCT mode arguments')

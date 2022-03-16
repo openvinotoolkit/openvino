@@ -12,6 +12,7 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
 enum ReduceLayoutType {
     reduce_ncsp,
@@ -82,9 +83,9 @@ struct jit_uni_reduce_post_kernel {
     const mkldnn_primitive_attr &attr_;
 };
 
-class MKLDNNReduceNode : public MKLDNNNode {
+class Reduce : public Node {
 public:
-    MKLDNNReduceNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    Reduce(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -94,7 +95,7 @@ public:
     void execute(mkldnn::stream strm) override;
     std::vector<VectorDims> shapeInfer() const override;
     void executeDynamicImpl(mkldnn::stream strm) override;
-    bool canFuse(const MKLDNNNodePtr& node) const override;
+    bool canFuse(const NodePtr& node) const override;
     bool canBeInPlace() const override {
         return false;
     }
@@ -156,10 +157,11 @@ private:
     std::shared_ptr<jit_uni_reduce_kernel> reduce_kernel;
     std::shared_ptr<jit_uni_reduce_post_kernel> reduce_post_kernel;
 
-    static const std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node)>> initializers;
+    static const std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>& op, Reduce& node)>> initializers;
 
     std::string errorPrefix;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

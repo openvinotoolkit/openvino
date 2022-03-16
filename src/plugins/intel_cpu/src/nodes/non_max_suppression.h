@@ -16,6 +16,7 @@ using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
 enum class NMSBoxEncodeType {
     CORNER,
@@ -61,9 +62,9 @@ struct jit_uni_nms_kernel {
     jit_nms_config_params jcp;
 };
 
-class MKLDNNNonMaxSuppressionNode : public MKLDNNNode {
+class NonMaxSuppression : public Node {
 public:
-    MKLDNNNonMaxSuppressionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    NonMaxSuppression(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -148,5 +149,6 @@ private:
     std::shared_ptr<jit_uni_nms_kernel> nms_kernel;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

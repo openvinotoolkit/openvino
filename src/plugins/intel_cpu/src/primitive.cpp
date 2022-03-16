@@ -5,23 +5,27 @@
 #include <mkldnn_types.h>
 #include "primitive.h"
 
-using namespace ov::intel_cpu;
+namespace ov {
+namespace intel_cpu {
 
-MKLDNNPrimitive::MKLDNNPrimitive() {}
+Primitive::Primitive() {}
 
-MKLDNNPrimitive::operator bool() const {
+Primitive::operator bool() const {
     return prim ? true : false;
 }
 
-mkldnn::primitive MKLDNNPrimitive::operator*() {
+mkldnn::primitive Primitive::operator*() {
     return *prim;
 }
 
-void MKLDNNPrimitive::reset(mkldnn::primitive* primitive) {
+void Primitive::reset(mkldnn::primitive* primitive) {
     prim.reset(primitive);
 }
 
-MKLDNNPrimitive &MKLDNNPrimitive::operator=(const std::shared_ptr<mkldnn::primitive>& primitive) {
+Primitive &Primitive::operator=(const std::shared_ptr<mkldnn::primitive>& primitive) {
     prim = primitive;
     return *this;
 }
+
+}   // namespace intel_cpu
+}   // namespace ov

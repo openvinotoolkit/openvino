@@ -7,6 +7,7 @@
 #include "utils.hpp"
 
 using namespace ov;
+using namespace ov::intel_cpu;
 using namespace std;
 
 TEST(StaticShapeInferenceTest, EmbeddingSegmentsSum) {

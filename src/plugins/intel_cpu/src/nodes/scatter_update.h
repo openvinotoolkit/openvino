@@ -12,6 +12,7 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
 enum class ScatterUpdateMode {
     ScatterUpdate,
@@ -19,9 +20,9 @@ enum class ScatterUpdateMode {
     ScatterElementsUpdate
 };
 
-class MKLDNNScatterUpdateNode : public MKLDNNNode {
+class ScatterUpdate : public Node {
 public:
-    MKLDNNScatterUpdateNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    ScatterUpdate(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -54,5 +55,6 @@ private:
     std::string errorPrefix;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

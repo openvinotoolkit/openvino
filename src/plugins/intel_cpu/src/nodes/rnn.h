@@ -13,10 +13,11 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNRNN : public MKLDNNNode {
+class RNN : public Node {
 public:
-    MKLDNNRNN(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    RNN(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
@@ -121,5 +122,6 @@ private:
     bool wasMemoryPrepared = false;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

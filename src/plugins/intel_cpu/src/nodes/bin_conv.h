@@ -12,6 +12,7 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
 struct jit_bin_conv_params {
     int mb;
@@ -74,9 +75,9 @@ struct jit_uni_bin_conv_kernel {
     const mkldnn_primitive_attr &attr_;
 };
 
-class MKLDNNBinaryConvolutionNode : public MKLDNNNode {
+class BinaryConvolution : public Node {
 public:
-    MKLDNNBinaryConvolutionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    BinaryConvolution(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void createPrimitive() override;
@@ -87,7 +88,7 @@ public:
         return false;
     }
     void setPostOps(mkldnn::primitive_attr &attr);
-    bool canFuse(const MKLDNNNodePtr& node) const override;
+    bool canFuse(const NodePtr& node) const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
@@ -122,5 +123,6 @@ private:
     std::string errorPrefix;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

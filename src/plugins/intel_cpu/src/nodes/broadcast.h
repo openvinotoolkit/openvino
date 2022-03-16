@@ -10,13 +10,13 @@
 #include <string>
 #include <vector>
 
-
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNBroadcastNode : public MKLDNNNode, public TileBroadcastCommon {
+class Broadcast : public Node, public TileBroadcastCommon {
 public:
-    MKLDNNBroadcastNode(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    Broadcast(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -52,5 +52,6 @@ private:
     std::string errorPrefix;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

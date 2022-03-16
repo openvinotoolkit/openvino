@@ -32,7 +32,7 @@ class DnnlExecutor {
 
     protected:
         DnnlExecutor() = default;
-        MKLDNNPrimitive execPrim;
+        Primitive execPrim;
         // key is the port number for the primitive that needs memory reordering
         std::unordered_map<int, IntermReorder> inputReorders;
         std::unordered_map<int, IntermReorder> outputReorders;

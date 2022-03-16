@@ -8,14 +8,15 @@
 #include <string>
 #include <memory>
 #include <vector>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNNonZeroNode : public MKLDNNNode {
+class NonZero : public Node {
 public:
-  MKLDNNNonZeroNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+  NonZero(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -38,5 +39,6 @@ private:
     size_t getNonZeroElementsCount(const T* arg, const Shape& arg_shape);
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

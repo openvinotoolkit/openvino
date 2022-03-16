@@ -11,6 +11,7 @@
 #include <utils/shape_inference/static_shape.hpp>
 
 using namespace ov;
+using namespace ov::intel_cpu;
 
 TEST(StaticShapeInferenceTest, ScatterNDUpdateTest) {
     auto data_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1, -1, -1, -1});

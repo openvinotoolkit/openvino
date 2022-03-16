@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "extension_utils.h"
+#include "dnnl_extension_utils.h"
 #include "utils/general_utils.h"
 #include <vector>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
 using namespace mkldnn;
-using namespace ov::intel_cpu;
 
-uint8_t MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type dataType) {
+namespace ov {
+namespace intel_cpu {
+
+uint8_t DnnlExtensionUtils::sizeOfDataType(mkldnn::memory::data_type dataType) {
     switch (dataType) {
     case mkldnn::memory::data_type::f32:
         return 4;
@@ -31,7 +33,7 @@ uint8_t MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type dataType)
     }
 }
 
-memory::data_type MKLDNNExtensionUtils::IEPrecisionToDataType(const InferenceEngine::Precision& prec) {
+memory::data_type DnnlExtensionUtils::IEPrecisionToDataType(const InferenceEngine::Precision& prec) {
     switch (prec) {
         case InferenceEngine::Precision::FP32:
             return memory::data_type::f32;
@@ -54,7 +56,7 @@ memory::data_type MKLDNNExtensionUtils::IEPrecisionToDataType(const InferenceEng
     }
 }
 
-InferenceEngine::Precision MKLDNNExtensionUtils::DataTypeToIEPrecision(memory::data_type dataType) {
+InferenceEngine::Precision DnnlExtensionUtils::DataTypeToIEPrecision(memory::data_type dataType) {
     switch (dataType) {
         case memory::data_type::f32:
             return InferenceEngine::Precision::FP32;
@@ -76,14 +78,14 @@ InferenceEngine::Precision MKLDNNExtensionUtils::DataTypeToIEPrecision(memory::d
     }
 }
 
-Dim MKLDNNExtensionUtils::convertToDim(const dnnl::memory::dim &dim) {
+Dim DnnlExtensionUtils::convertToDim(const dnnl::memory::dim &dim) {
     return dim == DNNL_RUNTIME_DIM_VAL ?  Shape::UNDEFINED_DIM : static_cast<size_t>(dim);
 }
-dnnl::memory::dim MKLDNNExtensionUtils::convertToDnnlDim(const Dim &dim) {
+dnnl::memory::dim DnnlExtensionUtils::convertToDnnlDim(const Dim &dim) {
     return dim == Shape::UNDEFINED_DIM ? DNNL_RUNTIME_DIM_VAL : static_cast<mkldnn::memory::dim>(dim);
 }
 
-VectorDims MKLDNNExtensionUtils::convertToVectorDims(const memory::dims& dims) {
+VectorDims DnnlExtensionUtils::convertToVectorDims(const memory::dims& dims) {
     std::vector<size_t> vecResult;
     vecResult.reserve(dims.size());
     std::back_insert_iterator<std::vector<size_t>> itr(vecResult);
@@ -91,7 +93,7 @@ VectorDims MKLDNNExtensionUtils::convertToVectorDims(const memory::dims& dims) {
     return vecResult;
 }
 
-memory::dims MKLDNNExtensionUtils::convertToDnnlDims(const VectorDims& dims) {
+memory::dims DnnlExtensionUtils::convertToDnnlDims(const VectorDims& dims) {
     memory::dims vecResult;
     vecResult.reserve(dims.size());
     std::back_insert_iterator<memory::dims> itr(vecResult);
@@ -99,7 +101,7 @@ memory::dims MKLDNNExtensionUtils::convertToDnnlDims(const VectorDims& dims) {
     return vecResult;
 }
 
-memory::format_tag MKLDNNExtensionUtils::GetPlainFormatByRank(size_t rank) {
+memory::format_tag DnnlExtensionUtils::GetPlainFormatByRank(size_t rank) {
     switch (rank) {
         case 0:
         case 1:
@@ -119,7 +121,7 @@ memory::format_tag MKLDNNExtensionUtils::GetPlainFormatByRank(size_t rank) {
     }
 }
 
-DnnlMemoryDescPtr MKLDNNExtensionUtils::makeDescriptor(const mkldnn::memory::desc &desc) {
+DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const mkldnn::memory::desc &desc) {
     if (desc.data.format_kind == dnnl_blocked) {
         return std::shared_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(desc));
     } else {
@@ -127,7 +129,7 @@ DnnlMemoryDescPtr MKLDNNExtensionUtils::makeDescriptor(const mkldnn::memory::des
     }
 }
 
-size_t MKLDNNExtensionUtils::getMemSizeForDnnlDesc(const mkldnn::memory::desc& desc) {
+size_t DnnlExtensionUtils::getMemSizeForDnnlDesc(const mkldnn::memory::desc& desc) {
     auto tmpDesc = desc;
     const auto offset0 = tmpDesc.data.offset0;
     tmpDesc.data.offset0 = 0;
@@ -138,10 +140,13 @@ size_t MKLDNNExtensionUtils::getMemSizeForDnnlDesc(const mkldnn::memory::desc& d
     return size;
 }
 
-std::shared_ptr<DnnlBlockedMemoryDesc> MKLDNNExtensionUtils::makeUndefinedDesc(const memory::desc &desc, const Shape &shape) {
+std::shared_ptr<DnnlBlockedMemoryDesc> DnnlExtensionUtils::makeUndefinedDesc(const memory::desc &desc, const Shape &shape) {
     if (desc.data.format_kind == dnnl_blocked) {
         return std::shared_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(desc, shape));
     } else {
         IE_THROW(Unexpected) << "Cannot make undefined descriptor. Only dnnl_blocked type is allowed.";
     }
 }
+
+}   // namespace intel_cpu
+}   // namespace ov

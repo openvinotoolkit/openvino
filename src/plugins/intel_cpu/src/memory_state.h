@@ -15,10 +15,10 @@
 namespace ov {
 namespace intel_cpu {
 
-class MKLDNNVariableState : public InferenceEngine::IVariableStateInternal {
+class VariableState : public InferenceEngine::IVariableStateInternal {
 public:
-    MKLDNNVariableState(std::string name, MKLDNNMemoryPtr storage) :
-            InferenceEngine::IVariableStateInternal{name} {
+    VariableState(std::string name, MemoryPtr storage)
+        : InferenceEngine::IVariableStateInternal{name} {
         state = make_blob_with_precision(MemoryDescUtils::convertToTensorDesc(storage->getDesc()));
         state->allocate();
         cpu_memcpy(state->buffer(), storage->GetData(), storage->GetSize());

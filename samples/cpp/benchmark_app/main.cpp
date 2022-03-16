@@ -210,9 +210,9 @@ int main(int argc, char* argv[]) {
         ov::Core core;
 
         if (FLAGS_d.find("CPU") != std::string::npos && !FLAGS_l.empty()) {
-            // CPU (MKLDNN) extensions is loaded as a shared library
+            // CPU plugin extensions is loaded as a shared library
             core.add_extension(FLAGS_l);
-            slog::info << "CPU (MKLDNN) extensions is loaded " << FLAGS_l << slog::endl;
+            slog::info << "CPU plugin extensions is loaded " << FLAGS_l << slog::endl;
         }
 
         // Load clDNN Extensions

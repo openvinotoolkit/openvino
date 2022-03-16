@@ -7,8 +7,10 @@
 #include "nodes/common/cpu_memcpy.h"
 #include "utils/general_utils.h"
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
+
+namespace ov {
+namespace intel_cpu {
 
 NormalizePreprocess::NormalizePreprocess() : meanBuffer(nullptr) {
 }
@@ -41,7 +43,7 @@ void NormalizePreprocess::Load(const Shape& inputShape, InputInfo::Ptr inputInfo
         }
         break;
         case MEAN_IMAGE: {
-            // since MKLDNN expects all channels in the same buffer - we copy it here as it comes from different channels...
+            // since oneDNN expects all channels in the same buffer - we copy it here as it comes from different channels...
             auto meanWidth = pp[0]->meanData->getTensorDesc().getDims()[pp[0]->meanData->getTensorDesc().getDims().size() - 1];
             auto meanHeight = pp[0]->meanData->getTensorDesc().getDims()[pp[0]->meanData->getTensorDesc().getDims().size() - 2];
 
@@ -119,3 +121,6 @@ void NormalizePreprocess::NormalizeImage(const Shape &inputShape, float *input, 
         IE_THROW() << "Preprocessing error: meanValues and stdScales arrays are inconsistent.";
     }
 }
+
+}   // namespace intel_cpu
+}   // namespace ov

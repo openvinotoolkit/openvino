@@ -93,7 +93,7 @@ protected:
         const size_t hiddenSize = targetStaticShapes.front()[1][2];
         const size_t numDirections = direction == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
 
-        // method MKLDNNMemoryDesc::isSame can't correct compute layout for tensor with strides = 1
+        // method MemoryDesc::isSame can't correct compute layout for tensor with strides = 1
         // returned output format always tnc
         if (inFmts.size() >= 3) {
             for (size_t i = 1; i < 3; i++) {
@@ -140,7 +140,7 @@ protected:
                                                        direction,
                                                        seqMode);
 
-        // method MKLDNNMemoryDesc::isSame can't correct compute layout for tensor with strides = 1
+        // method MemoryDesc::isSame can't correct compute layout for tensor with strides = 1
         // returned output format always tnc
         if (outFmts.size() >= 3) {
             for (size_t i = 1; i < 3; i++) {

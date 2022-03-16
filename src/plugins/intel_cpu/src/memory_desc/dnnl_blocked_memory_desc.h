@@ -6,7 +6,7 @@
 
 #include "blocked_memory_desc.h"
 #include <cpu_memory.h>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 
 namespace ov {
 namespace intel_cpu {
@@ -40,7 +40,7 @@ public:
     }
 
     size_t getOffsetPadding() const override {
-        return MKLDNNExtensionUtils::convertToDim(desc.data.offset0);
+        return DnnlExtensionUtils::convertToDim(desc.data.offset0);
     }
 
     const VectorDims& getStrides() const override {
@@ -93,8 +93,8 @@ private:
 
     void recomputeDefaultStrides();
 
-    friend DnnlMemoryDescPtr MKLDNNExtensionUtils::makeDescriptor(const mkldnn::memory::desc &desc);
-    friend std::shared_ptr<DnnlBlockedMemoryDesc> MKLDNNExtensionUtils::makeUndefinedDesc(const mkldnn::memory::desc &desc, const Shape& shape);
+    friend DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const mkldnn::memory::desc &desc);
+    friend std::shared_ptr<DnnlBlockedMemoryDesc> DnnlExtensionUtils::makeUndefinedDesc(const mkldnn::memory::desc &desc, const Shape& shape);
     friend class MemoryDescUtils;
 };
 

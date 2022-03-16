@@ -12,10 +12,11 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNSelectNode : public MKLDNNNode {
+class Select : public Node {
 public:
-    MKLDNNSelectNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    Select(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -54,5 +55,6 @@ private:
     void execute_impl();
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

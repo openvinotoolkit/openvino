@@ -8,14 +8,16 @@
 
 #include "extension_mngr.h"
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
-void MKLDNNExtensionManager::AddExtension(const IExtensionPtr& extension) {
+namespace ov {
+namespace intel_cpu {
+
+void ExtensionManager::AddExtension(const IExtensionPtr& extension) {
     _extensions.push_back(extension);
 }
 
-InferenceEngine::ILayerImpl::Ptr MKLDNNExtensionManager::CreateImplementation(const std::shared_ptr<ngraph::Node>& op) {
+InferenceEngine::ILayerImpl::Ptr ExtensionManager::CreateImplementation(const std::shared_ptr<ngraph::Node>& op) {
     if (!op)
         IE_THROW() << "Cannot get nGraph operation!";
     for (const auto& ext : _extensions) {
@@ -31,27 +33,9 @@ InferenceEngine::ILayerImpl::Ptr MKLDNNExtensionManager::CreateImplementation(co
     return nullptr;
 }
 
-std::shared_ptr<InferenceEngine::ILayerImplFactory> MKLDNNExtensionManager::CreateExtensionFactory(const std::shared_ptr<ngraph::Node>& op) {
-    std::shared_ptr<ILayerImplFactory> factory;
-    for (auto& ext : _extensions) {
-        ResponseDesc responseDesc;
-        StatusCode rc = GENERAL_ERROR;
-        ILayerImplFactory* factory_ptr = nullptr;
-        if (auto mkldnnExt = dynamic_cast<Extensions::Cpu::MKLDNNExtensions*>(ext.get()))
-            rc = mkldnnExt->getFactoryFor(factory_ptr, op, &responseDesc);
-        if (rc != OK) {
-            factory = nullptr;
-            continue;
-        } else {
-            factory.reset(factory_ptr);
-        }
-        if (factory) {
-            break;
-        }
-    }
-    return factory;
-}
-
-const std::vector<InferenceEngine::IExtensionPtr> & MKLDNNExtensionManager::Extensions() const {
+const std::vector<InferenceEngine::IExtensionPtr> & ExtensionManager::Extensions() const {
     return _extensions;
 }
+
+}   // namespace intel_cpu
+}   // namespace ov

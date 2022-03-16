@@ -7,7 +7,7 @@
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <math.h>
 #include <mkldnn.hpp>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include <selective_build.h>
 #include <mkldnn_types.h>
 #include <ngraph/opsets/opset8.hpp>
@@ -16,12 +16,15 @@
 #include <utils/general_utils.h>
 #include <vector>
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 using namespace mkldnn;
 using namespace mkldnn::impl::cpu::x64;
 
-bool MKLDNNAdaptivePoolingNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool AdaptivePooling::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (one_of(op->get_type_info(), ngraph::op::v8::AdaptiveAvgPool::get_type_info_static())) {
             auto adaPool = std::dynamic_pointer_cast<const ngraph::opset8::AdaptiveAvgPool>(op);
@@ -45,8 +48,8 @@ bool MKLDNNAdaptivePoolingNode::isSupportedOperation(const std::shared_ptr<const
     return true;
 }
 
-MKLDNNAdaptivePoolingNode::MKLDNNAdaptivePoolingNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-                                           MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+AdaptivePooling::AdaptivePooling(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+                                           WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
       errorPrefix = "Adaptive Pooling layer with name '" + getName() + "' ";
@@ -62,13 +65,13 @@ MKLDNNAdaptivePoolingNode::MKLDNNAdaptivePoolingNode(const std::shared_ptr<ngrap
     spatialDimsValue.resize(spatialDimsCount);
 }
 
-void MKLDNNAdaptivePoolingNode::getSupportedDescriptors() {
+void AdaptivePooling::getSupportedDescriptors() {
     if (!descs.empty())
         return;
 
     if (getParentEdges().size() != 2)
         IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
-    if (getChildEdges().size() < (algorithm == AdaptivePoolingMax ? 2 : 1))
+    if (getChildEdges().size() < (algorithm == Algorithm::AdaptivePoolingMax ? 2 : 1))
         IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getChildEdges().size();
 
     auto srcRank = getInputShapeAtPort(0).getRank();
@@ -85,16 +88,16 @@ void MKLDNNAdaptivePoolingNode::getSupportedDescriptors() {
     }
 }
 
-bool MKLDNNAdaptivePoolingNode::needShapeInfer() const {
+bool AdaptivePooling::needShapeInfer() const {
     const auto newSpatialDimsPtr = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPtr());
     for (size_t i = 0; i < spatialDimsCount; i++) {
         if (spatialDimsValue[i] != newSpatialDimsPtr[i])
             return true;
     }
-    return MKLDNNNode::needShapeInfer();
+    return Node::needShapeInfer();
 }
 
-std::vector<VectorDims> MKLDNNAdaptivePoolingNode::shapeInfer() const {
+std::vector<VectorDims> AdaptivePooling::shapeInfer() const {
     const auto inputDims = getParentEdgesAtPort(0)[0]->getMemory().GetShape().getStaticDims();
     const auto spatialDims = getParentEdgesAtPort(1)[0]->getMemory().GetShape().getStaticDims();
     const auto inputRank = inputDims.size();
@@ -113,7 +116,7 @@ std::vector<VectorDims> MKLDNNAdaptivePoolingNode::shapeInfer() const {
     return result;
 }
 
-void MKLDNNAdaptivePoolingNode::initSupportedPrimitiveDescriptors() {
+void AdaptivePooling::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -145,11 +148,11 @@ void MKLDNNAdaptivePoolingNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void MKLDNNAdaptivePoolingNode::executeDynamicImpl(mkldnn::stream strm) {
+void AdaptivePooling::executeDynamicImpl(mkldnn::stream strm) {
     execute(strm);
 }
 
-void MKLDNNAdaptivePoolingNode::execute(mkldnn::stream strm) {
+void AdaptivePooling::execute(mkldnn::stream strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().GetDataType();
     auto outputPrec = getChildEdgeAt(0)->getMemory().GetDataType();
     if (!(inputPrec == mkldnn_f32 && outputPrec == mkldnn_f32))
@@ -283,13 +286,15 @@ void MKLDNNAdaptivePoolingNode::execute(mkldnn::stream strm) {
         }});
 }
 
-bool MKLDNNAdaptivePoolingNode::created() const {
-    return getType() == AdaptivePooling;
+bool AdaptivePooling::created() const {
+    return getType() == Type::AdaptivePooling;
 }
 
-inline void MKLDNNAdaptivePoolingNode::setBinBorders(size_t *startPtr, size_t *endPtr, size_t idx, size_t inputLength, size_t outputLength) {
+inline void AdaptivePooling::setBinBorders(size_t *startPtr, size_t *endPtr, size_t idx, size_t inputLength, size_t outputLength) {
     *(startPtr) = idx * inputLength / outputLength;
     *(endPtr) = ceil(static_cast<float>((idx + 1) * inputLength) / outputLength);
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNAdaptivePoolingNode, AdaptivePooling)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

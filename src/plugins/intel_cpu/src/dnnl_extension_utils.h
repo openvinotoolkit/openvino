@@ -4,7 +4,7 @@
 
 /**
  * @brief Convinience wrapper class for handling MKL-DNN memory formats.
- * @file extension_utils.h
+ * @file dnnl_extension_utils.h
  */
 #pragma once
 
@@ -18,7 +18,7 @@ namespace intel_cpu {
 
 class DnnlMemoryDesc;
 
-class MKLDNNExtensionUtils {
+class DnnlExtensionUtils {
 public:
     static uint8_t sizeOfDataType(mkldnn::memory::data_type dataType);
     static mkldnn::memory::data_type IEPrecisionToDataType(const InferenceEngine::Precision& prec);

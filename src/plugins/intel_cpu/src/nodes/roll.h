@@ -10,10 +10,11 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNRollNode : public MKLDNNNode {
+class Roll : public Node {
 public:
-    MKLDNNRollNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    Roll(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -40,5 +41,6 @@ private:
     const size_t numberOfInputs = 3ul;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

@@ -13,6 +13,7 @@
 #include "utils/shape_inference/static_shape.hpp"
 
 using namespace ov;
+using namespace ov::intel_cpu;
 
 TEST(StaticShapeInferenceTest, ExperimentalDetectronROIFeatureExtractor) {
     op::v6::ExperimentalDetectronROIFeatureExtractor::Attributes attrs;

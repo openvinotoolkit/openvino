@@ -52,7 +52,7 @@ private:
 
     Config engConfig;
     NumaNodesWeights weightsSharing;
-    MKLDNNExtensionManager::Ptr extensionManager = std::make_shared<MKLDNNExtensionManager>();
+    ExtensionManager::Ptr extensionManager = std::make_shared<ExtensionManager>();
     /* Explicily configured streams have higher priority even than performance hints.
        So track if streams is set explicitly (not auto-configured) */
     bool streamsExplicitlySetForEngine = false;

@@ -12,12 +12,13 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNColorConvertNode : public MKLDNNNode {
+class ColorConvert : public Node {
 public:
-    MKLDNNColorConvertNode(const std::shared_ptr<ngraph::Node>& op,
-                           const mkldnn::engine& eng,
-                           MKLDNNWeightsSharing::Ptr &cache);
+    ColorConvert(const std::shared_ptr<ngraph::Node>& op,
+                 const mkldnn::engine& eng,
+                 WeightsSharing::Ptr &cache);
     class Converter;
 
 public:
@@ -37,7 +38,7 @@ private:
     void initSupportedI420Impls();
 
 private:
-    using ConverterBuilder = std::function<Converter*(MKLDNNNode *)>;
+    using ConverterBuilder = std::function<Converter*(Node *)>;
     using SupportedImpls = multidim_map<impl_desc_type,                             // Implementation type
                                         Algorithm,                                  // Algorithm: ColorConvertXXX
                                         InferenceEngine::Precision::ePrecision,     // Precision: FP32/U8
@@ -48,7 +49,7 @@ private:
     SupportedImpls _supportedImpls;
 };
 
-class MKLDNNColorConvertNode::Converter {
+class ColorConvert::Converter {
 public:
     using PrimitiveDescs = std::vector<std::tuple<std::vector<PortConfigurator>,    // Input port configurator
                                                   std::vector<PortConfigurator>,    // Output port configurator
@@ -63,7 +64,7 @@ public:
 
     using ColorFormat = std::array<uint8_t, 3>;
 
-    Converter(MKLDNNNode *node, const ColorFormat & colorFormat);
+    Converter(Node *node, const ColorFormat & colorFormat);
     virtual ~Converter() = default;
     InferenceEngine::Precision inputPrecision(size_t idx) const;
     InferenceEngine::Precision outputPrecision(size_t idx) const;
@@ -74,9 +75,10 @@ public:
     virtual void execute(mkldnn::stream strm) = 0;
 
 protected:
-    MKLDNNNode *_node;
+    Node *_node;
     ColorFormat _colorFormat;   // RGB: {0,1,2}, BGR: {2,1,0}
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

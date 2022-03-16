@@ -5,7 +5,7 @@
 #pragma once
 
 #include "cpu_blocked_memory_desc.h"
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 
 namespace ov {
 namespace intel_cpu {
@@ -56,7 +56,7 @@ protected:
     mkldnn::memory::desc desc;
 
     void setPrecision(InferenceEngine::Precision prc) override {
-        desc.data.data_type = static_cast<dnnl_data_type_t>(MKLDNNExtensionUtils::IEPrecisionToDataType(prc));
+        desc.data.data_type = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(prc));
     }
 
 private:
@@ -69,7 +69,7 @@ private:
     bool isDefinedImp() const override;
     MemoryDescPtr cloneWithNewDimsImp(const VectorDims& dims) const override;
 
-    friend DnnlMemoryDescPtr MKLDNNExtensionUtils::makeDescriptor(const mkldnn::memory::desc &desc);
+    friend DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const mkldnn::memory::desc &desc);
 };
 
 }   // namespace intel_cpu

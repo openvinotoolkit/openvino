@@ -13,6 +13,7 @@
 #include <utils/shape_inference/static_shape.hpp>
 
 using namespace ov;
+using namespace ov::intel_cpu;
 
 static std::shared_ptr<op::v7::DFT> build_dft() {
     auto input_shape = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});

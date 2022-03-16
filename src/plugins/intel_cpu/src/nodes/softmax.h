@@ -12,10 +12,11 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNSoftMaxNode : public MKLDNNNode {
+class SoftMax : public Node {
 public:
-    MKLDNNSoftMaxNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    SoftMax(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     void initOptimalPrimitiveDescriptor() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
@@ -33,5 +34,6 @@ private:
     size_t axis = 0;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

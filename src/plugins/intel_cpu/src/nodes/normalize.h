@@ -14,10 +14,9 @@
 #include "utils/cpu_utils.hpp"
 #include "ie_parallel.hpp"
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
 struct jit_normalize_config_params {
     bool is_nchw;
@@ -77,9 +76,9 @@ struct jit_uni_normalize_kernel {
     const mkldnn_primitive_attr &attr_;
 };
 
-class MKLDNNNormalizeL2Node : public MKLDNNNode {
+class NormalizeL2 : public Node {
 public:
-    MKLDNNNormalizeL2Node(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    NormalizeL2(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override {};
@@ -90,7 +89,7 @@ public:
     bool canBeInPlace() const override {
         return false;
     }
-    bool canFuse(const MKLDNNNodePtr& node) const override;
+    bool canFuse(const NodePtr& node) const override;
 
     std::vector<VectorDims> shapeInfer() const override;
     void prepareParams() override;
@@ -110,8 +109,8 @@ public:
         bool cornerCase = false;
         float eps = 1e-10f;
 
-        InferenceEngine::Precision input_prec = Precision::UNSPECIFIED;
-        InferenceEngine::Precision output_prec = Precision::UNSPECIFIED;
+        InferenceEngine::Precision input_prec = InferenceEngine::Precision::UNSPECIFIED;
+        InferenceEngine::Precision output_prec = InferenceEngine::Precision::UNSPECIFIED;
         size_t src_data_size = 0lu;
         size_t dst_data_size = 0lu;
     };
@@ -175,5 +174,6 @@ private:
     executorPtr execPtr = nullptr;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

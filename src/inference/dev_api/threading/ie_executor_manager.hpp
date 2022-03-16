@@ -25,7 +25,7 @@ namespace InferenceEngine {
  * @brief Interface for tasks execution manager.
  * This is global point for getting task executor objects by string id.
  * It's necessary in multiple asynchronous requests for having unique executors to avoid oversubscription.
- * E.g. There 2 task executors for CPU device: one - in FPGA, another - in MKLDNN. Parallel execution both of them leads
+ * E.g. There 2 task executors for CPU device: one - in FPGA, another - in OneDNN. Parallel execution both of them leads
  * to not optimal CPU usage. More efficient to run the corresponding tasks one by one via single executor.
  * @ingroup ie_dev_api_threading
  */

@@ -9,10 +9,11 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNExperimentalDetectronDetectionOutputNode : public MKLDNNNode {
+class ExperimentalDetectronDetectionOutput : public Node {
 public:
-    MKLDNNExperimentalDetectronDetectionOutputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    ExperimentalDetectronDetectionOutput(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -44,6 +45,6 @@ private:
     std::vector<float> deltas_weights_;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov
-

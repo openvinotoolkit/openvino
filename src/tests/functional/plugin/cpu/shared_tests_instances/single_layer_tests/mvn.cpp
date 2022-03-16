@@ -69,9 +69,9 @@ const auto MvnReductionAxes = ::testing::Combine(
     ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_MKLDNN_TestsMVN_AcrossChannels, Mvn1LayerTest, MvnAcrossChannels, Mvn1LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_INTEL_CPU_TestsMVN_AcrossChannels, Mvn1LayerTest, MvnAcrossChannels, Mvn1LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_MKLDNN_TestsMVN_ReductionAxes, Mvn1LayerTest, MvnReductionAxes, Mvn1LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_INTEL_CPU_TestsMVN_ReductionAxes, Mvn1LayerTest, MvnReductionAxes, Mvn1LayerTest::getTestCaseName);
 
 
 std::vector<InferenceEngine::Precision> idxPrecisions = {

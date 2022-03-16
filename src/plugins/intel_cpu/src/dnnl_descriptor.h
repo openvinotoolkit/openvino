@@ -8,48 +8,51 @@
 #include <string>
 #include "mkldnn/ie_mkldnn.h"
 
-class MKLDNNDescriptor {
+namespace ov {
+namespace intel_cpu {
+
+class DnnlDesriptor {
 public:
-    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::convolution_forward::desc> desc);
+    explicit DnnlDesriptor(std::shared_ptr<mkldnn::convolution_forward::desc> desc);
     operator std::shared_ptr<mkldnn::convolution_forward::desc>();
 
-    MKLDNNDescriptor(std::shared_ptr<mkldnn::convolution_backward_data::desc> desc,
-                     std::shared_ptr<mkldnn::convolution_forward::primitive_desc> prim);
+    DnnlDesriptor(std::shared_ptr<mkldnn::convolution_backward_data::desc> desc,
+               std::shared_ptr<mkldnn::convolution_forward::primitive_desc> prim);
 
-    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::deconvolution_forward::desc> desc);
+    explicit DnnlDesriptor(std::shared_ptr<mkldnn::deconvolution_forward::desc> desc);
     operator std::shared_ptr<mkldnn::deconvolution_forward::desc>();
 
     operator std::shared_ptr<mkldnn::convolution_backward_data::desc>();
     operator std::shared_ptr<mkldnn::convolution_forward::primitive_desc>();
 
-    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::inner_product_forward::desc> desc);
+    explicit DnnlDesriptor(std::shared_ptr<mkldnn::inner_product_forward::desc> desc);
     operator std::shared_ptr<mkldnn::inner_product_forward::desc>();
 
-    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::lrn_forward::desc> desc);
+    explicit DnnlDesriptor(std::shared_ptr<mkldnn::lrn_forward::desc> desc);
     operator std::shared_ptr<mkldnn::lrn_forward::desc>();
 
-    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::pooling_v2_forward::desc> desc);
+    explicit DnnlDesriptor(std::shared_ptr<mkldnn::pooling_v2_forward::desc> desc);
     operator std::shared_ptr<mkldnn::pooling_v2_forward::desc>();
 
-    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::softmax_forward::desc> desc);
+    explicit DnnlDesriptor(std::shared_ptr<mkldnn::softmax_forward::desc> desc);
     operator std::shared_ptr<mkldnn::softmax_forward::desc>();
 
-    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::vanilla_rnn_forward::desc> desc);
+    explicit DnnlDesriptor(std::shared_ptr<mkldnn::vanilla_rnn_forward::desc> desc);
     operator std::shared_ptr<mkldnn::vanilla_rnn_forward::desc>();
 
-    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::lstm_forward::desc> desc);
+    explicit DnnlDesriptor(std::shared_ptr<mkldnn::lstm_forward::desc> desc);
     operator std::shared_ptr<mkldnn::lstm_forward::desc>();
 
-    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::gru_forward::desc> desc);
+    explicit DnnlDesriptor(std::shared_ptr<mkldnn::gru_forward::desc> desc);
     operator std::shared_ptr<mkldnn::gru_forward::desc>();
 
-    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::lbr_gru_forward::desc> desc);
+    explicit DnnlDesriptor(std::shared_ptr<mkldnn::lbr_gru_forward::desc> desc);
     operator std::shared_ptr<mkldnn::lbr_gru_forward::desc>();
 
-    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::eltwise_forward::desc> desc);
+    explicit DnnlDesriptor(std::shared_ptr<mkldnn::eltwise_forward::desc> desc);
     operator std::shared_ptr<mkldnn::eltwise_forward::desc>();
 
-    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::matmul::desc> desc);
+    explicit DnnlDesriptor(std::shared_ptr<mkldnn::matmul::desc> desc);
     operator std::shared_ptr<mkldnn::matmul::desc>();
 
     mkldnn::primitive_desc_iterator createPrimitiveDescriptorIterator(const mkldnn::engine &engine,
@@ -110,3 +113,6 @@ private:
 
     std::shared_ptr<IDesc> desc;
 };
+
+}   // namespace intel_cpu
+}   // namespace ov
