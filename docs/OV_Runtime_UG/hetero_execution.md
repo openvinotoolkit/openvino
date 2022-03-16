@@ -92,6 +92,8 @@ In some cases you may need to consider manually adjusting affinities which were 
 
 Importantly, the automatic mode will not work if any operation in a model has its `"affinity"` already initialized.
 
+Importantly, the automatic mode will not work if any operation in a model has its `"affinity"` already initialized. 
+
 > **NOTE**: `ov::Core::query_model` does not depend on affinities set by a user. Instead, it queries for an operation support based on device capabilities.
 
 ### Configure fallback devices
