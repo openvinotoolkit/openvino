@@ -81,6 +81,7 @@ div.highlight {
 /* Transition banner */
 .transition-banner {
     top: 60px;
+    background: #B4F0FF;
     position: fixed;
     text-align: center;
     color: white;
@@ -95,4 +96,5 @@ div.highlight {
 
 .transition-banner .close {
     padding: 0 1.25rem;
+    color: #000;
 }
