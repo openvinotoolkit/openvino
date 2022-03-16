@@ -38,7 +38,33 @@ Engine::Engine() {
                 _properties.set(ov::device::priorities(str));
             })
         .add(ov::device::full_name, "HETERO")
-        .add(ov::device::capabilities, {ov::device::capability::EXPORT_IMPORT});
+        .add(ov::device::capabilities, {ov::device::capability::EXPORT_IMPORT})
+        .add(ov::device::architecture, [this] (const ov::AnyMap& options) {
+            auto deviceIt = options.find("TARGET_FALLBACK");
+            std::string targetFallback;
+            if (deviceIt != options.end()) {
+                targetFallback = deviceIt->second.as<std::string>();
+            } else {
+                deviceIt = options.find(ov::device::priorities.name());
+                if (deviceIt != options.end()) {
+                    targetFallback = deviceIt->second.as<std::string>();
+                } else {
+                    targetFallback = _properties.get(ov::device::priorities);
+                }
+            }
+            auto fallbackDevices = InferenceEngine::DeviceIDParser::getHeteroDevices(targetFallback);
+            std::string resArch;
+            for (const auto& device : fallbackDevices) {
+                InferenceEngine::DeviceIDParser parser(device);
+                auto supportedMetricKeys = GetCore()->get_property(device, ov::supported_properties);
+                auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(), ov::device::architecture);
+                auto arch = (it != supportedMetricKeys.end())
+                                ? GetCore()->get_property(device, ov::device::architecture)
+                                : parser.getDeviceName();
+                resArch += " " + arch;
+            }
+            return decltype(ov::device::architecture)::value_type{resArch};
+        });
 }
 
 InferenceEngine::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
