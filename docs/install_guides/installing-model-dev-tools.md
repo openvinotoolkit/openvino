@@ -31,7 +31,7 @@ Use the following command to create a virtual environment:
       # Depending on your operating system, this step may require installing python3-venv
       python3 -m venv openvino_env
    
-.. tab:: On Windows
+.. tab:: Windows
 
    .. code-block:: sh
    
