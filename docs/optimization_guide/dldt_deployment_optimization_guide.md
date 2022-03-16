@@ -25,10 +25,10 @@ Each of the [OpenVINO supported devices](../OV_Runtime_UG/supported_plugins/Devi
 **If the performance portability is of concern, consider using the [OpenVINO High-Level Performance Hints](../OV_Runtime_UG/performance_hints.md) first.**  
 
 Finally, how the full-stack application uses the inference component _end-to-end_ is important.  
-For example, what are the stages that needs to be orchestrated? In some cases a significant part of the workload time is spent on bringing and preparing the input data. As detailed in the section on the _execution time_ optimizations, the inputs population can be performed asynchronously to the inference. Also, in many cases the (image) [pre-processing can be offloaded to the OpenVINO](../OV_Runtime_UG/preprocessing_overview.md). For variably-sized inputs, consider [dynamic shapes](../OV_Runtime_UG/ov_dynamic_shapes.md) to efficiently connect the data input pipeline and the model inference.
+For example, what are the stages that needs to be orchestrated? In some cases a significant part of the workload time is spent on bringing and preparing the input data. As detailed in the section on the [_common runtime_ optimizations](./dldt_deployment_optimization_common.md), the inputs population can be performed asynchronously to the inference. Also, in many cases the (image) [pre-processing can be offloaded to the OpenVINO](../OV_Runtime_UG/preprocessing_overview.md). For variably-sized inputs, consider [dynamic shapes](../OV_Runtime_UG/ov_dynamic_shapes.md) to efficiently connect the data input pipeline and the model inference.
 These are common performance tricks that help both latency and throughput scenarios. 
 
- Similarly, the _model-level_ optimizations like [quantization that unlocks the int8 inference](../OV_Runtime_UG/Int8Inference.md) are general and help any scenario. As referenced in the parent topic, these are covered in the [dedicated document](./model_optimization_guide.md). Additionally, the  `ov::hint::inference_precision` allows the devices to trade the accuracy for the performance at the _runtime_ (e.g. by allowing the fp16/bf16 execution for the layers that remain in fp32 after quantization of the original fp32 model). 
+ Similarly, the _model-level_ optimizations like [quantization that unlocks the int8 inference](../OV_Runtime_UG/Int8Inference.md) are general and help any scenario. As referenced in the [performance introduction topic](./dldt_optimization_guide.md), these are covered in the [dedicated document](./model_optimization_guide.md). Additionally, the  `ov::hint::inference_precision` allows the devices to trade the accuracy for the performance at the _runtime_ (e.g. by allowing the fp16/bf16 execution for the layers that remain in fp32 after quantization of the original fp32 model). 
  
 Further documents cover the  _runtime_ performance optimizations topics. Please also consider [matrix support of the features by the individual devices](../OV_Runtime_UG/supported_plugins/Device_Plugins.md).
 
@@ -38,7 +38,7 @@ Further documents cover the  _runtime_ performance optimizations topics. Please 
 
 * Async API and 'get_tensor' Idiom
 
-Use-case specific optimizations along with some implementation details]:
+Use-case specific optimizations along with some implementation details:
  
 * Optimizing for [throughput](./dldt_deployment_optimization_tput.md) and [latency](./dldt_deployment_optimization_latency.md)
  

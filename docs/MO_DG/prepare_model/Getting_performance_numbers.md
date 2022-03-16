@@ -9,7 +9,7 @@ When evaluating performance of your model with the OpenVINO Runtime, you must me
 
 - Track separately the operations that happen outside the OpenVINO Runtime, like video decoding. 
 
-> **NOTE**: Some image pre-processing can be baked into the IR and accelerated. For more information, refer to [Embedding Preprocessing Computation](Additional_Optimizations.md)
+> **NOTE**: Some image pre-processing can be baked into the IR and accelerated accordingly. For more information, refer to [Embedding the Preprocessing](Additional_Optimizations.md). Also consider [_runtime_ preprocessing optimizations](../../optimization_guide/dldt_deployment_optimization_common).
 
 ## Tip 2. Getting Credible Performance Numbers 
 
@@ -17,9 +17,9 @@ You need to build your performance conclusions on reproducible data. Do the perf
 
 -	If the warm-up run does not help or execution time still varies, you can try running a large number of iterations and then average or find a mean of the results.
 -	For time values that range too much, consider geomean.
--   Beware of the throttling and other power oddities. A device can exist in one of several different power states. When optimizing your model, for better performance data reproducibility consider fixing the device frequency. However the end to end  (application) benchmarking should be also performed under real operational conditions.
+-   Beware of the throttling and other power oddities. A device can exist in one of several different power states. When optimizing your model, for better performance data reproducibility consider fixing the device frequency. However the end to end (application) benchmarking should be also performed under real operational conditions.
 
-## Getting performance numbers using OpenVINO's benchmark_app 
+## Tip 3. Measure Reference Performance Numbers with OpenVINO's benchmark_app 
 
 To get performance numbers, use the dedicated [Benchmark App](../../../samples/cpp/benchmark_app/README.md) sample which is the best way to produce the performance reference.
 It has a lot of device-specific knobs, but the primary usage is as simple as: 
@@ -42,13 +42,14 @@ While these settings provide really low-level control and allow to leverage the 
 
 When comparing the OpenVINO Runtime performance with the framework or another reference code, make sure that both versions are as similar as possible:
 
--	Wrap exactly the inference execution (refer to the [OpenVINO Samples](../../OV_Runtime_UG/Samples_Overview.md) for examples).
+-	Wrap exactly the inference execution (refer to the  [Benchmark App](../../../samples/cpp/benchmark_app/README.md) for examples).
 -	Do not include model loading time.
 -	Ensure the inputs are identical for the OpenVINO Runtime and the framework. For example, beware of random values that can be used to populate the inputs.
 -	Consider [Image Pre-processing and Conversion](../../OV_Runtime_UG/preprocessing_overview.md), while any user-side pre-processing should be tracked separately.
+-   When applicable, leverage the [Dynamic Shapes support](../../OV_Runtime_UG/ov_dynamic_shapes.md)
 -	If possible, demand the same accuracy. For example, TensorFlow allows `FP16` execution, so when comparing to that, make sure to test the OpenVINO Runtime with the `FP16` as well.
 
-### Internal Inference Performance Counters and Execution Graphs <a name="performance-counters"></a>
+## Internal Inference Performance Counters and Execution Graphs <a name="performance-counters"></a>
 Further, finer-grained insights into inference performance breakdown can be achieved with device-specific performance counters and/or execution graphs.
 Both [C++](../../../samples/cpp/benchmark_app/README.md) and [Python](../../../tools/benchmark_tool/README.md) versions of the `benchmark_app` supports a `-pc` command-line parameter that outputs internal execution breakdown.
 

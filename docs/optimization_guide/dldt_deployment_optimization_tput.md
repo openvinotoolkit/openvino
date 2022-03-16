@@ -1,7 +1,7 @@
 # Optimizing for Throughput {#openvino_docs_deployment_optimization_guide_tput}
 
-### General Throughput Considerations
-As described in the section on the [latency-specific considerations](./dldt_deployment_optimization_latency.md) one possible use-case is focused on delivering the every single request at the minimal delay.
+## General Throughput Considerations
+As described in the section on the [latency-specific considerations](./dldt_deployment_optimization_latency.md) one possible use-case is delivering the every single request at the minimal delay.
 Throughput on the other hand, is about inference scenarios in which potentially large number of inference requests are served simultaneously.
 Here, the overall application throughput can be significantly improved  with the right performance configuration.
 Also, if the model is not already compute- or memory bandwidth-limited, the associated increase in latency is not linearly dependent on the number of requests executed in parallel.
@@ -18,6 +18,8 @@ While earlier approach of optimizing the parameters of each device separately do
 Overall, the latency-throughput is not linearly dependent and very _device_ specific. It is also tightly integrated with _model_ characteristics.
 As for the possible inference devices the scenery had already become pretty diverse, the OpenVINO has introduced the dedicated notion of the high-level performance configuration "hints" to describe the target application scenarios.
 The hints are described [next](./dldt_deployment_optimization_hints.md). 
+
+**NOTE**: [OpenVINO performance hints](./dldt_deployment_optimization_hints.md) is a recommended way for performance configuration, which is both device-agnostic and future-proof. 
 
 The rest of the document provides low-level details on the OpenVINO's low-level ways to optimize the throughput.
 

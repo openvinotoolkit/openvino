@@ -1,4 +1,4 @@
-# General Runtime/Deployment Optimizations {#openvino_docs_deployment_optimization_guide_common}
+# General Optimizations {#openvino_docs_deployment_optimization_guide_common}
 
 ## Inputs Pre-processing with OpenVINO
 
