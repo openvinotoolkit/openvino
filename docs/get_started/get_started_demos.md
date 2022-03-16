@@ -32,7 +32,7 @@ This guide assumes you completed all installation and configuration steps. If yo
 
 ## Install OpenVINO Development Tools
 
-To install OpenVINO Development Tools for working with Caffe* models use following command: 
+To install OpenVINO Development Tools for working with Caffe* models, use the following command: 
 ``` sh
    pip install openvino-dev[caffe]
 ```
