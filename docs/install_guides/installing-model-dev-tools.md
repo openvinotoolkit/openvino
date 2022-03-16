@@ -45,7 +45,7 @@ Use the following command to create a virtual environment:
 
 @sphinxdirective
 
-.. tab:: On Linux and macOS
+.. tab:: Linux and macOS
 
    .. code-block:: sh
    
