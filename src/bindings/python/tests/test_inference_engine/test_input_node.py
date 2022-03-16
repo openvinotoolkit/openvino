@@ -6,6 +6,8 @@ import os
 from ..conftest import model_path
 from openvino.runtime import Input, Shape, PartialShape, Type, Parameter, \
     RTMap
+from openvino.pyopenvino import DescriptorTensor
+import openvino.runtime.opset8 as ops
 
 from openvino.runtime import Core
 
@@ -90,6 +92,16 @@ def test_input_get_source_output(device):
     assert name == "fc_out"
 
 
+def test_input_get_tensor(device):
+    core = Core()
+    func = core.read_model(model=test_net_xml, weights=test_net_bin)
+    exec_net = core.compile_model(func, device)
+    input = exec_net.output(0)
+    input_node = input.get_node().inputs()[0]
+    tensor = input_node.get_tensor()
+    assert isinstance(tensor, DescriptorTensor)
+
+
 def test_input_get_rt_info(device):
     core = Core()
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
@@ -108,6 +120,20 @@ def test_input_rt_info(device):
     input_node = input.get_node().inputs()[0]
     rt_info = input_node.rt_info
     assert isinstance(rt_info, RTMap)
+
+
+def test_input_replace_source_output(device):
+    param = ops.parameter([1, 64], Type.i64)
+    param.output(0).get_tensor().set_names({"a", "b"})
+
+    param1 = ops.parameter([1, 64], Type.i64)
+    param1.output(0).get_tensor().set_names({"c", "d"})
+
+    relu = ops.relu(param)
+    relu.input(0).replace_source_output(param1.output(0))
+
+    assert param.output(0).get_tensor().get_names() == {"a", "b"}
+    assert param1.output(0).get_tensor().get_names() == {"c", "d"}
 
 
 def test_input_update_rt_info(device):
