@@ -77,8 +77,6 @@ bool FullyConnectedKernelIMAD::Validate(const Params& params, const optional_par
     const auto& in = fc_params.inputs[0];
     const auto& wei = fc_params.weights;
 
-    auto tuning_data = GetTuningParams(fc_params);
-
     if ((in.X().pad.before != 0) || (in.X().pad.after != 0) ||
         (in.Y().pad.before != 0) || (in.Y().pad.after != 0)) {
         // Padding is not supported
