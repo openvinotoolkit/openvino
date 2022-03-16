@@ -51,7 +51,7 @@ Use the following command to create a virtual environment:
    
       source openvino_env/bin/activate
    
-.. tab:: On Windows
+.. tab:: Windows
 
    .. code-block:: sh
    
