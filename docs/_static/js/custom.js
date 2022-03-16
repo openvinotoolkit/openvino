@@ -45,7 +45,6 @@ $(document).ready(function () {
         addTableSort();
     }
     addLegalNotice();
-    setTransitionBanner();
 });
 
 // Determine where we'd go if clicking on a version selector option
@@ -60,14 +59,6 @@ function updateTitleTag() {
     var currentVersion = getCurrentVersion();
     var newTitle = (title.text() + ' — Version(' + currentVersion + ')').replace(/\s+/g, ' ').trim();
     title.text(newTitle);
-}
-
-function setTransitionBanner() {
-    var transitionBannerCount = parseInt(localStorage.getItem('transitionBannerCount')) || 0;
-    if (transitionBannerCount < 3) {
-        $('.transition-banner').show();
-        localStorage.setItem('transitionBannerCount', transitionBannerCount + 1);
-    }
 }
 
 function getCurrentVersion() {
