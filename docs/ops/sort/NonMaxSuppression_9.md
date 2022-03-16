@@ -59,7 +59,7 @@ class must not exceed `max_output_boxes_per_class`.
     * *true* - soft NMS is suppressed by IOU.
     * *false* - soft NMS is not suppressed by IOU.
   * **Type**: boolean
-  * **Default value**: false
+  * **Default value**: true
   * **Required**: *no*
 
 **Inputs**:
