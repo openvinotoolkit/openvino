@@ -39,7 +39,7 @@ Engine::Engine() {
             })
         .add(ov::device::full_name, "HETERO")
         .add(ov::device::capabilities, {ov::device::capability::EXPORT_IMPORT})
-        .add(ov::device::architecture, [this] (const ov::AnyMap& options) {
+        .add(ov::device::architecture, [this](const ov::AnyMap& options) {
             auto deviceIt = options.find("TARGET_FALLBACK");
             std::string targetFallback;
             if (deviceIt != options.end()) {
