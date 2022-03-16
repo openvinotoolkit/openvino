@@ -305,20 +305,20 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
 void snippets::op::Subgraph::debug_verbose(const std::string& annotation) const {
     INTERNAL_OP_SCOPE(Subgraph);
     SNIPPETS_DEBUG << (annotation.empty() ? "" : annotation + ": ")
-                   << this->get_type_name() << " " << this->get_friendly_name()
-                   << " contains " << this->get_body()->get_ops().size() << " nodes";
+                   << get_type_name() << " " << get_friendly_name()
+                   << " contains " << get_body()->get_ops().size() << " nodes";
 
-    int qqq = 0;
-    for (auto op : this->get_body()->get_ordered_ops()) {
-        SNIPPETS_DEBUG << " op " << qqq++ << " " << op->get_friendly_name() << " (" << op->get_type_name() << ") " << op;
+    int opOrder = 0;
+    for (auto op : get_body()->get_ordered_ops()) {
+        SNIPPETS_DEBUG << " op " << opOrder++ << " " << op->get_friendly_name() << " (" << op->get_type_name() << ") " << op;
     }
 
-    for (auto& in : this->inputs()) {
+    for (auto& in : inputs()) {
         SNIPPETS_DEBUG << "  -> " << in.get_source_output().get_node_shared_ptr()->get_friendly_name() << " "
                        << in.get_source_output().get_node_shared_ptr();
     }
 
-    for (auto& out : this->outputs()) {
+    for (auto& out : outputs()) {
         for (auto& user : out.get_target_inputs()) {
             SNIPPETS_DEBUG << " <- " << user.get_node()->get_friendly_name() << " "  << user.get_node();
         }
@@ -372,21 +372,20 @@ void snippets::op::Subgraph::debug_statistics(const std::string& annotation, boo
         return count;
     };
 
-    auto body = this->get_body();
+    auto body = get_body();
 
     SNIPPETS_DEBUG << (annotation.empty() ? "" : annotation + ": ")
-                   << this->get_friendly_name()
+                   << get_friendly_name()
                    << ";" << this
                    << ";" << body->get_ops().size()
                    << ";" << body->get_parameters().size()
                    << ";" << body->get_results().size()
                    << ";" << countConstants(body)
                    << ";" << getModelInventory(body)
-                   << ";" << getNodeInventory(this->shared_from_this());
+                   << ";" << getNodeInventory(shared_from_this());
 
-    if (verbose) {
-        this->debug_verbose("");
-    }
+    if (verbose)
+        debug_verbose("");
 }
 #endif // ENABLE_OPENVINO_DEBUG
 
