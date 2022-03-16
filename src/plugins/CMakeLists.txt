@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+add_subdirectory(proxy)
+
 if(ENABLE_HETERO)
     add_subdirectory(hetero)
 endif()

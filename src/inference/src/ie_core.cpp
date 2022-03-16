@@ -41,6 +41,7 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
+#include "proxy_plugin.hpp"
 #include "so_extension.hpp"
 #include "xml_parse_utils.h"
 
@@ -426,6 +427,12 @@ public:
         opsetNames.insert("opset6");
         opsetNames.insert("opset7");
         opsetNames.insert("opset8");
+
+        // Register internal plugins
+        const auto& reg_internal_plugin = [&](const std::string& name, const PluginDescriptor& desc) {
+            pluginRegistry[name] = desc;
+        };
+        reg_internal_plugin("PROXY", PluginDescriptor(ov::proxy::create_plugin));
     }
 
     ~CoreImpl() override = default;

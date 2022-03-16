@@ -11,6 +11,7 @@ set(TARGET_NAME openvino)
 add_library(${TARGET_NAME}
     $<TARGET_OBJECTS:ngraph_obj>
     $<TARGET_OBJECTS:frontend_common_obj>
+    $<TARGET_OBJECTS:openvino_proxy_plugin_obj>
     $<TARGET_OBJECTS:inference_engine_obj>
     $<TARGET_OBJECTS:inference_engine_transformations_obj>
     $<TARGET_OBJECTS:inference_engine_lp_transformations_obj>)
