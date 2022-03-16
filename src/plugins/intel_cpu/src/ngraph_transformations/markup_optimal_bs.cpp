@@ -16,6 +16,26 @@ NGRAPH_RTTI_DEFINITION(ov::intel_cpu::MarkupConvolutionOptimalBS, "MarkupConvolu
 NGRAPH_RTTI_DEFINITION(ov::intel_cpu::MarkupGroupConvolutionOptimalBS, "MarkupGroupConvolutionOptimalBS", 0);
 NGRAPH_RTTI_DEFINITION(ov::intel_cpu::MarkupFullyConnectedOptimalBS, "MarkupFullyConnectedOptimalBS", 0);
 
+namespace {
+// TODO: remove this WA
+bool conv_with_fused_add(const std::shared_ptr<ov::Node> node) {
+    const auto consumers = node->output(0).get_target_inputs();
+    if (consumers.size() == 1) {
+        const auto consumer = (*consumers.begin()).get_node();
+        if (ov::is_type<ngraph::opset1::Add>(consumer)) {
+            const auto second_parent = consumer->get_input_node_shared_ptr(1);
+            if (ov::is_type<ngraph::opset1::Parameter>(second_parent))
+                return true;
+            if (ov::is_type<ngraph::opset1::Convert>(second_parent) &&
+                ov::is_type<ngraph::opset1::Parameter>(second_parent->get_input_node_shared_ptr(0)))
+                return true;
+        }
+    }
+
+    return false;
+}
+}  // namespace
+
 ov::intel_cpu::MarkupConvolutionOptimalBS::MarkupConvolutionOptimalBS() {
     auto conv_m = ngraph::pattern::wrap_type<ngraph::opset1::Convolution>(ngraph::pattern::has_static_shape());
 
@@ -30,18 +50,23 @@ ov::intel_cpu::MarkupConvolutionOptimalBS::MarkupConvolutionOptimalBS() {
         const auto div = static_cast<double>(ngraph::shape_size(weights_shape)) /
                          static_cast<double>(ngraph::shape_size(output_shape));
 
-        size_t new_batch = original_batch;
-        if (node->get_input_element_type(0).is_real()) {
-            new_batch = div < 0.32 ? 16 : 1;
-        } else {
-            if (div < 0.65)
-                new_batch = 16;
-            else if (div < 1.45)
-                new_batch = 2;
-            else
-                new_batch = 1;
-        }
+        auto get_opt_batch = [&]() -> size_t {
+            if (conv_with_fused_add(node))
+                return original_batch;
 
+            if (node->get_input_element_type(0).is_real()) {
+                return div < 0.32 ? 16 : 1;
+            } else {
+                if (div < 0.65)
+                    return 16;
+                else if (div < 1.45)
+                    return 2;
+                else
+                    return 1;
+            }
+        };
+
+        const size_t new_batch = get_opt_batch();
         const size_t optimal_bs = original_batch % new_batch == 0 ? new_batch : original_batch;
         if (original_batch >= optimal_bs)
             ov::intel_cpu::set_optimal_bs(node, optimal_bs);
