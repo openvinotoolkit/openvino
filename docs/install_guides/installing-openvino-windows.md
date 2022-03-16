@@ -70,13 +70,8 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
      :align: center
 
    @endsphinxdirective
-<<<<<<< HEAD
 
 3. Follow the instructions on your screen. During the installation you will be asked to accept the license agreement. Your acceptance is required to continue. Check out the installation process in the image below:<br>
-=======
-
-3. Follow the instructions on your screen. During the installation you will be asked to accept the license agreement. The acceptance is required to continue. Check out the installation process in the image below:<br>
->>>>>>> 6474d2c94 ([GNA] Update documentation (release) (#10873))
    ![](../img/openvino-install-win-run-boostrapper-script.gif)
    Click on the image to see the details.
    <br>
