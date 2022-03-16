@@ -589,14 +589,14 @@ For all frameworks:
 2. [OpenVINO™ Extensibility Mechanism](../../Extensibility_UG/Intro.md)
 
 or
-* Edit network in original framework to exclude cycle.
+* Edit model in original framework to exclude cycle.
 
 #### 98. What does the message "Can not transpose attribute '..' with value .. for node '..' .." mean?  <a name="question-98"></a>
 
 This message means that model is not supported. It may be caused by using shapes larger than 4-D.
 There are two ways to avoid such message:
 
-1. [Cut model part containing such layers in Model Optimizer](convert_model/Cutting_Model.md)
+1. [Cutting Off Parts of a Model](convert_model/Cutting_Model.md)
 2. Edit network in original framework to exclude such layers.
 
 #### 99. What does the message "Expected token `</ParallelComponent>`, has `...`" mean?  <a name="question-99"></a>

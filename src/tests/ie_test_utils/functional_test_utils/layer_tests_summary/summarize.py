@@ -110,8 +110,11 @@ def collect_statistic(root: ET.Element, is_conformance_mode: bool):
         trusted_ops[device.tag] = 0
         covered_ops[device.tag] = 0
         for op in results[device.tag]:
+            # for correct display of reports without hanged item in report.xml
+            results[device.tag][op]["hanged"] = results[device.tag][op].get("hanged", 0)
             op_test_cnt = int(results[device.tag][op]["passed"]) + int(results[device.tag][op]["failed"]) + \
-                          int(results[device.tag][op]["crashed"]) + int(results[device.tag][op]["skipped"])
+                          int(results[device.tag][op]["crashed"]) + int(results[device.tag][op]["skipped"]) + \
+                          int(results[device.tag][op]["hanged"])
             if op_test_cnt == 0:
                 continue
             covered_ops[device.tag] += 1
