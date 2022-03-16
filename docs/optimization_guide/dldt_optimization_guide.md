@@ -13,7 +13,7 @@ Latency measures inference time (ms) required to process a single input. When it
 To calculate throughput, divide number of frames that were processed by the processing time.
 
 It is important to separate the "pure" inference time of a neural network and the end-to-end application performance. For example data transfers between the host and a device may unintentionally affect the performance when a host input tensor is processed on the accelerator like dGPU. Similarly, the image-preprocessing may also contribute significantly to the to inference time. As detailed in the [getting performance numbers](../MO_DG/prepare_model/Getting_performance_numbers.md) section, when drilling into _inference_ performance, one option is to measure all such items separately. 
-For the end-to-end scenario though, consider the image pre-processing thru the OpenVINO and the asynchronous execution is a way to amortize the communication costs like data transfers. You can find further details in the [Deployment Optimization Guide](../optimization_guide/dldt_deployment_optimization_guide.md).
+For the end-to-end scenario though, consider the image pre-processing thru the OpenVINO and the asynchronous execution is a way to amortize the communication costs like data transfers. You can find further details in the [general optimizations document](./dldt_deployment_optimization_common.md).
 
 "First-inference latency" is another specific case (e.g. when fast application start-up is required) where the resulting performance may be well dominated by the model loading time. Consider [model caching](../OV_Runtime_UG/Model_caching_overview.md) as a way to improve model loading/compilation time.
 

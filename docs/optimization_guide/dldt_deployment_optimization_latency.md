@@ -28,6 +28,7 @@ In the case when there are multiple models to be used simultaneously, consider u
 ## First-Inference Latency and Model Load/Compile Time
 There are cases when model loading/compilation are heavily contributing to the end-to-end latencies.
 For example when the model is used exactly once, or when due to on-device memory limitations the model is unloaded (to free the memory for another inference) and reloaded at some cadence.
+
 Such a "first-inference latency" scenario however may pose an additional limitation on the model load\compilation time, as inference accelerators (other than the CPU) usually require certain level of model compilation upon loading.
 The [model caching](../OV_Runtime_UG/Model_caching_overview.md) is a way to amortize the loading/compilation time over multiple application runs. If the model caching is not possible (as e.g. it requires write permissions for the applications), the CPU device is almost exclusively offers the fastest model load time. Also, consider using the [AUTO device](../OV_Runtime_UG/auto_device_selection.md). It allows to transparently use the CPU for inference, while the actual accelerator loads the model (upon that, the inference hot-swapping also happens automatically).
 
