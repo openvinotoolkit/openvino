@@ -32,7 +32,7 @@ This guide assumes you completed all installation and configuration steps. If yo
 
 ## Install OpenVINO Development Tools
 
-To install OpenVINO Development Tools for working with Caffe* models use following command:
+To install OpenVINO Development Tools for working with Caffe* models, use the following command: 
 
 ``` sh
    pip install openvino-dev[caffe]
@@ -104,6 +104,8 @@ This guide uses the OpenVINO™ Model Downloader to get pre-trained models. You 
 ```
 
 * Use the Model Downloader to download the models to a models directory. This guide uses `<models_dir>` and `<models_name>` as placeholders for the models directory and model name:
+
+
 
 ``` sh
    omz_downloader --name <model_name> --output_dir <models_dir>
