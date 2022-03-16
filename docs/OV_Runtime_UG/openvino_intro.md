@@ -21,8 +21,8 @@
    openvino_docs_IE_DG_network_state_intro
    openvino_docs_OV_Runtime_UG_Python_API_exclusives
    openvino_2_0_transition_guide
-   openvino_docs_OV_Should_be_in_performance
-
+   openvino_docs_optimization_guide_dldt_optimization_guide
+   
 @endsphinxdirective
 
 ## Introduction

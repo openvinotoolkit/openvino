@@ -6,7 +6,7 @@
    :maxdepth: 1
    :hidden:
     
-  openvino_docs_OV_UG_NoDynamicShapes
+   openvino_docs_OV_UG_NoDynamicShapes
 
 @endsphinxdirective
 
