@@ -8,26 +8,10 @@
 
 using namespace std;
 
-ov::descriptor::Tensor::Tensor(const element::Type& element_type, const PartialShape& pshape)
-    : m_element_type(element_type),
-      m_partial_shape(pshape),
-      m_shape_changed(true) {}
-
 ov::descriptor::Tensor::Tensor(const element::Type& element_type, const PartialShape& pshape, const std::string& name)
     : m_element_type(element_type),
       m_partial_shape(pshape),
       m_name(name),
-      m_shape_changed(true) {}
-
-ov::descriptor::Tensor::Tensor(const ov::descriptor::Tensor& tensor)
-    : m_element_type(tensor.m_element_type),
-      m_partial_shape(tensor.m_partial_shape),
-      m_lower_value(tensor.m_lower_value),
-      m_upper_value(tensor.m_upper_value),
-      m_value_label(tensor.m_value_label),
-      m_name(tensor.m_name),
-      m_names(tensor.m_names),
-      m_rt_info(tensor.m_rt_info),
       m_shape_changed(true) {}
 
 ov::descriptor::Tensor::Tensor(const element::Type& element_type,
