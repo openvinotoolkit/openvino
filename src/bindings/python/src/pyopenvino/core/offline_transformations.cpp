@@ -20,7 +20,6 @@
 
 #include "openvino/pass/low_latency.hpp"
 #include "openvino/pass/manager.hpp"
-#include "pyopenvino/core/common.hpp"
 
 namespace py = pybind11;
 

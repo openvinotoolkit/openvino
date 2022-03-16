@@ -210,9 +210,7 @@ model = ppp.build()
 set_batch(model, 2)
 
 # ======== Step 3: Save the model ================
-xml = '/path/to/some_model_saved.xml'
-bin = '/path/to/some_model_saved.bin'
-serialize(model, xml, bin)
+serialize(model, '/path/to/some_model_saved.xml', '/path/to/some_model_saved.bin')
 # ! [ov:preprocess:save]
 
 # ! [ov:preprocess:save_load]
