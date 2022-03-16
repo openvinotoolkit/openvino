@@ -8,6 +8,7 @@
     
    openvino_docs_deployment_optimization_guide_common
    openvino_docs_deployment_optimization_guide_latency
+   openvino_docs_IE_DG_Model_caching_overview
    openvino_docs_deployment_optimization_guide_tput
    openvino_docs_deployment_optimization_guide_hints
 

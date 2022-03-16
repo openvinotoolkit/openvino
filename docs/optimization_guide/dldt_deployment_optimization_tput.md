@@ -1,4 +1,4 @@
-# General Throughput Considerations  Optimization Guide {#openvino_docs_deployment_optimization_guide_tput}
+# Optimizing for Throughput {#openvino_docs_deployment_optimization_guide_tput}
 
 ### General Throughput Considerations
 As described in the section on the [latency-specific considerations](./dldt_deployment_optimization_latency.md) one possible use-case is focused on delivering the every single request at the minimal delay.
