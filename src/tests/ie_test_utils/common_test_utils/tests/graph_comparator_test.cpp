@@ -529,6 +529,22 @@ TEST(GraphComparatorTests, CheckSinksNegative) {
     ASSERT_FALSE(res.valid) << res.message;
 }
 
+TEST(GraphComparatorTests, DisableCheck) {
+    FunctionsComparator comparator(FunctionsComparator::no_default());
+    std::shared_ptr<ov::Model> function, function_ref;
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ngraph::element::i64, ov::Shape{1});
+        auto constant = ov::opset8::Constant::create(ngraph::element::i64, {1}, {0});
+        auto add = std::make_shared<ov::opset8::Add>(input, constant);
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input });
+        function = ov::clone_model(*function_ref);
+    }
+    comparator.enable(FunctionsComparator::NODES);
+    comparator.disable(FunctionsComparator::NODES);
+    auto res = comparator.compare(function, function_ref);
+    ASSERT_FALSE(res.valid) << res.message;
+}
+
 TEST(GraphComparatorTests, CheckAccuracyPositive) {
     FunctionsComparator comparator(FunctionsComparator::no_default());
     std::shared_ptr<ov::Model> function, function_ref;

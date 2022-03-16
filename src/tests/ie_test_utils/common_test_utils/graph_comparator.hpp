@@ -58,6 +58,11 @@ public:
         return *this;
     }
 
+    FunctionsComparator& disable(CmpValues f) noexcept {
+        m_comparison_flags = static_cast<CmpValues>(m_comparison_flags & ~f);
+        return *this;
+    }
+
     bool should_compare(CmpValues f) const noexcept {
         return m_comparison_flags & f;
     }
