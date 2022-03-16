@@ -490,7 +490,7 @@ private:
         } else if (data_size == shape_size(m_shape)) {
             constant = std::make_shared<ngraph::op::Constant>(type, m_shape, detail::get_data_ptr(*m_tensor_proto));
         } else if (data_size == 0 && m_shape.size() == 0) {
-            constant = std::make_shared<default_opset::Constant>(type, Shape{}, 0);
+            constant = common::make_failsafe_constant(type);
         } else {
             throw error::tensor::shape_doesnt_match_data_size{};
         }
@@ -513,7 +513,7 @@ private:
         if (data_size == shape_size(m_shape)) {
             constant = std::make_shared<ngraph::op::Constant>(type, m_shape, data);
         } else if (data_size == 0 && m_shape.size() == 0) {
-            constant = std::make_shared<default_opset::Constant>(type, Shape{}, 0);
+            constant = common::make_failsafe_constant(type);
         } else {
             throw error::tensor::shape_doesnt_match_data_size{};
         }
