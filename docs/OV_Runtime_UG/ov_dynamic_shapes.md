@@ -1,3 +1,13 @@
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+    
+  openvino_docs_OV_UG_NoDynamicShapes
+
+@endsphinxdirective
+
 # Dynamic Shapes {#openvino_docs_OV_UG_DynamicShapes}
 
 As it was demonstrated in the [Changing Input Shapes](ShapeInference.md) article, there are models that support changing of input shapes before model compilation in `Core::compile_model`.
