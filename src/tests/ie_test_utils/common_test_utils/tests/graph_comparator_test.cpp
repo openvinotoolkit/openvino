@@ -17,6 +17,7 @@ TEST(GraphComparatorTests, AllEnablePositiveCheck) {
         function = ov::clone_model(*function_ref);
     }
     comparator.enable(FunctionsComparator::NAMES)
+    .enable(FunctionsComparator::NODES)
     .enable(FunctionsComparator::CONST_VALUES)
     .enable(FunctionsComparator::PRECISIONS)
     .enable(FunctionsComparator::ATTRIBUTES)
@@ -28,7 +29,7 @@ TEST(GraphComparatorTests, AllEnablePositiveCheck) {
 }
 
 TEST(GraphComparatorTests, CheckbyDefault) {
-    FunctionsComparator comparator(FunctionsComparator::no_default());
+    FunctionsComparator comparator(FunctionsComparator::with_default());
     std::shared_ptr<ov::Model> function, function_ref;
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ngraph::element::i64, ov::Shape{3});
@@ -47,7 +48,7 @@ TEST(GraphComparatorTests, CheckbyDefault) {
 }
 
 TEST(GraphComparatorTests, CheckResultsNumber) {
-    FunctionsComparator comparator(FunctionsComparator::no_default());
+    FunctionsComparator comparator(FunctionsComparator::with_default());
     std::shared_ptr<ov::Model> function, function_ref;
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ngraph::element::i64, ov::Shape{3});
@@ -88,7 +89,8 @@ TEST(GraphComparatorTests, NamesCheckPositive) {
         add->set_friendly_name("new_name3");
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input });
     }
-    comparator.enable(FunctionsComparator::NAMES);
+    comparator.enable(FunctionsComparator::NAMES)
+    .enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
@@ -114,7 +116,8 @@ TEST(GraphComparatorTests, NamesCheckNegative) {
         add->set_friendly_name("new_name3_different");
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input });
     }
-    comparator.enable(FunctionsComparator::NAMES);
+    comparator.enable(FunctionsComparator::NAMES)
+    .enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
     ASSERT_FALSE(res.valid) << res.message;
 }
@@ -134,6 +137,7 @@ TEST(GraphComparatorTests, ConstCheckWithoutEnable) {
         auto add = std::make_shared<ov::opset8::Add>(input, constant);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input });
     }
+    comparator.enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
@@ -153,7 +157,8 @@ TEST(GraphComparatorTests, ConstCheckNegative) {
         auto add = std::make_shared<ov::opset8::Add>(input, constant);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input });
     }
-    comparator.enable(FunctionsComparator::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CONST_VALUES)
+    .enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
     ASSERT_FALSE(res.valid) << res.message;
 }
@@ -169,7 +174,8 @@ TEST(GraphComparatorTests, TensorNamesCheckNegative) {
         function = ov::clone_model(*function_ref);
         add->get_input_tensor(0).set_names({"new_name"});
     }
-    comparator.enable(FunctionsComparator::TENSOR_NAMES);
+    comparator.enable(FunctionsComparator::TENSOR_NAMES)
+    .enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
     ASSERT_FALSE(res.valid) << res.message;
 }
@@ -185,6 +191,7 @@ TEST(GraphComparatorTests, TensorNamesCheckWithoutEnable) {
         function = ov::clone_model(*function_ref);
         add->get_input_tensor(0).set_names({"new_name"});
     }
+    comparator.enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
@@ -220,7 +227,8 @@ TEST(GraphComparatorTests, CheckAttributesNegative) {
                                                               ov::Strides{ 1, 1 });
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ conv }, ngraph::ParameterVector{ input });
     }
-    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::ATTRIBUTES)
+    .enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
     ASSERT_FALSE(res.valid) << res.message;
 }
@@ -240,7 +248,8 @@ TEST(GraphComparatorTests, CheckPrecisionsNegative) {
         auto add = std::make_shared<ov::opset8::Add>(input, constant);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input });
     }
-    comparator.enable(FunctionsComparator::PRECISIONS);
+    comparator.enable(FunctionsComparator::PRECISIONS)
+    .enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
     ASSERT_FALSE(res.valid) << res.message;
 }
@@ -260,6 +269,7 @@ TEST(GraphComparatorTests, CheckPrecisionsWithoutEnable) {
         auto add = std::make_shared<ov::opset8::Add>(input, constant);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input });
     }
+    comparator.enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
@@ -280,7 +290,8 @@ TEST(GraphComparatorTests, CheckRTInfo) {
         auto add = std::make_shared<ov::opset8::Add>(input, constant);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input });
     }
-    comparator.enable(FunctionsComparator::RUNTIME_KEYS);
+    comparator.enable(FunctionsComparator::RUNTIME_KEYS)
+            .enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
     ASSERT_FALSE(res.valid) << res.message;
 }
@@ -301,7 +312,8 @@ TEST(GraphComparatorTests, CheckRTInfoReverse) {
         add->get_rt_info()["my_info"] = 42;
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input });
     }
-    comparator.enable(FunctionsComparator::RUNTIME_KEYS);
+    comparator.enable(FunctionsComparator::RUNTIME_KEYS)
+            .enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
@@ -322,7 +334,8 @@ TEST(GraphComparatorTests, CheckRTInfoInput) {
         auto add = std::make_shared<ov::opset8::Add>(input, constant);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input });
     }
-    comparator.enable(FunctionsComparator::RUNTIME_KEYS);
+    comparator.enable(FunctionsComparator::RUNTIME_KEYS)
+            .enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
     ASSERT_FALSE(res.valid) << res.message;
 }
@@ -343,7 +356,8 @@ TEST(GraphComparatorTests, CheckRTInfoOutput) {
         auto add = std::make_shared<ov::opset8::Add>(input, constant);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input });
     }
-    comparator.enable(FunctionsComparator::RUNTIME_KEYS);
+    comparator.enable(FunctionsComparator::RUNTIME_KEYS)
+            .enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
     ASSERT_FALSE(res.valid) << res.message;
 }
@@ -390,6 +404,7 @@ TEST(GraphComparatorTests, CheckTensorIteratorPositive) {
                                                ngraph::ParameterVector{X, Y});
         function = ov::clone_model(*function_ref);
     }
+    comparator.enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
@@ -431,7 +446,7 @@ TEST(GraphComparatorTests, CheckLoopPositive) {
         function_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{X, Y, M});
         function = ov::clone_model(*function_ref);
     }
-
+    comparator.enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
@@ -460,7 +475,7 @@ TEST(GraphComparatorTests, CheckSinksPositive) {
                                                     ov::ParameterVector({arg}));
         function = ov::clone_model(*function_ref);
     }
-
+    comparator.enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
@@ -509,7 +524,7 @@ TEST(GraphComparatorTests, CheckSinksNegative) {
         function = std::make_shared<ov::Model>(ov::ResultVector({res, res2}), ov::SinkVector({assign, assign2}),
                                                    ov::ParameterVector({arg}));
     }
-
+    comparator.enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
     ASSERT_FALSE(res.valid) << res.message;
 }
@@ -585,6 +600,7 @@ TEST(GraphComparatorTests, CheckAccuracyNotEnabled) {
                                                               ov::Strides{ 1, 1 });
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ conv }, ngraph::ParameterVector{ input });
     }
+    comparator.enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }

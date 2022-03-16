@@ -546,111 +546,112 @@ Comparator::Result Comparator::compare(const std::shared_ptr<ngraph::Function>& 
      * + Check node attributes by Visitor API
      */
 
-    auto f_results = f->get_results();
-    auto f_ref_results = f_ref->get_results();
+    if (should_compare(CmpValues::NODES)) {
+        auto f_results = f->get_results();
+        auto f_ref_results = f_ref->get_results();
 
-    auto cmp = less_by_name;
-    // In case if Result source output has more than one name so the Result may have any of this names as a friendly
-    // name An in case of multiple names we sort Result operation using their parent node names
-    if (std::any_of(f_results.begin(),
-                    f_results.end(),
-                    [](const std::shared_ptr<ngraph::Node>& node) {
-                        const auto& t = node->input_value(0).get_tensor_ptr();
-                        return t->get_names().size() > 1;
-                    }) ||
-        std::any_of(f_ref_results.begin(), f_ref_results.end(), [](const std::shared_ptr<ngraph::Node>& node) {
-            const auto& t = node->input_value(0).get_tensor_ptr();
-            return t->get_names().size() > 1;
-        })) {
-        cmp = less_by_parent_name;
-    }
+        auto cmp = less_by_name;
+        // In case if Result source output has more than one name so the Result may have any of this names as a friendly
+        // name An in case of multiple names we sort Result operation using their parent node names
+        if (std::any_of(f_results.begin(),
+                        f_results.end(),
+                        [](const std::shared_ptr<ngraph::Node> &node) {
+                            const auto &t = node->input_value(0).get_tensor_ptr();
+                            return t->get_names().size() > 1;
+                        }) ||
+            std::any_of(f_ref_results.begin(), f_ref_results.end(), [](const std::shared_ptr<ngraph::Node> &node) {
+                const auto &t = node->input_value(0).get_tensor_ptr();
+                return t->get_names().size() > 1;
+            })) {
+            cmp = less_by_parent_name;
+        }
 
-    std::sort(f_results.begin(), f_results.end(), cmp);
-    std::sort(f_ref_results.begin(), f_ref_results.end(), cmp);
+        std::sort(f_results.begin(), f_results.end(), cmp);
+        std::sort(f_ref_results.begin(), f_ref_results.end(), cmp);
 
-    if (f_results.size() != f_ref_results.size()) {
-        return Result::error("Number of results is different: " + to_str(f_results.size()) + " and " +
-                             to_str(f_ref_results.size()));
-    }
+        if (f_results.size() != f_ref_results.size()) {
+            return Result::error("Number of results is different: " + to_str(f_results.size()) + " and " +
+                                 to_str(f_ref_results.size()));
+        }
 
-    const auto& f_sinks = f->get_sinks();
-    const auto& f_ref_sinks = f_ref->get_sinks();
-    if (f_sinks.size() != f_ref_sinks.size()) {
-        return Result::error("Number of sinks is different: " + to_str(f_sinks.size()) + " and " +
-                             to_str(f_ref_sinks.size()));
-    }
+        const auto &f_sinks = f->get_sinks();
+        const auto &f_ref_sinks = f_ref->get_sinks();
+        if (f_sinks.size() != f_ref_sinks.size()) {
+            return Result::error("Number of sinks is different: " + to_str(f_sinks.size()) + " and " +
+                                 to_str(f_ref_sinks.size()));
+        }
 
-    // Compare sinks
-    if (f_sinks.size() == 1) {
-        q.push({f_sinks[0].get(), f_ref_sinks[0].get()});
-        used.insert(f_sinks[0].get());
-    } else {
-        // Cast to Assign and find those that have same variable_id suffix
-        for (const auto& sink1 : f_sinks) {
-            auto assign1 = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(sink1);
-            if (!assign1) {
-                return Result::error("Sink '" + name(sink1) +
-                                     "' is not a variable - graph comparison is not supported");
-            }
-            auto name1 = assign1->get_variable_id();
-            std::shared_ptr<ov::op::Sink> found_sink2;
-            for (const auto& sink2 : f_ref_sinks) {
-                auto assign2 = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(sink2);
-                if (!assign2) {
-                    return Result::error("Sink '" + name(sink2) +
+        // Compare sinks
+        if (f_sinks.size() == 1) {
+            q.push({f_sinks[0].get(), f_ref_sinks[0].get()});
+            used.insert(f_sinks[0].get());
+        } else {
+            // Cast to Assign and find those that have same variable_id suffix
+            for (const auto &sink1 : f_sinks) {
+                auto assign1 = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(sink1);
+                if (!assign1) {
+                    return Result::error("Sink '" + name(sink1) +
                                          "' is not a variable - graph comparison is not supported");
                 }
-                auto name2 = assign2->get_variable_id();
-                if (name2.find(name1) != std::string::npos || name1.find(name2) != std::string::npos) {
-                    found_sink2 = sink2;
-                    break;
+                auto name1 = assign1->get_variable_id();
+                std::shared_ptr<ov::op::Sink> found_sink2;
+                for (const auto &sink2 : f_ref_sinks) {
+                    auto assign2 = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(sink2);
+                    if (!assign2) {
+                        return Result::error("Sink '" + name(sink2) +
+                                             "' is not a variable - graph comparison is not supported");
+                    }
+                    auto name2 = assign2->get_variable_id();
+                    if (name2.find(name1) != std::string::npos || name1.find(name2) != std::string::npos) {
+                        found_sink2 = sink2;
+                        break;
+                    }
+                }
+                if (!found_sink2) {
+                    return Result::error("No suitable sink is found for: " + name(sink1) + ", var=" + name1);
+                }
+                q.push({sink1.get(), found_sink2.get()});
+                used.insert(sink1.get());
+            }
+        }
+
+        for (size_t i = 0; i < f_results.size(); ++i) {
+            if (should_compare(CmpValues::NAMES)) {
+                if (name(f_results[i]->get_input_node_shared_ptr(0)) !=
+                    name(f_ref_results[i]->get_input_node_shared_ptr(0))) {
+                    return Result::error(
+                            "Different output node names: " + name(f_results[i]->get_input_node_shared_ptr(0)) +
+                            " and " +
+                            name(f_ref_results[i]->get_input_node_shared_ptr(0)));
                 }
             }
-            if (!found_sink2) {
-                return Result::error("No suitable sink is found for: " + name(sink1) + ", var=" + name1);
+            q.push({f_results[i].get(), f_ref_results[i].get()});
+            used.insert(f_results[i].get());
+        }
+
+        std::stringstream errors;
+
+        while (!q.empty()) {
+            ngraph::Node *const node1 = q.front().first;
+            ngraph::Node *const node2 = q.front().second;
+            q.pop();
+
+            const auto result = compare(node1, node2, errors);
+            if (!result.valid) {
+                return result;
             }
-            q.push({sink1.get(), found_sink2.get()});
-            used.insert(sink1.get());
+
+            add_nodes_inputs_to_queue(node1, node2);
         }
-    }
+        const auto msg = errors.str();
+        return msg.empty() ? Result::ok() : Result::error(msg);
 
-    for (size_t i = 0; i < f_results.size(); ++i) {
-        if (should_compare(CmpValues::NAMES)) {
-            if (name(f_results[i]->get_input_node_shared_ptr(0)) !=
-                name(f_ref_results[i]->get_input_node_shared_ptr(0))) {
-                return Result::error(
-                    "Different output node names: " + name(f_results[i]->get_input_node_shared_ptr(0)) + " and " +
-                    name(f_ref_results[i]->get_input_node_shared_ptr(0)));
-            }
-        }
-        q.push({f_results[i].get(), f_ref_results[i].get()});
-        used.insert(f_results[i].get());
-    }
+    } else if (should_compare(CmpValues::ACCURACY)) {
+        auto status = accuracy_check(f_ref, f);
+        return status.status ? Result::ok() : Result::error(status.message);
 
-    std::stringstream errors;
-
-    while (!q.empty()) {
-        ngraph::Node* const node1 = q.front().first;
-        ngraph::Node* const node2 = q.front().second;
-        q.pop();
-
-        const auto result = compare(node1, node2, errors);
-        if (!result.valid) {
-            return result;
-        }
-
-        add_nodes_inputs_to_queue(node1, node2);
-    }
-    const auto msg = errors.str();
-
-    if (msg.empty()) {
-        if (should_compare(CmpValues::ACCURACY)) {
-            auto status = accuracy_check(f_ref, f);
-            return status.status ? Result::ok() : Result::error(status.message);
-        }
-        return Result::ok();
     } else {
-        return Result::error(msg);
+        return Result::error("CmpValues are invalid");
     }
 }
 

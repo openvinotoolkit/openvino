@@ -20,13 +20,14 @@ class FunctionsComparator {
 public:
     enum CmpValues {
         NONE = 0,
-        CONST_VALUES = 1 << 0,
-        NAMES = 1 << 1,
-        RUNTIME_KEYS = 1 << 2,
-        PRECISIONS = 1 << 3,
-        ATTRIBUTES = 1 << 4,
-        TENSOR_NAMES = 1 << 5,
-        ACCURACY = 1 << 6
+        NODES = 1 << 0,
+        CONST_VALUES = 1 << 1,
+        NAMES = 1 << 2,
+        RUNTIME_KEYS = 1 << 3,
+        PRECISIONS = 1 << 4,
+        ATTRIBUTES = 1 << 5,
+        TENSOR_NAMES = 1 << 6,
+        ACCURACY = 1 << 7
     };
 
     struct Result {
@@ -46,6 +47,7 @@ public:
     }
     static FunctionsComparator with_default() noexcept {
         auto fc = FunctionsComparator::no_default();
+        fc.enable(NODES);
         fc.enable(PRECISIONS);
         fc.enable(TENSOR_NAMES);
         return fc;
