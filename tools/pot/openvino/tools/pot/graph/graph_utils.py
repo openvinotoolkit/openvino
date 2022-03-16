@@ -85,7 +85,7 @@ def save_graph(graph: Graph, save_path, model_name=None):
     graph_copy = deepcopy(graph)
     add_removed_converts(graph_copy)
     save_restored_graph(graph=graph_copy, path=save_path, meta_data=graph.meta_data,
-                        name=model_name)
+                        name=model_name, rename_results=False)
 
 
 def model_preprocessing(model):
