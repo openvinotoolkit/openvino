@@ -11,7 +11,7 @@ You will perform the following steps:
 4. <a href="run-image-classification">Run inference on the sample and see the results:</a>
     - <a href="run-image-classification">Image Classification Code Sample</a>
 
-If you installed OpenVINO™ via `pip` you can quickly getting started with the product by trying these [tutorials](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks).
+If you installed OpenVINO™ via `pip` you can quickly getting started with the product by using these [tutorials](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks).
 
 This guide assumes you completed all installation and configuration steps. If you have not yet installed and configured the toolkit:
 
@@ -32,7 +32,8 @@ This guide assumes you completed all installation and configuration steps. If yo
 
 ## Install OpenVINO Development Tools
 
-To install OpenVINO Development Tools for working with Caffe* models use following command: 
+To install OpenVINO Development Tools for working with Caffe* models use following command:
+
 ``` sh
    pip install openvino-dev[caffe]
 ```
@@ -42,6 +43,7 @@ To install OpenVINO Development Tools for working with Caffe* models use followi
 If you have already built the demos and samples, you can skip this section. The build will take about 5-10 minutes, depending on your system.
 
 To build OpenVINO samples:
+
 @sphinxdirective
 .. tab:: Linux
 
@@ -89,60 +91,25 @@ Options to find a model suitable for the OpenVINO™ toolkit:
   
 This guide uses the OpenVINO™ Model Downloader to get pre-trained models. You can use one of the following commands to find a model:
 
-### List the models available in the downloader
+* List the models available in the downloader
 
-@sphinxdirective
-.. tab:: Linux
+``` sh
+   info_dumper --print_all
+```
 
-   .. code-block:: sh
-
-      info_dumper --print_all
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      info_dumper --print_all
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      info_dumper --print_all
-
-@endsphinxdirective
-
-### Use 'grep' to list models that have a specific name pattern
+* Use `grep` to list models that have a specific name pattern
 
 ``` sh
    info_dumper --print_all | grep <model_name>
 ```
 
-Use the Model Downloader to download the models to a models directory. This guide uses `<models_dir>` and `<models_name>` as placeholders for the models directory and model name:
-@sphinxdirective
-.. tab:: Linux
+* Use the Model Downloader to download the models to a models directory. This guide uses `<models_dir>` and `<models_name>` as placeholders for the models directory and model name:
 
-   Don't run downloader with `sudo`. It will further lead to complications
-   .. code-block:: sh
+``` sh
+   omz_downloader --name <model_name> --output_dir <models_dir>
+```
 
-      omz_downloader --name <model_name> --output_dir <models_dir>
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      omz_downloader --name <model_name> --output_dir <models_dir>
-
-.. tab:: macOS
-
-   Don't run downloader with `sudo`. It will further lead to complications
-   .. code-block:: sh
-
-      omz_downloader --name <model_name> --output_dir <models_dir>
-
-@endsphinxdirective
-
-Download the following models to run the Image Classification Sample and Security Barrier Camera Demo applications:
+* Download the following models to run the Image Classification Sample:
 
 |Model Name                                     | Code Sample or Demo App                  |
 |-----------------------------------------------|------------------------------------------|
@@ -168,7 +135,7 @@ To download the SqueezeNet 1.1 Caffe* model to the `models` folder:
 
    .. code-block:: bat
 
-      omz_downloader --name squeezenet1.1 --output_dir C:\Users\<USER_ID>\Documents\models
+      omz_downloader --name squeezenet1.1 --output_dir %USERPROFILE%\Documents\models
 
 .. tab:: macOS
 
@@ -263,7 +230,7 @@ Create an `<ir_dir>` directory to contain the model's Intermediate Representatio
 
    .. code-block:: bat
 
-      mkdir C:\Users\<USER_ID>\Documents\ir
+      mkdir %USERPROFILE%\Documents\ir
 
 .. tab:: macOS
 
@@ -277,26 +244,9 @@ The OpenVINO Runtime can perform inference on different precision formats, such 
 
 Generic Model Optimizer script:
 
-@sphinxdirective
-.. tab:: Linux
-
-   .. code-block:: sh
-
-      mo --input_model <model_dir>/<model_file> --data_type <model_precision> --output_dir <ir_dir>
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      mo --input_model <model_dir>\<model_file> --data_type <model_precision> --output_dir <ir_dir>
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      mo --input_model <model_dir>/<model_file> --data_type <model_precision> --output_dir <ir_dir>
-
-@endsphinxdirective
+``` sh
+   mo --input_model <model_dir>/<model_file> --data_type <model_precision> --output_dir <ir_dir>
+```
 
 IR files produced by the script are written to the <ir_dir> directory.
 
@@ -313,7 +263,7 @@ The command with most placeholders filled in and FP16 precision:
 
    .. code-block:: bat
 
-      mo --input_model C:\Users\<USER_ID>\Documents\models\public\squeezenet1.1\squeezenet1.1.caffemodel --data_type FP16 --output_dir C:\Users\<USER_ID>\Documents\ir
+      mo --input_model %USERPROFILE%\Documents\models\public\squeezenet1.1\squeezenet1.1.caffemodel --data_type FP16 --output_dir %USERPROFILE%\Documents\ir
 
 .. tab:: macOS
 
@@ -331,25 +281,12 @@ Many sources are available from which you can download video media to use the co
 - [Google Images](https://images.google.com)
 
 As an alternative, the Intel® Distribution of OpenVINO™ toolkit includes several sample images and videos that you can use for running code samples and demo applications:
-@sphinxdirective
-.. tab:: Linux
 
    - `Sample images and video <https://storage.openvinotoolkit.org/data/test_data/>`_
    - `Sample videos <https://github.com/intel-iot-devkit/sample-videos>`_
-
-.. tab:: Windows
-
-   - `Sample images and video <https://storage.openvinotoolkit.org/data/test_data/>`_
-   - `Sample videos <https://github.com/intel-iot-devkit/sample-videos>`_
-
-.. tab:: macOS
-
-   - `Sample images and video <https://storage.openvinotoolkit.org/data/test_data/>`_
-   - `Sample videos <https://github.com/intel-iot-devkit/sample-videos>`_
-
-@endsphinxdirective
 
 ## <a name="run-image-classification"></a>Step 4: Run Inference on the Sample
+
 
 ### Run the Image Classification Code Sample
 
@@ -389,7 +326,7 @@ To run the **Image Classification** code sample with an input image using the IR
 
    .. code-block:: bat
 
-      cd C:\Users\<USER_ID>\Documents\Intel\OpenVINO\inference_engine_samples_build\intel64\Release
+      cd  %USERPROFILE%\Documents\Intel\OpenVINO\inference_engine_samples_build\intel64\Release
 
 .. tab:: macOS
 
@@ -429,7 +366,7 @@ To run the **Image Classification** code sample with an input image using the IR
 
 @endsphinxdirective
 
-The following commands run the Image Classification Code Sample using the [`car.png`](https://storage.openvinotoolkit.org/data/test_data/images/car.png) file as an input image, the model in IR format from the `ir` directory, and on different hardware devices:
+The following commands run the Image Classification Code Sample using the [`car.bmp`](https://storage.openvinotoolkit.org/data/test_data/images/car.bmp) file as an input image, the model in IR format from the `ir` directory, and on different hardware devices:
 
    **CPU:**  
 @sphinxdirective
@@ -437,19 +374,19 @@ The following commands run the Image Classification Code Sample using the [`car.
 
    .. code-block:: sh
 
-      ./classification_sample_async -i ~/Downloads/car.png -m ~/ir/squeezenet1.1.xml -d CPU
+      ./classification_sample_async -i ~/Downloads/car.bmp -m ~/ir/squeezenet1.1.xml -d CPU
 
 .. tab:: Windows
 
    .. code-block:: bat
 
-      .\classification_sample_async.exe -i %USERPROFILE%\Downloads\car.png -m C:\Users\<USER_ID>\Documents\ir\squeezenet1.1.xml -d CPU
+      .\classification_sample_async.exe -i %USERPROFILE%\Downloads\car.bmp -m %USERPROFILE%\Documents\ir\squeezenet1.1.xml -d CPU
 
 .. tab:: macOS
 
    .. code-block:: sh
 
-      ./classification_sample_async -i ~/Downloads/car.png -m ~/ir/squeezenet1.1.xml -d CPU
+      ./classification_sample_async -i ~/Downloads/car.bmp -m ~/ir/squeezenet1.1.xml -d CPU
 
 @endsphinxdirective
 
@@ -462,13 +399,13 @@ The following commands run the Image Classification Code Sample using the [`car.
 
    .. code-block:: sh
 
-      ./classification_sample_async -i ~/Downloads/car.png -m ~/ir/squeezenet1.1.xml -d GPU
+      ./classification_sample_async -i ~/Downloads/car.bmp -m ~/ir/squeezenet1.1.xml -d GPU
 
 .. tab:: Windows
 
    .. code-block:: bat
 
-      .\classification_sample_async.exe -i %USERPROFILE%\Downloads\car.png -m C:\Users\<USER_ID>\Documents\ir\squeezenet1.1.xml -d GPU
+      .\classification_sample_async.exe -i %USERPROFILE%\Downloads\car.bmp -m C:\Users\<USER_ID>\Documents\ir\squeezenet1.1.xml -d GPU
 
 @endsphinxdirective
 
@@ -482,82 +419,31 @@ The following commands run the Image Classification Code Sample using the [`car.
 
    .. code-block:: sh
 
-      ./classification_sample_async -i ~/Downloads/car.png -m ~/ir/squeezenet1.1.xml -d MYRIAD
+      ./classification_sample_async -i ~/Downloads/car.bmp -m ~/ir/squeezenet1.1.xml -d MYRIAD
 
 .. tab:: Windows
 
    .. code-block:: bat
 
-      .\classification_sample_async.exe -i %USERPROFILE%\Downloads\car.png -m C:\Users\<USER_ID>\Documents\ir\squeezenet1.1.xml -d MYRIAD
+      .\classification_sample_async.exe -i %USERPROFILE%\Downloads\car.bmp -m C:\Users\<USER_ID>\Documents\ir\squeezenet1.1.xml -d MYRIAD
 
 .. tab:: macOS
 
    .. code-block:: sh
 
-      ./classification_sample_async -i ~/Downloads/car.png -m ~/ir/squeezenet1.1.xml -d MYRIAD
+      ./classification_sample_async -i ~/Downloads/car.bmp -m ~/ir/squeezenet1.1.xml -d MYRIAD
 
 @endsphinxdirective
 
 When the sample application is complete, you see the label and confidence for the top 10 categories on the display. Below is a sample output with inference results on CPU:
 
 @sphinxdirective
-.. tab:: Linux
 
    .. code-block:: sh
-
-      Top 10 results:
-
-      Image /home/<userid>/Downloads/car.png
-
-      classid probability label
-      ------- ----------- -----
-      817     0.8363345   sports car, sport car
-      511     0.0946488   convertible
-      479     0.0419131   car wheel
-      751     0.0091071   racer, race car, racing car
-      436     0.0068161   beach wagon, station wagon, wagon, estate car, beach waggon, station waggon, waggon
-      656     0.0037564   minivan
-      586     0.0025741   half track
-      717     0.0016069   pickup, pickup truck
-      864     0.0012027   tow truck, tow car, wrecker
-      581     0.0005882   grille, radiator grille
-
-      [ INFO ] Execution successful
-      
-      [ INFO ] This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
-
-.. tab:: Windows
-
-   .. code-block:: bat
 
    Top 10 results:
 
-   Image C:\Users\<userid>\Downloads\car.png
-
-      classid probability label
-      ------- ----------- -----
-      817     0.8363345   sports car, sport car
-      511     0.0946488   convertible
-      479     0.0419131   car wheel
-      751     0.0091071   racer, race car, racing car
-      436     0.0068161   beach wagon, station wagon, wagon, estate car, beach waggon, station waggon, waggon
-      656     0.0037564   minivan
-      586     0.0025741   half track
-      717     0.0016069   pickup, pickup truck
-      864     0.0012027   tow truck, tow car, wrecker
-      581     0.0005882   grille, radiator grille
-
-      [ INFO ] Execution successful
-      
-      [ INFO ] This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      Top 10 results:
-
-      Image /Users/<useid>/Downloads/car.png
+   Image car.bmp
 
       classid probability label
       ------- ----------- -----
