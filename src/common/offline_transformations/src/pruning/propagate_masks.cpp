@@ -439,19 +439,6 @@ public:
             // Case when input masks should be united instead of intersection
             bool union_eltwise_type = ngraph::is_type<opset6::Multiply>(m_output.get_node_shared_ptr());
 
-            // In case if first of the inputs is constant
-            InitConstMask({0, 1, 2/* potential output channel dim */}).apply(m_input.get_node_shared_ptr());
-            auto input_mask = getMask(m_input);
-            InitConstMask({0, 1}).apply(m_weights.get_node_shared_ptr());
-            auto weights_mask = getMask(m_weights);
-            if (!input_mask) {
-                NGRAPH_DEBUG << "No input mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
-                return false;
-            }
-            if (!weights_mask) {
-                NGRAPH_DEBUG << "No weights mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
-                return false;
-            }
             using dims_set = std::set<int64_t>;
             auto input_shape_broadcasted_dims = dims_set();
             auto weights_shape_broadcasted_dims = dims_set();
@@ -487,26 +474,51 @@ public:
                         input_shape_broadcasted_dims.insert(shifted_elem);
                 }
             }
+
+            // In case if first of the inputs is constant
+            InitConstMask({0, 1, 2/* potential output channel dim */}).apply(m_input.get_node_shared_ptr());
+            auto input_mask = getMask(m_input);
+
+            InitConstMask({0, 1}).apply(m_weights.get_node_shared_ptr());
+            auto weights_mask = getMask(m_weights);
             //auto has_broadcasted_dims = input_shape_broadcasted_dims.size() || weights_shape_broadcasted_dims.size();
             // Prevent case when input_mask don't have masks on broadcasted dims but
             // weights_mask has
             bool inp_has_masks_on_broadcasted_dims = false;
-            for (auto & dim : input_shape_broadcasted_dims)
-                if (!input_mask->at(dim).empty()) {
-                    inp_has_masks_on_broadcasted_dims = true;
-                    break;
-                }
+            if (input_mask) {
+                for (auto & dim : input_shape_broadcasted_dims)
+                    if (!input_mask->at(dim).empty()) {
+                        inp_has_masks_on_broadcasted_dims = true;
+                        break;
+                    }
+            }
             bool weights_has_masks_on_broadcasted_dims = false;
-            for (auto & dim : weights_shape_broadcasted_dims)
-                if (!weights_mask->at(dim).empty()) {
-                    weights_has_masks_on_broadcasted_dims = true;
-                    break;
-                }
+            if (weights_mask) {
+                for (auto & dim : weights_shape_broadcasted_dims)
+                    if (!weights_mask->at(dim).empty()) {
+                        weights_has_masks_on_broadcasted_dims = true;
+                        break;
+                    }
+            }
             if (!inp_has_masks_on_broadcasted_dims && weights_has_masks_on_broadcasted_dims) {
                 // Swap input and weights
                 std::swap(input_mask, weights_mask);
                 std::swap(input_shape_broadcasted_dims, weights_shape_broadcasted_dims);
                 std::swap(input_shape_ones_dims, weights_shape_ones_dims);
+            }
+            if (!input_mask) {
+                NGRAPH_DEBUG << "No input mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
+                return false;
+            }
+            if (!weights_mask) {
+                // Set dummy mask to weight input in case this input has no mask
+                // and has broadcastable dimentions
+                if (!weights_shape_ones_dims.size()) {
+                    NGRAPH_DEBUG << "No weights mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
+                    return false;
+                }
+                weights_mask = std::make_shared<Mask>(m_weights.get_partial_shape().rank().get_length());
+                setMask(m_weights, weights_mask);
             }
             auto input_mask_row = input_mask.get();
             auto weights_mask_row = weights_mask.get();
