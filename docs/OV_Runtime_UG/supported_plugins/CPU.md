@@ -1,7 +1,6 @@
 # CPU device {#openvino_docs_OV_UG_supported_plugins_CPU}
 
 The CPU plugin is developed to achieve high performance inference of neural networks on Intel® x86-64 CPUs.
-The plugin extensively use optimized DL operation implementations from the Intel® oneAPI Deep Neural Network Library (Intel® [oneDNN](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onednn.html)).
 For an in-depth description of CPU plugin, see
 
 - [CPU plugin developers documentation](https://github.com/openvinotoolkit/openvino/wiki/CPUPluginDevelopersDocs)
@@ -12,7 +11,8 @@ For an in-depth description of CPU plugin, see
 The CPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit.
 
 ## Device name
-For the CPU plugin `"CPU"` device name is used. On multi-socket platforms, load balancing and memory usage distribution between NUMA nodes are handled automatically.   
+For the CPU plugin `"CPU"` device name is used, and even though there can be more than one socket on a platform, from the plugin's point of view, there is only one `"CPU"` device.
+On multi-socket platforms, load balancing and memory usage distribution between NUMA nodes are handled automatically.   
 In order to use CPU for inference the device name should be passed to `ov::Core::compile_model()` method:
 
 @snippet snippets/cpu/compile_model.cpp compile_model_default
@@ -22,8 +22,9 @@ CPU plugin supports the following data types as inference precision of internal 
 
 - Floating-point data types:
   - f32
-  - i32
   - bf16
+- Integer data types:
+  - i32
 - Quantized data types:
   - u8
   - i8
@@ -31,46 +32,50 @@ CPU plugin supports the following data types as inference precision of internal 
   
 [Hello Query Device C++ Sample](../../../samples/cpp/hello_query_device/README.md) can be used to print out supported data types for all detected devices.
 
-### Quantized models specifics
+### Quantized data types specifics
 
 Selected precision of each primitive depends on the operation precision in IR, quantization primitives, and available hardware capabilities.
 u1/u8/i8 data types are used for quantized operations only, i.e. those are not selected automatically for non-quantized operations.
 
 See [low-precision optimization guide](@ref pot_docs_LowPrecisionOptimizationGuide) for more details on how to get quantized model.
 
-> **NOTE**: Calculation results in u8/i8 precisions may be different between platforms with and without Intel® AVX512-VNNI extension support. Platforms that do not support VNNI have a known [saturation (overflow) issue](@ref pot_saturation_issue), which in some cases leads to reduced computational accuracy.
+> **NOTE**: Platforms that do not support Intel® AVX512-VNNI have a known "saturation issue" which in some cases leads to reduced computational accuracy for u8/i8 precision calculations.
+> See [saturation (overflow) issue section](@ref pot_saturation_issue) to get more information on how to detect such issues and possible workarounds.
 
-### Bfloat16 inference
+### Floating point data types specifics
 
-Default floating-point precision of a CPU primitive is f32, but on platforms that natively support bfloat16 calculations (have AVX512_BF16 extension) bf16 type is automatically used to achieve better performance.
+Default floating-point precision of a CPU primitive is f32. To support f16 IRs the plugin internally converts all the f16 values to f32 and all the calculations are performed using native f32 precision.
+On platforms that natively support bfloat16 calculations (have AVX512_BF16 extension) bf16 type is automatically used instead of f32 to achieve better performance.
 See the [BFLOAT16 – Hardware Numerics Definition white paper](https://software.intel.com/content/dam/develop/external/us/en/documents/bf16-hardware-numerics-definition-white-paper.pdf) for more details about bfloat16 format.
 
-Using Bfloat16 precision provides the following performance benefits:
+Using bf16 precision provides the following performance benefits:
 
-1. Faster multiplication of two BF16 numbers because of shorter mantissa of bfloat16 data.
+1. Faster multiplication of two bfloat16 numbers because of shorter mantissa of the bfloat16 data.
 2. No need to support denormals and handling exceptions as this is a performance optimization.
 3. Fast conversion of float32 to bfloat16 and vice versa.
 4. Reduced size of data in memory, as a result, larger models fit in the same memory bounds.
 5. Reduced amount of data that must be transferred, as a result, reduced data transition time.
 
-For default optimization on CPU, the source model is converted from FP32 or FP16 to BF16 and executed internally on platforms with native BF16 support, thus no special steps are required.
+On platforms with native bfloat16 support the source model tensors precisions are internally converted from f32 and f16 to bf16, thus no special steps are required.
 
-To check if the CPU device can support bfloat16 computations use the [query device properties interface](./config_properties.md) to query ov::device::capabilities property, which should contain `BF16` in the list of CPU capabilities:
+To check if the CPU device can support the bfloat16 data type use the [query device properties interface](./config_properties.md) to query ov::device::capabilities property, which should contain `BF16` in the list of CPU capabilities:
 
 @snippet snippets/cpu/Bfloat16Inference0.cpp part0
 
-In case if the model was converted to BF16, ov::hint::inference_precision is set to ov::element::bf16 and can be checked via ov::CompiledModel::get_property call. The code below demonstrates how to get the element type:
+In case if the model was converted to bf16, ov::hint::inference_precision is set to ov::element::bf16 and can be checked via ov::CompiledModel::get_property call. The code below demonstrates how to get the element type:
 
 @snippet snippets/cpu/Bfloat16Inference1.cpp part1
 
-To disable BF16 internal transformations, set the ov::hint::inference_precision to ov::element::f32. In this case, the model infers as is without modifications with precisions that were set on each layer edge.
+To disable bf16 internal transformations, set the ov::hint::inference_precision to ov::element::f32. In this case, the model infers as is without modifications with precisions that were set on each layer edge.
 
 @snippet snippets/cpu/Bfloat16Inference2.cpp part2
 
 Bfloat16 software simulation mode is available on CPUs with Intel® AVX-512 instruction set that do not support the native `avx512_bf16` instruction. This mode is used for development purposes and it does not guarantee good performance.
 To enable the simulation, one have to explicitly set ov::hint::inference_precision to ov::element::bf16.
 
-> **NOTE**: An exception with the message `Platform doesn't support BF16 format` is formed in case of setting ov::hint::inference_precision to ov::element::bf16 on CPU without native BF16 support or BF16 simulation mode.
+> **NOTE**: An exception with the message `Platform doesn't support BF16 format` is formed in case of setting ov::hint::inference_precision to ov::element::bf16 on CPU without native bfloat16 support or bfloat16 simulation mode.
+
+> **NOTE**: Due to the reduced mantissa size of the bfloat16 data type, the resulting bf16 inference accuracy may differ from the f32 inference, especially for models that were not trained using the bfloat16 data type. If the bf16 inference accuracy is not acceptable, it is recommended to switch to the float32 data type.
   
 ## Supported features
 
@@ -93,18 +98,22 @@ See [optimization guide](@ref openvino_docs_deployment_optimization_guide_dldt_o
 > In that case it is better to run inference on one socket (please see [deployment optimization guide (additional configurations)](@ref openvino_docs_deployment_optimization_guide_dldt_optimization_guide_additional) for details).
 
 ### Dynamic shapes
-CPU plugin provides full support for models with dynamic shapes. 
-But from the performance standpoint, it should be understood that the more degrees of freedom we have, the more difficult it is to achieve the best performance.
-The most flexible configuration is the fully undefined shape, when we do not apply any constraints to the shape dimensions. 
+CPU plugin provides full functional support for models with dynamic shapes in terms of the opset coverage.
 
-@snippet snippets/cpu/dynamic_shape.cpp undefined_shape
+> **NOTE**: CPU plugin does not support tensors with dynamically changing rank. In case of an attempt to infer a model with such tensors an error `"CPU plug-in doesn't support <op_type> operation with dynamic rank. Operation name: <op_name>"` will be generated.
 
-In such configuration we will have high memory consumption since we can not estimate the total memory amount that can be allocated in advance and effectively reused.
-To reduce memory consumption through memory reuse, and as a result achieve better cache locality, which in its turn leads to better inference performance, it is better to use dynamic shapes with defined upper bounds.
+Dynamic shapes support introduce some additional overheads on memory management and may limit internal runtime optimizations.
+The more degrees of freedom we have, the more difficult it is to achieve the best performance.
+The most flexible configuration is the fully undefined shape, when we do not apply any constraints to the shape dimensions, which is the most convenient approach.
+But reducing the level of uncertainty will bring performance gains.
+We can reduce memory consumption through memory reuse, and as a result achieve better cache locality, which in its turn leads to better inference performance, if we explicitly set dynamic shapes with defined upper bounds.
 
 @snippet snippets/cpu/dynamic_shape.cpp defined_upper_bound
 
-> **NOTE**: Some runtime optimizations works better if the model shapes are known in advance. This means that for the best performance, it is better to use static shapes, of course if it is applicable to the specific problem.
+Some runtime optimizations works better if the model shapes are known in advance.
+Therefore, if the input data shape is not changed between inference calls, it is recommended to use a model with static shapes or reshape the existing model with the static input shape to get the best performance.
+
+@snippet snippets/cpu/dynamic_shape.cpp static_shape
 
 See [dynamic shapes guide](../ov_dynamic_shapes.md) for more details.
 
@@ -113,7 +122,7 @@ CPU plugin supports a full set of the preprocessing operations, providing high p
 
 See [preprocessing API guide](../preprocessing_overview.md) for more details.
 
-The CPU plugin precision conversion operation implementation supports the following element types:
+The CPU plugin support for handling tensor precision conversion is limited to the following ov::element types:
 - bf16
 - f16
 - f32
@@ -129,7 +138,7 @@ The CPU plugin precision conversion operation implementation supports the follow
 - boolean
 
 ### Models caching
-CPU plugin supports Import/Export network capability. If the model caching is enabled via common OpenVINO `ov::cache_dir` property, the plugin will automatically create a cached blob inside the specified directory during model compilation.
+CPU plugin supports Import/Export network capability. If the model caching is enabled via common OpenVINO™ `ov::cache_dir` property, the plugin will automatically create a cached blob inside the specified directory during model compilation.
 This cached blob contains some intermediate representation of the network that it has after common runtime optimizations and low precision transformations.
 The next time the model is compiled, the cached representation will be loaded to the plugin instead of the initial IR, so the aforementioned transformation steps will be skipped.
 These transformations take a significant amount of time during model compilation, so caching this representation reduces time spent for subsequent compilations of the model,
@@ -140,7 +149,9 @@ See [model caching overview](@ref openvino_docs_IE_DG_Model_caching_overview) fo
 ### Extensibility
 CPU plugin supports fallback on `ov::Op` reference implementation if the plugin do not have its own implementation for such operation.
 That means that [OpenVINO™ Extensibility Mechanism](@ref openvino_docs_Extensibility_UG_Intro) can be used for the plugin extension as well.
-To enable fallback on a custom operation implementation, one have to re-implement `ov::Op::evaluate` method in the derived operation class (see [custom OpenVINO™ operations](@ref openvino_docs_Extensibility_UG_add_openvino_ops) for details).
+To enable fallback on a custom operation implementation, one have to override `ov::Op::evaluate` method in the derived operation class (see [custom OpenVINO™ operations](@ref openvino_docs_Extensibility_UG_add_openvino_ops) for details).
+
+> **NOTE**: At the moment, custom operations with internal dynamism (when the output tensor shape can only be determined as a result of performing the operation) are not supported by the plugin.
 
 ### Stateful models
 CPU plugin supports stateful models without any limitations.
@@ -170,6 +181,18 @@ All parameters must be set before calling `ov::Core::compile_model()` in order t
 - ov::range_for_streams
 - ov::device::full_name
 - ov::device::capabilities
+
+## External dependencies
+For some performance-critical DL operations, the CPU plugin uses optimized implementations from the Intel® oneAPI Deep Neural Network Library ([Intel® oneDNN](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onednn.html)).
+The following operations from OneDNN library are used:
+- Convolution
+- Inner Product
+- Matrix Multiplication
+- RNN
+- Concat
+- Pooling
+- Softmax
+- Reorder
 
 ## See Also
 * [Supported Devices](Supported_Devices.md)
