@@ -24,14 +24,7 @@ struct convert_color_impl : typed_primitive_impl_ocl<convert_color> {
         return make_unique<convert_color_impl>(*this);
     }
 
-protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<convert_color>& instance, int32_t split) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, split);
-        return args;
-    }
-
-public:
-    static primitive_impl* create(const convert_color_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const convert_color_node& arg) {
         auto convert_color_params = get_default_params<kernel_selector::convert_color_params>(arg);
         auto convert_color_optional_params =
             get_default_optional_params<kernel_selector::convert_color_optional_params>(arg.get_program());
@@ -40,23 +33,21 @@ public:
             convert_color_params.inputs.push_back(convert_data_tensor(arg.input(i).get_output_layout()));
         }
 
-        auto primitive = arg.get_primitive();
+        const auto& primitive = arg.get_primitive();
 
         convert_color_params.input_color_format = static_cast<kernel_selector::color_format>(primitive->input_color_format);
         convert_color_params.output_color_format = static_cast<kernel_selector::color_format>(primitive->output_color_format);
         convert_color_params.mem_type = static_cast<kernel_selector::memory_type>(primitive->mem_type);
 
-        auto& kernel_selector = kernel_selector::convert_color_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(convert_color_params, convert_color_optional_params);
+        const auto& kernel_selector = kernel_selector::convert_color_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(convert_color_params, convert_color_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto convert_color = new convert_color_impl(arg, best_kernels[0]);
-
-        return convert_color;
+        return make_unique<convert_color_impl>(arg, best_kernels.front());
     }
 };
 

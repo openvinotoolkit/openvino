@@ -17,31 +17,11 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
     using parent = typed_primitive_impl_ocl<activation>;
     using parent::parent;
 
-    activation_impl(const activation_impl& other) : parent(other), _is_parameterized(other._is_parameterized) {}
-
     activation_impl(const activation_node& outer, const kernel_selector::kernel_data& kd) : parent(outer, kd),
-    _is_parameterized(outer.is_parameterized()) {}
+        _is_parameterized(outer.is_parameterized()) {}
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<activation_impl>(*this);
-    }
-
-    void align_state(const program_node& arg) override {
-        if (!arg.is_type<activation>()) {
-            throw std::invalid_argument("Should be activation node");
-        }
-        const auto& activation_node = arg.as<activation>();
-        _is_parameterized = activation_node.is_parameterized();
-    }
-
-    kernel_arguments_data get_arguments(typed_primitive_inst<activation>& instance, int32_t split) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, split);
-
-        if (_is_parameterized) {
-            args.slope = instance.slope_memory();
-        }
-
-        return args;
     }
 
     static std::unique_ptr<primitive_impl> create(const activation_node& arg) {
@@ -68,14 +48,27 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
             activation_params.inputActivationParams.push_back(convert_data_tensor(slope_layout));
         }
 
-        auto& kernel_selector = kernel_selector::activation_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(activation_params, activation_optional_params);
+        const auto& kernel_selector = kernel_selector::activation_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(activation_params, activation_optional_params);
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return make_unique<activation_impl>(arg, best_kernels[0]);
+        return make_unique<activation_impl>(arg, best_kernels.front());
+    }
+
+protected:
+    kernel_arguments_data get_arguments(typed_primitive_inst<activation>& instance, int32_t split) const override {
+        kernel_arguments_data args = parent::get_arguments(instance, split);
+
+        bool is_parameterized = (_corresponding_node ? _corresponding_node->is_parameterized() : _is_parameterized);
+
+        if (is_parameterized) {
+            args.slope = instance.slope_memory();
+        }
+
+        return args;
     }
 
 private:

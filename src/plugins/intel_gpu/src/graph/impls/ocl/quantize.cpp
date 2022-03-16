@@ -23,26 +23,6 @@ struct quantize_impl : typed_primitive_impl_ocl<quantize> {
         return make_unique<quantize_impl>(*this);
     }
 
-protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<quantize>& instance, int32_t) const override {
-        kernel_arguments_data args;
-
-        for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
-            args.inputs.push_back(instance.input_memory_ptr(i));
-        }
-        if (instance.node.get_scale_shift_opt()) {
-            if (instance.node.get_dependencies().size() == 9) {
-                args.inputs.push_back(instance.dep_memory_ptr(5));
-                args.inputs.push_back(instance.dep_memory_ptr(6));
-                args.inputs.push_back(instance.dep_memory_ptr(7));
-                args.inputs.push_back(instance.dep_memory_ptr(8));
-            }
-        }
-        args.outputs = { instance.output_memory_ptr() };
-        return args;
-    }
-
-public:
     static std::unique_ptr<primitive_impl> create(const quantize_node& arg) {
         auto quantize_params = get_default_params<kernel_selector::quantize_params>(arg);
         auto quantize_optional_params =
@@ -80,15 +60,34 @@ public:
         const auto& output_layout = arg.get_output_layout();
         quantize_params.outputs = { convert_data_tensor(output_layout) };
 
-        auto& kernel_selector = kernel_selector::quantize_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(quantize_params, quantize_optional_params);
+        const auto& kernel_selector = kernel_selector::quantize_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(quantize_params, quantize_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return make_unique<quantize_impl>(arg, best_kernels[0]);
+        return make_unique<quantize_impl>(arg, best_kernels.front());
+    }
+
+protected:
+    kernel_arguments_data get_arguments(typed_primitive_inst<quantize>& instance, int32_t) const override {
+        kernel_arguments_data args;
+
+        for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
+            args.inputs.push_back(instance.input_memory_ptr(i));
+        }
+        if (instance.node.get_scale_shift_opt()) {
+            if (instance.node.get_dependencies().size() == 9) {
+                args.inputs.push_back(instance.dep_memory_ptr(5));
+                args.inputs.push_back(instance.dep_memory_ptr(6));
+                args.inputs.push_back(instance.dep_memory_ptr(7));
+                args.inputs.push_back(instance.dep_memory_ptr(8));
+            }
+        }
+        args.outputs = { instance.output_memory_ptr() };
+        return args;
     }
 };
 

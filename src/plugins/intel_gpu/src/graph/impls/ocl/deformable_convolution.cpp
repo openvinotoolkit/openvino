@@ -19,41 +19,13 @@ struct deformable_conv_impl : typed_primitive_impl_ocl<deformable_conv> {
     using parent = typed_primitive_impl_ocl<deformable_conv>;
     using parent::parent;
 
-    deformable_conv_impl(const deformable_conv_impl& other) : parent(other),
-    _split(other._split),
-    _groups(other._groups) {}
-
     deformable_conv_impl(const deformable_conv_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd),
-    _split(arg.get_split()),
-    _groups(arg.get_groups()) {}
+    _split(arg.get_split()) {}
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<deformable_conv_impl>(*this);
     }
 
-    void align_state(const program_node& arg) override {
-        if (!arg.is_type<deformable_conv>()) {
-            throw std::invalid_argument("Should be deformable_conv node");
-        }
-        const auto& deformable_conv_node = arg.as<deformable_conv>();
-        _split = deformable_conv_node.get_split();
-        _groups = deformable_conv_node.get_groups();
-    }
-
-protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<deformable_conv>& instance, int32_t split) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, split);
-
-        args.weights = instance.weights_memory(split);
-        args.bias = instance.bias_term() ? instance.bias_memory(split) : nullptr;
-        return args;
-    }
-
-    int32_t get_split() const override { return _split; }
-
-    uint32_t get_groups() const override { return _groups; }
-
-public:
     static std::unique_ptr<primitive_impl> create(const deformable_conv_node& arg) {
         const auto& primitive = arg.get_primitive();
         const auto& weights_layout = arg.weights(0).get_output_layout();
@@ -81,19 +53,29 @@ public:
             (uint32_t)weights_size.spatial[2],
         };
 
-        auto& kernel_selector = kernel_selector::deformable_conv_kernel_selector::Instance();
-        kernel_selector::KernelsData best_kernels = kernel_selector.GetBestKernels(conv_params, conv_optional_params);
+        const auto& kernel_selector = kernel_selector::deformable_conv_kernel_selector::Instance();
+        const kernel_selector::KernelsData best_kernels = kernel_selector.GetBestKernels(conv_params, conv_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with these arguments");
-        return make_unique<deformable_conv_impl>(arg, best_kernels[0]);
+        return make_unique<deformable_conv_impl>(arg, best_kernels.front());
     }
+
+protected:
+    kernel_arguments_data get_arguments(typed_primitive_inst<deformable_conv>& instance, int32_t split) const override {
+        kernel_arguments_data args = parent::get_arguments(instance, split);
+
+        args.weights = instance.weights_memory(split);
+        args.bias = instance.bias_term() ? instance.bias_memory(split) : nullptr;
+        return args;
+    }
+
+    int32_t get_split() const override { return (_corresponding_node ? _corresponding_node->get_split() : _split); }
 
 private:
     int32_t _split = 1;
-    uint32_t _groups = 1;
 };
 
 struct deformable_interp_impl : typed_primitive_impl_ocl<deformable_interp> {
@@ -104,12 +86,6 @@ struct deformable_interp_impl : typed_primitive_impl_ocl<deformable_interp> {
         return make_unique<deformable_interp_impl>(*this);
     }
 
-protected:
-    int32_t get_split() const override { return 1; } //TO DO: Can be removed
-
-    uint32_t get_groups() const override { return 1; }
-
-public:
     static std::unique_ptr<primitive_impl> create(const deformable_interp_node& arg) {
         const auto& primitive = arg.get_primitive();
         const auto& input_layout = arg.input().get_output_layout();

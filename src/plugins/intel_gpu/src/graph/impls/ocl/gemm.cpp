@@ -22,7 +22,6 @@ struct gemm_impl : typed_primitive_impl_ocl<gemm> {
         return make_unique<gemm_impl>(*this);
     }
 
-public:
     static std::unique_ptr<primitive_impl> create(const gemm_node& arg) {
         auto gemm_params = get_default_params<kernel_selector::gemm_params>(arg, 1);
         auto gemm_optional_params =
@@ -32,7 +31,7 @@ public:
             gemm_params.inputs.push_back(convert_data_tensor(arg.input(i).get_output_layout()));
         }
 
-        auto desc = arg.get_primitive();
+        const auto& desc = arg.get_primitive();
         gemm_params.alpha = desc->alpha;
         gemm_params.beta = desc->beta;
         gemm_params.transpose_input0 = desc->transpose_input0;
@@ -48,15 +47,15 @@ public:
             gemm_params.quantization = kernel_selector::QuantizationType::NONE;
         }
 
-        auto& kernel_selector = kernel_selector::gemm_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(gemm_params, gemm_optional_params);
+        const auto& kernel_selector = kernel_selector::gemm_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(gemm_params, gemm_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return make_unique<gemm_impl>(arg, best_kernels[0]);
+        return make_unique<gemm_impl>(arg, best_kernels.front());
     }
 };
 

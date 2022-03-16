@@ -31,15 +31,15 @@ public:
         auto reorder_optional_params =
             get_default_optional_params<kernel_selector::reshape_optional_params>(arg.get_program());
 
-        auto& kernel_selector = kernel_selector::reshape_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(reorder_params, reorder_optional_params);
+        const auto& kernel_selector = kernel_selector::reshape_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(reorder_params, reorder_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return make_unique<reshape_impl>(arg, best_kernels[0]);
+        return make_unique<reshape_impl>(arg, best_kernels.front());
     }
 };
 

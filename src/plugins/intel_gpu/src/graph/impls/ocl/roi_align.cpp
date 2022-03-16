@@ -32,22 +32,9 @@ struct roi_align_impl : typed_primitive_impl_ocl<roi_align> {
         return make_unique<roi_align_impl>(*this);
     }
 
-protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<roi_align>& instance, int32_t) const override {
-        kernel_arguments_data args;
-        args.inputs = { instance.input_memory_ptr(), instance.rois_memory(), instance.batches_memory() };
-        args.outputs = { instance.output_memory_ptr() };
-
-        return args;
-    }
-
-public:
-    static primitive_impl* create(const roi_align_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const roi_align_node& arg) {
         const auto& input_layout = arg.input().get_output_layout();
         const auto& output_layout = arg.get_output_layout();
-        const auto& rois_layout = arg.input(1).get_output_layout();
-        const auto& batches_layout = arg.input(2).get_output_layout();
-        const auto& primitive = arg.get_primitive();
 
         const auto padding_filling_value = output_layout.data_padding.filling_value();
 
@@ -67,6 +54,9 @@ public:
         auto roi_align_optional_params =
             get_default_optional_params<kernel_selector::roi_align_optional_params>(arg.get_program());
 
+        const auto& rois_layout = arg.input(1).get_output_layout();
+        const auto& batches_layout = arg.input(2).get_output_layout();
+        const auto& primitive = arg.get_primitive();
         const auto roi_bfyx = convert_data_tensor(rois_layout);
         roi_align_params.inputs.push_back(roi_bfyx.FlattenFeatureAndSpatials());
         roi_align_params.inputs.push_back(convert_data_tensor(batches_layout));
@@ -74,17 +64,24 @@ public:
         roi_align_params.sampling_ratio = primitive->sampling_ratio;
         roi_align_params.spatial_scale = primitive->spatial_scale;
 
-        auto& kernel_selector = kernel_selector::roi_align_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(roi_align_params, roi_align_optional_params);
+        const auto& kernel_selector = kernel_selector::roi_align_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(roi_align_params, roi_align_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto roi_align = new roi_align_impl(arg, best_kernels[0]);
+        return make_unique<roi_align_impl>(arg, best_kernels.front());
+    }
 
-        return roi_align;
+protected:
+    kernel_arguments_data get_arguments(typed_primitive_inst<roi_align>& instance, int32_t) const override {
+        kernel_arguments_data args;
+        args.inputs = { instance.input_memory_ptr(), instance.rois_memory(), instance.batches_memory() };
+        args.outputs = { instance.output_memory_ptr() };
+
+        return args;
     }
 };
 

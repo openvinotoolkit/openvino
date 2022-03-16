@@ -29,17 +29,16 @@ struct gather_tree_impl : typed_primitive_impl_ocl<gather_tree> {
         for (size_t i = 1; i < arg.get_dependencies().size(); i++) {
             b_params.inputs.push_back(convert_data_tensor(arg.get_dependency(i).get_output_layout(), 1));
         }
-        auto desc = arg.get_primitive();
 
-        auto& kernel_selector = kernel_selector::gather_tree_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(b_params, b_optional_params);
+        const auto& kernel_selector = kernel_selector::gather_tree_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(b_params, b_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
-            "Best_kernel.empty()",
-            best_kernels.empty(),
-            "Cannot find a proper kernel with this arguments");
+                         "Best_kernel.empty()",
+                         best_kernels.empty(),
+                         "Cannot find a proper kernel with this arguments");
 
-        return make_unique<gather_tree_impl>(arg, best_kernels[0]);
+        return make_unique<gather_tree_impl>(arg, best_kernels.front());
     }
 };
 namespace detail {

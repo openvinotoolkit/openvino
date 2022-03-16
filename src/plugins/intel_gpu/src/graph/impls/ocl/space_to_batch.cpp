@@ -24,27 +24,26 @@ struct space_to_batch_impl : typed_primitive_impl_ocl<space_to_batch> {
         return make_unique<space_to_batch_impl>(*this);
     }
 
-public:
     static std::unique_ptr<primitive_impl> create(const space_to_batch_node& arg) {
         auto space_to_batch_params = get_default_params<kernel_selector::space_to_batch_params>(arg);
         auto space_to_batch_optional_params =
             get_default_optional_params<kernel_selector::space_to_batch_optional_params>(arg.get_program());
 
-        auto primitive = arg.get_primitive();
+        const auto& primitive = arg.get_primitive();
 
         space_to_batch_params.block_shape = convert_dim_vector(primitive->block_shape);
         space_to_batch_params.pads_begin = convert_dim_vector(primitive->pads_begin);
         space_to_batch_params.pads_end = convert_dim_vector(primitive->pads_end);
 
-        auto& kernel_selector = kernel_selector::space_to_batch_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(space_to_batch_params, space_to_batch_optional_params);
+        const auto& kernel_selector = kernel_selector::space_to_batch_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(space_to_batch_params, space_to_batch_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return make_unique<space_to_batch_impl>(arg, best_kernels[0]);
+        return make_unique<space_to_batch_impl>(arg, best_kernels.front());
     }
 };
 

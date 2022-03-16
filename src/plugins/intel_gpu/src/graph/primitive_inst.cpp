@@ -213,9 +213,6 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
             _output = allocate_output();
         }
     }
-    if (_impl) {
-        _impl->align_state(node);
-    }
 }
 
 void primitive_inst::allocate_internal_buffers(void) {

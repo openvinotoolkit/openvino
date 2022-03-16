@@ -20,22 +20,22 @@ struct range_impl : typed_primitive_impl_ocl<range> {
         return make_unique<range_impl>(*this);
     }
 
-    static primitive_impl* create(const range_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const range_node& arg) {
         auto params = get_default_params<kernel_selector::range_params>(arg);
         for (int i : {1, 2})
             params.inputs.push_back(convert_data_tensor(arg.input(i).get_output_layout()));
         auto optional_params =
             get_default_optional_params<kernel_selector::range_optional_params>(arg.get_program());
 
-        auto& kernel_selector = kernel_selector::range_instance();
-        auto best_kernels = kernel_selector.GetBestKernels(params, optional_params);
+        const auto& kernel_selector = kernel_selector::range_instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(params, optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new range_impl{arg, best_kernels.front()};
+        return make_unique<range_impl>(arg, best_kernels.front());
     }
 };
 

@@ -57,20 +57,11 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
     using parent = typed_primitive_impl_ocl<slice>;
     using parent::parent;
 
-    enum InputIndices {
-        kData,
-        kStart,
-        kEnd,
-        kStep,
-        kAxes,
-        kInputsNum
-    };
-
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<slice_impl>(*this);
     }
 
-    static primitive_impl* create(const slice_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const slice_node& arg) {
         auto params = get_default_params<kernel_selector::slice_params>(
                 arg);
         auto op_params = get_default_optional_params<
@@ -78,10 +69,10 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
                 arg.get_program());
         const auto& inputs = arg.get_dependencies();
         const stream& stream = arg.get_program().get_stream();
-        auto start_elts = extractIntegerData(inputs[InputIndices::kStart]->as<data>(), stream);
-        auto end_elts = extractIntegerData(inputs[InputIndices::kEnd]->as<data>(), stream);
-        auto step_elts = extractIntegerData(inputs[InputIndices::kStep]->as<data>(), stream);
-        auto data_shape = extractShape(params.inputs[0]);
+        const auto start_elts = extractIntegerData(inputs[InputIndices::kStart]->as<data>(), stream);
+        const auto end_elts = extractIntegerData(inputs[InputIndices::kEnd]->as<data>(), stream);
+        const auto step_elts = extractIntegerData(inputs[InputIndices::kStep]->as<data>(), stream);
+        const auto data_shape = extractShape(params.inputs[0]);
         std::vector<std::int32_t> axes(data_shape.size());
         if (inputs.size() == InputIndices::kInputsNum)
             axes = std::move(extractIntegerData(inputs[InputIndices::kAxes]->as<data>(), stream));
@@ -91,10 +82,10 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
         std::vector<std::int32_t> selected_step(data_shape.size(), 1);
         std::vector<std::int32_t> selected_end(data_shape);
         for (int axe = 0; axe < axes.size(); axe++) {
-            auto transformed_axe = axes[axe] < 0 ? data_shape.size() + axes[axe] : axes[axe];
-            auto start = start_elts[axe];
-            auto end = end_elts[axe];
-            auto dim_size = data_shape[transformed_axe];
+            const auto transformed_axe = axes[axe] < 0 ? data_shape.size() + axes[axe] : axes[axe];
+            const auto start = start_elts[axe];
+            const auto end = end_elts[axe];
+            const auto dim_size = data_shape[transformed_axe];
             selected_start[transformed_axe] = std::max(std::min(start < 0 ? dim_size + start : start, dim_size - 1), 0);
             selected_end[transformed_axe] = std::max(std::min(end < 0 ? dim_size + end : end, dim_size - 1), 0);
             selected_step[transformed_axe] = step_elts[axe];
@@ -102,15 +93,25 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
         params.start = std::move(selected_start);
         params.end = std::move(selected_end);
         params.step = std::move(selected_step);
-        auto &kernel_selector =
+        const auto &kernel_selector =
                 kernel_selector::slice_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(params, op_params);
+        const auto best_kernels = kernel_selector.GetBestKernels(params, op_params);
 
         CLDNN_ERROR_BOOL(arg.id(), "Best_kernel.empty()", best_kernels.empty(),
                 "Cannot find a proper kernel with this arguments");
 
-        return new slice_impl(arg, best_kernels[0]);
+        return make_unique<slice_impl>(arg, best_kernels.front());
     }
+
+private:
+    enum InputIndices {
+        kData,
+        kStart,
+        kEnd,
+        kStep,
+        kAxes,
+        kInputsNum
+    };
 };
 
 namespace detail {

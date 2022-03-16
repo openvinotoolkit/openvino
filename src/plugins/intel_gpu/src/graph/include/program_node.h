@@ -386,6 +386,10 @@ public:
         cur_id = 0;
     }
 
+    void init_kernels();
+
+    void choose_impl();
+
 protected:
     size_t unique_id = 0;
     static thread_local size_t cur_id;

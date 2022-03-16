@@ -13,15 +13,24 @@
 namespace cldnn {
 namespace common {
 
-class wait_for_events_impl : public primitive_impl {
-public:
-    explicit wait_for_events_impl(const program_node& /*node*/) {}
-
+struct wait_for_events_impl : public primitive_impl {
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<wait_for_events_impl>(*this);
     }
 
-    void init_kernels(const program_node&) override {}
+    static std::unique_ptr<primitive_impl> create_data(const data_node&) { return make_unique<wait_for_events_impl>(); }
+
+    static std::unique_ptr<primitive_impl> create_input_layout(const input_layout_node&) {
+        return make_unique<wait_for_events_impl>();
+    }
+
+    static std::unique_ptr<primitive_impl> create_prior_box(const prior_box_node&) {
+        // This primitive is being executed on CPU during network compilation.
+        return make_unique<wait_for_events_impl>();
+    }
+
+private:
+    void init_kernels(const program&) override {}
     void set_arguments(primitive_inst& /*instance*/) override {}
     std::vector<layout> get_internal_buffer_layouts() const override { return {}; }
 
@@ -31,17 +40,6 @@ public:
     }
 
     bool validate(const primitive_inst&) const override { return true; }
-
-    static std::unique_ptr<primitive_impl> create_data(const data_node& data) { return make_unique<wait_for_events_impl>(data); }
-
-    static std::unique_ptr<primitive_impl> create_input_layout(const input_layout_node& input) {
-        return make_unique<wait_for_events_impl>(input);
-    }
-
-    static std::unique_ptr<primitive_impl> create_prior_box(const prior_box_node& prior_box) {
-        // This primitive is being executed on CPU during network compilation.
-        return make_unique<wait_for_events_impl>(prior_box);
-    }
 };
 
 namespace detail {

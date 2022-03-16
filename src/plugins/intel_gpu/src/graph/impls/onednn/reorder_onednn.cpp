@@ -65,7 +65,7 @@ public:
 
         std::shared_ptr<void> dummy = nullptr;
 
-        return make_unique<reorder_onednn>(dummy, attr, *desc);
+        return make_unique<reorder_onednn>(arg, dummy, attr, *desc);
     }
 };
 

@@ -27,8 +27,8 @@ struct average_unpooling_impl : typed_primitive_impl_ocl<average_unpooling> {
             get_default_optional_params<kernel_selector::average_unpooling_optional_params>(arg.get_program());
         auto& params = average_unpooling_params;
 
-        auto primitive = arg.get_primitive();
-        auto stride = primitive->stride;
+        const auto& primitive = arg.get_primitive();
+        const auto& stride = primitive->stride;
 
         params.unpoolSize = {
             (uint32_t)primitive->size.spatial[0],
@@ -37,15 +37,15 @@ struct average_unpooling_impl : typed_primitive_impl_ocl<average_unpooling> {
 
         params.unpoolStride = {(uint32_t)stride.spatial[0], (uint32_t)stride.spatial[1]};
 
-        auto& kernel_selector = kernel_selector::average_unpooling_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(average_unpooling_params, average_unpooling_optional_params);
+        const auto& kernel_selector = kernel_selector::average_unpooling_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(average_unpooling_params, average_unpooling_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return make_unique<average_unpooling_impl>(arg, best_kernels[0]);
+        return make_unique<average_unpooling_impl>(arg, best_kernels.front());
     }
 };
 

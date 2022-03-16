@@ -194,6 +194,22 @@ struct proposal_impl : typed_primitive_impl<proposal> {
         return make_unique<proposal_impl>(*this);
     }
 
+    static std::unique_ptr<primitive_impl> create(const proposal_node& arg) {
+        const layout& l = arg.image_info().get_output_layout();
+        const size_t count = l.size.feature[0] == 1 ? static_cast<size_t>(l.size.batch[0]) : static_cast<size_t>(l.size.feature[0]);
+
+        // Supported image_info sizes and components meaning:
+        // - image_info[3] = { img_height, img_width, img_depth }
+        // - image_info[4] = { img_height, img_width, scale_min_bbox_y, scale_min_bbox_x }
+        // - image_info[6] = { img_height, img_width, img_depth, scale_min_bbox_y, scale_min_bbox_x, scale_depth_index }
+        if (count != 3 && count != 4 && count != 6) {
+            CLDNN_ERROR_MESSAGE(arg.id(), "image_info must have either 3, 4 or 6 items");
+        }
+
+        return make_unique<proposal_impl>();
+    }
+
+private:
     template <typename dtype>
     void read_image_info(stream& stream, proposal_inst& instance, im_info_t& im_info) {
         auto image_info = instance.dep_memory_ptr(proposal_inst::image_info_index);
@@ -423,22 +439,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
         return ev;
     }
 
-    void init_kernels(const program_node&) override {}
-
-    static std::unique_ptr<primitive_impl> create(const proposal_node& arg) {
-        const layout& l = arg.image_info().get_output_layout();
-        const size_t count = l.size.feature[0] == 1 ? static_cast<size_t>(l.size.batch[0]) : static_cast<size_t>(l.size.feature[0]);
-
-        // Supported image_info sizes and components meaning:
-        // - image_info[3] = { img_height, img_width, img_depth }
-        // - image_info[4] = { img_height, img_width, scale_min_bbox_y, scale_min_bbox_x }
-        // - image_info[6] = { img_height, img_width, img_depth, scale_min_bbox_y, scale_min_bbox_x, scale_depth_index }
-        if (count != 3 && count != 4 && count != 6) {
-            CLDNN_ERROR_MESSAGE(arg.id(), "image_info must have either 3, 4 or 6 items");
-        }
-
-        return make_unique<proposal_impl>();
-    }
+    void init_kernels(const program&) override {}
 };
 
 namespace detail {

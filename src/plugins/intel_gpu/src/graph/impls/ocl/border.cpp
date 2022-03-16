@@ -27,7 +27,7 @@ struct border_impl : typed_primitive_impl_ocl<border> {
         auto b_optional_params =
             get_default_optional_params<kernel_selector::border_optional_params>(arg.get_program());
 
-        auto desc = arg.get_primitive();
+        const auto& desc = arg.get_primitive();
 
         b_params.lt_sizes = convert_dim_vector(desc->left_top_sizes);
         b_params.rb_sizes = convert_dim_vector(desc->right_bottom_sizes);
@@ -52,15 +52,15 @@ struct border_impl : typed_primitive_impl_ocl<border> {
                     "Encountered unhandled enum case: border_type during translation to kernel selector enumeration.");
         }
 
-        auto& kernel_selector = kernel_selector::border_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(b_params, b_optional_params);
+        const auto& kernel_selector = kernel_selector::border_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(b_params, b_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return make_unique<border_impl>(arg, best_kernels[0]);
+        return make_unique<border_impl>(arg, best_kernels.front());
     }
 };
 

@@ -25,11 +25,10 @@ struct ctc_greedy_decoder_impl : typed_primitive_impl_ocl<ctc_greedy_decoder> {
         return make_unique<ctc_greedy_decoder_impl>(*this);
     }
 
-public:
     static std::unique_ptr<primitive_impl> create(const ctc_greedy_decoder_node& arg) {
         auto ctc_gd_params = get_default_params<kernel_selector::ctc_greedy_decoder_params>(arg);
         auto ctc_gd_optional_params = get_default_optional_params<kernel_selector::ctc_greedy_decoder_optional_params>(arg.get_program());
-        auto prim = arg.get_primitive();
+        const auto& prim = arg.get_primitive();
 
         ctc_gd_params.inputs.push_back(
             convert_data_tensor(arg.seq_indicators().get_output_layout()));
@@ -42,8 +41,8 @@ public:
                 convert_data_tensor(arg.second_output().get_output_layout()));
         }
 
-        auto& kernel_selector = kernel_selector::ctc_greedy_decoder_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(
+        const auto& kernel_selector = kernel_selector::ctc_greedy_decoder_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(
             ctc_gd_params, ctc_gd_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
@@ -51,7 +50,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return make_unique<ctc_greedy_decoder_impl>(arg, best_kernels[0]);
+        return make_unique<ctc_greedy_decoder_impl>(arg, best_kernels.front());
     }
 };
 

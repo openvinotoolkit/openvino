@@ -21,45 +21,11 @@ struct non_max_suppression_impl : typed_primitive_impl_ocl<non_max_suppression> 
         return make_unique<non_max_suppression_impl>(*this);
     }
 
-protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<non_max_suppression>& instance, int32_t) const override {
-        kernel_arguments_data args;
-        for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
-            args.inputs.push_back(instance.input_memory_ptr(i));
-        }
-
-        if (instance.has_num_select_per_class() && !instance.node.num_select_per_class_node().is_constant()) {
-            args.inputs.push_back(instance.num_select_per_class_mem());
-        }
-
-        if (instance.has_iou_threshold() && !instance.node.iou_threshold_node().is_constant()) {
-            args.inputs.push_back(instance.iou_threshold_mem());
-        }
-
-        if (instance.has_score_threshold() && !instance.node.score_threshold_node().is_constant()) {
-            args.inputs.push_back(instance.score_threshold_mem());
-        }
-
-        if (instance.has_soft_nms_sigma() && !instance.node.soft_nms_sigma_node().is_constant()) {
-            args.inputs.push_back(instance.soft_nms_sigma_mem());
-        }
-
-        args.outputs = { instance.output_memory_ptr() };
-        if (instance.has_second_output())
-            args.inputs.push_back(instance.second_output_mem());
-        if (instance.has_third_output())
-            args.inputs.push_back(instance.third_output_mem());
-
-        return args;
-    }
-
-public:
     static std::unique_ptr<primitive_impl> create(const non_max_suppression_node& arg) {
         auto params = get_default_params<kernel_selector::non_max_suppression_params>(arg);
         auto optional_params =
             get_default_optional_params<kernel_selector::non_max_suppression_optional_params>(arg.get_program());
 
-        const auto& primitive = arg.get_primitive();
         params.inputs.push_back(convert_data_tensor(arg.input_scores().get_output_layout()));
 
         if (arg.has_num_select_per_class()) {
@@ -116,19 +82,52 @@ public:
             params.has_third_output = true;
         }
 
+        const auto& primitive = arg.get_primitive();
         params.sort_result_descending = primitive->sort_result_descending;
         params.box_encoding = primitive->center_point_box ?
             kernel_selector::BoxEncodingType::BOX_ENCODING_CENTER : kernel_selector::BoxEncodingType::BOX_ENCODING_CORNER;
 
-        auto& kernel_selector = kernel_selector::non_max_suppression_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(params, optional_params);
+        const auto& kernel_selector = kernel_selector::non_max_suppression_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(params, optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return make_unique<non_max_suppression_impl>(arg, best_kernels[0]);
+        return make_unique<non_max_suppression_impl>(arg, best_kernels.front());
+    }
+
+protected:
+    kernel_arguments_data get_arguments(typed_primitive_inst<non_max_suppression>& instance, int32_t) const override {
+        kernel_arguments_data args;
+        for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
+            args.inputs.push_back(instance.input_memory_ptr(i));
+        }
+
+        if (instance.has_num_select_per_class() && !instance.node.num_select_per_class_node().is_constant()) {
+            args.inputs.push_back(instance.num_select_per_class_mem());
+        }
+
+        if (instance.has_iou_threshold() && !instance.node.iou_threshold_node().is_constant()) {
+            args.inputs.push_back(instance.iou_threshold_mem());
+        }
+
+        if (instance.has_score_threshold() && !instance.node.score_threshold_node().is_constant()) {
+            args.inputs.push_back(instance.score_threshold_mem());
+        }
+
+        if (instance.has_soft_nms_sigma() && !instance.node.soft_nms_sigma_node().is_constant()) {
+            args.inputs.push_back(instance.soft_nms_sigma_mem());
+        }
+
+        args.outputs = { instance.output_memory_ptr() };
+        if (instance.has_second_output())
+            args.inputs.push_back(instance.second_output_mem());
+        if (instance.has_third_output())
+            args.inputs.push_back(instance.third_output_mem());
+
+        return args;
     }
 
 private:

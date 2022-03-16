@@ -25,14 +25,6 @@ struct normalize_impl : typed_primitive_impl_ocl<normalize> {
         return make_unique<normalize_impl>(*this);
     }
 
-protected:
-     kernel_arguments_data get_arguments(typed_primitive_inst<normalize>& instance, int32_t split) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, split);
-        args.scale_table = instance.scale_memory();
-        return args;
-    }
-
-public:
     static std::unique_ptr<primitive_impl> create(const normalize_node& arg) {
         auto norm_params = get_default_params<kernel_selector::normalize_params>(arg);
         auto norm_optional_params =
@@ -45,15 +37,22 @@ public:
         norm_params.epsilon = arg.get_primitive()->epsilon;
         norm_params.scaleTable = convert_data_tensor(scale_layout).FlattenFeatureAndSpatials();
 
-        auto& kernel_selector = kernel_selector::normalize_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(norm_params, norm_optional_params);
+        const auto& kernel_selector = kernel_selector::normalize_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(norm_params, norm_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return make_unique<normalize_impl>(arg, best_kernels[0]);
+        return make_unique<normalize_impl>(arg, best_kernels.front());
+    }
+
+protected:
+     kernel_arguments_data get_arguments(typed_primitive_inst<normalize>& instance, int32_t split) const override {
+        kernel_arguments_data args = parent::get_arguments(instance, split);
+        args.scale_table = instance.scale_memory();
+        return args;
     }
 };
 

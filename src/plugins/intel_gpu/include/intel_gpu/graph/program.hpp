@@ -239,7 +239,7 @@ public:
     void compile();
     void init_kernels();
     kernel_id add_kernel(const std::shared_ptr<kernel_string>& kernel_sring);
-    kernel::ptr get_kernel(kernel_id id);
+    kernel::ptr get_kernel(kernel_id id) const;
 
     void load_tuning_cache();
     std::shared_ptr<kernel_selector::TuningCache> get_tuning_cache() const { return tuning_cache; }

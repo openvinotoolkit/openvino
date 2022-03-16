@@ -24,10 +24,6 @@ namespace cldnn {
 namespace ocl {
 
 struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
-    std::shared_ptr<kernel_selector::cl_kernel_data> cl_kernel;
-    std::vector<kernel::ptr> _kernels;
-    kernel_id _kernel_id;
-
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<custom_gpu_primitive_impl>(*this);
     }
@@ -44,8 +40,9 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
         _kernel_id = arg.get_program().add_kernel(cl_kernel->code.kernelString);
     }
 
-    void init_kernels(const program_node& node) override {
-        _kernels.emplace_back(std::move(node.get_program().get_kernel(_kernel_id)));
+private:
+    void init_kernels(const program& program) override {
+        _kernels.emplace_back(std::move(program.get_kernel(_kernel_id)));
     }
 
     void set_arguments_impl(custom_gpu_primitive_inst& instance) override {
@@ -68,9 +65,15 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
         args.outputs = { instance.output_memory_ptr() };
         return stream.enqueue_kernel(*_kernels.front(), cl_kernel.get()->params, args, events, instance.node.is_output());
     }
+
+private:
+    std::shared_ptr<kernel_selector::cl_kernel_data> cl_kernel;
+    std::vector<kernel::ptr> _kernels;
+    kernel_id _kernel_id;
 };
 
-static kernel_selector::kernel_argument_element get_arg(custom_gpu_primitive::arg_desc arg) {
+namespace {
+kernel_selector::kernel_argument_element get_arg(custom_gpu_primitive::arg_desc arg) {
     kernel_selector::kernel_argument_element ret;
     switch (arg.type) {
         case custom_gpu_primitive::arg_input:
@@ -95,7 +98,7 @@ std::string value_macro(const std::string& name, const std::string& value) {
     return oss.str();
 }
 
-static void add_layout_to_jit(kernel_selector::jit_constants& mem_consts, const std::string& name, const layout& l) {
+void add_layout_to_jit(kernel_selector::jit_constants& mem_consts, const std::string& name, const layout& l) {
     // Size (in elements)
     // #define INPUT0_DIMS (uint[]) { b, f, y, x, }
     mem_consts.AddConstant(kernel_selector::MakeJitConstant(name + "_DIMS", l.size.sizes(format::bfyx)));
@@ -174,7 +177,7 @@ static void add_layout_to_jit(kernel_selector::jit_constants& mem_consts, const 
     mem_consts.AddConstant(kernel_selector::MakeJitConstant(name + "_OFFSET", std::to_string(offset)));
 }
 
-static std::string get_jit_constant(const custom_gpu_primitive_node& outer) {
+std::string get_jit_constant(const custom_gpu_primitive_node& outer) {
     kernel_selector::jit_constants mem_consts{
         kernel_selector::MakeJitConstant("NUM_INPUTS", std::to_string(outer.get_dependencies().size()))};
     const auto primitive = outer.get_primitive().get();
@@ -199,7 +202,7 @@ static std::string get_jit_constant(const custom_gpu_primitive_node& outer) {
     return oss.str();
 }
 
-static std::unique_ptr<primitive_impl> create(const custom_gpu_primitive_node& arg) {
+std::unique_ptr<primitive_impl> create(const custom_gpu_primitive_node& arg) {
     const auto primitive = arg.get_primitive().get();
 
     auto cl_kernel = std::make_shared<kernel_selector::cl_kernel_data>();
@@ -220,6 +223,7 @@ static std::unique_ptr<primitive_impl> create(const custom_gpu_primitive_node& a
 
     return make_unique<custom_gpu_primitive_impl>(arg, cl_kernel);
 }
+}  // namespace
 
 namespace detail {
 

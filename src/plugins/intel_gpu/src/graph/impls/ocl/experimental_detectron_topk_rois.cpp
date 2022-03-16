@@ -21,7 +21,7 @@ struct experimental_detectron_topk_rois_impl : typed_primitive_impl_ocl<experime
         return make_unique<experimental_detectron_topk_rois_impl>(*this);
     }
 
-    static primitive_impl *create(const experimental_detectron_topk_rois_node &arg) {
+    static std::unique_ptr<primitive_impl> create(const experimental_detectron_topk_rois_node &arg) {
         auto params = get_default_params<kernel_selector::experimental_detectron_topk_roi_params>(
                 arg);
         const auto& experimental_detectron_topk_rois_kernel_selector =
@@ -29,13 +29,13 @@ struct experimental_detectron_topk_rois_impl : typed_primitive_impl_ocl<experime
         const auto& primitive = arg.get_primitive();
         params.inputs.push_back(convert_data_tensor(arg.input(1).get_output_layout()));
         params.max_rois = primitive->max_rois;
-        auto best_kernels = experimental_detectron_topk_rois_kernel_selector.GetBestKernels(params,
+        const auto best_kernels = experimental_detectron_topk_rois_kernel_selector.GetBestKernels(params,
                                                                                             kernel_selector::experimental_detectron_topk_roi_optional_params());
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
-        return new experimental_detectron_topk_rois_impl(arg, best_kernels[0]);
+        return make_unique<experimental_detectron_topk_rois_impl>(arg, best_kernels.front());
     }
 };
 

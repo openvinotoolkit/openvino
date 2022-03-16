@@ -20,6 +20,39 @@ struct experimental_detectron_roi_feature_extractor_impl : public typed_primitiv
         return make_unique<experimental_detectron_roi_feature_extractor_impl>(*this);
     }
 
+    static std::unique_ptr<primitive_impl> create(const experimental_detectron_roi_feature_extractor_node& arg) {
+        const auto& output_layout = arg.get_output_layout();
+        CLDNN_ERROR_NOT_EQUAL(arg.id(),
+                              "experimental_detectron_roi_feature_extractor padding filling value",
+                              output_layout.data_padding.filling_value(),
+                              "padding mode",
+                              0.0f,
+                              "Unknown padding mode in experimental_detectron_roi_feature_extractor.");
+
+        auto params = get_default_params<kernel_selector::experimental_detectron_roi_feature_extractor_params>(arg);
+        auto optional_params = get_default_optional_params<kernel_selector::experimental_detectron_roi_feature_extractor_optional_params>(arg.get_program());
+
+        const auto& primitive = arg.get_primitive();
+        const size_t number_of_inputs = primitive->input_size() - 1;
+        for (std::size_t i = 1; i < number_of_inputs; i++) {
+            params.inputs.push_back(convert_data_tensor(arg.input(i).get_output_layout()));
+        }
+
+        params.output_dim = primitive->output_dim;
+        params.pooled_height = primitive->pooled_height;
+        params.pooled_width = primitive->pooled_width;
+        params.pyramid_scales = primitive->pyramid_scales;
+        params.sampling_ratio = primitive->sampling_ratio;
+        params.aligned = primitive->aligned;
+        params.number_of_inputs = number_of_inputs;
+
+        const auto& kernel_selector = kernel_selector::experimental_detectron_roi_feature_extractor_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(params, optional_params);
+
+        CLDNN_ERROR_BOOL(arg.id(), "best_kernels.empty()", best_kernels.empty(), "Cannot find a proper kernel with this arguments");
+        return make_unique<experimental_detectron_roi_feature_extractor_impl>(arg, best_kernels.front());
+    }
+
 protected:
     kernel_arguments_data get_arguments(experimental_detectron_roi_feature_extractor_inst& instance, int32_t) const override {
         kernel_arguments_data args;
@@ -36,41 +69,6 @@ protected:
                             experimental_detectron_roi_feature_extractor_inst& instance) override {
         instance.copy_rois_input_to_second_output();
         return parent::execute_impl(events, instance);
-    }
-
-public:
-    static primitive_impl* create(const experimental_detectron_roi_feature_extractor_node& arg) {
-        const auto output_layout = arg.get_output_layout();
-        const auto padding_filling_value = output_layout.data_padding.filling_value();
-        CLDNN_ERROR_NOT_EQUAL(arg.id(),
-                              "experimental_detectron_roi_feature_extractor padding filling value",
-                              padding_filling_value,
-                              "padding mode",
-                              0.0f,
-                              "Unknown padding mode in experimental_detectron_roi_feature_extractor.");
-
-        auto params = get_default_params<kernel_selector::experimental_detectron_roi_feature_extractor_params>(arg);
-        auto optional_params = get_default_optional_params<kernel_selector::experimental_detectron_roi_feature_extractor_optional_params>(arg.get_program());
-
-        const auto& primitive = arg.get_primitive();
-        size_t number_of_inputs = primitive->input_size() - 1;
-        for (std::size_t i = 1; i < number_of_inputs; i++) {
-            params.inputs.push_back(convert_data_tensor(arg.input(i).get_output_layout()));
-        }
-
-        params.output_dim = primitive->output_dim;
-        params.pooled_height = primitive->pooled_height;
-        params.pooled_width = primitive->pooled_width;
-        params.pyramid_scales = primitive->pyramid_scales;
-        params.sampling_ratio = primitive->sampling_ratio;
-        params.aligned = primitive->aligned;
-        params.number_of_inputs = number_of_inputs;
-
-        auto& kernel_selector = kernel_selector::experimental_detectron_roi_feature_extractor_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(params, optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(), "best_kernels.empty()", best_kernels.empty(), "Cannot find a proper kernel with this arguments");
-        return new experimental_detectron_roi_feature_extractor_impl(arg, best_kernels.front());
     }
 };
 

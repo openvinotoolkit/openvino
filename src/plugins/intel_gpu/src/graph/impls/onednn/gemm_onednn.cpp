@@ -123,13 +123,13 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const gemm_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const gemm_node& arg) {
         auto& engine = arg.get_program().get_engine();
         auto desc = get_gemm_descriptor(arg);
         auto attr = arg.get_onednn_primitive_attributes();
         dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
 
-        return new gemm_onednn(arg, desc, attr, prim_desc);
+        return make_unique<gemm_onednn>(arg, desc, attr, prim_desc);
     }
 };
 

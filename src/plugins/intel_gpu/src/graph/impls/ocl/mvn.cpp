@@ -25,7 +25,6 @@ struct mvn_impl : typed_primitive_impl_ocl<mvn> {
         return make_unique<mvn_impl>(*this);
     }
 
-public:
     static std::unique_ptr<primitive_impl> create(const mvn_node& arg) {
         auto mvn_params = get_default_params<kernel_selector::mvn_params>(arg);
         auto mvn_optional_params = get_default_optional_params<kernel_selector::mvn_optional_params>(arg.get_program());
@@ -38,15 +37,15 @@ public:
         mvn_params.mvnEpsMode = arg.get_primitive()->eps_inside_sqrt ? kernel_selector::mvn_eps_mode::INSIDE_SQRT
                                                                      : kernel_selector::mvn_eps_mode::OUTSIDE_SQRT;
 
-        auto& kernel_selector = kernel_selector::mvn_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(mvn_params, mvn_optional_params);
+        const auto& kernel_selector = kernel_selector::mvn_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(mvn_params, mvn_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return make_unique<mvn_impl>(arg, best_kernels[0]);
+        return make_unique<mvn_impl>(arg, best_kernels.front());
     }
 };
 

@@ -157,8 +157,7 @@ void program::compile() {
 
 void program::init_kernels() {
     for (auto& n : get_processing_order()) {
-        if (n->get_selected_impl())
-            n->get_selected_impl()->init_kernels(*n);
+        n->init_kernels();
     }
 }
 
@@ -175,7 +174,7 @@ kernel_id program::add_kernel(const std::shared_ptr<kernel_string>& kernelSring)
     return _kernels_cache->set_kernel_source(kernelSring, false);
 }
 
-kernel::ptr program::get_kernel(kernel_id id) {
+kernel::ptr program::get_kernel(kernel_id id) const {
     return _kernels_cache->get_kernel(id);
 }
 

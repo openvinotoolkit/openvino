@@ -22,7 +22,6 @@ struct space_to_depth_impl : typed_primitive_impl_ocl<space_to_depth> {
         return make_unique<space_to_depth_impl>(*this);
     }
 
-public:
     static std::unique_ptr<primitive_impl> create(const space_to_depth_node& arg) {
         auto space_to_depth_params = get_default_params<kernel_selector::space_to_depth_params>(arg);
         auto space_to_depth_optional_params =
@@ -34,15 +33,15 @@ public:
 
         space_to_depth_params.block_size = arg.get_primitive()->block_size;
 
-        auto& kernel_selector = kernel_selector::space_to_depth_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(space_to_depth_params, space_to_depth_optional_params);
+        const auto& kernel_selector = kernel_selector::space_to_depth_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(space_to_depth_params, space_to_depth_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return make_unique<space_to_depth_impl>(arg, best_kernels[0]);
+        return make_unique<space_to_depth_impl>(arg, best_kernels.front());
     }
 };
 

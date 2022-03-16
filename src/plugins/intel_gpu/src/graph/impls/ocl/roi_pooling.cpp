@@ -41,29 +41,9 @@ struct roi_pooling_impl : typed_primitive_impl_ocl<roi_pooling> {
         return make_unique<roi_pooling_impl>(*this);
     }
 
-protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<roi_pooling>& instance, int32_t) const override {
-        kernel_arguments_data args;
-
-        if (instance.argument.mode == pooling_mode::deformable_bilinear && !instance.argument.no_trans)
-            args.inputs = {
-                instance.input_memory_ptr(),
-                instance.rois_memory(),
-                instance.trans_memory()};
-        else
-            args.inputs = {instance.input_memory_ptr(), instance.rois_memory()};
-
-        args.outputs = { instance.output_memory_ptr() };
-
-        return args;
-    }
-
-public:
     static std::unique_ptr<primitive_impl> create(const roi_pooling_node& arg) {
         const auto& input_layout = arg.input().get_output_layout();
         const auto& output_layout = arg.get_output_layout();
-        const auto& rois_layout = arg.rois().get_output_layout();
-        const auto& primitive = arg.get_primitive();
 
         const auto padding_filling_value = output_layout.data_padding.filling_value();
 
@@ -83,6 +63,8 @@ public:
         auto roi_optional_params =
             get_default_optional_params<kernel_selector::roi_pooling_optional_params>(arg.get_program());
 
+        const auto& rois_layout = arg.rois().get_output_layout();
+        const auto& primitive = arg.get_primitive();
         const auto roi_bfyx = convert_data_tensor(rois_layout);
         const auto roi_bf = roi_bfyx.FlattenFeatureAndSpatials();
         roi_params.inputs.push_back(roi_bf);
@@ -100,15 +82,32 @@ public:
         roi_params.part_size = primitive->part_size;
         roi_params.group_size = primitive->group_size;
 
-        auto& kernel_selector = kernel_selector::roi_pooling_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(roi_params, roi_optional_params);
+        const auto& kernel_selector = kernel_selector::roi_pooling_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(roi_params, roi_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return make_unique<roi_pooling_impl>(arg, best_kernels[0]);
+        return make_unique<roi_pooling_impl>(arg, best_kernels.front());
+    }
+
+protected:
+    kernel_arguments_data get_arguments(typed_primitive_inst<roi_pooling>& instance, int32_t) const override {
+        kernel_arguments_data args;
+
+        if (instance.argument.mode == pooling_mode::deformable_bilinear && !instance.argument.no_trans)
+            args.inputs = {
+                instance.input_memory_ptr(),
+                instance.rois_memory(),
+                instance.trans_memory()};
+        else
+            args.inputs = {instance.input_memory_ptr(), instance.rois_memory()};
+
+        args.outputs = { instance.output_memory_ptr() };
+
+        return args;
     }
 };
 

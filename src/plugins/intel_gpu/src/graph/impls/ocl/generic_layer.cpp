@@ -13,14 +13,6 @@ namespace cldnn {
 namespace ocl {
 
 struct generic_layer_impl : typed_primitive_impl<generic_layer> {
-    kernel_selector::cl_kernel_data _cl_kernel_data;
-    std::vector<kernel::ptr> _kernels;
-    kernel_id _kernel_id;
-
-    std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<generic_layer_impl>(*this);
-    }
-
     generic_layer_impl(const generic_layer_impl& other) : _cl_kernel_data(other._cl_kernel_data), _kernels({}) , _kernel_id(other._kernel_id) {
         if (other._kernels.empty()) {
             throw std::runtime_error("Can't copy generic_layer_impl node: kernels vector is empty");
@@ -32,8 +24,13 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
         _kernel_id = arg.get_program().add_kernel(_cl_kernel_data.code.kernelString);
     }
 
-    void init_kernels(const program_node& node) override {
-        _kernels.push_back(std::move(node.get_program().get_kernel(_kernel_id)));
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<generic_layer_impl>(*this);
+    }
+
+private:
+    void init_kernels(const program& program) override {
+        _kernels.push_back(std::move(program.get_kernel(_kernel_id)));
     }
 
     void set_arguments_impl(generic_layer_inst& instance) override {
@@ -59,11 +56,18 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
         args.outputs.push_back(instance.output_memory_ptr());
         return stream.enqueue_kernel(*_kernels.front(), _cl_kernel_data.params, args, events, true);
     }
+
+private:
+    kernel_selector::cl_kernel_data _cl_kernel_data{};
+    std::vector<kernel::ptr> _kernels{};
+    kernel_id _kernel_id{};
 };
 
-static std::unique_ptr<primitive_impl> create(const generic_layer_node& arg) {
+namespace {
+std::unique_ptr<primitive_impl> create(const generic_layer_node& arg) {
     return make_unique<generic_layer_impl>(arg);
 }
+} // namespace
 
 namespace detail {
 attach_generic_layer_impl::attach_generic_layer_impl() {

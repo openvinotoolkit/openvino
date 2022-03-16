@@ -49,9 +49,6 @@ struct concatenation_impl : typed_primitive_impl_ocl<concatenation> {
     using parent = typed_primitive_impl_ocl<concatenation>;
     using parent::parent;
 
-    concatenation_impl(const concatenation_impl& other) : parent(other),
-    _can_be_optimized(other._can_be_optimized) {}
-
     concatenation_impl(const concatenation_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd),
     _can_be_optimized(arg.can_be_optimized()) {
         if (!_can_be_optimized) {
@@ -68,20 +65,6 @@ struct concatenation_impl : typed_primitive_impl_ocl<concatenation> {
         return make_unique<concatenation_impl>(*this);
     }
 
-    void align_state(const program_node& arg) override {
-        if (!arg.is_type<concatenation>()) {
-            throw std::invalid_argument("Should be concatenation node");
-        }
-        const auto& concatenation_node = arg.as<concatenation>();
-        _can_be_optimized = concatenation_node.can_be_optimized();
-    }
-
-protected:
-    bool optimized_out(concatenation_inst& instance) const override {
-        return parent::optimized_out(instance) || _can_be_optimized;
-    }
-
-public:
     static std::unique_ptr<primitive_impl> create(const concatenation_node& arg) {
         if (arg.can_be_optimized()) {
             return make_unique<concatenation_impl>(arg, kernel_selector::kernel_data());
@@ -101,14 +84,19 @@ public:
         concat_params.axis = convert_axis(axis, arg.get_output_layout().get_rank());
         concat_optional_params.kernelPerInput = true;
 
-        auto& kernel_selector = kernel_selector::concatenation_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(concat_params, concat_optional_params);
+        const auto& kernel_selector = kernel_selector::concatenation_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(concat_params, concat_optional_params);
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return make_unique<concatenation_impl>(arg, best_kernels[0]);
+        return make_unique<concatenation_impl>(arg, best_kernels.front());
+    }
+
+protected:
+    bool is_optimized_out() const override {
+        return (_corresponding_node ? _corresponding_node->can_be_optimized() : _can_be_optimized);
     }
 
 private:

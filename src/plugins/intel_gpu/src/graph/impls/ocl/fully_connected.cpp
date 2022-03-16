@@ -29,17 +29,6 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
         return make_unique<fully_connected_impl>(*this);
     }
 
-protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<fully_connected>& instance, int32_t split) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, split);
-
-        args.weights = instance.weights_memory();
-        args.bias = instance.bias_term() ? instance.bias_memory() : nullptr;
-
-        return args;
-    }
-
-public:
     static std::unique_ptr<primitive_impl> create(const fully_connected_node& arg) {
         auto fc_params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(arg);
         auto fc_optional_params =
@@ -47,7 +36,7 @@ public:
                 arg.get_program());
         fc_optional_params.allowInputReordering = true;
 
-        const auto primitive = arg.get_primitive();
+        const auto& primitive = arg.get_primitive();
 
         if (primitive->input_size != 3)
             fc_params.outputs = { fc_params.outputs[0].FlattenFeatureAndSpatials() };
@@ -65,15 +54,25 @@ public:
         fc_optional_params.tuningParams.runner =
             std::make_shared<gpu::kernel_runner>(arg.get_program().get_engine(), arg.get_program().get_id(), true);
 
-        auto& kernel_selector = kernel_selector::fully_connected_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(fc_params, fc_optional_params);
+        const auto& kernel_selector = kernel_selector::fully_connected_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(fc_params, fc_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return make_unique<fully_connected_impl>(arg, best_kernels[0]);
+        return make_unique<fully_connected_impl>(arg, best_kernels.front());
+    }
+
+protected:
+    kernel_arguments_data get_arguments(typed_primitive_inst<fully_connected>& instance, int32_t split) const override {
+        kernel_arguments_data args = parent::get_arguments(instance, split);
+
+        args.weights = instance.weights_memory();
+        args.bias = instance.bias_term() ? instance.bias_memory() : nullptr;
+
+        return args;
     }
 };
 

@@ -332,6 +332,16 @@ bool program_node::need_lockable_memory() const {
     return need_lockable_mem;
 }
 
+void program_node::init_kernels() {
+    if (selected_impl) {
+        selected_impl->init_kernels(this->get_program());
+    }
+}
+
+void program_node::choose_impl() {
+    set_selected_impl(type()->choose_impl(*this));
+}
+
     /* ----------------------------------------- */
     /* Onednn fused operations integration logic */
     /* ----------------------------------------- */

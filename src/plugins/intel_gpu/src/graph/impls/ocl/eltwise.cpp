@@ -98,15 +98,15 @@ struct eltwise_impl : typed_primitive_impl_ocl<eltwise> {
         }
         ew_params.int8_quantization = quantization;
 
-        auto& kernel_selector = kernel_selector::eltwise_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(ew_params, ew_optional_params);
+        const auto& kernel_selector = kernel_selector::eltwise_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(ew_params, ew_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return make_unique<eltwise_impl>(arg, best_kernels[0]);
+        return make_unique<eltwise_impl>(arg, best_kernels.front());
     }
 };
 

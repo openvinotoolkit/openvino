@@ -23,7 +23,6 @@ struct shuffle_channels_impl : typed_primitive_impl_ocl<shuffle_channels> {
         return make_unique<shuffle_channels_impl>(*this);
     }
 
-public:
     static std::unique_ptr<primitive_impl> create(const shuffle_channels_node& arg) {
         auto shuffle_channels_params = get_default_params<kernel_selector::shuffle_channels_params>(arg);
         auto shuffle_channels_optional_params =
@@ -38,15 +37,15 @@ public:
         shuffle_channels_params.group = arg.get_primitive()->group;
         shuffle_channels_params.axis = axis;
 
-        auto& kernel_selector = kernel_selector::shuffle_channels_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(shuffle_channels_params, shuffle_channels_optional_params);
+        const auto& kernel_selector = kernel_selector::shuffle_channels_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(shuffle_channels_params, shuffle_channels_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return make_unique<shuffle_channels_impl>(arg, best_kernels[0]);
+        return make_unique<shuffle_channels_impl>(arg, best_kernels.front());
     }
 };
 

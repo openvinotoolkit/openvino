@@ -22,21 +22,8 @@ struct arg_max_min_impl : typed_primitive_impl_ocl<arg_max_min> {
         return make_unique<arg_max_min_impl>(*this);
     }
 
-protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<arg_max_min>& instance, int32_t) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, 0);
-
-        if (args.inputs.size() == 3) {
-            args.inputs.erase(args.inputs.begin() + 1);  // erase constant input in case of TOP_K
-        }
-
-        return args;
-    }
-
-public:
     static std::unique_ptr<primitive_impl> create(const arg_max_min_node& arg) {
         const auto& primitive = arg.get_primitive();
-
         const auto& axis = primitive->axis;
         const auto& top_k = primitive->top_k;
         const auto& out_type = primitive->output_type;
@@ -89,16 +76,27 @@ public:
 
         argm_params.values_first = values_first;
 
-        auto& kernel_selector = kernel_selector::arg_max_min_kernel_selector::Instance();
+        const auto& kernel_selector = kernel_selector::arg_max_min_kernel_selector::Instance();
 
-        kernel_selector::KernelsData best_kernels = kernel_selector.GetBestKernels(argm_params, argm_optional_params);
+        const kernel_selector::KernelsData best_kernels = kernel_selector.GetBestKernels(argm_params, argm_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return make_unique<arg_max_min_impl>(arg, best_kernels[0]);
+        return make_unique<arg_max_min_impl>(arg, best_kernels.front());
+    }
+
+protected:
+    kernel_arguments_data get_arguments(typed_primitive_inst<arg_max_min>& instance, int32_t) const override {
+        kernel_arguments_data args = parent::get_arguments(instance, 0);
+
+        if (args.inputs.size() == 3) {
+            args.inputs.erase(args.inputs.begin() + 1);  // erase constant input in case of TOP_K
+        }
+
+        return args;
     }
 };
 

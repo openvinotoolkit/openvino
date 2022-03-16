@@ -110,7 +110,7 @@ struct resample_impl : typed_primitive_impl_ocl<resample> {
             get_default_optional_params<kernel_selector::resample_optional_params>(arg.get_program());
 
         const auto& primitive = arg.get_primitive();
-        size_t dimsNum = arg.get_output_layout().format.dimension();
+        const size_t dimsNum = arg.get_output_layout().format.dimension();
         us_params.resampleType = convert_to_sample_type(primitive->operation_type);
         us_params.nearestMode = convert_to_nearest_mode(primitive->round_mode);
         us_params.coordTransMode = convert_to_coord_transform_mode(primitive->coord_trans_mode);
@@ -127,15 +127,15 @@ struct resample_impl : typed_primitive_impl_ocl<resample> {
             us_params.align_corners = primitive->align_corners;
         }
 
-        auto& kernel_selector = kernel_selector::resample_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(us_params, us_optional_params);
+        const auto& kernel_selector = kernel_selector::resample_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(us_params, us_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return make_unique<resample_impl>(arg, best_kernels[0]);
+        return make_unique<resample_impl>(arg, best_kernels.front());
     }
 };
 

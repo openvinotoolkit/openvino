@@ -25,22 +25,21 @@ struct grn_impl : typed_primitive_impl_ocl<grn> {
         return make_unique<grn_impl>(*this);
     }
 
-public:
     static std::unique_ptr<primitive_impl> create(const grn_node& arg) {
         auto grn_params = get_default_params<kernel_selector::grn_params>(arg);
         auto grn_optional_params = get_default_optional_params<kernel_selector::grn_optional_params>(arg.get_program());
 
         grn_params.bias = arg.get_primitive()->bias;
 
-        auto& kernel_selector = kernel_selector::grn_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(grn_params, grn_optional_params);
+        const auto& kernel_selector = kernel_selector::grn_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(grn_params, grn_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return make_unique<grn_impl>(arg, best_kernels[0]);
+        return make_unique<grn_impl>(arg, best_kernels.front());
     }
 };
 

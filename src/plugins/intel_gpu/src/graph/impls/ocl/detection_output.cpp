@@ -22,10 +22,30 @@ struct detection_output_impl : typed_primitive_impl_ocl<detection_output> {
         return make_unique<detection_output_impl>(*this);
     }
 
+    static std::unique_ptr<primitive_impl> create(const detection_output_node& arg) {
+        auto detect_out_params = get_default_params<kernel_selector::detection_output_params>(arg);
+        auto detect_out_optional_params =
+            get_default_optional_params<kernel_selector::detection_output_optional_params>(arg.get_program());
+
+        detect_out_params.inputs.push_back(convert_data_tensor(arg.confidence().get_output_layout()));
+        detect_out_params.inputs.push_back(convert_data_tensor(arg.prior_box().get_output_layout()));
+        set_detection_output_specific_params(detect_out_params.detectOutParams, arg);
+
+        const auto& kernel_selector = kernel_selector::detection_output_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(detect_out_params, detect_out_optional_params);
+
+        CLDNN_ERROR_BOOL(arg.id(),
+                         "Best_kernel.empty()",
+                         best_kernels.empty(),
+                         "Cannot find a proper kernel with this arguments");
+
+        return make_unique<detection_output_impl>(arg, best_kernels.front());
+    }
+
 private:
     static void set_detection_output_specific_params(kernel_selector::detection_output_params::DedicatedParams& detectOutParams,
                                                      const detection_output_node& arg) {
-        auto primitive = arg.get_primitive();
+        const auto& primitive = arg.get_primitive();
         detectOutParams.keep_top_k = primitive->keep_top_k;
         detectOutParams.num_classes = primitive->num_classes;
         detectOutParams.top_k = primitive->top_k;
@@ -48,27 +68,6 @@ private:
         detectOutParams.conf_size_y = arg.confidence().get_output_layout().get_buffer_size().spatial[1];
         detectOutParams.conf_padding_x = arg.confidence().get_output_layout().data_padding.lower_size().spatial[0];
         detectOutParams.conf_padding_y = arg.confidence().get_output_layout().data_padding.lower_size().spatial[1];
-    }
-
-public:
-    static std::unique_ptr<primitive_impl> create(const detection_output_node& arg) {
-        auto detect_out_params = get_default_params<kernel_selector::detection_output_params>(arg);
-        auto detect_out_optional_params =
-            get_default_optional_params<kernel_selector::detection_output_optional_params>(arg.get_program());
-
-        detect_out_params.inputs.push_back(convert_data_tensor(arg.confidence().get_output_layout()));
-        detect_out_params.inputs.push_back(convert_data_tensor(arg.prior_box().get_output_layout()));
-        set_detection_output_specific_params(detect_out_params.detectOutParams, arg);
-
-        auto& kernel_selector = kernel_selector::detection_output_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(detect_out_params, detect_out_optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        return make_unique<detection_output_impl>(arg, best_kernels[0]);
     }
 };
 

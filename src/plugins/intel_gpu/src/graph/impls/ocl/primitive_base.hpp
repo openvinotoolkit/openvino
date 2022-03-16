@@ -25,11 +25,7 @@ For example, all gpu convolution implementations should derive from typed_primit
 */
 template <class PType>
 struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
-    kernel_selector::kernel_data _kernel_data;
-    std::vector<kernel_id> _kernel_ids;
-    std::vector<kernel::ptr> _kernels;
-
-    typed_primitive_impl_ocl() : _kernel_data({}), _kernel_ids({}), _kernels({}) {
+    typed_primitive_impl_ocl() {
         _kernel_data.weightsReorderParams.engine = kernel_selector::generic_kernel_params::Engine::NONE;
         _kernel_data.weightsReorderParams.cpuKernel = nullptr;
         _kernel_data.weightsReorderParams.clKernel = nullptr;
@@ -37,6 +33,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
 
     typed_primitive_impl_ocl(const typed_primitive_impl_ocl<PType>& other)
     : typed_primitive_impl<PType>(other._weights_reorder_params, other._kernel_name),
+    _corresponding_node(other._corresponding_node),
     _kernel_data(other._kernel_data),
     _kernel_ids(other._kernel_ids),
     _kernels({}) {
@@ -48,6 +45,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
 
     typed_primitive_impl_ocl(const typed_program_node<PType>& arg, const kernel_selector::kernel_data& kd)
         : typed_primitive_impl<PType>(kd.weightsReorderParams, kd.kernelName),
+          _corresponding_node(&arg),
           _kernel_data(kd),
           _kernel_ids({}),
           _kernels({}) {
@@ -63,11 +61,11 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         }
     }
 
-    bool is_cpu() const override { return false; }
+    const kernel_selector::params* get_params() const {
+        return _kernel_data.params.get();
+    }
 
 protected:
-    virtual bool optimized_out(typed_primitive_inst<PType>&) const { return false; }
-
     virtual kernel_arguments_data get_arguments(typed_primitive_inst<PType>& instance, int32_t /*split*/) const {
         kernel_arguments_data args;
 
@@ -87,77 +85,10 @@ protected:
         return args;
     }
 
-    virtual int32_t get_split() const { return 1; }
-    virtual uint32_t get_groups() const { return 1; }
-    virtual bool get_depthwise_sep_opt() const { return false; }
-
-    event::ptr aggregate_events(const std::vector<event::ptr>& events, stream& stream, bool group = false, bool is_output = false) const {
-        if (events.size() == 1 && !is_output)
-            return events[0];
-
-        if (group && !is_output)
-            return stream.group_events(events);
-
-        return stream.enqueue_marker(events, is_output);
-    }
-
-    void init_kernels(const program_node& node) override {
-        if (is_cpu()) {
-            return;
-        }
-        _kernels.clear();
-
-        _kernels.reserve(_kernel_ids.size());
-        for (size_t k = 0; k < _kernel_ids.size(); ++k) {
-            _kernels.emplace_back(std::move(node.get_program().get_kernel(_kernel_ids[k])));
-        }
-    }
-
-    std::vector<layout> get_internal_buffer_layouts_impl() const override {
-        if (_kernel_data.internalBufferSizes.empty())
-            return {};
-
-        std::vector<layout> layouts;
-        auto dtype = from_data_type(_kernel_data.internalBufferDataType);
-        const auto bpp = data_type_traits::size_of(dtype);
-        for (auto size : _kernel_data.internalBufferSizes) {
-            layout inbuf_layout = {dtype, format::bfyx, // simple linear format (flattern to x channel)
-                                    {1, 1, 1, (tensor::value_type)(size / bpp)}};
-            layouts.push_back(inbuf_layout);
-        }
-        return layouts;
-    }
-
-    void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
-        if (optimized_out(instance) || is_cpu()) {
-            return;
-        }
-
-        auto split = get_split();
-
-        stream& stream = instance.get_network().get_stream();
-
-        // we iterate over split first in order to be able parallelism with OOOQ mechanism.
-        for (size_t k = 0; k < _kernels.size(); ++k) {
-            for (decltype(split) i = 0; i < split; i++) {
-                auto args = get_arguments(instance, i);
-                args.scalars = &_kernel_data.kernels[k].params.scalars;
-                args.split = i;
-
-                for (const auto& m : instance.get_intermediates_memories()) {
-                    args.intermediates.push_back(m);
-                }
-
-
-                stream.set_arguments(*_kernels[k], _kernel_data.kernels[k].params, args);
-            }
-        }
-    }
-
     event::ptr execute_impl(const std::vector<event::ptr>& events,
                             typed_primitive_inst<PType>& instance) override {
         stream& stream = instance.get_network().get_stream();
-        if (optimized_out(instance)) {
+        if (is_optimized_out()) {
             return aggregate_events(events, stream, false, instance.is_output());
         }
 
@@ -197,6 +128,84 @@ protected:
         bool group_events = (all_events.size() > 1);
         return aggregate_events(all_events, stream, group_events);
     }
+
+private:
+    virtual int32_t get_split() const { return 1; }
+
+    virtual bool is_optimized_out() const { return false; }
+
+    event::ptr aggregate_events(const std::vector<event::ptr>& events, stream& stream, bool group = false, bool is_output = false) const {
+        if (events.size() == 1 && !is_output)
+            return events[0];
+
+        if (group && !is_output)
+            return stream.group_events(events);
+
+        return stream.enqueue_marker(events, is_output);
+    }
+
+    bool is_cpu() const override { return false; }
+
+    void init_kernels(const program& program) override {
+        if (is_cpu()) {
+            return;
+        }
+        _kernels.clear();
+
+        _kernels.reserve(_kernel_ids.size());
+        for (size_t k = 0; k < _kernel_ids.size(); ++k) {
+            _kernels.emplace_back(std::move(program.get_kernel(_kernel_ids[k])));
+        }
+    }
+
+    std::vector<layout> get_internal_buffer_layouts_impl() const override {
+        if (_kernel_data.internalBufferSizes.empty())
+            return {};
+
+        std::vector<layout> layouts;
+        auto dtype = from_data_type(_kernel_data.internalBufferDataType);
+        const auto bpp = data_type_traits::size_of(dtype);
+        for (auto size : _kernel_data.internalBufferSizes) {
+            layout inbuf_layout = {dtype, format::bfyx, // simple linear format (flattern to x channel)
+                                    {1, 1, 1, (tensor::value_type)(size / bpp)}};
+            layouts.push_back(inbuf_layout);
+        }
+        return layouts;
+    }
+
+    void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
+        if (is_optimized_out() || is_cpu()) {
+            return;
+        }
+
+        auto split = get_split();
+
+        stream& stream = instance.get_network().get_stream();
+
+        // we iterate over split first in order to be able parallelism with OOOQ mechanism.
+        for (size_t k = 0; k < _kernels.size(); ++k) {
+            for (decltype(split) i = 0; i < split; i++) {
+                auto args = get_arguments(instance, i);
+                args.scalars = &_kernel_data.kernels[k].params.scalars;
+                args.split = i;
+
+                for (const auto& m : instance.get_intermediates_memories()) {
+                    args.intermediates.push_back(m);
+                }
+
+
+                stream.set_arguments(*_kernels[k], _kernel_data.kernels[k].params, args);
+            }
+        }
+    }
+
+protected:
+    typed_program_node<PType> const * const _corresponding_node{nullptr};
+
+private:
+    kernel_selector::kernel_data _kernel_data{};
+    std::vector<kernel_id> _kernel_ids{};
+    std::vector<kernel::ptr> _kernels{};
 };
 
 }  // namespace ocl

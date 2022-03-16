@@ -49,7 +49,7 @@ void post_input_reorder::run(program& p) {
             if (!fc_impl)
                 continue;
             const auto& fc_params =
-                *static_cast<kernel_selector::fully_connected_params*>(fc_impl->_kernel_data.params.get());
+                *static_cast<const kernel_selector::fully_connected_params*>(fc_impl->get_params());
 
             auto layout_format = from_data_layout(fc_params.inputs[0].GetLayout());
             auto& input = node->get_dependencies()[0];

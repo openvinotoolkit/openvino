@@ -36,7 +36,7 @@ void compile_graph::run(program& p) {
         if (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty())) {
             tasks.push_back([node, &exception] {
                 try {
-                    node->selected_impl = node->type()->choose_impl(*node);
+                    node->choose_impl();
                 } catch(...) {
                     exception = std::current_exception();
                 }

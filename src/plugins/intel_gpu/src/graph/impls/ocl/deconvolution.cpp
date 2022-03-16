@@ -18,62 +18,15 @@ struct deconvolution_impl : typed_primitive_impl_ocl<deconvolution> {
     using parent = typed_primitive_impl_ocl<deconvolution>;
     using parent::parent;
 
-    deconvolution_impl(const deconvolution_impl& other) : parent(other),
-    _id(other._id),
-    _filling_value(other._filling_value),
-    _split(other._split),
-    _groups(other._groups) {}
-
     deconvolution_impl(const deconvolution_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd),
     _id(arg.id()),
     _filling_value(arg.get_output_layout().data_padding.filling_value()),
-    _split(arg.get_split()),
-    _groups(arg.get_groups()) {}
+    _split(arg.get_split()) {}
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<deconvolution_impl>(*this);
     }
 
-    void align_state(const program_node& arg) override {
-        if (!arg.is_type<deconvolution>()) {
-            throw std::invalid_argument("Should be deconvolution node");
-        }
-        const auto& deconvolution_node = arg.as<deconvolution>();
-        _id = deconvolution_node.id();
-        _filling_value = deconvolution_node.get_output_layout().data_padding.filling_value();
-        _split = deconvolution_node.get_split();
-        _groups = deconvolution_node.get_groups();
-    }
-
-protected:
-    // TODO: share it with convolution and fully connected
-    bool validate_impl(const typed_primitive_inst<deconvolution>&) const override {
-        bool res = true;
-
-        CLDNN_ERROR_NOT_EQUAL(_id,
-                              "deconvolution filling value",
-                              _filling_value,
-                              "padding mode",
-                              0.0f,
-                              "Unknown padding mode in deconvolution.");
-
-        return res;
-    }
-
-    kernel_arguments_data get_arguments(typed_primitive_inst<deconvolution>& instance, int32_t split) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, split);
-
-        args.weights = instance.weights_memory(split);
-        args.bias = instance.bias_term() ? instance.bias_memory(split) : nullptr;
-
-        return args;
-    }
-
-    int32_t get_split() const override { return _split; }
-
-    uint32_t get_groups() const override { return _groups; }
-
-public:
     static std::unique_ptr<primitive_impl> create(const deconvolution_node& arg) {
         const auto& primitive = arg.get_primitive();
         const auto& weights_layout = arg.weights(0).get_output_layout();
@@ -87,14 +40,12 @@ public:
 #else
         const ov::Strides dilation(arg.get_output_layout().get_spatial_rank(), 1);
 #endif
-        const auto actual_split = split;
-
         const auto& pad = primitive->pad;
         const auto& groups = primitive->groups;
 
         auto deconv_params = get_weights_bias_default_params<kernel_selector::deconvolution_params>(
             arg,
-            (groups > 1) ? 1 : actual_split,
+            (groups > 1) ? 1 : split,
             1,
             primitive->grouped_weights_shape);
         auto deconv_optional_params =
@@ -124,21 +75,46 @@ public:
         uint32_t dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
         deconv_params.dilation = {dilation_x, dilation_y, dilation_z};
 
-        auto& kernel_selector = kernel_selector::deconvolution_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(deconv_params, deconv_optional_params);
+        const auto& kernel_selector = kernel_selector::deconvolution_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(deconv_params, deconv_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with these arguments");
-        return make_unique<deconvolution_impl>(arg, best_kernels[0]);
+        return make_unique<deconvolution_impl>(arg, best_kernels.front());
     }
+
+protected:
+    // TODO: share it with convolution and fully connected
+    bool validate_impl(const typed_primitive_inst<deconvolution>&) const override {
+        bool res = true;
+
+        CLDNN_ERROR_NOT_EQUAL((_corresponding_node ? _corresponding_node->id() : _id),
+                              "deconvolution filling value",
+                              (_corresponding_node ? _corresponding_node->get_output_layout().data_padding.filling_value() : _filling_value),
+                              "padding mode",
+                              0.0f,
+                              "Unknown padding mode in deconvolution.");
+
+        return res;
+    }
+
+    kernel_arguments_data get_arguments(typed_primitive_inst<deconvolution>& instance, int32_t split) const override {
+        kernel_arguments_data args = parent::get_arguments(instance, split);
+
+        args.weights = instance.weights_memory(split);
+        args.bias = instance.bias_term() ? instance.bias_memory(split) : nullptr;
+
+        return args;
+    }
+
+    int32_t get_split() const override { return (_corresponding_node ? _corresponding_node->get_split() : _split); }
 
 private:
     primitive_id _id;
     float _filling_value = .0f;
     int32_t _split = 1;
-    uint32_t _groups = 1;
 };
 
 namespace detail {

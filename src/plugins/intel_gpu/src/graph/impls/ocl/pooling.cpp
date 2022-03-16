@@ -68,15 +68,6 @@ struct pooling_impl : typed_primitive_impl_ocl<pooling> {
         return make_unique<pooling_impl>(*this);
     }
 
-protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<pooling>& instance, int32_t split) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, split);
-        if (!instance.argument.argmax.empty())
-            args.inputs.push_back(instance.dep_memory_ptr(1));
-        return args;
-    }
-
-public:
     static std::unique_ptr<primitive_impl> create(const pooling_node& arg) {
         validate_args(arg);
 
@@ -84,7 +75,7 @@ public:
         auto pool_optional_params =
             get_default_optional_params<kernel_selector::pooling_optional_params>(arg.get_program());
 
-        const auto primitive = arg.get_primitive();
+        const auto& primitive = arg.get_primitive();
 
         pool_params.maxPoolOpset8Features = primitive->maxPoolOpset8Features;
         if (pool_params.maxPoolOpset8Features) {
@@ -111,10 +102,8 @@ public:
         const auto& output_layout = arg.get_output_layout();
         auto spatial_rank = output_layout.get_spatial_rank();
 
-        auto& pp = pool_params;
-
-        pp.poolType = cldnn_2_pool_type(primitive->mode);
-        pp.remainderAction = kernel_selector::pool_remainder::CEIL;
+        pool_params.poolType = cldnn_2_pool_type(primitive->mode);
+        pool_params.remainderAction = kernel_selector::pool_remainder::CEIL;
 
         if (primitive->global_pooling) {
             kernel = ov::Shape(spatial_rank, 1);
@@ -132,9 +121,9 @@ public:
         }
 
         if (primitive->mode == pooling_mode::average && dynamic_mode)
-            pp.divMode = kernel_selector::kernel_divider_mode::DYNAMIC_WITH_PADDING;
+            pool_params.divMode = kernel_selector::kernel_divider_mode::DYNAMIC_WITH_PADDING;
         else
-            pp.divMode = cldnn_2_kernel_divider_mode(primitive->mode);
+            pool_params.divMode = cldnn_2_kernel_divider_mode(primitive->mode);
 
         if (primitive->mode == pooling_mode::max_with_argmax)
             pool_params.inputs.push_back(convert_data_tensor(arg.argmax().get_output_layout()));
@@ -142,32 +131,40 @@ public:
         uint32_t kernel_z = kernel.size() >= 3 ? kernel[kernel.size() - 3] : 1;
         uint32_t kernel_y = kernel.size() >= 2 ? kernel[kernel.size() - 2] : 1;
         uint32_t kernel_x = kernel.size() >= 1 ? kernel[kernel.size() - 1] : 1;
-        pp.poolSize = {kernel_x, kernel_y, kernel_z};
+        pool_params.poolSize = {kernel_x, kernel_y, kernel_z};
 
         uint32_t pad_z = std::max<std::ptrdiff_t>(pad.size() >= 3 ? pad[pad.size() - 3] : 0, 0);
         uint32_t pad_y = std::max<std::ptrdiff_t>(pad.size() >= 2 ? pad[pad.size() - 2] : 0, 0);
         uint32_t pad_x = std::max<std::ptrdiff_t>(pad.size() >= 1 ? pad[pad.size() - 1] : 0, 0);
-        pp.poolPad  = {pad_x, pad_y, pad_z};
+        pool_params.poolPad  = {pad_x, pad_y, pad_z};
 
         uint32_t stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
         uint32_t stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
         uint32_t stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
-        pp.poolStride = {stride_x, stride_y, stride_z};
+        pool_params.poolStride = {stride_x, stride_y, stride_z};
 
         uint32_t dilation_z = dilation.size() >= 3 ? dilation[dilation.size() - 3] : 1;
         uint32_t dilation_y = dilation.size() >= 2 ? dilation[dilation.size() - 2] : 1;
         uint32_t dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
-        pp.poolDilation = {dilation_x, dilation_y, dilation_z};
+        pool_params.poolDilation = {dilation_x, dilation_y, dilation_z};
 
-        auto& kernel_selector = kernel_selector::pooling_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(pool_params, pool_optional_params);
+        const auto& kernel_selector = kernel_selector::pooling_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(pool_params, pool_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return make_unique<pooling_impl>(arg, best_kernels[0]);
+        return make_unique<pooling_impl>(arg, best_kernels.front());
+    }
+
+protected:
+    kernel_arguments_data get_arguments(typed_primitive_inst<pooling>& instance, int32_t split) const override {
+        kernel_arguments_data args = parent::get_arguments(instance, split);
+        if (!instance.argument.argmax.empty())
+            args.inputs.push_back(instance.dep_memory_ptr(1));
+        return args;
     }
 };
 

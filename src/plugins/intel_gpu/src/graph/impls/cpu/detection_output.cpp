@@ -27,25 +27,22 @@ namespace cpu {
 
 namespace {
     using bounding_box = cldnn::cpu::bounding_box;
+
+    template <typename T>
+    bool comp_score_descend(const std::pair<float, T>& pair1,
+                            const std::pair<float, T>& pair2) {
+        return (pair1.first > pair2.first) || (pair1.first == pair2.first && pair1.second < pair2.second);
+    }
+
+    template <>
+    bool comp_score_descend<std::pair<int, int>>(const std::pair<float, std::pair<int, int>>& pair1,
+                                                const std::pair<float, std::pair<int, int>>& pair2) {
+        return (pair1.first > pair2.first) || (pair1.first == pair2.first && pair1.second.second < pair2.second.second);
+    }
 }  // namespace
-
-template <typename T>
-bool comp_score_descend(const std::pair<float, T>& pair1,
-                        const std::pair<float, T>& pair2) {
-    return (pair1.first > pair2.first) || (pair1.first == pair2.first && pair1.second < pair2.second);
-}
-
-template <>
-bool comp_score_descend<std::pair<int, int>>(const std::pair<float, std::pair<int, int>>& pair1,
-                                             const std::pair<float, std::pair<int, int>>& pair2) {
-    return (pair1.first > pair2.first) || (pair1.first == pair2.first && pair1.second.second < pair2.second.second);
-}
 
 /************************ Detection Output CPU ************************/
 struct detection_output_impl : typed_primitive_impl<detection_output> {
-    enum class NMSType {CAFFE, MXNET};
-    NMSType nms_type;
-
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<detection_output_impl>(*this);
     }
@@ -53,14 +50,9 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
     explicit detection_output_impl(const detection_output_node& arg) :
     nms_type(arg.get_primitive()->decrease_label_id ? NMSType::MXNET : NMSType::CAFFE) {}
 
-    void align_state(const program_node& arg) override {
-        if (!arg.is_type<detection_output>()) {
-            throw std::invalid_argument("Should be detection_output node");
-        }
-        const auto& detection_output_node = arg.as<detection_output>();
-        nms_type = (detection_output_node.get_primitive()->decrease_label_id ? NMSType::MXNET : NMSType::CAFFE);
-    }
+    static std::unique_ptr<primitive_impl> create(const detection_output_node& arg) { return make_unique<detection_output_impl>(arg); }
 
+private:
     static inline void intersect_bbox(const bounding_box& bbox1,
                                       const bounding_box& bbox2,
                                       bounding_box& intersect_bbox) {
@@ -830,9 +822,11 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
         return ev;
     }
 
-    void init_kernels(const program_node&) override {}
+    void init_kernels(const program&) override {}
 
-    static std::unique_ptr<primitive_impl> create(const detection_output_node& arg) { return make_unique<detection_output_impl>(arg); }
+private:
+    enum class NMSType {CAFFE, MXNET};
+    NMSType nms_type;
 };
 
 namespace detail {

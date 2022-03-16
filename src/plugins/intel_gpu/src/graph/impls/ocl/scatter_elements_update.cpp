@@ -14,6 +14,7 @@ using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
+namespace {
 kernel_selector::scatter_update_axis convert_axis(scatter_elements_update::scatter_elements_update_axis axis, const scatter_elements_update_node& arg) {
     switch (axis) {
         case scatter_elements_update::along_x:
@@ -33,6 +34,7 @@ kernel_selector::scatter_update_axis convert_axis(scatter_elements_update::scatt
     }
     return kernel_selector::scatter_update_axis::X;
 }
+}  // namespace
 
 struct scatter_elements_update_impl : typed_primitive_impl_ocl<scatter_elements_update> {
     using parent = typed_primitive_impl_ocl<scatter_elements_update>;
@@ -42,7 +44,6 @@ struct scatter_elements_update_impl : typed_primitive_impl_ocl<scatter_elements_
         return make_unique<scatter_elements_update_impl>(*this);
     }
 
-public:
     static std::unique_ptr<primitive_impl> create(const scatter_elements_update_node& arg) {
         auto scatter_elements_update_params = get_default_params<kernel_selector::scatter_elements_update_params>(arg);
         auto scatter_elements_update_optional_params =
@@ -53,15 +54,15 @@ public:
         scatter_elements_update_params.inputs.push_back(convert_data_tensor(arg.input(1).get_output_layout()));
         scatter_elements_update_params.inputs.push_back(convert_data_tensor(arg.input(2).get_output_layout()));
 
-        auto& kernel_selector = kernel_selector::scatter_elements_update_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(scatter_elements_update_params, scatter_elements_update_optional_params);
+        const auto& kernel_selector = kernel_selector::scatter_elements_update_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(scatter_elements_update_params, scatter_elements_update_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return make_unique<scatter_elements_update_impl>(arg, best_kernels[0]);
+        return make_unique<scatter_elements_update_impl>(arg, best_kernels.front());
     }
 };
 

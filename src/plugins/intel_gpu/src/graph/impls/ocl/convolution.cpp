@@ -21,73 +21,20 @@ struct convolution_impl : typed_primitive_impl_ocl<convolution> {
     using parent = typed_primitive_impl_ocl<convolution>;
     using parent::parent;
 
-    convolution_impl(const convolution_impl& other) : parent(other),
-    _id(other._id),
-    _split(other._split),
-    _groups(other._groups),
-    _depthwise_sep_opt(other._depthwise_sep_opt) {}
-
     convolution_impl(const convolution_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd),
     _id(arg.id()),
-    _split(arg.get_split()),
-    _groups(arg.get_groups()),
-    _depthwise_sep_opt(arg.get_depthwise_sep_opt()) {}
+    _split(arg.get_split()) {}
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<convolution_impl>(*this);
     }
 
-    void align_state(const program_node& arg) override {
-        if (!arg.is_type<convolution>()) {
-            throw std::invalid_argument("Should be convolution node");
-        }
-        const auto& convolution_node = arg.as<convolution>();
-        _id = convolution_node.id();
-        _split = convolution_node.get_split();
-        _groups = convolution_node.get_groups();
-        _depthwise_sep_opt = convolution_node.get_depthwise_sep_opt();
-    }
-
-protected:
-    bool validate_impl(const typed_primitive_inst<convolution>& instance) const override {
-        bool res = true;
-
-        auto data_type = instance.node.input().get_output_layout().data_type;
-
-        // Integer signed/unsigned is ok for convoluiton
-        CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN(_id,
-                                                    "Input memory",
-                                                    data_type,
-                                                    "filter memory",
-                                                    instance.weights_memory(0)->get_layout().data_type,
-                                                    "");
-
-        return res;
-    }
-
-    kernel_arguments_data get_arguments(typed_primitive_inst<convolution>& instance, int32_t split) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, split);
-
-        args.weights = instance.weights_memory(split);
-        args.bias = instance.bias_term() ? instance.bias_memory(split) : nullptr;
-        args.weights_zero_points = instance.weights_zero_points_term() ? instance.weights_zero_points_memory(split) : nullptr;
-        args.activations_zero_points = instance.activations_zero_points_term() ? instance.activations_zero_points_memory(split) : nullptr;
-        args.compensation = instance.compensation_term() ? instance.compensation_memory(split) : nullptr;
-
-        return args;
-    }
-
-    int32_t get_split() const override { return _split; }
-    uint32_t get_groups() const override { return _groups; }
-    bool get_depthwise_sep_opt() const override { return _depthwise_sep_opt; }
-
-public:
     static std::unique_ptr<primitive_impl> create(const convolution_node& arg) {
         const auto& primitive = arg.get_primitive();
         const auto& weights_layout = arg.weights(0).get_output_layout();
         const auto& weights_size = weights_layout.size;
 
-        const auto &split = primitive->split();
+        const auto& split = primitive->split();
         const auto& stride = primitive->stride;
         const auto& dilation = primitive->dilation;
         const auto& pad = primitive->pad;
@@ -160,7 +107,7 @@ public:
             format == format::b_fs_zyx_fsv32)
             conv_optional_params.allowInputReordering = true;
 
-        auto& kernel_selector = kernel_selector::convolution_kernel_selector::Instance();
+        const auto& kernel_selector = kernel_selector::convolution_kernel_selector::Instance();
 
         const auto& tuning_config = arg.get_program().get_options().get<build_option_type::tuning_config>();
 
@@ -170,20 +117,49 @@ public:
                 std::make_shared<gpu::kernel_runner>(arg.get_program().get_engine(), arg.get_program().get_id(), true, true);
         }
 
-        kernel_selector::KernelsData best_kernels = kernel_selector.GetBestKernels(conv_params, conv_optional_params);
+        const kernel_selector::KernelsData best_kernels = kernel_selector.GetBestKernels(conv_params, conv_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with these arguments");
-        return make_unique<convolution_impl>(arg, best_kernels[0]);
+        return make_unique<convolution_impl>(arg, best_kernels.front());
     }
+
+protected:
+    bool validate_impl(const typed_primitive_inst<convolution>& instance) const override {
+        bool res = true;
+
+        auto data_type = instance.node.input().get_output_layout().data_type;
+
+        // Integer signed/unsigned is ok for convoluiton
+        CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN((_corresponding_node ? _corresponding_node->id() : _id),
+                                                    "Input memory",
+                                                    data_type,
+                                                    "filter memory",
+                                                    instance.weights_memory(0)->get_layout().data_type,
+                                                    "");
+
+        return res;
+    }
+
+    kernel_arguments_data get_arguments(typed_primitive_inst<convolution>& instance, int32_t split) const override {
+        kernel_arguments_data args = parent::get_arguments(instance, split);
+
+        args.weights = instance.weights_memory(split);
+        args.bias = instance.bias_term() ? instance.bias_memory(split) : nullptr;
+        args.weights_zero_points = instance.weights_zero_points_term() ? instance.weights_zero_points_memory(split) : nullptr;
+        args.activations_zero_points = instance.activations_zero_points_term() ? instance.activations_zero_points_memory(split) : nullptr;
+        args.compensation = instance.compensation_term() ? instance.compensation_memory(split) : nullptr;
+
+        return args;
+    }
+
+    int32_t get_split() const override { return (_corresponding_node ? _corresponding_node->get_split() : _split); }
 
 private:
     primitive_id _id;
     int32_t _split = 1;
-    uint32_t _groups = 1;
-    bool _depthwise_sep_opt = false;
 };
 
 namespace detail {

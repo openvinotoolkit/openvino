@@ -32,19 +32,19 @@ struct one_hot_impl : typed_primitive_impl_ocl<one_hot> {
         oh_params.on_value = arg.get_primitive()->on_value;
         oh_params.off_value = arg.get_primitive()->off_value;
 
-        auto output_sizes = arg.get_output_layout().get_dims();
+        const auto output_sizes = arg.get_output_layout().get_dims();
 
         oh_params.one_hot_limit = output_sizes[oh_params.one_hot_axis];
 
-        auto& kernel_selector = kernel_selector::one_hot_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(oh_params, oh_optional_params);
+        const auto& kernel_selector = kernel_selector::one_hot_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(oh_params, oh_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with these arguments");
 
-        return make_unique<one_hot_impl>(arg, best_kernels[0]);
+        return make_unique<one_hot_impl>(arg, best_kernels.front());
     }
 };
 

@@ -28,7 +28,7 @@ struct softmax_impl : typed_primitive_impl_ocl<softmax> {
 
         auto& input = sm_params.inputs[0];
         auto& output = sm_params.outputs[0];
-        const auto primitive = arg.get_primitive();
+        const auto& primitive = arg.get_primitive();
 
         switch (primitive->dimension) {
             case softmax::normalize_x:
@@ -66,15 +66,15 @@ struct softmax_impl : typed_primitive_impl_ocl<softmax> {
                 throw std::runtime_error("Wrong API - no such softmax");
         }
 
-        auto& kernel_selector = kernel_selector::softmax_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(sm_params, sm_optional_params);
+        const auto& kernel_selector = kernel_selector::softmax_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(sm_params, sm_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return make_unique<softmax_impl>(arg, best_kernels[0]);
+        return make_unique<softmax_impl>(arg, best_kernels.front());
     }
 };
 

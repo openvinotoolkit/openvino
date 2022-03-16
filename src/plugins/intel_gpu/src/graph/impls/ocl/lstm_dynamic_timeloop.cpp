@@ -23,22 +23,6 @@ struct lstm_dynamic_timeloop_impl : typed_primitive_impl_ocl<lstm_dynamic_timelo
         return make_unique<lstm_dynamic_timeloop_impl>(*this);
     }
 
-protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<lstm_dynamic_timeloop>& instance, int32_t) const override {
-        kernel_arguments_data args;
-        args.inputs = {instance.input_memory_ptr(), instance.dyn_length_memory()};
-        if (instance.last_hidden_output_term())
-            args.inputs.push_back(instance.last_hidden_output_memory());
-        if (instance.last_cell_output_term())
-            args.inputs.push_back(instance.last_cell_output_memory());
-        args.outputs = { instance.output_memory_ptr() };
-        args.recurrent = instance.recurrent_memory();
-        args.hidden = instance.initial_hidden_term() ? instance.initial_hidden_memory() : nullptr;
-        args.cell = instance.initial_cell_term() ? instance.initial_cell_memory() : nullptr;
-        return args;
-    }
-
-public:
     static std::unique_ptr<primitive_impl> create(const lstm_dynamic_timeloop_node& arg) {
         auto dlstm_timeloop_params = get_default_params<kernel_selector::lstm_dynamic_timeloop_params>(arg);
 
@@ -76,15 +60,30 @@ public:
         auto dlstm_timeloop_optional_params =
             get_default_optional_params<kernel_selector::lstm_dynamic_optional_params>(arg.get_program());
 
-        auto& kernel_selector = kernel_selector::lstm_dynamic_timeloop_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(dlstm_timeloop_params, dlstm_timeloop_optional_params);
+        const auto& kernel_selector = kernel_selector::lstm_dynamic_timeloop_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(dlstm_timeloop_params, dlstm_timeloop_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return make_unique<lstm_dynamic_timeloop_impl>(arg, best_kernels[0]);
+        return make_unique<lstm_dynamic_timeloop_impl>(arg, best_kernels.front());
+    }
+
+protected:
+    kernel_arguments_data get_arguments(typed_primitive_inst<lstm_dynamic_timeloop>& instance, int32_t) const override {
+        kernel_arguments_data args;
+        args.inputs = {instance.input_memory_ptr(), instance.dyn_length_memory()};
+        if (instance.last_hidden_output_term())
+            args.inputs.push_back(instance.last_hidden_output_memory());
+        if (instance.last_cell_output_term())
+            args.inputs.push_back(instance.last_cell_output_memory());
+        args.outputs = { instance.output_memory_ptr() };
+        args.recurrent = instance.recurrent_memory();
+        args.hidden = instance.initial_hidden_term() ? instance.initial_hidden_memory() : nullptr;
+        args.cell = instance.initial_cell_term() ? instance.initial_cell_memory() : nullptr;
+        return args;
     }
 };
 

@@ -19,6 +19,7 @@ namespace cpu {
 
 using namespace cldnn::cpu;
 
+namespace {
 struct result_indices {
     float score;
     int batch_index;
@@ -371,6 +372,7 @@ void run(non_max_suppression_inst& instance) {
 
     store_result(stream, instance.output_memory_ptr(), result);
 }
+}  // namespace
 
 struct non_max_suppression_impl : typed_primitive_impl<non_max_suppression> {
     using parent = typed_primitive_impl<non_max_suppression>;
@@ -381,6 +383,11 @@ struct non_max_suppression_impl : typed_primitive_impl<non_max_suppression> {
 
     non_max_suppression_impl() : parent(kernel_selector::weights_reorder_params(), "non_max_suppression_impl") {}
 
+    static std::unique_ptr<primitive_impl> create(const non_max_suppression_node&) {
+        return make_unique<non_max_suppression_impl>();
+    }
+
+private:
     event::ptr execute_impl(const std::vector<event::ptr>& event, typed_primitive_inst<non_max_suppression>& instance) override {
         for (auto e : event) {
             e->wait();
@@ -394,11 +401,7 @@ struct non_max_suppression_impl : typed_primitive_impl<non_max_suppression> {
         ev->set();
         return ev;
     }
-
-    static std::unique_ptr<primitive_impl> create(const non_max_suppression_node&) {
-        return make_unique<non_max_suppression_impl>();
-    }
-    void init_kernels(const program_node&) override {}
+    void init_kernels(const program&) override {}
 };
 namespace detail {
 

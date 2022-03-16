@@ -18,25 +18,28 @@
 #include <memory>
 namespace cldnn {
 namespace onednn {
+namespace {
+    using DescType = dnnl::convolution_forward::desc;
+}
 
-struct convolution_onednn : typed_primitive_onednn_impl<convolution, dnnl::convolution_forward::desc> {
-    using parent = typed_primitive_onednn_impl<convolution, dnnl::convolution_forward::desc>;
+struct convolution_onednn : typed_primitive_onednn_impl<convolution, DescType> {
+    using parent = typed_primitive_onednn_impl<convolution, DescType>;
     using parent::parent;
 
     convolution_onednn(const convolution_node& arg,
-                       std::shared_ptr<dnnl::convolution_forward::desc> desc,
+                       std::shared_ptr<DescType> desc,
                        std::shared_ptr<dnnl::primitive_attr> attrs,
                        const dnnl::primitive_desc& pd,
                        kernel_selector::WeightsReorderParams weights_reorder = {}) :
-      parent(desc, attrs, pd, weights_reorder),
-      _id(arg.id()) {}
+        parent(arg, desc, attrs, pd, weights_reorder) , _id(arg.id()) {}
 
-    void align_state(const program_node& arg) override {
-        if (!arg.is_type<convolution>()) {
-            throw std::invalid_argument("Should be convolution node");
-        }
-        const auto& convolution_node = arg.as<convolution>();
-        _id = convolution_node.id();
+    static std::unique_ptr<primitive_impl> create(const convolution_node& arg) {
+        auto& engine = arg.get_program().get_engine();
+        auto desc = get_convolution_descriptor(arg);
+        auto attr = get_primitive_attributes(arg);
+        dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
+
+        return make_unique<convolution_onednn>(arg, desc, attr, prim_desc, get_weights_reorder(arg, prim_desc));
     }
 
 protected:
@@ -47,10 +50,11 @@ protected:
     bool validate_impl(const typed_primitive_inst<convolution>& instance) const override {
         bool res = true;
 
+        const auto& outer_id = _outer ? _outer->id() : _id;
         auto data_type = instance.node.input().get_output_layout().data_type;
 
         // Integer signed/unsigned is ok for convoluiton
-        CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN(_id,
+        CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN(outer_id,
                                                     "Input memory",
                                                     data_type,
                                                     "filter memory",
@@ -208,16 +212,6 @@ protected:
                 pad_l,
                 pad_r);
         }
-    }
-
-public:
-    static std::unique_ptr<primitive_impl> create(const convolution_node& arg) {
-        auto& engine = arg.get_program().get_engine();
-        auto desc = get_convolution_descriptor(arg);
-        auto attr = get_primitive_attributes(arg);
-        dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
-
-        return make_unique<convolution_onednn>(arg, desc, attr, prim_desc, get_weights_reorder(arg, prim_desc));
     }
 
 private:

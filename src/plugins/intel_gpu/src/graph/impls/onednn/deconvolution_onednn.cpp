@@ -16,10 +16,30 @@
 #include <memory>
 namespace cldnn {
 namespace onednn {
+namespace {
+    using DescType = dnnl::deconvolution_forward::desc;
+}
 
-struct deconvolution_onednn : typed_primitive_onednn_impl<deconvolution, dnnl::deconvolution_forward::desc> {
-    using parent = typed_primitive_onednn_impl<deconvolution, dnnl::deconvolution_forward::desc>;
+struct deconvolution_onednn : typed_primitive_onednn_impl<deconvolution, DescType> {
+    using parent = typed_primitive_onednn_impl<deconvolution, DescType>;
     using parent::parent;
+
+    deconvolution_onednn(const deconvolution_node& arg,
+                         std::shared_ptr<DescType> desc,
+                         std::shared_ptr<dnnl::primitive_attr> attrs,
+                         const dnnl::primitive_desc& pd,
+                         kernel_selector::WeightsReorderParams weights_reorder = {}) :
+        parent(arg, desc, attrs, pd, weights_reorder), _id(arg.id()) {}
+
+public:
+    static std::unique_ptr<primitive_impl> create(const deconvolution_node& arg) {
+        auto& engine = arg.get_program().get_engine();
+        auto desc = get_deconvolution_descriptor(arg);
+        auto attr = get_primitive_attributes(arg);
+        dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
+
+        return make_unique<deconvolution_onednn>(arg, desc, attr, prim_desc, get_weights_reorder(arg, prim_desc));
+    }
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
@@ -29,7 +49,7 @@ protected:
     bool validate_impl(const typed_primitive_inst<deconvolution>& instance) const override {
         bool res = true;
 
-        auto outer_id = _outer.id();
+        const auto& outer_id = _outer ? _outer->id() : _id;
         auto data_type = instance.node.input().get_output_layout().data_type;
 
         // Integer signed/unsigned is ok for convoluiton
@@ -153,15 +173,8 @@ protected:
         }
     }
 
-public:
-    static primitive_impl* create(const deconvolution_node& arg) {
-        auto& engine = arg.get_program().get_engine();
-        auto desc = get_deconvolution_descriptor(arg);
-        auto attr = get_primitive_attributes(arg);
-        dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
-
-        return new deconvolution_onednn(arg, desc, attr, prim_desc, get_weights_reorder(arg, prim_desc));
-    }
+private:
+    primitive_id _id;
 };
 
 namespace detail {

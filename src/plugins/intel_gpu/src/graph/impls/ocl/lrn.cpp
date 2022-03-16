@@ -36,15 +36,15 @@ struct lrn_impl : typed_primitive_impl_ocl<lrn> {
                                   ? kernel_selector::lrn_mode::WITHIN_CHANNEL
                                   : kernel_selector::lrn_mode::ACROSS_CHANNEL;
 
-        auto& kernel_selector = kernel_selector::lrn_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(lrn_params, lrn_optional_params);
+        const auto& kernel_selector = kernel_selector::lrn_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(lrn_params, lrn_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return make_unique<lrn_impl>(arg, best_kernels[0]);
+        return make_unique<lrn_impl>(arg, best_kernels.front());
     }
 };
 

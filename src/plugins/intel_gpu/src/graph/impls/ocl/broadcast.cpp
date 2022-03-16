@@ -45,15 +45,15 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
             }
         }
 
-        auto& kernel_selector = kernel_selector::broadcast_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(bc_params, bc_optional_params);
+        const auto& kernel_selector = kernel_selector::broadcast_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(bc_params, bc_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return make_unique<broadcast_impl>(arg, best_kernels[0]);
+        return make_unique<broadcast_impl>(arg, best_kernels.front());
     }
 };
 

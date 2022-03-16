@@ -23,17 +23,6 @@ struct lstm_dynamic_input_impl : typed_primitive_impl_ocl<lstm_dynamic_input> {
         return make_unique<lstm_dynamic_input_impl>(*this);
     }
 
-protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<lstm_dynamic_input>& instance, int32_t) const override {
-        kernel_arguments_data args;
-        args.inputs = { instance.input_memory_ptr(), instance.dyn_length_memory()};
-        args.outputs = { instance.output_memory_ptr() };
-        args.weights = instance.weights_memory();
-        args.bias = instance.bias_term() ? instance.bias_memory() : nullptr;
-        return args;
-    }
-
-public:
     static std::unique_ptr<primitive_impl> create(const lstm_dynamic_input_node& arg) {
         auto dlstm_input_params = get_default_params<kernel_selector::lstm_dynamic_input_params>(arg);
 
@@ -55,15 +44,25 @@ public:
         auto lstm_dynamic_optional_params =
             get_default_weights_bias_optional_params<kernel_selector::lstm_dynamic_input_optional_params>(arg.get_program());
 
-        auto& kernel_selector = kernel_selector::lstm_dynamic_input_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(dlstm_input_params, lstm_dynamic_optional_params);
+        const auto& kernel_selector = kernel_selector::lstm_dynamic_input_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(dlstm_input_params, lstm_dynamic_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return make_unique<lstm_dynamic_input_impl>(arg, best_kernels[0]);
+        return make_unique<lstm_dynamic_input_impl>(arg, best_kernels.front());
+    }
+
+protected:
+    kernel_arguments_data get_arguments(typed_primitive_inst<lstm_dynamic_input>& instance, int32_t) const override {
+        kernel_arguments_data args;
+        args.inputs = { instance.input_memory_ptr(), instance.dyn_length_memory()};
+        args.outputs = { instance.output_memory_ptr() };
+        args.weights = instance.weights_memory();
+        args.bias = instance.bias_term() ? instance.bias_memory() : nullptr;
+        return args;
     }
 };
 

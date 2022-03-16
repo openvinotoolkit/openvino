@@ -14,6 +14,7 @@ using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
+namespace {
 static kernel_selector::gather_axis convert_axis(int64_t axis, size_t rank) {
     if (axis == 0) {
         return kernel_selector::gather_axis::BATCH;
@@ -58,6 +59,7 @@ static kernel_selector::gather_axis convert_axis(int64_t axis, size_t rank) {
         IE_THROW() << "Unsupported gather axis: " << axis;
     }
 }
+}  // namespace
 
 struct gather_impl : typed_primitive_impl_ocl<gather> {
     using parent = typed_primitive_impl_ocl<gather>;
@@ -67,7 +69,6 @@ struct gather_impl : typed_primitive_impl_ocl<gather> {
         return make_unique<gather_impl>(*this);
     }
 
-public:
     static std::unique_ptr<primitive_impl> create(const gather_node& arg) {
         auto gather_params = get_default_params<kernel_selector::gather_params>(arg);
         auto gather_optional_params =
@@ -80,15 +81,15 @@ public:
 
         gather_params.inputs.push_back(convert_data_tensor(arg.input(1).get_output_layout()));
 
-        auto& kernel_selector = kernel_selector::gather_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(gather_params, gather_optional_params);
+        const auto& kernel_selector = kernel_selector::gather_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(gather_params, gather_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return make_unique<gather_impl>(arg, best_kernels[0]);
+        return make_unique<gather_impl>(arg, best_kernels.front());
     }
 };
 

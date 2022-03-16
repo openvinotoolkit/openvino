@@ -17,7 +17,6 @@ struct mutable_data_impl : public typed_primitive_impl_ocl<mutable_data> {
         return make_unique<mutable_data_impl>(*this);
     }
 
-public:
     static std::unique_ptr<primitive_impl> create(mutable_data_node const& arg) { return make_unique<mutable_data_impl>(arg, kernel_selector::kernel_data()); }
 };
 

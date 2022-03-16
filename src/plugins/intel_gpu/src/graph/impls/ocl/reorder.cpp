@@ -17,10 +17,6 @@ struct reorder_impl : typed_primitive_impl_ocl<reorder> {
     using parent = typed_primitive_impl_ocl<reorder>;
     using parent::parent;
 
-    reorder_impl(const reorder_impl& other) : parent(other),
-    _can_be_optimized(other._can_be_optimized),
-    _has_mean(other._has_mean) {}
-
     reorder_impl(const reorder_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd),
     _can_be_optimized(arg.can_be_optimized()),
     _has_mean(arg.has_mean()) {}
@@ -29,35 +25,6 @@ struct reorder_impl : typed_primitive_impl_ocl<reorder> {
         return make_unique<reorder_impl>(*this);
     }
 
-    void align_state(const program_node& arg) override {
-        if (!arg.is_type<reorder>()) {
-            throw std::invalid_argument("Should be reorder node");
-        }
-        const auto& reorder_node = arg.as<reorder>();
-        _can_be_optimized = reorder_node.can_be_optimized();
-        _has_mean = reorder_node.has_mean();
-    }
-
-protected:
-    bool optimized_out(reorder_inst& instance) const override {
-        return parent::optimized_out(instance) || _can_be_optimized;
-    }
-
-    kernel_arguments_data get_arguments(reorder_inst& instance, int32_t split) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, split);
-        auto input = &instance.input_memory();
-        auto input_layout = input->get_layout();
-        if (_has_mean) {
-            if (input_layout.format == cldnn::format::nv12) {
-                args.bias = instance.mean_nv12_memory();
-            } else {
-                args.bias = instance.mean_memory();
-            }
-        }
-        return args;
-    }
-
-public:
     static std::unique_ptr<primitive_impl> create(const reorder_node& arg) {
         auto&& input_layout = arg.input().get_output_layout();
         auto&& output_layout = arg.get_output_layout();
@@ -117,15 +84,35 @@ public:
 
         reorder_params.winograd = input_layout.format.is_winograd() || output_layout.format.is_winograd();
 
-        auto& kernel_selector = kernel_selector::reorder_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(reorder_params, reorder_optional_params);
+        const auto& kernel_selector = kernel_selector::reorder_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(reorder_params, reorder_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return make_unique<reorder_impl>(arg, best_kernels[0]);
+        return make_unique<reorder_impl>(arg, best_kernels.front());
+    }
+
+protected:
+    bool is_optimized_out() const override {
+        return (_corresponding_node ? _corresponding_node->can_be_optimized() : _can_be_optimized);
+    }
+
+    kernel_arguments_data get_arguments(reorder_inst& instance, int32_t split) const override {
+        kernel_arguments_data args = parent::get_arguments(instance, split);
+        auto input = &instance.input_memory();
+        const auto& input_layout = input->get_layout();
+        const bool has_mean = (_corresponding_node ? _corresponding_node->has_mean() : _has_mean);
+        if (has_mean) {
+            if (input_layout.format == cldnn::format::nv12) {
+                args.bias = instance.mean_nv12_memory();
+            } else {
+                args.bias = instance.mean_memory();
+            }
+        }
+        return args;
     }
 
 private:

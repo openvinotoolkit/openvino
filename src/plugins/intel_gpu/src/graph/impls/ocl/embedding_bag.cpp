@@ -23,7 +23,6 @@ struct embedding_bag_impl : typed_primitive_impl_ocl<embedding_bag> {
         return make_unique<embedding_bag_impl>(*this);
     }
 
-public:
     static std::unique_ptr<primitive_impl> create(const embedding_bag_node& arg) {
         auto embedding_bag_params = get_default_params<kernel_selector::embedding_bag_params>(arg);
         auto embedding_bag_optional_params =
@@ -50,15 +49,15 @@ public:
 
         embedding_bag_params.default_index = arg.get_primitive()->default_index;
 
-        auto& kernel_selector = kernel_selector::embedding_bag_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(embedding_bag_params, embedding_bag_optional_params);
+        const auto& kernel_selector = kernel_selector::embedding_bag_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(embedding_bag_params, embedding_bag_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return make_unique<embedding_bag_impl>(arg, best_kernels[0]);
+        return make_unique<embedding_bag_impl>(arg, best_kernels.front());
     }
 };
 

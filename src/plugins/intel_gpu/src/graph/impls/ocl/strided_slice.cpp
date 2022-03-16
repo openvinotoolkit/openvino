@@ -25,7 +25,6 @@ struct strided_slice_impl : typed_primitive_impl_ocl<strided_slice> {
         return make_unique<strided_slice_impl>(*this);
     }
 
-public:
     static std::unique_ptr<primitive_impl> create(const strided_slice_node& arg) {
         auto params = get_default_params<kernel_selector::strided_slice_params>(arg);
         auto op_params = get_default_optional_params<kernel_selector::strided_slice_optional_params>(arg.get_program());
@@ -33,7 +32,7 @@ public:
 
         // Getting data from constant inputs. There are 3 args: Begin, End, Stride
         for (size_t i = 1; i < arg.get_dependencies().size(); ++i) {
-            auto& input = arg.get_dependency(i).as<data>();
+            const auto& input = arg.get_dependency(i).as<data>();
             auto mem = input.get_attached_memory_ptr();
             std::vector<int32_t> sizes;
             if (input.get_output_layout().data_type == cldnn::data_types::i64) {
@@ -97,8 +96,8 @@ public:
 
             auto& begin = params.striding_params[0][dim];
             auto& end = params.striding_params[1][dim];
-            auto& stride = params.striding_params[2][dim];
-            bool is_reverse = stride < 0;
+            const auto& stride = params.striding_params[2][dim];
+            const bool is_reverse = stride < 0;
             // If begin > end && is_reverse, then we don't need to adjust begin/end values, the kernel will process it correctly
             // If begin <= end, then we swap begin/end values and subtruct 1 from each of them
             // E.g. out_shape[dim] = 100; begin=0; end=100; stride=-1
@@ -112,15 +111,15 @@ public:
             }
         }
 
-        auto& kernel_selector = kernel_selector::strided_slice_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(params, op_params);
+        const auto& kernel_selector = kernel_selector::strided_slice_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(params, op_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return make_unique<strided_slice_impl>(arg, best_kernels[0]);
+        return make_unique<strided_slice_impl>(arg, best_kernels.front());
     }
 };
 

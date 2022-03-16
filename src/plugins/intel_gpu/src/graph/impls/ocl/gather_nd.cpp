@@ -33,15 +33,15 @@ struct gather_nd_impl : typed_primitive_impl_ocl<gather_nd> {
 
         gather_nd_params.inputs.push_back(convert_data_tensor(arg.input(1).get_output_layout()));
 
-        auto& kernel_selector = kernel_selector::gather_nd_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(gather_nd_params, gather_nd_optional_params);
+        const auto& kernel_selector = kernel_selector::gather_nd_kernel_selector::Instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(gather_nd_params, gather_nd_optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return make_unique<gather_nd_impl>(arg, best_kernels[0]);
+        return make_unique<gather_nd_impl>(arg, best_kernels.front());
     }
 };
 
