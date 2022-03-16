@@ -28,6 +28,10 @@ CPU plugin supports the following data types as inference precision of internal 
   - u8
   - i8
   - u1
+  
+[Hello Query Device C++ Sample](../../../samples/cpp/hello_query_device/README.md) can be used to print out supported data types for all detected devices.
+
+### Quantized models specifics
 
 Selected precision of each primitive depends on the operation precision in IR, quantization primitives, and available hardware capabilities.
 u1/u8/i8 data types are used for quantized operations only, i.e. those are not selected automatically for non-quantized operations.
@@ -36,10 +40,37 @@ See [low-precision optimization guide](@ref pot_docs_LowPrecisionOptimizationGui
 
 > **NOTE**: Calculation results in u8/i8 precisions may be different between platforms with and without Intel® AVX512-VNNI extension support. Platforms that do not support VNNI have a known [saturation (overflow) issue](@ref pot_saturation_issue), which in some cases leads to reduced computational accuracy.
 
-Default floating-point precision of a CPU primitive is f32, but on platforms that natively support bfloat16 calculations (have AVX512_BF16 extension) bfloat16 type is automatically used to achieve better performance (for details see [Using Bfloat16 Inference](../Bfloat16Inference.md)).
-This means that to infer a model with bfloat16 precision no special actions is required, only CPU with native support for bfloat16.
+### Bfloat16 inference
 
-[Hello Query Device C++ Sample](../../../samples/cpp/hello_query_device/README.md) can be used to print out supported data types for all detected devices.
+Default floating-point precision of a CPU primitive is f32, but on platforms that natively support bfloat16 calculations (have AVX512_BF16 extension) bf16 type is automatically used to achieve better performance.
+See the [BFLOAT16 – Hardware Numerics Definition white paper](https://software.intel.com/content/dam/develop/external/us/en/documents/bf16-hardware-numerics-definition-white-paper.pdf) for more details about bfloat16 format.
+
+Using Bfloat16 precision provides the following performance benefits:
+
+1. Faster multiplication of two BF16 numbers because of shorter mantissa of bfloat16 data.
+2. No need to support denormals and handling exceptions as this is a performance optimization.
+3. Fast conversion of float32 to bfloat16 and vice versa.
+4. Reduced size of data in memory, as a result, larger models fit in the same memory bounds.
+5. Reduced amount of data that must be transferred, as a result, reduced data transition time.
+
+For default optimization on CPU, the source model is converted from FP32 or FP16 to BF16 and executed internally on platforms with native BF16 support, thus no special steps are required.
+
+To check if the CPU device can support bfloat16 computations use the [query device properties interface](./config_properties.md) to query ov::device::capabilities property, which should contain `BF16` in the list of CPU capabilities:
+
+@snippet snippets/cpu/Bfloat16Inference0.cpp part0
+
+In case if the model was converted to BF16, ov::hint::inference_precision is set to ov::element::bf16 and can be checked via ov::CompiledModel::get_property call. The code below demonstrates how to get the element type:
+
+@snippet snippets/cpu/Bfloat16Inference1.cpp part1
+
+To disable BF16 internal transformations, set the ov::hint::inference_precision to ov::element::f32. In this case, the model infers as is without modifications with precisions that were set on each layer edge.
+
+@snippet snippets/cpu/Bfloat16Inference2.cpp part2
+
+Bfloat16 software simulation mode is available on CPUs with Intel® AVX-512 instruction set that do not support the native `avx512_bf16` instruction. This mode is used for development purposes and it does not guarantee good performance.
+To enable the simulation, one have to explicitly set ov::hint::inference_precision to ov::element::bf16.
+
+> **NOTE**: An exception with the message `Platform doesn't support BF16 format` is formed in case of setting ov::hint::inference_precision to ov::element::bf16 on CPU without native BF16 support or BF16 simulation mode.
   
 ## Supported features
 
