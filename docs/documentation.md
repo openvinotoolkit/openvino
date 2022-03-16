@@ -61,6 +61,7 @@
    :hidden:
 
    ovms_what_is_openvino_model_server
+   ote_documentation
    ovsa_get_started
 
 .. toctree::
