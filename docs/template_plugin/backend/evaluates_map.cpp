@@ -2233,6 +2233,7 @@ template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v9::IRDFT>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     auto info = irfft_v9::get_info_for_irfft9_eval(inputs);
 
+    std::cout << "We are in evaluate() function for IRDFT...\n";
     std::cout << "input data shape:      " << info.input_data_shape << "\n";
     std::cout << "output data shape:     " << info.output_shape << "\n";
     std::cout << "fft output data shape: " << info.fft_output_shape << "\n";
@@ -2245,6 +2246,7 @@ bool evaluate(const shared_ptr<op::v9::IRDFT>& op, const HostTensorVector& outpu
     outputs[0]->set_shape(info.output_shape);
 
     std::vector<float> irfft_result(shape_size(info.output_shape), 0.0f);
+    std::cout << "irfft_result.size(): " << irfft_result.size() << "\n";
     runtime::reference::irdft(info.input_data,
                               info.input_data_shape,
                               info.axes_data,
