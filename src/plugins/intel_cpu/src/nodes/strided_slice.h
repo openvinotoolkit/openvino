@@ -10,10 +10,11 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNStridedSliceNode : public MKLDNNNode {
+class StridedSlice : public Node {
 public:
-    MKLDNNStridedSliceNode(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    StridedSlice(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
@@ -33,7 +34,7 @@ protected:
 
 private:
     void addHiddenDims(const size_t nSrcDims, int ellipsisPos1);
-    void orderParametersByLayouts(const MKLDNNMemoryPtr& srcMemPtr);
+    void orderParametersByLayouts(const MemoryPtr& srcMemPtr);
 
     struct StridedSliceAttributes {
         std::vector<int> begin;
@@ -100,5 +101,6 @@ private:
     bool isConstantInput[AXES_ID + 1] = {false};
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov
