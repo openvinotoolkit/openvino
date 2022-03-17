@@ -7,7 +7,7 @@ You can install both OpenVINO™ Runtime and OpenVINO Development Tools through 
 
 ### System requirements
 
-Below you will find all supported operating systems and required Python\* versions. 
+Below you can find all the supported operating systems and the required Python versions. 
 
 |Operating Systems (64 bit)                        | [Python\* Version](https://www.python.org/downloads/) (64 bit)                 |
 |--------------------------------------------------|--------------------------------------------------------------------------------|
