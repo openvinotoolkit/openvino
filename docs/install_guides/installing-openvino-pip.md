@@ -100,7 +100,7 @@ Here you may find solutions to some common issues.
 
    *ImportError: libpython3.7m.so.1.0: cannot open shared object file: No such file or directory*
    
-   To resolve missing external dependency on Ubuntu* 18.04, execute the following command:
+   A possible cause is missing the external dependency on Ubuntu 18.04. To resolve this, run the following command:
 
    .. code-block:: sh
 
