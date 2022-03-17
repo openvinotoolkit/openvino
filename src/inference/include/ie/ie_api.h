@@ -3,8 +3,8 @@
 //
 
 /**
- *  @defgroup ie_cpp_api Inference Engine C++ API
- *  Inference Engine C++ API
+ *  @defgroup ie_cpp_api OpenVINO C++ API
+ *  OpenVINO C++ API
  */
 
 /**

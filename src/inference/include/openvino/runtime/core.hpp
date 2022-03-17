@@ -4,7 +4,7 @@
 
 /**
  * @brief A header file for the OpenVINO Runtime Core class C++ API.
- *
+ * @ingroup ie_cpp_api
  * @file openvino/runtime/core.hpp
  */
 #pragma once
@@ -30,6 +30,10 @@ namespace InferenceEngine {
 class IExtension;
 }  // namespace InferenceEngine
 
+/**
+ * @ingroup ie_cpp_api
+ * @brief ov namespace
+ */
 namespace ov {
 
 /**
