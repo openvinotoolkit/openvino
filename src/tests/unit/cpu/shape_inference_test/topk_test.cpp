@@ -7,6 +7,7 @@
 #include "utils.hpp"
 
 using namespace ov;
+using namespace ov::intel_cpu;
 
 static std::shared_ptr<op::v3::TopK> build_topk(PartialShape data_shape = PartialShape::dynamic(),
                                                 int64_t axis = 1,

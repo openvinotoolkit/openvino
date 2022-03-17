@@ -22,11 +22,14 @@ void OpImplCheckTest::run() {
     auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
 
     // place to jump in case of a crash
+    int jmpRes = 0;
 #ifdef _WIN32
-    if (setjmp(CommonTestUtils::env) == 0) {
+    jmpRes = setjmp(CommonTestUtils::env);
 #else
-    if (sigsetjmp(CommonTestUtils::env, 1) == 0) {
+    jmpRes = sigsetjmp(CommonTestUtils::env, 1);
 #endif
+    if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
+        crashHandler->StartTimer();
         summary.setDeviceName(targetDevice);
         try {
             auto executableNetwork = core->compile_model(function, targetDevice, configuration);
@@ -35,8 +38,12 @@ void OpImplCheckTest::run() {
             summary.updateOPsImplStatus(function, false);
             GTEST_FAIL() << "Error in the LoadNetwork!";
         }
-    } else {
+    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
+        summary.updateOPsImplStatus(function, false);
         IE_THROW() << "Crash happens";
+    } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
+        summary.updateOPsImplStatus(function, false);
+        IE_THROW() << "Hange happens";
     }
 }
 

@@ -406,18 +406,6 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_initializer_wo_input) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_expand_function) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/quantization/dynamicquantizelinear.onnx"));
-
-    auto test_case = test::TestCase(function, s_device);
-    test_case.add_input<float>({-1.f, -2.1f, -1.3f, -2.5f, -3.34f, -4.f});
-    test_case.add_expected_output<uint8_t>(Shape{6}, {191, 121, 172, 96, 42, 0});
-    test_case.add_expected_output<float>(Shape{}, {0.0156862754f});
-    test_case.add_expected_output<uint8_t>(Shape{}, {255});
-    test_case.run();
-}
-
 NGRAPH_TEST(${BACKEND_NAME}, onnx_expand_function_dependency_to_created_subgraph) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/transformations/greater_or_equal.onnx"));
@@ -4734,5 +4722,17 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unsqueeze_ai_onnx_domain_opset13) {
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input(input);
     test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_expand_failsafe_node) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/expand_failsafe_node.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    const auto input_data = std::vector<float>{1.0f, 2.0f, 3.0f, 4.0f};
+    test_case.add_input<float>(input_data);
+    // the target shape is an empty constant so the Expand operation should not modify the input shape
+    test_case.add_expected_output<float>(input_data);
     test_case.run();
 }
