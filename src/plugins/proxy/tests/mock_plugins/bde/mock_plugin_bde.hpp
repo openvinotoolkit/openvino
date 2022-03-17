@@ -10,10 +10,8 @@
 #include <string>
 
 class MockPluginBde : public InferenceEngine::IInferencePlugin {
-    InferenceEngine::IInferencePlugin* _target = nullptr;
-
 public:
-    explicit MockPluginBde(InferenceEngine::IInferencePlugin* target);
+    explicit MockPluginBde();
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
 
@@ -42,6 +40,10 @@ public:
         std::istream& networkModel,
         const std::shared_ptr<InferenceEngine::RemoteContext>& context,
         const std::map<std::string, std::string>& config) override;
+
+    InferenceEngine::Parameter GetConfig(
+        const std::string& name,
+        const std::map<std::string, InferenceEngine::Parameter>& options) const override;
 
     InferenceEngine::Parameter GetMetric(
         const std::string& name,

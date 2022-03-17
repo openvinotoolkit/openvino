@@ -4,10 +4,15 @@
 
 set(TARGET_NAME openvino_proxy_plugin_tests)
 
+add_subdirectory(mock_plugins)
+
 ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+        EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/mock_plugins
         DEPENDENCIES
+            mock_abc_plugin
+            mock_bde_plugin
             openvino::runtime
         LINK_LIBRARIES
             openvino::runtime::dev
