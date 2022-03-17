@@ -72,7 +72,7 @@ KernelsPriority ConvolutionKernel_bfyx_Direct_10_10_12::GetKernelsPriority(const
 }
 
 bool ConvolutionKernel_bfyx_Direct_10_10_12::Validate(const Params& p, const optional_params& o) const {
-    if (!Parent::Validate(p, o) || !CovolutionCheckInput(p, o)) {
+    if (!Parent::Validate(p, o) || !ConvolutionCheckInput(p, o)) {
         return false;
     }
 
