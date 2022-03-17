@@ -1,18 +1,16 @@
 # Setting Input Shapes {#openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model}
 
-Paragraphs below provide details about specifying input shapes for model conversion.
-
 ## When to Specify --input_shape Command-line Parameter <a name="when_to_specify_input_shapes"></a>
-Model Optimizer supports conversion of models with input dynamic shapes that contain undefined dimensions.
-However, if the shape of inference data is not going to change from one inference request to another,
+Model Optimizer supports conversion of models with dynamic input shapes that contain undefined dimensions.
+However, if the shape of data is not going to change from one inference to another,
 it is recommended to set up static shapes (when all dimensions are fully defined) for the inputs.
 It can be beneficial from a performance perspective and memory consumption.
-To set up static shapes, Model Optimizer provides the `--input_shape` parameter. This is an offline approach to set static shapes and
-can save time on calling `reshape` method.
-For more information about the `reshape` method and dynamic shapes, refer to [Dynamic Shapes](../../../OV_Runtime_UG/ov_dynamic_shapes.md)
+To set up static shapes, Model Optimizer provides the `--input_shape` parameter.
+The same functionality is also available in runtime via `reshape` method, please refer to [Changing input shapes](../../../OV_Runtime_UG/ShapeInference.md).
+For more information about dynamic shapes in runtime, refer to [Dynamic Shapes](../../../OV_Runtime_UG/ov_dynamic_shapes.md)
 
 OpenVINO Runtime API can have limitations to infer models with undefined dimensions on some hardware.
-In this case, the `--input_shape` parameter and the `reshape` method can help resolving undefined dimensions.
+In this case, the `--input_shape` parameter and the `reshape` method can help to resolve undefined dimensions.
 
 Sometimes Model Optimizer is unable to convert models out-of-the-box (only the `--input_model` parameter is specified).
 Such problem can relate to models with inputs of undefined ranks and a case of cutting off parts of a model.
