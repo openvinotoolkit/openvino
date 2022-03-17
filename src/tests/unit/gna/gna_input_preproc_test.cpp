@@ -4,11 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include <ngraph/function.hpp>
-#include <ngraph/pass/manager.hpp>
-#include "ngraph_functions/builders.hpp"
 #include "gna_plugin.hpp"
-
 #include "common_test_utils/ngraph_test_utils.hpp"
 
 using namespace InferenceEngine;
@@ -56,7 +52,7 @@ public:
         T plugin_inputs[shape[1]];
 
         plugin.ImportFrames(plugin_inputs,
-                            input.begin()->second->cbuffer().as<U *>(),
+                            input.begin()->second->cbuffer().as<float *>(),
                             input.begin()->second->getTensorDesc().getPrecision(),
                             sf,
                             orientation,
@@ -75,16 +71,6 @@ public:
     }
 
 protected:
-    std::shared_ptr<ov::Model> getFunction() {
-        auto params = ngraph::builder::makeParams(netPrecision, {shape});
-        params[0]->set_friendly_name("Parameter");
-        auto secondInput = ngraph::builder::makeInputLayer(netPrecision, ngraph::helpers::InputLayerType::CONSTANT, shape);
-        auto matmul = ngraph::builder::makeMatMul(params[0], secondInput, false, true);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(matmul)};
-        auto function = std::make_shared<ngraph::Function>(results, params, "MatMul");
-        return function;
-    }
-
     InferenceEngine::Blob::Ptr GenerateInputFromVec(std::vector<U>& values) const {
         Precision prc;
         if (std::is_same<U, float>::value) {
