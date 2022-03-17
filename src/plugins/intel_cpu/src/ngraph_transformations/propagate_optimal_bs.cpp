@@ -9,6 +9,7 @@
 #include "rt_info/optimal_batch_size.hpp"
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "transformations/utils/utils.hpp"
+#include "snippets/op/subgraph.hpp"
 
 using namespace ov::intel_cpu;
 NGRAPH_RTTI_DEFINITION(PropagateOptimalBS, "PropagateOptimalBS", 0);
@@ -24,6 +25,9 @@ ov::intel_cpu::PropagateOptimalBS::PropagateOptimalBS() {
         // TODO: do we really need it?
         if (is_type<ngraph::opset1::Reshape>(node) || is_type<ngraph::opset1::Concat>(node) ||
             is_type<ngraph::opset1::Split>(node) || is_type<ngraph::opset1::VariadicSplit>(node))
+            return false;
+
+        if (is_type<ngraph::snippets::op::Subgraph>(node))
             return false;
 
         const auto& pshape = m.get_match_value().get_partial_shape();
