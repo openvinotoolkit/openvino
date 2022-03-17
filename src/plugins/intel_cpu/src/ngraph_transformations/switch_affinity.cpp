@@ -38,41 +38,49 @@ bool switchToImageAffinity(const std::set<ov::Input<ov::Node>>& starts,
                            const std::set<ov::Output<ov::Node>>& ends,
                            const size_t optimal_bs,
                            const bool share_constants) {
-    // TODO: in general, batch could be nonzero dimension
-    const size_t batch_size = starts.begin()->get_partial_shape()[0].get_length();
-    const size_t num_splits = batch_size / optimal_bs;
-    if (batch_size == optimal_bs) {
-        return false;
-    }
-
     ov::NodeVector start_splits;
     ov::ParameterVector main_params;
     start_splits.reserve(starts.size());
     main_params.reserve(starts.size());
 
-    // insert split by batch in the original ov::Model and
+    size_t num_splits = 1;
+    // create split by batch in the original ov::Model if necessary and
     // create parameters to extract graph component from original ov::Model
     for (const auto& start : starts) {
-        const size_t cur_batch_size = start.get_partial_shape()[0].get_length();
-
         // weights will be shared between clones and mustn't be splitted
         const bool is_weights = start.get_index() == 1 && (ov ::is_type<ngraph::opset1::Convolution>(start.get_node()) ||
                                                            ov ::is_type<ngraph::opset1::GroupConvolution>(start.get_node()) ||
                                                            ov ::is_type<ngraph::opset1::ConvolutionBackpropData>(start.get_node()) ||
                                                            ov ::is_type<ov::intel_cpu::FullyConnectedNode>(start.get_node()));
+        const size_t cur_batch_size = start.get_partial_shape()[0].get_length();
         if (is_weights || cur_batch_size == 1) {
             start_splits.push_back(start.get_source_output().get_node_shared_ptr());
         } else {
             // TODO: in general, batch could be nonzero dimension
             const size_t axis_value = 0;
+            const size_t cur_num_splits = cur_batch_size / optimal_bs;
+            num_splits = std::max(num_splits, cur_num_splits);
+            assert(cur_batch_size % optimal_bs == 0);
+            if (cur_num_splits == 1)
+                return false;
+
             const auto split_axis = opset1::Constant::create(element::i32, {}, {axis_value});
-            const auto split = std::make_shared<opset1::Split>(start.get_source_output(), split_axis, num_splits);
+            const auto split = std::make_shared<opset1::Split>(start.get_source_output(), split_axis, cur_num_splits);
             start_splits.push_back(split);
         }
 
         const auto main_param = std::make_shared<ngraph::opset1::Parameter>(start.get_element_type(), start.get_partial_shape());
-        start.replace_source_output(main_param);
         main_params.push_back(main_param);
+    }
+
+    if (num_splits == 1)
+        return false;
+
+    // Temporary insert params instead of start to extract subgraph
+    size_t k = 0;
+    for (const auto& start : starts) {
+        start.replace_source_output(main_params[k]);
+        k++;
     }
 
     ov::OutputVector result_vec;
