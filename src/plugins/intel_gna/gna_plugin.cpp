@@ -89,6 +89,7 @@
 #include "transformations/substitute_softsign.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/unfuse_reshape_and_transpose.hpp"
+#include "transformations/insert_copy_layer.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -733,8 +734,11 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
             manager.register_pass<PWLApproximationWithFq>(config.gnaFlags.pwlMaxErrorPercent);
             manager.register_pass<PWLApproximation>(config.gnaFlags.pwlMaxErrorPercent);
         }
-        // UnrollTI should be the last transformation in the transformation pipeline
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        manager.register_pass<InsertCopyBeforeMemoryLayer>();
+        manager.register_pass<InsertCopyBeforeConcatLayer>();
+        manager.register_pass<HandleMultiConnectedLayerToConcatAndMemory>();
+        manager.register_pass<HandleNonComputationalSubgraphs>();
         const auto& pass_config = manager.get_pass_config();
 
         // Allowing FP16 Converts to be folded and FP16 constants to upgrade to FP32 data type
@@ -822,8 +826,9 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         passes->registerPass<EltwiseSplitOverChannelsPass>();
         passes->registerPass<InsertSplitAligningFilterPass>();
 
-        passes->registerPass<InsertCopyLayerPass>();
-
+        if (!isNgraphPassesUsed) {
+            passes->registerPass<InsertCopyLayerPass>();
+        }
         passes->registerPass<FlattenTrivialConcatPass>();
         passes->registerPass<InsertConcatAligningFilterPass>();
         passes->registerPass<ReorderConcatInputsPass>();
