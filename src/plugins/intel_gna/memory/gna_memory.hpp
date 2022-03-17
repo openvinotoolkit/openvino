@@ -108,6 +108,11 @@ class GNAMemory : public GNAMemRequestsQueue {
         return _rw_section_size;
     }
 
+    size_t getROBytes() {
+        updateSectionsSizes();
+        return _ro_section_size;
+    }
+
     size_t getTotalBytes() {
         updateSectionsSizes();
         return _total;

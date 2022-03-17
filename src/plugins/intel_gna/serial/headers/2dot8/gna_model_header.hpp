@@ -49,7 +49,16 @@ struct ModelHeader {
     /**
      * @brief Memory required to be allocated using GNAAlloc()
      */
-    uint64_t gnaMemSize = 0ull;
+    struct GnaMemory {
+        /**
+         * @brief Memory required to be allocated for RO region
+         */
+        uint64_t ro_size = 0ull;
+        /**
+         * @brief Memory required to be allocated for RW region
+         */
+        uint64_t rw_size = 0ull;
+    } gnamem;
     /**
      * @brief Number of GNA Layers
      */
@@ -87,7 +96,8 @@ struct ModelHeader {
     ModelHeader() = default;
 
     ModelHeader(GNAPluginNS::Header2dot1::ModelHeader const &old) {
-        gnaMemSize = old.gnaMemSize;
+        gnamem.ro_size = old.gnaMemSize;
+        gnamem.rw_size = 0;
         layersCount = old.layersCount;
         nGroup = old.nGroup;
         nRotateRows = old.nRotateRows;
@@ -98,7 +108,8 @@ struct ModelHeader {
     }
 
     ModelHeader(GNAPluginNS::Header2dot4::ModelHeader const &old) {
-        gnaMemSize = old.gnaMemSize;
+        gnamem.ro_size = old.gnaMemSize;
+        gnamem.rw_size = 0;
         layersCount = old.layersCount;
         nGroup = old.nGroup;
         nRotateRows = old.nRotateRows;

@@ -1507,7 +1507,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
 
     graphCompiler.setGNAMemoryPtr(gnamem);
     void *basePtr = nullptr;
-    gnamem->reserve_ptr(nullptr, &basePtr, header.gnaMemSize);
+    gnamem->reserve_ptr(nullptr, &basePtr, header.gnamem.ro_size + header.gnamem.rw_size);
     gnamem->commit();
     gnaModels.push_back(std::make_tuple(make_shared<CPPWrapper<Gna2Model>>(header.layersCount)));
     GNAModelSerial::MemoryType  mt;
@@ -1515,7 +1515,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
 
     serial.setHeader(header);
     serial.Import(basePtr,
-            header.gnaMemSize,
+            header.gnamem.ro_size,
+            header.gnamem.rw_size,
             networkModel,
             *(inputs_ptr_),
             outputs_,
@@ -1606,7 +1607,7 @@ void GNAPlugin::Export(std::ostream &outStream) {
         serial.AddState(memoryConnection.second.gna_ptr, memoryConnection.second.reserved_size, memoryConnection.first, state->GetScaleFactor());
     }
 
-    serial.Export(gnamem->getBasePtr(), gnamem->getTotalBytes(), outStream);
+    serial.Export(gnamem->getBasePtr(), gnamem->getROBytes(), gnamem->getRWBytes(), outStream);
 }
 
 std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GNAPlugin::GetPerformanceCounts() {

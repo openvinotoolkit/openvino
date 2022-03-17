@@ -88,10 +88,13 @@ private:
      * buffers for pLayers, and pStructs are allocated here and required manual deallocation using mm_free
      * @param ptr_nnet
      * @param basePointer
+     * @param ro_size
+     * @param rw_size
      * @param is - stream without header structure - TBD heder might be needed
      */
     void Import(void *basePointer,
-                size_t gnaGraphSize,
+                size_t ro_size,
+                size_t rw_size,
                 std::istream &is,
                 GNAPluginNS::GnaInputs &inputs,
                 GNAPluginNS::GnaOutputs &outputs,
@@ -101,10 +104,12 @@ private:
     /**
      * save gna graph to an outpus stream
      * @param basePtr
-     * @param gnaGraphSize
+     * @param ro_size
+     * @param rw_size
      * @param os
      */
     void Export(void *basePtr,
-                size_t gnaGraphSize,
+                size_t ro_size,
+                size_t rw_size,
                 std::ostream &os) const;
 };

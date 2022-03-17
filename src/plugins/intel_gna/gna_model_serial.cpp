@@ -240,7 +240,8 @@ static const std::map<Gna2OperationType, std::vector<uint32_t>> GnaParamSize{
 };
 
 void GNAModelSerial::Import(void *basePointer,
-        size_t gnaGraphSize,
+        size_t ro_size,
+        size_t rw_size,
         std::istream &is,
         GNAPluginNS::GnaInputs &inputs,
         GNAPluginNS::GnaOutputs &outputs,
@@ -372,12 +373,12 @@ void GNAModelSerial::Import(void *basePointer,
 
 
     // once structure has been read lets read whole gna graph
-    is.read(reinterpret_cast<char*>(basePointer), gnaGraphSize);
+    is.read(reinterpret_cast<char*>(basePointer), ro_size);
 }
 
-void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostream & os) const {
+void GNAModelSerial::Export(void * basePointer, size_t ro_size, size_t rw_size, std::ostream & os) const {
     os.exceptions(std::ostream::failbit);
-
+    size_t gnaGraphSize = ro_size + rw_size;
     const std::vector<Gna2Operation>
         layers(gna2model_->Operations, gna2model_->Operations + gna2model_->NumberOfOperations);
 
@@ -426,7 +427,8 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
     header.gnam[2] = 'A';
     header.gnam[3] = 'M';
     header.headerSize = sizeof(HeaderLatest::ModelHeader);
-    header.gnaMemSize = gnaGraphSize;
+    header.gnamem.ro_size = ro_size;
+    header.gnamem.rw_size = rw_size;
     header.layersCount = layers.size();
     header.nGroup = 1; // just to support the old models
     header.nInputs = inputs_.size();
@@ -528,7 +530,7 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
     }
 
     // once structure has been written lets push gna graph
-    os.write(reinterpret_cast<char*>(basePointer), gnaGraphSize);
+    os.write(reinterpret_cast<char*>(basePointer), ro_size);
 }
 
 void GNAModelSerial::ImportInputs(std::istream &is, void* basePtr, GNAPluginNS::GnaInputs &inputs) {
