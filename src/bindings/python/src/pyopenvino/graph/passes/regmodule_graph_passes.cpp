@@ -3,15 +3,16 @@
 //
 
 #include "pyopenvino/graph/passes/regmodule_graph_passes.hpp"
-#include "pyopenvino/graph/passes/manager.hpp"
+
+#include <pybind11/pybind11.h>
+
 #include "pyopenvino/graph/passes/graph_rewrite.hpp"
+#include "pyopenvino/graph/passes/manager.hpp"
 #include "pyopenvino/graph/passes/matcher_pass.hpp"
 #include "pyopenvino/graph/passes/model_pass.hpp"
 #include "pyopenvino/graph/passes/pass_base.hpp"
 #include "pyopenvino/graph/passes/pattern_ops.hpp"
 #include "pyopenvino/graph/passes/transformations.hpp"
-
-#include <pybind11/pybind11.h>
 
 namespace py = pybind11;
 

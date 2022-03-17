@@ -39,12 +39,15 @@ void regclass_Manager(py::module m) {
     manager.def("set_per_pass_validation", &ov::pass::Manager::set_per_pass_validation);
     manager.def("run_passes", &ov::pass::Manager::run_passes);
 
-    manager.def("register_pass", [](ov::pass::Manager& self, const std::string& pass_name) -> void {
-        if (pass_name == "ConstantFolding") {
-            self.register_pass<ov::pass::ConstantFolding>();
-        }
-    }, py::arg("pass_name"),
-       R"(
+    manager.def(
+        "register_pass",
+        [](ov::pass::Manager& self, const std::string& pass_name) -> void {
+            if (pass_name == "ConstantFolding") {
+                self.register_pass<ov::pass::ConstantFolding>();
+            }
+        },
+        py::arg("pass_name"),
+        R"(
        This method is deprecated. Please use m.register_pass(Transformation()) instead.
 
        Register pass by name from the list of predefined passes.
@@ -53,14 +56,19 @@ void regclass_Manager(py::module m) {
        :type pass_name: str
     // )");
 
-    manager.def("register_pass", [](ov::pass::Manager& self,
-                                    const std::string& pass_name,
-                                    const FilePaths& file_paths,
-                                    const std::string& version) -> void {
-        if (pass_name == "Serialize") {
-            self.register_pass<ov::pass::Serialize>(file_paths.first, file_paths.second, convert_to_version(version));
-        }
-    },  py::arg("pass_name"),
+    manager.def(
+        "register_pass",
+        [](ov::pass::Manager& self,
+           const std::string& pass_name,
+           const FilePaths& file_paths,
+           const std::string& version) -> void {
+            if (pass_name == "Serialize") {
+                self.register_pass<ov::pass::Serialize>(file_paths.first,
+                                                        file_paths.second,
+                                                        convert_to_version(version));
+            }
+        },
+        py::arg("pass_name"),
         py::arg("output_files"),
         py::arg("version") = "UNSPECIFIED",
         R"(
@@ -89,15 +97,18 @@ void regclass_Manager(py::module m) {
             pass_manager.register_pass("Serialize", output_files=("example.xml", "example.bin"), version="IR_V11")
     // )");
 
-    manager.def("register_pass", [](ov::pass::Manager& self,
-                                    const std::string& pass_name,
-                                    const std::string& xml_path,
-                                    const std::string& bin_path,
-                                    const std::string& version) -> void {
-        if (pass_name == "Serialize") {
-            self.register_pass<ov::pass::Serialize>(xml_path, bin_path, convert_to_version(version));
-        }
-    },  py::arg("pass_name"),
+    manager.def(
+        "register_pass",
+        [](ov::pass::Manager& self,
+           const std::string& pass_name,
+           const std::string& xml_path,
+           const std::string& bin_path,
+           const std::string& version) -> void {
+            if (pass_name == "Serialize") {
+                self.register_pass<ov::pass::Serialize>(xml_path, bin_path, convert_to_version(version));
+            }
+        },
+        py::arg("pass_name"),
         py::arg("xml_path"),
         py::arg("bin_path"),
         py::arg("version") = "UNSPECIFIED",

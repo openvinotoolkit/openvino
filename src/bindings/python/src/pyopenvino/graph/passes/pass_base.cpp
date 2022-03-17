@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/pass/pass.hpp>
+#include "pyopenvino/graph/passes/pass_base.hpp"
+
 #include <pybind11/pybind11.h>
 
 #include <memory>
-
-#include "pyopenvino/graph/passes/pass_base.hpp"
+#include <openvino/pass/pass.hpp>
 
 namespace py = pybind11;
-
 
 void regclass_PassBase(py::module m) {
     py::class_<ov::pass::PassBase, std::shared_ptr<ov::pass::PassBase>> pass_base(m, "PassBase");
