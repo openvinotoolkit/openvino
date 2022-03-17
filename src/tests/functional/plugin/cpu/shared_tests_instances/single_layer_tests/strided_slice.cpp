@@ -119,7 +119,7 @@ std::vector<StridedSliceSpecificParams> ss_only_test_cases = {
 };
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_MKLDNN, StridedSliceLayerTest,
+        smoke_INTEL_CPU, StridedSliceLayerTest,
         ::testing::Combine(
             ::testing::ValuesIn(ss_only_test_cases),
             ::testing::Values(InferenceEngine::Precision::FP32),

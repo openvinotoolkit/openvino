@@ -10,10 +10,11 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNSplitNode : public MKLDNNNode {
+class Split : public Node {
 public:
-    MKLDNNSplitNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    Split(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
@@ -64,5 +65,6 @@ private:
     size_t INPUTS_NUM = 2;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov
