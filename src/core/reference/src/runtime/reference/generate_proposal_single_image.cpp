@@ -25,9 +25,9 @@ struct sProposalBox {
 
 using GenerateProposalBox = struct sProposalBox<float>;
 
-static void generate_proposal_refine_anchors(const float* deltas,
-                                             const float* scores,
-                                             const float* anchors,
+static void generate_proposal_refine_anchors(const std::vector<float>&  deltas,
+                                             const std::vector<float>&  scores,
+                                             const std::vector<float>&  anchors,
                                              float* proposals,
                                              const int64_t anchors_num,
                                              const int64_t bottom_H,
@@ -210,10 +210,10 @@ namespace ngraph {
 namespace runtime {
 namespace reference {
 
-void generate_proposals_single_image(const float* im_info,
-                                     const float* anchors,
-                                     const float* deltas,
-                                     const float* scores,
+void generate_proposals_single_image(const std::vector<float>& im_info,
+                                     const std::vector<float>& anchors,
+                                     const std::vector<float>& deltas,
+                                     const std::vector<float>& scores,
                                      const op::v9::GenerateProposalsSingleImage::Attributes& attrs,
                                      const Shape& im_info_shape,
                                      const Shape& anchors_shape,
@@ -233,10 +233,19 @@ void generate_proposals_single_image(const float* im_info,
     const float img_W = im_info[1];
 
     // scale factor for height & width
+    float scale_h;
+    float scale_w;
+    if (im_info.size() == 3) {
+        scale_h = im_info[2];
+        scale_w = im_info[2];
+    } else if (im_info.size() == 4) {
+        scale_h = im_info[2];
+        scale_w = im_info[3];
+    }
 
     // minimum box width & height
-    const float min_box_H = attrs.min_size;
-    const float min_box_W = attrs.min_size;
+    const float min_box_H = attrs.min_size * scale_h;
+    const float min_box_W = attrs.min_size * scale_w;
 
     const float nms_thresh = attrs.nms_threshold;
     const int64_t post_nms_topn = attrs.post_nms_count;

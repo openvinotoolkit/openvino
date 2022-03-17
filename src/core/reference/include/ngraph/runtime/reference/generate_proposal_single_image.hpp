@@ -18,10 +18,10 @@
 namespace ngraph {
 namespace runtime {
 namespace reference {
-void generate_proposals_single_image(const float* im_info,
-                                     const float* anchors,
-                                     const float* deltas,
-                                     const float* scores,
+void generate_proposals_single_image(const std::vector<float>& im_info,
+                                     const std::vector<float>& anchors,
+                                     const std::vector<float>& deltas,
+                                     const std::vector<float>& scores,
                                      const op::v9::GenerateProposalsSingleImage::Attributes& attrs,
                                      const Shape& im_info_shape,
                                      const Shape& anchors_shape,

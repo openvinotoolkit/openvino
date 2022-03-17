@@ -28,8 +28,8 @@ void shape_infer(const GenerateProposalsSingleImage* op,
 
     if (im_info_shape_rank.is_static()) {
         NODE_VALIDATION_CHECK(op,
-                              im_info_shape[0].compatible(3),
-                              "The 'input_im_info' shape is expected to be a compatible with [3]. Got: ",
+                              (im_info_shape[0].compatible(3) || im_info_shape[0].compatible(4)),
+                              "The 'input_im_info' shape is expected to be a compatible with [3] or [4]. Got: ",
                               im_info_shape);
     }
 

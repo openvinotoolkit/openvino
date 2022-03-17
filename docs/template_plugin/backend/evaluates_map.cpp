@@ -3328,10 +3328,10 @@ bool evaluate(const shared_ptr<op::v9::GenerateProposalsSingleImage>& op,
     std::vector<float> output_scores;
     int64_t output_num;
 
-    runtime::reference::generate_proposals_single_image(im_info_data.data(),
-                                                        anchors_data.data(),
-                                                        deltas_data.data(),
-                                                        scores_data.data(),
+    runtime::reference::generate_proposals_single_image(im_info_data,
+                                                        anchors_data,
+                                                        deltas_data,
+                                                        scores_data,
                                                         attrs,
                                                         im_info_shape,
                                                         anchors_shape,
