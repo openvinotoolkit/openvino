@@ -1,4 +1,4 @@
-# OpenVINO™ 2.0 Transition Guide {#openvino_2_0_transition_guide}
+# OpenVINO™ 2022.1 Transition Guide {#openvino_2_0_transition_guide}
 
 @sphinxdirective
 
