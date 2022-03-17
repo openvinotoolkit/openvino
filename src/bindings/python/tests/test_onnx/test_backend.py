@@ -327,15 +327,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_bernoulli_seed_expanded_cpu",
     ),
     (
-        xfail_issue_63136,
-        "OnnxBackendNodeModelTest.test_castlike_BFLOAT16_to_FLOAT_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_DOUBLE_to_FLOAT16_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_DOUBLE_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_FLOAT_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_BFLOAT16_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_FLOAT16_cpu",
-    ),
-    (
         xfail_issue_63137,
         "OnnxBackendNodeModelTest.test_optional_get_element_cpu",
         "OnnxBackendNodeModelTest.test_optional_get_element_sequence_cpu",
