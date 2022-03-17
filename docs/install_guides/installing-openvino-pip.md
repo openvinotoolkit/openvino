@@ -1,10 +1,13 @@
-# Install Intel® Distribution of OpenVINO™ Toolkit from PyPI Repository {#openvino_docs_install_guides_installing_openvino_pip_win}
+# Install Intel® Distribution of OpenVINO™ Toolkit from PyPI Repository {#openvino_docs_install_guides_installing_openvino_pip}
 
-You can install Intel® Distribution of OpenVINO™ Toolkit Runtime Package through the PyPI repository. 
+You can install both OpenVINO™ Runtime and OpenVINO Development Tools through the PyPI repository. This page provides the main steps for installing OpenVINO Runtime.
 
-## System Requirements
+> **NOTE**: From the 2022.1 release, the OpenVINO™ Development Tools can only be installed via PyPI. See [Install OpenVINO Development Tools](installing-model-dev-tools.md) for detailed steps.
+## Installing OpenVINO Runtime
 
-#### Below you will find all supported operating systems and required Python\* versions. 
+### System requirements
+
+Below you will find all supported operating systems and required Python\* versions. 
 
 |Operating Systems (64 bit)                        | [Python\* Version](https://www.python.org/downloads/) (64 bit)                 |
 |--------------------------------------------------|--------------------------------------------------------------------------------|
@@ -22,113 +25,115 @@ You can install Intel® Distribution of OpenVINO™ Toolkit Runtime Package thro
 
 @endsphinxdirective
 
-## Installing OpenVINO Runtime Package
+### Step 1. Set Up Python Virtual Environment
 
-The OpenVINO Runtime Package contains a set of libraries for an easy inference integration into your applications and supports heterogeneous execution across Intel® CPU and Intel® GPU hardware. To install OpenVINO Runtime Package, use the following procedures:
+To avoid dependency conflicts, use a virtual environment. Skip this step only if you do want to install all dependencies globally.
 
-### 1. Set up Python virtual environment
+Use the following command to create a virtual environment:
 
-```
-python -m pip install --user virtualenv 
-python -m venv openvino_env
-```
 @sphinxdirective
 
-.. note::
+.. tab:: Linux and macOS
 
-   On Linux and macOS, you may need to type *python3* instead of *python*.
+   .. code-block:: sh
+
+      python3 -m venv openvino_env
+
+.. tab:: Windows
+
+   .. code-block:: sh
+
+      python -m venv openvino_env
+
 
 @endsphinxdirective
 
-### 2. Activate virtual environment
-
+### Step 2. Activate Virtual Environment
 
 @sphinxdirective
 
-.. tabs::
+.. tab:: On Linux and macOS
 
-   .. group-tab:: WINDOWS\*
+   .. code-block:: sh
 
-      ```
+      source openvino_env/bin/activate
+
+.. tab:: On Windows
+
+   .. code-block:: sh
+
       openvino_env\Scripts\activate
-      ```
 
-   .. group-tab:: Linux\* \| MacOS \*
-
-      ```
-      source openvino_env/Scripts/activate
-      ```
 
 @endsphinxdirective
 
+### Step 3. Set Up and Update PIP to the Highest Version
 
-### 3. Upgrade PIP
-
-```
+Use the following command:
+```sh
 python -m pip install --upgrade pip
 ```
 
-### 4. Install the package
+### Step 4. Install the Package
 
+Use the following command:
 ```
 pip install openvino
 ```
 
-### 5. Verify the installation
+### Step 5. Verify that the Package Is Installed
 
-If installation was successful, you will not see any error messages (no console output) after using the following command.
-
+Run the command below:
+```sh
+python -c "from openvino.runtime import Core"
 ```
-python -c "from openvino.inference_engine import IECore"
-```
 
-## Troubleshooting
+If installation was successful, you will not see any error messages (no console output).
 
-### You may be prompted with the following errors:
+### Troubleshooting
+
+You may be prompted with the following errors:
 
 @sphinxdirective
 
-.. tabs::
+.. tab:: Linux and macOS
 
-    .. tab:: WINDOWS\*
+   *ImportError: libpython3.7m.so.1.0: cannot open shared object file: No such file or directory*
+   
+   To resolve missing external dependency on Ubuntu* 18.04, execute the following command:
 
-      *Microsoft Visual C++ 14.0 is required. Get it with "Build Tools for Visual Studio"*
-      
-      To resolve this issue, you need to install [Build Tools for Visual Studio* 2019](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2019) and repeat package installation.
+   .. code-block:: sh
 
-    .. tab:: Linux\* \| MacOS \*
-      
-      *ImportError: libpython3.7m.so.1.0: cannot open shared object file: No such file or directory*
-
-      To resolve missing external dependency on Ubuntu* 18.04, execute the following command:
-
-      ```
       sudo apt-get install libpython3.7
-      ```
+
+.. tab:: Windows
+
+   *Microsoft Visual C++ 14.0 is required. Get it with "Build Tools for Visual Studio"*
+
+   To resolve this issue, you need to install [Build Tools for Visual Studio* 2019](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2019) and repeat package installation.
+
 
 @endsphinxdirective
 
-
-## Using the OpenVINO Toolkit Runtime Package
-
-You may start with the collection of ready-to-run Jupyter notebooks for learning and experimenting with the OpenVINO Toolkit. The notebooks provide an introduction to OpenVINO basics and teach developers how to leverage our API for optimized deep learning inference.
-
-The notebooks can be cloned directly from GitHub. See the [installation guide](https://github.com/openvinotoolkit/openvino_notebooks/wiki/).
-
-
 ## Installing OpenVINO Development Tools
 
-OpenVINO Development Tools include Model Optimizer, Benchmark Tool, Accuracy Checker, Post-Training Optimization Tool and Open Model Zoo tools including Model Downloader. 
+OpenVINO Development Tools include Model Optimizer, Benchmark Tool, Accuracy Checker, Post-Training Optimization Tool and Open Model Zoo tools including Model Downloader. If you want to install OpenVINO Development Tools, OpenVINO Runtime will also be installed as a dependency, so you don't need to install OpenVINO Runtime separately.
 
-While installing OpenVINO Development Tools, OpenVINO Runtime will also be installed as a dependency, so you don't need to install OpenVINO Runtime separately.
+See [Install OpenVINO™ Development Tools](installing-model-dev-tools.md) for detailed steps.
 
-You will find the information on how to install OpenVINO Development Tools in the following [article](../install_guides/installing-model-dev-tools.md).
+
+## What's Next?
+
+Now you may continue with the following tasks:
+
+* To convert models for use with OpenVINO, see [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+* See pre-trained deep learning models in our [Open Model Zoo](../model_zoo.md).
+* Try out OpenVINO via [OpenVINO Notebooks](https://docs.openvino.ai/latest/notebooks/notebooks.html).
+* To write your own OpenVINO™ applications, see [OpenVINO Runtime User Guide](../OV_Runtime_UG/openvino_intro.md).
+* See sample applications in [OpenVINO™ Toolkit Samples Overview](../OV_Runtime_UG/Samples_Overview.md).
 
 
 ## Additional Resources
 
-- [Intel® Distribution of OpenVINO™ Toolkit](https://pypi.org/project/openvino)
-- [OpenVINO™ Runtime User Guide](../OV_Runtime_UG/openvino_intro.md)
-- [OpenVINO Samples Overview](../OV_Runtime_UG/Samples_Overview.md)
-- [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
-- [OpenVINO™ Notebooks](https://github.com/openvinotoolkit/openvino_notebooks)
+- Intel® Distribution of OpenVINO™ toolkit home page: <https://software.intel.com/en-us/openvino-toolkit>
+- For IoT Libraries & Code Samples, see [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).
