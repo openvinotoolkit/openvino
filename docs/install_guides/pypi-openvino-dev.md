@@ -110,6 +110,28 @@ For example, to install and configure the components for working with TensorFlow
 
 ## Troubleshooting
 
+
+### zsh: no matches found : openvino-dev[...]
+
+If you use zsh (Z shell) interpreter, that is the default shell for macOS starting with version 10.15 (Catalina), you may encounter the following error while installing `openvino-dev` package with extras:
+
+```sh
+pip install openvino-dev[tensorflow2,mxnet,caffe]
+zsh: no matches found: openvino-dev[tensorflow2,mxnet,caffe]
+```
+
+By default zsh interprets square brackets as an expression for pattern matching. To resolve this issue, you need to escape the command with quotes: 
+
+```sh
+pip install 'openvino-dev[tensorflow2,mxnet,caffe]'
+```
+
+To avoid such issues you can also disable globbing for PIP commands by defining an alias in `~/.zshrc` file:
+
+```sh
+alias pip='noglob pip'
+```
+
 ### Error: Microsoft Visual C++ 14.0 is required. Get it with "Build Tools for Visual Studio"
 
 On Windows* some dependencies may require compilation from source when installing. To resolve this issue, you need to install [Build Tools for Visual Studio* 2019](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2019) and repeat package installation.
