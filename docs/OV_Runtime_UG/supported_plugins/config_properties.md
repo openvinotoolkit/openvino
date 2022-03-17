@@ -73,7 +73,21 @@ For documentation about OpenVINO common device-independent properties, refer to 
 
 The code below demonstrates how to query `HETERO` device priority of devices which will be used to infer the model:
 
-@snippet snippets/ov_properties_api.cpp hetero_priorities
+@sphinxdirective
+
+.. tab:: C++
+
+    .. doxygensnippet:: docs/snippets/ov_properties_api.cpp
+       :language: cpp
+       :fragment: [hetero_priorities]
+
+.. tab:: Python
+
+    .. doxygensnippet:: docs/snippets/ov_properties_api.py
+       :language: python
+       :fragment: [hetero_priorities]
+
+@endsphinxdirective
 
 > **NOTE**: All properties have a type, which is specified during property declaration. Based on this, actual type under `auto` is automatically deduced by C++ compiler.
 
