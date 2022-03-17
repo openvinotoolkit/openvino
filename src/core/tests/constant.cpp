@@ -1776,3 +1776,20 @@ TEST(constant, lazy_bitwise_identical) {
     // '10' times is guaranteed to be faster here (typical value is ~200'000)
     EXPECT_GT(bitwise_check_count_only, bitwise_check_count * 10);
 }
+
+// Disabled just because of long execution time. Enable for nightly builds in future
+TEST(constant, DISABLED_nightly_huge_size_4GB) {
+    size_t start = 1llu << 32;
+    size_t s = start + 5;
+    std::vector<uint8_t> data(s);
+    for (size_t i = start; i < s; i++) {
+        data[i] = i - start + 42;
+    }
+    Shape shape{s};
+    op::Constant c(element::u8, shape, data.data());
+    auto v = c.get_vector<uint8_t>();
+    ASSERT_EQ(v.size(), shape_size(shape));
+    for (size_t i = start; i < s; i++) {
+        EXPECT_EQ(v[i], i - start + 42) << i << " failed";
+    }
+}
