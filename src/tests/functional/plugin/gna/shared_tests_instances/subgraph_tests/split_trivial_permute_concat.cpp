@@ -7,6 +7,28 @@
 #include "common_test_utils/test_constants.hpp"
 #include "gna/gna_config.hpp"
 
+
+namespace SubgraphTestsDefinitions {
+class SplitTrivialPermuteConcatGNATest : public SplitTrivialPermuteConcatTest {
+protected:
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override {
+        InferenceEngine::Blob::Ptr blob = make_blob_with_precision(info.getTensorDesc());
+        blob->allocate();
+
+        auto* rawBlobDataPtr = blob->buffer().as<float*>();
+        std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -0.001f, 0.001f);
+        for (size_t i = 0; i < blob->size(); i++) {
+            rawBlobDataPtr[i] = values[i];
+        }
+        return blob;
+    }
+};
+
+TEST_P(SplitTrivialPermuteConcatGNATest, CompareWithRefs) {
+        Run();
+}
+}//  namespace SubgraphTestsDefinitions
+
 using namespace SubgraphTestsDefinitions;
 
 namespace {
@@ -27,7 +49,7 @@ namespace {
     std::vector<size_t> split_axes = { 1 }; // only channels split is currently supported by gna for 4d inputs
     std::vector<size_t> concat_axes = { 1 }; // only channels concat is currently supported by gna for 4d inputs
 
-    INSTANTIATE_TEST_SUITE_P(smoke_split_trivial_permute_concat, SplitTrivialPermuteConcatTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_split_trivial_permute_concat, SplitTrivialPermuteConcatGNATest,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),

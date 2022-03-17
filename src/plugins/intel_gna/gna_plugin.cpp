@@ -81,6 +81,8 @@
 #include "transformations/substitute_softsign.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/unfuse_reshape_and_transpose.hpp"
+#include "transformations/insert_copy_layer.hpp"
+#include "transformations/serialize.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -712,6 +714,13 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         }
         // UnrollTI should be the last transformation in the transformation pipeline
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        manager.register_pass<ngraph::pass::VisualizeTree>("1before-copy.svg");
+        manager.register_pass<HandleMultiConnectedLayerToConcat>();
+        manager.register_pass<ngraph::pass::VisualizeTree>("2HandleMultiConnectedLayerToConcat.svg");
+        manager.register_pass<HandleLayerConnectedToConcatOrMemory>();
+        manager.register_pass<ngraph::pass::VisualizeTree>("3HandleLayerConnectedToConcatOrMemory.svg");
+        manager.register_pass<HandleNonComputationalSubgraphs>();
+        manager.register_pass<ngraph::pass::VisualizeTree>("4HandleNonComputationalSubgraphs.svg");
         const auto& pass_config = manager.get_pass_config();
 
         // Allowing FP16 Converts to be folded and FP16 constants to upgrade to FP32 data type
@@ -795,8 +804,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         passes->registerPass<EltwiseSplitOverChannelsPass>();
         passes->registerPass<InsertSplitAligningFilterPass>();
 
-        passes->registerPass<InsertCopyLayerPass>();
-
+        if (!isNgraphPassesUsed) {
+            passes->registerPass<InsertCopyLayerPass>();
+        }
         passes->registerPass<FlattenTrivialConcatPass>();
         passes->registerPass<InsertConcatAligningFilterPass>();
         passes->registerPass<ReorderConcatInputsPass>();
