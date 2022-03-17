@@ -92,7 +92,7 @@ If installation was successful, you will not see any error messages (no console 
 
 ### Troubleshooting
 
-You may be prompted with the following errors:
+Here you may find solutions to some common issues.
 
 @sphinxdirective
 
