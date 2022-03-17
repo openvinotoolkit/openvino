@@ -114,8 +114,6 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetwork) {
         OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
         OV_ASSERT_NO_THROW(req.set_tensor("input_tensor", inTensor));
         OV_ASSERT_NO_THROW(req.infer());
-        OV_ASSERT_NO_THROW(req.start_async());
-        OV_ASSERT_NO_THROW(req.wait());
         ASSERT_TRUE(checkOutput(req.get_tensor("input_tensor"), req.get_tensor(outputname)));
     }
 }
@@ -141,8 +139,6 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkSetUnexpectedOutputTensorB
     otensor = ov::test::utils::create_and_fill_tensor(element::f32, outShape, 100, 50);
     OV_ASSERT_NO_THROW(req.set_tensor(outputname, otensor));
     OV_ASSERT_NO_THROW(req.infer());
-    OV_ASSERT_NO_THROW(req.start_async());
-    OV_ASSERT_NO_THROW(req.wait());
     ASSERT_EQ(otensor.get_shape(), refOutShape);
     ASSERT_TRUE(checkOutput(req.get_tensor("input_tensor"), req.get_tensor(outputname)));
 }
@@ -167,8 +163,6 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkSetOutputTensorPreAllocate
     ov::runtime::Tensor otensor(element::f32, refOutShape, ptr);
     OV_ASSERT_NO_THROW(req.set_tensor(outputname, otensor));
     OV_ASSERT_NO_THROW(req.infer());
-    OV_ASSERT_NO_THROW(req.start_async());
-    OV_ASSERT_NO_THROW(req.wait());
     ASSERT_EQ(req.get_tensor(outputname).data<float>(), ptr);
     ASSERT_EQ(req.get_tensor(outputname).get_shape(), refOutShape);
     ASSERT_TRUE(checkOutput(req.get_tensor("input_tensor"), req.get_tensor(outputname)));
@@ -193,8 +187,6 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkSetOutputShapeBeforeInfer)
     OV_ASSERT_NO_THROW(otensor = req.get_tensor(outputname));
     OV_ASSERT_NO_THROW(otensor.set_shape(refOutShape));
     OV_ASSERT_NO_THROW(req.infer());
-    OV_ASSERT_NO_THROW(req.start_async());
-    OV_ASSERT_NO_THROW(req.wait());
     OV_ASSERT_NO_THROW(otensor = req.get_tensor(outputname));
     ASSERT_EQ(otensor.get_shape(), refOutShape);
     ASSERT_TRUE(checkOutput(req.get_tensor("input_tensor"), req.get_tensor(outputname)));

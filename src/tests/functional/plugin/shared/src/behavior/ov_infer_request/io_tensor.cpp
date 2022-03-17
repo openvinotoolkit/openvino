@@ -201,10 +201,10 @@ TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkSetInputTensor) {
 }
 
 TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkSetOutputTensor) {
-    const ov::Shape shape1 = {1, 16};
+    const ov::Shape shape1 = {1, 1, 32, 32};
     const ov::Shape shape2 = {1, 20};
     std::map<std::string, ov::PartialShape> shapes;
-    shapes[function->inputs().back().get_any_name()] = {1, 1, 32, 32};
+    shapes[function->inputs().back().get_any_name()] = shape1;
     OV_ASSERT_NO_THROW(function->reshape(shapes));
     // Load ov::Model to target plugins
     std::shared_ptr<ov::Core> ie = utils::PluginCache::get().core();
