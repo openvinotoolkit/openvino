@@ -28,7 +28,7 @@ TEST_MODELS = [
      {}, 'CPU'),
 
     ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'mixed', 300, {'accuracy@top1': 0.731,
-                                                                              'accuracy@top5': 0.906},
+                                                                              'accuracy@top5': 0.908},
      {}, 'CPU'),
 
     ('mobilenet-v1-1.0-224-tf', 'tf', 'DefaultQuantization', 'performance', 100, {'accuracy@top1': 0.728,
