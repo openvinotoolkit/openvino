@@ -827,7 +827,7 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
                     data->allocate();
                 } else {
                     const auto& blobDims = data->getTensorDesc().getDims();
-                    if (!shape.compatible(ov::PartialShape(blobDims)) && (!isDynamic ||
+                    if (!shape.compatible(ov::PartialShape(blobDims)) && (!isDynamic || blobDims.size() != shape.rank().get_length() ||
                             std::any_of(blobDims.begin(), blobDims.end(), [](const size_t& dims) { return dims != 0; } ))) {
                         IE_THROW(ParameterMismatch) << "Network input and output use the same name: " << name
                                                     << ", but expect blobs with different shapes. Input shape: "
