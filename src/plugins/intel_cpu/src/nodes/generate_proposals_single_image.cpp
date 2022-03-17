@@ -49,7 +49,6 @@ void refine_anchors(const float* deltas, const float* scores, const float* ancho
                     float coordinates_offset) {
     Indexer4d delta_idx(anchors_num, 4, bottom_H, bottom_W);
     Indexer4d score_idx(anchors_num, 1, bottom_H, bottom_W);
-    //Indexer4d proposal_idx(bottom_H, bottom_W, anchors_num, 5);
     Indexer4d proposal_idx(bottom_H, bottom_W, anchors_num, 6);
     Indexer4d anchor_idx(bottom_H, bottom_W, anchors_num, 4);
 
@@ -334,7 +333,7 @@ void MKLDNNGenerateProposalsSingleImageNode::execute(mkldnn::stream strm) {
             deltas_dims_size *= deltaDims[i];
         }
         if (anchor_dims_size != deltas_dims_size)
-            IE_THROW() << "'Anchors' blob size for ONNXProposal is incompatible with 'deltas' blob size!";
+            IE_THROW() << "'Anchors' blob size for GenerateProposals is incompatible with 'deltas' blob size!";
 
         size_t score_dims_size = 1;
         const auto &scoreDims = getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims();
@@ -342,7 +341,13 @@ void MKLDNNGenerateProposalsSingleImageNode::execute(mkldnn::stream strm) {
             score_dims_size *= scoreDims[i];
         }
         if (deltas_dims_size != (4 * score_dims_size))
-            IE_THROW() << "'Deltas' blob size for ONNXProposal is incompatible with 'scores' blob size!";
+            IE_THROW() << "'Deltas' blob size for GenerateProposals is incompatible with 'scores' blob size!";
+
+        size_t im_info_dims_size = 1;
+        const auto &infoDims = getParentEdgeAt(INPUT_IM_INFO)->getMemory().getStaticDims();
+        for (size_t i = 0; i < infoDims.size(); i++) {
+            im_info_dims_size *= infoDims[i];
+        }
 
         // Prepare memory
         const float *p_deltas_item  = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_DELTAS)->getMemoryPtr()->GetPtr());
@@ -361,10 +366,19 @@ void MKLDNNGenerateProposalsSingleImageNode::execute(mkldnn::stream strm) {
         const float img_W = p_img_info_cpu[1];
 
         // scale factor for height & width
+        float scale_h;
+        float scale_w;
+        if (im_info_dims_size == 3) {
+            scale_h = p_img_info_cpu[2];
+            scale_w = p_img_info_cpu[2];
+        } else if (im_info_dims_size == 4) {
+            scale_h = p_img_info_cpu[2];
+            scale_w = p_img_info_cpu[3];
+        }
 
         // minimum box width & height
-        const float min_box_H = min_size_;
-        const float min_box_W = min_size_;
+        const float min_box_H = min_size_ * scale_h;
+        const float min_box_W = min_size_ * scale_w;
 
         // number of all proposals = num_anchors * H * W
         const int num_proposals = anchors_num * bottom_H * bottom_W;
