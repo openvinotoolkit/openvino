@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -21,3 +21,6 @@ from openvino.pyopenvino.op import Constant
 Constant.get_data = lambda self: np.array(self, copy=True)
 
 from openvino.pyopenvino.op import Parameter
+from openvino.pyopenvino.op import if_op
+from openvino.pyopenvino.op import loop
+from openvino.pyopenvino.op import tensor_iterator

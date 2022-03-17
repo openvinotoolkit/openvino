@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,11 +9,11 @@ using namespace std;
 using namespace ov;
 using namespace opset8;
 using namespace ov::frontend;
-using namespace frontend::tf::detail;
+using namespace frontend::tensorflow::detail;
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 
 OutputVector translate_concat_op(const NodeContext& node) {
@@ -27,7 +27,7 @@ OutputVector translate_concat_op(const NodeContext& node) {
         concat_idx_start = 1;
         concat_idx_stop = node.get_input_size();
     } else {
-        TF_OP_VALIDATION_CHECK(node, false, "Incorrect operation type.");
+        TENSORFLOW_OP_VALIDATION(node, false, "Incorrect operation type.");
     }
 
     std::vector<int64_t> tf_concat_axis_vec;
@@ -45,6 +45,6 @@ OutputVector translate_concat_op(const NodeContext& node) {
     return res->outputs();
 }
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

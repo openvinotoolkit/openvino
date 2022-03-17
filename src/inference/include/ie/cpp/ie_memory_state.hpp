@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,8 +24,8 @@ class IVariableStateInternal;
  * @brief VariableState class
  */
 class INFERENCE_ENGINE_API_CLASS(VariableState) {
-    std::shared_ptr<void> _so;
     std::shared_ptr<IVariableStateInternal> _impl;
+    std::shared_ptr<void> _so;
 
     /**
      * @brief Constructs VariableState from the initialized std::shared_ptr
@@ -33,15 +33,36 @@ class INFERENCE_ENGINE_API_CLASS(VariableState) {
      * @param so Optional: Plugin to use. This is required to ensure that VariableState can work properly even if plugin
      * object is destroyed.
      */
-    VariableState(const std::shared_ptr<void>& so, const std::shared_ptr<IVariableStateInternal>& impl);
+    VariableState(const std::shared_ptr<IVariableStateInternal>& impl, const std::shared_ptr<void>& so);
     friend class InferRequest;
     friend class ExecutableNetwork;
 
 public:
-    /**
-     * @brief Default constructor
-     */
+    /// @brief Default constructor
     VariableState() = default;
+
+    /// @brief Default copy constructor
+    /// @param other other VariableState object
+    VariableState(const VariableState& other) = default;
+
+    /// @brief Default copy assignment operator
+    /// @param other other VariableState object
+    /// @return reference to the current object
+    VariableState& operator=(const VariableState& other) = default;
+
+    /// @brief Default move constructor
+    /// @param other other VariableState object
+    VariableState(VariableState&& other) = default;
+
+    /// @brief Default move assignment operator
+    /// @param other other VariableState object
+    /// @return reference to the current object
+    VariableState& operator=(VariableState&& other) = default;
+
+    /**
+     * @brief Destructor preserves unloading order of implementation object and reference to library
+     */
+    ~VariableState();
 
     /**
      * @brief Reset internal variable state for relevant infer request,

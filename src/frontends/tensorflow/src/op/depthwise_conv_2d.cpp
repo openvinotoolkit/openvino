@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,21 +10,21 @@ using namespace ov::opset8;
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 
 OutputVector translate_depthwise_conv_2d_native_op(const NodeContext& node) {
     auto ng_input = node.get_input(0);
     auto ng_filter = node.get_input(1);
 
-    auto tf_strides = node.get_attribute<std::vector<int32_t>>("strides");
-    auto tf_dilations = node.get_attribute<std::vector<int32_t>>("dilations");
+    auto tf_strides = node.get_attribute<std::vector<int64_t>>("strides");
+    auto tf_dilations = node.get_attribute<std::vector<int64_t>>("dilations");
     auto tf_padding_type = node.get_attribute<std::string>("padding");
     auto tf_data_format = node.get_attribute<std::string>("data_format");
 
-    TF_OP_VALIDATION_CHECK(node,
-                           tf_data_format == "NHWC" || tf_data_format == "NCHW",
-                           "DepthwiseConv2D data format is neither NHWC nor NCHW");
+    TENSORFLOW_OP_VALIDATION(node,
+                             tf_data_format == "NHWC" || tf_data_format == "NCHW",
+                             "DepthwiseConv2D data format is neither NHWC nor NCHW");
 
     bool is_nhwc = (tf_data_format == "NHWC");
 
@@ -76,6 +76,6 @@ OutputVector translate_depthwise_conv_2d_native_op(const NodeContext& node) {
     return {ng_conv};
 }
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,7 +38,7 @@ namespace InferenceEngine {
  * @snippet example_async_infer_request.cpp async_infer_request:define_pipeline
  */
 class AsyncInferRequestThreadSafeDefault : public IInferRequestInternal {
-    enum InferState { Idle, Busy, Canceled, Stop };
+    enum InferState { Idle, Busy, Cancelled, Stop };
     using Futures = std::vector<std::shared_future<void>>;
     using Promise = std::shared_ptr<std::promise<void>>;
     enum Stage_e : std::uint8_t { executor, task };
@@ -77,7 +77,7 @@ class AsyncInferRequestThreadSafeDefault : public IInferRequestInternal {
             switch (_state) {
             case InferState::Busy:
                 IE_THROW(RequestBusy);
-            case InferState::Canceled:
+            case InferState::Cancelled:
                 IE_THROW(InferCancelled);
             case InferState::Idle: {
                 _futures.erase(std::remove_if(std::begin(_futures),
@@ -120,7 +120,7 @@ protected:
         switch (_state) {
         case InferState::Busy:
             IE_THROW(RequestBusy);
-        case InferState::Canceled:
+        case InferState::Cancelled:
             IE_THROW(InferCancelled);
         default:
             break;
@@ -244,6 +244,16 @@ public:
         _syncRequest->SetBlob(name, data, info);
     }
 
+    void SetBlobs(const std::string& name, const std::vector<Blob::Ptr>& blobs) override {
+        CheckState();
+        _syncRequest->SetBlobs(name, blobs);
+    }
+
+    BatchedBlob::Ptr GetBlobs(const std::string& name) override {
+        CheckState();
+        return _syncRequest->GetBlobs(name);
+    }
+
     Blob::Ptr GetBlob(const std::string& name) override {
         CheckState();
         return _syncRequest->GetBlob(name);
@@ -270,7 +280,7 @@ public:
 
     void ThrowIfCanceled() const {
         std::lock_guard<std::mutex> lock{_mutex};
-        if (_state == InferState::Canceled) {
+        if (_state == InferState::Cancelled) {
             IE_THROW(InferCancelled);
         }
     }
@@ -278,8 +288,15 @@ public:
     void Cancel() override {
         std::lock_guard<std::mutex> lock{_mutex};
         if (_state == InferState::Busy) {
-            _state = InferState::Canceled;
+            _state = InferState::Cancelled;
         }
+    }
+
+    void setModelInputsOutputs(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                               const std::vector<std::shared_ptr<const ov::Node>>& outputs) override {
+        _parameters = inputs;
+        _results = outputs;
+        _syncRequest->setModelInputsOutputs(inputs, outputs);
     }
 
 protected:

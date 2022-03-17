@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,6 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/runtime_attribute.hpp"
 #include "transformations_visibility.hpp"
-
 
 namespace ov {
 
@@ -28,7 +27,9 @@ public:
 
     DisableFP16Compression() = default;
 
-    bool is_copyable() const override { return false; }
+    bool is_copyable() const override {
+        return false;
+    }
 };
 
 }  // namespace ov

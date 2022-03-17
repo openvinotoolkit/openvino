@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include "itt.hpp"
 #include "ngraph/runtime/reference/reorg_yolo.hpp"
+#include "reorg_yolo_shape_inference.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -27,32 +28,12 @@ void op::ReorgYolo::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, !m_strides.empty(), "Stride attribute is required.");
 
     auto input_et = get_input_element_type(0);
-    if (get_input_partial_shape(0).is_static()) {
-        auto input_shape = get_input_partial_shape(0).to_shape();
-        NODE_VALIDATION_CHECK(this, input_shape.size() == 4, "[N, C, H, W] input shape is required.");
 
-        NODE_VALIDATION_CHECK(this,
-                              (input_shape[2] % m_strides[0]) == 0,
-                              "For [N, C, H, W] input shape, H should be divisible by stride.");
+    std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0)};
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
+    shape_infer(this, input_shapes, output_shapes);
 
-        NODE_VALIDATION_CHECK(this,
-                              (input_shape[3] % m_strides[0]) == 0,
-                              "For [N, C, H, W] input shape, W should be divisible by stride.");
-
-        NODE_VALIDATION_CHECK(this,
-                              input_shape[1] >= (m_strides[0] * m_strides[0]),
-                              "For [N, C, H, W] input shape, C >= (stride*stride) is required.");
-
-        ov::Shape output_shape{input_shape[0], input_shape[1]};
-        for (size_t i = 2; i < input_shape.size(); i++) {
-            output_shape.push_back(input_shape[i] / m_strides[0]);
-            output_shape[1] *= m_strides[0];
-        }
-        set_output_type(0, input_et, output_shape);
-    } else {
-        auto input_shape = get_input_partial_shape(0);
-        set_output_type(0, input_et, ov::PartialShape::dynamic(input_shape.rank()));
-    }
+    set_output_type(0, input_et, output_shapes[0]);
 }
 
 shared_ptr<Node> op::ReorgYolo::clone_with_new_inputs(const OutputVector& new_args) const {

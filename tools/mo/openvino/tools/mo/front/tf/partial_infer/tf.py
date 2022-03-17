@@ -1,23 +1,31 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
+import os
 from re import match
 
 import numpy as np
 
+# do not print INFO and WARNING messages from TensorFlow
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 try:
     import tensorflow.compat.v1 as tf_v1
     # disable eager execution of TensorFlow 2 environment immediately
     tf_v1.disable_eager_execution()
 except ImportError:
     import tensorflow as tf_v1
+
+#in some environment suppressing through TF_CPP_MIN_LOG_LEVEL does not work
+tf_v1.get_logger().setLevel("ERROR")
+
 from google.protobuf import text_format
 
 from openvino.tools.mo.front.extractor import node_defs_to_str
 from openvino.tools.mo.front.tf.extractors.utils import tf_dtype_extractor, tf_tensor_shape, get_tf_node_port
 from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.utils.graph import node_incoming_neighbourhood, node_outcoming_neighbourhood
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 
 
 def tf_native_tf_node_infer(node: Node):
@@ -54,9 +62,9 @@ def tf_native_tf_node_infer(node: Node):
     # the shape and value has been inferred and saved to the tmp_node's out nodes attribute. Let's copy it back!
     for tmp_out_port, tmp_out_node in tmp_node.out_nodes().items():
         if tmp_out_node.value is not None:
-            node.out_node(tmp_out_port).value = np.array(tmp_out_node.value)
+            node.out_node(tmp_out_port).value = mo_array(tmp_out_node.value)
         if tmp_out_node.shape is not None:
-            node.out_node(tmp_out_port).shape = np.array(tmp_out_node.shape)
+            node.out_node(tmp_out_port).shape = mo_array(tmp_out_node.shape)
         if tmp_out_node.data_type is not None:
             node.out_node(tmp_out_port).data_type = tmp_out_node.data_type
     # lets cleanup the temporary graph
@@ -128,7 +136,7 @@ def tf_subgraph_infer(node: Node):
     all_constants, output_tensors = get_subgraph_output_tensors(node)
     for out_port, tensor_value in output_tensors.items():
         out_node = node.out_node(out_port)
-        out_node.shape = np.array([dim for dim in tensor_value.shape])
+        out_node.shape = mo_array([dim for dim in tensor_value.shape])
         out_node.data_type = tensor_value.dtype
         log.debug("Inferred shape of the output tensor with index '{}' of the node '{}': '{}'".format(str(out_port),
                                                                                                       node.name,

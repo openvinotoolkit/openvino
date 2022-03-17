@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -8,6 +8,7 @@ from openvino.tools.mo.ops.gather import Gather
 from openvino.tools.mo.ops.range import Range
 from openvino.tools.mo.ops.select import Select
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs, create_op_node_with_second_input
 from openvino.tools.mo.graph.graph import Graph, rename_nodes, Node
@@ -72,8 +73,8 @@ class ExpandRangeConstant(FrontReplacementSubgraph):
         const.out_port(0).connect(shapeof_node.in_port(0))
 
         range_node = create_op_with_const_inputs(graph, Range,
-                                                 {0: np.array(0, dtype=value.dtype),
-                                                  2: np.array(1, dtype=value.dtype)},
+                                                 {0: mo_array(0, dtype=value.dtype),
+                                                  2: mo_array(1, dtype=value.dtype)},
                                                  {'name': const_name + '/Range', 'dtype': value.dtype})
         select_node.out_port(0).connect(range_node.in_port(1))
 

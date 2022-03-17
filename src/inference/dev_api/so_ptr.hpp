@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,6 @@
 #include "openvino/runtime/common.hpp"
 
 namespace ov {
-namespace runtime {
 
 /**
  * @brief This class instantiate object using shared library
@@ -31,10 +30,18 @@ struct SoPtr {
     SoPtr() = default;
 
     /**
-     * @brief Constructs an object with existing shared object reference and loaded pointer
-     * @param soLoader Existing pointer to a library loader
+     * @brief Destructor preserves unloading order of implementation object and reference to library
      */
-    SoPtr(const std::shared_ptr<void>& so, const std::shared_ptr<T>& ptr) : _so{so}, _ptr{ptr} {}
+    ~SoPtr() {
+        _ptr = {};
+    }
+
+    /**
+     * @brief Constructs an object with existing shared object reference and loaded pointer
+     * @param ptr pointer to the loaded object
+     * @param so Existing reference to library
+     */
+    SoPtr(const std::shared_ptr<T>& ptr, const std::shared_ptr<void>& so) : _ptr{ptr}, _so{so} {}
 
     /**
      * @brief The copy-like constructor, can create So Pointer that dereferenced into child type if T is derived of U
@@ -72,14 +79,14 @@ struct SoPtr {
     }
 
     /**
-     * @brief The shared object or dinamic loaded library
-     */
-    std::shared_ptr<void> _so;
-
-    /**
      * @brief Gets a smart pointer to the custom object
      */
     std::shared_ptr<T> _ptr;
+
+    /**
+     * @brief The shared object or dinamic loaded library
+     */
+    std::shared_ptr<void> _so;
 };
-}  // namespace runtime
+
 }  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,6 @@ class Blob;
 }  // namespace InferenceEngine
 
 namespace ov {
-namespace runtime {
 
 class Core;
 class InferRequest;
@@ -36,34 +35,55 @@ class VariableState;
  */
 class OPENVINO_API Tensor {
 protected:
-    std::shared_ptr<void> _so;                     //!< Reference to dynamicly loaded library
     std::shared_ptr<InferenceEngine::Blob> _impl;  //!< Shared pointer to internal tensor representation
+    std::shared_ptr<void> _so;                     //!< Reference to dynamically loaded library
 
     /**
      * @brief Constructs Tensor from the initialized std::shared_ptr
+     * @param impl Initialized shared pointer
      * @param so Plugin to use. This is required to ensure that Tensor can work properly even if plugin object is
      * destroyed.
-     * @param impl Initialized shared pointer
      */
-    Tensor(const std::shared_ptr<void>& so, const std::shared_ptr<InferenceEngine::Blob>& impl);
+    Tensor(const std::shared_ptr<InferenceEngine::Blob>& impl, const std::shared_ptr<void>& so);
 
-    friend class ov::runtime::Core;
-    friend class ov::runtime::InferRequest;
-    friend class ov::runtime::RemoteContext;
-    friend class ov::runtime::VariableState;
+    friend class ov::Core;
+    friend class ov::InferRequest;
+    friend class ov::RemoteContext;
+    friend class ov::VariableState;
 
 public:
+    /// @brief Default constructor
+    Tensor() = default;
+
+    /// @brief Default copy constructor
+    /// @param other other Tensor object
+    Tensor(const Tensor& other) = default;
+
+    /// @brief Default copy assignment operator
+    /// @param other other Tensor object
+    /// @return reference to the current object
+    Tensor& operator=(const Tensor& other) = default;
+
+    /// @brief Default move constructor
+    /// @param other other Tensor object
+    Tensor(Tensor&& other) = default;
+
+    /// @brief Default move assignment operator
+    /// @param other other Tensor object
+    /// @return reference to the current object
+    Tensor& operator=(Tensor&& other) = default;
+
+    /**
+     * @brief Destructor preserves unloading order of implementation object and reference to library
+     */
+    ~Tensor();
+
     /**
      * @brief Checks openvino tensor type
      * @param tensor a tensor which type will be checked
      * @throw Exception if type check with specified tensor is not pass
      */
     static void type_check(const Tensor& tensor);
-
-    /**
-     * @brief Default constructor
-     */
-    Tensor() = default;
 
     /**
      * @brief Constructs Tensor using element type and shape. Allocate internal host storage using default allocator
@@ -186,19 +206,13 @@ public:
         T::type_check(*this);
         return *static_cast<const T*>(this);
     }
-
-    /**
-     * @brief Casts this Tensor object to the type T.
-     *
-     * @tparam T Type to cast to. Must represent a class derived from the Tensor
-     * @return T object
-     */
-    template <typename T, typename = typename std::enable_if<std::is_base_of<Tensor, T>::value>::type>
-    operator T() const {
-        return as<T>();
-    }
 };
 
 using TensorVector = std::vector<Tensor>;
+
+namespace runtime {
+using ov::Tensor;
+using ov::TensorVector;
 }  // namespace runtime
+
 }  // namespace ov

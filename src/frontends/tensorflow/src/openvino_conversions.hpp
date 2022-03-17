@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,12 +8,11 @@
 
 #include "graph.pb.h"
 #include "openvino/opsets/opset8.hpp"
-#include "tensorflow_frontend/utility.hpp"
 #include "types.pb.h"
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 
 using ::tensorflow::DataType;
 
@@ -85,6 +84,6 @@ void convert_nhwc_to_hw(bool is_nhwc, const std::vector<T>& src, std::vector<siz
     }
 }
 
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

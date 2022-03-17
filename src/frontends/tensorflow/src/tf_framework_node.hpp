@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,19 +6,19 @@
 
 #include <algorithm>
 
+#include "openvino/frontend/tensorflow/decoder.hpp"
 #include "openvino/op/util/framework_node.hpp"
-#include "tensorflow_frontend/decoder.hpp"
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 
-class TFFrameworkNode : public ::ov::op::util::FrameworkNode {
+class FrameworkNode : public ov::op::util::FrameworkNode {
 public:
-    OPENVINO_OP("TFFrameworkNode", "util", ::ov::op::util::FrameworkNode);
+    OPENVINO_OP("FrameworkNode", "util", ::ov::op::util::FrameworkNode);
 
-    TFFrameworkNode(const std::shared_ptr<DecoderBase>& decoder, const OutputVector& inputs, size_t num_outputs)
-        : FrameworkNode(inputs, std::max(num_outputs, size_t(1))),
+    FrameworkNode(const std::shared_ptr<DecoderBase>& decoder, const OutputVector& inputs, size_t num_outputs)
+        : ov::op::util::FrameworkNode(inputs, std::max(num_outputs, size_t(1))),
           m_decoder(decoder) {
         ov::op::util::FrameworkNodeAttrs attrs;
         attrs.set_type_name(m_decoder->get_op_type());
@@ -30,7 +30,7 @@ public:
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
-        return std::make_shared<TFFrameworkNode>(m_decoder, inputs, get_output_size());
+        return std::make_shared<FrameworkNode>(m_decoder, inputs, get_output_size());
     }
 
     std::string get_op_type() const {
@@ -44,6 +44,6 @@ public:
 private:
     std::shared_ptr<DecoderBase> m_decoder;
 };
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

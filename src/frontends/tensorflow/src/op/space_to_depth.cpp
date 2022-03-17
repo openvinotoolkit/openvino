@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@ using namespace ov::opset8;
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 
 OutputVector translate_space_to_depth_op(const NodeContext& node) {
@@ -19,7 +19,7 @@ OutputVector translate_space_to_depth_op(const NodeContext& node) {
     auto block_size = node.get_attribute<int64_t>("block_size");
     auto data_format = node.get_attribute<string>("data_format");
 
-    TF_OP_VALIDATION_CHECK(node, data_format == "NHWC" || data_format == "NCHW", "Unsupported data format.");
+    TENSORFLOW_OP_VALIDATION(node, data_format == "NHWC" || data_format == "NCHW", "Unsupported data format.");
 
     bool is_nhwc = (data_format == "NHWC");
     convert_nhwc_to_nchw(node.get_name(), is_nhwc, input);
@@ -30,6 +30,6 @@ OutputVector translate_space_to_depth_op(const NodeContext& node) {
     return {res};
 }
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

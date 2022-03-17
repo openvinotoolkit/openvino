@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,6 @@
 
 #include <memory>
 #include <string>
-
 #include <transformations_visibility.hpp>
 
 #include "ngraph/coordinate_diff.hpp"
@@ -18,7 +17,7 @@ namespace internal {
 
 class TRANSFORMATIONS_API NonMaxSuppressionIEInternal : public Op {
 public:
-    OPENVINO_OP("NonMaxSuppressionIEInternal", "util");
+    OPENVINO_OP("NonMaxSuppressionIEInternal", "ie_internal_opset");
     BWDCMP_RTTI_DECLARATION;
 
     NonMaxSuppressionIEInternal() = default;
@@ -48,7 +47,7 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
-    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector & new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     int m_center_point_box;
     bool m_sort_result_descending = true;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,29 +10,29 @@ using namespace ov::opset8;
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 
 OutputVector translate_conv_2d_op(const NodeContext& node) {
     auto ng_input = node.get_input(0), ng_filter = node.get_input(1);
 
-    auto tf_strides = node.get_attribute<std::vector<int32_t>>("strides");
-    auto tf_dilations = node.get_attribute<std::vector<int32_t>>("dilations");
+    auto tf_strides = node.get_attribute<std::vector<int64_t>>("strides");
+    auto tf_dilations = node.get_attribute<std::vector<int64_t>>("dilations");
     auto tf_padding_type = node.get_attribute<std::string>("padding");
     auto tf_data_format = node.get_attribute<std::string>("data_format");
 
-    TF_OP_VALIDATION_CHECK(node,
-                           tf_data_format == "NHWC" || tf_data_format == "NCHW",
-                           "Conv2D data format is neither NHWC nor NCHW");
+    TENSORFLOW_OP_VALIDATION(node,
+                             tf_data_format == "NHWC" || tf_data_format == "NCHW",
+                             "Conv2D data format is neither NHWC nor NCHW");
 
     bool is_nhwc = (tf_data_format == "NHWC");
 
     // TF Kernel Test Checks
     // Strides in the batch and depth dimension is not supported
     if (tf_strides[0] != 1 || tf_strides[is_nhwc ? 3 : 1] != 1) {
-        TF_OP_VALIDATION_CHECK(node,
-                               false,
-                               "Strides in batch and depth dimensions is not supported: " + node.get_op_type());
+        TENSORFLOW_OP_VALIDATION(node,
+                                 false,
+                                 "Strides in batch and depth dimensions is not supported: " + node.get_op_type());
     }
 
     Strides ng_strides(2);
@@ -68,6 +68,6 @@ OutputVector translate_conv_2d_op(const NodeContext& node) {
     return {res};
 }
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -9,6 +9,7 @@ from openvino.tools.mo.back.ReshapeMutation import ReshapeMutation
 from openvino.tools.mo.back.StridedSliceMasksNormalizer import StridedSliceMasksNormalizer
 from openvino.tools.mo.back.replacement import BackReplacementPattern
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs, create_op_node_with_second_input
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.ops.reshape import Reshape
@@ -42,9 +43,9 @@ class ProposalMutation(BackReplacementPattern):
                       'Elements with indices 4 and 5 will be ignored.'.format(node.soft_get('name', node.id)),
                       extra={'is_warning': True})
 
-            cropped_im_info = create_op_with_const_inputs(graph, StridedSlice, {1: np.array([0, 0], dtype=np.int32),
-                                                                                2: np.array([1, 3], dtype=np.int32),
-                                                                                3: np.array([1, 1], dtype=np.int32)},
+            cropped_im_info = create_op_with_const_inputs(graph, StridedSlice, {1: mo_array([0, 0], dtype=np.int32),
+                                                                                2: mo_array([1, 3], dtype=np.int32),
+                                                                                3: mo_array([1, 1], dtype=np.int32)},
                                                           {'name': 'cropped_im_info',
                                                            'begin_mask': int64_array([1, 1]),
                                                            'end_mask': int64_array([1, 1]),

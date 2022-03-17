@@ -1,13 +1,14 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <ngraph/strides.hpp>
 #include <ngraph/node_input.hpp>
+#include <ngraph/strides.hpp>
 #include <ngraph/variant.hpp>
 #include <transformations_visibility.hpp>
+
 #include "openvino/core/runtime_attribute.hpp"
 
 namespace ov {
@@ -21,4 +22,4 @@ public:
     StridesPropagation(const ngraph::Strides& value) : value{value} {}
     ngraph::Strides value;
 };
-} // namespace ov
+}  // namespace ov

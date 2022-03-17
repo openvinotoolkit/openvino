@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,8 @@
 
 #include <functional>
 #include <memory>
-#include <numeric>
-
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <numeric>
 
 namespace ngraph {
 namespace pass {

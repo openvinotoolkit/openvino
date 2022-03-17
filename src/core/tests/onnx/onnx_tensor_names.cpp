@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,9 +39,9 @@ NGRAPH_TEST(onnx_tensor_names, simple_model) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/tensor_names.onnx"));
 
     const auto ops = function->get_ordered_ops();
-    EXPECT_TRUE(matching_node_found_in_graph<op::Parameter>(ops, "input", {"input", "identity_on_input"}));
-    EXPECT_TRUE(matching_node_found_in_graph<op::Relu>(ops, "relu", {"relu_t"}));
-    EXPECT_TRUE(matching_node_found_in_graph<op::v0::Abs>(ops, "abs", {"abs_t", "final_output"}));
+    EXPECT_TRUE(matching_node_found_in_graph<op::Parameter>(ops, "identity_on_input", {"input", "identity_on_input"}));
+    EXPECT_TRUE(matching_node_found_in_graph<op::Relu>(ops, "relu_t", {"relu_t"}));
+    EXPECT_TRUE(matching_node_found_in_graph<op::v0::Abs>(ops, "final_output", {"abs_t", "final_output"}));
     EXPECT_TRUE(matching_node_found_in_graph<op::Result>(function->get_results(),
                                                          "final_output/sink_port_0",
                                                          {"abs_t", "final_output"}));

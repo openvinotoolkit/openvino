@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "remarks.hpp"
-#include "itt.hpp"
+#include <snippets/itt.hpp>
 
 #include "snippets/pass/load_movebroadcast_to_broadcastload.hpp"
 #include "snippets/snippets_isa.hpp"
@@ -20,6 +20,7 @@ ngraph::snippets::pass::LoadMoveBroadcastToBroadcastLoad::LoadMoveBroadcastToBro
 
     register_matcher(std::make_shared<ngraph::pattern::Matcher>(fbn),
         [load_pattern, param_pattern](ngraph::pattern::Matcher &m) {
+            OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::LoadMoveBroadcastToBroadcastLoad")
             auto root = m.get_match_root();
 
             const auto &pm = m.get_pattern_value_map();
@@ -44,9 +45,9 @@ ngraph::snippets::pass::LoadMoveBroadcastToBroadcastLoad::LoadMoveBroadcastToBro
                     bct[k] = 1;
                 }
             }
-
+            // Todo: consider refactoring BroadcastLoad, it seems we don't need broadcast_info at this point.
             broadcastload->set_broadcast_info(bct);
-            if (broadcastload->is_broadcast(outshape.size()-1)) {
+            if (inshape.back() == 1 && outshape.back() != 1) {
                 ngraph::copy_runtime_info(root, broadcastload);
                 ngraph::replace_node(root, broadcastload);
                 return true;

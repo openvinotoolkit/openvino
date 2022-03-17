@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -387,14 +387,6 @@ void make_gna_pwl(const DnnActivation&  fun,
                 gna_pwl[1].slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
                 gna_pwl[1].xBase = gna_pwl[1].xBase | s.slope_scale_index;
                 print_segment((int32_t)(gna_pwl[1].xBase & XBASEMASK) / in_scale, gna_pwl[1].yBase / out_scale, 1.0);
-                if (INT32_MAX > x_upper) {  // need a right segment
-                    gna_pwl.push_back({
-                        static_cast<int32_t>(x_upper & XBASEMASK),  // zero out the 2 lsb
-                        y_upper,
-                        0 });
-
-                    print_segment((x_upper & XBASEMASK) / in_scale, gna_pwl[2].yBase / out_scale, 0.0);
-                }
             } else {
                 double min_x_val = -pwl[0].b / pwl[0].m;
                 double max_x_val = (y_max/out_scale - pwl[pwl_size - 2].b) / pwl[pwl_size - 2].m;

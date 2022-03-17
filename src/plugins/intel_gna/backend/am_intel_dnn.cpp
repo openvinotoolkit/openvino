@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,15 +28,9 @@
 #include "gna_limitations.hpp"
 #include "layers/gna_convolution_layer.hpp"
 
-#if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
 #include "gna2_model_helper.hpp"
 #include "gna2_model_debug_log.hpp"
-#else
-#include <gna-api-types-xnn.h>
-#include <map>
-
-#endif
 
 /**
  * whether to dump weights and biases
@@ -213,7 +207,6 @@ void GNAPluginNS::backend::AMIntelDNN::InitConvolutional1DComponentPrivate(intel
     }
 }
 
-#if GNA_LIB_VER == 2
 void GNAPluginNS::backend::AMIntelDNN::InitConvolutional2DComponentPrivate(intel_dnn_component_t& comp,
     OvGnaTensor inputTensor,
     OvGnaTensor outputTensor,
@@ -292,7 +285,6 @@ void GNAPluginNS::backend::AMIntelDNN::updateNumberOfOutputsIfPoolingEnabled(Gna
         }
     }
 }
-#endif
 
 void GNAPluginNS::backend::AMIntelDNN::InitMaxpoolComponentPrivate(intel_dnn_component_t &comp,
     std::array<uint32_t, 3> inCHW,
@@ -1105,7 +1097,6 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                 }
                     break;
                 case kDnnConvolutional2dOp: {
-#if GNA_LIB_VER == 2
                     const auto output_scale_factor = component[i].output_scale_factor;
                     const auto weight_scale_factor = component[i].op.conv2D.weight_scale_factor;
                     const auto convolution_stride_0 = component[i].op.conv2D.convStride[0];
@@ -1125,10 +1116,6 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                     out_file << "<zero_padding_0> " << std::dec << zero_padding_0 << "\n";
                     out_file << "<zero_padding_1> " << std::dec << zero_padding_1 << "\n";
                     out_file << "\n";
-#else
-                    fprintf(stderr, "Unsupported GNA Library version (!= 2) in WriteDnnText's kDnnConvolutional2dOp case!\n");
-                    throw - 1;
-#endif
                 }
                     break;
                 case kDnnRecurrentOp: {
@@ -1406,47 +1393,27 @@ uint32_t GNAPluginNS::backend::AMIntelDNN::CountLayers() {
     return n;
 }
 
-#if GNA_LIB_VER == 2
 void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(Gna2Model *gnaModel, const std::string& gnaCompileTarget) {
     Gna2Operation * gnaOperation;
     if (gnaModel == nullptr)
         THROW_GNA_EXCEPTION << "Invalid input parameter";
     if (gnaModel->Operations != nullptr)
         THROW_GNA_EXCEPTION << "InitGNAStruct can't work on preallocated layers array";
-#else
-void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet) {
-    intel_nnet_layer_t *pLayer;
-    if (ptr_nnet == nullptr)
-        THROW_GNA_EXCEPTION << "Invalid input parameter";
-    if (ptr_nnet->pLayers != nullptr)
-        THROW_GNA_EXCEPTION << "InitGNAStruct can't work on preallocated layers array";
-#endif
 
     if (component.empty())
         THROW_GNA_EXCEPTION << "empty model in GNAPluginNS::backend::AMIntelDNN::InitGNAStruct()";
 
-#if GNA_LIB_VER == 2
     gnaModel->NumberOfOperations = CountLayers();
     gnaModel->Operations = reinterpret_cast<Gna2Operation*>(gnaUserAllocator(gnaModel->NumberOfOperations * sizeof(Gna2Operation)));
     if (gnaModel->Operations == nullptr)
         THROW_GNA_EXCEPTION << "out of memory in GNAPluginNS::backend::AMIntelDNN::InitGNAStruct()";
     memset(gnaModel->Operations, 0, gnaModel->NumberOfOperations * sizeof(Gna2Operation));
     gnaOperation = gnaModel->Operations;
-#else
-    ptr_nnet->nLayers = CountLayers();
-    ptr_nnet->nGroup = num_group_in();
-    ptr_nnet->pLayers = reinterpret_cast<intel_nnet_layer_t *>(_mm_malloc(ptr_nnet->nLayers * sizeof(intel_nnet_layer_t), 64));
-    if (ptr_nnet->pLayers == nullptr)
-        THROW_GNA_EXCEPTION << "out of memory in GNAPluginNS::backend::AMIntelDNN::FillGNAStruct()";
-    memset(ptr_nnet->pLayers, 0, ptr_nnet->nLayers * sizeof(intel_nnet_layer_t));
-    pLayer = ptr_nnet->pLayers;
-#endif
     for (int i = 0; i < component.size(); i++) {
         // std::cout << "Component + " << i <<"=GNA_" << std::distance(ptr_nnet->pLayers, pLayer) << "\n";
         auto& comp = component[i];
         switch (comp.operation) {
             case kDnnAffineOp:
-#if  GNA_LIB_VER == 2
                 HelperGna2OperationInitFullyConnectedAffine(gnaOperation, gnaUserAllocator, gnaUserFree,
                     createGna2Tensor2D(comp.num_rows_in, comp.num_columns_in, comp.num_bytes_per_input, comp.ptr_inputs),
                     createGna2Tensor2D(comp.num_rows_out, comp.num_columns_out, comp.num_bytes_per_output, comp.ptr_outputs),
@@ -1454,37 +1421,8 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                     createGna2BiasTensor1D(comp.num_rows_out, comp.op.affine.num_bytes_per_bias, comp.op.affine.ptr_biases),
                     nullptr);
                 AdvanceOperationIfAllApplied(component, i, gnaOperation);
-#else
-                pLayer->nInputRows = component[i].num_rows_in;
-                pLayer->nInputColumns = component[i].num_columns_in;
-                pLayer->nOutputRows = component[i].num_rows_out;
-                pLayer->nOutputColumns = component[i].num_columns_out;
-                pLayer->nBytesPerInput = component[i].num_bytes_per_input;
-                pLayer->nBytesPerOutput = component[i].num_bytes_per_output;  //  will be overwritten if PWL op is needed
-                pLayer->nBytesPerIntermediateOutput = sizeof(int32_t);
-                pLayer->pInputs = component[i].ptr_inputs;
-                pLayer->pOutputsIntermediate = component[i].ptr_outputs;
-                pLayer->pOutputs = component[i].ptr_outputs;  //  will be overwritten if PWL op is needed
-                pLayer->nLayerKind = INTEL_AFFINE;
-                {
-                    pLayer->pLayerStruct = _mm_malloc(sizeof(intel_affine_layer_t), 64);
-                    if (pLayer->pLayerStruct == nullptr) {
-                        THROW_GNA_EXCEPTION << "could not allocate memory for INTEL_AFFINE layer structure.";
-                    }
-                    auto pAffineLayer = reinterpret_cast<intel_affine_layer_t *>(pLayer->pLayerStruct);
-                    pAffineLayer->pwl.pSegments = nullptr;
-                    pAffineLayer->pwl.nSegments = 0;
-
-                    pAffineLayer->affine.nBytesPerBias = component[i].op.affine.num_bytes_per_bias;
-                    pAffineLayer->affine.nBytesPerWeight = component[i].op.affine.num_bytes_per_weight;
-                    pAffineLayer->affine.pBiases = component[i].op.affine.ptr_biases;
-                    pAffineLayer->affine.pWeights = component[i].op.affine.ptr_weights;
-                }
-                AdvanceOperationIfAllApplied(component, i, pLayer);
-#endif
                 break;
             case kDnnDiagonalOp:
-#if  GNA_LIB_VER == 2
                 HelperGna2OperationInitElementWiseAffine(gnaOperation, gnaUserAllocator, gnaUserFree,
                     createGna2Tensor2D(comp.num_rows_in, comp.num_columns_in, comp.num_bytes_per_input, comp.ptr_inputs),
                     createGna2Tensor2D(comp.num_rows_out, comp.num_columns_out, comp.num_bytes_per_output, comp.ptr_outputs),
@@ -1492,37 +1430,8 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                     createGna2Tensor1D(comp.num_rows_out, comp.op.affine.num_bytes_per_bias, comp.op.affine.ptr_biases),
                     nullptr);
                 AdvanceOperationIfAllApplied(component, i, gnaOperation);
-#else
-                pLayer->nInputRows = component[i].num_rows_in;
-                pLayer->nInputColumns = component[i].num_columns_in;
-                pLayer->nOutputRows = component[i].num_rows_out;
-                pLayer->nOutputColumns = component[i].num_columns_out;
-                pLayer->nBytesPerInput = component[i].num_bytes_per_input;
-                pLayer->nBytesPerOutput = component[i].num_bytes_per_output;  //  will be overwritten if PWL op is needed
-                pLayer->nBytesPerIntermediateOutput = sizeof(int32_t);
-                pLayer->pInputs = component[i].ptr_inputs;
-                pLayer->pOutputsIntermediate = component[i].ptr_outputs;
-                pLayer->pOutputs = component[i].ptr_outputs;  //  will be overwritten if PWL op is needed
-                pLayer->nLayerKind = INTEL_AFFINE_DIAGONAL;
-                {
-                    pLayer->pLayerStruct = _mm_malloc(sizeof(intel_affine_layer_t), 64);
-                    if (pLayer->pLayerStruct == nullptr) {
-                        THROW_GNA_EXCEPTION << "could not allocate memory for INTEL_AFFINE_DIAGONAL layer structure.";
-                    }
-                    auto pDiagonalLayer = reinterpret_cast<intel_affine_layer_t *>(pLayer->pLayerStruct);
-                    pDiagonalLayer->pwl.pSegments = nullptr;
-                    pDiagonalLayer->pwl.nSegments = 0;
-
-                    pDiagonalLayer->affine.nBytesPerBias = component[i].op.affine.num_bytes_per_bias;
-                    pDiagonalLayer->affine.nBytesPerWeight = component[i].op.affine.num_bytes_per_weight;
-                    pDiagonalLayer->affine.pBiases = component[i].op.affine.ptr_biases;
-                    pDiagonalLayer->affine.pWeights = component[i].op.affine.ptr_weights;
-                }
-                AdvanceOperationIfAllApplied(component, i, pLayer);
-#endif
                 break;
             case kDnnRecurrentOp:
-#if  GNA_LIB_VER == 2
                 HelperGna2OperationInitRecurrent(
                         gnaOperation,
                         gnaUserAllocator,
@@ -1549,39 +1458,8 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                         nullptr,
                         create_uint32_parameter(1));    // TODO: GNA2: Handle other delays
                 AdvanceOperationIfAllApplied(component, i, gnaOperation);
-#else
-                pLayer->nInputRows = component[i].num_rows_in;
-                pLayer->nInputColumns = component[i].num_columns_in;
-                pLayer->nOutputRows = component[i].num_rows_out;
-                pLayer->nOutputColumns = component[i].num_columns_out;
-                pLayer->nBytesPerInput = component[i].num_bytes_per_input;
-                pLayer->nBytesPerOutput = component[i].num_bytes_per_output;  //  will be overwritten if PWL op is needed
-                pLayer->nBytesPerIntermediateOutput = sizeof(int32_t);
-                pLayer->pInputs = component[i].ptr_inputs;
-                pLayer->pOutputsIntermediate = component[i].ptr_outputs;
-                pLayer->pOutputs = component[i].ptr_outputs;  //  will be overwritten if PWL op is needed
-                pLayer->nLayerKind = INTEL_RECURRENT;
-                {
-                    pLayer->pLayerStruct = _mm_malloc(sizeof(intel_recurrent_layer_t), 64);
-                    if (pLayer->pLayerStruct == nullptr) {
-                        THROW_GNA_EXCEPTION << "could not allocate memory for INTEL_RECURRENT layer structure.";
-                    }
-                    auto pRecurrentLayer = reinterpret_cast<intel_recurrent_layer_t *>(pLayer->pLayerStruct);
-
-                    pRecurrentLayer->pFeedbackBuffer = component[i].op.recurrent.ptr_feedbacks;
-                    pRecurrentLayer->pwl.pSegments = nullptr;
-                    pRecurrentLayer->pwl.nSegments = 0;
-
-                    pRecurrentLayer->affine.nBytesPerBias = component[i].op.recurrent.num_bytes_per_bias;
-                    pRecurrentLayer->affine.nBytesPerWeight = component[i].op.recurrent.num_bytes_per_weight;
-                    pRecurrentLayer->affine.pBiases = component[i].op.recurrent.ptr_biases;
-                    pRecurrentLayer->affine.pWeights = component[i].op.recurrent.ptr_weights;
-                }
-                AdvanceOperationIfAllApplied(component, i, pLayer);
-#endif
                 break;
             case kDnnConvolutional1dOp:
-#if  GNA_LIB_VER == 2
                 HelperGna2OperationInitConvolution(
                         gnaOperation,
                         gnaUserAllocator,
@@ -1613,45 +1491,8 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                         nullptr);
 
                 AdvanceCnnOperationIfAllApplied(component, i, gnaOperation);
-#else
-                pLayer->nInputRows = component[i].num_rows_in;
-                pLayer->nInputColumns = component[i].num_columns_in;
-                pLayer->nOutputRows = component[i].num_rows_out;
-                pLayer->nOutputColumns = component[i].num_columns_out;
-                pLayer->nBytesPerInput = component[i].num_bytes_per_input;
-                pLayer->nBytesPerOutput = component[i].num_bytes_per_output;  //  will be overwritten
-                pLayer->nBytesPerIntermediateOutput = sizeof(int32_t);
-                pLayer->pInputs = component[i].ptr_inputs;
-                pLayer->pOutputsIntermediate = component[i].ptr_outputs;
-                pLayer->pOutputs = component[i].ptr_outputs;  //  will be overwritten
-                pLayer->nLayerKind = INTEL_CONVOLUTIONAL;
-                {
-                    pLayer->pLayerStruct = _mm_malloc(sizeof(intel_convolutional_layer_t), 64);
-                    if (pLayer->pLayerStruct == nullptr) {
-                        THROW_GNA_EXCEPTION << "could not allocate memory for INTEL_CONVOLUTIONAL layer structure.";
-                    }
-                    auto pConvolutionalLayer = reinterpret_cast<intel_convolutional_layer_t *>(pLayer->pLayerStruct);
-                    pConvolutionalLayer->nBytesBias = component[i].op.conv1D.num_bytes_per_bias;
-                    pConvolutionalLayer->nBytesFilterCoefficient = component[i].op.conv1D.num_bytes_per_weight;
-                    pConvolutionalLayer->nFilters = component[i].op.conv1D.num_filters;
-                    pConvolutionalLayer->nFilterRows = comp.op.conv1D.num_filter_coefficients / comp.op.conv1D.convStride;
-                    pConvolutionalLayer->nFilterCoefficients = component[i].op.conv1D.num_filter_coefficients;
-                    pConvolutionalLayer->nFeatureMaps = 1;
-                    pConvolutionalLayer->nFeatureMapColumns = component[i].op.conv1D.convStride;
-                    pConvolutionalLayer->nFeatureMapRows = pLayer->nInputColumns / pConvolutionalLayer->nFeatureMapColumns;
-                    pConvolutionalLayer->poolType = INTEL_NO_POOLING;  //  will be overwritten
-                    pConvolutionalLayer->nPoolSize = 0;  //  will be overwritten
-                    pConvolutionalLayer->nPoolStride = 0;  //  will be overwritten
-                    pConvolutionalLayer->pwl.nSegments = 0;  //  will be overwritten
-                    pConvolutionalLayer->pwl.pSegments = nullptr;  //  will be overwritten
-                    pConvolutionalLayer->pBiases = component[i].op.conv1D.ptr_biases;
-                    pConvolutionalLayer->pFilters = component[i].op.conv1D.ptr_filters;
-                }
-                AdvanceCnnOperationIfAllApplied(component, i, pLayer);
-#endif
                 break;
             case kDnnConvolutional2dOp:
-#if  GNA_LIB_VER == 2
                 HelperGna2OperationInitConvolution(
                     gnaOperation,
                     gnaUserAllocator,
@@ -1672,15 +1513,14 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                         comp.op.conv2D.zeroPadding[0], comp.op.conv2D.zeroPadding[1]));
 
                 AdvanceCnnOperationIfAllApplied(component, i, gnaOperation);
-#else
-                THROW_GNA_EXCEPTION << "Type kDnnConvolutional2dOp is only supported for GNA library 2.X";
-#endif
                 break;
             case kDnnMaxPoolOp:
                 if (i == 0) {
                     THROW_GNA_EXCEPTION << "Pooling component with no preceeding component";
-#if  GNA_LIB_VER == 2
                 } else if (gnaOperation->Type == Gna2OperationTypeConvolution) {
+                    if (gnaOperation->Operands == nullptr || gnaOperation->NumberOfOperands <= PwlOpIdx) {
+                        THROW_GNA_EXCEPTION << "Number and details of operands are wrong";
+                    }
                     auto pwlOperand = gnaOperation->Operands[PwlOpIdx];
                     if (pwlOperand != nullptr && pwlOperand->Shape.Dimensions[0] != 0 &&
                         gnaOperation->Operands[InOpIdx]->Shape.NumberOfDimensions == 2) { // kDnnConvolutional1dOp
@@ -1737,34 +1577,11 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                         }
                         AdvanceOperationIfAllApplied(component, i, gnaOperation);
                     }
-#else
-                } else if (pLayer->nLayerKind == INTEL_CONVOLUTIONAL) {
-                    if (pLayer->pLayerStruct == nullptr) {
-                        THROW_GNA_EXCEPTION << "INTEL_CONVOLUTIONAL layer structure was not initialized.";
-                    }
-                    auto pConvolutionalLayer = reinterpret_cast<intel_convolutional_layer_t *>(pLayer->pLayerStruct);
-                    // it is possible to have activation preceding to maxpool
-                    if (pConvolutionalLayer->pwl.nSegments != 0) {
-                        THROW_GNA_EXCEPTION << "Encountered activation component before pooling component at." << i;
-                    } else {
-                        pConvolutionalLayer->poolType = INTEL_MAX_POOLING;
-                        pConvolutionalLayer->nPoolSize = component[i].op.maxpool.poolingWindowXY[0];
-                        pConvolutionalLayer->nPoolStride = component[i].op.maxpool.poolingStrideXY[0];
-
-                        // number of output columns correction - based on GNA-library expectations
-                        auto nFltSize = pConvolutionalLayer->nFilterCoefficients;
-                        auto fltStrideSz = pConvolutionalLayer->nFeatureMaps * pConvolutionalLayer->nFeatureMapColumns;  // always move 1 "row"
-                        auto outFromConv = outputFromConv(pLayer->nInputColumns, nFltSize, fltStrideSz);
-                        // FLAT input matrix, pooled outputs per filter
-                        pLayer->nOutputColumns = pConvolutionalLayer->nFilters * outputFromPoolingLegacy(outFromConv, pConvolutionalLayer->nPoolStride);
-                    }
-#endif
                 } else {
                     THROW_GNA_EXCEPTION << "Pooling component applied to non-convolutional layer";
                 }
                 break;
             case kDnnPiecewiselinearOp:
-#if  GNA_LIB_VER == 2
                 {
                     IE_ASSERT(gnaOperation->Operands != nullptr);
                     IE_ASSERT(OutOpIdx < gnaOperation->NumberOfOperands);
@@ -1811,108 +1628,25 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                     }
                 }
                 AdvancePwlOperationIfAllApplied(component, i, gnaOperation);
-#else
-                pLayer->pOutputs = component[i].ptr_outputs;
-                pLayer->nBytesPerOutput = component[i].num_bytes_per_output;
-                if (pLayer->pLayerStruct == nullptr) {
-                    THROW_GNA_EXCEPTION << "["<< i <<"]"<< pLayer->nLayerKind << " layer structure was not initialized.";
-                }
-                if (i == 0) {
-                    THROW_GNA_EXCEPTION << "PWL component with no preceding component.";
-                } else if ((component[i - 1].operation == kDnnAffineOp)
-                           || (component[i - 1].operation == kDnnDiagonalOp)) {
-                    auto pAffineLayer = reinterpret_cast<intel_affine_layer_t *>(pLayer->pLayerStruct);
-                    pAffineLayer->pwl.nSegments = component[i].op.pwl.num_segments;
-                    pAffineLayer->pwl.pSegments = component[i].op.pwl.ptr_segments;
-                } else if (component[i - 1].operation == kDnnRecurrentOp) {
-                    auto pRecurrentLayer = reinterpret_cast<intel_recurrent_layer_t *>(pLayer->pLayerStruct);
-                    pRecurrentLayer->pwl.nSegments = component[i].op.pwl.num_segments;
-                    pRecurrentLayer->pwl.pSegments = component[i].op.pwl.ptr_segments;
-                } else if ((component[i - 1].operation == kDnnConvolutional1dOp)
-                           || ((component[i - 1].operation == kDnnMaxPoolOp)
-                               && (component[i - 2].operation == kDnnConvolutional1dOp))) {
-                    auto pConvolutionalLayer = reinterpret_cast<intel_convolutional_layer_t *>(pLayer->pLayerStruct);
-                    pConvolutionalLayer->pwl.nSegments = component[i].op.pwl.num_segments;
-                    pConvolutionalLayer->pwl.pSegments = component[i].op.pwl.ptr_segments;
-                }
-                pLayer++;
-#endif
                 break;
             case kDnnInterleaveOp:
-#if  GNA_LIB_VER == 2
                 HelperGna2OperationInitInterleave(gnaOperation, gnaUserAllocator, gnaUserFree,
                     createGna2Tensor2D(comp.num_rows_in, comp.num_columns_in, comp.num_bytes_per_input, comp.ptr_inputs),
                     createGna2Tensor2D(comp.num_rows_out, comp.num_columns_out, comp.num_bytes_per_output, comp.ptr_outputs));
                 gnaOperation++;
-#else
-                pLayer->nInputRows = component[i].num_rows_in;
-                pLayer->nInputColumns = component[i].num_columns_in;
-                pLayer->nOutputRows = component[i].num_rows_out;
-                pLayer->nOutputColumns = component[i].num_columns_out;
-                pLayer->nBytesPerInput = component[i].num_bytes_per_input;
-                pLayer->nBytesPerOutput = component[i].num_bytes_per_output;
-                pLayer->nBytesPerIntermediateOutput = sizeof(int32_t);
-                pLayer->pInputs = component[i].ptr_inputs;
-                pLayer->pOutputsIntermediate = nullptr;
-                pLayer->pOutputs = component[i].ptr_outputs;
-                pLayer->nLayerKind = INTEL_INTERLEAVE;
-                pLayer->pLayerStruct = nullptr;
-                pLayer++;
-#endif
                 break;
             case kDnnDeinterleaveOp:
-#if  GNA_LIB_VER == 2
                 HelperGna2OperationInitDeInterleave(gnaOperation, gnaUserAllocator, gnaUserFree,
                     createGna2Tensor2D(comp.num_rows_in, comp.num_columns_in, comp.num_bytes_per_input, comp.ptr_inputs),
                     createGna2Tensor2D(comp.num_rows_out, comp.num_columns_out, comp.num_bytes_per_output, comp.ptr_outputs));
                 gnaOperation++;
-#else
-                pLayer->nInputRows = component[i].num_rows_in;
-                pLayer->nInputColumns = component[i].num_columns_in;
-                pLayer->nOutputRows = component[i].num_rows_out;
-                pLayer->nOutputColumns = component[i].num_columns_out;
-                pLayer->nBytesPerInput = component[i].num_bytes_per_input;
-                pLayer->nBytesPerOutput = component[i].num_bytes_per_output;
-                pLayer->nBytesPerIntermediateOutput = sizeof(int32_t);
-                pLayer->pInputs = component[i].ptr_inputs;
-                pLayer->pOutputsIntermediate = nullptr;
-                pLayer->pOutputs = component[i].ptr_outputs;
-                pLayer->nLayerKind = INTEL_DEINTERLEAVE;
-                pLayer->pLayerStruct = nullptr;
-                pLayer++;
-#endif
                 break;
             case kDnnCopyOp:
-#if  GNA_LIB_VER == 2
                 HelperGna2OperationInitCopy(gnaOperation, gnaUserAllocator, gnaUserFree,
                     createGna2Tensor2D(comp.num_columns_in, comp.num_rows_in, comp.num_bytes_per_input, comp.ptr_inputs),
                     createGna2Tensor2D(comp.num_columns_out, comp.num_rows_out, comp.num_bytes_per_output, comp.ptr_outputs),
                     create_shape2D_parameter(comp.op.copy.num_copy_columns, comp.op.copy.num_copy_rows));
                 gnaOperation++;
-#else
-                pLayer->nInputRows = component[i].num_columns_in;
-                pLayer->nInputColumns = component[i].num_rows_in;
-                pLayer->nOutputRows = component[i].num_columns_out;
-                pLayer->nOutputColumns = component[i].num_rows_out;
-                pLayer->nBytesPerInput = component[i].num_bytes_per_input;
-                pLayer->nBytesPerOutput = component[i].num_bytes_per_output;
-                pLayer->nBytesPerIntermediateOutput = sizeof(int32_t);
-                pLayer->pInputs = component[i].ptr_inputs;
-                pLayer->pOutputsIntermediate = nullptr;
-                pLayer->pOutputs = component[i].ptr_outputs;
-                pLayer->nLayerKind = INTEL_COPY;
-                pLayer->pLayerStruct = nullptr;
-                {
-                    pLayer->pLayerStruct = _mm_malloc(sizeof(intel_copy_layer_t), 64);
-                    if (pLayer->pLayerStruct == nullptr) {
-                        THROW_GNA_EXCEPTION << pLayer->nLayerKind << " could not allocate memory for INTEL_COPY layer structure.";
-                    }
-                    auto *pCopyLayer = reinterpret_cast<intel_copy_layer_t *>(pLayer->pLayerStruct);
-                    pCopyLayer->nCopyRows = component[i].op.copy.num_copy_columns;
-                    pCopyLayer->nCopyCols = component[i].op.copy.num_copy_rows;
-                }
-                pLayer++;
-#endif
                 break;
             default: {
                 THROW_GNA_EXCEPTION << "GNA does yet not support " << intel_dnn_operation_name[component[i].operation];
@@ -1920,13 +1654,9 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
         }
     }
     // enable debugging of partial array of components
-#if  GNA_LIB_VER == 2
     gnaModel->NumberOfOperations = std::distance(gnaModel->Operations, gnaOperation);
-#else
-    ptr_nnet->nLayers = std::distance(ptr_nnet->pLayers, pLayer);
-#endif
 }
-#if  GNA_LIB_VER == 2
+
 void GNAPluginNS::backend::AMIntelDNN::DestroyGNAStruct(Gna2Model *gnaModel) {
     if (gnaModel->Operations != nullptr) {
         for (int i = 0; i < gnaModel->NumberOfOperations; i++) {
@@ -1946,143 +1676,7 @@ void GNAPluginNS::backend::AMIntelDNN::DestroyGNAStruct(Gna2Model *gnaModel) {
     }
     gnaModel->NumberOfOperations = 0;
 }
-#else
-void GNAPluginNS::backend::AMIntelDNN::DestroyGNAStruct(intel_nnet_type_t *ptr_nnet) {
-    ptr_nnet->nGroup = 0;
-    if (ptr_nnet->pLayers != nullptr) {
-        for (int i = 0; i < ptr_nnet->nLayers; i++) {
-            switch (ptr_nnet->pLayers[i].nLayerKind) {
-                case INTEL_AFFINE:break;
-                case INTEL_AFFINE_DIAGONAL:break;
-                case INTEL_RECURRENT:break;
-                case INTEL_CONVOLUTIONAL:break;
-                case INTEL_INTERLEAVE:break;
-                case INTEL_DEINTERLEAVE:break;
-                case INTEL_COPY:break;
-                default:break;
-            }
-            if (ptr_nnet->pLayers[i].pLayerStruct != nullptr) {
-                _mm_free(ptr_nnet->pLayers[i].pLayerStruct);
-            }
-        }
-        if (ptr_nnet->pLayers != nullptr) {
-            _mm_free(ptr_nnet->pLayers);
-        }
-    }
-    ptr_nnet->nLayers = 0;
-}
-#endif
 
-
-#if GNA_LIB_VER == 1
-void GNAPluginNS::backend::AMIntelDNN::WriteInputAndOutputTextGNA(intel_nnet_type_t * nnet) {
-#ifdef LIGHT_DUMP
-    if (nnet) {
-        for (int i = 0; i < nnet->nLayers; i++) {
-            auto component = nnet->pLayers;
-            std::stringstream out_file_name;
-            auto getLayerType = [](decltype(INTEL_AFFINE) kind){
-                switch (kind){
-                    case INTEL_AFFINE : return "affine";
-                    case INTEL_AFFINE_DIAGONAL : return "diag";
-                    case INTEL_RECURRENT : return "recurrent";
-                    case INTEL_CONVOLUTIONAL : return "convolution";
-                    case INTEL_INTERLEAVE : return "interleave";
-                    case INTEL_DEINTERLEAVE : return "deinterleave";
-                    case INTEL_COPY : return "copy";
-                    default: return "unknown";
-                }
-            };
-            out_file_name << std::setfill('0') << std::setw(2) << i << "_"
-                          << getLayerType(component[i].nLayerKind)
-                          << "-" << nnet->pLayers[i].nInputRows
-                          << "-" << nnet->pLayers[i].nOutputRows;
-
-            auto dumpFilePrefixGNA = getDumpFilePrefixGNA();
-            auto inputfileName = dumpFilePrefixGNA + out_file_name.str() + "_input.txt";
-            auto outFileName = dumpFilePrefixGNA + out_file_name.str() + "_output.txt";
-            auto pwlFileName = dumpFilePrefixGNA + out_file_name.str() + "_pwl.txt";
-            auto refOutputFileName = getRefFolderName() + out_file_name.str() + "_output.txt";
-
-
-
-            std::ofstream out_file(outFileName.c_str(), std::ios::out);
-            std::ofstream pwl_file(pwlFileName.c_str(), std::ios::out);
-            std::ifstream ref_out_file(refOutputFileName.c_str(), std::ios::in);
-            std::ofstream in_file(inputfileName.c_str(), std::ios::out);
-            if (!out_file || !in_file) {
-                return;
-            }
-
-            float  summOfDiff = 0.f;
-            float  summOfSqDiff = 0.f;
-            float  maxD = 0.0f;
-            int    numItems = 0;
-
-            auto write_pwl = [&pwl_file](intel_pwl_func_t & pwl) {
-                for (int k =0; k < pwl.nSegments; k++) {
-                    pwl_file << pwl.pSegments[k].slope << ", " << pwl.pSegments[k].xBase << ", " << pwl.pSegments[k].yBase << "\n";
-                }
-            };
-            if (nnet->pLayers[i].nLayerKind == INTEL_AFFINE || nnet->pLayers[i].nLayerKind == INTEL_AFFINE_DIAGONAL) {
-                auto affine = reinterpret_cast<intel_affine_layer_t*>(nnet->pLayers[i].pLayerStruct);
-                write_pwl(affine->pwl);
-            }
-            if (nnet->pLayers[i].nLayerKind == INTEL_CONVOLUTIONAL) {
-                auto conv = reinterpret_cast<intel_convolutional_layer_t*>(nnet->pLayers[i].pLayerStruct);
-                write_pwl(conv->pwl);
-            }
-
-            for (int k = 0; k < component[i].nOutputRows; k++) {
-                for (int j = 0; j < component[i].nOutputColumns; j++) {
-                    float floatValue = 0.f;
-                    if (component[i].nBytesPerOutput == 4) {
-                        auto value = (reinterpret_cast<int32_t *>(component[i].pOutputs)[k * component[i].nOutputColumns + j]);
-                        floatValue = (static_cast<float>(value) / 1.0);
-                    } else {
-                        auto value = reinterpret_cast<int16_t *>(component[i].pOutputs)[k * component[i].nOutputColumns + j];
-                        floatValue = (static_cast<float>(value) / 1.0);
-                    }
-                    out_file << std::setw(8) << floatValue << "\n";
-                    if (ref_out_file) {
-                        float ref_value = 0.f;
-                        ref_out_file >> ref_value;
-                        float diff = (ref_value - floatValue);
-                        diff = diff  < 0 ? -diff : diff;
-                        summOfDiff += diff;
-                        summOfSqDiff += diff * diff;
-                        maxD = std::max(maxD, diff);
-                        numItems++;
-                    }
-                }
-            }
-            if (numItems) {
-                auto rmse = sqrt(summOfSqDiff / numItems);
-                auto avg = summOfDiff / numItems;
-                std :: cout << std::left << std::setw(55) << out_file_name.str()
-                            << " RMSE="<< std::fixed << std::setprecision(5) << std::right << std::setw(8) << rmse
-                            << " avg=" << std::fixed << std::setprecision(5) << std::right << std::setw(8) << avg
-                            << " maxD="<< std::fixed << std::setprecision(5) << std::right << std::setw(8) << maxD << std::endl;
-            }
-
-
-            for (int k = 0; k < component[i].nInputRows; k++) {
-                for (int j = 0; j < component[i].nInputColumns; j++) {
-                    if (component[i].nBytesPerInput == 4) {
-                        in_file << std::setw(8)
-                                << (reinterpret_cast<int32_t *>(component[i].pInputs)[k * component[i].nInputColumns + j]);
-                    } else {
-                        in_file << std::setw(8)
-                                << (reinterpret_cast<int16_t *>(component[i].pInputs)[k * component[i].nInputColumns + j]);
-                    }
-                    in_file << "\n";
-                }
-            }
-        }
-    }
-#endif
-}
-#else
 void GNAPluginNS::backend::AMIntelDNN::WriteInputAndOutputTextGNA(const Gna2Model & model) {
 #ifdef LIGHT_DUMP
     WriteInputAndOutputTextGNAImpl(
@@ -2091,7 +1685,6 @@ void GNAPluginNS::backend::AMIntelDNN::WriteInputAndOutputTextGNA(const Gna2Mode
         getRefFolderName());
 #endif
 }
-#endif
 
 void GNAPluginNS::backend::AMIntelDNN::WriteInputAndOutputText() {
 #ifdef LIGHT_DUMP

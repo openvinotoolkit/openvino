@@ -1,12 +1,9 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#if GNA_LIB_VER == 1
-#include "gna_lib_ver_selector.hpp"
-#else
 #include <cstdint>
 
 /** PWL Segment - as read directly by the accelerator */
@@ -160,5 +157,3 @@ typedef enum  _acceleration {
 } gna_acceleration;
 
 static_assert(4 == sizeof(gna_acceleration), "Invalid size of gna_acceleration");
-
-#endif

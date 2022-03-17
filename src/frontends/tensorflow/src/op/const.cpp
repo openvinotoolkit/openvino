@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@ using namespace ov::opset8;
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 
 namespace {
@@ -49,12 +49,12 @@ OutputVector translate_const_op(const NodeContext& node) {
         const auto& func_param = TF_OPENVINO_CONST_MAP().at(dt);
         func_param.first(node, func_param.second, res);
     } catch (const std::out_of_range&) {
-        TF_OP_VALIDATION_CHECK(node, false, "Failed to translate Constant with target OV type:" + dt.get_type_name());
+        TENSORFLOW_OP_VALIDATION(node, false, "Failed to translate Constant with target OV type:" + dt.get_type_name());
     }
     set_node_name(node.get_name(), res.get_node_shared_ptr());
     return {res};
 }
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

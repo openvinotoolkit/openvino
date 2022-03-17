@@ -1,11 +1,12 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ir_frontend/utility.hpp>
 #include <pugixml.hpp>
 #include <rt_info_deserializer.hpp>
 #include <transformations/rt_info/attributes.hpp>
+
+#include "openvino/frontend/exception.hpp"
 
 using namespace ov;
 
@@ -19,6 +20,6 @@ void RTInfoDeserializer::on_adapter(const std::string& name, ValueAccessor<void>
         str_to_container(val, ss);
         a->set(ss);
     } else {
-        IR_THROW("Not implemented");
+        IE_THROW() << "Not implemented";
     }
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,6 @@
 #include "runtime/blob_allocator.hpp"
 
 namespace ov {
-namespace runtime {
 
 #define OV_TENSOR_STATEMENT(...)                                      \
     OPENVINO_ASSERT(_impl != nullptr, "Tensor was not initialized."); \
@@ -25,7 +24,11 @@ namespace runtime {
 
 void Tensor::type_check(const Tensor&) {}
 
-Tensor::Tensor(const std::shared_ptr<void>& so, const std::shared_ptr<ie::Blob>& impl) : _so{so}, _impl{impl} {
+Tensor::~Tensor() {
+    _impl = {};
+}
+
+Tensor::Tensor(const std::shared_ptr<ie::Blob>& impl, const std::shared_ptr<void>& so) : _impl{impl}, _so{so} {
     OPENVINO_ASSERT(_impl != nullptr, "Tensor was not initialized.");
 }
 
@@ -160,5 +163,4 @@ Tensor::operator bool() const noexcept {
     return (!!_impl);
 }
 
-}  // namespace runtime
 }  // namespace ov

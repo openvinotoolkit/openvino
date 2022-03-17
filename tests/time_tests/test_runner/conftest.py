@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 """
@@ -60,20 +60,9 @@ def pytest_addoption(parser):
         default=3
     )
     test_args_parser.addoption(
-        "--cpu_cache",
+        "--model_cache",
         action='store_true',
-        help="Enable model CPU cache usage",
-    )
-    test_args_parser.addoption(
-        "--perf_hint",
-        action='store_true',
-        help="Enables 'LATENCY' performance hint for specified device."
-    )
-    test_args_parser.addoption(
-        "--vpu_compiler",
-        choices=["MCM", "MLIR"],
-        type=str,
-        help="Change VPUX compiler type",
+        help="Enable model cache usage",
     )
     db_args_parser = parser.getgroup("timetest database use")
     db_args_parser.addoption(
@@ -131,21 +120,10 @@ def niter(request):
 
 
 @pytest.fixture(scope="session")
-def cpu_cache(request):
+def model_cache(request):
     """Fixture function for command-line option."""
-    return request.config.getoption('cpu_cache')
+    return request.config.getoption('model_cache')
 
-
-@pytest.fixture(scope="session")
-def perf_hint(request):
-    """Fixture function for command-line option."""
-    return request.config.getoption('perf_hint')
-
-
-@pytest.fixture(scope="session")
-def vpu_compiler(request):
-    """Fixture function for command-line option."""
-    return request.config.getoption('vpu_compiler')
 
 # -------------------- CLI options --------------------
 
@@ -272,9 +250,8 @@ def prepare_db_info(request, test_info, executable, niter, manifest_metadata):
         with open(db_meta_path, "r") as db_meta_f:
             test_info["db_info"].update(json.load(db_meta_f))
 
-    # add cpu cache status
-    cpu_cache = True if request.config.getoption("cpu_cache") else False
-    test_info["db_info"].update({"use_cpu_cache": cpu_cache})
+    # add model cache status
+    test_info["db_info"].update({"model_cache": request.config.getoption("model_cache")})
 
     # add test info
     info = {

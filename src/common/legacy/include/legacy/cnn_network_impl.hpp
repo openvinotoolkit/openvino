@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -71,7 +71,7 @@ public:
         return _layers;
     }
 
-    size_t layerCount() const noexcept override {
+    size_t layerCount() const override {
         return _layers.size();
     }
 
@@ -104,7 +104,7 @@ public:
     // for internal usage (e.g. setBatch via reshape in tests)
     StatusCode setBatchSizeReshape(size_t size, ResponseDesc* responseDesc) noexcept;
 
-    size_t getBatchSize() const noexcept override;
+    size_t getBatchSize() const override;
 
     StatusCode addOutput(const std::string& layerName, size_t outputIndex, ResponseDesc* resp) noexcept override;
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ using namespace ov::opset8;
 // See https://www.tensorflow.org/api_docs/cc/class/tensorflow/ops/mirror-pad
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 
 OutputVector translate_pad_op(const NodeContext& node) {
@@ -28,7 +28,7 @@ OutputVector translate_pad_op(const NodeContext& node) {
     } else if (op_type == "PadV2") {
         pad_val_op = node.get_input(2);
     } else {
-        TF_OP_VALIDATION_CHECK(node, false, "Incorrect TF Pad OpType: " + node.get_op_type());
+        TENSORFLOW_OP_VALIDATION(node, false, "Incorrect TF Pad OpType: " + node.get_op_type());
     }
 
     // Set pad_mode
@@ -40,7 +40,7 @@ OutputVector translate_pad_op(const NodeContext& node) {
         } else if (pad_mode_str == "SYMMETRIC") {
             pad_mode = ov::op::PadMode::SYMMETRIC;
         } else {
-            TF_OP_VALIDATION_CHECK(node, false, pad_mode_str + " is not an allowed padding mode.");
+            TENSORFLOW_OP_VALIDATION(node, false, pad_mode_str + " is not an allowed padding mode.");
         }
     }
 
@@ -48,10 +48,10 @@ OutputVector translate_pad_op(const NodeContext& node) {
     std::vector<int64_t> paddings;
     get_const_input(node, 1, &paddings);
     if (paddings.size() % 2 != 0) {
-        TF_OP_VALIDATION_CHECK(node,
-                               false,
-                               "Constant node for paddings does not have an even number of "
-                               "elements");
+        TENSORFLOW_OP_VALIDATION(node,
+                                 false,
+                                 "Constant node for paddings does not have an even number of "
+                                 "elements");
     }
     std::vector<int64_t> pad_begin(paddings.size() / 2);
     std::vector<int64_t> pad_end(paddings.size() / 2);
@@ -68,6 +68,6 @@ OutputVector translate_pad_op(const NodeContext& node) {
     return res->outputs();
 }
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

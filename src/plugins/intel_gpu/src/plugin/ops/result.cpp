@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,7 +41,9 @@ static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Res
     auto outputlayout = outputDesc.getLayout();
 
     if (ngraph::is_type<ngraph::op::v8::NV12toRGB>(prev) ||
-        ngraph::is_type<ngraph::op::v8::NV12toBGR>(prev)) {
+        ngraph::is_type<ngraph::op::v8::NV12toBGR>(prev) ||
+        ngraph::is_type<ngraph::op::v8::I420toRGB>(prev) ||
+        ngraph::is_type<ngraph::op::v8::I420toBGR>(prev)) {
         outputlayout = NHWC;
     }
 

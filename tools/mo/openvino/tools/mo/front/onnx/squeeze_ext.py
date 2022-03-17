@@ -1,8 +1,7 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.extractor import FrontExtractorOp
 from openvino.tools.mo.front.onnx.extractors.utils import onnx_attr
 from openvino.tools.mo.ops.squeeze import Squeeze
@@ -14,7 +13,7 @@ class SqueezeFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        axis = np.array(onnx_attr(node, 'axes', 'ints', default=[]), dtype=np.int64)
+        axis = int64_array(onnx_attr(node, 'axes', 'ints', default=[]))
 
         attrs = {
             'squeeze_dims': axis if len(axis) != 0 else None

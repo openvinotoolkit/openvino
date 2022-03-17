@@ -1,8 +1,8 @@
-# Synchronous Inference Request {#infer_request}
+# Synchronous Inference Request {#openvino_docs_ie_plugin_dg_infer_request}
 
 `InferRequest` class functionality:
 - Allocate input and output blobs needed for a backend-dependent network inference.
-- Define functions for inference process stages (for example, `preprocess`, `upload`, `infer`, `download`, `postprocess`). These functions can later be used to define an execution pipeline during [Asynchronous Inference Request](@ref async_infer_request) implementation.
+- Define functions for inference process stages (for example, `preprocess`, `upload`, `infer`, `download`, `postprocess`). These functions can later be used to define an execution pipeline during [Asynchronous Inference Request](@ref openvino_docs_ie_plugin_dg_async_infer_request) implementation.
 - Call inference stages one by one synchronously.
 
 `InferRequest` Class
@@ -54,7 +54,7 @@ Decrements a number of created inference requests:
 
 #### 1. `inferPreprocess`
 
-Below is the code of the the `inferPreprocess` method to demonstrate Inference Engine common preprocessing step handling:
+Below is the code of the `inferPreprocess` method to demonstrate Inference Engine common preprocessing step handling:
 
 @snippet src/template_infer_request.cpp infer_request:infer_preprocess
 
@@ -80,4 +80,4 @@ The method sets performance counters which were measured during pipeline stages 
 
 @snippet src/template_infer_request.cpp infer_request:get_performance_counts
 
-The next step in the plugin library implementation is the [Asynchronous Inference Request](@ref async_infer_request) class.
+The next step in the plugin library implementation is the [Asynchronous Inference Request](@ref openvino_docs_ie_plugin_dg_async_infer_request) class.

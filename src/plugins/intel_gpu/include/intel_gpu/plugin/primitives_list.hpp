@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -178,6 +178,7 @@ REGISTER_FACTORY(v4, LSTMCell);
 REGISTER_FACTORY(v4, Mish);
 // REGISTER_FACTORY(v4, NonMaxSuppression); Supported via v4 -> v5 internal conversion
 REGISTER_FACTORY(v4, Proposal);
+REGISTER_FACTORY(v4, Range);
 REGISTER_FACTORY(v4, ReduceL1);
 REGISTER_FACTORY(v4, ReduceL2);
 REGISTER_FACTORY(v4, SoftPlus);
@@ -206,16 +207,23 @@ REGISTER_FACTORY(v6, CTCGreedyDecoderSeqLen);
 REGISTER_FACTORY(v6, MVN);
 REGISTER_FACTORY(v6, GatherElements);
 REGISTER_FACTORY(v6, ExperimentalDetectronROIFeatureExtractor);
+REGISTER_FACTORY(v6, ExperimentalDetectronTopKROIs)
 
 // ------------------------------ Supported v7 ops ------------------------------ //
 REGISTER_FACTORY(v7, Gather);
+REGISTER_FACTORY(v7, Gelu);
 
 // ------------------------------ Supported v8 ops ------------------------------ //
+REGISTER_FACTORY(v8, Slice);
 REGISTER_FACTORY(v8, Gather);
 REGISTER_FACTORY(v8, GatherND);
 REGISTER_FACTORY(v8, DeformableConvolution);
 REGISTER_FACTORY(v8, NV12toRGB);
 REGISTER_FACTORY(v8, NV12toBGR);
+REGISTER_FACTORY(v8, I420toRGB);
+REGISTER_FACTORY(v8, I420toBGR);
+REGISTER_FACTORY(v8, RandomUniform)
+REGISTER_FACTORY(v8, MaxPool);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);

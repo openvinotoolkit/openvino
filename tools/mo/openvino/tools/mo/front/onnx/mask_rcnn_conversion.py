@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -8,7 +8,7 @@ from openvino.tools.mo.ops.Cast import Cast
 from openvino.tools.mo.ops.detection_output_onnx import ExperimentalDetectronDetectionOutput
 from openvino.tools.mo.ops.parameter import Parameter
 from openvino.tools.mo.ops.roifeatureextractor_onnx import ExperimentalDetectronROIFeatureExtractor
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, mo_array
 from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input
 from openvino.tools.mo.front.tf.replacement import FrontReplacementFromConfigFileGeneral
 from openvino.tools.mo.graph.graph import Graph
@@ -53,7 +53,7 @@ def insert_do(graph: Graph, replacement_descriptions: dict):
 
     do_node = ExperimentalDetectronDetectionOutput(graph, {'name': 'DetectionOutput',
                                                            'class_agnostic_box_regression': 0,
-                                                           'deltas_weights': np.array([10.0, 10.0, 5.0, 5.0]),
+                                                           'deltas_weights': mo_array([10.0, 10.0, 5.0, 5.0]),
                                                            'max_delta_log_wh':
                                                                replacement_descriptions['max_delta_log_wh'],
                                                            'nms_threshold': replacement_descriptions['nms_threshold'],

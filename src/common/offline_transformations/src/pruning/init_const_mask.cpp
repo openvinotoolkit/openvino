@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,8 +30,12 @@ ngraph::pass::InitConstMask::InitConstMask(const ngraph::AxisSet & dims,
 
         for (const auto & dim : dims) {
             if (dim >= shape.size()) {
-                throw ngraph_error("Dim value " + std::to_string(dim) + " is out of range [0;" +std::to_string(shape.size() - 1) + "]");
+                NGRAPH_DEBUG << "[WARNING] Attemt to initialize masks on " << dim
+                             << " dimension which is out of shape " << shape
+                             << " for node (" << const_node->get_friendly_name() << ")";
+                continue;
             }
+
             for (size_t value = 0; value < shape[dim]; ++value) {
                 Coordinate begin(shape.size(), 0);
                 Coordinate end(shape);
@@ -56,6 +60,9 @@ ngraph::pass::InitConstMask::InitConstMask(const ngraph::AxisSet & dims,
         }
 
         setMask(const_node, mask);
+#ifdef ENABLE_OPENVINO_DEBUG
+        setInitMask(const_node, mask);
+#endif
         if (!mask->all_dims_are_empty()) {
             NGRAPH_DEBUG << "MASK (" << const_node->get_friendly_name() << ") " << *mask << std::endl;
         }

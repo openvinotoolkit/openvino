@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,6 @@
 #include <pugixml.hpp>
 
 #include "ie_ngraph_utils.hpp"
-#include "ir_frontend/model.hpp"
 #include "ngraph/op/util/framework_node.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "rt_info_deserializer.hpp"
@@ -178,7 +177,7 @@ ngraph::op::v5::Loop::SpecialBodyPorts XmlDeserializer::parsePurposeAttribute(co
     const auto up_io_map = updated_io_map(node, body_node);
 
     NGRAPH_CHECK(!up_io_map.inputs.empty() || !up_io_map.outputs.empty(),
-                 "No parameters or results found in body Function.");
+                 "No parameters or results found in body Model.");
 
     // Parse PortMap: external_port_id for inputs/outputs does not always appear in consecutive
     // order
@@ -384,6 +383,7 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
 void XmlDeserializer::on_adapter(const std::string& name,
                                  ngraph::ValueAccessor<std::shared_ptr<ngraph::Function>>& adapter) {
     std::shared_ptr<ngraph::Function> ngraph_function;
+    io_map = {};
 
     if (!name.compare("body") || !name.compare("then_body") || !name.compare("else_body")) {
         auto body_node = m_node.child(name.c_str());
@@ -424,6 +424,9 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
     std::vector<size_t /*layer-id*/> outputs;
     std::unordered_set<std::string> opName;
 
+    std::vector<size_t> order;
+    std::set<size_t> dfs_used_nodes;
+    std::map<size_t /*to-layer-id*/, std::vector<edge>> edges;
     // Read all layers and store their parameters in params map
     FOREACH_CHILD (node, root.child("layers"), "layer") {
         auto node_param = parseGenericParams(node);
@@ -434,10 +437,14 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
         if (node_param.type == "Result" || node_param.type == "Assign") {
             outputs.push_back(node_param.layerId);
         }
+        if (node_param.type == "Parameter") {
+            // Save Parameters order according to order in XML.
+            // To do so, handle nodes manually and ignore during DFS
+            dfs_used_nodes.insert(node_param.layerId);
+            order.push_back(node_param.layerId);
+            edges[node_param.layerId] = {};
+        }
     }
-
-    std::map<size_t /*to-layer-id*/, std::vector<edge>> edges;
-    std::map<size_t, std::shared_ptr<ngraph::Node>> id_to_node;
 
     // Read all edges and store them for further usage
     FOREACH_CHILD (_ec, root.child("edges"), "edge") {
@@ -449,12 +456,10 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
     }
 
     // Run DFS starting from outputs to get nodes topological order
-    std::set<size_t> used;
-    std::vector<size_t> order;
-    std::function<void(size_t)> dfs = [&edges, &order, &used, &dfs](const size_t id) {
-        if (used.count(id))
+    std::function<void(size_t)> dfs = [&edges, &order, &dfs_used_nodes, &dfs](const size_t id) {
+        if (dfs_used_nodes.count(id))
             return;
-        used.insert(id);
+        dfs_used_nodes.insert(id);
         for (auto& edge : edges[id]) {
             dfs(edge.fromLayerId);
         }
@@ -465,7 +470,7 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
     // OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "ConstructNgraphNodes");
 
     FunctionNodes func_nodes;
-
+    std::map<size_t, std::shared_ptr<ngraph::Node>> id_to_node;
     std::map<std::string, std::shared_ptr<ngraph::Node>> variable_id_to_read_value;
 
     //  Following topological order create nGraph operations
@@ -491,12 +496,12 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
         auto node = createNode(inputs, p.xml, weights, p.params);
         id_to_node[layer_id] = node;
 
-        // Check that output shape after nGraph node validation the same as in IR
+        // Check that output shape after OpenVINO node validation the same as in IR
         // because IR always right!
         // Temporary disabled!
         //        for (size_t i = 0; i < p.params.outputPorts.size(); ++i) {
         //            if (p.params.outputPorts[i].dims != node->output(i).get_shape()) {
-        //                IE_THROW() << "Shape after nGraph infer " <<
+        //                IE_THROW() << "Shape after Model infer " <<
         //                details::dumpVec(node->output(i).get_shape())
         //                                   << " differ from IR shapes: " <<
         //                                   details::dumpVec(p.params.outputPorts[i].dims);
@@ -603,6 +608,20 @@ GenericLayerParams XmlDeserializer::parseGenericParams(const pugi::xml_node& nod
     return params;
 }
 
+// Symmetric function to translate type name.
+// See translate_type_name in src/core/src/pass/serialize.cpp.
+static const std::string& translate_type_name(const std::string& name) {
+    static const std::unordered_map<std::string, std::string> translate_type_name_translator = {{"Const", "Constant"},
+                                                                                                {"PReLU", "PRelu"},
+                                                                                                {"ReLU", "Relu"},
+                                                                                                {"SoftMax", "Softmax"}};
+    auto found = translate_type_name_translator.find(name);
+    if (found != end(translate_type_name_translator)) {
+        return found->second;
+    }
+    return name;
+}
+
 std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
     const std::vector<ngraph::Output<ngraph::Node>>& inputs,
     const pugi::xml_node& node,
@@ -618,8 +637,10 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
                        << " has undefined element type for input with index " << i << "!";
     }
 
+    const std::string& type_name = translate_type_name(params.type);
+
     std::shared_ptr<ngraph::Node> ngraphNode;
-    ov::DiscreteTypeInfo type(params.type.c_str(), 0, params.version.c_str());
+    ov::DiscreteTypeInfo type(type_name.c_str(), 0, params.version.c_str());
     auto extensionIt = m_extensions.find(type);
 
     if (extensionIt != m_extensions.end()) {
@@ -641,17 +662,15 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
         "RNNCell",
         "Proposal"};
 
-    if (experimental_ops_added_to_opset.count(params.type) &&
+    if (experimental_ops_added_to_opset.count(type_name) &&
         (params.version == "experimental" || params.version == "extension")) {
         opsetIt = m_opsets.find("opset6");
     }
 
     if (!ngraphNode && opsetIt != m_opsets.end()) {
-        auto const& type = params.type == "Const" ? "Constant" : params.type;
-
         if (params.version == "opset1") {
             // MVN, ROIPooling and ReorgYolo were missing in opset1
-            if (type == "MVN" || type == "ROIPooling" || type == "ReorgYolo") {
+            if (type_name == "MVN" || type_name == "ROIPooling" || type_name == "ReorgYolo") {
                 opsetIt = m_opsets.find("opset2");
                 if (opsetIt == m_opsets.end()) {
                     IE_THROW() << "Cannot create " << params.type << " layer " << params.name
@@ -662,9 +681,9 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
 
         auto const& opset = opsetIt->second;
 
-        ngraphNode = std::shared_ptr<ngraph::Node>(opset.create_insensitive(type));
+        ngraphNode = std::shared_ptr<ngraph::Node>(opset.create_insensitive(type_name));
         if (!ngraphNode) {
-            IE_THROW() << "Opset " << params.version << " doesn't contain the operation with type: " << type;
+            IE_THROW() << "Opset " << params.version << " doesn't contain the operation with type: " << type_name;
         }
         // Share Weights form constant blob
         if (auto constant = std::dynamic_pointer_cast<ngraph::op::Constant>(ngraphNode)) {
@@ -750,7 +769,8 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
                     IE_THROW() << "Attribute: " << item.name() << " is not recognized as runtime attribute";
                 }
             } else {
-                IE_THROW() << "Attribute: " << item.name() << " is not recognized";
+                // As runtime attributes are optional, so we skip attribute if it is unknown to avoid exception
+                // when loading new IR with new attribute in old IE version.
             }
         }
     };

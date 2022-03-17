@@ -1,8 +1,7 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.ops.elementwise import Add, Sub, Mul, Div, Pow, Less, Equal, Greater, LogicalAnd, LogicalOr, LogicalXor, \
     Round, GreaterEqual, LessEqual
 from openvino.tools.mo.front.extractor import FrontExtractorOp
@@ -103,7 +102,7 @@ class ScaleFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node: Node):
-        scale = onnx_attr(node, 'scale', 'f', default=np.array(1.0), dst_type=lambda x: np.array(x))
+        scale = onnx_attr(node, 'scale', 'f', default=mo_array(1.0), dst_type=lambda x: mo_array(x))
         AttributedPower.update_node_stat(node, {'scale': scale})
         return cls.enabled
 

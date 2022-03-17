@@ -1,10 +1,11 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.middle.passes.fusing.helpers import get_next_operation
 from openvino.tools.mo.ops.pooling import Pooling
@@ -27,10 +28,10 @@ def _insert_pooling(graph: Graph, first_node: Node, second_node: Node, spatial_d
     eattrs = graph.get_edge_data(first_node.id, second_node.id)[0]
     graph.remove_edge(first_node.id, second_node.id)
 
-    pooling = Pooling(graph, dict(name='Pooling_', spatial_dims=spatial_dims, window=np.array([1, 1, 1, 1]),
+    pooling = Pooling(graph, dict(name='Pooling_', spatial_dims=spatial_dims, window=mo_array([1, 1, 1, 1]),
                                   output_spatial_shape=None,
-                                  stride=np.array(stride_prop), pad_spatial_shape=np.array([[0, 0], [0, 0]]),
-                                  pad=np.array([[0, 0], [0, 0], [0, 0], [0, 0]]), pool_method='max',
+                                  stride=mo_array(stride_prop), pad_spatial_shape=mo_array([[0, 0], [0, 0]]),
+                                  pad=mo_array([[0, 0], [0, 0], [0, 0], [0, 0]]), pool_method='max',
                                   is_partial_inferred=False))
     pooling_data = pooling.create_node_with_data([first_node])
 
@@ -46,7 +47,7 @@ def _check_next_ops(next_ops: list):
     stride_props = []
     for op in next_ops:
         if op.has_valid('stride_prop'):
-            stride_props.append(np.array(op.stride_prop))
+            stride_props.append(mo_array(op.stride_prop))
         else:
             continue
 
@@ -67,19 +68,19 @@ def _simple_stride_prop(graph: Graph, node: Node, spatial_dims, supported=True):
     if not supported or not all_ops_are_valid:
         # We have to insert pooling layers
         for op in next_ops:
-            if op.has_valid('stride_prop') and not np.array_equal(op.stride_prop[spatial_dims], np.array([1, 1])) and \
+            if op.has_valid('stride_prop') and not np.array_equal(op.stride_prop[spatial_dims], mo_array([1, 1])) and \
                     (op.has_valid('has_stride') == False or op.soft_get('has_stride') == False):
                 _insert_pooling(graph, node.out_node(), op, spatial_dims)
         # If Convolution is valid then set `stride_prop` to Convolution stride
-        node['stride_prop'] = np.array([1, 1, 1, 1])
+        node['stride_prop'] = mo_array([1, 1, 1, 1])
         return
 
     for op in next_ops:
         if op.soft_get('has_stride') == True:
-            op.stride = np.array([1, 1, 1, 1])
+            op.stride = mo_array([1, 1, 1, 1])
             log.debug("STRIDE PROP: {} {} strides was moved upper via {}".format(op.type, op.name, node.name))
 
-    node['stride_prop'] = np.array(stride_props[0]) if len(stride_props) > 0 else np.array([1, 1, 1, 1])
+    node['stride_prop'] = mo_array(stride_props[0]) if len(stride_props) > 0 else mo_array([1, 1, 1, 1])
     node['is_partial_inferred'] = False
     _clean_fw_tensor_attrs(node.out_node())
 
@@ -93,13 +94,13 @@ def _conv_stride_prop(graph: Graph, node: Node, spatial_dims, supported=True):
     stride_props, all_ops_are_valid = _check_next_ops(next_ops)
 
     def _check_convolution(node: Node):
-        return node.has_valid('kernel_spatial') and np.array_equal(node.kernel_spatial, np.array([1, 1]))
+        return node.has_valid('kernel_spatial') and np.array_equal(node.kernel_spatial, mo_array([1, 1]))
 
     # Check that all ops are valid and have same values
     if not all_ops_are_valid:
         # We have to insert pooling layers
         for op in next_ops:
-            if op.has_valid('stride_prop') and not np.array_equal(op.stride_prop[spatial_dims], np.array([1, 1])):
+            if op.has_valid('stride_prop') and not np.array_equal(op.stride_prop[spatial_dims], mo_array([1, 1])):
                 # Insert pooling
                 _insert_pooling(graph, node.out_node(), op, spatial_dims)
     elif len(stride_props) > 0:
@@ -107,13 +108,13 @@ def _conv_stride_prop(graph: Graph, node: Node, spatial_dims, supported=True):
         log.debug('STRIDE PROP: {} got new strides {}'.format(node.name, node.stride))
         for op in next_ops:
             if op.soft_get('has_stride') == True:
-                op.stride = np.array([1, 1, 1, 1])
+                op.stride = mo_array([1, 1, 1, 1])
         node['is_partial_inferred'] = False
         node['output_spatial_shape'] = False
         _clean_fw_tensor_attrs(node.out_node())
 
     # If Convolution is valid then set `stride_prop` to Convolution stride
-    node['stride_prop'] = np.array(node.stride) if _check_convolution(node) else np.array([1, 1, 1, 1])
+    node['stride_prop'] = mo_array(node.stride) if _check_convolution(node) else mo_array([1, 1, 1, 1])
 
 
 supported_ops = {
@@ -149,9 +150,9 @@ def stride_optimization(graph: Graph):
     """
     layout = graph.graph['layout']
     if layout == 'NCHW':
-        spatial_dims = np.array([2, 3])
+        spatial_dims = mo_array([2, 3])
     elif layout == 'NHWC':
-        spatial_dims = np.array([1, 2])
+        spatial_dims = mo_array([1, 2])
     else:
         log.warning('STRIDE PROP: layout {} is not supported'.format(layout))
         return

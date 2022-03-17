@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,7 +49,7 @@ bool SubtractTransformation::transform(TransformationContext& context, ngraph::p
 
     const ngraph::element::Type originalPrecision = subtract->get_output_element_type(0);
 
-    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(subtract);
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(subtract, defaultPrecisions);
     if (dequantization.multiply != nullptr) {
         // before: Y = X * SC - SH, after:  Y = (X - SH') * SC
         //    X * SC - SH = X * SC - SH' * SC

@@ -1,31 +1,32 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "common/frontend.hpp"
-#include "tensorflow_frontend/decoder.hpp"
+#include "openvino/frontend/frontend.hpp"
+#include "openvino/frontend/tensorflow/decoder.hpp"
 
 namespace ov {
 namespace frontend {
+namespace tensorflow {
 
-class TensorPlaceTF;
-class OpPlaceTF;
+class TensorPlace;
+class OpPlace;
 
-class PlaceTF : public ov::frontend::Place {
+class Place : public ov::frontend::Place {
 public:
-    PlaceTF(const ov::frontend::InputModel& input_model, const std::vector<std::string>& names)
+    Place(const ov::frontend::InputModel& input_model, const std::vector<std::string>& names)
         : m_input_model(input_model),
           m_names(names) {}
 
-    explicit PlaceTF(const ov::frontend::InputModel& input_model) : PlaceTF(input_model, std::vector<std::string>{}) {}
+    explicit Place(const ov::frontend::InputModel& input_model) : Place(input_model, std::vector<std::string>{}) {}
 
-    ~PlaceTF() override = default;
+    ~Place() override = default;
 
     bool is_input() const override;
     bool is_output() const override;
-    bool is_equal(Ptr another) const override {
+    bool is_equal(const Ptr& another) const override {
         return this == another.get();
     }
 
@@ -38,18 +39,18 @@ private:
     std::vector<std::string> m_names;
 };
 
-class InPortPlaceTF : public PlaceTF {
+class InPortPlace : public Place {
 public:
-    explicit InPortPlaceTF(const ov::frontend::InputModel& input_model) : PlaceTF(input_model) {}
+    explicit InPortPlace(const ov::frontend::InputModel& input_model) : Place(input_model) {}
 
-    void set_op(const std::weak_ptr<OpPlaceTF>& op) {
+    void set_op(const std::weak_ptr<OpPlace>& op) {
         m_op = op;
     }
-    void set_source_tensor(const std::weak_ptr<TensorPlaceTF>& source_tensor);
+    void set_source_tensor(const std::weak_ptr<TensorPlace>& source_tensor);
 
     // Internal usage
-    std::shared_ptr<TensorPlaceTF> get_source_tensor_tf() const;
-    std::shared_ptr<OpPlaceTF> get_op();
+    std::shared_ptr<TensorPlace> get_source_tensor_tf() const;
+    std::shared_ptr<OpPlace> get_op();
 
     // External usage
     std::vector<Ptr> get_consuming_operations() const override;
@@ -57,47 +58,47 @@ public:
     ov::frontend::Place::Ptr get_source_tensor() const override;
     Ptr get_producing_port() const override;
 
-    bool is_equal_data(Ptr another) const override;
+    bool is_equal_data(const Ptr& another) const override;
 
 private:
-    std::weak_ptr<TensorPlaceTF> m_source_tensor;
-    std::weak_ptr<OpPlaceTF> m_op;
+    std::weak_ptr<TensorPlace> m_source_tensor;
+    std::weak_ptr<OpPlace> m_op;
 };
 
-class OutPortPlaceTF : public PlaceTF {
+class OutPortPlace : public Place {
 public:
-    explicit OutPortPlaceTF(const ov::frontend::InputModel& input_model) : PlaceTF(input_model) {}
+    explicit OutPortPlace(const ov::frontend::InputModel& input_model) : Place(input_model) {}
 
-    void set_op(const std::weak_ptr<OpPlaceTF>& op) {
+    void set_op(const std::weak_ptr<OpPlace>& op) {
         m_op = op;
     }
-    void set_target_tensor(const std::weak_ptr<TensorPlaceTF>& target_tensor);
+    void set_target_tensor(const std::weak_ptr<TensorPlace>& target_tensor);
 
-    std::shared_ptr<TensorPlaceTF> get_target_tensor_tf() const;
+    std::shared_ptr<TensorPlace> get_target_tensor_tf() const;
 
     // External usage
     std::vector<Ptr> get_consuming_operations() const override;
     ov::frontend::Place::Ptr get_producing_operation() const override;
     std::vector<ov::frontend::Place::Ptr> get_consuming_ports() const override;
     Ptr get_target_tensor() const override;
-    bool is_equal_data(Ptr another) const override;
+    bool is_equal_data(const Ptr& another) const override;
 
 private:
-    std::weak_ptr<OpPlaceTF> m_op;
-    std::weak_ptr<TensorPlaceTF> m_target_tensor;
+    std::weak_ptr<OpPlace> m_op;
+    std::weak_ptr<TensorPlace> m_target_tensor;
 };
 
-class OpPlaceTF : public PlaceTF {
+class OpPlace : public Place {
 public:
-    OpPlaceTF(const ov::frontend::InputModel& input_model, std::shared_ptr<DecoderBase> op_decoder);
+    OpPlace(const ov::frontend::InputModel& input_model, std::shared_ptr<DecoderBase> op_decoder);
 
-    void add_in_port(const std::shared_ptr<InPortPlaceTF>& input, const std::string& name);
-    void add_out_port(const std::shared_ptr<OutPortPlaceTF>& output, int idx);
+    void add_in_port(const std::shared_ptr<InPortPlace>& input, const std::string& name);
+    void add_out_port(const std::shared_ptr<OutPortPlace>& output, int idx);
 
     // Internal usage
-    const std::vector<std::shared_ptr<OutPortPlaceTF>>& get_output_ports() const;
-    const std::map<std::string, std::vector<std::shared_ptr<InPortPlaceTF>>>& get_input_ports() const;
-    std::shared_ptr<InPortPlaceTF> get_input_port_tf(const std::string& inputName, int inputPortIndex) const;
+    const std::vector<std::shared_ptr<OutPortPlace>>& get_output_ports() const;
+    const std::map<std::string, std::vector<std::shared_ptr<InPortPlace>>>& get_input_ports() const;
+    std::shared_ptr<InPortPlace> get_input_port_tf(const std::string& inputName, int inputPortIndex) const;
     std::shared_ptr<DecoderBase> get_decoder() const;
 
     // External API methods
@@ -129,19 +130,19 @@ public:
 
 private:
     std::shared_ptr<DecoderBase> m_op_decoder;
-    std::map<std::string, std::vector<std::shared_ptr<InPortPlaceTF>>> m_input_ports;
-    std::vector<std::shared_ptr<OutPortPlaceTF>> m_output_ports;
+    std::map<std::string, std::vector<std::shared_ptr<InPortPlace>>> m_input_ports;
+    std::vector<std::shared_ptr<OutPortPlace>> m_output_ports;
 };
 
-class TensorPlaceTF : public PlaceTF {
+class TensorPlace : public Place {
 public:
-    TensorPlaceTF(const ov::frontend::InputModel& input_model,
-                  const ov::PartialShape& pshape,
-                  ov::element::Type type,
-                  const std::vector<std::string>& names);
+    TensorPlace(const ov::frontend::InputModel& input_model,
+                const ov::PartialShape& pshape,
+                ov::element::Type type,
+                const std::vector<std::string>& names);
 
-    void add_producing_port(const std::shared_ptr<OutPortPlaceTF>& out_port);
-    void add_consuming_port(const std::shared_ptr<InPortPlaceTF>& in_port);
+    void add_producing_port(const std::shared_ptr<OutPortPlace>& out_port);
+    void add_consuming_port(const std::shared_ptr<InPortPlace>& in_port);
 
     // Internal usage
     const PartialShape& get_partial_shape() const {
@@ -162,14 +163,16 @@ public:
     std::vector<ov::frontend::Place::Ptr> get_consuming_operations() const override;
     std::vector<ov::frontend::Place::Ptr> get_consuming_ports() const override;
     Ptr get_producing_port() const override;
-    bool is_equal_data(Ptr another) const override;
+    bool is_equal_data(const Ptr& another) const override;
 
 private:
     PartialShape m_pshape;
     element::Type m_type;
 
-    std::vector<std::weak_ptr<OutPortPlaceTF>> m_producing_ports;
-    std::vector<std::weak_ptr<InPortPlaceTF>> m_consuming_ports;
+    std::vector<std::weak_ptr<OutPortPlace>> m_producing_ports;
+    std::vector<std::weak_ptr<InPortPlace>> m_consuming_ports;
 };
+
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

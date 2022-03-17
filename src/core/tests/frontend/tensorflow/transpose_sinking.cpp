@@ -1,11 +1,11 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transpose_sinking.hpp"
 
 #include <frontend/shared/include/utils.hpp>
-#include <manager.hpp>
+#include <openvino/frontend/manager.hpp>
 #include <openvino/opsets/opset7.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include <openvino/pass/manager.hpp>
@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ov;
 using namespace opset8;
-using namespace frontend::tf::pass;
+using namespace frontend::tensorflow::pass;
 
 template <class T>
 int64_t count_ops_of_type(const shared_ptr<Model>& f) {
@@ -27,7 +27,7 @@ int64_t count_ops_of_type(const shared_ptr<Model>& f) {
 }
 
 TEST(TransposeSinkingTest, PassProperty) {
-    auto pass = std::make_shared<TransposeSinkingOVTF>();
+    auto pass = std::make_shared<TransposeSinking>();
     ASSERT_TRUE(pass->get_property(ov::pass::PassProperty::REQUIRE_STATIC_SHAPE));
     ASSERT_FALSE(pass->get_property(ov::pass::PassProperty::CHANGE_DYNAMIC_STATE));
 }
@@ -51,7 +51,7 @@ TEST(TransposeSinkingTest, EdgeSplitting) {
     size_t before_count = count_ops_of_type<Transpose>(func);
 
     ov::pass::Manager pass_manager;
-    pass_manager.register_pass<TransposeSinkingOVTF>();
+    pass_manager.register_pass<TransposeSinking>();
     pass_manager.run_passes(func);
 
     ASSERT_EQ(before_count, 1);
@@ -107,7 +107,7 @@ TEST(TransposeSinkingTest, PoolAdd1) {
 
     ov::pass::Manager pass_manager;
     size_t before_count = count_ops_of_type<Transpose>(func);
-    pass_manager.register_pass<TransposeSinkingOVTF>();
+    pass_manager.register_pass<TransposeSinking>();
     pass_manager.run_passes(func);
 
     size_t after_count = count_ops_of_type<Transpose>(func);
@@ -159,7 +159,7 @@ TEST(TransposeSinkingTest, PoolAdd2) {
 
     ov::pass::Manager pass_manager;
     size_t before_count = count_ops_of_type<Transpose>(func);  // 3
-    pass_manager.register_pass<TransposeSinkingOVTF>();
+    pass_manager.register_pass<TransposeSinking>();
     pass_manager.run_passes(func);
 
     size_t after_count = count_ops_of_type<Transpose>(func);  // 4
@@ -171,7 +171,7 @@ TEST(TransposeSinkingTest, PoolAdd2) {
     ASSERT_EQ(new_transpose->get_output_shape(0), (ngraph::Shape{1, 3, 3, 1}));
 }
 
-// Different rank constant input to Add1. After TransposeSinkingOVTF the const
+// Different rank constant input to Add1. After TransposeSinking the const
 // would need a Reshape to have the same order as the other input to
 // Add1.
 TEST(TransposeSinkingTest, PoolAdd3) {
@@ -203,7 +203,7 @@ TEST(TransposeSinkingTest, PoolAdd3) {
 
     ov::pass::Manager pass_manager;
     size_t before_count = count_ops_of_type<Transpose>(func);
-    pass_manager.register_pass<TransposeSinkingOVTF>();
+    pass_manager.register_pass<TransposeSinking>();
     pass_manager.run_passes(func);
 
     size_t after_count = count_ops_of_type<Transpose>(func);
@@ -228,7 +228,7 @@ TEST(TransposeSinkingTest, Concat) {
     auto func = make_shared<ngraph::Function>(ngraph::OutputVector{c}, ngraph::ParameterVector{a, b});
 
     ov::pass::Manager pass_manager;
-    pass_manager.register_pass<TransposeSinkingOVTF>();
+    pass_manager.register_pass<TransposeSinking>();
     pass_manager.run_passes(func);
 
     size_t transpose_count = count_ops_of_type<Transpose>(func);
@@ -260,7 +260,7 @@ TEST(TransposeSinkingTest, Concat_DummyShape) {
     auto func = make_shared<ngraph::Function>(ngraph::OutputVector{out}, ngraph::ParameterVector{a1, a2, a3, a4});
 
     ov::pass::Manager pass_manager;
-    pass_manager.register_pass<TransposeSinkingOVTF>();
+    pass_manager.register_pass<TransposeSinking>();
     pass_manager.run_passes(func);
 
     size_t transpose_count = count_ops_of_type<Transpose>(func);  // 1
@@ -306,7 +306,7 @@ TEST(TransposeSinkingTest, Pad) {
 
     ov::pass::Manager pass_manager;
     size_t before_count = count_ops_of_type<Transpose>(func);  // 2
-    pass_manager.register_pass<TransposeSinkingOVTF>();
+    pass_manager.register_pass<TransposeSinking>();
     pass_manager.run_passes(func);
 
     size_t after_count = count_ops_of_type<Transpose>(func);  // 2
@@ -337,7 +337,7 @@ TEST(TransposeSinkingTest, SimpleUnary) {
     size_t before_count = count_ops_of_type<Transpose>(func);  // 2
 
     ov::pass::Manager pass_manager;
-    pass_manager.register_pass<TransposeSinkingOVTF>();
+    pass_manager.register_pass<TransposeSinking>();
     pass_manager.run_passes(func);
 
     size_t after_count = count_ops_of_type<Transpose>(func);  // 0
@@ -396,7 +396,7 @@ TEST(TransposeSinkingTest, MultiOutput) {
 
     ov::pass::Manager pass_manager;
     size_t before_count = count_ops_of_type<Transpose>(func);  // 3
-    pass_manager.register_pass<TransposeSinkingOVTF>();
+    pass_manager.register_pass<TransposeSinking>();
     pass_manager.run_passes(func);
 
     size_t after_count = count_ops_of_type<Transpose>(func);  // 4
@@ -503,7 +503,7 @@ TEST(TransposeSinkingTest, AlexnetPattern) {
 
     ov::pass::Manager pass_manager;
     size_t before_count = count_ops_of_type<Transpose>(func);
-    pass_manager.register_pass<TransposeSinkingOVTF>();
+    pass_manager.register_pass<TransposeSinking>();
     pass_manager.run_passes(func);
 
     size_t after_count = count_ops_of_type<Transpose>(func);

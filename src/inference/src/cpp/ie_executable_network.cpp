@@ -1,13 +1,15 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "cpp/ie_executable_network.hpp"
 
+#include "any_copy.hpp"
 #include "cpp/exception2status.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "ie_common.h"
 #include "ie_executable_network_base.hpp"
+#include "ie_plugin_config.hpp"
 #include "ie_remote_context.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/compiled_model.hpp"
@@ -33,9 +35,13 @@ namespace InferenceEngine {
         OPENVINO_ASSERT(false, "Unexpected exception");                          \
     }
 
-ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<void>& so, const IExecutableNetworkInternal::Ptr& impl)
-    : _so(so),
-      _impl(impl) {
+ExecutableNetwork::~ExecutableNetwork() {
+    _impl = {};
+}
+
+ExecutableNetwork::ExecutableNetwork(const IExecutableNetworkInternal::Ptr& impl, const std::shared_ptr<void>& so)
+    : _impl(impl),
+      _so(so) {
     IE_ASSERT(_impl != nullptr);
 }
 
@@ -66,7 +72,7 @@ ExecutableNetwork::operator IExecutableNetwork::Ptr() {
 }
 
 InferRequest ExecutableNetwork::CreateInferRequest() {
-    EXEC_NET_CALL_STATEMENT(return {_so, _impl->CreateInferRequest()});
+    EXEC_NET_CALL_STATEMENT(return {_impl->CreateInferRequest(), _so});
 }
 
 InferRequest::Ptr ExecutableNetwork::CreateInferRequestPtr() {
@@ -90,11 +96,11 @@ void ExecutableNetwork::SetConfig(const std::map<std::string, Parameter>& config
 }
 
 Parameter ExecutableNetwork::GetConfig(const std::string& name) const {
-    EXEC_NET_CALL_STATEMENT(return {_so, _impl->GetConfig(name)});
+    EXEC_NET_CALL_STATEMENT(return {_impl->GetConfig(name), _so});
 }
 
 Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
-    EXEC_NET_CALL_STATEMENT(return {_so, _impl->GetMetric(name)});
+    EXEC_NET_CALL_STATEMENT(return {_impl->GetMetric(name), _so});
 }
 
 RemoteContext::Ptr ExecutableNetwork::GetContext() const {
@@ -111,11 +117,15 @@ ExecutableNetwork::operator bool() const noexcept {
 }  // namespace InferenceEngine
 
 namespace ov {
-namespace runtime {
-CompiledModel::CompiledModel(const std::shared_ptr<void>& so,
-                             const std::shared_ptr<ie::IExecutableNetworkInternal>& impl)
-    : _so{so},
-      _impl{impl} {
+
+CompiledModel::~CompiledModel() {
+    _impl = {};
+}
+
+CompiledModel::CompiledModel(const std::shared_ptr<ie::IExecutableNetworkInternal>& impl,
+                             const std::shared_ptr<void>& so)
+    : _impl{impl},
+      _so{so} {
     OPENVINO_ASSERT(_impl != nullptr, "CompiledModel was not initialized.");
 }
 
@@ -154,7 +164,7 @@ ov::Output<const ov::Node> CompiledModel::input(const std::string& tensor_name) 
                 return param;
             }
         }
-        throw ov::Exception("Input for tensor name " + tensor_name + " was not found.");
+        throw ov::Exception("Input for tensor name '" + tensor_name + "' is not found.");
     });
 }
 
@@ -186,32 +196,62 @@ ov::Output<const ov::Node> CompiledModel::output(const std::string& tensor_name)
                 return result;
             }
         }
-        throw ov::Exception("Output for tensor name " + tensor_name + " was not found.");
+        throw ov::Exception("Output for tensor name '" + tensor_name + "' is not found.");
     });
 }
 
 InferRequest CompiledModel::create_infer_request() {
-    OV_EXEC_NET_CALL_STATEMENT(return {_so, _impl->CreateInferRequest()});
+    OV_EXEC_NET_CALL_STATEMENT(return {_impl->CreateInferRequest(), _so});
 }
 
 void CompiledModel::export_model(std::ostream& networkModel) {
     OV_EXEC_NET_CALL_STATEMENT(_impl->Export(networkModel));
 }
 
-void CompiledModel::set_config(const ie::ParamMap& config) {
+void CompiledModel::set_property(const AnyMap& config) {
     OV_EXEC_NET_CALL_STATEMENT(_impl->SetConfig(config));
 }
 
-ie::Parameter CompiledModel::get_config(const std::string& name) const {
-    OV_EXEC_NET_CALL_STATEMENT(return {_so, _impl->GetConfig(name)});
-}
-
-ie::Parameter CompiledModel::get_metric(const std::string& name) const {
-    OV_EXEC_NET_CALL_STATEMENT(return {_so, _impl->GetMetric(name)});
+Any CompiledModel::get_property(const std::string& name) const {
+    OV_EXEC_NET_CALL_STATEMENT({
+        if (ov::supported_properties == name) {
+            try {
+                auto supported_properties = _impl->GetMetric(name).as<std::vector<PropertyName>>();
+                supported_properties.erase(std::remove_if(supported_properties.begin(),
+                                                          supported_properties.end(),
+                                                          [](const ov::PropertyName& name) {
+                                                              return name == METRIC_KEY(SUPPORTED_METRICS) ||
+                                                                     name == METRIC_KEY(SUPPORTED_CONFIG_KEYS);
+                                                          }),
+                                           supported_properties.end());
+                return supported_properties;
+            } catch (ie::Exception&) {
+                auto ro_properties = _impl->GetMetric(METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
+                auto rw_properties = _impl->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
+                std::vector<ov::PropertyName> supported_properties;
+                for (auto&& ro_property : ro_properties) {
+                    if (ro_property != METRIC_KEY(SUPPORTED_METRICS) &&
+                        ro_property != METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
+                        supported_properties.emplace_back(ro_property, PropertyMutability::RO);
+                    }
+                }
+                for (auto&& rw_property : rw_properties) {
+                    supported_properties.emplace_back(rw_property, PropertyMutability::RW);
+                }
+                supported_properties.emplace_back(ov::supported_properties.name(), PropertyMutability::RO);
+                return supported_properties;
+            }
+        }
+        try {
+            return {_impl->GetMetric(name), _so};
+        } catch (ie::Exception&) {
+            return {_impl->GetConfig(name), _so};
+        }
+    });
 }
 
 RemoteContext CompiledModel::get_context() const {
-    OV_EXEC_NET_CALL_STATEMENT(return {_so, _impl->GetContext()});
+    OV_EXEC_NET_CALL_STATEMENT(return {_impl->GetContext(), _so});
 }
 
 bool CompiledModel::operator!() const noexcept {
@@ -221,5 +261,5 @@ bool CompiledModel::operator!() const noexcept {
 CompiledModel::operator bool() const noexcept {
     return !!_impl;
 }
-}  // namespace runtime
+
 }  // namespace ov

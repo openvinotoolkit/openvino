@@ -1,11 +1,14 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/pass/constant_folding.hpp"
 
+#include <transformations/utils/utils.hpp>
+
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
+#include "ngraph/opsets/opset1.hpp"
 #include "ngraph/opsets/opset5.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "util/all_close_f.hpp"
@@ -266,6 +269,8 @@ TEST(constant_folding, constant_unary_binary) {
     vector<int> values_g{1, 4};
     vector<char> values_h{0, 0, 1, 1};
     vector<char> values_i{0, 1};
+    vector<int8_t> values_j{-3, 5};
+    vector<uint8_t> values_k{3, 5};
     auto a = make_shared<op::Constant>(element::i32, Shape{2, 2}, values_a);
     auto b = make_shared<op::Constant>(element::i32, Shape{2, 2}, values_b);
     auto c = make_shared<op::Constant>(element::i32, Shape{2, 2}, values_c);
@@ -275,7 +280,14 @@ TEST(constant_folding, constant_unary_binary) {
     auto g = make_shared<op::Constant>(element::i32, Shape{2}, values_g);
     auto h = make_shared<op::Constant>(element::boolean, Shape{2, 2}, values_h);
     auto i = make_shared<op::Constant>(element::boolean, Shape{2}, values_i);
+    auto j = make_shared<op::Constant>(element::i8, Shape{2}, values_j);
+    auto k = make_shared<op::Constant>(element::u8, Shape{2}, values_k);
     auto doubles = make_shared<op::Constant>(element::f64, Shape{2}, std::vector<double>{4.0, 9.0});
+    auto doubles2 = make_shared<op::Constant>(element::f64, Shape{2}, std::vector<double>{4.0, 1.0});
+    auto shorts = make_shared<op::Constant>(element::i16, Shape{3}, std::vector<int16_t>{14, -3, -3});
+    auto shorts2 = make_shared<op::Constant>(element::i16, Shape{1}, std::vector<int16_t>{-3});
+    auto unsigned_shorts = make_shared<op::Constant>(element::u16, Shape{3}, std::vector<uint16_t>{14, 300, 14});
+    auto unsigned_shorts2 = make_shared<op::Constant>(element::u16, Shape{1}, std::vector<uint16_t>{300});
 
     auto add = make_shared<op::v1::Add>(a, b);
     auto sub = make_shared<op::v1::Subtract>(a, b);
@@ -303,6 +315,12 @@ TEST(constant_folding, constant_unary_binary) {
     auto logical_or_autob_numpy = make_shared<op::v1::LogicalOr>(h, i, op::AutoBroadcastType::NUMPY);
     auto logical_xor_autob_numpy = make_shared<op::Xor>(h, i, op::AutoBroadcastType::NUMPY);
     auto doubles_sqrt = make_shared<op::Sqrt>(doubles);
+    auto sub_int8 = make_shared<op::v1::Subtract>(j, j);
+    auto sub_uint8 = make_shared<op::v1::Subtract>(k, k);
+    auto equal_doubles = make_shared<op::v1::Equal>(doubles, doubles2, op::AutoBroadcastType::NUMPY);
+    auto equal_shorts = make_shared<op::v1::Equal>(shorts, shorts2, op::AutoBroadcastType::NUMPY);
+    auto equal_unsigned_shorts =
+        make_shared<op::v1::Equal>(unsigned_shorts, unsigned_shorts2, op::AutoBroadcastType::NUMPY);
 
     auto neg_sqrt = make_shared<op::Sqrt>(c);
 
@@ -331,7 +349,12 @@ TEST(constant_folding, constant_unary_binary) {
                                                  less_eq_autob_numpy,
                                                  logical_or_autob_numpy,
                                                  logical_xor_autob_numpy,
-                                                 doubles_sqrt},
+                                                 doubles_sqrt,
+                                                 sub_int8,
+                                                 sub_uint8,
+                                                 equal_doubles,
+                                                 equal_shorts,
+                                                 equal_unsigned_shorts},
                                       ParameterVector{});
     auto func_error = make_shared<Function>(NodeVector{neg_sqrt}, ParameterVector{});
 
@@ -365,6 +388,11 @@ TEST(constant_folding, constant_unary_binary) {
     vector<char> logical_or_autob_numpy_expected{0, 1, 1, 1};
     vector<char> logical_xor_autob_numpy_expected{0, 1, 1, 0};
     vector<double> doubles_sqrt_expected{2.0, 3.0};
+    vector<int8_t> sub_int8_expected{0, 0};
+    vector<uint8_t> sub_uint8_expected{0, 0};
+    vector<char> equal_doubles_expected{1, 0};
+    vector<char> equal_shorts_expected{0, 1, 1};
+    vector<char> equal_unsigned_shorts_expected{0, 1, 0};
 
     ASSERT_EQ(get_result_constant<int>(func, 0), add_expected);
     ASSERT_EQ(get_result_constant<int>(func, 1), sub_expected);
@@ -392,13 +420,18 @@ TEST(constant_folding, constant_unary_binary) {
     ASSERT_EQ(get_result_constant<char>(func, 23), logical_or_autob_numpy_expected);
     ASSERT_EQ(get_result_constant<char>(func, 24), logical_xor_autob_numpy_expected);
     ASSERT_EQ(get_result_constant<double>(func, 25), doubles_sqrt_expected);
+    ASSERT_EQ(get_result_constant<int8_t>(func, 26), sub_int8_expected);
+    ASSERT_EQ(get_result_constant<uint8_t>(func, 27), sub_uint8_expected);
+    ASSERT_EQ(get_result_constant<char>(func, 28), equal_doubles_expected);
+    ASSERT_EQ(get_result_constant<char>(func, 29), equal_shorts_expected);
+    ASSERT_EQ(get_result_constant<char>(func, 30), equal_unsigned_shorts_expected);
     ASSERT_NO_THROW(pass_manager.run_passes(func_error));
 }
 
-template <typename T, typename U>
+template <element::Type_t from, element::Type_t to, typename T, typename U>
 static void test_const_convert(const vector<T>& values_in, const vector<U>& values_expected) {
-    auto constant = op::Constant::create(element::from<T>(), Shape{values_in.size()}, values_in);
-    auto convert = make_shared<op::Convert>(constant, element::from<U>());
+    auto constant = op::Constant::create(from, Shape{values_in.size()}, values_in);
+    auto convert = make_shared<op::Convert>(constant, to);
     convert->set_friendly_name("test");
     auto f = make_shared<Function>(convert, ParameterVector{});
 
@@ -412,8 +445,8 @@ static void test_const_convert(const vector<T>& values_in, const vector<U>& valu
     auto new_const = ov::as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
     ASSERT_TRUE(new_const);
     ASSERT_EQ(new_const->get_friendly_name(), "test");
-    ASSERT_EQ(new_const->get_output_element_type(0), element::from<U>());
-    auto values_out = new_const->template get_vector<U>();
+    ASSERT_EQ(new_const->get_output_element_type(0), to);
+    auto values_out = new_const->template cast_vector<U>();
 
     ASSERT_EQ(values_expected, values_out);
 }
@@ -422,47 +455,57 @@ TEST(constant_folding, const_convert) {
     {
         vector<float> in{1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7};
         vector<uint64_t> expected{1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7};
-        test_const_convert(in, expected);
+        test_const_convert<element::f32, element::u64>(in, expected);
     }
     {
         vector<bool> in{false, true, true, false, false, false, true};
         vector<float> expected{0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
-        test_const_convert(in, expected);
+        test_const_convert<element::boolean, element::f32>(in, expected);
     }
     {
         vector<float> in{1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f};
         vector<bool> expected{true, false, true, false, true, false, true};
-        test_const_convert(in, expected);
+        test_const_convert<element::f32, element::boolean>(in, expected);
     }
     {
         vector<int64_t> in{1, 2, 3, 4, 5};
         vector<double> expected{1.0, 2.0, 3.0, 4.0, 5.0};
-        test_const_convert(in, expected);
+        test_const_convert<element::i64, element::f64>(in, expected);
     }
     {
         vector<double> in{1.2, 2.1, 3.3, 4.45, 5.02};
         vector<int64_t> expected{1, 2, 3, 4, 5};
-        test_const_convert(in, expected);
+        test_const_convert<element::f64, element::i64>(in, expected);
+    }
+    {
+        vector<int8_t> in{7, 0, 1, 2, 3, 4, 5, -1, -2, -8};
+        vector<float> expected{7, 0, 1, 2, 3, 4, 5, -1, -2, -8};
+        test_const_convert<element::i4, element::f32>(in, expected);
+    }
+    {
+        vector<float> in{9, 0, 1, 2, 3, 4, 5, -1, -2, -10};
+        vector<int8_t> expected{-7, 0, 1, 2, 3, 4, 5, -1, -2, 6};
+        test_const_convert<element::f32, element::i4>(in, expected);
     }
     {
         vector<int8_t> in{-128, -2, 0, 1, 3, 127};
         vector<float> expected{-128, -2, 0, 1, 3, 127};
-        test_const_convert(in, expected);
+        test_const_convert<element::i8, element::f32>(in, expected);
     }
     {
         vector<uint8_t> in{0, 1, 3, 127, 255};
         vector<float> expected{0, 1, 3, 127, 255};
-        test_const_convert(in, expected);
+        test_const_convert<element::u8, element::f32>(in, expected);
     }
     {
         vector<float> in{-300, -128, -1, 0, 33, 127, 128};
         vector<int8_t> expected{-44, -128, -1, 0, 33, 127, -128};
-        test_const_convert(in, expected);
+        test_const_convert<element::f32, element::i8>(in, expected);
     }
     {
         vector<float> in{0, 33, 127, 255, 256};
         vector<uint8_t> expected{0, 33, 127, 255, 0};
-        test_const_convert(in, expected);
+        test_const_convert<element::f32, element::u8>(in, expected);
     }
 }
 
@@ -3173,19 +3216,107 @@ TEST(constant_folding, constant_dyn_reshape_v1_pattern_with_zero_dims) {
 }
 
 TEST(constant_folding, disable_constant_folding) {
-    auto input = make_shared<op::Parameter>(element::f32, Shape{1, 3});
-    auto constant_shape = op::Constant::create(element::i64, Shape{1}, {3});
-    auto dyn_reshape = make_shared<op::v1::Reshape>(input, constant_shape, true);
-    auto& rt_info = dyn_reshape->get_rt_info();
-    rt_info[ov::pass::DisableConstantFolding::get_type_info_static()];
-    auto f = make_shared<Function>(dyn_reshape, ParameterVector{input});
+    auto data = std::make_shared<op::Parameter>(element::f16, Shape{1, 3, 22, 22});
 
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::ConstantFolding>();
-    pass_manager.run_passes(f);
+    // In this test case following sub-graph will be consumed by Interpolate, so during shape inference Interpolate
+    // will request values from this sub-graph and ConstantFolding pass will try to use this pre-calculated values
+    // to fold it. But in our case we are disabling CF for this sub-graph first and then enable CF to check that all
+    // checks inside ConstantFolding transformation are working and doesn't cache anytihng.
+    auto gather = op::util::node_to_get_shape_value_of_indices_from_shape_source(data, {2, 3});
+    auto convert = std::make_shared<opset5::Convert>(gather, element::f16);
+    auto divide_constant = op::Constant::create(element::f16, Shape{1}, {0.5});
+    auto divide = std::make_shared<opset5::Divide>(convert, divide_constant);
+    auto convert_after = std::make_shared<opset5::Convert>(divide, element::i32);
 
-    ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(f), 1);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    opset1::Interpolate::Attributes interp_attr;
+    interp_attr.antialias = false;
+    interp_attr.axes = {2, 3};
+    interp_attr.mode = "nearest";
+    interp_attr.pads_begin = {0, 0, 0, 0};
+    interp_attr.pads_end = {0, 0, 0, 0};
+
+    auto interpolate = std::make_shared<opset1::Interpolate>(data, convert_after, interp_attr);
+    auto f = std::make_shared<Function>(NodeVector{interpolate}, ParameterVector{data});
+
+    ov::disable_constant_folding(convert);
+
+    pass::Manager m;
+    m.register_pass<pass::ConstantFolding>();
+    m.run_passes(f);
+
+    // Check that sub-graph on second Interpolate input wasn't folded
+    ASSERT_EQ(interpolate->input_value(1), convert_after->output(0));
+
+    ov::enable_constant_folding(convert);
+
+    m.run_passes(f);
+
+    // After we enabled CF the sub-graph will be folded to Constant
+    ASSERT_TRUE(ov::is_type<op::Constant>(interpolate->get_input_node_shared_ptr(1)));
+
+    // Check that DisableConstantFolding attribute wasn't propagated to some other nodes during CF
+    for (auto node : f->get_ordered_ops()) {
+        ASSERT_FALSE(ov::pass::constant_folding_is_disabled(node));
+    }
+}
+
+TEST(constant_folding, disable_constant_folding_simple) {
+    // This test case checks the behaviour of CF pass when output values are not precalculated
+    // so CF triggers another branch where it goes through nodes and trying to fold one by one.
+    auto data = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 22, 22});
+    auto reshape = std::make_shared<opset5::Reshape>(op::Constant::create(element::f32, Shape{3}, {1, 2, 3}),
+                                                     op::Constant::create(element::i64, Shape{3}, {3, 1, 1}),
+                                                     true);
+    auto divide = std::make_shared<opset5::Divide>(data, reshape);
+    auto f = std::make_shared<Function>(NodeVector{divide}, ParameterVector{data});
+
+    ov::disable_constant_folding(reshape);
+
+    pass::Manager m;
+    m.register_pass<pass::ConstantFolding>();
+    m.run_passes(f);
+
+    // Check that Reshape is not folded
+    ASSERT_EQ(divide->input_value(1), reshape->output(0));
+
+    ov::enable_constant_folding(reshape);
+
+    m.run_passes(f);
+
+    // After we enabled CF the sub-graph will be folded to Constant
+    ASSERT_TRUE(ov::is_type<op::Constant>(divide->get_input_node_shared_ptr(1)));
+
+    // Check that DisableConstantFolding attribute wasn't propagated to some other nodes during CF
+    for (auto node : f->get_ordered_ops()) {
+        ASSERT_FALSE(ov::pass::constant_folding_is_disabled(node));
+    }
+}
+
+TEST(constant_folding, disable_constant_folding_check) {
+    auto data = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 22, 22});
+    auto shapeof1 = std::make_shared<opset5::ShapeOf>(data);
+    auto reshape1 = std::make_shared<opset5::Reshape>(data, shapeof1, true);
+    auto shapeof2 = std::make_shared<opset5::ShapeOf>(reshape1);
+    auto reshape2 = std::make_shared<opset5::Reshape>(reshape1, shapeof2, true);
+    auto f = std::make_shared<Function>(NodeVector{reshape2}, ParameterVector{data});
+
+    ov::disable_constant_folding(shapeof1);
+
+    class ConstantFoldingAccessor : public pass::ConstantFolding {
+    public:
+        ConstantFoldingAccessor() = default;
+        using ConstantFolding::pre_calculated_values_folding;
+    };
+
+    ConstantFoldingAccessor().pre_calculated_values_folding(f);
+
+    ASSERT_TRUE(shapeof1->get_rt_info().count("can_be_folded"));
+    ASSERT_FALSE(shapeof1->get_rt_info().at("can_be_folded").as<bool>());
+
+    ASSERT_TRUE(shapeof2->get_rt_info().count("can_be_folded"));
+    ASSERT_TRUE(shapeof2->get_rt_info().at("can_be_folded").as<bool>());
+
+    ASSERT_TRUE(ov::is_type<op::Constant>(reshape2->get_input_node_shared_ptr(1)));
 }
 
 TEST(constant_folding, constant_loop) {

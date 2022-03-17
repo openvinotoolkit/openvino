@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <common/frontend_exceptions.hpp>
-#include <manager.hpp>
 #include <memory>
+#include <openvino/frontend/exception.hpp>
+#include <openvino/frontend/manager.hpp>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -35,7 +35,7 @@ using namespace ov::frontend;
 
 static std::string find_my_pathname() {
 #ifdef _WIN32
-    HMODULE hModule = GetModuleHandleW(SHARED_LIB_PREFIX L"frontend_common" SHARED_LIB_SUFFIX);
+    HMODULE hModule = GetModuleHandleW(SHARED_LIB_PREFIX L"openvino" SHARED_LIB_SUFFIX);
     WCHAR wpath[MAX_PATH];
     GetModuleFileNameW(hModule, wpath, MAX_PATH);
     std::wstring ws(wpath);
@@ -66,8 +66,9 @@ static int set_test_env(const char* name, const char* value) {
 
 TEST(FrontEndManagerTest, testAvailableFrontEnds) {
     FrontEndManager fem;
+    class MockFrontEnd : public FrontEnd {};
     ASSERT_NO_THROW(fem.register_front_end("mock", []() {
-        return std::make_shared<FrontEnd>();
+        return std::make_shared<MockFrontEnd>();
     }));
     auto frontends = fem.get_available_front_ends();
     ASSERT_NE(std::find(frontends.begin(), frontends.end(), "mock"), frontends.end());
@@ -99,14 +100,69 @@ TEST(FrontEndManagerTest, testMockPluginFrontEnd) {
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
+TEST(FrontEndManagerTest, testFEMDestroy_FrontEndHolder) {
+    FrontEnd::Ptr fe;
+    {
+        FrontEndManager fem;
+        auto frontends = fem.get_available_front_ends();
+        ASSERT_NE(std::find(frontends.begin(), frontends.end(), "mock1"), frontends.end());
+        ASSERT_NO_THROW(fe = fem.load_by_framework("mock1"));
+    }
+    ASSERT_EQ(fe->get_name(), "mock1");
+}
+
+TEST(FrontEndManagerTest, testFEMDestroy_InputModelHolder) {
+    InputModel::Ptr input_model;
+    {
+        std::shared_ptr<ov::Model> model;
+        FrontEndManager fem;
+        auto fe = fem.load_by_framework("mock1");
+        input_model = fe->load("test");
+        model = fe->convert(input_model);
+        ASSERT_EQ(model->get_friendly_name(), "mock1_model");
+    }
+    ASSERT_TRUE(input_model);
+}
+
+TEST(FrontEndManagerTest, testFEMDestroy_OVModelHolder) {
+    std::shared_ptr<ov::Model> model;
+    {
+        FrontEndManager fem;
+        auto fe = fem.load_by_framework("mock1");
+        auto input_model = fe->load("test");
+        model = fe->convert(input_model);
+        ASSERT_EQ(model->get_friendly_name(), "mock1_model");
+        ASSERT_TRUE(model->get_rt_info().count("mock_test"));
+        ASSERT_EQ(model->get_rt_info()["mock_test"].as<std::string>(), std::string(1024, 't'));
+    }
+    ASSERT_EQ(model->get_friendly_name(), "mock1_model");
+}
+
+TEST(FrontEndManagerTest, testFEMDestroy_OVModelHolder_Clone) {
+    std::shared_ptr<ov::Model> model_clone;
+    {
+        FrontEndManager fem;
+        auto fe = fem.load_by_framework("mock1");
+        auto input_model = fe->load("test");
+        auto model = fe->convert(input_model);
+        ASSERT_EQ(model->get_friendly_name(), "mock1_model");
+        ASSERT_TRUE(model->get_rt_info().count("mock_test"));
+        ASSERT_EQ(model->get_rt_info()["mock_test"].as<std::string>(), std::string(1024, 't'));
+        model_clone = ov::clone_model(*model);
+    }
+    ASSERT_EQ(model_clone->get_rt_info()["mock_test"].as<std::string>(), std::string(1024, 't'));
+    ASSERT_EQ(model_clone->get_friendly_name(), "mock1_model");
+}
+
 TEST(FrontEndManagerTest, testDefaultFrontEnd) {
     FrontEndManager fem;
     FrontEnd::Ptr fe;
     ASSERT_NO_THROW(fe = fem.load_by_model(""));
     ASSERT_FALSE(fe);
 
-    std::unique_ptr<FrontEnd> fePtr(new FrontEnd());  // to verify base destructor
-    fe = std::make_shared<FrontEnd>();
+    class MockFrontEnd : public FrontEnd {};
+    std::unique_ptr<FrontEnd> fePtr(new MockFrontEnd());  // to verify base destructor
+    fe = std::make_shared<MockFrontEnd>();
     ASSERT_ANY_THROW(fe->load(""));
     ASSERT_ANY_THROW(fe->convert(std::shared_ptr<Function>(nullptr)));
     ASSERT_ANY_THROW(fe->convert(InputModel::Ptr(nullptr)));
@@ -117,8 +173,9 @@ TEST(FrontEndManagerTest, testDefaultFrontEnd) {
 }
 
 TEST(FrontEndManagerTest, testDefaultInputModel) {
-    std::unique_ptr<InputModel> imPtr(new InputModel());  // to verify base destructor
-    InputModel::Ptr im = std::make_shared<InputModel>();
+    class MockInputModel : public InputModel {};
+    std::unique_ptr<InputModel> imPtr(new MockInputModel());  // to verify base destructor
+    InputModel::Ptr im = std::make_shared<MockInputModel>();
     ASSERT_EQ(im->get_inputs(), std::vector<Place::Ptr>{});
     ASSERT_EQ(im->get_outputs(), std::vector<Place::Ptr>{});
     ASSERT_ANY_THROW(im->override_all_inputs({nullptr}));
@@ -146,8 +203,9 @@ TEST(FrontEndManagerTest, testDefaultInputModel) {
 }
 
 TEST(FrontEndManagerTest, testDefaultPlace) {
-    std::unique_ptr<Place> placePtr(new Place());  // to verify base destructor
-    Place::Ptr place = std::make_shared<Place>();
+    class MockPlace : public Place {};
+    std::unique_ptr<Place> placePtr(new MockPlace());  // to verify base destructor
+    Place::Ptr place = std::make_shared<MockPlace>();
     ASSERT_ANY_THROW(place->get_names());
     ASSERT_EQ(place->get_consuming_operations(), std::vector<Place::Ptr>{});
     ASSERT_EQ(place->get_consuming_operations(0), std::vector<Place::Ptr>{});

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,31 +19,31 @@ std::vector<ReductionParams> generateReductionParams(const bool keep_dims) {
     using T = typename element_type_traits<IN_ET>::value_type;
     std::vector<ReductionParams> params = {
         ReductionParams(ReductionType::Max, keep_dims, std::vector<int64_t>{0, 1},
-                        Tensor({2, 2}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4}),
-                        Tensor(ngraph::reduce(Shape{2, 2}, AxisSet{0, 1}, keep_dims), element::Type(IN_ET), std::vector<T>{4})),
+                        reference_tests::Tensor({2, 2}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4}),
+                        reference_tests::Tensor(ngraph::reduce(Shape{2, 2}, AxisSet{0, 1}, keep_dims), element::Type(IN_ET), std::vector<T>{4})),
         ReductionParams(ReductionType::Max, keep_dims, std::vector<int64_t>{0},
-                        Tensor({3, 2}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6}),
-                        Tensor(ngraph::reduce(Shape{3, 2}, AxisSet{0}, keep_dims), element::Type(IN_ET), std::vector<T>{5, 6})),
+                        reference_tests::Tensor({3, 2}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6}),
+                        reference_tests::Tensor(ngraph::reduce(Shape{3, 2}, AxisSet{0}, keep_dims), element::Type(IN_ET), std::vector<T>{5, 6})),
         ReductionParams(ReductionType::Max, keep_dims, std::vector<int64_t>{1},
-                        Tensor({3, 2}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6}),
-                        Tensor(ngraph::reduce(Shape{3, 2}, AxisSet{1}, keep_dims), element::Type(IN_ET), std::vector<T>{2, 4, 6})),
+                        reference_tests::Tensor({3, 2}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6}),
+                        reference_tests::Tensor(ngraph::reduce(Shape{3, 2}, AxisSet{1}, keep_dims), element::Type(IN_ET), std::vector<T>{2, 4, 6})),
         ReductionParams(ReductionType::Max, keep_dims, std::vector<int64_t>{0},
-                        Tensor({3, 3, 3}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+                        reference_tests::Tensor({3, 3, 3}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
                                                                                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27}),
-                        Tensor(ngraph::reduce(Shape{3, 3, 3}, AxisSet{0}, keep_dims),
+                        reference_tests::Tensor(ngraph::reduce(Shape{3, 3, 3}, AxisSet{0}, keep_dims),
                               element::Type(IN_ET), std::vector<T>{19, 20, 21, 22, 23, 24, 25, 26, 27})),
         ReductionParams(ReductionType::Max, keep_dims, std::vector<int64_t>{2},
-                        Tensor({3, 3, 3}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+                        reference_tests::Tensor({3, 3, 3}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
                                                                                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27}),
-                        Tensor(ngraph::reduce(Shape{3, 3, 3}, AxisSet{2}, keep_dims), element::Type(IN_ET), std::vector<T>{3, 6, 9, 12, 15, 18, 21, 24, 27})),
+                        reference_tests::Tensor(ngraph::reduce(Shape{3, 3, 3}, AxisSet{2}, keep_dims), element::Type(IN_ET), std::vector<T>{3, 6, 9, 12, 15, 18, 21, 24, 27})),
         ReductionParams(ReductionType::Max, keep_dims, std::vector<int64_t>{0, 1},
-                        Tensor({3, 3, 3}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+                        reference_tests::Tensor({3, 3, 3}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
                                                                                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27}),
-                        Tensor(ngraph::reduce(Shape{3, 3, 3}, AxisSet{0, 1}, keep_dims), element::Type(IN_ET), std::vector<T>{25, 26, 27})),
+                        reference_tests::Tensor(ngraph::reduce(Shape{3, 3, 3}, AxisSet{0, 1}, keep_dims), element::Type(IN_ET), std::vector<T>{25, 26, 27})),
         ReductionParams(ReductionType::Max, keep_dims, std::vector<int64_t>{0, 1, 2},
-                        Tensor({3, 3, 3}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+                        reference_tests::Tensor({3, 3, 3}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
                                                                                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27}),
-                        Tensor(ngraph::reduce(Shape{3, 3, 3}, AxisSet{0, 1, 2}, keep_dims), element::Type(IN_ET), std::vector<T>{27}))
+                        reference_tests::Tensor(ngraph::reduce(Shape{3, 3, 3}, AxisSet{0, 1, 2}, keep_dims), element::Type(IN_ET), std::vector<T>{27}))
     };
     return params;
 }

@@ -1,6 +1,8 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include <dimension_tracker.hpp>
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
@@ -94,9 +96,8 @@ TEST(type_prop, gather_v1_axis_out_of_input_rank) {
         auto G = make_shared<op::v1::Gather>(params, indices, axis);
         // Should have thrown, so fail if it didn't
         FAIL() << "Incorrect element of axis input";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Normalized axis must be >= 0 and < data_rank. But instead got axis"));
+    } catch (const ov::AssertFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("out of the tensor rank range"));
     } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
@@ -109,6 +110,49 @@ TEST(type_prop, gather_v1_negative_axis) {
     auto axis_node = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto gather_v1 = make_shared<op::v1::Gather>(params, indices, axis_node);
     ASSERT_EQ(gather_v1->get_axis(), 1);
+}
+
+TEST(type_prop, gather_1_dynamic_value_and_label_propagation) {
+    Dimension marked_0 = Dimension(3);
+    ov::DimensionTracker::set_label(marked_0, 10);
+    PartialShape target_0 = PartialShape{marked_0, 4};
+
+    auto param = std::make_shared<op::Parameter>(element::f32, Shape{1});
+    auto param_0 = std::make_shared<op::Parameter>(element::f32, target_0);
+    auto shape_0 = std::make_shared<op::ShapeOf>(param_0);
+
+    const auto& et = element::i64;
+    std::vector<int64_t> zero{0};
+    const auto indices = std::make_shared<op::v0::Constant>(et, Shape{zero.size()}, zero);
+    const auto axis = std::make_shared<op::v0::Constant>(et, Shape{}, zero);
+    const auto gather = std::make_shared<op::v1::Gather>(shape_0, indices, axis);
+
+    auto bc = std::make_shared<op::v1::Broadcast>(param, gather);
+    ASSERT_EQ(bc->get_shape(), (Shape{3}));
+
+    const auto& output_shape = bc->get_output_partial_shape(0);
+    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
+}
+
+TEST(type_prop, dynamic_value_propagation) {
+    auto param = make_shared<op::Parameter>(element::f32, PartialShape{-1, 3, -1, -1});
+    auto shape_of = std::make_shared<op::v3::ShapeOf>(param, element::i32);
+
+    auto indices = op::Constant::create(element::i32, {}, {1});
+    auto axis = op::Constant::create(element::i32, {}, {0});
+    auto gather = std::make_shared<op::v1::Gather>(shape_of, indices, axis);
+
+    auto add = std::make_shared<op::v1::Add>(gather, op::Constant::create(element::i32, {}, {0}));
+
+    auto range = std::make_shared<op::v4::Range>(op::Constant::create(element::i32, {}, {0}),
+                                                 add,
+                                                 op::Constant::create(element::i32, {}, {1}),
+                                                 element::i64);
+
+    auto RIC = std::make_shared<op::v1::Gather>(param, range, op::Constant::create(element::i32, {}, {1}));
+
+    ASSERT_EQ(RIC->get_element_type(), element::f32);
+    ASSERT_EQ(RIC->get_output_partial_shape(0), (PartialShape{-1, 3, -1, -1}));
 }
 
 // ------------------------------ V7 ------------------------------
@@ -302,6 +346,28 @@ TEST(type_prop, gather_7_axis_not_set_positive_batch_dims) {
     ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
 }
 
+TEST(type_prop, gather_7_dynamic_value_and_label_propagation) {
+    Dimension marked_0 = Dimension(3);
+    ov::DimensionTracker::set_label(marked_0, 10);
+    PartialShape target_0 = PartialShape{marked_0, 4};
+
+    auto param = std::make_shared<op::Parameter>(element::f32, Shape{1});
+    auto param_0 = std::make_shared<op::Parameter>(element::f32, target_0);
+    auto shape_0 = std::make_shared<op::ShapeOf>(param_0);
+
+    const auto& et = element::i64;
+    std::vector<int64_t> zero{0};
+    const auto indices = std::make_shared<op::v0::Constant>(et, Shape{zero.size()}, zero);
+    const auto axis = std::make_shared<op::v0::Constant>(et, Shape{}, zero);
+    const auto gather = std::make_shared<op::v7::Gather>(shape_0, indices, axis);
+
+    auto bc = std::make_shared<op::v1::Broadcast>(param, gather);
+    ASSERT_EQ(bc->get_shape(), (Shape{3}));
+
+    const auto& output_shape = bc->get_output_partial_shape(0);
+    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
+}
+
 // --------------------- V7 Negative tests ------------------------------
 
 TEST(type_prop, gather_7_incorrect_axis_shape) {
@@ -329,9 +395,8 @@ TEST(type_prop, gather_7_axis_out_of_input_rank) {
         auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
         // Should have thrown, so fail if it didn't
         FAIL() << "axis check failed";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Normalized axis must be >= 0 and < data_rank. But instead got"));
+    } catch (const ov::AssertFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("out of the tensor rank range"));
     } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
@@ -636,6 +701,28 @@ TEST(type_prop, gather_v8_axis_not_set_positive_batch_dims) {
     ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
 }
 
+TEST(type_prop, gather_8_dynamic_value_and_label_propagation) {
+    Dimension marked_0 = Dimension(3);
+    ov::DimensionTracker::set_label(marked_0, 10);
+    PartialShape target_0 = PartialShape{marked_0, 4};
+
+    auto param = std::make_shared<op::Parameter>(element::f32, Shape{1});
+    auto param_0 = std::make_shared<op::Parameter>(element::f32, target_0);
+    auto shape_0 = std::make_shared<op::ShapeOf>(param_0);
+
+    const auto& et = element::i64;
+    std::vector<int64_t> zero{0};
+    const auto indices = std::make_shared<op::v0::Constant>(et, Shape{zero.size()}, zero);
+    const auto axis = std::make_shared<op::v0::Constant>(et, Shape{}, zero);
+    const auto gather = std::make_shared<op::v8::Gather>(shape_0, indices, axis);
+
+    auto bc = std::make_shared<op::v1::Broadcast>(param, gather);
+    ASSERT_EQ(bc->get_shape(), (Shape{3}));
+
+    const auto& output_shape = bc->get_output_partial_shape(0);
+    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
+}
+
 // --------------------- V8 Negative tests ------------------------------
 
 TEST(type_prop, gather_v8_incorrect_axis_shape) {
@@ -663,9 +750,8 @@ TEST(type_prop, gather_v8_axis_out_of_input_rank) {
         auto G = make_shared<op::v8::Gather>(D, I, A, batch_dims);
         // Should have thrown, so fail if it didn't
         FAIL() << "axis check failed";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Normalized axis must be >= 0 and < data_rank. But instead got"));
+    } catch (const ov::AssertFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("out of the tensor rank range"));
     } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }

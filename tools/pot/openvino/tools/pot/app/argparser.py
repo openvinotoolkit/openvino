@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from argparse import ArgumentParser
@@ -13,7 +13,8 @@ def get_common_argument_parser():
     parser.add_argument(
         '-c',
         '--config',
-        help='Path to a config file with optimization parameters. Overrides "-q | -m | -w | --ac-config" options')
+        help='Path to a config file with optimization parameters. '
+             'Overrides "-q | -m | -w | --ac-config | --engine" options')
 
     parser.add_argument(
         '-q',
@@ -46,6 +47,12 @@ def get_common_argument_parser():
         '-n',
         type=str,
         help='Model name. Applicable only when -q option is used.')
+
+    parser.add_argument(
+        '--engine',
+        choices=['accuracy_checker', 'simplified'],
+        type=str,
+        help='Engine type. Default: `accuracy_checker`')
 
     parser.add_argument(
         '--ac-config',
@@ -105,23 +112,31 @@ def get_common_argument_parser():
         default=False,
         help='Keep Convolution, Deconvolution and FullyConnected weights uncompressed')
 
+    parser.add_argument(
+        '--data-source',
+        help='Valid only for Simplified modes. Path to dataset dir is required.')
+
     return parser
 
 
 def check_dependencies(args):
-    if (args.quantize is not None and
-            (args.model is None or
-             args.weights is None or
-             args.ac_config is None)):
-        raise ValueError(
-            '--quantize option requires model, weights, and AC config to be specified.')
     if args.quantize is None and args.config is None:
         raise ValueError(
             'Either --config or --quantize option should be specified')
     if args.quantize is not None and args.config is not None:
         raise ValueError('Either --config or --quantize option should be specified')
+    if args.quantize is not None and (args.model is None or args.weights is None):
+        raise ValueError(
+            '--quantize option requires model and weights to be specified.')
+    if (args.quantize is not None and args.ac_config is None and
+            (args.engine == 'accuracy_checker' or args.engine is None)):
+        raise ValueError(
+            '--quantize option requires AC config to be specified '
+            'or --engine should be `simplified`.')
     if args.quantize == 'accuracy_aware' and args.max_drop is None:
         raise ValueError('For AccuracyAwareQuantization --max-drop should be specified')
+    if args.config is None and args.engine == 'simplified' and args.data_source is None:
+        raise ValueError('For Simplified mode `--data-source` option should be specified')
     check_extra_arguments(args, 'model')
     check_extra_arguments(args, 'weights')
     check_extra_arguments(args, 'preset')

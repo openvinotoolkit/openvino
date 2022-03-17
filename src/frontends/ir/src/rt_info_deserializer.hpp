@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,6 @@
 #include <istream>
 #include <memory>
 
-#include "ir_frontend/utility.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "utils.hpp"
 
@@ -61,7 +60,7 @@ public:
     }
 
     void on_adapter(const std::string& name, ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
-        throw ov::Exception("Function type is unsupported for rt info deserialization");
+        throw ov::Exception("Model type is unsupported for rt info deserialization");
     }
 
     void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int32_t>>& adapter) override {

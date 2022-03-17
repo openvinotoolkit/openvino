@@ -1,10 +1,12 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/op/i420_to_rgb.hpp"
 
 #include "itt.hpp"
+
+BWDCMP_RTTI_DEFINITION(ov::op::v8::I420toRGB);
 
 ov::op::v8::I420toRGB::I420toRGB(const Output<Node>& arg)
     : util::ConvertColorI420Base(arg, util::ConvertColorI420Base::ColorConversion::I420_TO_RGB) {

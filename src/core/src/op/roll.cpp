@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/roll.hpp"
 
 #include <ngraph/validation_util.hpp>
+#include <roll_shape_inference.hpp>
 
 #include "itt.hpp"
 
@@ -31,54 +32,13 @@ void op::v7::Roll::validate_and_infer_types() {
                           axes_et.is_dynamic() || axes_et == element::i32 || axes_et == element::i64,
                           "Axes must have int32 or int64 element type.");
 
-    const auto& data_pshape = get_input_partial_shape(0);
-    const auto& shift_pshape = get_input_partial_shape(1);
-    const auto& axes_pshape = get_input_partial_shape(2);
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
+    const std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),
+                                                        get_input_partial_shape(1),
+                                                        get_input_partial_shape(2)};
+    shape_infer(this, input_shapes, output_shapes);
 
-    if (shift_pshape.is_static()) {
-        const auto& shift_rank = shift_pshape.rank().get_length();
-        NODE_VALIDATION_CHECK(this, shift_rank <= 1, "Shift must be a scalar or 1D tensor.");
-    }
-
-    if (axes_pshape.is_static()) {
-        const auto& axes_rank = axes_pshape.rank().get_length();
-        NODE_VALIDATION_CHECK(this, axes_rank <= 1, "Axes must be a scalar or 1D tensor.");
-    }
-
-    // If shift is a scalar, than axes can be arbitrary 1d tensor and we don't need
-    // to check shift shape consistency with axes, otherwise the check is needed.
-    if (!(shift_pshape.is_static() && ngraph::is_scalar(shift_pshape.to_shape()))) {
-        NODE_VALIDATION_CHECK(this,
-                              shift_pshape.compatible(axes_pshape),
-                              "If shift is a 1D vector, axes must be a 1D tensor of the same size.");
-    }
-
-    if (const auto& const_axes = get_constant_from_source(input_value(2))) {
-        auto axes = const_axes->cast_vector<int64_t>();
-
-        if (data_pshape.is_static()) {
-            const auto& data_rank = data_pshape.rank().get_length();
-            for (int64_t& axis : axes) {
-                NODE_VALIDATION_CHECK(this,
-                                      axis < data_rank,
-                                      "Axes must be less than data tensor rank. Got "
-                                      "data tensor rank: ",
-                                      data_rank,
-                                      ", axis: ",
-                                      axis);
-                if (axis < 0) {
-                    axis += data_rank;
-                }
-                NODE_VALIDATION_CHECK(this,
-                                      axis >= 0,
-                                      "Axes must be positive or equal to zero. Got "
-                                      "axis: ",
-                                      axis);
-            }
-        }
-    }
-
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
 bool op::v7::Roll::visit_attributes(AttributeVisitor& visitor) {

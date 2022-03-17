@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,6 +49,8 @@ Graph::Graph(InferenceEngine::CNNNetwork& network, gpu::ClContext::Ptr context, 
     , m_stream_id(stream_id)
     , m_state(0) {
     m_program = std::make_shared<Program>(network, GetEngine(), m_config);
+    if (m_program->m_max_batch > 1)
+        m_config.max_dynamic_batch = m_program->m_max_batch;
     Build();
 }
 

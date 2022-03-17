@@ -1,0 +1,55 @@
+.switcher-set {
+    margin-bottom:1rem;
+}
+
+main img {
+    cursor: pointer;
+}
+
+.doxyrest-title-code-block {
+    margin-bottom: 0;
+}
+
+/* Performance Benchmark Graphs */
+
+.chart {
+    height: 500px;
+    padding:0;
+}
+
+/* Table Sort Button */
+
+.sort-header {
+    cursor: pointer;
+}
+
+.sort-btn {
+    content: "";
+    background-image:url('media/arrow-small-opposite-v.svg');
+    background-size: 100% 100%;
+    background-position: center;
+    background-repeat: no-repeat;
+    display: inline-block;
+    height: 1.5rem;
+    width:1.5rem;
+    position:relative;
+    top:0.5rem;
+}
+
+.sort-btn.sort-active.ascending,
+.sort-btn.sort-active {
+    background-size: 100% 70%;
+}
+
+.sort-btn.sort-active.ascending {
+    background-image: url('media/union-down.svg');
+}
+
+.sort-btn.sort-active {
+    background-image: url('media/union-up.svg');
+}
+
+.highlight .err {
+    border:none;
+    color:inherit;
+}

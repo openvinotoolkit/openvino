@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -9,7 +9,6 @@ include(CMakeFindDependencyMacro)
 # TODO: remove after changing [private plugins]
 set_and_check(OpenVINO_SOURCE_DIR "@OpenVINO_SOURCE_DIR@") # KMB
 set_and_check(OpenVINO_MAIN_SOURCE_DIR "@OpenVINO_SOURCE_DIR@") # KMB
-set_and_check(IE_MAIN_SOURCE_DIR "@IE_MAIN_SOURCE_DIR@") # HDDL
 
 # Variables to export in plugin's projects
 
@@ -45,16 +44,14 @@ find_dependency(InferenceEngine
                 NO_DEFAULT_PATH)
 
 find_dependency(ngraph
-                PATHS "${CMAKE_CURRENT_LIST_DIR}/src/core"
+                PATHS "${CMAKE_CURRENT_LIST_DIR}"
                 NO_CMAKE_FIND_ROOT_PATH
                 NO_DEFAULT_PATH)
 
-# create targets with old names for compatibility
-if(TARGET openvino::core AND NOT TARGET IE::core)
-    add_library(IE::core INTERFACE IMPORTED)
-    set_target_properties(IE::core PROPERTIES
-        INTERFACE_LINK_LIBRARIES openvino::core)
-endif()
+find_dependency(OpenVINODeveloperPackage
+                PATHS "${CMAKE_CURRENT_LIST_DIR}"
+                NO_CMAKE_FIND_ROOT_PATH
+                NO_DEFAULT_PATH)
 
 if(TARGET openvino::runtime AND NOT TARGET IE::runtime)
     add_library(IE::runtime INTERFACE IMPORTED)

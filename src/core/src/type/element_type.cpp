@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -238,6 +238,41 @@ Type fundamental_type_for(const Type& type) {
 
 std::ostream& ov::element::operator<<(std::ostream& out, const ov::element::Type& obj) {
     return out << obj.get_type_name();
+}
+
+std::istream& ov::element::operator>>(std::istream& in, ov::element::Type& obj) {
+    static const std::unordered_map<std::string, ov::element::Type> legacy = {
+        {"BOOL", ov::element::boolean},
+        {"BF16", ov::element::bf16},
+        {"I4", ov::element::i4},
+        {"I8", ov::element::i8},
+        {"I16", ov::element::i16},
+        {"I32", ov::element::i32},
+        {"I64", ov::element::i64},
+        {"U4", ov::element::u4},
+        {"U8", ov::element::u8},
+        {"U16", ov::element::u16},
+        {"U32", ov::element::u32},
+        {"U64", ov::element::u64},
+        {"FP32", ov::element::f32},
+        {"FP64", ov::element::f64},
+        {"FP16", ov::element::f16},
+        {"BIN", ov::element::u1},
+    };
+    std::string str;
+    in >> str;
+    auto it_legacy = legacy.find(str);
+    if (it_legacy != legacy.end()) {
+        obj = it_legacy->second;
+        return in;
+    }
+    for (auto&& type : Type::get_known_types()) {
+        if (type->get_type_name() == str) {
+            obj = *type;
+            break;
+        }
+    }
+    return in;
 }
 
 bool ov::element::Type::compatible(const ov::element::Type& t) const {

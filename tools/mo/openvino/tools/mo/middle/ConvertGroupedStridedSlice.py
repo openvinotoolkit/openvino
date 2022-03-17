@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -9,6 +9,7 @@ import numpy as np
 from openvino.tools.mo.middle.SliceConverter import ConvertSlice
 from openvino.tools.mo.ops.split import VariadicSplit
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.graph.graph import Graph, Node, add_opoutput
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 from openvino.tools.mo.ops.const import Const
@@ -90,6 +91,10 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
 
             sorted_out_nodes = sorted(out_nodes, key=lambda n: list(n.slices))
             out_nodes = unique_by(sorted_out_nodes, strided_slices_equality)
+            # if there is only one StridedSlice out_node with unique 'slices',
+            # there is nothing to optimize, continue to the next data node
+            if len(out_nodes) <= 1:
+                continue
 
             for node in out_nodes:
                 if len(node.slices) != len(out_nodes[0].slices):
@@ -161,7 +166,7 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
             for l, r, out in sorted_split_dims:
                 # Save missing tensor part
                 if l > prev_r:
-                    shape = np.array(input_shape)
+                    shape = mo_array(input_shape)
                     size_splits.append(l - prev_r)
                     shape[split_channel_dim] = l - prev_r
                     data_node = Op._create_data_node(graph, 'fake_data_'+out_nodes[0].name, {'shape': shape})
@@ -225,7 +230,7 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
             return
 
         shape_out = ss_node.out_node().shape
-        dim = np.array(range(len(ss_node['shrink_axis_mask'])))[np.array(ss_node['shrink_axis_mask'], dtype=bool)]
+        dim = mo_array(range(len(ss_node['shrink_axis_mask'])))[mo_array(ss_node['shrink_axis_mask'], dtype=bool)]
         ss_shape = []
         i = 0
         k = 0
@@ -268,7 +273,7 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
             return
 
         shape_out = ss_node.out_node().shape
-        dim = np.array(range(len(ss_node['new_axis_mask'])))[np.array(ss_node['new_axis_mask'], dtype=bool)]
+        dim = mo_array(range(len(ss_node['new_axis_mask'])))[mo_array(ss_node['new_axis_mask'], dtype=bool)]
         ss_shape = []
         for i in range(0, len(ss_node['new_axis_mask'])):
             if not ss_node['new_axis_mask'][i]:

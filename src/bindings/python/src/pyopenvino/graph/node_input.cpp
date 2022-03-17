@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,10 @@
 #include "pyopenvino/graph/node_input.hpp"
 
 namespace py = pybind11;
+
+using PyRTMap = ov::Node::RTMap;
+
+PYBIND11_MAKE_OPAQUE(PyRTMap);
 
 void regclass_graph_Input(py::module m) {
     py::class_<ov::Input<ov::Node>, std::shared_ptr<ov::Input<ov::Node>>> input(m, "Input", py::dynamic_attr());
@@ -75,4 +79,20 @@ void regclass_graph_Input(py::module m) {
                 get_source_output : Output
                     Output that is connected to the input.
               )");
+
+    input.def("get_rt_info",
+              (ov::RTMap & (ov::Input<ov::Node>::*)()) & ov::Input<ov::Node>::get_rt_info,
+              py::return_value_policy::reference_internal,
+              R"(
+                Returns RTMap which is a dictionary of user defined runtime info.
+
+                Returns
+                ----------
+                get_rt_info : RTMap
+                    A dictionary of user defined data.
+             )");
+    input.def_property_readonly("rt_info", (ov::RTMap & (ov::Input<ov::Node>::*)()) & ov::Input<ov::Node>::get_rt_info);
+    input.def_property_readonly("rt_info",
+                                (const ov::RTMap& (ov::Input<ov::Node>::*)() const) & ov::Input<ov::Node>::get_rt_info,
+                                py::return_value_policy::reference_internal);
 }

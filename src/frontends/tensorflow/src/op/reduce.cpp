@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@ using namespace ov::opset8;
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 
 OutputVector TranslateReduceOp(const NodeContext& node,
@@ -28,10 +28,10 @@ OutputVector translate_direct_reduce_op(const NodeContext& node) {
     // ensure its either an arithmetic or a logical reduction
     if (!(std::is_base_of<ov::op::util::ArithmeticReduction, T>::value ||
           std::is_base_of<ov::op::util::LogicalReduction, T>::value)) {
-        TF_OP_VALIDATION_CHECK(node,
-                               false,
-                               "Expected node to be either a valid logical or arithmetic reduction "
-                               "type");
+        TENSORFLOW_OP_VALIDATION(node,
+                                 false,
+                                 "Expected node to be either a valid logical or arithmetic reduction "
+                                 "type");
     }
     return TranslateReduceOp(node, [](Output<Node> ng_input, Output<Node> ng_reduction_axes, const bool keep_dims) {
         return make_shared<T>(ng_input, ng_reduction_axes, keep_dims);
@@ -46,6 +46,6 @@ template OutputVector translate_direct_reduce_op<ReduceMin>(const NodeContext& n
 template OutputVector translate_direct_reduce_op<ReduceProd>(const NodeContext& node);
 template OutputVector translate_direct_reduce_op<ReduceSum>(const NodeContext& node);
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

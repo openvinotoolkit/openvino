@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,6 +45,7 @@ public:
 
     InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) override;
+    void SetBlobs(const std::string& name, const std::vector<InferenceEngine::Blob::Ptr> &data) override;
 
     void SetBatch(int batch = -1) override;
     void SetGraph(std::shared_ptr<Graph> graph);
@@ -72,6 +73,8 @@ private:
     std::map<std::string, cldnn::primitive_id> inputsMap;
     std::map<std::string, cldnn::primitive_id> outputsMap;
 
+    std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> inputTensorsMap;
+
     bool m_useProfiling = false;
     bool m_useStreams = false;
     bool m_useExternalQueue = false;
@@ -86,7 +89,8 @@ private:
                        std::vector<cldnn::event::ptr>& dependencies);
     void prepare_output(const cldnn::primitive_id& outputName, InferenceEngine::Blob::Ptr& outputBlob);
 
-    InferenceEngine::Blob::Ptr create_host_blob(const InferenceEngine::TensorDesc& desc, uint8_t* mem_ptr = nullptr);
+    InferenceEngine::Blob::Ptr create_host_blob(const InferenceEngine::TensorDesc& desc,
+                                                std::shared_ptr<InferenceEngine::IAllocator> alloc = nullptr);
     InferenceEngine::Blob::Ptr create_device_blob(const InferenceEngine::TensorDesc& desc, const cldnn::layout& layout);
 
     void copy_output_data(cldnn::memory::ptr outputMemory, InferenceEngine::Blob::Ptr bptr, buf_info* bi = nullptr);
@@ -94,7 +98,7 @@ private:
                          const cldnn::layout& inputLayout, const InferenceEngine::Blob &inputBlob,
                          buf_info* bi = nullptr);
 
-    InferenceEngine::Blob::Ptr host_blob_from_device_blob(const InferenceEngine::Blob::Ptr blobPtr);
+    InferenceEngine::Blob::Ptr create_shared_device_blob(const InferenceEngine::TensorDesc& desc, const cldnn::layout& layout, void* usm_host_mem);
     void allocate_inputs();
     void allocate_outputs();
     void allocate_inputs_dynamic();

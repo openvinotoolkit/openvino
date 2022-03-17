@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,10 +47,11 @@ private:
 }  // namespace v1
 
 namespace v8 {
-/// \brief Softmax operation with with negative axis values
+/// \brief Softmax operation with negative axis values
 class OPENVINO_API Softmax : public Op {
 public:
     OPENVINO_OP("Softmax", "opset8");
+    BWDCMP_RTTI_DECLARATION;
 
     Softmax() = default;
     /// \brief Constructs a softmax operation.

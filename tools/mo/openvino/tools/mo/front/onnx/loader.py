@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import absolute_import
@@ -58,6 +58,12 @@ def protobuf2nx(graph: Graph, pb):
     graph_pb = pb.graph
     add_initializers_and_inputs_to_graph(graph, graph_pb, data_nodes_map)
 
+    # Preserve inputs order
+    graph.inputs_order = []
+    for inp in graph_pb.input:
+        name = str(inp.name)
+        graph.inputs_order.append(name)
+
     output_ids = []
     for outp in graph_pb.output:
         name = str(outp.name)
@@ -69,6 +75,9 @@ def protobuf2nx(graph: Graph, pb):
             # add fake node on output
             graph.add_node(name, kind='op', op='FakeOutput', pb=outp)
             output_ids.append(name)
+
+    # Preserve outputs order
+    graph.outputs_order = output_ids
 
     # Go through all nodes in the original model order (because data nodes are defined on-the-fly and order is
     # important)

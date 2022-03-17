@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright 2017-2022 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -38,20 +38,16 @@ class ONNXFrameworkNode : public ov::op::util::FrameworkNode {
 public:
     NGRAPH_RTTI_DECLARATION;
 
-    ONNXFrameworkNode(std::shared_ptr<onnx_import::Graph> graph, const onnx_import::Node& node)
+    ONNXFrameworkNode(const onnx_import::Node& node)
         : ov::op::util::FrameworkNode(node.get_ng_inputs(), node.get_outputs_size()),
-          m_node(node),
-          m_graph(graph) {}
+          m_node(node) {}
 
-    ONNXFrameworkNode(std::shared_ptr<onnx_import::Graph> graph,
-                      const onnx_import::Node& node,
-                      const OutputVector& inputs)
+    ONNXFrameworkNode(const onnx_import::Node& node, const OutputVector& inputs)
         : ov::op::util::FrameworkNode(inputs, node.get_outputs_size()),
-          m_node(node),
-          m_graph(graph) {}
+          m_node(node) {}
 
-    OutputVector get_ng_nodes() const {
-        OutputVector ng_nodes{m_graph->make_ng_nodes(m_node)};
+    OutputVector get_ng_nodes(const std::shared_ptr<onnx_import::Graph>& graph) const {
+        OutputVector ng_nodes{graph->make_ng_nodes(m_node)};
         if (ng_nodes.size() > get_output_size()) {
             ng_nodes.resize(get_output_size());
         }
@@ -71,35 +67,31 @@ public:
 
 protected:
     onnx_import::Node m_node;
-
-private:
-    std::shared_ptr<onnx_import::Graph> m_graph;
 };
 
 class ONNXSubgraphFrameworkNode : public ONNXFrameworkNode {
 public:
     NGRAPH_RTTI_DECLARATION;
 
-    ONNXSubgraphFrameworkNode(std::shared_ptr<onnx_import::Graph> graph,
-                              const onnx_import::Node& node,
+    ONNXSubgraphFrameworkNode(const onnx_import::Node& node,
+                              const std::vector<std::shared_ptr<Function>>& functions,
                               const OutputVector& inputs)
-        : ONNXFrameworkNode(graph, node, inputs) {}
+        : ONNXFrameworkNode(node, inputs),
+          m_functions(functions) {}
 
     void infer_inputs_from_parent() {
         for (auto& subgraph : m_node.get_subgraphs())
             subgraph.second->infer_inputs_from_parent();
     }
 
-    std::vector<std::shared_ptr<Function>> get_subgraph_functions() const {
-        std::vector<std::shared_ptr<Function>> ret;
-        for (const auto& kv : m_node.get_subgraphs()) {
-            auto& subgraph = kv.second;
-            ret.push_back(std::make_shared<Function>(subgraph->get_ng_outputs(),
-                                                     subgraph->get_ng_parameters(),
-                                                     subgraph->get_name()));
-        }
-        return ret;
+    const std::vector<std::shared_ptr<Function>>& get_subgraph_functions() const {
+        return m_functions;
     }
+
+    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
+
+private:
+    std::vector<std::shared_ptr<Function>> m_functions;
 };
 
 }  // namespace frontend

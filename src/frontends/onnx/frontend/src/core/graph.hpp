@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,19 +10,19 @@
 #include <string>
 #include <vector>
 
-#include "common/telemetry_extension.hpp"
 #include "core/graph_cache.hpp"
 #include "core/model.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "onnx_import/core/operator_set.hpp"
+#include "openvino/frontend/extension/holder.hpp"
 
 namespace ngraph {
 namespace onnx_import {
 class Graph : public std::enable_shared_from_this<Graph> {
 public:
-    Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto2,
-          const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
+    Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
+          ov::frontend::ExtensionHolder extensions = {});
     Graph() = delete;
 
     Graph(const Graph&) = delete;
@@ -41,23 +41,24 @@ public:
     }
     virtual bool is_ng_node_in_cache(const std::string& name) const;
     virtual Output<ngraph::Node> get_ng_node_from_cache(const std::string& name) const;
-    OutputVector make_ng_nodes(const Node& onnx_node) const;
+    virtual OutputVector make_ng_nodes(const Node& onnx_node);
     const OpsetImports& get_opset_imports() const;
     virtual ~Graph() = default;
 
-    const std::shared_ptr<ov::frontend::TelemetryExtension>& get_telemetry() const {
-        return m_telemetry;
+    const ov::frontend::ExtensionHolder& get_extensions() const {
+        return m_extensions;
     }
 
 protected:
     Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model,
           std::unique_ptr<GraphCache>&& cache,
-          const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
+          ov::frontend::ExtensionHolder extensions = {});
 
     void set_friendly_names(const Node& onnx_node, const OutputVector& ng_subgraph_outputs) const;
 
 protected:
-    virtual void decode_to_framework_nodes();
+    virtual OutputVector make_framework_nodes(const Node& onnx_node);
+    void decode_to_framework_nodes();
     void convert_to_ngraph_nodes();
     void remove_dangling_parameters();
     std::shared_ptr<Function> create_function();
@@ -65,10 +66,10 @@ protected:
     ParameterVector m_parameters;
     std::unique_ptr<Model> m_model;
     std::unique_ptr<GraphCache> m_cache;
+    ov::frontend::ExtensionHolder m_extensions = {};
 
 private:
     std::vector<Node> m_nodes;
-    std::shared_ptr<ov::frontend::TelemetryExtension> m_telemetry;
 };
 
 /// \brief      Representation of ONNX subgraph. It is used for example by ONNX Loop op.
@@ -98,19 +99,13 @@ public:
 
     bool is_ng_node_in_cache(const std::string& name) const override;
     Output<ngraph::Node> get_ng_node_from_cache(const std::string& name) const override;
+    OutputVector make_ng_nodes(const Node& onnx_node) override;
     void infer_inputs_from_parent();
 
 private:
-    void decode_to_framework_nodes() override;
-    void find_inputs_from_parent();
-    /// \brief      Replaces current node's input with Parameter if that input comes from parent graph scope
-    ///
-    /// \param[in]  in_name                  input node name
-    /// \param[in]  from_parent_node         nGraph node from parent scope
-    /// \param[in]  node_to_replace_input    nGraph input node to be replaced
-    void replace_input_from_parent_scope_with_parameter(const std::string& in_name,
-                                                        const Output<ngraph::Node>& from_parent_node,
-                                                        Input<ngraph::Node>&& node_to_replace_input);
+    OutputVector make_framework_nodes(const Node& onnx_node) override;
+    /// \brief      Checks if onnx_node has inputs from parent graph and replaces those inputs with Parameters
+    void replace_input_from_parent_scope_with_parameter(const Node& onnx_node);
 
     const Graph* m_parent_graph;
     std::vector<std::string> m_inputs_from_parent;
@@ -120,6 +115,8 @@ private:
 inline std::ostream& operator<<(std::ostream& outs, const Graph& graph) {
     return (outs << "<Graph: " << graph.get_name() << ">");
 }
+
+static const char* const ONNX_GRAPH_RT_ATTRIBUTE = "onnx_graph";
 
 }  // namespace onnx_import
 

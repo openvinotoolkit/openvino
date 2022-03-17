@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,7 +64,8 @@ void nms_common_postprocessing(void* prois,
                                const ngraph::element::Type& output_type,
                                const std::vector<float>& selected_outputs,
                                const std::vector<int64_t>& selected_indices,
-                               const std::vector<int64_t>& valid_outputs);
+                               const std::vector<int64_t>& valid_outputs,
+                               const ngraph::element::Type& selected_outputs_type);
 
 }  // namespace nms_common
 }  // namespace reference

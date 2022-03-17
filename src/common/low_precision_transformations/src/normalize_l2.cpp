@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,7 +58,7 @@ bool NormalizeL2Transformation::canBeTransformed(const TransformationContext& co
         return false;
     }
 
-    const auto dequantization = NetworkHelper::getDequantization(operation);
+    const auto dequantization = NetworkHelper::getDequantization(operation, defaultPrecisions);
     if (dequantization.subtract != nullptr) {
         return false;
     }
@@ -100,10 +100,10 @@ bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph
         return false;
     }
 
-    auto normalize = ov::as_type_ptr<opset1::NormalizeL2>(NetworkHelper::separateInStandaloneBranch(operation));
+    auto normalize = ov::as_type_ptr<opset1::NormalizeL2>(NetworkHelper::separateInStandaloneBranch(operation, defaultPrecisions));
 
     const auto axes = ov::as_type_ptr<opset1::Constant>(normalize->get_input_node_shared_ptr(1));
-    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(normalize);
+    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(normalize, defaultPrecisions);
     auto scalesConst = ov::as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1));
     if (scalesConst == nullptr) {
         scalesConst = ov::as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(0));

@@ -1,17 +1,17 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 
 import numpy as np
 
-from openvino.tools.mo.ops.elementwise import Add, Mul
-from openvino.tools.mo.front.common.layout import get_features_dim
+from openvino.tools.mo.front.common.layout import get_dim_from_layout, get_features_dim
 from openvino.tools.mo.front.common.partial_infer.utils import compatible_dims
 from openvino.tools.mo.front.extractor import get_node_id_with_ports
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.elementwise import Add, Mul
 from openvino.tools.mo.utils.cli_parser import get_node_name_with_port_from_input_value
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
@@ -42,14 +42,26 @@ class AddMeanScaleValues(MiddleReplacementPattern):
         if all([x == optimize_value for x in value]):
             return
         assert input_node.has_valid('shape')
-        features_dim_idx = get_features_dim(graph.graph['layout'], len(input_node.shape))
-        assert compatible_dims(value.size, input_node.shape[features_dim_idx]) or value.size == 1
+        in_name = input_node.soft_get('name', input_node.id)
+        features_dim_idx, has_layout = get_dim_from_layout(input_node, 'C')
+        if features_dim_idx is None:
+            if has_layout:
+                log.warning('Layout for input {} doesn\'t have channel ("C") dimension to apply {} preprocessing. '
+                            'Skipping this input.'.format(in_name, preprocessing_name))
+            features_dim_idx = get_features_dim(graph.graph['layout'], len(input_node.shape))
+        assert compatible_dims(value.size, input_node.shape[features_dim_idx]) or value.size == 1, \
+            "Incompatible layout, please specify correct layout for the node"
 
         shape = np.ones(len(input_node.shape), dtype=np.int64)
         shape[features_dim_idx] = value.size
         value = value.reshape(shape)
 
-        name = input_node.soft_get('name', input_node.id) + '/' + preprocessing_name
+        if input_node.op == 'Parameter' and input_node.has_and_set('data_type'):
+            dtype = input_node.data_type
+            if np.issubdtype(dtype, np.floating):
+                value = value.astype(dtype)
+
+        name = in_name + '/' + preprocessing_name
         preprocessing = create_op_with_const_inputs(graph, op=op, port_value_dict={1: value}, op_attrs={'name': name})
 
         if input_node.is_out_port_connected(0) and len(input_node.out_port(0).get_destinations()) == 1:

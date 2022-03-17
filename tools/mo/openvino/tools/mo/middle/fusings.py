@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.front.div import Div
@@ -77,12 +77,11 @@ class Fusing(MiddleReplacementPattern):
             for_graph_and_each_sub_graph_recursively(graph, fuse_linear_ops)
             for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
 
-        if not argv.disable_gfusing:
-            for_graph_and_each_sub_graph_recursively(graph, grouped_convolutions_fusing)
+        for_graph_and_each_sub_graph_recursively(graph, grouped_convolutions_fusing)
+        for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
+        if not argv.disable_fusing:
+            for_graph_and_each_sub_graph_recursively(graph, fuse_linear_ops)
             for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
-            if not argv.disable_fusing:
-                for_graph_and_each_sub_graph_recursively(graph, fuse_linear_ops)
-                for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
 
         for_graph_and_each_sub_graph_recursively(graph, normalize_eltwise_inputs)
         for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())

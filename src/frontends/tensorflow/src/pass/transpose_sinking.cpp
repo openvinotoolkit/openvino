@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -362,7 +362,7 @@ static void sink_concat(const shared_ptr<Concat>& n,
 // For each op type we support we can either combine
 // two transposes by replacing the existing Transpose,
 // materialize pending transposes if they can't be propagated through op
-bool ov::frontend::tf::pass::TransposeSinkingOVTF::run_on_model(const shared_ptr<Model>& f) {
+bool ov::frontend::tensorflow::pass::TransposeSinking::run_on_model(const shared_ptr<Model>& f) {
     TransposeMap reorders;
     set<shared_ptr<Node>> transposes_to_delete;
     unordered_map<std::string, Shape> orig_result_out_shape;

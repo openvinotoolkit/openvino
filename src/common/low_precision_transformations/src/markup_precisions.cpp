@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,8 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MarkupPrecisions, "MarkupPrecisions", 0);
 
-ngraph::pass::low_precision::MarkupPrecisions::MarkupPrecisions(const std::vector<OperationPrecisionRestriction>& restrictions) {
+ngraph::pass::low_precision::MarkupPrecisions::MarkupPrecisions(const std::vector<OperationPrecisionRestriction>& restrictions,
+    const std::vector<ngraph::element::Type>& defaultPrecisions) : defaultPrecisions(defaultPrecisions) {
     for (const auto& restriction : restrictions) {
         const auto it = restrictionsByOperation.find(restriction.operationType.name);
         if (it == restrictionsByOperation.end()) {
@@ -75,7 +76,7 @@ bool ngraph::pass::low_precision::MarkupPrecisions::run_on_model(const std::shar
         // TODO: don't need to set restrictions for not supported operations
         // if don't set restrictions for not supported operations then accuracy drop appears, issue #59197
         const bool supported = ov::is_type<opset1::Result>(node) || isSupported(node);
-        if (!supported || !LayerTransformation::canBeTransformedStatic(node)) {
+        if (!supported || !LayerTransformation::canBeTransformedStatic(node, defaultPrecisions)) {
             setRestriction(node, std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>> { {0ul, {}}});
             continue;
         }

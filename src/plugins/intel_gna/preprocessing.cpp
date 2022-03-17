@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,22 +36,5 @@ void GNAPluginNS::ConvertToInt16(int16_t *ptr_dst,
     }
     for (uint32_t i = 0; i < num_rows*num_columns; i++) {
         ptr_dst[i] = GNAPluginNS::ConvertFloatToInt16(ptr_src[i]*scale_factor);
-    }
-}
-
-void GNAPluginNS::ConvertToFloat(float *ptr_dst,
-                                 int32_t *ptr_src,
-                                 const uint32_t num_rows,
-                                 const uint32_t num_columns,
-                                 const float scale_factor) {
-    if (!ptr_dst || !ptr_src) {
-        return;
-    }
-    for (uint32_t i = 0; i < num_rows; i++) {
-        int32_t *ptr_int_row = ptr_src + i * num_columns;
-        float *ptr_float_row = ptr_dst + i * num_columns;
-        for (uint32_t j = 0; j < num_columns; j++) {
-            ptr_float_row[j] = static_cast<float>(ptr_int_row[j]) / scale_factor;
-        }
     }
 }

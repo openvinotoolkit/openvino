@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -17,39 +17,39 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 # Create library
 
-add_library(${TARGET_NAME} ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+add_library(${TARGET_NAME}_obj OBJECT ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_OPENVINO_API)
 
-ie_faster_build(${TARGET_NAME}
+ie_faster_build(${TARGET_NAME}_obj
     UNITY
     PCH PRIVATE "src/precomp.hpp"
 )
 
-ie_add_vs_version_file(NAME ${TARGET_NAME}
-                       FILEDESCRIPTION "Inference Engine Transformations library")
+target_link_libraries(${TARGET_NAME}_obj PRIVATE ngraph_reference openvino::itt ngraph::builder ov_core_dev)
 
-target_link_libraries(${TARGET_NAME} PUBLIC ngraph
-                                     PRIVATE ngraph_reference openvino::itt ngraph::builder)
+target_include_directories(${TARGET_NAME}_obj PRIVATE $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
+                                              "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
-target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
-                                          PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}_obj)
 
-add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
-
-ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
-
-ie_mark_target_as_cc(${TARGET_NAME})
+ie_mark_target_as_cc(${TARGET_NAME}_obj)
 
 # LTO
 
-set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+set_target_properties(${TARGET_NAME}_obj PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
+if(NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(${TARGET_NAME}_obj PUBLIC OPENVINO_STATIC_LIBRARY)
+endif()
+
+add_library(${TARGET_NAME} INTERFACE)
+
+target_include_directories(${TARGET_NAME} INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:$<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>>)
+
+target_link_libraries(${TARGET_NAME} INTERFACE openvino::runtime)
 
 # developer package
 
-openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME})
-
-# install
-
-install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
-        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
+openvino_developer_export_targets(COMPONENT core_legacy TARGETS ${TARGET_NAME})

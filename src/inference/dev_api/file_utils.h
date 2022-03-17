@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@
 #include "ie_api.h"
 #include "openvino/util/file_util.hpp"
 
+/// @ingroup ie_dev_api_file_utils
 namespace FileUtils {
 
 /**

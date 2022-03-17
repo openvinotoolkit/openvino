@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -50,13 +50,7 @@ endfunction()
 
 set(VALIDATED_LIBRARIES "" CACHE INTERNAL "")
 
-function(_ie_add_api_validator_post_build_step)
-    if(NOT BUILD_SHARED_LIBS)
-        # since _ie_add_api_validator_post_build_step
-        # is currently run only on shared libraries, we have nothing to test
-        return()
-    endif()
-
+function(_ov_add_api_validator_post_build_step)
     set(UWP_API_VALIDATOR_APIS "${PROGRAMFILES}/Windows Kits/10/build/universalDDIs/x64/UniversalDDIs.xml")
     set(UWP_API_VALIDATOR_EXCLUSION "${UWP_SDK_PATH}/BinaryExclusionlist.xml")
 
@@ -79,8 +73,20 @@ function(_ie_add_api_validator_post_build_step)
     _ie_add_api_validator_post_build_step_recursive(TARGET ${API_VALIDATOR_TARGET})
 
     # remove targets which were tested before
-
-    foreach(item IN LISTS VALIDATED_LIBRARIES)
+    foreach(target IN LISTS API_VALIDATOR_TARGETS)
+        list(FIND VALIDATED_LIBRARIES ${target} index)
+        if (NOT index EQUAL -1)
+            list(APPEND VALIDATED_TARGETS ${target})
+        endif()
+        if(TARGET "${target}")
+            get_target_property(orig_target ${target} ALIASED_TARGET)
+            list(FIND VALIDATED_LIBRARIES ${orig_target} index)
+            if (NOT index EQUAL -1)
+                list(APPEND VALIDATED_TARGETS ${target})
+            endif()
+        endif()
+    endforeach()
+    foreach(item IN LISTS VALIDATED_TARGETS)
         list(REMOVE_ITEM API_VALIDATOR_TARGETS ${item})
     endforeach()
 
@@ -137,5 +143,5 @@ endfunction()
 # ie_add_api_validator_post_build_step(TARGET <name>)
 #
 macro(ie_add_api_validator_post_build_step)
-    _ie_add_api_validator_post_build_step(${ARGV})
+    _ov_add_api_validator_post_build_step(${ARGV})
 endmacro()

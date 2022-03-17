@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "remarks.hpp"
-#include "itt.hpp"
+#include <snippets/itt.hpp>
 
 #include "snippets/pass/insert_movebroadcast.hpp"
 #include "snippets/snippets_isa.hpp"
@@ -31,18 +31,18 @@ std::shared_ptr<ngraph::Node> numpy_broadcast_node(const ngraph::Output<ngraph::
                     " vs ",
                     output_shape.size());
 
-    ngraph::AxisVector broadcast_axes;
-    ngraph::Shape squeezed_shape;
-    for (size_t index = 0; index < output_shape.size(); ++index) {
-        if (source_shape.at(index) == 1 && output_shape.at(index) != 1) {
-            broadcast_axes.push_back(index);
-        } else {
-            squeezed_shape.push_back(source_shape.at(index));
+    bool do_broadcast = output_shape.size() > value.get_shape().size();
+    if (!do_broadcast) {
+        for (size_t index = 0; index < output_shape.size(); ++index) {
+            if (source_shape.at(index) == 1 && output_shape.at(index) != 1) {
+                do_broadcast = true;
+                break;
+            }
         }
     }
 
     remark(2) << "Insert explicit broadcast " << value.get_node()->get_type_name()
-    << " " << broadcast_axes << " " << broadcasted_node->get_shape() << " -> " << output_shape << std::endl;
+    << " " << broadcasted_node->get_shape() << " -> " << output_shape << std::endl;
 
     // it shouldn't be a probrem for now since we don't consider StridedSlice and Broadcast here
     if (auto constant = ngraph::as_type_ptr<ngraph::opset1::Constant>(broadcasted_node)) {
@@ -63,7 +63,7 @@ std::shared_ptr<ngraph::Node> numpy_broadcast_node(const ngraph::Output<ngraph::
         }
     }
 
-    if (!broadcast_axes.empty()) {
+    if (do_broadcast) {
         // ShapeOf
         broadcasted_node = std::make_shared<ngraph::snippets::op::BroadcastMove>(broadcasted_node, output_shape);
     }
@@ -138,6 +138,7 @@ auto reset_broacast_config(const std::shared_ptr<ngraph::Node>& op) -> void {
 ngraph::snippets::pass::InsertMoveBroadcast::InsertMoveBroadcast() {
     MATCHER_SCOPE(InsertMoveBroadcast);
     ngraph::graph_rewrite_callback callback = [this](ngraph::pattern::Matcher &m) {
+        OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::InsertMoveBroadcast")
         auto root = m.get_match_root();
         const auto& values = root->input_values();
         if (values.empty()) {
@@ -173,8 +174,8 @@ ngraph::snippets::pass::InsertMoveBroadcast::InsertMoveBroadcast() {
     auto any = std::make_shared<pattern::op::Label>(pattern::any_input(),
         [](std::shared_ptr<Node> n) {
             // should add supports_auto_broadcast to SquaredDifference
-            return (ngraph::op::supports_auto_broadcast(n) || !!as_type_ptr<opset1::SquaredDifference>(n) || !!as_type_ptr<opset1::Mod>(n))
-                && n->get_autob().m_type == ngraph::op::AutoBroadcastType::NUMPY; });
+            return ((ngraph::op::supports_auto_broadcast(n) || is_type<opset1::SquaredDifference>(n) || is_type<opset1::Mod>(n)) &&
+                 n->get_autob().m_type == ngraph::op::AutoBroadcastType::NUMPY) || is_type<opset1::PRelu>(n); });
 
     register_matcher(std::make_shared<ngraph::pattern::Matcher>(any), callback);
 }

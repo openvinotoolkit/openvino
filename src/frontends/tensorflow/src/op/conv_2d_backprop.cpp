@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,21 +10,21 @@ using namespace ov::opset8;
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 
 OutputVector translate_conv_2d_backprop_input_op(const NodeContext& node) {
     auto ng_filter = node.get_input(1), ng_out_backprop = node.get_input(2);
 
     // TODO: refactor me to be less redundant with other convolution ops
-    auto tf_strides = node.get_attribute<std::vector<int32_t>>("strides");
-    auto tf_dilations = node.get_attribute<std::vector<int32_t>>("dilations");
+    auto tf_strides = node.get_attribute<std::vector<int64_t>>("strides");
+    auto tf_dilations = node.get_attribute<std::vector<int64_t>>("dilations");
     auto tf_padding_type = node.get_attribute<std::string>("padding");
     auto tf_data_format = node.get_attribute<std::string>("data_format");
 
-    TF_OP_VALIDATION_CHECK(node,
-                           tf_data_format == "NHWC" || tf_data_format == "NCHW",
-                           "Conv2DBackpropInput data format is neither NHWC nor NCHW");
+    TENSORFLOW_OP_VALIDATION(node,
+                             tf_data_format == "NHWC" || tf_data_format == "NCHW",
+                             "Conv2DBackpropInput data format is neither NHWC nor NCHW");
 
     std::vector<int64_t> tf_input_sizes;
     get_const_input(node, 0, &tf_input_sizes);
@@ -92,6 +92,6 @@ OutputVector translate_conv_2d_backprop_input_op(const NodeContext& node) {
     return {res};
 }
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

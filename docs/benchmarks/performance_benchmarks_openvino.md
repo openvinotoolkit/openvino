@@ -1,8 +1,20 @@
 # Intel® Distribution of OpenVINO™ toolkit Benchmark Results {#openvino_docs_performance_benchmarks_openvino}
 
+@sphinxdirective
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   
+   openvino_docs_performance_benchmarks_faq
+   Download Performance Data Spreadsheet in MS Excel* Format <https://docs.openvino.ai/downloads/benchmark_files/OV-2021.4-Download-Excel.xlsx>
+   openvino_docs_performance_int8_vs_fp32
+
+      
+@endsphinxdirective
+
 This benchmark setup includes a single machine on which both the benchmark application and the OpenVINO™ installation reside.  
 
-The benchmark application loads the Inference Engine (SW) at run time and executes inferences on the specified hardware inference engine, (CPU, GPU or VPU). The benchmark application measures the time spent on actual inferencing (excluding any pre or post processing) and then reports on the inferences per second (or Frames Per Second). For more information on the benchmark application, please also refer to the entry 5 of the [FAQ section](performance_benchmarks_faq.md). 
+The benchmark application loads the OpenVINO Runtime (SW) at runtime and executes inferences on the specified hardware (CPU, GPU or VPU). The benchmark application measures the time spent on actual inferencing (excluding any pre or post processing) and then reports on the inferences per second (or Frames Per Second). For more information on the benchmark application, please also refer to the entry 5 of the [FAQ section](performance_benchmarks_faq.md). 
 
 Devices similar to the ones we have used for benchmarking can be accessed using [Intel® DevCloud for the Edge](https://devcloud.intel.com/edge/), a remote development environment with access to Intel® hardware and the latest versions of the Intel® Distribution of the OpenVINO™ Toolkit. [Learn more](https://devcloud.intel.com/edge/get_started/devcloud/) or [Register here](https://inteliot.force.com/DevcloudForEdge/s/).
 
@@ -14,95 +26,169 @@ Measuring inference performance involves many variables and is extremely use-cas
 - **Latency** - This measures the synchronous execution of inference requests and is reported in milliseconds. Each inference request (for example: preprocess, infer, postprocess) is allowed to complete before the next is started. This performance metric is relevant in usage scenarios where a single image input needs to be acted upon as soon as possible. An example would be the healthcare sector where medical personnel only request analysis of a single ultra sound scanning image or in real-time or near real-time applications for example an industrial robot's response to actions in its environment or obstacle avoidance for autonomous vehicles. 
 
 
-\htmlonly
-<!-- these CDN links and scripts are required.  Add them to the <head> of your website -->
-<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@100;300;400;500;600;700;900&display=swap" rel="stylesheet" type="text/css">
-<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" type="text/css">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.3/dist/Chart.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/0.5.7/chartjs-plugin-annotation.min.js"></script> 
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-barchart-background@1.3.0/build/Plugin.Barchart.Background.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-deferred@1"></script>
-<!-- download this file and place on your server (or include the styles inline) -->
-<link rel="stylesheet" href="ovgraphs.css" type="text/css">
-\endhtmlonly
+## bert-large-uncased-whole-word-masking-squad-int8-0001 [384]
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/bert-large-uncased-whole-word-masking-squad-int8-0001-384.csv"></div>
+    
+@endsphinxdirective
+
+## deeplabv3-TF [513x513]
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/deeplabv3-TF-513x513.csv"></div>
+    
+@endsphinxdirective
+
+## densenet-121-TF [224x224]
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/densenet-121-TF-224x224.csv"></div>
+    
+@endsphinxdirective
+
+## faster-rcnn-resnet50-coco-TF [600x1024]
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/faster_rcnn_resnet50_coco-TF-600x1024.csv"></div>
+    
+@endsphinxdirective
 
 
-\htmlonly
-<script src="bert-large-uncased-whole-word-masking-squad-int8-0001-384-ov-2021-4-569.js" id="bert-large-uncased-whole-word-masking-squad-int8-0001-384-ov-2021-4-569"></script>
-\endhtmlonly
+## inception-v3-TF [299x299]
 
-\htmlonly
-<script src="deeplabv3-tf-513x513-ov-2021-4-569.js" id="deeplabv3-tf-513x513-ov-2021-4-569"></script>
-\endhtmlonly
+@sphinxdirective
+.. raw:: html
 
-\htmlonly
-<script src="densenet-121-tf-224x224-ov-2021-4-569.js" id="densenet-121-tf-224x224-ov-2021-4-569"></script>
-\endhtmlonly
+    <div class="chart-block" data-loadcsv="csv/inception-v3-TF-299x299.csv"></div>
+    
+@endsphinxdirective
 
-\htmlonly
-<script src="faster-rcnn-resnet50-coco-tf-600x1024-ov-2021-4-569.js" id="faster-rcnn-resnet50-coco-tf-600x1024-ov-2021-4-569"></script>
-\endhtmlonly
+## inception-v4-TF [299x299]
 
-\htmlonly
-<script src="inception-v3-tf-299x299-ov-2021-4-569.js" id="inception-v3-tf-299x299-ov-2021-4-569"></script>
-\endhtmlonly
+@sphinxdirective
+.. raw:: html
 
-\htmlonly
-<script src="inception-v4-tf-299x299-ov-2021-4-569.js" id="inception-v4-tf-299x299-ov-2021-4-569"></script>
-\endhtmlonly
+    <div class="chart-block" data-loadcsv="csv/inception-v4-TF-299x299.csv"></div>
+    
+@endsphinxdirective
 
-\htmlonly
-<script src="mobilenet-ssd-cf-300x300-ov-2021-4-569.js" id="mobilenet-ssd-cf-300x300-ov-2021-4-569"></script>
-\endhtmlonly
+## mobilenet-ssd-CF [300x300]
 
-\htmlonly
-<script src="mobilenet-v2-pytorch-224x224-ov-2021-4-569.js" id="mobilenet-v2-pytorch-224x224-ov-2021-4-569"></script>
-\endhtmlonly
+@sphinxdirective
+.. raw:: html
 
-\htmlonly
-<script src="resnet-18-pytorch-224x224-ov-2021-4-569.js" id="resnet-18-pytorch-224x224-ov-2021-4-569"></script>
-\endhtmlonly
+    <div class="chart-block" data-loadcsv="csv/mobilenet-ssd-CF-300x300.csv"></div>
+    
+@endsphinxdirective
 
-\htmlonly
-<script src="resnet-50-tf-224x224-ov-2021-4-569.js" id="resnet-50-tf-224x224-ov-2021-4-569"></script>
-\endhtmlonly
+## mobilenet-v2-pytorch [224x224]
 
-\htmlonly
-<script src="se-resnext-50-cf-224x224-ov-2021-4-569.js" id="se-resnext-50-cf-224x224-ov-2021-4-569"></script>
-\endhtmlonly
+@sphinxdirective
+.. raw:: html
 
-\htmlonly
-<script src="squeezenet1-1-cf-227x227-ov-2021-4-569.js" id="squeezenet1-1-cf-227x227-ov-2021-4-569"></script>
-\endhtmlonly
+    <div class="chart-block" data-loadcsv="csv/mobilenet-v2-pytorch-224x224.csv"></div>
+    
+@endsphinxdirective
+
+## resnet-18-pytorch [224x224]
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/resnet-18-pytorch-224x224.csv"></div>
+    
+@endsphinxdirective
+
+## resnet_50_TF [224x224]
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/resnet-50-TF-224x224.csv"></div>
+    
+@endsphinxdirective
+
+## se-resnext-50-CF [224x224]
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/se-resnext-50-CF-224x224.csv"></div>
+    
+@endsphinxdirective
+
+## squeezenet1.1-CF [227x227]
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/squeezenet1.1-CF-227x227.csv"></div>
+    
+@endsphinxdirective
+
+## ssd300-CF [300x300]
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/ssd300-CF-300x300.csv"></div>
+    
+@endsphinxdirective
+
+## yolo-v3-tiny-tf [416x416]
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/yolo-v3-tiny-tf-416x416.csv"></div>
+    
+@endsphinxdirective
+
+## yolo_v4-tf [608x608]
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/yolo_v4-tf-608x608.csv"></div>
+    
+@endsphinxdirective
 
 
-\htmlonly
-<script src="ssd300-cf-300x300-ov-2021-4-569.js" id="ssd300-cf-300x300-ov-2021-4-569"></script>
-\endhtmlonly
+## unet-camvid-onnx-0001 [368x480]
 
-\htmlonly
-<script src="yolo-v3-tiny-tf-416x416-ov-2021-4-569.js" id="yolo-v3-tiny-tf-416x416-ov-2021-4-569"></script>
-\endhtmlonly
+@sphinxdirective
+.. raw:: html
 
-\htmlonly
-<script src="yolo-v4-tf-608x608-ov-2021-4-569.js" id="yolo-v4-tf-608x608-ov-2021-4-569"></script>
-\endhtmlonly
+    <div class="chart-block" data-loadcsv="csv/unet-camvid-onnx-0001-368x480.csv"></div>
+    
+@endsphinxdirective
 
-\htmlonly
-<script src="unet-camvid-onnx-0001-368x480-ov-2021-4-569.js" id="unet-camvid-onnx-0001-368x480-ov-2021-4-569"></script>
-\endhtmlonly
+## ssd-resnet34-1200-onnx [1200x1200]
 
-\htmlonly
-<script src="ssd-resnet34-1200-onnx-1200x1200-ov-2021-4-569.js" id="ssd-resnet34-1200-onnx-1200x1200-ov-2021-4-569"></script>
-\endhtmlonly
+@sphinxdirective
+.. raw:: html
 
-\htmlonly
-<script src="vgg19-caffe-224x224-ov-2021-4-569.js" id="vgg19-caffe-224x224-ov-2021-4-569"></script>
-\endhtmlonly
+    <div class="chart-block" data-loadcsv="csv/ssd-resnet34-1200-onnx-1200x1200.csv"></div>
+    
+@endsphinxdirective
 
+## vgg19-caffe [224x224]
 
+@sphinxdirective
+.. raw:: html
 
+    <div class="chart-block" data-loadcsv="csv/vgg19-caffe-224x224.csv"></div>
+    
+@endsphinxdirective
 
 ## Platform Configurations
 
@@ -122,7 +208,7 @@ Testing by Intel done on: see test date for each HW platform below.
 
 **CPU Inference Engines**
 
-|                                 | Intel® Xeon® E-2124G               | Intel® Xeon® W1290P                | Intel® Xeon® Silver 4216R               | 
+| Configuration                   | Intel® Xeon® E-2124G               | Intel® Xeon® W1290P                | Intel® Xeon® Silver 4216R               | 
 | ------------------------------- | ----------------------             | ---------------------------        | ----------------------------            |
 | Motherboard                     | ASUS* WS C246 PRO                  | ASUS* WS W480-ACE                  | Intel® Server Board S2600STB            |
 | CPU                             | Intel® Xeon® E-2124G CPU @ 3.40GHz | Intel® Xeon® W-1290P CPU @ 3.70GHz | Intel® Xeon® Silver 4216R CPU @ 2.20GHz |
@@ -144,7 +230,7 @@ Testing by Intel done on: see test date for each HW platform below.
 
 **CPU Inference Engines (continue)**
 
-|                                 | Intel® Xeon® Gold 5218T                 | Intel® Xeon® Platinum 8270               | Intel® Xeon® Platinum 8380               |
+| Configuration                   | Intel® Xeon® Gold 5218T                 | Intel® Xeon® Platinum 8270               | Intel® Xeon® Platinum 8380               |
 | ------------------------------- | ----------------------------            | ----------------------------             | -----------------------------------------|
 | Motherboard                     | Intel® Server Board S2600STB            | Intel® Server Board S2600STB             | Intel Corporation / WilsonCity           |
 | CPU                             | Intel® Xeon® Gold 5218T CPU @ 2.10GHz   | Intel® Xeon® Platinum 8270 CPU @ 2.70GHz | Intel® Xeon® Platinum 8380 CPU @ 2.30GHz |
@@ -167,7 +253,7 @@ Testing by Intel done on: see test date for each HW platform below.
 
 **CPU Inference Engines (continue)**
 
-|                      | Intel® Core™ i7-8700T               | Intel® Core™ i9-10920X               |
+| Configuration        | Intel® Core™ i7-8700T               | Intel® Core™ i9-10920X               |
 | -------------------- | ----------------------------------- |--------------------------------------|
 | Motherboard          | GIGABYTE* Z370M DS3H-CF             | ASUS* PRIME X299-A II                |
 | CPU                  | Intel® Core™ i7-8700T CPU @ 2.40GHz | Intel® Core™ i9-10920X CPU @ 3.50GHz |
@@ -188,7 +274,7 @@ Testing by Intel done on: see test date for each HW platform below.
 | CPU Price/socket on June 21, 2021, USD<br>Prices may vary    | [303](https://ark.intel.com/content/www/us/en/ark/products/129948/intel-core-i7-8700t-processor-12m-cache-up-to-4-00-ghz.html)                | [700](https://ark.intel.com/content/www/us/en/ark/products/198012/intel-core-i9-10920x-x-series-processor-19-25m-cache-3-50-ghz.html) |
 
 **CPU Inference Engines (continue)**
-|                      | 11th Gen Intel® Core™ i7-1185G7 | 11th Gen Intel® Core™ i7-11850HE |
+| Configuration        | 11th Gen Intel® Core™ i7-1185G7 | 11th Gen Intel® Core™ i7-11850HE |
 | -------------------- | --------------------------------|----------------------------------|
 | Motherboard          | Intel Corporation<br>internal/Reference<br>Validation Platform | Intel Corporation<br>internal/Reference<br>Validation Platform |
 | CPU                  | 11th Gen Intel® Core™ i7-1185G7 @ 3.00GHz | 11th Gen Intel® Core™ i7-11850HE @ 2.60GHz |
@@ -210,7 +296,7 @@ Testing by Intel done on: see test date for each HW platform below.
 
 **CPU Inference Engines (continue)**
 
-|                      | Intel® Core™ i3-8100               | Intel® Core™ i5-8500               | Intel® Core™ i5-10500TE               |
+| Configuration        | Intel® Core™ i3-8100               | Intel® Core™ i5-8500               | Intel® Core™ i5-10500TE               |
 | -------------------- |----------------------------------- | ---------------------------------- | -----------------------------------   |
 | Motherboard          | GIGABYTE* Z390 UD                  | ASUS* PRIME Z370-A                 | GIGABYTE* Z490 AORUS PRO AX           |
 | CPU                  | Intel® Core™ i3-8100 CPU @ 3.60GHz | Intel® Core™ i5-8500 CPU @ 3.00GHz | Intel® Core™ i5-10500TE CPU @ 2.30GHz |
@@ -233,7 +319,7 @@ Testing by Intel done on: see test date for each HW platform below.
 
 **CPU Inference Engines (continue)**
 
-|                      | Intel Atom® x5-E3940                  | Intel Atom® x6425RE                               | Intel® Celeron® 6305E            |
+| Configuration        | Intel Atom® x5-E3940                  | Intel Atom® x6425RE                               | Intel® Celeron® 6305E            |
 | -------------------- | --------------------------------------|-------------------------------                    |----------------------------------|
 | Motherboard          | Intel Corporation<br>internal/Reference<br>Validation Platform | Intel Corporation<br>internal/Reference<br>Validation Platform | Intel Corporation<br>internal/Reference<br>Validation Platform      |
 | CPU                  | Intel Atom® Processor E3940 @ 1.60GHz | Intel Atom® x6425RE<br>Processor @ 1.90GHz        | Intel® Celeron®<br>6305E @ 1.80GHz  |
@@ -257,7 +343,7 @@ Testing by Intel done on: see test date for each HW platform below.
 
 **Accelerator Inference Engines**
 
-|                                         | Intel® Neural Compute Stick 2         | Intel® Vision Accelerator Design<br>with Intel® Movidius™ VPUs (Mustang-V100-MX8) | 
+| Configuration                           | Intel® Neural Compute Stick 2         | Intel® Vision Accelerator Design<br>with Intel® Movidius™ VPUs (Mustang-V100-MX8) | 
 | --------------------------------------- | ------------------------------------- | ------------------------------------- |
 | VPU                                     | 1 X Intel® Movidius™ Myriad™ X MA2485 | 8 X Intel® Movidius™ Myriad™ X MA2485 |
 | Connection                              | USB 2.0/3.0                           | PCIe X4                               |
@@ -279,19 +365,6 @@ Testing by Intel done on: see test date for each HW platform below.
 | BIOS Release                            | September 21, 2018                    | September 21, 2018                    |
 | Test Date                               | June 18, 2021                        | June 18, 2021                      |        
 
-Please follow this link for more detailed configuration descriptions: [Configuration Details](https://docs.openvinotoolkit.org/resources/benchmark_files/system_configurations_2021.4.html)
+Please follow this link for more detailed configuration descriptions: [Configuration Details](https://docs.openvino.ai/resources/benchmark_files/system_configurations_2021.4.html)
 
-\htmlonly
-<style>
-    .footer {
-        display: none;
-    }
-</style>
-<div class="opt-notice-wrapper">
-<p class="opt-notice">
-\endhtmlonly
 Results may vary. For workloads and configurations visit: [www.intel.com/PerformanceIndex](https://www.intel.com/PerformanceIndex) and [Legal Information](../Legal_Information.md).
-\htmlonly
-</p>
-</div>
-\endhtmlonly

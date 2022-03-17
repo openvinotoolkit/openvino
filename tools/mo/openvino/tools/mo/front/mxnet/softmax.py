@@ -1,8 +1,7 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.ops.elementwise import Mul
 from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
 from openvino.tools.mo.graph.graph import Graph
@@ -26,7 +25,7 @@ class SoftmaxFrontReplacementSubgraph(FrontReplacementSubgraph):
             in_node = node.in_node()
             out_nodes = [node for node in node.out_nodes().values()]
             graph.remove_edge(node.in_node().id, node.id)
-            temperature = np.array([1.0 / node.temperature])
+            temperature = mo_array([1.0 / node.temperature])
             scalar_value_op = Const(graph, dict(value=temperature, shape=temperature.shape,
                                                 symbol_dict={'name': node.id + '/const'}))
             mul_op = Mul(graph, dict(name=node.id + '/mul_', symbol_dict={'name': node.id + '/mul_'}))

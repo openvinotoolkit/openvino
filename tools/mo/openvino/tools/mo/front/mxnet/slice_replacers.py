@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -17,11 +17,11 @@ class MXSliceToStridedSliceReplacer(FrontReplacementOp):
         node = match['op']
 
         strided_slice_node = StridedSlice(graph, dict(name=node.id + '/strided_slice_',
-                                                      shrink_axis_mask=np.array(np.zeros(len(node.crop_begin), dtype=np.int64)),
-                                                      new_axis_mask=np.array(np.zeros(len(node.crop_begin), dtype=np.int64)),
-                                                      ellipsis_mask=np.array(np.zeros(len(node.crop_begin), dtype=np.int64)),
-                                                      begin_mask=np.array(np.ones(len(node.crop_begin), dtype=np.int64)),
-                                                      end_mask=np.array(np.ones(len(node.crop_end), dtype=np.int64)))).create_node()
+                                                      shrink_axis_mask=np.zeros(len(node.crop_begin), dtype=np.int64),
+                                                      new_axis_mask=np.zeros(len(node.crop_begin), dtype=np.int64),
+                                                      ellipsis_mask=np.zeros(len(node.crop_begin), dtype=np.int64),
+                                                      begin_mask=np.ones(len(node.crop_begin), dtype=np.int64),
+                                                      end_mask=np.ones(len(node.crop_end), dtype=np.int64))).create_node()
         node.in_port(0).get_connection().set_destination(strided_slice_node.in_port(0))
         node.out_port(0).get_connection().set_source(strided_slice_node.out_port(0))
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,32 +14,32 @@ using namespace ov;
 namespace {
 struct CTCGreedyDecoderSeqLenParams {
     CTCGreedyDecoderSeqLenParams(
-        const Tensor& dataTensor, const Tensor& seqLenTensor, const Tensor& blankIndexTensor, int64_t mergeRepeated,
-        const Tensor& expectedTensor, const Tensor& expectedTensor2, const std::string& testcaseName = "") :
+        const reference_tests::Tensor& dataTensor, const reference_tests::Tensor& seqLenTensor, const reference_tests::Tensor& blankIndexTensor, int64_t mergeRepeated,
+        const reference_tests::Tensor& expectedTensor, const reference_tests::Tensor& expectedTensor2, const std::string& testcaseName = "") :
         dataTensor(dataTensor), seqLenTensor(seqLenTensor), blankIndexTensor(blankIndexTensor), mergeRepeated(mergeRepeated),
         expectedTensor(expectedTensor), expectedTensor2(expectedTensor2), testcaseName(testcaseName) {}
 
-    Tensor dataTensor;
-    Tensor seqLenTensor;
-    Tensor blankIndexTensor;
+    reference_tests::Tensor dataTensor;
+    reference_tests::Tensor seqLenTensor;
+    reference_tests::Tensor blankIndexTensor;
     bool mergeRepeated;
-    Tensor expectedTensor;
-    Tensor expectedTensor2;
+    reference_tests::Tensor expectedTensor;
+    reference_tests::Tensor expectedTensor2;
     std::string testcaseName;
 };
 
 struct CTCGreedyDecoderSeqLenParamsNoOptionalInput {
     CTCGreedyDecoderSeqLenParamsNoOptionalInput(
-        const Tensor& dataTensor, const Tensor& seqLenTensor, int64_t mergeRepeated,
-        const Tensor& expectedTensor, const Tensor& expectedTensor2, const std::string& testcaseName = "") :
+        const reference_tests::Tensor& dataTensor, const reference_tests::Tensor& seqLenTensor, int64_t mergeRepeated,
+        const reference_tests::Tensor& expectedTensor, const reference_tests::Tensor& expectedTensor2, const std::string& testcaseName = "") :
         dataTensor(dataTensor), seqLenTensor(seqLenTensor), mergeRepeated(mergeRepeated),
         expectedTensor(expectedTensor), expectedTensor2(expectedTensor2), testcaseName(testcaseName) {}
 
-    Tensor dataTensor;
-    Tensor seqLenTensor;
+    reference_tests::Tensor dataTensor;
+    reference_tests::Tensor seqLenTensor;
     bool mergeRepeated;
-    Tensor expectedTensor;
-    Tensor expectedTensor2;
+    reference_tests::Tensor expectedTensor;
+    reference_tests::Tensor expectedTensor2;
     std::string testcaseName;
 };
 
@@ -137,39 +137,39 @@ std::vector<CTCGreedyDecoderSeqLenParams> generateParams() {
     using T = typename element_type_traits<ET>::value_type;
     std::vector<CTCGreedyDecoderSeqLenParams> params {
         CTCGreedyDecoderSeqLenParams(
-            Tensor(ET, {1, 3, 3}, std::vector<T>{0.1f, 0.2f, 0.f, 0.4f, 0.3f, 0.f, 0.5f, 0.6f, 0.f}),
-            Tensor(element::i32, {1}, std::vector<int32_t>{2}),
-            Tensor(element::i32, {}, std::vector<int32_t>{2}),
+            reference_tests::Tensor(ET, {1, 3, 3}, std::vector<T>{0.1f, 0.2f, 0.f, 0.4f, 0.3f, 0.f, 0.5f, 0.6f, 0.f}),
+            reference_tests::Tensor(element::i32, {1}, std::vector<int32_t>{2}),
+            reference_tests::Tensor(element::i32, {}, std::vector<int32_t>{2}),
             false,
-            Tensor(element::i32, {1, 3}, std::vector<int32_t>{1, 0, -1}),
-            Tensor(element::i32, {1}, std::vector<int32_t>{2}),
+            reference_tests::Tensor(element::i32, {1, 3}, std::vector<int32_t>{1, 0, -1}),
+            reference_tests::Tensor(element::i32, {1}, std::vector<int32_t>{2}),
             "evaluate_ctc_greedy_decoder_seq_len"),
         CTCGreedyDecoderSeqLenParams(
-            Tensor(ET, {1, 3, 3}, std::vector<T>{0.1f, 0.2f, 0.f, 0.4f, 0.3f, 0.f, 0.5f, 0.6f, 0.f}),
-            Tensor(element::i32, {1}, std::vector<int32_t>{2}),
-            Tensor(element::i32, {}, std::vector<int32_t>{2}),
+            reference_tests::Tensor(ET, {1, 3, 3}, std::vector<T>{0.1f, 0.2f, 0.f, 0.4f, 0.3f, 0.f, 0.5f, 0.6f, 0.f}),
+            reference_tests::Tensor(element::i32, {1}, std::vector<int32_t>{2}),
+            reference_tests::Tensor(element::i32, {}, std::vector<int32_t>{2}),
             true,
-            Tensor(element::i32, {1, 3}, std::vector<int32_t>{1, 0, -1}),
-            Tensor(element::i32, {1}, std::vector<int32_t>{2}),
+            reference_tests::Tensor(element::i32, {1, 3}, std::vector<int32_t>{1, 0, -1}),
+            reference_tests::Tensor(element::i32, {1}, std::vector<int32_t>{2}),
             "evaluate_ctc_greedy_decoder_seq_len_merge"),
         CTCGreedyDecoderSeqLenParams(
-            Tensor(ET, {2, 3, 3}, std::vector<T>{0.1f,  0.2f,  0.f, 0.15f, 0.25f, 0.f, 0.4f,  0.3f,  0.f,
+            reference_tests::Tensor(ET, {2, 3, 3}, std::vector<T>{0.1f,  0.2f,  0.f, 0.15f, 0.25f, 0.f, 0.4f,  0.3f,  0.f,
                                                  0.45f, 0.35f, 0.f, 0.5f,  0.6f,  0.f, 0.55f, 0.65f, 0.f}),
-            Tensor(element::i32, {2}, std::vector<int32_t>{1, 1}),
-            Tensor(element::i32, {}, std::vector<int32_t>{2}),
+            reference_tests::Tensor(element::i32, {2}, std::vector<int32_t>{1, 1}),
+            reference_tests::Tensor(element::i32, {}, std::vector<int32_t>{2}),
             false,
-            Tensor(element::i32, {2, 3}, std::vector<int32_t>{1, -1, -1, 0, -1, -1}),
-            Tensor(element::i32, {2}, std::vector<int32_t>{1, 1}),
+            reference_tests::Tensor(element::i32, {2, 3}, std::vector<int32_t>{1, -1, -1, 0, -1, -1}),
+            reference_tests::Tensor(element::i32, {2}, std::vector<int32_t>{1, 1}),
             "evaluate_ctc_greedy_decoder_seq_len_multiple_batches"),
         CTCGreedyDecoderSeqLenParams(
-            Tensor(ET, {3, 3, 3}, std::vector<T>{0.1f,  0.2f,  0.f, 0.15f, 0.25f, 0.f, 0.4f,  0.3f,  0.f,
+            reference_tests::Tensor(ET, {3, 3, 3}, std::vector<T>{0.1f,  0.2f,  0.f, 0.15f, 0.25f, 0.f, 0.4f,  0.3f,  0.f,
                                                  0.45f, 0.35f, 0.f, 0.5f,  0.6f,  0.f, 0.55f, 0.65f, 0.f,
                                                  0.1f,  0.2f,  0.f, 0.15f, 0.25f, 0.f, 0.4f,  0.3f,  0.f}),
-            Tensor(element::i32, {3}, std::vector<int32_t>{2, 3, 1}),
-            Tensor(element::i32, {}, std::vector<int32_t>{2}),
+            reference_tests::Tensor(element::i32, {3}, std::vector<int32_t>{2, 3, 1}),
+            reference_tests::Tensor(element::i32, {}, std::vector<int32_t>{2}),
             false,
-            Tensor(element::i32, {3, 3}, std::vector<int32_t>{1, 1, -1, 0, 1, 1, 1, -1, -1}),
-            Tensor(element::i32, {3}, std::vector<int32_t>{2, 3, 1}),
+            reference_tests::Tensor(element::i32, {3, 3}, std::vector<int32_t>{1, 1, -1, 0, 1, 1, 1, -1, -1}),
+            reference_tests::Tensor(element::i32, {3}, std::vector<int32_t>{2, 3, 1}),
             "evaluate_ctc_greedy_decoder_seq_len_multiple_batches2"),
     };
     return params;
@@ -195,11 +195,11 @@ std::vector<CTCGreedyDecoderSeqLenParamsNoOptionalInput> generateParamsNoOptiona
     using T = typename element_type_traits<ET>::value_type;
     std::vector<CTCGreedyDecoderSeqLenParamsNoOptionalInput> params {
         CTCGreedyDecoderSeqLenParamsNoOptionalInput(
-            Tensor(ET, {1, 3, 3}, std::vector<T>{0.1f, 0.2f, 0.f, 0.4f, 0.3f, 0.f, 0.5f, 0.6f, 0.f}),
-            Tensor(element::i32, {1}, std::vector<int32_t>{2}),
+            reference_tests::Tensor(ET, {1, 3, 3}, std::vector<T>{0.1f, 0.2f, 0.f, 0.4f, 0.3f, 0.f, 0.5f, 0.6f, 0.f}),
+            reference_tests::Tensor(element::i32, {1}, std::vector<int32_t>{2}),
             false,
-            Tensor(element::i32, {1, 3}, std::vector<int32_t>{1, 0, -1}),
-            Tensor(element::i32, {1}, std::vector<int32_t>{2}),
+            reference_tests::Tensor(element::i32, {1, 3}, std::vector<int32_t>{1, 0, -1}),
+            reference_tests::Tensor(element::i32, {1}, std::vector<int32_t>{2}),
             "evaluate_ctc_greedy_decoder_seq_len_no_optional_input"),
     };
     return params;

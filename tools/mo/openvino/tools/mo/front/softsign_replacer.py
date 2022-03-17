@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -21,7 +21,7 @@ class SoftSign(FrontReplacementOp):
         abs_node = Abs(graph, {'name': "abs_" + node.id}).create_node()
         abs_node.in_port(0).connect(node.in_port(0).get_source())
 
-        add_node = create_op_node_with_second_input(graph, Add, np.ones([1]), {"name": node.id + "_plus_1"})
+        add_node = create_op_node_with_second_input(graph, Add, np.ones([1], dtype=np.float32), {"name": node.id + "_plus_1"})
         add_node.in_port(0).connect(abs_node.out_port(0))
         div_node = Div(graph, {"name": "div_" + node.id}).create_node()
         div_node.in_port(0).connect(node.in_port(0).get_source())

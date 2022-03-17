@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,13 +52,13 @@ public:
      * @brief Always returns `0`
      * @return Returns `0`
      */
-    size_t byteSize() const noexcept override;
+    size_t byteSize() const override;
 
     /**
      * @brief Always returns `0`
      * @return Returns `0`
      */
-    size_t element_size() const noexcept override;
+    size_t element_size() const override;
 
     /**
      * @brief No operation is performed. Compound blob does not allocate/deallocate any data

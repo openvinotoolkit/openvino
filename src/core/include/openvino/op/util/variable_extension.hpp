@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,6 +37,9 @@ public:
 
     /// \brief Returns the identifier of corresponding variable.
     virtual std::string get_variable_id() const = 0;
+
+protected:
+    virtual ~VariableExtension(){};
 
 protected:
     std::shared_ptr<Variable> m_variable;

@@ -1,13 +1,14 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
-
 from common.layer_test_class import check_ir_version
 from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
-from openvino.tools.mo.middle.passes.convert_data_type import data_type_str_to_np, np_data_type_to_destination_type
+from openvino.tools.mo.middle.passes.convert_data_type import data_type_str_to_np, \
+    np_data_type_to_destination_type
 from unit_tests.utils.graph import build_graph
 
 
@@ -35,7 +36,8 @@ class TestResize(OnnxRuntimeLayerTest):
 
         onnx_scales = scales
         if scales is None:
-            onnx_scales = np.array(output_shape).astype(np.float) / np.array(input_shape).astype(np.float)
+            onnx_scales = np.array(output_shape).astype(np.float) / np.array(input_shape).astype(
+                np.float)
         scales_node = onnx.helper.make_node(
             'Constant',
             inputs=[],
@@ -143,10 +145,12 @@ class TestResize(OnnxRuntimeLayerTest):
             }
 
             if shape_calculation_mode == 'scales':
-                ref_net = create_ref_net_in_scales_mode(precision, input_shape_as_array, output_shape,
+                ref_net = create_ref_net_in_scales_mode(precision, input_shape_as_array,
+                                                        output_shape,
                                                         sizes_value, scales_value, interp_attrs)
             else:
-                ref_net = create_ref_net_in_sizes_mode(precision, input_shape_as_array, output_shape,
+                ref_net = create_ref_net_in_sizes_mode(precision, input_shape_as_array,
+                                                       output_shape,
                                                        sizes_value, scales_value, interp_attrs)
 
         return onnx_net, ref_net
@@ -199,9 +203,10 @@ class TestResize(OnnxRuntimeLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data)
-    def test_resize(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_resize(self, params, ie_device, precision, ir_version, temp_dir, api_2):
         self._test(*self.create_resize_net(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, custom_eps=2.0e-4, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, custom_eps=2.0e-4, temp_dir=temp_dir,
+                   api_2=api_2)
 
     test_data_cubic = [
         dict(input_shape=[1, 3, 100, 200], output_shape=[1, 3, 350, 150],
@@ -229,13 +234,16 @@ class TestResize(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("cubic_coeff_a", [-0.75])
     @pytest.mark.parametrize("mode", ['cubic'])
     @pytest.mark.parametrize("nearest_mode", ['round_prefer_floor'])
-    def test_resize_combined_cubic(self, params, coordinate_transformation_mode, cubic_coeff_a, mode,
-                                   nearest_mode, ie_device, precision, ir_version, temp_dir):
+    def test_resize_combined_cubic(self, params, coordinate_transformation_mode, cubic_coeff_a,
+                                   mode,
+                                   nearest_mode, ie_device, precision, ir_version, temp_dir, api_2):
         self._test(*self.create_resize_net(**params,
                                            coordinate_transformation_mode=coordinate_transformation_mode,
-                                           cubic_coeff_a=cubic_coeff_a, mode=mode, nearest_mode=nearest_mode,
+                                           cubic_coeff_a=cubic_coeff_a, mode=mode,
+                                           nearest_mode=nearest_mode,
                                            precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, custom_eps=2.6e-2, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, custom_eps=2.6e-2, temp_dir=temp_dir,
+                   api_2=api_2)
 
     test_data_nearest = [
         dict(input_shape=[1, 3, 100, 200], output_shape=[1, 3, 350, 150],
@@ -256,13 +264,16 @@ class TestResize(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("mode", ['nearest'])
     @pytest.mark.parametrize("nearest_mode", ['round_prefer_floor', 'round_prefer_ceil',
                                               'floor', 'ceil'])
-    def test_resize_combined_nearest(self, params, coordinate_transformation_mode, cubic_coeff_a, mode,
-                                     nearest_mode, ie_device, precision, ir_version, temp_dir):
+    def test_resize_combined_nearest(self, params, coordinate_transformation_mode, cubic_coeff_a,
+                                     mode,
+                                     nearest_mode, ie_device, precision, ir_version, temp_dir,
+                                     api_2):
         self._test(*self.create_resize_net(**params,
                                            coordinate_transformation_mode=coordinate_transformation_mode,
-                                           cubic_coeff_a=cubic_coeff_a, mode=mode, nearest_mode=nearest_mode,
+                                           cubic_coeff_a=cubic_coeff_a, mode=mode,
+                                           nearest_mode=nearest_mode,
                                            precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     test_data_linear = [
         dict(input_shape=[1, 3, 100, 200], output_shape=[1, 3, 350, 150],
@@ -290,13 +301,17 @@ class TestResize(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("cubic_coeff_a", [-0.75])
     @pytest.mark.parametrize("mode", ['linear'])
     @pytest.mark.parametrize("nearest_mode", ['round_prefer_floor'])
-    def test_resize_combined_linear(self, params, coordinate_transformation_mode, cubic_coeff_a, mode,
-                                    nearest_mode, ie_device, precision, ir_version, temp_dir):
+    def test_resize_combined_linear(self, params, coordinate_transformation_mode, cubic_coeff_a,
+                                    mode,
+                                    nearest_mode, ie_device, precision, ir_version, temp_dir,
+                                    api_2):
         self._test(*self.create_resize_net(**params,
                                            coordinate_transformation_mode=coordinate_transformation_mode,
-                                           cubic_coeff_a=cubic_coeff_a, mode=mode, nearest_mode=nearest_mode,
+                                           cubic_coeff_a=cubic_coeff_a, mode=mode,
+                                           nearest_mode=nearest_mode,
                                            precision=precision, ir_version=ir_version),
-        ie_device, precision, ir_version, custom_eps=2.0e-2, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, custom_eps=2.0e-2, temp_dir=temp_dir,
+                   api_2=api_2)
 
     test_data_sizes = [
         dict(input_shape=[1, 1, 4, 4], output_shape=[1, 1, 3, 3],
@@ -342,9 +357,9 @@ class TestResize(OnnxRuntimeLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_sizes)
-    def test_resize_sizes(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_resize_sizes(self, params, ie_device, precision, ir_version, temp_dir, api_2):
         self._test(*self.create_resize_net(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     test_data_sizes_cubic = [
         dict(input_shape=[1, 3, 100, 200], output_shape=[1, 3, 350, 150],
@@ -372,13 +387,17 @@ class TestResize(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("cubic_coeff_a", [-0.75])
     @pytest.mark.parametrize("mode", ['cubic'])
     @pytest.mark.parametrize("nearest_mode", ['round_prefer_floor'])
-    def test_resize_combined_sizes_cubic(self, params, coordinate_transformation_mode, cubic_coeff_a, mode,
-                                         nearest_mode, ie_device, precision, ir_version, temp_dir):
+    def test_resize_combined_sizes_cubic(self, params, coordinate_transformation_mode,
+                                         cubic_coeff_a, mode,
+                                         nearest_mode, ie_device, precision, ir_version, temp_dir,
+                                         api_2):
         self._test(*self.create_resize_net(**params,
                                            coordinate_transformation_mode=coordinate_transformation_mode,
-                                           cubic_coeff_a=cubic_coeff_a, mode=mode, nearest_mode=nearest_mode,
+                                           cubic_coeff_a=cubic_coeff_a, mode=mode,
+                                           nearest_mode=nearest_mode,
                                            precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, custom_eps=2.6e-2, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, custom_eps=2.6e-2, temp_dir=temp_dir,
+                   api_2=api_2)
 
     test_data_sizes_nearest = [
         dict(input_shape=[1, 3, 100, 200], output_shape=[1, 3, 350, 150],
@@ -423,13 +442,16 @@ class TestResize(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("mode", ['nearest'])
     @pytest.mark.parametrize("nearest_mode", ['round_prefer_floor', 'round_prefer_ceil',
                                               'floor', 'ceil'])
-    def test_resize_combined_sizes_nearest(self, params, coordinate_transformation_mode, cubic_coeff_a, mode,
-                                           nearest_mode, ie_device, precision, ir_version, temp_dir):
+    def test_resize_combined_sizes_nearest(self, params, coordinate_transformation_mode,
+                                           cubic_coeff_a, mode,
+                                           nearest_mode, ie_device, precision, ir_version, temp_dir,
+                                           api_2):
         self._test(*self.create_resize_net(**params,
                                            coordinate_transformation_mode=coordinate_transformation_mode,
-                                           cubic_coeff_a=cubic_coeff_a, mode=mode, nearest_mode=nearest_mode,
+                                           cubic_coeff_a=cubic_coeff_a, mode=mode,
+                                           nearest_mode=nearest_mode,
                                            precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     test_data_sizes_linear = [
         dict(input_shape=[1, 3, 100, 200], output_shape=[1, 3, 350, 150],
@@ -457,16 +479,21 @@ class TestResize(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("cubic_coeff_a", [-0.75])
     @pytest.mark.parametrize("mode", ['linear'])
     @pytest.mark.parametrize("nearest_mode", ['round_prefer_floor'])
-    def test_resize_combined_sizes_linear(self, params, coordinate_transformation_mode, cubic_coeff_a, mode,
-                                          nearest_mode, ie_device, precision, ir_version, temp_dir):
+    def test_resize_combined_sizes_linear(self, params, coordinate_transformation_mode,
+                                          cubic_coeff_a, mode,
+                                          nearest_mode, ie_device, precision, ir_version, temp_dir,
+                                          api_2):
         self._test(*self.create_resize_net(**params,
                                            coordinate_transformation_mode=coordinate_transformation_mode,
-                                           cubic_coeff_a=cubic_coeff_a, mode=mode, nearest_mode=nearest_mode,
+                                           cubic_coeff_a=cubic_coeff_a, mode=mode,
+                                           nearest_mode=nearest_mode,
                                            precision=precision, ir_version=ir_version),
-        ie_device, precision, ir_version, custom_eps=2.0e-2, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, custom_eps=2.0e-2, temp_dir=temp_dir,
+                   api_2=api_2)
 
 
-def create_ref_net_in_sizes_mode(precision, input_shape, output_shape, sizes_value, scales_value, attrs):
+def create_ref_net_in_sizes_mode(precision, input_shape, output_shape, sizes_value, scales_value,
+                                 attrs):
     input_data_type = np_data_type_to_destination_type(data_type_str_to_np(precision))
     input_rank = len(input_shape)
     epsilon = np.array([1.0e-5])
@@ -560,7 +587,8 @@ def create_ref_net_in_sizes_mode(precision, input_shape, output_shape, sizes_val
     return build_graph(nodes_attrs, edges)
 
 
-def create_ref_net_in_scales_mode(precision, input_shape, output_shape, sizes_value, scales_value, attrs):
+def create_ref_net_in_scales_mode(precision, input_shape, output_shape, sizes_value, scales_value,
+                                  attrs):
     input_data_type = np_data_type_to_destination_type(data_type_str_to_np(precision))
     input_rank = len(input_shape)
     epsilon = np.array([1.0e-5])

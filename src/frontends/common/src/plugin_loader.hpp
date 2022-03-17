@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <manager.hpp>
+#include <openvino/frontend/manager.hpp>
 
 #ifdef _WIN32
 static const char PathSeparator[] = ";";
@@ -24,7 +24,7 @@ class PluginInfo {
     bool load_internal();
 
 public:
-    std::string m_file_name;  // Plugin file name, e.g. "libir_ov_frontend.so"
+    std::string m_file_name;  // Plugin file name, e.g. "libopenvino_ir_frontend.so"
     std::string m_file_path;  // Plugin file full path
 
     PluginInfo() = default;

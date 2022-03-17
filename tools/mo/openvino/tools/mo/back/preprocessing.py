@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -59,7 +59,7 @@ def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):
     return mean_scale_val
 
 
-def check_keys_valid(ov_function: Model, keys: list, search_outputs: bool):
+def check_keys_valid(ov_function: Model, dict_to_validate: dict, search_outputs: bool):
     """
     Internal function: checks if keys from cmd line arguments correspond to ov_function's inputs/outputs
     Throws if some key is not found
@@ -70,7 +70,28 @@ def check_keys_valid(ov_function: Model, keys: list, search_outputs: bool):
     if search_outputs:
         nodes += ov_function.outputs
 
-    for name in keys:
+    # We need to replace all node names from dict to tensor names
+    rename_dict = {}
+    # Find names for replacing
+    for name in dict_to_validate.keys():
+        for ov_node in nodes:
+            if name in ov_node.get_tensor().get_names():
+                break
+            elif name == ov_node.get_node().get_friendly_name():
+                assert len(ov_node.get_tensor().get_names()) > 0, 'Node must have at least one tensor name'
+                new_name = list(ov_node.get_tensor().get_names())[0]
+                rename_dict[name] = new_name
+                break
+
+    # Replace found node names with tensor names
+    for name, new_name in rename_dict.items():
+        assert name in dict_to_validate, 'Key {} is not in initial dict'.format(name)
+        assert new_name not in dict_to_validate, 'Key {} is already in initial dict'.format(new_name)
+        dict_to_validate[new_name] = dict_to_validate[name]
+        del dict_to_validate[name]
+
+    # validate the dict
+    for name in dict_to_validate.keys():
         node_found = False
         for ov_node in nodes:
             if name in ov_node.get_tensor().get_names():
@@ -289,9 +310,15 @@ def guess_source_layouts_for_reverse_channels(ov_function: Model, layout_values)
             if layout and check_suitable_for_reverse(Layout(layout), ov_input):
                 suitable_params.append(param_info)
 
-    if len(suitable_params) < len(all_params):
+    if not len(suitable_params):
+        raise Error('Network has {} inputs overall, but none of them are suitable for input channels reversing.\n'
+                    'Suitable for input channel reversing inputs are 4-dimensional with 3 channels (in case of dynamic '
+                    'dimensions C channel must be provided in a layout for this input)\nAll inputs: {}'.format(
+            len(all_params), all_params))
+    elif len(suitable_params) < len(all_params):
         log.error('Network has {} inputs overall, but only {} of them are suitable for input channels reversing.\n'
-                  'Suitable for input channel reversing inputs are 4-dimensional with 3 channels\nAll inputs: {}\n'
+                  'Suitable for input channel reversing inputs are 4-dimensional with 3 channels (in case of dynamic '
+                  'dimensions C channel must be provided in a layout for this input)\nAll inputs: {}\n'
                   'Suitable inputs {}'.format(len(all_params), len(suitable_params), all_params, suitable_params),
                   extra={'is_warning': True})
     return suitable_params
@@ -349,8 +376,8 @@ def apply_preprocessing(ov_function: Model, argv: argparse.Namespace):
                 'target_layout': layout_values[''].get('target_layout')
             }
         }
-    check_keys_valid(ov_function=ov_function, keys=mean_scale_values.keys(), search_outputs=False)
-    check_keys_valid(ov_function=ov_function, keys=layout_values.keys(), search_outputs=True)
+    check_keys_valid(ov_function=ov_function, dict_to_validate=mean_scale_values, search_outputs=False)
+    check_keys_valid(ov_function=ov_function, dict_to_validate=layout_values, search_outputs=True)
 
     layout_values = update_layout_is_input_flag(ov_function, layout_values)
     layout_values = guess_source_layouts_by_mean_scale(ov_function, layout_values, mean_scale_values)

@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <fstream>
-#include <manager.hpp>
+#include <openvino/frontend/manager.hpp>
 #include <string>
 
 #include "common_test_utils/file_utils.hpp"

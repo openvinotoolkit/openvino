@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,15 @@ static const char help_message[] = "Print a usage message";
 
 /// @brief message for images argument
 static const char input_message[] =
-    "Optional. Path to a folder with images and/or binaries or to specific image or binary file.";
+    "Optional. Path to a folder with images and/or binaries or to specific image or binary file.\n"
+    "                              In case of dynamic shapes networks with several inputs provide the same number"
+    " of files for each input (except cases with single file for any input):"
+    "\"input1:1.jpg input2:1.bin\", \"input1:1.bin,2.bin input2:3.bin input3:4.bin,5.bin \"."
+    " Also you can pass specific keys for inputs: \"random\" - for fillling input with random data,"
+    " \"image_info\" - for filling input with image size.\n"
+    "                              You should specify either one files set to be used for all inputs (without "
+    "providing "
+    "input names) or separate files sets for every input of model (providing inputs names).";
 
 /// @brief message for model argument
 static const char model_message[] =
@@ -28,10 +36,12 @@ static const char model_message[] =
 
 /// @brief message for performance hint
 static const char hint_message[] =
-    "Optional. Performance hint (optimize for latency or throughput). "
-    "The hint allows the OpenVINO device to select the right network-specific settings,"
-    "as opposite to just accepting specific values from the sample command line."
-    "So you can specify only the hint without setting  explicit 'nstreams' or other device-specific options";
+    "Optional. Performance hint allows the OpenVINO device to select the right network-specific settings.\n"
+    "                               'throughput' or 'tput': device performance mode will be set to THROUGHPUT.\n"
+    "                               'latency': device performance mode will be set to LATENCY.\n"
+    "                               'none': no device performance mode will be set.\n"
+    "                              Using explicit 'nstreams' or other device-specific options, please set hint to "
+    "'none'";
 
 /// @brief message for execution mode
 static const char api_message[] = "Optional (deprecated). Enable Sync/Async API. Default value is \"async\".";
@@ -124,6 +134,10 @@ static const char report_type_message[] =
 // @brief message for report_folder option
 static const char report_folder_message[] = "Optional. Path to a folder where statistics report is stored.";
 
+// @brief message for json_stats option
+static const char json_stats_message[] = "Optional. Enables JSON-based statistics output (by default reporting system "
+                                         "will use CSV format). Should be used together with -report_folder option.";
+
 // @brief message for exec_graph_path option
 static const char exec_graph_path_message[] =
     "Optional. Path to a file where to store executable graph information serialized.";
@@ -136,28 +150,39 @@ static const char progress_message[] =
 // @brief message for performance counters option
 static const char pc_message[] = "Optional. Report performance counters.";
 
+// @brief message for performance counters for sequence option
+static const char pcseq_message[] = "Optional. Report latencies for each shape in -data_shape sequence.";
+
 #ifdef HAVE_DEVICE_MEM_SUPPORT
 // @brief message for switching memory allocation type option
 static const char use_device_mem_message[] =
     "Optional. Switch between host and device memory allocation for input and output buffers.";
 #endif
 
-#ifdef USE_OPENCV
 // @brief message for load config option
 static const char load_config_message[] =
-    "Optional. Path to XML/YAML/JSON file to load custom IE parameters."
+    "Optional. Path to JSON file to load custom IE parameters."
     " Please note, command line parameters have higher priority then parameters from configuration "
     "file.";
 
 // @brief message for dump config option
 static const char dump_config_message[] =
-    "Optional. Path to XML/YAML/JSON file to dump IE parameters, which were set by application.";
-#endif
+    "Optional. Path to JSON file to dump IE parameters, which were set by application.";
 
 static const char shape_message[] =
-    "Optional. Set shape for input. For example, \"input1[1,3,224,224],input2[1,4]\" or "
-    "\"[1,3,224,224]\""
-    " in case of one input size.";
+    "Optional. Set shape for network input. For example, \"input1[1,3,224,224],input2[1,4]\" or \"[1,3,224,224]\""
+    " in case of one input size. This parameter affect model input shape and can be dynamic."
+    " For dynamic dimensions use symbol `?` or '-1'. Ex. [?,3,?,?]."
+    " For bounded dimensions specify range 'min..max'. Ex. [1..10,3,?,?].";
+
+static const char data_shape_message[] =
+    "Required for networks with dynamic shapes. Set shape for input blobs."
+    " In case of one input size: \"[1,3,224,224]\" or \"input1[1,3,224,224],input2[1,4]\"."
+    " In case of several input sizes provide the same number for each input (except cases with single shape for any "
+    "input):"
+    " \"[1,3,128,128][3,3,128,128][1,3,320,320]\", \"input1[1,1,128,128][1,1,256,256],input2[80,1]\""
+    " or \"input1[1,192][1,384],input2[1,192][1,384],input3[1,192][1,384],input4[1,192][1,384]\"."
+    " If network shapes are all static specifying the option will cause an exception.";
 
 static const char layout_message[] =
     "Optional. Prompts how network layouts should be treated by application. "
@@ -169,10 +194,10 @@ static const char cache_dir_message[] = "Optional. Enables caching of loaded mod
 
 // @brief message for single load network
 static const char load_from_file_message[] = "Optional. Loads model from file directly without ReadNetwork."
-                                             "All CNNNetwork options (like re-shape) will be ignored";
+                                             " All CNNNetwork options (like re-shape) will be ignored";
 
-// @brief message for quantization bits
-static const char gna_qb_message[] = "Optional. Weight bits for quantization:  8 or 16 (default)";
+// @brief message for inference_precision
+static const char inference_precision_message[] = "Optional. Inference precission";
 
 static constexpr char inputs_precision_message[] = "Optional. Specifies precision for all input layers of the network.";
 
@@ -195,6 +220,13 @@ static constexpr char input_image_mean_message[] =
     "Optional. Mean values to be used for the input image per channel.\n"
     "Values to be provided in the [R, G, B] format. Can be defined for desired input of the model,\n"
     "Example: -imean data[255,255,255],info[255,255,255]\n";
+
+static constexpr char inference_only_message[] =
+    "Optional. Measure only inference stage. Default option for static models. Dynamic models"
+    " are measured in full mode which includes inputs setup stage,"
+    " inference only mode available for them with single input data shape only."
+    " To enable full mode for static models pass \"false\" value to this argument:"
+    " ex. \"-inference_only=false\".\n";
 
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
@@ -248,9 +280,6 @@ DEFINE_string(nstreams, "", infer_num_streams_message);
 /// @brief The percentile which will be reported in latency metric
 DEFINE_uint32(latency_percentile, 50, infer_latency_percentile_message);
 
-/// @brief Enforces bf16 execution with bfloat16 precision on systems having this capability
-DEFINE_bool(enforcebf16, false, enforce_bf16_message);
-
 /// @brief Define parameter for batch size <br>
 /// Default is 0 (that means don't specify)
 DEFINE_uint32(b, 0, batch_size_message);
@@ -267,6 +296,9 @@ DEFINE_string(report_type, "", report_type_message);
 /// @brief Path to a folder where statistics report is stored
 DEFINE_string(report_folder, "", report_folder_message);
 
+/// @brief Enables JSON-based statistics reporting
+DEFINE_bool(json_stats, false, json_stats_message);
+
 /// @brief Path to a file where to store executable graph information serialized
 DEFINE_string(exec_graph_path, "", exec_graph_path_message);
 
@@ -276,27 +308,31 @@ DEFINE_bool(progress, false, progress_message);
 /// @brief Define flag for showing performance counters <br>
 DEFINE_bool(pc, false, pc_message);
 
+/// @brief Define flag for showing performance sequence counters <br>
+DEFINE_bool(pcseq, false, pcseq_message);
+
 #ifdef HAVE_DEVICE_MEM_SUPPORT
 /// @brief Define flag for switching beetwen host and device memory allocation for input and output buffers
 DEFINE_bool(use_device_mem, false, use_device_mem_message);
 #endif
 
-#ifdef USE_OPENCV
 /// @brief Define flag for loading configuration file <br>
 DEFINE_string(load_config, "", load_config_message);
 
 /// @brief Define flag for dumping configuration file <br>
 DEFINE_string(dump_config, "", dump_config_message);
-#endif
 
 /// @brief Define flag for input shape <br>
 DEFINE_string(shape, "", shape_message);
 
+/// @brief Define flag for input blob shape <br>
+DEFINE_string(data_shape, "", data_shape_message);
+
 /// @brief Define flag for layout shape <br>
 DEFINE_string(layout, "", layout_message);
 
-/// @brief Define flag for quantization bits (default 16)
-DEFINE_int32(qb, 16, gna_qb_message);
+/// @brief Define flag for inference precision
+DEFINE_string(infer_precision, "", inference_precision_message);
 
 /// @brief Specify precision for all input layers of the network
 DEFINE_string(ip, "", inputs_precision_message);
@@ -322,10 +358,13 @@ DEFINE_string(iscale, "", input_image_scale_message);
 /// @brief Define flag for using input image mean <br>
 DEFINE_string(imean, "", input_image_mean_message);
 
+/// @brief Define flag for inference only mode <br>
+DEFINE_bool(inference_only, true, inference_only_message);
+
 /**
  * @brief This function show a help message
  */
-static void showUsage() {
+static void show_usage() {
     std::cout << std::endl;
     std::cout << "benchmark_app [OPTION]" << std::endl;
     std::cout << "Options:" << std::endl;
@@ -337,7 +376,7 @@ static void showUsage() {
     std::cout << "    -l \"<absolute_path>\"      " << custom_cpu_library_message << std::endl;
     std::cout << "          Or" << std::endl;
     std::cout << "    -c \"<absolute_path>\"      " << custom_cldnn_message << std::endl;
-    std::cout << "    -hint \"performance hint (latency or throughput)\"   " << hint_message << std::endl;
+    std::cout << "    -hint \"performance hint (latency or throughput or none)\"   " << hint_message << std::endl;
     std::cout << "    -api \"<sync/async>\"       " << api_message << std::endl;
     std::cout << "    -niter \"<integer>\"        " << iterations_count_message << std::endl;
     std::cout << "    -nireq \"<integer>\"        " << infer_requests_count_message << std::endl;
@@ -346,31 +385,33 @@ static void showUsage() {
     std::cout << "    -t                        " << execution_time_message << std::endl;
     std::cout << "    -progress                 " << progress_message << std::endl;
     std::cout << "    -shape                    " << shape_message << std::endl;
+    std::cout << "    -data_shape               " << data_shape_message << std::endl;
     std::cout << "    -layout                   " << layout_message << std::endl;
-    std::cout << "    -cache_dir \"<path>\"        " << cache_dir_message << std::endl;
+    std::cout << "    -cache_dir \"<path>\"       " << cache_dir_message << std::endl;
     std::cout << "    -load_from_file           " << load_from_file_message << std::endl;
     std::cout << "    -latency_percentile       " << infer_latency_percentile_message << std::endl;
     std::cout << std::endl << "  device-specific performance options:" << std::endl;
     std::cout << "    -nstreams \"<integer>\"     " << infer_num_streams_message << std::endl;
     std::cout << "    -nthreads \"<integer>\"     " << infer_num_threads_message << std::endl;
-    std::cout << "    -enforcebf16=<true/false>     " << enforce_bf16_message << std::endl;
-    std::cout << "    -pin \"YES\"/\"HYBRID_AWARE\"/\"NO\"/\"NUMA\"   " << infer_threads_pinning_message << std::endl;
+    std::cout << "    -pin (\"YES\"|\"CORE\")/\"HYBRID_AWARE\"/(\"NO\"|\"NONE\")/\"NUMA\"   "
+              << infer_threads_pinning_message << std::endl;
 #ifdef HAVE_DEVICE_MEM_SUPPORT
     std::cout << "    -use_device_mem           " << use_device_mem_message << std::endl;
 #endif
     std::cout << std::endl << "  Statistics dumping options:" << std::endl;
     std::cout << "    -report_type \"<type>\"     " << report_type_message << std::endl;
     std::cout << "    -report_folder            " << report_folder_message << std::endl;
+    std::cout << "    -json_stats               " << json_stats_message;
     std::cout << "    -exec_graph_path          " << exec_graph_path_message << std::endl;
     std::cout << "    -pc                       " << pc_message << std::endl;
-#ifdef USE_OPENCV
+    std::cout << "    -pcseq                    " << pcseq_message << std::endl;
     std::cout << "    -dump_config              " << dump_config_message << std::endl;
     std::cout << "    -load_config              " << load_config_message << std::endl;
-#endif
-    std::cout << "    -qb                       " << gna_qb_message << std::endl;
+    std::cout << "    -infer_precision \"<element type>\"" << inference_precision_message << std::endl;
     std::cout << "    -ip                          <value>     " << inputs_precision_message << std::endl;
     std::cout << "    -op                          <value>     " << outputs_precision_message << std::endl;
     std::cout << "    -iop                        \"<value>\"    " << iop_message << std::endl;
     std::cout << "    -iscale                    " << input_image_scale_message << std::endl;
     std::cout << "    -imean                     " << input_image_mean_message << std::endl;
+    std::cout << "    -inference_only              " << inference_only_message << std::endl;
 }

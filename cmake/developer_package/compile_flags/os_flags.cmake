@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -192,6 +192,10 @@ macro(ie_add_compiler_flags)
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${flag}")
     endforeach()
 endmacro()
+
+function(ov_add_compiler_flags)
+    ie_add_compiler_flags(${ARGN})
+endfunction()
 
 #
 # Forced includes certain header file to all target source files

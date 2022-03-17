@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@ namespace v8 {
 class OPENVINO_API MatrixNms : public util::NmsBase {
 public:
     OPENVINO_OP("MatrixNms", "opset8", op::util::NmsBase);
+    BWDCMP_RTTI_DECLARATION;
 
     enum class DecayFunction { GAUSSIAN, LINEAR };
 

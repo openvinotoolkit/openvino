@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,14 +23,14 @@ namespace ov {
 namespace runtime {
 namespace intel_gpu {
 
-struct ConvoltuionParameters {
+struct ConvolutionParameters {
     cldnn::tensor stride;
     cldnn::tensor padding;
     cldnn::tensor dilation;
     uint32_t groups;
 };
 
-static ConvoltuionParameters GetConvolutionParameters(const ngraph::CoordinateDiff& pads_begin,
+static ConvolutionParameters GetConvolutionParameters(const ngraph::CoordinateDiff& pads_begin,
                                                       const ngraph::Strides& dilations,
                                                       const ngraph::Strides& strides,
                                                       uint32_t groups) {
@@ -52,9 +52,9 @@ static ConvoltuionParameters GetConvolutionParameters(const ngraph::CoordinateDi
             break;
         }
         case 1: {
-            stride = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(strides[0], 1, 1));
-            padding = cldnn::tensor({0, 0, TensorValue(pads_begin[0]), 0}, 0);
-            dilation = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(dilations[0], 1, 1));
+            stride = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(1, strides[0], 1));
+            padding = cldnn::tensor({0, 0, 0, TensorValue(pads_begin[0])}, 0);
+            dilation = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(1, dilations[0], 1));
             break;
         }
         default: IE_THROW() << "Unsupported convolve parameters size. Only 1d, 2d, and 3d cases are supported";
@@ -137,11 +137,12 @@ static void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ng
 
     auto weightsName = inputs[1];
     auto weights_node = op->get_input_node_shared_ptr(1);
-    // WA: For the cases like Const(weights)->Sub(zp)->Deconv.
+    bool hasConstantWeights = IsNodeOnConstPath(weights_node);
+    // WA: For the cases like Const(weights)->Sub(zp)->Deconv. And also for the cases with real runtime weights.
     // Dimensions order of weights blob is IOYX, but
     // the selected format is OIYX by default. So we need to swap (and transpose) I and O dimensions to match the format
     // For Constant node on input transpose is not needed, because the data is transposed on const node creation
-    if (IsNodeOnConstPath(weights_node) && std::dynamic_pointer_cast<ngraph::op::v0::Constant>(weights_node) == nullptr) {
+    if ((hasConstantWeights && std::dynamic_pointer_cast<ngraph::op::v0::Constant>(weights_node) == nullptr) || !hasConstantWeights) {
         std::string permuteName = layerName + "_cldnn_weights_permute";
         auto weights_rank = op->get_input_shape(1).size();
         std::vector<uint16_t> permute_order(weights_rank);
@@ -195,11 +196,12 @@ static void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_p
 
     auto weightsName = inputs[1];
     auto weights_node = op->get_input_node_shared_ptr(1);
-    // WA: For the cases like Const(weights)->Sub(zp)->Deconv.
+    bool hasConstWeights = IsNodeOnConstPath(weights_node);
+    // WA: For the cases like Const(weights)->Sub(zp)->Deconv. And also for the cases with real runtime weights.
     // Dimensions order of weights blob is IOYX, but
     // the selected format is OIYX by default. So we need to swap I and O dimensions to match the format.
     // For Constant node on input transpose is not needed, because the data is transposed on const node creation
-    if (IsNodeOnConstPath(weights_node) && std::dynamic_pointer_cast<ngraph::op::v0::Constant>(weights_node) == nullptr) {
+    if ((hasConstWeights && std::dynamic_pointer_cast<ngraph::op::v0::Constant>(weights_node) == nullptr) || !hasConstWeights) {
         std::string permuteName = layerName + "_cldnn_weights_permute";
         auto weights_rank = op->get_input_shape(1).size();
         std::vector<uint16_t> permute_order(weights_rank);
@@ -237,7 +239,7 @@ static void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_p
 
 static void DeformableConvolutionImpl(Program& p,
                                       const std::shared_ptr<ngraph::Node>& op,
-                                      const ConvoltuionParameters& params,
+                                      const ConvolutionParameters& params,
                                       std::int64_t deformableGroupsNum,
                                       bool bilinearInterpolationPad = false) {
     auto inputs = p.GetInputPrimitiveIDs(op);

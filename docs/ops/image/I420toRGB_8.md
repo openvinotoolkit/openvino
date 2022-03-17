@@ -1,4 +1,4 @@
-## I420toRGB <a name="I420toRGB"></a> {#openvino_docs_ops_image_I420toRGB_8}
+# I420toRGB {#openvino_docs_ops_image_I420toRGB_8}
 
 **Versioned name**: *I420toRGB-8*
 

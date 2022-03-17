@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import tests
@@ -13,9 +13,7 @@ from tests.test_onnx.utils.model_importer import ModelImportRunner
 from tests import (
     xfail_issue_67415,
     xfail_issue_38701,
-    xfail_issue_45457,
     xfail_issue_37957,
-    xfail_issue_38084,
     xfail_issue_39669,
     xfail_issue_37973,
     xfail_issue_47430,
@@ -23,7 +21,7 @@ from tests import (
     xfail_issue_48145,
     xfail_issue_48190,
     xfail_issue_58676,
-    xfail_issue_63643,
+    xfail_issue_78843,
     xfail_issue_onnx_models_140)
 
 MODELS_ROOT_DIR = tests.MODEL_ZOO_DIR
@@ -55,6 +53,7 @@ tolerance_map = {
     "fp16_inception_v1": {"atol": 0.001, "rtol": 0.001},
     "mobilenet_opset7": {"atol": 0.001, "rtol": 0.001},
     "resnet50_v2_opset7": {"atol": 0.001, "rtol": 0.001},
+    "resnet50-v2-7": {"atol": 0.001, "rtol": 0.001},
     "test_mobilenetv2-1.0": {"atol": 0.001, "rtol": 0.001},
     "test_resnet101v2": {"atol": 0.001, "rtol": 0.001},
     "test_resnet18v2": {"atol": 0.001, "rtol": 0.001},
@@ -98,7 +97,7 @@ tolerance_map = {
     "tiny_yolov2": {"atol": 1e-05, "rtol": 0.001},
     "mobilenetv2-1": {"atol": 1e-04, "rtol": 0.001},
     "resnet101v1": {"atol": 1e-04, "rtol": 0.001},
-    "resnet101v2": {"atol": 1e-06, "rtol": 0.001},
+    "resnet101v2": {"atol": 1e-5, "rtol": 0.001},
     "resnet152v2": {"atol": 1e-05, "rtol": 0.001},
     "resnet18v2": {"atol": 1e-05, "rtol": 0.001},
     "resnet34v2": {"atol": 1e-05, "rtol": 0.001},
@@ -171,23 +170,15 @@ if len(zoo_models) > 0:
     test_cases = backend_test.test_cases["OnnxBackendModelExecutionTest"]
     if tests.MODEL_ZOO_XFAIL:
         execution_xfail_list = [
-            # New Python API - fp16 blob
-            (xfail_issue_67415, "test_MSFT_opset7_fp16_inception_v1_onnxzoo_lotus_inception_v1_cpu"),
-            (xfail_issue_67415, "test_MSFT_opset7_fp16_shufflenet_onnxzoo_lotus_shufflenet_cpu"),
-            (xfail_issue_67415, "test_MSFT_opset8_fp16_inception_v1_onnxzoo_lotus_inception_v1_cpu"),
-            (xfail_issue_67415, "test_MSFT_opset8_fp16_shufflenet_onnxzoo_lotus_shufflenet_cpu"),
-
             # ONNX Model Zoo
             (xfail_issue_39669, "test_onnx_model_zoo_text_machine_comprehension_t5_model_t5_encoder_12_t5_encoder_cpu"),
             (xfail_issue_39669, "test_onnx_model_zoo_text_machine_comprehension_t5_model_t5_decoder_with_lm_head_12_t5_decoder_with_lm_head_cpu"),
-            (xfail_issue_38084, "test_onnx_model_zoo_vision_object_detection_segmentation_mask_rcnn_model_MaskRCNN_10_mask_rcnn_R_50_FPN_1x_cpu"),
-            (xfail_issue_38084, "test_onnx_model_zoo_vision_object_detection_segmentation_faster_rcnn_model_FasterRCNN_10_faster_rcnn_R_50_FPN_1x_cpu"),
             (xfail_issue_47430, "test_onnx_model_zoo_vision_object_detection_segmentation_fcn_model_fcn_resnet50_11_fcn_resnet50_11_model_cpu"),
             (xfail_issue_47430, "test_onnx_model_zoo_vision_object_detection_segmentation_fcn_model_fcn_resnet101_11_fcn_resnet101_11_model_cpu"),
             (xfail_issue_48145, "test_onnx_model_zoo_text_machine_comprehension_bert_squad_model_bertsquad_8_download_sample_8_bertsquad8_cpu"),
             (xfail_issue_48190, "test_onnx_model_zoo_text_machine_comprehension_roberta_model_roberta_base_11_roberta_base_11_roberta_base_11_cpu"),
             (xfail_issue_onnx_models_140, "test_onnx_model_zoo_vision_object_detection_segmentation_duc_model_ResNet101_DUC_7_ResNet101_DUC_HDC_ResNet101_DUC_HDC_cpu"),
-            (xfail_issue_63643, "test_onnx_model_zoo_vision_object_detection_segmentation_ssd_mobilenetv1_model_ssd_mobilenet_v1_10_ssd_mobilenet_v1_ssd_mobilenet_v1_cpu"),
+            (xfail_issue_78843, "test_onnx_model_zoo_vision_object_detection_segmentation_ssd_mobilenetv1_model_ssd_mobilenet_v1_10_ssd_mobilenet_v1_ssd_mobilenet_v1_cpu"),
 
             # Model MSFT
             (xfail_issue_37973, "test_MSFT_opset7_tf_inception_v2_model_cpu"),
@@ -199,13 +190,10 @@ if len(zoo_models) > 0:
             (xfail_issue_58676, "test_MSFT_opset7_fp16_tiny_yolov2_onnxzoo_winmlperf_tiny_yolov2_cpu"),
             (xfail_issue_58676, "test_MSFT_opset8_fp16_tiny_yolov2_onnxzoo_winmlperf_tiny_yolov2_cpu"),
 
-            (xfail_issue_38084, "test_MSFT_opset10_mask_rcnn_mask_rcnn_R_50_FPN_1x_cpu"),
-            (xfail_issue_38084, "test_MSFT_opset10_faster_rcnn_faster_rcnn_R_50_FPN_1x_cpu"),
-
             (xfail_issue_39669, "test_MSFT_opset9_cgan_cgan_cpu"),
             (xfail_issue_47495, "test_MSFT_opset10_BERT_Squad_bertsquad10_cpu"),
-            (xfail_issue_45457, "test_MSFT_opset10_mlperf_ssd_resnet34_1200_ssd_resnet34_mAP_20.2_cpu"),
-            (xfail_issue_63643, "test_MSFT_opset10_mlperf_ssd_mobilenet_300_ssd_mobilenet_v1_coco_2018_01_28_cpu"),
+            (xfail_issue_78843, "test_MSFT_opset10_mlperf_ssd_mobilenet_300_ssd_mobilenet_v1_coco_2018_01_28_cpu"),
+
         ]
         for test_case in import_xfail_list + execution_xfail_list:
             xfail, test_name = test_case

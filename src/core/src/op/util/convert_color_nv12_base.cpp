@@ -1,14 +1,12 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/op/util/convert_color_nv12_base.hpp"
 
-#include <memory>
 #include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
-#include "ngraph/runtime/reference/convert_color_nv12.hpp"
 #include "openvino/core/layout.hpp"
 
 static const size_t N_DIM = 0;
@@ -141,91 +139,8 @@ void ov::op::util::ConvertColorNV12Base::validate_and_infer_types() {
     set_output_type(0, out_type, out_shape);
 }
 
-namespace color_convert_nv12_op {
-namespace {
-
-template <ov::element::Type_t ET>
-inline bool evaluate(const ov::HostTensorVector& input_values,
-                     const ov::HostTensorPtr& output_value,
-                     bool single_tensor,
-                     ov::op::util::ConvertColorNV12Base::ColorConversion color_format) {
-    using namespace ov::op::util;
-    const auto& y_tensor = input_values[0];
-    auto batch_size = y_tensor->get_shape()[N_DIM];
-    auto image_w = y_tensor->get_shape()[W_DIM];
-    auto image_h = y_tensor->get_shape()[H_DIM];
-    if (single_tensor) {
-        OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(input_values, 1));
-        image_h = image_h * 2 / 3;
-    } else {
-        OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(input_values, 2));
-    }
-    output_value->set_shape({batch_size, image_h, image_w, 3});  // 3 is RGB
-    if (single_tensor) {
-        ngraph::runtime::reference::color_convert_nv12(y_tensor->get_data_ptr<ET>(),
-                                                       y_tensor->get_data_ptr<ET>() + image_w * image_h,
-                                                       output_value->get_data_ptr<ET>(),
-                                                       batch_size,
-                                                       image_h,
-                                                       image_w,
-                                                       image_w * image_h * 3 / 2,
-                                                       image_w * image_h * 3 / 2,
-                                                       color_format);
-    } else {
-        const auto& uv_tensor = input_values[1];
-        ngraph::runtime::reference::color_convert_nv12(y_tensor->get_data_ptr<ET>(),
-                                                       uv_tensor->get_data_ptr<ET>(),
-                                                       output_value->get_data_ptr<ET>(),
-                                                       batch_size,
-                                                       image_h,
-                                                       image_w,
-                                                       image_w * image_h,
-                                                       image_w * image_h / 2,
-                                                       color_format);
-    }
-    return true;
-}
-
-bool evaluate_nv12_convert(const ov::HostTensorVector& input_values,
-                           const ov::HostTensorPtr& output_value,
-                           bool single_tensor,
-                           ov::op::util::ConvertColorNV12Base::ColorConversion conv_format) {
-    bool rc = false;
-    switch (input_values[0]->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_nv12_convert, u8, input_values, output_value, single_tensor, conv_format);
-        NGRAPH_TYPE_CASE(evaluate_nv12_convert, f16, input_values, output_value, single_tensor, conv_format);
-        NGRAPH_TYPE_CASE(evaluate_nv12_convert, bf16, input_values, output_value, single_tensor, conv_format);
-        NGRAPH_TYPE_CASE(evaluate_nv12_convert, f32, input_values, output_value, single_tensor, conv_format);
-        NGRAPH_TYPE_CASE(evaluate_nv12_convert, f64, input_values, output_value, single_tensor, conv_format);
-    default:
-        break;
-    }
-    return rc;
-}
-
-}  // namespace
-}  // namespace color_convert_nv12_op
-
 bool ov::op::util::ConvertColorNV12Base::visit_attributes(AttributeVisitor& visitor) {
     return true;
-}
-
-bool ov::op::util::ConvertColorNV12Base::evaluate(const HostTensorVector& output_values,
-                                                  const HostTensorVector& input_values) const {
-    NGRAPH_OP_SCOPE(v0_ConvertColorNV12_evaluate);
-    OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(output_values, 1));
-    NODE_VALIDATION_CHECK(this,
-                          get_input_size() == 1 || get_input_size() == 2,
-                          "NV12 conversion shall have one or 2 inputs, but it is ",
-                          get_input_size());
-    auto single_plane = get_input_size() == 1;
-    return color_convert_nv12_op::evaluate_nv12_convert(input_values, output_values[0], single_plane, m_format);
-}
-
-bool ov::op::util::ConvertColorNV12Base::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v0_ConvertColorNV12Base_has_evaluate);
-
-    return is_type_supported(get_input_element_type(0));
 }
 
 bool ov::op::util::ConvertColorNV12Base::is_type_supported(const ov::element::Type& type) const {

@@ -1,10 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import math
 
-import numpy as np
-
+from openvino.tools.mo.front.common.partial_infer.utils import float32_array
 from openvino.tools.mo.ops.ONNXResize10 import ONNXResize10
 from openvino.tools.mo.ops.upsample import UpsampleOp
 from openvino.tools.mo.front.extractor import FrontExtractorOp
@@ -24,7 +23,7 @@ class UpsampleFrontExtractor(FrontExtractorOp):
             ONNXResize10.update_node_stat(node, {'mode': mode})
         else:
             mode = onnx_attr(node, 'mode', 's', default='nearest', dst_type=lambda x: x.decode())
-            scales = onnx_attr(node, 'scales', 'floats', dst_type=lambda x: np.array(x, dtype=np.float32))
+            scales = onnx_attr(node, 'scales', 'floats', dst_type=lambda x: float32_array(x))
             width_scale = onnx_attr(node, 'width_scale', 'f')
             height_scale = onnx_attr(node, 'height_scale', 'f')
 

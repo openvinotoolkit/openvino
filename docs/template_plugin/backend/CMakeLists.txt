@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -38,17 +38,10 @@ target_include_directories(interpreter_backend PUBLIC $<BUILD_INTERFACE:${CMAKE_
 file(GLOB_RECURSE all_backends_src "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp")
 add_clang_format_target(interpreter_backend_clang FOR_SOURCES ${all_backends_src})
 
-
 # developer package
+
 openvino_developer_export_targets(COMPONENT core TARGETS interpreter_backend)
 
-install(TARGETS interpreter_backend
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests OPTIONAL EXCLUDE_FROM_ALL
-        ARCHIVE DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests OPTIONAL EXCLUDE_FROM_ALL
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests OPTIONAL EXCLUDE_FROM_ALL)
-if(NOT BUILD_SHARED_LIBS)
-    install(TARGETS interpreter_backend
-            RUNTIME DESTINATION tests COMPONENT tests OPTIONAL EXCLUDE_FROM_ALL
-            ARCHIVE DESTINATION tests COMPONENT tests OPTIONAL EXCLUDE_FROM_ALL
-            LIBRARY DESTINATION tests COMPONENT tests OPTIONAL EXCLUDE_FROM_ALL)
-endif()
+# install
+
+ov_install_static_lib(interpreter_backend template)

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
@@ -473,6 +473,30 @@ def test_constant():
     element_type = Type.f32
     parameter_list = []
     function = Model([Constant(element_type, Shape([3, 3]), list(range(9)))], parameter_list, "test")
+
+    runtime = get_runtime()
+    computation = runtime.computation(function, *parameter_list)
+    result = computation()[0]
+
+    expected = np.arange(9).reshape(3, 3)
+    assert np.allclose(result, expected)
+
+
+def test_constant_opset_ov_type():
+    parameter_list = []
+    function = Model([ov.constant(np.arange(9).reshape(3, 3), Type.f32)], parameter_list, "test")
+
+    runtime = get_runtime()
+    computation = runtime.computation(function, *parameter_list)
+    result = computation()[0]
+
+    expected = np.arange(9).reshape(3, 3)
+    assert np.allclose(result, expected)
+
+
+def test_constant_opset_numpy_type():
+    parameter_list = []
+    function = Model([ov.constant(np.arange(9).reshape(3, 3), np.float32)], parameter_list, "test")
 
     runtime = get_runtime()
     computation = runtime.computation(function, *parameter_list)

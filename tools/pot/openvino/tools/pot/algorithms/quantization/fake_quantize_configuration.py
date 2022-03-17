@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from collections import deque, defaultdict
@@ -106,7 +106,7 @@ def read_all_fake_quantize_configurations(config, hardware_config, model):
     every fake quantize node based on toolkit config file and sub graph of every fake quantize node
     :param config: dictionary with compression section from toolkit config file
     :param hardware_config: dictionary with hardware config
-    :param model: NXModel instance to quantize
+    :param model: CompressedModel instance to quantize
     :return dictionary with fake quantize names as keys and
      list of corresponding configurations as values
      """
@@ -168,7 +168,7 @@ def add_range_estimator_configs(fq_to_hw_confs, config):
 def get_configurations_by_preset(config, model, fq_to_hw_confs):
     """ Choose fake quantize configuration by preset
     :param config: dictionary with params algo section from toolkit config
-    :param model: NXModel instance
+    :param model: CompressedModel instance
     :param fq_to_hw_confs: dictionary with fake quantize names as keys and
      list of its configurations as values (read_all_fake_quantize_configurations(..) return value)
     :return dictionary with fake quantize nodes names as keys and
@@ -398,11 +398,11 @@ def _fake_quantize_to_types(model, hardware_config):
                 if not _is_quantizable(child):
                     queue.append(child)
                 elif child.type not in descendants:
-                    descendants.append((child.name,
+                    descendants.append((child.fullname,
                                         get_hardware_config_operation_type(child, available_types)))
                 if current.type == 'Split' \
                         and child.type == 'Concat' \
-                        and len({child_.name for child_ in children}) == 1:
+                        and len({child_.fullname for child_ in children}) == 1:
                     break
         return descendants
 
@@ -414,7 +414,7 @@ def _fake_quantize_to_types(model, hardware_config):
     available_types = [layer['type'] for layer in hardware_config]
     for fq in get_nodes_by_type(model, ['FakeQuantize']):
         node_input = get_node_input(fq, 0)
-        out[fq.name] = (_get_node_valuable_descendant(fq), node_input.type == 'Const')
+        out[fq.fullname] = (_get_node_valuable_descendant(fq), node_input.type == 'Const')
 
     return out
 

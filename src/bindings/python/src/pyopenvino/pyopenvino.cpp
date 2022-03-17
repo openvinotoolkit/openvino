@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include <pybind11/pybind11.h>
@@ -12,7 +12,7 @@
 #include "pyopenvino/graph/axis_vector.hpp"
 #include "pyopenvino/graph/coordinate.hpp"
 #include "pyopenvino/graph/coordinate_diff.hpp"
-#include "pyopenvino/graph/function.hpp"
+#include "pyopenvino/graph/model.hpp"
 #include "pyopenvino/graph/node.hpp"
 #include "pyopenvino/graph/node_factory.hpp"
 #include "pyopenvino/graph/node_input.hpp"
@@ -24,6 +24,7 @@
 #include "pyopenvino/core/compiled_model.hpp"
 #include "pyopenvino/core/containers.hpp"
 #include "pyopenvino/core/core.hpp"
+#include "pyopenvino/core/extension.hpp"
 #include "pyopenvino/core/ie_parameter.hpp"
 #include "pyopenvino/core/infer_request.hpp"
 #include "pyopenvino/core/offline_transformations.hpp"
@@ -31,18 +32,24 @@
 #include "pyopenvino/core/tensor.hpp"
 #include "pyopenvino/core/variable_state.hpp"
 #include "pyopenvino/core/version.hpp"
+#include "pyopenvino/frontend/extension.hpp"
 #include "pyopenvino/frontend/frontend.hpp"
-#include "pyopenvino/frontend/frontend_manager.hpp"
-#include "pyopenvino/frontend/inputmodel.hpp"
+#include "pyopenvino/frontend/input_model.hpp"
+#include "pyopenvino/frontend/manager.hpp"
+#include "pyopenvino/frontend/node_context.hpp"
 #include "pyopenvino/frontend/place.hpp"
 #include "pyopenvino/graph/any.hpp"
 #include "pyopenvino/graph/descriptors/tensor.hpp"
 #include "pyopenvino/graph/dimension.hpp"
+#include "pyopenvino/graph/discrete_type_info.hpp"
 #include "pyopenvino/graph/layout.hpp"
 #include "pyopenvino/graph/layout_helpers.hpp"
 #include "pyopenvino/graph/ops/constant.hpp"
+#include "pyopenvino/graph/ops/if.hpp"
+#include "pyopenvino/graph/ops/loop.hpp"
 #include "pyopenvino/graph/ops/parameter.hpp"
 #include "pyopenvino/graph/ops/result.hpp"
+#include "pyopenvino/graph/ops/tensor_iterator.hpp"
 #include "pyopenvino/graph/ops/util/regmodule_graph_op_util.hpp"
 #include "pyopenvino/graph/partial_shape.hpp"
 #include "pyopenvino/graph/passes/regmodule_graph_passes.hpp"
@@ -57,14 +64,26 @@ namespace py = pybind11;
 
 std::string get_version() {
     auto version = ov::get_openvino_version();
-    std::string version_str = std::to_string(OPENVINO_VERSION_MAJOR) + ".";
-    version_str += std::to_string(OPENVINO_VERSION_MINOR) + ".";
-    version_str += version.buildNumber;
-    return version_str;
+    return version.buildNumber;
 }
 
 PYBIND11_MODULE(pyopenvino, m) {
     m.doc() = "Package openvino.pyopenvino which wraps openvino C++ APIs";
+    std::string pyopenvino_version = CI_BUILD_NUMBER;
+    std::string runtime_version = get_version();
+    bool is_custom_pyopenvino_version = pyopenvino_version.empty() || pyopenvino_version.find("custom_") == 0;
+    bool is_custom_runtime_version = runtime_version.empty() || runtime_version.find("custom_") == 0;
+    auto versions_compatible =
+        is_custom_pyopenvino_version || is_custom_runtime_version || pyopenvino_version == runtime_version;
+    OPENVINO_ASSERT(versions_compatible,
+                    "OpenVINO Python version (",
+                    pyopenvino_version,
+                    ") mismatches with OpenVINO Runtime library version (",
+                    runtime_version,
+                    "). It can happen if you have 2 or more different versions of OpenVINO installed in system. "
+                    "Please ensure that environment variables (e.g. PATH, PYTHONPATH) are set correctly so that "
+                    "OpenVINO Runtime and Python libraries point to same release.");
+
     m.def("get_version", &get_version);
     m.def("get_batch", &ov::get_batch);
     m.def("set_batch", &ov::set_batch);
@@ -91,10 +110,14 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_graph_AxisVector(m);
     regclass_graph_Coordinate(m);
     regclass_graph_descriptor_Tensor(m);
+    regclass_graph_DiscreteTypeInfo(m);
     py::module m_op = m.def_submodule("op", "Package ngraph.impl.op that wraps ov::op");  // TODO(!)
     regclass_graph_op_Constant(m_op);
     regclass_graph_op_Parameter(m_op);
     regclass_graph_op_Result(m_op);
+    regclass_graph_op_If(m_op);
+    regclass_graph_op_Loop(m_op);
+    regclass_graph_op_TensorIterator(m_op);
 
 #if defined(ENABLE_OV_ONNX_FRONTEND)
     regmodule_graph_onnx_import(m);
@@ -124,18 +147,29 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_Parameter(m);
     regclass_AsyncInferQueue(m);
     regclass_ProfilingInfo(m);
+    regclass_Extension(m);
 
+    // frontend
     regclass_frontend_Place(m);
     regclass_frontend_InitializationFailureFrontEnd(m);
     regclass_frontend_GeneralFailureFrontEnd(m);
     regclass_frontend_OpConversionFailureFrontEnd(m);
     regclass_frontend_OpValidationFailureFrontEnd(m);
     regclass_frontend_NotImplementedFailureFrontEnd(m);
-    regclass_frontend_Extension(m);
     regclass_frontend_FrontEndManager(m);
     regclass_frontend_FrontEnd(m);
     regclass_frontend_InputModel(m);
-    regclass_frontend_TelemetryExtension(m);
+    regclass_frontend_NodeContext(m);
 
+    // frontend extensions
+    regclass_frontend_TelemetryExtension(m);
+    regclass_frontend_DecoderTransformationExtension(m);
+    regclass_frontend_JsonConfigExtension(m);
+    regclass_frontend_ConversionExtensionBase(m);
+    regclass_frontend_ConversionExtension(m);
+    regclass_frontend_ProgressReporterExtension(m);
+    regclass_frontend_OpExtension(m);
+
+    // transformations
     regmodule_offline_transformations(m);
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,11 +8,11 @@
 using namespace std;
 using namespace ov;
 using namespace ov::opset8;
-using namespace ov::frontend::tf;
+using namespace ov::frontend::tensorflow;
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 ov::OutputVector translate_roll_op(const NodeContext& node) {
     auto data = node.get_input(0);
@@ -23,6 +23,6 @@ ov::OutputVector translate_roll_op(const NodeContext& node) {
     return res->outputs();
 }
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

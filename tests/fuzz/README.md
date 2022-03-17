@@ -75,7 +75,7 @@ To build coverage report after fuzz test execution run:
 
 ```
 llvm-profdata merge -sparse *.profraw -o default.profdata && \
-llvm-cov show ./read_network-fuzzer -object=lib/libinference_engine.so -instr-profile=default.profdata -format=html -output-dir=read_network-coverage
+llvm-cov show ./read_network-fuzzer -object=lib/libopenvino.so -instr-profile=default.profdata -format=html -output-dir=read_network-coverage
 ```
 
 ## Reproducing findings

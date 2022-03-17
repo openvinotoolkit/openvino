@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -111,9 +111,9 @@ ngraph::pass::ConvertMatMulToFC::ConvertMatMulToFC() {
         // Check that if second inputs is Constant operation and it's shape without ones dimensions has length <= 2
         // we replace MatMul with FullyConnected operation.
         // Otherwise we replace MatMul with Gemm.
-        if ((std::dynamic_pointer_cast<opset1::Constant>    (fc_input_b.get_node_shared_ptr())  ||
-             std::dynamic_pointer_cast<opset1::FakeQuantize>(fc_input_b.get_node_shared_ptr())) &&
-            std::count_if(shape_b.begin(), shape_b.end(), [](size_t x) {
+        auto fq_after_const = std::dynamic_pointer_cast<opset1::FakeQuantize>(fc_input_b.get_node_shared_ptr());
+        if ((std::dynamic_pointer_cast<opset1::Constant>    (fc_input_b.get_node_shared_ptr())  || fq_after_const) &&
+             std::count_if(shape_b.begin(), shape_b.end(), [](size_t x) {
                 return x != 1;
             }) <= 2) {
             Shape shape_a_aligned, shape_b_aligned;
@@ -131,8 +131,18 @@ ngraph::pass::ConvertMatMulToFC::ConvertMatMulToFC() {
 
             // Weights normalization
             if (!matmul->get_transpose_b()) {
-                fc_input_b = create_transpose(fc_input_b, matmul->get_friendly_name() + "/transpose_b");
+                Output<ov::Node> constant = fc_input_b;
+                // transpose the constant itself, not FQ output, to allow constant folding to apply this transpose
+                if (fq_after_const) {
+                    constant = fc_input_b.get_node_shared_ptr()->input_value(0);
+                }
+                fc_input_b = create_transpose(constant, matmul->get_friendly_name() + "/transpose_b");
                 new_ops.push_back(fc_input_b.get_node_shared_ptr());
+                if (fq_after_const) {
+                    fc_input_b = fq_after_const->clone_with_new_inputs(OutputVector{fc_input_b, fq_after_const->input_value(1),
+                        fq_after_const->input_value(2), fq_after_const->input_value(3), fq_after_const->input_value(4)});
+                    new_ops.push_back(fc_input_b.get_node_shared_ptr());
+                }
             }
 
             if (shape_b.size() != 2) {

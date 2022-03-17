@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
+#include "region_yolo_shape_inference.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -54,42 +55,11 @@ void op::RegionYolo::validate_and_infer_types() {
                           input_et.is_real(),
                           "Type of input is expected to be a floating point type. Got: ",
                           input_et);
+    std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0)};
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
+    shape_infer(this, input_shapes, output_shapes);
 
-    const auto& input_partial_shape = get_input_partial_shape(0);
-    if (input_partial_shape.rank().is_static()) {
-        ov::PartialShape input_shape = get_input_partial_shape(0);
-        ov::PartialShape output_shape;
-        int end_axis = m_end_axis;
-        if (m_end_axis < 0) {
-            m_end_axis += input_shape.size();
-        }
-
-        if (m_do_softmax) {
-            size_t flat_dim = 1;
-            for (int64_t i = 0; i < m_axis; i++) {
-                output_shape.push_back(input_shape[i]);
-            }
-            for (int64_t i = m_axis; i < end_axis + 1; i++) {
-                if (input_shape[i].is_dynamic()) {
-                    flat_dim = -1;
-                    break;
-                }
-                flat_dim *= input_shape[i].get_length();
-            }
-            output_shape.push_back(flat_dim);
-            for (size_t i = end_axis + 1; i < input_shape.size(); i++) {
-                output_shape.push_back(input_shape[i]);
-            }
-        } else {
-            output_shape = {input_shape[0],
-                            ov::Dimension((m_num_classes + m_num_coords + 1) * m_mask.size()),
-                            input_shape[2],
-                            input_shape[3]};
-        }
-        set_output_type(0, input_et, output_shape);
-    } else {
-        set_output_type(0, input_et, ov::PartialShape::dynamic());
-    }
+    set_output_type(0, input_et, output_shapes[0]);
 }
 
 shared_ptr<Node> op::RegionYolo::clone_with_new_inputs(const OutputVector& new_args) const {

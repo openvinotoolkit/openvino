@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -137,7 +137,7 @@ void op::v5::Loop::validate_and_infer_types() {
     // WA: input description with index 0 or 1 means that Loop consructor will duplicate it in
     // the inputs.
     // When using visit_attributes() no duplication occurs, input_offset shall be decremented.
-    size_t input_offset = 2;
+    int64_t input_offset = 2;
     for (const auto& in_desc : m_input_descriptions[0]) {
         if (in_desc->m_input_index == 0 || in_desc->m_input_index == 1) {
             input_offset--;

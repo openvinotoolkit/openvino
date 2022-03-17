@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -36,10 +36,8 @@ ie_faster_build(${TARGET_NAME}_obj
 target_include_directories(${TARGET_NAME}_obj PRIVATE
     ${PUBLIC_HEADERS_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    $<TARGET_PROPERTY:inference_engine,SOURCE_DIR>/src # For CNNNetworkNGraphImpl
-    $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
-    $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
-    $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src # For CNNNetworkNGraphImpl
+    $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:pugixml::static,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:ngraph,INTERFACE_COMPILE_DEFINITIONS>)
@@ -54,9 +52,8 @@ add_library(${TARGET_NAME} STATIC EXCLUDE_FROM_ALL
     ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp
     $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
-target_link_libraries(${TARGET_NAME} PUBLIC inference_engine
-                                     PRIVATE pugixml::static openvino::itt
-                                             ngraph inference_engine_transformations)
+target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime
+                                     PRIVATE pugixml::static openvino::itt openvino::runtime::dev)
 
 target_include_directories(${TARGET_NAME} INTERFACE
     $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>)

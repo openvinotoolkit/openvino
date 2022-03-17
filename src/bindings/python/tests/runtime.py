@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Provide a layer of abstraction for an OpenVINO runtime environment."""
@@ -11,7 +11,7 @@ import numpy as np
 from openvino.runtime import Core
 
 from openvino.runtime.exceptions import UserInputError
-from openvino.runtime import Model, Node, PartialShape, Type
+from openvino.runtime import Model, Node, PartialShape, Tensor, Type
 from openvino.runtime.utils.types import NumericData, get_shape, get_dtype
 
 import tests
@@ -45,7 +45,7 @@ class Runtime(object):
 
     def set_config(self, config: Dict[str, str]) -> None:
         """Set the inference engine configuration."""
-        self.backend.set_config(config, device_name=self.backend_name)
+        self.backend.set_property(device_name=self.backend_name, properties=config)
 
     def __repr__(self) -> str:
         return "<Runtime: Backend='{}'>".format(self.backend_name)
@@ -87,10 +87,22 @@ class Computation(object):
             target_dtype = target_dtypes[i]
             # custom conversion for bf16
             if self.results[i].get_output_element_type(0) == Type.bf16:
-                converted_buffers.append((source_buffers[k].view(np.uint32) >> 16).astype(np.uint16))
+                converted_buffers.append((source_buffers[k].view(target_dtype)).astype(target_dtype))
             else:
                 converted_buffers.append(source_buffers[k].astype(target_dtype))
         return converted_buffers
+
+    def convert_to_tensors(self, input_values):
+        input_tensors = []
+        for parameter, input in zip(self.parameters, input_values):
+            if not isinstance(input, (np.ndarray)):
+                input = np.ndarray([], type(input), np.array(input))
+            if parameter.get_output_element_type(0) == Type.bf16:
+                input_tensors.append(Tensor(Type.bf16, input.shape))
+                input_tensors[-1].data[:] = input.view(np.float16)
+            else:
+                input_tensors.append(Tensor(input))
+        return input_tensors
 
     def __call__(self, *input_values: NumericData) -> List[NumericData]:
         """Run computation on input values and return result."""
@@ -122,6 +134,10 @@ class Computation(object):
                     input_shape,
                     parameter_shape,
                 )
+
+        is_bfloat16 = any(parameter.get_output_element_type(0) == Type.bf16 for parameter in self.parameters)
+        if is_bfloat16:
+            input_values = self.convert_to_tensors(input_values)
 
         request = executable_network.create_infer_request()
         result_buffers = request.infer(dict(zip(param_names, input_values)))

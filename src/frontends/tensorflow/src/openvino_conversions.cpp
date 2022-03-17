@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 
 void convert_nhwc_to_nchw(const std::string& op_name, bool need_convert, ov::Output<ov::Node>& node) {
     if (need_convert) {
@@ -32,6 +32,6 @@ void convert_nchw_to_nhwc(const std::string& op_name, bool need_convert, ov::Out
     }
 }
 
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

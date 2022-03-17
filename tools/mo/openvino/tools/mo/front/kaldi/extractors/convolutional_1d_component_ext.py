@@ -1,10 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
-import numpy as np
 
 from openvino.tools.mo.front.caffe.extractors.utils import embed_input
 from openvino.tools.mo.front.common.extractors.utils import layout_attrs
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.extractor import FrontExtractorOp
 from openvino.tools.mo.front.kaldi.loader.utils import read_token_value, collect_until_whitespace, find_next_tag
 from openvino.tools.mo.front.kaldi.utils import read_learning_info, read_binary_matrix, read_binary_vector
@@ -59,12 +58,12 @@ class ConvolutionalComponentFrontExtractor(FrontExtractorOp):
             'output': output,
             'patch_stride': patch_stride,
             'bias_term': None,
-            'pad': np.array([[0, 0], [0, 0], [0, 0], [0, 0]], dtype=np.int64),
-            'pad_spatial_shape': np.array([[0, 0], [0, 0]], dtype=np.int64),
-            'dilation': np.array([1, 1, 1, 1], dtype=np.int64),
-            'kernel': np.array([1, 1, 1, kernel], dtype=np.int64),
-            'stride': np.array([1, 1, 1, stride], dtype=np.int64),
-            'kernel_spatial': np.array([1, kernel], dtype=np.int64),
+            'pad': int64_array([[0, 0], [0, 0], [0, 0], [0, 0]]),
+            'pad_spatial_shape': int64_array([[0, 0], [0, 0]]),
+            'dilation': int64_array([1, 1, 1, 1]),
+            'kernel': int64_array([weights_shape[0], weights_shape[1] // kernel, 1, kernel]),
+            'stride': int64_array([1, 1, 1, stride]),
+            'kernel_spatial': int64_array([1, kernel]),
             'input_feature_channel': 1,
             'output_feature_channel': 0,
             'kernel_spatial_idx': [2, 3],

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@ using namespace ov::opset8;
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 
 OutputVector translate_bias_add_op(const NodeContext& node) {
@@ -18,13 +18,13 @@ OutputVector translate_bias_add_op(const NodeContext& node) {
 
     std::string tf_data_format = node.get_attribute<std::string>("data_format", "NHWC");
 
-    TF_OP_VALIDATION_CHECK(node,
-                           tf_data_format == "NHWC" || tf_data_format == "NCHW",
-                           "BiasAdd data format is neither NHWC nor NCHW");
+    TENSORFLOW_OP_VALIDATION(node,
+                             tf_data_format == "NHWC" || tf_data_format == "NCHW",
+                             "BiasAdd data format is neither NHWC nor NCHW");
 
     auto ng_input_shape = ng_input.get_shape();
     auto ng_bias_shape = ng_bias.get_shape();
-    TF_OP_VALIDATION_CHECK(node, ng_bias_shape.size() == 1, "Bias argument to BiasAdd does not have one dimension");
+    TENSORFLOW_OP_VALIDATION(node, ng_bias_shape.size() == 1, "Bias argument to BiasAdd does not have one dimension");
 
     // We'll choose reshape over broadcast
     // Reshape the bias to (1, C, 1, ...) if input is channels-first.
@@ -48,6 +48,6 @@ OutputVector translate_bias_add_op(const NodeContext& node) {
     return res->outputs();
 }
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

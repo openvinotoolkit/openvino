@@ -1,14 +1,14 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <iostream>
-
+// Todo: Replace remarks with DEBUG_CAPS
 class logstreambuf: public std::streambuf {
 public:
-    static const int threshold {5};
+    static const int threshold {50};
 };
 
 template <typename T>

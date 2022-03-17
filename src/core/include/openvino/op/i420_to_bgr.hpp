@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,6 +33,8 @@ namespace v8 {
 class OPENVINO_API I420toBGR : public util::ConvertColorI420Base {
 public:
     OPENVINO_OP("I420toBGR", "opset8", util::ConvertColorI420Base);
+
+    BWDCMP_RTTI_DECLARATION;
 
     I420toBGR() = default;
 

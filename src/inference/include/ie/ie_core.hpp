@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,6 +24,7 @@
 namespace InferenceEngine {
 
 /**
+ * @ingroup ie_cpp
  * @brief This class represents Inference Engine Core entity.
  *
  * It can throw exceptions safely for the application, where it is properly handled.
@@ -33,13 +34,17 @@ class INFERENCE_ENGINE_API_CLASS(Core) {
     std::shared_ptr<Impl> _impl;
 
 public:
-    /** @brief Constructs Inference Engine Core instance using XML configuration file with
-     * plugins description.
+    /** @brief Constructs an OpenVINO Core instance with devices
+     * and their plugins description.
      *
-     * See RegisterPlugins for more details.
+     * There are two ways how to configure device plugins:
+     * 1. (default) Use XML configuration file in case of dynamic libraries build;
+     * 2. Use strictly defined configuration in case of static libraries build.
      *
-     * @param xmlConfigFile A path to .xml file with plugins to load from. If XML configuration file is not specified,
-     * then default Inference Engine plugins are loaded from the default plugin.xml file.
+     * @param xml_config_file Path to the .xml file with plugins to load from. If the XML configuration file is not
+     * specified, default OpenVINO Runtime plugins are loaded from:
+     * 1. (dynamic build) default `plugins.xml` file located in the same folder as OpenVINO runtime shared library;
+     * 2. (static build) statically defined configuration. In this case path to the .xml file is ignored.
      */
     explicit Core(const std::string& xmlConfigFile = {});
 
@@ -78,6 +83,7 @@ public:
      * @return CNNNetwork
      */
     CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath = {}) const;
+
     /**
      * @brief Reads models from IR and ONNX formats
      * @param model string with model in IR or ONNX format
@@ -95,6 +101,20 @@ public:
     CNNNetwork ReadNetwork(const std::string& model, const Blob::CPtr& weights) const;
 
     /**
+     * @brief Creates an executable network from a network object and uses AUTO plugin as the default device to load
+     * executable network.
+     *
+     * Users can create as many networks as they need and use
+     *        them simultaneously (up to the limitation of the hardware resources)
+     *
+     * @param network CNNNetwork object acquired from Core::ReadNetwork
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation
+     * @return An executable network reference
+     */
+    ExecutableNetwork LoadNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config = {});
+
+    /**
      * @brief Creates an executable network from a network object.
      *
      * Users can create as many networks as they need and use
@@ -109,6 +129,21 @@ public:
     ExecutableNetwork LoadNetwork(const CNNNetwork& network,
                                   const std::string& deviceName,
                                   const std::map<std::string, std::string>& config = {});
+
+    /**
+     * @brief Reads model and creates an executable network from IR or ONNX file and uses AUTO plugin as the default
+     * device to load executable network.
+     *
+     * This can be more efficient than using ReadNetwork + LoadNetwork(CNNNetwork) flow
+     *        especially for cases when caching is enabled and cached model is available
+     *
+     * @param modelPath path to model
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation/
+     *
+     * @return An executable network reference
+     */
+    ExecutableNetwork LoadNetwork(const std::string& modelPath, const std::map<std::string, std::string>& config = {});
 
     /**
      * @brief Reads model and creates an executable network from IR or ONNX file

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,13 +10,16 @@
 #include "openvino/core/except.hpp"
 
 namespace ov {
-namespace runtime {
 
 Allocator::Allocator() : _impl{std::make_shared<BlobAllocator>()} {}
 
-Allocator::Allocator(const std::shared_ptr<void>& so, const std::shared_ptr<AllocatorImpl>& impl)
-    : _so{so},
-      _impl{impl} {
+Allocator::~Allocator() {
+    _impl = {};
+}
+
+Allocator::Allocator(const std::shared_ptr<AllocatorImpl>& impl, const std::shared_ptr<void>& so)
+    : _impl{impl},
+      _so{so} {
     OPENVINO_ASSERT(_impl != nullptr, "Allocator was not initialized.");
 }
 
@@ -57,5 +60,4 @@ Allocator::operator bool() const noexcept {
     return (!!_impl);
 }
 
-}  // namespace runtime
 }  // namespace ov

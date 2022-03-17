@@ -1,8 +1,8 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "itt.hpp"
+#include <snippets/itt.hpp>
 #include "remarks.hpp"
 
 #include "snippets/op/subgraph.hpp"
@@ -10,6 +10,9 @@
 #include "snippets/pass/insert_movebroadcast.hpp"
 #include "snippets/pass/load_movebroadcast_to_broadcastload.hpp"
 #include "snippets/pass/assign_registers.hpp"
+#include "snippets/pass/convert_constants_to_scalars.hpp"
+#include "snippets/pass/convert_power_to_powerstatic.hpp"
+#include "snippets/pass/vector_to_scalar.hpp"
 
 #include <ngraph/pass/manager.hpp>
 #include <openvino/pass/serialize.hpp>
@@ -25,21 +28,22 @@ void snippets::op::Subgraph::set_generator(std::shared_ptr<ngraph::snippets::Gen
     m_generator = generator;
 }
 
-snippets::op::Subgraph::Subgraph(const OutputVector& args, std::shared_ptr<Function> body)
+snippets::op::Subgraph::Subgraph(const OutputVector& args, std::shared_ptr<ov::Model> body)
     : Op(args), m_body(body), m_generator(nullptr) {
     constructor_validate_and_infer_types();
 }
 
-snippets::op::Subgraph::Subgraph(const NodeVector& args, std::shared_ptr<Function> body)
+snippets::op::Subgraph::Subgraph(const NodeVector& args, std::shared_ptr<ov::Model> body)
     : Subgraph(as_output_vector(args), body) {}
 
 std::shared_ptr<Node> snippets::op::Subgraph::clone_with_new_inputs(const OutputVector& inputs) const {
     INTERNAL_OP_SCOPE(Subgraph);
-    return make_shared<Subgraph>(inputs, ngraph::clone_function(*m_body.get()));
+    return make_shared<Subgraph>(inputs, ov::clone_model(*m_body.get()));
 }
 
 void snippets::op::Subgraph::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(Subgraph);
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::validate_and_infer_types")
     ngraph::ParameterVector old_parameters;
     for (auto op : m_body->get_parameters()) {
         old_parameters.push_back(op);
@@ -65,24 +69,24 @@ bool snippets::op::Subgraph::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ngraph::Node>& node) -> std::shared_ptr<op::Subgraph> {
+auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Node>& node) -> std::shared_ptr<op::Subgraph> {
     INTERNAL_OP_SCOPE(Subgraph);
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::wrap_node_as_subgraph")
     ngraph::ParameterVector body_parameters;
     ngraph::OutputVector body_inputs;
 
     ngraph::OutputVector subgraph_inputs;
 
-    for (auto input : node->inputs()) {
-        auto source_output = input.get_source_output();
-        if (is_scalar_constant(source_output.get_node_shared_ptr())) {
-            body_inputs.push_back(source_output);
+    for (const auto& input : node->input_values()) {
+        if (is_scalar_constant(input.get_node_shared_ptr())) {
+            body_inputs.push_back(input);
         } else {
             auto parameter = std::make_shared<ngraph::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
             body_parameters.push_back(parameter);
-            body_parameters.back()->set_friendly_name(source_output.get_node()->get_friendly_name());
+            body_parameters.back()->set_friendly_name(input.get_node()->get_friendly_name());
             body_inputs.push_back(parameter->output(0));
 
-            subgraph_inputs.push_back(source_output);
+            subgraph_inputs.push_back(input);
         }
     }
 
@@ -93,6 +97,9 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ngraph:
         throw ngraph::ngraph_error("original node outputs size and extracted subgraph node outputs size doesn't much");
     }
 
+    // Clear the node dependencies so graph::topological_sort will not find any extra ops in get_ordered_ops()
+    //  This is needed so the model body will be created correctly
+    body_node->clear_control_dependencies();
     ngraph::ResultVector body_results;
     for (auto output : node->outputs()) {
         body_results.push_back(std::make_shared<ngraph::opset1::Result>(body_node->output(output.get_index())));
@@ -111,114 +118,165 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ngraph:
 
     return subgraph;
 }
-
-std::shared_ptr<snippets::op::Subgraph> snippets::op::Subgraph::make_canonical_from_this() {
+///
+/// \brief  Canonization transforms original subgraph and to canonical form suitable for code generation. In particular,
+///         it handles supported layout conversions, broadcasts inputs and outputs to a single rank and layout. Canonicalization
+///         returns master-shape (max rank + max dimensions over all outputs) that can be used for scheduling.
+///         Canonicalization currently supports only the following layout conversions:
+///             * None: all inputs have the same layout
+///             * Planar + blocked: some inputs have blocked, and some have planar layouts, e.g. <N, C, H, W, c> + <N, C, H, W>
+Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes) {
     INTERNAL_OP_SCOPE(Subgraph);
-    ngraph::OutputVector subgraph_node_inputs;
-    for (auto input : this->input_values()) {
-        subgraph_node_inputs.push_back(input);
-    }
-    auto new_body = ngraph::clone_function(*this->get_body().get());
-    auto snippet = std::make_shared<op::Subgraph>(subgraph_node_inputs, new_body);
-    ngraph::copy_runtime_info(this->shared_from_this(), snippet);
-    snippet->set_friendly_name(this->get_friendly_name());
-    snippet->set_generator(this->m_generator);
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::canonicalize")
+    NODE_VALIDATION_CHECK(this, inputShapes.size() == m_body->get_parameters().size(),
+        "Number of parameters for snippet doesn't match passed to generate method: ", inputShapes.size(), " vs ", m_body->get_parameters().size(), ".");
 
-    return snippet;
-}
+    NODE_VALIDATION_CHECK(this, outputShapes.size() == m_body->get_results().size(),
+        "number of results for snippet doesn't match passed to generate method: ", outputShapes.size(), " vs ", m_body->get_results().size(), ".");
 
-// We also can think of canonization as of pass to copy original subgraph and transforming it to canonical form suitable for code generation
-// pass actual parameters and results shapes to generate for as well as channel mapping,
-// we need to distinguish between 5d tensors that represents <N, C, H, W, c> and <N, C, D, H, W> somehow like locked dimensions
-// ngraph::AxisVector to code
-void snippets::op::Subgraph::canonicalize(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes) {
-    INTERNAL_OP_SCOPE(Subgraph);
-    NODE_VALIDATION_CHECK(this, input_shapes.size() == m_body->get_parameters().size(),
-        "Number of parameters for snippet doesn't much passed to generate method: ", input_shapes.size(), " vs ", m_body->get_parameters().size(), ".");
-
-    NODE_VALIDATION_CHECK(this, output_shapes.size() == m_body->get_results().size(),
-        "number of results for snippet doesn't much passed to generate method: ", output_shapes.size(), " vs ", m_body->get_results().size(), ".");
-
-    // replace only constants which are actually should be represented as scalars during code generation and probably move this step a bit later
-    for (auto op : m_body->get_ordered_ops()) {
-        if (auto constant = ngraph::as_type_ptr<opset1::Constant>(op)) {
-            auto scalar = std::make_shared<snippets::op::Scalar>(*constant);
-            scalar->set_friendly_name(constant->get_friendly_name());
-            ngraph::copy_runtime_info(constant, scalar);
-            ngraph::replace_node(constant, scalar);
-        }
-    }
-
-    // repalace power with power static
-    for (auto op : m_body->get_ordered_ops()) {
-        if (auto power = ngraph::as_type_ptr<opset1::Power>(op)) {
-            if (ngraph::as_type_ptr<snippets::op::Scalar>(power->input(1).get_node()->shared_from_this())) {
-                auto power_static = std::make_shared<snippets::op::PowerStatic>(
-                    power->input(0).get_source_output(), power->input(1).get_source_output(), power->get_autob());
-                power_static->set_friendly_name(power->get_friendly_name());
-                ngraph::copy_runtime_info(power, power_static);
-                ngraph::replace_node(power, power_static);
+    auto getMaxRankBlockedShape = [](const BlockedShapeVector& blockedShapes) -> const BlockedShape& {
+        return *std::max_element(blockedShapes.begin(), blockedShapes.end(),
+                         [&](const BlockedShape& lhs, const BlockedShape& rhs) {
+                            return std::get<0>(lhs).size() < std::get<0>(rhs).size();
+                         });
+    };
+    Shape baseShape;
+    AxisVector baseOrder;
+    std::tie(baseShape, baseOrder, std::ignore) = getMaxRankBlockedShape(inputShapes);
+    const auto baseRank = baseShape.size();
+    const bool baseIsBlocked = baseOrder.size() != std::set<size_t>(baseOrder.begin(), baseOrder.end()).size();
+    for (size_t i = 0; i < inputShapes.size(); i++) {
+        const auto &blockedShape = inputShapes[i];
+        Shape inShape;
+        AxisVector inOrder;
+        element::Type inType;
+        std::tie(inShape, inOrder, inType) = blockedShape;
+        const auto inRank = inShape.size();
+        NODE_VALIDATION_CHECK(this, inRank <= baseRank, "Input rank can't be larger than output rank in snippets.");
+        if (inRank < baseRank) {
+            Shape newShape(baseRank, 1);
+            // todo: more complicated logics is needed if we want to merge smth else than blocked and planar
+            // could be done by PartialShape::broadcast_merge_into, but this way is faster
+            size_t startOffset = baseRank - inRank;
+            if (baseIsBlocked) {
+                const bool inIsNotBlocked = inOrder.size() == std::set<size_t>(inOrder.begin(), inOrder.end()).size();
+                NODE_VALIDATION_CHECK(this, inIsNotBlocked, "Snippets don't support conversion between blocked layouts of different ranks");
+                startOffset--;
             }
+            std::copy(inShape.begin(), inShape.end(), &newShape[startOffset]);
+            inShape = move(newShape);
+        } else {
+            // todo: 4d blocked + 5d planar layouts are not supported: <N, C, H, W, c> + <N, C, D, H, W>
+            NODE_VALIDATION_CHECK(this,
+                                  equal(baseOrder.begin(), baseOrder.end(), inOrder.begin()),
+                                  "Snippets canonicalization got input shapes of equal ranks but different layouts, which is not supported");
         }
-    }
-
-
-    // it should be in subgraph node to be aligned with internal and external parameter list, but adding this for testing
-    // TODO: store blocking into to Parameter's rt_info for future propagation
-    for (size_t i = 0; i < m_body->get_parameters().size(); i++) {
-        auto param = m_body->get_parameters()[i];
-        if (param->get_shape().size() < 4) {
-            std::vector<size_t> shape(4, 1);
-            std::copy(param->get_shape().begin(), param->get_shape().end(), &shape.at(4 - (param->get_shape().size() == 0 ? 1 : param->get_shape().size())) );
-            m_body->replace_parameter(i, std::make_shared<opset1::Parameter>(param->get_element_type(), ngraph::Shape(shape)));
-        } else if (param->get_shape().size() >= 4) {
-            if (param->get_element_type() != std::get<2>(input_shapes[i])) {
-                throw ngraph::ngraph_error("changes in presision. Is it legal??");
-            }
-            m_body->replace_parameter(i, std::make_shared<opset1::Parameter>(std::get<2>(input_shapes[i]), std::get<0>(input_shapes[i])));
-        }
+        ov::PartialShape tmpPShape(baseShape);
+        NODE_VALIDATION_CHECK(this,
+                              PartialShape::broadcast_merge_into(tmpPShape, inShape, ::ngraph::op::AutoBroadcastType::NUMPY),
+                              "Failed to create broadcastable shapes in snippets canonicalization");
+        const auto paramShape = m_body->get_parameters()[i]->get_shape();
+        if (paramShape.size() != inShape.size() || !equal(paramShape.begin(), paramShape.end(), inShape.begin()))
+                m_body->replace_parameter(i, std::make_shared<opset1::Parameter>(inType, inShape));
     }
 
     m_body->validate_nodes_and_infer_types();
+    auto skipStartEndOnes = [](const Shape& shape) {
+        auto begin = shape.begin();
+        auto end = shape.end();
+        while (begin != end && *begin == 1)
+            begin++;
+        while (begin != end && *(end-1) == 1)
+            end--;
+        Shape trimmedShape(end - begin, 1);
+        std::copy(begin, end, trimmedShape.begin());
+        return trimmedShape;
+    };
 
-    for (size_t i = 0; i < m_body->get_results().size(); i++) {
-        auto result = m_body->get_results()[i];
-        PartialShape partial(result->get_shape());
-        bool isCompatible = ngraph::PartialShape::broadcast_merge_into(partial, std::get<0>(output_shapes[i]), ::ngraph::op::AutoBroadcastType::NUMPY);
-        // equality check won't pass since we reshape without changes on external snippet edges
-        NODE_VALIDATION_CHECK(this, isCompatible, "Inferend and passed results shapes are difference for snippet : ",
-                                                  result->get_shape(), " vs ", std::get<0>(output_shapes[i]), ".");
+    // Check that output shapes are broadcastable => can be scheduled
+    const auto& body_results = m_body->get_results();
+    PartialShape outPShape = body_results[0]->get_shape();
+    for (size_t i = 0; i < body_results.size(); i++) {
+        auto shape_i = body_results[i]->get_shape();
+        auto outputShape_i = std::get<0>(outputShapes[i]);
+        // Check that the produced output shape corresponds to the passed shape
+        // Some produced shapes may have been changed to be broadcastable (e.g. blocked + planar outputs),
+        // so we need to remove leading and trailing "1" before the comparison
+        PartialShape pShape_i(skipStartEndOnes(shape_i));
+        bool compatibleWithPassedShape = PartialShape::broadcast_merge_into(pShape_i, skipStartEndOnes(outputShape_i),
+                                                                              ::ngraph::op::AutoBroadcastType::NUMPY);
+        NODE_VALIDATION_CHECK(this, ov::shape_size(shape_i) == ov::shape_size(outputShape_i) &&
+                              compatibleWithPassedShape, "Inferred and passed results shapes are incompatible for snippet ",
+                              get_friendly_name(), " : ", shape_i, " vs ", outputShape_i, ".");
+        // Check that output shapes are broadcastable to each other => can be scheduled
+        bool compatibleWithOtherOutputs = PartialShape::broadcast_merge_into(outPShape, shape_i,
+                                                               ::ngraph::op::AutoBroadcastType::NUMPY);
+        NODE_VALIDATION_CHECK(this, compatibleWithOtherOutputs, "Snippets output shapes must be numpy broadcastable");
     }
+    exec_domain = outPShape.get_shape();
+    return exec_domain;
 }
 
 void snippets::op::Subgraph::convert_to_snippet_dialect() {
     INTERNAL_OP_SCOPE(Subgraph);
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::convert_to_snippet_dialect")
+    auto skip_matching_domain = [](const std::shared_ptr<const ov::Node>& n) -> bool {
+        return n->get_input_shape(0).back() != 1;
+    };
     ngraph::pass::Manager manager;
+    manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
+    manager.register_pass<snippets::pass::ConvertPowerToPowerStatic>();
     manager.register_pass<snippets::pass::InsertLoad>();
     manager.register_pass<snippets::pass::InsertStore>();
     manager.register_pass<snippets::pass::InsertMoveBroadcast>();
     manager.register_pass<snippets::pass::LoadMoveBroadcastToBroadcastLoad>();
+    manager.register_pass<snippets::pass::ReplaceLoadsWithScalarLoads>();
+    manager.register_pass<snippets::pass::ReplaceStoresWithScalarStores>();
+    if (exec_domain.back() != 1) {
+        manager.get_pass_config()->
+        set_callback<ngraph::snippets::pass::ReplaceLoadsWithScalarLoads>(skip_matching_domain);
+        manager.get_pass_config()->
+        set_callback<ngraph::snippets::pass::ReplaceStoresWithScalarStores>(skip_matching_domain);
+    }
     manager.run_passes(m_body);
 }
 
-snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes,
-                                                    ngraph::pass::Manager opt) {
-    INTERNAL_OP_SCOPE(Subgraph);
-    NGRAPH_CHECK(m_generator != nullptr, "generate is called while generator is not set");
-
+snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& output_shapes,
+                                                    const BlockedShapeVector& input_shapes,
+                                                    const void* compile_params) {
     canonicalize(output_shapes, input_shapes);
+    return generate(compile_params);
+}
+
+snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& output_shapes,
+                                                    const BlockedShapeVector& input_shapes,
+                                                    ngraph::pass::Manager& opt,
+                                                    const void* compile_params) {
+    canonicalize(output_shapes, input_shapes);
+    return generate(opt, compile_params);
+}
+
+snippets::Schedule snippets::op::Subgraph::generate(const void* compile_params) {
+    auto mngr = ngraph::pass::Manager();
+    return generate(mngr, compile_params);
+}
+
+snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, const void* compile_params) {
+    INTERNAL_OP_SCOPE(Subgraph);
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::generate")
+    NGRAPH_CHECK(m_generator != nullptr, "generate is called while generator is not set");
     convert_to_snippet_dialect();
     opt.run_passes(m_body);
 
     // generation flow
     snippets::pass::AssignRegisters().run_on_model(m_body);
 
-    // shedule generation should go here and be target agnostic
+    // schedule generation should go here and be target agnostic
 
     // actual code emission
-    ngraph::snippets::code ptr = m_generator->generate(m_body);
+    ngraph::snippets::code ptr = m_generator->generate(m_body, compile_params);
 
-    // chack that body doesnt have constants for scheduling
+    // check that body doesn't have constants for scheduling
     std::vector<std::shared_ptr<opset1::Constant>> constants;
     for (auto op : m_body->get_ordered_ops()) {
         if (auto constant = ov::as_type_ptr<opset1::Constant>(op)) {
@@ -227,36 +285,9 @@ snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& ou
             }
         }
     }
-    NGRAPH_CHECK(!constants.size(), "External constants detected. Snippet is illigal for sheduling");
+    NGRAPH_CHECK(!constants.size(), "External constants detected. Snippet is illigal for scheduling");
 
-    // check resulting shapes are broadcastable to each other so can be scheduled
-    Shape work_size = m_body->output(0).get_shape();
-    for (size_t k = 0; k < m_body->get_output_size(); k++) {
-        auto shape = m_body->output(k).get_shape();
-
-        if (work_size.size() != shape.size()) {
-            throw ngraph_error("rank for all outputs of a snippet should match");
-        }
-
-        for (size_t i = 0; i < work_size.size(); i++) {
-            if (work_size[i] != shape[i]) {
-                if (work_size[i] == 1) {
-                    work_size[i] = shape[i];
-                } else {
-                    throw ngraph_error("incompatible shapes for output graphs");
-                }
-            }
-        }
-    }
-
-    return {work_size, false /*canBeLinearized*/, ptr};
-}
-
-bool snippets::op::Subgraph::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    INTERNAL_OP_SCOPE(Subgraph);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return m_body->evaluate(outputs, inputs);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    return {exec_domain, false /*canBeLinearized*/, ptr};
 }
 
 void snippets::op::Subgraph::print() const {
@@ -285,7 +316,7 @@ void snippets::op::Subgraph::print() const {
 
 void snippets::op::Subgraph::print_statistics(bool verbose) {
     INTERNAL_OP_SCOPE(Subgraph);
-    auto getNodeInventory = [](std::shared_ptr<ngraph::Node> n) -> size_t {
+    auto getNodeInventory = [](std::shared_ptr<ov::Node> n) -> size_t {
         size_t total = 0;
 
         for (auto input : n->inputs()) {
@@ -307,7 +338,7 @@ void snippets::op::Subgraph::print_statistics(bool verbose) {
         return total;
     };
 
-    auto getFunctionInventory = [getNodeInventory](std::shared_ptr<ngraph::Function> f) -> size_t {
+    auto getModelInventory = [getNodeInventory](std::shared_ptr<ov::Model> f) -> size_t {
         size_t total = 0;
         for (auto op : f->get_ordered_ops()) {
             // Results and parameters are artificially introduced,
@@ -322,7 +353,7 @@ void snippets::op::Subgraph::print_statistics(bool verbose) {
         return total;
     };
 
-    auto countConstants = [](std::shared_ptr<ngraph::Function> f) -> size_t {
+    auto countConstants = [](std::shared_ptr<ov::Model> f) -> size_t {
         size_t count = 0;
         for (auto op : f->get_ordered_ops()) {
             count += !!ngraph::as_type_ptr<ngraph::opset1::Constant>(op) ? 1 : 0;
@@ -338,7 +369,7 @@ void snippets::op::Subgraph::print_statistics(bool verbose) {
                 << ";" << body->get_parameters().size()
                 << ";" << body->get_results().size()
                 << ";" << countConstants(body)
-                << ";" << getFunctionInventory(body)
+                << ";" << getModelInventory(body)
                 << ";" << getNodeInventory(this->shared_from_this()) << std::endl;
 
     if (verbose) {

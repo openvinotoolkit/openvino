@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,6 +60,12 @@ void apply_transformations(ONNX_NAMESPACE::ModelProto& model_proto, const std::s
 }  // namespace
 
 void convert_decoded_function(std::shared_ptr<Function> function) {
+    auto& rt_info = function->get_rt_info();
+    auto it = rt_info.find(ONNX_GRAPH_RT_ATTRIBUTE);
+    OPENVINO_ASSERT(it != rt_info.end(),
+                    "Could not find '" + std::string(ONNX_GRAPH_RT_ATTRIBUTE) +
+                        "' attribute in decoded model. Model probably wasn't created by FrontEnd::decode function.");
+    auto onnx_graph = it->second.as<std::shared_ptr<onnx_import::Graph>>();
     for (const auto& node : function->get_ordered_ops()) {
         if (auto raw_node = std::dynamic_pointer_cast<frontend::ONNXFrameworkNode>(node)) {
             if (auto subgraph_node = std::dynamic_pointer_cast<frontend::ONNXSubgraphFrameworkNode>(node)) {
@@ -68,7 +74,7 @@ void convert_decoded_function(std::shared_ptr<Function> function) {
                     convert_decoded_function(function);
                 }
             }
-            auto ng_nodes = raw_node->get_ng_nodes();
+            auto ng_nodes = raw_node->get_ng_nodes(onnx_graph);
             replace_node(raw_node, ng_nodes);
         } else {
             // Have to revalidate node because new intpus can affect shape/type
@@ -76,24 +82,24 @@ void convert_decoded_function(std::shared_ptr<Function> function) {
             node->revalidate_and_infer_types();
         }
     }
+    rt_info.erase(it);
     detail::remove_dangling_parameters(function);
     detail::remove_dangling_results(function);
 }
 
 std::shared_ptr<Function> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
                                             const std::string& model_path,
-                                            const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry) {
+                                            ov::frontend::ExtensionHolder extensions) {
     apply_transformations(*model_proto, model_path);
-    Graph graph{model_proto, telemetry};
+    Graph graph{model_proto, extensions};
     return graph.convert();
 }
 
-std::shared_ptr<Function> decode_to_framework_nodes(
-    std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
-    const std::string& model_path,
-    const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry) {
+std::shared_ptr<Function> decode_to_framework_nodes(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
+                                                    const std::string& model_path,
+                                                    ov::frontend::ExtensionHolder extensions) {
     apply_transformations(*model_proto, model_path);
-    auto graph = std::make_shared<Graph>(model_proto, telemetry);
+    auto graph = std::make_shared<Graph>(model_proto, extensions);
     return graph->decode();
 }
 }  // namespace detail

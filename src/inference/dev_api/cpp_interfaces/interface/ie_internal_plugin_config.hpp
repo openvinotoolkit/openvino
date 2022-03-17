@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #pragma once
 
 #include "ie_plugin_config.hpp"
+#include "openvino/runtime/properties.hpp"
 
 namespace InferenceEngine {
 
@@ -44,6 +45,13 @@ DECLARE_CONFIG_KEY(LP_TRANSFORMS_MODE);
  * @ingroup ie_dev_api_plugin_api
  */
 DECLARE_CONFIG_KEY(CPU_THREADS_PER_STREAM);
+
+/**
+ * @brief Defines how many records can be stored in the CPU runtime parameters cache per CPU runtime parameter type per
+ * stream
+ * @ingroup ie_dev_api_plugin_api
+ */
+DECLARE_CONFIG_KEY(CPU_RUNTIME_CACHE_CAPACITY);
 
 /**
  * @brief This key should be used to force disable export while loading network even if global cache dir is defined

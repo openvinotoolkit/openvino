@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.front.extractor import FrontExtractorOp
@@ -20,5 +20,5 @@ class IteratorGetNextExtractor(FrontExtractorOp):
         result_shapes = []
         for shape_pb in shapes:
             result_shapes.append(tf_tensor_shape(shape_pb))
-        Op.update_node_stat(node, {'shapes': result_shapes, 'types': extracted_types, 'out_ports_count': 1})
+        Op.update_node_stat(node, {'shapes': result_shapes, 'types': extracted_types, 'out_ports_count': len(result_shapes)})
         return cls.enabled

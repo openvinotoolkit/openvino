@@ -1,10 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 import numpy as np
-# TODO: change the module name according to the description in 69196
-from openvino.offline_transformations_pybind import apply_moc_transformations, apply_pot_transformations, \
+from openvino.offline_transformations import apply_moc_transformations, apply_pot_transformations, \
     apply_low_latency_transformation, apply_pruning_transformation, apply_make_stateful_transformation, \
     compress_model_transformation, serialize
 
@@ -14,8 +13,10 @@ import openvino.runtime as ov
 
 def get_test_function():
     param = ov.opset8.parameter(PartialShape([1, 3, 22, 22]), name="parameter")
+    param.get_output_tensor(0).set_names({"parameter"})
     relu = ov.opset8.relu(param)
     res = ov.opset8.result(relu, name="result")
+    res.get_output_tensor(0).set_names({"result"})
     return Model([res], [param], "test")
 
 

@@ -1,4 +1,4 @@
-## DetectionOutput <a name="DetectionOutput"></a> {#openvino_docs_ops_detection_DetectionOutput_8}
+# DetectionOutput {#openvino_docs_ops_detection_DetectionOutput_8}
 
 **Versioned name**: *DetectionOutput-8*
 
@@ -21,7 +21,7 @@ yielding \f$(c + 4)kmn\f$ outputs for a *m \* n* feature map.
 
 **Attributes**:
 
-**NOTE:** *num_classes*, a number of classes attribute, presents in [DetectionOutput_1](DetectionOutput_1.md) has been removed.
+**NOTE**: *num_classes*, a number of classes attribute, presents in [DetectionOutput_1](DetectionOutput_1.md) has been removed.
 It can be computed as `cls_pred_shape[-1] // num_prior_boxes` where `cls_pred_shape` and `num_prior_boxes` are class predictions tensor shape and
 a number of prior boxes.
 

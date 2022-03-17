@@ -1,18 +1,19 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
+
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset8.hpp>
-#include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
 #include <transformations/utils/utils.hpp>
+
 #include "itt.hpp"
 
 using namespace std;
 using namespace ngraph;
-
 
 pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
     MATCHER_SCOPE(ConvertMaxPool8ToMaxPool1);
@@ -30,12 +31,12 @@ pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
                 return false;
 
         auto maxpool_v1_node = make_shared<ngraph::opset1::MaxPool>(maxpool_v8_node->input_value(0),
-                                                            maxpool_v8_node->get_strides(),
-                                                            maxpool_v8_node->get_pads_begin(),
-                                                            maxpool_v8_node->get_pads_end(),
-                                                            maxpool_v8_node->get_kernel(),
-                                                            maxpool_v8_node->get_rounding_type(),
-                                                            maxpool_v8_node->get_auto_pad());
+                                                                    maxpool_v8_node->get_strides(),
+                                                                    maxpool_v8_node->get_pads_begin(),
+                                                                    maxpool_v8_node->get_pads_end(),
+                                                                    maxpool_v8_node->get_kernel(),
+                                                                    maxpool_v8_node->get_rounding_type(),
+                                                                    maxpool_v8_node->get_auto_pad());
 
         auto out_name = ngraph::op::util::create_ie_output_name(maxpool_v8_node->output(0));
 

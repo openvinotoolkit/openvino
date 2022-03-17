@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,10 +15,6 @@ class Model;
 namespace preprocess {
 
 /// \brief Main class for adding pre- and post- processing steps to existing ov::Model
-/// API has Builder-like style to allow chaining calls in client's code, like
-/// \code{.cpp}
-/// auto proc = PrePostProcessor(function).input(<for input1>).input(<input2>);
-/// \endcode
 ///
 /// This is a helper class for writing easy pre- and post- processing operations on ov::Model object assuming that
 /// any preprocess operation takes one input and produces one output.
@@ -94,7 +90,21 @@ public:
     ///
     /// \return Function with added pre/post-processing operations
     std::shared_ptr<Model> build();
+
+private:
+    friend OPENVINO_API std::ostream& operator<<(std::ostream& str, const PrePostProcessor& prePostProcessor);
+    void dump(std::ostream&) const;
 };
+
+/// \brief Inserts a human-readable representation of a PrePostProcessors into an output stream. The output to the
+/// stream is in "informal" notation and can be used for debugging purposes
+///
+/// \param str The output stream targeted for insertion.
+///
+/// \param prePostProcessor The shape to be inserted into output stream.
+///
+/// \return A reference to same output stream after insertion.
+OPENVINO_API std::ostream& operator<<(std::ostream& str, const PrePostProcessor& prePostProcessor);
 
 }  // namespace preprocess
 }  // namespace ov

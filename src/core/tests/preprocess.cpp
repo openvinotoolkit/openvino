@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,16 @@ static std::shared_ptr<Model> create_simple_function(element::Type type, const P
     op->set_friendly_name("Relu");
     op->get_output_tensor(0).set_names({"tensor_Relu"});
     auto res = std::make_shared<op::v0::Result>(op);
+    res->set_friendly_name("Result1");
+    res->get_output_tensor(0).set_names({"tensor_output1"});
+    return std::make_shared<Model>(ResultVector{res}, ParameterVector{data1});
+}
+
+static std::shared_ptr<Model> create_trivial(element::Type type, const PartialShape& shape) {
+    auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
+    data1->set_friendly_name("input1");
+    data1->get_output_tensor(0).set_names({"tensor_input1"});
+    auto res = std::make_shared<op::v0::Result>(data1);
     res->set_friendly_name("Result1");
     res->get_output_tensor(0).set_names({"tensor_output1"});
     return std::make_shared<Model>(ResultVector{res}, ParameterVector{data1});
@@ -80,11 +90,35 @@ TEST(pre_post_process, convert_element_type_and_scale) {
 
 TEST(pre_post_process, convert_element_type_implicit) {
     auto f = create_simple_function(element::i32, Shape{1, 3, 224, 224});
+    EXPECT_EQ(f->get_parameters().front()->get_element_type(), element::i32);
+    EXPECT_EQ(f->get_results().front()->get_element_type(), element::i32);
     auto p = PrePostProcessor(f);
     p.input().tensor().set_element_type(element::f32);
     f = p.build();
     EXPECT_EQ(f->get_parameters().front()->get_element_type(), element::f32);
     EXPECT_EQ(f->get_results().front()->get_element_type(), element::i32);
+}
+
+TEST(pre_post_process, convert_element_type_implicit_several_time) {
+    auto f = create_simple_function(element::i32, Shape{1, 3, 224, 224});
+    EXPECT_EQ(f->get_parameters().front()->get_element_type(), element::i32);
+    EXPECT_EQ(f->get_results().front()->get_element_type(), element::i32);
+    PrePostProcessor preprocessor(f);
+    preprocessor.input().tensor().set_layout(ov::Layout("NHWC"));
+    preprocessor.input().model().set_layout(ov::Layout("NCHW"));
+    preprocessor.input().tensor().set_element_type(element::f16);
+    preprocessor.input().tensor().set_element_type(element::i32);
+    preprocessor.input().tensor().set_element_type(element::u32);
+    preprocessor.input().tensor().set_element_type(element::f32);
+    preprocessor.output().tensor().set_element_type(element::f16);
+    preprocessor.output().tensor().set_element_type(element::i32);
+    preprocessor.output().tensor().set_element_type(element::u32);
+    preprocessor.output().tensor().set_element_type(element::f32);
+    preprocessor.output().tensor().set_element_type(element::u64);
+    f = preprocessor.build();
+    EXPECT_EQ(f->get_parameters().front()->get_element_type(), element::f32);
+    EXPECT_EQ(f->get_parameters().front()->get_layout().to_string(), "[N,H,W,C]");
+    EXPECT_EQ(f->get_results().front()->get_element_type(), element::u64);
 }
 
 TEST(pre_post_process, convert_element_type_same) {
@@ -170,6 +204,7 @@ TEST(pre_post_process, tensor_element_type_and_scale) {
     EXPECT_EQ(f->get_parameters().front()->get_element_type(), element::f32);
     EXPECT_EQ(f->get_output_element_type(0), element::i8);
     EXPECT_EQ(f->get_parameters().front()->get_layout(), Layout());
+    EXPECT_EQ(ov::layout::get_layout(f->input(0)), Layout());
 }
 
 TEST(pre_post_process, convert_color_nv12_rgb_single) {
@@ -184,6 +219,7 @@ TEST(pre_post_process, convert_color_nv12_rgb_single) {
     EXPECT_EQ(f->get_parameters().size(), 1);
     EXPECT_EQ(f->get_parameters().front()->get_element_type(), element::u8);
     EXPECT_EQ(f->get_parameters().front()->get_layout(), "NHWC");
+    EXPECT_EQ(ov::layout::get_layout(f->input(0)), "NHWC");
     EXPECT_EQ(f->get_parameters().front()->get_partial_shape(), (PartialShape{Dimension::dynamic(), 3, 2, 1}));
     EXPECT_EQ(f->get_parameters().front()->get_friendly_name(), name);
     EXPECT_EQ(f->get_parameters().front()->get_output_tensor(0).get_names(), tensor_names);
@@ -448,6 +484,77 @@ TEST(pre_post_process, convert_color_duplicate_internal_subnames_mean) {
     EXPECT_NO_THROW(f = p.build());
 }
 
+TEST(pre_post_process, convert_layout_implicit_several_time) {
+    auto f = create_simple_function(element::i32, Shape{1, 3, 224, 224});
+    EXPECT_EQ(f->get_parameters().front()->get_element_type(), element::i32);
+    EXPECT_EQ(f->get_results().front()->get_element_type(), element::i32);
+    PrePostProcessor preprocessor(f);
+    preprocessor.input().tensor().set_layout("NWHC");
+    preprocessor.input().tensor().set_layout("CHWN");
+    preprocessor.input().tensor().set_layout("NHCW");
+    preprocessor.input().tensor().set_layout("NCHW");
+    preprocessor.input().tensor().set_layout("NHWC");
+    preprocessor.output().tensor().set_layout("NWHC");
+    preprocessor.output().tensor().set_layout("CHWN");
+    preprocessor.output().tensor().set_layout("NHCW");
+    preprocessor.output().tensor().set_layout("NCHW");
+    f = preprocessor.build();
+    EXPECT_EQ(f->get_parameters().front()->get_layout(), Layout("[N,H,W,C]"));
+    EXPECT_EQ(f->get_results().front()->get_layout(), Layout("[N,C,H,W]"));
+}
+
+TEST(pre_post_process, tensor_set_layout) {
+    auto f = create_n_inputs<6>(element::f32, Shape{1, 3, 480, 640});
+    PrePostProcessor preprocessor(f);
+    preprocessor.input(0).tensor().set_layout("NCHW");
+    preprocessor.input(0).preprocess().mean({1.0, 2.0, 3.0});
+
+    preprocessor.input(1).tensor().set_layout("NHWC");
+    preprocessor.input(1).preprocess().mean({1.0, 2.0, 3.0}).convert_layout("NCHW");
+
+    preprocessor.input(2).tensor().set_layout("NHWC");
+    preprocessor.input(2).model().set_layout("NCHW");
+
+    preprocessor.input(3).model().set_layout("NCHW");
+
+    preprocessor.input(4).tensor().set_layout("NHWC");
+    // Model layout will be calculated as "HWCN" -> "3,2,0,1" = NCHW
+    preprocessor.input(4)
+        .preprocess()
+        .mean({1.0, 2.0, 3.0})
+        .convert_layout({3, 2, 1, 0})
+        .convert_layout("HWCN")
+        .convert_layout({3, 2, 0, 1});
+
+    preprocessor.input(5).tensor().set_layout("NHWC");
+    preprocessor.input(5)
+        .preprocess()
+        .mean({1.0, 2.0, 3.0})
+        .convert_layout({3, 2, 1, 0})   // NHWC -> CWHN
+        .convert_layout({3, 0, 2, 1});  // CWHN -> NCHW
+
+    f = preprocessor.build();
+    EXPECT_EQ(f->get_parameters()[0]->get_partial_shape(), (Shape{1, 3, 480, 640}));
+    EXPECT_EQ(f->get_parameters()[1]->get_partial_shape(), (Shape{1, 480, 640, 3}));
+    EXPECT_EQ(f->get_parameters()[2]->get_partial_shape(), (Shape{1, 480, 640, 3}));
+    EXPECT_EQ(f->get_parameters()[3]->get_partial_shape(), (Shape{1, 3, 480, 640}));
+    EXPECT_EQ(f->get_parameters()[4]->get_partial_shape(), (Shape{1, 480, 640, 3}));
+    EXPECT_EQ(f->get_parameters()[5]->get_partial_shape(), (Shape{1, 480, 640, 3}));
+}
+
+TEST(pre_post_process, postprocess_set_model_layout) {
+    auto f = create_n_inputs<2>(element::f32, Shape{1, 3, 224, 224});
+    PrePostProcessor p(f);
+    p.output(0).model().set_layout("NCHW");
+    p.output(0).postprocess().convert_layout("NHWC");
+
+    p.output(1).model().set_layout("NCHW");
+
+    f = p.build();
+    EXPECT_EQ(f->get_results()[0]->get_shape(), (Shape{1, 224, 224, 3}));
+    EXPECT_EQ(f->get_results()[1]->get_shape(), (Shape{1, 3, 224, 224}));
+}
+
 TEST(pre_post_process, unsupported_model_color_format) {
     auto f = create_simple_function(element::f32, PartialShape{1, 4, 4, 3});
     EXPECT_THROW(auto p = PrePostProcessor(f); p.input().tensor().set_color_format(ColorFormat::NV12_SINGLE_PLANE);
@@ -525,6 +632,18 @@ TEST(pre_post_process, test_2_inputs_basic) {
     EXPECT_EQ(f->get_output_element_type(1), element::f32);
 }
 
+TEST(pre_post_process, set_model_input_layout_helper) {
+    auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 3, 2, 1});
+    ov::layout::set_layout(f->input(0), "NCHW");
+    EXPECT_EQ(ov::layout::get_layout(f->input(0)), "NCHW");
+}
+
+TEST(pre_post_process, set_model_output_layout_helper) {
+    auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 3, 2, 1});
+    ov::layout::set_layout(f->output(0), "NCHW");
+    EXPECT_EQ(ov::layout::get_layout(f->output(0)), "NCHW");
+}
+
 TEST(pre_post_process, reuse_model_layout_no_tensor_info) {
     auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 3, 2, 1});
     f->get_parameters().front()->set_layout("NC??");
@@ -532,6 +651,23 @@ TEST(pre_post_process, reuse_model_layout_no_tensor_info) {
     p.input().preprocess().mean({1.f, 2.f, 3.f}).scale({2.f, 3.f, 4.f});
     f = p.build();
     EXPECT_EQ(f->get_parameters().front()->get_layout(), "NC??");
+}
+
+TEST(pre_post_process, set_model_layout_when_already_exists) {
+    auto m = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 3, 2, 1});
+    {
+        auto p = PrePostProcessor(m);
+        p.input().model().set_layout("N???");
+        m = p.build();
+    }
+    EXPECT_EQ(m->input().get_partial_shape(), (PartialShape{Dimension::dynamic(), 3, 2, 1}));
+    {
+        auto p = PrePostProcessor(m);
+        p.input().tensor().set_layout("NHWC");
+        p.input().model().set_layout("NCHW");  // Expect "N???" will be overwritten by "NCHW"
+        m = p.build();
+    }
+    EXPECT_EQ(m->input().get_partial_shape(), (PartialShape{Dimension::dynamic(), 2, 1, 3}));
 }
 
 TEST(pre_post_process, set_layout_out_of_bounds) {
@@ -641,14 +777,15 @@ TEST(pre_post_process, mean_vector_dynamic_channels_shape) {
     EXPECT_EQ(f->get_output_element_type(0), element::f32);
 }
 
-// Error cases for 'resize'
 TEST(pre_post_process, resize_no_model_layout) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});
     auto p = PrePostProcessor(f);
-    EXPECT_THROW(p.input().tensor().set_layout("NHWC"); p.input().preprocess().resize(ResizeAlgorithm::RESIZE_CUBIC);
-                 p.build(), ov::AssertFailure);
+    p.input().tensor().set_layout("NHWC");
+    p.input().preprocess().resize(ResizeAlgorithm::RESIZE_CUBIC);
+    EXPECT_NO_THROW(p.build());
 }
 
+// Error cases for 'resize'
 TEST(pre_post_process, tensor_spatial_shape_no_layout_dims) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});
     auto p = PrePostProcessor(f);
@@ -659,6 +796,17 @@ TEST(pre_post_process, tensor_spatial_shape_no_layout_dims) {
     EXPECT_THROW(p.input().tensor().set_layout("NCH?").set_spatial_static_shape(480, 640);
                  p.input().preprocess().resize(ResizeAlgorithm::RESIZE_CUBIC);
                  p.build(), ov::AssertFailure);
+}
+
+TEST(pre_post_process, tensor_set_shape_for_resize) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});
+    auto p = PrePostProcessor(f);
+    p.input().tensor().set_shape({1, 720, 1280, 3}).set_layout("NHWC");
+    p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
+    p.input().model().set_layout("NCHW");
+    p.build();
+    EXPECT_EQ(f->input().get_partial_shape(), (Shape{1, 720, 1280, 3}));
+    EXPECT_EQ(f->output().get_partial_shape(), (Shape{1, 3, 224, 224}));
 }
 
 TEST(pre_post_process, tensor_set_shape_incompatible) {
@@ -891,6 +1039,93 @@ TEST(pre_post_process, preprocess_convert_layout_partially_defined_trivial) {
     EXPECT_EQ(f->input(3).get_partial_shape(), (PartialShape{1, 2, 3, 4, 5}));
     // Verify that no preprocessing Nodes are inserted
     EXPECT_EQ(ops_num, f->get_ordered_ops().size());
+}
+
+TEST(pre_post_process, preprocess_convert_layout_squeeze) {
+    auto f = create_n_inputs<3>(element::f32, Shape{1, 3, 1, 480, 640});
+    auto p = PrePostProcessor(f);
+
+    p.input(0).tensor().set_layout("HWC");
+    p.input(0).model().set_layout("NCDHW");
+
+    p.input(1).tensor().set_layout("NHWC");
+    p.input(1).model().set_layout("NCDHW");
+
+    p.input(2).tensor().set_layout("WCHD");
+    p.input(2).model().set_layout("NCDHW");
+
+    p.build();
+    EXPECT_EQ(ov::layout::get_layout(f->input(0)), "HWC");
+    EXPECT_EQ(f->input(0).get_partial_shape(), (PartialShape{480, 640, 3}));
+    EXPECT_EQ(ov::layout::get_layout(f->input(1)), "NHWC");
+    EXPECT_EQ(f->input(1).get_partial_shape(), (PartialShape{1, 480, 640, 3}));
+    EXPECT_EQ(ov::layout::get_layout(f->input(2)), "WCHD");
+    EXPECT_EQ(f->input(2).get_partial_shape(), (PartialShape{640, 3, 480, 1}));
+}
+
+TEST(pre_post_process, preprocess_convert_layout_squeeze_dynamic) {
+    auto f = create_n_inputs<2>(element::f32, PartialShape{Dimension::dynamic(), 3, 1, 480, 640});
+    auto p = PrePostProcessor(f);
+
+    p.input(0).tensor().set_layout("HWC");
+    p.input(0).model().set_layout("NCDHW");
+
+    p.input(1).tensor().set_layout("NHWC");
+    p.input(1).model().set_layout("NCDHW");
+
+    p.build();
+    EXPECT_EQ(ov::layout::get_layout(f->input(0)), "HWC");
+    EXPECT_EQ(f->input(0).get_partial_shape(), (PartialShape{480, 640, 3}));
+    EXPECT_EQ(ov::layout::get_layout(f->input(1)), "NHWC");
+    EXPECT_EQ(f->input(1).get_partial_shape(), (PartialShape{Dimension::dynamic(), 480, 640, 3}));
+}
+
+TEST(pre_post_process, preprocess_convert_layout_squeeze_unsupported) {
+    auto f = create_n_inputs<1>(element::f32, PartialShape{Dimension::dynamic(), 3, 1, 480, 640});
+    EXPECT_THROW(
+        {
+            auto p = PrePostProcessor(f);
+            p.input(0).tensor().set_layout("NCDHWS");
+            p.input(0).model().set_layout("NCDHW");
+            p.build();
+        },
+        ov::AssertFailure);
+
+    EXPECT_THROW(
+        {
+            auto p = PrePostProcessor(f);
+            p.input(0).tensor().set_layout("HWC");
+            p.input(0).model().set_layout("?????");
+            p.build();
+        },
+        ov::AssertFailure);
+
+    EXPECT_THROW(
+        {
+            auto p = PrePostProcessor(f);
+            p.input(0).tensor().set_layout("...S");
+            p.input(0).model().set_layout("NCDHW");
+            p.build();
+        },
+        ov::AssertFailure);
+
+    EXPECT_THROW(
+        {
+            auto p = PrePostProcessor(f);
+            p.input(0).tensor().set_layout("HWC");
+            p.input(0).model().set_layout("...NCDHW");
+            p.build();
+        },
+        ov::AssertFailure);
+
+    EXPECT_THROW(
+        {
+            auto p = PrePostProcessor(f);
+            p.input(0).tensor().set_layout("HW?");
+            p.input(0).model().set_layout("NCDHW");
+            p.build();
+        },
+        ov::AssertFailure);
 }
 
 TEST(pre_post_process, preprocess_convert_layout_partially_defined_error) {
@@ -1132,6 +1367,7 @@ TEST(pre_post_process, postprocess_set_layout_model) {
     p.output().model().set_layout("NCHW");
     p.build();
     EXPECT_EQ(f->get_results()[0]->get_layout(), "NCHW");
+    EXPECT_EQ(ov::layout::get_layout(f->output(0)), "NCHW");
 }
 
 TEST(pre_post_process, postprocess_convert_layout_implicit) {
@@ -1144,6 +1380,23 @@ TEST(pre_post_process, postprocess_convert_layout_implicit) {
     p.build();
     EXPECT_EQ(f->get_results()[0]->get_layout(), "NHWC");
     EXPECT_EQ(f->get_results()[0]->get_output_tensor(0).get_partial_shape(), (PartialShape{1, 2, 2, 3}));
+}
+
+TEST(pre_post_process, postprocess_set_model_layout_when_already_exists) {
+    auto m = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 3, 2, 1});
+    {
+        auto p = PrePostProcessor(m);
+        p.output().model().set_layout("N???");
+        m = p.build();
+    }
+    EXPECT_EQ(m->output().get_partial_shape(), (PartialShape{Dimension::dynamic(), 3, 2, 1}));
+    {
+        auto p = PrePostProcessor(m);
+        p.output().model().set_layout("NCHW");  // Expect "N???" will be overwritten by "NCHW"
+        p.output().tensor().set_layout("NHWC");
+        m = p.build();
+    }
+    EXPECT_EQ(m->output().get_partial_shape(), (PartialShape{Dimension::dynamic(), 2, 1, 3}));
 }
 
 TEST(pre_post_process, postprocess_convert_layout_explicit_no_target) {
@@ -1249,6 +1502,39 @@ TEST(pre_post_process, postprocess_convert_layout_invalid_dims_dyn_shape) {
 
     EXPECT_THROW(p.output().postprocess().convert_layout({0, 3, 1, std::numeric_limits<uint64_t>::max()});
                  p.build(), ov::AssertFailure);
+}
+
+TEST(pre_post_process, postprocess_keep_friendly_names_compatibility) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 10, 10});
+    auto result_fr_name = f->get_results()[0]->get_friendly_name();
+    auto node_before_result_old = f->get_results()[0]->get_input_source_output(0).get_node_shared_ptr();
+    auto node_name = node_before_result_old->get_friendly_name();
+    auto p = PrePostProcessor(f);
+    p.output().postprocess().convert_element_type(element::u8);
+    f = p.build();
+    EXPECT_EQ(f->get_results()[0]->get_friendly_name(), result_fr_name);
+    auto node_before_result_new = f->get_results()[0]->get_input_source_output(0).get_node_shared_ptr();
+    // Compatibility check: verify that old name is assigned to new 'output' node
+    EXPECT_EQ(node_before_result_new->get_friendly_name(), node_name);
+    // Compatibility check: Verify that old name is not set for old 'output' node anymore
+    EXPECT_NE(node_before_result_old->get_friendly_name(), node_name);
+}
+
+TEST(pre_post_process, postprocess_keep_friendly_names_compatibility_implicit) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 10, 10});
+    auto result_fr_name = f->get_results()[0]->get_friendly_name();
+    auto node_before_result_old = f->get_results()[0]->get_input_source_output(0).get_node_shared_ptr();
+    auto node_name = node_before_result_old->get_friendly_name();
+    auto p = PrePostProcessor(f);
+    p.output().model().set_layout("NCHW");
+    p.output().tensor().set_layout("NHWC");
+    f = p.build();
+    EXPECT_EQ(f->get_results()[0]->get_friendly_name(), result_fr_name);
+    auto node_before_result_new = f->get_results()[0]->get_input_source_output(0).get_node_shared_ptr();
+    // Compatibility check: verify that old name is assigned to new 'output' node
+    EXPECT_EQ(node_before_result_new->get_friendly_name(), node_name);
+    // Compatibility check: Verify that old name is not set for old 'output' node anymore
+    EXPECT_NE(node_before_result_old->get_friendly_name(), node_name);
 }
 
 // Postprocessing - other
@@ -1417,4 +1703,159 @@ TEST(pre_post_process, exception_safety) {
 
     EXPECT_EQ(f->output(1).get_node_shared_ptr()->get_friendly_name(), out_name1);
     EXPECT_EQ(f->output(1).get_tensor().get_names(), out_tensor_names1);
+}
+
+TEST(pre_post_process, layout_on_trivial) {
+    auto f = create_trivial(element::f32, Shape{1, 440});
+    auto p = PrePostProcessor(f);
+    p.input().tensor().set_layout("NC").set_element_type(element::f32);
+    p.input().model().set_layout("NC");
+    p.output().tensor().set_element_type(element::f32);
+    EXPECT_EQ(f->input().get_partial_shape(), (PartialShape{1, 440}));
+    f = p.build();
+    EXPECT_EQ(layout::get_layout(f->input()), "NC") << layout::get_layout(f->input()).to_string();
+    EXPECT_EQ(f->input().get_partial_shape(), (PartialShape{1, 440}));
+    ov::set_batch(f, 2);
+    EXPECT_EQ(f->input().get_partial_shape(), (PartialShape{2, 440}));
+}
+
+TEST(pre_post_process, dump_empty) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    auto p = PrePostProcessor(f);
+    std::stringstream str;
+    str << p;
+    EXPECT_EQ(str.str(), std::string());
+}
+
+TEST(pre_post_process, dump_non_empty) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    auto p = PrePostProcessor(f);
+    p.input().tensor().set_memory_type("some_memory_type");
+    std::stringstream str;
+    str << p;
+    EXPECT_NE(str.str(), std::string());
+}
+
+TEST(pre_post_process, dump_preprocess) {
+    auto shape = PartialShape{1, 3, 2, 2};
+    std::stringstream shape_stream;
+    shape_stream << shape;
+    auto shape_str = shape_stream.str();
+    auto f = create_simple_function(element::f32, shape);
+    auto p = PrePostProcessor(f);
+    p.input()
+        .tensor()
+        .set_element_type(element::u8)
+        .set_layout("NHWC")
+        .set_spatial_dynamic_shape()
+        .set_memory_type("test_memory_type");
+    p.input()
+        .preprocess()
+        .convert_element_type(element::f32)
+        .mean(1.f)
+        .scale(2.f)
+        .convert_layout({3, 2, 1, 0})
+        .resize(ResizeAlgorithm::RESIZE_LINEAR, 480, 640)
+        .resize(ResizeAlgorithm::RESIZE_LINEAR)
+        .custom([](const Output<Node>& node) {
+            return node;
+        });
+    p.input().model().set_layout("NCHW");
+    std::stringstream stream;
+    stream << p;
+    auto dump = stream.str();
+    EXPECT_TRUE(dump.find("Input") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("input1") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("memory type=test_memory_type") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("Pre-processing steps (7):") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("mean") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("scale") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("convert type") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("convert layout (3,2,1,0):") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("resize to (480, 640):") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("resize to model width/height:") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("custom:") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("Implicit pre-processing steps (1):") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("convert layout") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("Model's expected tensor: " + shape_str + ", " + Layout("NCHW").to_string()) !=
+                std::string::npos)
+        << dump;
+    EXPECT_TRUE(dump.find("output1") == std::string::npos) << dump;
+}
+
+TEST(pre_post_process, dump_preprocess_multiplane) {
+    auto shape_to_string = [](const PartialShape& shape) {
+        std::stringstream shape_stream;
+        shape_stream << shape;
+        return shape_stream.str();
+    };
+    auto shape = PartialShape{1, 3, 20, 20};
+    auto shape_str = shape_to_string(shape);
+    auto f = create_simple_function(element::f32, shape);
+    auto p = PrePostProcessor(f);
+    p.input().tensor().set_element_type(element::u8).set_color_format(ColorFormat::NV12_TWO_PLANES);
+    p.input().preprocess().convert_element_type(element::f32).convert_color(ColorFormat::RGB);
+    p.input().model().set_layout("NCHW");
+    std::stringstream stream;
+    stream << p;
+    auto dump = stream.str();
+    EXPECT_TRUE(dump.find("Input") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("input1") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("memory type=") == std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("NV12") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("RGB") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("Implicit pre-processing steps (1):") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("Pre-processing steps (2):") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find(shape_to_string(PartialShape{1, 20, 20, 1})) != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find(shape_to_string(PartialShape{1, 10, 10, 2})) != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("convert type") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("convert color") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("convert layout") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("Model's expected tensor: " + shape_str + ", " + Layout("NCHW").to_string()) !=
+                std::string::npos)
+        << dump;
+    EXPECT_TRUE(dump.find("output1") == std::string::npos) << dump;
+}
+
+TEST(pre_post_process, dump_postprocess) {
+    auto shape = PartialShape{1, 3, 2, 2};
+    std::stringstream shape_stream;
+    shape_stream << shape;
+    auto shape_str = shape_stream.str();
+    auto f = create_simple_function(element::f32, shape);
+    auto p = PrePostProcessor(f);
+    p.output().model().set_layout("NCHW");
+    p.output()
+        .postprocess()
+        .convert_element_type(element::i32)
+        .convert_layout({3, 2, 1, 0})
+        .custom([](const Output<Node>& node) {
+            return node;
+        });
+    p.output().tensor().set_element_type(element::u8).set_layout("NHWC");
+    std::stringstream stream;
+    stream << p;
+    auto dump = stream.str();
+    EXPECT_TRUE(dump.find("Output") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("output1") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("Post-processing steps (3):") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("Post-processing implicit steps (2):") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("convert type") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("convert layout (3,2,1,0):") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("convert layout " + Layout("NHWC").to_string()) != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("custom:") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("Model's data tensor: " + shape_str + ", " + Layout("NCHW").to_string()) != std::string::npos)
+        << dump;
+    EXPECT_TRUE(dump.find("input1") == std::string::npos) << dump;
+}
+
+TEST(pre_post_process, dump_error) {
+    auto f = create_simple_function(element::f32, Shape{2, 2});
+    auto p = PrePostProcessor(f);
+    p.input().tensor().set_layout("NC");
+    p.input().model().set_layout("HW");
+    std::stringstream stream;
+    stream << p;
+    auto dump = stream.str();
+    EXPECT_TRUE(dump.find("Error occurred:") != std::string::npos) << dump;
 }

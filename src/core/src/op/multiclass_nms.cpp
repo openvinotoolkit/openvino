@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,8 @@
 #include "ngraph/util.hpp"
 
 using namespace ngraph;
+
+BWDCMP_RTTI_DEFINITION(ov::op::v8::MulticlassNms);
 
 op::v8::MulticlassNms::MulticlassNms() : NmsBase(m_attrs.output_type, m_attrs.nms_top_k, m_attrs.keep_top_k) {}
 

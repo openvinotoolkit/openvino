@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,10 +6,9 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
-#include "common/frontend_exceptions.hpp"
-#include "frontend_manager.hpp"
-#include "manager.hpp"
-#include "pyopenvino/graph/function.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "openvino/frontend/manager.hpp"
+#include "pyopenvino/graph/model.hpp"
 
 namespace py = pybind11;
 
@@ -105,17 +104,17 @@ void regclass_frontend_Place(py::module m) {
                 }
             }
         },
-        py::arg("outputName") = py::none(),
-        py::arg("outputPortIndex") = py::none(),
+        py::arg("output_name") = py::none(),
+        py::arg("output_port_index") = py::none(),
         R"(
                 Returns references to all operation nodes that consume data from this place for specified output port.
                 Note: It can be called for any kind of graph place searching for the first consuming operations.
 
                 Parameters
                 ----------
-                outputName : str
+                output_name : str
                     Name of output port group. May not be set if node has one output port group.
-                outputPortIndex : int
+                output_port_index : int
                     If place is an operational node it specifies which output port should be considered
                     May not be set if node has only one output port.
 
@@ -142,17 +141,17 @@ void regclass_frontend_Place(py::module m) {
                 }
             }
         },
-        py::arg("outputName") = py::none(),
-        py::arg("outputPortIndex") = py::none(),
+        py::arg("output_name") = py::none(),
+        py::arg("output_port_index") = py::none(),
         R"(
                 Returns a tensor place that gets data from this place; applicable for operations,
                 output ports and output edges.
 
                 Parameters
                 ----------
-                outputName : str
+                output_name : str
                     Name of output port group. May not be set if node has one output port group.
-                outputPortIndex : int
+                output_port_index : int
                     Output port index if the current place is an operation node and has multiple output ports.
                     May not be set if place has only one output port.
 
@@ -180,16 +179,16 @@ void regclass_frontend_Place(py::module m) {
                 }
             }
         },
-        py::arg("inputName") = py::none(),
-        py::arg("inputPortIndex") = py::none(),
+        py::arg("input_name") = py::none(),
+        py::arg("input_port_index") = py::none(),
         R"(
                 Get an operation node place that immediately produces data for this place.
 
                 Parameters
                 ----------
-                inputName : str
+                input_name : str
                     Name of port group. May not be set if node has one input port group.
-                inputPortIndex : int
+                input_port_index : int
                     If a given place is itself an operation node, this specifies a port index.
                     May not be set if place has only one input port.
 
@@ -227,17 +226,17 @@ void regclass_frontend_Place(py::module m) {
                 }
             }
         },
-        py::arg("inputName") = py::none(),
-        py::arg("inputPortIndex") = py::none(),
+        py::arg("input_name") = py::none(),
+        py::arg("input_port_index") = py::none(),
         R"(
                 For operation node returns reference to an input port with specified name and index.
 
                 Parameters
                 ----------
-                inputName : str
+                input_name : str
                     Name of port group. May not be set if node has one input port group.
 
-                inputPortIndex : int
+                input_port_index : int
                     Input port index in a group. May not be set if node has one input port in a group.
 
                 Returns
@@ -263,17 +262,17 @@ void regclass_frontend_Place(py::module m) {
                 }
             }
         },
-        py::arg("outputName") = py::none(),
-        py::arg("outputPortIndex") = py::none(),
+        py::arg("output_name") = py::none(),
+        py::arg("output_port_index") = py::none(),
         R"(
                 For operation node returns reference to an output port with specified name and index.
 
                 Parameters
                 ----------
-                outputName : str
+                output_name : str
                     Name of output port group. May not be set if node has one output port group.
 
-                outputPortIndex : int
+                output_port_index : int
                     Output port index. May not be set if node has one output port in a group.
 
                 Returns
@@ -310,17 +309,17 @@ void regclass_frontend_Place(py::module m) {
                 }
             }
         },
-        py::arg("inputName") = py::none(),
-        py::arg("inputPortIndex") = py::none(),
+        py::arg("input_name") = py::none(),
+        py::arg("input_port_index") = py::none(),
         R"(
                 Returns a tensor place that supplies data for this place; applicable for operations,
                 input ports and input edges.
 
                 Parameters
                 ----------
-                inputName : str
+                input_name : str
                     Name of port group. May not be set if node has one input port group.
-                inputPortIndex : int
+                input_port_index : int
                     Input port index for operational node. May not be specified if place has only one input port.
 
                 Returns

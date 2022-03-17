@@ -1,8 +1,8 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "itt.hpp"
+#include <snippets/itt.hpp>
 
 #include "snippets/op/broadcastmove.hpp"
 

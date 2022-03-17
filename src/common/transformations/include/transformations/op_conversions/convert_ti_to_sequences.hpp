@@ -1,18 +1,13 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <vector>
 #include <memory>
-
-#include <vector>
-#include <memory>
-
-#include <transformations_visibility.hpp>
-
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
+#include <vector>
 
 namespace ngraph {
 namespace pass {
@@ -20,6 +15,7 @@ namespace pass {
 class TRANSFORMATIONS_API ConvertTensorIteratorToLSTMSequence;
 class TRANSFORMATIONS_API ConvertTensorIteratorToRNNSequence;
 class TRANSFORMATIONS_API ConvertTensorIteratorToGRUSequence;
+class TRANSFORMATIONS_API ConvertTensorIteratorToSequence;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -30,7 +26,7 @@ class TRANSFORMATIONS_API ConvertTensorIteratorToGRUSequence;
  * converts this pattern to LSTMSequence layer and replaces them TensorIterator.
  */
 
-class ngraph::pass::ConvertTensorIteratorToLSTMSequence: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertTensorIteratorToLSTMSequence : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertTensorIteratorToLSTMSequence();
@@ -42,7 +38,7 @@ public:
  * converts this pattern to RNNSequence layer and replaces them TensorIterator.
  */
 
-class ngraph::pass::ConvertTensorIteratorToRNNSequence: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertTensorIteratorToRNNSequence : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertTensorIteratorToRNNSequence();
@@ -54,8 +50,14 @@ public:
  * converts this pattern to GRUSequence layer and replaces them TensorIterator.
  */
 
-class ngraph::pass::ConvertTensorIteratorToGRUSequence: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertTensorIteratorToGRUSequence : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertTensorIteratorToGRUSequence();
+};
+
+class ngraph::pass::ConvertTensorIteratorToSequence : public GraphRewrite {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    ConvertTensorIteratorToSequence();
 };

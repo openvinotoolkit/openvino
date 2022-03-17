@@ -1,27 +1,27 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include "openvino/frontend/tensorflow/visibility.hpp"
 #include "openvino/pass/pass.hpp"
-#include "tensorflow_frontend/utility.hpp"
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace pass {
 
-class TF_API TransposeSinkingOVTF : public ov::pass::ModelPass {
+class TENSORFLOW_API TransposeSinking : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("ov::frontend::tf::pass::TransposeSinkingOVTF");
-    TransposeSinkingOVTF() {
+    OPENVINO_RTTI("ov::frontend::tensorflow::pass::TransposeSinking");
+    TransposeSinking() {
         set_property(ov::pass::PassProperty::REQUIRE_STATIC_SHAPE, true);
     }
     bool run_on_model(const std::shared_ptr<ov::Model>& function) override;
 };
 
 }  // namespace pass
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

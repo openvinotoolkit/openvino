@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@ using namespace ov::opset8;
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 
 OutputVector translate_crop_and_resize_op(const NodeContext& node) {
@@ -33,10 +33,10 @@ OutputVector translate_crop_and_resize_op(const NodeContext& node) {
 
     auto resize_method = node.get_attribute<string>("method");
 
-    TF_OP_VALIDATION_CHECK(node,
-                           ng_input.get_partial_shape().is_static() && ng_boxes.get_partial_shape().is_static() &&
-                               ng_box_ind.get_partial_shape().is_static() && ng_size.get_partial_shape().is_static(),
-                           "Dynamic shapes are not supported.");
+    TENSORFLOW_OP_VALIDATION(node,
+                             ng_input.get_partial_shape().is_static() && ng_boxes.get_partial_shape().is_static() &&
+                                 ng_box_ind.get_partial_shape().is_static() && ng_size.get_partial_shape().is_static(),
+                             "Dynamic shapes are not supported.");
 
     auto spatial_shape = ng_input.get_shape();
     auto image_height = spatial_shape[1];
@@ -44,12 +44,12 @@ OutputVector translate_crop_and_resize_op(const NodeContext& node) {
     auto image_depth = spatial_shape[3];
 
     auto const_boxes = dynamic_pointer_cast<Constant>(ng_boxes.get_node_shared_ptr());
-    auto const_box_ind = dynamic_pointer_cast<Constant>(ng_boxes.get_node_shared_ptr());
-    auto const_crop_size = dynamic_pointer_cast<Constant>(ng_boxes.get_node_shared_ptr());
+    auto const_box_ind = dynamic_pointer_cast<Constant>(ng_box_ind.get_node_shared_ptr());
+    auto const_crop_size = dynamic_pointer_cast<Constant>(ng_size.get_node_shared_ptr());
 
-    TF_OP_VALIDATION_CHECK(node,
-                           const_boxes && const_box_ind && const_crop_size,
-                           "Boxes, BoxIndexes, CropSize inputs must be constant.");
+    TENSORFLOW_OP_VALIDATION(node,
+                             const_boxes && const_box_ind && const_crop_size,
+                             "Boxes, BoxIndexes, CropSize inputs must be constant.");
 
     auto boxes = const_boxes->cast_vector<float>();
     auto box_ind = const_box_ind->cast_vector<int64_t>();
@@ -137,6 +137,6 @@ OutputVector translate_crop_and_resize_op(const NodeContext& node) {
 }
 
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

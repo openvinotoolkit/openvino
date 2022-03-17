@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -10,7 +10,7 @@ from openvino.tools.mo.front.tf.pad_tf_to_pad import PadTFToPad
 from openvino.tools.mo.ops.DetectionOutput import DetectionOutput
 from openvino.tools.mo.ops.activation_ops import Sigmoid
 from openvino.tools.mo.ops.priorbox_clustered import PriorBoxClusteredOp
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, mo_array
 from openvino.tools.mo.front.tf.replacement import FrontReplacementFromConfigFileGeneral
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.middle.passes.convert_data_type import data_type_str_to_np
@@ -48,7 +48,6 @@ class EfficientDet(FrontReplacementFromConfigFileGeneral):
     def transform_graph(self, graph: Graph, replacement_descriptions: dict):
         parameter_node = graph.get_op_nodes(op='Parameter')[0]
         parameter_node['data_type'] = data_type_str_to_np(parameter_node.graph.graph['cmd_params'].data_type)
-        parameter_node.out_port(0).disconnect()
 
         # remove existing Result operations to remove unsupported sub-graph
         graph.remove_nodes_from([node.id for node in graph.get_op_nodes(op='Result')] + ['detections'])
@@ -89,8 +88,8 @@ class EfficientDet(FrontReplacementFromConfigFileGeneral):
             if inp_name not in graph:
                 break
             widths, heights = priors_generator.get(i)
-            prior_box_op = PriorBoxClusteredOp(graph, {'width': np.array(widths),
-                                                       'height': np.array(heights),
+            prior_box_op = PriorBoxClusteredOp(graph, {'width': mo_array(widths),
+                                                       'height': mo_array(heights),
                                                        'clip': 0, 'flip': 0,
                                                        'variance': replacement_descriptions['variance'],
                                                        'offset': 0.5})

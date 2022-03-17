@@ -1,18 +1,23 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
+from typing import List
 
-from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.front.extractor import create_params_with_custom_types
 from openvino.tools.mo.utils.cli_parser import parse_transform
+from openvino.tools.mo.utils.error import Error
 
 
 def get_available_transformations():
     try:
-        from openvino.offline_transformations_pybind import apply_low_latency_transformation, apply_make_stateful_transformation # pylint: disable=import-error,no-name-in-module
+        from openvino.offline_transformations import apply_low_latency_transformation # pylint: disable=import-error,no-name-in-module
+        from openvino.offline_transformations import apply_make_stateful_transformation # pylint: disable=import-error,no-name-in-module
+        from openvino.offline_transformations import apply_pruning_transformation # pylint: disable=import-error,no-name-in-module
         return {
             'MakeStateful': apply_make_stateful_transformation,
             'LowLatency2': apply_low_latency_transformation,
+            'Pruning': apply_pruning_transformation,
         }
     except Exception as e:
         return {}
@@ -30,58 +35,18 @@ def apply_user_transformations(func: object, transforms: list):
 
 
 def apply_moc_transformations(func: object):
-    from openvino.offline_transformations_pybind import apply_moc_transformations  # pylint: disable=import-error,no-name-in-module
+    from openvino.offline_transformations import apply_moc_transformations  # pylint: disable=import-error,no-name-in-module
     apply_moc_transformations(func, False)
 
+
+def apply_moc_legacy_transformations(func: object, params_with_custom_types: List[str]):
+    from openvino.offline_transformations import apply_moc_legacy_transformations  # pylint: disable=import-error,no-name-in-module
+    apply_moc_legacy_transformations(func, params_with_custom_types)
+
+
 def compress_model(func: object):
-    from openvino.offline_transformations_pybind import compress_model_transformation  # pylint: disable=import-error,no-name-in-module
+    from openvino.offline_transformations import compress_model_transformation  # pylint: disable=import-error,no-name-in-module
     compress_model_transformation(func)
-
-
-def add_layouts(ov_function, argv: argparse.Namespace):
-    from openvino.preprocess import PrePostProcessor  # pylint: disable=no-name-in-module,import-error
-    from openvino.runtime import Layout  # pylint: disable=import-error,no-name-in-module
-
-    prep = PrePostProcessor(ov_function)
-    layout_values = argv.layout_values
-    if '' in layout_values:
-        if len(ov_function.inputs) == 1:
-            layout_values = {
-                list(ov_function.input().get_tensor().get_names())[0]: {
-                    'source_layout': layout_values[''].get('source_layout'),
-                    'target_layout': layout_values[''].get('target_layout')
-                }
-            }
-        else:
-            input_names = [list(ov_input.get_tensor().get_names())[0] for ov_input in ov_function.inputs]
-            raise Error('Layout without name can be specified for models with only one input, '
-                        'but provided model has {} inputs: \'{}\'. '
-                        'Please specify explicitly input/output name for --layout option'
-                        .format(len(input_names), input_names))
-
-    set_layout_names = set(layout_values.keys())
-    for idx, ov_input in enumerate(ov_function.inputs):
-        found = set.intersection(set(ov_input.get_tensor().get_names()), set_layout_names)
-        assert len(found) <= 1, 'More then one name point to the same node'
-        if len(found) == 1:
-            node_name = list(found)[0]
-            found_layout = layout_values[node_name]
-            if found_layout['source_layout']:
-                prep.input(node_name).model().set_layout(Layout(found_layout['source_layout']))
-            if found_layout['target_layout']:
-                prep.input(node_name).tensor().set_layout(Layout(found_layout['target_layout']))
-
-    for idx, ov_output in enumerate(ov_function.outputs):
-        found = set.intersection(set(ov_output.get_tensor().get_names()), set_layout_names)
-        assert len(found) <= 1, 'More then one name point to the same node'
-        if len(found) == 1:
-            node_name = list(found)[0]
-            found_layout = layout_values[node_name]
-            if found_layout['source_layout']:
-                prep.output(node_name).model().set_layout(Layout(found_layout['source_layout']))
-            if found_layout['target_layout']:
-                prep.output(node_name).tensor().set_layout(Layout(found_layout['target_layout']))
-    prep.build()
 
 
 def apply_offline_transformations(input_model: str, argv: argparse.Namespace):
@@ -89,8 +54,9 @@ def apply_offline_transformations(input_model: str, argv: argparse.Namespace):
     # to produce correct mapping
     extract_names = argv.framework in ['tf', 'mxnet', 'kaldi']
 
-    from openvino.offline_transformations_pybind import generate_mapping_file, serialize  # pylint: disable=import-error,no-name-in-module
-    from openvino.frontend import FrontEndManager, FrontEnd  # pylint: disable=no-name-in-module,import-error
+    from openvino.offline_transformations import generate_mapping_file, serialize  # pylint: disable=import-error,no-name-in-module
+    from openvino.frontend import FrontEndManager  # pylint: disable=no-name-in-module,import-error
+    from openvino.tools.mo.back.preprocessing import apply_preprocessing  # pylint: disable=no-name-in-module,import-error
 
     fem = FrontEndManager()
 
@@ -104,10 +70,35 @@ def apply_offline_transformations(input_model: str, argv: argparse.Namespace):
 
     func = read_model(input_model + "_tmp.xml")
 
-    add_layouts(func, argv)  # TODO: replace with preprocessing
+    # TODO: use ngraph preprocessing (Mean/Scale/ReverseInputChannels) for legacy frontends
+    reverse_input_channels = False
+    if 'reverse_input_channels' in argv:
+        reverse_input_channels = argv.reverse_input_channels
+        argv.reverse_input_channels = False
+    mean_scale_values = {}
+    if 'mean_scale_values' in argv:
+        mean_scale_values = argv.mean_scale_values
+        argv.mean_scale_values = {}
+    scale = None
+    if 'scale' in argv:
+        scale = argv.scale
+        argv.scale = None
 
-    apply_user_transformations(func, parse_transform(argv.transform))
+    # Apply preprocessing for layouts only
+    apply_preprocessing(ov_function=func, argv=argv)
+
+    if 'reverse_input_channels' in argv:
+        argv.reverse_input_channels = reverse_input_channels
+    if 'mean_scale_values' in argv:
+        argv.mean_scale_values = mean_scale_values
+    if 'scale' in argv:
+        argv.scale = scale
+
     apply_moc_transformations(func)
+
+    params_with_custom_types = create_params_with_custom_types(argv.packed_user_shapes)
+    apply_moc_legacy_transformations(func, params_with_custom_types)
+    apply_user_transformations(func, parse_transform(argv.transform))
 
     if "compress_fp16" in argv and argv.compress_fp16:
         compress_model(func)

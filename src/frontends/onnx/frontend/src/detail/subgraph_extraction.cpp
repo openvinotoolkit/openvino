@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -283,17 +283,59 @@ SubgraphExtractor::SubgraphExtractor(ONNX_NAMESPACE::GraphProto& graph)
     }
 }
 
-void SubgraphExtractor::add_new_inputs(const std::vector<InputEdge>& new_inputs) {
-    for (const auto& input_edge : new_inputs) {
-        const auto tensor_name = get_input_tensor_name(m_onnx_graph, input_edge);
+void SubgraphExtractor::add_new_inputs(const std::vector<InputEdge>& new_inputs, const bool merge_inputs) {
+    if (merge_inputs && new_inputs.size() > 1) {
+        std::map<std::string, int> new_inputs_consumers;
+        int index = 0;
+        int input_consumers = new_inputs.size();
 
-        // in case an edge is connected to a single node, a new graph input should be added
-        // and connected to that node; the new edge is an edge between the node and new input
-        const auto new_input = append_new_graph_input(m_onnx_graph, input_edge, m_tensor_consumers[tensor_name]);
+        // count all input edges
+        for (const auto& input_edge : new_inputs) {
+            const auto name = get_input_tensor_name(m_onnx_graph, input_edge);
+            new_inputs_consumers[name] += 1;
+        }
+
+        // check if cutting will be performed for a Node (in that case set input_consumers to 0,
+        // it will reuse Node name as new input name)
+        for (const auto& input : new_inputs_consumers) {
+            if (input.second == m_tensor_consumers[input.first] && input.second > 1) {
+                input_consumers = 0;
+
+                // get index of the current edge from new_inputs in order to pass it to append_new_graph_input()
+                auto it = std::find_if(new_inputs.begin(), new_inputs.begin(), [&](const InputEdge& input_edge) {
+                    return get_input_tensor_name(m_onnx_graph, input_edge) == input.first;
+                });
+                index = std::distance(new_inputs.begin(), it);
+            }
+        }
+
+        const auto new_input = append_new_graph_input(m_onnx_graph, new_inputs[index], input_consumers);
+
+        // set input for all other incoming input edges
+        for (auto it = new_inputs.begin() + 1; it != new_inputs.end(); ++it) {
+            auto& target_node = *(m_onnx_graph.mutable_node(it->m_node_idx));
+            auto target_input = target_node.mutable_input(it->m_port_idx);
+            *target_input = new_input.second;
+        }
+
         if (new_input.first) {
             // the original edge should be replaced with a new one in the helper multimap
             // this information will later be used during the subgraph extraction stage
-            replace_input_edge(input_edge, new_input.second);
+            replace_input_edge(new_inputs[0], new_input.second);
+        }
+    } else {
+        for (const auto& input_edge : new_inputs) {
+            const auto tensor_name = get_input_tensor_name(m_onnx_graph, input_edge);
+
+            // in case an edge is connected to a single node, a new graph input should be added
+            // and connected to that node; the new edge is an edge between the node and new input
+            const auto new_input = append_new_graph_input(m_onnx_graph, input_edge, m_tensor_consumers[tensor_name]);
+
+            if (new_input.first) {
+                // the original edge should be replaced with a new one in the helper multimap
+                // this information will later be used during the subgraph extraction stage
+                replace_input_edge(input_edge, new_input.second);
+            }
         }
     }
 }

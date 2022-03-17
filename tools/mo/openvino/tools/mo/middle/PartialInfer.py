@@ -1,13 +1,12 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import logging as log
 
 from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined, shape_array, \
-    dynamic_dimension_value
+    dynamic_dimension_value, unmask_shape
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.passes.infer import partial_infer
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
-from openvino.tools.mo.ops.parameter import Parameter
 
 
 class PartialInfer(MiddleReplacementPattern):
@@ -27,7 +26,7 @@ class PartialInfer(MiddleReplacementPattern):
             param_shape = parameter.soft_get('shape', shape_array(dynamic_dimension_value))
             if not is_fully_defined(param_shape):
                 parameter_name = parameter.soft_get('name', parameter.id)
-                dynamic_inputs[parameter_name] = parameter
+                dynamic_inputs[parameter_name] = param_shape
         if dynamic_inputs:
             log.error('The model contains input(s) with partially defined shapes: {}. '
                       'Starting from the 2022.1 release the Model Optimizer can generate an IR with partially defined '
@@ -36,7 +35,7 @@ class PartialInfer(MiddleReplacementPattern):
                       'call "reshape" method in the Inference Engine and specify static input shapes. For optimal '
                       'performance, it is still recommended to update input shapes with fixed ones using "--input" or '
                       '"--input_shape" command-line parameters.'
-                      .format(','.join('name="{}" shape="{}"'.format(name, Parameter.shape_serialize(parameter))
-                                       for name, parameter in dynamic_inputs.items())),
+                      .format(','.join(f'name="{name}" shape="{unmask_shape(param_shape)}"'
+                                       for name, param_shape in dynamic_inputs.items())),
                       extra={'is_warning': True})
         partial_infer(graph)

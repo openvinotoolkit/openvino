@@ -1,7 +1,5 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
-import numpy as np
 
 from openvino.tools.mo.ops.mvn import MVNOnnx
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
@@ -17,7 +15,7 @@ class MeanVarianceNormalizationExtractor(FrontExtractorOp):
     def extract(cls, node):
         axes = onnx_attr(node, 'axes', 'ints',
                          default=int64_array([0, 2, 3]),
-                         dst_type=lambda x: np.array(x, dtype=np.int64))
+                         dst_type=lambda x: int64_array(x))
 
         attrs = {
             'eps': 1e-9,

@@ -1,9 +1,10 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined, shape_array, dynamic_dimension_value
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.op import Op
 
@@ -41,6 +42,6 @@ class Size(Op):
             'Size `output_type` attribute must be int32 or int64, `{}` found'.format(np.dtype(node.output_type).name)
 
         if is_fully_defined(input_shape):
-            node.out_port(0).data.set_value(np.array(np.prod(input_shape), dtype=node.output_type))
+            node.out_port(0).data.set_value(mo_array(np.prod(input_shape), dtype=node.output_type))
         else:
             node.out_port(0).data.set_value(shape_array(dynamic_dimension_value))

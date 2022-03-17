@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -85,8 +85,8 @@ def assert_that_is_castable_to_fp16(node: Node):
     original_output = node.out_port(0).data.get_value()
     node.infer(node)
     casted_output = node.out_port(0).data.get_value()
-    original_output_len = len(original_output) if hasattr(original_output, '__len__') else None
-    casted_output_len = len(casted_output) if hasattr(casted_output, '__len__') else None
+    original_output_len = original_output.size if hasattr(original_output, 'size') else None
+    casted_output_len = casted_output.size if hasattr(casted_output, 'size') else None
 
     if original_output_len != casted_output_len:
         raise Error("Try to convert with --data_type=FP32 argument. "

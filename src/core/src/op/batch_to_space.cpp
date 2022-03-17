@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/batch_to_space.hpp"
 
+#include <batch_to_space_shape_inference.hpp>
 #include <cmath>
 #include <cstddef>
 #include <memory>
@@ -61,103 +62,13 @@ void op::v1::BatchToSpace::validate_and_infer_types() {
                           "block_shape and crops inputs must have integer element type. Got: ",
                           inputs_integer_et);
 
-    const ov::PartialShape& data_pshape = get_input_partial_shape(0);
-    const ov::PartialShape& block_shape_ps = get_input_partial_shape(1);
-    const ov::PartialShape& crops_begin_ps = get_input_partial_shape(2);
-    const ov::PartialShape& crops_end_ps = get_input_partial_shape(3);
-
-    ov::PartialShape inputs_same_ps{ov::PartialShape::dynamic()};
-    NODE_VALIDATION_CHECK(this,
-                          ov::PartialShape::merge_into(inputs_same_ps, crops_begin_ps) &&
-                              ov::PartialShape::merge_into(inputs_same_ps, crops_end_ps) &&
-                              ov::PartialShape::merge_into(inputs_same_ps, block_shape_ps),
-                          "block_shape, crops_begin and crops_end inputs must have the same shape. Got: ",
-                          block_shape_ps,
-                          ", ",
-                          crops_begin_ps,
-                          " and ",
-                          crops_end_ps);
-
-    const Rank inputs_rank_one = inputs_same_ps.rank();
-    NODE_VALIDATION_CHECK(this,
-                          inputs_rank_one.compatible(1),
-                          "block_shape and crops inputs must have rank 1. Got: ",
-                          inputs_rank_one);
-
-    const Rank data_rank = data_pshape.rank();
-    if (data_rank.is_static()) {
-        NODE_VALIDATION_CHECK(this,
-                              (data_rank.get_length() >= 2),
-                              "data input must have rank greater or equal than 2. Got: ",
-                              data_rank.get_length());
-
-        if (inputs_same_ps.is_static()) {
-            NODE_VALIDATION_CHECK(this,
-                                  data_rank.get_length() == inputs_same_ps[0].get_length(),
-                                  "block_shape and crop inputs must have same number of elements "
-                                  "as data input rank. Got: ",
-                                  inputs_same_ps[0],
-                                  " and ",
-                                  data_rank);
-        }
-    }
-
-    const auto block_const = get_constant_from_source(input_value(1));
-    const auto crops_begin_const = get_constant_from_source(input_value(2));
-    const auto crops_end_const = get_constant_from_source(input_value(3));
-
-    if (block_const && crops_begin_const && crops_end_const && data_pshape.is_static()) {
-        const ov::Shape& data_sshape = data_pshape.to_shape();
-
-        auto block_val = block_const->cast_vector<int64_t>();
-        auto crops_begin_val = crops_begin_const->cast_vector<int64_t>();
-        auto crops_end_val = crops_end_const->cast_vector<int64_t>();
-
-        bool block_vals_valid = std::all_of(begin(block_val), end(block_val), [](int64_t elem) {
-            return elem >= 1;
-        });
-        NODE_VALIDATION_CHECK(this, block_vals_valid, "Elements of block_shape input must be greater or equal to one.");
-
-        bool crops_begin_vals_valid = std::all_of(begin(crops_begin_val), end(crops_begin_val), [](int64_t elem) {
-            return elem >= 0;
-        });
-        bool crops_end_vals_valid = std::all_of(begin(crops_end_val), end(crops_end_val), [](int64_t elem) {
-            return elem >= 0;
-        });
-        NODE_VALIDATION_CHECK(this,
-                              crops_begin_vals_valid && crops_end_vals_valid,
-                              "Elements of crops_begin and crops_end inputs must be greater or equal to zero.");
-
-        int64_t block_prod = std::accumulate(begin(block_val), end(block_val), 1, std::multiplies<int64_t>());
-
-        NODE_VALIDATION_CHECK(this,
-                              data_sshape[0] % block_prod == 0,
-                              "The input data's 'batch' axis size: ",
-                              data_sshape[0],
-                              " must be a multiple of",
-                              " product of block_shape values: ",
-                              block_prod);
-
-        for (size_t idx = 0; idx < data_sshape.size(); idx++) {
-            const bool is_valid_crops_and_shape =
-                crops_begin_val[idx] + crops_end_val[idx] <= block_val[idx] * static_cast<int64_t>(data_sshape[idx]);
-            NODE_VALIDATION_CHECK(this,
-                                  is_valid_crops_and_shape,
-                                  "crops_begin[i] + crops_end[i] must be less or equal to "
-                                  "block_shape[i] * input_shape[i]");
-        }
-
-        ov::Shape output_sshape = {static_cast<size_t>(data_sshape[0] / block_prod)};
-        for (size_t idx = 1; idx < data_sshape.size(); ++idx) {
-            output_sshape.push_back(
-                static_cast<size_t>(data_sshape[idx] * block_val[idx] - crops_begin_val[idx] - crops_end_val[idx]));
-        }
-
-        set_output_size(1);
-        set_output_type(0, data_et, output_sshape);
-    } else {
-        set_output_type(0, data_et, ov::PartialShape::dynamic(data_rank));
-    }
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
+    const std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),
+                                                        get_input_partial_shape(1),
+                                                        get_input_partial_shape(2),
+                                                        get_input_partial_shape(3)};
+    shape_infer(this, input_shapes, output_shapes);
+    set_output_type(0, data_et, output_shapes[0]);
 }
 
 std::shared_ptr<ngraph::Node> ngraph::op::v1::BatchToSpace::clone_with_new_inputs(const OutputVector& new_args) const {

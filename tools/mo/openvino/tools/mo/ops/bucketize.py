@@ -1,8 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.extractor import bool_to_str
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_destination_type
@@ -69,4 +70,4 @@ class Bucketize(Op):
 
         # compute if all input is constant
         if input_value is not None and buckets_value is not None:
-            node.out_port(0).data.set_value(np.array(np.digitize(input_value, buckets_value, right=node.with_right_bound), dtype=node.output_type))
+            node.out_port(0).data.set_value(mo_array(np.digitize(input_value, buckets_value, right=node.with_right_bound), dtype=node.output_type))

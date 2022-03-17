@@ -1,4 +1,4 @@
-# "Hot Topic" How-To Links {#openvino_docs_how_tos_how_to_links}
+# "Hot Topic" How-To Links
 
 ## Blogs & Articles
 
@@ -13,36 +13,61 @@
 * [Accelerate Vision-based AI with Intel® Distribution of OpenVINO™ Toolkit](https://www.intel.ai/accelerate-vision-based-ai-with-intel-distribution-of-openvino-toolkit/)
 
 ## Custom Operations Guide
-To learn about what is *custom operation* and how to work with them in the Deep Learning Deployment Toolkit, see the [Custom Operations Guide](../HOWTO/Custom_Layers_Guide.md).
+To learn about what is *custom operation* and how to work with them in the Deep Learning Deployment Toolkit, see the [Custom Operations Guide](../Extensibility_UG/Intro.md).
  
 ## Introducing OpenVINO™ and Computer Vision | IoT Developer Show Season 2 | Intel Software
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/M6Nyh2JDLQs" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+@sphinxdirective
+.. raw:: html
 
+    <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="560" height="315" src="https://www.youtube.com/embed/M6Nyh2JDLQs" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+@endsphinxdirective
 
 ## OpenVINO™ Toolkit and Two Hardware Development Kits | IoT Developer Show Season 2 | Intel Software
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/GtJPBYjuyVU" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+@sphinxdirective
+.. raw:: html
 
+    <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="560" height="315" src="https://www.youtube.com/embed/GtJPBYjuyVU" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+@endsphinxdirective
 
 ## Intel Demonstration of High Performance Vision Deployment - The OpenVINO Toolkit in Action
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/1_iI_4Zgufw" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+@sphinxdirective
+.. raw:: html
 
+    <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="560" height="315" src="https://www.youtube.com/embed/1_iI_4Zgufw" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+@endsphinxdirective
 
 ## Computer Vision at the Edge with OpenVINO by Krishnakumar Shetti at ODSC_India
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/RfRCrq35LXg" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+@sphinxdirective
+..raw:: html
 
+    <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="560" height="315" src="https://www.youtube.com/embed/RfRCrq35LXg" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+@endsphinxdirective
 
 ## Model optimizer concept
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/Kl1ptVb7aI8" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+@sphinxdirective
+.. raw:: html
+
+    <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="560" height="315" src="https://www.youtube.com/embed/Kl1ptVb7aI8" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+@endsphinxdirective
 
 ## Computer Vision with Intel
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/FZZD4FCvO9c" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+@sphinxdirective
+.. raw:: html
 
+    <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="560" height="315" src="https://www.youtube.com/embed/FZZD4FCvO9c" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+@endsphinxdirective
 
 ## Case Studies
 

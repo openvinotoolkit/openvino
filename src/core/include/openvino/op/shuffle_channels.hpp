@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,10 +35,10 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    int64_t get_axis() const {
+    const int64_t& get_axis() const {
         return m_axis;
     }
-    int64_t get_group() const {
+    const int64_t& get_group() const {
         return m_group;
     }
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -48,7 +48,6 @@ public:
 
 private:
     bool evaluate_shuffle_channels(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
-
     int64_t m_axis{1};
     int64_t m_group{1};
 };

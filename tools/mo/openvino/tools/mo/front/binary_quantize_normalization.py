@@ -1,9 +1,8 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
 from openvino.tools.mo.ops.elementwise import Add, Mul
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.ops.const import Const
@@ -33,7 +32,7 @@ class BinaryFakeQuantizeNormalization(FrontReplacementPattern):
         quantize = match['quantize']
 
         sum_node = Add(graph, dict()).create_node()
-        const = Const(graph, {'value': np.array(0.5)}).create_node()
+        const = Const(graph, {'value': mo_array(0.5)}).create_node()
         mul_node = Mul(graph, dict()).create_node()
 
         mul_node.in_port(0).connect(sum_node.out_port(0))

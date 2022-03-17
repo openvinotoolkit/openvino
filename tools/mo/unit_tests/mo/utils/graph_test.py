@@ -1,15 +1,14 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
-import unittest
 
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.graph import bfs_search, is_connected_component, sub_graph_between_nodes, backward_bfs_for_operation
+from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from unit_tests.utils.graph import regular_op, result, build_graph_with_edge_attrs
 
 
-class TestGraphUtils(unittest.TestCase):
+class TestGraphUtils(UnitTestWithMockedTelemetry):
     def test_simple_dfs(self):
         graph = Graph()
         graph.add_nodes_from(list(range(1, 5)))

@@ -1,8 +1,7 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
+from openvino.tools.mo.front.common.partial_infer.utils import float32_array
 from openvino.tools.mo.ops.priorbox import PriorBoxOp
 from openvino.tools.mo.front.extractor import FrontExtractorOp
 from openvino.tools.mo.front.onnx.extractors.utils import onnx_attr
@@ -14,14 +13,14 @@ class PriorBoxFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        variance = onnx_attr(node, 'variance', 'floats', default=[], dst_type=lambda x: np.array(x, dtype=np.float32))
+        variance = onnx_attr(node, 'variance', 'floats', default=[], dst_type=lambda x: float32_array(x))
         if len(variance) == 0:
             variance = [0.1]
 
         update_attrs = {
-            'aspect_ratio': onnx_attr(node, 'aspect_ratio', 'floats', dst_type=lambda x: np.array(x, dtype=np.float32)),
-            'min_size': onnx_attr(node, 'min_size', 'floats', dst_type=lambda x: np.array(x, dtype=np.float32)),
-            'max_size': onnx_attr(node, 'max_size', 'floats', dst_type=lambda x: np.array(x, dtype=np.float32)),
+            'aspect_ratio': onnx_attr(node, 'aspect_ratio', 'floats', dst_type=lambda x: float32_array(x)),
+            'min_size': onnx_attr(node, 'min_size', 'floats', dst_type=lambda x: float32_array(x)),
+            'max_size': onnx_attr(node, 'max_size', 'floats', dst_type=lambda x: float32_array(x)),
             'flip': onnx_attr(node, 'flip', 'i', default=0),
             'clip': onnx_attr(node, 'clip', 'i', default=0),
             'variance': list(variance),
