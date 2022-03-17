@@ -181,7 +181,7 @@ All parameters must be set before calling `ov::Core::compile_model()` in order t
 - ov::device::capabilities
 
 ## External dependencies
-For some performance-critical DL operations, the CPU plugin uses optimized implementations from the Intel® oneAPI Deep Neural Network Library ([Intel® oneDNN](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onednn.html)).
+For some performance-critical DL operations, the CPU plugin uses optimized implementations from the oneAPI Deep Neural Network Library ([oneDNN](https://github.com/oneapi-src/oneDNN)).
 
 @sphinxdirective
 .. dropdown:: The following operations are implemented using primitives from the OneDNN library:
