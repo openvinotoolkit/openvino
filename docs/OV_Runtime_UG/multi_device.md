@@ -38,6 +38,7 @@ Basically, there are three ways to specify the devices to be use by the "MULTI":
 @sphinxdirective
 
 .. tab:: C++
+
     .. doxygensnippet:: docs/snippets/MULTI0.cpp
        :language: cpp
        :fragment: [part0]
@@ -49,6 +50,7 @@ Notice that the priorities of the devices can be changed in real time for the ex
 @sphinxdirective
 
 .. tab:: C++
+
     .. doxygensnippet:: docs/snippets/MULTI1.cpp
        :language: cpp
        :fragment: [part1]
@@ -77,6 +79,7 @@ A simple programmatic way to enumerate the devices and use with the multi-device
 @sphinxdirective
 
 .. tab:: C++
+
     .. doxygensnippet:: docs/snippets/MULTI2.cpp
        :language: cpp
        :fragment: [part2]
@@ -96,6 +99,7 @@ So the explicit configuration to use both would be "MULTI:MYRIAD.1.2-ma2480,MYRI
 @sphinxdirective
 
 .. tab:: C++
+
     .. doxygensnippet:: docs/snippets/MULTI3.cpp
        :language: cpp
        :fragment: [part3]
@@ -108,6 +112,7 @@ As discussed in the first section, you shall configure each individual device as
 @sphinxdirective
 
 .. tab:: C++
+
     .. doxygensnippet:: docs/snippets/MULTI4.cpp
        :language: cpp
        :fragment: [part4]
@@ -125,6 +130,7 @@ You can use the [configure devices](supported_plugins/config_properties.md) to q
 @sphinxdirective
 
 .. tab:: C++
+
     .. doxygensnippet:: docs/snippets/MULTI5.cpp
        :language: cpp
        :fragment: [part5]
@@ -193,6 +199,7 @@ You can set the configuration directly as a string, or use the metric key `MULTI
 @sphinxdirective
 
 .. tab:: Python
+
     .. doxygensnippet:: docs/snippets/ov_multi.py
        :language: python
        :fragment: [Option_1]
@@ -205,6 +212,7 @@ You can set the configuration directly as a string, or use the metric key `MULTI
 @sphinxdirective
 
 .. tab:: Python
+
     .. doxygensnippet:: docs/snippets/ov_multi.py
        :language: python
        :fragment: [Option_2]
@@ -235,6 +243,7 @@ A simple programmatic way to enumerate the devices and use with the multi-device
 @sphinxdirective
 
 .. tab:: Python
+
     .. doxygensnippet:: docs/snippets/ov_multi.py
        :language: python
        :fragment: [available_devices_1]
@@ -255,6 +264,7 @@ So the explicit configuration to use both would be "MULTI:MYRIAD.1.2-ma2480,MYRI
 @sphinxdirective
 
 .. tab:: Python
+
     .. doxygensnippet:: docs/snippets/ov_multi.py
        :language: python
        :fragment: [available_devices_2]
@@ -268,6 +278,7 @@ It is possible to configure each individual device as usual and then create the 
 @sphinxdirective
 
 .. tab:: Python
+
     .. doxygensnippet:: docs/snippets/ov_multi.py
        :language: python
        :fragment: [set_property]

@@ -3,16 +3,16 @@ from openvino.runtime import Core
 model_path = "/openvino_CI_CD/result/install_pkg/tests/test_model_zoo/core/models/ir/add_abc.xml"
 path_to_model = "/openvino_CI_CD/result/install_pkg/tests/test_model_zoo/core/models/ir/add_abc.xml"
 def Option_1():
-#! [option_1]
+#! [Option_1]
     core = Core()
 
     # Read a network in IR or ONNX format
     model = core.read_model(model_path)
     compiled_model = core.compile_model(model=model, device_name="MULTI:CPU,GPU")
-#! [option_1]
+#! [Option_1]
 
 def Option_2():
-#! [option_2]
+#! [Option_2]
     core = Core()
 
     # Read a network in IR or ONNX format
@@ -23,7 +23,7 @@ def Option_2():
     core.set_property(device_name="MULTI", properties={"MULTI_DEVICE_PRIORITIES":"GPU"})
     core.set_property(device_name="MULTI", properties={"MULTI_DEVICE_PRIORITIES":"HDDL,GPU"})
     core.set_property(device_name="MULTI", properties={"MULTI_DEVICE_PRIORITIES":"CPU,HDDL,GPU"})
-#! [option_2]
+#! [Option_2]
 
 def available_devices_1():
 #! [available_devices_1]

@@ -1,7 +1,6 @@
 #include <openvino/openvino.hpp>
 
 int main() {
-using namespace InferenceEngine;
 //! [part0]
 ov::Core core;
 std::shared_ptr<ov::Model> model = core.read_model("sample.xml");
