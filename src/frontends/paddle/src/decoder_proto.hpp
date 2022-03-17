@@ -33,8 +33,6 @@ public:
     std::vector<TensorName> get_output_var_names(const std::string& var_name) const override;
     std::vector<TensorName> get_input_var_names(const std::string& var_name) const override;
 
-    bool is_tensorarray(const TensorName& tensor_name, bool inport) const override;
-
     ov::Any convert_attribute(const ov::Any& data, const std::type_info& type_info) const override;
 
     std::vector<paddle::OutPortName> get_output_names() const override;

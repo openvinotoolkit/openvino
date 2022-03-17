@@ -13,6 +13,9 @@ NamedOutputs lod_array_length(const NodeContext& node) {
     using namespace default_opset;
     const auto x = node.get_input("X");
     const auto shape = std::make_shared<default_opset::ShapeOf>(x);
+    // here simply get the length along the concated axis.
+    // we've lost the original tensor array length actually.
+    // luckily it's equalent since all elements are concated.
     const auto const_1_node = Constant::create(element::i64, {1}, {1});
     const auto const_2_node = Constant::create(element::i64, {1}, {2});
     const auto len = std::make_shared<StridedSlice>(shape,

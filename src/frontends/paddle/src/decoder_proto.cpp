@@ -116,21 +116,6 @@ std::vector<paddle::TensorName> DecoderProto::get_input_var_names(const std::str
     return input_names;
 }
 
-bool DecoderProto::is_tensorarray(const paddle::TensorName& tensor_name, bool inport) const {
-    const auto& inputmodel = op_place->get_inputnodel();
-    const auto& query = inputmodel.get_place_by_tensor_name(tensor_name);
-
-    (void)inport;
-
-    const auto& tensorplace = std::dynamic_pointer_cast<TensorPlace>(query);
-    const auto& var_desc = tensorplace->get_desc();
-    if (var_desc.type().has_tensor_array()) {
-        return true;
-    }
-
-    return false;
-}
-
 size_t DecoderProto::get_output_size(const std::string& port_name) const {
     const auto out_port = op_place->get_output_ports().at(port_name);
     return out_port.size();

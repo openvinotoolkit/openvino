@@ -14,7 +14,7 @@ namespace pass {
 
 class TransformWhile : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::pass::TransformWhile");
+    OPENVINO_RTTI("ov::frontend::paddle::pass::TransformWhile");
     TransformWhile(std::vector<std::shared_ptr<Model>> functions);
 
 private:

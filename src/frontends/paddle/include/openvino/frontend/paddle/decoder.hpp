@@ -24,8 +24,6 @@ public:
     /// \return Shared pointer to appropriate value if it exists, 'nullptr' otherwise
     virtual ov::Any get_attribute(const std::string& name) const = 0;
 
-    virtual bool is_tensorarray(const TensorName& tensor_name, bool inport) const = 0;
-
     /// \brief Applies additional conversion rules to the data based on type_info
     ///
     /// \param data Data

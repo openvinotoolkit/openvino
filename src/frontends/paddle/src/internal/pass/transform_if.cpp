@@ -17,33 +17,36 @@
 #include "ngraph/op/util/op_types.hpp"
 #include "openvino/frontend/paddle/exception.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 
 using namespace std;
 using namespace ov;
 using namespace ov::pass;
-using namespace opset8;
+using namespace ov::frontend::paddle::op::default_opset;
 
+// Transform Paddle "conditonal_block" to OpenVINO If op.
+// The contional_block only has "then" branch, while If op requires both "then" and "else" branch the same time.
+// Thus a "pass-through" model is built on purpose for "else" branch with the same outputs as "then" branch.
 ov::frontend::paddle::pass::TransformIf::TransformIf(std::vector<std::shared_ptr<Model>> funcs) {
-    auto cond_label = ngraph::pattern::wrap_type<ov::op::internal::ConditionalBlock>();
+    const auto cond_label = ngraph::pattern::wrap_type<ov::op::internal::ConditionalBlock>();
 
     matcher_pass_callback callback = [funcs](pattern::Matcher& m) -> bool {
-        std::vector<std::shared_ptr<Model>> functions = funcs;
-        auto conditional_block = std::dynamic_pointer_cast<ov::op::internal::ConditionalBlock>(m.get_match_root());
-        size_t mask_idx = conditional_block->get_input_size() - 1;  // False branch
-        std::shared_ptr<Node> cond = conditional_block->get_input_node_shared_ptr(mask_idx);
+        const auto conditional_block =
+            std::dynamic_pointer_cast<ov::op::internal::ConditionalBlock>(m.get_match_root());
+        const auto mask_idx = conditional_block->get_input_size() - 1;
+        const auto cond = conditional_block->get_input_node_shared_ptr(mask_idx);
 
         if (!conditional_block || !cond) {
             return false;
         }
 
         // build_if_node
-        const int32_t then_idx = conditional_block->get_subblock_index();
-        const auto& then_branch = functions[then_idx];
+        const auto then_idx = conditional_block->get_subblock_index();
+        const auto& then_branch = funcs[then_idx];
         const auto& then_params = then_branch->get_parameters();
 
-        // make the else body, just pass through
+        // make a pass-through else branch, as
+        // openvino If requires both then and else branch at the same time.
         ParameterVector params;
         ResultVector results;
         for (auto i = 0; i < then_branch->get_output_size(); i++) {

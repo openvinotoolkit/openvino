@@ -17,17 +17,24 @@
 #include "internal/op/while.hpp"
 #include "openvino/frontend/paddle/exception.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 
 using namespace std;
 using namespace ov;
 using namespace ov::pass;
-using namespace opset8;
+using namespace ov::frontend::paddle::op::default_opset;
 
+// Transform Paddle "while" to OpenVINO Loop op.
+// "set_merged_input" is used for possible cases like TensorArray
+// when it is both the input and the output to the loop.
+// The reason why not using concat the output (i.e. "get_concatenated_slices") here is that,
+// it would complicate processing TensorArray.
+// TensorArray could be in loop body, but it could not always append something;
+// TensorArray could be a non-empty input of the loop body, which needs extra concat.
+// What's more, we have to tell which output is of TensorArray type to concate.
 ov::frontend::paddle::pass::TransformWhile::TransformWhile(std::vector<std::shared_ptr<Model>> functions) {
-    auto while_label = ngraph::pattern::wrap_type<ov::op::internal::While>();
+    const auto while_label = ngraph::pattern::wrap_type<ov::op::internal::While>();
 
     matcher_pass_callback callback = [functions](pattern::Matcher& m) -> bool {
         const auto& while_node = std::dynamic_pointer_cast<ov::op::internal::While>(m.get_match_root());
@@ -38,7 +45,8 @@ ov::frontend::paddle::pass::TransformWhile::TransformWhile(std::vector<std::shar
         const auto& cond = inputs.back();
         const auto cond_name = cond.get_node_shared_ptr()->get_friendly_name();
         auto loop = std::make_shared<Loop>(trip_count, cond);
-        auto sub_model = functions[while_node->m_sub_block];
+        const auto block_idx = while_node->get_subblock_index();
+        const auto sub_model = functions[block_idx];
         loop->set_function(sub_model);
 
         const auto& parameters = sub_model->get_parameters();

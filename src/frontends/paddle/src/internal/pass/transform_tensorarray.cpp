@@ -19,7 +19,6 @@
 #include "internal/op/while.hpp"
 #include "openvino/frontend/paddle/exception.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 
@@ -28,6 +27,8 @@ using namespace ov;
 using namespace ov::pass;
 using namespace frontend::paddle::op::default_opset;
 
+// Transform pattern "TensorArrayLength->TensorArrayWrite" to OV concat, which
+// will append to the end of array after unsqueeze along axis 0.
 ov::frontend::paddle::pass::TransformTensorArray::TransformTensorArray(std::vector<std::shared_ptr<Model>> functions) {
     const auto shape_label = ngraph::pattern::wrap_type<ShapeOf>();
     const auto length_label = ngraph::pattern::wrap_type<StridedSlice>(
@@ -43,8 +44,9 @@ ov::frontend::paddle::pass::TransformTensorArray::TransformTensorArray(std::vect
             return false;
         const auto& new_item = write_node->get_input_node_shared_ptr(0);
         const auto& list = shape_node->get_input_node_shared_ptr(0);
-        const auto& new_item_unsqueeze =
-            std::make_shared<Unsqueeze>(new_item->output(0), Constant::create(element::i32, {1}, {0}));
+        const auto& new_item_unsqueeze = std::make_shared<Unsqueeze>(
+            new_item->output(0),
+            Constant::create(element::i32, {1}, {0}));  // unsqueeze in order to handyfully slice a tensorarray
         // remove TensorArrayLength->TensorArrayWrite
         const auto concat = std::make_shared<Concat>(OutputVector{list->output(0), new_item_unsqueeze->output(0)}, 1);
         // prevent to remove concating zero-tensor

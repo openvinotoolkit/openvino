@@ -26,11 +26,14 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    const int32_t get_subblock_index() const {
+        return m_sub_block;
+    }
+
+private:
     int32_t m_sub_block = 0;
 
     std::vector<std::pair<ov::element::Type, ov::PartialShape>> m_output_infos;
-
-private:
 };
 
 }  // namespace internal

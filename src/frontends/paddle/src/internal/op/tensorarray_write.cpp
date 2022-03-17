@@ -15,28 +15,29 @@ using namespace ov;
 
 BWDCMP_RTTI_DEFINITION(op::internal::TensorArrayWrite);
 
-op::internal::TensorArrayWrite::TensorArrayWrite(const Output<Node>& input,
-                                                 const Output<Node>& index,
-                                                 const std::string& output_names)
-    : Op({input, index}),
-      m_output_name(output_names) {
+op::internal::TensorArrayWrite::TensorArrayWrite(const Output<Node>& input, const Output<Node>& index)
+    : Op({input, index}) {
     constructor_validate_and_infer_types();
 }
 
 std::shared_ptr<Node> op::internal::TensorArrayWrite::clone_with_new_inputs(const OutputVector& new_args) const {
-    return make_shared<TensorArrayWrite>(new_args[0], new_args[1], m_output_name);
+    return make_shared<TensorArrayWrite>(new_args[0], new_args[1]);
 }
 
 bool op::internal::TensorArrayWrite::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
+// tensorarray_write will be transformed and replaced.
+// Here we simply make it to be an internal dynamic node, to make sure
+// all its offsprings will validate and infer shapes from an dynamic input.
 void op::internal::TensorArrayWrite::validate_and_infer_types() {
     auto ps = get_input_partial_shape(0);
-    ps.insert(ps.begin(), 1);  // unsqueeze
-    if (ps.rank().is_static() && ps.rank().get_length() >= 2) {
+    if (ps.rank().is_static() && ps.rank().get_length() >= 1) {
+        ps.insert(ps.begin(), 1);  // unsqueeze in order to handyfully slice a tensorarray
+
         // will use concat to implement tensor_write and a different dimension is enough for
-        //   a zero-dimension const input
+        // a zero-dimension const input
         if (ps[1].is_static()) {
             ps[1] += 1;
         }

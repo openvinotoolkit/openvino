@@ -48,7 +48,6 @@ public:
     void setElementType(Place::Ptr place, const ov::element::Type&);
     void setTensorValue(Place::Ptr place, const void* value);
 
-    int32_t get_block_count() const;
     std::vector<std::shared_ptr<OpPlace>> get_op_places(const int32_t blck_idx) const;
     std::map<std::string, std::shared_ptr<TensorPlace>> get_var_places() const {
         return m_var_places;
@@ -77,10 +76,6 @@ private:
     // shows if some nodes might be deleted from graph
     bool m_graph_changed = false;
 };
-
-int32_t InputModel::InputModelImpl::get_block_count() const {
-    return m_fw_ptr->blocks_size();
-}
 
 void InputModel::InputModelImpl::loadPlaces() {
     const int cnt_of_blocks = m_fw_ptr->blocks_size();
@@ -495,10 +490,6 @@ InputModel::InputModel(const std::wstring& path, const std::shared_ptr<Telemetry
 
 InputModel::InputModel(const std::vector<std::istream*>& streams, const std::shared_ptr<TelemetryExtension>& telemetry)
     : _impl{std::make_shared<InputModelImpl>(streams, *this, telemetry)} {}
-
-int32_t InputModel::get_block_count() const {
-    return _impl->get_block_count();
-}
 
 std::vector<std::shared_ptr<OpPlace>> InputModel::get_op_places(const int32_t blck_idx) const {
     return _impl->get_op_places(blck_idx);

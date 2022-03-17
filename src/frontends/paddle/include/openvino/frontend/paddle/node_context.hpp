@@ -78,10 +78,6 @@ public:
         return decoder.get_input_var_names(var_name);
     }
 
-    bool is_tensorarray(const TensorName& tensor, bool inport = true) const {
-        return decoder.is_tensorarray(tensor, inport);
-    }
-
     ov::element::Type get_out_port_type(const std::string& port_name) const {
         return decoder.get_out_port_type(port_name);
     }

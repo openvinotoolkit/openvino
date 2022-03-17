@@ -13,9 +13,8 @@ namespace op {
 NamedOutputs write_to_array(const NodeContext& node) {
     const auto x = node.get_input("X");
     const auto index = node.get_input("I");
-    const auto output_names = node.get_output_var_names("Out");
 
-    auto placehodler = std::make_shared<ov::op::internal::TensorArrayWrite>(x, index, output_names[0]);
+    auto placehodler = std::make_shared<ov::op::internal::TensorArrayWrite>(x, index);
 
     return node.default_single_output_mapping({placehodler}, {"Out"});
 }
