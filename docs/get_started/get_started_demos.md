@@ -120,11 +120,11 @@ This guide uses the OpenVINO™ Model Downloader to get pre-trained models. You 
 @sphinxdirective
 .. raw:: html
 
-   <div class="collapsible-section" data-title="Click for an example of downloading the SqueezeNet Caffe* model">
+   <div class="collapsible-section" data-title="Click for an example of downloading the GoogleNet v1 Caffe* model">
 
 @endsphinxdirective
 
-To download the SqueezeNet 1.1 Caffe* model to the `models` folder:
+To download the GoogleNet v1 Caffe* model to the `models` folder:
 
 @sphinxdirective
 
@@ -217,7 +217,7 @@ REQUIRED: `model_name.xml`
 REQUIRED: `model_name.bin`
 OPTIONAL: `model_name.json`, `model_name.mapping`, etc.
 
-This tutorial uses the public SqueezeNet 1.1 Caffe* model to run the Image Classification Sample. See the example in the Download Models section of this page to learn how to download this model.
+This tutorial uses the public GoogleNet v1 Caffe* model to run the Image Classification Sample. See the example in the Download Models section of this page to learn how to download this model.
 
 The googlenet-v1 model is downloaded in the Caffe* format. You must use the Model Optimizer to convert the model to IR.
 
