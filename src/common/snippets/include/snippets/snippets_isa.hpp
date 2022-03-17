@@ -22,6 +22,10 @@
 #include "op/tile.hpp"
 #include "op/vectorload.hpp"
 #include "op/vectorstore.hpp"
+#include "op/storeconvert.hpp"
+#include "op/scalarstoreconvert.hpp"
+#include "op/loadconvert.hpp"
+#include "op/scalarloadconvert.hpp"
 
 namespace ngraph {
 namespace snippets {

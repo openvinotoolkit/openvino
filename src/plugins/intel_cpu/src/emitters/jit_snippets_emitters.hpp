@@ -429,10 +429,8 @@ class MemoryEmitter : public jit_emitter  {
 public:
     MemoryEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : jit_emitter(h, isa, n), ea(getEA(n)) {
-        assert(n->get_input_element_type(0) == n->get_output_element_type(0));
-
-        prc = InferenceEngine::details::convertPrecision(n->get_input_element_type(0));
-        byte_size = prc.size();
+        src_prc = InferenceEngine::details::convertPrecision(n->get_input_element_type(0));
+        dst_prc = InferenceEngine::details::convertPrecision(n->get_output_element_type(0));
     }
 
     size_t get_inputs_num() const override {return 1;}
@@ -451,14 +449,20 @@ protected:
     }
 
     size_t ea;
-    size_t byte_size;
-    Precision prc;
+    Precision src_prc;
+    Precision dst_prc;
 };
 
 class StoreEmitter : public MemoryEmitter  {
 public:
     StoreEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : MemoryEmitter(h, isa, n) {
+        if (auto node = ov::as_type_ptr<ngraph::snippets::op::StoreConvert>(n)) {
+            assert(n->get_input_element_type(0) == ov::element::f32);
+        } else {
+            assert(src_prc == dst_prc);
+        }
+
         store_emitter.reset(new jit_store_emitter(h, isa));
         lanes = ov::as_type_ptr<ngraph::snippets::op::Store>(n)->get_lanes();
     }
@@ -485,12 +489,11 @@ private:
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
         if (!store_emitter)
             throw ov::Exception("Store emitter isn't initialized!");
-
-        store_emitter->emit_code({in[0]}, {ea}, std::make_shared<store_emitter_context>(prc, prc, lanes),
+        store_emitter->emit_code({in[0]}, {ea}, std::make_shared<store_emitter_context>(src_prc, dst_prc, lanes),
                                  aux_vec_idxs, aux_gpr_idxs);
 
         Reg64 out_reg(ea);
-        h->add(out_reg, lanes * byte_size);
+        h->add(out_reg, lanes * dst_prc.size());
     }
 
     void emit_data() const override {
@@ -509,6 +512,12 @@ class ScalarStoreEmitter : public MemoryEmitter {
 public:
     ScalarStoreEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : MemoryEmitter(h, isa, n) {
+        if (auto node = ov::as_type_ptr<ngraph::snippets::op::ScalarStoreConvert>(n)) {
+            assert(n->get_input_element_type(0) == ov::element::f32);
+        } else {
+            assert(src_prc == dst_prc);
+        }
+
         store_emitter.reset(new jit_store_emitter(h, isa));
     }
 
@@ -534,11 +543,11 @@ private:
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
         if (!store_emitter)
             throw ov::Exception("Store emitter isn't initialized!");
-        store_emitter->emit_code({in[0]}, {ea}, std::make_shared<store_emitter_context>(prc, prc, 1),
+        store_emitter->emit_code({in[0]}, {ea}, std::make_shared<store_emitter_context>(src_prc, dst_prc, 1),
                                  aux_vec_idxs, aux_gpr_idxs);
 
         Reg64 out_reg(ea);
-        h->add(out_reg, byte_size);
+        h->add(out_reg, dst_prc.size());
     }
 
     void emit_data() const override {
@@ -556,6 +565,12 @@ class LoadEmitter : public MemoryEmitter {
 public:
     LoadEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : MemoryEmitter(h, isa, n), shouldPostIncrement(*n->get_input_shape(0).rbegin() != 1) {
+        if (auto node = ov::as_type_ptr<ngraph::snippets::op::LoadConvert>(n)) {
+            assert(n->get_output_element_type(0) == ov::element::f32);
+        } else {
+            assert(src_prc == dst_prc);
+        }
+
         load_emitter.reset(new jit_load_emitter(h, isa));
         lanes = ov::as_type_ptr<ngraph::snippets::op::Load>(n)->get_lanes();
     }
@@ -584,13 +599,12 @@ private:
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
         if (!load_emitter)
             throw ov::Exception("Load emitter isn't initialized!");
-
-        load_emitter->emit_code({ea}, {out[0]}, std::make_shared<load_emitter_context>(prc, prc, lanes),
+        load_emitter->emit_code({ea}, {out[0]}, std::make_shared<load_emitter_context>(src_prc, dst_prc, lanes),
                                 aux_vec_idxs, aux_gpr_idxs);
 
         if (shouldPostIncrement) {
             Reg64 in_reg(ea);
-            h->add(in_reg, lanes * byte_size);
+            h->add(in_reg, lanes * src_prc.size());
         }
     }
 
@@ -609,7 +623,9 @@ private:
 class BroadcastLoadEmitter : public MemoryEmitter {
 public:
     BroadcastLoadEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
-    : MemoryEmitter(h, isa, n) {}
+    : MemoryEmitter(h, isa, n) {
+        assert(src_prc == dst_prc);
+    }
     size_t get_inputs_num() const override {return 0;}
 
 private:
@@ -637,7 +653,7 @@ private:
         Reg64 in_reg(ea);
         Vmm vmm_dst = Vmm(out[0]);
 
-        switch (byte_size) {
+        switch (src_prc.size()) {
             case 4: h->uni_vbroadcastss(vmm_dst, h->ptr[in_reg]); break;
             case 2: h->vpbroadcastw(vmm_dst, h->ptr[in_reg]); break;
             case 1: h->vpbroadcastb(vmm_dst, h->ptr[in_reg]); break;
@@ -650,6 +666,12 @@ class ScalarLoadEmitter : public MemoryEmitter {
 public:
     ScalarLoadEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : MemoryEmitter(h, isa, n), shouldPostIncrement(*n->get_input_shape(0).rbegin() != 1) {
+        if (auto node = ov::as_type_ptr<ngraph::snippets::op::ScalarLoadConvert>(n)) {
+            assert(n->get_input_element_type(0) == ov::element::f32);
+        } else {
+            assert(src_prc == dst_prc);
+        }
+
         load_emitter.reset(new jit_load_emitter(h, isa));
     }
     size_t get_inputs_num() const override {return 0;}
@@ -676,13 +698,13 @@ private:
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
         if (!load_emitter)
             throw ov::Exception("Load emitter isn't initialized!");
-        load_emitter->emit_code({ea}, {out[0]}, std::make_shared<load_emitter_context>(prc, prc, 1),
+        load_emitter->emit_code({ea}, {out[0]}, std::make_shared<load_emitter_context>(src_prc, dst_prc, 1),
                                 aux_vec_idxs, aux_gpr_idxs);
 
         // Doesn't work if the same pointer comes with multiple load operations
         if (shouldPostIncrement) {
             Reg64 in_reg(ea);
-            h->add(in_reg, byte_size);
+            h->add(in_reg, src_prc.size());
         }
     }
 

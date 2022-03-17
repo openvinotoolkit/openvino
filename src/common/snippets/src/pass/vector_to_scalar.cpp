@@ -7,7 +7,6 @@
 #include "snippets/pass/vector_to_scalar.hpp"
 #include "snippets/snippets_isa.hpp"
 
-#include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
@@ -20,10 +19,17 @@ ngraph::snippets::pass::ReplaceLoadsWithScalarLoads::ReplaceLoadsWithScalarLoads
             auto root = m.get_match_root();
             if (transformation_callback(root))
                 return false;
-            auto load = std::make_shared<ngraph::snippets::op::ScalarLoad> (root->input_value(0));
-            load->set_friendly_name(root->get_friendly_name());
-            ngraph::copy_runtime_info(root, load);
-            ngraph::replace_node(root, load);
+
+            std::shared_ptr<ov::Node> load_scalar = nullptr;
+            if (auto load_convert = ov::as_type_ptr<ngraph::snippets::op::LoadConvert>(root)) {
+                load_scalar = std::make_shared<ngraph::snippets::op::ScalarLoadConvert>(root->input_value(0), load_convert->get_destination_type());
+            } else {
+                load_scalar = std::make_shared<ngraph::snippets::op::ScalarLoad>(root->input_value(0));
+            }
+
+            load_scalar->set_friendly_name(root->get_friendly_name());
+            ngraph::copy_runtime_info(root, load_scalar);
+            ngraph::replace_node(root, load_scalar);
             return true;
         });
 }
@@ -37,10 +43,17 @@ ngraph::snippets::pass::ReplaceStoresWithScalarStores::ReplaceStoresWithScalarSt
             auto root = m.get_match_root();
             if (transformation_callback(root))
                 return false;
-            auto store = std::make_shared<ngraph::snippets::op::ScalarStore> (root->input_value(0));
-            store->set_friendly_name(root->get_friendly_name());
-            ngraph::copy_runtime_info(root, store);
-            ngraph::replace_node(root, store);
+
+            std::shared_ptr<ov::Node> store_scalar = nullptr;
+            if (auto load_convert = ov::as_type_ptr<ngraph::snippets::op::StoreConvert>(root)) {
+                store_scalar = std::make_shared<ngraph::snippets::op::ScalarStoreConvert>(root->input_value(0), load_convert->get_destination_type());
+            } else {
+                store_scalar = std::make_shared<ngraph::snippets::op::ScalarStore>(root->input_value(0));
+            }
+
+            store_scalar->set_friendly_name(root->get_friendly_name());
+            ngraph::copy_runtime_info(root, store_scalar);
+            ngraph::replace_node(root, store_scalar);
             return true;
         });
 }

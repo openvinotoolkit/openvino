@@ -10,6 +10,7 @@
 
 #include "snippets_isa.hpp"
 #include "emitter.hpp"
+#include "openvino/pass/manager.hpp"
 
 namespace ngraph {
 namespace snippets {
@@ -18,7 +19,7 @@ auto getRegisters(std::shared_ptr<ngraph::Node>& n) -> ngraph::snippets::RegInfo
 
 /**
  * @interface TargetMachine
- * @brief Base class Target machine representation. Target derives from this class to provide generator information about supported emittors
+ * @brief Base class Target machine representation. Target derives from this class to provide generator information about supported emitters
  * @ingroup snippets
  */
 class TargetMachine {
@@ -48,8 +49,8 @@ public:
     virtual element::TypeVector get_supported_exec_types() const = 0;
 
     /**
-     * @brief called by generator to all the emittor for a target machine
-     * @return a map by node's type info with callbacks to create an instance of emmitter for corresponding operation type
+     * @brief called by generator to all the emitter for a target machine
+     * @return a map by node's type info with callbacks to create an instance of emitter for corresponding operation type
      */
     std::function<std::shared_ptr<Emitter>(std::shared_ptr<ngraph::Node>)> get(const ngraph::DiscreteTypeInfo type) const {
         auto jitter = jitters.find(type);

@@ -23,6 +23,7 @@
 
 #include <snippets/op/subgraph.hpp>
 #include "emitters/cpu_generator.hpp"
+#include "snippets/pass/fuse_load_store_and_convert.hpp"
 
 using namespace InferenceEngine;
 using namespace mkldnn::impl::utils;
@@ -452,7 +453,28 @@ void Snippet::generate() {
         auto b = offsets_out[i].begin();
         std::copy(b, b + harness_num_dims, &jcp.data_offsets[(inputShapes.size() + i) * harness_num_dims]);
     }
-    schedule = snippet->generate(reinterpret_cast<void*>(&jcp));
+
+    ov::pass::Manager optManager;
+    optManager.register_pass<ngraph::snippets::pass::FuseLoadConvert>();
+    optManager.register_pass<ngraph::snippets::pass::FuseStoreConvert>();
+
+    // LoadConvert uses Load emitter that support conversion from any type to only f32
+    optManager.get_pass_config()->set_callback<ngraph::snippets::pass::FuseLoadConvert>(
+            [](const std::shared_ptr<const ov::Node>& n) -> bool {
+                if (const auto& convert = std::dynamic_pointer_cast<const ov::op::v0::Convert>(n))
+                    return convert->get_destination_type() != ov::element::f32;
+                return true;
+            });
+
+    // StoreConvert uses Store emitter that support conversion from only f32 to any types
+    optManager.get_pass_config()->set_callback<ngraph::snippets::pass::FuseStoreConvert>(
+            [](const std::shared_ptr<const ov::Node>& n) -> bool {
+                if (const auto& convert = std::dynamic_pointer_cast<const ov::op::v0::Convert>(n))
+                    return convert->get_input_element_type(0) != ov::element::f32;
+                return true;
+            });
+
+    schedule = snippet->generate(optManager, reinterpret_cast<void*>(&jcp));
 }
 
 void Snippet::schedule_6d(const jit_snippets_call_args& call_args) const {
