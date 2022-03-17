@@ -411,7 +411,7 @@ The following commands run the Image Classification Code Sample using the [`car.
 @endsphinxdirective
 
    **MYRIAD:**
-   > **NOTE**: Running inference on VPU devices (Intel® Movidius™ Neural Compute Stick or Intel® Neural Compute Stick 2) with the MYRIAD plugin requires [additional hardware configuration steps](inference-engine/README.md#optional-additional-installation-steps-for-the-intel-movidius-neural-compute-stick-and-neural-compute-stick-2), as described earlier on this page.
+   > **NOTE**: Running inference on VPU devices (Intel® Movidius™ Neural Compute Stick or Intel® Neural Compute Stick 2) with the MYRIAD plugin requires [additional hardware configuration steps](../install_guides/configurations-for-ncs2.md), as described earlier on this page.
 
 @sphinxdirective
 .. tab:: Linux
