@@ -115,7 +115,7 @@ This guide uses the OpenVINO™ Model Downloader to get pre-trained models. You 
 
 |Model Name                                     | Code Sample or Demo App                  |
 |-----------------------------------------------|------------------------------------------|
-|`squeezenet1.1`                                | Image Classification Sample              |
+|`googlenet-v1`                                 | Image Classification Sample              |
 
 @sphinxdirective
 .. raw:: html
@@ -127,27 +127,29 @@ This guide uses the OpenVINO™ Model Downloader to get pre-trained models. You 
 To download the SqueezeNet 1.1 Caffe* model to the `models` folder:
 
 @sphinxdirective
+
 .. tab:: Linux
 
    .. code-block:: sh
 
-      omz_downloader --name squeezenet1.1 --output_dir ~/models
+      omz_downloader --name googlenet-v1 --output_dir ~/models
 
 .. tab:: Windows
 
    .. code-block:: bat
 
-      omz_downloader --name squeezenet1.1 --output_dir %USERPROFILE%\Documents\models
+      omz_downloader --name googlenet-v1 --output_dir %USERPROFILE%\Documents\models
 
 .. tab:: macOS
 
    .. code-block:: sh
 
-      omz_downloader --name squeezenet1.1 --output_dir ~/models
+      omz_downloader --name googlenet-v1 --output_dir ~/models
 
 @endsphinxdirective
 
 Your screen looks similar to this after the download and shows the paths of downloaded files:
+
 @sphinxdirective
 .. tab:: Linux
 
@@ -155,14 +157,14 @@ Your screen looks similar to this after the download and shows the paths of down
 
       ###############|| Downloading models ||###############
 
-      ========= Downloading /home/username/models/public/squeezenet1.1/squeezenet1.1.prototxt
+      ========= Downloading /home/username/models/public/googlenet-v1/googlenet-v1.prototxt
 
-      ========= Downloading /home/username/models/public/squeezenet1.1/squeezenet1.1.caffemodel
+      ========= Downloading /home/username/models/public/googlenet-v1/googlenet-v1.caffemodel
       ... 100%, 4834 KB, 3157 KB/s, 1 seconds passed
 
       ###############|| Post processing ||###############
 
-      ========= Replacing text in /home/username/models/public/squeezenet1.1/squeezenet1.1.prototxt =========
+      ========= Replacing text in /home/username/models/public/googlenet-v1/googlenet-v1.prototxt =========
 
 .. tab:: Windows
 
@@ -170,15 +172,15 @@ Your screen looks similar to this after the download and shows the paths of down
 
       ################|| Downloading models ||################
 
-      ========== Downloading C:\Users\username\Documents\models\public\squeezenet1.1\squeezenet1.1.prototxt
+      ========== Downloading C:\Users\username\Documents\models\public\googlenet-v1\googlenet-v1.prototxt
       ... 100%, 9 KB, ? KB/s, 0 seconds passed
 
-      ========== Downloading C:\Users\username\Documents\models\public\squeezenet1.1\squeezenet1.1.caffemodel
+      ========== Downloading C:\Users\username\Documents\models\public\googlenet-v1\googlenet-v1.caffemodel
       ... 100%, 4834 KB, 571 KB/s, 8 seconds passed
 
       ################|| Post-processing ||################
 
-      ========== Replacing text in C:\Users\username\Documents\models\public\squeezenet1.1\squeezenet1.1.prototxt
+      ========== Replacing text in C:\Users\username\Documents\models\public\googlenet-v1\googlenet-v1.prototxt
 
 .. tab:: macOS
 
@@ -186,15 +188,15 @@ Your screen looks similar to this after the download and shows the paths of down
 
       ###############|| Downloading models ||###############
 
-      ========= Downloading /Users/username/models/public/squeezenet1.1/squeezenet1.1.prototxt
+      ========= Downloading /Users/username/models/public/googlenet-v1/googlenet-v1.prototxt
       ... 100%, 9 KB, 44058 KB/s, 0 seconds passed
 
-      ========= Downloading /Users/username/models/public/squeezenet1.1/squeezenet1.1.caffemodel
+      ========= Downloading /Users/username/models/public/googlenet-v1/googlenet-v1.caffemodel
       ... 100%, 4834 KB, 4877 KB/s, 0 seconds passed
 
       ###############|| Post processing ||###############
 
-      ========= Replacing text in /Users/username/models/public/squeezenet1.1/squeezenet1.1.prototxt =========
+      ========= Replacing text in /Users/username/models/public/googlenet-v1/googlenet-v1.prototxt =========
 
 @endsphinxdirective
 
@@ -217,7 +219,7 @@ OPTIONAL: `model_name.json`, `model_name.mapping`, etc.
 
 This tutorial uses the public SqueezeNet 1.1 Caffe* model to run the Image Classification Sample. See the example in the Download Models section of this page to learn how to download this model.
 
-The SqueezeNet1.1 model is downloaded in the Caffe* format. You must use the Model Optimizer to convert the model to IR.
+The googlenet-v1 model is downloaded in the Caffe* format. You must use the Model Optimizer to convert the model to IR.
 
 Create an `<ir_dir>` directory to contain the model's Intermediate Representation (IR).
 
@@ -259,19 +261,19 @@ The command with most placeholders filled in and FP16 precision:
 
    .. code-block:: sh
 
-      mo --input_model ~/models/public/squeezenet1.1/squeezenet1.1.caffemodel --data_type FP16 --output_dir ~/ir
+      mo --input_model ~/models/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP16 --output_dir ~/ir
 
 .. tab:: Windows
 
    .. code-block:: bat
 
-      mo --input_model %USERPROFILE%\Documents\models\public\squeezenet1.1\squeezenet1.1.caffemodel --data_type FP16 --output_dir %USERPROFILE%\Documents\ir
+      mo --input_model %USERPROFILE%\Documents\models\public\googlenet-v1\googlenet-v1.caffemodel --data_type FP16 --output_dir %USERPROFILE%\Documents\ir
 
 .. tab:: macOS
 
    .. code-block:: sh
 
-      mo --input_model ~/models/public/squeezenet1.1/squeezenet1.1.caffemodel --data_type FP16 --output_dir ~/ir
+      mo --input_model ~/models/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP16 --output_dir ~/ir
 
 @endsphinxdirective
 
@@ -368,7 +370,7 @@ To run the **Image Classification** code sample with an input image using the IR
 
 @endsphinxdirective
 
-The following commands run the Image Classification Code Sample using the [`car.bmp`](https://storage.openvinotoolkit.org/data/test_data/images/car.bmp) file as an input image, the model in IR format from the `ir` directory, and on different hardware devices:
+The following commands run the Image Classification Code Sample using the [`dog.bmp`](https://storage.openvinotoolkit.org/data/test_data/images/224x224/dog.bmp) file as an input image, the model in IR format from the `ir` directory, and on different hardware devices:
 
    **CPU:**  
 @sphinxdirective
@@ -376,19 +378,19 @@ The following commands run the Image Classification Code Sample using the [`car.
 
    .. code-block:: sh
 
-      ./classification_sample_async -i ~/Downloads/car.bmp -m ~/ir/squeezenet1.1.xml -d CPU
+      ./classification_sample_async -i ~/Downloads/dog.bmp -m ~/ir/googlenet-v1.xml -d CPU
 
 .. tab:: Windows
 
    .. code-block:: bat
 
-      .\classification_sample_async.exe -i %USERPROFILE%\Downloads\car.bmp -m %USERPROFILE%\Documents\ir\squeezenet1.1.xml -d CPU
+      .\classification_sample_async.exe -i %USERPROFILE%\Downloads\dog.bmp -m %USERPROFILE%\Documents\ir\googlenet-v1.xml -d CPU
 
 .. tab:: macOS
 
    .. code-block:: sh
 
-      ./classification_sample_async -i ~/Downloads/car.bmp -m ~/ir/squeezenet1.1.xml -d CPU
+      ./classification_sample_async -i ~/Downloads/dog.bmp -m ~/ir/googlenet-v1.xml -d CPU
 
 @endsphinxdirective
 
@@ -400,13 +402,13 @@ The following commands run the Image Classification Code Sample using the [`car.
 
    .. code-block:: sh
 
-      ./classification_sample_async -i ~/Downloads/car.bmp -m ~/ir/squeezenet1.1.xml -d GPU
+      ./classification_sample_async -i ~/Downloads/dog.bmp -m ~/ir/googlenet-v1.xml -d GPU
 
 .. tab:: Windows
 
    .. code-block:: bat
 
-      .\classification_sample_async.exe -i %USERPROFILE%\Downloads\car.bmp -m C:\Users\<USER_ID>\Documents\ir\squeezenet1.1.xml -d GPU
+      .\classification_sample_async.exe -i %USERPROFILE%\Downloads\dog.bmp -m %USERPROFILE%\Documents\ir\googlenet-v1.xml -d GPU
 
 @endsphinxdirective
 
@@ -418,19 +420,19 @@ The following commands run the Image Classification Code Sample using the [`car.
 
    .. code-block:: sh
 
-      ./classification_sample_async -i ~/Downloads/car.bmp -m ~/ir/squeezenet1.1.xml -d MYRIAD
+      ./classification_sample_async -i ~/Downloads/dog.bmp -m ~/ir/googlenet-v1.xml -d MYRIAD
 
 .. tab:: Windows
 
    .. code-block:: bat
 
-      .\classification_sample_async.exe -i %USERPROFILE%\Downloads\car.bmp -m C:\Users\<USER_ID>\Documents\ir\squeezenet1.1.xml -d MYRIAD
+      .\classification_sample_async.exe -i %USERPROFILE%\Downloads\dog.bmp -m %USERPROFILE%\Documents\ir\googlenet-v1.xml -d MYRIAD
 
 .. tab:: macOS
 
    .. code-block:: sh
 
-      ./classification_sample_async -i ~/Downloads/car.bmp -m ~/ir/squeezenet1.1.xml -d MYRIAD
+      ./classification_sample_async -i ~/Downloads/dog.bmp -m ~/ir/googlenet-v1.xml -d MYRIAD
 
 @endsphinxdirective
 
@@ -442,24 +444,20 @@ When the sample application is complete, you see the label and confidence for th
 
    Top 10 results:
 
-   Image car.bmp
+   Image dog.bmp
 
       classid probability label
       ------- ----------- -----
-      817     0.8363345   sports car, sport car
-      511     0.0946488   convertible
-      479     0.0419131   car wheel
-      751     0.0091071   racer, race car, racing car
-      436     0.0068161   beach wagon, station wagon, wagon, estate car, beach waggon, station waggon, waggon
-      656     0.0037564   minivan
-      586     0.0025741   half track
-      717     0.0016069   pickup, pickup truck
-      864     0.0012027   tow truck, tow car, wrecker
-      581     0.0005882   grille, radiator grille
-
-      [ INFO ] Execution successful
-      
-      [ INFO ] This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
+      156     0.6875963   Blenheim spaniel
+      215     0.0868125   Brittany spaniel
+      218     0.0784114   Welsh springer spaniel
+      212     0.0597296   English setter
+      217     0.0212105   English springer, English springer spaniel
+      219     0.0194193   cocker spaniel, English cocker spaniel, cocker
+      247     0.0086272   Saint Bernard, St Bernard
+      157     0.0058511   papillon
+      216     0.0057589   clumber, clumber spaniel
+      154     0.0052615   Pekinese, Pekingese, Peke
 
 @endsphinxdirective
 
