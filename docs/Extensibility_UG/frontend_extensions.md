@@ -57,7 +57,7 @@ Imagine you have CustomOperation class implementation that has two attributes wi
 
 And original model in framework representation also has operation with name “CustomOperatoin” with the same `attr1` and `attr2` attributes. Then with the following code:
 
-@snippet ov_extensions.cpp frontend_extension_CustomOperation_add
+@snippet ov_extensions.cpp frontend_extension_CustomOperation_as_is
 
 both `attr1` and `attr2` are copied from framework representation to OpenVINO representation automatically. If for some reason names of attributes are different but values still can be copied “as-is” you can pass attribute names mapping in `OpExtension` constructor:
 
