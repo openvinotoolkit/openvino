@@ -393,8 +393,7 @@ The following commands run the Image Classification Code Sample using the [`car.
 @endsphinxdirective
 
    **GPU:**
-   > **NOTE**: Running inference on Intel® Processor Graphics (GPU) requires 
-    [additional hardware configuration steps](https://docs.openvino.ai/latest/_docs_install_guides_installing_openvino_linux.html#additional-GPU-steps), as described earlier on this page. Running on GPU is not compatible with macOS*.
+   > **NOTE**: Running inference on Intel® Processor Graphics (GPU) requires [additional hardware configuration steps](https://docs.openvino.ai/latest/_docs_install_guides_installing_openvino_linux.html#additional-GPU-steps), as described earlier on this page. Running on GPU is not compatible with macOS*.
 
 @sphinxdirective
 .. tab:: Linux
@@ -412,9 +411,7 @@ The following commands run the Image Classification Code Sample using the [`car.
 @endsphinxdirective
 
    **MYRIAD:**
-   > **NOTE**: Running inference on VPU devices (Intel® Movidius™ Neural Compute
-   Stick or Intel® Neural Compute Stick 2) with the MYRIAD plugin requires 
-    [additional hardware configuration steps](inference-engine/README.md#optional-additional-installation-steps-for-the-intel-movidius-neural-compute-stick-and-neural-compute-stick-2), as described earlier on this page.
+   > **NOTE**: Running inference on VPU devices (Intel® Movidius™ Neural Compute Stick or Intel® Neural Compute Stick 2) with the MYRIAD plugin requires [additional hardware configuration steps](inference-engine/README.md#optional-additional-installation-steps-for-the-intel-movidius-neural-compute-stick-and-neural-compute-stick-2), as described earlier on this page.
 
 @sphinxdirective
 .. tab:: Linux
