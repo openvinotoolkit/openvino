@@ -48,6 +48,7 @@ struct AutoContext {
     bool           needPerfCounters = {false};
     unsigned int   modelPriority = 0;
     bool           batchingDisabled = {false};
+    std::string    performanceHint = "";
 };
 
 struct AutoLoadContext {
@@ -59,6 +60,7 @@ struct AutoLoadContext {
     InferenceEngine::SoExecutableNetworkInternal executableNetwork;
     DeviceInformation  deviceInfo;
     std::vector<DeviceInformation> metaDevices;
+    std::vector<DeviceInformation> cumulativeDevices;
     std::string networkPrecision;
     std::string errMessage;
     InferenceEngine::Task task;

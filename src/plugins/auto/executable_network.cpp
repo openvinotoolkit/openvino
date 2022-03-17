@@ -251,23 +251,27 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
          }
     }
 
-    OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, openvino::itt::handle(profilingTask));
-    if (_loadContext[CPU].isEnabled) {
-        _firstLoadFuture = _firstLoadPromise.get_future();
+    //get Idle CPU Streams Executor
+    if (_loadContext[CPU].isEnabled || context.performanceHint == PluginConfigParams::CUMULATIVE_THROUGHPUT) {
         // will not wait for loading accelerator network,
         // so the executor can't be destroyed before finished the task,
         // so use executor as a member of MultiDeviceExecutableNetwork.
         _executor = _multiPlugin->executorManager()->getIdleCPUStreamsExecutor(
-                IStreamsExecutor::Config{"AutoDeviceAsyncLoad",
-                static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
-                0 /*default threads per stream, workaround for ticket 62376*/,
-                IStreamsExecutor::ThreadBindingType::NONE});
+            IStreamsExecutor::Config{"AutoDeviceAsyncLoad",
+                                     static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
+                                     0 /*default threads per stream, workaround for ticket 62376*/,
+                                     IStreamsExecutor::ThreadBindingType::NONE});
         for (auto&& device : metaDevices) {
             // initialize containers before run async task
             _idleWorkerRequests[device.deviceName];
             _workerRequests[device.deviceName];
             _inferPipelineTasksDeviceSpecific[device.deviceName] = nullptr;
         }
+    }
+
+    OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, openvino::itt::handle(profilingTask));
+    if (_loadContext[CPU].isEnabled) {
+        _firstLoadFuture = _firstLoadPromise.get_future();
         _idleWorkerRequests["CPU_HELP"];
         _workerRequests["CPU_HELP"];
         _inferPipelineTasksDeviceSpecific["CPU_HELP"] = nullptr;
@@ -330,73 +334,96 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         _loadContext[ACTUALDEVICE].task();
     }
 
-    auto* contextPtr = &_loadContext[ACTUALDEVICE];
-    auto loadRemainDevicesTask = [this, contextPtr, modelPath, network]() mutable {
-        WaitActualNetworkReady();
-        while (!_exitFlag && !contextPtr->metaDevices.empty()) {
-            auto& device = contextPtr->deviceInfo.deviceName;
-            auto& deviceList = contextPtr->metaDevices;
+    // CUMULATIVE_THROUGHPUT: load remain devices one by one
+    if (context.performanceHint == PluginConfigParams::CUMULATIVE_THROUGHPUT) {
+        auto* contextPtr = &_loadContext[ACTUALDEVICE];
+        auto loadRemainDevicesTask = [this, contextPtr, modelPath, network]() mutable {
+            WaitActualNetworkReady();
+            auto deviceList = contextPtr->metaDevices;
+            auto selectDeviceName = contextPtr->deviceInfo.deviceName;
+            while (!_exitFlag && !deviceList.empty()) {
+                auto eraseDevice =
+                    std::find_if(deviceList.begin(), deviceList.end(), [selectDeviceName](DeviceInformation& d) {
+                        return d.deviceName == selectDeviceName;
+                    });
 
-            _multiPlugin->UnregisterPriority(_context.modelPriority, contextPtr->deviceInfo.uniqueName);
+                LOG_DEBUG("[AUTOPLUGIN]:erase loaded device:%s", selectDeviceName.c_str());
+                deviceList.erase(eraseDevice);
 
-            auto eraseDevice = std::find_if(deviceList.begin(), deviceList.end(), [device](DeviceInformation& d) {
-                return d.deviceName == device;
-            });
-
-            LOG_INFO("[AUTOPLUGIN]:erase device:%s", device.c_str());
-
-            deviceList.erase(eraseDevice);
-
-            if (!deviceList.empty()) {
-                // select next candidate device
-                try {
-                    std::lock_guard<std::mutex> lock(_confMutex);
-                    contextPtr->deviceInfo =
-                        _multiPlugin->SelectDevice(deviceList, contextPtr->networkPrecision, _context.modelPriority);
-                } catch (const std::exception& e) {
-                    LOG_ERROR("[AUTOPLUGIN]:select device fail:%s", e.what());
-                    break;
-                }
-
-                LOG_DEBUG("[AUTOPLUGIN]:try to load %s", contextPtr->deviceInfo.deviceName.c_str());
-                // try to load this candidate device
-                TryToLoadNetWork(*contextPtr, modelPath, network);
-                if (contextPtr->isLoadSuccess) {
-                    if (contextPtr->workName.empty()) {
-                        contextPtr->workName = contextPtr->deviceInfo.deviceName;
-                    }
-                    GenerateWorkers(contextPtr->workName, contextPtr->executableNetwork);
-                    // need lock
-                    {
+                if (!deviceList.empty()) {
+                    DeviceInformation nextDeviceInfo;
+                    // select next candidate device
+                    try {
                         std::lock_guard<std::mutex> lock(_confMutex);
-                        _config.insert(contextPtr->deviceInfo.config.begin(), contextPtr->deviceInfo.config.end());
+                        nextDeviceInfo = _multiPlugin->SelectDevice(deviceList,
+                                                                    contextPtr->networkPrecision,
+                                                                    _context.modelPriority);
+                        LOG_INFO("[AUTOPLUGIN]:select next candidate device:%s", nextDeviceInfo.deviceName.c_str());
+                    } catch (const std::exception& e) {
+                        LOG_ERROR("[AUTOPLUGIN]:select next candidate device fail:%s", e.what());
+                        break;
                     }
-                    contextPtr->isAlready = true;
-                    auto& deviceName = contextPtr->deviceInfo.deviceName;
-                    LOG_INFO("[AUTOPLUGIN]:device:%s loading Network finished", deviceName.c_str());
-                    auto supported_config_keys =
-                        _core->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
-                    // there is log mutex in LOG_DEBUG, add _configMutex just want to print them all together
-                    // toDo maybe neet to implement LOG_RUN(task, LOG_LEVEL) to run some debug code.
-                    std::lock_guard<std::mutex> lock(_confMutex);
-                    for (const auto& cfg : supported_config_keys) {
-                        try {
-                            LOG_DEBUG("[AUTOPLUGIN]:device:%s, GetConfig:%s=%s",
-                                      deviceName.c_str(),
-                                      cfg.c_str(),
-                                      contextPtr->executableNetwork->GetConfig(cfg).as<std::string>().c_str());
-                        } catch (...) {
+
+                    nextDeviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] =
+                        InferenceEngine::PluginConfigParams::THROUGHPUT;
+                    selectDeviceName = nextDeviceInfo.deviceName;
+                    LOG_DEBUG("[AUTOPLUGIN]:try to load next device:%s", selectDeviceName.c_str());
+
+                    bool isLoadSuccess = false;
+                    InferenceEngine::SoExecutableNetworkInternal executableNetwork;
+
+                    // try to load this candidate device
+                    try {
+                        auto& deviceConfig = nextDeviceInfo.config;
+                        if (!modelPath.empty()) {
+                            executableNetwork = _core->LoadNetwork(modelPath, selectDeviceName, deviceConfig);
+                        } else {
+                            executableNetwork = _core->LoadNetwork(network, selectDeviceName, deviceConfig);
+                        }
+
+                        //save the deviceInfo
+                        contextPtr->cumulativeDevices.push_back(std::move(nextDeviceInfo));
+                        isLoadSuccess = true;
+                    } catch (const std::exception& e) {
+                        LOG_ERROR("[AUTOPLUGIN]:next device:%s load network fail:%s",
+                                  selectDeviceName.c_str(),
+                                  e.what());
+                    }
+
+                    if (isLoadSuccess) {
+                        GenerateWorkers(selectDeviceName, executableNetwork);
+                        // need lock
+                        {
+                            std::lock_guard<std::mutex> lock(_confMutex);
+                            _config.insert(nextDeviceInfo.config.begin(), nextDeviceInfo.config.end());
+                        }
+
+                        LOG_INFO("[AUTOPLUGIN]:next device:%s loading Network finished", selectDeviceName.c_str());
+                        auto supported_config_keys =
+                            _core->GetMetric(selectDeviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS))
+                                .as<std::vector<std::string>>();
+                        // there is log mutex in LOG_DEBUG, add _configMutex just want to print them all together
+                        // toDo maybe neet to implement LOG_RUN(task, LOG_LEVEL) to run some debug code.
+                        std::lock_guard<std::mutex> lock(_confMutex);
+                        for (const auto& cfg : supported_config_keys) {
+                            try {
+                                LOG_DEBUG("[AUTOPLUGIN]:next device:%s, GetConfig:%s=%s",
+                                          selectDeviceName.c_str(),
+                                          cfg.c_str(),
+                                          contextPtr->executableNetwork->GetConfig(cfg).as<std::string>().c_str());
+                            } catch (...) {
+                            }
                         }
                     }
                 }
             }
-        }
 
-        LOG_INFO("[AUTOPLUGIN]:load remain devices finished");
-    };
+            LOG_INFO("[AUTOPLUGIN]:load remain devices finished");
+        };
 
-    // cumulative_throughput load remain devices one by one
-    _executor->run(std::move(loadRemainDevicesTask));
+        // cumulative_throughput load remain devices one by one
+        _executor->run(std::move(loadRemainDevicesTask));
+    }
 
     WaitFirstNetworkReady();
 }
@@ -575,6 +602,19 @@ bool MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipeli
                 auto deviceInfo =  _loadContext[CPU].deviceInfo;
                 deviceInfo.deviceName = _loadContext[CPU].workName;
                 devices.push_back(std::move(deviceInfo));
+            }
+
+            if (_context.performanceHint == PluginConfigParams::CUMULATIVE_THROUGHPUT) {
+                for (auto deviceInfo : _loadContext[ACTUALDEVICE].cumulativeDevices) {
+                    auto deviceName = deviceInfo.deviceName;
+                    auto deviceToFind =
+                        std::find_if(devices.begin(), devices.end(), [deviceName](DeviceInformation& d) {
+                            return d.deviceName == deviceName;
+                        });
+                    if (deviceToFind == devices.end()) {
+                        devices.push_back(std::move(deviceInfo));
+                    }
+                }
             }
         }
     } else {
