@@ -7,7 +7,7 @@
 #include <random>
 
 using namespace ov::intel_cpu;
-using namespace mkldnn::impl::cpu::x64;
+using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
 namespace {

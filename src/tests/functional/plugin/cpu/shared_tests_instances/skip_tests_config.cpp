@@ -55,7 +55,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 35627. CPU Normalize supports from 2D to 4D blobs
         R"(.*NormalizeL2_1D.*)",
         R"(.*NormalizeL2_5D.*)",
-        // Issue: 59788. mkldnn_normalize_nchw applies eps after sqrt for across_spatial
+        // Issue: 59788. dnnl_normalize_nchw applies eps after sqrt for across_spatial
         R"(.*NormalizeL2_.*axes=\(1.2.*_eps=100.*)",
         R"(.*NormalizeL2_.*axes=\(2.1.*_eps=100.*)",
         R"(.*NormalizeL2_.*axes=\(3.1.2.*_eps=100.*)",
