@@ -45,6 +45,7 @@ $(document).ready(function () {
         addTableSort();
     }
     addLegalNotice();
+    createSphinxTabSets();
 });
 
 // Determine where we'd go if clicking on a version selector option
@@ -52,6 +53,30 @@ function getPageUrlWithVersion(version) {
     var currentURL = window.location.href;
     var newURL = currentURL.replace(getCurrentVersion(), version);
     return encodeURI(newURL);
+}
+
+
+function createSphinxTabSets() {
+    var sphinxTabSets = $('.sphinxtabset');
+    var tabSetCount = 1000;
+    sphinxTabSets.each(function() {
+        var tabSet = $(this);
+        tabSet.addClass('tab-set docutils');
+        var inputCount = 1;
+        tabSetCount++;
+        tabSet.find('.sphinxtab').each(function() {
+            var checked = '';
+            var tabValue = $(this).attr('data-sphinxtab-value');
+            if (inputCount == 1) {
+                checked = 'checked';
+            }
+            $(`<input ${checked} class="tab-input" id="tab-set--${tabSetCount}-input--${inputCount}" name="tab-set--${tabSetCount}" type="radio">`).insertBefore($(this));
+            $(`<label class="tab-label" for="tab-set--${tabSetCount}-input--${inputCount}">${tabValue}</label>`).insertBefore($(this));
+            inputCount++;
+            $(this).addClass('tab-content docutils');
+        });
+
+    })
 }
 
 function updateTitleTag() {

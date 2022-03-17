@@ -30,78 +30,79 @@ Following the OpenVINO™ convention of labeling devices, the Hetero execution u
 
 `Automatic fallback` policy decides which operation goes to which device automatically according to the support in dedicated devices (`GPU`, `CPU`, `MYRIAD`, etc) and query model step is called implicitly by Hetero device during model compilation:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_hetero.cpp
-       :language: cpp
-       :fragment: [compile_model]
+@snippet docs/snippets/ov_hetero.cpp compile_model
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_hetero.py
-       :language: python
-       :fragment: [compile_model]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_hetero.py compile_model
+
+@endsphinxtab
+
+@endsphinxtabset
+
 
 Another way to annotate a model is to set all affinities `manually` using ov::Node::get_rt_info with key `"affinity"`:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_hetero.cpp
-       :language: cpp
-       :fragment: [set_manual_affinities]
+@snippet docs/snippets/ov_hetero.cpp set_manual_affinities
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_hetero.py
-       :language: python
-       :fragment: [set_manual_affinities]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_hetero.py set_manual_affinities
+
+@endsphinxtab
+
+@endsphinxtabset
 
 The fallback policy does not work if at least one operation has an initialized `"affinity"`. If you want to adjust automatically set affinities, then get automatic affinities first, then fix them (usually, to minimize a number of total subgraphs to optimize memory transfers):
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_hetero.cpp
-       :language: cpp
-       :fragment: [fix_automatic_affinities]
+@snippet docs/snippets/ov_hetero.cpp fix_automatic_affinities
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_hetero.py
-       :language: python
-       :fragment: [fix_automatic_affinities]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_hetero.py fix_automatic_affinities
+
+@endsphinxtab
+
+@endsphinxtabset
 
 > **NOTE**: ov::Core::query_model does not depend on affinities set by a user. Instead, it queries for an operation support based on device capabilities.
 
 ### Configure fallback devices
 If you want different devices in Hetero execution to have different device-specific configuration options, you can use the special helper property ov::device::properties:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_hetero.cpp
-       :language: cpp
-       :fragment: [configure_fallback_devices]
+@snippet docs/snippets/ov_hetero.cpp configure_fallback_devices
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_hetero.py
-       :language: python
-       :fragment: [configure_fallback_devices]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_hetero.py configure_fallback_devices
+
+@endsphinxtab
+
+@endsphinxtabset
 
 In the example above, `GPU` device is configured to enable profiling data, while only `CPU` device has configuration property to perform inference in `f32` precision, while GPU has default execution precision.
 

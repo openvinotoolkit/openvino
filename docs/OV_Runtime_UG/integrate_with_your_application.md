@@ -27,39 +27,39 @@ This section provides step-by-step instructions to implement a typical inference
 
 Include next files to work with OpenVINO™ Runtime:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/src/main.cpp
-       :language: cpp
-       :fragment: [include]
+@snippet docs/snippets/src/main.cpp include
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/src/main.py
-       :language: python
-       :fragment: [import]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/src/main.py import
+
+@endsphinxtab
+
+@endsphinxtabset
 
 Use the following code to create OpenVINO™ Core to manage available devices and read model objects:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/src/main.cpp
-       :language: cpp
-       :fragment: [part1]
+@snippet docs/snippets/src/main.cpp part1
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/src/main.py
-       :language: python
-       :fragment: [part1]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/src/main.py part1
+
+@endsphinxtab
+
+@endsphinxtabset
 
 ### Step 2. Compile the Model
 
@@ -134,61 +134,61 @@ To learn how to change the device configuration, read the [Query device properti
 
 `ov::InferRequest` class provides methods for model inference in OpenVINO™ Runtime. Create an infer request using the following code (see [InferRequest detailed documentation](./ov_infer_request.md) for more details):
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/src/main.cpp
-       :language: cpp
-       :fragment: [part3]
+@snippet docs/snippets/src/main.cpp part3
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/src/main.py
-       :language: python
-       :fragment: [part3]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/src/main.py part3
+
+@endsphinxtab
+
+@endsphinxtabset
 
 ### Step 4. Set Inputs
 
 You can use external memory to create `ov::Tensor` and use the `ov::InferRequest::set_input_tensor` method to put this tensor on the device:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/src/main.cpp
-       :language: cpp
-       :fragment: [part4]
+@snippet docs/snippets/src/main.cpp part4
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/src/main.py
-       :language: python
-       :fragment: [part4]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/src/main.py part4
+
+@endsphinxtab
+
+@endsphinxtabset
 
 ### Step 5. Start Inference
 
 OpenVINO™ Runtime supports inference in either synchronous or asynchronous mode. Using the Async API can improve application's overall frame-rate, because rather than wait for inference to complete, the app can keep working on the host, while the accelerator is busy. You can use `ov::InferRequest::start_async` to start model inference in the asynchronous mode and call `ov::InferRequest::wait` to wait for the inference results:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/src/main.cpp
-       :language: cpp
-       :fragment: [part5]
+@snippet docs/snippets/src/main.cpp part5
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/src/main.py
-       :language: python
-       :fragment: [part5]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/src/main.py part5
+
+@endsphinxtab
+
+@endsphinxtabset
 
 This section demonstrates a simple pipeline, to get more information about other ways to perform inference, read the dedicated ["Run inference" section](./ov_infer_request.md).
 
@@ -196,21 +196,21 @@ This section demonstrates a simple pipeline, to get more information about other
 
 Go over the output tensors and process the inference results.
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/src/main.cpp
-       :language: cpp
-       :fragment: [part6]
+@snippet docs/snippets/src/main.cpp part6
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/src/main.py
-       :language: python
-       :fragment: [part6]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/src/main.py part6
+
+@endsphinxtab
+
+@endsphinxtabset
 
 ## Link and Build Your C++ Application with OpenVINO™ Runtime
 

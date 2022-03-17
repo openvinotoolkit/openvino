@@ -12,21 +12,21 @@ For details on how to build a model in OpenVINO™ Runtime, see the [Build a Mod
 
 OpenVINO™ Runtime allows using tensor names or indexes to work wit model inputs/outputs. To get model input/output ports, use the `ov::Model::inputs()` or `ov::Model::outputs()` methods respectively.
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
-       :language: cpp
-       :fragment: [all_inputs_ouputs]
+@snippet docs/snippets/ov_model_snippets.cpp all_inputs_ouputs
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_model_snippets.py
-       :language: python
-       :fragment: [all_inputs_ouputs]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_model_snippets.py all_inputs_ouputs
+
+@endsphinxtab
+
+@endsphinxtabset
 
 OpenVINO™ Runtime model representation uses special classes to work with model data types and shapes. For data types the `ov::element::Type` is used.
 
@@ -38,21 +38,21 @@ OpenVINO™ Runtime provides two types for shape representation:
 
 * `ov::PartialShape` - Represents dynamic shapes. That means that the rank or some of dimensions are dynamic (dimension defines an interval or undefined). `ov::PartialShape` can be converted to `ov::Shape` using the `get_shape()` method if all dimensions are static; otherwise the conversion raises an exception.
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-  .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
-     :language: cpp
-     :fragment: [ov:partial_shape]
+@snippet docs/snippets/ov_model_snippets.cpp ov:partial_shape
 
-.. tab:: Python
+@endsphinxtab
 
-  .. doxygensnippet:: docs/snippets/ov_model_snippets.py
-     :language: python
-     :fragment: [ov:partial_shape]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_model_snippets.py ov:partial_shape
+
+@endsphinxtab
+
+@endsphinxtabset
 
   But in most cases before getting static shape using `get_shape()` method, you need to check that shape is static.
 
@@ -76,78 +76,79 @@ Operation set `opsetX` integrates a list of pre-compiled operations that work 
 
 To build an `ov::Model` instance from `opset8` operations, include the following files:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
-       :language: cpp
-       :fragment: [ov:include]
+@snippet docs/snippets/ov_model_snippets.cpp ov:include
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_model_snippets.py
-       :language: python
-       :fragment: [import]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_model_snippets.py import
+
+@endsphinxtab
+
+@endsphinxtabset
 
 The following code demonstrates how to create a simple model:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
-       :language: cpp
-       :fragment: [ov:create_simple_model]
+@snippet docs/snippets/ov_model_snippets.cpp ov:create_simple_model
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_model_snippets.py
-       :language: python
-       :fragment: [ov:create_simple_model]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_model_snippets.py ov:create_simple_model
+
+@endsphinxtab
+
+@endsphinxtabset
 
 The following code creates a model with several outputs:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
-       :language: cpp
-       :fragment: [ov:create_advanced_model]
+@snippet docs/snippets/ov_model_snippets.cpp ov:create_advanced_model
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_model_snippets.py
-       :language: python
-       :fragment: [ov:create_advanced_model]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_model_snippets.py ov:create_advanced_model
+
+@endsphinxtab
+
+@endsphinxtabset
 
 ## Model debug capabilities
 
 OpenVINO™ provides several debug capabilities:
    - To receive additional messages about applied model modifications, rebuild the OpenVINO™ Runtime library with the `-DENABLE_OPENVINO_DEBUG=ON` option.
    - Model can be visualized to image from the xDot format:
-    @sphinxdirective
 
-    .. tab:: C++
+    @sphinxtabset
 
-        .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
-           :language: cpp
-           :fragment: [ov:visualize]
+    @sphinxtab{C++}
 
-    .. tab:: Python
+    @snippet docs/snippets/ov_model_snippets.cpp ov:visualize
 
-        .. doxygensnippet:: docs/snippets/ov_model_snippets.py
-           :language: python
-           :fragment: [ov:visualize]
+    @endsphinxtab
 
-    @endsphinxdirective
+    @sphinxtab{Python}
+
+    @snippet docs/snippets/ov_model_snippets.py ov:visualize
+
+    @endsphinxtab
+
+@endsphinxtabset
 
     `ov::pass::VisualizeTree` can be parametrized via environment variables:
 
@@ -159,21 +160,20 @@ OpenVINO™ provides several debug capabilities:
         OV_VISUALIZE_TREE_MEMBERS_NAME=1        - print member names
 
    - Also model can be serialized to IR:
-    @sphinxdirective
 
-    .. tab:: C++
+     @sphinxtabset
 
-        .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
-           :language: cpp
-           :fragment: [ov:serialize]
+     @sphinxtab{C++}
 
-    .. tab:: Python
+     @snippet docs/snippets/ov_model_snippets.cpp ov:serialize
 
-        .. doxygensnippet:: docs/snippets/ov_model_snippets.py
-           :language: python
-           :fragment: [ov:serialize]
+     @endsphinxtab
 
-    @endsphinxdirective
+     @sphinxtab{Python}
+
+     @snippet docs/snippets/ov_model_snippets.py ov:serialize
+
+     @endsphinxtab
 
 ## See Also
 
