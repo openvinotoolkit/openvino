@@ -4,7 +4,8 @@ from openvino.inference_engine import IECore
 model_path = "/openvino_CI_CD/result/install_pkg/tests/test_model_zoo/core/models/ir/add_abc.xml"
 path_to_model = "/openvino_CI_CD/result/install_pkg/tests/test_model_zoo/core/models/ir/add_abc.xml"
 
-def part1():
+def part0():
+#! [part0]
     core = Core()
 
     # Read a network in IR, PaddlePaddle, or ONNX format:
@@ -23,8 +24,10 @@ def part1():
 
     # the AUTO plugin is pre-configured (globally) with the explicit option:
     core.set_property(device_name="AUTO", properties={"MULTI_DEVICE_PRIORITIES":"GPU,CPU"})
+#! [part0]
 
-def test2():
+def part1():
+#! [part1]
     ### API before 2022.1 ###
     ie = IECore()
 
@@ -44,8 +47,10 @@ def test2():
 
     # the AUTO plugin is pre-configured (globally) with the explicit option:
     ie.set_config(config={"MULTI_DEVICE_PRIORITIES":"GPU,CPU"}, device_name="AUTO");
+#! [part1]
 
-def test3():
+def part3():
+#! [part3]
     core = Core()
     # Read a network in IR, PaddlePaddle, or ONNX format:
     model = core.read_model(model_path)
@@ -54,8 +59,10 @@ def test3():
     compiled_model = core.compile_model(model=model, device_name="AUTO:GPU,CPU", config={"PERFORMANCE_HINT":"THROUGHPUT"})
     # or the “latency” mode:
     compiled_model = core.compile_model(model=model, device_name="AUTO:GPU,CPU", config={"PERFORMANCE_HINT":"LATENCY"})
+#! [part3]
 
-def test4():
+def part4():
+#! [part4]
     core = Core()
     model = core.read_model(model_path)
     compiled_model0 = core.compile_model(model=model, device_name="AUTO:GPU,MYRIAD,CPU", config={"MODEL_PRIORITY":"HIGH"})
@@ -64,21 +71,24 @@ def test4():
     compiled_model0 = core.compile_model(model=model, device_name="AUTO:GPU,MYRIAD,CPU", config={"MODEL_PRIORITY":"HIGH"})
     compiled_model1 = core.compile_model(model=model, device_name="AUTO:GPU,MYRIAD,CPU", config={"MODEL_PRIORITY":"MEDIUM"})
     compiled_model2 = core.compile_model(model=model, device_name="AUTO:GPU,MYRIAD,CPU", config={"MODEL_PRIORITY":"LOW"})
+#! [part4]
 
-def test5():
+def part5():
+#! [part5]
     core = Core()
     model = core.read_model(model_path)
     core.set_property(device_name="CPU", properties={})
     core.set_property(device_name="MYRIAD", properties={})
     compiled_model = core.compile_model(model=model)
     compiled_model = core.compile_model(model=model, device_name="AUTO")
+#! [part5]
 
 def main():
-    test1()
-    test2()
-    test3()
-    test4()
-    test5()
+    part0()
+    part1()
+    part3()
+    part4()
+    part5()
 
 if __name__ == '__main__':
     sys.exit(main())
