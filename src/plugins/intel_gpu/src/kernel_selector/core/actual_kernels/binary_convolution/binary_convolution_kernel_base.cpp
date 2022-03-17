@@ -118,7 +118,7 @@ KernelsData BinaryConvolutionKernelBase::GetCommonKernelsData(const Params& para
     binary_convolution_params& newParams = *static_cast<binary_convolution_params*>(kd.params.get());
 
     if (NeedPaddedInput()) {
-        kd.reorderInput = CovolutionBinaryUpdateInputParams(newParams);
+        kd.reorderInput = ConvolutionBinaryUpdateInputParams(newParams);
     }
     DispatchData dispatchData = SetDefault(newParams, autoTuneIndex);
 
@@ -216,7 +216,7 @@ static DataTensor GetConvolutionBFYXPaddedTensor(const binary_convolution_params
     return {dims, t.GetDType(), t.GetLayout()};
 }
 
-bool CovolutionBinaryCheckInput(const Params& p, const optional_params& o) {
+bool ConvolutionBinaryCheckInput(const Params& p, const optional_params& o) {
     const binary_convolution_params& params = static_cast<const binary_convolution_params&>(p);
     const binary_convolution_optional_params& optParams = static_cast<const binary_convolution_optional_params&>(o);
 
@@ -231,7 +231,7 @@ bool CovolutionBinaryCheckInput(const Params& p, const optional_params& o) {
     return true;
 }
 
-bool CovolutionBinaryUpdateInputParams(binary_convolution_params& params) {
+bool ConvolutionBinaryUpdateInputParams(binary_convolution_params& params) {
     const auto req_input = GetConvolutionBFYXPaddedTensor(params);
     const bool bProperInputDesc = CheckConvolutionBinaryPaddedInputDesc(params, req_input);
 

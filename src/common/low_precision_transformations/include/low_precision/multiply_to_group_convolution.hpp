@@ -23,7 +23,7 @@ namespace low_precision {
  */
 class LP_TRANSFORMATIONS_API MultiplyToGroupConvolutionTransformation : public LayerTransformation {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("MultiplyToGroupConvolutionTransformation", "0");
     MultiplyToGroupConvolutionTransformation(
         const Params& params = Params(),
         const OperationPrecisionRestriction::PrecisionsByPort& restrictions = {});

@@ -20,7 +20,7 @@ namespace low_precision {
  */
 class LP_TRANSFORMATIONS_API NormalizeL2Transformation : public LayerTransformation {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("NormalizeL2Transformation", "0");
     NormalizeL2Transformation(const Params& params = Params());
     bool transform(TransformationContext &context, ngraph::pattern::Matcher &m) override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
