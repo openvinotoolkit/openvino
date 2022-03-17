@@ -30,7 +30,7 @@ ov::NodeTypeInfo get_type(const std::string & type_name) {
     }
 
     // Skip delimiter
-    while (it != type_name.cend() && *it == '.' || *it == ':') {
+    while (it != type_name.cend() && (*it == '.' || *it == ':')) {
         ++it;
     }
 
