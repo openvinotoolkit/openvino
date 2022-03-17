@@ -109,7 +109,7 @@ std::shared_ptr<ov::Model> create_model(const std::string& path_to_weights) {
     Shape padBeginShape{0, 0};
     Shape padEndShape{0, 0};
 
-    auto maxPoolingNodeFirst = std::make_shared<opset1::MaxPool>(addNodeFirst->output(0),
+    auto maxPoolingNodeFirst = std::make_shared<opset8::MaxPool>(addNodeFirst->output(0),
                                                                  Strides{2, 2},
                                                                  padBeginShape,
                                                                  padEndShape,
@@ -139,7 +139,7 @@ std::shared_ptr<ov::Model> create_model(const std::string& path_to_weights) {
         std::make_shared<opset8::Add>(convolutionNodeSecond->output(0), addSecondConstantNode->output(0));
 
     // -------MAXPOOL 2--------
-    auto maxPoolingNodeSecond = std::make_shared<opset1::MaxPool>(addNodeSecond->output(0),
+    auto maxPoolingNodeSecond = std::make_shared<opset8::MaxPool>(addNodeSecond->output(0),
                                                                   Strides{2, 2},
                                                                   padBeginShape,
                                                                   padEndShape,
