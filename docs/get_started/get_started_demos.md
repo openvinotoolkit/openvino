@@ -393,7 +393,7 @@ The following commands run the Image Classification Code Sample using the [`car.
 @endsphinxdirective
 
    **GPU:**
-   > **NOTE**: Running inference on Intel® Processor Graphics (GPU) requires [additional hardware configuration steps](https://docs.openvino.ai/latest/_docs_install_guides_installing_openvino_linux.html#additional-GPU-steps), as described earlier on this page. Running on GPU is not compatible with macOS*.
+   > **NOTE**: Running inference on Intel® Processor Graphics (GPU) requires [additional hardware configuration steps](../install_guides/configurations-for-intel-gpu.md), as described earlier on this page. Running on GPU is not compatible with macOS*.
 
 @sphinxdirective
 .. tab:: Linux
