@@ -82,9 +82,10 @@ public:
 
         SetRefMode(LayerTestsUtils::RefMode::INTERPRETER);
 
-        std::tie(inPrc.front(), channels, use_set_input, targetDevice, configuration) = this->GetParam();
-        outPrc.front() = inPrc.front();
-        auto nPrc = inPrc.front();
+        InferenceEngine::Precision nPrc;
+        std::tie(nPrc, channels, use_set_input, targetDevice, configuration) = this->GetParam();
+        inPrc.front() = nPrc;
+        outPrc.front() = nPrc;
 
         bool specialZero = true;
 
