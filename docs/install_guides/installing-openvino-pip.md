@@ -10,14 +10,14 @@ You can install both OpenVINO™ Runtime and OpenVINO Development Tools through 
 
 Below you can find all the supported operating systems and the required Python versions. 
 
-|Operating System (64-bit)                        | [Python Version](https://www.python.org/downloads/) (64-bit)                 |
+|Operating System (64-bit)                         | [Python Version](https://www.python.org/downloads/) (64-bit)                   |
 |--------------------------------------------------|--------------------------------------------------------------------------------|
-|CentOS* 7                                         | 3.6, 3.7, 3.8                                                                  |
-|macOS* 10.15.x versions                           | 3.6, 3.7, 3.8                                                                  |
-|Red Hat* Enterprise Linux* 8                      | 3.6, 3.8                                                                       |
-|Ubuntu* 18.04 long-term support (LTS)             | 3.6, 3.7, 3.8                                                                  |
-|Ubuntu* 20.04 long-term support (LTS)             | 3.6, 3.7, 3.8                                                                  |
-|Windows 10*                                       | 3.6, 3.7, 3.8                                                                  |
+|CentOS  7                                         | 3.6, 3.7, 3.8                                                                  |
+|macOS 10.15.x versions                            | 3.6, 3.7, 3.8                                                                  |
+|Red Hat Enterprise Linux  8                       | 3.6, 3.8                                                                       |
+|Ubuntu 18.04 long-term support (LTS)              | 3.6, 3.7, 3.8                                                                  |
+|Ubuntu 20.04 long-term support (LTS)              | 3.6, 3.7, 3.8                                                                  |
+|Windows 10                                        | 3.6, 3.7, 3.8                                                                  |
 
 @sphinxdirective
 
