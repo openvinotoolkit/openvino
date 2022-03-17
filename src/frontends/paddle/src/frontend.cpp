@@ -326,6 +326,10 @@ void FrontEnd::try_remove_internal_ops(const std::vector<std::shared_ptr<Model>>
         manager.register_pass<ov::frontend::paddle::pass::TransformWhile>(models);
         manager.run_passes(model);
     }
+    if (models.size() > 0) {
+        // revalidate as child models are transformed after parent models.
+        models[0]->validate_nodes_and_infer_types();
+    }
 }
 
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
@@ -423,7 +427,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const
         });
 
     try_remove_internal_ops(f);
-    return ngraph::clone_function(*f[0]);
+    return f[0];
 }
 
 void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) const {
@@ -469,7 +473,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& mo
 
     try_remove_internal_ops(f);
 
-    return ngraph::clone_function(*f[0]);
+    return f[0];
 }
 
 std::shared_ptr<ov::Model> FrontEnd::decode(const InputModel::Ptr& model) const {
