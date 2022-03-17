@@ -284,8 +284,8 @@ Many sources are available from which you can download video media to use the co
 
 As an alternative, the Intel® Distribution of OpenVINO™ toolkit includes several sample images and videos that you can use for running code samples and demo applications:
 
-   - `Sample images and video <https://storage.openvinotoolkit.org/data/test_data/>`_
-   - `Sample videos <https://github.com/intel-iot-devkit/sample-videos>`_
+   - [Sample images and video](https://storage.openvinotoolkit.org/data/test_data/)
+   - [Sample videos](https://github.com/intel-iot-devkit/sample-videos)
 
 ## <a name="run-image-classification"></a>Step 4: Run Inference on the Sample
 
