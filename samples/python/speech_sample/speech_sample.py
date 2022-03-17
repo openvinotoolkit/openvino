@@ -136,7 +136,7 @@ def main():
             else:
                 scale_factors = []
 
-                for file_name in re.split(', |,', args.input):
+                for file_name in args.input[1]:
                     _, utterances = read_utterance_file(file_name)
                     scale_factors.append(get_scale_factor(utterances[0]))
 
@@ -175,12 +175,8 @@ def main():
         return 0
 
 # --------------------------- Step 6. Set up input --------------------------------------------------------------------
-    if args.input_layers:
-        input_layer_names = re.split(', |,', args.input_layers)
-    else:
-        input_layer_names = [_input.any_name for _input in compiled_model.inputs]
-
-    input_file_names = re.split(', |,', args.input)
+    input_layer_names = args.input[0] if args.input[0] else [_input.any_name for _input in compiled_model.inputs]
+    input_file_names = args.input[1]
 
     if len(input_layer_names) != len(input_file_names):
         log.error(f'Number of model inputs ({len(compiled_model.inputs)}) is not equal '
