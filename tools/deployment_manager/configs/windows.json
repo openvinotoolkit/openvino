@@ -71,7 +71,6 @@
       "dependencies" : ["ie_core"],
       "files": [
         "runtime/bin/intel64/Release/openvino_intel_hddl_plugin.dll",
-        "runtime/3rdparty/MovidiusDriver",
         "runtime/3rdparty/hddl"
       ]
     },
