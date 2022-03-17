@@ -45,18 +45,13 @@ See [low-precision optimization guide](@ref pot_docs_LowPrecisionOptimizationGui
 ### Floating point data types specifics
 
 Default floating-point precision of a CPU primitive is f32. To support f16 IRs the plugin internally converts all the f16 values to f32 and all the calculations are performed using native f32 precision.
-On platforms that natively support bfloat16 calculations (have AVX512_BF16 extension) bf16 type is automatically used instead of f32 to achieve better performance.
+On platforms that natively support bfloat16 calculations (have AVX512_BF16 extension) bf16 type is automatically used instead of f32 to achieve better performance, thus no special steps are required to run a model with bf16 precision.
 See the [BFLOAT16 – Hardware Numerics Definition white paper](https://software.intel.com/content/dam/develop/external/us/en/documents/bf16-hardware-numerics-definition-white-paper.pdf) for more details about bfloat16 format.
 
 Using bf16 precision provides the following performance benefits:
 
-1. Faster multiplication of two bfloat16 numbers because of shorter mantissa of the bfloat16 data.
-2. No need to support denormals and handling exceptions as this is a performance optimization.
-3. Fast conversion of float32 to bfloat16 and vice versa.
-4. Reduced size of data in memory, as a result, larger models fit in the same memory bounds.
-5. Reduced amount of data that must be transferred, as a result, reduced data transition time.
-
-On platforms with native bfloat16 support the source model tensors precisions are internally converted from f32 and f16 to bf16, thus no special steps are required.
+- Faster multiplication of two bfloat16 numbers because of shorter mantissa of the bfloat16 data.
+- Reduced memory consumption since bfloat16 data size is two times less than 32-bit float. 
 
 To check if the CPU device can support the bfloat16 data type use the [query device properties interface](./config_properties.md) to query ov::device::capabilities property, which should contain `BF16` in the list of CPU capabilities:
 
@@ -66,16 +61,16 @@ In case if the model was converted to bf16, ov::hint::inference_precision is set
 
 @snippet snippets/cpu/Bfloat16Inference1.cpp part1
 
-To disable bf16 internal transformations, set the ov::hint::inference_precision to ov::element::f32. In this case, the model infers as is without modifications with precisions that were set on each layer edge.
+To infer the model in f32 precision instead of bf16 on targets with native bf16 support, set the ov::hint::inference_precision to ov::element::f32.
 
 @snippet snippets/cpu/Bfloat16Inference2.cpp part2
 
 Bfloat16 software simulation mode is available on CPUs with Intel® AVX-512 instruction set that do not support the native `avx512_bf16` instruction. This mode is used for development purposes and it does not guarantee good performance.
 To enable the simulation, one have to explicitly set ov::hint::inference_precision to ov::element::bf16.
 
-> **NOTE**: An exception with the message `Platform doesn't support BF16 format` is formed in case of setting ov::hint::inference_precision to ov::element::bf16 on CPU without native bfloat16 support or bfloat16 simulation mode.
+> **NOTE**: An exception is thrown in case of setting ov::hint::inference_precision to ov::element::bf16 on CPU without native bfloat16 support or bfloat16 simulation mode.
 
-> **NOTE**: Due to the reduced mantissa size of the bfloat16 data type, the resulting bf16 inference accuracy may differ from the f32 inference, especially for models that were not trained using the bfloat16 data type. If the bf16 inference accuracy is not acceptable, it is recommended to switch to the float32 data type.
+> **NOTE**: Due to the reduced mantissa size of the bfloat16 data type, the resulting bf16 inference accuracy may differ from the f32 inference, especially for models that were not trained using the bfloat16 data type. If the bf16 inference accuracy is not acceptable, it is recommended to switch to the f32 precision.
   
 ## Supported features
 
@@ -100,7 +95,7 @@ See [optimization guide](@ref openvino_docs_deployment_optimization_guide_dldt_o
 ### Dynamic shapes
 CPU plugin provides full functional support for models with dynamic shapes in terms of the opset coverage.
 
-> **NOTE**: CPU plugin does not support tensors with dynamically changing rank. In case of an attempt to infer a model with such tensors an error `"CPU plug-in doesn't support <op_type> operation with dynamic rank. Operation name: <op_name>"` will be generated.
+> **NOTE**: CPU plugin does not support tensors with dynamically changing rank. In case of an attempt to infer a model with such tensors, an exception will be thrown.
 
 Dynamic shapes support introduce some additional overheads on memory management and may limit internal runtime optimizations.
 The more degrees of freedom we have, the more difficult it is to achieve the best performance.
@@ -122,20 +117,23 @@ CPU plugin supports a full set of the preprocessing operations, providing high p
 
 See [preprocessing API guide](../preprocessing_overview.md) for more details.
 
-The CPU plugin support for handling tensor precision conversion is limited to the following ov::element types:
-- bf16
-- f16
-- f32
-- f64
-- i8
-- i16
-- i32
-- i64
-- u8
-- u16
-- u32
-- u64
-- boolean
+@sphinxdirective
+.. dropdown:: The CPU plugin support for handling tensor precision conversion is limited to the following ov::element types:
+
+    * bf16
+    * f16
+    * f32
+    * f64
+    * i8
+    * i16
+    * i32
+    * i64
+    * u8
+    * u16
+    * u32
+    * u64
+    * boolean
+@endsphinxdirective
 
 ### Models caching
 CPU plugin supports Import/Export network capability. If the model caching is enabled via common OpenVINO™ `ov::cache_dir` property, the plugin will automatically create a cached blob inside the specified directory during model compilation.
@@ -184,15 +182,26 @@ All parameters must be set before calling `ov::Core::compile_model()` in order t
 
 ## External dependencies
 For some performance-critical DL operations, the CPU plugin uses optimized implementations from the Intel® oneAPI Deep Neural Network Library ([Intel® oneDNN](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onednn.html)).
-The following operations from OneDNN library are used:
-- Convolution
-- Inner Product
-- Matrix Multiplication
-- RNN
-- Concat
-- Pooling
-- Softmax
-- Reorder
+
+@sphinxdirective
+.. dropdown:: The following operations are implemented using primitives from the OneDNN library:
+
+    * Concat
+    * Convolution
+    * ConvolutionBackpropData
+    * GroupConvolution
+    * GroupConvolutionBackpropData
+    * GRUCell
+    * GRUSequence
+    * LRN
+    * LSTMCell
+    * LSTMSequence
+    * MatMul
+    * MaxPool
+    * RNNCell
+    * RNNSequence
+    * SoftMax
+@endsphinxdirective
 
 ## See Also
 * [Supported Devices](Supported_Devices.md)
