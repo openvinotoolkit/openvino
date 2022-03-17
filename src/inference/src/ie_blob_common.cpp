@@ -27,12 +27,11 @@ void Blob::setShape(const SizeVector& dims) {
         }
     }
 
-    // 2. Blobs created on top of preallocated memory
-    if (std::dynamic_pointer_cast<InferenceEngine::details::PreAllocator>(getAllocator())) {
-        IE_THROW() << "Cannot call setShape for Blobs created on top of preallocated memory.";
-    }
-
     if (properProduct(dims) > properProduct(getTensorDesc().getDims())) {
+        // 2. Blobs created on top of preallocated memory
+        if (std::dynamic_pointer_cast<InferenceEngine::details::PreAllocator>(getAllocator())) {
+            IE_THROW() << "Cannot call setShape for Blobs created on top of preallocated memory if shape was increased.";
+        }
         // New blob shape requires more memory than old one -- reallocate
         if (!deallocate()) {
             IE_THROW() << "Cannot deallocate blob while an attempt to enlarge blob area in setShape.";
