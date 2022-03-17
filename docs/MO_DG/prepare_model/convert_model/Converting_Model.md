@@ -1,5 +1,8 @@
 # Setting Input Shapes {#openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model}
 
+Model Optimizer provides the option of making models more efficient by providing additional shape definition.
+It is achieved with two parameters: `--input_shape` and `--static_shape`, used under certain conditions.
+
 ## When to Specify --input_shape Command-line Parameter <a name="when_to_specify_input_shapes"></a>
 Model Optimizer supports conversion of models with dynamic input shapes that contain undefined dimensions.
 However, if the shape of data is not going to change from one inference to another,
