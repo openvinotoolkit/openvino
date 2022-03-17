@@ -44,27 +44,27 @@ Available devices:
 
 Then device name can be passed to `ov::Core::compile_model()` method:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: Running on default device
+@sphinxtab{Running on default device}
 
-    .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
-        :language: cpp
-        :fragment: [compile_model_default_gpu]
+@snippet docs/snippets/gpu/compile_model.cpp compile_model_default_gpu
 
-.. tab:: Running on specific GPU
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
-        :language: cpp
-        :fragment: [compile_model_gpu_with_id]
+@sphinxtab{Running on specific GPU}
 
-.. tab:: Running on specific tile
+@snippet docs/snippets/gpu/compile_model.cpp compile_model_gpu_with_id
 
-    .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
-        :language: cpp
-        :fragment: [compile_model_gpu_with_id_and_tile]
+@endsphinxtab
 
-@endsphinxdirective
+@sphinxtab{Running on specific tile}
+
+@snippet docs/snippets/gpu/compile_model.cpp compile_model_gpu_with_id_and_tile
+
+@endsphinxtab
+
+@endsphinxtabset
 
 ## Supported inference data types
 GPU plugin supports the following data types as inference precision of internal primitives:
@@ -102,21 +102,21 @@ GPU plugin is capable of reporting `ov::max_batch_size` and `ov::optimal_batch_s
 thus automatic batching can be applied in cases when `ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)` is set
 or device is specified as `"BATCH:GPU"`.
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: Batching via BATCH plugin
+@sphinxtab{Batching via BATCH plugin}
 
-    .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
-        :language: cpp
-        :fragment: [compile_model_batch_plugin]
+@snippet docs/snippets/gpu/compile_model.cpp compile_model_batch_plugin
 
-.. tab:: Bacthing via throughput hint
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
-        :language: cpp
-        :fragment: [compile_model_auto_batch]
+@sphinxtab{Bacthing via throughput hint}
 
-@endsphinxdirective
+@snippet docs/snippets/gpu/compile_model.cpp compile_model_auto_batch
+
+@endsphinxtab
+
+@endsphinxtabset
 
 See [Automatic batching page](../automatic_batching.md) for more details.
 

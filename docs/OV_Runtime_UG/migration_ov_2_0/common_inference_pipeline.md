@@ -67,162 +67,162 @@ OpenVINO™ Runtime API 2.0:
 
 Inference Engine API fills inputs as `I32` precision (**not** aligned with the original model):
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: IR v10
+@sphinxtab{IR v10}
 
-    .. doxygensnippet:: docs/snippets/ie_common.cpp
-       :language: cpp
-       :fragment: [ie:get_input_tensor]
+@snippet docs/snippets/ie_common.cpp ie:get_input_tensor
 
-.. tab:: IR v11
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ie_common.cpp
-       :language: cpp
-       :fragment: [ie:get_input_tensor]
+@sphinxtab{IR v11}
 
-.. tab:: ONNX
+@snippet docs/snippets/ie_common.cpp ie:get_input_tensor
 
-    .. doxygensnippet:: docs/snippets/ie_common.cpp
-       :language: cpp
-       :fragment: [ie:get_input_tensor]
+@endsphinxtab
 
-.. tab:: Model created in code
+@sphinxtab{ONNX}
 
-    .. doxygensnippet:: docs/snippets/ie_common.cpp
-       :language: cpp
-       :fragment: [ie:get_input_tensor]
+@snippet docs/snippets/ie_common.cpp ie:get_input_tensor
 
-@endsphinxdirective
+@endsphinxtab
+
+@sphinxtab{Model created in code}
+
+@snippet docs/snippets/ie_common.cpp ie:get_input_tensor
+
+@endsphinxtab
+
+@endsphinxtabset
 
 OpenVINO™ Runtime API 2.0 fills inputs as `I64` precision (aligned with the original model):
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: IR v10
+@sphinxtab{IR v10}
 
-    .. doxygensnippet:: docs/snippets/ov_common.cpp
-       :language: cpp
-       :fragment: [ov_api_2_0:get_input_tensor_v10]
+@snippet docs/snippets/ov_common.cpp ov_api_2_0:get_input_tensor_v10
 
-.. tab:: IR v11
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_common.cpp
-       :language: cpp
-       :fragment: [ov_api_2_0:get_input_tensor_aligned]
+@sphinxtab{IR v11}
 
-.. tab:: ONNX
+@snippet docs/snippets/ov_common.cpp ov_api_2_0:get_input_tensor_aligned
 
-    .. doxygensnippet:: docs/snippets/ov_common.cpp
-       :language: cpp
-       :fragment: [ov_api_2_0:get_input_tensor_aligned]
+@endsphinxtab
 
-.. tab:: Model created in code
+@sphinxtab{ONNX}
 
-    .. doxygensnippet:: docs/snippets/ov_common.cpp
-       :language: cpp
-       :fragment: [ov_api_2_0:get_input_tensor_aligned]
+@snippet docs/snippets/ov_common.cpp ov_api_2_0:get_input_tensor_aligned
 
-@endsphinxdirective
+@endsphinxtab
+
+@sphinxtab{Model created in code}
+
+@snippet docs/snippets/ov_common.cpp ov_api_2_0:get_input_tensor_aligned
+
+@endsphinxtab
+
+@endsphinxtabset
 
 ## 6. Start Inference
 
 Inference Engine API:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: Sync
+@sphinxtab{Sync}
 
-    .. doxygensnippet:: docs/snippets/ie_common.cpp
-       :language: cpp
-       :fragment: [ie:inference]
+@snippet docs/snippets/ie_common.cpp ie:inference
 
-.. tab:: Async
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ie_common.cpp
-       :language: cpp
-       :fragment: [ie:start_async_and_wait]
+@sphinxtab{Async}
 
-@endsphinxdirective
+@snippet docs/snippets/ie_common.cpp ie:start_async_and_wait
+
+@endsphinxtab
+
+@endsphinxtabset
 
 OpenVINO™ Runtime API 2.0:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: Sync
+@sphinxtab{Sync}
 
-    .. doxygensnippet:: docs/snippets/ov_common.cpp
-       :language: cpp
-       :fragment: [ov_api_2_0:inference]
+@snippet docs/snippets/ov_common.cpp ov_api_2_0:inference
 
-.. tab:: Async
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_common.cpp
-       :language: cpp
-       :fragment: [ov_api_2_0:start_async_and_wait]
+@sphinxtab{Async}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_common.cpp ov_api_2_0:start_async_and_wait
+
+@endsphinxtab
+
+@endsphinxtabset
 
 ## 7. Process the Inference Results
 
 Inference Engine API processes outputs as `I32` precision (**not** aligned with the original model):
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: IR v10
+@sphinxtab{IR v10}
 
-    .. doxygensnippet:: docs/snippets/ie_common.cpp
-       :language: cpp
-       :fragment: [ie:get_output_tensor]
+@snippet docs/snippets/ov_common.cpp ov_api_2_0:inference
 
-.. tab:: IR v11
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ie_common.cpp
-       :language: cpp
-       :fragment: [ie:get_output_tensor]
+@sphinxtab{IR v11}
 
-.. tab:: ONNX
+@snippet docs/snippets/ie_common.cpp ie:get_output_tensor
 
-    .. doxygensnippet:: docs/snippets/ie_common.cpp
-       :language: cpp
-       :fragment: [ie:get_output_tensor]
+@endsphinxtab
 
-.. tab:: Model created in code
+@sphinxtab{ONNX}
 
-    .. doxygensnippet:: docs/snippets/ie_common.cpp
-       :language: cpp
-       :fragment: [ie:get_output_tensor]
+@snippet docs/snippets/ie_common.cpp ie:get_output_tensor
 
-@endsphinxdirective
+@endsphinxtab
+
+@sphinxtab{Model created in code}
+
+@snippet docs/snippets/ie_common.cpp ie:get_output_tensor
+
+@endsphinxtab
+
+@endsphinxtabset
 
 OpenVINO™ Runtime API 2.0 processes outputs:
 - For IR v10 as `I32` precision (**not** aligned with the original model) to match **old** behavior
 - For IR v11, ONNX, ov::Model, Paddle as `I64` precision (aligned with the original model) to match **new** behavior
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: IR v10
+@sphinxtab{IR v10}
 
-    .. doxygensnippet:: docs/snippets/ov_common.cpp
-       :language: cpp
-       :fragment: [ov_api_2_0:get_output_tensor_v10]
+@snippet docs/snippets/ov_common.cpp ov_api_2_0:get_output_tensor_v10
 
-.. tab:: IR v11
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_common.cpp
-       :language: cpp
-       :fragment: [ov_api_2_0:get_output_tensor_aligned]
+@sphinxtab{IR v11}
 
-.. tab:: ONNX
+@snippet docs/snippets/ov_common.cpp ov_api_2_0:get_output_tensor_aligned
 
-    .. doxygensnippet:: docs/snippets/ov_common.cpp
-       :language: cpp
-       :fragment: [ov_api_2_0:get_output_tensor_aligned]
+@endsphinxtab
 
-.. tab:: Model created in code
+@sphinxtab{ONNX}
 
-    .. doxygensnippet:: docs/snippets/ov_common.cpp
-       :language: cpp
-       :fragment: [ov_api_2_0:get_output_tensor_aligned]
+@snippet docs/snippets/ov_common.cpp ov_api_2_0:get_output_tensor_aligned
 
-@endsphinxdirective
+@endsphinxtab
+
+@sphinxtab{Model created in code}
+
+@snippet docs/snippets/ov_common.cpp ov_api_2_0:get_output_tensor_aligned
+
+@endsphinxtab
+
+@endsphinxtabset

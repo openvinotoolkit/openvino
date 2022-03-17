@@ -67,61 +67,73 @@ Use the following code to create OpenVINO™ Core to manage available devices an
 
 Compile the model for a specific device using `ov::Core::compile_model()`:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. tab:: IR
+@sphinxtabset
 
-        .. doxygensnippet:: docs/snippets/src/main.cpp
-           :language: cpp
-           :fragment: [part2_1]
+@sphinxtab{IR}
 
-    .. tab:: ONNX
+@snippet docs/snippets/src/main.cpp part2_1
 
-        .. doxygensnippet:: docs/snippets/src/main.cpp
-           :language: cpp
-           :fragment: [part2_2]
+@endsphinxtab
 
-    .. tab:: PaddlePaddle
+@sphinxtab{ONNX}
 
-        .. doxygensnippet:: docs/snippets/src/main.cpp
-           :language: cpp
-           :fragment: [part2_3]
+@snippet docs/snippets/src/main.cpp part2_2
 
-    .. tab:: ov::Model
+@endsphinxtab
 
-        .. doxygensnippet:: docs/snippets/src/main.cpp
-           :language: cpp
-           :fragment: [part2_4]
+@sphinxtab{PaddlePaddle}
 
-.. tab:: Python
+@snippet docs/snippets/src/main.cpp part2_3
 
-    .. tab:: IR
+@endsphinxtab
 
-        .. doxygensnippet:: docs/snippets/src/main.py
-           :language: python
-           :fragment: [part2_1]
+@sphinxtab{ov::Model}
 
-    .. tab:: ONNX
+@snippet docs/snippets/src/main.cpp part2_4
 
-        .. doxygensnippet:: docs/snippets/src/main.py
-           :language: python
-           :fragment: [part2_2]
+@endsphinxtab
 
-    .. tab:: PaddlePaddle
+@endsphinxtabset
 
-        .. doxygensnippet:: docs/snippets/src/main.py
-           :language: python
-           :fragment: [part2_3]
+@endsphinxtab
 
-    .. tab:: ov::Model
+@sphinxtab{Python}
 
-        .. doxygensnippet:: docs/snippets/src/main.py
-           :language: python
-           :fragment: [part2_4]
+@sphinxtabset
 
-@endsphinxdirective
+@sphinxtab{IR}
+
+@snippet docs/snippets/src/main.py part2_1
+
+@endsphinxtab
+
+@sphinxtab{ONNX}
+
+@snippet docs/snippets/src/main.py part2_2
+
+@endsphinxtab
+
+@sphinxtab{PaddlePaddle}
+
+@snippet docs/snippets/src/main.py part2_3
+
+@endsphinxtab
+
+@sphinxtab{ov::Model}
+
+@snippet docs/snippets/src/main.py part2_4
+
+@endsphinxtab
+
+@endsphinxtabset
+
+@endsphinxtab
+
+@endsphinxtabset
 
 The `ov::Model` object represents any models inside the OpenVINO™ Runtime.
 For more details please read article about [OpenVINO™ Model representation](model_representation.md).
