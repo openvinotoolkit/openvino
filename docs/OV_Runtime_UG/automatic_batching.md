@@ -77,7 +77,7 @@ For example, the application processes only 4 video streams, so there is no need
 
 @sphinxtab{C++}
 
-@snippet docs/snippets/ov_auto_batching.cpp hint_num_request
+@snippet docs/snippets/ov_auto_batching.cpp hint_num_requests
 
 @endsphinxtab
 

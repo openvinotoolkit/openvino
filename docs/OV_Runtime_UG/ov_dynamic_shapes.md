@@ -90,6 +90,7 @@ Bounds are coded as arguments for `ov::Dimension`:
 
 @snippet docs/snippets/ov_dynamic_shapes.py reshape_bounds
 @endsphinxtab
+@endsphinxtabset
 
 Information about bounds gives opportunity for the inference plugin to apply additional optimizations.
 Using dynamic shapes assumes the plugins apply more loose optimization technique during model compilation
@@ -121,6 +122,7 @@ This is similar to [regular steps](integrate_with_your_application.md), but now 
 
 @snippet docs/snippets/ov_dynamic_shapes.py set_input_tensor
 @endsphinxtab
+@endsphinxtabset
 
 In the example above `set_input_tensor` is used to specify input tensors.
 The real dimensions of the tensor is always static, because it is a concrete tensor and it doesn't have any dimension variations in contrast to model inputs.
@@ -144,6 +146,8 @@ The following example makes the same sequence of two infer request as the previo
 @snippet  docs/snippets/ov_dynamic_shapes.py get_input_tensor
 @endsphinxtab
 
+@endsphinxtabset
+
 ### Dynamic Shapes in Outputs
 
 Examples above handle correctly case when dynamic dimensions in output may be implied by propagating of dynamic dimension from the inputs.
@@ -166,6 +170,8 @@ The same is applicable for inputs. For example:
 @snippet docs/snippets/ov_dynamic_shapes.py print_dynamic
 @endsphinxtab
 
+@endpshinxtabset
+
 Appearing `?` or ranges like `1..10` means there are dynamic dimensions in corresponding inputs or outputs.
 
 Or more programmatically:
@@ -182,6 +188,8 @@ Or more programmatically:
 
 @snippet docs/snippets/ov_dynamic_shapes.py detect_dynamic
 @endsphinxtab
+
+@endsphinxtabset
 
 
 If at least one dynamic dimension exists in output of the model, shape of the corresponding output tensor will be set as the result of inference call.
