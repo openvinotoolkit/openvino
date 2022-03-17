@@ -9,7 +9,7 @@
 #include "openvino/frontend/extension/op.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/frontend/place.hpp"
-#include "plugin_loader.hpp"
+#include "openvino/frontend/plugin_loader.hpp"
 #include "so_extension.hpp"
 #include "utils.hpp"
 
@@ -75,6 +75,11 @@ void FrontEnd::normalize(const std::shared_ptr<Model>& model) const {
 
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     if (m_actual) {
+        if (auto so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension)) {
+            if (std::dynamic_pointer_cast<ov::BaseOpExtension>(so_ext->extension())) {
+                add_extension_to_shared_data(m_shared_object, so_ext->extension());
+            }
+        }
         add_extension_to_shared_data(m_shared_object, extension);
         m_actual->add_extension(extension);
         return;

@@ -20,9 +20,9 @@
 #include <string>
 #include <vector>
 
+#include "openvino/frontend/plugin_loader.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
-#include "plugin_loader.hpp"
 
 using namespace ov;
 using namespace ov::frontend;

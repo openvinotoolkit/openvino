@@ -45,7 +45,6 @@ protected:
     InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override;
 
 private:
-    std::vector<ov::Extension::Ptr> extensions;
     std::shared_ptr<TelemetryExtension> m_telemetry;
 };
 
