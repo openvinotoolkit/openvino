@@ -1,5 +1,14 @@
 # CPU device {#openvino_docs_OV_UG_supported_plugins_CPU}
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   openvino_docs_IE_DG_Bfloat16Inference
+
+@endsphinxdirective
 
 ## Introducing the CPU Plugin
 The CPU plugin was developed to achieve high performance of neural networks on CPU, using the Intel® Math Kernel Library for Deep Neural Networks (Intel® MKL-DNN).
@@ -121,7 +130,7 @@ CPU-specific settings:
 | KEY_CPU_THREADS_NUM         | positive integer values| 0                 | Specifies the number of threads that CPU plugin should use for inference. Zero (default) means using all (logical) cores|
 | KEY_CPU_BIND_THREAD         | YES/NUMA/NO           | YES                | Binds inference threads to CPU cores. 'YES' (default) binding option maps threads to cores - this works best for static/synthetic scenarios like benchmarks. The 'NUMA' binding is more relaxed, binding inference threads only to NUMA nodes, leaving further scheduling to specific cores to the OS. This option might perform better in the real-life/contended scenarios. Note that for the latency-oriented cases (number of the streams is less or equal to the number of NUMA nodes, see below) both YES and NUMA options limit number of inference threads to the number of hardware cores (ignoring hyper-threading) on the multi-socket machines. |
 | KEY_CPU_THROUGHPUT_STREAMS  | KEY_CPU_THROUGHPUT_NUMA, KEY_CPU_THROUGHPUT_AUTO, or positive integer values| 1 | Specifies number of CPU "execution" streams for the throughput mode. Upper bound for the number of inference requests that can be executed simultaneously. All available CPU cores are evenly distributed between the streams. The default value is 1, which implies latency-oriented behavior for single NUMA-node machine, with all available cores processing requests one by one. On the multi-socket (multiple NUMA nodes) machine, the best latency numbers usually achieved with a number of streams matching the number of NUMA-nodes. <br>KEY_CPU_THROUGHPUT_NUMA creates as many streams as needed to accommodate NUMA and avoid associated penalties.<br>KEY_CPU_THROUGHPUT_AUTO creates bare minimum of streams to improve the performance; this is the most portable option if you don't know how many cores your target machine has (and what would be the optimal number of streams). Note that your application should provide enough parallel slack (for example, run many inference requests) to leverage the throughput mode. <br> Non-negative integer value creates the requested number of streams. If a number of streams is 0, no internal streams are created and user threads are interpreted as stream master threads.|
-| KEY_ENFORCE_BF16            | YES/NO| YES | The name for setting to execute in bfloat16 precision whenever it is possible. This option lets plugin know to downscale the precision where it sees performance benefits from bfloat16 execution. Such option does not guarantee accuracy of the network, you need to verify the accuracy in this mode separately, based on performance and accuracy results. It should be your decision whether to use this option or not. |
+| KEY_ENFORCE_BF16            | YES/NO| YES | The name for setting to execute in [bfloat16 precision](../Bfloat16Inference.md) whenever it is possible. This option lets plugin know to downscale the precision where it sees performance benefits from bfloat16 execution. Such option does not guarantee accuracy of the network, you need to verify the accuracy in this mode separately, based on performance and accuracy results. It should be your decision whether to use this option or not. |
 
 > **NOTE**: To disable all internal threading, use the following set of configuration parameters: `KEY_CPU_THROUGHPUT_STREAMS=0`, `KEY_CPU_THREADS_NUM=1`, `KEY_CPU_BIND_THREAD=NO`.
 

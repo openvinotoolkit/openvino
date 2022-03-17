@@ -41,5 +41,14 @@ auto compiled_model = core.compile_model(model, "GPU",
 //! [hint_num_requests]
 }
 
+//! [hint_plus_low_level]
+{
+    // high-level performance hints are compatible with low-level device-specific settings 
+auto compiled_model = core.compile_model(model, "CPU",
+    ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
+    ov::inference_num_threads(4));
+}
+//! [hint_plus_low_level]
+
     return 0;
 }
