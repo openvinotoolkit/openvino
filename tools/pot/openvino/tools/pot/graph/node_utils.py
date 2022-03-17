@@ -209,18 +209,6 @@ def node_with_quantized_weights(node):
     return False
 
 
-def get_input_shape_for_bias(op_node):
-    """
-    Generate input shape for bias node
-    :param op_node: output node for bias
-    :return: new shape
-    """
-    input_shape = get_input_shape(op_node, 0).copy()
-    if len(input_shape) > 1:
-        input_shape[0] = 1
-    return input_shape
-
-
 def get_input_data_value(node: Node, port: int):
     """
     Return value of data node for needed node at port

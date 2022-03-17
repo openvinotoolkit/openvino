@@ -32,11 +32,11 @@ TEST_MODELS = [
      'quantile', 'abs_quantile'),
     ('mobilenetv2_example', 'pytorch', 'symmetric', True, ActivationChannelAlignment, 'mixed',
      'perchannel', 1, None, None),
-    ('squeezenet1_1_example', 'pytorch', 'symmetric', True, FastBiasCorrection, 'mixed', 'perchannel', 0,
+    ('squeezenet1_1_example', 'pytorch', 'symmetric', True, FastBiasCorrection, 'mixed', 'perchannel', 42,
      None, None),
-    ('mobilenetv2_ssd_example', 'pytorch', 'symmetric', True, FastBiasCorrection, 'mixed', 'perchannel', 0,
+    ('mobilenetv2_ssd_example', 'pytorch', 'symmetric', True, FastBiasCorrection, 'mixed', 'perchannel', 117,
      None, None),
-    ('mobilenet_v3_small_example', 'pytorch', 'symmetric', True, BiasCorrection, 'mixed', 'perchannel', 1,
+    ('mobilenet_v3_small_example', 'pytorch', 'symmetric', True, BiasCorrection, 'mixed', 'perchannel', 53,
      None, None)
 ]
 

@@ -4,6 +4,8 @@
 from copy import deepcopy
 from pathlib import Path
 
+from scipy.stats import mode
+
 from .range_estimator import get_range_estimator_config
 from ...api.engine import Engine
 from ...configs.hardware_config import HardwareConfig
@@ -336,6 +338,13 @@ def get_stat_name_by_config(config, stat_type):
     if agg_type in ['quantile', 'abs_quantile']:
         name_list.append(str(config[stat_type]['outlier_prob']))
     return '_'.join(name_list)
+
+
+def get_input_shape_for_bias(activations_statistics, input_node_name):
+    input_shape = mode(activations_statistics[input_node_name]['shape'])[0][0]
+    if len(input_shape) > 1:
+        input_shape[0] = 1
+    return input_shape
 
 
 def get_ignored_operations(model):

@@ -18,7 +18,8 @@ from ....graph.transformer import GraphTransformer
 from ....samplers.creator import create_sampler
 from ....statistics.functions import activations as asf
 from ....statistics.functions import aggregation as agf
-from ....statistics.statistics import TensorStatisticAxis
+from ....statistics.statistics import TensorStatisticAxis, TensorStatistic
+from ..utils import get_input_shape_for_bias
 from ....utils.launcher import IELauncher
 from ....utils.logger import get_logger
 
@@ -355,7 +356,7 @@ class BiasCorrection(Algorithm):
                 q_outputs.append(asf.mean_per_channel_axis(q_output[add_name], add_name, channel=self._channel_axis))
             q_output = agf.mean(q_outputs)
 
-        add_out_shape = nu.get_input_shape_for_bias(params['node_bias_add'])
+        add_out_shape = get_input_shape_for_bias(self._fp32_statistics, params['node_bias_add'].fullname)
         axis_channel = self.get_channel_axis(add_name)
         bias_shift_value = fp32_output - q_output
         bias_shape = np.ones(len(add_out_shape), dtype=np.int)
@@ -430,6 +431,8 @@ class BiasCorrection(Algorithm):
                                                          type='mean',
                                                          inplace_statistics=self.config['inplace_statistics'],
                                                          channel=self._channel_axis)}
+            statistics_layout[add_node_name]["shape"] = TensorStatistic(func=lambda x, **kwargs: x.shape,
+                                                                        shape_for_inference=True)
 
         layers_mapping = fqut.create_renamed_layers_mapping(quantized_model, statistics_layout)
         self._stats_collector.register(self.name, statistics_layout, self._sampler, layers_mapping)
