@@ -14,7 +14,7 @@ The Auto-Device plugin, or AUTO, is a virtual device which automatically selects
 
 1. Check which supported devices are available. 
 2. Check the precision of the input model (for detailed information on precisions read more on the `ov::device::capabilities`) 
-3. From the priority list, select the first device capable of supporting the given precision. 
+3. From the priority list, including all available devices if the user does not alter the defaults, select the first device capable of supporting the given precision, as presented in the table below.
 4. If the network’s precision is FP32 but there is no device capable of supporting it, offload the network to a device supporting FP16. 
 
 @sphinxdirective
@@ -111,74 +111,27 @@ The device candidate list allows users to customize the priority and limit the c
 The following commands are accepted by the API: 
 
 @sphinxdirective
+
 .. tab:: OpenVINO Runtime API C++
 
-   .. code-block:: cpp
+    .. doxygensnippet:: docs/snippets/AUTO0.cpp
+       :language: cpp
+       :fragment: [part0]
 
-      ov::Core core; 
-
-      // Read a network in IR, PaddlePaddle, or ONNX format:
-      std::shared_ptr<ov::Model> model = core.read_model("sample.xml");
-
-      // Load a network to AUTO using the default list of device candidates.
-      // The following lines are equivalent:
-      ov::CompiledModel model0 = core.compile_model(model);
-      ov::CompiledModel model1 = core.compile_model(model, "AUTO");
-
-      // You can also specify the devices to be used by AUTO in its selection process.
-      // The following lines are equivalent:
-      ov::CompiledModel model3 = core.compile_model(model, "AUTO:GPU,CPU");
-      ov::CompiledModel model4 = core.compile_model(model, "AUTO", ov::device::priorities("GPU,CPU"));
-
-      // the AUTO plugin is pre-configured (globally) with the explicit option:
-      core.set_property("AUTO", ov::device::priorities("GPU,CPU"));
+@endsphinxdirective
 
 .. tab:: Inference Engine API C++
 
-   .. code-block:: cpp
-
-      InferenceEngine::Core ie;
-
-      // Read a network in IR, PaddlePaddle, or ONNX format:
-      InferenceEngine::CNNNetwork network = ie.ReadNetwork("sample.xml");  
-
-      // Load a network to AUTO using the default list of device candidates.
-      // The following lines are equivalent:
-      InferenceEngine::ExecutableNetwork exec0 = ie.LoadNetwork(network);
-      InferenceEngine::ExecutableNetwork exec1 = ie.LoadNetwork(network, "AUTO");
-      InferenceEngine::ExecutableNetwork exec2 = ie.LoadNetwork(network, "AUTO", {});
-
-      // You can also specify the devices to be used by AUTO in its selection process.
-      // The following lines are equivalent:
-      InferenceEngine::ExecutableNetwork exec3 = ie.LoadNetwork(network, "AUTO:GPU,CPU");
-      InferenceEngine::ExecutableNetwork exec4 = ie.LoadNetwork(network, "AUTO", {{"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}});
-
-      // the AUTO plugin is pre-configured (globally) with the explicit option:
-      ie.SetConfig({{"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}, "AUTO");
+    .. doxygensnippet:: docs/snippets/AUTO1.cpp
+       :language: cpp
+       :fragment: [part1]
 
 .. tab:: OpenVINO Runtime API Python
 
-   .. code-block:: python
-
-      from openvino.runtime import Core
-      core = Core()
-
-      # Read a network in IR, PaddlePaddle, or ONNX format:
-      model = core.read_model(model_path)
-
-      # Load a network to AUTO using the default list of device candidates.
-      # The following lines are equivalent:
-      compiled_model = core.compile_model(model=model)
-      compiled_model = core.compile_model(model=model, device_name="AUTO")
-      compiled_model = core.compile_model(model=model, device_name="AUTO", config={})
-
-      # You can also specify the devices to be used by AUTO in its selection process.
-      # The following lines are equivalent:
-      compiled_model = core.compile_model(model=model, device_name="AUTO:GPU,CPU")
-      compiled_model = core.compile_model(model=model, device_name="AUTO", config={"MULTI_DEVICE_PRIORITIES": "GPU,CPU"})
-
-      # the AUTO plugin is pre-configured (globally) with the explicit option:
-      core.set_property(device_name="AUTO", properties={"MULTI_DEVICE_PRIORITIES":"GPU,CPU"})
+  .. doxygensnippet:: docs/snippets/AUTO1.cpp
+       :language: cpp
+       :fragment: [part1]
+  
 
 .. tab:: Inference Engine API Python
 
