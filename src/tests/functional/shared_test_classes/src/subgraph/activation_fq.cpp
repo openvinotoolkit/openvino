@@ -48,7 +48,8 @@ namespace SubgraphTestsDefinitions {
         std::vector<size_t> inputShape;
         std::pair<std::string, std::map<std::string, std::string>> config;
         InferenceEngine::Precision netPrecision;
-        std::tie(fqParams, activationType, netPrecision, inPrc, outPrc.front(), inLayout, outLayout, inputShape, targetDevice, config) = this->GetParam();
+        std::tie(fqParams, activationType, netPrecision, inPrc.front(), outPrc.front(),
+                inLayout, outLayout, inputShape, targetDevice, config) = this->GetParam();
         configuration.insert(config.second.begin(), config.second.end());
 
         std::vector<size_t> levels;

@@ -62,15 +62,15 @@ protected:
         configuration[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
 
         StaticShapeBroadcastParam shapes;
-        std::tie(shapes, inPrc, targetDevice) = this->GetParam();
-        outPrc.front() = inPrc;
+        std::tie(shapes, inPrc.front(), targetDevice) = this->GetParam();
+        outPrc.front() = inPrc[0];
 
         const auto inputShape = std::get<0>(shapes);
         const auto targetShape = std::get<1>(shapes);
         const auto axesMapping = std::get<2>(shapes);
         const auto mode = std::get<3>(shapes);
 
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
+        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc[0]);
 
         const auto inputParam = std::make_shared<ngraph::opset3::Parameter>(
                 ngPrc, ngraph::Shape(inputShape));

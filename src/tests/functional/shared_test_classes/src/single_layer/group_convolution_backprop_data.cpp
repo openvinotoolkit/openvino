@@ -45,7 +45,7 @@ void GroupConvBackpropDataLayerTest::SetUp() {
     groupConvBackpropDataSpecificParams groupConvBackpropDataParams;
     std::vector<size_t> inputShape;
     auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
-    std::tie(groupConvBackpropDataParams, netPrecision, inPrc, outPrc.front(), inLayout, outLayout, inputShape, targetDevice) = this->GetParam();
+    std::tie(groupConvBackpropDataParams, netPrecision, inPrc.front(), outPrc.front(), inLayout, outLayout, inputShape, targetDevice) = this->GetParam();
     ngraph::op::PadType padType;
     InferenceEngine::SizeVector kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
@@ -101,7 +101,8 @@ void GroupConvBackpropLayerTest::SetUp() {
     groupConvBackpropSpecificParams groupConvBackpropDataParams;
     std::vector<size_t> inputShape, outputShape;
     auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
-    std::tie(groupConvBackpropDataParams, netPrecision, inPrc, outPrc.front(), inLayout, outLayout, inputShape, outputShape, targetDevice) = this->GetParam();
+    std::tie(groupConvBackpropDataParams, netPrecision, inPrc.front(), outPrc.front(),
+            inLayout, outLayout, inputShape, outputShape, targetDevice) = this->GetParam();
     ngraph::op::PadType padType;
     InferenceEngine::SizeVector kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd, outPadding;

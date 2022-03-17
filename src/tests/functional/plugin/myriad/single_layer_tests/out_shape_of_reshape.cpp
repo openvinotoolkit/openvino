@@ -59,14 +59,14 @@ protected:
 
         OutShapeOfReshapeParam shapesParam;
         std::tie(shapesParam, targetDevice) = this->GetParam();
-        inPrc = InferenceEngine::Precision::I32;
+        inPrc.front() = InferenceEngine::Precision::I32;
         outPrc.front() = InferenceEngine::Precision::I32;
 
         const auto& inputShape = std::get<0>(shapesParam);
         const auto& outShapeDescriptor = std::get<1>(shapesParam);
         const auto& specialZero = std::get<2>(shapesParam);
 
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
+        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc[0]);
 
         const auto inputShapeParam = std::make_shared<ngraph::opset3::Parameter>(
                 ngPrc, ngraph::Shape{inputShape.size()});

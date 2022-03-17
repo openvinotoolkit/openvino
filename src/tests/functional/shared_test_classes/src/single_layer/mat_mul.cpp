@@ -55,7 +55,7 @@ void MatMulTest::SetUp() {
     ngraph::helpers::InputLayerType secondaryInputType;
     auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
     std::map<std::string, std::string> additionalConfig;
-    std::tie(shapeRelatedParams, netPrecision, inPrc, outPrc.front(), inLayout, secondaryInputType, targetDevice, additionalConfig) =
+    std::tie(shapeRelatedParams, netPrecision, inPrc.front(), outPrc.front(), inLayout, secondaryInputType, targetDevice, additionalConfig) =
         this->GetParam();
 
     configuration.insert(additionalConfig.begin(), additionalConfig.end());

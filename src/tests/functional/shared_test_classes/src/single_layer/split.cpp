@@ -36,16 +36,13 @@ void SplitLayerTest::SetUp() {
     size_t axis, numSplits;
     std::vector<size_t> inputShape, outIndices;
     InferenceEngine::Precision netPrecision;
-    std::tie(numSplits, axis, netPrecision, inPrc, outPrc.front(), inLayout, outLayout, inputShape, outIndices, targetDevice) = this->GetParam();
+    std::tie(numSplits, axis, netPrecision, inPrc.front(), outPrc.front(), inLayout, outLayout, inputShape, outIndices, targetDevice) = this->GetParam();
     if (outIndices.empty()) {
         for (int i = 0; i < numSplits; ++i) {
             outIndices.push_back(i);
         }
     }
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    for (int k = 1; k < numSplits; k++) {
-        outPrc.push_back(outPrc.front());
-    }
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));

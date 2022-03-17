@@ -29,7 +29,7 @@ class GatherAddAvgpool : virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override {
         targetDevice = CommonTestUtils::DEVICE_CPU;
-        inPrc = InferenceEngine::Precision::U8;
+        inPrc.front() = InferenceEngine::Precision::U8;
         outPrc.front() = InferenceEngine::Precision::FP32;
         auto type = element::f32;
         auto param = std::make_shared<opset8::Parameter>(type, Shape{1, 3, 64, 64});

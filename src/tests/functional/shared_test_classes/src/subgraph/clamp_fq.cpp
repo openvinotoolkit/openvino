@@ -48,7 +48,7 @@ namespace SubgraphTestsDefinitions {
         std::vector<size_t> inputShape;
         std::pair<std::string, std::map<std::string, std::string>> config;
         auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
-        std::tie(fqParams, netPrecision, inPrc, outPrc.front(), inLayout, outLayout, inputShape, targetDevice, config) = this->GetParam();
+        std::tie(fqParams, netPrecision, inPrc.front(), outPrc.front(), inLayout, outLayout, inputShape, targetDevice, config) = this->GetParam();
         InferenceEngine::SizeVector kernel, stride, dilation;
         std::vector<size_t> levels;
         std::vector<std::vector<size_t>> constShape;

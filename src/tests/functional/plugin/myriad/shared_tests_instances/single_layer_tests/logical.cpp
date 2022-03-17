@@ -24,7 +24,7 @@ protected:
     void SetUp() override {
         SetupParams();
 
-        auto ngInputsPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
+        auto ngInputsPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc[0]);
         auto inputs = ngraph::builder::makeParams(ngInputsPrc, {inputShapes.first, logicalOpType != ngraph::helpers::LogicalTypes::LOGICAL_NOT ?
                                                                                    inputShapes.second : ngraph::Shape()});
         ngraph::NodeVector convertedInputs;

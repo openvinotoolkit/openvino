@@ -35,7 +35,7 @@ void ShuffleChannelsLayerTest::SetUp() {
     shuffleChannelsSpecificParams shuffleChannelsParams;
     std::vector<size_t> inputShape;
     auto netPrecision   = InferenceEngine::Precision::UNSPECIFIED;
-    std::tie(shuffleChannelsParams, netPrecision, inPrc, outPrc.front(), inLayout, outLayout, inputShape, targetDevice) = this->GetParam();
+    std::tie(shuffleChannelsParams, netPrecision, inPrc.front(), outPrc.front(), inLayout, outLayout, inputShape, targetDevice) = this->GetParam();
     int axis, group;
     std::tie(axis, group) = shuffleChannelsParams;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);

@@ -47,7 +47,7 @@ TEST_P(ParameterResultCustomBlobTest, CompareWithRefs) {
 
     // Just to show that it is not possible to set different precisions for inputs and outputs with the same name.
     // If it was possible, the input would have I8 precision and couldn't store data from the custom blob.
-    inPrc = Precision::I8;
+    inPrc.front() = Precision::I8;
     outPrc.front() = Precision::FP32;
 
     Run();

@@ -63,7 +63,7 @@ void ComparisonLayerTest::SetUp() {
     auto ngInputsPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(ngInputsPrecision);
     configuration.insert(additional_config.begin(), additional_config.end());
 
-    inPrc = ieInPrecision;
+    inPrc.front() = ieInPrecision;
     outPrc.front() = ieOutPrecision;
 
     auto inputs = ngraph::builder::makeParams(ngInputsPrc, {inputShapes.first});

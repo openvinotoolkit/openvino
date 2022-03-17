@@ -34,7 +34,7 @@ std::string GrnLayerTest::getTestCaseName(const testing::TestParamInfo<grnParams
 
 void GrnLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
-    std::tie(netPrecision, inPrc, outPrc.front(), inLayout, outLayout, inputShapes, bias, targetDevice) = GetParam();
+    std::tie(netPrecision, inPrc.front(), outPrc.front(), inLayout, outLayout, inputShapes, bias, targetDevice) = GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto paramsIn = ngraph::builder::makeParams(ngPrc, { inputShapes });
     auto paramsOut = ngraph::helpers::convert2OutputVector(

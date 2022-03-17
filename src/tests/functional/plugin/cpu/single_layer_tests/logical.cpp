@@ -48,10 +48,10 @@ protected:
         InferenceEngine::Precision netPrecision;
         std::string targetName;
         std::map<std::string, std::string> additional_config;
-        std::tie(inputShapes, logicalOpType, secondInputType, netPrecision, inPrc, outPrc.front(),
+        std::tie(inputShapes, logicalOpType, secondInputType, netPrecision, inPrc.front(), outPrc.front(),
                  inLayout, outLayout, targetDevice, additional_config) = basicParamsSet;
 
-        selectedType = getPrimitiveType() + "_" + inPrc.name();
+        selectedType = getPrimitiveType() + "_" + inPrc[0].name();
 
         auto ngInputsPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(Precision::BOOL); // Because ngraph supports only boolean input for logical ops
         configuration.insert(additional_config.begin(), additional_config.end());

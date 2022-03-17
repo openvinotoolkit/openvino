@@ -79,8 +79,8 @@ protected:
         CPULayerTestsDefinitions::PSROIPoolingSpecificParams psroiPoolingParams;
         auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
         std::tie(psroiPoolingParams, netPrecision, targetDevice) = basicParamsSet;
-        inPrc = netPrecision;
-        outPrc = std::vector<InferenceEngine::Precision>(netPrecision);
+        inPrc.front() = netPrecision;
+        outPrc.front() = netPrecision;
         std::tie(featureMapShape, proposal, outputDim, groupSize,
                  spatialScale, spatialBinsX, spatialBinsY, mode) = psroiPoolingParams;
 
@@ -93,7 +93,7 @@ protected:
         auto psroi = std::make_shared<ngraph::op::v0::PSROIPooling>(params[0], coords, outputDim, groupSize,
                                                        spatialScale, spatialBinsX, spatialBinsY, mode);
         psroi->get_rt_info() = getCPUInfo();
-        selectedType = getPrimitiveType() + "_" + inPrc.name();
+        selectedType = getPrimitiveType() + "_" + inPrc[0].name();
 
         threshold = 1e-2;
         const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(psroi)};

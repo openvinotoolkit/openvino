@@ -49,8 +49,8 @@ protected:
         configuration[InferenceEngine::MYRIAD_DISABLE_REORDER] = CONFIG_VALUE(YES);
 
         InferenceEngine::SizeVector inputShape;
-        std::tie(inputShape, inPrc, targetDevice) = this->GetParam();
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
+        std::tie(inputShape, inPrc.front(), targetDevice) = this->GetParam();
+        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc[0]);
 
         const auto input = std::make_shared<ngraph::opset3::Parameter>(ngPrc, ngraph::Shape(inputShape));
         const auto staticShapeNonZero = std::make_shared<ngraph::vpu::op::StaticShapeNonZero>(input, ngraph::element::i32);

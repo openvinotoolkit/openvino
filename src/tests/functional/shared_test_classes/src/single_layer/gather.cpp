@@ -80,7 +80,8 @@ void Gather7LayerTest::SetUp() {
     std::vector<size_t> indicesShape;
     std::vector<size_t> inputShape;
     InferenceEngine::Precision netPrecision;
-    std::tie(inputShape, indicesShape, axis_batchIdx, netPrecision, inPrc, outPrc.front(), inLayout, outLayout, targetDevice) = GetParam();
+    std::tie(inputShape, indicesShape, axis_batchIdx, netPrecision, inPrc.front(), outPrc.front(),
+            inLayout, outLayout, targetDevice) = GetParam();
     int axis = std::get<0>(axis_batchIdx);
     int batchIdx = std::get<1>(axis_batchIdx);
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
@@ -122,7 +123,7 @@ void Gather8LayerTest::SetUp() {
     std::vector<size_t> indicesShape;
     std::vector<size_t> inputShape;
     InferenceEngine::Precision netPrecision;
-    std::tie(inputShape, indicesShape, axis_batchIdx, netPrecision, inPrc, outPrc.front(), inLayout, outLayout, targetDevice) = GetParam();
+    std::tie(inputShape, indicesShape, axis_batchIdx, netPrecision, inPrc.front(), outPrc.front(), inLayout, outLayout, targetDevice) = GetParam();
     int axis = std::get<0>(axis_batchIdx);
     int batchIdx = std::get<1>(axis_batchIdx);
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);

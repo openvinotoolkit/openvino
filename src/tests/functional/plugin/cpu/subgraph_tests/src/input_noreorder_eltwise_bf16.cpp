@@ -16,8 +16,9 @@ class InputNoReorderEltwiseBF16 : virtual public LayerTestsUtils::LayerTestsComm
                                   public CPUTestsBase {
 protected:
     void SetUp() override {
-        auto netPrecision = inPrc = Precision::FP32;
-        outPrc = std::vector<Precision>(Precision::BF16);
+        auto netPrecision = Precision::FP32;
+        inPrc.front() = Precision::FP32;
+        outPrc.front() = Precision::BF16;
         targetDevice = CommonTestUtils::DEVICE_CPU;
         std::map<std::string, std::string> additional_config{{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}};
         configuration.insert(additional_config.begin(), additional_config.end());

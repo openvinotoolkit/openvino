@@ -7,7 +7,7 @@
 namespace LayerTestsDefinitions {
     std::string TopKLayerTest::getTestCaseName(const testing::TestParamInfo<TopKParams>& obj) {
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::Precision inPrc;
+    std::vector<InferenceEngine::Precision> inPrc;
     std::vector<InferenceEngine::Precision> outPrc;
     InferenceEngine::Layout inLayout;
     InferenceEngine::SizeVector inputShape;
@@ -23,7 +23,8 @@ namespace LayerTestsDefinitions {
     result << "mode=" << mode << "_";
     result << "sort=" << sort << "_";
     result << "netPRC=" << netPrecision.name() << "_";
-    result << "inPRC=" << inPrc.name() << "_";
+    result << "inPRC1=" << inPrc[0].name() << "_";
+    result << "inPRC2=" << inPrc[1].name() << "_";
     result << "outPRC1=" << outPrc[0].name() << "_";
     result << "outPRC2=" << outPrc[1].name() << "_";
     result << "inL=" << inLayout << "_";

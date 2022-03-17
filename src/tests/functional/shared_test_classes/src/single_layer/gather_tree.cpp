@@ -32,7 +32,7 @@ void GatherTreeLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     ngraph::helpers::InputLayerType secondaryInputType;
 
-    std::tie(inputShape, secondaryInputType, netPrecision, inPrc, outPrc.front(), inLayout, outLayout, targetDevice) = GetParam();
+    std::tie(inputShape, secondaryInputType, netPrecision, inPrc.front(), outPrc.front(), inLayout, outLayout, targetDevice) = GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 

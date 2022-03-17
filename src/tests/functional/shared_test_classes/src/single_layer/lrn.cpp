@@ -38,7 +38,7 @@ void LrnLayerTest::SetUp() {
     double alpha, beta, bias;
     size_t size;
     std::vector<int64_t> axes;
-    std::tie(alpha, beta, bias, size, axes, netPrecision, inPrc, outPrc.front(), inputShapes, targetDevice) = GetParam();
+    std::tie(alpha, beta, bias, size, axes, netPrecision, inPrc.front(), outPrc.front(), inputShapes, targetDevice) = GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShapes});

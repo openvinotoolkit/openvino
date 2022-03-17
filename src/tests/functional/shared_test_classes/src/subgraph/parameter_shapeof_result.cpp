@@ -22,7 +22,7 @@ std::string ParameterShapeOfResultSubgraphTest::getTestCaseName(const testing::T
 void ParameterShapeOfResultSubgraphTest::SetUp() {
     ngraph::element::Type inType;
     std::tie(inType, targetDevice) = this->GetParam();
-    inPrc = InferenceEngine::details::convertPrecision(inType);
+    inPrc.front() = InferenceEngine::details::convertPrecision(inType);
 
     const auto parameter = std::make_shared<ngraph::opset6::Parameter>(inType, ngraph::Shape{1, 3, 10, 10});
     const auto shapeOf = std::make_shared<ngraph::opset6::ShapeOf>(parameter);

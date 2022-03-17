@@ -17,7 +17,7 @@ typedef std::tuple<
         ngraph::opset4::TopK::Mode,     // mode
         ngraph::opset4::TopK::SortType, // sort
         InferenceEngine::Precision,     // Net precision
-        InferenceEngine::Precision,     // Input precision
+        std::vector<InferenceEngine::Precision>, // Input precision
         std::vector<InferenceEngine::Precision>, // Output precision
         InferenceEngine::Layout,        // Input layout
         InferenceEngine::SizeVector,    // inputShape

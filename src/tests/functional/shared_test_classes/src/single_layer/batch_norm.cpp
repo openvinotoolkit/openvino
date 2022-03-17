@@ -34,7 +34,7 @@ void BatchNormLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     double epsilon;
-    std::tie(epsilon, netPrecision, inPrc, outPrc.front(), inLayout, outLayout, inputShapes, targetDevice) = this->GetParam();
+    std::tie(epsilon, netPrecision, inPrc.front(), outPrc.front(), inLayout, outLayout, inputShapes, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     auto params = ngraph::builder::makeParams(ngPrc, {inputShapes});

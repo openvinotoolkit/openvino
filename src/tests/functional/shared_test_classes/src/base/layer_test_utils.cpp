@@ -23,6 +23,8 @@ namespace LayerTestsUtils {
 
 LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f), abs_threshold(-1.f) {
     core = PluginCache::get().ie(targetDevice);
+    inPrc.reserve(10);
+    outPrc.reserve(10);
 }
 
 void LayerTestsCommon::Run() {
@@ -333,15 +335,31 @@ void LayerTestsCommon::Compare(const InferenceEngine::TensorDesc &actualDesc, co
 }
 
 void LayerTestsCommon::ConfigureNetwork() {
+    int gapInPrc = cnnNetwork.getInputsInfo().size() - inPrc.size();
+    if (gapInPrc) {
+        auto inPrcDefaultValue = inPrc[0];
+        for (int i = 1; i <= gapInPrc; i++) {
+            inPrc.push_back(inPrcDefaultValue);
+        }
+    }
+    int inputCnt = 0;
     for (const auto &in : cnnNetwork.getInputsInfo()) {
         if (inLayout != InferenceEngine::Layout::ANY) {
             in.second->setLayout(inLayout);
         }
-        if (inPrc != InferenceEngine::Precision::UNSPECIFIED) {
-            in.second->setPrecision(inPrc);
+        if (inPrc[inputCnt] != InferenceEngine::Precision::UNSPECIFIED) {
+            in.second->setPrecision(inPrc[inputCnt]);
         }
+        inputCnt++;
     }
 
+    int gapOutPrc = cnnNetwork.getOutputsInfo().size() - outPrc.size();
+    if (gapOutPrc) {
+        auto outPrcDefaultValue = outPrc[0];
+        for (int i = 1; i <= gapOutPrc; i++) {
+            outPrc.push_back(outPrcDefaultValue);
+        }
+    }
     int outputCnt = 0;
     for (const auto &out : cnnNetwork.getOutputsInfo()) {
         if (outLayout != InferenceEngine::Layout::ANY) {

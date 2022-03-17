@@ -27,7 +27,7 @@ std::string SplitConcatMemory::getTestCaseName(const testing::TestParamInfo<Para
 
 void SplitConcatMemory::SetUp() {
     SizeVector shape;
-    std::tie(shape, inPrc, axis, targetDevice) = this->GetParam();
+    std::tie(shape, inPrc.front(), axis, targetDevice) = this->GetParam();
 
     auto shape_14 = shape;
     shape_14[axis] /= 4;
@@ -47,7 +47,7 @@ void SplitConcatMemory::SetUp() {
      *      __|___         __|___
      *     [_out1_]       [_mem2_]
      */
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
+    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc[0]);
     ngraph::Shape ng_share_14(shape_14);
     ngraph::Shape ng_share_34(shape_34);
 

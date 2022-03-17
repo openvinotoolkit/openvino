@@ -29,7 +29,7 @@ std::string RangeAddSubgraphTest::getTestCaseName(const testing::TestParamInfo<L
 void RangeAddSubgraphTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     float start, stop, step;
-    std::tie(start, stop, step, netPrecision, inPrc, outPrc.front(), inLayout, outLayout, targetDevice) = GetParam();
+    std::tie(start, stop, step, netPrecision, inPrc.front(), outPrc.front(), inLayout, outLayout, targetDevice) = GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     auto startConstant = std::make_shared<ngraph::opset1::Constant>(ngPrc, ngraph::Shape{}, start);

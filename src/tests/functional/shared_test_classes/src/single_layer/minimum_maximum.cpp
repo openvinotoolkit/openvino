@@ -33,7 +33,7 @@ namespace LayerTestsDefinitions {
         InferenceEngine::Precision netPrecision;
         ngraph::helpers::InputLayerType inputType;
         ngraph::helpers::MinMaxOpType opType;
-        std::tie(inputShapes, opType, netPrecision, inPrc, outPrc.front(), inLayout, outLayout, inputType, targetDevice) = this->GetParam();
+        std::tie(inputShapes, opType, netPrecision, inPrc.front(), outPrc.front(), inLayout, outLayout, inputType, targetDevice) = this->GetParam();
         if (inputShapes.size() != 2) {
             IE_THROW() << "Unsupported inputs number for Minimum/Maximum operaton";
         }

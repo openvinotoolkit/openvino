@@ -40,7 +40,7 @@ void PadLayerTest::SetUp() {
     float argPadValue;
     ngraph::helpers::PadMode padMode;
     InferenceEngine::Precision netPrecision;
-    std::tie(padsBegin, padsEnd, argPadValue, padMode, netPrecision, inPrc, outPrc.front(), inLayout, inputShape, targetDevice) =
+    std::tie(padsBegin, padsEnd, argPadValue, padMode, netPrecision, inPrc.front(), outPrc.front(), inLayout, inputShape, targetDevice) =
     this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});

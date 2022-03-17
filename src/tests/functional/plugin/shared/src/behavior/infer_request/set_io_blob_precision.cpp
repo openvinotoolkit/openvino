@@ -70,7 +70,7 @@ void SetBlobTest::Infer() {
         const auto &info = input.second;
         Blob::Ptr inBlob;
         if (type == setType::INPUT || type == setType::BOTH) {
-            inBlob = make_blob_with_precision(inPrc, info->getTensorDesc());
+            inBlob = make_blob_with_precision(inPrc[0], info->getTensorDesc());
             inBlob->allocate();
             fillBlob(inBlob);
         } else {
@@ -81,14 +81,12 @@ void SetBlobTest::Infer() {
     }
 
     if (type == setType::OUTPUT || type == setType::BOTH) {
-        int outputCnt = 0;
         for (const auto &output : executableNetwork.GetOutputsInfo()) {
             const auto &info = output.second;
-            Blob::Ptr outBlob = make_blob_with_precision(outPrc[outputCnt], info->getTensorDesc());
+            Blob::Ptr outBlob = make_blob_with_precision(outPrc[0], info->getTensorDesc());
             outBlob->allocate();
             fillBlob(outBlob);
             inferRequest.SetBlob(info->getName(), outBlob);
-            outputCnt++;
         }
     }
 
@@ -101,7 +99,7 @@ void SetBlobTest::SetUp() {
     std::tie(precNet, precNg, type, targetDevice) = this->GetParam();
 
     if (type == setType::INPUT || type == setType::BOTH)
-        inPrc = precNet;
+        inPrc.front() = precNet;
     if (type == setType::OUTPUT || type == setType::BOTH)
         outPrc.front() = precNet;
 

@@ -34,7 +34,7 @@ void LogSoftmaxLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     int64_t axis;
 
-    std::tie(netPrecision, inPrc, outPrc.front(), inLayout, outLayout, inputShape, axis, targetDevice, configuration) = GetParam();
+    std::tie(netPrecision, inPrc.front(), outPrc.front(), inLayout, outLayout, inputShape, axis, targetDevice, configuration) = GetParam();
     outLayout = inLayout;
 
     const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);

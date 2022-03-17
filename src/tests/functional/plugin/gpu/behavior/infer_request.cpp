@@ -71,7 +71,7 @@ void InferRequestIOPrecision::SetUp() {
     InferenceEngine::Precision netPrecision;
     std::vector<size_t> shape;
     std::tie(netPrecision, inLayout, outLayout, shape, targetDevice) = GetParam();
-    inPrc = netPrecision;
+    inPrc.front() = netPrecision;
     outPrc.front() = netPrecision;
 
     float clamp_min = netPrecision.isSigned() ? -5.f : 0.0f;

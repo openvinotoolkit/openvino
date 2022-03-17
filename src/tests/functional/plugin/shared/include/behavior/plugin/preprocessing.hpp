@@ -82,15 +82,17 @@ public:
 
         SetRefMode(LayerTestsUtils::RefMode::INTERPRETER);
 
-        std::tie(inPrc, channels, use_set_input, targetDevice, configuration) = this->GetParam();
-        outPrc.front() = inPrc;
+        std::tie(inPrc.front(), channels, use_set_input, targetDevice, configuration) = this->GetParam();
+        outPrc.front() = inPrc.front();
+        auto nPrc = inPrc.front();
 
         bool specialZero = true;
 
         std::vector<size_t> inputShape(channels, 4);
 
         auto make_ngraph = [&](bool with_extra_conv) {
-            auto in_prec = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(with_extra_conv ? inPrc : decltype(inPrc)(InferenceEngine::Precision::FP32));
+            auto in_prec =
+                    FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(with_extra_conv ? nPrc : decltype(nPrc)(InferenceEngine::Precision::FP32));
             auto paramsIn = ngraph::builder::makeParams(in_prec, {inputShape});
             auto paramIn = ngraph::helpers::convert2OutputVector(
                     ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramsIn));

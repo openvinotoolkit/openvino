@@ -62,7 +62,7 @@ protected:
         SetRefMode(LayerTestsUtils::RefMode::INTERPRETER);
 
         StaticShapeNMSParam NMSParams;
-        std::tie(NMSParams, inPrc, targetDevice) = this->GetParam();
+        std::tie(NMSParams, inPrc.front(), targetDevice) = this->GetParam();
 
         const auto numBatches = std::get<0>(NMSParams);
         const auto numBoxes = std::get<1>(NMSParams);
@@ -72,7 +72,7 @@ protected:
         const auto scoreThreshold = std::get<5>(NMSParams);
         const auto softNMSSigma = std::get<6>(NMSParams);
 
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
+        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc[0]);
 
         const auto inputBoxes = std::make_shared<ngraph::opset3::Parameter>(
                 ngPrc, ngraph::Shape({static_cast<size_t>(numBatches), static_cast<size_t>(numBoxes), 4}));

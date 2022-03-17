@@ -34,7 +34,7 @@ public:
 protected:
     void SetUp() override {
         SizeVector ie_shape;
-        std::tie(inPrc, ie_shape, targetDevice) = this->GetParam();
+        std::tie(inPrc.front(), ie_shape, targetDevice) = this->GetParam();
 
         using namespace ngraph;
         using std::make_shared;
