@@ -92,6 +92,7 @@ public:
         std::vector<size_t> inputShape(channels, 4);
 
         auto make_ngraph = [&](bool with_extra_conv) {
+            InferenceEngine::Precision nPrc = inPrc[0];
             auto in_prec =
                     FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(with_extra_conv ? nPrc : decltype(nPrc)(InferenceEngine::Precision::FP32));
             auto paramsIn = ngraph::builder::makeParams(in_prec, {inputShape});
