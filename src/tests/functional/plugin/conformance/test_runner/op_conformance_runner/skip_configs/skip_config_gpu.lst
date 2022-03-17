@@ -91,3 +91,7 @@
 .*TensorIterator_2463116.*
 .*TensorIterator_36100.*
 .*TensorIterator_36244.*
+
+# Take a lot of memory
+.*Interpolate_1021334.*
+.*Convolution_1761388.*

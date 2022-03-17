@@ -57,3 +57,7 @@
 .*ScatterNDUpdate_3475452.*
 .*Transpose_1060948.*
 .*Transpose_1521092.*
+
+# Take a lot of memory
+.*Interpolate_1021334.*
+.*Convolution_1761388.*

@@ -21,3 +21,7 @@
 .*ROIAlign_471018.*
 .*Reshape_1302893.*
 .*Reshape_1302942.*
+
+# Take a lot of memory
+.*Interpolate_1021334.*
+.*Convolution_1761388.*
