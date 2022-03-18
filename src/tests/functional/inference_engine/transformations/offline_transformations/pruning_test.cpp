@@ -2178,11 +2178,11 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeExtend) {
     auto reshape_const = opset5::Constant::create(element::i64, {3}, {1, -1, 8});
     auto reshape_to = std::make_shared<opset5::Reshape>(conv, reshape_const, true);
 
-    auto add_const = create_constant_with_zeros({1, 48, 8}, {{}, {5}, {}});
-    auto add = std::make_shared<opset5::Add>(reshape_to, add_const);
+    auto mul_const = create_constant_with_zeros({1, 48, 8}, {{}, {5}, {}});
+    auto mul = std::make_shared<opset5::Multiply>(reshape_to, mul_const);
 
     auto shape_of = std::make_shared<opset5::ShapeOf>(conv);
-    auto reshape_from = std::make_shared<opset5::Reshape>(add, shape_of, true);
+    auto reshape_from = std::make_shared<opset5::Reshape>(mul, shape_of, true);
 
 
     auto conv_1_shape = Shape{6, 6, 1, 1};

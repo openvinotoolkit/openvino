@@ -1023,8 +1023,8 @@ static std::pair<std::set<uint64_t>, bool> squeeze_mask(
     return std::make_pair(ret_set, should_init_dep);
 }
 
-using dims_vec = std::vector<size_t>;
-static std::vector<dims_vec > map_reshape_dimensions(
+using dims_vec = std::vector<uint64_t>;
+static std::vector<dims_vec> map_reshape_dimensions(
     const dims_vec input_shape, const dims_vec output_shape) {
     auto dims_map = std::vector<dims_vec>();
     auto cur_output_dims = dims_vec();
@@ -1044,6 +1044,94 @@ static std::vector<dims_vec > map_reshape_dimensions(
     return dims_map;
 }
 
+struct DimsAttr {
+   size_t elems_inner_dims, elems_outer_dims, shift, dim;
+};
+
+struct ChannelsMap {
+    std::set<uint64_t> squized_mask;
+    std::map<uint64_t, std::set<uint64_t>> unsquized_mask;
+    bool should_init;
+
+    ChannelsMap(
+    std::set<uint64_t>&& p_squized_mask,
+    std::map<uint64_t, std::set<uint64_t>>&& p_unsquized_mask,
+    bool p_should_init):
+    squized_mask(p_squized_mask), unsquized_mask(p_unsquized_mask),
+    should_init(p_should_init) {}
+};
+
+static ChannelsMap map_channels(
+    const std::set<uint64_t> mask_dim, const uint64_t out_dim,
+    const std::vector<dims_vec> dims_map, const std::vector<DimsAttr> dims_attrs) {
+    auto squized_mask = std::set<uint64_t>();
+    auto unsquized_mask = std::map<uint64_t, std::set<uint64_t>>();
+    auto suspicious_elems = std::set<uint64_t>();
+    for (auto & in_dim : dims_map[out_dim]) {
+        unsquized_mask[in_dim] = std::set<uint64_t>();
+        auto mask_dim_copy = std::set<uint64_t>();
+        std::copy(mask_dim.begin(), mask_dim.end(),
+                  std::inserter(mask_dim_copy, mask_dim_copy.begin()));
+        while (mask_dim_copy.size()) {
+            auto cur_ch_elems = std::set<uint64_t>();
+            // Take first element, calculate its
+            // correspondend to in_dim channel and try to
+            // check all corresponded channels elems
+            // are present.
+            const auto elem = *mask_dim_copy.begin();
+            auto ch = elem / dims_attrs[in_dim].elems_inner_dims;
+            if (dims_attrs[in_dim].elems_outer_dims != 1)
+                ch %= dims_attrs[in_dim].dim;
+            const auto ch_shift = ch * dims_attrs[in_dim].elems_inner_dims;
+            for (size_t i = 0; i < dims_attrs[in_dim].elems_outer_dims; ++i)
+                for (size_t j = 0; j < dims_attrs[in_dim].elems_inner_dims; ++j) {
+                    const auto idx = ch_shift + i * dims_attrs[in_dim].shift + j;
+                    if (mask_dim_copy.find(idx) != mask_dim_copy.end()) {
+                        cur_ch_elems.insert(idx);
+                        mask_dim_copy.erase(idx);
+                    }
+                }
+            if (cur_ch_elems.size() != dims_attrs[in_dim].elems_inner_dims) {
+                suspicious_elems.insert(cur_ch_elems.begin(), cur_ch_elems.end());
+                continue;
+            }
+            auto tmp = std::set<uint64_t>();
+            std::set_union(squized_mask.begin(), squized_mask.end(),
+                           cur_ch_elems.begin(), cur_ch_elems.end(),
+                           std::inserter(tmp, tmp.begin()));
+            squized_mask = tmp;
+            unsquized_mask[in_dim].insert(ch);
+        }
+    }
+    // Check suspicious dims
+    auto should_init = false;
+    auto diff = std::set<uint64_t>();
+    std::set_difference(suspicious_elems.begin(), suspicious_elems.end(),
+                        squized_mask.begin(), squized_mask.end(),
+                        std::inserter(diff, diff.begin()));
+    if (diff.size())
+        should_init = true;
+    return ChannelsMap(std::move(squized_mask), std::move(unsquized_mask), should_init);
+}
+
+static std::vector<DimsAttr> collect_dims_attrs(
+    const std::vector<dims_vec> dims_map, const std::vector<uint64_t> unsquized_shape) {
+    auto dims_attrs = std::vector<DimsAttr>();
+    for (size_t out_dim = 0; out_dim < dims_map.size(); ++out_dim) {
+        auto in_dims = dims_map[out_dim];
+        for (size_t in_idx = 0; in_idx < in_dims.size(); ++in_idx) {
+            size_t elems_outer_dims = std::accumulate(unsquized_shape.begin() + in_dims[0],
+                                                      unsquized_shape.begin() + in_dims[0] + in_idx,
+                                                      1, std::multiplies<size_t>());
+            size_t elems_inner_dims = std::accumulate(unsquized_shape.begin() + in_dims[0] + in_idx + 1,
+                                                      unsquized_shape.begin() + in_dims[0] + in_dims.size(),
+                                                      1, std::multiplies<size_t>());
+            const auto dim = unsquized_shape[in_dims[in_idx]];
+            dims_attrs.push_back(DimsAttr{elems_inner_dims, elems_outer_dims, dim * elems_inner_dims, dim});
+        }
+    }
+    return dims_attrs;
+}
 class ngraph::pass::mask_propagation::Reshape : public MatcherPass {
 public:
     Reshape() {
@@ -1280,90 +1368,72 @@ public:
                             return true;
                         }, output_mask);
                     }; break;
-                    case ReshapeType::extend : {}; break;
-                    case ReshapeType::shrink : {
-                        struct DimsAttr {
-                           size_t elems_inner_dims, elems_outer_dims, shift, dim;
-                        };
-                        auto dims_attrs = std::vector<DimsAttr>();
-                        for (size_t out_dim = 0; out_dim < dims_map.size(); ++out_dim) {
-                            auto in_dims = dims_map[out_dim];
-                            for (size_t in_idx = 0; in_idx < in_dims.size(); ++in_idx) {
-                                size_t elems_outer_dims = std::accumulate(input_shape.begin() + in_dims[0],
-                                                                          input_shape.begin() + in_dims[0] + in_idx,
-                                                                          1, std::multiplies<size_t>());
-                                size_t elems_inner_dims = std::accumulate(input_shape.begin() + in_dims[0] + in_idx + 1,
-                                                                          input_shape.begin() + in_dims[0] + in_dims.size(),
-                                                                          1, std::multiplies<size_t>());
-                                const auto dim = input_shape[in_dims[in_idx]];
-                                dims_attrs.push_back(DimsAttr{elems_inner_dims, elems_outer_dims, dim * elems_inner_dims, dim});
-                            }
-                        }
+                    case ReshapeType::extend : {
+                    //    const auto dims_attrs = collect_dims_attrs(dims_map, output_shape);
+                    //    input_mask->add_callback([=](Mask::Ptr cur_mask) -> bool {
+                    //        for (size_t out_dim = 0; out_dim < dims_map.size(); ++out_dim) {
+                    //            cur_mask->at(out_dim).clear();
+                    //            for (auto & in_dim : dims_map[out_dim]) {
+                    //                for (auto &ch : input_mask_row->at(in_dim)) {
+                    //                    const auto ch_shift = ch * dims_attrs[in_dim].elems_inner_dims;
+                    //                    for (size_t i = 0; i < dims_attrs[in_dim].elems_outer_dims; ++i)
+                    //                        for (size_t j = 0; j < dims_attrs[in_dim].elems_inner_dims; ++j)
+                    //                            cur_mask->at(out_dim).insert(ch_shift + i * dims_attrs[in_dim].shift + j);
+                    //                }
+                    //            }
+                    //        }
+                    //        for (size_t out_dim = 0; out_dim < dims_map.size(); ++out_dim) {
+                    //            const auto map = map_channels(weights_mask_row->at(out_dim), out_dim,
+                    //                                          dims_map, dims_attrs);
+                    //            for (auto & dim : map.unsquized_mask)
+                    //                cur_mask->at(dim.first) = dim.second;
+                    //            if (map.should_init)
+                    //                cur_mask->initialize_dependencies();
+                    //        }
+                    //        return true;
+                    //    }, weights_mask);
 
-                        const auto get_channel = [dims_attrs](const size_t elem, const size_t in_dim) -> size_t {
-                            auto ch = elem / dims_attrs[in_dim].elems_inner_dims;
-                            if (dims_attrs[in_dim].elems_outer_dims != 1)
-                                ch %= dims_attrs[in_dim].dim;
-                            return ch;
-                        };
+                    //    weights_mask->add_callback([=](Mask::Ptr cur_mask) -> bool {
+                    //        for (size_t out_dim = 0; out_dim < dims_map.size(); ++out_dim) {
+                    //            cur_mask->at(out_dim).clear();
+                    //            for (auto & in_dim : dims_map[out_dim]) {
+                    //                for (auto &ch : input_mask_row->at(in_dim)) {
+                    //                    const auto ch_shift = ch * dims_attrs[in_dim].elems_inner_dims;
+                    //                    for (size_t i = 0; i < dims_attrs[in_dim].elems_outer_dims; ++i)
+                    //                        for (size_t j = 0; j < dims_attrs[in_dim].elems_inner_dims; ++j)
+                    //                            cur_mask->at(out_dim).insert(ch_shift + i * dims_attrs[in_dim].shift + j);
+                    //                }
+                    //            }
+                    //        }
+                    //        return true;
+                    //    }, input_mask);
+
+                    //    output_mask->add_callback([weights_mask_row](Mask::Ptr cur_mask) -> bool {
+                    //        cur_mask->copy_value_from_mask(weights_mask_row);
+                    //        return true;
+                    //    }, weights_mask);
+
+                    //    weights_mask->add_callback([=](Mask::Ptr cur_mask) -> bool {
+                    //        for (size_t out_dim = 0; out_dim < dims_map.size(); ++out_dim) {
+                    //            const auto map = map_channels(output_mask_row->at(out_dim), out_dim,
+                    //                                          dims_map, dims_attrs);
+                    //            cur_mask->at(out_dim) = map.squized_mask;
+                    //            if (map.should_init)
+                    //                cur_mask->initialize_dependencies();
+                    //        }
+                    //        return true;
+                    //    }, output_mask);
+                    }; break;
+                    case ReshapeType::shrink : {
+                        const auto dims_attrs = collect_dims_attrs(dims_map, input_shape);
                         input_mask->add_callback([=](Mask::Ptr cur_mask) -> bool {
-                            //bool should_init_dep = false;
-                            //for (size_t out_dim = 0; out_dim < dims_map.size(); ++out_dim) {
-                            //    for (auto & in_dim : dims_map[out_dim]) {
-                            //        const auto elems_per_ch = output_shape[out_dim] / input_shape[in_dim];
-                            //        bool should_init_dep_local;
-                            //        std::set<uint64_t> updated_mask;
-                            //        std::tie(updated_mask, should_init_dep_local) = squeeze_mask(weights_mask_row->at(out_dim), elems_per_ch, true);
-                            //        should_init_dep &= should_init_dep_local;
-                            //        cur_mask->at(in_dim) = updated_mask;
-                            //    }
-                            //}
                             for (size_t out_dim = 0; out_dim < dims_map.size(); ++out_dim) {
-                                auto suspicious_elems = std::set<size_t>();
-                                auto channels_set = std::set<size_t>();
-                                for (auto & in_dim : dims_map[out_dim]) {
-                                    cur_mask->at(in_dim).clear();
-                                    // Take the channel
-                                    auto mask_dim_copy = std::set<size_t>();
-                                    std::copy(weights_mask_row->at(out_dim).begin(), weights_mask_row->at(out_dim).end(),
-                                              std::inserter(mask_dim_copy, mask_dim_copy.begin()));
-                                    while (mask_dim_copy.size()) {
-                                        const auto elem = *mask_dim_copy.begin();
-                                        const auto ch = get_channel(elem, in_dim);
-                                        const auto ch_shift = ch * dims_attrs[in_dim].elems_inner_dims;
-                                        bool stop_search = false;
-                                        auto new_mask = std::set<size_t>();
-                                        for (size_t i = 0; i < dims_attrs[in_dim].elems_outer_dims; ++i)
-                                            for (size_t j = 0; j < dims_attrs[in_dim].elems_inner_dims; ++j) {
-                                                const auto idx = ch_shift + i * dims_attrs[in_dim].shift + j;
-                                                if (mask_dim_copy.find(idx) == mask_dim_copy.end()) {
-                                                    stop_search = true;
-                                                } else {
-                                                    new_mask.insert(idx);
-                                                    mask_dim_copy.erase(idx);
-                                                }
-                                            }
-                                        if (!stop_search) {
-                                            cur_mask->at(in_dim).insert(ch);
-                                            channels_set.insert(ch);
-                                        } else {
-                                            suspicious_elems.insert(new_mask.begin(), new_mask.end());
-                                        }
-                                    }
-                                }
-                                // Check suspicious elems
-                                for (auto & elem : suspicious_elems) {
-                                    bool stop = false;
-                                    for (auto & in_dim : dims_map[out_dim])
-                                        if (channels_set.find(get_channel(elem, in_dim)) != channels_set.end()) {
-                                            stop = true;
-                                            break;
-                                        }
-                                    if (!stop) {
-                                        cur_mask->initialize_dependencies();
-                                        break;
-                                    }
-                                }
+                                const auto map = map_channels(weights_mask_row->at(out_dim), out_dim,
+                                                              dims_map, dims_attrs);
+                                for (auto & dim : map.unsquized_mask)
+                                    cur_mask->at(dim.first) = dim.second;
+                                if (map.should_init)
+                                    cur_mask->initialize_dependencies();
                             }
                             return true;
                         }, weights_mask);
@@ -1390,78 +1460,12 @@ public:
 
                         weights_mask->add_callback([=](Mask::Ptr cur_mask) -> bool {
                             for (size_t out_dim = 0; out_dim < dims_map.size(); ++out_dim) {
-                                cur_mask->at(out_dim).clear();
-                                auto suspicious_elems = std::set<size_t>();
-                                auto channels_set = std::set<size_t>();
-                                for (auto & in_dim : dims_map[out_dim]) {
-                                    // Take the channel
-                                    auto mask_dim_copy = std::set<size_t>();
-                                    auto new_mask = std::set<size_t>();
-                                    std::copy(output_mask_row->at(out_dim).begin(), output_mask_row->at(out_dim).end(),
-                                              std::inserter(mask_dim_copy, mask_dim_copy.begin()));
-                                    while (mask_dim_copy.size()) {
-                                        const auto elem = *mask_dim_copy.begin();
-                                        const auto ch = get_channel(elem, in_dim);
-                                        const auto ch_shift = ch * dims_attrs[in_dim].elems_inner_dims;
-                                        bool stop_search = false;
-                                        for (size_t i = 0; i < dims_attrs[in_dim].elems_outer_dims; ++i)
-                                            for (size_t j = 0; j < dims_attrs[in_dim].elems_inner_dims; ++j) {
-                                                const auto idx = ch_shift + i * dims_attrs[in_dim].shift + j;
-                                                if (mask_dim_copy.find(idx) == mask_dim_copy.end()) {
-                                                    stop_search = true;
-                                                } else {
-                                                    new_mask.insert(idx);
-                                                    mask_dim_copy.erase(idx);
-                                                }
-                                            }
-                                        if (!stop_search) {
-                                            auto tmp = std::set<size_t>();
-                                            std::set_union(cur_mask->at(out_dim).begin(), cur_mask->at(out_dim).end(),
-                                                           new_mask.begin(), new_mask.end(),
-                                                           std::inserter(tmp, tmp.begin()));
-                                            cur_mask->at(out_dim) = tmp;
-                                            channels_set.insert(ch);
-                                        } else {
-                                            suspicious_elems.insert(new_mask.begin(), new_mask.end());
-                                        }
-                                    }
-                                }
-                                // Check suspicious elems
-                                for (auto & elem : suspicious_elems) {
-                                    bool stop = false;
-                                    for (auto & in_dim : dims_map[out_dim]) {
-                                        if (channels_set.find(get_channel(elem, in_dim)) != channels_set.end()) {
-                                            stop = true;
-                                            break;
-                                        }
-                                    }
-                                    if (!stop) {
-                                        cur_mask->initialize_dependencies();
-                                        break;
-                                    }
-                                }
+                                const auto map = map_channels(output_mask_row->at(out_dim), out_dim,
+                                                              dims_map, dims_attrs);
+                                cur_mask->at(out_dim) = map.squized_mask;
+                                if (map.should_init)
+                                    cur_mask->initialize_dependencies();
                             }
-                            //bool should_init_dep = false;
-                            //for (size_t out_dim = 0; out_dim < dims_map.size(); ++out_dim) {
-                            //    for (auto & in_dim : dims_map[out_dim]) {
-                            //        const auto elems_per_ch = output_shape[out_dim] / input_shape[in_dim];
-                            //        bool should_init_dep_local;
-                            //        std::set<uint64_t> updated_mask;
-                            //        std::tie(updated_mask, should_init_dep_local) = squeeze_mask(output_mask_row->at(out_dim), elems_per_ch, false);
-                            //        should_init_dep &= should_init_dep_local;
-                            //    }
-                            //}
-                            // Propagate masks up through dimension only if this dimension isn't reshaped
-                            //for (size_t dim = 0; dim < not_reshaped_dims_input; ++dim)
-                            //    cur_mask->at(dim) = output_mask_row->at(dim);
-                            //// For the last dimension keep only those zeros which completely
-                            //// covering a channel
-                            //bool should_init_dep;
-                            //std::set<uint64_t> updated_mask;
-                            //std::tie(updated_mask, should_init_dep) = squeeze_mask(output_mask_row->at(not_reshaped_dims_input), elems_per_ch, false);
-
-                            //cur_mask->at(not_reshaped_dims_input) = updated_mask;
-                            //if (should_init_dep) cur_mask->initialize_dependencies();
                             return true;
                         }, output_mask);
                     }; break;
