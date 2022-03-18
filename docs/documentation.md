@@ -29,6 +29,7 @@
    openvino_docs_optimization_guide_dldt_optimization_guide
    openvino_docs_MO_DG_Getting_Performance_Numbers
    openvino_docs_model_optimization_guide
+   openvino_docs_deployment_optimization_guide_dldt_optimization_guide
    openvino_docs_tuning_utilities
    openvino_docs_performance_benchmarks
 
@@ -61,6 +62,7 @@
    :hidden:
 
    ovms_what_is_openvino_model_server
+   ote_documentation
    ovsa_get_started
 
 .. toctree::
