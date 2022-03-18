@@ -381,8 +381,6 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                             executableNetwork = _core->LoadNetwork(network, selectDeviceName, deviceConfig);
                         }
 
-                        //save the deviceInfo
-                        contextPtr->cumulativeDevices.push_back(std::move(nextDeviceInfo));
                         isLoadSuccess = true;
                     } catch (const std::exception& e) {
                         LOG_ERROR("[AUTOPLUGIN]:next device:%s load network fail:%s",
@@ -395,6 +393,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                         // need lock
                         {
                             std::lock_guard<std::mutex> lock(_confMutex);
+                            contextPtr->cumulativeDevices.push_back(std::move(nextDeviceInfo));
                             _config.insert(nextDeviceInfo.config.begin(), nextDeviceInfo.config.end());
                         }
 
@@ -605,6 +604,7 @@ bool MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipeli
             }
 
             if (_context.performanceHint == PluginConfigParams::CUMULATIVE_THROUGHPUT) {
+                std::lock_guard<std::mutex> lock(_confMutex);
                 for (auto deviceInfo : _loadContext[ACTUALDEVICE].cumulativeDevices) {
                     auto deviceName = deviceInfo.deviceName;
                     auto deviceToFind =
