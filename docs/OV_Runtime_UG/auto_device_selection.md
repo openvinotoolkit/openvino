@@ -89,7 +89,7 @@ Following the OpenVINO™ naming convention, the Auto-Device plugin is assigned 
 | ov::hint::performance_mode| | ov::hint::PerformanceMode::LATENCY          | | Specifies the performance mode preferred                |
 |                           | | ov::hint::PerformanceMode::THROUGHPUT       | | by the application.                                     |
 +---------------------------+-----------------------------------------------+-----------------------------------------------------------+
-| ov::hint::model_priority  | | ov::hint::Priority::HIGH                    | | Indicates the priority for a model.                   |
+| ov::hint::model_priority  | | ov::hint::Priority::HIGH                    | | Indicates the priority for a model.                     |
 |                           | | ov::hint::Priority::MEDIUM                  | | Importantly!                                            |
 |                           | | ov::hint::Priority::LOW                     | | This property is still not fully supported              |
 +---------------------------+-----------------------------------------------+-----------------------------------------------------------+
