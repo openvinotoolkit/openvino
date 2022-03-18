@@ -25,4 +25,5 @@ ov_add_test_target(
 
 if(ENABLE_HETERO)
     add_dependencies(${TARGET_NAME} openvino_hetero_plugin)
+    target_compile_definitions(${TARGET_NAME} PRIVATE HETERO_ENABLED)
 endif()
