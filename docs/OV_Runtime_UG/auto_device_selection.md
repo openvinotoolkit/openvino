@@ -284,5 +284,3 @@ You can also use the auto-device with limit device choice:
 ```sh
 benchmark_app –d AUTO:CPU,GPU –m <model>
 ```
-
-> **NOTE**: If you installed OpenVINO with pip, use `benchmark_app -d AUTO:CPU,GPU -m <model>`
