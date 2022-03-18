@@ -145,7 +145,7 @@ Every OpenVINO sample that supports the `-d` (which stands for "device") command
 ./benchmark_app –d MULTI:HDDL,GPU –m <model> -i <input> -niter 1000
 ```
 
-The Multi-Device plugin supports FP16 IR files. The CPU plugin automatically upconverts it to FP32 and the other devices support it natively. Note that no demos are (yet) fully optimized for Multi-Device, by means of supporting the OPTIMAL_NUMBER_OF_INFER_REQUESTS metric, using the GPU streams/throttling, and so on.
+The Multi-Device plugin supports FP16 IR files. The CPU plugin automatically upconverts it to FP32 and the other devices support it natively. Note that no demos are (yet) fully optimized for Multi-Device, by means of supporting the ov::optimal_number_of_infer_requests property, using the GPU streams/throttling, and so on.
 
 ### Video: MULTI Plugin
 
@@ -300,7 +300,7 @@ Every OpenVINO sample that supports the `-d` (which stands for "device") command
 
 > **NOTE**: If you installed OpenVINO with pip, use `benchmark_app -d MULTI:CPU,GPU -m <model>`
 
-The Multi-Device plugin supports FP16 IR files. The CPU plugin automatically upconverts it to FP32 and the other devices support it natively. Note that no demos are (yet) fully optimized for Multi-Device, by means of supporting the OPTIMAL_NUMBER_OF_INFER_REQUESTS metric, using the GPU streams/throttling, and so on.
+The Multi-Device plugin supports FP16 IR files. The CPU plugin automatically upconverts it to FP32 and the other devices support it natively. Note that no demos are (yet) fully optimized for Multi-Device, by means of supporting the ov::optimal_number_of_infer_requests property, using the GPU streams/throttling, and so on.
 
 ### Video: MULTI Plugin
 > **NOTE**: This video is currently available only for C++, but many of the same concepts apply to Python.
