@@ -13,6 +13,10 @@ endif()
 
 project(OpenVINO DESCRIPTION "OpenVINO toolkit")
 
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "CMake build type" FORCE)
+endif()
+
 set(IE_MAIN_SOURCE_DIR ${OpenVINO_SOURCE_DIR}/inference-engine)
 
 find_package(IEDevScripts REQUIRED
