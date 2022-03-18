@@ -15,6 +15,23 @@ static const char PathSeparator[] = ":";
 namespace ov {
 namespace frontend {
 
+/// \brief Internal data structure holding by each frontend. Includes library handle and extensions.
+class FrontEndSharedData {
+    friend inline void add_extension_to_shared_data(std::shared_ptr<void>& obj,
+                                                    const std::shared_ptr<ov::Extension>& ext);
+    std::shared_ptr<void> m_so;
+    std::vector<std::shared_ptr<ov::Extension>> m_loaded_extensions = {};
+
+public:
+    explicit FrontEndSharedData(const std::shared_ptr<void>& so) : m_so(so) {}
+};
+
+inline void add_extension_to_shared_data(std::shared_ptr<void>& obj, const std::shared_ptr<ov::Extension>& ext) {
+    auto obj_data = std::static_pointer_cast<FrontEndSharedData>(obj);
+    OPENVINO_ASSERT(obj_data, "internal error: not allowed type of shared data used");
+    obj_data->m_loaded_extensions.push_back(ext);
+}
+
 /// \brief Internal data structure holding plugin information including library handle, file names and paths, etc.
 class PluginInfo {
     std::shared_ptr<void> m_so;  // Library shared object, must be first data member to be destroyed last

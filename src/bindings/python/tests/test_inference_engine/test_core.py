@@ -315,10 +315,8 @@ def test_add_extension_template_extension(device):
     new_shapes = {"in_data": after_reshape}
     assert model.input().partial_shape == before_reshape
     model.reshape(new_shapes)
-    assert model.input().partial_shape == after_reshape
-
-    # CVS-74584
-    del model
+    compiled = core.compile_model(model, device)
+    assert compiled.input().partial_shape == after_reshape
 
 
 def test_add_extension():
