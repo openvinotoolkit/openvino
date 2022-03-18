@@ -139,6 +139,10 @@ Refer to <a href="openvino_docs_install_guides_installing_openvino_linux.html#in
 
 @sphinxdirective
 
+.. tab:: GNA
+
+   To enable the toolkit components to use Intel® Gaussian & Neural Accelerator (GNA) on your system, follow the steps in :ref:`GNA Setup Guide <gna guide>`.
+   
 .. tab:: GPU
 
    To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide>`.

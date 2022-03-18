@@ -24,14 +24,13 @@ Use the following command to create a virtual environment:
 
 @sphinxdirective
 
-.. tab:: On Linux and macOS
+.. tab:: Linux and macOS
 
    .. code-block:: sh
    
-      # Depending on your operating system, this step may require installing python3-venv
       python3 -m venv openvino_env
    
-.. tab:: On Windows
+.. tab:: Windows
 
    .. code-block:: sh
    
@@ -45,13 +44,13 @@ Use the following command to create a virtual environment:
 
 @sphinxdirective
 
-.. tab:: On Linux and macOS
+.. tab:: Linux and macOS
 
    .. code-block:: sh
    
       source openvino_env/bin/activate
    
-.. tab:: On Windows
+.. tab:: Windows
 
    .. code-block:: sh
    

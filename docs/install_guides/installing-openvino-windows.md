@@ -107,7 +107,7 @@ The environment variables are set. Next, you can download some additional tools.
 
 .. dropdown:: OpenCV
 
-   OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples and demos also use OpenCV as a dependency. The Intel® Distribution of OpenVINO™ provides a script to install OpenCV: ``<INSTALL_DIR>/extras/scripts/download_opencv.sh``.
+   OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. The Intel® Distribution of OpenVINO™ provides a script to install OpenCV: ``<INSTALL_DIR>/extras/scripts/download_opencv.sh``.
 
    .. note::
       No prerequisites are needed.
@@ -171,7 +171,7 @@ Developing in C++:
    * [Hello Classification C++ Sample](@ref openvino_inference_engine_samples_hello_classification_README)
    * [Hello Reshape SSD C++ Sample](@ref openvino_inference_engine_samples_hello_reshape_ssd_README)
     
-## <a name="uninstall"></a>Uninstall the Intel® Distribution of OpenVINO™ Toolkit
+## <a name="uninstall"></a>Uninstalling the Intel® Distribution of OpenVINO™ Toolkit
 
 To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalling-openvino.md).
 
