@@ -535,3 +535,37 @@ std::map<std::string, std::string> parse_input_layouts(const std::string& layout
         throw std::logic_error("Can't parse input parameter string: " + layout_string);
     return return_value;
 }
+
+/**
+ * @brief Parse parameters for inputs/outputs like as "<input_name1>=<file1.ark/.npz>,<input_name2>=<file2.ark/.npz>" or
+ * "<file.ark/.npz>" in case of one input
+ * @param file_paths_string input path
+ * @return pair of filename and vector of inputNameBlobs
+ */
+std::pair<std::string, std::vector<std::string>> parse_parameters(const std::string file_paths_string) {
+    auto search_string = file_paths_string;
+    char comma_delim = ',';
+    char equal_delim = '=';
+    std::string filename = "";
+    std::vector<std::string> inputNameBlobs;
+    std::vector<std::string> filenames;
+    if (!std::count(search_string.begin(), search_string.end(), comma_delim) &&
+        !std::count(search_string.begin(), search_string.end(), equal_delim)) {
+        return {search_string, inputNameBlobs};
+    }
+    search_string += comma_delim;
+    std::vector<std::string> splitted = split(search_string, comma_delim);
+    for (int j = 0; j < splitted.size(); j++) {
+        auto semicolon_pos = splitted[j].find_first_of(equal_delim);
+        if (semicolon_pos != std::string::npos) {
+            inputNameBlobs.push_back(splitted[j].substr(0, semicolon_pos));
+            filenames.push_back(splitted[j].substr(semicolon_pos + 1, std::string::npos));
+        }
+    }
+    for (std::vector<std::string>::const_iterator name = filenames.begin(); name != filenames.end(); ++name) {
+        filename += *name;
+        if (name != filenames.end() - 1)
+            filename += comma_delim;
+    }
+    return {filename, inputNameBlobs};
+}
