@@ -98,11 +98,11 @@ void fillData(const ov::intel_cpu::Memory& inputMemory, const InferenceEngine::P
     switch (prec) {
     case InferenceEngine::Precision::FP32:
         for (size_t i = 0; i < elemNum; ++i)
-            *(static_cast<float*>(inputReorderData) + mdInput.off_l(i, false)) = float{i};
+            *(static_cast<float*>(inputReorderData) + mdInput.off_l(i, false)) = static_cast<float>(i);
         break;
     case InferenceEngine::Precision::I8:
         for (size_t i = 0; i < elemNum; ++i)
-            *(static_cast<int8_t*>(inputReorderData) + mdInput.off_l(i, false)) = int8_t{i};
+            *(static_cast<int8_t*>(inputReorderData) + mdInput.off_l(i, false)) = static_cast<int8_t>(i);
         break;
     default:
         FAIL();
