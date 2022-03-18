@@ -4,9 +4,11 @@
 
 #include "plugin.hpp"
 
-#include <ie_icore.hpp>
+#include <sstream>
 
+#include "compiled_model.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
+#include "ie_icore.hpp"
 #include "openvino/runtime/common.hpp"
 #include "proxy_plugin.hpp"
 
@@ -24,7 +26,14 @@ InferenceEngine::QueryNetworkResult ov::proxy::Plugin::QueryNetwork(
 InferenceEngine::IExecutableNetworkInternal::Ptr ov::proxy::Plugin::LoadExeNetworkImpl(
     const InferenceEngine::CNNNetwork& network,
     const std::map<std::string, std::string>& config) {
-    IE_THROW(NotImplemented);
+    OPENVINO_ASSERT(config.find("DEVICE_ID") != config.end());
+
+    std::stringstream sstream(config.at("DEVICE_ID"));
+    size_t idx;
+    sstream >> idx;
+    auto dev_name = get_fallback_device(idx);
+    std::cout << dev_name << std::endl;
+    return std::make_shared<ov::proxy::CompiledModel>(GetCore()->LoadNetwork(network, dev_name, config));
 }
 void ov::proxy::Plugin::AddExtension(const std::shared_ptr<InferenceEngine::IExtension>& extension) {
     IE_THROW(NotImplemented);
@@ -76,6 +85,12 @@ InferenceEngine::Parameter ov::proxy::Plugin::GetMetric(
         supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
 
         return decltype(ov::supported_properties)::value_type(supportedProperties);
+    } else if (name == "SUPPORTED_METRICS") {
+        std::vector<std::string> metrics;
+        metrics.push_back("AVAILABLE_DEVICES");
+        metrics.push_back("SUPPORTED_METRICS");
+        metrics.push_back("FULL_DEVICE_NAME");
+        return metrics;
     } else if (name == ov::device::full_name) {
         std::string deviceFullName = "";
         if (device_id == "abc_a")
@@ -88,10 +103,8 @@ InferenceEngine::Parameter ov::proxy::Plugin::GetMetric(
     } else if (name == ov::available_devices) {
         auto hidden_devices = get_hidden_devices();
         std::vector<std::string> availableDevices(hidden_devices.size());
-        size_t i(0);  // Should we use full name?
-        for (const auto it : hidden_devices) {
+        for (size_t i = 0; i < hidden_devices.size(); i++) {
             availableDevices[i] = std::to_string(i);
-            i++;
         }
         return decltype(ov::available_devices)::value_type(availableDevices);
     }
@@ -104,7 +117,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr ov::proxy::Plugin::ImportNetwor
     IE_THROW(NotImplemented);
 }
 
-std::map<std::string, std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() const {
+std::vector<std::pair<std::string, std::vector<std::string>>> ov::proxy::Plugin::get_hidden_devices() const {
     std::map<std::string, std::vector<std::string>> result;
 
     auto hidden_devices = GetCore()->GetHiddenDevicesFor(this->_pluginName);
@@ -112,7 +125,29 @@ std::map<std::string, std::vector<std::string>> ov::proxy::Plugin::get_hidden_de
         auto full_name = GetCore()->GetConfig(device, ov::device::full_name.name()).as<std::string>();
         result[full_name].emplace_back(device);
     }
-    return result;
+
+    std::vector<std::pair<std::string, std::vector<std::string>>> end_result(result.size());
+    size_t i(0);  // Should we use full name?
+    for (const auto it : result) {
+        end_result[i] = {it.first, it.second};
+        i++;
+    }
+    return end_result;
+}
+std::string ov::proxy::Plugin::get_fallback_device(size_t idx) const {
+    const auto all_devices = get_hidden_devices();
+    OPENVINO_ASSERT(all_devices.size() > idx);
+    if (all_devices[idx].second.size() == 1) {
+        return all_devices[idx].second.at(0);
+    } else {
+        std::string device_concatenation;
+        for (const auto& dev : all_devices[idx].second) {
+            if (!device_concatenation.empty())
+                device_concatenation += ",";
+            device_concatenation += dev;
+        }
+        return "HETERO:" + device_concatenation;
+    }
 }
 
 void ov::proxy::create_plugin(::std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) {

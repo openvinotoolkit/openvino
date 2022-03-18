@@ -37,7 +37,8 @@ public:
 private:
     std::map<std::string, std::string> m_config;
 
-    std::map<std::string, std::vector<std::string>> get_hidden_devices() const;
+    std::vector<std::pair<std::string, std::vector<std::string>>> get_hidden_devices() const;
+    std::string get_fallback_device(size_t idx) const;
 };
 
 }  // namespace proxy
