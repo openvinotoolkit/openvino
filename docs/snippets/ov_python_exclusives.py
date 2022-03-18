@@ -131,3 +131,39 @@ infer_queue.wait_all()
 
 assert all(data_done)
 #! [asyncinferqueue_set_callback]
+
+#! [releasing_gil]
+import openvino.runtime as ov
+import cv2
+from threading import Thread
+
+input_data = []
+
+# processing input data will be done in
+# a separate thread while compiling the model
+# and creating infer request
+def prepare_data(input, image_path):
+    image = cv2.imread(image_path)
+    h, w = list(input.shape)[-2:]
+    image = cv2.resize(image, (h, w))
+    image = image.transpose((2, 0, 1))
+    image = np.expand_dims(image, 0)
+    input_data.append(image)
+
+core = ov.Core()
+model = core.read_model("model.xml")
+# create thread with prepare_data target and start it
+thread = Thread(target=prepare_data, args=[model.input(), "path/to/image"])
+thread.start()
+# the GIL will be released in compile_model
+# it allows a thread we create above to start the job
+# while main thread is running in the background
+compiled = core.compile_model(model, "GPU")
+# after returning from compile_model main thread acquires the GIL
+# and goes into create_infer_request which releases it once again
+request = compiled.create_infer_request()
+# join the thread to make sure the input_data is ready
+thread.join()
+# running the inference
+request.infer(input_data)
+#! [releasing_gil]

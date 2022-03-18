@@ -330,7 +330,6 @@ void regclass_Core(py::module m) {
                            .cast<std::string>();
             py::gil_scoped_release release;
             return self.import_model(_stream, device_name, {properties.begin(), properties.end()});
-            ;
         },
         py::arg("model_stream"),
         py::arg("device_name"),
