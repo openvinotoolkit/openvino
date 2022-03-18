@@ -8,7 +8,6 @@
 
    openvino_docs_performance_benchmarks_openvino
    openvino_docs_performance_benchmarks_ovms
-   openvino_docs_performance_ov_vs_tf
 
 
 @endsphinxdirective

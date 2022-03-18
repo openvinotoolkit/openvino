@@ -1,4 +1,4 @@
-# OpenVINO™ and TensorFlow Comparison on Select Networks and Platforms {#openvino_docs_performance_ov_vs_tf}
+# OpenVINO™ and TensorFlow Comparison on Select Networks and Platforms
 
 This page presents the results of comparing OpenVINO™ and TensorFlow executing benchmarking on the same hardware platforms, and using neural network models based on the same original source models. All models were converted using the processes and conversion tools native to each framework. The hardware platforms represent a broad performance range, covering Intel® Celeron®, Intel® Core™, and  Intel® Xeon® Scalable based platforms. (Refer to [System Description](https://docs.openvino.ai/resources/benchmark_files/system_configurations_2022.1.html) for further details).
 

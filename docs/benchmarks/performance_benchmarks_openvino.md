@@ -44,24 +44,6 @@ Measuring inference performance involves many variables and is extremely use-cas
 
 @endsphinxdirective
 
-## brain-tumor-segmentation-0001-MXNET [128x128x128]
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="chart-block" data-loadcsv="csv/brain-tumor-segmentation-0001-MXNET-128x128x128.csv"></div>
-
-@endsphinxdirective
-
-## brain-tumor-segmentation-0002-CF2 [128x128x128]
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="chart-block" data-loadcsv="csv/brain-tumor-segmentation-0002-CF2-128x128x128.csv"></div>
-
-@endsphinxdirective
-
 ## deeplabv3-TF [513x513]
 
 @sphinxdirective
@@ -89,15 +71,6 @@ Measuring inference performance involves many variables and is extremely use-cas
 
 @endsphinxdirective
 
-## facenet-20180408-102900-TF [160x160]
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="chart-block" data-loadcsv="csv/facenet-20180408-102900-TF-160x160.csv"></div>
-
-@endsphinxdirective
-
 ## faster-rcnn-resnet50-coco-TF [600x1024]
 
 @sphinxdirective
@@ -116,30 +89,12 @@ Measuring inference performance involves many variables and is extremely use-cas
 
 @endsphinxdirective
 
-## inception-v3-TF [299x299]
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="chart-block" data-loadcsv="csv/inception-v3-TF-299x299.csv"></div>
-
-@endsphinxdirective
-
 ## inception-v4-TF [299x299]
 
 @sphinxdirective
 .. raw:: html
 
     <div class="chart-block" data-loadcsv="csv/inception-v4-TF-299x299.csv"></div>
-
-@endsphinxdirective
-
-## mask_rcnn_resnet50_atrous_coco [800x1365]
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="chart-block" data-loadcsv="csv/mask_rcnn_resnet50_atrous_coco-800x1365.csv"></div>
 
 @endsphinxdirective
 
@@ -152,15 +107,6 @@ Measuring inference performance involves many variables and is extremely use-cas
 
 @endsphinxdirective
 
-## mobilenet-v2-1.0-224-TF [224x224]
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="chart-block" data-loadcsv="csv/mobilenet-v2-1.0-224-TF-224x224.csv"></div>
-
-@endsphinxdirective
-
 ## mobilenet-v2-pytorch [224x224]
 
 @sphinxdirective
@@ -170,66 +116,12 @@ Measuring inference performance involves many variables and is extremely use-cas
 
 @endsphinxdirective
 
-## pp-ocr-rec [32x640]
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="chart-block" data-loadcsv="csv/pp-ocr-rec-32x640.csv"></div>
-
-@endsphinxdirective
-
-## pp-yolo [640x640]
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="chart-block" data-loadcsv="csv/pp-yolo-640x640.csv"></div>
-
-@endsphinxdirective
-
-## resnet-18-pytorch [224x224]
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="chart-block" data-loadcsv="csv/resnet-18-pytorch-224x224.csv"></div>
-
-@endsphinxdirective
-
-## resnet-50-pytorch [224x224]
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="chart-block" data-loadcsv="csv/resnet-50-PYTORCH-224x224.csv"></div>
-
-@endsphinxdirective
-
 ## resnet_50_TF [224x224]
 
 @sphinxdirective
 .. raw:: html
 
     <div class="chart-block" data-loadcsv="csv/resnet-50-TF-224x224.csv"></div>
-
-@endsphinxdirective
-
-## ssd_mobilenet_v1_coco-TF [300x300]
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="chart-block" data-loadcsv="csv/ssd_mobilenet_v1_coco-TF-300x300.csv"></div>
-
-@endsphinxdirective
-
-## ssdlite_mobilenet_v2-TF [300x300]
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="chart-block" data-loadcsv="csv/ssdlite_mobilenet_v2-TF-300x300.csv"></div>
 
 @endsphinxdirective
 
@@ -273,7 +165,7 @@ Measuring inference performance involves many variables and is extremely use-cas
 
 Intel® Distribution of OpenVINO™ toolkit performance benchmark numbers are based on release 2022.1.
 
-Intel technologies’ features and benefits depend on system configuration and may require enabled hardware, software or service activation. Learn more at intel.com, or from the OEM or retailer. Performance results are based on testing as of March 14, 2022 and may not reflect all publicly available updates. See configuration disclosure for details. No product can be absolutely secure.
+Intel technologies’ features and benefits depend on system configuration and may require enabled hardware, software or service activation. Learn more at intel.com, or from the OEM or retailer. Performance results are based on testing as of March 17, 2022 and may not reflect all publicly available updates. See configuration disclosure for details. No product can be absolutely secure.
 
 Performance varies by use, configuration and other factors. Learn more at [www.intel.com/PerformanceIndex](https://www.intel.com/PerformanceIndex).
 
@@ -303,7 +195,7 @@ Testing by Intel done on: see test date for each HW platform below.
 | Batch size                              | 1                                  | 1                                  |
 | Precision                               | INT8                               | INT8                               |
 | Number of concurrent inference requests | 4                                  | 5                                  |
-| Test Date                               | March 14, 2022                     | March 14, 2022                      |
+| Test Date                               | March 17, 2022                     | March 17, 2022                      |
 | Rated maximum TDP/socket in Watt        | [71](https://ark.intel.com/content/www/us/en/ark/products/134854/intel-xeon-e-2124g-processor-8m-cache-up-to-4-50-ghz.html#tab-blade-1-0-1)  | [125](https://ark.intel.com/content/www/us/en/ark/products/199336/intel-xeon-w-1290p-processor-20m-cache-3-70-ghz.html) |
 | CPU Price/socket on Feb 14, 2022, USD<br>Prices may vary  | [213](https://ark.intel.com/content/www/us/en/ark/products/134854/intel-xeon-e-2124g-processor-8m-cache-up-to-4-50-ghz.html) | [539](https://ark.intel.com/content/www/us/en/ark/products/199336/intel-xeon-w-1290p-processor-20m-cache-3-70-ghz.html) |
 
@@ -325,7 +217,7 @@ Testing by Intel done on: see test date for each HW platform below.
 | Batch size                              | 1                                       | 1                                      |
 | Precision                               | INT8                                    | INT8                                   |
 | Number of concurrent inference requests | 32                                      | 10                                     |
-| Test Date                               | March 14, 2022                          | March 14, 2022                          |
+| Test Date                               | March 17, 2022                          | March 17, 2022                          |
 | Rated maximum TDP/socket in Watt        | [125](https://ark.intel.com/content/www/us/en/ark/products/193394/intel-xeon-silver-4216-processor-22m-cache-2-10-ghz.html#tab-blade-1-0-1) | [150](https://ark.intel.com/content/www/us/en/ark/products/215270/intel-xeon-silver-4316-processor-30m-cache-2-30-ghz.html)|
 | CPU Price/socket on June 21, 2021, USD<br>Prices may vary  | [1,002](https://ark.intel.com/content/www/us/en/ark/products/193394/intel-xeon-silver-4216-processor-22m-cache-2-10-ghz.html) | [1083](https://ark.intel.com/content/www/us/en/ark/products/215270/intel-xeon-silver-4316-processor-30m-cache-2-30-ghz.html)|
 
@@ -347,7 +239,7 @@ Testing by Intel done on: see test date for each HW platform below.
 | Batch size                              | 1                                       | 1                                        | 1                                        |
 | Precision                               | INT8                                    | INT8                                     | INT8                                     |
 | Number of concurrent inference requests | 32                                      | 52                                       | 80                                       |
-| Test Date                               | March 14, 2022                          | March 14, 2022                            | March 14, 2022                            |
+| Test Date                               | March 17, 2022                          | March 17, 2022                            | March 17, 2022                            |
 | Rated maximum TDP/socket in Watt        | [105](https://ark.intel.com/content/www/us/en/ark/products/193953/intel-xeon-gold-5218t-processor-22m-cache-2-10-ghz.html#tab-blade-1-0-1)           | [205](https://ark.intel.com/content/www/us/en/ark/products/192482/intel-xeon-platinum-8270-processor-35-75m-cache-2-70-ghz.html#tab-blade-1-0-1) | [270](https://mark.intel.com/content/www/us/en/secure/mark/products/212287/intel-xeon-platinum-8380-processor-60m-cache-2-30-ghz.html#tab-blade-1-0-1) |
 | CPU Price/socket on Feb 14, 2022, USD<br>Prices may vary  | [1,349](https://ark.intel.com/content/www/us/en/ark/products/193953/intel-xeon-gold-5218t-processor-22m-cache-2-10-ghz.html) | [7,405](https://ark.intel.com/content/www/us/en/ark/products/192482/intel-xeon-platinum-8270-processor-35-75m-cache-2-70-ghz.html) | [8,099](https://mark.intel.com/content/www/us/en/secure/mark/products/212287/intel-xeon-platinum-8380-processor-60m-cache-2-30-ghz.html#tab-blade-1-0-0) |
 
@@ -370,7 +262,7 @@ Testing by Intel done on: see test date for each HW platform below.
 | Batch size           | 1                                    | 1                                       | 1                                                              |
 | Precision            | INT8                                 | INT8                                    | INT8                                                           |
 | Number of concurrent inference requests | 24                | 5                                       | 4                                                              |
-| Test Date            | March 14, 2022                       | March 14, 2022                          | March 14, 2022                                                  |
+| Test Date            | March 17, 2022                       | March 17, 2022                          | March 17, 2022                                                  |
 | Rated maximum TDP/socket in Watt                            | [165](https://ark.intel.com/content/www/us/en/ark/products/198012/intel-core-i9-10920x-x-series-processor-19-25m-cache-3-50-ghz.html) | [35](https://ark.intel.com/content/www/us/en/ark/products/203901/intel-core-i910900te-processor-20m-cache-up-to-4-60-ghz.html)  | [65](https://ark.intel.com/content/www/us/en/ark/products/134597/intel-core-i912900-processor-30m-cache-up-to-5-10-ghz.html) |
 | CPU Price/socket on Feb 14, 2022, USD<br>Prices may vary    | [700](https://ark.intel.com/content/www/us/en/ark/products/198012/intel-core-i9-10920x-x-series-processor-19-25m-cache-3-50-ghz.html) | [444](https://ark.intel.com/content/www/us/en/ark/products/203901/intel-core-i910900te-processor-20m-cache-up-to-4-60-ghz.html) | [519](https://ark.intel.com/content/www/us/en/ark/products/134597/intel-core-i912900-processor-30m-cache-up-to-5-10-ghz.html)|
 
@@ -391,7 +283,7 @@ Testing by Intel done on: see test date for each HW platform below.
 | Batch size           | 1                                   | 1                                                              | 1 |
 | Precision            | INT8                                | INT8                                                           | INT8 |
 | Number of concurrent inference requests | 4                | 4                                                              | 4 |
-| Test Date            | March 14, 2022                      | March 14, 2022                                                 | March 14, 2022  |
+| Test Date            | March 17, 2022                      | March 17, 2022                                                 | March 17, 2022  |
 | Rated maximum TDP/socket in Watt                           | [35](https://ark.intel.com/content/www/us/en/ark/products/129948/intel-core-i7-8700t-processor-12m-cache-up-to-4-00-ghz.html#tab-blade-1-0-1) | [28](https://ark.intel.com/content/www/us/en/ark/products/208664/intel-core-i7-1185g7-processor-12m-cache-up-to-4-80-ghz-with-ipu.html) | [45](https://ark.intel.com/content/www/us/en/ark/products/213799/intel-core-i7-11850h-processor-24m-cache-up-to-4-80-ghz.html) |
 | CPU Price/socket on Feb 14, 2022, USD<br>Prices may vary   | [303](https://ark.intel.com/content/www/us/en/ark/products/129948/intel-core-i7-8700t-processor-12m-cache-up-to-4-00-ghz.html) | [426](https://ark.intel.com/content/www/us/en/ark/products/208664/intel-core-i7-1185g7-processor-12m-cache-up-to-4-80-ghz-with-ipu.html)               | [395](https://ark.intel.com/content/www/us/en/ark/products/213799/intel-core-i7-11850h-processor-24m-cache-up-to-4-80-ghz.html) |
 
@@ -413,7 +305,7 @@ Testing by Intel done on: see test date for each HW platform below.
 | Batch size           | 1                                  | 1                                  | 1                                     |
 | Precision            | INT8                               | INT8                               | INT8                                  |
 | Number of concurrent inference requests | 4               | 3                                  | 4                                     |
-| Test Date            | March 14, 2022                     | March 14, 2022                     | March 14, 2022                        |
+| Test Date            | March 17, 2022                     | March 17, 2022                     | March 17, 2022                        |
 | Rated maximum TDP/socket in Watt                          | [65](https://ark.intel.com/content/www/us/en/ark/products/126688/intel-core-i3-8100-processor-6m-cache-3-60-ghz.html#tab-blade-1-0-1)| [65](https://ark.intel.com/content/www/us/en/ark/products/129939/intel-core-i5-8500-processor-9m-cache-up-to-4-10-ghz.html#tab-blade-1-0-1)| [35](https://ark.intel.com/content/www/us/en/ark/products/203891/intel-core-i5-10500te-processor-12m-cache-up-to-3-70-ghz.html)  |
 | CPU Price/socket on Feb 14, 2022, USD<br>Prices may vary  | [117](https://ark.intel.com/content/www/us/en/ark/products/126688/intel-core-i3-8100-processor-6m-cache-3-60-ghz.html) | [192](https://ark.intel.com/content/www/us/en/ark/products/129939/intel-core-i5-8500-processor-9m-cache-up-to-4-10-ghz.html)               | [195](https://ark.intel.com/content/www/us/en/ark/products/203891/intel-core-i5-10500te-processor-12m-cache-up-to-3-70-ghz.html) |
 
@@ -436,7 +328,7 @@ Testing by Intel done on: see test date for each HW platform below.
 | Batch size           | 1                                     | 1                                                 | 1 |
 | Precision            | INT8                                  | INT8                                              | INT8 |
 | Number of concurrent inference requests | 4                  | 4                                                 | 4|
-| Test Date            | March 14, 2022                        | March 14, 2022                                    | March 14, 2022 |
+| Test Date            | March 17, 2022                        | March 17, 2022                                    | March 17, 2022 |
 | Rated maximum TDP/socket in Watt | [9.5](https://ark.intel.com/content/www/us/en/ark/products/96485/intel-atom-x5-e3940-processor-2m-cache-up-to-1-80-ghz.html)  | [12](https://mark.intel.com/content/www/us/en/secure/mark/products/207907/intel-atom-x6425e-processor-1-5m-cache-up-to-3-00-ghz.html#tab-blade-1-0-1) | [15](https://ark.intel.com/content/www/us/en/ark/products/208072/intel-celeron-6305e-processor-4m-cache-1-80-ghz.html)|
 | CPU Price/socket on Feb 14, 2022, USD<br>Prices may vary  | [34](https://ark.intel.com/content/www/us/en/ark/products/96485/intel-atom-x5-e3940-processor-2m-cache-up-to-1-80-ghz.html) | [59](https://ark.intel.com/content/www/us/en/ark/products/207899/intel-atom-x6425re-processor-1-5m-cache-1-90-ghz.html) |[107](https://ark.intel.com/content/www/us/en/ark/products/208072/intel-celeron-6305e-processor-4m-cache-1-80-ghz.html) |
 
@@ -462,8 +354,8 @@ Testing by Intel done on: see test date for each HW platform below.
 | BIOS Vendor                             | American Megatrends Inc.*             | American Megatrends Inc.*             |
 | BIOS Version                            | 411                                   | 5.12                                  |
 | BIOS Release                            | September 21, 2018                    | September 21, 2018                    |
-| Test Date                               | March 14, 2022                        | March 14, 2022                        |
+| Test Date                               | March 17, 2022                        | March 17, 2022                        |
 
 For more detailed configuration descriptions, see [Configuration Details](https://docs.openvino.ai/resources/benchmark_files/system_configurations_2022.1.html).
 
-Results may vary. For workloads and configurations visit: [www.intel.com/PerformanceIndex](https://www.intel.com/PerformanceIndex) and [Legal Information](../Legal_Information.md).
+Results may vary. For workloads visit: [workloads](https://docs.openvino.ai/latest/openvino_docs_performance_benchmarks_faq.html#what-image-sizes-are-used-for-the-classification-network-models) and for configurations visit: [configurations](https://docs.openvino.ai/latest/openvino_docs_performance_benchmarks_openvino.html#platform-configurations). See also [Legal Information](../Legal_Information.md).
