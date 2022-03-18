@@ -186,6 +186,7 @@ For some performance-critical DL operations, the CPU plugin uses optimized imple
 @sphinxdirective
 .. dropdown:: The following operations are implemented using primitives from the OneDNN library:
 
+    * AvgPool
     * Concat
     * Convolution
     * ConvolutionBackpropData
