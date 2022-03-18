@@ -3529,6 +3529,24 @@ bool evaluate(const shared_ptr<op::v8::Gather>& op, const HostTensorVector& outp
     return true;
 }
 
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v3::Assign>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    outputs[0]->set_unary(inputs[0]);
+    void* input = inputs[0]->get_data_ptr();
+    outputs[0]->write(input, outputs[0]->get_size_in_bytes());
+    return true;
+}
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v3::ReadValue>& op,
+              const HostTensorVector& outputs,
+              const HostTensorVector& inputs) {
+    outputs[0]->set_unary(inputs[0]);
+    void* input = inputs[0]->get_data_ptr();
+    outputs[0]->write(input, outputs[0]->get_size_in_bytes());
+    return true;
+}
+
 template <ov::element::Type_t ET>
 inline bool evaluate(const shared_ptr<op::v8::NV12toRGB>& op,
                      const HostTensorVector& outputs,
