@@ -43,29 +43,29 @@ void OPCache::update_ops_cache(const std::shared_ptr<ov::Node> &op,
 void OPCache::update_ops_cache(const std::shared_ptr<ov::Model> &func, const bool extract_body, const std::string &source_model) {
     size_t cached_ops_count = m_ops_cache.size();
     for (const auto &op : func->get_ordered_ops()) {
-        if (ov::is_type<ov::op::v0::Parameter>(op) ||
-            ov::is_type<ov::op::v0::Constant>(op) ||
-            ov::is_type<ov::op::v0::Result>(op) ||
+        if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) ||
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(op) ||
+            std::dynamic_pointer_cast<ov::op::v0::Result>(op) ||
             // ReadValue and Assign have to be handled in pair
             // Will be handled as part of 48838
-            ov::is_type<ov::op::util::AssignBase>(op) ||
-            ov::is_type<ov::op::util::ReadValueBase>(op)
+            std::dynamic_pointer_cast<ov::op::util::AssignBase>(op) ||
+            std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(op)
                     ) {
             continue;
         }
         if (extract_body) {
-            if (ov::is_type<ov::op::v8::If>(op)) {
+            if (std::dynamic_pointer_cast<ov::op::v8::If>(op)) {
                 auto if_op = std::dynamic_pointer_cast<ov::op::v8::If>(op);
                 std::vector<std::shared_ptr<ov::Model>> bodies;
                 for (size_t i = 0; i < if_op->get_internal_subgraphs_size(); i++) {
                     auto if_body = if_op->get_function(i);
                     update_ops_cache(if_body, extract_body, source_model);
                 }
-            } else if (ov::is_type<ov::op::v5::Loop>(op)) {
+            } else if (std::dynamic_pointer_cast<ov::op::v5::Loop>(op)) {
                 auto loop = std::dynamic_pointer_cast<ov::op::v5::Loop>(op);
                 auto loop_body = loop->get_function();
                 update_ops_cache(loop_body, extract_body, source_model);
-            } else if (ov::is_type<ov::op::v0::TensorIterator>(op)) {
+            } else if (std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(op)) {
                 auto ti = std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(op);
                 auto ti_body = ti->get_body();
                 update_ops_cache(ti_body, extract_body, source_model);

@@ -220,6 +220,9 @@ void ReadIRTest::SetUp() {
                 inputShapes.push_back(InputShape{param->get_partial_shape(), staticShapes});
             }
         }
+        if (inputShapes.empty()) {
+            GTEST_SKIP() << "The graph is constant. The case is not applicable for Operation conformance scenario";
+        }
         init_input_shapes(inputShapes);
     } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
         IE_THROW() << "Crash happens";
