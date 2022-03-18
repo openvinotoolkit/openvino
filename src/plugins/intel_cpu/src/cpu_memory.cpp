@@ -34,12 +34,12 @@ namespace {
     }
 }   // namespace
 
-MKLDNNMemory::MKLDNNMemory(const mkldnn::engine& eng) :
+Memory::Memory(const mkldnn::engine& eng) :
     eng(eng), mgrHandle(std::make_shared<DnnlMemoryMngr>(std::unique_ptr<MemoryMngrWithReuse>(new MemoryMngrWithReuse())), this) {}
-MKLDNNMemory::MKLDNNMemory(const mkldnn::engine& eng, std::unique_ptr<IMemoryMngr> mngr) :
+Memory::Memory(const mkldnn::engine& eng, std::unique_ptr<IMemoryMngr> mngr) :
     eng(eng), mgrHandle(std::make_shared<DnnlMemoryMngr>(std::move(mngr)), this) {}
 
-size_t MKLDNNMemory::GetSize() const {
+size_t Memory::GetSize() const {
     auto size = getDesc().getCurrentMemSize();
     if (size  == MemoryDesc::UNDEFINED_SIZE) {
         IE_THROW() << "Can't get memory size for undefined shape";
@@ -47,8 +47,8 @@ size_t MKLDNNMemory::GetSize() const {
     return size;
 }
 
-void MKLDNNMemory::Create(const mkldnn::memory::desc& desc, const void *data, bool pads_zeroing) {
-    // MKLDNN accepts not a const data, probably need to remove some level of consteness in a call stack
+void Memory::Create(const mkldnn::memory::desc& desc, const void *data, bool pads_zeroing) {
+    // OneDNN accepts not a const data, probably need to remove some level of consteness in a call stack
 
     // ========================
     // Equivalent of constructor memory(const primitive_desc &desc, void *hdl)
@@ -64,11 +64,11 @@ void MKLDNNMemory::Create(const mkldnn::memory::desc& desc, const void *data, bo
     }
 }
 
-void MKLDNNMemory::Create(const MemoryDesc &desc, const void *data, bool pads_zeroing) {
+void Memory::Create(const MemoryDesc &desc, const void *data, bool pads_zeroing) {
     Create(desc.clone(), data, pads_zeroing);
 }
 
-void MKLDNNMemory::Create(MemoryDescPtr desc, const void* data, bool pads_zeroing) {
+void Memory::Create(MemoryDescPtr desc, const void* data, bool pads_zeroing) {
     pMemDesc = desc;
 
     size_t memSize = MemoryDesc::UNDEFINED_SIZE;
@@ -93,8 +93,8 @@ void MKLDNNMemory::Create(MemoryDescPtr desc, const void* data, bool pads_zeroin
     }
 }
 
-void MKLDNNMemory::SetData(const MKLDNNMemory& src, bool ftz) const {
-    MKLDNNReorderNode::reorderData(src, *this);
+void Memory::SetData(const Memory& src, bool ftz) const {
+    node::Reorder::reorderData(src, *this);
 
     if (ftz
         && src.GetDataType() == memory::data_type::f32
@@ -109,13 +109,13 @@ void MKLDNNMemory::SetData(const MKLDNNMemory& src, bool ftz) const {
     }
 }
 
-void MKLDNNMemory::FillZero() {
+void Memory::FillZero() {
     void* dataPtr = GetData();
     if (dataPtr != nullptr)
         memset(dataPtr, 0, getDesc().getMaxMemSize());
 }
 
-void *MKLDNNMemory::GetPtr() const  {
+void *Memory::GetPtr() const  {
     auto ptr = static_cast<uint8_t*>(GetData());
     const mkldnn_memory_desc_t md = prim->get_desc().data;
     mkldnn::impl::memory_desc_wrapper wrapper(md);
@@ -123,7 +123,7 @@ void *MKLDNNMemory::GetPtr() const  {
     return ptr;
 }
 
-void MKLDNNMemory::redefineDesc(MemoryDescPtr desc) {
+void Memory::redefineDesc(MemoryDescPtr desc) {
     if (!desc->hasDefinedMaxSize()) {
         IE_THROW() << "Can not reset descriptor, memory upper bound is unknown.";
     }
@@ -132,27 +132,27 @@ void MKLDNNMemory::redefineDesc(MemoryDescPtr desc) {
 }
 
 template<>
-DnnlMemoryDescPtr MKLDNNMemory::GetDescWithType<DnnlMemoryDesc, 0, 0>() const {
+DnnlMemoryDescPtr Memory::GetDescWithType<DnnlMemoryDesc, 0, 0>() const {
     return MemoryDescUtils::convertToDnnlMemoryDesc(pMemDesc);
 }
 
-void MKLDNNMemory::setDataHandle(void *data) {
+void Memory::setDataHandle(void *data) {
     size_t maxMemSize = pMemDesc->hasDefinedMaxSize() ?  pMemDesc->getMaxMemSize() : 0;
     mgrHandle->setExtBuff(data, maxMemSize);
     prim->set_data_handle(mgrHandle->getRawPtr()); // for pads zeroing, to preserve mkldnn::memory::set_data_handle behaviour
 }
 
-void MKLDNNMemory::update() {
+void Memory::update() {
     if (isAllocated()) {
         prim->set_data_handle_no_pads_proc(mgrHandle->getRawPtr());
     }
 }
 
-void MKLDNNMemory::Create(const MemoryDesc &desc, DnnlMemoryMngrPtr memMgr) {
+void Memory::Create(const MemoryDesc &desc, DnnlMemoryMngrPtr memMgr) {
     Create(desc.clone(), memMgr);
 }
 
-void MKLDNNMemory::Create(MemoryDescPtr desc, DnnlMemoryMngrPtr memMgr) {
+void Memory::Create(MemoryDescPtr desc, DnnlMemoryMngrPtr memMgr) {
     mgrHandle = DnnlMemMngrHandle(memMgr, this);
     bool memAllocated = mgrHandle->getRawPtr();
 
@@ -160,7 +160,7 @@ void MKLDNNMemory::Create(MemoryDescPtr desc, DnnlMemoryMngrPtr memMgr) {
 }
 
 template<>
-BlockedMemoryDescPtr MKLDNNMemory::GetDescWithType<BlockedMemoryDesc, 0, 0>() const {
+BlockedMemoryDescPtr Memory::GetDescWithType<BlockedMemoryDesc, 0, 0>() const {
     return MemoryDescUtils::convertToBlockedMemoryDesc(pMemDesc);
 }
 
@@ -221,13 +221,13 @@ bool DnnlMemoryMngr::hasExtBuffer() const noexcept {
     return _pMemMngr->hasExtBuffer();
 }
 
-void DnnlMemoryMngr::registerMemory(MKLDNNMemory* memPtr) {
+void DnnlMemoryMngr::registerMemory(Memory* memPtr) {
     if (memPtr) {
         _setMemPtrs.insert(memPtr);
     }
 }
 
-void DnnlMemoryMngr::unregisterMemory(MKLDNNMemory* memPtr) {
+void DnnlMemoryMngr::unregisterMemory(Memory* memPtr) {
     if (memPtr) {
         _setMemPtrs.erase(memPtr);
     }

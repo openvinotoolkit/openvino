@@ -12,6 +12,7 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
 struct jit_mvn_config_params {
     bool planar_layout;
@@ -70,9 +71,9 @@ struct jit_uni_mvn_kernel {
     const mkldnn_primitive_attr &attr_;
 };
 
-class MKLDNNMVNNode : public MKLDNNNode {
+class MVN : public Node {
 public:
-    MKLDNNMVNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MVN(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
@@ -92,7 +93,7 @@ public:
         return mvnAttrs.normalizeVariance_;
     }
 
-    bool canFuse(const MKLDNNNodePtr& node) const override;
+    bool canFuse(const NodePtr& node) const override;
     void prepareParams() override;
 
     // Defines way to add epsilon: inside sqrt or outside.
@@ -168,5 +169,6 @@ private:
     };
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov
