@@ -7,7 +7,7 @@
 #include <vector>
 #include <mkldnn_types.h>
 #include <ie_parallel.hpp>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include "cpu_memcpy.h"
 #include "utils/bfloat16.hpp"
 
@@ -15,7 +15,6 @@
 #include <common/primitive_hashing_utils.hpp>
 
 using namespace InferenceEngine;
-using namespace ov::intel_cpu;
 using namespace mkldnn;
 using namespace mkldnn::impl;
 using namespace mkldnn::impl::cpu::x64;
@@ -23,6 +22,9 @@ using namespace mkldnn::impl::utils;
 using namespace Xbyak;
 
 #define GET_OFF(field) offsetof(jit_args_permute, field)
+
+namespace ov {
+namespace intel_cpu {
 
 template <cpu_isa_t isa>
 struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_generator {
@@ -410,3 +412,6 @@ bool PermuteParams::operator==(const PermuteParams& rhs) const {
            (dst_block_order == rhs.dst_block_order) && (order == rhs.order) &&
            (data_size == rhs.data_size);
 }
+
+}   // namespace intel_cpu
+}   // namespace ov

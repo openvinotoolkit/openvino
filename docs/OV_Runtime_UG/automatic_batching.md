@@ -76,7 +76,7 @@ For example, the application processes only 4 video streams, so there is no need
 
     .. doxygensnippet:: docs/snippets/ov_auto_batching.py
        :language: python
-       :fragment: hint_num_requests]
+       :fragment: [hint_num_requests]
 
 @endsphinxdirective
 

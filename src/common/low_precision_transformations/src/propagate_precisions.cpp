@@ -15,8 +15,6 @@
 using namespace ngraph;
 using namespace ngraph::pass::low_precision;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::PropagatePrecisions, "PropagatePrecisions", 0);
-
 ngraph::pass::low_precision::PropagatePrecisions::PropagatePrecisions(const AttributeParameters& params) : params(params) {}
 
 bool ngraph::pass::low_precision::PropagatePrecisions::run_on_model(const std::shared_ptr<ngraph::Function>& f) {

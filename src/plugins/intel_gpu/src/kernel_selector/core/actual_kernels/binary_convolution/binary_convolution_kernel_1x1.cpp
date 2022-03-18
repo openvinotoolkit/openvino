@@ -59,7 +59,7 @@ KernelsPriority BinaryConvolutionKernel1x1::GetKernelsPriority(const Params& /*p
 }
 
 bool BinaryConvolutionKernel1x1::Validate(const Params& p, const optional_params& o) const {
-    if (!BinaryConvolutionKernelBase::Validate(p, o) || !CovolutionBinaryCheckInput(p, o))
+    if (!BinaryConvolutionKernelBase::Validate(p, o) || !ConvolutionBinaryCheckInput(p, o))
         return false;
 
     const auto& params = static_cast<const binary_convolution_params&>(p);
