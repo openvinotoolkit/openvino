@@ -12,7 +12,7 @@
 #include <utils/shape_inference/static_shape.hpp>
 
 using namespace ov;
-
+using namespace ov::intel_cpu;
 
 TEST(StaticShapeInferenceTest, ReduceTest) {
     auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});

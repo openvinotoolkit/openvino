@@ -30,21 +30,24 @@ struct PassRate {
         PASSED,
         FAILED,
         SKIPPED,
-        CRASHED
+        CRASHED,
+        HANGED
     };
     unsigned long passed = 0;
     unsigned long failed = 0;
     unsigned long skipped = 0;
     unsigned long crashed = 0;
+    unsigned long hanged = 0;
     bool isImplemented = false;
 
     PassRate() = default;
 
-    PassRate(unsigned long p, unsigned long f, unsigned long s, unsigned long c) {
+    PassRate(unsigned long p, unsigned long f, unsigned long s, unsigned long c, unsigned long h) {
         passed = p;
         failed = f;
         skipped = s;
         crashed = c;
+        hanged = h;
         if (!isImplemented && passed > 0) {
             isImplemented = true;
         }
@@ -55,10 +58,10 @@ struct PassRate {
     }
 
     float getPassrate() const {
-        if (passed + failed + crashed == 0) {
+        if (passed + failed + crashed + hanged == 0) {
             return 0.f;
         } else {
-            return passed * 100.f / (passed + failed + skipped + crashed);
+            return passed * 100.f / (passed + failed + skipped + crashed + hanged);
         }
     }
 };
@@ -110,7 +113,7 @@ public:
 
     #ifdef IE_TEST_DEBUG
     void saveDebugReport(const char* className, const char* opName, unsigned long passed, unsigned long failed,
-                        unsigned long skipped, unsigned long crashed);
+                         unsigned long skipped, unsigned long crashed, unsigned long hanged);
     #endif  //IE_TEST_DEBUG
 
     void saveReport();
