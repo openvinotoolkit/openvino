@@ -1093,7 +1093,7 @@ def add_input_ops(graph: Graph, user_defined_inputs: dict, before_infer: bool):
                         if graph.has_tensor_name(op_name):
                             continue
                         out_edges = list(graph.out_edges(op_name, data=True))
-                        for src_node, _, attrs in out_edges:
+                        for _, _, attrs in out_edges:
                             fw_info = []
                             if 'fw_tensor_debug_info' in attrs:
                                 fw_info += attrs['fw_tensor_debug_info']
