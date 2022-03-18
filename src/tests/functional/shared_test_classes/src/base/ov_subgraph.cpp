@@ -4,6 +4,7 @@
 
 #include <signal.h>
 #include <fstream>
+#include "functional_test_utils/plugin_cache.hpp"
 #include "transformations/convert_precision.hpp"
 
 #ifdef _WIN32
@@ -45,6 +46,9 @@ void SubgraphBaseTest::run() {
     summary.setDeviceName(targetDevice);
     summary.updateOPsStats(function, status);
 
+    if (targetDevice == "MYRIAD") {
+        PluginCache::get().reset();
+    }
     if (isCurrentTestDisabled)
         GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
 

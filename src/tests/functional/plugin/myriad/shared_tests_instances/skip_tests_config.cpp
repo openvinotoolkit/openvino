@@ -64,8 +64,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*CoreThreadingTestsWithIterations.*)",
         R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
         R"(.*OVClassNetworkTestP.*(SetAffinityWithConstantBranches|SetAffinityWithKSO).*)",
-        R"(.*ExperimentalDetectronROIFeatureExtractorLayerTest.*)",
-        R"(.*OVClassNetworkTestP_smoke\/OVClassNetworkTestP.LoadNetworkActualNoThrow.*)",
         // TODO: Issue 69640
         R"(.*EltwiseLayerTest.*OpType=Prod.*)",
         R"(.*EltwiseLayerTest.*OpType=SqDiff.*PARAMETER.*SCALAR.*)",

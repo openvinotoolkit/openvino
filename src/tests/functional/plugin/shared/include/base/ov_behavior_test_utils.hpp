@@ -12,6 +12,7 @@
 #include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/common_utils.hpp"
 
+#include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/blob_utils.hpp"
@@ -82,6 +83,7 @@ protected:
 
 inline ov::Core createCoreWithTemplate() {
     ov::test::utils::PluginCache::get().reset();
+    PluginCache::get().reset();
     ov::Core core;
 #ifndef OPENVINO_STATIC_LIBRARY
     std::string pluginName = "openvino_template_plugin";
