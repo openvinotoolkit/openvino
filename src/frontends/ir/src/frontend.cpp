@@ -114,13 +114,11 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
 
     auto create_extensions_map = [&]() -> std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> {
         std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> exts;
-        if (m_shared_object != nullptr) {
-            const auto frontend_shared_data = std::static_pointer_cast<FrontEndSharedData>(m_shared_object);
-            OPENVINO_ASSERT(frontend_shared_data, "Shared object has invalid type");
-            for (auto& ext : frontend_shared_data->extensions()) {
-                if (auto base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext))
-                    exts.insert({base_ext->get_type_info(), base_ext});
-            }
+        const auto frontend_shared_data = std::static_pointer_cast<FrontEndSharedData>(m_shared_object);
+        OPENVINO_ASSERT(frontend_shared_data, "Shared object has invalid type");
+        for (auto& ext : frontend_shared_data->extensions()) {
+            if (auto base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext))
+                exts.insert({base_ext->get_type_info(), base_ext});
         }
         return exts;
     };
