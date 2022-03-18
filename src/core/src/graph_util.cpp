@@ -809,11 +809,11 @@ bool ov::replace_node_update_name(const std::shared_ptr<Node>& target, const std
     return true;
 }
 
-void ov::serialize(const std::shared_ptr<ov::Model>& m,
+void ov::serialize(const std::shared_ptr<const ov::Model>& m,
                    const std::string& xml_path,
                    const std::string& bin_path,
                    ov::pass::Serialize::Version version) {
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>(xml_path, bin_path, version);
-    manager.run_passes(m);
+    manager.run_passes(std::const_pointer_cast<ov::Model>(m));
 }
