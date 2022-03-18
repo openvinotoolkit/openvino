@@ -3351,9 +3351,16 @@ bool evaluate(const shared_ptr<op::v9::GenerateProposalsSingleImage>& op,
     outputs[1]->set_element_type(output_type);
     outputs[1]->set_shape(output_scores_shape);
 
+    const auto roi_num_type = op->get_output_element_type(2);
+    Shape output_roi_num_shape = Shape{1};
+    outputs[2]->set_element_type(roi_num_type);
+    outputs[2]->set_shape(output_roi_num_shape);
+
     runtime::reference::generate_proposals_single_image_postprocessing(outputs[0]->get_data_ptr(),
                                                                        outputs[1]->get_data_ptr(),
+                                                                       outputs[2]->get_data_ptr(),
                                                                        output_type,
+                                                                       roi_num_type,
                                                                        output_rois,
                                                                        output_scores,
                                                                        output_rois_shape,

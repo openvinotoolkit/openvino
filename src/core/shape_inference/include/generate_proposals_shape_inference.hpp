@@ -14,7 +14,7 @@ template <class T>
 void shape_infer(const GenerateProposalsSingleImage* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 4 && output_shapes.size() == 2);
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 4 && output_shapes.size() == 3);
 
     const auto& im_info_shape = input_shapes[0];
     const auto& anchors_shape = input_shapes[1];
@@ -35,14 +35,14 @@ void shape_infer(const GenerateProposalsSingleImage* op,
 
     const auto anchors_shape_rank = anchors_shape.rank();
     NODE_VALIDATION_CHECK(op,
-                          anchors_shape_rank.compatible(2),
-                          "The 'input_anchors' input is expected to be a 2D. Got: ",
+                          anchors_shape_rank.compatible(4),
+                          "The 'input_anchors' input is expected to be a 4D. Got: ",
                           anchors_shape);
     if (anchors_shape_rank.is_static()) {
         NODE_VALIDATION_CHECK(op,
-                              anchors_shape[1].compatible(4),
-                              "The second dimension of 'input_anchors' should be compatible with 4. Got: ",
-                              anchors_shape[1]);
+                              anchors_shape[3].compatible(4),
+                              "The fourth dimension of 'input_anchors' should be compatible with 4. Got: ",
+                              anchors_shape[3]);
     }
     const auto deltas_shape_rank = deltas_shape.rank();
     const auto scores_shape_rank = scores_shape.rank();
@@ -73,6 +73,7 @@ void shape_infer(const GenerateProposalsSingleImage* op,
 
     output_shapes[0] = ov::PartialShape({Dimension::dynamic(), 4});
     output_shapes[1] = ov::PartialShape::dynamic(1);
+    output_shapes[2] = ov::PartialShape({1});
 }
 
 }  // namespace v9

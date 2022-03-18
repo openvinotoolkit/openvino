@@ -28,12 +28,13 @@ public:
 private:
     // Inputs:
     //      im_info, shape [3]
-    //      anchors, shape [H * W * A, 4]
+    //      anchors, shape [H, W, A, 4]
     //      deltas,  shape [A * 4, H, W]
     //      scores,  shape [A, H, W]
     // Outputs:
     //      rois,    shape [rois_num, 4]
     //      scores,  shape [rois_num]
+    //      roi_num, shape [1]
 
     const int INPUT_IM_INFO {0};
     const int INPUT_ANCHORS {1};
@@ -41,6 +42,7 @@ private:
     const int INPUT_SCORES {3};
     const int OUTPUT_ROIS {0};
     const int OUTPUT_SCORES {1};
+    const int OUTPUT_ROI_NUM {2};
 
     float min_size_;
     int pre_nms_topn_;

@@ -23,7 +23,7 @@ TEST(type_prop, generate_proposals) {
     const auto dyn_dim = Dimension::dynamic();
 
     auto im_info = std::make_shared<op::Parameter>(element::f32, Shape{4});
-    auto anchors = std::make_shared<op::Parameter>(element::f32, Shape{201600, 4});
+    auto anchors = std::make_shared<op::Parameter>(element::f32, Shape{200, 336, 3, 4});
     auto deltas = std::make_shared<op::Parameter>(element::f32, Shape{12, 200, 336});
     auto scores = std::make_shared<op::Parameter>(element::f32, Shape{3, 200, 336});
 
@@ -31,20 +31,24 @@ TEST(type_prop, generate_proposals) {
 
     ASSERT_EQ(proposals->get_output_element_type(0), element::f32);
     ASSERT_EQ(proposals->get_output_element_type(1), element::f32);
+    ASSERT_EQ(proposals->get_output_element_type(2), element::i64);
     EXPECT_EQ(proposals->get_output_partial_shape(0), (PartialShape{dyn_dim, 4}));
     EXPECT_EQ(proposals->get_output_partial_shape(1), (PartialShape{dyn_dim}));
+    EXPECT_EQ(proposals->get_output_partial_shape(2), (PartialShape{1}));
 
     im_info = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic(1));
-    anchors = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic(2));
+    anchors = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic(4));
     deltas = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic(3));
     scores = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic(3));
 
-    proposals = std::make_shared<GenerateProposals>(im_info, anchors, deltas, scores, attrs);
+    proposals = std::make_shared<GenerateProposals>(im_info, anchors, deltas, scores, attrs, element::i32);
 
     ASSERT_EQ(proposals->get_output_element_type(0), element::f32);
     ASSERT_EQ(proposals->get_output_element_type(1), element::f32);
+    ASSERT_EQ(proposals->get_output_element_type(2), element::i32);
     EXPECT_EQ(proposals->get_output_partial_shape(0), (PartialShape{dyn_dim, 4}));
     EXPECT_EQ(proposals->get_output_partial_shape(1), (PartialShape{dyn_dim}));
+    EXPECT_EQ(proposals->get_output_partial_shape(2), (PartialShape{1}));
 }
 
 TEST(type_prop, generate_proposals_dynamic) {
@@ -60,32 +64,32 @@ TEST(type_prop, generate_proposals_dynamic) {
     const auto dyn_shape = PartialShape::dynamic();
 
     std::vector<ShapesAndAttrs> shapes = {
-        {{3}, {201600, 4}, {12, 200, 336}, {3, 200, 336}, 1000},
-        {{3}, {201600, 4}, {12, 200, 336}, dyn_shape, 500},
-        {{3}, {201600, 4}, dyn_shape, {3, 200, 336}, 700},
-        {{3}, {201600, 4}, dyn_shape, dyn_shape, 300},
+        {{3}, {200, 336, 3, 4}, {12, 200, 336}, {3, 200, 336}, 1000},
+        {{3}, {200, 336, 3, 4}, {12, 200, 336}, dyn_shape, 500},
+        {{3}, {200, 336, 3, 4}, dyn_shape, {3, 200, 336}, 700},
+        {{3}, {200, 336, 3, 4}, dyn_shape, dyn_shape, 300},
         {{3}, dyn_shape, {12, 200, 336}, {3, 200, 336}, 200},
         {{3}, dyn_shape, {12, 200, 336}, dyn_shape, 40},
         {{3}, dyn_shape, dyn_shape, {3, 200, 336}, 70},
         {{3}, dyn_shape, dyn_shape, dyn_shape, 60},
-        {dyn_shape, {201600, 4}, {12, 200, 336}, {3, 200, 336}, 500},
-        {dyn_shape, {201600, 4}, {12, 200, 336}, dyn_shape, 400},
-        {dyn_shape, {201600, 4}, dyn_shape, {3, 200, 336}, 350},
-        {dyn_shape, {201600, 4}, dyn_shape, dyn_shape, 440},
+        {dyn_shape, {200, 336, 3, 4}, {12, 200, 336}, {3, 200, 336}, 500},
+        {dyn_shape, {200, 336, 3, 4}, {12, 200, 336}, dyn_shape, 400},
+        {dyn_shape, {200, 336, 3, 4}, dyn_shape, {3, 200, 336}, 350},
+        {dyn_shape, {200, 336, 3, 4}, dyn_shape, dyn_shape, 440},
         {dyn_shape, dyn_shape, {12, 200, 336}, {3, 200, 336}, 315},
         {dyn_shape, dyn_shape, {12, 200, 336}, dyn_shape, 130},
         {dyn_shape, dyn_shape, dyn_shape, {3, 200, 336}, 1000},
         {dyn_shape, dyn_shape, dyn_shape, dyn_shape, 700},
-        {{3}, {dyn_dim, 4}, {12, 200, 336}, {3, 200, 336}, 540},
-        {{3}, {dyn_dim, 4}, {12, 200, 336}, {dyn_dim, 200, 336}, 600},
-        {{3}, {dyn_dim, 4}, {dyn_dim, 200, 336}, {3, 200, 336}, 75},
-        {{3}, {dyn_dim, 4}, {dyn_dim, 200, 336}, {dyn_dim, 200, 336}, 80},
-        {{3}, {201600, 4}, {12, 200, dyn_dim}, {3, 200, dyn_dim}, 430},
-        {{3}, {201600, 4}, {12, dyn_dim, 336}, {3, dyn_dim, 336}, 180},
-        {{3}, {201600, 4}, {12, dyn_dim, dyn_dim}, {3, dyn_dim, dyn_dim}, 170},
-        {{3}, {dyn_dim, 4}, {12, 200, dyn_dim}, {3, 200, dyn_dim}, 200},
-        {{3}, {dyn_dim, 4}, {12, dyn_dim, 336}, {3, dyn_dim, 336}, 800},
-        {{3}, {dyn_dim, 4}, {12, dyn_dim, dyn_dim}, {3, dyn_dim, dyn_dim}, 560},
+        {{3}, {dyn_dim, dyn_dim, dyn_dim, 4}, {12, 200, 336}, {3, 200, 336}, 540},
+        {{3}, {dyn_dim, dyn_dim, dyn_dim, 4}, {12, 200, 336}, {dyn_dim, 200, 336}, 600},
+        {{3}, {dyn_dim, dyn_dim, dyn_dim, 4}, {dyn_dim, 200, 336}, {3, 200, 336}, 75},
+        {{3}, {dyn_dim, dyn_dim, dyn_dim, 4}, {dyn_dim, 200, 336}, {dyn_dim, 200, 336}, 80},
+        {{3}, {200, 336, 3, 4}, {12, 200, dyn_dim}, {3, 200, dyn_dim}, 430},
+        {{3}, {200, 336, 3, 4}, {12, dyn_dim, 336}, {3, dyn_dim, 336}, 180},
+        {{3}, {200, 336, 3, 4}, {12, dyn_dim, dyn_dim}, {3, dyn_dim, dyn_dim}, 170},
+        {{3}, {dyn_dim, dyn_dim, dyn_dim, 4}, {12, 200, dyn_dim}, {3, 200, dyn_dim}, 200},
+        {{3}, {dyn_dim, dyn_dim, dyn_dim, 4}, {12, dyn_dim, 336}, {3, dyn_dim, 336}, 800},
+        {{3}, {dyn_dim, dyn_dim, dyn_dim, 4}, {12, dyn_dim, dyn_dim}, {3, dyn_dim, dyn_dim}, 560},
     };
 
     for (const auto& s : shapes) {
@@ -104,7 +108,9 @@ TEST(type_prop, generate_proposals_dynamic) {
 
         ASSERT_EQ(proposals->get_output_element_type(0), element::f32);
         ASSERT_EQ(proposals->get_output_element_type(1), element::f32);
+        ASSERT_EQ(proposals->get_output_element_type(2), element::i64);
         EXPECT_EQ(proposals->get_output_partial_shape(0), (PartialShape{dyn_dim, 4}));
         EXPECT_EQ(proposals->get_output_partial_shape(1), (PartialShape{dyn_dim}));
+        EXPECT_EQ(proposals->get_output_partial_shape(2), (PartialShape{1}));
     }
 }

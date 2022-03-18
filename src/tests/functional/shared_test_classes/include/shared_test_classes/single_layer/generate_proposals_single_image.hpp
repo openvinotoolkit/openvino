@@ -18,6 +18,7 @@ typedef std::tuple<
         int64_t,                                // pre_nms_count: number of top-n proposals after NMS
         std::pair<std::string, std::vector<ov::Tensor>>, // input tensors
         ElementType,                            // Network precision
+        ElementType,                            // roi_num precision
         std::string                             // Device name>;
 > GenerateProposalsSingleImageTestParams;
 

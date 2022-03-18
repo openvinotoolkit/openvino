@@ -47,22 +47,21 @@ NamedOutputs generate_proposals_v2(const NodeContext& node) {
     PADDLE_OP_CHECK(node, (attrs.nms_eta == 1.0), "Only support case of eta == 1.0 currently");
     attrs.normalized = not node.get_attribute<bool>("pixel_offset", true);
 
-    // reshape anchors from [H, W, A, 4] to [H * W * A, 4]
-    auto anchors_shape = default_opset::Constant::create<int64_t>(ov::element::i64, {2}, {-1, 4});
-    auto reshaped_anchors = std::make_shared<default_opset::Reshape>(anchors, anchors_shape, true);
+    // reshape anchors from to [H, W, A, 4] if it is [H * W * A, 4]
+    auto scores_shape = std::make_shared<default_opset::ShapeOf>(single_scores);
+    auto gather_indices = default_opset::Constant::create<int64_t>(ov::element::i64, {3}, {1, 2, 0});
+    auto gather_axis = default_opset::Constant::create<int64_t>(ov::element::i64, {}, {0});
+    auto partial_anchors_shape = std::make_shared<default_opset::Gather>(scores_shape, gather_indices, gather_axis);
+    auto const_4 = default_opset::Constant::create<int64_t>(ov::element::i64, {1}, {4});
+    auto anchors_shape = std::make_shared<default_opset::Concat>(OutputVector{partial_anchors_shape, const_4}, 0);
+    auto dim4_anchor = std::make_shared<default_opset::Reshape>(anchors, anchors_shape, true);
+
+    auto reshaped_anchors = std::make_shared<default_opset::Reshape>(anchors, dim4_anchor, true);
 
     auto variances_bbox_deltas = single_bbox_deltas;
     if (variances.get_node()) {
         // Reshape variances to [H, W, A, 4] if it is [H * W * A, 4]
-        auto scores_shape = std::make_shared<default_opset::ShapeOf>(single_scores);
-        auto gather_indices = default_opset::Constant::create<int64_t>(ov::element::i64, {3}, {1, 2, 0});
-        auto gather_axis = default_opset::Constant::create<int64_t>(ov::element::i64, {}, {0});
-        auto partial_variances_shape =
-            std::make_shared<default_opset::Gather>(scores_shape, gather_indices, gather_axis);
-        auto const_4 = default_opset::Constant::create<int64_t>(ov::element::i64, {1}, {4});
-        auto variances_shape =
-            std::make_shared<default_opset::Concat>(OutputVector{partial_variances_shape, const_4}, 0);
-        auto dim4_variances = std::make_shared<default_opset::Reshape>(variances, variances_shape, true);
+        auto dim4_variances = std::make_shared<default_opset::Reshape>(variances, anchors_shape, true);
         // Transpose variances from [H, W, A, 4] to [A*4, H, W]
         auto reshape_pattern = default_opset::Constant::create<int64_t>(ov::element::i64, {3}, {0, 0, -1});
         auto reshaped_variances = std::make_shared<default_opset::Reshape>(dim4_variances, reshape_pattern, true);
@@ -77,32 +76,30 @@ NamedOutputs generate_proposals_v2(const NodeContext& node) {
     auto im_info = std::make_shared<default_opset::Concat>(OutputVector{single_im_shape, im_scale}, 0);
 
     // input:
-    //  1. im_info: [H, W, S]
-    //  2. anchors: [H*W*A, 4]
+    //  1. im_info: [H, W, S] or [H, W, S_H, S_W]
+    //  2. anchors: [H, W, A, 4]
     //  3. deltas: [A*4, H, W]
     //  4. scores: [A, H, W]
     // output:
     //  1. rois: [proposals_num, 4]
     //  2. scores: [proposals_num]
+    //  3. roi_num: [1]
     auto proposal = std::make_shared<ov::op::v9::GenerateProposalsSingleImage>(im_info,
                                                                                reshaped_anchors,
                                                                                variances_bbox_deltas,
                                                                                single_scores,
                                                                                attrs);
+    proposal->set_roi_num_type(ov::element::i32);
 
     auto unsqueeze_scalar = default_opset::Constant::create(ov::element::i64, {}, {1});
     auto probs = std::make_shared<default_opset::Unsqueeze>(proposal->output(1), unsqueeze_scalar);
-
-    // generate proposal number
-    auto proposal_number = std::make_shared<default_opset::ShapeOf>(proposal->output(1), ov::element::i32);
 
     // output
     NamedOutputs named_outputs;
     named_outputs["RpnRois"] = OutputVector{proposal->output(0)};
     named_outputs["RpnRoiProbs"] = OutputVector{probs->output(0)};
-    named_outputs["RpnRoisNum"] = OutputVector{proposal_number->output(0)};
+    named_outputs["RpnRoisNum"] = OutputVector{proposal->output(2)};
 
-    // TODO: generate proposal testcase
     return named_outputs;
 }
 }  // namespace op
