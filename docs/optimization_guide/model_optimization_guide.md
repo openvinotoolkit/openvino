@@ -8,6 +8,7 @@
    
    pot_README
    docs_nncf_introduction
+   openvino_docs_IE_DG_Int8Inference
 
 @endsphinxdirective
 

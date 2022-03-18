@@ -131,13 +131,13 @@ Inference Engine API:
 
 @sphinxdirective
 
-.. tab:: sync
+.. tab:: Sync
 
     .. doxygensnippet:: docs/snippets/ie_common.cpp
        :language: cpp
        :fragment: [ie:inference]
 
-.. tab:: async
+.. tab:: Async
 
     .. doxygensnippet:: docs/snippets/ie_common.cpp
        :language: cpp
@@ -149,13 +149,13 @@ OpenVINO™ Runtime API 2.0:
 
 @sphinxdirective
 
-.. tab:: sync
+.. tab:: Sync
 
     .. doxygensnippet:: docs/snippets/ov_common.cpp
        :language: cpp
        :fragment: [ov_api_2_0:inference]
 
-.. tab:: async
+.. tab:: Async
 
     .. doxygensnippet:: docs/snippets/ov_common.cpp
        :language: cpp

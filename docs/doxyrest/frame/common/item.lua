@@ -98,16 +98,16 @@ function getItemRefTargetString(item)
 	end
 
 	local s =
-		".. index:: pair: " .. item.memberKind .. "; " .. item.name .. "\n" ..
-		".. _doxid-" .. item.id .. ":\n"
+		".. _doxid-" .. item.id .. ":\n" ..
+		".. index:: pair: " .. item.memberKind .. "; " .. item.name .. "\n"
 
 	if item.isSubGroupHead then
 		for j = 1, #item.subGroupSlaveArray do
 			slaveItem = item.subGroupSlaveArray[j]
 
 			s = s ..
-				".. index:: pair: " .. slaveItem.memberKind .. "; " .. slaveItem.name .. "\n" ..
-				".. _doxid-" .. slaveItem.id .. ":\n"
+				".. _doxid-" .. slaveItem.id .. ":\n" ..
+				".. index:: pair: " .. slaveItem.memberKind .. "; " .. slaveItem.name .. "\n"
 		end
 	end
 

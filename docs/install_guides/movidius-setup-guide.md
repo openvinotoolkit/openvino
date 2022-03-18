@@ -36,21 +36,21 @@ The `hddldaemon` is a system service, a binary executable that is run to manage 
 
 ### Conventions Used in This Document
 
-`<IE>` refers to the following default OpenVINO&trade; Inference Engine directories:
+`<OV>` refers to the following default OpenVINO&trade; Runtime directories:
 -  **Linux:**	   
  ```
- /opt/intel/openvino_2022/inference_engine
+ /opt/intel/openvino_2022/runtime
  ```
 -  **Windows:**	    
 ``` 
-C:\Program Files (x86)\IntelSWTools\openvino\inference_engine 
+C:\Program Files (x86)\IntelSWTools\openvino\runtime 
 ```
 
 If you have installed OpenVINO&trade; in a different directory on your system, you will need to enter your unique directory path.
 
 ### Configuration File Location
 
-`<IE>\external\hddl\config\hddl_service.config`
+`<OV>\3rdparty\hddl\config\hddl_service.config`
 
 ### Service Configuration File Settings
 

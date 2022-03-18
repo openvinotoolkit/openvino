@@ -30,7 +30,7 @@ This class allows to set and get data for model inputs, outputs and run inferenc
 
 ### Synchronous mode
 
-You can use `ov::InferRequest::infer()`, which blocks the application execution,  to infer model in synchronous mode:
+You can use `ov::InferRequest::infer`, which blocks the application execution, to infer model in the synchronous mode:
 
 @sphinxdirective
 
@@ -50,7 +50,7 @@ You can use `ov::InferRequest::infer()`, which blocks the application execution,
 
 ### Asynchronous mode
 
-Asynchronous mode can improve overall frame-rate of the application, because rather than wait for inference to complete, the app can continue doing things on the host, while accelerator is busy. You can use `ov::InferRequest::start_async()` to infer model in asynchronous mode:
+Asynchronous mode can improve application's overall frame-rate, because rather than wait for inference to complete, the app can keep working on the host, while the accelerator is busy. You can use `ov::InferRequest::start_async` to infer model in the asynchronous mode:
 
 @sphinxdirective
 
@@ -68,8 +68,8 @@ Asynchronous mode can improve overall frame-rate of the application, because rat
 
 @endsphinxdirective
 
-Asynchronous mode supports two ways to wait inference results:
-  * `ov::InferRequest::wait_for()` - specify maximum duration in milliseconds to block for. The method is blocked until the specified timeout has elapsed, or the result becomes available, whichever comes first.
+Asynchronous mode supports two ways the application waits for inference results:
+  * `ov::InferRequest::wait_for` - specifies the maximum duration in milliseconds to block the method. The method is blocked until the specified time has passed, or the result becomes available, whichever comes first.
     @sphinxdirective
 
     .. tab:: C++
@@ -85,7 +85,7 @@ Asynchronous mode supports two ways to wait inference results:
            :fragment: [wait_for]
 
     @endsphinxdirective
-  * `ov::InferRequest::wait()` - waits until inference result becomes available
+  * `ov::InferRequest::wait` - waits until inference result becomes available
     @sphinxdirective
 
     .. tab:: C++
@@ -102,10 +102,9 @@ Asynchronous mode supports two ways to wait inference results:
 
     @endsphinxdirective
 
-Both requests are thread-safe: can be called from different threads without fearing corruption and failures.
+Both methods are thread-safe.
 
-Also InferRequest provides an functionality which allows to avoid a call of `ov::InferRequest::wait()`, in order to do it, you can use `ov::InferRequest::set_callback()` method. This method allows to set callback which will be called after completing run of InferRequest, please use weak reference of infer_request (`ov::InferRequest*`, `ov::InferRequest&`, `std::weal_ptr<ov::InferRequest>` and etc) in the callback, it is needed to avoid cyclic references.
-For more details please take a look too [Classification Sample Async](../../samples/cpp/classification_sample_async/README.md).
+When you are running several inference requests in parallel, a device can process them simultaneously, with no garauntees on the completion order. This may complicate a possible logic based on the `ov::InferRequest::wait` (unless your code needs to wait for the _all_ requests). For multi-request scenarios, consider using the `ov::InferRequest::set_callback` method to set a callback which is  called upon completion of the request:
 
 @sphinxdirective
 
@@ -123,7 +122,10 @@ For more details please take a look too [Classification Sample Async](../../samp
 
 @endsphinxdirective
 
-You can use `ov::InferRequest::cancel()` method in case if you want to cancel the current inference request:
+> **NOTE**: Use weak reference of infer_request (`ov::InferRequest*`, `ov::InferRequest&`, `std::weal_ptr<ov::InferRequest>`, etc.) in the callback. It is necessary to avoid cyclic references.
+For more details, check [Classification Sample Async](../../samples/cpp/classification_sample_async/README.md).
+
+You can use the `ov::InferRequest::cancel` method if you want to abort execution of the current inference request:
 
 @sphinxdirective
 
@@ -145,7 +147,7 @@ You can use `ov::InferRequest::cancel()` method in case if you want to cancel th
 
 `ov::InferRequest` allows to get input/output tensors by tensor name, index, port and without any arguments in case if model has only one input or output.
 
-  * `ov::InferRequest::get_input_tensor()`, `ov::InferRequest::set_input_tensor()`, `ov::InferRequest::get_output_tensor()`, `ov::InferRequest::set_output_tensor()` methods without arguments can be used to get or set input/output tensor for model with only one input/output:
+  * `ov::InferRequest::get_input_tensor`, `ov::InferRequest::set_input_tensor`, `ov::InferRequest::get_output_tensor`, `ov::InferRequest::set_output_tensor` methods without arguments can be used to get or set input/output tensor for model with only one input/output:
     @sphinxdirective
 
     .. tab:: C++
@@ -162,7 +164,7 @@ You can use `ov::InferRequest::cancel()` method in case if you want to cancel th
 
     @endsphinxdirective
 
-  * `ov::InferRequest::get_input_tensor()`, `ov::InferRequest::set_input_tensor()`, `ov::InferRequest::get_output_tensor()`, `ov::InferRequest::set_output_tensor()` methods with argument can be used to get or set input/output tensor by input/output index:
+  * `ov::InferRequest::get_input_tensor`, `ov::InferRequest::set_input_tensor`, `ov::InferRequest::get_output_tensor`, `ov::InferRequest::set_output_tensor` methods with argument can be used to get or set input/output tensor by input/output index:
     @sphinxdirective
 
     .. tab:: C++
@@ -179,7 +181,7 @@ You can use `ov::InferRequest::cancel()` method in case if you want to cancel th
 
     @endsphinxdirective
 
-  * `ov::InferRequest::get_tensor()`, `ov::InferRequest::set_tensor()` methods can be used to get or set input/output tensor by tensor name:
+  * `ov::InferRequest::get_tensor`, `ov::InferRequest::set_tensor` methods can be used to get or set input/output tensor by tensor name:
     @sphinxdirective
 
     .. tab:: C++
@@ -196,7 +198,7 @@ You can use `ov::InferRequest::cancel()` method in case if you want to cancel th
 
     @endsphinxdirective
 
-  * `ov::InferRequest::get_tensor()`, `ov::InferRequest::set_tensor()` methods can be used to get or set input/output tensor by port:
+  * `ov::InferRequest::get_tensor`, `ov::InferRequest::set_tensor` methods can be used to get or set input/output tensor by port:
     @sphinxdirective
 
     .. tab:: C++
@@ -218,7 +220,7 @@ You can use `ov::InferRequest::cancel()` method in case if you want to cancel th
 ### Cascade of models
 
 `ov::InferRequest` can be used to organize cascade of models. You need to have infer requests for each model.
-In this case you can get output tensor from the first request using `ov::InferRequest::get_tensor()` and set it as input for the second request using `ov::InferRequest::set_tensor()`. But be careful, shared tensors across compiled models can be rewritten by the first model if the first infer request is run once again, while the second model has not started yet.
+In this case you can get output tensor from the first request using `ov::InferRequest::get_tensor` and set it as input for the second request using `ov::InferRequest::set_tensor`. But be careful, shared tensors across compiled models can be rewritten by the first model if the first infer request is run once again, while the second model has not started yet.
 
 @sphinxdirective
 
@@ -238,7 +240,7 @@ In this case you can get output tensor from the first request using `ov::InferRe
 
 ### Using of ROI tensors
 
-It is possible to re-use shared input by several models. You do not need to allocate separate input tensor for a model if it processes a ROI object located inside of already allocated input of a previous model. For instance, when first model detects objects on a video frame (stored as input tensor) and second model accepts detected bounding boxes (ROI inside of the frame) as input. In this case, it is allowed to re-use pre-allocated input tensor (used by first model) by second model and just crop ROI without allocation of new memory using `ov::Tensor()` with passing of `ov::Tensor` and `ov::Coordinate` as parameters.
+It is possible to re-use shared input by several models. You do not need to allocate separate input tensor for a model if it processes a ROI object located inside of already allocated input of a previous model. For instance, when the first model detects objects in a video frame (stored as input tensor) and the second model accepts detected bounding boxes (ROI inside of the frame) as input. In this case, it is allowed to re-use pre-allocated input tensor (used by the first model) by the second model and just crop ROI without allocation of new memory using `ov::Tensor` with passing of `ov::Tensor` and `ov::Coordinate` as parameters.
 
 @sphinxdirective
 

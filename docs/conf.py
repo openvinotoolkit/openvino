@@ -104,6 +104,12 @@ repositories = {
         'github_version': 'master',
         'host_url': 'https://github.com'
     },
+    'ote': {
+        'github_user': 'openvinotoolkit',
+        'github_repo': 'training_extensions',
+        'github_version': 'develop',
+        'host_url': 'https://github.com'
+    },
     'open_model_zoo': {
         'github_user': 'openvinotoolkit',
         'github_repo': 'open_model_zoo',

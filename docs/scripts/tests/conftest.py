@@ -72,6 +72,11 @@ def pytest_addoption(parser):
         action="store_true",
         default=False,
         help='Include link check for ovms')
+    parser.addoption(
+        '--include_ote',
+        action="store_true",
+        default=False,
+        help='Include link check for ote')
 
 
 def read_lists(configs):
@@ -90,7 +95,7 @@ def read_lists(configs):
 def pytest_generate_tests(metafunc):
     """ Generate tests depending on command line options
     """
-    exclude_links = {'open_model_zoo', 'workbench', 'pot', 'gst', 'omz', 'ovms'}
+    exclude_links = {'open_model_zoo', 'workbench', 'pot', 'gst', 'omz', 'ovms', 'ote'}
     if metafunc.config.getoption('include_omz'):
         exclude_links.remove('open_model_zoo')
         exclude_links.remove('omz')
@@ -102,6 +107,8 @@ def pytest_generate_tests(metafunc):
         exclude_links.remove('gst')
     if metafunc.config.getoption('include_ovms'):
         exclude_links.remove('ovms')
+    if metafunc.config.getoption('include_ote'):
+        exclude_links.remove('ote')
 
     # warnings to ignore
     suppress_warnings = read_lists(metafunc.config.getoption('suppress_warnings'))

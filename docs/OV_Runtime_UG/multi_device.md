@@ -1,4 +1,4 @@
-# Running on multiple device simultaneously {#openvino_docs_OV_UG_Running_on_multiple_devices}
+# Running on multiple devices simultaneously {#openvino_docs_OV_UG_Running_on_multiple_devices}
 
 ## Introducing the Multi-Device Plugin (C++)
 
@@ -158,6 +158,21 @@ The Multi-Device plugin supports FP16 IR files. The CPU plugin automatically upc
 
 ### See Also
 [Supported Devices](supported_plugins/Supported_Devices.md)
+
+## Performance Considerations for the Multi-Device Execution
+This section covers few recommendations for the multi-device execution (applicable for both Python and C++):
+- MULTI usually performs best when the fastest device is specified first in the list of the devices. 
+    This is particularly important when the request-level parallelism is not sufficient 
+    (e.g. the number of request in the flight is not enough to saturate all devices).
+- Just like with any throughput-oriented execution, it is highly recommended to query the optimal number of inference requests directly from the instance of the `ov:compiled_model`. 
+Please refer to the code of the `benchmark_app`, that exists in both  [C++](../../samples/cpp/benchmark_app/README.md) and [Python](../../tools/benchmark_tool/README.md), for more details.    
+-   Notice that for example CPU+GPU execution performs better with certain knobs 
+    which you can find in the code of the same [Benchmark App](../../samples/cpp/benchmark_app/README.md) sample.
+    One specific example is disabling GPU driver polling, which in turn requires multiple GPU streams to amortize slower 
+    communication of inference completion from the device to the host.
+-	Multi-device logic always attempts to save on the (e.g. inputs) data copies between device-agnostic, user-facing inference requests 
+    and device-specific 'worker' requests that are being actually scheduled behind the scene. 
+    To facilitate the copy savings, it is recommended to run the requests in the order that they were created.
 
 ## Introducing the Multi-Device Plugin (Python)
 
