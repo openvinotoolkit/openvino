@@ -115,6 +115,10 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
         return "";
     };
 
+    unsigned int devicePriority = 0;
+    auto prioritiesIter = config.find(ov::device::priorities.name());
+    bool enableDevicePriority = (prioritiesIter != config.end());
+    auto deviceList = GetCore()->GetAvailableDevices();
     for (auto && d : devicesWithRequests) {
         auto openingBracket = d.find_first_of('(');
         auto closingBracket = d.find_first_of(')', openingBracket);
@@ -130,33 +134,60 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
             }
         }
 
-        std::string defaultDeviceID = "";
         DeviceIDParser parsed{deviceName};
         std::string deviceid = parsed.getDeviceID();
-        if (deviceid.empty()) {
-            defaultDeviceID = getDefaultDeviceID(deviceName);
-            deviceid = defaultDeviceID;
-        }
-
-        std::string fullDeviceName = "";
-        std::string uniqueName = "";
-        if (parsed.getDeviceName() == "GPU") {
-            auto supportedMetrics = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
-            if (std::find(supportedMetrics.begin(), supportedMetrics.end(), METRIC_KEY(FULL_DEVICE_NAME)) != supportedMetrics.end()) {
-                fullDeviceName = GetCore()->GetMetric(deviceName, METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>();
+        std::vector<std::string> sameTypeDevices;
+        // if AUTO:GPU case, replace GPU with GPU.0 and GPU.1
+        // Disable AUTO:MYRIAD here because of below test case
+        // MYRIAD/CoreThreadingTests.smoke_QueryNetwork/targetDevice=MULTI_config=MULTI_DEVICE_PRIORITIES:MYRIAD_
+        // faild on windows
+        // the error is
+        // myriadFuncTests-0 INFO: [E:] [BSL] found 0 ioexpander device
+        if (deviceid.empty() && deviceName.find("MYRIAD") == std::string::npos) {
+            for (auto&& device : deviceList) {
+                if (device.find(deviceName) != std::string::npos) {
+                    sameTypeDevices.push_back(std::move(device));
+                }
             }
         }
-
-        if (fullDeviceName.empty()) {
-            uniqueName = parsed.getDeviceName() + "_" + deviceid;
-        } else {
-            uniqueName = fullDeviceName + "_" + deviceid;
+        // it's a virtual device like HETERO, TEMPLATE
+        // or real device with ID like GPU.1
+        if (sameTypeDevices.size() == 0) {
+            sameTypeDevices.push_back(std::move(deviceName));
         }
 
-        LOG_DEBUG("deviceName:%s, defaultDeviceID:%s, uniqueName:%s",
-              deviceName.c_str(), defaultDeviceID.c_str(), uniqueName.c_str());
-        // create meta device
-        metaDevices.push_back({ deviceName, getDeviceConfig(deviceName), numRequests, defaultDeviceID, uniqueName});
+        for (auto&& deviceNameWithID : sameTypeDevices) {
+            DeviceIDParser newParsed{deviceNameWithID};
+            std::string defaultDeviceID = "";
+            if (newParsed.getDeviceID().empty()) {
+                defaultDeviceID = getDefaultDeviceID(deviceNameWithID);
+            } else {
+                defaultDeviceID = newParsed.getDeviceID();
+            }
+
+            std::string fullDeviceName = "";
+            std::string uniqueName = "";
+            if (newParsed.getDeviceName() == "GPU") {
+                auto supportedMetrics = GetCore()->GetMetric(deviceNameWithID, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
+                if (std::find(supportedMetrics.begin(), supportedMetrics.end(), METRIC_KEY(FULL_DEVICE_NAME)) != supportedMetrics.end()) {
+                    fullDeviceName = GetCore()->GetMetric(deviceNameWithID, METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>();
+                }
+            }
+
+            if (fullDeviceName.empty()) {
+                uniqueName = newParsed.getDeviceName() + "_" + defaultDeviceID;
+            } else {
+                uniqueName = fullDeviceName + "_" + defaultDeviceID;
+            }
+
+            LOG_DEBUG("[AUTOPLUGIN]:deviceNameWithID:%s, defaultDeviceID:%s, uniqueName:%s",
+                    deviceNameWithID.c_str(), defaultDeviceID.c_str(), uniqueName.c_str());
+            // create meta device
+            metaDevices.push_back({deviceNameWithID, getDeviceConfig(deviceNameWithID), numRequests, defaultDeviceID, uniqueName, devicePriority});
+        }
+        if (enableDevicePriority) {
+            devicePriority++;
+        }
     }
 
     return metaDevices;
@@ -312,6 +343,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
              iter->config = deviceConfig;
              strDevices += iter->deviceName;
              strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
+             LOG_INFO("[AUTOPLUGIN]:device:%s, priority:%ld", iter->deviceName.c_str(), iter->devicePriority);
         }
         return std::make_shared<MultiDeviceExecutableNetwork>(modelPath, network, supportDevices, strDevices, this, context, context.needPerfCounters);
     }
@@ -499,6 +531,10 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
     if (validDevices.empty()) {
          IE_THROW() << "Cannot select any device";
     }
+    // sort validDevices
+    validDevices.sort([](const DeviceInformation& a, const DeviceInformation& b) {
+            return a.devicePriority < b.devicePriority;
+            });
     // all available Devices are in validDevices now
     // need to remove higher priority devices
     // save the last device first
@@ -683,6 +719,12 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDevice(const st
 }
 std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDeviceByNetwork(const std::vector<DeviceInformation>& metaDevices,
                                                 InferenceEngine::CNNNetwork network) {
+    if (metaDevices.empty()) {
+        IE_THROW(NotFound) << "No available device to filter " << GetName() <<  " plugin";
+    } else if (metaDevices.size() == 1) {
+        return metaDevices;
+    }
+
     std::vector<DeviceInformation> filterDevice;
     auto model = network.getFunction();
     if (model->is_dynamic()) {

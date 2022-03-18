@@ -69,7 +69,7 @@ protected:
 TEST_P(ExtractImagePatchesLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    CheckPluginRelatedResults(executableNetwork, "ExtractImagePatches");
+    CheckPluginRelatedResults(compiledModel, "ExtractImagePatches");
 }
 
 namespace {

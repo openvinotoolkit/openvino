@@ -13,10 +13,11 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNTransposeNode : public MKLDNNNode {
+class Transpose : public Node {
 public:
-    MKLDNNTransposeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    Transpose(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
@@ -42,7 +43,7 @@ protected:
 private:
     struct TransposeExecutor {
         TransposeExecutor() = default;
-        virtual void exec(MKLDNNTransposeNode* node, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr, const int MB) = 0;
+        virtual void exec(Transpose* node, MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr, const int MB) = 0;
         virtual ~TransposeExecutor() = default;
     };
     using executorPtr = std::shared_ptr<TransposeExecutor>;
@@ -50,17 +51,17 @@ private:
 
     struct TransposeJitExecutor : public TransposeExecutor {
         TransposeJitExecutor(const PermuteParams& params);
-        void exec(MKLDNNTransposeNode* node, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr, const int MB) override;
+        void exec(Transpose* node, MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr, const int MB) override;
 
         std::shared_ptr<PermuteKernel> pKernel;
     };
 
     struct TransposeRefExecutor : public TransposeExecutor {
         TransposeRefExecutor() = default;
-        void exec(MKLDNNTransposeNode* node, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr, const int MB) override;
+        void exec(Transpose* node, MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr, const int MB) override;
     };
 
-    template<typename T> void optimizedExecute(const int MB, const MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr);
+    template<typename T> void optimizedExecute(const int MB, const MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr);
 
     InferenceEngine::SizeVector order;
     InferenceEngine::Precision prec;
@@ -75,9 +76,9 @@ private:
     PermuteParams params;
 
     struct TransposeContext {
-        MKLDNNTransposeNode* nodePtr;
-        MKLDNNMemoryPtr srcMemPtr;
-        MKLDNNMemoryPtr dstMemPtr;
+        Transpose* nodePtr;
+        MemoryPtr srcMemPtr;
+        MemoryPtr dstMemPtr;
         int MB;
     };
 
@@ -92,7 +93,10 @@ private:
 
     static constexpr size_t INPUT_DATA_IDX = 0lu;
     static constexpr size_t INPUT_ORDER_IDX = 1lu;
+
+    bool performAsReorder = false;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

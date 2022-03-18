@@ -22,6 +22,9 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
+class Split;
+}   // namespace node
 
 class MemoryDesc;
 
@@ -173,7 +176,7 @@ protected:
 
     friend class BlobDumper;
     // WA: optimizedNspc2Ncsp used getElementOffset inside implementation
-    friend class MKLDNNSplitNode;
+    friend class node::Split;
 };
 
 }   // namespace intel_cpu

@@ -4,13 +4,11 @@
 
 #pragma once
 
-#include <vector>
-#include <utility>
 #include <memory>
-
-#include <transformations_visibility.hpp>
-
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
+#include <utility>
+#include <vector>
 
 namespace ngraph {
 namespace pass {
@@ -24,8 +22,8 @@ class TRANSFORMATIONS_API ConvertInterpolate1ToInterpolate4;
  * @ingroup ie_transformation_common_api
  * @brief ConvertInterpolate1ToInterpolate4 covert v0:interpolate into v4::Interpolate.
  */
-class ngraph::pass::ConvertInterpolate1ToInterpolate4: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertInterpolate1ToInterpolate4 : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertInterpolate1ToInterpolate4", "0");
     ConvertInterpolate1ToInterpolate4();
 };

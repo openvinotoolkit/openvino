@@ -88,7 +88,7 @@ INSTANTIATE_TEST_SUITE_P(
 const std::vector<ov::AnyMap> multiConfigs = {
         {ov::device::priorities(CommonTestUtils::DEVICE_CPU)},
         {ov::device::priorities(CommonTestUtils::DEVICE_GPU)},
-        {ov::device::priorities(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU)}};
+};
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassSetDevicePriorityConfigTest, OVClassSetDevicePriorityConfigTest,
@@ -299,7 +299,7 @@ TEST_P(OVClassGetPropertyTest_GPU, GetMetricMemoryStatisticsAndPrintNoThrow) {
 TEST_P(OVClassGetPropertyTest_GPU, GetAndSetPerformanceModeNoThrow) {
     ov::Core ie;
 
-    ov::hint::PerformanceMode defaultMode;
+    ov::hint::PerformanceMode defaultMode{};
     ASSERT_NO_THROW(defaultMode = ie.get_property(deviceName, ov::hint::performance_mode));
 
     std::cout << "Default PERFORMANCE_HINT: \"" << defaultMode << "\"" << std::endl;

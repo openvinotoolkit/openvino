@@ -82,5 +82,8 @@ std::vector<std::string> disabledTestPatterns() {
         ".*InferRequestCheckTensorPrecision.*type=u8.*",
         ".*InferRequestCheckTensorPrecision.*type=u16.*",
         ".*InferRequestCheckTensorPrecision.*type=u64.*",
+
+        // TODO: Issue 76209
+        R"(.*MultithreadingTests.*canRun.*RequestsConsistentlyFromThreads.*MYRIAD.*)",
     };
 }

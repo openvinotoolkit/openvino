@@ -84,6 +84,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<Infer
     _networksPerDevice{networksPerDevice},
     _config{config},
     _needPerfCounters{needPerfCounters} {
+    _cpuHelpReleaseTime = std::chrono::steady_clock::now();
     _taskExecutor.reset();
     for (auto&& networkValue : _networksPerDevice) {
         auto& device  = networkValue.first;
@@ -137,10 +138,12 @@ void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, co
                     // let's try to pop a task, as we know there is at least one idle request, schedule if succeeded
                     // if no device-agnostic tasks, let's try pop the device specific task, schedule if succeeded
                     Task t;
-                    if (_inferPipelineTasks.try_pop(t))
-                        ScheduleToWorkerInferRequest(std::move(t));
-                    else if (_inferPipelineTasksDeviceSpecific[device]->try_pop(t))
-                        ScheduleToWorkerInferRequest(std::move(t), device);
+                    do {
+                        _inferPipelineTasks.try_pop(t);
+                    } while (t && ScheduleToWorkerInferRequest(std::move(t)));
+                    do {
+                        _inferPipelineTasksDeviceSpecific[device]->try_pop(t);
+                    } while (t && ScheduleToWorkerInferRequest(std::move(t), device));
                 }
             });
     }
@@ -161,6 +164,8 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                                                            , _workModeIsAUTO(true)
                                                            , _network(network) {
     LOG_INFO("[AUTOPLUGIN]ExecutableNetwork start");
+    // initialize cpuHelpReleasetime
+    _cpuHelpReleaseTime = std::chrono::steady_clock::now();
     if (_multiPlugin->GetCore() == nullptr) {
         IE_THROW() << "Please, work with " << _multiPlugin->GetName() << " device via InferencEngine::Core object";
     }
@@ -226,16 +231,16 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                                   deviceName.c_str());
                           auto supported_config_keys =
                               _core->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
-                          // there is log mutex in LOG_DEBUG, add _configMutex just want to print them all together
-                          // toDo maybe neet to implement LOG_RUN(task, LOG_LEVEL) to run some debug code.
-                          std::lock_guard<std::mutex> lock(_confMutex);
-                          for (const auto& cfg : supported_config_keys) {
-                              try {
-                                  LOG_DEBUG("[AUTOPLUGIN]:device:%s, GetConfig:%s=%s", deviceName.c_str(),
-                                          cfg.c_str(), contextPtr->executableNetwork->GetConfig(cfg).as<std::string>().c_str());
-                              } catch (...) {
+                          DEBUG_RUN([this, &contextPtr, &deviceName, &supported_config_keys]{
+                              std::lock_guard<std::mutex> lock(_confMutex);
+                              for (const auto& cfg : supported_config_keys) {
+                                  try {
+                                      LOG_DEBUG("[AUTOPLUGIN]:device:%s, GetConfig:%s=%s", deviceName.c_str(),
+                                              cfg.c_str(), contextPtr->executableNetwork->GetConfig(cfg).as<std::string>().c_str());
+                                  } catch (...) {
+                                  }
                               }
-                          }
+                          });
                       }
                       contextPtr->promise.set_value();
                       // the first load network process finished
@@ -282,15 +287,39 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                 // second, check the idle queue if all requests are in place
                 size_t destroynum = 0;
                 std::pair<int, WorkerInferRequest*> worker;
+                std::list<Time> cpuHelpAllStartTimes;
+                std::list<Time> cpuHelpAllEndTimes;
                 while (_idleWorkerRequests["CPU_HELP"].try_pop(worker)) {
                     destroynum++;
-                    _cpuHelpInferCount += worker.second->_inferCount;
+                    INFO_RUN([&cpuHelpAllStartTimes, &cpuHelpAllEndTimes, &worker]() {
+                        cpuHelpAllStartTimes.splice(cpuHelpAllStartTimes.end(), worker.second->_startTimes);
+                        cpuHelpAllEndTimes.splice(cpuHelpAllEndTimes.end(), worker.second->_endTimes);
+                    });
                 }
+                INFO_RUN([this, &cpuHelpAllStartTimes, &cpuHelpAllEndTimes]() {
+                    cpuHelpAllStartTimes.sort(std::less<Time>());
+                    cpuHelpAllEndTimes.sort(std::less<Time>());
+                    _cpuHelpInferCount = cpuHelpAllStartTimes.size();
+                    IE_ASSERT(_cpuHelpInferCount == cpuHelpAllEndTimes.size());
+                });
                 if (destroynum == _workerRequests["CPU_HELP"].size()) {
                     std::lock_guard<std::mutex> lock(_confMutex);
+                    INFO_RUN([this, &cpuHelpAllStartTimes, &cpuHelpAllEndTimes, &destroynum]() {
+                        _cpuHelpReleaseTime = std::chrono::steady_clock::now();
+                        if (cpuHelpAllStartTimes.size() >= destroynum + 1) {
+                            //remove last worksize num requests, so the fps will be more accuracy
+                            cpuHelpAllStartTimes.resize(_cpuHelpInferCount - destroynum);
+                            cpuHelpAllEndTimes.resize(_cpuHelpInferCount - destroynum);
+                            std::chrono::duration<double, std::milli> durtation =
+                                cpuHelpAllEndTimes.back() - cpuHelpAllStartTimes.front();
+                            _cpuHelpFps = cpuHelpAllStartTimes.size() * 1000 / durtation.count();
+                        }
+                    });
+                    LOG_INFO("[AUTOPLUGIN] release all work requests of CPU_HELP");
                     _workerRequests["CPU_HELP"].clear();
                     _loadContext[CPU].executableNetwork._ptr.reset();
                     _loadContext[CPU].executableNetwork._so.reset();
+                    LOG_INFO("[AUTOPLUGIN]:helper released!!");
                     break;
                 }
             }
@@ -452,7 +481,7 @@ void MultiDeviceExecutableNetwork::WaitActualNetworkReady() const {
                });
 }
 
-void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipelineTask, DeviceName preferred_device) {
+bool MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipelineTask, DeviceName preferred_device) {
     std::vector<DeviceInformation> devices;
     // AUTO work mode
     if (_workModeIsAUTO) {
@@ -486,7 +515,7 @@ void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipeli
         if (!preferred_device.empty() && (device.deviceName != preferred_device))
             continue;
         if (RunPipelineTask(inferPipelineTask, _idleWorkerRequests[device.deviceName], preferred_device)) {
-            return;
+            return true;
         }
     }
 
@@ -495,6 +524,7 @@ void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipeli
         _inferPipelineTasksDeviceSpecific[preferred_device]->push(std::move(inferPipelineTask));
     else
         _inferPipelineTasks.push(std::move(inferPipelineTask));
+    return false;
 }
 
 bool MultiDeviceExecutableNetwork::RunPipelineTask(Task& inferPipelineTask,
@@ -545,17 +575,49 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
         // stop accepting any idle requests back (for re-scheduling)
         idleWorker.second.set_capacity(0);
     }
-    for (auto&& _workerRequest : _workerRequests) {
-         unsigned int count = 0;
-         for (auto& request : _workerRequest.second) {
-             count += request._inferCount;
-         }
-         if (_workerRequest.first == "CPU_HELP") {
-             LOG_INFO("[AUTOPLUGIN]CPU_HELP:infer:%ld", _cpuHelpInferCount + count);
-         } else {
-             LOG_INFO("[AUTOPLUGIN]%s:infer:%ld", _workerRequest.first.c_str(), count);
-         }
-    }
+    INFO_RUN([this] {
+        for (auto&& _workerRequest : _workerRequests) {
+            std::list<Time> reqAllStartTimes;
+            std::list<Time> reqAllEndTimes;
+            for (auto& request : _workerRequest.second) {
+                reqAllStartTimes.splice(reqAllStartTimes.end(), request._startTimes);
+                reqAllEndTimes.splice(reqAllEndTimes.end(), request._endTimes);
+            }
+            unsigned int count = reqAllStartTimes.size();
+            IE_ASSERT(count == reqAllEndTimes.size());
+            reqAllStartTimes.sort(std::less<Time>());
+            reqAllEndTimes.sort(std::less<Time>());
+            if (_workerRequest.first == "CPU_HELP") {
+                LOG_INFO("[AUTOPLUGIN]CPU_HELP:infer:%ld", _cpuHelpInferCount + count);
+                if (_cpuHelpFps > 0.0) {
+                    LOG_INFO("[AUTOPLUGIN]CPU_HELP:fps:%lf", _cpuHelpFps);
+                } else if (count >= 1) {
+                    std::chrono::duration<double, std::milli> durtation =
+                        reqAllEndTimes.back() - reqAllStartTimes.front();
+                    LOG_INFO("[AUTOPLUGIN]CPU_HELP:fps:%lf", count * 1000 / durtation.count());
+                }
+            } else {
+                LOG_INFO("[AUTOPLUGIN]%s:infer:%ld", _workerRequest.first.c_str(), count);
+                auto n = reqAllStartTimes.size();
+                Time time;
+                while (!reqAllStartTimes.empty()) {
+                    time = reqAllStartTimes.front();
+                    if (time < _cpuHelpReleaseTime) {
+                        reqAllStartTimes.pop_front();
+                        n--;
+                    } else {
+                        break;
+                    }
+                }
+                if (n >= 1) {
+                    std::chrono::duration<double, std::milli> durtation =
+                        reqAllEndTimes.back() - time;
+                    LOG_INFO("[AUTOPLUGIN]%s:fps:%lf", _workerRequest.first.c_str(),
+                        n * 1000 / durtation.count());
+                }
+            }
+        }
+    });
     {
         std::lock_guard<std::mutex> lock(_confMutex);
         _workerRequests.clear();
@@ -593,7 +655,6 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
     const std::vector<std::shared_ptr<const ov::Node>>& inputs,
     const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
     auto num = _numRequestsCreated++;
-    size_t sum = 0;
     InferenceEngine::SoIInferRequestInternal request_to_share_blobs_with;
     InferenceEngine::RemoteContext::Ptr ctx = nullptr;
 
@@ -615,23 +676,12 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
         return std::make_shared<MultiDeviceInferRequest>(inputs, outputs, request_to_share_blobs_with, ctx);
     }
 
-    // borrowing device-specific blobs from the underlying requests for the device-agnostic, user-facing requests
-    // this allows to potentially save on the data-copy later (if the requests are scheduled in the same order)
-    for (const auto& device : _devicePrioritiesInitial) {
-        auto& dev_requests = _workerRequests[device.deviceName];
-        if ((num - sum) < dev_requests.size()) {
-            request_to_share_blobs_with = dev_requests.at(num - sum)._inferRequest;
-            break;
-        }
-        sum += dev_requests.size();
-    }
     return std::make_shared<MultiDeviceInferRequest>(inputs, outputs, request_to_share_blobs_with);
 }
 
 InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                                                 InferenceEngine::OutputsDataMap networkOutputs) {
     auto num = _numRequestsCreated++;
-    size_t sum = 0;
     InferenceEngine::SoIInferRequestInternal request_to_share_blobs_with;
     InferenceEngine::RemoteContext::Ptr ctx = nullptr;
 
@@ -652,16 +702,6 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
         return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with, ctx);
     }
 
-    // borrowing device-specific blobs from the underlying requests for the device-agnostic, user-facing requests
-    // this allows to potentially save on the data-copy later (if the requests are scheduled in the same order)
-    for (const auto& device : _devicePrioritiesInitial) {
-        auto& dev_requests = _workerRequests[device.deviceName];
-        if ((num - sum) < dev_requests.size()) {
-            request_to_share_blobs_with = dev_requests.at(num - sum)._inferRequest;
-            break;
-        }
-        sum += dev_requests.size();
-    }
     return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with);
 }
 

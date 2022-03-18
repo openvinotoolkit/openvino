@@ -2,7 +2,7 @@
 
 This guide provides installation steps for Intel® Distribution of OpenVINO™ toolkit for Linux distributed through the APT repository.
 
-From 2022.1 release, the OpenVINO™ Development Tools can only be installed via PyPI. If you want to develop or optimize your models with OpenVINO, see [Install OpenVINO Development Tools](installing-model-dev-tools.md) for detailed steps.
+> **NOTE**: From the 2022.1 release, the OpenVINO™ Development Tools can only be installed via PyPI. If you want to develop or optimize your models with OpenVINO, see [Install OpenVINO Development Tools](installing-model-dev-tools.md) for detailed steps.
 
 > **IMPORTANT**: By downloading and using this container and the included software, you agree to the terms and conditions of the [software license agreements](https://software.intel.com/content/dam/develop/external/us/en/documents/intel-openvino-license-agreements.pdf). Please review the content inside the `<INSTALL_DIR>/licensing` folder for more details.
 
@@ -30,29 +30,35 @@ The complete list of supported hardware is available in the [Release Notes](http
       sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
       ```
       > **NOTE**: You might need to install GnuPG: `sudo apt-get install gnupg`   
-      
-2.	Add the repository via the following command:
 
-   * On Ubuntu 18
-   ```sh
-   echo "deb https://apt.repos.intel.com/openvino/2022/bionic all main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
-   ```
-   
-   * On Ubuntu 20
-   ```sh
-   echo "deb https://apt.repos.intel.com/openvino/2022/focal all main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
-   ```  
+2.	Add the repository via the following command:
+    @sphinxdirective
+
+    .. tab:: On Ubuntu 18
+
+        .. code-block:: sh
+
+            echo "deb https://apt.repos.intel.com/openvino/2022 bionic main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
+
+    .. tab:: On Ubuntu 20
+
+        .. code-block:: sh
+
+            echo "deb https://apt.repos.intel.com/openvino/2022 focal main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
+
+    @endsphinxdirective
+
 
 3.	Update the list of packages via the update command:
    ```sh
    sudo apt update
    ```       
-   
+
 4.	Verify that the APT repository is properly set up. Run the apt-cache command to see a list of all available OpenVINO packages and components:
    ```sh
    apt-cache search openvino
    ```   
-   
+
 
 ### Step 2: Install OpenVINO Runtime Using the APT Package Manager
 
@@ -106,7 +112,7 @@ sudo apt autoremove openvino-<VERSION>.<UPDATE>.<PATCH>
 
 ### Step 3 (Optional): Install OpenCV from APT
 
-OpenCV is necessary to run C++ demos from Open Model Zoo. Some C++ samples and demos also use OpenCV as a dependency. OpenVINO provides a package to install OpenCV from APT:
+OpenCV is necessary to run C++ demos from Open Model Zoo. Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. OpenVINO provides a package to install OpenCV from APT:
 
 #### To Install the Latest Version of OpenCV
 
@@ -126,19 +132,47 @@ sudo apt install openvino-opencv-<VERSION>.<UPDATE>.<PATCH>
 
 After you have installed OpenVINO Runtime, if you decided to [install OpenVINO Development Tools](installing-model-dev-tools.md), make sure that you install external software dependencies first. 
 
-Refer to <a href="installing-openvino-linux.md#install-external-dependencies">Install External Software Dependencies</a> for detailed steps.
+Refer to <a href="openvino_docs_install_guides_installing_openvino_linux.html#install-external-dependencies">Install External Software Dependencies</a> for detailed steps.
 
 
-## Configurations for Non-CPU Devices
+### Step 5 (Optional): Configure Inference on Non-CPU Devices
 
-If you are using Intel® Processor Graphics, Intel® Vision Accelerator Design with Intel® Movidius™ VPUs or Intel® Neural Compute Stick 2, please follow the configuration steps in [Configurations for GPU](configurations-for-intel-gpu.md), [Configurations for VPU](installing-openvino-config-ivad-vpu.md) or [Configurations for NCS2](configurations-for-ncs2.md) accordingly.
+@sphinxdirective
 
+.. tab:: GNA
+
+   To enable the toolkit components to use Intel® Gaussian & Neural Accelerator (GNA) on your system, follow the steps in :ref:`GNA Setup Guide <gna guide>`.
+   
+.. tab:: GPU
+
+   To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide>`.
+
+.. tab:: NCS 2
+
+   To perform inference on Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X VPU, follow the steps on :ref:`NCS2 Setup Guide <ncs guide>`.
+   <!--For more details, see the `Get Started page for Intel® Neural Compute Stick 2 <https://software.intel.com/en-us/neural-compute-stick/get-started>`.-->
+
+.. tab:: VPU
+
+   To install and configure your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, see the :ref:`VPU Configuration Guide <vpu guide>`.
+   After configuration is done, you are ready to run the verification scripts with the HDDL Plugin for your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs. 
+
+   .. warning::
+      While working with either HDDL or NCS, choose one of them as they cannot run simultaneously on the same machine.
+
+@endsphinxdirective
+
+## What's Next?
+
+Now you may continue with the following tasks:
+
+* To convert models for use with OpenVINO, see [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+* See pre-trained deep learning models in our [Open Model Zoo](../model_zoo.md).
+* Try out OpenVINO via [OpenVINO Notebooks](https://docs.openvino.ai/latest/notebooks/notebooks.html).
+* To write your own OpenVINO™ applications, see [OpenVINO Runtime User Guide](../OV_Runtime_UG/openvino_intro.md).
+* See sample applications in [OpenVINO™ Toolkit Samples Overview](../OV_Runtime_UG/Samples_Overview.md).
 
 ## Additional Resources
 
 - Intel® Distribution of OpenVINO™ toolkit home page: <https://software.intel.com/en-us/openvino-toolkit>.
-- OpenVINO™ toolkit online documentation: <https://docs.openvino.ai/>.
-- [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
-- [OpenVINO Runtime User Guide](../OV_Runtime_UG/OpenVINO_Runtime_User_Guide).
-- For more information on Sample Applications, see the [Inference Engine Samples Overview](../OV_Runtime_UG/Samples_Overview.md).
 - For IoT Libraries & Code Samples see the [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).

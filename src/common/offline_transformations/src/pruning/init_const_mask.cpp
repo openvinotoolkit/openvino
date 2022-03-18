@@ -12,8 +12,6 @@
 #include <ngraph/coordinate_transform.hpp>
 #include <ngraph/log.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::InitConstMask, "InitConstMask", 0);
-
 ngraph::pass::InitConstMask::InitConstMask(const ngraph::AxisSet & dims,
                                            const std::function<bool(const double & value)> & condition) {
     auto constant = pattern::wrap_type<opset6::Constant>(

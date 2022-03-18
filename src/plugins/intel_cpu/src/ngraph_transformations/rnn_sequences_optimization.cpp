@@ -11,11 +11,6 @@
 #include <transformations/utils/utils.hpp>
 #include <ngraph/variant.hpp>
 
-NGRAPH_RTTI_DEFINITION(ov::intel_cpu::OptimizeGRUSequenceTransposes, "OptimizeGRUSequenceTransposes", 0);
-NGRAPH_RTTI_DEFINITION(ov::intel_cpu::OptimizeLSTMSequenceTransposes, "OptimizeLSTMSequenceTransposes", 0);
-NGRAPH_RTTI_DEFINITION(ov::intel_cpu::OptimizeRNNSequenceTransposes, "OptimizeRNNSequenceTransposes", 0);
-NGRAPH_RTTI_DEFINITION(ov::intel_cpu::OptimizeSequenceTransposes, "OptimizeSequenceTransposes", 0);
-
 namespace {
     int64_t getSeqAxis(const std::shared_ptr<ngraph::Node>& sequenceOp) {
         // Optimization.
