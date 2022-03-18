@@ -40,7 +40,7 @@ The best device is chosen using the following logic:
 |          || (e.g. Intel® Core™ i7-1165G7)                       |                                     |
 +----------+------------------------------------------------------+-------------------------------------+
 
-What is important, **AUTO starts inference with the CPU by default except the priority list is setted and there is no CPU int it**. CPU provides very low latency and can start inference with no additional delays. While it performs inference, the Auto-Device plugin continues to load the model to the device best suited for the purpose and transfers the task to it when ready. This way, the devices which are much slower in compile the model, GPU being the best example, do not impede inference at its initial stages. 
+What is important, **AUTO starts inference with the CPU by default except the priority list is set and there is no CPU in it**. CPU provides very low latency and can start inference with no additional delays. While it performs inference, the Auto-Device plugin continues to load the model to the device best suited for the purpose and transfers the task to it when ready. This way, the devices which are much slower in compile the model, GPU being the best example, do not impede inference at its initial stages. 
 
 ![autoplugin_accelerate]
 
@@ -67,7 +67,7 @@ Assume there are CPU and GPU on the machine, first-inference latency of "AUTO" w
 
 ## Using the Auto-Device Plugin 
 
-Inference with AUTO is configured similarly to other plugins: first you configure devices, then compile a model to the plugin, and finally, execute inference. 
+Inference with AUTO is configured similarly to other plugins: compile the model on the plugin whth configuration, and finally, execute inference. 
 
 Following the OpenVINO™ naming convention, the Auto-Device plugin is assigned the label of “AUTO.” It may be defined with no additional parameters, resulting in defaults being used, or configured further with the following setup options: 
 

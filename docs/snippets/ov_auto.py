@@ -29,7 +29,7 @@ def part0():
 
 def part1():
 #! [part1]
-    ### API before 2022.1 ###
+    ### IE API ###
     ie = IECore()
 
     # Read a network in IR, PaddlePaddle, or ONNX format:
@@ -41,11 +41,13 @@ def part1():
     exec_net = ie.load_network(network=net, device_name="AUTO")
     exec_net = ie.load_network(network=net, device_name="AUTO", config={})
 
+    # Optional
     # You can also specify the devices to be used by AUTO in its selection process.
     # The following lines are equivalent:
     exec_net = ie.load_network(network=net, device_name="AUTO:GPU,CPU")
     exec_net = ie.load_network(network=net, device_name="AUTO", config={"MULTI_DEVICE_PRIORITIES": "GPU,CPU"})
 
+    # Optional
     # the AUTO plugin is pre-configured (globally) with the explicit option:
     ie.set_config(config={"MULTI_DEVICE_PRIORITIES":"GPU,CPU"}, device_name="AUTO");
 #! [part1]
@@ -87,7 +89,7 @@ def part5():
     core = Core()
     model = core.read_model(model_path)
     core.set_property(device_name="CPU", properties={})
-    core.set_property(device_name="GPU", properties={})
+    core.set_property(device_name="MYRIAD", properties={})
     compiled_model = core.compile_model(model=model)
     compiled_model = core.compile_model(model=model, device_name="AUTO")
 #! [part5]
