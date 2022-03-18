@@ -159,8 +159,8 @@ protected:
     // Non default values of layouts/precisions will be set to CNNNetwork
     InferenceEngine::Layout inLayout = InferenceEngine::Layout::ANY;
     InferenceEngine::Layout outLayout = InferenceEngine::Layout::ANY;
-    std::vector<InferenceEngine::Precision> inPrc = std::vector<InferenceEngine::Precision>(1, InferenceEngine::Precision::UNSPECIFIED);
-    std::vector<InferenceEngine::Precision> outPrc = std::vector<InferenceEngine::Precision>(1, InferenceEngine::Precision::UNSPECIFIED);
+    std::vector<InferenceEngine::Precision> inPrc = { InferenceEngine::Precision::UNSPECIFIED };
+    std::vector<InferenceEngine::Precision> outPrc = { InferenceEngine::Precision::UNSPECIFIED };
     InferenceEngine::ExecutableNetwork executableNetwork;
     std::vector<InferenceEngine::Blob::Ptr> inputs;
     float threshold;
