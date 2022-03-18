@@ -21,7 +21,7 @@ As expected, the lowest latency is achieved with only one concurrent inference a
 However, for example, specific configurations, like multi-socket CPUs can deliver as high number of requests (at the same minimal latency) as there are NUMA nodes in the machine.
 Thus, human expertise is required to get the most out of the device even in the latency case. Consider using [OpenVINO high-level performance hints](../OV_Runtime_UG/performance_hints.md) instead.
 
-**NOTE**: [OpenVINO performance hints](./dldt_deployment_optimization_hints.md) is a recommended way for performance configuration, which is both device-agnostic and future-proof. 
+> **NOTE**: [OpenVINO performance hints](./dldt_deployment_optimization_hints.md) is a recommended way for performance configuration, which is both device-agnostic and future-proof. 
 
 In the case when there are multiple models to be used simultaneously, consider using different devices for inferencing the different models. Finally, when multiple models are executed in parallel on the device, using additional `ov::hint::model_priority` may help to define relative priorities of the models (please refer to the documentation on the [matrix features support for OpenVINO devices](../OV_Runtime_UG/supported_plugins/Device_Plugins.md) to check for the support of the feature by the specific device).
 

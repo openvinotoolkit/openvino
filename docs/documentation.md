@@ -17,6 +17,7 @@
    :hidden:
 
    openvino_docs_OV_Runtime_User_Guide
+   openvino_2_0_transition_guide
    openvino_docs_install_guides_deployment_manager_tool
    openvino_inference_engine_tools_compile_tool_README
 
