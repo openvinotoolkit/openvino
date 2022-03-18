@@ -39,8 +39,10 @@ Jenkinsfile  @openvinotoolkit/openvino-admins
 
 # IE CPU:
 /src/plugins/intel_cpu/  @openvinotoolkit/openvino-ie-cpu-maintainers @openvinotoolkit/openvino-ie-cpu-developers
-/src/common/low_precision_transformations/  @openvinotoolkit/openvino-ie-cpu-maintainers @openvinotoolkit/openvino-ie-cpu-developers
 /src/plugins/intel_cpu/thirdparty/mkl-dnn/  @openvinotoolkit/openvino-ie-cpu-maintainers @openvinotoolkit/openvino-ie-cpu-developers
+
+#IE LPT
+/src/common/low_precision_transformations/  @openvinotoolkit/openvino-ie-lpt-maintainers
 
 # IE GPU:
 /src/inference/include/ie/gpu/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
@@ -85,6 +87,6 @@ Jenkinsfile  @openvinotoolkit/openvino-admins
 *.md  @openvinotoolkit/openvino-docs-maintainers
 
 # Control 3d party dependencies
-**/*requirements*.*  @openvino-configuration-mgmt
-**/setup.py  @openvino-configuration-mgmt
-/scripts/install_dependencies/  @openvino-configuration-mgmt
+**/*requirements*.*  @openvinotoolkit/openvino-configuration-mgmt
+**/setup.py  @openvinotoolkit/openvino-configuration-mgmt
+/scripts/install_dependencies/  @openvinotoolkit/openvino-configuration-mgmt

@@ -56,19 +56,21 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParam
 void ReadIRTest::query_model() {
     // in case of crash jump will be made and work will be continued
     auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
+    auto &s = LayerTestsUtils::Summary::getInstance();
 
     // place to jump in case of a crash
+    int jmpRes = 0;
 #ifdef _WIN32
-    if (setjmp(CommonTestUtils::env) == 0) {
+    jmpRes = setjmp(CommonTestUtils::env);
 #else
-    if (sigsetjmp(CommonTestUtils::env, 1) == 0) {
+    jmpRes = sigsetjmp(CommonTestUtils::env, 1);
 #endif
+    if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
+        crashHandler->StartTimer();
         if (functionRefs == nullptr) {
             functionRefs = ngraph::clone_function(*function);
             functionRefs->set_friendly_name("refFunction");
         }
-
-        auto &s = LayerTestsUtils::Summary::getInstance();
         s.setDeviceName(targetDevice);
 
         if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
@@ -83,7 +85,10 @@ void ReadIRTest::query_model() {
         } catch (...) {
             s.updateOPsStats(functionRefs, LayerTestsUtils::PassRate::Statuses::FAILED);
         }
-    } else {
+    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
+        IE_THROW() << "Crash happens";
+    } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
+        s.updateOPsStats(functionRefs, LayerTestsUtils::PassRate::Statuses::HANGED);
         IE_THROW() << "Crash happens";
     }
 }
@@ -93,11 +98,14 @@ void ReadIRTest::SetUp() {
     auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
 
     // place to jump in case of a crash
+    int jmpRes = 0;
 #ifdef _WIN32
-    if (setjmp(CommonTestUtils::env) == 0) {
+    jmpRes = setjmp(CommonTestUtils::env);
 #else
-    if (sigsetjmp(CommonTestUtils::env, 1) == 0) {
+    jmpRes = sigsetjmp(CommonTestUtils::env, 1);
 #endif
+    if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
+        crashHandler->StartTimer();
         std::tie(pathToModel, targetDevice, configuration) = this->GetParam();
         function = core->read_model(pathToModel);
         const auto metaFile = CommonTestUtils::replaceExt(pathToModel, "meta");
@@ -161,33 +169,65 @@ void ReadIRTest::SetUp() {
                 }
             }
         }
+
+        bool hasDynamic = false;
+        for (const auto& param : function->get_parameters()) {
+            if (param->get_partial_shape().is_dynamic()) {
+                hasDynamic = true;
+                break;
+            }
+        }
+        if (hasDynamic && ov::test::subgraph::shapeMode == ov::test::subgraph::ShapeMode::STATIC) {
+            GTEST_SKIP() << "Dynamic cases are skipped according `shape_mode`";
+        } else if (!hasDynamic && ov::test::subgraph::shapeMode == ov::test::subgraph::ShapeMode::DYNAMIC) {
+            GTEST_SKIP() << "Static cases are skipped according `shape_mode`";
+        }
+
         std::vector<InputShape> inputShapes;
         for (const auto& param : function -> get_parameters()) {
             if (param->get_partial_shape().is_static()) {
-                if (ov::test::subgraph::shapeMode == ov::test::subgraph::ShapeMode::DYNAMIC) {
-                    GTEST_SKIP() << "Static cases are skipped according `shape_mode`";
-                }
                 inputShapes.push_back(InputShape{{}, {param->get_shape()}});
             } else {
-                if (ov::test::subgraph::shapeMode == ov::test::subgraph::ShapeMode::STATIC) {
-                    GTEST_SKIP() << "Dynamic cases are skipped according `shape_mode`";
-                }
+                std::vector<ov::Shape> staticShapes = { param->get_partial_shape().get_min_shape(),
+                                                        param->get_partial_shape().get_min_shape(),
+                                                        param->get_partial_shape().get_max_shape() };
                 ov::Shape midShape;
                 for (const auto s : param->get_partial_shape()) {
-                    int dimValue = s.get_length();
+                    int dimValue = 1;
                     if (s.is_dynamic()) {
-                        CommonTestUtils::fill_data_random(&dimValue, 1, s.get_max_length() - s.get_min_length(), s.get_min_length(), 1);
+                        size_t range = s.get_max_length() - s.get_min_length();
+                        if (range > std::numeric_limits<char>::max()) {
+                            CommonTestUtils::fill_data_random(&range, 1, std::numeric_limits<char>::max(), s.get_min_length(), 1);
+                        }
+                        CommonTestUtils::fill_data_random(&dimValue, 1, range, s.get_min_length(), 1);
+                    } else {
+                        dimValue = s.get_length();
                     }
                     midShape.push_back(dimValue);
                 }
-                inputShapes.push_back(InputShape{param->get_partial_shape(), { param->get_partial_shape().get_min_shape(),
-                                                                                    param->get_partial_shape().get_max_shape(),
-                                                                                    midShape }});
+                staticShapes[1] = midShape;
+
+                // Shape validation to avoid large values
+                for (auto& shape : staticShapes) {
+                    for (auto& dim : shape) {
+                        if (dim == 0) {
+                            dim = 1;
+                        } else if (dim > std::numeric_limits<char>::max()) {
+                            dim = std::numeric_limits<char>::max();
+                        }
+                    }
+                }
+                inputShapes.push_back(InputShape{param->get_partial_shape(), staticShapes});
             }
         }
+        if (inputShapes.empty()) {
+            GTEST_SKIP() << "The graph is constant. The case is not applicable for Operation conformance scenario";
+        }
         init_input_shapes(inputShapes);
-    } else {
+    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
         IE_THROW() << "Crash happens";
+    } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
+        IE_THROW() << "Hange happens";
     }
 }
 

@@ -18,8 +18,6 @@
 #include <legacy/ngraph_ops/fully_connected.hpp>
 #include <transformations/utils/utils.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMatMulToFCorGemm, "ConvertMatMulToFCorGemm", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMatMulToFC, "ConvertMatMulToFC", 0);
 
 ngraph::pass::ConvertMatMulToFC::ConvertMatMulToFC() {
     auto matmul = pattern::wrap_type<opset1::MatMul>({pattern::any_input(pattern::has_static_shape()),
@@ -178,8 +176,6 @@ ngraph::pass::ConvertMatMulToFC::ConvertMatMulToFC() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(matmul, "ConvertMatMulToFC");
     this->register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMatMulToGemm, "ConvertMatMulToGemm", 0);
 
 ngraph::pass::ConvertMatMulToGemm::ConvertMatMulToGemm() {
     auto matmul = pattern::wrap_type<opset1::MatMul>({pattern::any_input(pattern::has_static_shape()),
