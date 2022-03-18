@@ -173,7 +173,9 @@ To deploy the OpenVINO Runtime components from the development machine to the ta
      
    .. tab:: Windows  
    
-      Use the archiver of your choice to unzip the file.  
+      .. code-block:: sh 
+      
+         Use the archiver of your choice to unzip the file.  
       
    .. tab:: macOS  
    
@@ -209,7 +211,7 @@ The package is unpacked to the destination directory and the following files and
      
    .. tab:: Windows  
    
-      .. code-block:: bat  
+      .. code-block:: sh
       
          cd <destination_dir>\openvino\
          .\setupvars.bat
