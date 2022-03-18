@@ -47,11 +47,13 @@ public:
     /// \param deltas Input deltas
     /// \param scores Input scores
     /// \param attrs Operation attributes
+    /// \param roi_num_type roi_num type
     GenerateProposalsSingleImage(const Output<Node>& im_info,
                                  const Output<Node>& anchors,
                                  const Output<Node>& deltas,
                                  const Output<Node>& scores,
-                                 const Attributes& attrs);
+                                 const Attributes& attrs,
+                                 const element::Type roi_num_type = element::i64);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -63,8 +65,20 @@ public:
         return m_attrs;
     }
 
+    element::Type get_roi_num_type() const {
+        return m_roi_num_type;
+    }
+    void set_roi_num_type(const element::Type& output_type) {
+        NODE_VALIDATION_CHECK(this,
+                              (output_type == ov::element::i64) || (output_type == ov::element::i32),
+                              "The third output type must be int64 or int32.");
+        m_roi_num_type = output_type;
+        set_output_type(2, output_type, get_output_partial_shape(2));
+    }
+
 private:
     Attributes m_attrs;
+    ov::element::Type m_roi_num_type;
 };
 }  // namespace v9
 }  // namespace op

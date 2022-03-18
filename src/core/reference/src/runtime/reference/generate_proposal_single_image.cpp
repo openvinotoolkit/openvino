@@ -25,9 +25,9 @@ struct sProposalBox {
 
 using GenerateProposalBox = struct sProposalBox<float>;
 
-static void generate_proposal_refine_anchors(const std::vector<float>&  deltas,
-                                             const std::vector<float>&  scores,
-                                             const std::vector<float>&  anchors,
+static void generate_proposal_refine_anchors(const std::vector<float>& deltas,
+                                             const std::vector<float>& scores,
+                                             const std::vector<float>& anchors,
                                              float* proposals,
                                              const int64_t anchors_num,
                                              const int64_t bottom_H,
@@ -310,7 +310,9 @@ void generate_proposals_single_image(const std::vector<float>& im_info,
 
 void generate_proposals_single_image_postprocessing(void* prois,
                                                     void* pscores,
+                                                    void* proi_num,
                                                     const ngraph::element::Type output_type,
+                                                    const ngraph::element::Type roi_num_type,
                                                     const std::vector<float>& output_rois,
                                                     const std::vector<float>& output_scores,
                                                     const Shape& output_rois_shape,
@@ -350,6 +352,20 @@ void generate_proposals_single_image_postprocessing(void* prois,
         throw ngraph_error("Unsupported input data type: "
                            "GenerateProposalsSingleImage operation"
                            " supports only fp32, fp16, or bf16 data.");
+    }
+
+    switch (roi_num_type) {
+    case element::Type_t::i32: {
+        int32_t* roi_num_ptr = reinterpret_cast<int32_t*>(proi_num);
+        roi_num_ptr[0] = static_cast<int32_t>(rois_num);
+    } break;
+    case element::Type_t::i64: {
+        int64_t* roi_num_ptr = reinterpret_cast<int64_t*>(proi_num);
+        roi_num_ptr[0] = static_cast<int64_t>(rois_num);
+    } break;
+    default:;
+        throw ngraph_error("Unsupported data type on output port 3: "
+                           " supports only int32 or int64.");
     }
 }
 }  // namespace reference

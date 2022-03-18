@@ -245,8 +245,9 @@ void nms_cpu(const int num_boxes, int is_dead[],
 
 static
 void fill_output_blobs(const float* proposals, const int* roi_indices,
-                       float* rois, float* scores,
-                       const int num_proposals, const int num_rois, const int post_nms_topn) {
+                       float* rois, float* scores, uint8_t* roi_num,
+                       const int num_proposals, const int num_rois, const int post_nms_topn,
+                       Precision roi_num_type) {
     const float *src_x0 = proposals + 0 * num_proposals;
     const float *src_y0 = proposals + 1 * num_proposals;
     const float *src_x1 = proposals + 2 * num_proposals;
@@ -261,6 +262,16 @@ void fill_output_blobs(const float* proposals, const int* roi_indices,
         rois[i * 4 + 3] = src_y1[index];
         scores[i] = src_score[index];
     });
+
+    if (roi_num_type == Precision::I32) {
+        int32_t num = static_cast<int32_t>(num_rois);
+        memcpy(roi_num, &num, sizeof(int32_t));
+    } else if (roi_num_type == Precision::I64) {
+        int64_t num = static_cast<int64_t>(num_rois);
+        memcpy(roi_num, &num, sizeof(int64_t));
+    } else {
+        IE_THROW() << "Incorrect element type of roi_num!";
+    }
 }
 
 bool MKLDNNGenerateProposalsSingleImageNode::isSupportedOperation
@@ -301,23 +312,25 @@ void MKLDNNGenerateProposalsSingleImageNode::initSupportedPrimitiveDescriptors()
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
+    auto roiNumPrecision = getOriginalOutputPrecisionAtPort(OUTPUT_ROI_NUM);
     addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
                           {LayoutType::ncsp, Precision::FP32},
                           {LayoutType::ncsp, Precision::FP32},
                           {LayoutType::ncsp, Precision::FP32}},
                          {{LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::FP32}},
+                          {LayoutType::ncsp, Precision::FP32},
+                          {LayoutType::ncsp, roiNumPrecision}},
                          impl_desc_type::ref_any);
 }
 
 void MKLDNNGenerateProposalsSingleImageNode::executeDynamicImpl(mkldnn::stream strm) {
-    redefineOutputMemory({{0, 4}, {0}});
+    redefineOutputMemory({{0, 4}, {0}, {1}});
     execute(strm);
 }
 
 void MKLDNNGenerateProposalsSingleImageNode::execute(mkldnn::stream strm) {
     try {
-        if (inputShapes.size() != 4 || outputShapes.size() != 2) {
+        if (inputShapes.size() != 4 || outputShapes.size() != 3) {
             IE_THROW() << "Incorrect number of input or output edges!";
         }
 
@@ -424,12 +437,14 @@ void MKLDNNGenerateProposalsSingleImageNode::execute(mkldnn::stream strm) {
                     nms_thresh_, post_nms_topn_, coordinates_offset_);
 
             // Only supported when batch size = 1
-            redefineOutputMemory({{num_rois, 4}, {num_rois}});
+            redefineOutputMemory({{num_rois, 4}, {num_rois}, {1}});
             float *p_roi_item       = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROIS)[0]->getMemoryPtr()->GetPtr());
             float *p_roi_score_item = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_SCORES)[0]->getMemoryPtr()->GetPtr());
+            uint8_t *p_roi_num_item = reinterpret_cast<uint8_t *>(getChildEdgesAtPort(OUTPUT_ROI_NUM)[0]->getMemoryPtr()->GetPtr());
 
+            auto roi_num_type = getOriginalOutputPrecisionAtPort(OUTPUT_ROI_NUM);
             fill_output_blobs(&unpacked_boxes[0], &roi_indices_[0], p_roi_item, p_roi_score_item,
-                              pre_nms_topn, num_rois, post_nms_topn_);
+                              p_roi_num_item, pre_nms_topn, num_rois, post_nms_topn_, roi_num_type);
         }
     } catch (const std::exception &e) {
         std::string errorMsg = e.what();
@@ -449,4 +464,4 @@ bool MKLDNNGenerateProposalsSingleImageNode::needPrepareParams() const {
     return false;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNGenerateProposalsSingleImageNode, GenerateProposalsSingleImage)
+REG_MKLDNN_PRIM_FOR(MKLDNNGenerateProposalsSingleImageNode, GenerateProposalsSingleImage);

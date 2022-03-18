@@ -30,7 +30,7 @@ TEST(attributes, generate_proposals) {
     attrs.nms_eta = 1.0f;
 
     auto im_info = std::make_shared<op::Parameter>(element::f32, Shape{4});
-    auto anchors = std::make_shared<op::Parameter>(element::f32, Shape{201600, 4});
+    auto anchors = std::make_shared<op::Parameter>(element::f32, Shape{200, 336, 3, 4});
     auto deltas = std::make_shared<op::Parameter>(element::f32, Shape{12, 200, 336});
     auto scores = std::make_shared<op::Parameter>(element::f32, Shape{3, 200, 336});
 

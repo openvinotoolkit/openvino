@@ -28,6 +28,7 @@ std::string GenerateProposalsSingleImageLayerTest::getTestCaseName(
     ov::op::v9::GenerateProposalsSingleImage::Attributes attributes;
     std::pair<std::string, std::vector<ov::Tensor>> inputTensors;
     ElementType netPrecision;
+    ElementType roiNumPrecision;
     std::string targetName;
     std::tie(
         inputShapes,
@@ -37,6 +38,7 @@ std::string GenerateProposalsSingleImageLayerTest::getTestCaseName(
         attributes.pre_nms_count,
         inputTensors,
         netPrecision,
+        roiNumPrecision,
         targetName) = obj.param;
 
     std::ostringstream result;
@@ -50,6 +52,7 @@ std::string GenerateProposalsSingleImageLayerTest::getTestCaseName(
     result << "attributes={" << attributes << "}_";
     result << "inputTensors=" << inputTensors.first << "_";
     result << "netPRC=" << netPrecision << "_";
+    result << "roiNumPRC=" << roiNumPrecision << "_";
     result << "trgDev=" << targetName;
     return result.str();
 }
@@ -59,6 +62,7 @@ void GenerateProposalsSingleImageLayerTest::SetUp() {
     ov::op::v9::GenerateProposalsSingleImage::Attributes attributes;
     std::pair<std::string, std::vector<ov::Tensor>> inputTensors;
     ElementType netPrecision;
+    ElementType roiNumPrecision;
     std::string targetName;
     std::tie(
         inputShapes,
@@ -68,6 +72,7 @@ void GenerateProposalsSingleImageLayerTest::SetUp() {
         attributes.pre_nms_count,
         inputTensors,
         netPrecision,
+        roiNumPrecision,
         targetName) = this->GetParam();
 
     inType = outType = netPrecision;
@@ -82,9 +87,12 @@ void GenerateProposalsSingleImageLayerTest::SetUp() {
         params[1], // anchors
         params[2], // deltas
         params[3], // scores
-        attributes);
+        attributes,
+        roiNumPrecision);
     function = std::make_shared<ov::Model>(
-        ov::OutputVector{generateProposals->output(0), generateProposals->output(1)},
+        ov::OutputVector{generateProposals->output(0),
+                         generateProposals->output(1),
+                         generateProposals->output(2)},
         "GenerateProposalsSingleImage");
 }
 

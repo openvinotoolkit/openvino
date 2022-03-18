@@ -22,8 +22,8 @@ const std::vector<std::pair<std::string, std::vector<ov::Tensor>>> inputTensors 
         {
             // 3
             ov::test::utils::create_tensor<float>(ov::element::f32, ov::Shape{3}, {1.0f, 1.0f, 1.0f}),
-            // 36 x 4 = 144
-            ov::test::utils::create_tensor<float>(ov::element::f32, ov::Shape{36, 4}, {
+            // 2 x 6 x 3 x 4 = 144
+            ov::test::utils::create_tensor<float>(ov::element::f32, ov::Shape{2, 6, 3, 4}, {
                 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
                 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
                 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
@@ -59,7 +59,7 @@ const std::vector<std::pair<std::string, std::vector<ov::Tensor>>> inputTensors 
         "filled",
         {
             ov::test::utils::create_tensor<float>(ov::element::f32, ov::Shape{3}, {150.0, 150.0, 1.0}),
-            ov::test::utils::create_tensor<float>(ov::element::f32, ov::Shape{36, 4}, {
+            ov::test::utils::create_tensor<float>(ov::element::f32, ov::Shape{2, 6, 3, 4}, {
                 12.0, 68.0, 102.0, 123.0, 46.0, 80.0,  79.0,  128.0, 33.0, 71.0, 127.0, 86.0,  33.0, 56.0, 150.0, 73.0,
                 5.0,  41.0, 93.0,  150.0, 74.0, 66.0,  106.0, 115.0, 17.0, 37.0, 87.0,  150.0, 31.0, 27.0, 150.0, 39.0,
                 29.0, 23.0, 112.0, 123.0, 41.0, 37.0,  103.0, 150.0, 8.0,  46.0, 98.0,  111.0, 7.0,  69.0, 114.0, 150.0,
@@ -97,16 +97,16 @@ const std::vector<std::pair<std::string, std::vector<ov::Tensor>>> inputTensors 
 
 const std::vector<std::vector<InputShape>> dynamicInputShape = {
     // im_info / anchors / deltas / scores
-    static_shapes_to_test_representation({{3}, {36, 4}, {12, 2, 6}, {3, 2, 6}}),
+    static_shapes_to_test_representation({{3}, {2, 6, 3, 4}, {12, 2, 6}, {3, 2, 6}}),
     {
         {{-1}, {{3}}},
-        {{-1, -1}, {{36, 4}}},
+        {{-1, -1, -1, -1}, {{2, 6, 3, 4}}},
         {{-1, -1, -1}, {{12, 2, 6}}},
         {{-1, -1, -1}, {{3, 2, 6}}}
     },
     {
         {{{3, 6}}, {{3}}},
-        {{{36, 72}, {4, 8}}, {{36, 4}}},
+        {{{2, 4}, {6, 12}, {3, 6}, {4, 8}}, {{2, 6, 3, 4}}},
         {{{12, 24}, {2, 4}, {6, 12}}, {{12, 2, 6}}},
         {{{3, 6}, {2, 4}, {6, 12}}, {{3, 2, 6}}}
     }
@@ -123,6 +123,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(pre_nms_count),
         ::testing::ValuesIn(inputTensors),
         ::testing::Values(ov::element::Type_t::f32),
+        ::testing::Values(ov::element::Type_t::i32),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     GenerateProposalsSingleImageLayerTest::getTestCaseName);
 } // namespace

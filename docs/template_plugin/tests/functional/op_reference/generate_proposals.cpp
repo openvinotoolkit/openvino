@@ -14,26 +14,29 @@ using Attrs = op::v9::GenerateProposalsSingleImage::Attributes;
 
 namespace {
 struct GPParams {
-    template <class IT>
+    template <class IT, class RT>
     GPParams(const Attrs& attrs,
                          const size_t number_of_channels, const size_t height, const size_t width,
-                         const element::Type& iType,
+                         const element::Type& iType, const element::Type& roiNumType,
                          const std::vector<IT>& imageSizeInfoValues, const std::vector<IT>& anchorsValues,
                          const std::vector<IT>& deltasValues, const std::vector<IT>& scoresValues,
                          const std::vector<IT>& refRoisValues, const std::vector<IT>& refScoresValues,
+                         const std::vector<RT>& refRoiNumValues,
                          const std::string& testcaseName = "")
         : attrs(attrs),
           inType(iType),
           outType(iType),
+          roiNumType(roiNumType),
           imageSizeInfoData(CreateTensor(iType, imageSizeInfoValues)),
           anchorsData(CreateTensor(iType, anchorsValues)),
           deltasData(CreateTensor(iType, deltasValues)),
           scoresData(CreateTensor(iType, scoresValues)),
           refRoisData(CreateTensor(iType, refRoisValues)),
           refScoresData(CreateTensor(iType, refScoresValues)),
+          refRoiNumData(CreateTensor(roiNumType, refRoiNumValues)),
           testcaseName(testcaseName) {
               imageSizeInfoShape = Shape{3};
-              anchorsShape = Shape{height * width * number_of_channels, 4};
+              anchorsShape = Shape{height, width, number_of_channels, 4};
               deltasShape = Shape{number_of_channels * 4, height, width};
               scoresShape = Shape{number_of_channels, height, width};
           }
@@ -45,12 +48,14 @@ struct GPParams {
     PartialShape scoresShape;
     ov::element::Type inType;
     ov::element::Type outType;
+    ov::element::Type roiNumType;
     ov::Tensor imageSizeInfoData;
     ov::Tensor anchorsData;
     ov::Tensor deltasData;
     ov::Tensor scoresData;
     ov::Tensor refRoisData;
     ov::Tensor refScoresData;
+    ov::Tensor refRoiNumData;
     std::string testcaseName;
 };
 
@@ -60,7 +65,7 @@ public:
         auto params = GetParam();
         function = CreateFunction(params);
         inputData = {params.imageSizeInfoData, params.anchorsData, params.deltasData, params.scoresData};
-        refOutData = {params.refRoisData, params.refScoresData};
+        refOutData = {params.refRoisData, params.refScoresData, params.refRoiNumData};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<GPParams>& obj) {
         auto param = obj.param;
@@ -70,7 +75,8 @@ public:
         result << "deltasShape=" << param.deltasShape << "_";
         result << "scoresShape=" << param.scoresShape << "_";
         result << "iType=" << param.inType << "_";
-        result << "oType=" << param.outType;
+        result << "oType=" << param.outType << "_";
+        result << "roiNumType=" << param.roiNumType;
         if (param.testcaseName != "")
             result << "_" << param.testcaseName;
         return result.str();
@@ -87,6 +93,7 @@ private:
                                                                     deltas,
                                                                     scores,
                                                                     params.attrs);
+        GenerateProposal->set_roi_num_type(params.roiNumType);
         return std::make_shared<ov::Model>(GenerateProposal->outputs(), ParameterVector {im_info, anchors, deltas, scores});
     }
 };
@@ -95,9 +102,10 @@ TEST_P(ReferenceGPLayerTest, CompareWithRefs) {
     Exec();
 }
 
-template <element::Type_t IN_ET>
+template <element::Type_t IN_ET, element::Type_t OUT_RT>
 std::vector<GPParams> generateGPFloatParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
+    using RT = typename element_type_traits<OUT_RT>::value_type;
 
     Attrs attrs;
     attrs.min_size = 0;
@@ -113,6 +121,7 @@ std::vector<GPParams> generateGPFloatParams() {
                               2,
                               6,
                               IN_ET,
+                              OUT_RT,
                               std::vector<T>{1.0f, 1.0f, 1.0f},
                               std::vector<T>{1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
                                              1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
@@ -142,12 +151,14 @@ std::vector<GPParams> generateGPFloatParams() {
                               std::vector<T>{1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
                                              1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f},
                               std::vector<T>{8.0f, 5.0f, 4.0f, 1.0f, 1.0f, 1.0f},
+                              std::vector<RT>{6},
                               "eval"),
         GPParams(attrs,
                               3,
                               2,
                               6,
                               IN_ET,
+                              OUT_RT,
                               std::vector<T>{150.0, 150.0, 1.0},
                               std::vector<T>{12.0, 68.0, 102.0, 123.0, 46.0, 80.0,  79.0,  128.0, 33.0, 71.0, 127.0, 86.0,  33.0, 56.0, 150.0, 73.0,
                                              5.0,  41.0, 93.0,  150.0, 74.0, 66.0,  106.0, 115.0, 17.0, 37.0, 87.0,  150.0, 31.0, 27.0, 150.0, 39.0,
@@ -186,6 +197,7 @@ std::vector<GPParams> generateGPFloatParams() {
                                              0.9237486720085144,
                                              0.9053611159324646,
                                              0.8842187523841858},
+                              std::vector<RT>{6},
                               "eval_2"),
     };
     return generateProposalParams;
@@ -193,9 +205,10 @@ std::vector<GPParams> generateGPFloatParams() {
 
 std::vector<GPParams> generateGPCombinedParams() {
     const std::vector<std::vector<GPParams>> GPTypeParams {
-        generateGPFloatParams<element::Type_t::f32>(),
-        generateGPFloatParams<element::Type_t::f16>(),
-        generateGPFloatParams<element::Type_t::bf16>(),
+        generateGPFloatParams<element::Type_t::f32, element::Type_t::i32>(),
+        generateGPFloatParams<element::Type_t::f32, element::Type_t::i64>(),
+        generateGPFloatParams<element::Type_t::f16, element::Type_t::i32>(),
+        generateGPFloatParams<element::Type_t::bf16, element::Type_t::i64>(),
         };
     std::vector<GPParams> combinedParams;
 
