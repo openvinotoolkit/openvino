@@ -45,7 +45,7 @@ Basically, there are three ways to specify the devices to be use by the "MULTI":
 
 @endsphinxdirective
 
-Notice that the priorities of the devices can be changed in real time for the executable network:
+Notice that the priorities of the devices can be changed in real time for the compiled model:
 
 @sphinxdirective
 
@@ -207,7 +207,7 @@ You can set the configuration directly as a string, or use the metric key `MULTI
 @endsphinxdirective
 
 * Option 2 - Pass a List as a Parameter, and Dynamically Change Priorities during Execution
-   Notice that the priorities of the devices can be changed in real time for the executable network:
+   Notice that the priorities of the devices can be changed in real time for the compiled model:
 
 @sphinxdirective
 
