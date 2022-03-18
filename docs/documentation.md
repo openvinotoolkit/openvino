@@ -42,8 +42,8 @@
    workbench_docs_Workbench_DG_Introduction
    workbench_docs_Workbench_DG_Install
    workbench_docs_Workbench_DG_Work_with_Models_and_Sample_Datasets
-   workbench_docs_Workbench_DG_User_Guide
-   workbench_docs_security_Workbench
+   Tutorials <workbench_docs_Workbench_DG_Tutorials>
+   User Guide <workbench_docs_Workbench_DG_User_Guide>
    workbench_docs_Workbench_DG_Troubleshooting
 
 .. toctree::
