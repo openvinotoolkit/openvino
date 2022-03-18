@@ -486,11 +486,10 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v3::Bucketize>& n
     InferenceEngine::Blob::Ptr blobPtr;
     switch (port) {
         case 0: {
-            unsigned long data_size = std::accumulate(begin(targetShape), end(targetShape), 1, std::multiplies<uint64_t>());
-            return create_and_fill_tensor(elemType, ov::Shape{data_size * 5}, 0, 10, 7235346);
+            return  create_and_fill_tensor_unique_sequence(elemType, targetShape, 0, 10, 7235346);
         }
         case 1: {
-            return create_and_fill_tensor_unique_sequence(elemType, targetShape, 0, 10, 7235346);
+            return  create_and_fill_tensor_unique_sequence(elemType, targetShape, 0, 10, 8234231);
         }
         default:
             return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
