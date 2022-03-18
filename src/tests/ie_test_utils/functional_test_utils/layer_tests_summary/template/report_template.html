@@ -147,9 +147,9 @@
                             {{op}} is not implemented in {{d}} plugin
                         {% endif -%}">
                     {% if (results[d][op].passed != '0' or results[d][op].failed != '0' or results[d][op].crashed != '0' or results[d][op].skipped != '0' or results[d][op].hanged != '0') -%}
-                        {{ results[d][op].passrate }} %<br />
+                        <span class=checkmark></span>  {{ results[d][op].passrate }} %<br />
                     {% else -%}
-                        ---<br />
+                        <span class=check></span>  ---<br />
                     {% endif -%}
                     <div class="flex">
                         <div>
@@ -162,7 +162,6 @@
                             {% else -%}
                             {% endif -%}
                         </div>
-                        <div class="{% if results[d][op].implemented == 'true' -%} checkmark {% else -%} check {% endif -%}"></div>
                     </div>
 
                 </td>
