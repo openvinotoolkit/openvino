@@ -34,7 +34,7 @@ void ConversionLayerTest::SetUp() {
     ngraph::helpers::ConversionTypes conversionOpType;
     InferenceEngine::Precision inputPrecision, targetPrecision;
     std::vector<std::vector<size_t>> inputShape;
-    std::tie(conversionOpType, inputShape, inputPrecision, targetPrecision, inLayout, outLayout, targetDevice) =
+    std::tie(conversionOpType, inputShape, inputPrecision, targetPrecision, inLayout, outLayout.front(), targetDevice) =
         GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);

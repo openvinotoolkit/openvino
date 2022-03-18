@@ -134,7 +134,7 @@ void PoolingLayerTest::SetUp() {
     poolSpecificParams poolParams;
     std::vector<size_t> inputShape;
     InferenceEngine::Precision netPrecision;
-    std::tie(poolParams, netPrecision, inPrc.front(), outPrc.front(), inLayout, outLayout, inputShape, targetDevice) = this->GetParam();
+    std::tie(poolParams, netPrecision, inPrc.front(), outPrc.front(), inLayout, outLayout.front(), inputShape, targetDevice) = this->GetParam();
     ngraph::helpers::PoolingTypes poolType;
     std::vector<size_t> kernel, stride;
     std::vector<size_t> padBegin, padEnd;
@@ -166,7 +166,7 @@ void GlobalPoolingLayerTest::SetUp() {
     poolSpecificParams poolParams;
     InferenceEngine::Precision netPrecision;
     size_t channels;
-    std::tie(poolParams, netPrecision, inPrc.front(), outPrc.front(), inLayout, outLayout, channels, targetDevice) = this->GetParam();
+    std::tie(poolParams, netPrecision, inPrc.front(), outPrc.front(), inLayout, outLayout.front(), channels, targetDevice) = this->GetParam();
     ngraph::helpers::PoolingTypes poolType;
     std::vector<size_t> kernel, stride;
     std::vector<size_t> padBegin, padEnd;
@@ -200,7 +200,7 @@ void MaxPoolingV8LayerTest::SetUp() {
     maxPoolV8SpecificParams poolParams;
     std::vector<size_t> inputShape;
     InferenceEngine::Precision netPrecision;
-    std::tie(poolParams, netPrecision, inPrc.front(), outPrc.front(), inLayout, outLayout, inputShape, targetDevice) = this->GetParam();
+    std::tie(poolParams, netPrecision, inPrc.front(), outPrc.front(), inLayout, outLayout.front(), inputShape, targetDevice) = this->GetParam();
     std::vector<size_t> kernel, stride, dilation;
     std::vector<size_t> padBegin, padEnd;
     ngraph::op::PadType padType;

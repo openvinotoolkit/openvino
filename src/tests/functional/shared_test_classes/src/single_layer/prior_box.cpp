@@ -56,7 +56,7 @@ std::string PriorBoxLayerTest::getTestCaseName(const testing::TestParamInfo<prio
 void PriorBoxLayerTest::SetUp() {
     priorBoxSpecificParams specParams;
     std::tie(specParams, netPrecision,
-             inPrc.front(), outPrc.front(), inLayout, outLayout,
+             inPrc.front(), outPrc.front(), inLayout, outLayout.front(),
              inputShapes, imageShapes, targetDevice) = GetParam();
 
     std::tie(min_size, max_size, aspect_ratio,

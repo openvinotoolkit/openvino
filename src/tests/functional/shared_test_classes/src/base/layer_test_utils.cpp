@@ -23,6 +23,7 @@ namespace LayerTestsUtils {
 
 LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f), abs_threshold(-1.f) {
     core = PluginCache::get().ie(targetDevice);
+    outLayout.reserve(10);
     inPrc.reserve(10);
     outPrc.reserve(10);
 }
@@ -353,6 +354,13 @@ void LayerTestsCommon::ConfigureNetwork() {
         inputCnt++;
     }
 
+    int gapOutLayout = cnnNetwork.getOutputsInfo().size() - outLayout.size();
+    if (gapOutLayout) {
+        auto outLayoutDefaultValue = outLayout[0];
+        for (int i = 1; i <= gapOutLayout; i++) {
+            outLayout.push_back(outLayoutDefaultValue);
+        }
+    }
     int gapOutPrc = cnnNetwork.getOutputsInfo().size() - outPrc.size();
     if (gapOutPrc) {
         auto outPrcDefaultValue = outPrc[0];
@@ -362,8 +370,8 @@ void LayerTestsCommon::ConfigureNetwork() {
     }
     int outputCnt = 0;
     for (const auto &out : cnnNetwork.getOutputsInfo()) {
-        if (outLayout != InferenceEngine::Layout::ANY) {
-            out.second->setLayout(outLayout);
+        if (outLayout[outputCnt] != InferenceEngine::Layout::ANY) {
+            out.second->setLayout(outLayout[outputCnt]);
         }
         if (outPrc[outputCnt] != InferenceEngine::Precision::UNSPECIFIED) {
             out.second->setPrecision(outPrc[outputCnt]);
