@@ -41,7 +41,6 @@ from tests import (
     xfail_issue_63039,
     xfail_issue_63043,
     xfail_issue_63044,
-    xfail_issue_63136,
     xfail_issue_63137,
     xfail_issue_63138,
     xfail_issue_69444,
