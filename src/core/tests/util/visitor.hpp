@@ -117,6 +117,9 @@ public:
     virtual operator ov::Dimension&() {
         NGRAPH_CHECK(false, "Invalid type access");
     }
+    virtual operator std::shared_ptr<Variable>&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
     uint64_t get_index() {
         return m_index;
     }
@@ -219,6 +222,8 @@ public:
             a->set(m_values.get<ov::PartialShape>(name));
         } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ov::Dimension>>(&adapter)) {
             a->set(m_values.get<ov::Dimension>(name));
+        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<Variable>>>(&adapter)) {
+            a->set(m_values.get<std::shared_ptr<Variable>>(name));
         } else {
             NGRAPH_CHECK(false, "Attribute \"", name, "\" cannot be unmarshalled");
         }
@@ -302,6 +307,8 @@ public:
         } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ov::PartialShape>>(&adapter)) {
             m_values.insert_vector(name, a->get());
         } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ov::Dimension>>(&adapter)) {
+            m_values.insert(name, a->get());
+        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<Variable>>>(&adapter)) {
             m_values.insert(name, a->get());
         } else {
             NGRAPH_CHECK(false, "Attribute \"", name, "\" cannot be marshalled");
