@@ -76,8 +76,8 @@ Jenkinsfile  @openvinotoolkit/openvino-admins
 /src/frontends/paddle/  @openvinotoolkit/openvino-ie-paddle-maintainers
 
 # IE Tests:
-/src/tests/  @openvinotoolkit/openvino-ie-tests-maintainers
-/src/tests_deprecated/  @openvinotoolkit/openvino-ie-tests-maintainers
+/src/tests/  @openvinotoolkit/openvino-ie-tests-maintainers @openvinotoolkit/openvino-ie-test-developers
+/src/tests_deprecated/  @openvinotoolkit/openvino-ie-tests-maintainers @openvinotoolkit/openvino-ie-test-developers
 /src/tests/functional/inference_engine/ngraph_reader/  @openvinotoolkit/openvino-ie-tests-maintainers @openvinotoolkit/openvino-ngraph-maintainers
 /src/tests/functional/inference_engine/transformations/  @openvinotoolkit/openvino-ie-tests-maintainers @openvinotoolkit/openvino-ngraph-maintainers
 
