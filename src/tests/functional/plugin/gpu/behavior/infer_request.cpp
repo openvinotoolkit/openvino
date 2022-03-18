@@ -70,7 +70,7 @@ std::string InferRequestIOPrecision::getTestCaseName(const testing::TestParamInf
 void InferRequestIOPrecision::SetUp() {
     InferenceEngine::Precision netPrecision;
     std::vector<size_t> shape;
-    std::tie(netPrecision, inLayout, outLayout.front(), shape, targetDevice) = GetParam();
+    std::tie(netPrecision, inLayout.front(), outLayout.front(), shape, targetDevice) = GetParam();
     inPrc.front() = netPrecision;
     outPrc.front() = netPrecision;
 

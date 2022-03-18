@@ -48,7 +48,7 @@ void RangeLayerTest::Infer() {
 
 void RangeLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
-    tie(start, stop, step, netPrecision, inPrc.front(), outPrc.front(), inLayout, outLayout.front(), targetDevice) = GetParam();
+    tie(start, stop, step, netPrecision, inPrc.front(), outPrc.front(), inLayout.front(), outLayout.front(), targetDevice) = GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     std::vector<std::pair<std::string, std::vector<size_t>>> inputs {{"start", {}}, {"stop", {}}, {"step", {}}};
     auto params = ngraph::builder::makeParams(ngPrc, inputs);
@@ -101,7 +101,7 @@ void RangeNumpyLayerTest::Infer() {
 void RangeNumpyLayerTest::SetUp() {
     InferenceEngine::Precision netPrc;
     InferenceEngine::Precision paramPrc;
-    std::tie(start, stop, step, paramPrc, netPrc, outPrc.front(), inLayout, outLayout.front(), targetDevice) = GetParam();
+    std::tie(start, stop, step, paramPrc, netPrc, outPrc.front(), inLayout.front(), outLayout.front(), targetDevice) = GetParam();
     auto ngNetPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrc);
     auto ngParamPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(paramPrc);
 

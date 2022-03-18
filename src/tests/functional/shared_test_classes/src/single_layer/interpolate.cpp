@@ -59,7 +59,7 @@ void InterpolateLayerTest::SetUp() {
     auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
     std::map<std::string, std::string> additional_config;
     std::tie(interpolateParams, netPrecision, inPrc.front(), outPrc.front(),
-             inLayout, outLayout.front(), inputShape, targetShape, targetDevice, additional_config) = this->GetParam();
+             inLayout.front(), outLayout.front(), inputShape, targetShape, targetDevice, additional_config) = this->GetParam();
     std::vector<size_t> padBegin, padEnd;
     std::vector<int64_t> axes;
     std::vector<float> scales;

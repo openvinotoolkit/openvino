@@ -34,7 +34,7 @@ namespace LayerTestsDefinitions {
         std::vector<size_t> inputShape, numSplits;
         InferenceEngine::Precision netPrecision;
         std::tie(numSplits, axis, netPrecision, inPrc.front(), outPrc.front(),
-                inLayout, outLayout.front(), inputShape, targetDevice) = this->GetParam();
+                inLayout.front(), outLayout.front(), inputShape, targetDevice) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         for (int k = 1; k < numSplits.size(); k++) {
             outPrc.push_back(outPrc.front());

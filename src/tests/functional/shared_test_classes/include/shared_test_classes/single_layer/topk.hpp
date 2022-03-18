@@ -19,7 +19,7 @@ typedef std::tuple<
         InferenceEngine::Precision,     // Net precision
         std::vector<InferenceEngine::Precision>, // Input precision
         std::vector<InferenceEngine::Precision>, // Output precision
-        InferenceEngine::Layout,        // Input layout
+        std::vector<InferenceEngine::Layout>,    // Input layout
         InferenceEngine::SizeVector,    // inputShape
         std::string                     // Target device name
 > TopKParams;

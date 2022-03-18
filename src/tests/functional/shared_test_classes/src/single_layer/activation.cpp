@@ -34,7 +34,8 @@ void ActivationLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     std::pair<std::vector<size_t>, std::vector<size_t>> shapes;
     std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationDecl;
-    std::tie(activationDecl, netPrecision, inPrc.front(), outPrc.front(), inLayout, outLayout.front(), shapes, targetDevice) = GetParam();
+    std::tie(activationDecl, netPrecision, inPrc.front(), outPrc.front(),
+            inLayout.front(), outLayout.front(), shapes, targetDevice) = GetParam();
 
     activationType = activationDecl.first;
     auto constantsValue = activationDecl.second;
@@ -199,7 +200,7 @@ void ActivationParamLayerTest::SetUp() {
     std::pair<std::vector<size_t>, std::vector<size_t>> shapes;
     std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationDecl;
     std::tie(activationDecl, netPrecision, inPrc.front(), outPrc.front(),
-            inLayout, outLayout.front(), shapes, targetDevice) = GetParam();
+            inLayout.front(), outLayout.front(), shapes, targetDevice) = GetParam();
 
     activationType = activationDecl.first;
     constantsValue = activationDecl.second;

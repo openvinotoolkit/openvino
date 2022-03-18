@@ -8,8 +8,11 @@ namespace LayerTestsDefinitions {
     std::string TopKLayerTest::getTestCaseName(const testing::TestParamInfo<TopKParams>& obj) {
     InferenceEngine::Precision netPrecision;
     std::vector<InferenceEngine::Precision> inPrc;
+    inPrc.reserve(2);
     std::vector<InferenceEngine::Precision> outPrc;
-    InferenceEngine::Layout inLayout;
+    outPrc.reserve(2);
+    std::vector<InferenceEngine::Layout> inLayout;
+    inLayout.reserve(2);
     InferenceEngine::SizeVector inputShape;
     std::string targetDevice;
     int64_t keepK, axis;
@@ -27,7 +30,8 @@ namespace LayerTestsDefinitions {
     result << "inPRC2=" << inPrc[1].name() << "_";
     result << "outPRC1=" << outPrc[0].name() << "_";
     result << "outPRC2=" << outPrc[1].name() << "_";
-    result << "inL=" << inLayout << "_";
+    result << "inL1=" << inLayout[0] << "_";
+    result << "inL2=" << inLayout[1] << "_";
     result << "trgDev=" << targetDevice;
     return result.str();
 }

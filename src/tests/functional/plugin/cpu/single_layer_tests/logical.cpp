@@ -49,7 +49,7 @@ protected:
         std::string targetName;
         std::map<std::string, std::string> additional_config;
         std::tie(inputShapes, logicalOpType, secondInputType, netPrecision, inPrc.front(), outPrc.front(),
-                 inLayout, outLayout.front(), targetDevice, additional_config) = basicParamsSet;
+                 inLayout.front(), outLayout.front(), targetDevice, additional_config) = basicParamsSet;
 
         selectedType = getPrimitiveType() + "_" + inPrc[0].name();
 

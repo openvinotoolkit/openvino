@@ -33,8 +33,8 @@ void ReshapeLayerTest::SetUp() {
     std::vector<int64_t> outFormShapes;
     bool specialZero;
     InferenceEngine::Precision netPrecision;
-    std::tie(specialZero, netPrecision, inPrc.front(), outPrc.front(), inLayout, outLayout.front(), inputShapes, outFormShapes, targetDevice, configuration) =
-        this->GetParam();
+    std::tie(specialZero, netPrecision, inPrc.front(), outPrc.front(), inLayout.front(), outLayout.front(),
+            inputShapes, outFormShapes, targetDevice, configuration) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto paramsIn = ngraph::builder::makeParams(ngPrc, {inputShapes});
     auto paramIn = ngraph::helpers::convert2OutputVector(

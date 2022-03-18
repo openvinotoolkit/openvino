@@ -32,7 +32,7 @@ void TileLayerTest::SetUp() {
     std::vector<size_t> inputShape;
     auto netPrecision   = InferenceEngine::Precision::UNSPECIFIED;
     std::tie(tileParams, netPrecision, inPrc.front(), outPrc.front(),
-            inLayout, outLayout.front(), inputShape, targetDevice) = this->GetParam();
+            inLayout.front(), outLayout.front(), inputShape, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(

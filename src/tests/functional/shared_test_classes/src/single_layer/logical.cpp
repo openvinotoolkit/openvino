@@ -53,9 +53,8 @@ InferenceEngine::Blob::Ptr LogicalLayerTest::GenerateInput(const InferenceEngine
 }
 
 void LogicalLayerTest::SetupParams() {
-    std::tie(inputShapes, logicalOpType, secondInputType, netPrecision,
-             inPrc.front(), outPrc.front(), inLayout, outLayout.front(), targetDevice, additional_config) =
-        this->GetParam();
+    std::tie(inputShapes, logicalOpType, secondInputType, netPrecision, inPrc.front(), outPrc.front(),
+             inLayout.front(), outLayout.front(), targetDevice, additional_config) = this->GetParam();
 
     configuration.insert(additional_config.begin(), additional_config.end());
 }

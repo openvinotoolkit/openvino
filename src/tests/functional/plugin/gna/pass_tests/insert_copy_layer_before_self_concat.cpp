@@ -67,7 +67,7 @@ protected:
         size_t inputsNum, concatsNum;
         InferenceEngine::Precision netPrecision;
         std::tie(axis, inputShape, inputsNum, concatsNum, netPrecision, inPrc.front(), outPrc.front(),
-                inLayout, outLayout.front(), targetDevice) = this->GetParam();
+                inLayout.front(), outLayout.front(), targetDevice) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
         ngraph::OutputVector concatInputs;

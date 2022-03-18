@@ -23,6 +23,7 @@ namespace LayerTestsUtils {
 
 LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f), abs_threshold(-1.f) {
     core = PluginCache::get().ie(targetDevice);
+    inLayout.reserve(10);
     outLayout.reserve(10);
     inPrc.reserve(10);
     outPrc.reserve(10);
@@ -336,6 +337,13 @@ void LayerTestsCommon::Compare(const InferenceEngine::TensorDesc &actualDesc, co
 }
 
 void LayerTestsCommon::ConfigureNetwork() {
+    int gapInLayout = cnnNetwork.getInputsInfo().size() - inLayout.size();
+    if (gapInLayout) {
+        auto inLayoutDefaultValue = inLayout[0];
+        for (int i = 1; i <= gapInLayout; i++) {
+            inLayout.push_back(inLayoutDefaultValue);
+        }
+    }
     int gapInPrc = cnnNetwork.getInputsInfo().size() - inPrc.size();
     if (gapInPrc) {
         auto inPrcDefaultValue = inPrc[0];
@@ -345,8 +353,8 @@ void LayerTestsCommon::ConfigureNetwork() {
     }
     int inputCnt = 0;
     for (const auto &in : cnnNetwork.getInputsInfo()) {
-        if (inLayout != InferenceEngine::Layout::ANY) {
-            in.second->setLayout(inLayout);
+        if (inLayout[inputCnt] != InferenceEngine::Layout::ANY) {
+            in.second->setLayout(inLayout[inputCnt]);
         }
         if (inPrc[inputCnt] != InferenceEngine::Precision::UNSPECIFIED) {
             in.second->setPrecision(inPrc[inputCnt]);

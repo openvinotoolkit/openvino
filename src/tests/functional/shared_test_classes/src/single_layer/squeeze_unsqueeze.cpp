@@ -35,7 +35,7 @@ void SqueezeUnsqueezeLayerTest::SetUp() {
     ShapeAxesTuple shapeItem;
     ngraph::helpers::SqueezeOpType opType;
     std::tie(shapeItem, opType, netPrecision, inPrc.front(), outPrc.front(),
-            inLayout, outLayout.front(), targetDevice) = GetParam();
+            inLayout.front(), outLayout.front(), targetDevice) = GetParam();
     std::tie(inputShapes, axesVector) = shapeItem;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 

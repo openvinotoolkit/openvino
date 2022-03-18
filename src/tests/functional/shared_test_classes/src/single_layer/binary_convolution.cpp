@@ -58,8 +58,8 @@ void BinaryConvolutionLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShape;
 
-    std::tie(binConvParams, netPrecision, inPrc.front(), outPrc.front(), inLayout, outLayout.front(), inputShape, targetDevice) =
-        this->GetParam();
+    std::tie(binConvParams, netPrecision, inPrc.front(), outPrc.front(),
+            inLayout.front(), outLayout.front(), inputShape, targetDevice) = this->GetParam();
 
     ngraph::op::PadType padType;
     InferenceEngine::SizeVector kernelSize, strides, dilations;
