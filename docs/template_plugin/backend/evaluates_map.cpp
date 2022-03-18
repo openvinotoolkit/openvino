@@ -2184,6 +2184,7 @@ struct InfoForIRFFT9 {
     Shape axes_data_shape;
     Shape fft_output_shape;
     Shape output_shape;
+    int64_t last_signal_size;
 };
 
 InfoForIRFFT9 get_info_for_irfft9_eval(const std::vector<std::shared_ptr<HostTensor>>& inputs) {
@@ -2214,9 +2215,11 @@ InfoForIRFFT9 get_info_for_irfft9_eval(const std::vector<std::shared_ptr<HostTen
             output_shape[current_axis] = static_cast<size_t>(current_signal_size);
         }
     }
+    result.last_signal_size = signal_size.back();
     if (signal_size.back() == -1) {
         output_shape[last_axis] = 2 * (result.input_data_shape[last_axis] - 1);
         fft_output_shape[last_axis] = 2 * (result.input_data_shape[last_axis] - 1);
+        result.last_signal_size = 2 * (result.input_data_shape[last_axis] - 1);
     }
 
     output_shape.pop_back();
@@ -2237,6 +2240,7 @@ bool evaluate(const shared_ptr<op::v9::IRDFT>& op, const HostTensorVector& outpu
     std::cout << "input data shape:      " << info.input_data_shape << "\n";
     std::cout << "output data shape:     " << info.output_shape << "\n";
     std::cout << "fft output data shape: " << info.fft_output_shape << "\n";
+    std::cout << "last signal size:      " << info.last_signal_size << "\n";
     std::cout << "axes:                  ";
     for (const auto& a : info.axes_data) {
         std::cout << a << ", ";
@@ -2251,6 +2255,7 @@ bool evaluate(const shared_ptr<op::v9::IRDFT>& op, const HostTensorVector& outpu
                               info.input_data_shape,
                               info.axes_data,
                               info.fft_output_shape,
+                              info.last_signal_size,
                               irfft_result.data());
 
     std::cout << "output data: [";

@@ -73,10 +73,12 @@ void irdft(const std::vector<float>& input_data,
            const Shape& input_data_shape,
            const std::vector<int64_t>& axes_data,
            const Shape& output_ifft_shape,
+           const int64_t last_signal_size,
            float* irdft_result) {
     std::cout << "We are in the reference for IRDFT.\n";
     std::cout << "input_data_shape:  " << input_data_shape << "\n";
     std::cout << "output_ifft_shape: " << output_ifft_shape << "\n";
+    std::cout << "last_signal_size:  " << last_signal_size << "\n";
     std::cout << "axes_data: ";
     for (const auto a : axes_data) {
         std::cout << a << ", ";
@@ -85,11 +87,11 @@ void irdft(const std::vector<float>& input_data,
     const auto last_axis = axes_data.back();
     std::cout << "last axis: " << last_axis << "\n";
     auto shape_of_extended_input_data = input_data_shape;
-    shape_of_extended_input_data[last_axis] = 2 * (input_data_shape[last_axis] - 1);
-    auto shape_of_extended_complex_input_data = shape_of_extended_input_data;
-    shape_of_extended_complex_input_data.pop_back();
+    shape_of_extended_input_data[last_axis] = last_signal_size;
+//     auto shape_of_extended_complex_input_data = shape_of_extended_input_data;
+//     shape_of_extended_complex_input_data.pop_back();
     std::cout << "shape_of_extended_input_data: " << shape_of_extended_input_data << "\n";
-    std::cout << "shape_of_extended_complex_input_data: " << shape_of_extended_complex_input_data << "\n";
+//     std::cout << "shape_of_extended_complex_input_data: " << shape_of_extended_complex_input_data << "\n";
 
     const auto reversed_input_data_shape = fft_common::reverse_shape(input_data_shape);
     const auto reversed_extended_input_data_shape = fft_common::reverse_shape(shape_of_extended_input_data);
@@ -167,6 +169,9 @@ void irdft(const std::vector<float>& input_data,
     const auto inner_size = reversed_input_data_shape[reversed_last_axis];
     std::cout << "inner_size: " << inner_size << "\n";
 
+    const auto inner_bound = last_signal_size / 2 + 1;
+    std::cout << "inner_bound: " << inner_bound << "\n";
+
     const auto outer_strides = strides_for_outer_axes(input_data_strides, reversed_last_axis);
     const auto outer_extended_strides = strides_for_outer_axes(extended_input_data_strides, reversed_last_axis);
     std::cout << "outer_strides: ";
@@ -196,15 +201,26 @@ void irdft(const std::vector<float>& input_data,
         const auto outer_output_offset = fft_common::offset_from_coords_and_strides(outer_coords, outer_extended_strides);
         std::cout << "outer_output_offset: " << outer_output_offset << "\n";
 
-        for (int64_t j = 0; j < inner_extended_size; ++j) {
-            complex_type extended_elem;
+        for (int64_t j = 0; j < inner_bound; ++j) {
+            complex_type value = complex_type(0.0, 0.0);
             if (j < inner_size) {
-                extended_elem = complex_input_data_ptr[outer_input_offset + j * inner_stride];
-            } else {
-                extended_elem = std::conj(complex_input_data_ptr[outer_input_offset + (inner_extended_size - j) * inner_stride]);
+                value = complex_input_data_ptr[outer_input_offset + j * inner_stride];
             }
-            extended_data_ptr[outer_output_offset + j * inner_extended_stride] = extended_elem;
+            extended_data_ptr[outer_output_offset + j * inner_extended_stride] = value;
+            if (j > 0 && j < (inner_extended_size - inner_bound + 1)) {
+                extended_data_ptr[outer_output_offset + (inner_extended_size - j) * inner_extended_stride] = std::conj(value);
+            }
         }
+
+//         for (int64_t j = 0; j < inner_extended_size; ++j) {
+//             complex_type extended_elem;
+//             if (j < inner_size) {
+//                 extended_elem = complex_input_data_ptr[outer_input_offset + j * inner_stride];
+//             } else {
+//                 extended_elem = std::conj(complex_input_data_ptr[outer_input_offset + (inner_extended_size - j) * inner_stride]);
+//             }
+//             extended_data_ptr[outer_output_offset + j * inner_extended_stride] = extended_elem;
+//         }
     }
     std::cout << "extended_input_data: [";
     for (std::size_t i = 0; i < extended_input_data.size(); ++i) {
