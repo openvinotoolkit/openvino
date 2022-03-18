@@ -141,6 +141,16 @@ def test_Version_default():
     os.remove(bin_path)
 
 
+def test_serialize_default_bin():
+    xml_path = "./serialized_function.xml"
+    bin_path = "./serialized_function.bin"
+    model = get_test_function()
+    serialize(model, xml_path)
+    assert os.path.exists(bin_path)
+    os.remove(xml_path)
+    os.remove(bin_path)
+
+
 def test_Version_ir_v10():
     core = Core()
     xml_path = "./serialized_function.xml"

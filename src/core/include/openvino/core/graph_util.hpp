@@ -283,6 +283,6 @@ bool replace_node_update_name(const std::shared_ptr<Node>& target, const std::sh
 OPENVINO_API
 void serialize(const std::shared_ptr<const ov::Model>& m,
                const std::string& xml_path,
-               const std::string& bin_path,
+               const std::string& bin_path = "",
                ov::pass::Serialize::Version version = ov::pass::Serialize::Version::UNSPECIFIED);
 }  // namespace ov

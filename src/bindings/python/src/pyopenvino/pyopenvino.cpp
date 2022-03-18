@@ -106,7 +106,7 @@ PYBIND11_MODULE(pyopenvino, m) {
         },
         py::arg("model"),
         py::arg("xml_path"),
-        py::arg("bin_path"),
+        py::arg("bin_path") = "",
         py::arg("version") = "UNSPECIFIED",
         R"(
             Serialize given model into IR. The generated .xml and .bin files will be saved
@@ -115,7 +115,8 @@ PYBIND11_MODULE(pyopenvino, m) {
             :type model: openvino.runtime.Model
             :param xml_path: path where .xml file will be saved
             :type xml_path: str
-            :param bin_path: path where .bin file will be saved
+            :param bin_path: path where .bin file will be saved: if path is empty
+                             the same name as xml_path will be used for .bin file
             :type bin_path: str
             :param version: sets the version of the IR which will be generated.
             Supported versions are:

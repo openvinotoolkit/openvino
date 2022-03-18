@@ -1094,9 +1094,7 @@ int main(int argc, char* argv[]) {
 
         if (!FLAGS_exec_graph_path.empty()) {
             try {
-                ov::serialize(std::const_pointer_cast<ov::Model>(compiledModel.get_runtime_model()),
-                              FLAGS_exec_graph_path,
-                              "");
+                ov::serialize(compiledModel.get_runtime_model(), FLAGS_exec_graph_path);
                 slog::info << "executable graph is stored to " << FLAGS_exec_graph_path << slog::endl;
             } catch (const std::exception& ex) {
                 slog::err << "Can't get executable graph: " << ex.what() << slog::endl;
