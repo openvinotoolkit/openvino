@@ -13,7 +13,7 @@
    Command-line Interface <pot_compression_cli_README>
    pot_compression_api_README
    pot_configs_README
-   Deep neural network protection <pot_ranger_README>
+   Deep Neural Network Protection <pot_ranger_README>
    pot_docs_FrequentlyAskedQuestions
 
 @endsphinxdirective
@@ -37,15 +37,13 @@ Figure below shows the optimization workflow:
 * Multiple domains: Computer Vision, Natural Language Processing, Recommendation Systems, Speech Recognition.
 * [Command-line tool](docs/CLI.md) that provides a simple interface for basic use cases.
 * [API](openvino/tools/pot/api/README.md) that helps to apply optimization methods within a custom inference script written with OpenVINO Python* API.
-* (Experimental) [Ranger algorithm](@ref pot_ranger_README) for model prodection in safity-critical cases.
+* (Experimental) [Ranger algorithm](@ref pot_ranger_README) for the model protection in safety-critical cases.
 
-For benchmarking results collected for the models optimized with POT tool, see [INT8 vs FP32 Comparison on Select Networks and Platforms](@ref openvino_docs_performance_int8_vs_fp32).
+For benchmarking results collected for the models optimized with the POT tool, see [INT8 vs FP32 Comparison on Select Networks and Platforms](@ref openvino_docs_performance_int8_vs_fp32).
 
-POT is opensourced on GitHub as a part of OpenVINO and available at https://github.com/openvinotoolkit/openvino/tools/pot.
+POT is open-sourced on GitHub as a part of OpenVINO and available at https://github.com/openvinotoolkit/openvino/tools/pot.
 
-Further documentation presumes that you are familiar with basic Deep Learning concepts, such as model inference,
-dataset preparation, model optimization, as well as with the OpenVINO&trade; toolkit and its components, such as  [Model Optimizer](@ref openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide)
-and [Accuracy Checker Tool](@ref omz_tools_accuracy_checker).
+Further documentation presumes that you are familiar with basic Deep Learning concepts, such as model inference, dataset preparation, model optimization, as well as with the OpenVINO&trade; toolkit and its components, such as  [Model Optimizer](@ref openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide) and [Accuracy Checker Tool](@ref omz_tools_accuracy_checker).
 
 ## Get started
 
@@ -65,8 +63,8 @@ configuration file for the model that allows validating model accuracy using [Ac
 a Python* inference script that uses [OpenVINO Python* API](https://docs.openvino.ai/latest/openvino_inference_engine_ie_bridges_python_docs_api_overview.html).
 
 
-POT is also integrated into [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench), a web-based graphical environment
-that enables you to optimize, tune, analyze, visualize, and compare performance of deep learning models.
+POT is also integrated into [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench), a web-based graphical environment 
+that enables you to  to import, optimize, benchmark, visualize, and compare performance of deep learning models. 
 
 ### Examples
 
