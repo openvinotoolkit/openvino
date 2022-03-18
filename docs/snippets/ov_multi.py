@@ -57,6 +57,8 @@ def set_property():
     core.set_property(device_name="CPU", properties=cpu_config)
     core.set_property(device_name="GPU", properties=gpu_config)
     compiled_model = core.compile_model(model=model, device_name="MULTI:GPU,CPU")
+    # Query the optimal number of requests
+    nireq = compiled_model.get_property("OPTIMAL_NUMBER_OF_INFER_REQUESTS")
 #! [set_property]
 
 def main():

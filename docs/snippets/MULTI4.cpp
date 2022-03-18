@@ -10,9 +10,14 @@ std::shared_ptr<ov::Model> model = core.read_model("sample.xml");
 core.set_property({ov::device::properties("HDDL", hddl_config),
     ov::device::properties("GPU", gpu_config)});
 
-// load the network to the multi-device, while specifying the configuration (devices along with priorities):
-ov::CompiledModel compileModel = core.compile_model(model, "MULTI", ov::device::priorities("HDDL,GPU"));
-// new property allows to query the optimal number of requests:
+// compile the modle on the multi-device, while specifying the configuration (devices along with priorities
+// and the configuration of devices):
+ov::CompiledModel compileModel = core.compile_model(model, "MULTI",
+    ov::device::priorities("HDDL,GPU"),
+    ov::device::properties("HDDL", hddl_config),
+    ov::device::properties("GPU", gpu_config));
+
+//  query the optimal number of requests:
 uint32_t nireq = compileModel.get_property(ov::optimal_number_of_infer_requests);
 //! [part4]
 return 0;

@@ -17,8 +17,8 @@ Note that with Multi-Device the application logic is left unchanged, so you don'
 
 The setup of Multi-Device can be described in three major steps:
 
-1. Configure each device as usual.
-2. Compile the model on the Multi-Device plugin created on top of a (prioritized) list of the configured devices. This is the only change needed in the application.
+1. Prepare configure for each device. 
+2. Compile the model on the Multi-Device plugin created on top of a (prioritized) list of the configured devices with the configure prepared in step one.
 3. As with any other CompiledModel call (resulting from `compile_model`), you create as many requests as needed to saturate the devices.
 
 These steps are covered below in detail.
@@ -176,7 +176,7 @@ Note that with Multi-Device the application logic is left unchanged, so you don'
 
 The setup of Multi-Device can be described in three major steps:
 
-1. Configure each device as usual (using the conventional [configure devices](supported_plugins/config_properties.md) method
+1. Configure each device (using the conventional [configure devices](supported_plugins/config_properties.md) method
 2. Compile the model on the Multi-Device plugin created on top of a (prioritized) list of the configured devices. This is the only change needed in the application.
 3. As with any other CompiledModel call (resulting from `compile_model`), you create as many requests as needed to saturate the devices.
 
