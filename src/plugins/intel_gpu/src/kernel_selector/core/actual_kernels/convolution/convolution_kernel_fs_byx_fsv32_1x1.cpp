@@ -63,22 +63,22 @@ ConvolutionKernel_fs_byx_fsv32_1x1::AutoTuneOption ConvolutionKernel_fs_byx_fsv3
     size_t selected_h = 0;
     std::vector<size_t> blockSizes = {8, 7, 6, 5, 4};
 
-    if (cp.output.X().v <= 8) {
-        selected_w = cp.output.X().v;
+    if (cp.outputs[0].X().v <= 8) {
+        selected_w = cp.outputs[0].X().v;
      } else {
         for (auto w : blockSizes) {
-            if (cp.output.X().v % w == 0) {
+            if (cp.outputs[0].X().v % w == 0) {
                 selected_w = w;
                 break;
             }
         }
     }
 
-    if (cp.output.Y().v <= 8 && selected_w * cp.output.Y().v <= maxBlockSize) {
-        selected_h = cp.output.Y().v;
+    if (cp.outputs[0].Y().v <= 8 && selected_w * cp.outputs[0].Y().v <= maxBlockSize) {
+        selected_h = cp.outputs[0].Y().v;
     } else {
         for (auto h : blockSizes) {
-            if (cp.output.Y().v % h == 0 && selected_w * h <= maxBlockSize) {
+            if (cp.outputs[0].Y().v % h == 0 && selected_w * h <= maxBlockSize) {
                 selected_h = h;
                 break;
             }
@@ -110,9 +110,9 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_fs_byx_fsv32_1x1::SetDefau
     dispatchData.lws[1] = 1;
     dispatchData.lws[2] = 16;
 
-    dispatchData.gws[0] = CeilDiv(arg.output.X().v, option.blockWidth);
-    dispatchData.gws[1] = CeilDiv(arg.output.Y().v, option.blockHeight);
-    dispatchData.gws[2] = CeilDiv(arg.output.Feature().v, 32) * 16 * arg.output.Batch().v;
+    dispatchData.gws[0] = CeilDiv(arg.outputs[0].X().v, option.blockWidth);
+    dispatchData.gws[1] = CeilDiv(arg.outputs[0].Y().v, option.blockHeight);
+    dispatchData.gws[2] = CeilDiv(arg.outputs[0].Feature().v, 32) * 16 * arg.outputs[0].Batch().v;
 
     return dispatchData;
 }
@@ -131,7 +131,7 @@ bool ConvolutionKernel_fs_byx_fsv32_1x1::Validate(const Params& p, const optiona
         return false;
 
     // Output feature padding must be multiple of fsv to keep block alignment
-    if (cp.output.Feature().pad.before % fsv != 0)
+    if (cp.outputs[0].Feature().pad.before % fsv != 0)
         return false;
 
     // Input feature padding must be multiple of fsv to keep block alignment
