@@ -49,7 +49,7 @@ public:
         auto  importedFrames = (is3D || is1D) ? 1 : dims[0];
         auto  targetGroups = is1D ? 1 : dims[0];
 
-        T plugin_inputs[shape[1]];
+        T *plugin_inputs = new T[shape[1]];
 
         plugin.ImportFrames(plugin_inputs,
                             input.begin()->second->cbuffer().as<float *>(),
@@ -64,10 +64,13 @@ public:
         for (int i = 0; i < shape[1]; ++i) {
             if (plugin_inputs[i] != referenceVals[i]) {
                 std::ostringstream err;
-                FAIL() << "Actual and reference value of input doesn't match: " << plugin_inputs[i] << " vs "
+                err << "Actual and reference value of input doesn't match: " << plugin_inputs[i] << " vs "
                     << referenceVals[i];
+                delete [] plugin_inputs;
+                FAIL() << err.str();
             }
         }
+        delete [] plugin_inputs;
     }
 
 protected:
