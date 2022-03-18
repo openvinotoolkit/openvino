@@ -5,8 +5,8 @@
 #include "utils.hpp"
 
 #include "openvino/frontend/exception.hpp"
-#include "openvino/frontend/plugin_loader.hpp"
 #include "openvino/util/file_util.hpp"
+#include "plugin_loader.hpp"
 
 #ifndef _WIN32
 #    include <dlfcn.h>

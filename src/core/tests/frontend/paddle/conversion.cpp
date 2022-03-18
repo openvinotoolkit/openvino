@@ -5,7 +5,6 @@
 #include "conversion_extension.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/paddle/frontend.hpp"
-#include "openvino/frontend/plugin_loader.hpp"
 #include "paddle_utils.hpp"
 #include "so_extension.hpp"
 
@@ -32,10 +31,7 @@ class PaddleFrontendWrapper : public ov::frontend::paddle::FrontEnd {
                       m_transformation_extensions.end())
                 << "DecoderTransformationExtension is not registered.";
         } else if (auto so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension)) {
-            const auto frontend_shared_data = std::static_pointer_cast<FrontEndSharedData>(m_shared_object);
-            EXPECT_TRUE(frontend_shared_data) << "Incorrect type of shared object was used";
-            const auto extensions = frontend_shared_data->extensions();
-            EXPECT_NE(std::find(extensions.begin(), extensions.end(), so_ext), extensions.end())
+            EXPECT_NE(std::find(m_extensions.begin(), m_extensions.end(), so_ext), m_extensions.end())
                 << "SOExtension is not registered.";
         }
     }

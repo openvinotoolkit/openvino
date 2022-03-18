@@ -22,10 +22,7 @@ namespace frontend {
 class FRONTEND_API FrontEnd {
     friend class FrontEndManager;
 
-protected:
     std::shared_ptr<void> m_shared_object = {};  // Library handle
-
-private:
     std::shared_ptr<FrontEnd> m_actual = {};
 
 public:

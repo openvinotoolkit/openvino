@@ -12,7 +12,6 @@
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/runtime/shared_buffer.hpp"
 #include "openvino/core/any.hpp"
-#include "openvino/frontend/plugin_loader.hpp"
 #include "openvino/util/file_util.hpp"
 #include "so_extension.hpp"
 #include "xml_parse_utils.h"
@@ -104,7 +103,12 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 void FrontEnd::add_extension(const ov::Extension::Ptr& ext) {
     if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(ext)) {
         m_telemetry = telemetry;
-    }
+    } else if (auto so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(ext)) {
+        if (std::dynamic_pointer_cast<ov::BaseOpExtension>(so_ext->extension())) {
+            extensions.emplace_back(so_ext->extension());
+        }
+    } else if (std::dynamic_pointer_cast<ov::BaseOpExtension>(ext))
+        extensions.emplace_back(ext);
 }
 
 InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
@@ -114,9 +118,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
 
     auto create_extensions_map = [&]() -> std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> {
         std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> exts;
-        const auto frontend_shared_data = std::static_pointer_cast<FrontEndSharedData>(m_shared_object);
-        OPENVINO_ASSERT(frontend_shared_data, "Shared object has invalid type");
-        for (auto& ext : frontend_shared_data->extensions()) {
+        for (const auto& ext : extensions) {
             if (auto base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext))
                 exts.insert({base_ext->get_type_info(), base_ext});
         }

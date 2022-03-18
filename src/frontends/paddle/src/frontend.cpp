@@ -365,6 +365,7 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
         m_transformation_extensions.push_back(transformation);
     } else if (const auto& so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension)) {
         add_extension(so_ext->extension());
+        m_extensions.push_back(so_ext);
     } else if (auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(common_conv_ext);
         m_op_translators[common_conv_ext->get_op_type()] = [=](const NodeContext& context) {

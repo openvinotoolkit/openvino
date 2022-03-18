@@ -9,8 +9,8 @@
 
 #include "ngraph/except.hpp"
 #include "openvino/frontend/exception.hpp"
-#include "openvino/frontend/plugin_loader.hpp"
 #include "openvino/util/env_util.hpp"
+#include "plugin_loader.hpp"
 #include "utils.hpp"
 
 using namespace ov;
