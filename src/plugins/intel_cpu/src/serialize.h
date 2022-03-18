@@ -13,12 +13,12 @@ namespace intel_cpu {
 
 class CNNNetworkSerializer {
 public:
-    CNNNetworkSerializer(std::ostream & ostream, MKLDNNExtensionManager::Ptr extensionManager);
+    CNNNetworkSerializer(std::ostream & ostream, ExtensionManager::Ptr extensionManager);
     void operator << (const InferenceEngine::CNNNetwork & network);
 
 private:
     std::ostream & _ostream;
-    MKLDNNExtensionManager::Ptr _extensionManager;
+    ExtensionManager::Ptr _extensionManager;
 };
 
 class CNNNetworkDeserializer {
