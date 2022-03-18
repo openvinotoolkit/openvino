@@ -4,14 +4,18 @@
 
 #include "graph_dumper.h"
 
-#include "utils/debug_capabilities.h"
-#include <ie_ngraph_utils.hpp>
 #include "exec_graph_info.hpp"
 #include "ie_common.h"
+#include "ie_ngraph_utils.hpp"
 #include "mkldnn_debug.h"
+#include <nodes/tensoriterator.h>
+#include "cpu_types.h"
+#include "utils/debug_capabilities.h"
+
 #include <ngraph/variant.hpp>
 #include "ngraph/ngraph.hpp"
 #include <ngraph/pass/manager.hpp>
+#include "ngraph/op/tensor_iterator.hpp"
 #include <openvino/pass/serialize.hpp>
 
 #include <vector>
@@ -39,7 +43,19 @@ std::map<std::string, std::string> extract_node_metadata(const NodePtr &node) {
         // Path to print actual name for extension layers
         serialization_info[ExecGraphInfoSerialization::LAYER_TYPE] = node->getTypeStr();
     } else {
-        serialization_info[ExecGraphInfoSerialization::LAYER_TYPE] = NameFromType(node->getType());
+        std::string layerTypeStr;
+
+        auto layerType = node->getType();
+
+        /* replace CPU proprietary input/output types with the ones which serializer can process */
+        if (layerType == Type::Input)
+            layerTypeStr = "Parameter";
+        else if (layerType == Type::Output)
+            layerTypeStr = "Result";
+        else
+            layerTypeStr = NameFromType(node->getType());
+
+        serialization_info[ExecGraphInfoSerialization::LAYER_TYPE] = layerTypeStr;
     }
 
     // Original layers
@@ -140,6 +156,37 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph
         return inputs;
     };
 
+    ngraph::NodeVector nodes;
+
+    /* Construct TensorIterator op from TensorIterator node using original TensorIterator op
+     * @todo Add support for Loop */
+    auto create_ngraph_ti_node = [&](const NodePtr& node) {
+        auto ti = std::dynamic_pointer_cast<node::TensorIterator>(node);
+        if (!ti)
+            IE_THROW() << "Node: " << node->getName() << ". Expected TensorIterator node type. Actual: " << NameFromType(node->getType());
+
+        auto bodyFunction = dump_graph_as_ie_ngraph_net(ti->getSubGraph());
+
+        // define actual inputs
+        OutputVector tiInputs;
+        for (int i = 0; i < ti->getParentEdges().size(); i++) {
+            const auto& parent = ti->getParentEdgeAt(i)->getParent();
+            for (const auto& node : nodes) {
+                if (node->get_friendly_name() == parent->getName())
+                    tiInputs.push_back(node);
+            }
+        }
+
+        // clone original op using new inputs
+        auto ov_node = ti->getOriginalOp()->clone_with_new_inputs(tiInputs);
+        auto ti_ov_node = std::dynamic_pointer_cast<ngraph::op::TensorIterator>(ov_node);
+        if (!ti_ov_node)
+            IE_THROW() << "Node: " << node->getName() << ". Expected TensorIterator op type. Actual: " << ov_node->get_type_info();
+        // replace original body with actual one
+        ti_ov_node->set_body(bodyFunction);
+        return ti_ov_node;
+    };
+
     auto create_ngraph_node = [&](const NodePtr &node) {
         bool is_input = false, is_output = false, should_be_hold = false;
         for (auto && kvp : graph.inputNodesMap) {
@@ -173,12 +220,16 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph
             results.emplace_back(std::make_shared<ngraph::op::Result>(get_inputs(node).back()));
             return_node = results.back();
         } else {
-            return_node = std::make_shared<ExecGraphInfoSerialization::ExecutionNode>(
-                get_inputs(node), node->getSelectedPrimitiveDescriptor()->getConfig().outConfs.size());
+            if (node->getAlgorithm() == Algorithm::TensorIteratorCommon) {
+                return_node = create_ngraph_ti_node(node);
+            } else {
+                return_node = std::make_shared<ExecGraphInfoSerialization::ExecutionNode>(
+                    get_inputs(node), node->getSelectedPrimitiveDescriptor()->getConfig().outConfs.size());
 
-            for (size_t port = 0; port < return_node->get_output_size(); ++port) {
-                auto& desc = node->getChildEdgeAt(port)->getMemory().getDesc();
-                return_node->set_output_type(port, details::convertPrecision(desc.getPrecision()), desc.getShape().toPartialShape());
+                for (size_t port = 0; port < return_node->get_output_size(); ++port) {
+                    auto& desc = node->getChildEdgeAt(port)->getMemory().getDesc();
+                    return_node->set_output_type(port, details::convertPrecision(desc.getPrecision()), desc.getShape().toPartialShape());
+                }
             }
         }
 
@@ -193,7 +244,6 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph
         return return_node;
     };
 
-    ngraph::NodeVector nodes;
     nodes.reserve(graph.graphNodes.size());
     for (auto &node : graph.graphNodes) {  // important: graph.graphNodes are in topological order
         nodes.emplace_back(create_ngraph_node(node));
