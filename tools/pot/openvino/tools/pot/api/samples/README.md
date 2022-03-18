@@ -21,7 +21,7 @@ are not supported through the `AccuracyCheker` or `Simplified` engines (see [Bes
 
 All available samples can be found in `<POT_DIR>/api/samples` folder, where `<POT_DIR>` is a directory where the Post-Training Optimization Tool is installed.
 > **NOTE**: - `<POT_DIR>` is referred to `<ENV>/lib/python<version>/site-packages/` in the case of PyPI installation, where `<ENV>` is a Python* 
-> environment where OpenVINO is installed and `<version>` is a Python* version, e.g. `3.6` or to `<INSTALL_DIR>/deployment_tools/tools/post_training_optimization_toolkit` in the case of OpenVINO distribution package. 
+> environment where OpenVINO is installed and `<version>` is a Python* version, for example `3.6`. 
 > `<INSTALL_DIR>` is the directory where Intel&reg; Distribution of OpenVINO&trade; toolkit is installed.
 
 There are currently the following samples that demonstrate the implementation of `Engine`, `Metric` and `DataLoader` interfaces 

@@ -27,7 +27,7 @@ In case of issues while running the example, refer to [POT Frequently Asked Ques
 In the instructions below, the Post-Training Optimization Tool directory `<POT_DIR>` is referred to:
  - `<ENV>/lib/python<version>/site-packages/` in the case of PyPI installation, where `<ENV>` is a Python* 
  environment where OpenVINO is installed and `<version>` is a Python* version, e.g. `3.6`.
- - `<INSTALL_DIR>/deployment_tools/tools/post_training_optimization_toolkit` in the case of OpenVINO distribution package. 
+
 `<INSTALL_DIR>` is the directory where Intel&reg; Distribution of OpenVINO&trade; toolkit is installed.
 
 ## Model Preparation
