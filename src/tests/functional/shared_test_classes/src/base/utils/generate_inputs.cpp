@@ -486,7 +486,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v3::Bucketize>& n
     InferenceEngine::Blob::Ptr blobPtr;
     switch (port) {
         case 0: {
-            return  create_and_fill_tensor_unique_sequence(elemType, targetShape, 0, 10, 7235346);
+            return create_and_fill_tensor(elemType, targetShape, 2 * shape_size(targetShape), 0, 10, 7235346);
         }
         case 1: {
             return  create_and_fill_tensor_unique_sequence(elemType, targetShape, 0, 10, 8234231);
