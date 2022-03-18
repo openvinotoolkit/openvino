@@ -8,10 +8,11 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNReferenceNode : public MKLDNNNode {
+class Reference : public Node {
 public:
-    MKLDNNReferenceNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache, const std::string& errorMessage);
+    Reference(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache, const std::string& errorMessage);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -29,5 +30,6 @@ private:
     const std::string additionalErrorMessage;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

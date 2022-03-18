@@ -10,35 +10,35 @@
 namespace ov {
 namespace intel_cpu {
 
-const SimpleDataHash MKLDNNWeightsSharing::simpleCRC;
+const SimpleDataHash WeightsSharing::simpleCRC;
 
-MKLDNNWeightsSharing::MKLDNNSharedMemory::MKLDNNSharedMemory(
+WeightsSharing::SharedMemory::SharedMemory(
         std::unique_lock<std::mutex> && lock,
-        const MKLDNNMemoryInfo::Ptr & memory,
-        MKLDNNMemoryPtr newPtr)
+        const MemoryInfo::Ptr & memory,
+        MemoryPtr newPtr)
     : lock(std::move(lock))
     , memory(memory)
     , newPtr(newPtr)
 {}
 
-MKLDNNWeightsSharing::MKLDNNSharedMemory::operator MKLDNNMemoryPtr() const {
+WeightsSharing::SharedMemory::operator MemoryPtr() const {
     return memory->sharedMemory.lock();
 }
 
-bool MKLDNNWeightsSharing::MKLDNNSharedMemory::isValid() const {
+bool WeightsSharing::SharedMemory::isValid() const {
     return memory->valid.load(std::memory_order_acquire);
 }
 
-void MKLDNNWeightsSharing::MKLDNNSharedMemory::valid(bool b) {
+void WeightsSharing::SharedMemory::valid(bool b) {
     memory->valid.store(b, std::memory_order_release);
 }
 
-MKLDNNWeightsSharing::MKLDNNSharedMemory::Ptr MKLDNNWeightsSharing::findOrCreate(
+WeightsSharing::SharedMemory::Ptr WeightsSharing::findOrCreate(
                             const std::string& key,
-                            std::function<MKLDNNMemoryPtr(void)> create,
+                            std::function<MemoryPtr(void)> create,
                             bool valid) {
-    MKLDNNMemoryInfo::Ptr ptr;
-    MKLDNNMemoryPtr newPtr;
+    MemoryInfo::Ptr ptr;
+    MemoryPtr newPtr;
     {
         std::unique_lock<std::mutex> lock(guard);
         auto found = sharedWeights.find(key);
@@ -46,18 +46,18 @@ MKLDNNWeightsSharing::MKLDNNSharedMemory::Ptr MKLDNNWeightsSharing::findOrCreate
         if (found == sharedWeights.end()
             || !((ptr = found->second) && (newPtr = ptr->sharedMemory.lock()))) {
             newPtr = create();
-            ptr = std::make_shared<MKLDNNMemoryInfo>(newPtr, valid);
+            ptr = std::make_shared<MemoryInfo>(newPtr, valid);
             sharedWeights[key] = ptr;
         }
     }
-    return std::make_shared<MKLDNNSharedMemory>(ptr->valid.load(std::memory_order_relaxed)
+    return std::make_shared<SharedMemory>(ptr->valid.load(std::memory_order_relaxed)
                                                 ? std::unique_lock<std::mutex>(ptr->guard, std::defer_lock)
                                                 : std::unique_lock<std::mutex>(ptr->guard), ptr, newPtr);
 }
 
-MKLDNNWeightsSharing::MKLDNNSharedMemory::Ptr MKLDNNWeightsSharing::get(const std::string& key) const {
-    MKLDNNMemoryInfo::Ptr ptr;
-    MKLDNNMemoryPtr newPtr;
+WeightsSharing::SharedMemory::Ptr WeightsSharing::get(const std::string& key) const {
+    MemoryInfo::Ptr ptr;
+    MemoryPtr newPtr;
     {
         std::unique_lock<std::mutex> lock(guard);
         auto found = sharedWeights.find(key);
@@ -66,24 +66,24 @@ MKLDNNWeightsSharing::MKLDNNSharedMemory::Ptr MKLDNNWeightsSharing::get(const st
             || !((ptr = found->second) && (newPtr = ptr->sharedMemory.lock())))
             IE_THROW() << "Unknown shared memory with key " << key;
     }
-    return std::make_shared<MKLDNNSharedMemory>(ptr->valid.load(std::memory_order_relaxed)
+    return std::make_shared<SharedMemory>(ptr->valid.load(std::memory_order_relaxed)
                                                 ? std::unique_lock<std::mutex>(ptr->guard, std::defer_lock)
                                                 : std::unique_lock<std::mutex>(ptr->guard), ptr, newPtr);
 }
 
 NumaNodesWeights::NumaNodesWeights() {
     for (auto numa_id : InferenceEngine::getAvailableNUMANodes())
-        _cache_map[numa_id] = std::make_shared<MKLDNNWeightsSharing>();
+        _cache_map[numa_id] = std::make_shared<WeightsSharing>();
 }
 
-MKLDNNWeightsSharing::Ptr& NumaNodesWeights::operator[](int numa_id) {
+WeightsSharing::Ptr& NumaNodesWeights::operator[](int numa_id) {
     auto found = _cache_map.find(numa_id);
     if (found == _cache_map.end())
         IE_THROW() << "Unknown numa node id " << numa_id;
     return found->second;
 }
 
-const MKLDNNWeightsSharing::Ptr& NumaNodesWeights::operator[](int numa_id) const {
+const WeightsSharing::Ptr& NumaNodesWeights::operator[](int numa_id) const {
     auto found = _cache_map.find(numa_id);
     if (found == _cache_map.end())
         IE_THROW() << "Unknown numa node id " << numa_id;
