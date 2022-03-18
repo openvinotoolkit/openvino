@@ -23,6 +23,6 @@ class TRANSFORMATIONS_API RandomUniformFusion;
  */
 class ngraph::pass::RandomUniformFusion : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("RandomUniformFusion", "0");
     RandomUniformFusion();
 };

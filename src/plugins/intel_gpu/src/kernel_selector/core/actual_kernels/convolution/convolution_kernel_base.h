@@ -71,8 +71,8 @@ protected:
     Datatype GetAccumulatorType(const convolution_params& params) const;
 };
 
-bool CovolutionCheckInput(const Params& p, const optional_params& o);
+bool ConvolutionCheckInput(const Params& p, const optional_params& o);
 bool CheckConvolutionPaddedInputDesc(const convolution_params& params, const DataTensor& reqDesc);
-bool CovolutionUpdateInputParams(convolution_params& params);
+bool ConvolutionUpdateInputParams(convolution_params& params);
 
 }  // namespace kernel_selector

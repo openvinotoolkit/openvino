@@ -19,8 +19,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MoveFakeQuantize, "MoveFakeQuantize", 0);
-
 MoveFakeQuantize::MoveFakeQuantize(const Params& params) : LayerTransformation(params) {
     const auto concat = ngraph::pattern::wrap_type<opset1::Concat>(pattern::consumers_count(1));
     const auto operation = ngraph::pattern::wrap_type<opset1::Relu>({ concat });
@@ -174,6 +172,18 @@ bool MoveFakeQuantize::canBeTransformed(const TransformationContext& context, st
     const auto convert_q = convert_q_target_inputs.begin()->get_node()->shared_from_this();
     bool q_dq = is_type<opset1::Convert>(convert_q);
     if (q_dq && (convert_q->get_output_size() != 1 || layer->get_output_size() != 1)) {
+        return false;
+    }
+    bool only_split = true;
+    const size_t id = concat->get_input_node_ptr(0)->get_instance_id();
+    for (size_t i = 1; i < concat->get_input_size(); ++i) {
+        if (!is_type<opset1::Split>(concat->get_input_node_ptr(i)) ||
+            concat->get_input_node_ptr(i)->get_instance_id() != id) {
+            only_split = false;
+            break;
+        }
+    }
+    if (only_split) {
         return false;
     }
     return true;

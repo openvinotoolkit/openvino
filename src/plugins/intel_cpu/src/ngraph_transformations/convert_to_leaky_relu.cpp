@@ -9,8 +9,6 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "op/leaky_relu.hpp"
 
-NGRAPH_RTTI_DEFINITION(ov::intel_cpu::ConvertToLeakyRelu, "ConvertToLeakyRelu", 0);
-
 ov::intel_cpu::ConvertToLeakyRelu::ConvertToLeakyRelu() {
     auto input = ngraph::pattern::any_input();
     auto slope_constant = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();

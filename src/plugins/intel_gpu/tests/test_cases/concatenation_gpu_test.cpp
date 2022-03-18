@@ -61,7 +61,7 @@ TEST(concat_gpu, mixed_input_types) {
             input_layout("input4", input4->get_layout()),
             concatenation("concat",
                           { "input0", "input1", "input2", "input3", "input4" },
-                          concatenation::concatenation_axis::along_f,
+                          1,
                           data_types::f32,
                           "",
                           padding{ { 0,0,0,0 }, 0 })
@@ -135,7 +135,7 @@ TEST(concat_gpu, mixed_input_types_5d) {
             input_layout("input3", input3->get_layout()),
             concatenation("concat",
                           { "input0", "input1", "input2", "input3" },
-                          concatenation::concatenation_axis::along_f,
+                          1,
                           data_types::f32,
                           "",
                           padding{ { 0,0,0,0 }, 0 })
@@ -210,7 +210,7 @@ TEST(concat_gpu, i8_optimization_with_pool) {
                       pooling("pool1", "input1", pooling_mode::max, {1, 1, 2, 2}, {1, 1, 1, 1}),
                       concatenation("concat",
                                     {"pool0", "pool1"},
-                                    concatenation::concatenation_axis::along_f,
+                                    1,
                                     data_types::i8,
                                     "",
                                     padding{{0, 0, 0, 0}, 0}),
@@ -311,7 +311,7 @@ TEST(concat_gpu, i8_optimization_with_conv) {
                       input_layout("input2", input2->get_layout()),
                       concatenation("concat",
                                     {"input0", "input1", "input2"},
-                                    concatenation::concatenation_axis::along_f,
+                                    1,
                                     data_types::i8,
                                     "",
                                     padding{{0, 0, 0, 0}, 0}),
@@ -413,7 +413,7 @@ TEST(concat_gpu, i8_optimization_with_pool_conv) {
                       pooling("pool1", "input1", pooling_mode::max, {1, 1, 2, 2}, {1, 1, 1, 1}),
                       concatenation("concat",
                                     {"pool0", "pool1"},
-                                    concatenation::concatenation_axis::along_f,
+                                    1,
                                     data_types::i8,
                                     "",
                                     padding{{0, 0, 0, 0}, 0}),
@@ -572,7 +572,7 @@ public:
             input_ids.push_back("input" + std::to_string(i));
         }
 
-        topology.add(concatenation("concat", input_ids, concatenation::concatenation_axis::along_f));
+        topology.add(concatenation("concat", input_ids, 1));
 
         build_options options;
         options.set_option(build_option::optimize_data(true));
@@ -696,7 +696,7 @@ public:
             input_ids.push_back("input" + std::to_string(i));
         }
 
-        topology.add(concatenation("concat", input_ids, concatenation::concatenation_axis::along_f));
+        topology.add(concatenation("concat", input_ids, 1));
         // Add identity convolution
         auto weights_lay = cldnn::layout(data_type, cldnn::format::bfyx, tensor(batch(output_f), feature(output_f)));
         auto weights_mem = engine.allocate_memory(weights_lay);
@@ -836,7 +836,7 @@ public:
             pooling_ids.push_back("pool" + std::to_string(i));
         }
 
-        topology.add(concatenation("concat", pooling_ids, concatenation::concatenation_axis::along_f));
+        topology.add(concatenation("concat", pooling_ids, 1));
         auto weights_lay = cldnn::layout(data_type, cldnn::format::bfyx, tensor(batch(output_f), feature(output_f)));
         auto weights_mem = engine.allocate_memory(weights_lay);
         weights_mem->fill(get_test_stream());
@@ -962,7 +962,7 @@ TEST(concat_gpu_onednn, basic_input_types) {
             input_layout("input4", input4->get_layout()),
             concatenation("concat",
                           { "input0", "input1", "input2", "input3", "input4" },
-                          concatenation::concatenation_axis::along_f,
+                          1,
                           data_types::f32,
                           "",
                           padding{ { 0,0,0,0 }, 0 })
@@ -1055,7 +1055,7 @@ public:
             pooling_ids.push_back("pool" + std::to_string(i));
         }
 
-        topology.add(concatenation("concat", pooling_ids, concatenation::concatenation_axis::along_f));
+        topology.add(concatenation("concat", pooling_ids, 1));
         auto weights_lay = cldnn::layout(data_type, cldnn::format::bfyx, tensor(batch(output_f), feature(output_f)));
         auto weights_mem = engine.allocate_memory(weights_lay);
         weights_mem->fill(get_test_stream());
@@ -1107,6 +1107,11 @@ public:
     }
 
     void test(format::type fmt) {
+        auto& engine = get_onednn_test_engine();
+        if (!engine.get_device_info().supports_immad) {
+            // This case is only for device that uses onednn.
+            return;
+        }
         auto input = generate_input();
 
         // implicit concat

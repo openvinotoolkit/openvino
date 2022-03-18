@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include <vector>
-#include <utility>
 #include <memory>
-
-#include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
+#include <utility>
+#include <vector>
 
 namespace ngraph {
 namespace pass {
@@ -19,8 +18,8 @@ class TRANSFORMATIONS_API ConvertNMSToNMSIEInternal;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertNMSToNMSIEInternal: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertNMSToNMSIEInternal : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertNMSToNMSIEInternal", "0");
     ConvertNMSToNMSIEInternal();
 };

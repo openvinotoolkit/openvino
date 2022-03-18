@@ -13,6 +13,10 @@
 #include "openvino/runtime/properties.hpp"
 
 namespace ov {
+
+/**
+ * @brief Namespace with Intel GPU specific properties
+ */
 namespace intel_gpu {
 
 /**
@@ -88,18 +92,18 @@ static constexpr Property<ov::hint::Priority> host_task_priority{"GPU_HOST_TASK_
 static constexpr Property<int64_t> available_device_mem{"AVAILABLE_DEVICE_MEM_SIZE"};
 }  // namespace hint
 
-namespace memory_type {
 /**
  * @brief These keys instruct the GPU plugin to use surface/buffer memory type.
  */
+namespace memory_type {
 static constexpr auto surface = "GPU_SURFACE";  //!< Native video decoder surface
 static constexpr auto buffer = "GPU_BUFFER";    //!< OpenCL buffer
 }  // namespace memory_type
 
-namespace capability {
 /**
  * @brief Possible return value for ov::device::capabilities property
  */
+namespace capability {
 constexpr static const auto HW_MATMUL = "GPU_HW_MATMUL";  //!< Device has hardware block for matrix multiplication
 }  // namespace capability
 }  // namespace intel_gpu
