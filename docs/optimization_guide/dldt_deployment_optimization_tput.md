@@ -19,7 +19,7 @@ Overall, the latency-throughput is not linearly dependent and very _device_ spec
 As for the possible inference devices the scenery had already become pretty diverse, the OpenVINO has introduced the dedicated notion of the high-level performance configuration "hints" to describe the target application scenarios.
 The hints are described [here](./dldt_deployment_optimization_hints.md). 
 
-**NOTE**: [OpenVINO performance hints](./dldt_deployment_optimization_hints.md) is a recommended way for performance configuration, which is both device-agnostic and future-proof. 
+> **NOTE**: [OpenVINO performance hints](./dldt_deployment_optimization_hints.md) is a recommended way for performance configuration, which is both device-agnostic and future-proof. 
 
 The rest of the document provides low-level details on the OpenVINO's low-level ways to optimize the throughput.
 
