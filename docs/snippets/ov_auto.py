@@ -11,17 +11,18 @@ def part0():
     # Read a network in IR, PaddlePaddle, or ONNX format:
     model = core.read_model(model_path)
 
-    # Load a network to AUTO using the default list of device candidates.
-    # The following lines are equivalent:
+    #  compile a model on AUTO using the default list of device candidates.
+    #  The following lines are equivalent:
     compiled_model = core.compile_model(model=model)
     compiled_model = core.compile_model(model=model, device_name="AUTO")
-    compiled_model = core.compile_model(model=model, device_name="AUTO", config={})
 
-    # You can also specify the devices to be used by AUTO in its selection process.
+    # Optional
+    # You can also specify the devices to be used by AUTO.
     # The following lines are equivalent:
     compiled_model = core.compile_model(model=model, device_name="AUTO:GPU,CPU")
     compiled_model = core.compile_model(model=model, device_name="AUTO", config={"MULTI_DEVICE_PRIORITIES": "GPU,CPU"})
 
+    # Optional
     # the AUTO plugin is pre-configured (globally) with the explicit option:
     core.set_property(device_name="AUTO", properties={"MULTI_DEVICE_PRIORITIES":"GPU,CPU"})
 #! [part0]
@@ -54,23 +55,31 @@ def part3():
     core = Core()
     # Read a network in IR, PaddlePaddle, or ONNX format:
     model = core.read_model(model_path)
-    # Load a network to AUTO with Performance Hints enabled:
+    # compile a model on AUTO with Performance Hints enabled:
     # To use the “throughput” mode:
-    compiled_model = core.compile_model(model=model, device_name="AUTO:GPU,CPU", config={"PERFORMANCE_HINT":"THROUGHPUT"})
+    compiled_model = core.compile_model(model=model, device_name="AUTO", config={"PERFORMANCE_HINT":"THROUGHPUT"})
     # or the “latency” mode:
-    compiled_model = core.compile_model(model=model, device_name="AUTO:GPU,CPU", config={"PERFORMANCE_HINT":"LATENCY"})
+    compiled_model = core.compile_model(model=model, device_name="AUTO", config={"PERFORMANCE_HINT":"LATENCY"})
 #! [part3]
 
 def part4():
 #! [part4]
     core = Core()
     model = core.read_model(model_path)
-    compiled_model0 = core.compile_model(model=model, device_name="AUTO:GPU,MYRIAD,CPU", config={"MODEL_PRIORITY":"HIGH"})
-    compiled_model1 = core.compile_model(model=model, device_name="AUTO:GPU,MYRIAD,CPU", config={"MODEL_PRIORITY":"MEDIUM"})
-    compiled_model2 = core.compile_model(model=model, device_name="AUTO:GPU,MYRIAD,CPU", config={"MODEL_PRIORITY":"LOW"})
-    compiled_model0 = core.compile_model(model=model, device_name="AUTO:GPU,MYRIAD,CPU", config={"MODEL_PRIORITY":"HIGH"})
-    compiled_model1 = core.compile_model(model=model, device_name="AUTO:GPU,MYRIAD,CPU", config={"MODEL_PRIORITY":"MEDIUM"})
-    compiled_model2 = core.compile_model(model=model, device_name="AUTO:GPU,MYRIAD,CPU", config={"MODEL_PRIORITY":"LOW"})
+
+    # Example 1
+    compiled_model0 = core.compile_model(model=model, device_name="AUTO", config={"MODEL_PRIORITY":"HIGH"})
+    compiled_model1 = core.compile_model(model=model, device_name="AUTO", config={"MODEL_PRIORITY":"MEDIUM"})
+    compiled_model2 = core.compile_model(model=model, device_name="AUTO", config={"MODEL_PRIORITY":"LOW"})
+    # Assume that all the devices (CPU, GPU, and MYRIAD) can support all the networks.
+    # Result: compiled_model0 will use GPU, compiled_model1 will use MYRIAD, compiled_model2 will use CPU.
+
+    # Example 2
+    compiled_model3 = core.compile_model(model=model, device_name="AUTO", config={"MODEL_PRIORITY":"HIGH"})
+    compiled_model4 = core.compile_model(model=model, device_name="AUTO", config={"MODEL_PRIORITY":"MEDIUM"})
+    compiled_model5 = core.compile_model(model=model, device_name="AUTO", config={"MODEL_PRIORITY":"LOW"})
+    # Assume that all the devices (CPU, GPU, and MYRIAD) can support all the networks.
+    # Result: compiled_model3 will use GPU, compiled_model4 will use GPU, compiled_model5 will use MYRIAD.
 #! [part4]
 
 def part5():
@@ -78,7 +87,7 @@ def part5():
     core = Core()
     model = core.read_model(model_path)
     core.set_property(device_name="CPU", properties={})
-    core.set_property(device_name="MYRIAD", properties={})
+    core.set_property(device_name="GPU", properties={})
     compiled_model = core.compile_model(model=model)
     compiled_model = core.compile_model(model=model, device_name="AUTO")
 #! [part5]

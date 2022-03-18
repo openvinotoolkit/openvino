@@ -9,12 +9,12 @@ ov::Core core;
 // Read a network in IR, PaddlePaddle, or ONNX format:
 std::shared_ptr<ov::Model> model = core.read_model("sample.xml");
 
-// Load a network to AUTO with Performance Hints enabled:
+// compile a model on AUTO with Performance Hints enabled:
 // To use the “throughput” mode:
-ov::CompiledModel compiled_model = core.compile_model(model, "AUTO:GPU,CPU",
+ov::CompiledModel compiled_model = core.compile_model(model, "AUTO",
     ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT));
 // or the “latency” mode:
-ov::CompiledModel compiled_mode2 = core.compile_model(model, "AUTO:GPU,CPU",
+ov::CompiledModel compiled_mode2 = core.compile_model(model, "AUTO",
     ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
 //! [part3]
 }

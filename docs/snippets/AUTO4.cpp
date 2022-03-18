@@ -8,12 +8,11 @@ int main() {
 {
 //! [part4]
 // Example 1
-// Compile and load networks:
-ov::CompiledModel compiled_model0 = core.compile_model(model, "AUTO:GPU,MYRIAD,CPU",
+ov::CompiledModel compiled_model0 = core.compile_model(model, "AUTO",
     ov::hint::model_priority(ov::hint::Priority::HIGH));
-ov::CompiledModel compiled_model1 = core.compile_model(model, "AUTO:GPU,MYRIAD,CPU",
+ov::CompiledModel compiled_model1 = core.compile_model(model, "AUTO",
     ov::hint::model_priority(ov::hint::Priority::MEDIUM));
-ov::CompiledModel compiled_model2 = core.compile_model(model, "AUTO:GPU,MYRIAD,CPU",
+ov::CompiledModel compiled_model2 = core.compile_model(model, "AUTO",
     ov::hint::model_priority(ov::hint::Priority::LOW));
 /************
   Assume that all the devices (CPU, GPU, and MYRIAD) can support all the networks.
@@ -21,12 +20,11 @@ ov::CompiledModel compiled_model2 = core.compile_model(model, "AUTO:GPU,MYRIAD,C
  ************/
 
 // Example 2
-// Compile and load networks:
-ov::CompiledModel compiled_model3 = core.compile_model(model, "AUTO:GPU,MYRIAD,CPU",
+ov::CompiledModel compiled_model3 = core.compile_model(model, "AUTO",
     ov::hint::model_priority(ov::hint::Priority::LOW));
-ov::CompiledModel compiled_model4 = core.compile_model(model, "AUTO:GPU,MYRIAD,CPU",
+ov::CompiledModel compiled_model4 = core.compile_model(model, "AUTO",
     ov::hint::model_priority(ov::hint::Priority::MEDIUM));
-ov::CompiledModel compiled_model5 = core.compile_model(model, "AUTO:GPU,MYRIAD,CPU",
+ov::CompiledModel compiled_model5 = core.compile_model(model, "AUTO",
     ov::hint::model_priority(ov::hint::Priority::LOW));
 /************
   Assume that all the devices (CPU, GPU, and MYRIAD) can support all the networks.
