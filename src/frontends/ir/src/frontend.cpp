@@ -105,10 +105,10 @@ void FrontEnd::add_extension(const ov::Extension::Ptr& ext) {
         m_telemetry = telemetry;
     } else if (auto so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(ext)) {
         if (std::dynamic_pointer_cast<ov::BaseOpExtension>(so_ext->extension())) {
-            extensions.emplace_back(so_ext->extension());
+            m_extensions.emplace_back(so_ext->extension());
         }
     } else if (std::dynamic_pointer_cast<ov::BaseOpExtension>(ext))
-        extensions.emplace_back(ext);
+        m_extensions.emplace_back(ext);
 }
 
 InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
@@ -118,7 +118,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
 
     auto create_extensions_map = [&]() -> std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> {
         std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> exts;
-        for (const auto& ext : extensions) {
+        for (const auto& ext : m_extensions) {
             if (auto base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext))
                 exts.insert({base_ext->get_type_info(), base_ext});
         }
