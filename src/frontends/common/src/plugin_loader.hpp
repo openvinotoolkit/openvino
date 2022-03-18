@@ -28,6 +28,7 @@ public:
 
 inline void add_extension_to_shared_data(std::shared_ptr<void>& obj, const std::shared_ptr<ov::Extension>& ext) {
     auto obj_data = std::static_pointer_cast<FrontEndSharedData>(obj);
+    OPENVINO_ASSERT(obj_data, "internal error: not allowed type of shared data used");
     obj_data->m_loaded_extensions.push_back(ext);
 }
 
