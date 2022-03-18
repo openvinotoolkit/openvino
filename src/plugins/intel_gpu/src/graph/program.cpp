@@ -13,64 +13,65 @@
 #include "kernel_selector_helper.h"
 #include "device_cache_reader.h"
 #include "auto_tuner.h"
-#if 0 // TODO(taylor)
 #include "layout_optimizer.h"
-#endif
 #include "pass_manager.h"
 #include "primitive_type.h"
 #include "program_dump_graph.h"
 #include "sliding_window_utils.h"
 #include "program_helpers.h"
 
-#if 0 // TODO(taylor)
 #include "roi_pooling_inst.h"
 #include "reorg_yolo_inst.h"
-#include "eltwise_inst.h"
-#include "softmax_inst.h"
-#endif
-#include "permute_inst.h"
 #if 0 // TODO(taylor)
+#include "eltwise_inst.h"
+#endif
+#include "softmax_inst.h"
+#include "permute_inst.h"
 #include "custom_gpu_primitive_inst.h"
 #include "binary_convolution_inst.h"
 #include "resample_inst.h"
 #include "reshape_inst.h"
+#if 0 // TODO(andrew)
 #include "quantize_inst.h"
 #include "activation_inst.h"
+#endif
 #include "scale_inst.h"
 #include "depth_to_space_inst.h"
 #include "convolution_inst.h"
-#endif
 #include "concatenation_inst.h"
-#if 0 // TODO(taylor)
 #include "crop_inst.h"
-#endif
 #include "data_inst.h"
-#if 0 // TODO(taylor)
 #include "deconvolution_inst.h"
 #include "detection_output_inst.h"
-#endif
+#include "fully_connected_inst.h"
+#include "gather_inst.h"
 #include "input_layout_inst.h"
-#if 0 // TODO(taylor)
 #include "shuffle_channels_inst.h"
-#endif
 #include "arg_max_min_inst.h"
 #if 0 // TODO(taylor)
 #include "lstm_inst.h"
 #include "lstm_elt_inst.h"
 #include "lstm_gemm_inst.h"
+#endif
 #include "mutable_data_inst.h"
+#include "normalize_inst.h"
 #include "pooling_inst.h"
 #include "border_inst.h"
 #include "primitive_inst.h"
 #include "prior_box_inst.h"
 #include "proposal_inst.h"
 #include "reorder_inst.h"
+#if 0 // TODO(andrew)
 #include "split_inst.h"
+#endif
 #include "mvn_inst.h"
+#if 0 // TODO(andrew)
 #include "gemm_inst.h"
+#endif
 #include "reduce_inst.h"
 #include "region_yolo_inst.h"
 #include "strided_slice_inst.h"
+#if 0 // TODO(andrew)
 #include "loop_inst.h"
 #endif
 #include "to_string_utils.h"
@@ -222,7 +223,6 @@ program_node const& program::get_node(primitive_id const& id) const {
     }
 }
 
-#if 0 // TODO(taylor)
 // TODO: Remove once we will get full support for input/output padding in all primitive implementations.
 bool program::analyze_output_size_handling_need() {
     bool handling_needed = false;
@@ -329,7 +329,7 @@ bool program::analyze_output_size_handling_need() {
 
     return handling_needed;
 }
-#endif
+
 // create new nodes for a program based on the set of nodes
 // method created to be used by propagate_constants to build sub program from constant nodes
 void program::prepare_nodes(std::set<std::shared_ptr<program_node>> const& nodes) {
@@ -453,9 +453,7 @@ void program::set_options() {
 
 void program::build_program(bool is_internal) {
     init_graph();
-#if 0 // TODO(taylor)
     { pre_optimize_graph(is_internal); }
-#endif
     run_graph_compilation();
 #if 0 // TODO(taylor)
     { post_optimize_graph(is_internal); }
@@ -496,7 +494,7 @@ void program::init_graph() {
 }
 
 void program::run_graph_compilation() { apply_opt_pass<compile_graph>(); }
-#if 0 // TODO(taylor)
+
 void program::pre_optimize_graph(bool is_internal) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::PreOptimizeGraph");
 
@@ -525,7 +523,7 @@ void program::pre_optimize_graph(bool is_internal) {
 
     layout_optimizer lo(output_size_handling_enabled);
     set_layout_optimizer_attributes(lo);
-
+#if 0 // TODO(andrew)
     reorder_factory rf;
     if (options.get<build_option_type::optimize_data>()->enabled()) {
         apply_opt_pass<pre_replace_deconv>(lo);
@@ -573,7 +571,9 @@ void program::pre_optimize_graph(bool is_internal) {
 
     // add optimization attributes for onednn primitives
     apply_opt_pass<add_onednn_optimization_attributes>();
+#endif
 }
+#if 0 // TODO(taylor)
 void program::post_optimize_graph(bool is_internal) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::PostOptimizeGraph");
     // input reorder for fully connected if necessary
@@ -600,23 +600,21 @@ void program::post_optimize_graph(bool is_internal) {
 
 // mark if the node is constant assuming that all dependencies are marked properly
 void program::mark_if_constant(program_node& node) {
-#if 0 // TODO (taylor)
     if (node.get_dependencies().empty() || node.is_type<prior_box>()) {
         return;
     }
     node.constant = true;
     for (auto& dep : node.get_dependencies()) {
-        if (!dep->is_constant()) {
+        if (!dep.first->is_constant()) {
             node.constant = false;
             return;
         }
     }
-#endif
     return;
 }
 // mark if the node is in data flow assuming that all dependencies are marked properly
 void program::mark_if_data_flow(program_node& node) {
-#if 0 // TODO (taylor)
+    // TODO: mutable_data will be removed once multiple outputs is supported
     if (node.is_type<mutable_data>() || node.is_type<input_layout>()) {
         node.data_flow = true;
     } else {
@@ -625,13 +623,12 @@ void program::mark_if_data_flow(program_node& node) {
         if (node.is_type<detection_output>() || node.is_type<proposal>())
             inputs_count = 2;  // ignore third input as it is related to prior boxes (i.e. concat of prior-boxes)
         for (size_t idx = 0; idx < inputs_count; idx++) {
-            if (node.get_dependency(idx).is_in_data_flow()) {
+            if (node.get_dependency(idx).first->is_in_data_flow()) {
                 node.data_flow = true;
                 return;
             }
         }
     }
-#endif
     return;
 }
 
@@ -785,7 +782,6 @@ program_node& program::get_or_create(std::shared_ptr<primitive> prim) {
     return *new_node;
 }
 
-#if 0 // TODO(taylor)
 void program::add_intermediate(program_node& node,
                                program_node& next,
                                size_t prev_idx,
@@ -795,7 +791,7 @@ void program::add_intermediate(program_node& node,
         throw std::invalid_argument(
             "Node which is about to be added in between two other nodes should not have any existing dependencies");
 
-    auto& prev = next.get_dependency(prev_idx);
+    auto& prev = *next.get_dependency(prev_idx).first;
     // firstly add connection, later replace dependency, so 'prev' won't become dangling and therefore removed
     if (connect_int_node_with_old_dep) {
         add_connection(prev, node);
@@ -839,7 +835,7 @@ void program::add_intermediate(program_node& node,
     bool node_found = false;
     size_t idx = 0;
     for (size_t i = 0; i < next.get_dependencies().size(); i++) {
-        auto& input = next.get_dependency(i);
+        auto& input = *next.get_dependency(i).first;
         if (input.id() == prev.id()) {
             idx = i;
             node_found = true;
@@ -852,25 +848,30 @@ void program::add_intermediate(program_node& node,
     }
     add_intermediate(node, next, idx, connect_int_node_with_old_dep, move_usrs_of_prev_to_node);
 }
+
 void program::add_connection(program_node& prev, program_node& next) {
     prev.users.push_back(&next);
-    next.dependencies.push_back(&prev);
+    next.dependencies.push_back({&prev, 0});
 }
 
 void program::remove_connection(program_node& prev, program_node& next) {
     prev.users.remove(&next);
-    next.dependencies.erase(std::remove(next.dependencies.begin(), next.dependencies.end(), &prev),
-                            next.dependencies.end());
+    next.dependencies.erase(std::remove_if(next.dependencies.begin(), next.dependencies.end(),
+    [&](const std::pair<program_node*, int>& dep) {
+        return &prev == dep.first;
+    }), next.dependencies.end());
 }
 
 void program::remove_all_connections(program_node& node) {
     // since the graph is not topological sorted, we need to remove the node from both dependencies and users
     for (auto& e : node.users) {
-        e->dependencies.erase(std::remove(e->dependencies.begin(), e->dependencies.end(), &node),
-                              e->dependencies.end());
+        e->dependencies.erase(std::remove_if(e->dependencies.begin(), e->dependencies.end(),
+        [&](const std::pair<program_node*, int>& dep) {
+            return &node == dep.first;
+        }), e->dependencies.end());
     }
     for (auto& e : node.dependencies) {
-        e->users.remove(&node);
+        e.first->users.remove(&node);
     }
     node.dependencies.clear();
     node.users.clear();
@@ -892,7 +893,7 @@ void program::rename(program_node& node, primitive_id const& new_id) {
 
     const_cast<primitive_id&>(node.desc->id) = new_id;
 }
-
+#if 0 // TODO(taylor)
 void program::swap_names(program_node& node1, program_node& node2) {
     const auto _extract_id = [](program_node& node) -> primitive_id& {
         return const_cast<primitive_id&>(node.desc->id);
@@ -901,7 +902,7 @@ void program::swap_names(program_node& node1, program_node& node2) {
     nodes_map.at(node1.id()).swap(nodes_map.at(node2.id()));
     std::swap(_extract_id(node1), _extract_id(node2));
 }
-
+#endif
 void program::replace_all_usages(program_node& old_node, program_node& new_node) {
     // We need a copy of users of old_node because old_node may be removed when doing replace_dependency()
     const std::list<program_node*> users(old_node.users);
@@ -921,12 +922,12 @@ void program::replace(program_node& old_node, program_node& new_node) {
             "Replacement node shouldn't be marked as an output since it's impossible to rename such node.");
 
     auto id = old_node.id();
-    new_node.output_layout = old_node.get_output_layout();
-    new_node.valid_output_layout = old_node.valid_output_layout;
+    new_node.output_layouts = old_node.get_output_layouts();
+    new_node.valid_output_layouts = old_node.valid_output_layouts;
 
     // copy old's dependencies
     while (!old_node.dependencies.empty()) {
-        auto& dep = old_node.dependencies.front();
+        auto& dep = old_node.dependencies.front().first;
         add_connection(*dep, new_node);
         remove_connection(*dep, old_node);
     }
@@ -935,8 +936,8 @@ void program::replace(program_node& old_node, program_node& new_node) {
     for (auto& user : old_node.users) {
         new_node.users.push_back(user);
         for (auto& users_dep : user->dependencies) {
-            if (users_dep == &old_node) {
-                users_dep = &new_node;
+            if (users_dep.first == &old_node) {
+                users_dep.first = &new_node;
                 break;
             }
         }
@@ -991,7 +992,7 @@ bool program::remove_if_dangling(program_node& node) {
     }
     return true;
 }
-
+#if 0 // TODO(andrew)
 bool program::extract_and_remove(program_node& node) {
     if (node.get_dependencies().size() != 1)
         return false;
@@ -1135,19 +1136,21 @@ void program::fuse_nodes(program_node &fused_node,
     fused_node.set_output_layout(peer_layout, false);
     fused_node.recalc_output_layout(true);
 }
-
+#endif
 void program::remove_nodes(std::vector<program_node*>& to_remove) {
     for (auto const& node : to_remove) {
         if (node->is_input()) {
             get_inputs().remove(node);
         } else {
             for (auto& dep : node->dependencies) {
-                dep->users.remove(node);
+                dep.first->users.remove(node);
             }
         }
         for (auto& user : node->users) {
-            user->dependencies.erase(std::remove(user->dependencies.begin(), user->dependencies.end(), node),
-                                     user->dependencies.end());
+            user->dependencies.erase(std::remove_if(user->dependencies.begin(), user->dependencies.end(),
+            [&](const std::pair<program_node*, int>& dep) {
+                return node == dep.first;
+            }), user->dependencies.end());
         }
         get_processing_order().erase(node);
         optimized_out.push_back(node->id());
@@ -1155,7 +1158,6 @@ void program::remove_nodes(std::vector<program_node*>& to_remove) {
     }
 }
 
-#endif
 // TODO: break this function into number of smaller ones + add per-primitive fields (possibly use
 // primitive_inst::to_string?)
 void program::dump_program(const char* stage,
@@ -1317,7 +1319,6 @@ const program::primitives_info& program::get_primitives_info() const { return pr
 
 void program::apply_opt_pass(base_pass& pass) { pm->run(*this, pass); }
 
-#if 0 // TODO(taylor)
 void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     lo.set_implementation_forcing(options.get<build_option_type::force_implementations>()->forcing);
 
@@ -1346,7 +1347,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             if (conv.get_primitive()->deformable_mode)
                 lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::deformable_convolution, 1);
 
-            auto input_size = node->get_dependency(0).get_output_layout().size;
+            auto input_size = node->get_dependency(0).first->get_output_layout().size;
             auto ifm = static_cast<uint32_t>(input_size.feature[0]);
             if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups >= 16)
                 total_dw_conv_layers++;
@@ -1489,7 +1490,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 1);
 #endif
 }
-
+#if 0 // TODO(taylor)
 std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
     auto max_alloc_size = get_engine().get_device_info().max_alloc_mem_size;
     memory_pool pool(get_engine());

@@ -48,8 +48,8 @@ using kernel_scalar_argument_types = kernel_selector::ScalarDescriptor::Types;
 using data_type = kernel_selector::Datatype;
 using kernel_type = kernel_selector::KernelType;
 using weights_type = kernel_selector::WeightsType;
-#if 0 // TODO(taylor)
 using activation_function = kernel_selector::ActivationFunction;
+#if 0 // TODO(taylor)
 using pool_type = kernel_selector::PoolType;
 using pool_remainder = kernel_selector::PoolRemainder;
 #endif
@@ -63,7 +63,9 @@ using normalize_mode = kernel_selector::NormalizeMode;
 using mvn_mode = kernel_selector::MVNMode;
 using mvn_eps_mode = kernel_selector::MVNEpsMode;
 using kernel_divider_mode = kernel_selector::KernelDividerMode;
+#endif
 using eltwise_mode = kernel_selector::EltwiseMode;
+#if 0 // TODO(andrew)
 using eltwise_input_mode = kernel_selector::EltwiseInputMode;
 using softmax_dim = kernel_selector::SoftmaxDim;
 using mean_subtruct_mode = kernel_selector::MeanSubtractMode;
@@ -111,7 +113,7 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l);
 kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split = 1, const tensor view_offset = tensor {});
 kernel_selector::weights_tensor convert_weights_tensor(const layout& l, bool is_grouped = false);
 layout from_weights_tensor(const kernel_selector::weights_tensor& t);
-//kernel_selector::activation_function get_kernel_selector_activation_param(activation_func activation_func);
+kernel_selector::activation_function get_kernel_selector_activation_param(activation_func activation_func);
 
 template <typename T = std::uint32_t>
 kernel_selector::dim_tensor<T> convert_dim_vector(const tensor& t) {

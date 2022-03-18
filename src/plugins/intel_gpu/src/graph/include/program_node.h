@@ -5,9 +5,7 @@
 #pragma once
 
 #include "intel_gpu/primitives/primitive.hpp"
-#if 0 // TODO(taylor)
 #include "intel_gpu/primitives/activation.hpp"
-#endif
 #include "intel_gpu/primitives/implementation_desc.hpp"
 #include "intel_gpu/graph/program.hpp"
 
@@ -192,14 +190,14 @@ public:
 
     // uses cached output layout if valid, if not calls 'calc_output_layout' and stores its result + invalidate all
     // users if layout has changed and @p invalidate_users_if_changed is set to true
-    layout get_output_layout(int32_t idx) const;
     layout get_output_layout(bool invalidate_users_if_changed = true, int32_t idx = 0);
-    std::vector<layout> get_output_layouts(bool invalidate_users_if_changed = true);
     // returns cached output layout if valid, otherwise throws an exception
-    layout get_output_layout() const;
+    layout get_output_layout(int32_t idx = 0) const;
+    std::vector<layout> get_output_layouts(bool invalidate_users_if_changed = true);
     std::vector<layout> get_output_layouts() const;
+
     // returns result of get_output_layout without padding
-    layout get_non_padded_output_layout(bool invalidate_users_if_changed = true);
+    layout get_non_padded_output_layout(bool invalidate_users_if_changed = true, int32_t idx = 0);
 
     // sets cached output layout to an arbitrary value, invalidates users if new layout differs from previous one and @p
     // invalidate_users_if_changed is set to true returns whether output layout has changed
@@ -244,7 +242,7 @@ public:
                               activation_additional_params additional_params) {
         fused_activations.emplace_back(activation_func, additional_params);
     }
-
+#endif
     std::vector<activation_func> get_fused_activations_funcs() const {
         std::vector<activation_func> funcs;
         std::transform(fused_activations.begin(),
@@ -253,7 +251,7 @@ public:
                        [](fused_activation_params const& p) { return p.func; });
         return funcs;
     }
-
+#if 0 // TODO(andrew)
     std::vector<activation_additional_params> get_fused_activations_params() const {
         std::vector<activation_additional_params> params;
         std::transform(fused_activations.begin(),
@@ -418,17 +416,13 @@ protected:
     const primitive_id org_id;
 
     struct fused_activation_params {
-#if 0 // TODO(taylor)
         activation_func func = activation_func::none;
         activation_additional_params params = {0.0f, 0.0f};
-#endif
         fused_activation_params() {}
 
-#if 0 // TODO(taylor)
         fused_activation_params(activation_func _func, activation_additional_params _params) :
                 func(_func),
                 params(_params) {}
-#endif
     };
 
     std::vector<fused_activation_params> fused_activations;

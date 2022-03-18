@@ -735,7 +735,6 @@ layout from_weights_tensor(const kernel_selector::weights_tensor& l) {
     return layout(type, format, size);
 }
 
-#if 0 // TODO(taylor)
 kernel_selector::activation_function get_kernel_selector_activation_param(activation_func activation) {
     switch (activation) {
         case cldnn::activation_func::none:
@@ -835,7 +834,6 @@ kernel_selector::activation_function get_kernel_selector_activation_param(activa
             break;
     }
 }
-#endif
 
 void set_params(const program_node& node, kernel_selector::params& params) {
     const auto& program = node.get_program();

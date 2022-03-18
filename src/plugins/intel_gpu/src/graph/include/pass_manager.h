@@ -10,10 +10,11 @@
 #include "split_inst.h"
 #include "lstm_inst.h"
 #include "lstm_dynamic_inst.h"
+#endif
 #include "quantize_inst.h"
 #include "eltwise_inst.h"
+#include "reorder_inst.h"
 #include "convolution_inst.h"
-#endif
 #include "program_node.h"
 #include <string>
 #include <vector>
@@ -157,7 +158,6 @@ public:
 
 private:
     void run(program& p) override;
-#if 0 // TODO(taylor)
     void handle_quantize_node(program& p, quantize_node& quantize_node);
     void prepare_packed_quantize(program& p, quantize_node& quantize_node);
     void prepare_dequantize_merge(program& p, eltwise_node& eltwise_node);
@@ -165,7 +165,6 @@ private:
     void prepare_asymmetric_quantization(program& p, convolution_node& convolution_node);
     void prepare_scale_shift_opt(program &p, quantize_node& quantize_node);
     bool optimize_quantize(program &p, quantize_node& quantize_node);
-#endif
 };
 #if 0 // TODO(taylor)
 class prepare_conv_eltw_fusing : public base_pass {
@@ -313,7 +312,7 @@ private:
     layout_optimizer& _lo;
     reorder_factory& _rf;
 };
-
+#endif
 class trim_to_outputs : public base_pass {
 public:
     trim_to_outputs() : base_pass("trimmed") {}
@@ -321,19 +320,19 @@ public:
 private:
     void run(program& p) override;
 };
-
+#if 0 // TODO(taylor)
 class strided_slice_optimize : public base_pass {
 public:
     strided_slice_optimize() : base_pass("strided_slice_optimize") {}
     void run(program& p) override;
 };
-
+#endif
 class reverse_optional_nodes_outputs : public base_pass {
 public:
     reverse_optional_nodes_outputs() : base_pass("reverse_optional_nodes_outputs") {}
     void run(program& p) override;
 };
-
+#if 0 // TODO(andrew)
 class concat_input_order : public base_pass {
     // This optimization changes order of inputs for concatenation to provide
     // better alignment for execution and allow for optimizing out in some cases.

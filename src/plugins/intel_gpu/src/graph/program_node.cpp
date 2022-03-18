@@ -39,29 +39,29 @@ program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
         }
     }
 }
-#if 0 // TODO(taylor)
+
 void program_node::replace_dependency(size_t idx, program_node& new_dep) {
     if (idx >= dependencies.size())
         return;
-    if (dependencies[idx] == &new_dep)
+    if (dependencies[idx].first == &new_dep)
         return;
 
-    auto it = std::find(dependencies[idx]->users.begin(), dependencies[idx]->users.end(), this);
-    if (it != dependencies[idx]->users.end()) {
-        dependencies[idx]->users.erase(it);
+    auto it = std::find(dependencies[idx].first->users.begin(), dependencies[idx].first->users.end(), this);
+    if (it != dependencies[idx].first->users.end()) {
+        dependencies[idx].first->users.erase(it);
     }
-    myprog.remove_if_dangling(*dependencies[idx]);
+    myprog.remove_if_dangling(*dependencies[idx].first);
 
-    dependencies[idx] = &new_dep;
+    dependencies[idx].first = &new_dep;
     new_dep.users.push_back(this);
 }
 
 void program_node::replace_dependency(program_node const& old_dep, program_node& new_dep) {
     for (size_t i = 0; i < dependencies.size(); ++i)
-        if (dependencies[i] == &old_dep)
+        if (dependencies[i].first == &old_dep)
             return replace_dependency(i, new_dep);
 }
-#endif
+
 std::vector<primitive_id> program_node::get_dependencies_ids() const {
     std::vector<primitive_id> dep_ids;
     for (auto& dependency : dependencies) dep_ids.push_back(dependency.first->get_primitive()->id);
@@ -266,13 +266,13 @@ std::vector<layout> program_node::get_output_layouts() const {
 
     return output_layouts;
 }
-#if 0 // TODO(taylor)
-layout program_node::get_non_padded_output_layout(bool invalidate_users_if_changed) {
-    auto out_layout = get_output_layout(invalidate_users_if_changed);
+
+layout program_node::get_non_padded_output_layout(bool invalidate_users_if_changed, int32_t idx) {
+    auto out_layout = get_output_layout(invalidate_users_if_changed, idx);
     auto result = layout({out_layout.data_type, out_layout.format, out_layout.size});
     return result;
 }
-#endif
+
 bool program_node::set_output_layouts(std::vector<layout>& new_layouts, bool invalidate_users_if_changed) {
     bool changed = false;
     for (auto i = 0; i < new_layouts.size(); ++i) {
