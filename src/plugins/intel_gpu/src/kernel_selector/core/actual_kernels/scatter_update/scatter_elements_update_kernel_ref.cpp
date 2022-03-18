@@ -29,7 +29,7 @@ static size_t GetScatterElementsUpdateChannelIndex(const scatter_elements_update
             break;
     }
 
-    return DataTensor::Channelndex(params.output.GetLayout(), name);
+    return DataTensor::Channelndex(params.outputs[0].GetLayout(), name);
 }
 
 ParamsKey ScatterElementsUpdateKernelRef::GetSupportedKey() const {
@@ -71,10 +71,10 @@ static inline std::vector<std::string> GetDefaultOrder(size_t size) {
 CommonDispatchData ScatterElementsUpdateKernelRef::SetDefault(const scatter_elements_update_params& params, const optional_params&, bool is_second) const {
     CommonDispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
-    auto out_layout = params.output.GetLayout();
+    auto out_layout = params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
     const auto& indices = params.inputs[1];
 
     const auto& scope = is_second ? indices : output;
@@ -116,8 +116,8 @@ JitConstants ScatterElementsUpdateKernelRef::GetJitConstants(const scatter_eleme
     jit.AddConstant(MakeJitConstant("AXIS_VALUE", GetScatterElementsUpdateChannelIndex(params)));
 
     if (!params.fused_ops.empty()) {
-        FusedOpsConfiguration conf1 = { "_FIRST_KERNEL", GetDefaultOrder(params.output.GetDims().size()), "val", params.inputs[0].GetDType() };
-        FusedOpsConfiguration conf2 = { "_SECOND_KERNEL", GetDefaultOrder(params.output.GetDims().size()), "val", params.inputs[0].GetDType() };
+        FusedOpsConfiguration conf1 = { "_FIRST_KERNEL", GetDefaultOrder(params.outputs[0].GetDims().size()), "val", params.inputs[0].GetDType() };
+        FusedOpsConfiguration conf2 = { "_SECOND_KERNEL", GetDefaultOrder(params.outputs[0].GetDims().size()), "val", params.inputs[0].GetDType() };
         jit.Merge(MakeFusedOpsJitConstants(params, {conf1, conf2}));
     }
 

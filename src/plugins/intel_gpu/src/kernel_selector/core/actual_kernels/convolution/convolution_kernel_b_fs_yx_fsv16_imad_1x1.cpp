@@ -100,7 +100,7 @@ JitConstants Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetJitConstants(const co
 ConvolutionKernelBase::DispatchData Convolution_kernel_b_fs_yx_fsv16_imad_1x1::SetDefault(const convolution_params& params,
                                                                                           int index) const {
     DispatchData dispatchData;
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
     auto tune_params = GetAutoTuneParams(params, index);
     size_t k_slices = tune_params.feature_slm_split;
 
@@ -125,7 +125,7 @@ ConvolutionKernelBase::DispatchData Convolution_kernel_b_fs_yx_fsv16_imad_1x1::S
 KernelsPriority Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     const auto& p = static_cast<const convolution_params&>(params);
 
-    const auto& output = p.output;
+    const auto& output = p.outputs[0];
     auto tune_params = GetAutoTuneParams(p, -1);
 
     auto priority = FORCE_PRIORITY_2;
@@ -230,9 +230,9 @@ Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetAutoTuneParams(const convolution_p
     size_t feature_slm_split = 1;
     std::string exe_mode = DEFAULT;
 
-    size_t total_spatial = params.output.X().v * params.output.Y().v;
+    size_t total_spatial = params.outputs[0].X().v * params.outputs[0].Y().v;
     // Try two features per work-item
-    if (params.output.Feature().v % 32 == 0 || params.output.Feature().v > 32 * 2)
+    if (params.outputs[0].Feature().v % 32 == 0 || params.outputs[0].Feature().v > 32 * 2)
         block_features = 2;
 
     // Non strict inequality here leads to some regressions, ie: [1, 64, 19, 19] (*) [384, 64, 1, 1]
@@ -252,12 +252,12 @@ Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetAutoTuneParams(const convolution_p
             size_t min_overhang = max_spatial;
             size_t best_block = min_efficient_spatial;
             bool block_write_found = false;
-            bool output_pad = params.output.X().pad.Total() != 0;
+            bool output_pad = params.outputs[0].X().pad.Total() != 0;
 
             for (size_t block = min_efficient_spatial; block <= max_spatial; ++block) {
                 bool c_occupancy = EstimateOccupancy(params, { block, block_features, 1, exe_mode }) >= 1.f;
                 auto overhang = Align(total_spatial, block) - total_spatial;
-                bool c_block_write = (overhang == 0 && !output_pad) || params.output.X().v % block == 0;
+                bool c_block_write = (overhang == 0 && !output_pad) || params.outputs[0].X().v % block == 0;
 
                 // Kernel work-around for spills/inefficient loop order
                 if (can_split && !c_occupancy && block > 14 && block_features > 1)
@@ -332,9 +332,9 @@ Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetAutoTuneParams(const convolution_p
 }
 
 float Convolution_kernel_b_fs_yx_fsv16_imad_1x1::EstimateOccupancy(const convolution_params& params, const AutoTuneParams& tparams) const {
-    size_t blocks_s = CeilDiv(params.output.X().v * params.output.Y().v, tparams.out_block_spatial);
-    size_t blocks_f = CeilDiv(params.output.Feature().v, tparams.out_block_features * simd) * tparams.feature_slm_split;
-    size_t block_b = params.output.Batch().v;
+    size_t blocks_s = CeilDiv(params.outputs[0].X().v * params.outputs[0].Y().v, tparams.out_block_spatial);
+    size_t blocks_f = CeilDiv(params.outputs[0].Feature().v, tparams.out_block_features * simd) * tparams.feature_slm_split;
+    size_t block_b = params.outputs[0].Batch().v;
 
     auto threads = blocks_s * blocks_f * block_b;
 

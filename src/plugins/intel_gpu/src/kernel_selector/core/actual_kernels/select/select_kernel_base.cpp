@@ -96,7 +96,7 @@ JitConstants SelectKernelBase::GetJitConstants(const select_params& params) cons
 SelectKernelBase::DispatchData SelectKernelBase::SetDefault(const select_params& params) const {
     DispatchData dispatchData;
 
-    const auto& out = params.output;
+    const auto& out = params.outputs[0];
 
     std::vector<size_t> gws;
     for (const auto& o : out.GetDims()) {
