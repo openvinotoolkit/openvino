@@ -93,10 +93,10 @@ bool ConvolutionKernel_imad_b_fs_yx_fsv4_dw::Validate(const Params& params, cons
     KernelData kd = KernelData::Default<convolution_params>(params);
     convolution_params& newParams = *static_cast<convolution_params*>(kd.params.get());
 
-    if (newParams.inputs[0].Feature().v != newParams.groups || newParams.output.Feature().v != newParams.groups)
+    if (newParams.inputs[0].Feature().v != newParams.groups || newParams.outputs[0].Feature().v != newParams.groups)
         return false;
 
-    if (newParams.output.Feature().pad.before % fsv != 0)
+    if (newParams.outputs[0].Feature().pad.before % fsv != 0)
         return false;
 
     return true;
@@ -118,7 +118,7 @@ bool ConvolutionKernel_imad_b_fs_yx_fsv4_dw::ValidateAutoTuneParams(const convol
         if (tune_params.block_y != 1 && params.stride.y != params.dilation.y)
             return false;
 
-        if (tune_params.block_y > params.output.Y().v)
+        if (tune_params.block_y > params.outputs[0].Y().v)
             return false;
     } else if (tune_params.preload_input) {
         auto line_size = (tune_params.block_x - 1) * params.stride.x + (weights.X().v - 1) * params.dilation.x + 1;
@@ -132,7 +132,7 @@ bool ConvolutionKernel_imad_b_fs_yx_fsv4_dw::ValidateAutoTuneParams(const convol
         if (tune_params.block_y != 1 && params.stride.y != params.dilation.y)
             return false;
 
-        if (tune_params.block_y > params.output.Y().v)
+        if (tune_params.block_y > params.outputs[0].Y().v)
             return false;
     } else {
         size_t block_size = tune_params.block_x * 4 + Align(weights.X().v * weights.Y().v, 4) * tune_params.preload_weights;
@@ -149,7 +149,7 @@ ConvolutionKernel_imad_b_fs_yx_fsv4_dw::AutoTuneParams ConvolutionKernel_imad_b_
         return all_tune_params[index];
     }
 
-    auto& output = params.output;
+    auto& output = params.outputs[0];
     auto& weights = params.weights;
 
     AutoTuneParams tune_params;
@@ -334,7 +334,7 @@ JitConstants ConvolutionKernel_imad_b_fs_yx_fsv4_dw::GetJitConstants(const convo
 ConvolutionKernelBase::DispatchData ConvolutionKernel_imad_b_fs_yx_fsv4_dw::SetDefault(const convolution_params& params,
                                                                                        int autoTuneIndex) const {
     DispatchData dispatchData;
-    auto& out = params.output;
+    auto& out = params.outputs[0];
 
     auto autoTuneParam = GetAutoTuneParams(params, autoTuneIndex);
 
@@ -352,7 +352,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_imad_b_fs_yx_fsv4_dw::SetD
         dispatchData.lws[0] = autoTuneParam.tiled_simd;
     } else {
         auto in_layout = params.inputs[0].GetLayout();
-        auto out_layout = params.output.GetLayout();
+        auto out_layout = params.outputs[0].GetLayout();
         std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X },
                                                                          { Tensor::DataChannelName::Y },
                                                                          { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
