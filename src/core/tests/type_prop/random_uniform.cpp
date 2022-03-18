@@ -29,8 +29,7 @@ TEST(type_prop, random_uniform_param_input) {
     auto r = make_shared<opset8::RandomUniform>(out_shape, min_val, max_val, element::i64, 100, 200);
 
     EXPECT_EQ(r->get_output_element_type(0), element::i64);
-    EXPECT_TRUE(
-        r->get_output_partial_shape(0).same_scheme(PartialShape(std::vector<Dimension>(3, Dimension::dynamic()))));
+    EXPECT_EQ(r->get_output_partial_shape(0), PartialShape::dynamic(3));
 }
 
 TEST(type_prop, random_uniform_dynamic_shape) {
