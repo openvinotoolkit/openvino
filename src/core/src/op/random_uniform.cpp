@@ -44,8 +44,8 @@ void op::v8::RandomUniform::validate_and_infer_types() {
 
         if (const auto& const_shape = get_constant_from_source(input_value(0))) {
             output_shape = ov::PartialShape(const_shape->cast_vector<int64_t>());
-        } else if (input_shape[0].is_static()) {
-            output_shape = ov::PartialShape(std::vector<Dimension>(input_shape[0].get_length(), Dimension::dynamic()));
+        } else {
+            output_shape = ov::PartialShape::dynamic(input_shape[0]);
         }
     }
 
