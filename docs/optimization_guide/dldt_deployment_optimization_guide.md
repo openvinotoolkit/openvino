@@ -113,14 +113,14 @@ In the Inference Engine, there is no notion of requests priorities. It is left t
 Inference precision directly affects the performance. 
 
 Model Optimizer can produce an IR with different precision. For example, an FP16 IR initially targets VPU and GPU devices, while, for example, for the CPU, an FP16 IR is    typically up-scaled to the regular FP32 automatically upon loading. But notice that further device-specific inference precision settings are available, 
-for example, [8-bit integer](../OV_Runtime_UG/Int8Inference.md) or [bfloat16](../OV_Runtime_UG/Bfloat16Inference.md), which is specific to the CPU inference, below.
+for example, [8-bit integer](../OV_Runtime_UG/Int8Inference.md) or [bfloat16](../OV_Runtime_UG/supported_plugins/CPU.md), which is specific to the CPU inference, below.
 Note that for the [Multi-Device execution](../OV_Runtime_UG/multi_device.md) that supports automatic inference on multiple devices in parallel, you can use an FP16 IR (no need for FP32).
 You can find more information, including preferred data types for specific devices, in the
 [Supported Devices](../OV_Runtime_UG/supported_plugins/Supported_Devices.md) document.
 
 
 By default, plugins enable the optimizations that allow lower precision if the acceptable range of accuracy is preserved.
-For example, for the CPU that supports the AVX512_BF16 instructions, an FP16/FP32 model is converted to a [bfloat16](../OV_Runtime_UG/Bfloat16Inference.md) IR to accelerate inference.
+For example, for the CPU that supports the AVX512_BF16 instructions, an FP16/FP32 model is converted to a [bfloat16](../OV_Runtime_UG/supported_plugins/CPU.md) IR to accelerate inference.
 
 To compare the associated speedup, run the example command below to disable this feature on the CPU device with the AVX512_BF16 support and get regular FP32 execution:
 
