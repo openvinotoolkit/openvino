@@ -258,6 +258,8 @@ public:
      * @brief Default virtual destructor
      */
     virtual ~ICore() = default;
+
+    virtual std::vector<std::string> GetHiddenDevicesFor(const std::string& main_device) const = 0;
 };
 }  // namespace ov
 

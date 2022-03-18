@@ -27,8 +27,18 @@ Parameter MockPluginAbc::GetConfig(const std::string& name,
     if (options.find(ov::device::id.name()) != options.end()) {
         device_id = options.find(ov::device::id.name())->second.as<std::string>();
     }
-    if (name == ov::device::id)
+    if (name == ov::device::id) {
         return device_id;
+    } else if (name == ov::device::full_name) {
+        std::string deviceFullName = "";
+        if (device_id == "abc_a")
+            deviceFullName = "a";
+        else if (device_id == "abc_b")
+            deviceFullName = "b";
+        else if (device_id == "abc_c")
+            deviceFullName = "c";
+        return decltype(ov::device::full_name)::value_type(deviceFullName);
+    }
 
     IE_THROW(NotImplemented);
 }

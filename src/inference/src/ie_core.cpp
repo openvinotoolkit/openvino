@@ -233,6 +233,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         std::vector<ov::util::FilePath> listOfExtentions;
         InferenceEngine::CreatePluginEngineFunc* pluginCreateFunc = nullptr;
         InferenceEngine::CreateExtensionFunc* extensionCreateFunc = nullptr;
+        std::string proxy_name;
 
         PluginDescriptor() = default;
 
@@ -432,7 +433,14 @@ public:
         const auto& reg_internal_plugin = [&](const std::string& name, const PluginDescriptor& desc) {
             pluginRegistry[name] = desc;
         };
-        reg_internal_plugin("PROXY", PluginDescriptor(ov::proxy::create_plugin));
+        RegisterPluginByName(std::string("mock_abc_plugin") + IE_BUILD_POSTFIX, "ABC");
+        pluginRegistry["ABC"].proxy_name = "MOCK";
+        RegisterPluginByName(std::string("mock_bde_plugin") + IE_BUILD_POSTFIX, "BDE");
+        pluginRegistry["BDE"].proxy_name = "MOCK";
+
+        std::map<std::string, std::string> config;
+        config["plugins"] = "ABC,BDE";
+        reg_internal_plugin("MOCK", PluginDescriptor(ov::proxy::create_plugin, config));
     }
 
     ~CoreImpl() override = default;
@@ -881,6 +889,9 @@ public:
         const std::string propertyName = METRIC_KEY(AVAILABLE_DEVICES);
 
         for (auto&& deviceName : GetListOfDevicesInRegistry()) {
+            // Skip hidden devices
+            if (!pluginRegistry.at(deviceName).proxy_name.empty())
+                continue;
             std::vector<std::string> devicesIDs;
             try {
                 const ie::Parameter p = GetMetric(deviceName, propertyName);
@@ -908,6 +919,41 @@ public:
             }
         }
 
+        return devices;
+    }
+
+    std::vector<std::string> GetHiddenDevicesFor(const std::string& main_device) const override {
+        std::vector<std::string> devices;
+        const std::string propertyName = METRIC_KEY(AVAILABLE_DEVICES);
+        for (auto&& deviceName : GetListOfDevicesInRegistry()) {
+            if (pluginRegistry.at(deviceName).proxy_name != main_device)
+                continue;
+            std::vector<std::string> devicesIDs;
+            try {
+                const ie::Parameter p = GetMetric(deviceName, propertyName);
+                devicesIDs = p.as<std::vector<std::string>>();
+            } catch (const ie::Exception&) {
+                // plugin is not created by e.g. invalid env
+            } catch (const ov::Exception&) {
+                // plugin is not created by e.g. invalid env
+            } catch (const std::runtime_error&) {
+                // plugin is not created by e.g. invalid env
+            } catch (const std::exception& ex) {
+                IE_THROW() << "An exception is thrown while trying to create the " << deviceName
+                           << " device and call GetMetric: " << ex.what();
+            } catch (...) {
+                IE_THROW() << "Unknown exception is thrown while trying to create the " << deviceName
+                           << " device and call GetMetric";
+            }
+
+            if (devicesIDs.size() > 1) {
+                for (auto&& deviceID : devicesIDs) {
+                    devices.push_back(deviceName + '.' + deviceID);
+                }
+            } else if (!devicesIDs.empty()) {
+                devices.push_back(deviceName);
+            }
+        }
         return devices;
     }
 

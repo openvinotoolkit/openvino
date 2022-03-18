@@ -35,7 +35,9 @@ public:
         const std::map<std::string, std::string>& config) override;
 
 private:
-    InferenceEngine::ITaskExecutor::Ptr _waitExecutor;
+    std::map<std::string, std::string> m_config;
+
+    std::map<std::string, std::vector<std::string>> get_hidden_devices() const;
 };
 
 }  // namespace proxy
