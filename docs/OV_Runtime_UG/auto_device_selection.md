@@ -108,38 +108,16 @@ Alternatively, you can combine all the individual device settings into single co
 
 Note that every OpenVINO sample or application that supports the "-d" (which stands for "device") command-line option transparently accepts the Auto-device. The Benchmark Application is the best example of the optimal usage of the Auto-device. You do not need to set the number of requests and CPU threads, as the application provides optimal out-of-the-box performance. Below is the example command-line to evaluate AUTO performance with that:
 
-@sphinxdirective
-.. tab:: Package, Docker, open-source installation
 
-   .. code-block:: sh
-
-      ./benchmark_app.py –d AUTO –m <model>
-
-.. tab:: pip installation
-
-    .. code-block:: sh
-
-      benchmark_app –d AUTO –m <model>
-
-@endsphinxdirective
-
+```sh
+benchmark_app –d AUTO –m <model>
+```
 
 You can also use the auto-device with limit device choice:
 
-@sphinxdirective
-.. tab:: Package, Docker, open-source installation
-
-   .. code-block:: sh
-
-      ./benchmark_app.py –d AUTO:CPU,GPU –m <model>
-
-.. tab:: pip installation
-
-    .. code-block:: sh
-
-      benchmark_app –d AUTO:CPU,GPU –m <model>
-
-@endsphinxdirective
+```sh
+benchmark_app –d AUTO:CPU,GPU –m <model>
+```
 
 **NOTES:**
 * The default CPU stream is 1 if using `-d AUTO`. 
@@ -297,36 +275,14 @@ exec_net = ie.load_network(network=net, device_name="AUTO", config=full_config)
 
 Note that every OpenVINO sample or application that supports the "-d" (which stands for "device") command-line option transparently accepts the Auto-device. The Benchmark Application is the best example of the optimal usage of the Auto-device. You do not need to set the number of requests and CPU threads, as the application provides optimal out-of-the-box performance. Below is the example command-line to evaluate AUTO performance with that:
 
-@sphinxdirective
-.. tab:: Package, Docker, open-source installation
-
-   .. code-block:: sh
-
-      ./benchmark_app.py –d AUTO –m <model>
-
-.. tab:: pip installation
-
-    .. code-block:: sh
-
-      benchmark_app –d AUTO –m <model>
-
-@endsphinxdirective
+```sh
+benchmark_app –d AUTO –m <model>
+```
 
 You can also use the auto-device with limit device choice:
 
-@sphinxdirective
-.. tab:: Package, Docker, open-source installation
-
-   .. code-block:: sh
-
-      ./benchmark_app.py –d AUTO:CPU,GPU –m <model>
-
-.. tab:: pip installation
-
-    .. code-block:: sh
-
-      benchmark_app –d AUTO:CPU,GPU –m <model>
-
-@endsphinxdirective
+```sh
+benchmark_app –d AUTO:CPU,GPU –m <model>
+```
 
 > **NOTE**: If you installed OpenVINO with pip, use `benchmark_app -d AUTO:CPU,GPU -m <model>`

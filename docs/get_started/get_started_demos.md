@@ -94,13 +94,13 @@ This guide uses the OpenVINO™ Model Downloader to get pre-trained models. You 
 * List the models available in the downloader
 
 ``` sh
-   info_dumper --print_all
+   omz_info_dumper --print_all
 ```
 
 * Use `grep` to list models that have a specific name pattern
 
 ``` sh
-   info_dumper --print_all | grep <model_name>
+   omz_info_dumper --print_all | grep <model_name>
 ```
 
 * Use Model Downloader to download models.
