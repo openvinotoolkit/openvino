@@ -10,6 +10,88 @@ If you want to download, convert, optimize and tune pre-trained deep learning mo
 
 > **NOTE**: From the 2022.1 release, the OpenVINO™ Development Tools can only be installed via PyPI. 
 
+## For Python Developers
+
+If you are a Python developer, you can find the main steps below to install OpenVINO Development Tools. For more details, see <https://pypi.org/project/openvino-dev>.
+
+While installing OpenVINO Development Tools, OpenVINO Runtime will also be installed as a dependency, so you don't need to install OpenVINO Runtime separately.
+
+### Step 1. Set Up Python Virtual Environment
+
+To avoid dependency conflicts, use a virtual environment. Skip this step only if you do want to install all dependencies globally.
+
+Use the following command to create a virtual environment:
+
+@sphinxdirective
+
+.. tab:: Linux and macOS
+
+   .. code-block:: sh
+   
+      python3 -m venv openvino_env
+   
+.. tab:: Windows
+
+   .. code-block:: sh
+   
+      python -m venv openvino_env
+     
+     
+@endsphinxdirective
+
+
+### Step 2. Activate Virtual Environment
+
+@sphinxdirective
+
+.. tab:: Linux and macOS
+
+   .. code-block:: sh
+   
+      source openvino_env/bin/activate
+   
+.. tab:: Windows
+
+   .. code-block:: sh
+   
+      openvino_env\Scripts\activate
+     
+     
+@endsphinxdirective
+
+
+### Step 3. Set Up and Update PIP to the Highest Version
+
+Use the following command:
+```sh
+python -m pip install --upgrade pip
+```
+
+### Step 4. Install the Package
+
+To install and configure the components of the development package for working with specific frameworks, use the following command:
+```
+pip install openvino-dev[extras]
+```
+where the `extras` parameter specifies one or more deep learning frameworks via these values: `caffe`, `kaldi`, `mxnet`, `onnx`, `pytorch`, `tensorflow`, `tensorflow2`. Make sure that you install the corresponding frameworks for your models.
+
+For example, to install and configure the components for working with TensorFlow 2.x and ONNX, use the following command:
+```
+pip install openvino-dev[tensorflow2,onnx]
+```
+
+> **NOTE**: For TensorFlow, use the `tensorflow2` value as much as possible. The `tensorflow` value is provided only for compatibility reasons.
+
+
+### Step 5. Verify the Installation
+
+To verify if the package is properly installed, run the command below (this may take a few seconds):
+```sh
+mo -h
+```
+You will see the help message for Model Optimizer if installation finished successfully.
+
+
 ## For C++ Developers
 
 Note the following things:
@@ -42,27 +124,24 @@ where the EXTRAS parameter specifies one or more deep learning frameworks via th
 
 If you have installed OpenVINO Runtime via the installer, to avoid version conflicts, specify your version in the command. For example:
 ```
-pip install openvino-dev[tensorflow2,mxnet,caffe]==2022.1
+pip install openvino-dev[tensorflow2,onnx]==2022.1
 ```
     
 > **NOTE**: For TensorFlow, use the `tensorflow2` value as much as possible. The `tensorflow` value is provided only for compatibility reasons.
 
 For more details, see <https://pypi.org/project/openvino-dev/>.
 
-    
-## For Python Developers
+## What's Next?
 
-You can use the following command to install the latest package version available in the index:
-```
-pip install openvino-dev[EXTRAS]
-```
-where the EXTRAS parameter specifies one or more deep learning frameworks via these values: `caffe`, `kaldi`, `mxnet`, `onnx`, `pytorch`, `tensorflow`, `tensorflow2`. Make sure that you install the corresponding frameworks for your models.
+Now you may continue with the following tasks:
 
-For example, to install and configure the components for working with TensorFlow 2.x, MXNet and Caffe, use the following command:
-```
-pip install openvino-dev[tensorflow2,mxnet,caffe]
-```
+* To convert models for use with OpenVINO, see [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+* See pre-trained deep learning models in our [Open Model Zoo](../model_zoo.md).
+* Try out OpenVINO via [OpenVINO Notebooks](https://docs.openvino.ai/latest/notebooks/notebooks.html).
+* To write your own OpenVINO™ applications, see [OpenVINO Runtime User Guide](../OV_Runtime_UG/openvino_intro.md).
+* See sample applications in [OpenVINO™ Toolkit Samples Overview](../OV_Runtime_UG/Samples_Overview.md).
 
-> **NOTE**: For TensorFlow, use the `tensorflow2` value as much as possible. The `tensorflow` value is provided only for compatibility reasons.
+## Additional Resources
 
-For more details, see <https://pypi.org/project/openvino-dev/>.
+- Intel® Distribution of OpenVINO™ toolkit home page: <https://software.intel.com/en-us/openvino-toolkit>
+- For IoT Libraries & Code Samples, see [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).
