@@ -120,7 +120,7 @@ JitConstants SoftmaxItemsClassKernelBase::GetJitConstants(const softmax_params& 
     }
 
     // TODO: W/A - currently using low precision accumulator type. (for testing only)
-    if (params.output.GetDType() == Datatype::F16) {
+    if (params.outputs[0].GetDType() == Datatype::F16) {
         jit.AddConstant(MakeJitConstant("ACCUMULATOR_TYPE", "half"));
     }
 

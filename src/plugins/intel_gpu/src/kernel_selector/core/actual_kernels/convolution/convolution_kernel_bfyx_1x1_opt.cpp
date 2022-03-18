@@ -36,10 +36,10 @@ struct block_params {
 static block_params get_out_block_size(const convolution_params& p) {
     auto out_depth = 8;
 
-    if (p.output.X().v == 7) {
-        auto gws0 = p.output.X().v / 7;
-        auto gws1 = p.output.Y().v / 1;
-        auto gws2 = 2 * (p.output.Feature().v * p.output.Batch().v) / 8;  // process 8 output channels per Workitem
+    if (p.outputs[0].X().v == 7) {
+        auto gws0 = p.outputs[0].X().v / 7;
+        auto gws1 = p.outputs[0].Y().v / 1;
+        auto gws2 = 2 * (p.outputs[0].Feature().v * p.outputs[0].Batch().v) / 8;  // process 8 output channels per Workitem
 
         auto compute_units = p.engineInfo.computeUnitsCount;
         auto total_threads = (gws0 * gws1 * gws2) / 64;
@@ -52,11 +52,11 @@ static block_params get_out_block_size(const convolution_params& p) {
             total_threads *= 2;
         }
         return {7, 1, out_depth};
-    } else if (p.output.X().v == 14) {
+    } else if (p.outputs[0].X().v == 14) {
         return {7, 1, 8};
-    } else if (p.output.X().v == 28) {
+    } else if (p.outputs[0].X().v == 28) {
         return {7, 2, 4};
-    } else if (p.output.X().v == 56) {
+    } else if (p.outputs[0].X().v == 56) {
         return {8, 1, 8};
     }
 
@@ -71,10 +71,10 @@ ConvolutionKernelBase::DispatchData convolution_kernel_bfyx_1x1_opt::SetDefault(
 
     auto block = get_out_block_size(cp);
 
-    dispatchData.gws[0] = cp.output.X().v / block.out_width;
-    dispatchData.gws[1] = cp.output.Y().v / block.out_height;
+    dispatchData.gws[0] = cp.outputs[0].X().v / block.out_width;
+    dispatchData.gws[1] = cp.outputs[0].Y().v / block.out_height;
     // process 8 output channels per Workitem
-    dispatchData.gws[2] = 2 * (cp.output.Feature().v * cp.output.Batch().v) / block.out_depth;
+    dispatchData.gws[2] = 2 * (cp.outputs[0].Feature().v * cp.outputs[0].Batch().v) / block.out_depth;
 
     dispatchData.lws[0] = 1;
     dispatchData.lws[1] = 1;
@@ -102,7 +102,7 @@ bool convolution_kernel_bfyx_1x1_opt::Validate(const Params& p, const optional_p
     if (cp.filterSize.x != 1 || cp.filterSize.y != 1)
         return false;
 
-    if (cp.output.Feature().v % 64 != 0)
+    if (cp.outputs[0].Feature().v % 64 != 0)
         return false;
 
     if (cp.padding.x != 0 || cp.padding.y != 0)
@@ -117,9 +117,9 @@ bool convolution_kernel_bfyx_1x1_opt::Validate(const Params& p, const optional_p
     if (block.out_width == 1 && block.out_height == 1)
         return false;
 
-    if (cp.output.X().v % block.out_width != 0)
+    if (cp.outputs[0].X().v % block.out_width != 0)
         return false;
-    if (cp.output.Y().v % block.out_height != 0)
+    if (cp.outputs[0].Y().v % block.out_height != 0)
         return false;
 
     return true;

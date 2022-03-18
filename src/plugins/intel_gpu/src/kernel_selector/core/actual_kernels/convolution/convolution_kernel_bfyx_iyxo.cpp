@@ -30,8 +30,8 @@ ParamsKey ConvolutionKernel_bfyx_iyxo::GetSupportedKey() const {
 ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_iyxo::SetDefault(const convolution_params& cp, int) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
 
-    dispatchData.gws[0] = CeilDiv(cp.output.X().v, sub_group_size) / 4;
-    dispatchData.gws[1] = cp.output.Y().v;
+    dispatchData.gws[0] = CeilDiv(cp.outputs[0].X().v, sub_group_size) / 4;
+    dispatchData.gws[1] = cp.outputs[0].Y().v;
     dispatchData.gws[2] = sub_group_size;
 
     dispatchData.lws[0] = 1;
@@ -60,7 +60,7 @@ bool ConvolutionKernel_bfyx_iyxo::Validate(const Params& p, const optional_param
 
     bool bStride = (params.stride.x == 1 && params.stride.y == 1);
 
-    if (!bFilterSize || !bStride || (params.output.Feature().v % 4) != 0 || (params.output.Batch().v != 1)) {
+    if (!bFilterSize || !bStride || (params.outputs[0].Feature().v % 4) != 0 || (params.outputs[0].Batch().v != 1)) {
         return false;
     }
 

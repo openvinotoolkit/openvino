@@ -65,7 +65,7 @@ JitConstants ConcatenationKernelRef::GetJitConstants(const concatenation_params&
 
     if (params.inputs[0].Feature().v != 1) {
         cldnnJit.AddConstant(MakeJitConstant("CHECK_FEATURES", 1));
-        int f_channel = DataTensor::Channelndex(params.output.GetLayout(), Tensor::DataChannelName::FEATURE);
+        int f_channel = DataTensor::Channelndex(params.outputs[0].GetLayout(), Tensor::DataChannelName::FEATURE);
         cldnnJit.AddConstant(MakeJitConstant("FEATURE_CHANNEL", f_channel));
     }
 

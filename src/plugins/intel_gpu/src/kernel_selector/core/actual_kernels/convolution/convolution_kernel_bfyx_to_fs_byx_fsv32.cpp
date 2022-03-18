@@ -74,9 +74,9 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_to_fs_byx_fsv32::SetD
     dispatchData.lws[1] = 1;
     dispatchData.lws[2] = 16;
 
-    dispatchData.gws[0] = CeilDiv(arg.output.X().v, option.blockWidth);
-    dispatchData.gws[1] = CeilDiv(arg.output.Y().v, option.blockHeight);
-    dispatchData.gws[2] = CeilDiv(arg.output.Feature().v, 32) * 16 * arg.output.Batch().v;
+    dispatchData.gws[0] = CeilDiv(arg.outputs[0].X().v, option.blockWidth);
+    dispatchData.gws[1] = CeilDiv(arg.outputs[0].Y().v, option.blockHeight);
+    dispatchData.gws[2] = CeilDiv(arg.outputs[0].Feature().v, 32) * 16 * arg.outputs[0].Batch().v;
 
     return dispatchData;
 }
@@ -92,7 +92,7 @@ bool ConvolutionKernel_bfyx_to_fs_byx_fsv32::Validate(const Params& p, const opt
     auto cp = static_cast<const convolution_params&>(p);
 
     // Output feature padding must be multiple of fsv to keep block alignment
-    if (cp.output.Feature().pad.before % fsv != 0)
+    if (cp.outputs[0].Feature().pad.before % fsv != 0)
         return false;
 
     return true;

@@ -57,7 +57,7 @@ JitConstants GemmKernelMMADslmInt8::GetJitConstants(const gemm_params& params) c
 }
 
 GemmKernelBase::DispatchData GemmKernelMMADslmInt8::SetDefault(const gemm_params& params) const {
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
     auto total_batches = output.LogicalSize() / (output.X().v * output.Y().v);
 
     DispatchData dispatchData;
@@ -72,8 +72,8 @@ GemmKernelBase::DispatchData GemmKernelMMADslmInt8::SetDefault(const gemm_params
 GemmKernelMMADslmInt8::GemmTuningData GemmKernelMMADslmInt8::InitGemmTuningData(const gemm_params& params) const {
     GemmTuningData tuning_data;
 
-    tuning_data.size_m = params.output.Y().v;
-    tuning_data.size_n = params.output.X().v;
+    tuning_data.size_m = params.outputs[0].Y().v;
+    tuning_data.size_n = params.outputs[0].X().v;
     tuning_data.size_k = params.inputs[0].X().v;
 
     return tuning_data;

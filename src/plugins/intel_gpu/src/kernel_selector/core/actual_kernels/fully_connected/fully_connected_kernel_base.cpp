@@ -26,7 +26,7 @@ FullyConnectedKernelBase::DispatchData FullyConnectedKernelBase::SetDefault(cons
     DispatchData dispatchData;
 
     // Determine global work sizes.
-    dispatchData.gws = { params.output.LogicalSize(), 1, 1 };
+    dispatchData.gws = { params.outputs[0].LogicalSize(), 1, 1 };
 
     // Find largest positive local work size that is divider for global work size.
     dispatchData.lws[0] = std::min(std::max(dispatchData.gws[0], static_cast<size_t>(1)), static_cast<size_t>(32));
@@ -179,7 +179,7 @@ Datatype FullyConnectedKernelBase::GetAccumulatorType(const fully_connected_para
 Datatype FullyConnectedKernelBase::GetActivationType(const fully_connected_params& params) const {
     auto in_dt = params.inputs[0].GetDType();
     auto wei_dt = params.weights.GetDType();
-    auto out_dt = params.output.GetDType();
+    auto out_dt = params.outputs[0].GetDType();
 
     auto quantized_inputs = in_dt == Datatype::UINT8 || in_dt == Datatype::INT8;
     auto quantized_weights = wei_dt == WeightsType::UINT8 || wei_dt == WeightsType::INT8;

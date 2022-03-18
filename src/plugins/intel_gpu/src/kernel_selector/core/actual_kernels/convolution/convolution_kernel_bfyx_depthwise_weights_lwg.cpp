@@ -48,7 +48,7 @@ bool ConvolutionKernel_bfyx_depthwise_weights_lwg::Validate(const Params& p, con
 ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_depthwise_weights_lwg::SetDefault(const convolution_params& params,
                                                                                              int) const {
     DispatchData dispatchData = Parent::SetDefault(params);
-    const auto& out = params.output;
+    const auto& out = params.outputs[0];
 
     dispatchData.gws = { Align(out.X().v * out.Y().v, 16), out.Feature().v, out.Batch().v };
     dispatchData.lws = { 16, 1, 1 };

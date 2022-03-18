@@ -47,7 +47,7 @@ static inline size_t GetTileSize(const permute_params& params) {
     if (params.inputs[0].X().v < DEFAULT_TILE_SIZE || params.inputs[0].Feature().v < DEFAULT_TILE_SIZE)
         return MIN_TILE_SIZE;
 
-    if ((params.inputs[0].GetDType() == Datatype::INT64) || (params.output.GetDType() == Datatype::INT64))
+    if ((params.inputs[0].GetDType() == Datatype::INT64) || (params.outputs[0].GetDType() == Datatype::INT64))
         return MIN_TILE_SIZE;
 
     return DEFAULT_TILE_SIZE;
@@ -71,7 +71,7 @@ static inline std::vector<std::string> GetFusedOpOrderVector(size_t size) {
 }
 
 static inline std::string GetTiledOutputOrder(const permute_params& params) {
-    std::pair<size_t, size_t> dim_change = {params.inputs[0].GetDims().size(), params.output.GetDims().size()};
+    std::pair<size_t, size_t> dim_change = {params.inputs[0].GetDims().size(), params.outputs[0].GetDims().size()};
 
     std::string order_str = "";
     int32_t dim_diff = static_cast<int32_t>(dim_change.first) - static_cast<int32_t>(dim_change.second);
@@ -102,18 +102,18 @@ static inline std::string GetTiledOutputOrder(const permute_params& params) {
     } else {
         // dim is expanded
         if (dim_change.first == 4 && dim_change.second == 5) {
-            order_str = ("b, y,  (x * TILE_SIZE + lh) / " + toCodeString(params.output.Y().v)
-                                 + ", (x * TILE_SIZE +lh) % " + toCodeString(params.output.Y().v)
+            order_str = ("b, y,  (x * TILE_SIZE + lh) / " + toCodeString(params.outputs[0].Y().v)
+                                 + ", (x * TILE_SIZE +lh) % " + toCodeString(params.outputs[0].Y().v)
                                  + ", (f * TILE_SIZE)");
         } else if (dim_change.first == 4 && dim_change.second == 6) {
-            order_str = ("b, y, (x * TILE_SIZE + lh) / (" + toCodeString(params.output.Y().v)
-                                 + " * " + toCodeString(params.output.Z().v) + ")"
-                                 + ", (x * TILE_SIZE + lh) / " + toCodeString(params.output.Y().v)
-                                 + ", (x * TILE_SIZE + lh) % " + toCodeString(params.output.Y().v)
+            order_str = ("b, y, (x * TILE_SIZE + lh) / (" + toCodeString(params.outputs[0].Y().v)
+                                 + " * " + toCodeString(params.outputs[0].Z().v) + ")"
+                                 + ", (x * TILE_SIZE + lh) / " + toCodeString(params.outputs[0].Y().v)
+                                 + ", (x * TILE_SIZE + lh) % " + toCodeString(params.outputs[0].Y().v)
                                  + ", (f * TILE_SIZE)");
         } else if (dim_change.first == 5 && dim_change.second == 6) {
-            order_str = ("b, z, y /" + toCodeString(params.output.Z().v)
-                                 + ", y % " + toCodeString(params.output.Z().v)
+            order_str = ("b, z, y /" + toCodeString(params.outputs[0].Z().v)
+                                 + ", y % " + toCodeString(params.outputs[0].Z().v)
                                  + ", (x * TILE_SIZE + lh), (f * TILE_SIZE)");
         } else {
             throw std::runtime_error("Unsupported combination\n");
@@ -187,7 +187,7 @@ JitConstants PermuteKernel_tile_8x8_4x4::GetJitConstants(const permute_params& p
     jit.AddConstant(MakeJitConstant("TRANS_BUF_SIZE", (tile_size / vector_width) * tile_size * total_lws) );
 
     if (!params.fused_ops.empty()) {
-        std::vector<std::string> output_order = GetFusedOpOrderVector(params.output.GetDims().size());
+        std::vector<std::string> output_order = GetFusedOpOrderVector(params.outputs[0].GetDims().size());
         FusedOpsConfiguration conf = {"", output_order, "input_var", params.inputs[0].GetDType(), 1};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
@@ -199,7 +199,7 @@ static std::vector<size_t> GetBestLwsFromGws(const permute_params& params, const
     std::vector<size_t> dims{0, 2, 1};
 
     // SLM size: elemsize * tile_size * tile_size * work_items <= 64K
-    const size_t elem_size = params.output.ElementSize();
+    const size_t elem_size = params.outputs[0].ElementSize();
     const size_t max_local_mem_size = params.engineInfo.maxLocalMemSize;
     const size_t max_work_group_size = params.engineInfo.maxWorkGroupSize;
     size_t max_num_work_items = std::min(max_work_group_size, max_local_mem_size / (elem_size * tile_size * tile_size));
@@ -266,7 +266,7 @@ bool PermuteKernel_tile_8x8_4x4::Validate(const Params& p, const optional_params
         return false;
     }
 
-    if (params.output.PitchesDifferFromLogicalDims() || params.inputs[0].PitchesDifferFromLogicalDims()) {
+    if (params.outputs[0].PitchesDifferFromLogicalDims() || params.inputs[0].PitchesDifferFromLogicalDims()) {
         return false;
     }
 

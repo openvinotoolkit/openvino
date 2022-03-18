@@ -43,7 +43,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_yxfb_yxio_b1_block_multipl
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(arg, autoTuneIndex);
 
     const auto filter_ofm_num = arg.weights.OFM().v;
-    const auto batch_size = arg.output.Batch().v;
+    const auto batch_size = arg.outputs[0].Batch().v;
 
     dispatchData.lws[0] = local_work_size;
 
@@ -110,13 +110,13 @@ bool ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::Validate(const Params& p, 
     }
 
     const auto filter_ofm_num = params.weights.OFM().v;
-    const auto batch_size = params.output.Batch().v;
+    const auto batch_size = params.outputs[0].Batch().v;
 
     const bool bInputValidated = (filter_ofm_num > 0) &&
                                  (batch_size == 1) &&  // current implementation doesn't support batching
                                                        // (subgorup is along batch*ofm and trying to block read
                                                        // filter/bias along batch and filter doesn't contain batching).
-                                 (params.output.Feature().v == filter_ofm_num);
+                                 (params.outputs[0].Feature().v == filter_ofm_num);
 
     if (!bInputValidated) {
         return false;

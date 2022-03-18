@@ -76,8 +76,8 @@ JitConstants DeconvolutionKernelBase::GetJitConstants(const deconvolution_params
 }
 
 DeconvolutionKernelBase::DispatchData DeconvolutionKernelBase::SetDefault(const deconvolution_params& params) const {
-    auto batch_size = params.output.Batch().v;
-    auto output_features = params.output.Feature().v;
+    auto batch_size = params.outputs[0].Batch().v;
+    auto output_features = params.outputs[0].Feature().v;
 
     DispatchData dispatchData;
 
@@ -88,8 +88,8 @@ DeconvolutionKernelBase::DispatchData DeconvolutionKernelBase::SetDefault(const 
     }
 
     dispatchData.gws[0] = gws0;
-    dispatchData.gws[1] = params.output.X().v;
-    dispatchData.gws[2] = params.output.Y().v * params.output.Z().v;
+    dispatchData.gws[1] = params.outputs[0].X().v;
+    dispatchData.gws[2] = params.outputs[0].Y().v * params.outputs[0].Z().v;
 
     dispatchData.lws[0] = lws0;
     dispatchData.lws[1] = 1;
@@ -148,7 +148,7 @@ Datatype DeconvolutionKernelBase::GetAccumulatorType(const deconvolution_params&
 
     // input is either fp32 or fp16
     // for fp32->fp16 accumulate to fp16, otherwise accumulate to input type
-    if (params.output.GetDType() == Datatype::F16)
+    if (params.outputs[0].GetDType() == Datatype::F16)
         return Datatype::F16;
 
     return params.inputs[0].GetDType();

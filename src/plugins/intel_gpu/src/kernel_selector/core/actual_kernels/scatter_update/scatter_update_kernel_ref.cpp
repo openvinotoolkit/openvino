@@ -29,7 +29,7 @@ static size_t GetScatterUpdateChannelIndex(const scatter_update_params& params) 
             break;
     }
 
-    return DataTensor::Channelndex(params.output.GetLayout(), name);
+    return DataTensor::Channelndex(params.outputs[0].GetLayout(), name);
 }
 
 ParamsKey ScatterUpdateKernelRef::GetSupportedKey() const {
@@ -89,13 +89,13 @@ static inline std::string GetAxisName(size_t size, size_t axis) {
 }
 
 static std::string GetUpdatesIndexOrder(const scatter_update_params& params) {
-    std::vector<std::string> default_order = GetDefaultOrder(params.output.GetDims().size());
+    std::vector<std::string> default_order = GetDefaultOrder(params.outputs[0].GetDims().size());
     return GetOrderString(default_order);
 }
 
 CommonDispatchData ScatterUpdateKernelRef::SetDefault(const scatter_update_params& params, const optional_params&, bool is_second) const {
     CommonDispatchData dispatchData;
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
     if (!is_second) {
         switch (output.GetLayout()) {
             case DataLayout::bfyx:
@@ -166,12 +166,12 @@ CommonDispatchData ScatterUpdateKernelRef::SetDefault(const scatter_update_param
 }
 
 static std::string GetOutputIndexOnAxis(const scatter_update_params& params, size_t axis) {
-    std::vector<std::string> default_order = GetDefaultOrder(params.output.GetDims().size());
+    std::vector<std::string> default_order = GetDefaultOrder(params.outputs[0].GetDims().size());
     return default_order[axis];
 }
 
 static std::vector<std::string> GetVectorSecondOutputIndexOrder(const scatter_update_params& params, size_t axis) {
-    auto output_order = GetDefaultOrder(params.output.GetDims().size());
+    auto output_order = GetDefaultOrder(params.outputs[0].GetDims().size());
     output_order[axis] = "convert_int(indices[OUTPUT_INDEX_ON_AXIS])";
     return output_order;
 }
@@ -192,7 +192,7 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
     jit.AddConstant(MakeJitConstant("AXIS_VALUE", axis_value));
     jit.AddConstant(MakeJitConstant("INDICES_SIZE", params.inputs[1].LogicalSize()));
 
-    auto default_order = GetDefaultOrder(params.output.GetDims().size());
+    auto default_order = GetDefaultOrder(params.outputs[0].GetDims().size());
     size_t dims = default_order.size();
     std::string get_update_idx = "(INPUT2_OFFSET)";
     std::string output_size_feature = "OUTPUT_FEATURE_NUM";
@@ -220,7 +220,7 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
     jit.AddConstant(MakeJitConstant("GET_UPDATES_INDEX(idx_order)", get_update_idx));
 
     if (!params.fused_ops.empty()) {
-        FusedOpsConfiguration conf1 = { "_FIRST_KERNEL", GetDefaultOrder(params.output.GetDims().size()), "val", params.inputs[0].GetDType() };
+        FusedOpsConfiguration conf1 = { "_FIRST_KERNEL", GetDefaultOrder(params.outputs[0].GetDims().size()), "val", params.inputs[0].GetDType() };
         FusedOpsConfiguration conf2 = { "_SECOND_KERNEL", GetVectorSecondOutputIndexOrder(params, GetScatterUpdateChannelIndex(params)),
                                         "val", params.inputs[0].GetDType() };
         jit.Merge(MakeFusedOpsJitConstants(params, {conf1, conf2}));
@@ -241,7 +241,7 @@ bool ScatterUpdateKernelRef::Validate(const Params& p, const optional_params& o)
             return false;
     }
 
-    if (params.output.PitchesDifferFromLogicalDims() || params.inputs[2].PitchesDifferFromLogicalDims()) {
+    if (params.outputs[0].PitchesDifferFromLogicalDims() || params.inputs[2].PitchesDifferFromLogicalDims()) {
         return false;
     }
 

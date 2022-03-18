@@ -31,7 +31,7 @@ bool ReorderKernel_to_yxfb_batched::Validate(const Params& params, const optiona
 
     const reorder_params& r_params = static_cast<const reorder_params&>(params);
 
-    const auto& output = r_params.output;
+    const auto& output = r_params.outputs[0];
     // output cannot have padding for this implementation
     if (output.X().pad.Total() != 0 || output.Y().pad.Total() != 0 || output.Feature().pad.Total() != 0 ||
         output.Batch().pad.Total() != 0) {

@@ -55,7 +55,7 @@ FullyConnectedKernelMMAD::FullyConnectedTuningData FullyConnectedKernelMMAD::Get
     FullyConnectedTuningData tuning_data;
 
     const auto& input = params.inputs[0];
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
     size_t input_feature = input.Feature().v;
     size_t input_batch = input.Batch().v;
     size_t output_feature = output.Feature().v;
@@ -129,7 +129,7 @@ FullyConnectedKernelMMAD::DispatchData FullyConnectedKernelMMAD::SetDefault(cons
                                                                             int) const {
     FullyConnectedTuningData tuning_data = GetTuningParams(params);
     auto dispatchData = Parent::SetDefault(params);
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
 
     std::vector<size_t> global = { Align(output.Feature().v, tuning_data.sub_group_size) * tuning_data.slm_div_factor, output.Batch().v, 1 };
     if (output.GetLayout() == DataLayout::bfyx)
@@ -148,7 +148,7 @@ JitConstants FullyConnectedKernelMMAD::GetJitConstants(const fully_connected_par
     auto jit = Parent::GetJitConstants(params, runInfo);
 
     auto& input = params.inputs[0];
-    auto& output = params.output;
+    auto& output = params.outputs[0];
     auto& weights = params.weights;
 
     size_t sub_group_pack_size = tuning_data.sub_group_size * tuning_data.pack_size;

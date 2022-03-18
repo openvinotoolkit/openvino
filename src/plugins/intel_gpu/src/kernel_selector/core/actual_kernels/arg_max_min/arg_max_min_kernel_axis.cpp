@@ -9,11 +9,11 @@ namespace kernel_selector {
 
 size_t getOperationNumber(const arg_max_min_params& params) {
     switch (params.argMaxMinAxis) {
-        case ArgMaxMinAxis::BATCH: return params.output.Feature().v * params.output.Z().v * params.output.Y().v * params.output.X().v;
-        case ArgMaxMinAxis::FEATURE: return params.output.Batch().v * params.output.Z().v * params.output.Y().v * params.output.X().v;
-        case ArgMaxMinAxis::Z: return params.output.Batch().v * params.output.Feature().v * params.output.Y().v * params.output.X().v;
-        case ArgMaxMinAxis::Y: return params.output.Batch().v * params.output.Feature().v * params.output.Z().v * params.output.X().v;
-        case ArgMaxMinAxis::X: return params.output.Batch().v * params.output.Feature().v * params.output.Z().v * params.output.Y().v;
+        case ArgMaxMinAxis::BATCH: return params.outputs[0].Feature().v * params.outputs[0].Z().v * params.outputs[0].Y().v * params.outputs[0].X().v;
+        case ArgMaxMinAxis::FEATURE: return params.outputs[0].Batch().v * params.outputs[0].Z().v * params.outputs[0].Y().v * params.outputs[0].X().v;
+        case ArgMaxMinAxis::Z: return params.outputs[0].Batch().v * params.outputs[0].Feature().v * params.outputs[0].Y().v * params.outputs[0].X().v;
+        case ArgMaxMinAxis::Y: return params.outputs[0].Batch().v * params.outputs[0].Feature().v * params.outputs[0].Z().v * params.outputs[0].X().v;
+        case ArgMaxMinAxis::X: return params.outputs[0].Batch().v * params.outputs[0].Feature().v * params.outputs[0].Z().v * params.outputs[0].Y().v;
         default:
             throw std::invalid_argument("Unsupported axis");
     }
@@ -64,7 +64,7 @@ bool ArgMaxMinKernelAxis::Validate(const Params& p, const optional_params& o) co
     const arg_max_min_params& params = static_cast<const arg_max_min_params&>(p);
 
     if (params.inputs.size() > 1) {
-        if (params.inputs[1].PitchesDifferFromLogicalDims() || params.output.PitchesDifferFromLogicalDims())
+        if (params.inputs[1].PitchesDifferFromLogicalDims() || params.outputs[0].PitchesDifferFromLogicalDims())
             return false;
     }
 

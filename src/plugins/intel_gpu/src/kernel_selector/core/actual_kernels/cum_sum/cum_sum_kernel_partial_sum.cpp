@@ -67,7 +67,7 @@ KernelsData CumSumKernelPartialSum::GetMultiStageKernelsData(const Params& param
         kernel.params.arguments.clear();  // Clear original output argument
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        kd.internalBufferSizes.push_back(newParams.output.PhysicalSizeInBytes());
+        kd.internalBufferSizes.push_back(newParams.outputs[0].PhysicalSizeInBytes());
     }
     {
         // Final
@@ -90,12 +90,12 @@ KernelsData CumSumKernelPartialSum::GetMultiStageKernelsData(const Params& param
 
 CumSumKernelPartialSum::MultiDispatchData CumSumKernelPartialSum::SetDefaultForMulti(const cum_sum_params& params) const {
     MultiDispatchData dispatchData;
-    std::vector<size_t> dims = {params.output.Batch().v,
-                                params.output.Feature().v,
-                                params.output.W().v,
-                                params.output.Z().v,
-                                params.output.Y().v,
-                                params.output.X().v};
+    std::vector<size_t> dims = {params.outputs[0].Batch().v,
+                                params.outputs[0].Feature().v,
+                                params.outputs[0].W().v,
+                                params.outputs[0].Z().v,
+                                params.outputs[0].Y().v,
+                                params.outputs[0].X().v};
 
     size_t index = GetRealAxisIndex(params);
     auto items_num = dims[index];

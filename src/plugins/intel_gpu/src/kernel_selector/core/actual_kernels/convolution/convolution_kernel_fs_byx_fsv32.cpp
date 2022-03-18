@@ -72,7 +72,7 @@ ConvolutionKernel_fs_byx_fsv32::AutoTuneOption ConvolutionKernel_fs_byx_fsv32::G
 
     // Check if output can be evenly divided into large blocks
     for (auto w : optBlockWidths) {
-        if (cp.output.X().v % w == 0 && getMinRegisterUsage(cp, w) < regThreshold)
+        if (cp.outputs[0].X().v % w == 0 && getMinRegisterUsage(cp, w) < regThreshold)
             return {w, AGE_BASED};
     }
 
@@ -80,8 +80,8 @@ ConvolutionKernel_fs_byx_fsv32::AutoTuneOption ConvolutionKernel_fs_byx_fsv32::G
     size_t minLeftover = static_cast<size_t>(-1);
     size_t foundWidth = 0;
     for (auto w : optBlockWidths) {
-        if (getMinRegisterUsage(cp, w) < regThreshold && Pad(cp.output.X().v, w) < minLeftover) {
-            minLeftover = Pad(cp.output.X().v, w);
+        if (getMinRegisterUsage(cp, w) < regThreshold && Pad(cp.outputs[0].X().v, w) < minLeftover) {
+            minLeftover = Pad(cp.outputs[0].X().v, w);
             foundWidth = w;
         }
     }
@@ -91,7 +91,7 @@ ConvolutionKernel_fs_byx_fsv32::AutoTuneOption ConvolutionKernel_fs_byx_fsv32::G
 
     // Check small and memory bound block sizes
     for (auto w : nonOptBlockWidths) {
-        if (cp.output.X().v % w == 0 && getMinRegisterUsage(cp, w) < regThreshold)
+        if (cp.outputs[0].X().v % w == 0 && getMinRegisterUsage(cp, w) < regThreshold)
             return {w, AGE_BASED};
     }
 
@@ -113,9 +113,9 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_fs_byx_fsv32::SetDefault(c
     dispatchData.lws[1] = 1;
     dispatchData.lws[2] = 16;
 
-    dispatchData.gws[0] = CeilDiv(arg.output.X().v, option.blockWidth);
-    dispatchData.gws[1] = arg.output.Y().v;
-    dispatchData.gws[2] = CeilDiv(arg.output.Feature().v, 32) * 16 * arg.output.Batch().v;
+    dispatchData.gws[0] = CeilDiv(arg.outputs[0].X().v, option.blockWidth);
+    dispatchData.gws[1] = arg.outputs[0].Y().v;
+    dispatchData.gws[2] = CeilDiv(arg.outputs[0].Feature().v, 32) * 16 * arg.outputs[0].Batch().v;
 
     return dispatchData;
 }
@@ -131,7 +131,7 @@ bool ConvolutionKernel_fs_byx_fsv32::Validate(const Params& p, const optional_pa
     auto cp = static_cast<const convolution_params&>(p);
 
     // Output feature padding must be multiple of fsv to keep block alignment
-    if (cp.output.Feature().pad.before % fsv != 0)
+    if (cp.outputs[0].Feature().pad.before % fsv != 0)
         return false;
 
     // Input feature padding must be multiple of fsv to keep block alignment

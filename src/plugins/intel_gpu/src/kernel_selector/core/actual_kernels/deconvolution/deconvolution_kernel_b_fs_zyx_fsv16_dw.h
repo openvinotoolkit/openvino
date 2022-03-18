@@ -19,7 +19,7 @@ public:
 
 protected:
     WeightsLayout GetPreferredWeightsLayout(const deconvolution_params& p) const override {
-        if (p.output.GetLayout() == DataLayout::b_fs_yx_fsv16)
+        if (p.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16)
             return WeightsLayout::gs_oiyx_gsv16;
         else
             return WeightsLayout::gs_oizyx_gsv16;
