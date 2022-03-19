@@ -51,16 +51,16 @@ core.add_extension(ov::frontend::ConversionExtension(
 }
 {
 //! [frontend_extension_Identity]
-auto extension = ov::frontend::OpExtension<TemplateExtension::Identity>("Identity");
+auto extension1 = ov::frontend::OpExtension<TemplateExtension::Identity>("Identity");
 
 // or even simpler if original FW type and OV type of operations match, that is "Identity"
-ov::frontend::OpExtension<TemplateExtension::Identity>();
+auto extension2 = ov::frontend::OpExtension<TemplateExtension::Identity>();
 //! [frontend_extension_Identity]
 
 //! [frontend_extension_read_model]
 ov::Core core;
 // Add arbitrary number of extensions before calling read_model method
-core.add_extension(extension);
+core.add_extension(ov::frontend::OpExtension<TemplateExtension::Identity>());
 core.read_model("/path/to/model.onnx");
 //! [frontend_extension_read_model]
 
