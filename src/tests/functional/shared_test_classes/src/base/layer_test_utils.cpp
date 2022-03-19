@@ -340,7 +340,7 @@ void LayerTestsCommon::Compare(const InferenceEngine::TensorDesc &actualDesc, co
     ASSERT_EQ(actualDesc.getPrecision(), expectedDesc.getPrecision());
 }
 
-void LayerTestsCommon::ConfigureNetwork() {
+void LayerTestsCommon::AlignParameters() {
     int gapInLayout = cnnNetwork.getInputsInfo().size() - inLayout.size();
     if (gapInLayout) {
         auto inLayoutDefaultValue = inLayout[0];
@@ -354,16 +354,6 @@ void LayerTestsCommon::ConfigureNetwork() {
         for (int i = 1; i <= gapInPrc; i++) {
             inPrc.push_back(inPrcDefaultValue);
         }
-    }
-    int inputCnt = 0;
-    for (const auto &in : cnnNetwork.getInputsInfo()) {
-        if (inLayout[inputCnt] != InferenceEngine::Layout::ANY) {
-            in.second->setLayout(inLayout[inputCnt]);
-        }
-        if (inPrc[inputCnt] != InferenceEngine::Precision::UNSPECIFIED) {
-            in.second->setPrecision(inPrc[inputCnt]);
-        }
-        inputCnt++;
     }
 
     int gapOutLayout = cnnNetwork.getOutputsInfo().size() - outLayout.size();
@@ -380,6 +370,22 @@ void LayerTestsCommon::ConfigureNetwork() {
             outPrc.push_back(outPrcDefaultValue);
         }
     }
+}
+
+void LayerTestsCommon::ConfigureNetwork() {
+    AlignParameters();
+
+    int inputCnt = 0;
+    for (const auto &in : cnnNetwork.getInputsInfo()) {
+        if (inLayout[inputCnt] != InferenceEngine::Layout::ANY) {
+            in.second->setLayout(inLayout[inputCnt]);
+        }
+        if (inPrc[inputCnt] != InferenceEngine::Precision::UNSPECIFIED) {
+            in.second->setPrecision(inPrc[inputCnt]);
+        }
+        inputCnt++;
+    }
+
     int outputCnt = 0;
     for (const auto &out : cnnNetwork.getOutputsInfo()) {
         if (outLayout[outputCnt] != InferenceEngine::Layout::ANY) {

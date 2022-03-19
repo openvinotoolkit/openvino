@@ -142,6 +142,8 @@ protected:
         return core;
     }
 
+    virtual void AlignParameters();
+
     virtual void ConfigureNetwork();
 
     virtual void LoadNetwork();
