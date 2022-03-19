@@ -1,4 +1,6 @@
-# Deployment with OpenVINO {#documentation}
+# Deployment with OpenVINO {#openvino_deployment_guide}
+
+@sphinxdirective
 
 .. toctree::
    :maxdepth: 1
@@ -18,6 +20,7 @@ Once the [OpenVINO application development](../integrate_with_your_application.m
     - Using Docker images
     - Using [OpenVINO Deployment manager](deployment-manager-tool.md) providing a convinient way for local distribution
     - Using advanced [Local distribution](local-distribution.md), the approach works for all operation systems
+    - Using [static version of OpenVINO Runtime linked into the final app](https://github.com/openvinotoolkit/openvino/wiki/StaticLibraries)
 
 The table below shows which distribution type can be used depending on target operation system:
 
@@ -29,14 +32,17 @@ The table below shows which distribution type can be used depending on target op
 | PyPi (pip package manager) | All operation systems |
 | [OpenVINO Deployment Manager](deployment-manager-tool.md) | All operation systems |
 | [Local distribution](local-distribution.md) | All operation systems |
+| [Build OpenVINO statically and link into the final app](https://github.com/openvinotoolkit/openvino/wiki/StaticLibraries) | All operation systems |
 
 Dependning on the distribution type, the granularity of OpenVINO packages may vary: PyPi distribution [OpenVINO has a single package `openvino`](https://pypi.org/project/openvino/) containing all the runtime libraries and plugins, while more configurable ways like [Local distribution](local-distribution.md) provide higher granularity, so it is important to now some details about the set of libraries which are part of OpenVINO Runtime package:
 
 - The main library `openvino` is used by C++ user's applications to link against with. The library provides all OpenVINO Runtime public API for both OpenVINO API 2.0 and Inference Engine, nGraph APIs.
     > **NOTE**: for C language applications `openvino_c` is additionally required for distribution
 
-- The libraries like `openvino_intel_cpu_plugin` (matching `openvino_.+_plugin` pattern) are used to provide inference capabilities on specific devices or additional capabitilies like [Hetero execution](../hetero_execution.md) or [Multi-Device execution](../multi_device.md).
-- The libraries like `openvino_ir_frontnend` (matching `openvino_.+_frontend`) are used to provide capabilities to read models of different file formats like OpenVINO IR, ONNX or Paddle.
+- The _optional_ plugin libraries like `openvino_intel_cpu_plugin` (matching `openvino_.+_plugin` pattern) are used to provide inference capabilities on specific devices or additional capabitilies like [Hetero execution](../hetero_execution.md) or [Multi-Device execution](../multi_device.md).
+- The _optional_ plugin libraries like `openvino_ir_frontnend` (matching `openvino_.+_frontend`) are used to provide capabilities to read models of different file formats like OpenVINO IR, ONNX or Paddle.
+
+The _optional_ mean that if the application does not use the capability enabled by the plugin, the plugin's library or package with the plugin is not needed at the final distribution.
 
 This information covers granularity aspects of majority distribution types, more information is only needed and provided in [Local Distribution](local-distribution.md).
 

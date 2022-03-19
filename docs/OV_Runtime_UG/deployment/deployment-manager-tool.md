@@ -6,14 +6,14 @@ The Deployment Manager is a Python* command-line tool that creates a deployment 
 
 * Intel® Distribution of OpenVINO™ toolkit
 * To run inference on a target device other than CPU, device drivers must be pre-installed:
-   * **For Linux**, see the following sections in the [installation instructions for Linux](../install_guides/installing-openvino-linux.md): 
+   * **For Linux**, see the following sections in the [installation instructions for Linux](../../install_guides/installing-openvino-linux.md): 
      * Steps for Intel® Processor Graphics (GPU) section 
      * Steps for Intel® Neural Compute Stick 2 section
      * Steps for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
-   * **For Windows**, see the following sections in the [installation instructions for Windows](../install_guides/installing-openvino-windows.md):
+   * **For Windows**, see the following sections in the [installation instructions for Windows](../../install_guides/installing-openvino-windows.md):
      * Steps for Intel® Processor Graphics (GPU)
      * Steps for the Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
-   * **For macOS**, see the following section in the [installation instructions for macOS](../install_guides/installing-openvino-macos.md): 
+   * **For macOS**, see the following section in the [installation instructions for macOS](../../install_guides/installing-openvino-macos.md): 
      * Steps for Intel® Neural Compute Stick 2 section
      
 > **IMPORTANT**: The operating system on the target system must be the same as the development system on which you are creating the package. For example, if the target system is Ubuntu 18.04, the deployment package must be created from the OpenVINO™ toolkit installed on Ubuntu 18.04.     
@@ -66,13 +66,13 @@ Interactive mode provides a user-friendly command-line interface that will guide
 
 2. The target device selection dialog is displayed:
   
-   ![Deployment Manager selection dialog](../img/selection_dialog.png)
+   ![Deployment Manager selection dialog](../../img/selection_dialog.png)
 
    Use the options provided on the screen to complete selection of the target devices and press **Enter** to proceed to the package generation dialog. if you want to interrupt the generation process and exit the program, type **q** and press **Enter**.
 
 3. Once you accept the selection, the package generation dialog is displayed:
   
-   ![Deployment Manager configuration dialog](../img/configuration_dialog.png)
+   ![Deployment Manager configuration dialog](../../img/configuration_dialog.png)
 
    The target devices you have selected at the previous step appear on the screen. To go back and change the selection, type **b** and press **Enter**. Use the options provided to configure the generation process, or use the default settings.
    
