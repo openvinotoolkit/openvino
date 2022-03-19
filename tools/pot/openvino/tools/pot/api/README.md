@@ -11,48 +11,80 @@
 @endsphinxdirective
 
 ## Overview
-The Post-Training Optimization Tool (POT) Python* API allows injecting optimization methods supported by POT into a 
-model inference script written with OpenVINO&trade; [Python* API](ie_python_api/api.html). 
-Thus, POT API helps to implement a custom 
-optimization pipeline for a single or cascaded/composite DL model (set of joint models). By the optimization pipeline, 
-we mean the consecutive application of optimization algorithms to the model. The input for the optimization pipeline is 
-a full-precision model, and the result is an optimized model. The optimization pipeline is configured to sequentially 
-apply optimization algorithms in the order they are specified. The key requirement for applying the optimization 
-algorithm is the availability of the calibration dataset for statistics collection and validation dataset for accuracy 
-validation which in practice can be the same. The Python* POT API provides simple interfaces for implementing:
-- custom model inference pipeline with OpenVINO Inference Engine,
-- data loading and pre-processing on an arbitrary dataset,
-- custom accuracy metrics,
- 
-to make it possible to use optimization algorithms from the POT.
+The Post-Training Optimization Tool (POT) provides a Python* API that allows creating custom scripts that result to optimized models. This can be helpful when the optimizing model consists of several submodels ot has uncommon pre-processing of input data. POT API contains mandatory and optional insterfaces that should be implemented on the user's side to use optimization method provided by POT. The figure below shows the common API structure.
 
-The Python* POT API provides `Pipeline` class for creating and configuring the optimization pipeline and applying it to 
-the model. The `Pipeline` class depends on the implementation of the following model specific interfaces which 
-should be implemented according to the custom DL model:
-- `Engine` is responsible for model inference and provides statistical data and accuracy metrics for the model.
-  > **NOTE**: The POT has the implementation of the Engine class with the class name IEEngine located in 
-  >           `<POT_DIR>/engines/ie_engine.py`, where `<POT_DIR>` is a directory where the Post-Training Optimization Tool is installed.
-  >           It is based on the [OpenVINO™ Inference Engine Python* API](ie_python_api/api.html)
-  >           and can be used as a baseline engine in the customer pipeline instead of the abstract Engine class.
-- `DataLoader` is responsible for the dataset loading, including the data pre-processing.
-- `Metric` is responsible for calculating the accuracy metric for the model.
-  > **NOTE**: Metric is required if you want to use accuracy-aware optimization algorithms, such as `AccuracyAwareQuantization`
-  >           algorithm.
-
-The pipeline with implemented model specific interfaces such as `Engine`, `DataLoader` and `Metric` we will call the custom 
-optimization pipeline (see the picture below that shows relationships between classes).
 
 ![](../../../../docs/images/api.png)
 
-## Use Cases
-Before diving into the Python* POT API, it is highly recommended to read [Best Practices](@ref pot_docs_BestPractices) document where various 
-scenarios of using the Post-Training Optimization Tool are described. 
+### Mandatory user interfaces
 
-The POT Python* API for model optimization can be used in the following cases:
-- [Accuracy Checker](@ref omz_tools_accuracy_checker) tool does not support the model or dataset.
-- POT does not support the model in the [Simplified Mode](@ref pot_docs_BestPractices) or produces the optimized model with low 
-accuracy in this mode.
-- You already have the Python* script to validate the accuracy of the model using the [OpenVINO&trade; Runtime](@ref openvino_docs_OV_Runtime_User_Guide).
+- `openvino.tools.pot.DataLoader` - allows loading data from a dataset and applies model-specific pre-processing providing access by index. 
+All implementations should override `__len__()` function, which should return the size of the dataset, and `__getitem__()`, which supports indexing in range of 0 to `len(self)`.It should return data in the two possible structures:
+   - `(data, annotation)`
+   - `(data, annotation, metadata)`
+  
+   Users can wrap framework data loading classes with this interface which is usually straightforward, e.g. for `torch.utils.data.Dataset` that has various implementation in the TorchVision project.
+
+- `openvino.tools.pot.Engine` is responsible for model inference and computes model statistics and accuracy metrics required for the most of post-training optimization methods. POT also provides a `openvino.tools.pot.IEEngine` helper that is suits for single model. Implementation of `Engine` interface is required only in the case of cascaded/compund models.
+
+Having implementations of `DataLoader` and `Engine` APIs, it is possible to apply basic optimization methods, e.g. [**DefaultQuantization**](@ref pot_compression_algorithms_quantization_default_README). The code snippet below shows optimiztaion workflow.
+```
+from openvino.tools.pot import IEEngine
+from openvino.tools.pot load_model, save_model
+from openvino.tools.pot import compress_model_weights
+from openvino.tools.pot import create_pipeline
+
+# Model config specifies the model name and paths to model .xml and .bin file
+model_config = Dict(
+    {
+        "model_name": "model",
+        "model": path_to_xml,
+        "weights": path_to_bin,
+    }
+)
+
+# Engine config
+engine_config = Dict({"device": "CPU"})
+
+algorithms = [
+    {
+        "name": "DefaultQuantization",
+        "stat_subset_size": 300,
+        "params": {
+            "target_device": "ANY",
+        },
+    }
+]
+
+# Step 1: create data loader
+data_loader = UserDataLoader(..)
+
+# Step 2: load model
+ir_model = load_model(model_config=model_config)
+
+# Step 3: Initialize the engine for metric calculation and statistics collection.
+engine = IEEngine(config=engine_config, data_loader=data_loader, metric=None)
+
+# Step 4: Create a pipeline of compression algorithms.
+# quantization_algorithm is defined in the Settings
+pipeline = create_pipeline(algorithms, engine)
+
+# Step 5 (Optional): Compress model weights to quantized precision
+#                    in order to reduce the size of the final .bin file.
+compress_model_weights(compressed_model)
+
+# Step 6: Save the compressed model to the desired path.
+# Set save_path to the directory where the model should be saved
+compressed_model_paths = save_model(
+    model=compressed_model,
+    save_path="optimized_model",
+    model_name="optimized_model",
+)
+```
+
+### Optional user interfaces
+
+- `Metric` is responsible for calculating the accuracy metric for the model. It is required if you want to use accuracy-aware optimization algorithms, such as [**AccuracyAwareQuantization**](@ref pot_compression_algorithms_quantization_accuracy_aware_README). The instance of the `Metric` object should be passed to `Engine` constructor.
 
 ## Examples
 
@@ -65,7 +97,7 @@ accuracy in this mode.
   * [Quantization of Face Detection model](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/face_detection)
   * [Speech example for GNA device](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/speech)
 
-## API Description
+## Detailed API description
 
 Below is a detailed explanation of POT Python* APIs which should be implemented in order to create a custom optimization
 pipeline.
@@ -81,7 +113,14 @@ The base class for all DataLoaders.
 by index. 
 
 All subclasses should override `__len__()` function, which should return the size of the dataset, and `__getitem__()`, 
-which supports integer indexing in range of 0 to `len(self)`
+which supports integer indexing in range of 0 to `len(self)`. `__getitem__()` method can return data in on of the possible format:
+```
+(data, annotation)
+```
+or
+```
+(data, annotation, metadata)
+```
 
 ### Metric
 
@@ -232,11 +271,11 @@ The following methods can be overridden in subclasses:
   
 `IEEngine` supports data returned by `DataLoader` in the format:
 ```
-(img_id, img_annotation), image)
+(data, annotation)
 ```
 or
 ```
-((img_id, img_annotation), image, image_metadata)
+(data, annotation, metadata)
 ```
 
 Metric values returned by a `Metric` instance are expected to be in the format:
