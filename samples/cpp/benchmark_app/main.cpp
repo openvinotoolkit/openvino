@@ -484,6 +484,12 @@ int main(int argc, char* argv[]) {
 
             // ----------------- 5. Resizing network to match image sizes and given
             // batch ----------------------------------
+            for (auto& item : model->inputs()) {
+                if (item.get_tensor().get_names().empty()) {
+                    item.get_tensor_ptr()->set_names(
+                        std::unordered_set<std::string>{item.get_node_shared_ptr()->get_name()});
+                }
+            }
             next_step();
             convert_io_names_in_map(inputFiles, std::const_pointer_cast<const ov::Model>(model)->inputs());
             // Parse input shapes if specified
