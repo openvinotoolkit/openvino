@@ -12,7 +12,7 @@ This section covers the case when a single operation in framework representation
 
 1. Number of inputs to operation in the Framework representation is the same as in the OpenVINO representation.
 
-2. Number of outputs are also the same in both representations.
+2. Number of outputs is also the same in both representations.
 
 3. Inputs can be indexed and are mapped in order correspondingly, e.g. input with index 0 in framework representation maps to input with index 0 in OpenVINO representation and so on.
 
