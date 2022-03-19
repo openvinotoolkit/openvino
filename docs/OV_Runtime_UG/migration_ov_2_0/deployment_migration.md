@@ -14,7 +14,7 @@ Starting from OpenVINO 2022.1, Model Optimizer, Post-Training Optimization tool 
 The structure of OpenVINO 2022.1 installer package has been organized as below:
 
 - The `runtime` folder includes headers, libraries and CMake interfaces.
-- The `tools` folder contains [the compile tool](../../../tools/compile_tool/README.md), [deployment manager](../../install_guides/deployment-manager-tool.md) and a set of `requirements.txt` files with links to the corresponding versions of the `openvino-dev` package.
+- The `tools` folder contains [the compile tool](../../../tools/compile_tool/README.md), [deployment manager](../../OV_Runtime_UG/deployment/deployment-manager-tool.md) and a set of `requirements.txt` files with links to the corresponding versions of the `openvino-dev` package.
 - The `python` folder contains the Python version for OpenVINO Runtime.
 
 ## Installing OpenVINO Development Tools via PyPI

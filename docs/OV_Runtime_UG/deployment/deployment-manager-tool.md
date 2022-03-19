@@ -1,4 +1,4 @@
-# OpenVINO™ Deployment Manager Guide {#openvino_docs_install_guides_deployment_manager_tool}
+# Using Deployment Manager {#openvino_docs_install_guides_deployment_manager_tool}
 
 The Deployment Manager is a Python* command-line tool that creates a deployment package by assembling the model, IR files, your application, and associated dependencies into a runtime package for your target device. This tool is delivered within the Intel® Distribution of OpenVINO™ toolkit for Linux*, Windows* and macOS* release packages and is available after installation in the `<INSTALL_DIR>/tools/deployment_manager` directory.
 
@@ -52,7 +52,7 @@ Interactive mode provides a user-friendly command-line interface that will guide
    
       .. code-block:: bat  
       
-        cd <INSTALL_DIR>\deployment_tools\tools\deployment_manager
+        cd <INSTALL_DIR>\tools\deployment_manager
         .\deployment_manager.py  
         
    .. tab:: macOS  
@@ -119,9 +119,9 @@ To launch the Deployment Manager tool in the standard mode, open a new terminal 
   
 .. tab:: Windows  
 
-   .. code-block:: bat  
+   .. code-block:: bat
 
-      cd <INSTALL_DIR>\deployment_tools\tools\deployment_manager
+      cd <INSTALL_DIR>\tools\deployment_manager
       .\deployment_manager.py <--targets> [--output_dir] [--archive_name] [--user_data]
   
 .. tab:: macOS  
@@ -165,19 +165,19 @@ To deploy the OpenVINO Runtime components from the development machine to the ta
 
    @sphinxdirective
    
-   .. tab:: Linux  
+   .. tab:: Linux
    
-      .. code-block:: sh 
+      .. code-block:: sh
    
          tar xf openvino_deployment_package.tar.gz -C <destination_dir>
 
-   .. tab:: Windows  
+   .. tab:: Windows
    
       .. code-block:: bat
       
          Use the archiver of your choice to unzip the file.  
 
-   .. tab:: macOS  
+   .. tab:: macOS
    
       .. code-block:: sh
          
