@@ -58,14 +58,14 @@ void op::Parameter::set_layout(const ov::Layout& layout) {
 }
 
 void op::Parameter::set_partial_shape(const PartialShape& partial_shape) {
-    OPENVINO_ASSERT(ov::layout::utils::is_compatible(get_layout(), partial_shape),
-                    "Can't set partial shape ",
-                    partial_shape,
-                    " for Parameter ",
-                    *this,
-                    " with layout ",
-                    get_layout().to_string(),
-                    ". Layout is not compatible with shape");
+    // OPENVINO_ASSERT(ov::layout::utils::is_compatible(get_layout(), partial_shape),
+    //                 "Can't set partial shape ",
+    //                 partial_shape,
+    //                 " for Parameter ",
+    //                 *this,
+    //                 " with layout ",
+    //                 get_layout().to_string(),
+    //                 ". Layout is not compatible with shape");
     m_partial_shape = partial_shape;
 }
 
