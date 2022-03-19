@@ -1,15 +1,18 @@
-#include <ie_core.hpp>
+#include <openvino/openvino.hpp>
 
 int main() {
-    std::string device_name = "AUTO:CPU,GPU";
-    const std::map< std::string, std::string > full_config = {};
-    //! [part5]
-    InferenceEngine::Core ie; 
-    InferenceEngine::CNNNetwork network = ie.ReadNetwork("sample.xml");
-    // 'device_name' can be "AUTO:CPU,GPU" to configure the auto-device to use CPU and GPU
-    InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(network, device_name, full_config);
-    // new metric allows to query the optimization capabilities
-    std::vector<std::string> device_cap = exeNetwork.GetMetric(METRIC_KEY(OPTIMIZATION_CAPABILITIES));
-    //! [part5]
+ov::AnyMap cpu_config = {};
+ov::AnyMap myriad_config = {};
+//! [part5]
+ov::Core core;
+
+// Read a network in IR, PaddlePaddle, or ONNX format:
+std::shared_ptr<ov::Model> model = core.read_model("sample.xml");
+
+// Configure  CPU and the MYRIAD devices when compiled model
+ov::CompiledModel compiled_model = core.compile_model(model, "AUTO",
+    ov::device::properties("CPU", cpu_config),
+    ov::device::properties("MYRIAD", myriad_config));
+//! [part5]
     return 0;
 }
