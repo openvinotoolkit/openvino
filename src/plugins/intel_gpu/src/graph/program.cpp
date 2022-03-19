@@ -17,7 +17,7 @@
 #include "pass_manager.h"
 #include "primitive_type.h"
 #include "program_dump_graph.h"
-#include "sliding_window_utils.h"
+#include "sliding_window_utils.hpp"
 #include "program_helpers.h"
 
 #include "roi_pooling_inst.h"
@@ -89,6 +89,9 @@
 #ifdef __unix__
 #include <sys/resource.h>
 #endif
+
+using namespace ov::runtime::intel_gpu;
+
 program::program(engine& engine_ref,
                  topology const& topology,
                  build_options const& options,
@@ -296,14 +299,18 @@ bool program::analyze_output_size_handling_need() {
                 {0, 0, prim->output_size.spatial[0], prim->output_size.spatial[1], prim->output_size.spatial[2]},
                 1);
 
+            tensor size(1);
+            for (size_t i = 0; i < prim->size.size(); i++) {
+                size.spatial[i] = prim->size[prim->size.size() - i - 1];
+            }
             // TODO: Check compatibility of output size calculation (with caffe).
             auto primInputSize = prim_node.input().get_output_layout().size;
             auto calc_output_range = calc_sliding_window_output_range<swor_mode::exceed_once_data>(
                 primInputSize,
-                prim->size,
-                prim->pad,
+                size,
+                ov::CoordinateDiff(prim->pad.begin(), prim->pad.end()),
                 prim->stride,
-                {1, 1, 1, 1},
+                ov::Strides(prim->stride.size(), 1),
                 true,
                 1);
 

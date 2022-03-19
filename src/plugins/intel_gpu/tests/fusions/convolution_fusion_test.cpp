@@ -28,9 +28,9 @@ struct convolution_test_params {
     tensor in_shape;
     tensor out_shape;
     tensor kernel;
-    tensor stride;
-    tensor pad;
-    tensor dilation;
+    ov::Strides stride;
+    ov::CoordinateDiff pad;
+    ov::Strides dilation;
     uint32_t groups;
     data_types data_type;
     format input_format;
@@ -46,9 +46,9 @@ struct bc_force_kernel_params {
     tensor in_shape;
     tensor out_shape;
     tensor kernel;
-    tensor stride;
-    tensor pad;
-    tensor dilation;
+    ov::Strides stride;
+    ov::CoordinateDiff pad;
+    ov::Strides dilation;
     uint32_t groups;
     data_types data_type;
     format input_format;
@@ -66,9 +66,9 @@ struct conv_eltw_test_params {
     tensor out_shape;
     tensor eltw_shape;
     tensor kernel;
-    tensor stride;
-    tensor pad;
-    tensor dilation;
+    ov::Strides stride;
+    ov::CoordinateDiff pad;
+    ov::Strides dilation;
     uint32_t groups;
     data_types data_type;
     format input_format;
@@ -104,7 +104,7 @@ public:
 
     layout get_input_layout(convolution_test_params& p) {
         auto pad = p.pad;
-        std::vector<int> pad_ = { 0, 0, pad.spatial[0], pad.spatial[1] };
+        std::vector<int> pad_ = { 0, 0, static_cast<int>(pad[1]), static_cast<int>(pad[0]) };
         return layout{ p.data_type, p.input_format, p.in_shape, padding{ pad_ } };
     }
 
@@ -127,7 +127,7 @@ public:
 
     layout get_input_layout(convolution_test_params& p) {
         auto pad = p.pad;
-        std::vector<int> pad_ = { 0, 0, pad.spatial[0], pad.spatial[1] };
+        std::vector<int> pad_ = { 0, 0, static_cast<int>(pad[1]), static_cast<int>(pad[0]) };
         return layout{ p.data_type, p.input_format, p.in_shape, padding{ pad_ } };
     }
 
@@ -162,7 +162,7 @@ public:
 
     layout get_input_layout(conv_eltw_test_params& p) {
         auto pad = p.pad;
-        std::vector<int> pad_ = { 0, 0, pad.spatial[0], pad.spatial[1] };
+        std::vector<int> pad_ = { 0, 0, static_cast<int>(pad[1]), static_cast<int>(pad[0]) };
         return layout{ p.data_type, p.input_format, p.in_shape, padding{ pad_ } };
     }
 
@@ -200,7 +200,7 @@ class ConvFusingForceKernelTest : public BaseFusingTest<bc_force_kernel_params> 
 
     layout get_input_layout(bc_force_kernel_params& p) {
         auto pad = p.pad;
-        std::vector<int> pad_ = { 0, 0, pad.spatial[0], pad.spatial[1] };
+        std::vector<int> pad_ = { 0, 0, static_cast<int>(pad[1]), static_cast<int>(pad[0]) };
         return layout{ p.data_type, p.input_format, p.in_shape, padding{ pad_ } };
     }
 
@@ -252,7 +252,7 @@ public:
 
     layout get_input_layout(convolution_test_params& p) {
         auto pad = p.pad;
-        std::vector<int> pad_ = { 0, 0, pad.spatial[0], pad.spatial[1] };
+        std::vector<int> pad_ = { 0, 0, static_cast<int>(pad[1]), static_cast<int>(pad[0]) };
         return layout{ p.data_type, p.input_format, p.in_shape, padding{ pad_ } };
     }
 
@@ -265,116 +265,95 @@ public:
 }  // namespace
 
 // in_shape; out_shape; kernel; stride; pad; dilation; groups; data_type; input_format; weights_type; weights_format; default_type; default_format;
-#define CASE_CONV_FP32_1 { 1, 15, 4, 5 }, { 1, 30, 2, 3 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f32, format::bfyx, data_types::f32, format::oiyx, data_types::f32, format::bfyx
-#define CASE_CONV_FP32_2 { 1, 16, 4, 5 }, { 1, 32, 2, 3 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::os_is_yx_isv16_osv16, data_types::f32, format::bfyx
-#define CASE_CONV_FP32_3 { 1, 16, 4, 5 }, { 1, 32, 4, 5 }, { 1, 1, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::os_is_yx_isv16_osv16, data_types::f32, format::bfyx
-#define CASE_CONV_FP32_4 { 1, 32, 4, 5 }, { 1, 32, 4, 5 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ { 0, 0, 1, 1, 0, 0 }, 0 }, tensor{ 1 }, 32, data_types::f32, format::b_fs_yx_fsv16, data_types::f32,  format::gs_oiyx_gsv16, data_types::f32, format::bfyx
-#define CASE_CONV_FP32_5 { 1, 15, 4, 5 }, { 1, 30, 2, 3 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f32, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_CONV_FP32_6 { 1, 16, 4, 5, 4 }, { 1, 16, 2, 3, 2 }, { 1, 1, 3, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
-#define CASE_CONV_FP32_7 { 1, 16, 4, 5, 4 }, { 1, 32, 2, 3, 2 }, { 1, 1, 3, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
-#define CASE_CONV_FP32_8 { 1, 32, 4, 5, 4 }, { 1, 16, 2, 3, 2 }, { 1, 1, 3, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 2, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::g_os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
-#define CASE_CONV_FP32_9 { 1, 32, 4, 5, 4 }, { 1, 32, 2, 3, 2 }, { 1, 1, 3, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 2, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::g_os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
-#define CASE_CONV_FP32_10 { 32, 16, 4, 5, 4 }, { 32, 32, 4, 5, 4 }, { 1, 1, 1, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f32, format::bs_fs_zyx_bsv16_fsv16, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
-#define CASE_CONV_FP32_11 { 1, 32, 4, 5, 4 }, { 1, 16, 2, 3, 2 }, { 1, 1, 3, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 2, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::g_os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
-#define CASE_CONV_FP32_12 { 1, 16, 4, 5, 4 }, { 1, 16, 2, 3, 2 }, { 1, 1, 3, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 2, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::g_os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
-#define CASE_CONV_FP32_13 { 1, 16, 18, 5, 4 }, { 1, 16, 16, 3, 2 }, { 1, 1, 3, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 2, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::g_os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
-#define CASE_CONV_FP32_14 { 1, 3, 4, 5 }, { 1, 30, 2, 3 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f32, format::bfyx, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_CONV_FP32_1 { 1, 15, 4, 5 }, { 1, 30, 2, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f32, format::bfyx, data_types::f32, format::oiyx, data_types::f32, format::bfyx
+#define CASE_CONV_FP32_2 { 1, 16, 4, 5 }, { 1, 32, 2, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::os_is_yx_isv16_osv16, data_types::f32, format::bfyx
+#define CASE_CONV_FP32_3 { 1, 16, 4, 5 }, { 1, 32, 4, 5 }, { 1, 1, 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::os_is_yx_isv16_osv16, data_types::f32, format::bfyx
+#define CASE_CONV_FP32_4 { 1, 32, 4, 5 }, { 1, 32, 4, 5 }, { 1, 1, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 32, data_types::f32, format::b_fs_yx_fsv16, data_types::f32,  format::gs_oiyx_gsv16, data_types::f32, format::bfyx
+#define CASE_CONV_FP32_5 { 1, 15, 4, 5 }, { 1, 30, 2, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f32, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_CONV_FP32_6 { 1, 16, 4, 5, 4 }, { 1, 16, 2, 3, 2 }, { 1, 1, 3, 3, 3 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 1, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
+#define CASE_CONV_FP32_7 { 1, 16, 4, 5, 4 }, { 1, 32, 2, 3, 2 }, { 1, 1, 3, 3, 3 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 1, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
+#define CASE_CONV_FP32_8 { 1, 32, 4, 5, 4 }, { 1, 16, 2, 3, 2 }, { 1, 1, 3, 3, 3 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 2, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::g_os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
+#define CASE_CONV_FP32_9 { 1, 32, 4, 5, 4 }, { 1, 32, 2, 3, 2 }, { 1, 1, 3, 3, 3 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 2, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::g_os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
+#define CASE_CONV_FP32_10 { 32, 16, 4, 5, 4 }, { 32, 32, 4, 5, 4 }, { 1, 1, 1, 1, 1 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 1, data_types::f32, format::bs_fs_zyx_bsv16_fsv16, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_CONV_FP32_11 { 1, 32, 4, 5, 4 }, { 1, 16, 2, 3, 2 }, { 1, 1, 3, 3, 3 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 2, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::g_os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
+#define CASE_CONV_FP32_12 { 1, 16, 4, 5, 4 }, { 1, 16, 2, 3, 2 }, { 1, 1, 3, 3, 3 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 2, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::g_os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
+#define CASE_CONV_FP32_13 { 1, 16, 18, 5, 4 }, { 1, 16, 16, 3, 2 }, { 1, 1, 3, 3, 3 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 2, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::g_os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
+#define CASE_CONV_FP32_14 { 1, 3, 4, 5 }, { 1, 30, 2, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f32, format::bfyx, data_types::f32, format::bfyx, data_types::f32, format::bfyx
 
 
-#define CASE_CONV_FP16_1 { 1, 15, 4, 5 }, { 1, 30, 2, 3 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::bfyx, data_types::f16, format::bfyx
-#define CASE_CONV_FP16_2 { 1, 16, 4, 5 }, { 1, 32, 2, 3 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::os_is_yx_isv16_osv16, data_types::f16, format::bfyx
-#define CASE_CONV_FP16_3 { 1, 16, 4, 5 }, { 1, 32, 4, 5 }, { 1, 1, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::os_is_yx_isv16_osv16, data_types::f16, format::bfyx
-#define CASE_CONV_FP16_4 { 1, 32, 4, 5 }, { 1, 32, 4, 5 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ { 0, 0, 1, 1, 0, 0 }, 0 }, tensor{ 1 }, 32, data_types::f16, format::b_fs_yx_fsv16, data_types::f16,  format::gs_oiyx_gsv16, data_types::f16, format::bfyx
-#define CASE_CONV_FP16_5 { 1, 15, 4, 5 }, { 1, 30, 2, 3 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f16, format::bfyx, data_types::i8, format::bfyx, data_types::f16, format::bfyx
-#define CASE_CONV_FP16_6 { 1, 16, 4, 5, 4 }, { 1, 16, 2, 3, 2 }, { 1, 1, 3, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f16, format::b_fs_zyx_fsv16, data_types::f16, format::os_is_zyx_isv16_osv16, data_types::f16, format::bfzyx
-#define CASE_CONV_FP16_7 { 1, 16, 4, 5, 4 }, { 1, 32, 2, 3, 2 }, { 1, 1, 3, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f16, format::b_fs_zyx_fsv16, data_types::f16, format::os_is_zyx_isv16_osv16, data_types::f16, format::bfzyx
-#define CASE_CONV_FP16_8 { 1, 32, 4, 5, 4 }, { 1, 16, 2, 3, 2 }, { 1, 1, 3, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 2, data_types::f16, format::b_fs_zyx_fsv16, data_types::f16, format::g_os_is_zyx_isv16_osv16, data_types::f16, format::bfzyx
-#define CASE_CONV_FP16_9 { 1, 32, 4, 5, 4 }, { 1, 32, 2, 3, 2 }, { 1, 1, 3, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 2, data_types::f16, format::b_fs_zyx_fsv16, data_types::f16, format::g_os_is_zyx_isv16_osv16, data_types::f16, format::bfzyx
-#define CASE_CONV_FP16_10 { 32, 16, 4, 5, 4 }, { 32, 32, 2, 3, 2 }, { 1, 1, 3, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f16, format::bs_fs_zyx_bsv16_fsv16, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
-#define CASE_CONV_FP16_11 { 1, 32, 4, 5, 4 }, { 1, 16, 2, 3, 2 }, { 1, 1, 3, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 2, data_types::f16, format::b_fs_zyx_fsv16, data_types::f16, format::g_os_is_zyx_isv16_osv16, data_types::f16, format::bfzyx
-#define CASE_CONV_FP16_12 { 1, 16, 4, 5, 4 }, { 1, 16, 2, 3, 2 }, { 1, 1, 3, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 2, data_types::f16, format::b_fs_zyx_fsv16, data_types::f16, format::g_os_is_zyx_isv16_osv16, data_types::f16, format::bfzyx
-#define CASE_CONV_FP16_13 { 16, 32, 4, 5 }, { 16, 64, 2, 3 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f16, format::fs_b_yx_fsv32, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_CONV_FP16_1 { 1, 15, 4, 5 }, { 1, 30, 2, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_CONV_FP16_2 { 1, 16, 4, 5 }, { 1, 32, 2, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::os_is_yx_isv16_osv16, data_types::f16, format::bfyx
+#define CASE_CONV_FP16_3 { 1, 16, 4, 5 }, { 1, 32, 4, 5 }, { 1, 1, 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::os_is_yx_isv16_osv16, data_types::f16, format::bfyx
+#define CASE_CONV_FP16_4 { 1, 32, 4, 5 }, { 1, 32, 4, 5 }, { 1, 1, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 32, data_types::f16, format::b_fs_yx_fsv16, data_types::f16,  format::gs_oiyx_gsv16, data_types::f16, format::bfyx
+#define CASE_CONV_FP16_5 { 1, 15, 4, 5 }, { 1, 30, 2, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::i8, format::bfyx, data_types::f16, format::bfyx
+#define CASE_CONV_FP16_6 { 1, 16, 4, 5, 4 }, { 1, 16, 2, 3, 2 }, { 1, 1, 3, 3, 3 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 1, data_types::f16, format::b_fs_zyx_fsv16, data_types::f16, format::os_is_zyx_isv16_osv16, data_types::f16, format::bfzyx
+#define CASE_CONV_FP16_7 { 1, 16, 4, 5, 4 }, { 1, 32, 2, 3, 2 }, { 1, 1, 3, 3, 3 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 1, data_types::f16, format::b_fs_zyx_fsv16, data_types::f16, format::os_is_zyx_isv16_osv16, data_types::f16, format::bfzyx
+#define CASE_CONV_FP16_8 { 1, 32, 4, 5, 4 }, { 1, 16, 2, 3, 2 }, { 1, 1, 3, 3, 3 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 2, data_types::f16, format::b_fs_zyx_fsv16, data_types::f16, format::g_os_is_zyx_isv16_osv16, data_types::f16, format::bfzyx
+#define CASE_CONV_FP16_9 { 1, 32, 4, 5, 4 }, { 1, 32, 2, 3, 2 }, { 1, 1, 3, 3, 3 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 2, data_types::f16, format::b_fs_zyx_fsv16, data_types::f16, format::g_os_is_zyx_isv16_osv16, data_types::f16, format::bfzyx
+#define CASE_CONV_FP16_10 { 32, 16, 4, 5, 4 }, { 32, 32, 2, 3, 2 }, { 1, 1, 3, 3, 3 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 1, data_types::f16, format::bs_fs_zyx_bsv16_fsv16, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
+#define CASE_CONV_FP16_11 { 1, 32, 4, 5, 4 }, { 1, 16, 2, 3, 2 }, { 1, 1, 3, 3, 3 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 2, data_types::f16, format::b_fs_zyx_fsv16, data_types::f16, format::g_os_is_zyx_isv16_osv16, data_types::f16, format::bfzyx
+#define CASE_CONV_FP16_12 { 1, 16, 4, 5, 4 }, { 1, 16, 2, 3, 2 }, { 1, 1, 3, 3, 3 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 2, data_types::f16, format::b_fs_zyx_fsv16, data_types::f16, format::g_os_is_zyx_isv16_osv16, data_types::f16, format::bfzyx
+#define CASE_CONV_FP16_13 { 16, 32, 4, 5 }, { 16, 64, 2, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f16, format::fs_b_yx_fsv32, data_types::f16, format::bfyx, data_types::f16, format::bfyx
 
-#define CASE_CONV_U8S8_1 { 1, 15, 4, 5 }, { 1, 30, 2, 3 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_CONV_U8S8_2 { 1, 15, 5, 5 }, { 1, 30, 3, 3 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_CONV_U8S8_3 { 1, 16, 4, 5 }, { 1, 32, 4, 5 }, { 1, 1, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_CONV_U8S8_4 { 1, 17, 4, 5 }, { 1, 17, 4, 5 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ { 0, 0, 1, 1, 0, 0 }, 0 }, tensor{ 1 }, 17, data_types::u8, format::bfyx, data_types::i8, format::goiyx, data_types::f32, format::bfyx
-#define CASE_CONV_U8S8_5 { 1, 16, 5, 5 }, { 1, 32, 5, 5 }, { 1, 1, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_CONV_U8S8_6 { 1, 17, 4, 5 }, { 1, 17, 4, 5 }, { 1, 1, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 17, data_types::u8, format::bfyx, data_types::i8, format::goiyx, data_types::f32, format::bfyx
-#define CASE_CONV_U8S8_7 { 1, 64, 7, 7 }, { 1, 32, 7, 7 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ { 0, 0, 1, 1, 0, 0 }, 0 }, tensor{ 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_CONV_U8S8_8 { 1, 3, 4, 5 }, { 1, 32, 4, 5 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ { 0, 0, 1, 1, 0, 0 }, 0 }, tensor{ 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_CONV_U8S8_9 { 16, 32, 5, 5 }, { 16, 32, 3, 3 }, { 1, 1, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::u8, format::bs_fs_yx_bsv16_fsv16, data_types::i8, format::os_is_yx_osv16_isv16, data_types::f32, format::bfyx
-#define CASE_CONV_U8S8_10 { 16, 32, 5, 5 }, { 16, 32, 3, 3 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::u8, format::bs_fs_yx_bsv16_fsv16, data_types::i8, format::os_is_yx_osv16_isv16, data_types::f32, format::bfyx
-#define CASE_CONV_U8S8_11 { 32, 15, 4, 5 }, { 32, 30, 2, 3 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_CONV_U8S8_12 { 32, 15, 5, 5 }, { 32, 30, 3, 3 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_CONV_U8S8_13 { 32, 16, 4, 5 }, { 32, 32, 4, 5 }, { 1, 1, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_CONV_U8S8_14 { 32, 17, 4, 5 }, { 32, 17, 4, 5 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ { 0, 0, 1, 1, 0, 0 }, 0 }, tensor{ 1 }, 17, data_types::u8, format::bfyx, data_types::i8, format::goiyx, data_types::f32, format::bfyx
-#define CASE_CONV_U8S8_15 { 1, 15, 2, 2 }, { 1, 30, 1, 1 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_CONV_U8S8_1 { 1, 15, 4, 5 }, { 1, 30, 2, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_CONV_U8S8_2 { 1, 15, 5, 5 }, { 1, 30, 3, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_CONV_U8S8_3 { 1, 16, 4, 5 }, { 1, 32, 4, 5 }, { 1, 1, 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_CONV_U8S8_4 { 1, 17, 4, 5 }, { 1, 17, 4, 5 }, { 1, 1, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 17, data_types::u8, format::bfyx, data_types::i8, format::goiyx, data_types::f32, format::bfyx
+#define CASE_CONV_U8S8_5 { 1, 16, 5, 5 }, { 1, 32, 5, 5 }, { 1, 1, 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_CONV_U8S8_6 { 1, 17, 4, 5 }, { 1, 17, 4, 5 }, { 1, 1, 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 17, data_types::u8, format::bfyx, data_types::i8, format::goiyx, data_types::f32, format::bfyx
+#define CASE_CONV_U8S8_7 { 1, 64, 7, 7 }, { 1, 32, 7, 7 }, { 1, 1, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_CONV_U8S8_8 { 1, 3, 4, 5 }, { 1, 32, 4, 5 }, { 1, 1, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_CONV_U8S8_9 { 16, 32, 5, 5 }, { 16, 32, 3, 3 }, { 1, 1, 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::u8, format::bs_fs_yx_bsv16_fsv16, data_types::i8, format::os_is_yx_osv16_isv16, data_types::f32, format::bfyx
+#define CASE_CONV_U8S8_10 { 16, 32, 5, 5 }, { 16, 32, 3, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::u8, format::bs_fs_yx_bsv16_fsv16, data_types::i8, format::os_is_yx_osv16_isv16, data_types::f32, format::bfyx
+#define CASE_CONV_U8S8_11 { 32, 15, 4, 5 }, { 32, 30, 2, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_CONV_U8S8_12 { 32, 15, 5, 5 }, { 32, 30, 3, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_CONV_U8S8_13 { 32, 16, 4, 5 }, { 32, 32, 4, 5 }, { 1, 1, 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_CONV_U8S8_14 { 32, 17, 4, 5 }, { 32, 17, 4, 5 }, { 1, 1, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 17, data_types::u8, format::bfyx, data_types::i8, format::goiyx, data_types::f32, format::bfyx
+#define CASE_CONV_U8S8_15 { 1, 15, 2, 2 }, { 1, 30, 1, 1 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
 
-#define CASE_CONV_S8S8_1 { 1, 15, 4, 5 }, { 1, 30, 2, 3 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::i8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_CONV_S8S8_2 { 1, 15, 5, 5 }, { 1, 30, 3, 3 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::i8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_CONV_S8S8_3 { 1, 16, 4, 5 }, { 1, 32, 4, 5 }, { 1, 1, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::i8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_CONV_S8S8_4 { 1, 17, 4, 5 }, { 1, 17, 4, 5 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ { 0, 0, 1, 1, 0, 0 }, 0 }, tensor{ 1 }, 17, data_types::i8, format::bfyx, data_types::i8, format::goiyx, data_types::f32, format::bfyx
-#define CASE_CONV_S8S8_5 { 1, 16, 5, 5 }, { 1, 32, 5, 5 }, { 1, 1, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::i8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_CONV_S8S8_6 { 1, 17, 4, 5 }, { 1, 17, 4, 5 }, { 1, 1, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 17, data_types::i8, format::bfyx, data_types::i8, format::goiyx, data_types::f32, format::bfyx
-#define CASE_CONV_S8S8_7  { 1, 64, 7, 7 }, { 1, 32, 7, 7 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ { 0, 0, 1, 1, 0, 0 }, 0 }, tensor{ 1 }, 1, data_types::i8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_CONV_S8S8_8 { 1, 3, 4, 5 }, { 1, 32, 4, 5 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ { 0, 0, 1, 1, 0, 0 }, 0 }, tensor{ 1 }, 1, data_types::i8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_CONV_S8S8_9 { 16, 32, 5, 5 }, { 16, 32, 3, 3 }, { 1, 1, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::i8, format::bs_fs_yx_bsv16_fsv16, data_types::i8, format::os_is_yx_osv16_isv16, data_types::f32, format::bfyx
-#define CASE_CONV_S8S8_10 { 16, 32, 5, 5 }, { 16, 32, 3, 3 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::i8, format::bs_fs_yx_bsv16_fsv16, data_types::i8, format::os_is_yx_osv16_isv16, data_types::f32, format::bfyx
-#define CASE_CONV_S8S8_11 { 1, 4, 1280, 720 }, { 1, 4, 1280, 720 }, { 1, 1, 5, 5 }, tensor{ 1 }, tensor{ { 0, 0, 2, 2 }, 0 }, tensor{ 1 }, 1, data_types::i8, format::b_fs_yx_fsv4, data_types::i8, format::os_is_yx_osv16_isv4, data_types::f32, format::bfyx
-#define CASE_CONV_S8S8_12 { 32, 15, 4, 5 }, { 32, 30, 2, 3 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::i8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_CONV_S8S8_13 { 32, 15, 5, 5 }, { 32, 30, 3, 3 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::i8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_CONV_S8S8_14 { 32, 16, 4, 5 }, { 32, 32, 4, 5 }, { 1, 1, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::i8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_CONV_S8S8_15 { 32, 17, 4, 5 }, { 32, 17, 4, 5 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ { 0, 0, 1, 1, 0, 0 }, 0 }, tensor{ 1 }, 17, data_types::i8, format::bfyx, data_types::i8, format::goiyx, data_types::f32, format::bfyx
+#define CASE_CONV_S8S8_1 { 1, 15, 4, 5 }, { 1, 30, 2, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::i8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_CONV_S8S8_2 { 1, 15, 5, 5 }, { 1, 30, 3, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::i8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_CONV_S8S8_3 { 1, 16, 4, 5 }, { 1, 32, 4, 5 }, { 1, 1, 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::i8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_CONV_S8S8_4 { 1, 17, 4, 5 }, { 1, 17, 4, 5 }, { 1, 1, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 17, data_types::i8, format::bfyx, data_types::i8, format::goiyx, data_types::f32, format::bfyx
+#define CASE_CONV_S8S8_5 { 1, 16, 5, 5 }, { 1, 32, 5, 5 }, { 1, 1, 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::i8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_CONV_S8S8_6 { 1, 17, 4, 5 }, { 1, 17, 4, 5 }, { 1, 1, 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 17, data_types::i8, format::bfyx, data_types::i8, format::goiyx, data_types::f32, format::bfyx
+#define CASE_CONV_S8S8_7  { 1, 64, 7, 7 }, { 1, 32, 7, 7 }, { 1, 1, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 1, data_types::i8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_CONV_S8S8_8 { 1, 3, 4, 5 }, { 1, 32, 4, 5 }, { 1, 1, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 1, data_types::i8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_CONV_S8S8_9 { 16, 32, 5, 5 }, { 16, 32, 3, 3 }, { 1, 1, 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::i8, format::bs_fs_yx_bsv16_fsv16, data_types::i8, format::os_is_yx_osv16_isv16, data_types::f32, format::bfyx
+#define CASE_CONV_S8S8_10 { 16, 32, 5, 5 }, { 16, 32, 3, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::i8, format::bs_fs_yx_bsv16_fsv16, data_types::i8, format::os_is_yx_osv16_isv16, data_types::f32, format::bfyx
+#define CASE_CONV_S8S8_11 { 1, 4, 1280, 720 }, { 1, 4, 1280, 720 }, { 1, 1, 5, 5 }, { 1, 1 }, { 2, 2 }, { 1, 1 }, 1, data_types::i8, format::b_fs_yx_fsv4, data_types::i8, format::os_is_yx_osv16_isv4, data_types::f32, format::bfyx
+#define CASE_CONV_S8S8_12 { 32, 15, 4, 5 }, { 32, 30, 2, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::i8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_CONV_S8S8_13 { 32, 15, 5, 5 }, { 32, 30, 3, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::i8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_CONV_S8S8_14 { 32, 16, 4, 5 }, { 32, 32, 4, 5 }, { 1, 1, 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::i8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_CONV_S8S8_15 { 32, 17, 4, 5 }, { 32, 17, 4, 5 }, { 1, 1, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 17, data_types::i8, format::bfyx, data_types::i8, format::goiyx, data_types::f32, format::bfyx
 
-#define CASE_CONV3D_U8S8_1 { 1, 15, 5, 4, 5 }, { 1, 30, 3, 2, 3 }, { 1, 1, 3, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::u8, format::bfzyx, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
-#define CASE_CONV3D_U8S8_2 { 1, 15, 5, 5, 5 }, { 1, 30, 3, 3, 3 }, { 1, 1, 3, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::u8, format::bfzyx, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
-#define CASE_CONV3D_U8S8_3 { 1, 16, 5, 4, 5 }, { 1, 32, 5, 4, 5 }, { 1, 1, 1, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::u8, format::bfzyx, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
-#define CASE_CONV3D_U8S8_4 { 1, 17, 5, 4, 5 }, { 1, 17, 5, 4, 5 }, { 1, 1, 3, 3, 3 }, tensor{ 1 }, tensor{ { 0, 0, 1, 1, 1 }, 0 }, tensor{ 1 }, 17, data_types::u8, format::bfzyx, data_types::i8, format::goizyx, data_types::f32, format::bfzyx
-#define CASE_CONV3D_U8S8_5 { 1, 3, 5, 4, 5 },  { 1, 32, 5, 4, 5 }, { 1, 1, 3, 3, 3 }, tensor{ 1 }, tensor{ { 0, 0, 1, 1, 1 }, 0 }, tensor{ 1 }, 1, data_types::u8, format::bfzyx, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_CONV3D_U8S8_1 { 1, 15, 5, 4, 5 }, { 1, 30, 3, 2, 3 }, { 1, 1, 3, 3, 3 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 1, data_types::u8, format::bfzyx, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_CONV3D_U8S8_2 { 1, 15, 5, 5, 5 }, { 1, 30, 3, 3, 3 }, { 1, 1, 3, 3, 3 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 1, data_types::u8, format::bfzyx, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_CONV3D_U8S8_3 { 1, 16, 5, 4, 5 }, { 1, 32, 5, 4, 5 }, { 1, 1, 1, 1, 1 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 1, data_types::u8, format::bfzyx, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_CONV3D_U8S8_4 { 1, 17, 5, 4, 5 }, { 1, 17, 5, 4, 5 }, { 1, 1, 3, 3, 3 }, { 1, 1, 1 }, { 1, 1, 1 }, { 1, 1, 1 }, 17, data_types::u8, format::bfzyx, data_types::i8, format::goizyx, data_types::f32, format::bfzyx
+#define CASE_CONV3D_U8S8_5 { 1, 3, 5, 4, 5 },  { 1, 32, 5, 4, 5 }, { 1, 1, 3, 3, 3 }, { 1, 1, 1 }, { 1, 1, 1 }, { 1, 1, 1 }, 1, data_types::u8, format::bfzyx, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
 
-#define CASE_CONV3D_S8S8_1 { 1, 15, 5, 4, 5 }, { 1, 30, 3, 2, 3 }, { 1, 1, 3, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::i8, format::bfzyx, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
-#define CASE_CONV3D_S8S8_2 { 1, 15, 5, 5, 5 }, { 1, 30, 3, 3, 3 }, { 1, 1, 3, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::i8, format::bfzyx, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
-#define CASE_CONV3D_S8S8_3 { 1, 16, 5, 4, 5 }, { 1, 32, 5, 4, 5 }, { 1, 1, 1, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::i8, format::bfzyx, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
-#define CASE_CONV3D_S8S8_4 { 1, 17, 5, 4, 5 }, { 1, 17, 5, 4, 5 }, { 1, 1, 3, 3, 3 }, tensor{ 1 }, tensor{ { 0, 0, 1, 1, 1 }, 0 }, tensor{ 1 }, 17, data_types::i8, format::bfzyx, data_types::i8, format::goizyx, data_types::f32, format::bfzyx
-#define CASE_CONV3D_S8S8_5 { 1, 3, 5, 4, 5 },  { 1, 18, 5, 4, 5 }, { 1, 1, 3, 3, 3 }, tensor{ 1 }, tensor{ { 0, 0, 1, 1, 1 }, 0 }, tensor{ 1 }, 1, data_types::i8, format::bfzyx, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_CONV3D_S8S8_1 { 1, 15, 5, 4, 5 }, { 1, 30, 3, 2, 3 }, { 1, 1, 3, 3, 3 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 1, data_types::i8, format::bfzyx, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_CONV3D_S8S8_2 { 1, 15, 5, 5, 5 }, { 1, 30, 3, 3, 3 }, { 1, 1, 3, 3, 3 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 1, data_types::i8, format::bfzyx, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_CONV3D_S8S8_3 { 1, 16, 5, 4, 5 }, { 1, 32, 5, 4, 5 }, { 1, 1, 1, 1, 1 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 1, data_types::i8, format::bfzyx, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_CONV3D_S8S8_4 { 1, 17, 5, 4, 5 }, { 1, 17, 5, 4, 5 }, { 1, 1, 3, 3, 3 }, { 1, 1, 1 }, { 1, 1, 1 }, { 1, 1, 1 }, 17, data_types::i8, format::bfzyx, data_types::i8, format::goizyx, data_types::f32, format::bfzyx
+#define CASE_CONV3D_S8S8_5 { 1, 3, 5, 4, 5 },  { 1, 18, 5, 4, 5 }, { 1, 1, 3, 3, 3 }, { 1, 1, 1 }, { 1, 1, 1 }, { 1, 1, 1 }, 1, data_types::i8, format::bfzyx, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
 
 // in_shape; out_shape; eltw_shape; kernel; stride; pad; dilation; groups; data_type; input_format; weights_type; weights_format; default_type; default_format;
-#define CASE_CONV_ELTW_FP32_1 { 1, 16, 4, 5 }, { 1, 32, 2, 3 }, { 1, 32, 1, 1 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::oiyx, data_types::f32, format::bfyx
-#define CASE_CONV_ELTW_FP32_2 { 1, 16, 4, 5 }, { 1, 32, 2, 3 }, { 1, 1, 1, 1 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::os_is_yx_isv16_osv16, data_types::f32, format::bfyx
-#define CASE_CONV_ELTW_FP32_3 { 1, 16, 4, 5 }, { 1, 32, 4, 5 }, { 1, 32, 4, 5 }, { 1, 1, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::os_is_yx_isv16_osv16, data_types::f32, format::bfyx
-#define CASE_CONV_ELTW_FP32_4 { 1, 32, 4, 5 }, { 1, 32, 4, 5 }, { 1, 32, 1, 1 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 32, data_types::f32, format::b_fs_yx_fsv16, data_types::f32,  format::gs_oiyx_gsv16, data_types::f32, format::bfyx
-#define CASE_CONV_ELTW_FP32_5 { 1, 32, 4, 5, 4 }, { 1, 32, 2, 3, 2 }, { 1, 32, 2, 1, 1 }, { 1, 1, 3, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 2, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::g_os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
-#define CASE_CONV_ELTW_FP32_6 { 1, 32, 4, 5, 4 }, { 1, 16, 2, 3, 2 }, { 1, 16, 2, 1, 1 }, { 1, 1, 3, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 2, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::g_os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
-#define CASE_CONV_ELTW_FP32_7 { 1, 16, 3, 5 }, { 1, 32, 1, 3 }, { 1, 32, 3, 1 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::os_is_yx_isv16_osv16, data_types::f32, format::bfyx
-#define CASE_CONV_ELTW_FP32_8 { 1, 32, 3, 5, 4 }, { 1, 16, 1, 3, 2 }, { 1, 1, 2, 1, 1 }, { 1, 1, 3, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 2, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::g_os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
+#define CASE_CONV_ELTW_FP32_1 { 1, 16, 4, 5 }, { 1, 32, 2, 3 }, { 1, 32, 1, 1 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::oiyx, data_types::f32, format::bfyx
+#define CASE_CONV_ELTW_FP32_2 { 1, 16, 4, 5 }, { 1, 32, 2, 3 }, { 1, 1, 1, 1 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::os_is_yx_isv16_osv16, data_types::f32, format::bfyx
+#define CASE_CONV_ELTW_FP32_3 { 1, 16, 4, 5 }, { 1, 32, 4, 5 }, { 1, 32, 4, 5 }, { 1, 1, 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::os_is_yx_isv16_osv16, data_types::f32, format::bfyx
+#define CASE_CONV_ELTW_FP32_4 { 1, 32, 4, 5 }, { 1, 32, 4, 5 }, { 1, 32, 1, 1 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 32, data_types::f32, format::b_fs_yx_fsv16, data_types::f32,  format::gs_oiyx_gsv16, data_types::f32, format::bfyx
+#define CASE_CONV_ELTW_FP32_5 { 1, 32, 4, 5, 4 }, { 1, 32, 2, 3, 2 }, { 1, 32, 2, 1, 1 }, { 1, 1, 3, 3, 3 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 2, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::g_os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
+#define CASE_CONV_ELTW_FP32_6 { 1, 32, 4, 5, 4 }, { 1, 16, 2, 3, 2 }, { 1, 16, 2, 1, 1 }, { 1, 1, 3, 3, 3 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 2, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::g_os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
+#define CASE_CONV_ELTW_FP32_7 { 1, 16, 3, 5 }, { 1, 32, 1, 3 }, { 1, 32, 3, 1 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::os_is_yx_isv16_osv16, data_types::f32, format::bfyx
+#define CASE_CONV_ELTW_FP32_8 { 1, 32, 3, 5, 4 }, { 1, 16, 1, 3, 2 }, { 1, 1, 2, 1, 1 }, { 1, 1, 3, 3, 3 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 2, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::g_os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
 
-#define CASE_CONV_ELTW_i8_1 { 1, 16, 3, 5 }, { 1, 32, 1, 3 }, { 1, 32, 3, 1 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::i8, format::b_fs_yx_fsv16, data_types::i8, format::os_is_yx_osv16_isv16, data_types::f32, format::bfyx
-#define CASE_CONV_ELTW_i8_2 { 1, 16, 3, 5, 3 }, { 1, 32, 2, 4, 2 }, { 1, 1, 2, 4, 2 }, { 1, 1, 2, 2, 2 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::i8, format::bfzyx, data_types::i8, format::oiyx, data_types::f32, format::bfzyx
-#define CASE_CONV_ELTW_i8_3 { 1, 1, 1, 1, 1 }, { 1, 1, 1, 1, 1 }, { 1, 1, 1, 1, 1 }, { 1, 1, 1, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::i8, format::bfzyx, data_types::i8, format::oiyx, data_types::f32, format::bfzyx
-#define CASE_CONV_ELTW_i8_4 { 1, 16, 1, 4 }, { 1, 16, 1, 2 }, { 1, 16, 1, 1 }, { 1, 1, 1, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::i8, format::b_fs_yx_fsv16, data_types::i8, format::os_is_yx_osv16_isv16, data_types::f32, format::bfyx
-#define CASE_CONV_ELTW_i8_5 { 1, 16, 1, 4, 1 }, { 1, 16, 1, 2, 1 }, { 1, 16, 2, 1, 1 }, { 1, 1, 1, 3, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::i8, format::bfzyx, data_types::i8, format::oiyx, data_types::f32, format::bfzyx
-
-#define CASE_BIN_CONV1 { 1, 16, 4, 5 }, { 1, 16, 4, 5 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ { 0, 0, 1, 1, 0, 0 }, 0 }, tensor{ 1 }, 1, data_types::bin, format::b_fs_yx_32fp, data_types::bin, format::os_is_yx_osv32_isv32p, data_types::f32, format::bfyx
-#define CASE_BIN_CONV2 { 1, 16, 4, 5 }, { 1, 30, 4, 5 }, { 1, 1, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::bin, format::b_fs_yx_32fp, data_types::bin, format::os_is_yx_osv32_isv32p, data_types::f32, format::bfyx
-#define CASE_BIN_CONV3 { 1, 184, 12, 21 }, { 1, 224, 12, 21 }, { 1, 1, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::bin, format::b_fs_yx_32fp, data_types::bin, format::os_is_yx_osv32_isv32p, data_types::f32, format::bfyx
-
-#define CASE_FC_FP32_1 { 1, 1, 3, 1 }, { 1, 4, 1, 1 }, { 4, 1, 3, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f32, format::bfyx, data_types::f32, format::oiyx, data_types::f32, format::bfyx
-#define CASE_FC_FP32_2 { 2, 1, 3, 1 }, { 2, 4, 1, 1 }, { 4, 1, 3, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f32, format::yxfb, data_types::f32, format::oiyx, data_types::f32, format::bfyx
-#define CASE_FC_FP32_3 { 2, 32, 1, 1 }, { 2, 16, 1, 1 }, { 16, 32, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f32, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
-#define CASE_FC_FP32_3D_1 { 5, 3, 1, 3 }, { 5, 3, 1, 5 }, { 5, 3, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
-#define CASE_FC_FP32_3D_2 { 2, 1, 1, 1 }, { 2, 1, 1, 32 }, { 32, 1, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
-#define CASE_FC_FP32_3D_3 { 2, 32, 1, 32 }, { 2, 32, 1, 16 }, { 16, 32, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
-
-#define CASE_FC_U8S8_1 { 1, 1, 3, 1 }, { 1, 4, 1, 1 }, { 4, 1, 3, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
-#define CASE_FC_U8S8_2 { 2, 1, 3, 1 }, { 2, 4, 1, 1 }, { 4, 1, 3, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::u8, format::b_fs_yx_fsv4, data_types::i8, format::oiyx, data_types::f32, format::bfyx
-#define CASE_FC_U8S8_3 { 2, 32, 1, 1 }, { 2, 16, 1, 1 }, { 16, 32, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::u8, format::b_fs_yx_fsv4, data_types::i8, format::oiyx, data_types::f32, format::bfyx
-#define CASE_FC_U8S8_3D_1 { 2, 32, 1, 3 }, { 2, 32, 1, 16 }, { 16, 3, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
-#define CASE_FC_U8S8_3D_2 { 1, 1, 1, 3 }, { 1, 1, 1, 32 }, { 32, 3, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
-#define CASE_FC_U8S8_3D_3 { 2, 3, 1, 1 }, { 2, 3, 1, 15 }, { 15, 1, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
-#define CASE_FC_U8S8_3D_4 { 1, 512, 1, 1024 }, { 1, 384, 1, 1024 }, { 1024, 1024, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
-
-#define CASE_NORMALIZE_I8_1 { 1, 2, 3, 3 }, data_types::u8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_CONV_ELTW_i8_1 { 1, 16, 3, 5 }, { 1, 32, 1, 3 }, { 1, 32, 3, 1 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::i8, format::b_fs_yx_fsv16, data_types::i8, format::os_is_yx_osv16_isv16, data_types::f32, format::bfyx
+#define CASE_CONV_ELTW_i8_2 { 1, 16, 3, 5, 3 }, { 1, 32, 2, 4, 2 }, { 1, 1, 2, 4, 2 }, { 1, 1, 2, 2, 2 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 1, data_types::i8, format::bfzyx, data_types::i8, format::oiyx, data_types::f32, format::bfzyx
+#define CASE_CONV_ELTW_i8_3 { 1, 1, 1, 1, 1 }, { 1, 1, 1, 1, 1 }, { 1, 1, 1, 1, 1 }, { 1, 1, 1, 1, 1 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 1, data_types::i8, format::bfzyx, data_types::i8, format::oiyx, data_types::f32, format::bfzyx
+#define CASE_CONV_ELTW_i8_4 { 1, 16, 1, 4 }, { 1, 16, 1, 2 }, { 1, 16, 1, 1 }, { 1, 1, 1, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::i8, format::b_fs_yx_fsv16, data_types::i8, format::os_is_yx_osv16_isv16, data_types::f32, format::bfyx
+#define CASE_CONV_ELTW_i8_5 { 1, 16, 1, 4, 1 }, { 1, 16, 1, 2, 1 }, { 1, 16, 2, 1, 1 }, { 1, 1, 1, 3, 1 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 1, data_types::i8, format::bfzyx, data_types::i8, format::oiyx, data_types::f32, format::bfzyx
 
 /* ----------------------------------------------------------------------------------------------------- */
 /* ---------------------------------------- FP32 convolution cases ------------------------------------- */
@@ -417,7 +396,7 @@ TEST_P(conv_fp32_reorder_fsv16_to_bfyx_conv, basic) {
 
     auto dw_tensor = cldnn::tensor(group(p.out_shape.feature[0]), batch(1), feature(1), spatial(3, 3));
     auto dw_weights_layout = layout{ p.default_type, format::goiyx, dw_tensor };
-    auto dw_stride = tensor{ 0, 0, 1, 1 };
+    ov::Strides dw_stride = { 1, 1 };
 
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -2570,7 +2549,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp16_scale, ::testing::ValuesIn(std::
 /* ----------------------------------------------------------------------------------------------------- */
 /* ---------------------- reorder(bfyx to fs_b_yx_fsv32) + convolution kernel cases -------------------- */
 /* ----------------------------------------------------------------------------------------------------- */
-#define FSV32_CASE_CONV_FP32_1 { 1, 32, 4, 5 }, { 1, 32, 2, 3 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f32, format::bfyx, data_types::f32, format::oiyx, data_types::f32, format::bfyx
+#define FSV32_CASE_CONV_FP32_1 { 1, 32, 4, 5 }, { 1, 32, 2, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f32, format::bfyx, data_types::f32, format::oiyx, data_types::f32, format::bfyx
 
 // 'reorder_fsv32' is being removed from "remove_redundant_reorders" in the current impl
 class conv_fp32_reorder_bfyx_to_fsv32_conv_basic : public ConvReorderFusingTest {};
@@ -2581,7 +2560,7 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_basic, basic) {
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p), -127, 127)),
         reorder("reorder_fsv32", "input", format::fs_b_yx_fsv32, data_types::f32),
-        convolution("conv_prim", "reorder_fsv32", { "weights" }, 1, tensor{ 0, 0, 1, 1 }, p.pad, p.dilation),
+        convolution("conv_prim", "reorder_fsv32", { "weights" }, 1, { 1, 1 }, p.pad, p.dilation),
         activation("activation", "conv_prim", activation_func::abs),
         reorder("reorder_out", "activation", format::bfyx, data_types::f32)
     );
@@ -2607,7 +2586,7 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_mean, have_mean) {
         data("mul", mul),
         data("weights", get_mem(get_weights_layout(p), -127, 127)),
         reorder("reorder_fsv32", "input", format::fs_b_yx_fsv32, data_types::f32, "mul", reorder_mean_mode::mul),
-        convolution("conv_prim", "reorder_fsv32", { "weights" }, 1, tensor{ 0, 0, 1, 1 }, p.pad, p.dilation),
+        convolution("conv_prim", "reorder_fsv32", { "weights" }, 1, { 1, 1 }, p.pad, p.dilation),
         activation("activation", "conv_prim", activation_func::abs)
     );
 
@@ -2633,7 +2612,7 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_subtract, have_subtract_per_feature)
 
     auto dw_tensor = cldnn::tensor(group(p.out_shape.feature[0]), batch(1), feature(1), spatial(2, 2));
     auto dw_weights_layout = layout{ p.default_type, format::goiyx, dw_tensor };
-    auto dw_stride = tensor{ 0, 0, 1, 1 };
+    ov::Strides dw_stride = { 1, 1 };
 
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -2660,7 +2639,7 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_fused_activation, have_fused_activat
 
     auto dw_tensor = cldnn::tensor(group(p.out_shape.feature[0]), batch(1), feature(1), spatial(2, 2));
     auto dw_weights_layout = layout{ p.default_type, format::goiyx, dw_tensor };
-    auto dw_stride = tensor{ 0, 0, 1, 1 };
+    ov::Strides dw_stride = { 1, 1 };
 
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -2690,7 +2669,7 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_data_padding, have_data_padding) {
 
     auto dw_tensor = cldnn::tensor(group(p.out_shape.feature[0]), batch(1), feature(1), spatial(2, 2));
     auto dw_weights_layout = layout{ p.default_type, format::goiyx, dw_tensor };
-    auto dw_stride = tensor{ 0, 0, 1, 1 };
+    ov::Strides dw_stride = { 1, 1 };
 
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -3459,7 +3438,7 @@ TEST_P(post_ops_optimizations_onednn_binary_add_full_tensor, basic) {
 }
 
 // in_shape; out_shape; kernel; stride; pad; dilation; groups; data_type; input_format; weights_type; weights_format; default_type; default_format;
-#define CASE_CONV_U8S8_FT_BINARY_ADD_1 { 1, 32, 4, 4 }, { 1, 16, 4, 4 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ 0, 0, 1, 1, 0 }, tensor{ 1 }, 1, data_types::u8, format::b_fs_yx_fsv32, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_CONV_U8S8_FT_BINARY_ADD_1 { 1, 32, 4, 4 }, { 1, 16, 4, 4 }, tensor{ 1, 1, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 1, data_types::u8, format::b_fs_yx_fsv32, data_types::i8, format::bfyx, data_types::f32, format::bfyx
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, post_ops_optimizations_onednn_binary_add_full_tensor, ::testing::ValuesIn(std::vector<convolution_test_params>{
     // cases with batch = 1
@@ -3488,7 +3467,7 @@ TEST_P(post_ops_optimizations_onednn_sum_full_tensor, basic) {
     execute(p);
 }
 
-#define CASE_CONV_F16F16_FT_ELTW_SUM_1 { 1, 32, 4, 4 }, { 1, 16, 4, 4 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ 0, 0, 1, 1, 0 }, tensor{ 1 }, 1, data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::bfyx, data_types::f32, format::bfyx
+#define CASE_CONV_F16F16_FT_ELTW_SUM_1 { 1, 32, 4, 4 }, { 1, 16, 4, 4 }, tensor{ 1, 1, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 1, data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::bfyx, data_types::f32, format::bfyx
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, post_ops_optimizations_onednn_sum_full_tensor, ::testing::ValuesIn(std::vector<convolution_test_params>{
     // cases with batch = 1

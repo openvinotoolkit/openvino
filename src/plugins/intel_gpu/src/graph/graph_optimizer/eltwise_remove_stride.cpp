@@ -37,12 +37,12 @@ void eltwise_remove_stride::conv_stride_extend(program& p, program_node& node, c
         c->with_output_size = false;
         node.recalc_output_layout(true);
     } else {
-        bool can_shrink_x = (filter_size.spatial[0] - (conv->stride.spatial[0] + (tensor.spatial[0] - 1))) >= 0;
-        bool can_shrink_y = (filter_size.spatial[1] - (conv->stride.spatial[1] + (tensor.spatial[1] - 1))) >= 0;
+        bool can_shrink_x = (filter_size.spatial[0] - (conv->stride[1] + (tensor.spatial[0] - 1))) >= 0;
+        bool can_shrink_y = (filter_size.spatial[1] - (conv->stride[0] + (tensor.spatial[1] - 1))) >= 0;
         if (can_shrink_x && can_shrink_y) {
             auto c = const_cast<convolution*>(&(*conv));
-            c->stride.spatial[0] += tensor.spatial[0] - 1;
-            c->stride.spatial[1] += tensor.spatial[1] - 1;
+            c->stride[1] += tensor.spatial[0] - 1;
+            c->stride[0] += tensor.spatial[1] - 1;
             c->with_output_size = false;
             node.recalc_output_layout(true);
             tensor.spatial[0] = 1;
@@ -63,6 +63,9 @@ void eltwise_remove_stride::run(program& p) {
                     continue;
                 }
             }
+
+            if (node->get_output_layout().get_spatial_rank() != 2)
+                continue;
 
             const auto eltw = std::static_pointer_cast<const eltwise>(node->get_primitive());
             if (!eltw->stride.empty()) {

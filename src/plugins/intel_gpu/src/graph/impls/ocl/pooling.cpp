@@ -16,20 +16,16 @@ namespace ocl {
 
 namespace {
 void validate_args(const pooling_node& arg) {
-    auto const input_buffer_size = arg.input().get_output_layout().get_buffer_size();
-    auto const& input_dimensions =
-        input_buffer_size.batch.size() + input_buffer_size.feature.size() + input_buffer_size.spatial.size();
-    auto const output_buffer_size = arg.get_output_layout().get_buffer_size();
-    auto const& output_dimensions =
-        output_buffer_size.batch.size() + output_buffer_size.feature.size() + output_buffer_size.spatial.size();
-    auto& stride = arg.get_primitive()->stride;
-    auto const& stride_dimensions = stride.batch.size() + stride.feature.size() + stride.spatial.size();
-    auto& window = arg.get_primitive()->size;
-    auto const& window_dimensions = window.batch.size() + window.feature.size() + window.spatial.size();
+    auto input_rank = arg.input().get_output_layout().get_spatial_rank();
+    auto output_rank = arg.get_output_layout().get_spatial_rank();
+    auto stride_rank = arg.get_primitive()->stride.size();
+    auto window_rank = arg.get_primitive()->size.size();
 
-    CLDNN_ERROR_NOT_EQUAL(arg.id(), "input dimensions", input_dimensions, "output dimensions", output_dimensions, "");
-    CLDNN_ERROR_NOT_EQUAL(arg.id(), "stride dimensions", stride_dimensions, "output dimensions", output_dimensions, "");
-    CLDNN_ERROR_NOT_EQUAL(arg.id(), "window dimensions", window_dimensions, "output dimensions", output_dimensions, "");
+    if (!arg.get_primitive()->global_pooling) {
+        CLDNN_ERROR_NOT_EQUAL(arg.id(), "input dimensions", input_rank, "output dimensions", output_rank, "");
+        CLDNN_ERROR_NOT_EQUAL(arg.id(), "stride dimensions", stride_rank, "output dimensions", output_rank, "");
+        CLDNN_ERROR_NOT_EQUAL(arg.id(), "window dimensions", window_rank, "output dimensions", output_rank, "");
+    }
 }
 
 kernel_selector::pool_type cldnn_2_pool_type(pooling_mode mode) {
@@ -109,8 +105,11 @@ public:
 
         const auto& stride = primitive->stride;
         const auto& pad = primitive->pad;
-        const auto input_sizes = arg.input().get_output_layout().size;
-        const auto output_sizes = arg.get_output_layout().size;
+        const auto& dilation = primitive->dilation;
+        auto kernel = primitive->size;
+        const auto& input_layout = arg.input().get_output_layout();
+        const auto& output_layout = arg.get_output_layout();
+        auto spatial_rank = output_layout.get_spatial_rank();
 
         auto& pp = pool_params;
 
@@ -118,19 +117,19 @@ public:
         pp.remainderAction = kernel_selector::pool_remainder::CEIL;
 
         if (primitive->global_pooling) {
-            primitive->size.spatial[0] = input_sizes.spatial[0];
-            primitive->size.spatial[1] = input_sizes.spatial[1];
-            primitive->size.spatial[2] = input_sizes.spatial[2];
+            kernel = ov::Shape(spatial_rank, 1);
+            for (size_t i = 0; i < spatial_rank; i++) {
+                kernel[i] = input_layout.spatial(spatial_rank - i - 1);
+            }
         }
 
         // check if last pooling window goes outside of input size + padding. If so the avg pooling size will be
         // adjusted to that, to work properly this calculation must take pad_end into account.
-        auto dynamic_mode = (((output_sizes.spatial[0] - 1) * stride.spatial[0]) + primitive->size.spatial[0]) >
-                                 (primitive->pad_end.spatial[0] + pad.spatial[0]) + input_sizes.spatial[0] ||
-                            (((output_sizes.spatial[1] - 1) * stride.spatial[1]) + primitive->size.spatial[1]) >
-                                 (primitive->pad_end.spatial[1] + pad.spatial[1]) + input_sizes.spatial[1] ||
-                            (((output_sizes.spatial[2] - 1) * stride.spatial[2]) + primitive->size.spatial[2]) >
-                                 (primitive->pad_end.spatial[2] + pad.spatial[2]) + input_sizes.spatial[2];
+        auto dynamic_mode = false;
+        for (size_t i = 0; i < spatial_rank; i++) {
+            dynamic_mode |= (((output_layout.spatial(i) - 1) * stride[spatial_rank - i - 1]) + primitive->size[spatial_rank - i - 1]) >
+                                 (primitive->pad_end[spatial_rank - i - 1] + pad[spatial_rank - i - 1]) + input_layout.spatial(i);
+        }
 
         if (primitive->mode == pooling_mode::average && dynamic_mode)
             pp.divMode = kernel_selector::kernel_divider_mode::DYNAMIC_WITH_PADDING;
@@ -140,20 +139,25 @@ public:
         if (primitive->mode == pooling_mode::max_with_argmax)
             pool_params.inputs.push_back(convert_data_tensor(arg.argmax().get_output_layout()));
 
-        pp.poolSize = {
-            (uint32_t)primitive->size.spatial[0],
-            (uint32_t)primitive->size.spatial[1],
-            (uint32_t)primitive->size.spatial[2],
-        };
+        uint32_t kernel_z = kernel.size() >= 3 ? kernel[kernel.size() - 3] : 1;
+        uint32_t kernel_y = kernel.size() >= 2 ? kernel[kernel.size() - 2] : 1;
+        uint32_t kernel_x = kernel.size() >= 1 ? kernel[kernel.size() - 1] : 1;
+        pp.poolSize = {kernel_x, kernel_y, kernel_z};
 
-        pp.poolPad = {(uint32_t)std::max(pad.spatial[0], 0),
-                      (uint32_t)std::max(pad.spatial[1], 0),
-                      (uint32_t)std::max(pad.spatial[2], 0)};
+        uint32_t pad_z = std::max<std::ptrdiff_t>(pad.size() >= 3 ? pad[pad.size() - 3] : 0, 0);
+        uint32_t pad_y = std::max<std::ptrdiff_t>(pad.size() >= 2 ? pad[pad.size() - 2] : 0, 0);
+        uint32_t pad_x = std::max<std::ptrdiff_t>(pad.size() >= 1 ? pad[pad.size() - 1] : 0, 0);
+        pp.poolPad  = {pad_x, pad_y, pad_z};
 
-        pp.poolStride = {(uint32_t)stride.spatial[0], (uint32_t)stride.spatial[1], (uint32_t)stride.spatial[2]};
+        uint32_t stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
+        uint32_t stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
+        uint32_t stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
+        pp.poolStride = {stride_x, stride_y, stride_z};
 
-        const auto& dilation = primitive->dilation;
-        pp.poolDilation = {(uint32_t)dilation.spatial[0], (uint32_t)dilation.spatial[1], (uint32_t)dilation.spatial[2]};
+        uint32_t dilation_z = dilation.size() >= 3 ? dilation[dilation.size() - 3] : 1;
+        uint32_t dilation_y = dilation.size() >= 2 ? dilation[dilation.size() - 2] : 1;
+        uint32_t dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
+        pp.poolDilation = {dilation_x, dilation_y, dilation_z};
 
         auto& kernel_selector = kernel_selector::pooling_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(pool_params, pool_optional_params);

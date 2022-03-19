@@ -5,10 +5,12 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "deconvolution_inst.h"
 #include "primitive_type_base.h"
-#include "sliding_window_utils.h"
+#include "sliding_window_utils.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
+
+using namespace ov::runtime::intel_gpu;
 
 namespace cldnn {
 primitive_type_id deconvolution::type_id() {
@@ -80,7 +82,7 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node) {
     auto filter_size = weights_layout.size;
 
     int32_t off_factor = -2;
-    size_t spatial_dims = cldnn::format::traits(input_layout.format).spatial_num;
+    size_t spatial_dims = input_layout.get_spatial_rank();
     CLDNN_ERROR_GREATER_THAN(node.id(),
                              "number of spatial dimensions",
                              spatial_dims,
@@ -88,14 +90,14 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node) {
                              3,
                              "As for now, deconvolutions with more than 3 dimensions are not supported");
 
-    int32_t x = off_factor * pad.spatial[0] + (input_layout.size.spatial[0] - 1) * strd.spatial[0] + filter_size.spatial[0];
+    int32_t x = off_factor * pad[pad.size() - 1] + (input_layout.spatial(0) - 1) * strd[strd.size() - 1] + weights_layout.spatial(0);
     int32_t y = 1;
     if (spatial_dims > 1) {
-        y = off_factor * pad.spatial[1] + (input_layout.size.spatial[1] - 1) * strd.spatial[1] + filter_size.spatial[1];
+        y = off_factor * pad[pad.size() - 2] + (input_layout.spatial(1) - 1) * strd[strd.size() - 2] + weights_layout.spatial(1);
     }
     int32_t z = 1;
     if (spatial_dims > 2) {
-        z = off_factor * pad.spatial[2] + (input_layout.size.spatial[2] - 1) * strd.spatial[2] + filter_size.spatial[2];
+        z = off_factor * pad[pad.size() - 3] + (input_layout.spatial(2) - 1) * strd[strd.size() - 3] + weights_layout.spatial(2);
     }
 
     tensor output_size(input_layout.size.batch[0],
@@ -131,8 +133,8 @@ std::string deconvolution_inst::to_string(deconvolution_node const& node) {
     json_composite deconv_info;
     deconv_info.add("weights count", desc->weights.size());
     deconv_info.add("bias count", desc->bias.size());
-    deconv_info.add("stride", strd.to_string());
-    deconv_info.add("pad", desc->pad.to_string());
+    deconv_info.add("stride", cldnn::to_string(strd));
+    deconv_info.add("pad", cldnn::to_string(desc->pad));
     deconv_info.add("split", split);
     deconv_info.add("groups", desc->groups);
     if (desc->with_output_size) {
@@ -148,23 +150,31 @@ std::string deconvolution_inst::to_string(deconvolution_node const& node) {
 deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node const& node)
     : parent(network, node) {
     auto stride = argument.stride;
+    auto pad = argument.pad;
 
-    auto input_inst = node.input().get_output_layout();
-    auto output_inst = node.get_output_layout();
-    auto output_size = output_inst.size;
+    auto input_layout = node.input().get_output_layout();
+    auto output_layout = node.get_output_layout();
+    auto output_size = output_layout.size;
 
     CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Input size",
-                          input_inst.size.raw.size(),
+                          input_layout.size.raw.size(),
                           "output size",
-                          output_inst.size.raw.size(),
+                          output_layout.size.raw.size(),
                           "Input/output number of dimension does not match.");
     CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Stride size",
-                          stride.raw.size(),
+                          stride.size(),
                           "output size",
-                          output_inst.size.raw.size(),
+                          output_layout.get_spatial_rank(),
                           "Stride/output number of dimension does not match.");
+
+    CLDNN_ERROR_NOT_EQUAL(node.id(),
+                          "Input offset size",
+                          pad.size(),
+                          "input number of dimensions",
+                          output_layout.get_spatial_rank(),
+                          "");
 
     auto split = node.get_split();
     for (decltype(split) j = 0; j < split; j++) {
@@ -216,12 +226,6 @@ deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node co
                               0.0f,
                               "Unknown padding mode in deconvolution.");
         CLDNN_ERROR_NOT_EQUAL(node.id(),
-                              "Input offset size",
-                              pad.raw.size(),
-                              "input number of dimensions",
-                              input_inst.size.raw.size(),
-                              "");
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Output feature size",
                               output_size.feature.size(),
                               "expected output feature size",
@@ -241,7 +245,7 @@ deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node co
                               "Only one-dimensional features are supported");
         CLDNN_ERROR_LESS_THAN(node.id(),
                               "Weights feature maps number",
-                              input_inst.size.feature[0],
+                              input_layout.size.feature[0],
                               "input feature maps number",
                               weights_ifm,
                               "Weights/ifm mismatch");
@@ -249,7 +253,7 @@ deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node co
         if (!argument.grouped_weights_shape && !format::is_grouped(filter_inst.format)) {
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Weights feature maps number",
-                                  input_inst.size.feature[0],
+                                  input_layout.size.feature[0],
                                   "input feature maps number",
                                   weights_ifm,
                                   "Weights/ifm mismatch");

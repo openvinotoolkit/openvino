@@ -547,7 +547,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             if (eltw_node.get_dependency(1).is_constant() && per_channel_eltwise &&
                 (eltw_prim.mode == eltwise_mode::sum || eltw_prim.mode == eltwise_mode::prod) &&
-                (conv_node.get_primitive()->dilation == tensor{1}))
+                all_ones(conv_node.get_primitive()->dilation))
                 return true;
 
             return false;
@@ -761,7 +761,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 return;
 
             bool should_fuse = input_data.is_type<binary_convolution>() &&
-                               input_data.as<binary_convolution>().get_primitive()->dilation == tensor{1};
+                               all_ones(input_data.as<binary_convolution>().get_primitive()->dilation);
 
             should_fuse |= input_data.is_type<convolution>() && conv_supports_fusings(input_data.as<convolution>());
 
@@ -839,8 +839,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                  in_layout.size.feature[0] == input_hi.get_output_layout().size.feature[0]) ||
                                 (input_lo.get_output_layout().size.feature[0] == 1 &&
                                  input_hi.get_output_layout().size.feature[0] == 1)))) &&
-                                 input_data.as<binary_convolution>().get_primitive()->dilation.spatial[0] == 1 &&
-                                 input_data.as<binary_convolution>().get_primitive()->dilation.spatial[1] == 1;
+                                 all_ones(input_data.as<binary_convolution>().get_primitive()->dilation);
 
             auto expected_format = _lo.get_preferred_format(input_data);
 

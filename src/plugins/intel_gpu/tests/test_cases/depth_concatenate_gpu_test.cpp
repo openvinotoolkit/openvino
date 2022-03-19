@@ -247,8 +247,8 @@ TEST(concatenate_f32_gpu, test_concatenation_of_pool_and_unpool) {
     topology.add(input_layout("input1", input1->get_layout()));
     topology.add(pooling("pool1", "input1",
                          cldnn::pooling_mode::max,
-                         {1, 1, 2, 1}, /*kernel*/
-                         {1, 1, 1, 1}  /*stride*/
+                         {1, 2}, /*kernel*/
+                         {1, 1}  /*stride*/
                          ));
     topology.add(resample("unpool1", "input1", tensor(1, 1, 2, 2), 0, resample_type::nearest));
     topology.add(concatenation("concat1", {"pool1", "unpool1"}, 3));
@@ -450,7 +450,7 @@ TEST(depth_concatenate_f32_gpu, test06_padded_input) {
     topology.add(activation("actv1", "input1", activation_func::linear, { 0.75f, 0.0f }));
     topology.add(activation("actv2", "input2", activation_func::linear, { 0.5f, 0.0f }));
     topology.add(data("weights", weights));
-    topology.add(convolution("conv", "actv2", { "weights" }, tensor(1), tensor(batch(0), feature(0), spatial(1, 1, 0, 0))));
+    topology.add(convolution("conv", "actv2", { "weights" }, {1, 1}, {1, 1}));
     topology.add(concatenation("depth1", { "actv1", "actv2" }, 1));
     topology.add(concatenation("depth2", { "depth1", "conv" }, 1));
     topology.add(reorder("output", "depth2", format::bfyx, data_types::f32));
@@ -528,7 +528,7 @@ TEST(depth_concatenate_f32_gpu, test07_padded_output) {
     topology.add(activation("actv2", "input2", activation_func::linear, { 0.5f, 0.0f }));
     topology.add(concatenation("depth1", { "actv1", "actv2" }, 1));
     topology.add(data("weights", weights));
-    topology.add(convolution("conv", "depth1", { "weights" }, tensor(1), tensor(batch(0), feature(0), spatial(1, 1, 0, 0))));
+    topology.add(convolution("conv", "depth1", { "weights" }, {1, 1}, {1, 1}));
     topology.add(reorder("output", "conv", format::bfyx, data_types::f32));
 
     cldnn::build_options options;
@@ -1182,7 +1182,7 @@ public:
     cldnn::tensor get_expected_output_tensor() override {
         cldnn::tensor::value_type features = 0;
         for (const auto& t : generic_params->input_layouts) {
-            features += t.size.feature[0];
+            features += t.feature();
         }
 
         const auto& t = generic_params->input_layouts[0].size;
@@ -1193,18 +1193,18 @@ public:
     memory::ptr generate_reference_typed(const std::vector<memory::ptr>& inputs) {
         assert(!inputs.empty());
 
-        const int in_b = inputs[0]->get_layout().size.batch[0];
-        const int in_h = inputs[0]->get_layout().size.spatial[1];
-        const int in_w = inputs[0]->get_layout().size.spatial[0];
+        const int in_b = inputs[0]->get_layout().batch();
+        const int in_h = inputs[0]->get_layout().spatial(1);
+        const int in_w = inputs[0]->get_layout().spatial(0);
 
         int out_f = 0;
 
         for (const memory::ptr& input : inputs) {
-            assert(input->get_layout().size.batch[0] == in_b);
-            assert(input->get_layout().size.spatial[1] == in_h);
-            assert(input->get_layout().size.spatial[0] == in_w);
+            assert(input->get_layout().batch() == in_b);
+            assert(input->get_layout().spatial(1) == in_h);
+            assert(input->get_layout().spatial(0) == in_w);
 
-            out_f += input->get_layout().size.feature[0];
+            out_f += input->get_layout().feature();
 
             assert(input->get_layout().data_type == inputs[0]->get_layout().data_type);
             assert(input->get_layout().format.value == inputs[0]->get_layout().format.value);
@@ -1219,7 +1219,7 @@ public:
             const auto input_desc = get_linear_memory_desc(input->get_layout());
             const auto output_desc = get_linear_memory_desc(output->get_layout());
 
-            const int in_f = input->get_layout().size.feature[0];
+            const int in_f = input->get_layout().feature();
             cldnn::mem_lock<Type> in_mem(input, get_test_stream());
 
             for (int n = 0; n < in_b; ++n)
