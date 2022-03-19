@@ -157,10 +157,10 @@ protected:
     std::shared_ptr<ngraph::Function> functionRefs;
     std::map<std::string, std::string> configuration;
     // Non default values of layouts/precisions will be set to CNNNetwork
-    std::vector<InferenceEngine::Layout> inLayout = { InferenceEngine::Layout::ANY };
-    std::vector<InferenceEngine::Layout> outLayout = { InferenceEngine::Layout::ANY };
-    std::vector<InferenceEngine::Precision> inPrc = { InferenceEngine::Precision::UNSPECIFIED };
-    std::vector<InferenceEngine::Precision> outPrc = { InferenceEngine::Precision::UNSPECIFIED };
+    std::vector<InferenceEngine::Layout> inLayout;
+    std::vector<InferenceEngine::Layout> outLayout;
+    std::vector<InferenceEngine::Precision> inPrc;
+    std::vector<InferenceEngine::Precision> outPrc;
     InferenceEngine::ExecutableNetwork executableNetwork;
     std::vector<InferenceEngine::Blob::Ptr> inputs;
     float threshold;
