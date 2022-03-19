@@ -10,7 +10,7 @@ This API is applicable for new frontends only, which exist for ONNX and PaddlePa
 
 This section covers the case when a single operation in framework representation is mapped to a single operation in OpenVINO representation. This is called *one-to-one mapping*. There is `OpExtension` class that works well if all the following conditions are satisfied:
 
-1. Number of inputs in operation are the same in framework representation and in OpenVINO representation.
+1. Number of inputs to operation in the Framework representation is the same as in the OpenVINO representation.
 
 2. Number of outputs are also the same in both representations.
 
