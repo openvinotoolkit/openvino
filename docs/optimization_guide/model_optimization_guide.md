@@ -8,7 +8,6 @@
    
    pot_README
    docs_nncf_introduction
-   openvino_docs_IE_DG_Int8Inference
 
 @endsphinxdirective
 
@@ -28,6 +27,8 @@
 To understand which development optimization tool you need, refer to the diagram: 
 
 Post-training methods are limited in terms of achievable accuracy and for challenging usecases accuracy might degrade. In this case, training-time optimization with NNCF is an option.
+
+Once the model is optimized using the aforementioned tools it can be used for inference using the regular OpenVINO inference workflow. No changes of the code are required.
 
 ![](../img/WHAT_TO_USE.svg)
 

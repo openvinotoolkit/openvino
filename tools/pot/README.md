@@ -33,15 +33,12 @@ Figure below shows the optimization workflow:
 ### Features
 
 * Two post-training 8-bit quantization algorithms: fast [DefaultQuantization](openvino/tools/pot/algorithms/quantization/default/README.md) and precise [AccuracyAwareQuantization](openvino/tools/pot/algorithms/quantization/accuracy_aware/README.md).
-* Compression for different hardware targets such as CPU and GPU.
-* Multiple domains: Computer Vision, Natural Language Processing, Recommendation Systems, Speech Recognition.
-* [Command-line tool](docs/CLI.md) that provides a simple interface for basic use cases.
-* [API](openvino/tools/pot/api/README.md) that helps to apply optimization methods within a custom inference script written with OpenVINO Python* API.
+* Quantization for various types of hardware: CPU, GPU, VPU, GNA. The first three devices can use the same quantized model while GNA-quantized models are compatible with CPU.
+* [Python* API](openvino/tools/pot/api/README.md) and [Command-line tool](docs/CLI.md) interfaces.
 * (Experimental) [Ranger algorithm](@ref pot_ranger_README) for the model protection in safety-critical cases.
 
-For benchmarking results collected for the models optimized with the POT tool, see [INT8 vs FP32 Comparison on Select Networks and Platforms](@ref openvino_docs_performance_int8_vs_fp32).
+For benchmarking results collected for the models optimized with the POT tool, refer to [INT8 vs FP32 Comparison on Select Networks and Platforms](@ref openvino_docs_performance_int8_vs_fp32).
 
-POT is open-sourced on GitHub as a part of OpenVINO and available at https://github.com/openvinotoolkit/openvino/tools/pot.
 
 Further documentation presumes that you are familiar with basic Deep Learning concepts, such as model inference, dataset preparation, model optimization, as well as with the OpenVINO&trade; toolkit and its components, such as  [Model Optimizer](@ref openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide) and [Accuracy Checker Tool](@ref omz_tools_accuracy_checker).
 
@@ -86,6 +83,7 @@ OpenVINO provides several examples to demonstrate the POT optimization workflow:
 
 ## See Also
 
+* [Performance Benchmarks](https://docs.openvino.ai/latest/openvino_docs_performance_benchmarks_openvino.html)
 * [Low Precision Optimization Guide](docs/LowPrecisionOptimizationGuide.md)
 * [Post-Training Optimization Best Practices](docs/BestPractices.md)
 * [POT Frequently Asked Questions](docs/FrequentlyAskedQuestions.md)
