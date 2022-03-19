@@ -614,13 +614,13 @@ void set_layout(ov::Output<ov::Node> output, const ov::Layout& layout) {
     if (layout.empty()) {
         output.get_rt_info().erase(ov::LayoutAttribute::get_type_info_static());
     } else {
-        OPENVINO_ASSERT(ov::layout::utils::is_compatible(layout, output.get_partial_shape()),
-                        "Can't set layout for Parameter/Result ",
-                        output,
-                        ": layout ",
-                        layout.to_string(),
-                        " is not compatible with shape ",
-                        output.get_partial_shape());
+        // OPENVINO_ASSERT(ov::layout::utils::is_compatible(layout, output.get_partial_shape()),
+        //                 "Can't set layout for Parameter/Result ",
+        //                 output,
+        //                 ": layout ",
+        //                 layout.to_string(),
+        //                 " is not compatible with shape ",
+        //                 output.get_partial_shape());
         output.get_rt_info()[ov::LayoutAttribute::get_type_info_static()] = ov::LayoutAttribute(layout);
     }
 }
