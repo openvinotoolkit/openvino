@@ -12,7 +12,9 @@
 #include <cstddef>
 #include <memory>
 
+#include "openvino/core/any.hpp"
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/deprecated.hpp"
 
 namespace ov {
 
@@ -20,7 +22,9 @@ namespace ov {
  * @interface AllocatorImpl
  * @brief Tries to act like [std::pmr::memory_resource](https://en.cppreference.com/w/cpp/memory/memory_resource)
  */
-struct AllocatorImpl : public std::enable_shared_from_this<AllocatorImpl> {
+struct OPENVINO_DEPRECATED(
+    "Do not inherit from AllocatorImpl. Pass std::pmr::memory_resource like object directly to ov::Allocator")
+    AllocatorImpl : public std::enable_shared_from_this<AllocatorImpl> {
     /**
      * @brief A smart pointer containing AllocatorImpl object
      */
@@ -61,20 +65,92 @@ class Tensor;
 /**
  * @brief Wraps allocator implementation to provide safe way to store allocater loaded from shared library
  *        And constructs default based on `new` `delete` c++ calls allocator if created without parameters
+ *        Accepts any [std::pmr::memory_resource](https://en.cppreference.com/w/cpp/memory/memory_resource) like
+ * allocator
  */
 class OPENVINO_API Allocator {
-    AllocatorImpl::Ptr _impl;
-    std::shared_ptr<void> _so;
-
     /**
      * @brief Constructs Tensor from the initialized std::shared_ptr
-     * @param impl Initialized shared pointer
+     * @param other Initialized allocator
      * @param so Plugin to use. This is required to ensure that Allocator can work properly even if plugin object is
      * destroyed.
      */
-    Allocator(const AllocatorImpl::Ptr& impl, const std::shared_ptr<void>& so);
+    Allocator(const Allocator& other, const std::shared_ptr<void>& so);
 
-    friend class ov::Tensor;
+    friend class ::ov::Tensor;
+
+    struct Base : public std::enable_shared_from_this<Base> {
+        using Ptr = std::shared_ptr<Base>;
+        virtual void* addressof() = 0;
+        const void* addressof() const {
+            return const_cast<Base*>(this)->addressof();
+        }
+        virtual const std::type_info& type_info() const = 0;
+        virtual void* allocate(const size_t bytes, const size_t alignment = alignof(max_align_t)) = 0;
+        virtual void deallocate(void* handle, const size_t bytes, size_t alignment = alignof(max_align_t)) = 0;
+        virtual bool is_equal(const Base& other) const = 0;
+
+    protected:
+        ~Base() = default;
+    };
+
+    template <class A, typename = void>
+    struct Impl;
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    template <typename A>
+    struct Impl<A, typename std::enable_if<std::is_convertible<A, AllocatorImpl::Ptr>::value>::type> : public Base {
+        template <typename... Args>
+        Impl(Args&&... args) : a(std::forward<Args>(args)...) {}
+        void* addressof() override {
+            return &a;
+        }
+        const std::type_info& type_info() const override {
+            return typeid(a);
+        }
+        void* allocate(const size_t bytes, const size_t alignment = alignof(max_align_t)) override {
+            return a->allocate(bytes, alignment);
+        };
+        void deallocate(void* handle, const size_t bytes, size_t alignment = alignof(max_align_t)) override {
+            a->deallocate(handle, bytes, alignment);
+        }
+        bool is_equal(const Base& other) const override {
+            if (util::equal(type_info(), other.type_info())) {
+                return a->is_equal(*(static_cast<const A*>(other.addressof())->get()));
+            }
+            return false;
+        }
+        A a;
+    };
+
+    template <typename A>
+    struct Impl<A, typename std::enable_if<!std::is_convertible<A, AllocatorImpl::Ptr>::value>::type> : public Base {
+        template <typename... Args>
+        Impl(Args&&... args) : a(std::forward<Args>(args)...) {}
+        void* addressof() override {
+            return &a;
+        }
+        const std::type_info& type_info() const override {
+            return typeid(a);
+        }
+        void* allocate(const size_t bytes, const size_t alignment = alignof(max_align_t)) override {
+            return a.allocate(bytes, alignment);
+        };
+        void deallocate(void* handle, const size_t bytes, size_t alignment = alignof(max_align_t)) override {
+            a.deallocate(handle, bytes, alignment);
+        }
+        bool is_equal(const Base& other) const override {
+            if (util::equal(type_info(), other.type_info())) {
+                return a.is_equal(*static_cast<const A*>(other.addressof()));
+            }
+            return false;
+        }
+        A a;
+    };
+    OPENVINO_SUPPRESS_DEPRECATED_END
+
+    Base::Ptr _impl;
+    std::shared_ptr<void> _so;
 
 public:
     /**
@@ -107,7 +183,12 @@ public:
      * @brief Constructs Allocator from the initialized std::shared_ptr
      * @param impl Initialized shared pointer
      */
-    Allocator(const AllocatorImpl::Ptr& impl);
+    Allocator(const ::ov::AllocatorImpl::Ptr& impl);
+
+    template <typename A>
+    Allocator(A&& a) : _impl{std::make_shared<Impl<typename std::decay<A>::type>>(std::forward<A>(a))} {}
+
+    Allocator(std::nullptr_t) {}
 
     /**
      * @brief Allocates memory

@@ -20,6 +20,7 @@
 #include "cpp/ie_plugin.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include "cpp_interfaces/interface/itensor.hpp"
 #include "file_utils.h"
 #include "ie_cache_guard.hpp"
 #include "ie_cache_manager.hpp"
@@ -1681,7 +1682,7 @@ std::shared_ptr<ov::Model> Core::read_model(const std::string& modelPath, const 
 std::shared_ptr<ov::Model> Core::read_model(const std::string& model, const ov::Tensor& weights) const {
     InferenceEngine::Blob::Ptr blob;
     if (weights) {
-        blob = weights._impl;
+        blob = tensor_to_blob(weights._impl);
     }
     OV_CORE_CALL_STATEMENT(return _impl->ReadNetwork(model, blob).getFunction(););
 }

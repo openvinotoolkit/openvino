@@ -10,6 +10,7 @@
 
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
+#include "cpp_interfaces/interface/itensor.hpp"
 #include "ie_infer_async_request_base.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_remote_context.hpp"
@@ -255,7 +256,7 @@ InferRequest::InferRequest(const ie::IInferRequestInternal::Ptr& impl, const std
 }
 
 void InferRequest::set_tensor(const ov::Output<const ov::Node>& port, const Tensor& tensor) {
-    OV_INFER_REQ_CALL_STATEMENT({ _impl->SetBlob(get_legacy_name_from_port(port), tensor._impl); });
+    OV_INFER_REQ_CALL_STATEMENT({ _impl->SetBlob(get_legacy_name_from_port(port), tensor_to_blob(tensor._impl)); });
 }
 
 void InferRequest::set_tensor(const ov::Output<ov::Node>& port, const Tensor& tensor) {
@@ -285,7 +286,7 @@ void InferRequest::set_tensors(const std::string& name, const std::vector<Tensor
 void InferRequest::set_tensors(const ov::Output<const ov::Node>& port, const std::vector<Tensor>& tensors) {
     auto impls = std::vector<InferenceEngine::Blob::Ptr>();
     std::transform(tensors.begin(), tensors.end(), std::back_inserter(impls), [](const Tensor& item) {
-        return item._impl;
+        return tensor_to_blob(item._impl);
     });
     OV_INFER_REQ_CALL_STATEMENT({ _impl->SetBlobs(get_legacy_name_from_port(port), impls); })
 }

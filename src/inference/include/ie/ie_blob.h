@@ -509,7 +509,7 @@ using BlobMap = std::map<std::string, Blob::Ptr>;
  * @brief Represents real host memory allocated for a Tensor/Blob per C type.
  */
 template <typename T, typename = std::enable_if<std::is_standard_layout<T>::value && std::is_trivial<T>::value>>
-class TBlob : public MemoryBlob {
+class INFERENCE_ENGINE_API_CLASS(TBlob) : public MemoryBlob {
     template <typename, typename>
     friend class TBlob;
 

@@ -26,9 +26,12 @@ class ExecutableNetwork;
 }  // namespace InferenceEngine
 
 namespace ov {
+
 /** @cond INTERNAL */
 class Any;
 namespace util {
+OPENVINO_API bool equal(std::type_index lhs, std::type_index rhs);
+
 template <typename T, typename = void>
 struct Read;
 
@@ -417,8 +420,6 @@ class OPENVINO_API Any {
         }
     };
 
-    static bool equal(std::type_index lhs, std::type_index rhs);
-
     class OPENVINO_API Base : public std::enable_shared_from_this<Base> {
     public:
         void type_check(const std::type_info&) const;
@@ -733,7 +734,7 @@ public:
                 return true;
             }
             for (const auto& type_index : _impl->base_type_info()) {
-                if (equal(type_index, typeid(decay_t<T>))) {
+                if (util::equal(type_index, typeid(decay_t<T>))) {
                     return true;
                 }
             }
@@ -799,7 +800,7 @@ public:
             return *static_cast<decay_t<T>*>(_temp->addressof());
         }
         for (const auto& type_index : _impl->base_type_info()) {
-            if (equal(type_index, typeid(decay_t<T>))) {
+            if (util::equal(type_index, typeid(decay_t<T>))) {
                 return *static_cast<decay_t<T>*>(_impl->addressof());
             }
         }
@@ -822,7 +823,7 @@ public:
             return *static_cast<decay_t<T>*>(_impl->addressof());
         }
         for (const auto& type_index : _impl->base_type_info()) {
-            if (equal(type_index, typeid(decay_t<T>))) {
+            if (util::equal(type_index, typeid(decay_t<T>))) {
                 return *static_cast<decay_t<T>*>(_impl->addressof());
             }
         }

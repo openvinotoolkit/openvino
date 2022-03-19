@@ -65,26 +65,30 @@ VariableState::~VariableState() {
     _impl = {};
 }
 
+VariableState::VariableState(const IVariableState::Ptr& impl, const std::shared_ptr<void>& so) : _impl{impl}, _so{so} {
+    OPENVINO_ASSERT(_impl != nullptr, "VariableState was not initialized.");
+}
+
 VariableState::VariableState(const ie::IVariableStateInternal::Ptr& impl, const std::shared_ptr<void>& so)
-    : _impl{impl},
+    : _impl{std::make_shared<IEVariableState>(impl)},
       _so{so} {
     OPENVINO_ASSERT(_impl != nullptr, "VariableState was not initialized.");
 }
 
 void VariableState::reset() {
-    OV_VARIABLE_CALL_STATEMENT(_impl->Reset());
+    OV_VARIABLE_CALL_STATEMENT(_impl->reset());
 }
 
 std::string VariableState::get_name() const {
-    OV_VARIABLE_CALL_STATEMENT(return _impl->GetName());
+    OV_VARIABLE_CALL_STATEMENT(return _impl->get_name());
 }
 
 Tensor VariableState::get_state() const {
-    OV_VARIABLE_CALL_STATEMENT(return {std::const_pointer_cast<ie::Blob>(_impl->GetState()), _so});
+    OV_VARIABLE_CALL_STATEMENT(return {_impl->get_state(), _so});
 }
 
 void VariableState::set_state(const Tensor& state) {
-    OV_VARIABLE_CALL_STATEMENT(_impl->SetState(state._impl));
+    OV_VARIABLE_CALL_STATEMENT(_impl->set_state(state._impl));
 }
 
 }  // namespace ov

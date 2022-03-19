@@ -10,20 +10,54 @@
 #include "openvino/core/except.hpp"
 
 namespace ov {
+struct DeafaultAllocator {
+    void* allocate(const size_t bytes, const size_t alignment) {
+        if (alignment == alignof(max_align_t)) {
+            return ::operator new(bytes);
+        } else {
+            OPENVINO_ASSERT((alignment % 2) == 0, "Alignment is not power of 2: ", alignment);
+#if defined(_WIN32)
+            return _aligned_malloc(size, alignment);
+#elif defined(__APPLE__)
+            auto rem = bytes % alignment;
+            auto real_size = (rem) ? (bytes + alignment - rem) : bytes;
+            return memalign(alignment, real_size);
+#elif defined(__ANDROID__) || defined(ANDROID)
+            return memalign(alignment, bytes);
+#else
+            void* ret = nullptr;
+            if (posix_memalign(&ret, std::max(sizeof(void*), alignment), bytes) != 0) {
+                OPENVINO_UNREACHABLE("posix_memalign failed");
+            }
+            return ret;
+#endif
+        }
+    }
 
-Allocator::Allocator() : _impl{std::make_shared<BlobAllocator>()} {}
+    void deallocate(void* handle, const size_t bytes, const size_t alignment) {
+        if (alignment == alignof(max_align_t)) {
+            ::operator delete(handle);
+        } else {
+#if defined(_WIN32)
+            return _aligned_free(handle);
+#else
+            return free(handle);
+#endif
+        }
+    }
+
+    bool is_equal(const DeafaultAllocator&) const {
+        return true;
+    }
+};
+
+Allocator::Allocator() : Allocator{DeafaultAllocator{}} {}
 
 Allocator::~Allocator() {
     _impl = {};
 }
 
-Allocator::Allocator(const std::shared_ptr<AllocatorImpl>& impl, const std::shared_ptr<void>& so)
-    : _impl{impl},
-      _so{so} {
-    OPENVINO_ASSERT(_impl != nullptr, "Allocator was not initialized.");
-}
-
-Allocator::Allocator(const std::shared_ptr<AllocatorImpl>& impl) : _impl{impl} {
+Allocator::Allocator(const Allocator& other, const std::shared_ptr<void>& so) : _impl{other._impl}, _so{so} {
     OPENVINO_ASSERT(_impl != nullptr, "Allocator was not initialized.");
 }
 
