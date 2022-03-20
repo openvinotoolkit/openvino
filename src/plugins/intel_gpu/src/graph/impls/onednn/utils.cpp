@@ -305,16 +305,16 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
     } else {
         auto blk = desc.data.format_desc.blocking;
 
-        auto strides = desc.data.format_desc.blocking.strides;
+        auto strides = blk.strides;
         std::vector<size_t> order(desc.data.ndims);
         std::iota(order.begin(), order.end(), 0);
         std::sort(order.begin(), order.end(),
-                [&strides] (size_t ind_l, size_t ind_r) {
-                    return strides[ind_l] > strides[ind_r];
-                });
+                  [&strides] (size_t ind_l, size_t ind_r) {
+                      return strides[ind_l] > strides[ind_r];
+                  });
 
         if (is_grouped) {
-            if (desc.data.ndims == 5 && desc.data.format_desc.blocking.inner_nblks == 3
+            if (desc.data.ndims == 5 && blk.inner_nblks == 3
                 && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 2
                 && blk.inner_idxs[0] == 2 && blk.inner_idxs[1] == 1 && blk.inner_idxs[2] == 2
                 && order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4) {
@@ -323,21 +323,21 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
                 throw std::runtime_error(std::string("Unsupported grouped onednn dnnl::memory::desc find_format"));
             }
         } else {
-            if (desc.data.ndims == 4 && desc.data.format_desc.blocking.inner_nblks == 4
+            if (desc.data.ndims == 4 && blk.inner_nblks == 4
                 && blk.inner_blks[0] == 4 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 8 && blk.inner_blks[3] == 4
                 && blk.inner_idxs[0] == 0 && blk.inner_idxs[1] == 1 && blk.inner_idxs[2] == 0 && blk.inner_idxs[3] == 1
                 && order[0] == 1 && order[1] == 0 && order[2] == 2 && order[3] == 3) {
                 return cldnn::format::is_os_yx_osa4_isa8_osv8_isv4;
-            } else if (desc.data.ndims == 4 && desc.data.format_desc.blocking.inner_nblks == 4
+            } else if (desc.data.ndims == 4 && blk.inner_nblks == 4
                 && blk.inner_blks[0] == 2 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 8 && blk.inner_blks[3] == 2
                 && blk.inner_idxs[0] == 1 && blk.inner_idxs[1] == 0 && blk.inner_idxs[2] == 1 && blk.inner_idxs[3] == 0
                 && order[0] == 1 && order[1] == 0 && order[2] == 2 && order[3] == 3) {
                 return cldnn::format::is_os_yx_isa2_osa8_isv8_osv2;
-            } else if (desc.data.ndims == 4 && desc.data.format_desc.blocking.inner_nblks == 2
+            } else if (desc.data.ndims == 4 && blk.inner_nblks == 2
                 && blk.inner_blks[0] == 16 && blk.inner_blks[1] == 4 && blk.inner_idxs[0] == 0 && blk.inner_idxs[1] == 1
                 && order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3) {
                 return cldnn::format::os_is_yx_osv16_isv4;
-            } else if (desc.data.ndims == 4 && desc.data.format_desc.blocking.inner_nblks == 3
+            } else if (desc.data.ndims == 4 && blk.inner_nblks == 3
                 && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 2
                 && blk.inner_idxs[0] == 1 && blk.inner_idxs[1] == 0 && blk.inner_idxs[2] == 1) {
                 if (order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3) {
