@@ -23,14 +23,13 @@ namespace ov {
 namespace intel_gpu {
 
 /**
- * @defgroup ov_runtime_ocl_gpu_cpp_api Intel GPU OpenCL remote objects API
+ * @defgroup ov_runtime_ocl_gpu_cpp_api Intel GPU OpenCL interoperability
  * @ingroup ov_runtime_cpp_api
  * Set of C++ classes and properties to work with Remote API for Intel GPU OpenCL plugin.
  */
 
 /**
  * @brief Namespace with Intel GPU OpenCL specific remote objects
- * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 namespace ocl {
 

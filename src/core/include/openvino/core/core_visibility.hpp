@@ -15,24 +15,30 @@
  * @defgroup ov_cpp_api OpenVINO Runtime C++ API
  * OpenVINO Runtime C++ API
  *
- * @defgroup ov_model_cpp_api OpenVINO Core C++ API to work with ov::Model
+ * @defgroup ov_model_cpp_api Basics
  * @ingroup ov_cpp_api
  * OpenVINO Core C++ API to work with ov::Model, dynamic and static shapes, types
  *
- * @defgroup ov_ops_cpp_api OpenVINO C++ API to create operations
+ * @defgroup ov_ops_cpp_api Operations
  * @ingroup ov_cpp_api
  * OpenVINO C++ API to create operations from different opsets. Such API is used to
  * creation models from code, write transformations and traverse the model graph
  *
- * @defgroup ov_opset_cpp_api OpenVINO C++ API to work with operation sets
+ * @defgroup ov_opset_cpp_api Operation sets
  * @ingroup ov_cpp_api
  * OpenVINO C++ API to work with operation sets
  *
- * @defgroup ov_runtime_cpp_api OpenVINO Inference C++ API
+ * @defgroup ov_runtime_cpp_api Inference
  * @ingroup ov_cpp_api
  * OpenVINO Inference C++ API provides ov::Core, ov::CompiledModel, ov::InferRequest
  * and ov::Tensor classes
  */
+
+/**
+ * @brief OpenVINO C++ API
+ * @ingroup ov_cpp_api
+ */
+namespace ov {}  // namespace ov
 
 #ifdef _WIN32
 #    pragma warning(disable : 4251)

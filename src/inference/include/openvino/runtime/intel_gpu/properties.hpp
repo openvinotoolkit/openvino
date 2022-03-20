@@ -22,7 +22,6 @@ namespace ov {
 
 /**
  * @brief Namespace with Intel GPU specific properties
- * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
  */
 namespace intel_gpu {
 
@@ -112,7 +111,6 @@ static constexpr Property<int64_t> available_device_mem{"AVAILABLE_DEVICE_MEM_SI
 
 /**
  * @brief These keys instruct the GPU plugin to use surface/buffer memory type.
- * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
  */
 namespace memory_type {
 
@@ -132,7 +130,6 @@ static constexpr auto buffer = "GPU_BUFFER";
 
 /**
  * @brief Possible return value for ov::device::capabilities property
- * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
  */
 namespace capability {
 
