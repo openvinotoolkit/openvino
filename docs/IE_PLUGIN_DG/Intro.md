@@ -61,5 +61,5 @@ Detailed guides
 API References
 -----------------------
 
-* [Inference Engine Plugin API](groupie_dev_api.html)
-* [Inference Engine Transformation API](groupie_transformation_api.html)
+* [Inference Engine Plugin API](@ref ie_dev_api)
+* [Inference Engine Transformation API](@ref ie_transformation_api)

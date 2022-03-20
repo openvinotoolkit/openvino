@@ -22,7 +22,6 @@ namespace ov {
 
 /**
  * @brief Namespace with Intel GNA specific properties
- * @ingroup ov_runtime_gna_prop_cpp_api
  */
 namespace intel_gna {
 
