@@ -131,6 +131,29 @@ graph {
         dims: 3
         data_type: 1
         float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
+        float_data: 4.0
       }
       type: TENSOR
     }
@@ -146,6 +169,21 @@ graph {
         dims: 2
         data_type: 1
         float_data: 2.0
+        float_data: 2.0
+        float_data: 2.0
+        float_data: 2.0
+        float_data: 2.0
+        float_data: 2.0
+        float_data: 2.0
+        float_data: 2.0
+        float_data: 2.0
+        float_data: 2.0
+        float_data: 2.0
+        float_data: 2.0
+        float_data: 2.0
+        float_data: 2.0
+        float_data: 2.0
+        float_data: 2.0
       }
       type: TENSOR
     }
@@ -159,6 +197,21 @@ graph {
         dims: 1
         dims: 16
         data_type: 1
+        float_data: 3.0
+        float_data: 3.0
+        float_data: 3.0
+        float_data: 3.0
+        float_data: 3.0
+        float_data: 3.0
+        float_data: 3.0
+        float_data: 3.0
+        float_data: 3.0
+        float_data: 3.0
+        float_data: 3.0
+        float_data: 3.0
+        float_data: 3.0
+        float_data: 3.0
+        float_data: 3.0
         float_data: 3.0
       }
       type: TENSOR
