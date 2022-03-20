@@ -194,7 +194,6 @@ public:
 /**
  * @brief This class is used to bind read-only property name with value type
  * @tparam T type of value used to pass or get property
- * @ingroup ov_runtime_cpp_prop_api
  */
 template <typename T>
 struct Property<T, PropertyMutability::RO> : public util::BaseProperty<T, PropertyMutability::RO> {

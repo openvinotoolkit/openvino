@@ -6,8 +6,8 @@
    :maxdepth: 1
    :hidden:
 
-   OpenVINO Plugin API <ie_dev_api
-   OpenVINO Transformation API <ie_transformation_api>
+   ../groupie_dev_api
+   ../groupie_transformation_api
 
 @endsphinxdirective
 
