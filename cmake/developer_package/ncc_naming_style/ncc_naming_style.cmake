@@ -23,7 +23,7 @@ execute_process(
     ERROR_VARIABLE error_var)
 
 if(NOT clang_find_result EQUAL "0")
-    message(WARNING "Please, install libclang-[N]-dev package (required for ncc naming style check)")
+    message(WARNING "Please, install clang-[N] libclang-[N]-dev package (required for ncc naming style check)")
     message(WARNING "find_package(Clang) output: ${output_var}")
     message(WARNING "find_package(Clang) error: ${error_var}")
     set(ENABLE_NCC_STYLE OFF)
