@@ -45,25 +45,7 @@ public:
         manager.register_pass<ngraph::pass::InitNodeInfo>();
     }
 
-    void TearDown() override {
-        auto cloned_function = ngraph::clone_function(*function);
-        if (!function_ref) {
-            function_ref = cloned_function;
-        }
-
-        manager.register_pass<ngraph::pass::CheckUniqueNames>(m_unh, m_soft_names_comparison);
-        manager.run_passes(function);
-        if (!m_disable_rt_info_check) {
-            ASSERT_NO_THROW(check_rt_info(function));
-        }
-
-        auto res = comparator.compare(function, function_ref);
-        ASSERT_TRUE(res.valid) << res.message;
-
-        if (m_enable_accuracy_check) {
-            accuracy_check(cloned_function, function);
-        }
-    }
+    void TearDown() override;
 
     // TODO: this is temporary solution to disable rt info checks that must be applied by default
     // first tests must be fixed then this method must be removed XXX-68696

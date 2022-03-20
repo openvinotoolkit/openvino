@@ -190,6 +190,26 @@ void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std:
 }
 } // namespace
 
+void TransformationTestsF::TearDown() {
+    auto cloned_function = ngraph::clone_function(*function);
+    if (!function_ref) {
+        function_ref = cloned_function;
+    }
+
+    manager.register_pass<ngraph::pass::CheckUniqueNames>(m_unh, m_soft_names_comparison);
+    manager.run_passes(function);
+    if (!m_disable_rt_info_check) {
+        ASSERT_NO_THROW(check_rt_info(function));
+    }
+
+    auto res = comparator.compare(function, function_ref);
+    ASSERT_TRUE(res.valid) << res.message;
+
+    if (m_enable_accuracy_check) {
+        accuracy_check(cloned_function, function);
+    }
+}
+
 void TransformationTestsF::accuracy_check(std::shared_ptr<ov::Model> ref_function,
                                           std::shared_ptr<ov::Model> cur_function) {
     try {
