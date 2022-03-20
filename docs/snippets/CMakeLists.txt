@@ -4,8 +4,11 @@
 
 set(TARGET_NAME ie_docs_snippets)
 
-if(CMAKE_COMPILER_IS_GNUCXX)
-    ie_add_compiler_flags(-Wno-unused-variable -Wno-unused-but-set-variable)
+if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+    ie_add_compiler_flags(-Wno-unused-variable)
+    if(CMAKE_COMPILER_IS_GNUCXX)
+        ie_add_compiler_flags(-Wno-unused-variable -Wno-unused-but-set-variable)
+    endif()
 endif()
 
 file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
@@ -108,10 +111,8 @@ endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime openvino::runtime::dev)
 
-if(COMMAND ov_ncc_naming_style)
-    ov_ncc_naming_style(FOR_TARGET "${TARGET_NAME}"
-                        SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
-endif()
+ov_ncc_naming_style(FOR_TARGET "${TARGET_NAME}"
+                    SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
 
 #
 # Example

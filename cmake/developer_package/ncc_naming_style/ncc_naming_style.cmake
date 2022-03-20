@@ -107,8 +107,11 @@ function(ov_ncc_naming_style)
 
     list(APPEND NCC_STYLE_ADDITIONAL_INCLUDE_DIRECTORIES "${NCC_STYLE_SOURCE_DIRECTORY}")
 
+    # without it sources with same name from different directories will map to same .ncc_style target
+    file(RELATIVE_PATH source_dir_rel ${CMAKE_SOURCE_DIR} ${NCC_STYLE_SOURCE_DIRECTORY})
+
     foreach(source IN LISTS sources)
-        set(output_file "${ncc_style_bin_dir}/${source}.ncc_style")
+        set(output_file "${ncc_style_bin_dir}/${source_dir_rel}/${source}.ncc_style")
         set(full_source_path "${NCC_STYLE_SOURCE_DIRECTORY}/${source}")
 
         add_custom_command(
