@@ -61,9 +61,12 @@ bool cachingSupported = std::find(caps.begin(), caps.end(), ov::device::capabili
 }
 
 int main() {
-    part0();
-    part1();
-    part2();
-    part3();
+    try {
+        part0();
+        part1();
+        part2();
+        part3();
+    } catch (...) {
+    }
     return 0;
 }
