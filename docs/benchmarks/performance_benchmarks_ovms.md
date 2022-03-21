@@ -28,18 +28,12 @@ OpenVINO™ Model Server is measured in multiple-client-single-server configurat
 ![](../img/throughput_ovms_yolo3_fp32.png)
 ## yolo-v4-tf (FP32)
 ![](../img/throughput_ovms_yolo4_fp32.png)
-## face-detection-0200 (INT8)
-![](../img/throughput_ovms_facedetection0200_int8.png)
 ## brain-tumor-segmentation-0002
 ![](../img/throughput_ovms_braintumorsegmentation.png)
 ## alexnet
 ![](../img/throughput_ovms_alexnet.png)
 ## mobilenet-v3-large-1.0-224-TF (FP32)
 ![](../img/throughput_ovms_mobilenet3large_fp32.png)
-## unet-camvid-onnx-0001 (INT8)
-![](../img/throughput_ovms_unetcamvidonnx0001_int8.png)
-## unet-camvid-onnx-0001 (FP32)
-![](../img/throughput_ovms_unetcamvidonnx0001_fp32.png)
 ## deeplabv3 (FP32)
 ![](../img/throughput_ovms_deeplabv3_fp32.png)
 ## bert-small-uncased-whole-word-masking-squad-int8-0002 (INT8)
@@ -53,9 +47,6 @@ OpenVINO™ Model Server is measured in multiple-client-single-server configurat
 OpenVINO Model Server supports compressed binary input data (images in JPEG and PNG formats) for vision processing models. This
 feature improves overall performance on networks where the bandwidth constitutes a system bottleneck. A good example of such use could be wireless 5G communication, a typical 1 Gbit/sec Ethernet network or a usage scenario with many client machines issuing a high rate of inference requests to one single central OpenVINO model server. Generally the performance improvement increases with increased compressibility of the data/image. The decompression on the server-side is performed by the OpenCV library. Please refer to [Supported Image Formats](#supported-image-formats-for-ovms-compression).
 
-### mobilenet-v3-small-1.0-224-tf (FP32)
-![](../img/throughput_ovms_1gbps_mobilnet3small_fp32.png)
-
 ### googlenet-v4-tf (FP32)
 ![](../img/throughput_ovms_1gbps_googlenet4_fp32.png)
 
@@ -64,12 +55,6 @@ feature improves overall performance on networks where the bandwidth constitutes
 
 ### resnet-50-tf (FP32)
 ![](../img/throughput_ovms_1gbps_resnet50_fp32.png)
-
-### face-detection-0200 (INT8)
-![](../img/throughput_ovms_1gbps_facedetection0200_int8.png)
-
-### face-detection-0200 (FP32)
-![](../img/throughput_ovms_1gbps_facedetection0200_fp32.png)
 
 ## Platform Configurations
 
