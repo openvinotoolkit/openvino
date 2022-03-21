@@ -31,15 +31,16 @@ for (auto&& node : model->get_ops()) {
 auto compiled_model = core.compile_model(model, device);
 //! [fix_automatic_affinities]
 
-//! [compile_model]
 {
-    auto compiled_model = core.compile_model(model, "HETERO:GPU,CPU");
-    // or with ov::device::priorities with multiple args
-    compiled_model = core.compile_model(model, "HETERO", ov::device::priorities("GPU", "CPU"));
-    // or with ov::device::priorities with a single argument
-    compiled_model = core.compile_model(model, "HETERO", ov::device::priorities("GPU,CPU"));
-}
 //! [compile_model]
+auto compiled_model = core.compile_model(model, "HETERO:GPU,CPU");
+// or with ov::device::priorities with multiple args
+compiled_model = core.compile_model(model, "HETERO", ov::device::priorities("GPU", "CPU"));
+// or with ov::device::priorities with a single argument
+compiled_model = core.compile_model(model, "HETERO", ov::device::priorities("GPU,CPU"));
+//! [compile_model]
+}
+
 {
 //! [configure_fallback_devices]
     auto compiled_model = core.compile_model(model, "HETERO",

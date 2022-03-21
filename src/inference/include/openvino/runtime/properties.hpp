@@ -623,6 +623,11 @@ static constexpr Property<std::tuple<unsigned int, unsigned int, unsigned int>, 
 namespace device {
 
 /**
+ * @brief Type for property to pass set of properties to specified device
+ */
+static constexpr auto properties = ::ov::properties;
+
+/**
  * @brief the property for setting of required device to execute on
  * values: device id starts from "0" - first device, "1" - second device, etc
  */
