@@ -64,6 +64,8 @@ Dynamic dimensions are specified as `-1` or `ov::Dimension()` instead of a posit
 @snippet docs/snippets/ov_dynamic_shapes.py reshape_undefined
 @endsphinxtab
 
+@endsphinxtabset
+
 To simplify the code, the examples assume that the model has a single input and single output.
 However, there are no limitations on the number of inputs and outputs to apply dynamic shapes.
 
@@ -179,7 +181,7 @@ The same is applicable for inputs. For example:
 @snippet docs/snippets/ov_dynamic_shapes.py print_dynamic
 @endsphinxtab
 
-@endpshinxtabset
+@endsphinxtabset
 
 Appearing `?` or ranges like `1..10` means there are dynamic dimensions in corresponding inputs or outputs.
 

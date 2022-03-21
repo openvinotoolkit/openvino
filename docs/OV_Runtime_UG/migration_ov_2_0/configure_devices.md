@@ -140,7 +140,7 @@ OpenVINO Runtime API 2.0:
 
 @sphinxtabset
 
-@sphinxtab{Device configuration}
+@sphinxtab{Device Configuration}
 
 @snippet docs/snippets/ov_properties_migration.cpp core_get_rw_property
 
@@ -172,7 +172,7 @@ OpenVINO Runtime API 2.0:
 
 @sphinxtabset
 
-@sphinxtab{Device configuration}
+@sphinxtab{Device Configuration}
 
 @snippet docs/snippets/ov_properties_migration.py core_get_rw_property
 

@@ -71,13 +71,17 @@ function createSphinxTabSets() {
             if (inputCount == 1) {
                 checked = 'checked';
             }
-            $(`<input ${checked} class="tab-input" id="tab-set--${tabSetCount}-input--${inputCount}" name="tab-set--${tabSetCount}" type="radio">`).insertBefore(tab);
-            $(`<label class="tab-label" for="tab-set--${tabSetCount}-input--${inputCount}">${tabValue}</label>`).insertBefore(tab);
+            var input = $(`<input ${checked} class="tab-input" id="tab-set--${tabSetCount}-input--${inputCount}" name="tab-set--${tabSetCount}" type="radio">`);
+            input.insertBefore(tab);
+            var label = $(`<label class="tab-label" for="tab-set--${tabSetCount}-input--${inputCount}">${tabValue}</label>`);
+            label.click(onLabelClick);
+            label.insertBefore(tab);
             inputCount++;
             tab.addClass('tab-content docutils');
         });
 
     })
+    ready(); // # this function is available from tabs.js
 }
 
 function updateTitleTag() {
