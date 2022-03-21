@@ -31,7 +31,15 @@ For each inference device, OpenVINO Runtime has its own plugin library:
 
 Depending on what devices is used in the app, put the appropriate libraries to the distribution package.
 
-### Execution capabilities
+### Pluggable components
+
+The picture below demonstrates dependnecies between the OpenVINO Runtime core and pluggable libraries:
+
+![deployment_full]
+
+It
+
+#### Execution capabilities
 
 `HETERO`, `MULTI`, `BATCH`, `AUTO` execution capabilities can also be used explicitly or implicitly by the application. Use the following recommendation scheme to decide whether to put the appropriate libraries to the distribution package:
 - If [AUTO](../auto_device_selection.md) is used explicitly in the application or `ov::Core::compile_model` is used without specifying a device, put the `openvino_auto_plugin` to the distribution
@@ -41,7 +49,7 @@ Depending on what devices is used in the app, put the appropriate libraries to t
 - If [HETERO](../hetero_execution.md) is either used explicitly or `ov::hint::performance_mode` is used with GPU, put the `openvino_hetero_plugin` to the distribution
 - If [BATCH](../automatic_batching.md) is either used explicitly or `ov::hint::performance_mode` is used with GPU, put the `openvino_batch_plugin` to the distribution
 
-### Reading models
+#### Reading models
 
 OpenVINO Runtime uses frontend libraries dynamically to read models in different formats:
 - To read OpenVINO IR `openvino_ir_frontend` is used
@@ -52,8 +60,37 @@ Depending on what types of model file format are used in the application in `ov:
 
 > **NOTE**: The recommended way to optimize the size of final distribution package is to [convert models using Model Optimizer](../../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) to OpenVINO IR, in this case you don't have to keep ONNX, Paddle and other frontend libraries in the distribution package.
 
-### (Legacy) Preprocessing via G-API
+#### (Legacy) Preprocessing via G-API
 
 > **NOTE**: [G-API](../../gapi/gapi_intro.md) preprocessing is a legacy functionality, use [preprocessing capabilities from OpenVINO 2.0](../preprocessing_overview.md) which do not require any additional libraries.
 
 If the application uses `InferenceEngine::PreProcessInfo::setColorFormat` or `InferenceEngine::PreProcessInfo::setResizeAlgorithm` methods, OpenVINO Runtime dynamically loads `openvino_gapi_preproc` plugin to perform preprocessing via G-API.
+
+### Examples
+
+#### CPU + IR in C-written application
+
+C-written application performs inference on CPU and reads models stored as OpenVINO IR:
+- `openvino_c` library is a main dependency of the application. It links against this library
+- `openvino` is used as a private dependency for `openvino` and also used in the deployment
+- `openvino_intel_cpu_plugin` is used for inference
+- `openvino_ir_frontend` is used to read source model
+
+#### MULTI execution on GPU and MYRIAD in tput mode
+
+C++ written application performs inference [simultaneously on GPU and MYRIAD devices](../multi_device.md) with `ov::hint::PerformanceMode::THROUGHPUT` property, reads models stored in ONNX file format:
+- `openvino` library is a main dependency of the application. It links against this library
+- `openvino_intel_gpu_plugin` and `openvino_intel_myriad_plugin` are used for inference
+- `openvino_auto_plugin` is used for `MULTI` multi-device execution
+- `openvino_auto_batch_plugin` can be also put to the distribution to improve saturation of [Intel GPU](../supported_plugins/GPU.md) device. If there is no such plugin, [Automatic batching](../automatic_batching.md) is turned off.
+- `openvino_onnx_frontend` is used to read source model
+
+#### Auto device selection between HDDL and CPU
+
+C++ written application performs inference with [automatic device selection](../auto_device_selection.md) with device list limited to HDDL and CPU, model is [created using C++ code](../model_representation.md):
+- `openvino` library is a main dependency of the application. It links against this library
+- `openvino_auto_plugin` is used to enable automatic device selection feature
+- `openvino_intel_hddl_plugin` and `openvino_intel_cpu_plugin` are used for inference, `AUTO` selects between CPU and HDDL devices according to their physical existance on deployed machine.
+- No frontend library is needed because `ov::Model` is created in code.
+
+[deployment_full]: ../../img/deployment_full.png

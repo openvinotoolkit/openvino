@@ -73,9 +73,7 @@
 
    openvino_docs_Extensibility_UG_Intro
    openvino_docs_transformations
-   Inference Engine Plugin Developer Guide <openvino_docs_ie_plugin_dg_overview>
-   groupie_dev_api
-   Plugin Transformation Pipeline <openvino_docs_IE_DG_plugin_transformation_pipeline>
+   OpenVINO Plugin Developer Guide <openvino_docs_ie_plugin_dg_overview>
    
 .. toctree::
    :maxdepth: 1
