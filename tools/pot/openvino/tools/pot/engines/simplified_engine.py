@@ -20,4 +20,4 @@ class SimplifiedEngine(IEEngine):
                               batch_annotations, batch_meta, need_metrics_per_sample):
         # Collect statistics
         if stats_layout:
-            append_stats(self._accumulated_layer_stats, stats_layout, predictions, 0, self.inference_for_shape)
+            append_stats(self._accumulated_layer_stats, stats_layout, predictions, 0)
