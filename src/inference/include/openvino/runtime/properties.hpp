@@ -18,6 +18,7 @@
 
 #include "ie_precision.hpp"
 #include "openvino/core/any.hpp"
+#include "openvino/core/deprecated.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/common.hpp"
 
@@ -625,7 +626,8 @@ namespace device {
 /**
  * @brief Type for property to pass set of properties to specified device
  */
-static constexpr auto properties = ::ov::properties;
+OPENVINO_DEPRECATED("Use ov::properties")
+static constexpr Properties properties;
 
 /**
  * @brief the property for setting of required device to execute on

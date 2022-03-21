@@ -11,8 +11,8 @@ std::shared_ptr<ov::Model> model = core.read_model("sample.xml");
 
 // Configure  CPU and the MYRIAD devices when compiled model
 ov::CompiledModel compiled_model = core.compile_model(model, "AUTO",
-    ov::device::properties("CPU", cpu_config),
-    ov::device::properties("MYRIAD", myriad_config));
+    ov::properties("CPU", cpu_config),
+    ov::properties("MYRIAD", myriad_config));
 //! [part5]
     return 0;
 }

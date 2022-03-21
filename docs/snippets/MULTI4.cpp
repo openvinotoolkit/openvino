@@ -11,8 +11,8 @@ std::shared_ptr<ov::Model> model = core.read_model("sample.xml");
 // and the configuration of devices):
 ov::CompiledModel compileModel = core.compile_model(model, "MULTI",
     ov::device::priorities("HDDL", "GPU"),
-    ov::device::properties("HDDL", hddl_config),
-    ov::device::properties("GPU", gpu_config));
+    ov::properties("HDDL", hddl_config),
+    ov::properties("GPU", gpu_config));
 
 // query the optimal number of requests:
 uint32_t nireq = compileModel.get_property(ov::optimal_number_of_infer_requests);
