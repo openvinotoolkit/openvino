@@ -17,7 +17,7 @@ from openvino.tools.pot.algorithms.quantization.minmax.algorithm import MinMaxQu
 from openvino.tools.pot.algorithms.quantization.bias_correction.algorithm import BiasCorrection
 from .utils.config import PATHS2DATASETS_CONFIG
 
-TEST_MODELS = [('mobilenet-v2-pytorch', 'pytorch'), ('attention_ocr_example', 'tf')]
+TEST_MODELS = [('mobilenet-v2-pytorch', 'pytorch'), ('lstm_outs_quantization', 'tf')]
 
 @pytest.mark.parametrize(
     'model_name, model_framework', TEST_MODELS,
