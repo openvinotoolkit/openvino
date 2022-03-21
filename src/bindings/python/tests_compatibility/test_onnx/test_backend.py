@@ -154,7 +154,7 @@ tests_expected_to_fail = [
         "OnnxBackendSimpleModelTest.test_sequence_model2_cpu",
         "OnnxBackendNodeModelTest.test_identity_sequence_cpu",
         "OnnxBackendNodeModelTest.test_if_seq_cpu",
-        "OnnxBackendNodeModelTest.test_if_opt_cpu",  #  Optional, SequenceConstruct
+        "OnnxBackendNodeModelTest.test_if_opt_cpu",  # Optional, SequenceConstruct
     ),
     (
         xfail_issue_38701,
