@@ -192,10 +192,10 @@ The package is unpacked to the destination directory and the following files and
 
 3. For Linux, to run inference on a target Intel® GPU, Intel® Movidius™ VPU, or Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, you need to install additional dependencies by running the `install_openvino_dependencies.sh` script on the target machine:
 
-   ```sh
-   cd <destination_dir>/openvino/install_dependencies
-   sudo -E ./install_openvino_dependencies.sh
-   ```
+```sh
+cd <destination_dir>/openvino/install_dependencies
+sudo -E ./install_openvino_dependencies.sh
+```
   
 4. Set up the environment variables:
   
