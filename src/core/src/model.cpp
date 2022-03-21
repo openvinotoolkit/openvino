@@ -937,7 +937,7 @@ ov::Output<ov::Node> ov::Model::add_output(const std::string& op_name, size_t ou
     OPENVINO_ASSERT(m_cached_op_names.count(op_name),
                     "Model::add_output. Operation with name '",
                     op_name,
-                    " 'was not found.");
+                    "' was not found.");
     auto op = m_cached_op_names[op_name].lock();
     OPENVINO_ASSERT(op, "Model::add_output. Operation with name '", op_name, "' is expired.");
     OPENVINO_ASSERT(output_idx < op->get_output_size(),
