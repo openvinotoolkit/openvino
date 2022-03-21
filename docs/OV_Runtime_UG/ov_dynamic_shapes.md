@@ -1,9 +1,18 @@
 # Dynamic Shapes {#openvino_docs_OV_UG_DynamicShapes}
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   openvino_docs_OV_UG_NoDynamicShapes
+
+@endsphinxdirective
+
 As it was demonstrated in the [Changing Input Shapes](ShapeInference.md) article, there are models that support changing of input shapes before model compilation in `Core::compile_model`.
 Reshaping models provides an ability to customize the model input shape for exactly that size that is required in the end application.
 This article explains how the ability of model to reshape can further be leveraged in more dynamic scenarios.
-
 
 ## When to Apply Dynamic Shapes
 
@@ -73,7 +82,8 @@ If the input model has undefined dimensions that you are not going to change dur
 From the API perspective any combination of dynamic and static dimensions can be configured.
 
 Model Optimizer provides capability to reshape the model during the conversion, including specifying dynamic dimensions.
-Use this capability to save time on calling `reshape` method in the end application. <TODO: Link to MO setting shape doc>
+Use this capability to save time on calling `reshape` method in the end application.
+To get information about setting input shapes using Model Optimizer, refer to [Setting Input Shapes](../MO_DG/prepare_model/convert_model/Converting_Model.md)
 
 ### Dimension Bounds
 

@@ -69,10 +69,10 @@ BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernelBase::SetDefaul
                                                                                   int) const {
     DispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
-    auto out_layout = params.output.GetLayout();
+    auto out_layout = params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
-    const auto& out = params.output;
+    const auto& out = params.outputs[0];
     std::vector<size_t> global;
     if (out_layout == DataLayout::bfyx || out_layout == DataLayout::byxf) {
         global = {out.X().v, out.Y().v, out.Feature().v * out.Batch().v};
@@ -118,7 +118,7 @@ KernelsData BinaryConvolutionKernelBase::GetCommonKernelsData(const Params& para
     binary_convolution_params& newParams = *static_cast<binary_convolution_params*>(kd.params.get());
 
     if (NeedPaddedInput()) {
-        kd.reorderInput = CovolutionBinaryUpdateInputParams(newParams);
+        kd.reorderInput = ConvolutionBinaryUpdateInputParams(newParams);
     }
     DispatchData dispatchData = SetDefault(newParams, autoTuneIndex);
 
@@ -197,8 +197,8 @@ static DataTensor GetConvolutionBFYXPaddedTensor(const binary_convolution_params
     pad[0].before = cp.padding.x;
     pad[1].before = cp.padding.y;
 
-    const auto inputLimitX = (cp.output.X().v - 1) * cp.stride.x + (cp.filterSize.x - 1) * cp.dilation.x + 1;
-    const auto inputLimitY = (cp.output.Y().v - 1) * cp.stride.y + (cp.filterSize.y - 1) * cp.dilation.y + 1;
+    const auto inputLimitX = (cp.outputs[0].X().v - 1) * cp.stride.x + (cp.filterSize.x - 1) * cp.dilation.x + 1;
+    const auto inputLimitY = (cp.outputs[0].Y().v - 1) * cp.stride.y + (cp.filterSize.y - 1) * cp.dilation.y + 1;
 
     pad[0].after = (size_t)std::max(static_cast<int>(inputLimitX) - static_cast<int>(t.X().v) - static_cast<int>(pad[0].before), static_cast<int>(0));
     pad[1].after = (size_t)std::max(static_cast<int>(inputLimitY) - static_cast<int>(t.Y().v) - static_cast<int>(pad[1].before), static_cast<int>(0));
@@ -216,7 +216,7 @@ static DataTensor GetConvolutionBFYXPaddedTensor(const binary_convolution_params
     return {dims, t.GetDType(), t.GetLayout()};
 }
 
-bool CovolutionBinaryCheckInput(const Params& p, const optional_params& o) {
+bool ConvolutionBinaryCheckInput(const Params& p, const optional_params& o) {
     const binary_convolution_params& params = static_cast<const binary_convolution_params&>(p);
     const binary_convolution_optional_params& optParams = static_cast<const binary_convolution_optional_params&>(o);
 
@@ -231,7 +231,7 @@ bool CovolutionBinaryCheckInput(const Params& p, const optional_params& o) {
     return true;
 }
 
-bool CovolutionBinaryUpdateInputParams(binary_convolution_params& params) {
+bool ConvolutionBinaryUpdateInputParams(binary_convolution_params& params) {
     const auto req_input = GetConvolutionBFYXPaddedTensor(params);
     const bool bProperInputDesc = CheckConvolutionBinaryPaddedInputDesc(params, req_input);
 
