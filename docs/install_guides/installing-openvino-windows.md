@@ -113,7 +113,7 @@ You must update several environment variables before you can compile and run Ope
 
 The environment variables are set. Next, you will configure the Model Optimizer.
 
-## <a name="model-optimizer">Step 4: Configure the Model Optimizer
+## <a name="model-optimizer">Step 4: Configure the Model Optimizer</a>
 
 The Model Optimizer is a Python\*-based command line tool for importing
 trained models from popular deep learning frameworks such as Caffe\*,
@@ -235,6 +235,30 @@ Your `PATH` environment variable is updated. If the changes don't take effect im
 ## <a name="get-started"></a>Step 6: Start Using the Toolkit
 
 Now you are ready to try out the toolkit. To continue, see the [Get Started Guide](../get_started/get_started.md) section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications with pre-trained models on different inference devices.
+
+## Troubleshooting
+
+PRC developers might encounter downloading issues during <a name="model-optimizer">Step 4: Configure the Model Optimizer</a>. To resolve the issues, try one of the following options:
+* Add the download source using the `-i` parameter with the Python `pip` command. For example: 
+
+   ```
+   pip install openvino-dev -i https://mirrors.aliyun.com/pypi/simple/
+   ```
+   Use the `--trusted-host` parameter if the URL above is `http` instead of `https`.
+   You can also run the following command to install specific framework. For example:
+   
+   ```
+   pip install openvino-dev[tensorflow2] -i https://mirrors.aliyun.com/pypi/simple/
+   ```
+
+* Modify or create the `~/.pip/pip.conf` file to change the default download source with the content below:
+
+   ```
+   [global]
+   index-url = http://mirrors.aliyun.com/pypi/simple/
+   [install]
+   trusted-host = mirrors.aliyun.com
+   ```
 
 ## <a name="uninstall"></a>Uninstall the Intel® Distribution of OpenVINO™ Toolkit
 
