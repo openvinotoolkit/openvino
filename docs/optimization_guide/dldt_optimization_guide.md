@@ -10,7 +10,7 @@ Generally, performance means how fast the model processes the live data. Two key
 ![](../img/LATENCY_VS_THROUGHPUT.svg)
 
 Latency measures inference time (ms) required to process a single input. When it comes to the executing multiple inputs executed simultaneously (e.g. via batching) then the overall throughput (inferences per second, or frames per second, FPS, in the specific case of visual processing) is usually of more concern.
-To calculate throughput, divide number of frames that were processed by the processing time.
+To calculate throughput, divide number of inputs that were processed by the processing time.
 
 It is important to separate the "pure" inference time of a neural network and the end-to-end application performance. For example data transfers between the host and a device may unintentionally affect the performance when a host input tensor is processed on the accelerator like dGPU. Similarly, the image-preprocessing may also contribute significantly to the to inference time. As detailed in the [getting performance numbers](../MO_DG/prepare_model/Getting_performance_numbers.md) section, when drilling into _inference_ performance, one option is to measure all such items separately. 
 For the end-to-end scenario though, consider the image pre-processing thru the OpenVINO and the asynchronous execution is a way to amortize the communication costs like data transfers. You can find further details in the [general optimizations document](./dldt_deployment_optimization_common.md).

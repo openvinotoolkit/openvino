@@ -37,7 +37,7 @@ OpenVINO runtime also has several execution capabilities which work on top of ot
 Devices similar to the ones we have used for benchmarking can be accessed using [Intel® DevCloud for the Edge](https://devcloud.intel.com/edge/), a remote development environment with access to Intel® hardware and the latest versions of the Intel® Distribution of the OpenVINO™ Toolkit. [Learn more](https://devcloud.intel.com/edge/get_started/devcloud/) or [Register here](https://inteliot.force.com/DevcloudForEdge/s/).
 
 
-## Features support matrix
+## Features support matrix {#openvino_docs_OV_UG_features_support_matrix}
 The table below demonstrates support of key features by OpenVINO device plugins.
 
 | Capability | [CPU](CPU.md) | [GPU](GPU.md) | [GNA](GNA.md) | [VPU](VPU.md) | [Arm® CPU](ARM_CPU.md) |

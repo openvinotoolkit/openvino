@@ -5,7 +5,7 @@
 In many cases, a network expects a pre-processed image, so make sure you do not perform unnecessary steps in your code:
 - Model Optimizer can efficiently bake the mean and normalization (scale) values into the model (for example, to the weights of the first convolution). Please see [relevant Model Optimizer command-line options](../MO_DG/prepare_model/Additional_Optimizations.md).
 - Let the OpenVINO accelerate other means of [Image Pre-processing and Conversion](../OV_Runtime_UG/preprocessing_overview.md).
-- Note that in many cases, you can directly share the (input) data with the OpenVINO, for example consider [remote tensors API of the GPU Plugin](../OV_Runtime_UG//supported_plugins/GPU_RemoteTensor_API.md).
+- You can directly input a data that is already in the _on-device_ memory, by using the [remote tensors API of the GPU Plugin](../OV_Runtime_UG//supported_plugins/GPU_RemoteTensor_API.md).
 
 ## Prefer OpenVINO Async API <a name="ov-async-api"></a>
 The API of the inference requests offers Sync and Async execution. While the `ov::InferRequest::infer()` is inherently synchronous and executes immediately (effectively serializing the execution flow in the current application thread), the Async "splits" the `infer()` into `ov::InferRequest::start_async()` and `ov::InferRequest::wait()`. Please consider the [API examples](../OV_Runtime_UG/ov_infer_request.md).
@@ -45,7 +45,7 @@ Few important points on the callbacks:
 - Although executed asynchronously by a dedicated threads the callbacks should NOT include heavy operations (e.g. I/O) and/or blocking calls. Keep the work done by any callback to a minimum.
 
 ## "get_tensor" Idiom <a name="new-request-based-api"></a>
-
-`get_tensor` is a recommended way to populate the inference inputs (and read back the outputs), as it internally allocates the data with right padding/alignment for the device. For example, the GPU inputs/outputs tensors are mapped to the host (which is fast) only when the `get_tensor` is used, while for the `set_tensor` a copy into the internal GPU structures may happen.
+Within OpenVINO, each device has different requirements on the memory padding/alignment/etc. This is also relevant for the input/output tensors. By default, the tensors are already allocated to be device-friendly.
+Thus, the `get_tensor` is a recommended way to populate the inference inputs (and read back the outputs). For example, the GPU inputs/outputs tensors are mapped to the host (which is fast) only when the `get_tensor` is used, while for the `set_tensor` a copy into the internal GPU structures may happen.
 Please consider the [API examples](../OV_Runtime_UG/ov_infer_request.md).
 In contrast, the `set_tensor` is a preferable way to handle remote tensors, [for example with the GPU device](../OV_Runtime_UG//supported_plugins/GPU_RemoteTensor_API.md).
