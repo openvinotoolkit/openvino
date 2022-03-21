@@ -10,6 +10,7 @@ namespace ov {
 namespace op {
 namespace v7 {
 /// \brief Einsum operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Einsum : public Op {
 public:
     OPENVINO_OP("Einsum", "opset7", op::Op, 7);

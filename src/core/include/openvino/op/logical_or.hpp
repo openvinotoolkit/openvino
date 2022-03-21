@@ -13,6 +13,7 @@ namespace op {
 namespace v1 {
 /// \brief Elementwise logical-or operation.
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API LogicalOr : public util::BinaryElementwiseLogical {
 public:
     OPENVINO_OP("LogicalOr", "opset1", util::BinaryElementwiseLogical, 1);

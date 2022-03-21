@@ -13,6 +13,7 @@ namespace v1 {
 ///
 /// The reduction is performed over slices of the first input. The slices shape depends
 /// on the values passed to the second input - the axes.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API ReduceLogicalOr : public util::LogicalReductionKeepDims {
 public:
     OPENVINO_OP("ReduceLogicalOr", "opset1", util::LogicalReductionKeepDims, 1);

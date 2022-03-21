@@ -11,6 +11,7 @@ namespace op {
 namespace v8 {
 /// \brief MatrixNms operation
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API MatrixNms : public util::NmsBase {
 public:
     OPENVINO_OP("MatrixNms", "opset8", op::util::NmsBase);

@@ -12,6 +12,7 @@ namespace v0 {
 /// \brief Calculates an element-wise squared difference between two tensors
 ///
 /// y[i] = (x1[i] - x2[i])^2
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API SquaredDifference : public util::BinaryElementwiseArithmetic {
 public:
     OPENVINO_OP("SquaredDifference", "opset1", util::BinaryElementwiseArithmetic);
