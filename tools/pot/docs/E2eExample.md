@@ -5,7 +5,7 @@ particularly by the DefaultQuantization algorithm.
 The example covers the following steps:
 - Environment setup
 - Model preparation and converting it to the OpenVINO™ Intermediate Representation (IR) format 
-- Performance benchmarking of the original full-precision model and the converted one to the IR
+- Performance benchmarking of the original full-precision model
 - Dataset preparation
 - Accuracy validation of the full-precision model in the IR format
 - Model quantization by the DefaultQuantization algorithm and accuracy validation of the quantized model
@@ -17,18 +17,6 @@ distributed with the Intel&reg; Distribution of OpenVINO&trade; toolkit.
 The example has been verified in Ubuntu 18.04 Operating System with Python 3.6 installed. 
 
 In case of issues while running the example, refer to [POT Frequently Asked Questions](@ref pot_docs_FrequentlyAskedQuestions) for help.
-
-## Environment Setup
-
-1. Install OpenVINO&trade; toolkit and Model Optimizer, Accuracy Checker and Post-training Optimization Tool components following the [Installation Guide](@ref pot_InstallationGuide).
-2. Activate the Python* environment and OpenVINO environment as described in the [Installation Guide](@ref pot_InstallationGuide).
-3. Create a separate working directory and navigate to it. 
-
-In the instructions below, the Post-Training Optimization Tool directory `<POT_DIR>` is referred to:
- - `<ENV>/lib/python<version>/site-packages/` in the case of PyPI installation, where `<ENV>` is a Python* 
- environment where OpenVINO is installed and `<version>` is a Python* version, e.g. `3.6`.
-
-`<INSTALL_DIR>` is the directory where Intel&reg; Distribution of OpenVINO&trade; toolkit is installed.
 
 ## Model Preparation
 
@@ -50,17 +38,7 @@ For more information about the Model Optimizer, refer to its [documentation](@re
 
 ## Performance Benchmarking of Full-Precision Models
 
-1. Check the performance of the original model using [Deep Learning Benchmark](@ref openvino_inference_engine_tools_benchmark_tool_README) tool:
-   ```sh
-   python3 ./benchmark_app.py -m <EXAMPLE_DIR>/public/mobilenet-v2-pytorch/mobilenet-v2.onnx
-   ```
-   Note that the results might be different dependently on characteristics of your machine. On a machine with Intel&reg; Core&trade; i9-10920X CPU @ 3.50GHz it is like:
-   ```sh
-   Latency:    4.09 ms
-   Throughput: 1456.84 FPS
-   ```
-
-2. Check the performance of the full-precision model in the IR format using [Deep Learning Benchmark](@ref openvino_inference_engine_tools_benchmark_tool_README) tool:
+Check the performance of the full-precision model in the IR format using [Deep Learning Benchmark](@ref openvino_inference_engine_tools_benchmark_tool_README) tool:
    ```sh
    python3 ./benchmark_app.py -m <EXAMPLE_DIR>/public/mobilenet-v2-pytorch/FP32/mobilenet-v2-pytorch.xml
    ```
