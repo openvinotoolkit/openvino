@@ -158,7 +158,7 @@ else
 fi
 
 # Step 3. Build samples
-echo -ne "\n###############|| Build Inference Engine samples ||###############\n\n"
+echo -ne "\n###############|| Build OpenVINO Runtime samples ||###############\n\n"
 
 OS_PATH=$(uname -m)
 NUM_THREADS="-j2"
@@ -181,7 +181,7 @@ cmake -DCMAKE_BUILD_TYPE=Release "$samples_path"
 make $NUM_THREADS benchmark_app
 
 # Step 4. Run samples
-echo -ne "\n###############|| Run Inference Engine benchmark app ||###############\n\n"
+echo -ne "\n###############|| Run OpenVINO Runtime benchmark app ||###############\n\n"
 
 cd "$binaries_dir"
 
@@ -189,4 +189,4 @@ cp -f "$ROOT_DIR/${model_name}.labels" "${ir_dir}/"
 
 print_and_run ./benchmark_app -d "$target" -i "$target_image_path" -m "${ir_dir}/${model_name}.xml" -pc "${sampleoptions[@]}"
 
-echo -ne "\n###############|| Inference Engine benchmark app completed successfully ||###############\n\n"
+echo -ne "\n###############|| OpenVINO Runtime benchmark app completed successfully ||###############\n\n"

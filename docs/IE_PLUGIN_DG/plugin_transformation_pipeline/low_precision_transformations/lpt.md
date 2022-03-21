@@ -259,7 +259,7 @@ Result model depends on different factors:
 
 
 Information about layer precision is stored in the performance counters that are
-available from the Inference Engine API. For example, the part of performance counters table for quantized [TensorFlow* implementation of ResNet-50](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf) model inference on CPU Plugin looks as follows:
+available from the OpenVINO Runtime API. For example, the part of performance counters table for quantized [TensorFlow* implementation of ResNet-50](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf) model inference on CPU Plugin looks as follows:
 
 
 | layerName                                                 | execStatus | layerType    | execType             | realTime (ms) | cpuTime (ms) |
