@@ -16,9 +16,9 @@ from openvino.runtime import Core, InferRequest, Layout, Type, set_batch
 from arg_parser import parse_args
 from file_options import read_utterance_file, write_utterance_file
 from utils import (GNA_ATOM_FREQUENCY, GNA_CORE_FREQUENCY,
-                   compare_with_reference, get_scale_factor, log,
-                   parse_input_layouts, parse_outputs_from_args,
-                   parse_scale_factors, set_scale_factors)
+                   calculate_scale_factor, compare_with_reference,
+                   get_input_layouts, get_sorted_scale_factors, log,
+                   parse_outputs_from_args, set_scale_factors)
 
 
 def do_inference(data: Dict[str, np.ndarray], infer_request: InferRequest, cw_l: int = 0, cw_r: int = 0) -> np.ndarray:
@@ -84,7 +84,7 @@ def main():
             model.add_outputs(list(zip(output_layer_names, output_layer_ports)))
 
         if args.layout:
-            layouts = parse_input_layouts(args, model.inputs)
+            layouts = get_input_layouts(args.layout, model.inputs)
 
         ppp = PrePostProcessor(model)
 
@@ -126,22 +126,23 @@ def main():
         # Set a GNA scale factor
         if args.import_gna_model:
             if args.scale_factor:
-                log.warning(f'Custom scale factor will be used for imported GNA model: {args.import_gna_model}')
-                set_scale_factors(plugin_config, parse_scale_factors(args))
+                log.error(f'Custom scale factor can not be set for imported gna model: {args.import_gna_model}')
+                return 1
             else:
-                log.info(f'Using scale factor from the imported GNA model: {args.import_gna_model}')
+                log.info(f'Using scale factor from provided imported gna model: {args.import_gna_model}')
         else:
-            if args.scale_factor:
-                set_scale_factors(plugin_config, parse_scale_factors(args))
+            if args.scale_factor[1]:
+                scale_factors = get_sorted_scale_factors(args.scale_factor, model.inputs)
             else:
                 scale_factors = []
 
                 for file_name in args.input[1]:
                     _, utterances = read_utterance_file(file_name)
-                    scale_factors.append(get_scale_factor(utterances[0]))
+                    scale_factor = calculate_scale_factor(utterances[0])
+                    log.info('Using scale factor(s) calculated from first utterance')
+                    scale_factors.append(str(scale_factor))
 
-                log.info('Using scale factor(s) calculated from first utterance')
-                set_scale_factors(plugin_config, scale_factors)
+            set_scale_factors(plugin_config, scale_factors, model.inputs)
 
         if args.export_embedded_gna_model:
             plugin_config['GNA_FIRMWARE_MODEL_IMAGE'] = args.export_embedded_gna_model

@@ -113,4 +113,11 @@ def parse_args(separator: str = '=') -> argparse.Namespace:
             f'<input_name1>{separator}<file1.ark/.npz>,<input_name2>{separator}<file2.ark/.npz> or just <file.ark/.npz> in case of one input.',
         )
 
+    args.scale_factor = parse_arg_with_names(args.scale_factor, separator)
+    if check_arg_with_names(args.scale_factor):
+        parser.error(
+            'Invalid format for -sf/--scale_factor argment. Please specify the parameter like this '
+            f'<input_name1>{separator}<sf1>,<input_name2>{separator}<sf2> or just <sf> to be applied to all inputs.',
+        )
+
     return args
