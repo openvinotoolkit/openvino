@@ -11,6 +11,7 @@
 #include <ngraph/variant.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <low_precision/lpt_visibility.hpp>
+#include "low_precision/rt_info/attribute_parameters.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -32,6 +33,10 @@ class LP_TRANSFORMATIONS_API PropagatePrecisions;
  */
 class ngraph::pass::low_precision::PropagatePrecisions : public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("PropagatePrecisions", "0");
+    PropagatePrecisions(const AttributeParameters& params = AttributeParameters());
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
+
+private:
+    const AttributeParameters params;
 };

@@ -8,6 +8,8 @@
 
 #include <fstream>
 
+#include "ngraph/pass/manager.hpp"
+#include "ngraph/pass/serialize.hpp"
 #include "openvino/util/file_util.hpp"
 #include "read_ir.hpp"
 #include "util/graph_comparator.hpp"
@@ -41,14 +43,16 @@ public:
 
 TEST_P(SerializationTest, CompareFunctions) {
     auto expected = ov::test::readModel(m_model_path, m_binary_path);
+    auto orig = ov::clone_model(*expected);
     ov::pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_model(expected);
     auto result = ov::test::readModel(m_out_xml_path, m_out_bin_path);
-
     const auto fc = FunctionsComparator::with_default()
                         .enable(FunctionsComparator::ATTRIBUTES)
                         .enable(FunctionsComparator::CONST_VALUES);
     const auto res = fc.compare(result, expected);
+    const auto res2 = fc.compare(expected, orig);
     EXPECT_TRUE(res.valid) << res.message;
+    EXPECT_TRUE(res2.valid) << res2.message;
 }
 
 INSTANTIATE_TEST_SUITE_P(

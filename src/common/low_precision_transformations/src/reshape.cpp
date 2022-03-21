@@ -21,8 +21,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::ReshapeTransformation, "ReshapeTransformation", 0);
-
 ReshapeTransformation::ReshapeTransformation(const Params& params) : LayerTransformation(params) {
     auto input = pattern::any_input();
     auto mul_const_m = pattern::wrap_type<opset1::Constant>();
@@ -56,7 +54,7 @@ ReshapeTransformation::ReshapeTransformation(const Params& params) : LayerTransf
 
 namespace {
 
-void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& reshape) {
+void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& reshape, const std::vector<ngraph::element::Type>& defaultPrecisions) {
     // Reshape dequantization operation Constant.
     //    1. Calculate result dequantization Constant shape for broadcast based on original dequantization Constant shape and Reshape output.
     //    For example: dequantization shape {1, 3, 1, 1}, output Reshape shape {1, 12, 3, 3}, result for broadcast: {1, 3, 4, 1},
@@ -132,7 +130,7 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
         replace_node(originalConstant, resultConstant);
     };
 
-    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(reshape, 0);
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(reshape, defaultPrecisions, 0);
 
     if (dequantization.subtract != nullptr) {
         replaceConstant(reshape, dequantization.subtractConstant);
@@ -155,9 +153,9 @@ bool ReshapeTransformation::transform(TransformationContext& context, ngraph::pa
         return false;
     }
 
-    reshape = ov::as_type_ptr<opset1::Reshape>(NetworkHelper::separateInStandaloneBranch(reshape));
-    reshapeDequantizationConstant(reshape);
-    moveDequantizationAfter(context, reshape, NetworkHelper::getDequantization(reshape, 0), false);
+    reshape = ov::as_type_ptr<opset1::Reshape>(NetworkHelper::separateInStandaloneBranch(reshape, defaultPrecisions));
+    reshapeDequantizationConstant(reshape, defaultPrecisions);
+    moveDequantizationAfter(context, reshape, NetworkHelper::getDequantization(reshape, defaultPrecisions, 0), false);
     return true;
 }
 
@@ -190,13 +188,23 @@ bool ReshapeTransformation::canBeTransformed(const TransformationContext& contex
         return false;
     }
 
-    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(op);
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(op, defaultPrecisions);
     if (dequantization.empty()) {
         return false;
     }
 
-    if (((dequantization.subtract == nullptr) || NetworkHelper::isScalarLike(dequantization.subtractConstant)) &&
-        ((dequantization.multiply == nullptr) || NetworkHelper::isScalarLike(dequantization.multiplyConstant))) {
+    bool ignorePerTensorQuantizationCheck = false;
+    if (reshapeIgnorePerTensorQuantizationCheck) {
+        const auto inputs = op->get_output_target_inputs(0);
+        if (inputs.size() == 1ul) {
+            const auto consumer = inputs.begin()->get_node();
+            ignorePerTensorQuantizationCheck = ngraph::as_type<ngraph::opset1::MatMul>(consumer) != nullptr;
+        }
+    }
+
+    if (!ignorePerTensorQuantizationCheck &&
+        (((dequantization.subtract == nullptr) || NetworkHelper::isScalarLike(dequantization.subtractConstant)) &&
+        ((dequantization.multiply == nullptr) || NetworkHelper::isScalarLike(dequantization.multiplyConstant)))) {
         return true;
     }
 
@@ -229,16 +237,16 @@ bool ReshapeTransformation::canBeTransformed(const TransformationContext& contex
     }
 
     const size_t outputChannel = static_cast<size_t>(outputPShape[1].get_length());
-    if (!subtractShapeWithBatch.empty() && (outputChannel < subtractShapeWithBatch[1])) {
+    if ((subtractShapeWithBatch.size() > 1) && (outputChannel < subtractShapeWithBatch[1])) {
         return false;
     }
-    if (!multiplyShapeWithBatch.empty() && (outputChannel < multiplyShapeWithBatch[1])) {
+    if ((multiplyShapeWithBatch.size() > 1) && (outputChannel < multiplyShapeWithBatch[1])) {
         return false;
     }
 
     if (outputPShape.is_static() &&
-        ((!subtractShapeWithBatch.empty() && ((outputChannel % subtractShapeWithBatch[1]) != 0)) ||
-        (!multiplyShapeWithBatch.empty() && (outputChannel % multiplyShapeWithBatch[1] != 0)))) {
+        (((subtractShapeWithBatch.size() > 1) && ((outputChannel % subtractShapeWithBatch[1]) != 0)) ||
+         ((multiplyShapeWithBatch.size() > 1) && (outputChannel % multiplyShapeWithBatch[1] != 0)))) {
         return false;
     }
 

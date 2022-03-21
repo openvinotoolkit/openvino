@@ -14,8 +14,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::ClampTransformation, "ClampTransformation", 0);
-
 ClampTransformation::ClampTransformation(const Params& params) : LayerTransformation(params) {
     auto matcher = pattern::wrap_type<opset1::Clamp>({ pattern::wrap_type<opset1::Multiply>() });
 
@@ -36,8 +34,8 @@ bool ClampTransformation::transform(TransformationContext& context, ngraph::patt
         return false;
     }
 
-    const std::shared_ptr<Node> clamp = NetworkHelper::separateInStandaloneBranch(m.get_match_root());
-    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(clamp);
+    const std::shared_ptr<Node> clamp = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(clamp, defaultPrecisions);
 
     const bool moveSubtract = dequantization.subtract == nullptr ? false : NetworkHelper::isScalarLike(dequantization.subtractConstant);
     // issue #43136
@@ -84,7 +82,7 @@ bool ClampTransformation::canBeTransformed(const TransformationContext& context,
         return false;
     }
 
-    const auto dequantization = NetworkHelper::getDequantization(op);
+    const auto dequantization = NetworkHelper::getDequantization(op, defaultPrecisions);
     if (dequantization.multiply == nullptr) {
         return false;
     }

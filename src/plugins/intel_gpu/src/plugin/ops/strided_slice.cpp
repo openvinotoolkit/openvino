@@ -251,8 +251,6 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
         e = 1 - e;
     }
 
-    auto out_size = tensor_from_dims(op->get_output_shape(0));
-
     auto stridedSlicePrim = cldnn::strided_slice(layerName,
                                                  inputPrimitives[0],
                                                  inputPrimitives[1],
@@ -262,7 +260,7 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
                                                  end_mask,
                                                  new_axis_mask,
                                                  shrink_axis_mask,
-                                                 out_size,
+                                                 op->get_output_shape(0),
                                                  op->get_friendly_name());
 
     p.AddPrimitive(stridedSlicePrim);

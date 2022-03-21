@@ -56,7 +56,7 @@ struct AutoBroadcastSpec;
 }  // namespace op
 namespace pass {
 
-class ResolveGeneratedNameCollisions;
+class ResolveNameCollisions;
 
 namespace pattern {
 class Matcher;
@@ -127,7 +127,7 @@ class OPENVINO_API Node : public std::enable_shared_from_this<Node> {
 
     friend class Model;
     // To fix collisions in generated friendly name
-    friend class pass::ResolveGeneratedNameCollisions;
+    friend class pass::ResolveNameCollisions;
 
 protected:
     descriptor::Input& get_input_descriptor(size_t position);
@@ -424,8 +424,11 @@ public:
     NodeVector get_users(bool check_is_used = false) const;
 
     /// \return Version of this node
+    OPENVINO_DEPRECATED("This method is deprecated and will be removed soon.")
     virtual size_t get_version() const {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         return get_type_info().version;
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     OPENVINO_DEPRECATED("This method is deprecated and will be removed soon.")

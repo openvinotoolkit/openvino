@@ -16,8 +16,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::AssignAndReadValueTransformation, "AssignAndReadValueTransformation", 0);
-
 AssignAndReadValueTransformation::AssignAndReadValueTransformation(const std::shared_ptr<ngraph::Function> function, const Params& params) :
     LayerTransformation(params), function(function) {
     auto assign3 = pattern::wrap_type<opset3::Assign>({ pattern::wrap_type<opset1::Multiply>() });
@@ -57,8 +55,8 @@ bool AssignAndReadValueTransformation::transform(TransformationContext& context,
     const auto readValue = oldAssign->get_control_dependencies()[0];
     oldAssign->remove_control_dependency(readValue);
 
-    const auto assign = NetworkHelper::separateInStandaloneBranch(oldAssign);
-    const auto dequantization = NetworkHelper::getDequantization(assign);
+    const auto assign = NetworkHelper::separateInStandaloneBranch(oldAssign, defaultPrecisions);
+    const auto dequantization = NetworkHelper::getDequantization(assign, defaultPrecisions);
 
     auto oldVar = ov::as_type_ptr<op::ReadValueBase>(readValue)->get_variable();
     auto variableInfo = oldVar->get_info();
@@ -119,7 +117,7 @@ bool AssignAndReadValueTransformation::canBeTransformed(const TransformationCont
         return false;
     }
 
-    const auto dequantization = NetworkHelper::getDequantization(op);
+    const auto dequantization = NetworkHelper::getDequantization(op, defaultPrecisions);
     return dequantization.subtract == nullptr && dequantization.multiply != nullptr;
 }
 

@@ -13,7 +13,7 @@ the name \'.+?\' supplied as the argument
 warning: while setting up extension conf.py: csv directory not found
 argument \'.+?\' of command
 no uniquely matching class member found for
-example example was already documented\. ignoring documentation found here\.
+example was already documented\. ignoring documentation found here\.
 documentation for unknown define
 detected potential recursive class relation between class
 no matching file member found for
@@ -42,7 +42,7 @@ template .+
 openvino_suppress_deprecated_start template class openvino_api ngraph::variantimpl
 @copybrief or @copydoc target
 while setting up extension conf.py: csv directory not found
-autosummary: failed to import openvino.inference_engine
+autosummary: failed to import
 unknown target name:
 undefined substitution referenced
 detailed documentation
@@ -69,12 +69,11 @@ example of converting
 step 2: build the software required for all roles
 step 4: receive and load the access controlled model into
 ^undefined label:
-\[autosummary\] failed to import \'openvino.inference_engine\'
+\[autosummary\] failed to import
 inheritance graph for
 ^convert darknet
 anonymous hyperlink mismatch: 4 references but 0 targets
 see "backrefs" attribute for ids
-\[autosummary\] failed to import openvino.inference_engine.
 doing serial read
 doing serial write
 possible hints:
@@ -87,3 +86,18 @@ no module named openvino
 title level inconsistent
 create a pipeline
 run pot cli
+found unknown command
+unable to resolve reference to \'http
+unexpected html tag
+field list ends without a blank line
+bullet list ends without a blank line
+Error parsing content block for the \"list-table\" directive
+more than one target found for cross-reference
+unexpected indentation
+definition list ends without
+duplicate object description of
+explicit markup ends without a blank line
+\* keyerror:
+\* modulenotfounderror
+unexpected unindent
+failed to import object

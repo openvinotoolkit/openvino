@@ -8,9 +8,7 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::ConvertBroadcastToTiles, "ConvertBroadcastToTiles", 0);
-
-MKLDNNPlugin::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
+ov::intel_cpu::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
     auto broadcast = ngraph::pattern::wrap_type<ngraph::opset1::Broadcast>();
 
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {

@@ -28,14 +28,15 @@ from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_
 from openvino.tools.mo.pipeline.common import prepare_emit_ir, get_ir_version
 from openvino.tools.mo.pipeline.unified import unified_pipeline
 from openvino.tools.mo.utils import import_extensions
-from openvino.tools.mo.utils.cli_parser import check_available_transforms, get_caffe_cli_options, \
+from openvino.tools.mo.utils.cli_parser import check_available_transforms, \
+    get_advanced_cli_options, get_available_front_ends, get_caffe_cli_options, \
     get_common_cli_options, get_freeze_placeholder_values, get_kaldi_cli_options, get_layout_values, \
     get_mean_scale_dictionary, get_meta_info, get_model_name, get_mxnet_cli_options, get_onnx_cli_options, \
     get_placeholder_shapes, get_tf_cli_options, get_tuple_values, parse_transform, parse_tuple_pairs
 from openvino.tools.mo.utils.error import Error, FrameworkError
 from openvino.tools.mo.utils.find_ie_version import find_ie_version
-from openvino.tools.mo.utils.get_ov_update_message import get_ov_update_message
-from openvino.tools.mo.utils.guess_framework import deduce_framework_by_namespace
+from openvino.tools.mo.utils.get_ov_update_message import get_ov_update_message, get_ov_api20_message
+from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_namespace
 from openvino.tools.mo.utils.logger import init_logger, progress_printer
 from openvino.tools.mo.utils.model_analysis import AnalysisResults
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
@@ -61,6 +62,7 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
     print('Model Optimizer arguments:')
     props = OrderedDict()
     props['common_args'] = get_common_cli_options(model_name)
+    props['advanced_args'] = get_advanced_cli_options()
     if is_caffe:
         props['caffe_args'] = get_caffe_cli_options()
     if is_tf:
@@ -74,6 +76,7 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
 
     framework_specifics_map = {
         'common_args': 'Common parameters:',
+        'advanced_args': 'Advanced parameters:',
         'caffe_args': 'Caffe specific parameters:',
         'tf_args': 'TensorFlow specific parameters:',
         'mxnet_args': 'MXNet specific parameters:',
@@ -117,7 +120,7 @@ def get_moc_frontends(argv: argparse.Namespace):
     if not fem or use_legacy_frontend:
         return None, []
 
-    available_moc_front_ends = fem.get_available_front_ends()
+    available_moc_front_ends = get_available_front_ends(fem)
 
     if not argv.framework and argv.input_model:
         moc_front_end = fem.load_by_model(argv.input_model)
@@ -132,33 +135,55 @@ def get_moc_frontends(argv: argparse.Namespace):
     default_frontends = get_default_frontends()
     # Disable MOC frontend if default is set to legacy and no user override
     if default_frontends.get(moc_front_end.get_name()) == 'legacy' and not use_new_frontend:
-        moc_front_end = None
+        return None, available_moc_front_ends
+
+    # This check as a workaround to skip IR frontend
+    if not moc_front_end.get_name() in available_moc_front_ends:
+        return None, available_moc_front_ends
 
     return moc_front_end, available_moc_front_ends
 
 
 def arguments_post_parsing(argv: argparse.Namespace):
+    use_legacy_frontend = argv.use_legacy_frontend
+    use_new_frontend = argv.use_new_frontend
+
+    if use_new_frontend and use_legacy_frontend:
+        raise Error('Options --use_new_frontend and --use_legacy_frontend must not be used simultaneously '
+                    'in the Model Optimizer command-line')
+
     moc_front_end, available_moc_front_ends = get_moc_frontends(argv)
 
-    is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx =\
-        deduce_framework_by_namespace(argv) if not moc_front_end else [False, False, False, False, False]
+    if not moc_front_end and use_new_frontend:
+        raise Error('Option --use_new_frontend is specified but the Model Optimizer is unable to find new frontend. '
+                    'Please ensure that your environment contains new frontend for the input model format or '
+                    'try to convert the model without specifying --use_new_frontend option.')
 
-    if any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx]):
+    is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx =\
+        deduce_legacy_frontend_by_namespace(argv) if not moc_front_end else [False, False, False, False, False]
+
+    is_legacy_frontend = any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx])
+    if not is_legacy_frontend and use_legacy_frontend:
+        raise Error('Option --use_legacy_frontend is specified but Model Optimizer does not have legacy frontend '
+                    'for the input model format. Please try to convert the model without specifying --use_legacy_frontend option.')
+
+    # handle a default case, i.e. use_new_frontend and use_legacy_frontend are not specified, when no frontend is found
+    if not is_legacy_frontend and not moc_front_end:
+        legacy_frameworks = ['tf', 'caffe', 'mxnet', 'kaldi', 'onnx']
+        frameworks = list(set(legacy_frameworks + available_moc_front_ends))
+        if not argv.framework:
+            raise Error('Framework name can not be deduced from the given options: {}={}. '
+                        'Please use --framework with one from the list: {}.',
+                        '--input_model', argv.input_model, frameworks)
+        elif argv.framework not in frameworks:
+            raise Error('Framework {} is not a valid target. Please use --framework with one from the list: {}. ' +
+                        refer_to_faq_msg(15), argv.framework, frameworks)
+
+    if is_legacy_frontend:
         if new_extensions_used(argv):
             raise Error('New kind of extensions used on legacy path')
         if new_transformations_config_used(argv):
             raise Error('New kind of transformations configuration used on legacy path')
-    else: # new frontend used
-        frameworks = ['tf', 'caffe', 'mxnet', 'kaldi', 'onnx']
-        frameworks = list(set(frameworks + available_moc_front_ends))
-        if argv.framework not in frameworks:
-            if argv.use_legacy_frontend:
-                raise Error('Framework {} is not a valid target when using the --use_legacy_frontend flag. '
-                            'The following legacy frameworks are available: {}' +
-                            refer_to_faq_msg(15), argv.framework, frameworks)
-            else:
-                raise Error('Framework {} is not a valid target. Please use --framework with one from the list: {}. ' +
-                            refer_to_faq_msg(15), argv.framework, frameworks)
 
     if is_tf and not argv.input_model and not argv.saved_model_dir and not argv.input_meta_graph:
         raise Error('Path to input model or saved model dir is required: use --input_model, --saved_model_dir or '
@@ -208,7 +233,8 @@ def arguments_post_parsing(argv: argparse.Namespace):
     # dependency search does not break the MO pipeline
     def raise_ie_not_found():
         raise Error("Could not find the Inference Engine or nGraph Python API.\n"
-                    "Consider building the Inference Engine and nGraph Python APIs from sources or try to install OpenVINO (TM) Toolkit using \"install_prerequisites.{}\"".format(
+                    "Consider building the Inference Engine and nGraph Python APIs from sources or "
+                    "try to install OpenVINO (TM) Toolkit using \"install_prerequisites.{}\"".format(
                     "bat" if sys.platform == "windows" else "sh"))
     try:
         if not find_ie_version(silent=argv.silent):
@@ -225,9 +251,6 @@ def arguments_post_parsing(argv: argparse.Namespace):
 
     # This is just to check that transform key is valid and transformations are available
     check_available_transforms(parse_transform(argv.transform))
-
-    if argv.legacy_ir_generation and len(argv.transform) != 0:
-        raise Error("--legacy_ir_generation and --transform keys can not be used at the same time.")
 
     # For C++ frontends there are no specific Python installation requirements, check only generic ones
     if moc_front_end:
@@ -332,7 +355,7 @@ def check_fallback(argv : argparse.Namespace):
     fallback_reasons = {}
 
     # Some frontend such as PDPD does not have legacy path so it has no reasons to fallback
-    if not any(deduce_framework_by_namespace(argv)):
+    if not any(deduce_legacy_frontend_by_namespace(argv)):
         return fallback_reasons
 
     # There is no possibility for fallback if a user strictly wants to use new frontend
@@ -372,7 +395,7 @@ def prepare_ir(argv : argparse.Namespace):
             return graph, ngraph_function
         else: # apply fallback
             reasons_message = ", ".join(fallback_reasons)
-            load_extensions(argv, *list(deduce_framework_by_namespace(argv)))
+            load_extensions(argv, *list(deduce_legacy_frontend_by_namespace(argv)))
             t.send_event("mo", "fallback_reason", reasons_message)
             log.warning("The IR preparation was executed by the legacy MO path. "
                         "This is a fallback scenario applicable only for some specific cases. "
@@ -415,13 +438,12 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
 
         return_code = "not executed"
         try:
-            if not argv.legacy_ir_generation:
-                from openvino.tools.mo.back.offline_transformations import apply_offline_transformations
-                apply_offline_transformations(orig_model_name, argv)
-                if "compress_fp16" in argv and argv.compress_fp16:
-                    # restore data_type cmd parameter
-                    argv.data_type = 'FP16'
-                return_code = 0
+            from openvino.tools.mo.back.offline_transformations import apply_offline_transformations
+            apply_offline_transformations(orig_model_name, argv)
+            if "compress_fp16" in argv and argv.compress_fp16:
+                # restore data_type cmd parameter
+                argv.data_type = 'FP16'
+            return_code = 0
         except Exception as e:
             return_code = "failed"
             log.error(e)
@@ -449,7 +471,8 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         append_ir_info(file=orig_model_name,
                        meta_info=get_meta_info(argv),
                        mean_data=mean_data,
-                       input_names=input_names)
+                       input_names=input_names,
+                       legacy_path=True)
 
         print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
         print('[ SUCCESS ] XML file: {}.xml'.format(orig_model_name))
@@ -503,11 +526,15 @@ def main(cli_parser: argparse.ArgumentParser, fem: FrontEndManager, framework: s
         argv.feManager = fem
 
         ov_update_message = None
+        ov_api20_message = None
         if not hasattr(argv, 'silent') or not argv.silent:
             ov_update_message = get_ov_update_message()
+            ov_api20_message = get_ov_api20_message()
         ret_code = driver(argv)
         if ov_update_message:
             print(ov_update_message)
+        if ov_api20_message and ret_code == 0:
+            print(ov_api20_message)
         telemetry.send_event('mo', 'conversion_result', 'success')
         telemetry.end_session('mo')
         telemetry.force_shutdown(1.0)

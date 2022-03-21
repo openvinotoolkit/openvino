@@ -174,14 +174,14 @@ public:
 namespace {
 
 std::string getOVExtensionPath() {
-    return FileUtils::makePluginLibraryName<char>({}, std::string("ov_template_extension") + IE_BUILD_POSTFIX);
+    return FileUtils::makePluginLibraryName<char>({}, std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
 }
 
 }  // namespace
 
 class CustomOldIdentity : public ngraph::op::Op {
 public:
-    static constexpr ngraph::NodeTypeInfo type_info{"Identity", 0};
+    static constexpr ngraph::NodeTypeInfo type_info{"Identity", static_cast<uint64_t>(0)};
     const ngraph::NodeTypeInfo& get_type_info() const override {
         return type_info;
     }

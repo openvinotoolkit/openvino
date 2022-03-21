@@ -75,7 +75,8 @@ bool concat_noop_optimization::match(concatenation_node& node) {
 
 bool concat_noop_optimization::optimize(concatenation_node& node) {
     auto& dep = node.get_dependency(0);
-    dep.merge_output_padding(node.get_output_layout().data_padding);
+    auto outputPadding = node.get_output_layout().data_padding;
+    dep.merge_output_padding(outputPadding);
     prog.extract_and_remove(node);
     // Node has been removed, so no further optimizations.
     return true;
@@ -97,7 +98,7 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
                     auto eltw_in_layout = eltw_in.get_output_layout();
                     auto out_layout = input->get_output_layout();
 
-                    if (!fused_op.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(eltw_in_layout))
+                    if (!program_helpers::needs_onednn_sum_post_op(fused_op.node->as<eltwise>(), eltw_in_layout))
                         continue;
                     if (program_helpers::are_layouts_identical_for_onednn_sum_post_op(eltw_in_layout, out_layout))
                         return false;
@@ -119,10 +120,14 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
     }
 
     // For in place concatenation input layouts and data types must match.
+    // Also, it checks whether data along f-axis is aligned properly for implicit concat.
+    // Otherwise, use explicit concat instead.
     auto output_format = node.get_output_layout().format;
     auto output_datatype = node.get_output_layout().data_type;
     auto concat_axis = node.get_primitive()->axis;
+    auto def_fmt = format::get_default_format(node.get_output_layout().get_rank());
 
+    size_t idx = 0;
     for (auto& input : node.get_dependencies()) {
         if (input->is_type<reshape>())
             // reshapes should be optimized out.
@@ -133,32 +138,33 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
         if (output_format != l.format || output_datatype != l.data_type)
             return false;
 
+        if (l.format.block_sizes().size() > 1)
+            return false;
+
         // TODO: Below condition should be moved to program_node::supports_padding.
-        // This hovewer will need updating the algorithm as it may make cascade adjustment impossible in some cases.
-        // It hovewer would make normal optimizations possible in others, so this is a trade-off to be investigated.
-        if (l.format == format::b_fs_yx_fsv16 && (l.size.feature[0] % 16 != 0 || node.get_primitive()->axis != concatenation::along_f))
-            return false;
+        // This however will need updating the algorithm as it may make cascade adjustment impossible in some cases.
+        // It however would make normal optimizations possible in others, so this is a trade-off to be investigated.
+        if (idx != node.get_dependencies().size() - 1) {
+            if ((l.format == format::b_fs_yx_fsv16 || l.format == format::b_fs_zyx_fsv16) &&
+                (l.size.feature[0] % 16 != 0 || node.get_primitive()->axis != 1))
+                return false;
 
-        if (l.format == format::b_fs_zyx_fsv16 && (l.size.feature[0] % 16 != 0 || node.get_primitive()->axis != concatenation::along_f))
-            return false;
+            if ((l.format == format::b_fs_yx_fsv32 || l.format == format::b_fs_zyx_fsv32) &&
+                (l.size.feature[0] % 32 != 0 || node.get_primitive()->axis != 1))
+                return false;
 
-        if ((l.format == format::b_fs_yx_fsv32 || l.format == format::b_fs_zyx_fsv32) &&
-            (l.size.feature[0] % 32 != 0 || node.get_primitive()->axis != concatenation::along_f))
-            return false;
-
-        if (l.format == format::bs_fs_yx_bsv16_fsv16)
-            return false;
-
-        if (l.format == format::b_fs_yx_fsv4 && (l.size.feature[0] != 8 || node.get_primitive()->axis != concatenation::along_f))
-            return false;
+            if (l.format == format::b_fs_yx_fsv4 && (l.size.feature[0] != 4 || node.get_primitive()->axis != 1))
+                return false;
+        }
+        idx++;
     }
 
-    auto lower_padd_in_axis = node.get_output_layout().data_padding.lower_size().raw[concat_axis];
+    auto lower_padd_in_axis = node.get_output_layout().data_padding.lower_size().sizes(def_fmt)[concat_axis];
     lower_padd_in_axis = std::max(lower_padd_in_axis,
-                                  node.get_dependency(0).get_output_layout().data_padding.lower_size().raw[concat_axis]);
+                                  node.get_dependency(0).get_output_layout().data_padding.lower_size().sizes(def_fmt)[concat_axis]);
 
     // check if concatenation in place can be applied for inputs set
-    size_t idx = 0;
+    idx = 0;
     for (auto input : node.get_dependencies()) {
         // reverted condition - if any of this node's inputs is used by more than one primitive
         // and is not optimized concatenation then do not fuse buffers
@@ -203,13 +209,13 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
         // Check that there isn't already some padding between inputs in concat axis.
         // If node has already been optimized we skip this check - this is just cascade adjustment.
         if (!node.can_be_optimized()) {
-            if (idx != node.get_dependencies().size() && input_padd.upper_size().raw[concat_axis] != 0)
+            if (idx != node.get_dependencies().size() && input_padd.upper_size().sizes(def_fmt)[concat_axis] != 0)
                 return false;
-            if (idx != 0 && input_padd.lower_size().raw[concat_axis] != 0)
+            if (idx != 0 && input_padd.lower_size().sizes(def_fmt)[concat_axis] != 0)
                 return false;
         }
 
-        lower_padd_in_axis += input->get_output_layout().size.raw[concat_axis];
+        lower_padd_in_axis += input->get_output_layout().size.sizes(def_fmt)[concat_axis];
         idx += 1;
     }
 
@@ -217,30 +223,42 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
 }
 
 void concat_in_place_optimization::optimize_cascade(concatenation_node& node, std::list<concatenation_node*>& need_reoptimization) {
+    auto out_layout = node.get_output_layout();
+    auto out_rank = out_layout.get_rank();
     auto concat_axis = node.get_primitive()->axis;
-
-    // Select output padding by propagating all required input paddings.
-    auto padd = node.get_output_layout().data_padding;
-    for (auto input : node.get_dependencies()) {
-        padd = padding::max(padd, input->get_output_layout().data_padding);
+    // We need to transform axis from bf[w][z]yx order to bfxy[z][w] due to tensor.sizes() usages here
+    // should be removed once pad representation is changed
+    auto concat_axis_legacy = concat_axis;
+    if (concat_axis_legacy >= 2) {
+        auto spatial_axis = concat_axis_legacy - 2;
+        // Default and minimum number of dimensions is 4
+        auto spatial_size = std::max<size_t>(out_rank, 4) - 2;
+        concat_axis_legacy = spatial_size - spatial_axis - 1 + 2;
     }
 
-    auto lower_padd = padd.lower_size();
-    auto upper_padd = padd.upper_size();
+    // Select output padding by propagating all required input paddings.
+    auto padd = out_layout.data_padding;
+    for (auto input : node.get_dependencies()) {
+        auto inputPadding = input->get_output_layout().data_padding;
+        padd = padding::max(padd, inputPadding);
+    }
+
+    auto lower_padd = padd.lower_size().sizes();
+    auto upper_padd = padd.upper_size().sizes();
 
     // For cascade adjustment override padding in concat axis to output padding.
     // In other case match(...) already checked that only first/last input have lower/upper padding.
     if (node.can_be_optimized()) {
-        lower_padd.raw[concat_axis] = node.get_output_layout().data_padding.lower_size().raw[concat_axis];
-        upper_padd.raw[concat_axis] = node.get_output_layout().data_padding.upper_size().raw[concat_axis];
+        lower_padd[concat_axis_legacy] = out_layout.data_padding.lower_size().sizes()[concat_axis_legacy];
+        upper_padd[concat_axis_legacy] = out_layout.data_padding.upper_size().sizes()[concat_axis_legacy];
     }
-    node.set_output_padding(padding(lower_padd.sizes(), upper_padd.sizes()));
+    node.set_output_padding(padding(lower_padd, upper_padd));
 
-    upper_padd.raw[concat_axis] += node.get_output_layout().size.raw[concat_axis];
+    upper_padd[concat_axis_legacy] += out_layout.get_dims()[concat_axis];
 
     // apply concatenation in place optimization
     for (auto input : node.get_dependencies()) {
-        auto input_length = input->get_output_layout().size.raw[concat_axis];
+        auto input_length = input->get_output_layout().get_dims()[concat_axis];
 
         if (input->is_type<concatenation>() && input->can_be_optimized())
             need_reoptimization.push_back(&input->as<concatenation>());
@@ -249,16 +267,16 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
         //
         //   |--- lower padd ---|                    |---------- upper padd -----------|
         //   |-- output padd ---| ----- input1 ------|----- input2 -----|-- out padd --|
-        upper_padd.raw[concat_axis] -= input_length;
+        upper_padd[concat_axis_legacy] -= input_length;
 
         // set new padding for input
-        input->set_output_padding(padding(lower_padd.sizes(), upper_padd.sizes()));
+        input->set_output_padding(padding(lower_padd, upper_padd));
 
         // move lower padd further
         //
         //   |-------------- lower padd -------------|---------- upper padd -----------|
         //   |-- output padd ---| ----- input1 ------|----- input2 -----|-- out padd --|
-        lower_padd.raw[concat_axis] += input_length;
+        lower_padd[concat_axis_legacy] += input_length;
     }
 
     node.can_be_optimized(true);

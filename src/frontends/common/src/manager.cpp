@@ -109,7 +109,7 @@ public:
 
 private:
     // Helper structure for searching plugin either by name or by file name
-    // File name here doesn't contain prefix/suffix (like "ov_*_frontend.so")
+    // File name here doesn't contain prefix/suffix (like "openvino_*_frontend.so")
     struct FrontEndNames {
         FrontEndNames(std::string n, std::string f) : name(std::move(n)), file_name(std::move(f)) {}
         bool operator==(const FrontEndNames& other) const {

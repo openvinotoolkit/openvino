@@ -21,8 +21,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::SubtractTransformation, "SubtractTransformation", 0);
-
 SubtractTransformation::SubtractTransformation(const Params& params) : LayerTransformation(params) {
     auto convert = pattern::wrap_type<opset1::Convert>();
     auto multiply = pattern::wrap_type<opset1::Multiply>();
@@ -49,7 +47,7 @@ bool SubtractTransformation::transform(TransformationContext& context, ngraph::p
 
     const ngraph::element::Type originalPrecision = subtract->get_output_element_type(0);
 
-    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(subtract);
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(subtract, defaultPrecisions);
     if (dequantization.multiply != nullptr) {
         // before: Y = X * SC - SH, after:  Y = (X - SH') * SC
         //    X * SC - SH = X * SC - SH' * SC

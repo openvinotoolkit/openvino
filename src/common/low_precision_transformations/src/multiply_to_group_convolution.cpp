@@ -12,8 +12,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation, "MultiplyToGroupConvolutionTransformation", 0);
-
 MultiplyToGroupConvolutionTransformation::MultiplyToGroupConvolutionTransformation(
     const Params& params,
     const OperationPrecisionRestriction::PrecisionsByPort& restrictions) : LayerTransformation(params), restrictions(restrictions), groupSize(1ul) {
@@ -46,12 +44,12 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
         inputIndex = 1;
     }
 
-    auto dequantization = NetworkHelper::getDequantization(multiply, inputIndex);
+    auto dequantization = NetworkHelper::getDequantization(multiply, defaultPrecisions, inputIndex);
     if (dequantization.data.get_node() == nullptr) {
         return false;
     }
     if (dequantization.subtractConvert != nullptr) {
-        dequantization = NetworkHelper::foldDequantization(multiply, inputIndex);
+        dequantization = NetworkHelper::foldDequantization(multiply, inputIndex, defaultPrecisions);
     }
 
     element::Type weightsPrecision = element::undefined;
@@ -68,7 +66,7 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
         if (weightsPrecision == element::undefined) {
             const auto precisionsAttribute = getAttribute<PrecisionsAttribute>(multiply->input(inputIndex == 0ul ? 1ul : 0ul));
             const auto precisions = precisionsAttribute == nullptr ?
-                getDefaultPrecisions() :
+                defaultPrecisions :
                 precisionsAttribute.as<PrecisionsAttribute>().value();
             weightsPrecision = precisions[0];
         }
@@ -191,7 +189,7 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const Transforma
             return false;
         }
 
-        const auto dequantization = NetworkHelper::getDequantization(operation, inputIndex);
+        const auto dequantization = NetworkHelper::getDequantization(operation, defaultPrecisions, inputIndex);
         const element::Type parentPrecision = dequantization.data.get_element_type();
         if (std::find(availablePreisions.begin(), availablePreisions.end(), parentPrecision) == availablePreisions.end()) {
             return false;
@@ -201,11 +199,12 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const Transforma
     return true;
 }
 
-bool MultiplyToGroupConvolutionTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const noexcept {
+bool MultiplyToGroupConvolutionTransformation::isQuantized(const std::shared_ptr<const Node>& layer,
+    const std::vector<ngraph::element::Type>& defaultPrecisions) const {
     return MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(layer);
 }
 
-bool MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(const std::shared_ptr<const Node>& layer) noexcept {
+bool MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(const std::shared_ptr<const Node>& layer) {
     const auto parent0 = layer->get_input_node_shared_ptr(0);
     const auto parent1 = layer->get_input_node_shared_ptr(1);
 
@@ -219,7 +218,7 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolutio
         return false;
     }
 
-    return (pShape.rank().get_length() == 4ul) || (pShape.rank().get_length() == 5ul);
+    return (pShape.size() == 4ul) || (pShape.size() == 5ul);
 }
 
 bool MultiplyToGroupConvolutionTransformation::isDynamicOrScalar(const std::shared_ptr<const Node>& node) {

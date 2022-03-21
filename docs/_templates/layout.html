@@ -1,4 +1,4 @@
-{%- extends "openvino_sphinx_theme/layout.html" %}
+{%- extends "openvino_sphinx_theme/templates/layout.html" %}
 
 {% block css %}
 {{ super() }}
@@ -12,7 +12,5 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-deferred@1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.1/papaparse.min.js"></script>
 <script src="{{ pathto('_static/js/viewer.min.js', 1) }}"></script>
-<script src="{{ pathto('_static/js/custom.js', 1) }}"></script>
-<script src="{{ pathto('_static/js/graphs.js', 1) }}"></script>
 <script src="/assets/versions_raw.js"></script>
 {% endblock %}

@@ -17,8 +17,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::PReluTransformation, "PReluTransformation", 0);
-
 PReluTransformation::PReluTransformation(const Params& params) : LayerTransformation(params) {
     auto matcher = pattern::wrap_type<opset1::PRelu>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
 
@@ -40,8 +38,8 @@ bool PReluTransformation::transform(TransformationContext& context, ngraph::patt
         return false;
     }
 
-    prelu = NetworkHelper::separateInStandaloneBranch(prelu);
-    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(prelu, 0);
+    prelu = NetworkHelper::separateInStandaloneBranch(prelu, defaultPrecisions);
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(prelu, defaultPrecisions, 0);
     moveDequantizationAfter(context, prelu, dequantization, false, false);
     return true;
 }
@@ -55,7 +53,7 @@ bool PReluTransformation::canBeTransformed(const TransformationContext& context,
         return false;
     }
 
-    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(op, 0);
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(op, defaultPrecisions, 0);
     if (dequantization.empty() || (dequantization.subtract != nullptr)) {
         return false;
     }

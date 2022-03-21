@@ -1003,7 +1003,7 @@ class Graph(nx.MultiDiGraph):
         # Add Const op for constant data nodes
         add_constant_operations(self)
 
-    def get_tensor_names_set(self, use_ports = False):
+    def get_tensor_names_set(self):
         """
         Get set of tensor names of the graph.
         """
@@ -1020,6 +1020,15 @@ class Graph(nx.MultiDiGraph):
                     tensor_names = port.get_tensor_names()
                     tensor_names_set = tensor_names_set.union(set(tensor_names))
         return tensor_names_set
+
+    def has_tensor_name(self, tensor_name: str):
+        """
+        Checks if graph has tensor name.
+        """
+        # TODO: This can be optimized. Tensor names can be stored as set, which is initialized after model loading.
+        names = self.get_tensor_names_set()
+        return tensor_name in names
+
 
     def topological_sort(self, reverse: bool = False):
         sorted_node_ids = nx.topological_sort(self)
@@ -1100,9 +1109,7 @@ def add_opoutput(graph: Graph, node_name: str, port: int, cut: bool = True, keep
             for _, tensor_name in opoutput_node.in_edge()['fw_tensor_debug_info']:
                 prev_op_tensor_names.add(tensor_name)
         if user_defined_name not in prev_op_tensor_names:
-            # TODO: This can be optimized. Tensor names can be stored as set, which is initialized after model loading.
-            graph_tensor_names = graph.get_tensor_names_set()
-            if user_defined_name in graph_tensor_names:
+            if graph.has_tensor_name(user_defined_name):
                 log.warning('Could not add user defined output name {} to tensor names list of {} node as '
                             'graph contains tensor name with same name.'.format(user_defined_name,
                                                                                 opoutput_node.soft_get('name')))

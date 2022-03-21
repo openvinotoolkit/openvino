@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "ov_intel_gna_plugin")
+set(TARGET_NAME "openvino_intel_gna_plugin")
 
 if(CMAKE_COMPILER_IS_GNUCC)
     ie_add_compiler_flags(-Wno-all)
@@ -57,7 +57,7 @@ target_compile_definitions(${TARGET_NAME}_test_static
             INTEGER_LOW_P
             USE_STATIC_IE)
 
-target_link_libraries(${TARGET_NAME}_test_static PUBLIC inference_engine_s inference_engine_preproc_s inference_engine_transformations libGNA::API)
+target_link_libraries(${TARGET_NAME}_test_static PUBLIC inference_engine_s openvino_gapi_preproc_s inference_engine_transformations libGNA::API)
 target_include_directories(${TARGET_NAME}_test_static
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
@@ -75,3 +75,17 @@ file(GLOB_RECURSE source_list "${libGNA_LIBRARIES_BASE_PATH}/*${CMAKE_SHARED_LIB
 install(FILES ${source_list}
         DESTINATION ${IE_CPACK_RUNTIME_PATH}
         COMPONENT gna)
+
+if(NOT BUILD_SHARED_LIBS)
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/libGNAConfig.cmake ${CMAKE_BINARY_DIR} COPYONLY)
+    install(FILES "${CMAKE_BINARY_DIR}/libGNAConfig.cmake"
+            DESTINATION runtime/cmake
+            COMPONENT gna)
+
+    if(WIN32)
+        file(GLOB_RECURSE source_list "${libGNA_LIBRARIES_BASE_PATH}/*${CMAKE_STATIC_LIBRARY_SUFFIX}")
+        install(FILES ${source_list}
+                DESTINATION ${IE_CPACK_LIBRARY_PATH}
+                COMPONENT gna)
+    endif()
+endif()

@@ -68,6 +68,11 @@ public:
         m_op_seed = seed2;
     }
 
+    /// \return The state value.
+    std::pair<uint64_t, uint64_t> get_state() const {
+        return m_state;
+    }
+
     OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END

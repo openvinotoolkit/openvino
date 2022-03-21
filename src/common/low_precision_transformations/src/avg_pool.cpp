@@ -16,8 +16,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::AvgPoolTransformation, "AvgPoolTransformation", 0);
-
 AvgPoolTransformation::AvgPoolTransformation(const Params& params) : LayerTransformation(params) {
     auto matcher = pattern::wrap_type<opset1::AvgPool>({ pattern::wrap_type<opset1::Multiply>() });
 
@@ -38,9 +36,9 @@ bool AvgPoolTransformation::transform(TransformationContext& context, ngraph::pa
         return false;
     }
 
-    const std::shared_ptr<Node> pooling = NetworkHelper::separateInStandaloneBranch(m.get_match_root());
+    const std::shared_ptr<Node> pooling = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
     const bool updatePrecision = isPrecisionPreserved(pooling);
-    moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling), updatePrecision);
+    moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling, defaultPrecisions), updatePrecision);
     return true;
 }
 
@@ -49,7 +47,7 @@ bool AvgPoolTransformation::canBeTransformed(const TransformationContext& contex
         return false;
     }
 
-    auto dequantization = NetworkHelper::getDequantization(operation);
+    auto dequantization = NetworkHelper::getDequantization(operation, defaultPrecisions);
 
     return !dequantization.empty();
 }

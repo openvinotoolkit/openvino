@@ -21,11 +21,13 @@ namespace low_precision {
  */
 class LP_TRANSFORMATIONS_API GroupConvolutionTransformation : public ConvolutionTransformation {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("GroupConvolutionTransformation", "0");
     GroupConvolutionTransformation(const Params& params = Params());
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
-    bool isQuantized(const std::shared_ptr<const Node>& layer) const override;
-    static bool isQuantizedStatic(const std::shared_ptr<const Node>& layer);
+    bool isQuantized(const std::shared_ptr<const Node>& layer,
+        const std::vector<ngraph::element::Type>& defaultPrecisions) const override;
+    static bool isQuantizedStatic(const std::shared_ptr<const Node>& layer,
+        const std::vector<ngraph::element::Type>& defaultPrecisions);
 
 protected:
     size_t getInputChannels(const std::shared_ptr<ngraph::Node> conv) const override;

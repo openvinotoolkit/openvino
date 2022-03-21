@@ -48,6 +48,8 @@ set(SRC
     coordinate.cpp
     coordinate_range.cpp
     copy.cpp
+    copy_runtime_info.cpp
+    dimension.cpp
     element_type.cpp
     eval.cpp
     extension.cpp
@@ -242,7 +244,7 @@ set(SRC
     type_prop/swish.cpp
     type_prop/tan.cpp
     type_prop/tanh.cpp
-    type_prop/ti.cpp
+    type_prop/tensor_iterator.cpp
     type_prop/tile.cpp
     type_prop/top_k.cpp
     type_prop/transpose.cpp
@@ -404,11 +406,13 @@ set(SRC
     visitors/op/swish.cpp
     visitors/op/tan.cpp
     visitors/op/tanh.cpp
+    visitors/op/tensor_iterator.cpp
     visitors/op/topk.cpp
     visitors/op/transpose.cpp
     visitors/op/unsqueeze.cpp
     visitors/op/variadic_split.cpp
     uint4.cpp
+    validation_utils.cpp
 )
 
 # For type relaxed types
@@ -420,7 +424,7 @@ if(SUGGEST_OVERRIDE_SUPPORTED)
                                 PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
 endif()
 
-list(APPEND UNIT_TESTS_DEPENDENCIES ov_template_extension)
+list(APPEND UNIT_TESTS_DEPENDENCIES openvino_template_extension)
 
 if (ENABLE_INTEL_CPU AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
     message(STATUS "OV_CORE_TESTS: IE:CPU enabled")
@@ -428,7 +432,7 @@ if (ENABLE_INTEL_CPU AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
     if (ENABLE_STRICT_DEPENDENCIES)
         # For convinience add a runtime dependency to build along with this target.
         # Warning: Parallel build with -GNinja may not be efficient.
-        list(APPEND UNIT_TESTS_DEPENDENCIES ov_intel_cpu_plugin)
+        list(APPEND UNIT_TESTS_DEPENDENCIES openvino_intel_cpu_plugin)
     endif()
 endif()
 
@@ -438,7 +442,7 @@ if (ENABLE_INTEL_GPU AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
     if (ENABLE_STRICT_DEPENDENCIES)
         # For convinience add a runtime dependency to build along with this target.
         # Warning: Parallel build with -GNinja may not be efficient.
-        list(APPEND UNIT_TESTS_DEPENDENCIES ov_intel_gpu_plugin)
+        list(APPEND UNIT_TESTS_DEPENDENCIES openvino_intel_gpu_plugin)
     endif()
 endif()
 
@@ -446,7 +450,7 @@ if (ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
     message(STATUS "OV_CORE_TESTS: INTERPRETER enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} INTERPRETER)
     if (ENABLE_STRICT_DEPENDENCIES)
-        list(APPEND UNIT_TESTS_DEPENDENCIES ov_template_plugin)
+        list(APPEND UNIT_TESTS_DEPENDENCIES openvino_template_plugin)
     endif()
 endif()
 
@@ -602,9 +606,9 @@ if (OV_COMPILER_IS_CLANG)
 endif()
 
 if (ENABLE_OV_ONNX_FRONTEND)
-    get_target_property(ONNX_FRONTEND_SRC_DIR ov_onnx_frontend SOURCE_DIR)
+    get_target_property(ONNX_FRONTEND_SRC_DIR openvino_onnx_frontend SOURCE_DIR)
     target_include_directories(ov_core_unit_tests PRIVATE ${ONNX_FRONTEND_SRC_DIR}/src)
-    target_link_libraries(ov_core_unit_tests PRIVATE ov_onnx_frontend onnx_test_util)
+    target_link_libraries(ov_core_unit_tests PRIVATE openvino_onnx_frontend onnx_test_util)
     if (LINUX)
         target_link_options(ov_core_unit_tests PRIVATE -Wl,--exclude-libs,ALL)
     elseif(APPLE)
@@ -613,7 +617,7 @@ if (ENABLE_OV_ONNX_FRONTEND)
 endif()
 
 if(ENABLE_OV_IR_FRONTEND)
-    add_dependencies(ov_core_unit_tests ov_ir_frontend)
+    add_dependencies(ov_core_unit_tests openvino_ir_frontend)
 endif()
 
 install(TARGETS ov_core_unit_tests

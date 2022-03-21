@@ -15,15 +15,15 @@
 using namespace ngraph;
 using namespace ngraph::pass::low_precision;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::PropagatePrecisions, "PropagatePrecisions", 0);
+ngraph::pass::low_precision::PropagatePrecisions::PropagatePrecisions(const AttributeParameters& params) : params(params) {}
 
 bool ngraph::pass::low_precision::PropagatePrecisions::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     ngraph::pass::Manager manager;
     manager.set_per_pass_validation(false);
     std::shared_ptr<ngraph::pass::GraphRewrite> precisionsPropagation = manager.register_pass<ngraph::pass::GraphRewrite>();
-    precisionsPropagation->add_matcher<low_precision::CreateAttribute<PrecisionsAttribute, opset1::FakeQuantize>>(AttributeSource::OutputPort);
-    precisionsPropagation->add_matcher<low_precision::PropagateThroughPrecisionPreserved<PrecisionsAttribute>>();
-    precisionsPropagation->add_matcher<low_precision::PropagateToInput<PrecisionsAttribute>>();
+    precisionsPropagation->add_matcher<low_precision::CreateAttribute<PrecisionsAttribute, opset1::FakeQuantize>>(params, AttributeSource::OutputPort);
+    precisionsPropagation->add_matcher<low_precision::PropagateThroughPrecisionPreserved<PrecisionsAttribute>>(params.defaultPrecisions);
+    precisionsPropagation->add_matcher<low_precision::PropagateToInput<PrecisionsAttribute>>(params.defaultPrecisions);
     manager.run_passes(f);
     return false;
 }

@@ -18,8 +18,8 @@ if(ENABLE_INTEL_GNA)
     add_subdirectory(intel_gna)
 endif()
 
-if(ENABLE_INTEL_VPU)
-    add_subdirectory(intel_vpu)
+if(ENABLE_INTEL_MYRIAD_COMMON)
+    add_subdirectory(intel_myriad)
 endif()
 
 if(ENABLE_AUTO OR ENABLE_MULTI)

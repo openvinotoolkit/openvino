@@ -15,7 +15,7 @@ Basic Inference Engine API is covered by [Hello Classification C sample](../hell
 | Validated Models                 | [alexnet](@ref omz_models_model_alexnet)
 | Model Format                     | Inference Engine Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)
 | Validated images                 | An uncompressed image in the NV12 color format - \*.yuv
-| Supported devices                | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
+| Supported devices                | [All](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
 | Other language realization       | [C++](../../../samples/cpp/hello_nv12_input_classification/README.md) |
 
 ## How It Works
@@ -25,11 +25,11 @@ image in the NV12 color format to an Inference Engine plugin. Then, the sample c
 application outputs data to the standard output stream.
 
 You can see the explicit description of
-each sample step at [Integration Steps](https://docs.openvino.ai/latest/openvino_docs_IE_DG_Integrate_with_customer_application_new_API.html) section of "Integrate the Inference Engine with Your Application" guide.
+each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/integrate_with_your_application.md) section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
 ## Building
 
-To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/IE_DG/Samples_Overview.md) section in Inference Engine Samples guide.
+To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/OV_Runtime_UG/Samples_Overview.md) section in Inference Engine Samples guide.
 
 ## Running
 
@@ -107,8 +107,8 @@ This sample is an API example, for any performance measurements please use the d
 
 ## See Also
 
-- [Integrate the Inference Engine with Your Application](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
-- [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
+- [Integrate the OpenVINO™ into Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md)
+- [Using OpenVINO™ Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 

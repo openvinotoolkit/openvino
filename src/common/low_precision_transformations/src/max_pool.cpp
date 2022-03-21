@@ -16,8 +16,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MaxPoolTransformation, "MaxPoolTransformation", 0);
-
 MaxPoolTransformation::MaxPoolTransformation(const Params& params) : LayerTransformation(params) {
     auto matcher = pattern::wrap_type<opset1::MaxPool>({ pattern::wrap_type<opset1::Multiply>() });
 
@@ -38,7 +36,7 @@ bool MaxPoolTransformation::canBeTransformed(const TransformationContext& contex
         return false;
     }
 
-    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(op);
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(op, defaultPrecisions);
     if (dequantization.empty()) {
         return false;
     }
@@ -56,8 +54,8 @@ bool MaxPoolTransformation::transform(TransformationContext& context, ngraph::pa
         return false;
     }
 
-    const std::shared_ptr<Node> pooling = NetworkHelper::separateInStandaloneBranch(m.get_match_root());
-    moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling), false);
+    const std::shared_ptr<Node> pooling = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
+    moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling, defaultPrecisions), false);
     return true;
 }
 

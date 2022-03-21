@@ -10,8 +10,8 @@ import logging
 
 INLINE_LINKS_PATTERN = r'!?\[.*?\]\(([\w\/\-\.]+\.md)\)'
 REFERENCE_LINKS_PATTERN = r'\[.+\]\:\s*?([\w\/\-\.]+\.md)'
-INLINE_IMAGES_PATTERN = r'!?\[.*?\]\(([\w\/\-\.]+\.(?:png|jpg|gif|svg))\)'
-REFERENCE_IMAGES_PATTERN = r'\[.+\]\:\s*?([\w\/\-\.]+\.(?:png|jpg|gif|svg))'
+INLINE_IMAGES_PATTERN = r'!?\[.*?\]\(([\w\/\-\.]+\.(?:png|jpg|jpeg|gif|svg))\)'
+REFERENCE_IMAGES_PATTERN = r'\[.+\]\:\s*?([\w\/\-\.]+\.(?:png|jpg|jpeg|gif|svg))'
 LABEL_PATTERN = r'\{\#(.+)\}'
 
 
@@ -71,6 +71,13 @@ class DoxyMDFilter:
                 rel_path = os.path.relpath(link_path, self.input_dir).replace('\\', '/')
                 self.content = self.content.replace(link, rel_path)
 
+    def remove_comment_block_sphinxdirective(self):
+        """
+        Remove comment blocks from `sphinxdirective`
+        """
+        self.content = re.sub(r'\<\!\-\-\s*?\@sphinxdirective', '@sphinxdirective', self.content)
+        self.content = re.sub(r'\@endsphinxdirective\s*?\-\-\>', '@endsphinxdirective', self.content)
+
     def copy_images(self):
         """
         Go through image links and copy them into output_folder
@@ -97,6 +104,7 @@ class DoxyMDFilter:
         Do all processing operations on a markdown file
         """
         self.replace_image_links()
+        self.remove_comment_block_sphinxdirective()
         self.replace_md_links()
         self.copy_markdown()
         self.copy_images()

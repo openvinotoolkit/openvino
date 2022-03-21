@@ -12,15 +12,16 @@
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved, "MarkupAvgPoolPrecisionPreserved", 0);
+ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved::MarkupAvgPoolPrecisionPreserved(const std::vector<ngraph::element::Type> defaultPrecisions)
+    : defaultPrecisions(defaultPrecisions) {}
 
 bool ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     ngraph::pass::Manager manager;
     manager.set_per_pass_validation(false);
     std::shared_ptr<ngraph::pass::GraphRewrite> markupAvgPoolPrecision = manager.register_pass<ngraph::pass::GraphRewrite>();
     markupAvgPoolPrecision->add_matcher<low_precision::CreatePrecisionsDependentAttribute<AvgPoolPrecisionPreservedAttribute, opset1::AvgPool>>();
-    markupAvgPoolPrecision->add_matcher<low_precision::PropagateThroughPrecisionPreserved<AvgPoolPrecisionPreservedAttribute>>();
-    markupAvgPoolPrecision->add_matcher<low_precision::UpdateSharedPrecisionPreserved<AvgPoolPrecisionPreservedAttribute>>();
+    markupAvgPoolPrecision->add_matcher<low_precision::PropagateThroughPrecisionPreserved<AvgPoolPrecisionPreservedAttribute>>(defaultPrecisions);
+    markupAvgPoolPrecision->add_matcher<low_precision::UpdateSharedPrecisionPreserved<AvgPoolPrecisionPreservedAttribute>>(defaultPrecisions);
     manager.run_passes(f);
     return false;
 }

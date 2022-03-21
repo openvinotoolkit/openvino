@@ -44,7 +44,6 @@ struct program {
     friend class prepare_conv_eltw_fusing;   // to be removed when possible
     friend class reorder_inputs;             // to be removed when possible
     friend class remove_redundant_reorders;  // to be removed when possible
-    friend class handle_permute;             // to be removed when possible
     friend class program_wrapper;       // this class is intended to extend the interface of program for
                                              // the usage within tests_core_internal project only
 public:
@@ -238,6 +237,7 @@ public:
     void load_tuning_cache();
     std::shared_ptr<kernel_selector::TuningCache> get_tuning_cache() const { return tuning_cache; }
 
+    // returns {-1, -1} if it failed to estimate by allocating given batch size
     std::pair<int64_t/*const alloc*/, int64_t/*general alloc*/> get_estimated_device_mem_usage();
 
 private:

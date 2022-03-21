@@ -35,10 +35,16 @@ def app(argv):
         _update_config_path(args)
 
     config = Config.read_config(args.config)
+
+    if args.engine:
+        config.engine['type'] = args.engine if args.engine else 'accuracy_checker'
+    if 'data_source' not in config.engine:
+        config.engine['data_source'] = args.data_source
+
     config.configure_params(args.ac_config)
     config.update_from_args(args)
 
-    if config.engine.type == 'simplified' and args.evaluate:
+    if config.engine.type != 'accuracy_checker' and args.evaluate:
         raise Exception('Can not make evaluation in simplified mode')
 
     log_dir = _create_log_path(config)

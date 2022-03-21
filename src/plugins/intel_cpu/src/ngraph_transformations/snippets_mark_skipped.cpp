@@ -7,10 +7,11 @@
 #include <utils/general_utils.h>
 #include <utils/cpu_utils.hpp>
 
-NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::SnippetsMarkSkipped, "SnippetsMarkSkipped", 0);
-
 using namespace ngraph;
-namespace MKLDNNPlugin {
+
+namespace ov {
+namespace intel_cpu {
+
 namespace {
 NodeFusingType GetNodeFusingType(const std::shared_ptr<const Node> &node) {
     auto &rt = node->get_rt_info();
@@ -349,4 +350,6 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
     }
     return true;
 }
-}  // namespace MKLDNNPlugin
+
+}   // namespace intel_cpu
+}   // namespace ov

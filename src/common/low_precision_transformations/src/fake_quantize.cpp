@@ -15,8 +15,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::FakeQuantizeTransformation, "FakeQuantizeTransformation", 0);
-
 FakeQuantizeTransformation::FakeQuantizeTransformation(const Params& params) : LayerTransformation(params) {
     auto matcher = pattern::wrap_type<opset1::FakeQuantize>();
 
@@ -34,8 +32,8 @@ FakeQuantizeTransformation::FakeQuantizeTransformation(const Params& params) : L
 }
 
 bool FakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
-    std::shared_ptr<opset1::FakeQuantize> layer = std::dynamic_pointer_cast<opset1::FakeQuantize>(m.get_match_root());
-    if (!QuantizationDetails::outputLayoutIsSupported(layer)) {
+    const auto layer = ov::as_type_ptr<opset1::FakeQuantize>(m.get_match_root());
+    if (!layer || !QuantizationDetails::outputLayoutIsSupported(layer)) {
         return false;
     }
 
@@ -104,11 +102,7 @@ bool FakeQuantizeTransformation::checkElementwise(const std::shared_ptr<Node>& e
             return false;
         }
 
-        if ((eltwiseOutputPShape.rank().get_length() - shape.size()) > 1) {
-            return false;
-        }
-
-        if ((eltwiseOutputPShape.rank().get_length() - shape.size()) == 1ul) {
+        while (eltwiseOutputPShape.size() > shape.size()) {
             shape.insert(shape.begin(), 1ul);
         }
 
@@ -179,7 +173,8 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
         return nullptr;
     }
 
-    const auto data = fq::getDataNode(eltwise);
+    // issue #79980
+    const auto data = eltwise->get_input_size() == 1ul ? eltwise->get_input_node_shared_ptr(0) : fq::getDataNode(eltwise);
     const size_t outputIdx = NetworkHelper::getParentOutputIndex(data, eltwise);
 
     const auto newFakeQuantize = ov::as_type_ptr<opset1::FakeQuantize>(fakeQuantize->clone_with_new_inputs({

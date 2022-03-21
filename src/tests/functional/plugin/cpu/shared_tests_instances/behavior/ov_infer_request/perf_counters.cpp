@@ -15,6 +15,8 @@ TEST_P(OVInferRequestPerfCountersTest, CheckOperationInProfilingInfo) {
     ASSERT_NO_THROW(profiling_info = req.get_profiling_info());
 
     for (const auto& op : function->get_ops()) {
+        if (!strcmp(op->get_type_info().name, "Constant"))
+            continue;
         auto op_is_in_profiling_info = std::any_of(std::begin(profiling_info), std::end(profiling_info),
             [&] (const ov::ProfilingInfo& info) {
             if (info.node_name.find(op->get_friendly_name() + "_") != std::string::npos || info.node_name == op->get_friendly_name()) {
@@ -32,11 +34,11 @@ const std::vector<ov::AnyMap> configs = {
 };
 
 const std::vector<ov::AnyMap> Multiconfigs = {
-        {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_CPU}}
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}
 };
 
 const std::vector<ov::AnyMap> Autoconfigs = {
-        {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_CPU}}
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestPerfCountersTest,

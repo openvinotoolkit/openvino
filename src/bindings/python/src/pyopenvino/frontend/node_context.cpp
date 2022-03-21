@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,7 +58,6 @@ void regclass_frontend_NodeContext(py::module m) {
         [=](NodeContext& self, const std::string& name, const py::object& default_value, const py::object& dtype)
             -> py::object {
             auto any = self.get_attribute_as_any(name);
-            auto module = py::module_::import("openvino.runtime");
 
             auto type = m.attr("Type");
             if (dtype == type) {
@@ -73,7 +72,7 @@ void regclass_frontend_NodeContext(py::module m) {
             CAST_TO_PY(any, dtype, int64_t);
             CAST_TO_PY(any, dtype, bool);
             CAST_TO_PY(any, dtype, std::string);
-            CAST_TO_PY(any, dtype, float);
+            CAST_TO_PY(any, dtype, double);
             CAST_TO_PY(any, dtype, ov::element::Type);
             CAST_TO_PY(any, dtype, ov::PartialShape);
 
@@ -84,7 +83,7 @@ void regclass_frontend_NodeContext(py::module m) {
             CAST_VEC_TO_PY(any, dtype, std::vector<bool>);
 #endif
             CAST_VEC_TO_PY(any, dtype, std::vector<std::string>);
-            CAST_VEC_TO_PY(any, dtype, std::vector<float>);
+            CAST_VEC_TO_PY(any, dtype, std::vector<double>);
             CAST_VEC_TO_PY(any, dtype, std::vector<ov::element::Type>);
             CAST_VEC_TO_PY(any, dtype, std::vector<ov::PartialShape>);
 

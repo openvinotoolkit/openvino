@@ -53,7 +53,7 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
     ov::ParameterVector params;
     ov::ResultVector results;
     const auto& model_tf = std::dynamic_pointer_cast<InputModel>(model);
-    FRONT_END_GENERAL_CHECK(model_tf, "nullptr for InputModel is given for translation into OV function");
+    FRONT_END_GENERAL_CHECK(model_tf, "nullptr for InputModel is given for translation into OV Model");
     const auto& operation_places = model_tf->get_op_places();
     const auto& model_inputs = model_tf->get_inputs();
     const auto& model_outputs = model_tf->get_outputs();
@@ -108,6 +108,10 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
         // prepare a list of OV node inputs for each node
         ov::OutputVector ng_inputs;
         for (size_t input_port_idx = 0; input_port_idx < operation_decoder->get_input_size(); ++input_port_idx) {
+            // TODO: Implement more general approach. Skipping Constants that have input edges
+            if (operation_decoder->get_op_type() == "Const") {
+                break;
+            }
             std::string producer_name;
             size_t producer_port_idx;
             try {
@@ -143,7 +147,7 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
                 ng_inputs.push_back(input_outputs_vector.at(producer_port_idx));
             } else {
                 FRONT_END_GENERAL_CHECK(false,
-                                        "No input is found for node \"" + operation_name + "\" by port" +
+                                        "No input is found for node \"" + operation_name + "\" by port " +
                                             std::to_string(producer_port_idx));
             }
         }
@@ -255,7 +259,7 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
 
     // TODO: reorder results and params according to indices given in RT info (if any)
 
-    // create the OV function
+    // create the OV Model
     ng_function = std::make_shared<ov::Model>(results, params, model_name);
     OPENVINO_DEBUG << "Done with translations";
 }
@@ -273,7 +277,17 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         if (ov::util::ends_with(model_path, suffix.c_str())) {
             return true;
         }
-    } else if (variants[0].is<GraphIterator::Ptr>()) {
+    }
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    else if (variants[0].is<std::wstring>()) {
+        std::wstring suffix = L".pb";
+        std::wstring model_path = variants[0].as<std::wstring>();
+        if (ov::util::ends_with(model_path, suffix)) {
+            return true;
+        }
+    }
+#endif
+    else if (variants[0].is<GraphIterator::Ptr>()) {
         return true;
     }
     return false;
@@ -291,7 +305,19 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                     std::make_shared<::ov::frontend::tensorflow::GraphIteratorProto>(model_path),
                     m_telemetry);
             }
-        } else if (variants[0].is<GraphIterator::Ptr>()) {
+        }
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+        else if (variants[0].is<std::wstring>()) {
+            std::wstring suffix = L".pb";
+            std::wstring model_path = variants[0].as<std::wstring>();
+            if (ov::util::ends_with(model_path, suffix)) {
+                return std::make_shared<InputModel>(
+                    std::make_shared<::ov::frontend::tensorflow::GraphIteratorProto>(model_path),
+                    m_telemetry);
+            }
+        }
+#endif
+        else if (variants[0].is<GraphIterator::Ptr>()) {
             auto graph_iterator = variants[0].as<GraphIterator::Ptr>();
             return std::make_shared<InputModel>(graph_iterator, m_telemetry);
         }

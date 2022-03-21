@@ -23,8 +23,6 @@ using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::pass::low_precision;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MVNTransformation, "MVNTransformation", 0);
-
 namespace mvn {
 
 template<typename T>
@@ -65,7 +63,7 @@ bool MVNTransformation::canBeTransformed(const TransformationContext& context, s
         return false;
     }
 
-    const auto dequantization = NetworkHelper::getDequantization(operation);
+    const auto dequantization = NetworkHelper::getDequantization(operation, defaultPrecisions);
     if (dequantization.empty() || dequantization.subtract != nullptr) {
         return false;
     }
@@ -124,7 +122,7 @@ bool MVNTransformation::transform(TransformationContext &context, ngraph::patter
         normalizeVariance = ov::as_type_ptr<opset6::MVN>(mvn)->get_normalize_variance();
     }
 
-    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(mvn);
+    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(mvn, defaultPrecisions);
     const auto scalesConst = dequantization.multiplyConstant;
     const auto type = scalesConst->get_element_type();
 

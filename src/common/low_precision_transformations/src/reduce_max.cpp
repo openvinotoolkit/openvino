@@ -13,8 +13,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::ReduceMaxTransformation, "ReduceMaxTransformation", 0);
-
 ReduceMaxTransformation::ReduceMaxTransformation(const Params& params) : ReduceBaseTransformation(params) {
     auto matcher = pattern::wrap_type<opset1::ReduceMax>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
 
@@ -39,7 +37,7 @@ bool ReduceMaxTransformation::canBeTransformed(const TransformationContext& cont
         return false;
     }
 
-    const auto dequantization = NetworkHelper::getDequantization(reduce);
+    const auto dequantization = NetworkHelper::getDequantization(reduce, defaultPrecisions);
     const std::vector<float> scales = ov::as_type_ptr<opset1::Constant>(dequantization.multiplyConstant)->cast_vector<float>();
     if (std::any_of(scales.begin(), scales.end(), [](const float value) { return value < 0.0; })) {
         return false;

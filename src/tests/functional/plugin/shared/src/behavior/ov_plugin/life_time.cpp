@@ -61,7 +61,7 @@ TEST_P(OVHoldersTest, Orders) {
 }
 
 TEST_P(OVHoldersTest, LoadedState) {
-    std::vector<runtime::VariableState> states;
+    std::vector<ov::VariableState> states;
     {
         ov::Core core = createCoreWithTemplate();
         auto compiled_model = core.compile_model(function, targetDevice);
@@ -87,12 +87,12 @@ TEST_P(OVHoldersTest, LoadedAny) {
     {
         ov::Core core = createCoreWithTemplate();
         auto compiled_model = core.compile_model(function, targetDevice);
-        any = compiled_model.get_property(METRIC_KEY(SUPPORTED_METRICS));
+        any = compiled_model.get_property(ov::supported_properties.name());
     }
 }
 
 TEST_P(OVHoldersTest, LoadedRemoteContext) {
-    runtime::RemoteContext ctx;
+    ov::RemoteContext ctx;
     {
         ov::Core core = createCoreWithTemplate();
         auto compiled_model = core.compile_model(function, targetDevice);
@@ -119,6 +119,18 @@ void OVHoldersTestOnImportedNetwork::SetUp() {
 
 void OVHoldersTestOnImportedNetwork::TearDown() {
     ::testing::GTEST_FLAG(death_test_style) = deathTestStyle;
+}
+
+TEST_P(OVHoldersTestOnImportedNetwork, LoadedTensor) {
+    ov::Core core = createCoreWithTemplate();
+    std::stringstream stream;
+    {
+        auto compiled_model = core.compile_model(function, targetDevice);
+        compiled_model.export_model(stream);
+    }
+    auto compiled_model = core.import_model(stream, targetDevice);
+    auto request = compiled_model.create_infer_request();
+    ov::Tensor tensor = request.get_input_tensor();
 }
 
 TEST_P(OVHoldersTestOnImportedNetwork, CreateRequestWithCoreRemoved) {

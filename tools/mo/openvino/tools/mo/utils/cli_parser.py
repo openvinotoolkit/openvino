@@ -34,6 +34,13 @@ class DeprecatedStoreTrue(argparse.Action):
         setattr(namespace, self.dest, True)
 
 
+class DeprecatedOptionCommon(argparse.Action):
+    def __call__(self, parser, args, values, option_string):
+       dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(option_string)
+       log.error(dep_msg, extra={'is_warning': True})
+       setattr(args, self.dest, values)
+
+
 class IgnoredAction(argparse.Action):
     def __init__(self, nargs=0, **kw):
         super().__init__(nargs=nargs, **kw)
@@ -184,6 +191,18 @@ def readable_dirs_or_empty(paths: str):
     return paths
 
 
+def readable_dirs_or_files_or_empty(paths: str):
+    """
+    Checks that comma separated list of paths are readable directories, files or a provided path is empty.
+    :param paths: comma separated list of paths.
+    :return: comma separated list of paths.
+    """
+    if paths:
+        paths_list = [readable_file_or_dir(path) for path in paths.split(',')]
+        return ','.join(paths_list)
+    return paths
+
+
 def readable_dir(path: str):
     """
     Check that specified path is a readable directory.
@@ -254,10 +273,8 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'Shape is defined as a comma-separated list of integer numbers enclosed in '
                                    'parentheses or square brackets, for example [1,3,227,227] or (1,227,227,3), where '
                                    'the order of dimensions depends on the framework input layout of the model. '
-                                   'For example, [N,C,H,W] is used for Caffe* models and [N,H,W,C] for TensorFlow* '
-                                   'models. Model Optimizer performs necessary transformations to convert the shape to '
-                                   'the layout required by Inference Engine (N,C,H,W). The shape could contain '
-                                   'undefined dimensions (-1) and should fit the dimensions defined in the input '
+                                   'For example, [N,C,H,W] is used for ONNX* models and [N,H,W,C] for TensorFlow* '
+                                   'models. The shape can contain undefined dimensions (? or -1) and should fit the dimensions defined in the input '
                                    'operation of the graph. Boundaries of undefined dimension can be specified with '
                                    'ellipsis, for example [1,1..10,128,128]. One boundary can be undefined, for '
                                    'example [1,..100] or [1,3,1..,1..]. If there are multiple inputs in the model, '
@@ -272,7 +289,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'parameter, this scale ' +
                                    'is not applied for any input that does not match with ' +
                                    'the original input of the model.' +
-                                   'If both --mean and --scale  are specified, ' +
+                                   'If both --mean_values and --scale  are specified, ' +
                                    'the mean is subtracted first and then scale is applied ' +
                                    'regardless of the order of options in command line.')
     common_group.add_argument('--reverse_input_channels',
@@ -365,35 +382,34 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'Usage: "--transform transformation_name1[args],transformation_name2..." ' +
                                    'where [args] is key=value pairs separated by semicolon. ' +
                                    'Examples: "--transform LowLatency2" or ' +
-                                   '          "--transform LowLatency2[use_const_initializer=False]" ' +
-                                   'Available transformations: "LowLatency2"',
+                                   '          "--transform LowLatency2[use_const_initializer=False]" or ' +
+                                   '          "--transform \"MakeStateful[param_res_names='
+                                   '{\'input_name_1\':\'output_name_1\',\'input_name_2\':\'output_name_2\'}]\"" ' +
+                                   'Available transformations: "LowLatency2", "MakeStateful"',
                               default="")
     common_group.add_argument('--disable_fusing',
-                              help='Turn off fusing of linear operations to Convolution',
+                              help='[DEPRECATED] Turn off fusing of linear operations to Convolution.',
                               action=DeprecatedStoreTrue)
     common_group.add_argument('--disable_resnet_optimization',
-                              help='Turn off resnet optimization',
-                              action='store_true')
+                              help='[DEPRECATED] Turn off ResNet optimization.',
+                              action=DeprecatedStoreTrue, default=False)
     common_group.add_argument('--finegrain_fusing',
-                              help='Regex for layers/operations that won\'t be fused. ' +
-                                   'Example: --finegrain_fusing Convolution1,.*Scale.*')
-    common_group.add_argument('--disable_gfusing',
-                              help='Turn off fusing of grouped convolutions',
-                              action=DeprecatedStoreTrue)
+                              help='[DEPRECATED] Regex for layers/operations that won\'t be fused. ' +
+                                   'Example: --finegrain_fusing Convolution1,.*Scale.*',
+                              action=DeprecatedOptionCommon)
     common_group.add_argument('--enable_concat_optimization',
-                              help='Turn on Concat optimization.',
-                              action='store_true')
-    common_group.add_argument('--move_to_preprocess',
-                              help='Move mean values to IR preprocess section',
-                              action=DeprecatedStoreTrue)
+                              help='[DEPRECATED] Turn on Concat optimization.',
+                              action=DeprecatedStoreTrue, default=False)
     # we use CanonicalizeDirCheckExistenceAction instead of readable_dirs to handle empty strings
     common_group.add_argument("--extensions",
-                              help="Directory or a comma separated list of directories with extensions. To disable all "
-                                   "extensions including those that are placed at the default location, pass an empty "
-                                   "string.",
+                              help="Paths or a comma-separated list of paths to libraries (.so or .dll) "
+                                   "with extensions. For the legacy MO path (if `--use_legacy_frontend` is used), "
+                                   "a directory or a comma-separated list of directories with extensions are supported. "
+                                   "To disable all extensions including those that are placed at the default location, "
+                                   "pass an empty string.",
                               default=import_extensions.default_path(),
                               action=CanonicalizePathCheckExistenceAction,
-                              type=readable_dirs_or_empty)
+                              type=readable_dirs_or_files_or_empty)
     common_group.add_argument("--batch", "-b",
                               type=check_positive,
                               default=None,
@@ -415,19 +431,14 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'It will be DEPRECATED in future releases. '
                                    'Use --input option to specify a value for freezing.',
                               default=None)
-    common_group.add_argument('--generate_deprecated_IR_V7',
-                              help=argparse.SUPPRESS, action=IgnoredAction, default=False)
     common_group.add_argument('--static_shape',
                               help='Enables IR generation for fixed input shape (folding `ShapeOf` operations and '
                                    'shape-calculating sub-graphs to `Constant`). Changing model input shape using '
-                                   'the Inference Engine API in runtime may fail for such an IR.',
+                                   'the OpenVINO Runtime API in runtime may fail for such an IR.',
                               action='store_true', default=False)
-    common_group.add_argument('--keep_shape_ops',
-                              help=argparse.SUPPRESS,
-                              action=IgnoredAction, default=True)
     common_group.add_argument('--disable_weights_compression',
-                              help='Disable compression and store weights with original precision.',
-                              action='store_true', default=False)
+                              help='[DEPRECATED] Disable compression and store weights with original precision.',
+                              action=DeprecatedStoreTrue, default=False)
     common_group.add_argument('--progress',
                               help='Enable model conversion progress display.',
                               action='store_true', default=False)
@@ -440,13 +451,16 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'from the current directory, as absolute path or as a'
                                    'relative path from the mo root directory',
                               action=CanonicalizeTransformationPathCheckExistenceAction)
-    common_group.add_argument('--legacy_ir_generation',
-                              help=argparse.SUPPRESS, action=DeprecatedStoreTrue, default=False)
     common_group.add_argument("--use_new_frontend",
-                              help="Use new frontend API for model processing",
+                              help='Force the usage of new Frontend of Model Optimizer for model conversion into IR. '
+                                   'The new Frontend is C++ based and is available for ONNX* and PaddlePaddle* models. '
+                                   'Model optimizer uses new Frontend for ONNX* and PaddlePaddle* by default that means '
+                                   '`--use_new_frontend` and `--use_legacy_frontend` options are not specified.',
                               action='store_true', default=False)
     common_group.add_argument("--use_legacy_frontend",
-                              help="Use legacy API for model processing",
+                              help='Force the usage of legacy Frontend of Model Optimizer for model conversion into IR. '
+                                   'The legacy Frontend is Python based and is available for TensorFlow*, ONNX*, MXNet*, '
+                                   'Caffe*, and Kaldi* models.',
                               action='store_true', default=False)
     return parser
 
@@ -469,11 +483,17 @@ def get_common_cli_options(model_name):
     d['scale'] = ['- Scale factor', lambda x: x if x else 'Not specified']
     d['data_type'] = ['- Precision of IR', lambda x: 'FP32' if x == 'float' else 'FP16' if x == 'half' else x]
     d['disable_fusing'] = ['- Enable fusing', lambda x: not x]
-    d['disable_gfusing'] = ['- Enable grouped convolutions fusing', lambda x: not x]
-    d['move_to_preprocess'] = '- Move mean values to preprocess section'
+    d['transform'] = ['- User transformations', lambda x: x if x else 'Not specified']
     d['reverse_input_channels'] = '- Reverse input channels'
-    d['use_legacy_frontend'] = '- Use legacy API for model processing'
+    d['static_shape'] = '- Enable IR generation for fixed input shape'
     d['transformations_config'] = '- Use the transformations config file'
+    return d
+
+
+def get_advanced_cli_options():
+    d = OrderedDict()
+    d['use_legacy_frontend'] = '- Force the usage of legacy Frontend of Model Optimizer for model conversion into IR'
+    d['use_new_frontend'] = '- Force the usage of new Frontend of Model Optimizer for model conversion into IR'
     return d
 
 
@@ -655,7 +675,7 @@ def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
     tf_group.add_argument('--disable_nhwc_to_nchw',
                           help='[DEPRECATED] Disables the default translation from NHWC to NCHW. Since 2022.1 this option '
                                'is deprecated and used only to maintain backward compatibility with previous releases.',
-                          action='store_true')
+                          action=DeprecatedStoreTrue, default=False)
     return parser
 
 
@@ -755,7 +775,7 @@ def get_all_cli_parser(frontEndManager=None):
     parser = argparse.ArgumentParser(usage='%(prog)s [options]')
 
     frameworks = list(set(['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'] +
-                          (frontEndManager.get_available_front_ends() if frontEndManager else [])))
+                          (get_available_front_ends(frontEndManager) if frontEndManager else [])))
 
     parser.add_argument('--framework',
                         help='Name of the framework used to train the input model.',
@@ -994,8 +1014,14 @@ def parse_layouts_by_destination(s: str, parsed: dict, dest: str = None) -> None
             elif m2:
                 found_g = m2.groups()
             else:
-                raise Error("More then one layout provided for --{}layout without providing name.".format(
-                    dest + '_' if dest else ''))
+                error_msg = "Invalid usage of --{}layout parameter. Please use following syntax for each tensor " \
+                            "or operation name:" \
+                            "\n  name(nchw)" \
+                            "\n  name[n,c,h,w]".format(dest + '_' if dest else '')
+                if dest is None:
+                    error_msg += "\n  name(nhwc->[n,h,w,c])" \
+                                 "\n  name[n,h,w,c]->[n,c,h,w]"
+                raise Error(error_msg)
             write_found_layout(found_g[0], found_g[1], parsed, dest)
 
 
@@ -1594,3 +1620,14 @@ def get_meta_info(argv: argparse.Namespace):
         if key in meta_data:
             meta_data[key] = ','.join([os.path.join('DIR', os.path.split(i)[1]) for i in meta_data[key].split(',')])
     return meta_data
+
+
+def get_available_front_ends(fem=None):
+    # Use this function as workaround to avoid IR frontend usage by MO
+    if fem is None:
+        return []
+    available_moc_front_ends = fem.get_available_front_ends()
+    if 'ir' in available_moc_front_ends:
+        available_moc_front_ends.remove('ir')
+
+    return available_moc_front_ends

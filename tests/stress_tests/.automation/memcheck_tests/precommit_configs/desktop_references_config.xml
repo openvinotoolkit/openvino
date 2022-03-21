@@ -46,18 +46,18 @@
         <model path="public/mtcnn/mtcnn-r/FP16/mtcnn-r.xml" precision="FP16" test="infer_request_inference" device="CPU" vmsize="908700" vmpeak="908700" vmrss="43227" vmhwm="43227" />
         <model path="public/mtcnn/mtcnn-r/FP16/mtcnn-r.xml" precision="FP16" test="infer_request_inference" device="GPU" vmsize="2107846" vmpeak="2145161" vmrss="235248" vmhwm="305996" />
 
-        <model path="public/ssd300/FP16/ssd300.xml" precision="FP16" test="create_exenetwork" device="CPU" vmsize="1120184" vmpeak="1120184" vmrss="359200" vmhwm="359200" />
+        <model path="public/ssd300/FP16/ssd300.xml" precision="FP16" test="create_exenetwork" device="CPU" vmsize="1367288" vmpeak="1367288" vmrss="468748" vmhwm="468748" /> # values from {"commit_id": "25c76471d78628aa772f3a7e341ae915bdce6026", "commit_date": "2022-02-23 15:55"}
         <model path="public/ssd300/FP16/ssd300.xml" precision="FP16" test="create_exenetwork" device="GPU" vmsize="1630569" vmpeak="1752530" vmrss="546364" vmhwm="874426" />
         <model path="public/ssd300/FP16/ssd300.xml" precision="FP16" test="inference_with_streams" device="CPU" vmsize="1457409" vmpeak="1458782" vmrss="572577" vmhwm="572577" />
         <model path="public/ssd300/FP16/ssd300.xml" precision="FP16" test="inference_with_streams" device="GPU" vmsize="1856405" vmpeak="1941602" vmrss="578843" vmhwm="872071" />
         <model path="public/ssd300/FP16/ssd300.xml" precision="FP16" test="infer_request_inference" device="CPU" vmsize="1309838" vmpeak="1386434" vmrss="421626" vmhwm="421626" />
         <model path="public/ssd300/FP16/ssd300.xml" precision="FP16" test="infer_request_inference" device="GPU" vmsize="1711881" vmpeak="1797078" vmrss="544310" vmhwm="875368" />
 
-        <model path="public/vgg16/FP16/vgg16.xml" precision="FP16" test="create_exenetwork" device="CPU" vmsize="2405114" vmpeak="2405114" vmrss="1683084" vmhwm="1683084" />
+        <model path="public/vgg16/FP16/vgg16.xml" precision="FP16" test="create_exenetwork" device="CPU" vmsize="3264497" vmpeak="3264497" vmrss="2393794" vmhwm="2393794" /> # values from {"commit_id": "25c76471d78628aa772f3a7e341ae915bdce6026", "commit_date": "2022-02-23 15:55"}
         <model path="public/vgg16/FP16/vgg16.xml" precision="FP16" test="create_exenetwork" device="GPU" vmsize="2206724" vmpeak="2551770" vmrss="1023926" vmhwm="1487049" />
         <model path="public/vgg16/FP16/vgg16.xml" precision="FP16" test="inference_with_streams" device="CPU" vmsize="3430388" vmpeak="3600781" vmrss="2424016" vmhwm="2424016" />
         <model path="public/vgg16/FP16/vgg16.xml" precision="FP16" test="inference_with_streams" device="GPU" vmsize="2408536" vmpeak="2649150" vmrss="1052251" vmhwm="1493044" />
-        <model path="public/vgg16/FP16/vgg16.xml" precision="FP16" test="infer_request_inference" device="CPU" vmsize="2406284" vmpeak="2490311" vmrss="1716967" vmhwm="1716967" />
+        <model path="public/vgg16/FP16/vgg16.xml" precision="FP16" test="infer_request_inference" device="CPU" vmsize="3355554" vmpeak="3440221" vmrss="2426278" vmhwm="2426278" /> # values from {"commit_id": "25c76471d78628aa772f3a7e341ae915bdce6026", "commit_date": "2022-02-23 15:55"}
         <model path="public/vgg16/FP16/vgg16.xml" precision="FP16" test="infer_request_inference" device="GPU" vmsize="2292227" vmpeak="2549414" vmrss="1002950" vmhwm="1461891" />
 
         <!--Models with FP16-INT8 precision-->
@@ -76,11 +76,11 @@
         <model path="intel/person-detection-action-recognition-0006/FP16-INT8/person-detection-action-recognition-0006.xml" precision="FP16-INT8" test="infer_request_inference" device="GPU" vmsize="2751954" vmpeak="2751954" vmrss="1885722" vmhwm="2143528" />
 
         <model path="intel/single-image-super-resolution-1032/FP16-INT8/single-image-super-resolution-1032.xml" precision="FP16-INT8" test="create_exenetwork" device="CPU" vmsize="928678" vmpeak="928678" vmrss="70532" vmhwm="70532" />
-        <model path="intel/single-image-super-resolution-1032/FP16-INT8/single-image-super-resolution-1032.xml" precision="FP16-INT8" test="create_exenetwork" device="GPU" vmsize="1836962" vmpeak="1836962" vmrss="621956" vmhwm="621956" />
+        <model path="intel/single-image-super-resolution-1032/FP16-INT8/single-image-super-resolution-1032.xml" precision="FP16-INT8" test="create_exenetwork" device="GPU" vmsize="2702263" vmpeak="2702263" vmrss="907878" vmhwm="907878" /> # values from {"commit_id": "e919bcf91466771a461de300b8eec06cf565e575", "commit_date": "2022-02-10 11:38"} and *= 1.3
         <model path="intel/single-image-super-resolution-1032/FP16-INT8/single-image-super-resolution-1032.xml" precision="FP16-INT8" test="inference_with_streams" device="CPU" vmsize="1305746" vmpeak="1370912" vmrss="338520" vmhwm="338561" />
-        <model path="intel/single-image-super-resolution-1032/FP16-INT8/single-image-super-resolution-1032.xml" precision="FP16-INT8" test="inference_with_streams" device="GPU" vmsize="2446579" vmpeak="2531776" vmrss="1056229" vmhwm="1056239" />
+        <model path="intel/single-image-super-resolution-1032/FP16-INT8/single-image-super-resolution-1032.xml" precision="FP16-INT8" test="inference_with_streams" device="GPU" vmsize="3564912" vmpeak="3564912" vmrss="1653038" vmhwm="1653038" /> # values from {"commit_id": "e919bcf91466771a461de300b8eec06cf565e575", "commit_date": "2022-02-10 11:38"} and *= 1.3
         <model path="intel/single-image-super-resolution-1032/FP16-INT8/single-image-super-resolution-1032.xml" precision="FP16-INT8" test="infer_request_inference" device="CPU" vmsize="993844" vmpeak="993844" vmrss="301698" vmhwm="301698" />
-        <model path="intel/single-image-super-resolution-1032/FP16-INT8/single-image-super-resolution-1032.xml" precision="FP16-INT8" test="infer_request_inference" device="GPU" vmsize="2013871" vmpeak="2099068" vmrss="721000" vmhwm="721000" />
+        <model path="intel/single-image-super-resolution-1032/FP16-INT8/single-image-super-resolution-1032.xml" precision="FP16-INT8" test="infer_request_inference" device="GPU" vmsize="2827546" vmpeak="2827546" vmrss="1030224" vmhwm="1030224" /> # values from {"commit_id": "e919bcf91466771a461de300b8eec06cf565e575", "commit_date": "2022-02-10 11:38"} and *= 1.3
 
         <model path="intel/vehicle-attributes-recognition-barrier-0039/FP16-INT8/vehicle-attributes-recognition-barrier-0039.xml" precision="FP16-INT8" test="create_exenetwork" device="CPU" vmsize="722924" vmpeak="722924" vmrss="37622" vmhwm="37622" />
         <model path="intel/vehicle-attributes-recognition-barrier-0039/FP16-INT8/vehicle-attributes-recognition-barrier-0039.xml" precision="FP16-INT8" test="create_exenetwork" device="GPU" vmsize="1498146" vmpeak="1521130" vmrss="244857" vmhwm="411824" />

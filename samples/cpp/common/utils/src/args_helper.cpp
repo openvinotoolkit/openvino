@@ -248,20 +248,6 @@ bool isMatchLayoutToDims(InferenceEngine::Layout layout, size_t dimension) {
 
 }  // namespace
 
-void printInputAndOutputsInfoShort(const ov::Model& network) {
-    std::cout << "Network inputs:" << std::endl;
-    for (auto&& input : network.inputs()) {
-        std::cout << "    " << input.get_any_name() << " : " << input.get_element_type() << " / "
-                  << ov::layout::get_layout(input).to_string() << std::endl;
-    }
-
-    std::cout << "Network outputs:" << std::endl;
-    for (auto&& output : network.outputs()) {
-        std::cout << "    " << output.get_any_name() << " : " << output.get_element_type() << " / "
-                  << ov::layout::get_layout(output).to_string() << std::endl;
-    }
-}
-
 void printInputAndOutputsInfo(const ov::Model& network) {
     slog::info << "model name: " << network.get_friendly_name() << slog::endl;
 

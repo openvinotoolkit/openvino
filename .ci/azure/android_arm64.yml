@@ -1,3 +1,12 @@
+trigger:
+  branches:
+    include:
+    - master
+    - releases/*
+  paths:
+    exclude:
+    - docs/*
+
 resources:
   repositories:
   - repository: openvino_contrib
@@ -103,7 +112,7 @@ jobs:
         -DENABLE_OPENCV=OFF
         -DENABLE_TESTS=ON
         -DENABLE_SAMPLES=ON
-        -DENABLE_INTEL_VPU=OFF
+        -DENABLE_INTEL_MYRIAD=OFF
         -DBUILD_java_api=ON
         -DTHREADING=SEQ
         -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules

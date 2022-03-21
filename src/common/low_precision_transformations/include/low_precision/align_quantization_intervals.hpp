@@ -7,6 +7,7 @@
 #include <memory>
 #include <ngraph/pass/pass.hpp>
 #include "low_precision/lpt_visibility.hpp"
+#include "low_precision/layer_transformation.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -29,6 +30,9 @@ class LP_TRANSFORMATIONS_API AlignQuantizationIntervals;
  */
 class ngraph::pass::low_precision::AlignQuantizationIntervals : public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("AlignQuantizationIntervals", "0");
+    AlignQuantizationIntervals(const std::vector<ngraph::element::Type>& defaultPrecisions = ngraph::pass::low_precision::precision_set::int8_support);
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
+private:
+    const std::vector<ngraph::element::Type> defaultPrecisions;
 };

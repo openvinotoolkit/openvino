@@ -20,10 +20,6 @@
 
 using namespace GNAPluginNS;
 
-NGRAPH_RTTI_DEFINITION(Decompose2DConv, "Decompose2DConv", 0);
-NGRAPH_RTTI_DEFINITION(Decompose2DConvTransposedWithBias, "Decompose2DConvTransposedWithBias", 0);
-NGRAPH_RTTI_DEFINITION(Decompose2DConvTransposedWithBiasAF, "Decompose2DConvTransposedWithBiasAF", 0);
-
 struct GraphData {
     std::shared_ptr<ngraph::opset7::Transpose>leading_transpose;
     std::shared_ptr<ngraph::opset7::FakeQuantize>fq_conv;
@@ -314,7 +310,7 @@ static std::shared_ptr<ngraph::Node> Create1DConv(const GraphData& graph_data, c
         }
 
         // Max pooling
-        if ((graph_data.max_pool && graph_data.pool_size_width > 1) || graph_data.pool_stride_width > 1) {
+        if (graph_data.max_pool && (graph_data.pool_size_width > 1 || graph_data.pool_stride_width > 1)) {
             last_conv_block_op = std::make_shared<ngraph::opset7::MaxPool>(last_conv_block_op,
                 ngraph::Strides{1, graph_data.pool_stride_width}, ngraph::Shape{0, 0}, ngraph::Shape{0, 0},
                 ngraph::Shape{1, graph_data.pool_size_width}, graph_data.max_pool->get_rounding_type(), ngraph::op::PadType::VALID);

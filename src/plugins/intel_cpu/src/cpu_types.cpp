@@ -6,7 +6,8 @@
 #include <vector>
 #include <string>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 using Dim = std::size_t;
 using VectorDims = std::vector<Dim>;
@@ -105,6 +106,8 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "Convert", Convert },
         { "NV12toRGB", ColorConvert },
         { "NV12toBGR", ColorConvert },
+        { "I420toRGB", ColorConvert },
+        { "I420toBGR", ColorConvert },
         { "MVN", MVN},
         { "NormalizeL2", NormalizeL2},
         { "ScatterUpdate", ScatterUpdate},
@@ -478,8 +481,12 @@ std::string algToString(const Algorithm alg) {
     CASE(TensorIteratorLoop);
     CASE(ColorConvertNV12toRGB);
     CASE(ColorConvertNV12toBGR);
+    CASE(ColorConvertI420toRGB);
+    CASE(ColorConvertI420toBGR);
 #undef CASE
     return "Undefined";
 }
 
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov
+

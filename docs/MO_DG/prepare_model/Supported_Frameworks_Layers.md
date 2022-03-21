@@ -1,9 +1,9 @@
 # Supported Framework Layers {#openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers}
 
-## Caffe\* Supported Layers
+## Caffe Supported Layers
 
 
-| Layer Name in Caffe\* | Limitations |
+| Layer Name in Caffe | Limitations |
 |:---------- | :----------|
 | Axpy |  |
 | BN |  |
@@ -47,10 +47,10 @@
 | Tile |  |
 
 
-## MXNet\* Supported Symbols
+## MXNet Supported Symbols
 
 
-| Symbol Name in MXNet\*| Limitations|
+| Symbol Name in MXNet| Limitations|
 | :----------| :----------|
 | _Plus |  |
 | _contrib_arange_like |  |
@@ -119,7 +119,7 @@
 | Concat |  |
 | Convolution |  |
 | Crop | "center_crop" = 1 is not supported |
-| Custom | [Custom Layers in the Model Optimizer](customize_model_optimizer/Customize_Model_Optimizer.md) |
+| Custom | [Custom Layers in Model Optimizer](customize_model_optimizer/Customize_Model_Optimizer.md) |
 | Deconvolution |  |
 | DeformableConvolution |  |
 | DeformablePSROIPooling |  |
@@ -149,12 +149,12 @@
 | zeros_like |  |
 
 
-## TensorFlow\* Supported Operations
+## TensorFlow Supported Operations
 
-Some TensorFlow\* operations do not match to any Inference Engine layer, but are still supported by the Model Optimizer and can be used on constant propagation path. These layers are labeled 'Constant propagation' in the table.
+Some TensorFlow operations do not match to any OpenVINO operation, but are still supported by the Model Optimizer and can be used on constant propagation path. These layers are labeled 'Constant propagation' in the table.
 
 
-| Operation Name in TensorFlow\* | Limitations|
+| Operation Name in TensorFlow | Limitations|
 | :----------| :----------|
 | Abs |  |
 | Acosh |  |
@@ -199,6 +199,7 @@ Some TensorFlow\* operations do not match to any Inference Engine layer, but are
 | DepthwiseConv2dNative|  |
 | Einsum | Supported only with equation that does not contain repeated labels within a subscript |
 | Elu |  |
+| EmptyTensorList | Supported only when it is part of a sub-graph of the special form |
 | Enter | Supported only when it is fused to the TensorIterator layer |
 | Equal |  |
 | Erf |  |
@@ -336,6 +337,7 @@ Some TensorFlow\* operations do not match to any Inference Engine layer, but are
 | TensorArraySizeV3 | Supported only when it is fused to the TensorIterator layer |
 | TensorArrayV3 | Supported only when it is fused to the TensorIterator layer |
 | TensorArrayWriteV3 | Supported only when it is fused to the TensorIterator layer |
+| TensorListPushBack | Supported only when it is part of a sub-graph of the special form |
 | Tile |  |
 | TopkV2 |  |
 | Transpose |  |
@@ -346,10 +348,10 @@ Some TensorFlow\* operations do not match to any Inference Engine layer, but are
 | ZerosLike |  |
 
 
-## TensorFlow 2 Keras\* Supported Operations
+## TensorFlow 2 Keras Supported Operations
 
 
-| Operation Name in TensorFlow 2 Keras\* | Limitations|
+| Operation Name in TensorFlow 2 Keras | Limitations|
 | :----------| :----------|
 | ActivityRegularization |  |
 | Add |  |
@@ -429,10 +431,10 @@ Some TensorFlow\* operations do not match to any Inference Engine layer, but are
 | ZeroPadding2D |  |
 | ZeroPadding3D |  |
 
-## Kaldi\* Supported Layers
+## Kaldi Supported Layers
 
 
-| Symbol Name in Kaldi\*| Limitations|
+| Symbol Name in Kaldi| Limitations|
 | :----------| :----------|
 | addshift |  |
 | affinecomponent |  |
@@ -476,10 +478,10 @@ Some TensorFlow\* operations do not match to any Inference Engine layer, but are
 | timeheightconvolutioncomponent |  |
 
 
-## ONNX\* Supported Operators
+## ONNX Supported Operators
 
 
-| Symbol Name in ONNX\*| Limitations|
+| Symbol Name in ONNX| Limitations|
 | :----------| :----------|
 | Abs |  |
 | Acos |  |
@@ -619,11 +621,11 @@ Some TensorFlow\* operations do not match to any Inference Engine layer, but are
 | Xor |  |
 
 
-## PaddlePaddle\* Supported Operators
+## PaddlePaddle Supported Operators
 
 paddlepaddle>=2.1
 
-| Operator Name in PaddlePaddle\*| Limitations|
+| Operator Name in PaddlePaddle| Limitations|
 | :----------| :----------|
 | adpative_pool2d | 'NHWC' data_layout is not supported |
 | arg_max | 'int32' output data_type is not supported |

@@ -9,9 +9,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "op/swish_cpu.hpp"
 
-NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::ConvertToSwishCPU, "ConvertToSwishCPU", 0);
-
-MKLDNNPlugin::ConvertToSwishCPU::ConvertToSwishCPU() {
+ov::intel_cpu::ConvertToSwishCPU::ConvertToSwishCPU() {
     auto swish = ngraph::pattern::wrap_type<ngraph::opset4::Swish>();
 
     ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
@@ -29,7 +27,7 @@ MKLDNNPlugin::ConvertToSwishCPU::ConvertToSwishCPU() {
             beta_value = beta->cast_vector<float>()[0];
         }
 
-        auto swish_cpu = std::make_shared<MKLDNNPlugin::SwishNode>(swish->input(0).get_source_output(), beta_value);
+        auto swish_cpu = std::make_shared<ov::intel_cpu::SwishNode>(swish->input(0).get_source_output(), beta_value);
         swish_cpu->set_friendly_name(swish->get_friendly_name());
         ngraph::copy_runtime_info(swish, swish_cpu);
         ngraph::replace_node(swish, swish_cpu);

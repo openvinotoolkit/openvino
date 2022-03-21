@@ -11,8 +11,8 @@ file(GLOB SRCS
 add_executable(${TARGET_NAME} ${SRCS})
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-    ${OpenVINO_SOURCE_DIR}/src/plugins/intel_vpu/graph_transformer/include
-    ${OpenVINO_SOURCE_DIR}/src/plugins/intel_vpu/common/include
+    ${OpenVINO_SOURCE_DIR}/src/plugins/intel_myriad/graph_transformer/include
+    ${OpenVINO_SOURCE_DIR}/src/plugins/intel_myriad/common/include
 )
 
 if (CMAKE_COMPILER_IS_GNUCXX)

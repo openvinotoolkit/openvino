@@ -13,7 +13,6 @@ ie_shellcheck_process(DIRECTORY "${OpenVINO_SOURCE_DIR}"
                            "${OpenVINO_SOURCE_DIR}/src/plugins/intel_cpu/thirdparty"
                            "${OpenVINO_SOURCE_DIR}/src/plugins/intel_gpu/thirdparty"
                            "${OpenVINO_SOURCE_DIR}/src/bindings/python/thirdparty/pybind11"
-                           "${IE_MAIN_SOURCE_DIR}/thirdparty"
                            "${OpenVINO_SOURCE_DIR}/tools/pot/thirdparty"
                            "${TEMP}"
                            # TODO fix and enable back:
@@ -50,7 +49,7 @@ install(PROGRAMS "${_setupvars_file}"
 
 # install install_dependencies
 
-if(UNIX)
+if(LINUX)
     ie_cpack_add_component(install_dependencies REQUIRED)
     install(DIRECTORY install_dependencies/
             DESTINATION install_dependencies

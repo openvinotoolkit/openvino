@@ -977,12 +977,10 @@ inline void showAvailableDevices() {
 std::map<std::string, std::string> parseConfig(const std::string& configName, char comment = '#');
 
 inline std::string getFullDeviceName(ov::Core& core, std::string device) {
-    ov::Any p;
     try {
-        p = core.get_property(device, METRIC_KEY(FULL_DEVICE_NAME));
-        return p.as<std::string>();
+        return core.get_property(device, ov::device::full_name);
     } catch (ov::Exception&) {
-        return "";
+        return {};
     }
 }
 
@@ -995,7 +993,7 @@ static UNUSED void printPerformanceCounts(std::vector<ov::ProfilingInfo> perform
     if (bshowHeader) {
         stream << std::endl << "performance counts:" << std::endl << std::endl;
     }
-
+    std::ios::fmtflags fmt(std::cout.flags());
     for (const auto& it : performanceData) {
         std::string toPrint(it.node_name);
         const int maxLayerName = 30;
@@ -1030,6 +1028,7 @@ static UNUSED void printPerformanceCounts(std::vector<ov::ProfilingInfo> perform
     std::cout << std::endl;
     std::cout << "Full device name: " << deviceName << std::endl;
     std::cout << std::endl;
+    std::cout.flags(fmt);
 }
 
 static UNUSED void printPerformanceCounts(ov::InferRequest request,

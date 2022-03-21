@@ -18,10 +18,6 @@
 
 namespace GNAPluginNS {
 
-NGRAPH_RTTI_DEFINITION(HandleTransposesAroundMatMul, "HandleTransposesAroundMatMul", 0);
-NGRAPH_RTTI_DEFINITION(HandleTransposeBeforeMatMul, "HandleTransposeBeforeMatMul", 0);
-NGRAPH_RTTI_DEFINITION(HandleTransposeAfterMatMul, "HandleTransposeAfterMatMul", 0);
-
 namespace {
 
 void ReplaceTransposeWithReshape(std::shared_ptr<ngraph::Node> transpose_node) {
@@ -90,7 +86,7 @@ bool VerifyReshape(const ngraph::Output<ngraph::Node>& reshape_out) {
 
 bool VerifyConcat(const ngraph::Output<ngraph::Node>& node) {
     auto concat_node = std::dynamic_pointer_cast<ngraph::opset8::Concat>(node.get_node_shared_ptr());
-    return (concat_node->get_axis() == 0);
+    return concat_node && (concat_node->get_axis() == 0);
 }
 
 } // namespace

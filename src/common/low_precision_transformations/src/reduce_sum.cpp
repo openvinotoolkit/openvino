@@ -13,8 +13,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::ReduceSumTransformation, "ReduceSumTransformation", 0);
-
 ReduceSumTransformation::ReduceSumTransformation(const Params& params) : ReduceBaseTransformation(params) {
     auto matcher = pattern::wrap_type<opset1::ReduceSum>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
 
@@ -36,7 +34,7 @@ bool ReduceSumTransformation::canBeTransformed(const TransformationContext& cont
         return false;
     }
 
-    const auto dequantization = NetworkHelper::getDequantization(reduce);
+    const auto dequantization = NetworkHelper::getDequantization(reduce, defaultPrecisions);
     if (dequantization.subtract) {
         const auto reductionAxes = reduceSum->get_reduction_axes();
         const auto inputPShape = dequantization.data.get_partial_shape();

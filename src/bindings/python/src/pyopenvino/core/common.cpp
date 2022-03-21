@@ -6,6 +6,8 @@
 
 #include <unordered_map>
 
+#include "openvino/util/common_util.hpp"
+
 #define C_CONTIGUOUS py::detail::npy_api::constants::NPY_ARRAY_C_CONTIGUOUS_
 
 namespace Common {
@@ -47,6 +49,17 @@ const std::map<std::string, ov::element::Type>& dtype_to_ov_type() {
     return dtype_to_ov_type_mapping;
 }
 
+ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape) {
+    bool is_contiguous = C_CONTIGUOUS == (array.flags() & C_CONTIGUOUS);
+    auto type = Common::dtype_to_ov_type().at(py::str(array.dtype()));
+
+    if (is_contiguous) {
+        return ov::Tensor(type, shape, const_cast<void*>(array.data(0)), {});
+    } else {
+        throw ov::Exception("Tensor with shared memory must be C contiguous!");
+    }
+}
+
 ov::Tensor tensor_from_numpy(py::array& array, bool shared_memory) {
     // Check if passed array has C-style contiguous memory layout.
     bool is_contiguous = C_CONTIGUOUS == (array.flags() & C_CONTIGUOUS);
@@ -75,6 +88,108 @@ ov::Tensor tensor_from_numpy(py::array& array, bool shared_memory) {
     py::buffer_info buf = array.request();
     std::memcpy(tensor.data(), buf.ptr, buf.ndim == 0 ? buf.itemsize : buf.itemsize * buf.size);
     return tensor;
+}
+
+ov::PartialShape partial_shape_from_list(const py::list& shape) {
+    using value_type = ov::Dimension::value_type;
+    ov::PartialShape pshape;
+    for (py::handle dim : shape) {
+        if (py::isinstance<py::int_>(dim)) {
+            pshape.insert(pshape.end(), ov::Dimension(dim.cast<value_type>()));
+        } else if (py::isinstance<py::str>(dim)) {
+            pshape.insert(pshape.end(), Common::dimension_from_str(dim.cast<std::string>()));
+        } else if (py::isinstance<ov::Dimension>(dim)) {
+            pshape.insert(pshape.end(), dim.cast<ov::Dimension>());
+        } else if (py::isinstance<py::list>(dim) || py::isinstance<py::tuple>(dim)) {
+            py::list bounded_dim = dim.cast<py::list>();
+            if (bounded_dim.size() != 2) {
+                throw py::type_error("Two elements are expected in tuple(lower, upper) for dynamic dimension, but " +
+                                     std::to_string(bounded_dim.size()) + " elements were given.");
+            }
+            if (!(py::isinstance<py::int_>(bounded_dim[0]) && py::isinstance<py::int_>(bounded_dim[1]))) {
+                throw py::type_error("Incorrect pair of types (" + std::string(bounded_dim[0].get_type().str()) + ", " +
+                                     std::string(bounded_dim[1].get_type().str()) +
+                                     ") for dynamic dimension, ints are expected.");
+            }
+            pshape.insert(pshape.end(),
+                          ov::Dimension(bounded_dim[0].cast<value_type>(), bounded_dim[1].cast<value_type>()));
+        } else {
+            throw py::type_error("Incorrect type " + std::string(dim.get_type().str()) +
+                                 " for dimension. Expected types are: "
+                                 "int, str, openvino.runtime.Dimension, list/tuple with lower and upper values for "
+                                 "dynamic dimension.");
+        }
+    }
+    return pshape;
+}
+
+bool check_all_digits(const std::string& value) {
+    auto val = ov::util::trim(value);
+    for (const auto& c : val) {
+        if (!std::isdigit(c) || c == '-') {
+            return false;
+        }
+    }
+    return true;
+}
+
+template <class T>
+T stringToType(const std::string& valStr) {
+    T ret{0};
+    std::istringstream ss(valStr);
+    if (!ss.eof()) {
+        ss >> ret;
+    }
+    return ret;
+}
+
+ov::Dimension dimension_from_str(const std::string& value) {
+    using value_type = ov::Dimension::value_type;
+    auto val = ov::util::trim(value);
+    if (val == "?" || val == "-1") {
+        return {-1};
+    }
+    if (val.find("..") == std::string::npos) {
+        OPENVINO_ASSERT(Common::check_all_digits(val), "Cannot parse dimension: \"", val, "\"");
+        return {Common::stringToType<value_type>(val)};
+    }
+
+    std::string min_value_str = val.substr(0, val.find(".."));
+    OPENVINO_ASSERT(Common::check_all_digits(min_value_str), "Cannot parse min bound: \"", min_value_str, "\"");
+
+    value_type min_value;
+    if (min_value_str.empty()) {
+        min_value = 0;
+    } else {
+        min_value = Common::stringToType<value_type>(min_value_str);
+    }
+
+    std::string max_value_str = val.substr(val.find("..") + 2);
+    value_type max_value;
+    if (max_value_str.empty()) {
+        max_value = -1;
+    } else {
+        max_value = Common::stringToType<value_type>(max_value_str);
+    }
+
+    OPENVINO_ASSERT(Common::check_all_digits(max_value_str), "Cannot parse max bound: \"", max_value_str, "\"");
+
+    return {min_value, max_value};
+}
+
+ov::PartialShape partial_shape_from_str(const std::string& value) {
+    auto val = ov::util::trim(value);
+    if (val == "...") {
+        return ov::PartialShape::dynamic();
+    }
+    ov::PartialShape res;
+    std::stringstream ss(val);
+    std::string field;
+    while (getline(ss, field, ',')) {
+        OPENVINO_ASSERT(!field.empty(), "Cannot get vector of dimensions! \"", val, "\" is incorrect");
+        res.insert(res.end(), Common::dimension_from_str(field));
+    }
+    return res;
 }
 
 py::array as_contiguous(py::array& array, ov::element::Type type) {
@@ -293,6 +408,17 @@ PyAny from_ov_any(const ov::Any& any) {
             PyDict_SetItemString(dict, it.first.c_str(), PyLong_FromLong((long)it.second));
         }
         return dict;
+    }
+    // Check for std::vector<ov::PropertyName>
+    else if (any.is<std::vector<ov::PropertyName>>()) {
+        auto val = any.as<std::vector<ov::PropertyName>>();
+        PyObject* dict = PyDict_New();
+        for (const auto& it : val) {
+            std::string property_name = it;
+            std::string mutability = it.is_mutable() ? "RW" : "RO";
+            PyDict_SetItemString(dict, property_name.c_str(), PyUnicode_FromString(mutability.c_str()));
+        }
+        return dict;
     } else {
         PyErr_SetString(PyExc_TypeError, "Failed to convert parameter to Python representation!");
         return (PyObject*)NULL;
@@ -301,18 +427,12 @@ PyAny from_ov_any(const ov::Any& any) {
 
 uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual) {
     try {
-        auto parameter_value = actual.get_property(METRIC_KEY(SUPPORTED_METRICS));
-        auto supported_metrics = parameter_value.as<std::vector<std::string>>();
-        const std::string key = METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS);
-        if (std::find(supported_metrics.begin(), supported_metrics.end(), key) != supported_metrics.end()) {
-            parameter_value = actual.get_property(key);
-            if (parameter_value.is<unsigned int>())
-                return parameter_value.as<unsigned int>();
-            else
-                IE_THROW() << "Unsupported format for " << key << "!"
-                           << " Please specify number of infer requests directly!";
+        auto supported_properties = actual.get_property(ov::supported_properties);
+        if (std::find(supported_properties.begin(), supported_properties.end(), ov::optimal_number_of_infer_requests) !=
+            supported_properties.end()) {
+            return actual.get_property(ov::optimal_number_of_infer_requests);
         } else {
-            IE_THROW() << "Can't load network: " << key << " is not supported!"
+            IE_THROW() << "Can't load network: " << ov::optimal_number_of_infer_requests.name() << " is not supported!"
                        << " Please specify number of infer requests directly!";
         }
     } catch (const std::exception& ex) {

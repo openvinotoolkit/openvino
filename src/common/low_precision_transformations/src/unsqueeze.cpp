@@ -16,8 +16,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::UnsqueezeTransformation, "UnsqueezeTransformation", 0);
-
 UnsqueezeTransformation::UnsqueezeTransformation(const Params& params) : LayerTransformation(params) {
     auto matcher = pattern::wrap_type<opset1::Unsqueeze>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
 
@@ -55,8 +53,8 @@ bool UnsqueezeTransformation::transform(TransformationContext& context, ngraph::
     };
 
 
-    const std::shared_ptr<Node> unsqueeze = NetworkHelper::separateInStandaloneBranch(m.get_match_root());
-    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(unsqueeze);
+    const std::shared_ptr<Node> unsqueeze = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
+    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(unsqueeze, defaultPrecisions);
 
     if (dequantization.multiply != nullptr) {
         auto newConstant = unsqueezeOnConstant(unsqueeze, dequantization.multiplyConstant, dequantization.data.get_partial_shape());
@@ -68,7 +66,7 @@ bool UnsqueezeTransformation::transform(TransformationContext& context, ngraph::
         replace_node(dequantization.subtractConstant, newConstant);
     }
 
-    moveDequantizationAfter(context, unsqueeze, NetworkHelper::getDequantization(unsqueeze), false);
+    moveDequantizationAfter(context, unsqueeze, NetworkHelper::getDequantization(unsqueeze, defaultPrecisions), false);
     return true;
 }
 
@@ -77,7 +75,7 @@ bool UnsqueezeTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) 
 }
 
 bool UnsqueezeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    return (!NetworkHelper::getDequantization(layer).empty()) && LayerTransformation::canBeTransformed(context, layer);
+    return (!NetworkHelper::getDequantization(layer, defaultPrecisions).empty()) && LayerTransformation::canBeTransformed(context, layer);
 }
 
 
