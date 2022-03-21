@@ -95,8 +95,9 @@ class GNAMemory : public GNAMemRequestsQueue {
         heap = allocate(getTotalBytes());
 
         // 4th stage -- store data and updates pointers
-        allocateRegion(REGION_RW, 0);
-        allocateRegion(REGION_RO, _rw_section_size);
+
+        allocateRegion(REGION_RO, 0);
+        allocateRegion(REGION_RW, _ro_section_size);
     }
 
     void *getBasePtr() {
