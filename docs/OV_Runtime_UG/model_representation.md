@@ -10,7 +10,8 @@ Each operation in `ov::Model` has the `std::shared_ptr<ov::Node>` type.
 
 For details on how to build a model in OpenVINO™ Runtime, see the [Build a Model in OpenVINO™ Runtime](@ref build_model) section.
 
-OpenVINO™ Runtime allows using tensor names or indexes to work wit model inputs/outputs. To get model input/output ports, use the `ov::Model::inputs()` or `ov::Model::outputs()` methods respectively.
+OpenVINO™ Runtime allows using tensor names or indexes to work with model inputs/outputs, so it means that you don't use OpenVINO specific conventions to operate with model inputs/outputs anymore, you use native framework names or indexes to work with them. 
+To get model input/output ports, use the `ov::Model::inputs()` or `ov::Model::outputs()` methods respectively.
 
 @sphinxdirective
 
