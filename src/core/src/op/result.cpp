@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/result.hpp"
+#include "openvino/op/result.hpp"
 
 #include <memory>
 #include <typeindex>
@@ -13,24 +13,23 @@
 #include "ngraph/runtime/host_tensor.hpp"
 
 using namespace std;
-using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::Result);
+BWDCMP_RTTI_DEFINITION(ov::op::v0::Result);
 
-op::Result::Result(const Output<Node>& arg) : Op({arg}) {
+ov::op::v0::Result::Result(const ov::Output<ov::Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
 }
 
-op::Result::Result(const Output<Node>& arg, bool) : Op({arg}) {
+ov::op::v0::Result::Result(const ov::Output<ov::Node>& arg, bool) : Op({arg}) {
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v0::Result::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::v0::Result::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v0_Result_visit_attributes);
     return true;
 }
 
-void op::Result::validate_and_infer_types() {
+void ov::op::v0::Result::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_Result_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this, get_input_size() == 1, "Argument has ", get_input_size(), " outputs (1 expected).");
 
@@ -40,7 +39,7 @@ void op::Result::validate_and_infer_types() {
     output.set_tensor_ptr(input.get_tensor_ptr());
 }
 
-shared_ptr<Node> op::Result::clone_with_new_inputs(const OutputVector& new_args) const {
+shared_ptr<ov::Node> ov::op::v0::Result::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v0_Result_clone_with_new_inputs);
     check_new_args_count(this, new_args);
 
@@ -48,7 +47,7 @@ shared_ptr<Node> op::Result::clone_with_new_inputs(const OutputVector& new_args)
     return std::move(res);
 }
 
-bool op::Result::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool ov::op::v0::Result::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_Result_evaluate);
     outputs[0]->set_unary(inputs[0]);
     void* output = outputs[0]->get_data_ptr();
@@ -58,28 +57,28 @@ bool op::Result::evaluate(const HostTensorVector& outputs, const HostTensorVecto
     return true;
 }
 
-bool op::Result::has_evaluate() const {
+bool ov::op::v0::Result::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_Result_has_evaluate);
     return true;
 }
 
-bool op::Result::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
+bool ov::op::v0::Result::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
     return false;
 }
 
-ov::Layout op::Result::get_layout() const {
+ov::Layout ov::op::v0::Result::get_layout() const {
     return ov::layout::get_layout(output(0));
 }
 
-void op::Result::set_layout(const ov::Layout& layout) {
+void ov::op::v0::Result::set_layout(const ov::Layout& layout) {
     ov::layout::set_layout(output(0), layout);
 }
 
-BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ResultVector>);
+BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::ResultVector>);
 
-ov::AttributeAdapter<ResultVector>::AttributeAdapter(ResultVector& ref) : m_ref(ref) {}
+ov::AttributeAdapter<ov::ResultVector>::AttributeAdapter(ov::ResultVector& ref) : m_ref(ref) {}
 
-bool ov::AttributeAdapter<ResultVector>::visit_attributes(AttributeVisitor& visitor) {
+bool ov::AttributeAdapter<ov::ResultVector>::visit_attributes(AttributeVisitor& visitor) {
     size_t size = m_ref.size();
     visitor.on_attribute("size", size);
     if (size != m_ref.size()) {
@@ -95,8 +94,38 @@ bool ov::AttributeAdapter<ResultVector>::visit_attributes(AttributeVisitor& visi
         }
         visitor.on_attribute(index.str(), id);
         if (!m_ref[i]) {
-            m_ref[i] = ov::as_type_ptr<ngraph::op::v0::Result>(visitor.get_registered_node(id));
+            m_ref[i] = ov::as_type_ptr<ov::op::v0::Result>(visitor.get_registered_node(id));
         }
     }
     return true;
 }
+
+BWDCMP_RTTI_DEFINITION(ov::op::v9::Result);
+
+ov::op::v9::Result::Result(const Output<Node>& arg, const std::string& tensor_name) : ov::op::v0::Result(arg) {
+    m_tensor_name = tensor_name;
+}
+
+bool ov::op::v9::Result::visit_attributes(AttributeVisitor& visitor) {
+    NGRAPH_OP_SCOPE(v9_Result_visit_attributes);
+    visitor.on_attribute("tensor_name", m_tensor_name);
+    return true;
+}
+
+const std::string& ov::op::v9::Result::get_tensor_name() const {
+    return m_tensor_name;
+}
+
+void ov::op::v9::Result::set_tensor_name(const std::string& tensor_name) {
+    m_tensor_name = tensor_name;
+
+    output(0).set_names({m_tensor_name});
+}
+
+void ov::op::v9::Result::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(v9_Result_validate_and_infer_types);
+    ov::op::v0::Result::validate_and_infer_types();
+    if (!m_tensor_name.empty())
+        output(0).add_names({m_tensor_name});
+}
+

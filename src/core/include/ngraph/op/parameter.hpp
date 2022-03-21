@@ -12,6 +12,9 @@ namespace op {
 namespace v0 {
 using ov::op::v0::Parameter;
 }  // namespace v0
+namespace v9 {
+using ov::op::v9::Parameter;
+}  // namespace v9
 using v0::Parameter;
 }  // namespace op
 using ParameterVector = std::vector<std::shared_ptr<op::Parameter>>;

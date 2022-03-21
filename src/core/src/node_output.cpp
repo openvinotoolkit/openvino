@@ -9,6 +9,7 @@
 #include "ngraph/variant.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
 namespace ov {
 Output<Node>::Output(Node* node, size_t index) : m_node(node->shared_from_this()), m_index(index) {}
@@ -109,6 +110,17 @@ std::string Output<Node>::get_any_name() const {
     return get_tensor().get_any_name();
 }
 
+std::string Output<Node>::get_name() const {
+    auto parameter = dynamic_cast<ov::op::v9::Parameter*>(this->get_node());
+    auto result = dynamic_cast<ov::op::v9::Result*>(this->get_node());
+    if (parameter && !parameter->get_tensor_name().empty()) {
+        return parameter->get_tensor_name();
+    } else if (result && !result->get_tensor_name().empty()) {
+        return result->get_tensor_name();
+    }
+    return get_any_name();
+}
+
 void Output<Node>::set_names(const std::unordered_set<std::string>& names) {
     return m_node->m_outputs.at(m_index).get_tensor_ptr()->set_names(names);
 }
@@ -123,6 +135,17 @@ const std::unordered_set<std::string>& Output<const Node>::get_names() const {
 
 std::string Output<const Node>::get_any_name() const {
     return get_tensor().get_any_name();
+}
+
+std::string Output<const Node>::get_name() const {
+    auto parameter = dynamic_cast<const ov::op::v9::Parameter*>(this->get_node());
+    auto result = dynamic_cast<const ov::op::v9::Result*>(this->get_node());
+    if (parameter && !parameter->get_tensor_name().empty()) {
+        return parameter->get_tensor_name();
+    } else if (result && !result->get_tensor_name().empty()) {
+        return result->get_tensor_name();
+    }
+    return get_any_name();
 }
 
 bool Output<Node>::operator==(const Output& other) const {

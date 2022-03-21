@@ -52,6 +52,24 @@ public:
     void set_layout(const Layout& layout);
 };
 }  // namespace v0
+
+namespace v9 {
+class OPENVINO_API Result : public op::v0::Result {
+public:
+    OPENVINO_OP("Result", "opset9");
+    BWDCMP_RTTI_DECLARATION;
+    Result() = default;
+    Result(const Output<Node>& arg, const std::string& tensor_name);
+
+    bool visit_attributes(AttributeVisitor& visitor) override;
+    void validate_and_infer_types() override;
+    const std::string& get_tensor_name() const;
+    void set_tensor_name(const std::string& tensor_name);
+
+private:
+    std::string m_tensor_name;
+};
+}  // namespace v9
 }  // namespace op
 using ResultVector = std::vector<std::shared_ptr<op::v0::Result>>;
 

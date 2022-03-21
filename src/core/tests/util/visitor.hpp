@@ -404,6 +404,9 @@ public:
 #define NGRAPH_OP(NAME, NAMESPACE, VERSION) registry.register_factory<NAMESPACE::NAME>();
 #include "op_version_tbl.hpp"
 #undef NGRAPH_OP
+#define _OPENVINO_OP_REG(NAME, NAMESPACE) registry.register_factory<NAMESPACE::NAME>();
+#include "openvino/opsets/opset9_tbl.hpp"
+#undef _OPENVINO_OP_REG
             return registry;
         }();
         return registry;

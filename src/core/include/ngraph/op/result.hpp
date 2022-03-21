@@ -14,6 +14,9 @@ namespace op {
 namespace v0 {
 using ov::op::v0::Result;
 }  // namespace v0
+namespace v9 {
+using ov::op::v9::Result;
+}  // namespace v9
 using v0::Result;
 }  // namespace op
 using ResultVector = std::vector<std::shared_ptr<op::Result>>;

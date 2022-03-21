@@ -66,6 +66,25 @@ protected:
     bool m_is_relevant_to_shapes{false};
 };
 }  // namespace v0
+
+namespace v9 {
+class OPENVINO_API Parameter : public op::v0::Parameter {
+public:
+    OPENVINO_OP("Parameter", "opset9");
+    BWDCMP_RTTI_DECLARATION;
+
+    Parameter() = default;
+    Parameter(const ov::element::Type& element_type, const PartialShape& pshape, const std::string& tensor_name);
+
+    bool visit_attributes(AttributeVisitor& visitor) override;
+    void validate_and_infer_types() override;
+    const std::string& get_tensor_name() const;
+    void set_tensor_name(const std::string& tensor_name);
+
+private:
+    std::string m_tensor_name;
+};
+}  // namespace v9
 }  // namespace op
 using ParameterVector = std::vector<std::shared_ptr<op::v0::Parameter>>;
 

@@ -5,6 +5,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "gtest/gtest.h"
@@ -142,4 +143,23 @@ TEST(node_input_output, input_set_argument) {
     EXPECT_EQ(add->get_input_size(), 2);
     EXPECT_EQ(add->input(0).get_shape(), Shape{3});
     EXPECT_EQ(add->input(1).get_shape(), Shape{1});
+}
+
+TEST(node_input_output, output_name_for_v9_ops) {
+    const std::string ref_input_name = "input_tensor_name";
+    const std::string ref_output_name = "output_tensor_name";
+    auto param = make_shared<op::v9::Parameter>(element::f32, Shape{1, 2, 3, 4}, ref_input_name);
+    std::unordered_set<std::string> ref_val = {"1", "2", "3"};
+    param->get_output_tensor(0).set_names(ref_val);
+    EXPECT_EQ(ref_val, param->get_output_tensor(0).get_names());
+
+    auto result = make_shared<op::v9::Result>(param, ref_output_name);
+    auto model = make_shared<ov::Model>(ResultVector{result}, ParameterVector{param});
+    model->validate_nodes_and_infer_types();
+
+    ref_val.insert(ref_input_name);
+    ref_val.insert(ref_output_name);
+    EXPECT_EQ(ref_val, param->get_output_tensor(0).get_names());
+    EXPECT_EQ(ref_input_name, model->input().get_name());
+    EXPECT_EQ(ref_output_name, model->output().get_name());
 }

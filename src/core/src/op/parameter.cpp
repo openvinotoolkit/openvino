@@ -94,3 +94,36 @@ bool ov::AttributeAdapter<ParameterVector>::visit_attributes(AttributeVisitor& v
     }
     return true;
 }
+
+BWDCMP_RTTI_DEFINITION(ov::op::v9::Parameter);
+
+ov::op::v9::Parameter::Parameter(const element::Type& element_type,
+                                 const ov::PartialShape& pshape,
+                                 const std::string& tensor_name)
+    : ov::op::v0::Parameter(element_type, pshape) {
+    m_tensor_name = tensor_name;
+}
+
+bool ov::op::v9::Parameter::visit_attributes(AttributeVisitor& visitor) {
+    NGRAPH_OP_SCOPE(v9_Parameter_visit_attributes);
+    ov::op::v0::Parameter::visit_attributes(visitor);
+    visitor.on_attribute("tensor_name", m_tensor_name);
+    return true;
+}
+
+const std::string& ov::op::v9::Parameter::get_tensor_name() const {
+    return m_tensor_name;
+}
+
+void ov::op::v9::Parameter::set_tensor_name(const std::string& tensor_name) {
+    m_tensor_name = tensor_name;
+
+    output(0).set_names({m_tensor_name});
+}
+
+void ov::op::v9::Parameter::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(v9_Parameter_validate_and_infer_types);
+    ov::op::v0::Parameter::validate_and_infer_types();
+    if (!m_tensor_name.empty())
+        output(0).add_names({m_tensor_name});
+}
