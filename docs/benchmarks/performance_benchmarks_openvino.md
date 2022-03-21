@@ -6,7 +6,7 @@
    :hidden:
 
    openvino_docs_performance_benchmarks_faq
-   Download Performance Data Spreadsheet in MS Excel* Format <https://docs.openvino.ai/downloads/benchmark_files/OV-2021.4-Download-Excel.xlsx>
+   Download Performance Data Spreadsheet in MS Excel* Format <https://docs.openvino.ai/downloads/benchmark_files/OV-2022.1-Download-Excel.xlsx>
    openvino_docs_performance_int8_vs_fp32
 
 
@@ -355,5 +355,3 @@ Testing by Intel done on: see test date for each HW platform below.
 | Test Date                               | March 17, 2022                        | March 17, 2022                        |
 
 For more detailed configuration descriptions, see [Configuration Details](https://docs.openvino.ai/resources/benchmark_files/system_configurations_2022.1.html).
-
-Results may vary. For workloads visit: [workloads](https://docs.openvino.ai/latest/openvino_docs_performance_benchmarks_faq.html#what-image-sizes-are-used-for-the-classification-network-models) and for configurations visit: [configurations](https://docs.openvino.ai/latest/openvino_docs_performance_benchmarks_openvino.html#platform-configurations). See also [Legal Information](../Legal_Information.md).

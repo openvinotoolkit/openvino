@@ -440,5 +440,3 @@ The table below illustrates the speed-up factor for the performance gain by swit
 @endsphinxdirective
 
 ![INT8 vs FP32 Comparison](../img/int8vsfp32.png)
-
-For more complete information about performance and benchmark results, visit: [www.intel.com/benchmarks](https://www.intel.com/benchmarks) and [Optimization Notice](https://software.intel.com/articles/optimization-notice). [Legal Information](../Legal_Information.md).

@@ -510,5 +510,3 @@ OpenVINO™ Model Server performance benchmark numbers are based on release 2021
   - OpenEXR Image files - *.exr
   - JPEG 2000 files - *.jp2
   - WebP - *.webp
-
-Results may vary. For workloads visit: [workloads](https://docs.openvino.ai/latest/openvino_docs_performance_benchmarks_faq.html#what-image-sizes-are-used-for-the-classification-network-models) and for configurations visit: [configurations](https://docs.openvino.ai/latest/openvino_docs_performance_benchmarks_openvino.html#platform-configurations). See also [Legal Information](../Legal_Information.md).
