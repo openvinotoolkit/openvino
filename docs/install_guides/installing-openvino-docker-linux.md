@@ -26,8 +26,10 @@ This guide provides steps on creating a Docker image with Intel® Distribution o
   To launch a Linux image on WSL2 when trying to run inferences on a GPU, make sure that the following requirements are met:
 
   - Only Windows 10 with 21H2 update or above installed and Windows 11 are supported.
-  - Intel GPU driver on Windows host with version 30.0.100.9684 or above need be installed. Please see [this article](https://www.intel.com/content/www/us/en/artificial-intelligence/harness-the-power-of-intel-igpu-on-your-machine.html#articleparagraph_983312434) for more details.
+  - Intel GPU driver on Windows host with version 30.0.100.9684 or above need be installed. Please see `this article`_ for more details.
   - From 2022.1 release, the Docker images contain preinstalled recommended version of OpenCL Runtime with WSL2 support.
+  
+  .. _this article: https://www.intel.com/content/www/us/en/artificial-intelligence/harness-the-power-of-intel-igpu-on-your-machine.html#articleparagraph_983312434
 
 @endsphinxdirective
 

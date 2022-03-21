@@ -32,7 +32,7 @@
 
 static const size_t progressBarDefaultTotalCount = 1000;
 
-bool ParseAndCheckCommandLine(int argc, char* argv[]) {
+bool parse_and_check_command_line(int argc, char* argv[]) {
     // ---------------------------Parsing and validating input
     // arguments--------------------------------------
     slog::info << "Parsing input parameters" << slog::endl;
@@ -88,7 +88,7 @@ static void next_step(const std::string additional_info = "") {
     static size_t step_id = 0;
     static const std::map<size_t, std::string> step_names = {
         {1, "Parsing and validating input arguments"},
-        {2, "Loading Inference Engine"},
+        {2, "Loading OpenVINO Runtime"},
         {3, "Setting device configuration"},
         {4, "Reading network files"},
         {5, "Resizing network to match image sizes and given batch"},
@@ -151,7 +151,7 @@ int main(int argc, char* argv[]) {
         // -------------------------------------------------
         next_step();
 
-        if (!ParseAndCheckCommandLine(argc, argv)) {
+        if (!parse_and_check_command_line(argc, argv)) {
             return 0;
         }
 
@@ -203,7 +203,7 @@ int main(int argc, char* argv[]) {
         /** This vector stores paths to the processed images with input names**/
         auto inputFiles = parse_input_arguments(gflags::GetArgvs());
 
-        // ----------------- 2. Loading the Inference Engine
+        // ----------------- 2. Loading the OpenVINO Runtime
         // -----------------------------------------------------------
         next_step();
 
@@ -1089,7 +1089,7 @@ int main(int argc, char* argv[]) {
 
         if (!FLAGS_dump_config.empty()) {
             dump_config(FLAGS_dump_config, config);
-            slog::info << "Inference Engine configuration settings were dumped to " << FLAGS_dump_config << slog::endl;
+            slog::info << "OpenVINO Runtime configuration settings were dumped to " << FLAGS_dump_config << slog::endl;
         }
 
         if (!FLAGS_exec_graph_path.empty()) {
