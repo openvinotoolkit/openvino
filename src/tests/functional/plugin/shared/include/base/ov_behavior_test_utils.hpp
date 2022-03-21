@@ -131,6 +131,7 @@ public:
     std::string deviceName;
 
     void SetUp() override {
+        // TODO: Remove it after fixing issue 69529
         // w/a for myriad (cann't store 2 caches simultaneously)
         PluginCache::get().reset();
 
