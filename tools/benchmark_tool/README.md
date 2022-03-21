@@ -159,10 +159,6 @@ Options:
   --latency_percentile LATENCY_PERCENTILE
                         Optional. Defines the percentile to be reported in latency metric.
                         The valid range is [1, 100]. The default value is 50 (median).
-  -enforcebf16 ENFORCEBF16, --enforce_bfloat16 ENFORCEBF16
-                        Optional. By default floating point operations execution in bfloat16 precision are enforced if supported by platform.
-                           True  - enable  bfloat16 regardless of platform support.
-                           False - disable bfloat16 regardless of platform support.
   -pin {YES,NO,NUMA,HYBRID_AWARE}, --infer_threads_pinning {YES,NO,NUMA,HYBRID_AWARE}
                         Optional. Enable threads->cores ('YES' which is OpenVINO runtime's default for conventional CPUs),
                         threads->(NUMA)nodes ('NUMA'),
@@ -197,8 +193,6 @@ Options:
                         Optional. Enable model caching to specified directory.
   -lfile LOAD_FROM_FILE --load_from_file LOAD_FROM_FILE
                         Optional. Loads model from file directly without read_network.
-  -qb QUANTIZATION_BITS --quantization_bits QUANTIZATION_BITS
-                        Optional. Weight bits for quantization:  8 (I8) or 16 (I16)
   -iscale INPUT_SCALE --input_scale INPUT_SCALE
                         Optional. Scale values to be used for the input image per channel.
                         Values to be provided in the [R, G, B] format. Can be defined for desired input of the model.
@@ -207,6 +201,8 @@ Options:
                         Optional. Mean values to be used for the input image per channel.
                         Values to be provided in the [R, G, B] format. Can be defined for desired input of the model.
                         Example: -imean data[255,255,255],info[255,255,255]
+  -infer_precision INFER_PRECISION
+                        Optional. Hint to specifies inference precision. Example: -infer_precision CPU:bf16,GPU:f32
   -ip "u8"/"f16"/"f32"  Optional. Specifies precision for all input layers of the network.
   -op "u8"/"f16"/"f32"  Optional. Specifies precision for all output layers of the network.
   -iop                  Optional. Specifies precision for input and output layers by name. Example: -iop "input:FP16, output:FP16". Notice that quotes are required. Overwrites precision from ip and op options for specified layers.
