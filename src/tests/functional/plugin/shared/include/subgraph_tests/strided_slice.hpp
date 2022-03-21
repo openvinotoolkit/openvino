@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include "shared_test_classes/subgraph/crop4d.hpp"
+#include "shared_test_classes/subgraph/strided_slice.hpp"
 
 namespace SubgraphTestsDefinitions {
 
-TEST_P(Crop4dTest, CompareWithRefs){
+TEST_P(StridedSliceTest, CompareWithRefs){
     Run();
 };
 }  // namespace SubgraphTestsDefinitions
