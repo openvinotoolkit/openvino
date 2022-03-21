@@ -54,8 +54,8 @@ ParamsKey DeconvolutionKernelRef::GetSupportedKey() const {
 CommonDispatchData DeconvolutionKernelRef::SetDefault(const deconvolution_params& params) const {
     CommonDispatchData dispatchData = DeconvolutionKernelBase::SetDefault(params);
 
-    if (params.output.Feature().v * params.output.Batch().v <= 16) {
-        const auto& out = params.output;
+    if (params.outputs[0].Feature().v * params.outputs[0].Batch().v <= 16) {
+        const auto& out = params.outputs[0];
         dispatchData.gws[0] = Align(out.X().v, 32);
         dispatchData.gws[1] = out.Y().v * out.Z().v;
         dispatchData.gws[2] = out.Feature().v * out.Batch().v;
@@ -75,13 +75,13 @@ KernelsPriority DeconvolutionKernelRef::GetKernelsPriority(const Params& /*param
 JitConstants DeconvolutionKernelRef::GetJitConstants(const deconvolution_params& params) const {
     auto jit = DeconvolutionKernelBase::GetJitConstants(params);
 
-    if (params.output.Feature().v * params.output.Batch().v <= 16)
+    if (params.outputs[0].Feature().v * params.outputs[0].Batch().v <= 16)
         jit.AddConstant(MakeJitConstant("DIM_ORDER_XYBF", 1));
 
     if (!params.fused_ops.empty()) {
         auto fused_dt = GetActivationType(params);
         std::vector<std::string> idx_order;
-        if (params.output.Dimentions() <= 4) {
+        if (params.outputs[0].Dimentions() <= 4) {
             idx_order = { "batch_offset", "ofm_offset", "out_y", "out_x" };
         } else {
             idx_order = { "batch_offset", "ofm_offset", "out_z", "out_y", "out_x" };

@@ -20,10 +20,6 @@
 
 using namespace GNAPluginNS;
 
-NGRAPH_RTTI_DEFINITION(Decompose2DConv, "Decompose2DConv", 0);
-NGRAPH_RTTI_DEFINITION(Decompose2DConvTransposedWithBias, "Decompose2DConvTransposedWithBias", 0);
-NGRAPH_RTTI_DEFINITION(Decompose2DConvTransposedWithBiasAF, "Decompose2DConvTransposedWithBiasAF", 0);
-
 struct GraphData {
     std::shared_ptr<ngraph::opset7::Transpose>leading_transpose;
     std::shared_ptr<ngraph::opset7::FakeQuantize>fq_conv;

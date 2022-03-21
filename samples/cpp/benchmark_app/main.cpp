@@ -32,7 +32,7 @@
 
 static const size_t progressBarDefaultTotalCount = 1000;
 
-bool ParseAndCheckCommandLine(int argc, char* argv[]) {
+bool parse_and_check_command_line(int argc, char* argv[]) {
     // ---------------------------Parsing and validating input
     // arguments--------------------------------------
     slog::info << "Parsing input parameters" << slog::endl;
@@ -151,7 +151,7 @@ int main(int argc, char* argv[]) {
         // -------------------------------------------------
         next_step();
 
-        if (!ParseAndCheckCommandLine(argc, argv)) {
+        if (!parse_and_check_command_line(argc, argv)) {
             return 0;
         }
 
@@ -210,9 +210,9 @@ int main(int argc, char* argv[]) {
         ov::Core core;
 
         if (FLAGS_d.find("CPU") != std::string::npos && !FLAGS_l.empty()) {
-            // CPU (MKLDNN) extensions is loaded as a shared library
+            // CPU plugin extensions is loaded as a shared library
             core.add_extension(FLAGS_l);
-            slog::info << "CPU (MKLDNN) extensions is loaded " << FLAGS_l << slog::endl;
+            slog::info << "CPU plugin extensions is loaded " << FLAGS_l << slog::endl;
         }
 
         // Load clDNN Extensions

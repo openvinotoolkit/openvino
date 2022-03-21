@@ -14,9 +14,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-NGRAPH_RTTI_DEFINITION(ov::pass::RemoveConcatZeroDimInput, "RemoveConcatZeroDimInput", 0);
-NGRAPH_RTTI_DEFINITION(ov::pass::DisableRemoveConcatZeroDimInput, "DisableRemoveConcatZeroDimInput", 0);
-
 ov::pass::RemoveConcatZeroDimInput::RemoveConcatZeroDimInput() {
     MATCHER_SCOPE(RemoveConcatZeroDimInput);
     auto concat_pattern = pattern::wrap_type<opset8::Concat>();
