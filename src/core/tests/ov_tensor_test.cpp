@@ -51,22 +51,37 @@ TEST_F(OVTensorTest, operators) {
     ASSERT_TRUE(!t);
 }
 
-class OVMockAllocator : public ov::AllocatorImpl {
-public:
-    MOCK_METHOD(void*, allocate, (size_t, size_t), ());
-    MOCK_METHOD(void, deallocate, (void*, size_t, size_t), ());                  // NOLINT(readability/casting)
-    MOCK_METHOD(bool, is_equal, (const ov::AllocatorImpl&), (const, noexcept));  // NOLINT(readability/casting)
+struct OVMockAllocator {
+    struct Impl {
+        MOCK_METHOD(void*, allocate, (size_t, size_t), ());
+        MOCK_METHOD(void, deallocate, (void*, size_t, size_t), ());     // NOLINT(readability/casting)
+        MOCK_METHOD(bool, is_equal, (const Impl&), (const, noexcept));  // NOLINT(readability/casting)
+    };
+    OVMockAllocator() : impl{std::make_shared<Impl>()} {}
+
+    void* allocate(size_t b, size_t a) {
+        return impl->allocate(b, a);
+    }
+
+    void deallocate(void* ptr, size_t b, size_t a) {
+        impl->deallocate(ptr, b, a);
+    }
+    bool is_equal(const OVMockAllocator& other) const {
+        return impl->is_equal(*other.impl);
+    }
+
+    std::shared_ptr<Impl> impl;
 };
 
 TEST_F(OVTensorTest, canCreateTensorUsingMockAllocator) {
     ov::Shape shape = {1, 2, 3};
-    auto allocator = std::make_shared<OVMockAllocator>();
+    OVMockAllocator allocator;
 
-    EXPECT_CALL(*allocator, allocate(::testing::_, ::testing::_))
+    EXPECT_CALL(*allocator.impl, allocate(::testing::_, ::testing::_))
         .WillRepeatedly(testing::Return(reinterpret_cast<void*>(1)));
-    EXPECT_CALL(*allocator, deallocate(::testing::_, ::testing::_, ::testing::_)).Times(1);
+    EXPECT_CALL(*allocator.impl, deallocate(::testing::_, ::testing::_, ::testing::_)).Times(1);
 
-    { ov::Tensor t{ov::element::f32, shape, ov::Allocator{allocator}}; }
+    { ov::Tensor t{ov::element::f32, shape, allocator}; }
 }
 
 TEST_F(OVTensorTest, canAccessExternalData) {

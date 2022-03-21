@@ -34,12 +34,9 @@ Tensor::Tensor(const std::shared_ptr<ie::Blob>& impl, const std::shared_ptr<void
 
 Tensor::Tensor(const element::Type element_type, const Shape& shape, const Allocator& allocator) {
     OPENVINO_ASSERT(allocator, "Allocator was not initialized");
-    auto allocator_impl = dynamic_cast<const BlobAllocator*>(allocator._impl.get());
-    auto blob_allocator =
-        (allocator_impl != nullptr) ? allocator_impl->_impl : std::make_shared<ie::BlobAllocator>(allocator._impl);
     _impl = make_blob_with_precision(
         {ie::details::convertPrecision(element_type), shape, ie::TensorDesc::getLayoutByRank(shape.size())},
-        blob_allocator);
+        std::make_shared<ie::BlobAllocator>(allocator));
     _impl->allocate();
 }
 

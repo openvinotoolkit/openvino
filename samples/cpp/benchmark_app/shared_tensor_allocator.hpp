@@ -4,32 +4,35 @@
 
 #pragma once
 
-#include "openvino/runtime/allocator.hpp"
-
-class SharedTensorAllocator : public ov::AllocatorImpl {
+class SharedTensorAllocator {
 public:
     SharedTensorAllocator(size_t sizeBytes) : size(sizeBytes) {
         data = new char[size];
     }
-
-    ~SharedTensorAllocator() {
-        delete[] data;
+    SharedTensorAllocator(const SharedTensorAllocator&) = delete;
+    SharedTensorAllocator(SharedTensorAllocator&& other) : data{other.data} {
+        other.data = nullptr;
     }
 
-    virtual void* allocate(const size_t bytes, const size_t) override {
+    ~SharedTensorAllocator() {
+        if (data) {
+            delete[] data;
+        }
+    }
+
+    virtual void* allocate(const size_t bytes, const size_t) {
         return bytes <= this->size ? (void*)data : nullptr;
     }
 
-    void deallocate(void* handle, const size_t bytes, const size_t) override {
+    void deallocate(void* handle, const size_t bytes, const size_t) {
         if (handle == data) {
             delete[] data;
             data = nullptr;
         }
     }
 
-    bool is_equal(const AllocatorImpl& other) const override {
-        auto other_tensor_allocator = dynamic_cast<const SharedTensorAllocator*>(&other);
-        return other_tensor_allocator != nullptr && other_tensor_allocator == this;
+    bool is_equal(const SharedTensorAllocator& other) const {
+        return other.data == data;
     }
 
     char* get_buffer() {
