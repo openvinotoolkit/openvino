@@ -32,5 +32,16 @@ void regclass_ModelPass(py::module m) {
         "ModelPass");
     model_pass.doc() = "openvino.runtime.passes.ModelPass wraps ov::pass::ModelPass";
     model_pass.def(py::init<>());
-    model_pass.def("run_on_model", &ov::pass::ModelPass::run_on_model);
+    model_pass.def("run_on_model",
+                   &ov::pass::ModelPass::run_on_model,
+                   py::arg("model"),
+                   R"(
+                   run_on_model must be defined in inherited class. This method is used to work with Model directly.
+
+                   :param model: Model to be transformed.
+                   :type model: Model
+
+                   :return: True in case if Model was changed and False otherwise.
+                   :rtype: bool
+    //)");
 }

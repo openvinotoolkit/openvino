@@ -21,10 +21,24 @@ void regclass_GraphRewrite(py::module m) {
     graph_rewrite.def(py::init([](const std::shared_ptr<ov::pass::MatcherPass>& pass) {
                           return std::make_shared<ov::pass::GraphRewrite>(pass);
                       }),
-                      py::arg("pass"));
+                      py::arg("pass"),
+                      R"(
+                      Register single MatcherPass pass inside GraphRewrite.
+
+                      :param pass: MatcherPass instance
+                      :type pass: MatcherPass
+    // )");
+
     graph_rewrite.def("add_matcher",
                       static_cast<std::shared_ptr<ov::pass::MatcherPass> (ov::pass::GraphRewrite::*)(
-                          const std::shared_ptr<ov::pass::MatcherPass>&)>(&ov::pass::GraphRewrite::add_matcher));
+                          const std::shared_ptr<ov::pass::MatcherPass>&)>(&ov::pass::GraphRewrite::add_matcher),
+                      py::arg("pass"),
+                      R"(
+                      Register single MatcherPass pass inside GraphRewrite.
+
+                      :param pass: MatcherPass instance
+                      :type pass: MatcherPass
+    // )");
 
     py::class_<ov::pass::BackwardGraphRewrite,
                std::shared_ptr<ov::pass::BackwardGraphRewrite>,
@@ -39,9 +53,23 @@ void regclass_GraphRewrite(py::module m) {
     back_graph_rewrite.def(py::init([](const std::shared_ptr<ov::pass::MatcherPass>& pass) {
                                return std::make_shared<ov::pass::BackwardGraphRewrite>(pass);
                            }),
-                           py::arg("pass"));
+                           py::arg("pass"),
+                           R"(
+                           Register single MatcherPass pass inside BackwardGraphRewrite.
+
+                           :param pass: MatcherPass instance
+                           :type pass: MatcherPass
+    // )");
+
     back_graph_rewrite.def(
         "add_matcher",
         static_cast<std::shared_ptr<ov::pass::MatcherPass> (ov::pass::BackwardGraphRewrite::*)(
-            const std::shared_ptr<ov::pass::MatcherPass>&)>(&ov::pass::BackwardGraphRewrite::add_matcher));
+            const std::shared_ptr<ov::pass::MatcherPass>&)>(&ov::pass::BackwardGraphRewrite::add_matcher),
+        py::arg("pass"),
+        R"(
+        Register single MatcherPass pass inside BackwardGraphRewrite.
+
+        :param pass: MatcherPass instance
+        :type pass: MatcherPass
+    // )");
 }

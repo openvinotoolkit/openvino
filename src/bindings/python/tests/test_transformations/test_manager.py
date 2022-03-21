@@ -1,6 +1,6 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-from openvino.runtime.passes import Manager, GraphRewrite, BackwardGraphRewrite
+from openvino.runtime.passes import Manager, GraphRewrite, BackwardGraphRewrite, Serialize
 
 from utils.utils import *
 
@@ -30,3 +30,10 @@ def test_registration_and_pass_name():
     MyModelPass().set_name("MyModelPass")
     GraphRewrite().set_name("Anchor")
     BackwardGraphRewrite().set_name("BackAnchor")
+
+
+print("START")
+m = Manager()
+m.register_pass("ConstantFolding")
+m.register_pass("Serialize", "out.xml", "out.bin")
+print("END")
