@@ -8,7 +8,7 @@ Sinks of the graph have no consumers and are not included in the results vector.
 
 Each operation in `ov::Model` has the `std::shared_ptr<ov::Node>` type.
 
-For details on how to build a model in OpenVINO™ Runtime, see the [Build a Model in OpenVINO™ Runtime](@ref build_model) section.
+For details on how to build a model in OpenVINO™ Runtime, see the [Build a Model in OpenVINO™ Runtime](@ref ov_ug_build_model) section.
 
 OpenVINO™ Runtime allows using tensor names or indexes to work wit model inputs/outputs. To get model input/output ports, use the `ov::Model::inputs()` or `ov::Model::outputs()` methods respectively.
 
@@ -68,7 +68,7 @@ Each OpenVINO™ Release introduces new operations and add these operations to a
 For a complete list of operation sets supported in OpenVINO™ toolkit, see [Available Operations Sets](../ops/opset.md).
 To add support of custom operations, see the [Add Custom OpenVINO Operations](../Extensibility_UG/Intro.md) document.
 
-## Build a Model in OpenVINO™ Runtime {#build_model}
+## Build a Model in OpenVINO™ Runtime {#ov_ug_build_model}
 
 You can create a model from source. This section illustrates how to construct a model composed of operations from an available operation set.
 
