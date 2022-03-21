@@ -1,4 +1,4 @@
-# OpenVINO™ 2.0 Transition Guide {#openvino_2_0_transition_guide}
+# OpenVINO™ Transition Guide for API 2.0 {#openvino_2_0_transition_guide}
 
 @sphinxdirective
 
@@ -24,7 +24,7 @@ Older versions of OpenVINO™ (prior to 2022.1) required to change the logic of 
 - Inference Engine API (`InferenceEngine::CNNNetwork`) also applied some conversion rules for input and output precisions because of device plugins limitations.
 - Users need to specify input shapes during model conversions in Model Optimizer and work with static shapes in the application.
 
-OpenVINO™ introduces API 2.0 to align logic of working with model as it is done in the frameworks - no layout and precision changes, operates with tensor names and indices to address inputs and outputs. OpenVINO Runtime is composed of Inference Engine API used for inference and nGraph API targeted to work with models, operations. The API 2.0 has common structure, naming convention styles, namespaces, removes duplicated structures. See [How to migrate to OpenVINO API 2.0](common_inference_pipeline.md) for details.
+OpenVINO™ introduces API 2.0 (also called OpenVINO API v2) to align the logic of working with model as it is done in the frameworks - no layout and precision changes, operates with tensor names and indices to address inputs and outputs. OpenVINO Runtime is composed of Inference Engine API used for inference and nGraph API targeted to work with models and operations. API 2.0 has common structure, naming convention styles, namespaces, and removes duplicated structures. See [Changes to Inference Pipeline in OpenVINO API v2](common_inference_pipeline.md) for details.
 
 > **NOTE**: Most important is that your existing application can continue working with OpenVINO Runtime 2022.1 as it used to be, but we recommend migration to API 2.0 to unlock additional features like [Preprocessing](../preprocessing_overview.md) and [Dynamic shapes support](../ov_dynamic_shapes.md).
 
@@ -38,7 +38,7 @@ The IR v11 is supported by all OpenVINO Development tools including Post-Trainin
 
 ### IR v10 Compatibility
 
-OpenVINO API 2.0 also supports models in IR v10 for backward compatibility. So, if a user has an IR v10, it can be fed to OpenVINO Runtime as well (see [migration steps](common_inference_pipeline.md)).
+API 2.0 also supports models in IR v10 for backward compatibility. So, if a user has an IR v10, it can be fed to OpenVINO Runtime as well (see [migration steps](common_inference_pipeline.md)).
 
 Some OpenVINO Development Tools also support both IR v10 and IR v11 as an input:
 - Accuracy checker also supports IR v10, but requires an additional option to denote which API is used underneath.
@@ -51,8 +51,6 @@ The following OpenVINO tools don't support IR v10 as an input, and require to ge
 > **NOTE**: If you need to quantize your IR v10 models to run with OpenVINO 2022.1, it's recommended to download and use Post-Training Optimization tool from OpenVINO 2021.4 release.
 
 ### Differences between Inference Engine and OpenVINO Runtime 2022.1
-
-### Differences between Inference Engine and OpenVINO Runtime 2.0
 
 Inference Engine and nGraph APIs are not deprecated, they are fully functional and can be used in applications. However, it's highly recommended to migrate to API 2.0, because it already has additional features and this list will be extended later. The following list of additional features is supported by API 2.0:
 - [Working with dynamic shapes](../ov_dynamic_shapes.md). The feature is quite useful for best performance for NLP (Neural Language Processing) models, super resolution models and other which accepts dynamic input shapes.
