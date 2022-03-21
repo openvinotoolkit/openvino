@@ -1,6 +1,6 @@
 ## EyeLike <a name="EyeLike"></a> {#openvino_docs_ops_generation_EyeLike_9}
 
-**Versioned name**: *EyeLike-8*
+**Versioned name**: *EyeLike-9*
 
 **Category**: *Generation*
 
