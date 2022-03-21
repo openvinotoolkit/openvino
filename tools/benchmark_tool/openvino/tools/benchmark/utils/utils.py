@@ -254,7 +254,7 @@ def parse_devices(device_string):
     return [d for d in devices.split(',')]
 
 
-def parse_nstreams_value_per_device(devices, values_string):
+def parse_value_per_device(devices, values_string, value_type):
     # Format: <device1>:<value1>,<device2>:<value2> or just <value>
     result = {}
     if not values_string:
@@ -264,16 +264,16 @@ def parse_nstreams_value_per_device(devices, values_string):
         device_value_vec = device_value_string.split(':')
         if len(device_value_vec) == 2:
             device_name = device_value_vec[0]
-            nstreams = device_value_vec[1]
+            value = device_value_vec[1]
             if device_name in devices:
-                result[device_name] = nstreams
+                result[device_name] = value
             else:
-                raise Exception("Can't set nstreams value " + str(nstreams) +
-                                " for device '" + device_name + "'! Incorrect device name!");
+                raise Exception(f"Can't set {value_type} for {device_name}!" \
+                                 " Incorrect device name!")
         elif len(device_value_vec) == 1:
-            nstreams = device_value_vec[0]
+            value = device_value_vec[0]
             for device in devices:
-                result[device] = nstreams
+                result[device] = value
         elif not device_value_vec:
             raise Exception('Unknown string format: ' + values_string)
     return result

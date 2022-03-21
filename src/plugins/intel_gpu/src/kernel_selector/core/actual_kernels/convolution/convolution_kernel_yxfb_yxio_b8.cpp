@@ -40,7 +40,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_yxfb_yxio_b8::SetDefault(c
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(arg, autoTuneIndex);
 
     const auto filterOfmNum = arg.weights.OFM().v;
-    const auto batchSize = arg.output.Batch().v;
+    const auto batchSize = arg.outputs[0].Batch().v;
 
     dispatchData.lws[0] = batchSize == 8 ? 8 : 16;
     dispatchData.lws[1] = 1;
@@ -69,9 +69,9 @@ bool ConvolutionKernel_yxfb_yxio_b8::Validate(const Params& p, const optional_pa
     }
 
     const auto filterOfmNum = params.weights.OFM().v;
-    const auto batchSize = params.output.Batch().v;
+    const auto batchSize = params.outputs[0].Batch().v;
 
-    const bool bInputValidated = (filterOfmNum > 0) && (batchSize > 0) && (params.output.Feature().v == filterOfmNum);
+    const bool bInputValidated = (filterOfmNum > 0) && (batchSize > 0) && (params.outputs[0].Feature().v == filterOfmNum);
 
     if (!bInputValidated) {
         return false;
@@ -83,7 +83,7 @@ bool ConvolutionKernel_yxfb_yxio_b8::Validate(const Params& p, const optional_pa
         return false;
     }
 
-    if (params.output.PitchesDifferFromLogicalDims())
+    if (params.outputs[0].PitchesDifferFromLogicalDims())
         return false;
 
     return true;
@@ -93,7 +93,7 @@ JitConstants ConvolutionKernel_yxfb_yxio_b8::GetJitConstants(const convolution_p
                                                              const DispatchData& dispatchData) const {
     JitConstants jits = ConvolutionKernelBase::GetJitConstants(params, dispatchData);
 
-    size_t ofmPerWorkItem = GetOfmPerWorkitem(params.weights.OFM().v, params.output.Batch().v, dispatchData.lws[0]);
+    size_t ofmPerWorkItem = GetOfmPerWorkitem(params.weights.OFM().v, params.outputs[0].Batch().v, dispatchData.lws[0]);
 
     jits.AddConstant(MakeJitConstant("OFM_PER_WORK_ITEM", ofmPerWorkItem));
     jits.AddConstant(MakeJitConstant("LOCAL_WORK_GROUP_SIZE", dispatchData.lws[0]));
