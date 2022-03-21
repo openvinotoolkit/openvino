@@ -547,18 +547,18 @@ std::pair<std::string, std::vector<std::string>> parse_parameters(const std::str
     char comma_delim = ',';
     char equal_delim = '=';
     std::string filename = "";
-    std::vector<std::string> inputNameBlobs;
+    std::vector<std::string> tensor_names;
     std::vector<std::string> filenames;
     if (!std::count(search_string.begin(), search_string.end(), comma_delim) &&
         !std::count(search_string.begin(), search_string.end(), equal_delim)) {
-        return {search_string, inputNameBlobs};
+        return {search_string, tensor_names};
     }
     search_string += comma_delim;
     std::vector<std::string> splitted = split(search_string, comma_delim);
-    for (int j = 0; j < splitted.size(); j++) {
+    for (size_t j = 0; j < splitted.size(); j++) {
         auto semicolon_pos = splitted[j].find_first_of(equal_delim);
         if (semicolon_pos != std::string::npos) {
-            inputNameBlobs.push_back(splitted[j].substr(0, semicolon_pos));
+            tensor_names.push_back(splitted[j].substr(0, semicolon_pos));
             filenames.push_back(splitted[j].substr(semicolon_pos + 1, std::string::npos));
         }
     }
@@ -567,5 +567,5 @@ std::pair<std::string, std::vector<std::string>> parse_parameters(const std::str
         if (name != filenames.end() - 1)
             filename += comma_delim;
     }
-    return {filename, inputNameBlobs};
+    return {filename, tensor_names};
 }
