@@ -160,6 +160,7 @@
    RNNCell-3 <openvino_docs_ops_sequence_RNNCell_3>
    RNNSequence-5 <openvino_docs_ops_sequence_RNNSequence_5>
    ROIAlign-3 <openvino_docs_ops_detection_ROIAlign_3>
+   ROIAlign-9 <openvino_docs_ops_detection_ROIAlign_9>
    ROIPooling-1 <openvino_docs_ops_detection_ROIPooling_1>
    Roll-7 <openvino_docs_ops_movement_Roll_7>
    Round-5 <openvino_docs_ops_arithmetic_Round_5>
