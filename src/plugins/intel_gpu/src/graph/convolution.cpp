@@ -6,10 +6,12 @@
 #include "pass_manager.h"
 #include "convolution_inst.h"
 #include "primitive_type_base.h"
-#include "sliding_window_utils.h"
+#include "sliding_window_utils.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
+
+using namespace ov::runtime::intel_gpu;
 
 namespace cldnn {
 primitive_type_id convolution::type_id() {
@@ -48,28 +50,37 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
         output_type = data_types::f32;
     }
 
+    uint32_t stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
+    uint32_t stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
+    uint32_t stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
+
+    uint32_t dilation_z = dilation.size() >= 3 ? dilation[dilation.size() - 3] : 1;
+    uint32_t dilation_y = dilation.size() >= 2 ? dilation[dilation.size() - 2] : 1;
+    uint32_t dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
+
+
     // TODO: Consider moving general parameter verification to arguments constructor.
     CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
                                    "Stride spatial X",
-                                   stride.spatial[0],
+                                   stride_x,
                                    "value",
                                    0,
                                    "Stride spatial X must be positive (>= 1)");
     CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
                                    "Stride spatial Y",
-                                   stride.spatial[1],
+                                   stride_y,
                                    "value",
                                    0,
                                    "Stride spatial Y must be positive (>= 1)");
     CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
                                    "Dilatation spatial X",
-                                   dilation.spatial[0],
+                                   dilation_x,
                                    "value",
                                    0,
                                    "Dilatation patial X must be positive (>= 1)");
     CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
                                    "Dilatation spatial Y",
-                                   dilation.spatial[1],
+                                   dilation_y,
                                    "value",
                                    0,
                                    "Dilatation spatial Y must be positive (>= 1)");
@@ -78,13 +89,13 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
         // convolution 3D
         CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
                                        "Stride spatial Z",
-                                       stride.spatial[2],
+                                       stride_z,
                                        "value",
                                        0,
                                        "Stride spatial Z must be positive (>= 1)");
         CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
                                        "Dilatation spatial Z",
-                                       dilation.spatial[2],
+                                       dilation_z,
                                        "value",
                                        0,
                                        "Dilatation spatial Z must be positive (>= 1)");
@@ -108,25 +119,25 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
                               "Convolution with winograd input only supports split == 1");
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "stride spatial X",
-                              stride.spatial[0],
+                              stride_x,
                               "expected value",
                               1,
                               "Convolution's input in winograd_2x3_s1_data format can only be used with stride 1x1");
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "stride spatial Y",
-                              stride.spatial[1],
+                              stride_y,
                               "expected value",
                               1,
                               "Convolution's input in winograd_2x3_s1_data format can only be used with stride 1x1");
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Dilatation spatial X",
-                              dilation.spatial[0],
+                              dilation_x,
                               "expected value",
                               1,
                               "Winograd 2x3 convolution does not support dilatation");
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Dilatation spatial Y",
-                              dilation.spatial[1],
+                              dilation_y,
                               "expected value",
                               1,
                               "Winograd 2x3 convolution does not support dilatation");
@@ -264,13 +275,13 @@ std::string convolution_inst::to_string(convolution_node const& node) {
     std::string a_zp = desc->activations_zero_points.empty() ? "false" : "true";
 
     json_composite conv_info;
-    conv_info.add("stride", strd.to_string());
-    conv_info.add("pad", desc->pad.to_string());
-    conv_info.add("padding above", desc->padding_above.to_string());
-    conv_info.add("padding below", desc->padding_below.to_string());
+    conv_info.add("stride", cldnn::to_string(strd));
+    conv_info.add("pad", cldnn::to_string(desc->pad));
+    conv_info.add("padding above", cldnn::to_string(desc->padding_above));
+    conv_info.add("padding below", cldnn::to_string(desc->padding_below));
     conv_info.add("split", split);
     conv_info.add("groups", groups);
-    conv_info.add("dilation", dilation.to_string());
+    conv_info.add("dilation", cldnn::to_string(dilation));
     conv_info.add("deformable_groups", desc->deformable_groups);
     conv_info.add("groups", desc->groups);
     conv_info.add("has zero points for weights: ", w_zp);
@@ -290,23 +301,18 @@ std::string convolution_inst::to_string(convolution_node const& node) {
 
 convolution_inst::typed_primitive_inst(network& network, convolution_node const& node) : parent(network, node) {
     auto stride = argument.stride;
+    auto pad = argument.pad;
 
-    auto input_inst = node.input().get_output_layout();
-    auto output_inst = node.get_output_layout();
-    auto output_size = output_inst.size;
+    auto input_layout = node.input().get_output_layout();
+    auto output_layout = node.get_output_layout();
+    auto output_size = output_layout.size;
 
     CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Input number of dimensions",
-                          input_inst.size.raw.size(),
+                          input_layout.size.raw.size(),
                           "output number of dimensions",
-                          output_inst.size.raw.size(),
+                          output_layout.size.raw.size(),
                           "Input/output dims mismatch");
-    CLDNN_ERROR_NOT_EQUAL(node.id(),
-                          "Stride number of dimensions",
-                          stride.raw.size(),
-                          "output number of dimensions",
-                          output_inst.size.raw.size(),
-                          "stride/output dims mismatch");
 
     auto split = node.get_split();
     for (decltype(split) j = 0; j < split; j++) {
@@ -356,7 +362,7 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
                               "Weights number of dimensions",
                               filter_inst.size.raw.size(),
                               "output number of dimensions",
-                              output_inst.size.raw.size(),
+                              output_layout.size.raw.size(),
                               "Weights/output dims mismatch");
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Convolution padding mode",
@@ -364,12 +370,6 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
                               "padding value",
                               0.0f,
                               "Unknown padding mode.");
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
-                              "Pad number of dimensions",
-                              pad.raw.size(),
-                              "input number of dimensions",
-                              input_inst.size.raw.size(),
-                              "Pad/ input size mismatch");
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Output feature size",
                               output_size.feature.size(),
@@ -384,7 +384,7 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
                               "Only one-dimensional batch size are supported");
         CLDNN_ERROR_LESS_THAN(node.id(),
                               "Weights feature maps number",
-                              input_inst.size.feature[0],
+                              input_layout.size.feature[0],
                               "input feature maps number",
                               weights_ifm,
                               "Weights/ifm mismatch");
@@ -392,7 +392,7 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
         if (!argument.grouped_weights_shape && !format::is_grouped(filter_inst.format)) {
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Weights feature maps number",
-                                  input_inst.size.feature[0],
+                                  input_layout.size.feature[0],
                                   "input feature maps number",
                                   weights_ifm,
                                   "Weights/ifm mismatch");
