@@ -46,17 +46,13 @@ What is important, **AUTO starts inference with the CPU by default except the pr
 
 This mechanism can be easily observed in our Benchmark Application sample ([see here](#Benchmark App Info)), showing how the first-inference latency (the time it takes to compile the model and perform the first inference) is reduced when using AUTO. For example: 
 
-@sphinxdirective
-.. code-block:: sh
+```sh
+benchmark_app -m ../public/alexnet/FP32/alexnet.xml -d GPU -niter 128
+```
 
-   ./benchmark_app -m ../public/alexnet/FP32/alexnet.xml -d GPU -niter 128
-@endsphinxdirective 
-
-@sphinxdirective
-.. code-block:: sh
-
-   ./benchmark_app -m ../public/alexnet/FP32/alexnet.xml -d AUTO -niter 128
-@endsphinxdirective 
+```sh
+benchmark_app -m ../public/alexnet/FP32/alexnet.xml -d AUTO -niter 128
+```
 
 Assume there are CPU and GPU on the machine, first-inference latency of "AUTO" will be better than "GPU".
 
@@ -118,19 +114,16 @@ The following commands are accepted by the API:
 To check what devices are present in the system, you can use Device API. For information on how to do it, check [Query device properties and configuration](supported_plugins/config_properties.md)
 
 For C++
-@sphinxdirective
-.. code-block:: sh
 
-   ov::runtime::Core::get_available_devices() (see Hello Query Device C++ Sample)
-@endsphinxdirective
+```sh
+ov::runtime::Core::get_available_devices() (see Hello Query Device C++ Sample)
+```
 
 For Python
-@sphinxdirective
-.. code-block:: sh
 
-   openvino.runtime.Core.available_devices (see Hello Query Device Python Sample)
-@endsphinxdirective
-
+```sh
+openvino.runtime.Core.available_devices (see Hello Query Device Python Sample)
+```
 
 ### Performance Hints
 The `ov::hint::performance_mode` property enables you to specify a performance mode for the plugin to be more efficient for particular use cases.
@@ -202,18 +195,16 @@ Although the methods described above are currently the preferred way to execute 
 To see how the Auto-Device plugin is used in practice and test its performance, take a look at OpenVINO™ samples. All samples supporting the "-d" command-line option (which stands for "device") will accept the plugin out-of-the-box. The Benchmark Application will be a perfect place to start – it presents the optimal performance of the plugin without the need for additional settings, like the number of requests or CPU threads. To evaluate the AUTO performance, you can use the following commands:
 
 For unlimited device choice:
-@sphinxdirective
-.. code-block:: sh
 
-   ./benchmark_app –d AUTO –m <model> -i <input> -niter 1000
-@endsphinxdirective
+```sh
+benchmark_app –d AUTO –m <model> -i <input> -niter 1000
+```
 
 For limited device choice:
-@sphinxdirective
-.. code-block:: sh
 
-   ./benchmark_app –d AUTO:CPU,GPU,MYRIAD –m <model> -i <input> -niter 1000
-@endsphinxdirective
+```sh
+benchmark_app –d AUTO:CPU,GPU,MYRIAD –m <model> -i <input> -niter 1000
+```
 
 For more information, refer to the [C++](../../samples/cpp/benchmark_app/README.md) or [Python](../../tools/benchmark_tool/README.md) version instructions.	
 
