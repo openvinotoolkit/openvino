@@ -1,4 +1,4 @@
-# Post-Training Optimization Tool Installation Guide {#pot_InstallationGuide}
+# Installation Guide {#pot_InstallationGuide}
 
 ## Install POT from PyPI
 POT is distributed as a part of OpenVINO&trade; Development Tools package. For installation instruction please refer to this [document](@ref openvino_docs_install_guides_install_dev_tools).
