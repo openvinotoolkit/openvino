@@ -115,10 +115,10 @@ PYBIND11_MODULE(pyopenvino, m) {
             :type model: openvino.runtime.Model
             :param xml_path: path where .xml file will be saved
             :type xml_path: str
-            :param bin_path: path where .bin file will be saved: if path is empty
-                             the same name as xml_path will be used for .bin file
+            :param bin_path: path where .bin file will be saved (optional),
+                             the same name as for xml_path will be used by default.
             :type bin_path: str
-            :param version: sets the version of the IR which will be generated.
+            :param version: version of the generated IR (optional).
             Supported versions are:
             - "UNSPECIFIED" (default) : Use the latest or model version
             - "IR_V10" : v10 IR

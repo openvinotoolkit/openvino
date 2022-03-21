@@ -280,6 +280,12 @@ bool replace_output_update_name(Output<Node> node, const Output<Node>& node_inpu
 OPENVINO_API
 bool replace_node_update_name(const std::shared_ptr<Node>& target, const std::shared_ptr<Node>& replacement);
 
+/// \brief Serialize given model into IR. The generated .xml and .bin files will be saved into provided paths.
+/// \param m Model which will be converted to IR representation.
+/// \param xml_path Path where .xml file will be saved.
+/// \param bin_path Path where .bin file will be saved (optional).
+///                 The same name as for xml_path will be used by default.
+/// \param version Version of the generated IR (optional).
 OPENVINO_API
 void serialize(const std::shared_ptr<const ov::Model>& m,
                const std::string& xml_path,
