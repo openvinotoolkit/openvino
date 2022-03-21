@@ -10,7 +10,7 @@
 #include "openvino/core/except.hpp"
 
 namespace ov {
-struct DeafaultAllocator {
+struct DefaultAllocator {
     void* allocate(const size_t bytes, const size_t alignment) {
         if (alignment == alignof(max_align_t)) {
             return ::operator new(bytes);
@@ -40,12 +40,12 @@ struct DeafaultAllocator {
         }
     }
 
-    bool is_equal(const DeafaultAllocator&) const {
+    bool is_equal(const DefaultAllocator&) const {
         return true;
     }
 };
 
-Allocator::Allocator() : Allocator{DeafaultAllocator{}} {}
+Allocator::Allocator() : Allocator{DefaultAllocator{}} {}
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 struct AllocatorImplWrapper {

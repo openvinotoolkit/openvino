@@ -51,6 +51,26 @@ TEST_F(OVTensorTest, operators) {
     ASSERT_TRUE(!t);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+class OVMockAllocatorImpl : public ov::AllocatorImpl {
+public:
+    MOCK_METHOD(void*, allocate, (size_t, size_t), ());
+    MOCK_METHOD(void, deallocate, (void*, size_t, size_t), ());                  // NOLINT(readability/casting)
+    MOCK_METHOD(bool, is_equal, (const ov::AllocatorImpl&), (const, noexcept));  // NOLINT(readability/casting)
+};
+
+TEST_F(OVTensorTest, canCreateTensorUsingMockAllocatorImpl) {
+    ov::Shape shape = {1, 2, 3};
+    auto allocator = std::make_shared<OVMockAllocatorImpl>();
+
+    EXPECT_CALL(*allocator, allocate(::testing::_, ::testing::_))
+        .WillRepeatedly(testing::Return(reinterpret_cast<void*>(1)));
+    EXPECT_CALL(*allocator, deallocate(::testing::_, ::testing::_, ::testing::_)).Times(1);
+
+    { ov::Tensor t{ov::element::f32, shape, ov::Allocator{allocator}}; }
+}
+OPENVINO_SUPPRESS_DEPRECATED_END
+
 struct OVMockAllocator {
     struct Impl {
         MOCK_METHOD(void*, allocate, (size_t, size_t), ());

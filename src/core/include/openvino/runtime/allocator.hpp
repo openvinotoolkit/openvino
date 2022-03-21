@@ -105,7 +105,7 @@ class OPENVINO_API Allocator {
         }
         void* allocate(const size_t bytes, const size_t alignment = alignof(max_align_t)) override {
             return a.allocate(bytes, alignment);
-        };
+        }
         void deallocate(void* handle, const size_t bytes, size_t alignment = alignof(max_align_t)) override {
             a.deallocate(handle, bytes, alignment);
         }
