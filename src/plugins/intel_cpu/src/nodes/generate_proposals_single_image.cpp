@@ -19,7 +19,13 @@
 #include "common/cpu_memcpy.h"
 #include "generate_proposals_single_image.h"
 
+namespace ov {
+namespace intel_cpu {
+namespace node {
 namespace {
+
+using namespace InferenceEngine;
+
 struct Indexer4d {
     int dim3_;
     int dim23_;
@@ -34,13 +40,8 @@ struct Indexer4d {
         return  i * dim123_ + j * dim23_ + k * dim3_ + n;
     }
 };
-}  // namespace
 
 
-using namespace ov::intel_cpu;
-using namespace InferenceEngine;
-
-static
 void refine_anchors(const float* deltas, const float* scores, const float* anchors,
                     float* proposals, const int anchors_num, const int bottom_H,
                     const int bottom_W, const float img_H, const float img_W,
@@ -109,7 +110,7 @@ void refine_anchors(const float* deltas, const float* scores, const float* ancho
     });
 }
 
-static void unpack_boxes(const float* p_proposals, float* unpacked_boxes, int* is_dead, int pre_nms_topn) {
+void unpack_boxes(const float* p_proposals, float* unpacked_boxes, int* is_dead, int pre_nms_topn) {
     parallel_for(pre_nms_topn, [&](size_t i) {
         unpacked_boxes[0*pre_nms_topn + i] = p_proposals[6*i + 0];
         unpacked_boxes[1*pre_nms_topn + i] = p_proposals[6*i + 1];
@@ -120,7 +121,6 @@ static void unpack_boxes(const float* p_proposals, float* unpacked_boxes, int* i
     });
 }
 
-static
 void nms_cpu(const int num_boxes, int is_dead[],
              const float* boxes, int index_out[], int* const num_out,
              const int base_index, const float nms_thresh, const int max_num_out,
@@ -243,7 +243,6 @@ void nms_cpu(const int num_boxes, int is_dead[],
 }
 
 
-static
 void fill_output_blobs(const float* proposals, const int* roi_indices,
                        float* rois, float* scores, uint8_t* roi_num,
                        const int num_proposals, const int num_rois, const int post_nms_topn,
@@ -274,7 +273,9 @@ void fill_output_blobs(const float* proposals, const int* roi_indices,
     }
 }
 
-bool MKLDNNGenerateProposalsSingleImageNode::isSupportedOperation
+}  // namespace
+
+bool GenerateProposalsSingleImageNode::isSupportedOperation
             (const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!ngraph::as_type_ptr<const ngraph::op::v9::GenerateProposalsSingleImage>(op)) {
@@ -287,9 +288,9 @@ bool MKLDNNGenerateProposalsSingleImageNode::isSupportedOperation
     return true;
 }
 
-MKLDNNGenerateProposalsSingleImageNode::MKLDNNGenerateProposalsSingleImageNode
+GenerateProposalsSingleImageNode::GenerateProposalsSingleImageNode
         (const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-                MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+                WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -308,7 +309,7 @@ MKLDNNGenerateProposalsSingleImageNode::MKLDNNGenerateProposalsSingleImageNode
     roi_indices_.resize(post_nms_topn_);
 }
 
-void MKLDNNGenerateProposalsSingleImageNode::initSupportedPrimitiveDescriptors() {
+void GenerateProposalsSingleImageNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -323,12 +324,12 @@ void MKLDNNGenerateProposalsSingleImageNode::initSupportedPrimitiveDescriptors()
                          impl_desc_type::ref_any);
 }
 
-void MKLDNNGenerateProposalsSingleImageNode::executeDynamicImpl(mkldnn::stream strm) {
+void GenerateProposalsSingleImageNode::executeDynamicImpl(mkldnn::stream strm) {
     redefineOutputMemory({{0, 4}, {0}, {1}});
     execute(strm);
 }
 
-void MKLDNNGenerateProposalsSingleImageNode::execute(mkldnn::stream strm) {
+void GenerateProposalsSingleImageNode::execute(mkldnn::stream strm) {
     try {
         if (inputShapes.size() != 4 || outputShapes.size() != 3) {
             IE_THROW() << "Incorrect number of input or output edges!";
@@ -452,16 +453,18 @@ void MKLDNNGenerateProposalsSingleImageNode::execute(mkldnn::stream strm) {
     }
 }
 
-bool MKLDNNGenerateProposalsSingleImageNode::created() const {
-    return getType() == GenerateProposalsSingleImage;
+bool GenerateProposalsSingleImageNode::created() const {
+    return getType() == Type::GenerateProposalsSingleImage;
 }
 
-bool MKLDNNGenerateProposalsSingleImageNode::needShapeInfer() const {
+bool GenerateProposalsSingleImageNode::needShapeInfer() const {
     return false;
 }
 
-bool MKLDNNGenerateProposalsSingleImageNode::needPrepareParams() const {
+bool GenerateProposalsSingleImageNode::needPrepareParams() const {
     return false;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNGenerateProposalsSingleImageNode, GenerateProposalsSingleImage);
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov
