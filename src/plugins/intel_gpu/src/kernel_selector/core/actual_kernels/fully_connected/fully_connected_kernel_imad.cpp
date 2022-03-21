@@ -49,15 +49,15 @@ FullyConnectedKernelIMAD::Parent::DispatchData FullyConnectedKernelIMAD::SetDefa
     auto dispatchData = Parent::SetDefault(params);
     auto tuning_data = GetTuningParams(params);
 
-    if (params.output.GetLayout() == DataLayout::bfyx) {
-        dispatchData.gws[0] = RoundUp(params.output.Y().v, tuning_data.sub_group_size * tuning_data.tile_ofm) /
+    if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
+        dispatchData.gws[0] = RoundUp(params.outputs[0].Y().v, tuning_data.sub_group_size * tuning_data.tile_ofm) /
                               tuning_data.tile_ofm * tuning_data.slm_div_factor;
-        dispatchData.gws[1] = params.output.Batch().v;
-        dispatchData.gws[2] = params.output.Feature().v / tuning_data.tile_batch;
+        dispatchData.gws[1] = params.outputs[0].Batch().v;
+        dispatchData.gws[2] = params.outputs[0].Feature().v / tuning_data.tile_batch;
     } else {
-        dispatchData.gws[0] = RoundUp(params.output.Feature().v, tuning_data.sub_group_size * tuning_data.tile_ofm) /
+        dispatchData.gws[0] = RoundUp(params.outputs[0].Feature().v, tuning_data.sub_group_size * tuning_data.tile_ofm) /
                               tuning_data.tile_ofm * tuning_data.slm_div_factor;
-        dispatchData.gws[1] = params.output.Batch().v / tuning_data.tile_batch;
+        dispatchData.gws[1] = params.outputs[0].Batch().v / tuning_data.tile_batch;
         dispatchData.gws[2] = 1;
     }
 
@@ -83,7 +83,7 @@ bool FullyConnectedKernelIMAD::Validate(const Params& params, const optional_par
         return false;
     }
 
-    auto out_l = fc_params.output.GetLayout();
+    auto out_l = fc_params.outputs[0].GetLayout();
     auto if_num = in.Feature().v;
     if (out_l == DataLayout::bfyx) {
         if_num = in.Y().v;
@@ -104,12 +104,12 @@ bool FullyConnectedKernelIMAD::Validate(const Params& params, const optional_par
 float FullyConnectedKernelIMAD::EstimateOccupancy(const fully_connected_params& params, size_t tile_ofm, size_t tile_batch, size_t slm_div_factor) const {
     FullyConnectedTuningData tuning_data;
 
-    auto of_num = params.output.Feature().v;
-    auto ob_num = params.output.Batch().v;
+    auto of_num = params.outputs[0].Feature().v;
+    auto ob_num = params.outputs[0].Batch().v;
 
-    if (params.output.GetLayout() == DataLayout::bfyx) {
+    if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
         ob_num *= of_num;
-        of_num = params.output.Y().v;
+        of_num = params.outputs[0].Y().v;
     }
 
     size_t blocks_f = RoundUp(of_num, tuning_data.sub_group_size) / tile_ofm * slm_div_factor / tuning_data.sub_group_size;
@@ -123,16 +123,16 @@ float FullyConnectedKernelIMAD::EstimateOccupancy(const fully_connected_params& 
 FullyConnectedKernelIMAD::FullyConnectedTuningData FullyConnectedKernelIMAD::GetTuningParams(const fully_connected_params& params) const {
     FullyConnectedTuningData tuning_data;
 
-    auto of_num = params.output.Feature().v;
-    auto ob_num = params.output.Batch().v;
+    auto of_num = params.outputs[0].Feature().v;
+    auto ob_num = params.outputs[0].Batch().v;
     auto if_num = params.inputs[0].Feature().v;
     auto ib_num = params.inputs[0].Batch().v;
     auto tile_batch_max_size = ob_num;
 
-    if (params.output.GetLayout() == DataLayout::bfyx) {
+    if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
         tile_batch_max_size = of_num;
         ob_num *= of_num;
-        of_num = params.output.Y().v;
+        of_num = params.outputs[0].Y().v;
         ib_num *= if_num;
         if_num = params.inputs[0].Y().v;
     }
@@ -174,12 +174,12 @@ JitConstants FullyConnectedKernelIMAD::GetJitConstants(const fully_connected_par
     auto jit = Parent::GetJitConstants(params, dispatchData);
     auto tuning_data = GetTuningParams(params);
 
-    auto of_num = params.output.Feature().v;
+    auto of_num = params.outputs[0].Feature().v;
     auto if_num = params.inputs[0].Feature().v;
-    auto output_3d = params.output.GetLayout() == DataLayout::bfyx;
+    auto output_3d = params.outputs[0].GetLayout() == DataLayout::bfyx;
 
     if (output_3d) {
-        of_num = params.output.Y().v;
+        of_num = params.outputs[0].Y().v;
         if_num = params.inputs[0].Y().v;
     }
 
@@ -259,7 +259,7 @@ KernelsData FullyConnectedKernelIMAD::GetKernelsData(const Params& params, const
 KernelsPriority FullyConnectedKernelIMAD::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     auto fc_params = static_cast<const fully_connected_params&>(params);
     auto tuning_data = GetTuningParams(fc_params);
-    auto output_3d = fc_params.output.GetLayout() == DataLayout::bfyx;
+    auto output_3d = fc_params.outputs[0].GetLayout() == DataLayout::bfyx;
 
     float estimated_time = FORCE_PRIORITY_1;
     if (output_3d) {
