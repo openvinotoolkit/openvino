@@ -9,11 +9,12 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNGenerateProposalsSingleImageNode : public MKLDNNNode {
+class GenerateProposalsSingleImageNode : public Node {
 public:
-    MKLDNNGenerateProposalsSingleImageNode(const std::shared_ptr<ngraph::Node>& op,
-        const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    GenerateProposalsSingleImageNode(const std::shared_ptr<ngraph::Node>& op,
+        const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -53,5 +54,6 @@ private:
     std::vector<int> roi_indices_;
 };
 
+}   // namespace node
 }  // namespace intel_cpu
 }  // namespace ov
