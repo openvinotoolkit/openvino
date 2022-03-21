@@ -40,7 +40,9 @@ public:
           _callbackQueue(callbackQueue),
           outputClBuffer() {
         _request.set_callback([&](const std::exception_ptr& ptr) {
-            // TODO: Add exception ptr rethrow in proper thread
+            if (ptr) {
+                std::rethrow_exception(ptr);
+             }
             _endTime = Time::now();
             _callbackQueue(_id, _lat_group_id, get_execution_time_in_milliseconds());
         });

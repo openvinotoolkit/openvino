@@ -170,7 +170,7 @@ int main(int argc, char* argv[]) {
         // -------- Step 10. Do asynchronous inference --------
         infer_request.set_callback([&](std::exception_ptr ex) {
             if (ex)
-                throw ex;
+                std::rethrow_exception(ex);
 
             std::lock_guard<std::mutex> l(mutex);
             cur_iteration++;
