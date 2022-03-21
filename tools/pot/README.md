@@ -51,10 +51,10 @@ To install POT, follow the [Installation Guide](docs/InstallationGuide.md).
 ![](docs/images/use_cases.png)
 
 The POT provides three basic usage options:
-* [**Python\* API**](@ref pot_compression_api_README): allows creating Python* scripts that result to optimized models. This option is prefeble is the user has dataset, and a Python* code in any DL framework that does data loading and pre-processing.
+* [Python\* API](@ref pot_compression_api_README): allows creating Python* scripts that result to optimized models. This option is prefeble is the user has dataset, and a Python* code in any DL framework that does data loading and pre-processing.
 * **Command-line interface (CLI)**:
-  * [**Simplified mode**](@ref pot_docs_simplified_mode):  use this option if the model belongs to the **Computer Vision** domain and you have an **unannotated dataset** for optimization. This optimization method does not allow measuring model accuracy and might cause its deviation.
-  * [**Model Zoo flow**](@ref pot_compression_cli_README): this option is recommended if the model is similar to the model from OpenVINO&trade; [Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) or there is a valid [Accuracy Checker Tool](@ref omz_tools_accuracy_checker)
+  * [Simplified mode](@ref pot_docs_simplified_mode):  use this option if the model belongs to the **Computer Vision** domain and you have an **unannotated dataset** for optimization. This optimization method does not allow measuring model accuracy and might cause its deviation.
+  * [Model Zoo flow](@ref pot_compression_cli_README): this option is recommended if the model is similar to the model from OpenVINO&trade; [Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) or there is a valid [Accuracy Checker Tool](@ref omz_tools_accuracy_checker)
 configuration file for the model that allows validating model accuracy using [Accuracy Checker Tool](@ref omz_tools_accuracy_checker).
 
 POT is also integrated into [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench), a web-based graphical environment 
