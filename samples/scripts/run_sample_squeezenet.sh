@@ -154,7 +154,7 @@ else
 fi
 
 # Step 3. Build samples
-echo -ne "\n###############|| Build Inference Engine samples ||###############\n\n"
+echo -ne "\n###############|| Build OpenVINO Runtime samples ||###############\n\n"
 
 OS_PATH=$(uname -m)
 NUM_THREADS="-j2"
@@ -178,7 +178,7 @@ cmake -DCMAKE_BUILD_TYPE=Release "$samples_path"
 make $NUM_THREADS classification_sample_async
 
 # Step 4. Run sample
-echo -ne "\n###############|| Run Inference Engine classification sample ||###############\n\n"
+echo -ne "\n###############|| Run OpenVINO Runtime classification sample ||###############\n\n"
 
 cd "$binaries_dir"
 
