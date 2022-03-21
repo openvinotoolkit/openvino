@@ -35,7 +35,8 @@ void pre_replace_deconv::run(program& p) {
             auto& deconv_node = node->as<deconvolution>();
             auto& weights_node = deconv_node.weights();
             auto deconv_prim = deconv_node.typed_desc();
-            tensor filter_size = weights_node.get_output_layout().size;
+            auto filter_size = weights_node.get_output_layout().size;
+            auto filter_layout = weights_node.get_output_layout().convert_to_weights_layout(deconv_prim->grouped_weights_shape);
             auto weights_nodes_id = deconv_prim->weights;
             auto biases_nodes_id = deconv_prim->bias;
             auto& input_node = deconv_node.get_dependency(0);
@@ -44,10 +45,7 @@ void pre_replace_deconv::run(program& p) {
 
             // limit optimization to stride = 1
             // iterators shouldn't be used here because of incorrect iterator functionality in mutable_array_ref<>
-            bool unit_stride = true;
-            for (size_t i = 0; i < deconv_prim->stride.spatial.size(); ++i) {
-                unit_stride &= (deconv_prim->stride.spatial[i] == 1);
-            }
+            bool unit_stride = all_ones(deconv_prim->stride);
             if (unit_stride) {
                 auto groups = deconv_node.get_groups();
 
@@ -65,8 +63,10 @@ void pre_replace_deconv::run(program& p) {
 
 
                 // setting convolution parameters based on deconvolution params
+                auto spatial_rank = deconv_node.get_output_layout().get_spatial_rank();
                 auto stride = deconv_prim->stride;
                 auto pad = deconv_prim->pad;
+                ov::Strides dilation(spatial_rank, 1);
                 auto output_padding = deconv_prim->output_padding;
                 auto grouped_weights_shape = deconv_prim->grouped_weights_shape;
 
@@ -84,10 +84,9 @@ void pre_replace_deconv::run(program& p) {
                     p.remove_connection(*weights_node_ptr, deconv_node);
                 }
 
-                auto filter_z = deconv_prim->grouped_weights_shape ? 0 : (filter_size.spatial[2] - 1);
-                pad.spatial[0] = (filter_size.spatial[0] - 1) - std::abs(pad.spatial[0]);
-                pad.spatial[1] = (filter_size.spatial[1] - 1) - std::abs(pad.spatial[1]);
-                pad.spatial[2] = filter_z - std::abs(pad.spatial[2]);
+                for (size_t i = 0; i < spatial_rank; i++) {
+                    pad[i] = (filter_layout.spatial(spatial_rank - i - 1) - 1) - std::abs(pad[i]);
+                }
 
                 std::vector<std::shared_ptr<program_node>> bias_connections;
                 for (auto& bias_id : biases_nodes_id) {
@@ -118,7 +117,7 @@ void pre_replace_deconv::run(program& p) {
                                                               groups,
                                                               stride,
                                                               pad,
-                                                              tensor{ 1, 1, 1, 1 },
+                                                              dilation,
                                                               grouped_weights_shape,
                                                               "",
                                                               output_padding);
@@ -129,7 +128,7 @@ void pre_replace_deconv::run(program& p) {
                                                               groups,
                                                               stride,
                                                               pad,
-                                                              tensor{ 1, 1, 1, 1 },
+                                                              dilation,
                                                               grouped_weights_shape,
                                                               "",
                                                               output_padding);
@@ -170,12 +169,13 @@ void pre_replace_deconv::run(program& p) {
             // current optimization only available for specific deconvolution parameters
             } else if (deconv_node.is_output() == false &&
                deconv_node.get_output_layout().size.feature[0] == 1 &&
-               deconv_prim->stride.spatial[0] == 2 && deconv_prim->stride.spatial[1] == 2 &&
+               deconv_prim->stride[deconv_prim->stride.size() - 1] == 2 && deconv_prim->stride[deconv_prim->stride.size() - 2] == 2 &&
                filter_size.spatial[0] == 9 && filter_size.spatial[1] == 9 &&
-               deconv_prim->pad.spatial[0] == 4 && deconv_prim->pad.spatial[1] == 4 &&
+               deconv_prim->pad[deconv_prim->pad.size() - 1] == 4 && deconv_prim->pad[deconv_prim->pad.size() - 2]  == 4 &&
                weights_nodes_id.size() == 1 && biases_nodes_id.size() == 1 &&
                input_node.get_output_layout().format == format::bfyx) {
-                const auto scale_factor = deconv_prim->stride.spatial[0];
+                const auto scale_factor = deconv_prim->stride[deconv_prim->stride.size() - 1];
+                auto spatial_rank = deconv_node.get_output_layout().get_spatial_rank();
 
                 const auto& weight_node_id = weights_nodes_id.front();
                 auto weights_node_ptr = p.nodes_map.find(weight_node_id)->second;
@@ -194,8 +194,9 @@ void pre_replace_deconv::run(program& p) {
                     continue;
 
                 // setting convolution parameters based on deconvolution params
-                tensor stride = { 1, 1, 1, 1 };
-                tensor pad = tensor{{ 0, 0, scale_factor, scale_factor }, 0};
+                ov::Strides stride(spatial_rank, 1);
+                ov::CoordinateDiff pad(spatial_rank, scale_factor);
+                ov::Strides dilation(spatial_rank, 1);
                 auto output_padding = deconv_prim->output_padding;
                 auto grouped_weights_shape = deconv_prim->grouped_weights_shape;
 
@@ -264,7 +265,7 @@ void pre_replace_deconv::run(program& p) {
                                                                std::vector<primitive_id>{ weight_replace_node_id },
                                                                stride,
                                                                pad,
-                                                               tensor{ 1, 1, 1, 1 },
+                                                               dilation,
                                                                grouped_weights_shape,
                                                                "",
                                                                output_padding);

@@ -78,7 +78,7 @@ OpenVINO™ Documentation
 	 </a>
 	 <a href="openvino_docs_optimization_guide_dldt_optimization_guide.html" >
 	    <h3>Tune & Optimize </h3>
-	    <p> Use quantization, pruning, and sparsity algorithms to make your application as efficient as possible. </p> 
+	    <p> Model-level (e.g. quantization) and Runtime (i.e. application) -level  optimizations to make your inference as fast as possible. </p> 
 	 </a>
 	 <a href="openvino_docs_performance_benchmarks.html" >
 	    <h3>Performance<br /> Benchmarks </h3>
