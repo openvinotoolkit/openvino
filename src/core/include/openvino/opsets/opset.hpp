@@ -16,6 +16,10 @@
 #include "openvino/core/node.hpp"
 
 namespace ov {
+namespace opset {
+class Factory;
+}
+
 /**
  * @brief Run-time opset information
  * @ingroup ov_opset_cpp_api
@@ -24,8 +28,11 @@ class OPENVINO_API OpSet {
     static std::mutex& get_mutex();
 
 public:
-    OpSet() = default;
-    virtual ~OpSet() = default;
+    OpSet();
+    OpSet(const std::string& name);
+    OpSet(const ov::OpSet& opset);
+    OpSet operator=(const ov::OpSet& opset);
+    virtual ~OpSet();
     std::set<NodeTypeInfo>::size_type size() const {
         std::lock_guard<std::mutex> guard(get_mutex());
         return m_op_types.size();
@@ -34,12 +41,12 @@ public:
     /// \brief Insert OP_TYPE into the opset with a special name and the default factory
     template <typename OP_TYPE, typename std::enable_if<!ngraph::HasTypeInfoMember<OP_TYPE>::value, bool>::type = true>
     void insert(const std::string& name) {
-        insert(name, OP_TYPE::get_type_info_static(), ngraph::FactoryRegistry<Node>::get_default_factory<OP_TYPE>());
+        insert(name, OP_TYPE::get_type_info_static(), []() {return new OP_TYPE();});
     }
     template <typename OP_TYPE, typename std::enable_if<ngraph::HasTypeInfoMember<OP_TYPE>::value, bool>::type = true>
     void insert(const std::string& name) {
         OPENVINO_SUPPRESS_DEPRECATED_START
-        insert(name, OP_TYPE::type_info, ngraph::FactoryRegistry<Node>::get_default_factory<OP_TYPE>());
+        insert(name, OP_TYPE::type_info, []() {return new OP_TYPE();});
         OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
@@ -114,22 +121,16 @@ protected:
         return upper_name;
     }
 
-    ngraph::FactoryRegistry<ov::Node> m_factory_registry;
+    /// \brief Insert an op into the opset with a particular name and factory
+    /// The factory supports conditional compilation for operations
+    void insert(const std::string& name, const NodeTypeInfo& type_info, const std::function<ov::Node*()>& builder);
+
+    std::unique_ptr<ov::opset::Factory> m_factory;
     std::set<NodeTypeInfo> m_op_types;
     std::map<std::string, NodeTypeInfo> m_name_type_info_map;
     std::map<std::string, NodeTypeInfo> m_case_insensitive_type_info_map;
-
-    /// \brief Insert an op into the opset with a particular name and factory
-    void insert(const std::string& name,
-                const NodeTypeInfo& type_info,
-                ngraph::FactoryRegistry<Node>::Factory factory) {
-        std::lock_guard<std::mutex> guard(get_mutex());
-        m_op_types.insert(type_info);
-        m_name_type_info_map[name] = type_info;
-        m_case_insensitive_type_info_map[to_upper_name(name)] = type_info;
-        m_factory_registry.register_factory(type_info, std::move(factory));
-    }
 };
+
 
 /**
  * @brief Returns opset1
@@ -171,5 +172,9 @@ const OPENVINO_API OpSet& get_opset7();
  * @ingroup ov_opset_cpp_api
  */
 const OPENVINO_API OpSet& get_opset8();
+/**
+ * @brief Returns opset9
+ * @ingroup ov_opset_cpp_api
+ */
 const OPENVINO_API OpSet& get_opset9();
 }  // namespace ov

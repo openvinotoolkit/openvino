@@ -154,4 +154,8 @@ template <>
 struct OPENVINO_API hash<ov::DiscreteTypeInfo> {
     size_t operator()(const ov::DiscreteTypeInfo& k) const;
 };
+
+inline string to_string(const ov::DiscreteTypeInfo& type_info) {
+    return std::string(type_info.name) + "_" + type_info.get_version();
+}
 }  // namespace std

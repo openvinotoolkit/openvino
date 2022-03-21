@@ -47,9 +47,10 @@ public:
         ov::OpSet::insert<OP_TYPE>(OP_TYPE::get_type_info_static().name);
     }
 
-    ngraph::FactoryRegistry<ngraph::Node>& get_factory_registry() {
-        return m_factory_registry;
-    }
+    const ngraph::FactoryRegistry<ngraph::Node>& get_factory_registry();
+
+private:
+    ngraph::FactoryRegistry<ngraph::Node> m_factory_registry;
 };
 
 const NGRAPH_API OpSet& get_opset1();

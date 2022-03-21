@@ -31,10 +31,14 @@ public:
 #ifdef SELECTIVE_BUILD
 #    define registerNodeIfRequired(Module, Name, key, Impl) \
         OV_PP_EXPAND(OV_PP_CAT(registerImpl, OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(Module, _, Name))) < Impl > (key))
-#    define createNodeIfRegistered(Module, key, ...) createImpl(key, __VA_ARGS__)
+#    define registerImplIfRequired(Module, Name, key, Impl) \
+        OV_PP_EXPAND(OV_PP_CAT(registerImpl, OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(Module, _, Name)))(key, Impl))
+#    define createNodeIfRegistered(Module, ...) createImpl(__VA_ARGS__)
 
     template <typename Impl>
     void registerImpl0(const Key&) {}
+
+    void registerImpl0(const Key&, const builder_t&) {}
 
     template <typename Impl>
     void registerImpl1(const Key& key) {
@@ -42,6 +46,10 @@ public:
             Impl* impl = new Impl(args...);
             return static_cast<T>(impl);
         };
+    }
+
+    void registerImpl1(const Key& key, const builder_t& builder) {
+        builders[key] = std::move(builder);
     }
 
     T createImpl(const Key& key, Args... args) {
@@ -55,7 +63,9 @@ public:
 #elif defined(SELECTIVE_BUILD_ANALYZER)
 #    define registerNodeIfRequired(Module, Name, key, Impl) \
         registerImpl<OV_PP_CAT(FACTORY_, Module), Impl>(key, OV_PP_TOSTRING(Name))
-#    define createNodeIfRegistered(Module, key, ...) createImpl<OV_PP_CAT(FACTORY_, Module)>(key, __VA_ARGS__)
+#    define registerImplIfRequired(Module, Name, key, Impl) \
+        registerImpl<OV_PP_CAT(FACTORY_, Module)>(key, OV_PP_TOSTRING(Name), Impl)
+#    define createNodeIfRegistered(Module, ...) createImpl<OV_PP_CAT(FACTORY_, Module)>(__VA_ARGS__)
 
     template <openvino::itt::domain_t (*domain)(), typename Impl>
     void registerImpl(const Key& key, const char* typeName) {
@@ -66,6 +76,14 @@ public:
             Impl* impl = new Impl(args...);
             return static_cast<T>(impl);
         };
+    }
+
+    template <openvino::itt::domain_t (*domain)()>
+    void registerImpl(const Key& key, const char* typeName, const builder_t& builder) {
+        validate_type(typeName);
+        const std::string task_name = "REG$" + name + "$" + to_string(key) + "$" + typeName;
+        openvino::itt::ScopedTask<domain> task(openvino::itt::handle(task_name));
+        builders[key] = std::move(builder);
     }
 
     template <openvino::itt::domain_t (*domain)()>
@@ -82,7 +100,8 @@ public:
 #else
 
 #    define registerNodeIfRequired(Module, Name, key, Impl) registerImpl<Impl>(key)
-#    define createNodeIfRegistered(Module, key, ...)        createImpl(key, __VA_ARGS__)
+#    define registerImplIfRequired(Module, Name, key, Impl) registerImpl(key, Impl)
+#    define createNodeIfRegistered(Module, ...)             createImpl(__VA_ARGS__)
 
     template <typename Impl>
     void registerImpl(const Key& key) {
@@ -90,6 +109,10 @@ public:
             Impl* impl = new Impl(args...);
             return static_cast<T>(impl);
         };
+    }
+
+    void registerImpl(const Key& key, const builder_t& builder) {
+        builders[key] = std::move(builder);
     }
 
     T createImpl(const Key& key, Args... args) {
@@ -144,8 +167,9 @@ private:
     using hash_t = typename std::conditional<std::is_enum<Key>::value, EnumClassHash<Key>, std::hash<Key>>::type;
     using map_t = std::unordered_map<Key, builder_t, hash_t>;
 
-    const std::string name;
+protected:
     map_t builders;
+    std::string name;
 };
 
 }  // namespace cc
