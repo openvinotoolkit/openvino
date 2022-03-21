@@ -63,28 +63,28 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Acos>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
-    return Activation::generate(elemType, targetShape, InputGenerateData(-1, 2, 32768, 1));
+    return Activation::generate(elemType, targetShape, InputGenerateData(2, -1, 32768, 1));
 }
 
 ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Asin>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
-    return Activation::generate(elemType, targetShape, InputGenerateData(-1, 2, 32768, 1));
+    return Activation::generate(elemType, targetShape, InputGenerateData(2, -1, 32768, 1));
 }
 
 ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Atan>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
-    return Activation::generate(elemType, targetShape, InputGenerateData(-1, 2, 32768, 1));
+    return Activation::generate(elemType, targetShape, InputGenerateData(2, -1, 32768, 1));
 }
 
 ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Ceiling>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
-    return Activation::generate(elemType, targetShape, InputGenerateData(-1000, 2000, 32768, 1));
+    return Activation::generate(elemType, targetShape, InputGenerateData(2000, -1000, 32768, 1));
 }
 
 ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Clamp>& node,
@@ -252,7 +252,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Log>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
-    return Activation::generate(elemType, targetShape, InputGenerateData(1, 20, 32768, 1));
+    return Activation::generate(elemType, targetShape, InputGenerateData(20, 1, 32768, 1));
 }
 
 ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Negative>& node,
@@ -391,7 +391,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Sqrt>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
-    return Activation::generate(elemType, targetShape, InputGenerateData(1, 20, 32768, 1));
+    return Activation::generate(elemType, targetShape, InputGenerateData(20, 1, 32768, 1));
 }
 
 ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Tan>& node,
@@ -680,7 +680,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::Round>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
-    return Activation::generate(elemType, targetShape, InputGenerateData(-10, 20, 4));
+    return Activation::generate(elemType, targetShape, InputGenerateData(20, -10, 4));
 }
 
 template<typename T>
