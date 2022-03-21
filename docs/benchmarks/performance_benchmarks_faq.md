@@ -56,16 +56,10 @@ We published a set of guidelines and recommendations to optimize your models ava
 #### 9. Why are INT8 optimized models used for benchmarking on CPUs with no VNNI support?
 The benefit of low-precision optimization using the OpenVINO™ toolkit model optimizer extends beyond processors supporting VNNI through Intel® DL Boost. The reduced bit width of INT8 compared to FP32 allows Intel® CPU to process the data faster and thus offers better throughput on any converted model agnostic of the intrinsically supported low-precision optimizations within Intel® hardware. Please refer to [INT8 vs. FP32 Comparison on Select Networks and Platforms](performance_int8_vs_fp32.md) for comparison on boost factors for different network models and a selection of Intel® CPU architectures, including AVX-2 with Intel® Core™ i7-8700T, and AVX-512 (VNNI) with Intel® Xeon® 5218T and Intel® Xeon® 8270.
 
-#### 10. Previous releases included benchmarks on googlenet-v1-CF (Caffe). Why is there no longer benchmarks on this neural network model?
-We replaced googlenet-v1-CF to resnet-18-pytorch due to changes in developer usage. The public model resnet-18 is used by many developers as an Image Classification model. This pre-optimized model was also trained on the ImageNet database, similar to googlenet-v1-CF. Both googlenet-v1-CF and resnet-18 will remain part of the Open Model Zoo. Developers are encouraged to utilize resnet-18-pytorch for Image Classification use cases.
-
-#### 11. Why have resnet-50-CF, mobilenet-v1-1.0-224-CF, mobilenet-v2-CF and resnet-101-CF been removed?
-The CAFFE version of resnet-50, mobilenet-v1-1.0-224 and mobilenet-v2 have been replaced with their TensorFlow and PyTorch counterparts. Resnet-50-CF is replaced by resnet-50-TF, mobilenet-v1-1.0-224-CF is replaced by mobilenet-v1-1.0-224-TF and mobilenet-v2-CF is replaced by mobilenetv2-PyTorch. Resnet-50-CF an resnet-101-CF are no longer maintained at their public source repos.
-
-#### 12. Where can I search for OpenVINO™ performance results based on HW-platforms?
+#### 10. Where can I search for OpenVINO™ performance results based on HW-platforms?
 The web site format has changed in order to support the more common search approach of looking for the performance of a given neural network model on different HW-platforms. As opposed to review a given HW-platform's performance on different neural network models.
 
-#### 13. How is Latency measured?
+#### 11. How is Latency measured?
 Latency is measured by running the OpenVINO™ Runtime in synchronous mode. In synchronous mode each frame or image is processed through the entire set of stages (pre-processing, inference, post-processing) before the next frame or image is processed. This KPI is relevant for applications where the inference on a single image is required, for example the analysis of an ultra sound image in a medical application or the analysis of a seismic image in the oil & gas industry. Other use cases include real-time or near real-time applications like an industrial robot's response to changes in its environment and obstacle avoidance for autonomous vehicles where a quick response to the result of the inference is required.
 
 For more complete information about performance and benchmark results, visit: [www.intel.com/benchmarks](https://www.intel.com/benchmarks) and [Optimization Notice](https://software.intel.com/articles/optimization-notice). [Legal Information](../Legal_Information.md).
