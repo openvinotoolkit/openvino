@@ -31,3 +31,11 @@ config = {"PERFORMANCE_HINT": "THROUGHPUT",
 # so that certain parameters (like selected batch size) are automatically accommodated accordingly 
 compiled_model = core.compile_model(model, "GPU", config)
 # [hint_num_requests]
+
+# [hint_plus_low_level]
+config = {"PERFORMANCE_HINT": "THROUGHPUT",
+          "INFERENCE_NUM_THREADS": "4"}
+# limiting the available parallel slack for the 'throughput'
+# so that certain parameters (like selected batch size) are automatically accommodated accordingly
+compiled_model = core.compile_model(model, "CPU", config)
+# [hint_plus_low_level]]
