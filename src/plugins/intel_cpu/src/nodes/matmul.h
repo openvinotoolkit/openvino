@@ -13,22 +13,23 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNMatMulNode : public MKLDNNNode {
+class MatMul : public Node {
 public:
-    MKLDNNMatMulNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MatMul(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
     void initSupportedPrimitiveDescriptors() override;
     MemoryDescPtr getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
-    bool canFuse(const MKLDNNNodePtr& node) const override;
+    bool canFuse(const NodePtr& node) const override;
     bool created() const override;
     size_t getMaxBatch() const override;
 
     InferenceEngine::Precision getRuntimePrecision() const override;
-    size_t descInputNumbers(MKLDNNDescriptor desc) override {
+    size_t descInputNumbers(DnnlDesriptor desc) override {
         return getOriginalInputsNumber();
     }
 
@@ -63,5 +64,6 @@ private:
     DnnlBlockedMemoryDescPtr outDataDesc;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov
