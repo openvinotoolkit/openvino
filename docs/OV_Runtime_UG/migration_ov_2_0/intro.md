@@ -24,7 +24,7 @@ Older versions of OpenVINO™ (prior to 2022.1) required to change the logic of 
 - Inference Engine API (`InferenceEngine::CNNNetwork`) also applied some conversion rules for input and output precisions because of device plugins limitations.
 - Users need to specify input shapes during model conversions in Model Optimizer and work with static shapes in the application.
 
-OpenVINO API 2.0 is introduced to align logic of working with model as it is done in the frameworks - no layout and precision changes, operates with tensor names and indices to address inputs and outputs. OpenVINO Runtime is composed of Inference Engine API used for inference and nGraph API targeted to work with models, operations. The API 2.0 has common structure, naming convention styles, namespaces, removes duplicated structures. See [How to migrate to API 2.0](common_inference_pipeline.md) for details.
+OpenVINO™ introduces API 2.0 to align logic of working with model as it is done in the frameworks - no layout and precision changes, operates with tensor names and indices to address inputs and outputs. OpenVINO Runtime is composed of Inference Engine API used for inference and nGraph API targeted to work with models, operations. The API 2.0 has common structure, naming convention styles, namespaces, removes duplicated structures. See [How to migrate to API 2.0](common_inference_pipeline.md) for details.
 
 > **NOTE**: Most important is that your existing application can continue working with OpenVINO Runtime 2022.1 as it used to be, but we recommend migration to API 2.0 to unlock additional features like [Preprocessing](../preprocessing_overview.md) and [Dynamic shapes support](../ov_dynamic_shapes.md).
 
@@ -48,11 +48,11 @@ The following OpenVINO tools don't support IR v10 as an input, and require to ge
 - Post-Training Optimization tool
 - Deep Learning Workbench
 
-> **NOTE**: If IR v10 models need to be quantized to run with OpenVINO 2022.1, the recommendation is to download and use Post Training Optimization tool from OpenVINO 2021.4 release.
+> **NOTE**: If you need to quantize your IR v10 models to run with OpenVINO 2022.1, it's recommended to download and use Post-Training Optimization tool from OpenVINO 2021.4 release.
 
 ### Differences between Inference Engine and OpenVINO Runtime 2022.1
 
-Inference Engine and nGraph APIs are not deprecated, they are fully functional and can be used in applications. However it's highly recommended to migrate to API 2.0, because it already has additional features and this list will be extended later. The following list of additional features is supported by API 2.0:
+Inference Engine and nGraph APIs are not deprecated, they are fully functional and can be used in applications. However, it's highly recommended to migrate to API 2.0, because it already has additional features and this list will be extended later. The following list of additional features is supported by API 2.0:
 - [Working with dynamic shapes](../ov_dynamic_shapes.md). The feature is quite useful for best performance for NLP (Neural Language Processing) models, super resolution models and other which accepts dynamic input shapes.
 - [Preprocessing of the model](../preprocessing_overview.md) to add preprocessing operations to the inference models and fully occupy the accelerator and free CPU resources.
 
@@ -66,13 +66,13 @@ To define a difference on the API level between Inference Engine and API 2.0, le
   - Model Optimizer preserves the input element types, order of dimensions (layouts) and stores tensor names from the original models.
   - OpenVINO Runtime 2022.1 reads models in any formats (IR v10, IR v11, ONNX, PaddlePaddle, etc) as is.
   - API 2.0 operates with tensor names. Note, the difference between tensor names and operations names is that in case if a single operation has several output tensors, such tensors cannot identified in a unique manner, so tensor names are used for addressing as it's usually done in the frameworks.
-  - API 2.0 can address input and outputs tensors also by its index. Some model formats like ONNX are sensitive to order of inputs, outputs and its preserved by OpenVINO Runtime 2022.1.
+  - API 2.0 can address input and outputs tensors also by its index. Some model formats like ONNX are sensitive to order of inputs, outputs and its preserved by OpenVINO 2022.1.
 
 The table below demonstrates which behavior **old** or **new** is used depending on a model source, used APIs.
 
 |               API             | IR v10  | IR v11  | ONNX file | Model created in code |
 |-------------------------------|---------|---------|-----------|-----------------------|
-|Inference Engine / ngraph APIs |     Old |     Old |       Old |                   Old |
+|Inference Engine / nGraph APIs |     Old |     Old |       Old |                   Old |
 |API 2.0                        |     Old |     New |       New |                   New |
 
 Please look at next transition guides to understand how migrate Inference Engine-based application to API 2.0:
