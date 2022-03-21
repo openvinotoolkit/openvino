@@ -24,30 +24,30 @@ OpenVINO™ Model Server is measured in multiple-client-single-server configurat
 ![](../img/throughput_ovms_resnet50_fp32_bs_1.png)
 ## googlenet-v4-TF (FP32)
 ![](../img/throughput_ovms_googlenet4_fp32.png)
-## mobilenet-v3-large-1.0-224-TF (FP32)
-![](../img/throughput_ovms_mobilenet3large_fp32.png)
-## 3D U-Net (FP32)
-![](../img/throughput_ovms_3dunet.png)
-## alexnet
-![](../img/throughput_ovms_alexnet.png)
 ## yolo-v3-tf (FP32)
 ![](../img/throughput_ovms_yolo3_fp32.png)
 ## yolo-v4-tf (FP32)
 ![](../img/throughput_ovms_yolo4_fp32.png)
 ## face-detection-0200 (INT8)
 ![](../img/throughput_ovms_facedetection0200_int8.png)
+## brain-tumor-segmentation-0002
+![](../img/throughput_ovms_braintumorsegmentation.png)
+## alexnet
+![](../img/throughput_ovms_alexnet.png)
+## mobilenet-v3-large-1.0-224-TF (FP32)
+![](../img/throughput_ovms_mobilenet3large_fp32.png)
 ## unet-camvid-onnx-0001 (INT8)
 ![](../img/throughput_ovms_unetcamvidonnx0001_int8.png)
 ## unet-camvid-onnx-0001 (FP32)
 ![](../img/throughput_ovms_unetcamvidonnx0001_fp32.png)
 ## deeplabv3 (FP32)
 ![](../img/throughput_ovms_deeplabv3_fp32.png)
-## bert-small-uncased-whole-word-masking-squad-0002 (FP32)
-![](../img/throughput_ovms_bertsmall_fp32.png)
 ## bert-small-uncased-whole-word-masking-squad-int8-0002 (INT8)
 ![](../img/throughput_ovms_bertsmall_int8.png)
-## brain-tumor-segmentation-0002
-![](../img/throughput_ovms_braintumorsegmentation.png)
+## bert-small-uncased-whole-word-masking-squad-0002 (FP32)
+![](../img/throughput_ovms_bertsmall_fp32.png)
+## 3D U-Net (FP32)
+![](../img/throughput_ovms_3dunet.png)
 
 ## Image Compression for Improved Throughput
 OpenVINO Model Server supports compressed binary input data (images in JPEG and PNG formats) for vision processing models. This
