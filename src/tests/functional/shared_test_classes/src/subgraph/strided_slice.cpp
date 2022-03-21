@@ -4,11 +4,11 @@
 
 #include "ngraph_functions/builders.hpp"
 
-#include "shared_test_classes/subgraph/crop4d.hpp"
+#include "shared_test_classes/subgraph/strided_slice.hpp"
 
 namespace SubgraphTestsDefinitions {
 
-std::string Crop4dTest::getTestCaseName(const testing::TestParamInfo<Crop4dParams> &obj) {
+std::string StridedSliceTest::getTestCaseName(const testing::TestParamInfo<StridedSliceParams> &obj) {
     StridedSliceSpecificParams params;
     InferenceEngine::Precision netPrc;
     InferenceEngine::Precision inPrc, outPrc;
@@ -35,7 +35,7 @@ std::string Crop4dTest::getTestCaseName(const testing::TestParamInfo<Crop4dParam
     return result.str();
 }
 
-void Crop4dTest::SetUp() {
+void StridedSliceTest::SetUp() {
     StridedSliceSpecificParams ssParams;
     InferenceEngine::Precision netPrecision;
     std::map<std::string, std::string> additionalConfig;
@@ -50,7 +50,7 @@ void Crop4dTest::SetUp() {
     auto ss = ngraph::builder::makeStridedSlice(relu, ssParams.begin, ssParams.end, ssParams.strides, ngPrc, ssParams.beginMask,
                                                 ssParams.endMask, ssParams.newAxisMask, ssParams.shrinkAxisMask, ssParams.ellipsisAxisMask);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(ss)};
-    function = std::make_shared<ngraph::Function>(results, params, "crop4d");
+    function = std::make_shared<ngraph::Function>(results, params, "strided_slice");
 }
 
 }  // namespace SubgraphTestsDefinitions
