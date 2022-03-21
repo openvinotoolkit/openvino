@@ -1,6 +1,6 @@
 # Inference Pipeline {#openvino_2_0_inference_pipeline}
 
-Usually to inference model with the OpenVINO™ Runtime an user needs to do the following steps in the application pipeline:
+Usually to infer models with OpenVINO™ Runtime, you need to do the following steps in the application pipeline:
 - 1. Create Core object
 - 2. Read model from the disk
  - 2.1. (Optional) Model preprocessing
@@ -10,7 +10,7 @@ Usually to inference model with the OpenVINO™ Runtime an user needs to do the 
 - 6. Start inference
 - 7. Process the inference results
 
-Code snippets below cover these steps and show how application code should be changed for migration to OpenVINO™ Runtime 2.0.
+The following code shows how to change the application code in each step to migrate to OpenVINO™ Runtime 2.0.
 
 ## 1. Create Core
 
@@ -80,13 +80,13 @@ Inference Engine API fills inputs as `I32` precision (**not** aligned with the o
     .. doxygensnippet:: docs/snippets/ie_common.cpp
        :language: cpp
        :fragment: [ie:get_input_tensor]
-       
+
 .. tab:: ONNX
 
     .. doxygensnippet:: docs/snippets/ie_common.cpp
        :language: cpp
        :fragment: [ie:get_input_tensor]
-       
+
 .. tab:: Model created in code
 
     .. doxygensnippet:: docs/snippets/ie_common.cpp
@@ -110,13 +110,13 @@ OpenVINO™ Runtime API 2.0 fills inputs as `I64` precision (aligned with the or
     .. doxygensnippet:: docs/snippets/ov_common.cpp
        :language: cpp
        :fragment: [ov_api_2_0:get_input_tensor_aligned]
-       
+
 .. tab:: ONNX
 
     .. doxygensnippet:: docs/snippets/ov_common.cpp
        :language: cpp
        :fragment: [ov_api_2_0:get_input_tensor_aligned]
-       
+
 .. tab:: Model created in code
 
     .. doxygensnippet:: docs/snippets/ov_common.cpp
@@ -129,11 +129,39 @@ OpenVINO™ Runtime API 2.0 fills inputs as `I64` precision (aligned with the or
 
 Inference Engine API:
 
-@snippet docs/snippets/ie_common.cpp ie:inference
+@sphinxdirective
+
+.. tab:: Sync
+
+    .. doxygensnippet:: docs/snippets/ie_common.cpp
+       :language: cpp
+       :fragment: [ie:inference]
+
+.. tab:: Async
+
+    .. doxygensnippet:: docs/snippets/ie_common.cpp
+       :language: cpp
+       :fragment: [ie:start_async_and_wait]
+
+@endsphinxdirective
 
 OpenVINO™ Runtime API 2.0:
 
-@snippet docs/snippets/ov_common.cpp ov_api_2_0:inference
+@sphinxdirective
+
+.. tab:: Sync
+
+    .. doxygensnippet:: docs/snippets/ov_common.cpp
+       :language: cpp
+       :fragment: [ov_api_2_0:inference]
+
+.. tab:: Async
+
+    .. doxygensnippet:: docs/snippets/ov_common.cpp
+       :language: cpp
+       :fragment: [ov_api_2_0:start_async_and_wait]
+
+@endsphinxdirective
 
 ## 7. Process the Inference Results
 
@@ -152,13 +180,13 @@ Inference Engine API processes outputs as `I32` precision (**not** aligned with 
     .. doxygensnippet:: docs/snippets/ie_common.cpp
        :language: cpp
        :fragment: [ie:get_output_tensor]
-       
+
 .. tab:: ONNX
 
     .. doxygensnippet:: docs/snippets/ie_common.cpp
        :language: cpp
        :fragment: [ie:get_output_tensor]
-       
+
 .. tab:: Model created in code
 
     .. doxygensnippet:: docs/snippets/ie_common.cpp
@@ -184,13 +212,13 @@ OpenVINO™ Runtime API 2.0 processes outputs:
     .. doxygensnippet:: docs/snippets/ov_common.cpp
        :language: cpp
        :fragment: [ov_api_2_0:get_output_tensor_aligned]
-       
+
 .. tab:: ONNX
 
     .. doxygensnippet:: docs/snippets/ov_common.cpp
        :language: cpp
        :fragment: [ov_api_2_0:get_output_tensor_aligned]
-       
+
 .. tab:: Model created in code
 
     .. doxygensnippet:: docs/snippets/ov_common.cpp

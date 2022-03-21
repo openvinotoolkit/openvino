@@ -22,7 +22,7 @@ JitConstants GemmKernelBase::GetJitConstants(const gemm_params& params) const {
 }
 
 GemmKernelBase::DispatchData GemmKernelBase::SetDefault(const gemm_params& params) const {
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
 
     DispatchData dispatchData;
 
