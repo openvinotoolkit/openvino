@@ -128,152 +128,152 @@ For setting relevant configuration, refer to the
 ### Supported Layers
 The following layers are supported by the plugins:
 
-| Layers                         | GPU           | CPU           | VPU           | GNA           | Arm® CPU    | ShapeInfer    |
-|:-------------------------------|:-------------:|:-------------:|:-------------:|:-------------:|:---------------:|:-------------:|
-| Abs                            | Supported     | Supported\*\* | Supported     | Not Supported | Supported       | Supported     |
-| Acos                           | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*|Supported      |
-| Acosh                          | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*|Supported      |
-| Activation-Clamp               | Supported     |Supported\*\*\*| Supported     | Supported     | Supported       | Supported     |
-| Activation-ELU                 | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       | Supported     |
-| Activation-Exp                 | Supported     |Supported\*\*\*| Supported     | Supported     | Supported       | Supported     |
-| Activation-Leaky ReLU          | Supported     |Supported\*\*\*| Supported     | Supported     | Not Supported   | Supported     |
-| Activation-Not                 | Supported     |Supported\*\*\*| Supported     | Not Supported | Not Supported   | Supported     |
-| Activation-PReLU               | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       | Supported     |
-| Activation-ReLU                | Supported     |Supported\*\*\*| Supported     | Supported     | Supported       | Supported     |
-| Activation-ReLU6               | Supported     |Supported\*\*\*| Supported     | Not Supported | Not Supported   | Supported     |
-| Activation-Sigmoid/Logistic    | Supported     |Supported\*\*\*| Supported     | Supported     | Supported       | Supported     |
-| Activation-TanH                | Supported     |Supported\*\*\*| Supported     | Supported     | Supported       | Supported     |
-| ArgMax                         | Supported     | Supported\*\* | Supported     | Not Supported | Not Supported   | Supported     |
-| Asin                           | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*| Supported     |
-| Asinh                          | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*| Supported     |
-| Atan                           | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*| Supported     |
-| Atanh                          | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*| Supported     |
-| BatchNormalization             | Supported     | Supported     | Supported     | Not Supported | Supported       | Supported     |
-| BinaryConvolution              | Supported     | Supported     | Not Supported | Not Supported | Not Supported   | Supported     |
-| Broadcast                      | Supported     | Supported\*\* | Supported     | Not Supported | Supported       | Supported     |
-| Ceil                           | Supported     | Supported\*\* | Supported     | Not Supported | Supported       | Supported     |
-| Concat                         | Supported     |Supported\*\*\*| Supported     | Supported     | Supported       | Supported     |
-| Const                          | Supported     | Supported     | Supported     | Supported     | Supported       | Not Supported |
-| Convolution-Dilated            | Supported     | Supported     | Supported     | Not Supported | Supported       | Supported     |
-| Convolution-Dilated 3D         | Supported     | Supported     | Not Supported | Not Supported | Not Supported   | Not Supported |
-| Convolution-Grouped            | Supported     | Supported     | Supported     | Not Supported | Supported       | Supported     |
-| Convolution-Grouped 3D         | Supported     | Supported     | Not Supported | Not Supported | Not Supported   | Not Supported |
-| Convolution-Ordinary           | Supported     | Supported     | Supported     | Supported\*   | Supported       | Supported     |
-| Convolution-Ordinary 3D        | Supported     | Supported     | Not Supported | Not Supported | Not Supported   | Not Supported |
-| Cos                            | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*| Supported     |
-| Cosh                           | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*| Supported     |
-| Crop                           | Supported     | Supported     | Supported     | Supported     | Not Supported   | Supported     |
-| CTCGreedyDecoder               | Supported\*\* | Supported\*\* | Supported\*   | Not Supported |Supported\*\*\*\*| Supported     |
-| Deconvolution                  | Supported     | Supported     | Supported     | Not Supported | Not Supported   | Supported     |
-| Deconvolution 3D               | Supported     | Supported     | Not Supported | Not Supported | Not Supported   | Not Supported |
-| DeformableConvolution          | Supported     | Supported     | Not Supported | Not Supported | Not Supported   | Supported     |
-| DepthToSpace                   | Supported     | Supported\*\* | Not Supported | Not Supported | Supported\*     | Supported     |
-| DetectionOutput                | Supported     | Supported\*\* | Supported\*   | Not Supported |Supported\*\*\*\*| Supported     |
-| Eltwise-And                    | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       | Supported     |
-| Eltwise-Add                    | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       | Supported     |
-| Eltwise-Div                    | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       | Supported     |
-| Eltwise-Equal                  | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported\*     | Supported     |
-| Eltwise-FloorMod               | Supported     |Supported\*\*\*| Supported     | Not Supported |Supported\*\*\*\*| Supported     |
-| Eltwise-Greater                | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       | Supported     |
-| Eltwise-GreaterEqual           | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       | Supported     |
-| Eltwise-Less                   | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported\*     | Supported     |
-| Eltwise-LessEqual              | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported\*     | Supported     |
-| Eltwise-LogicalAnd             | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       | Supported     |
-| Eltwise-LogicalOr              | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       | Supported     |
-| Eltwise-LogicalXor             | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       | Supported     |
-| Eltwise-Max                    | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       | Supported     |
-| Eltwise-Min                    | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       | Supported     |
-| Eltwise-Mul                    | Supported     |Supported\*\*\*| Supported     | Supported     | Supported       | Supported     |
-| Eltwise-NotEqual               | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported\*     | Supported     |
-| Eltwise-Pow                    | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       | Supported     |
-| Eltwise-Prod                   | Supported     |Supported\*\*\*| Supported     | Supported     | Not Supported   | Supported     |
-| Eltwise-SquaredDiff            | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       | Supported     |
-| Eltwise-Sub                    | Supported     |Supported\*\*\*| Supported     | Supported     | Supported       | Supported     |
-| Eltwise-Sum                    | Supported     |Supported\*\*\*| Supported     | Supported     |Supported\*\*\*\*| Supported     |
-| Erf                            | Supported     | Supported\*\* | Supported     | Not Supported |Supported\*\*\*\*| Supported     |
-| Exp                            | Supported     | Supported     | Supported     | Supported     | Supported       | Supported     |
-| FakeQuantize                   | Not Supported | Supported     | Not Supported | Not Supported | Supported\*     | Supported     |
-| Fill                           | Not Supported | Supported\*\* | Not Supported | Not Supported | Not Supported   | Supported     |
-| Flatten                        | Supported     | Supported     | Supported     | Not Supported | Not Supported   | Supported     |
-| Floor                          | Supported     | Supported\*\* | Supported     | Not Supported | Supported       | Supported     |
-| FullyConnected (Inner Product) | Supported     |Supported\*\*\*| Supported     | Supported     | Supported       | Supported     |
-| Gather                         | Supported     | Supported\*\* | Supported     | Not Supported | Supported\*     | Supported     |
-| GatherTree                     | Not Supported | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*| Supported     |
-| Gemm                           | Supported     | Supported     | Supported     | Not Supported | Not Supported   | Supported     |
-| GRN                            | Supported\*\* | Supported\*\* | Supported     | Not Supported | Supported       | Supported     |
-| HardSigmoid                    | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*| Supported     |
-| Interp                         | Supported\*\* | Supported\*\* | Supported     | Not Supported | Supported\*     | Supported\*   |
-| Log                            | Supported     | Supported\*\* | Supported     | Supported     | Supported       | Supported     |
-| LRN (Norm)                     | Supported     | Supported     | Supported     | Not Supported | Supported\*     | Supported     |
-| LSTMCell                       | Supported     | Supported     | Supported     | Supported     | Supported       | Not Supported |
-| GRUCell                        | Supported     | Supported     | Not Supported | Not Supported | Supported       | Not Supported |
-| RNNCell                        | Supported     | Supported     | Not Supported | Not Supported | Supported       | Not Supported |
-| LSTMSequence                   | Supported     | Supported     | Supported     | Not Supported |Supported\*\*\*\*| Not Supported |
-| GRUSequence                    | Supported     | Supported     | Not Supported | Not Supported |Supported\*\*\*\*| Not Supported |
-| RNNSequence                    | Supported     | Supported     | Not Supported | Not Supported |Supported\*\*\*\*| Not Supported |
-| LogSoftmax                     | Supported     | Supported\*\* | Not Supported | Not Supported | Supported       | Not Supported |
-| Memory                         | Not Supported | Supported     | Not Supported | Supported     | Not Supported   | Supported     |
-| MVN                            | Supported     | Supported\*\* | Supported\*   | Not Supported | Supported\*     | Supported     |
-| Neg                            | Supported     | Supported\*\* | Not Supported | Not Supported | Supported       | Supported     |
-| NonMaxSuppression              | Not Supported | Supported\*\* | Supported     | Not Supported |Supported\*\*\*\*| Supported     |
-| Normalize                      | Supported     | Supported\*\* | Supported\*   | Not Supported | Supported\*     | Supported     |
-| OneHot                         | Supported     | Supported\*\* | Supported     | Not Supported |Supported\*\*\*\*| Supported     |
-| Pad                            | Supported     | Supported\*\* | Supported\*   | Not Supported | Supported\*     | Supported     |
-| Permute                        | Supported     | Supported     | Supported     | Supported\*   | Not Supported   | Supported     |
-| Pooling(AVG,MAX)               | Supported     | Supported     | Supported     | Supported     | Supported       | Supported     |
-| Pooling(AVG,MAX) 3D            | Supported     | Supported     | Not Supported | Not Supported | Supported\*     | Not Supported |
-| Power                          | Supported     | Supported\*\* | Supported     | Supported\*   | Supported       | Supported     |
-| PowerFile                      | Not Supported | Supported\*\* | Not Supported | Not Supported | Not Supported   | Not Supported |
-| PriorBox                       | Supported     | Supported\*\* | Supported     | Not Supported | Supported       | Supported     |
-| PriorBoxClustered              | Supported\*\* | Supported\*\* | Supported     | Not Supported | Supported       | Supported     |
-| Proposal                       | Supported     | Supported\*\* | Supported     | Not Supported |Supported\*\*\*\*| Supported     |
-| PSROIPooling                   | Supported     | Supported\*\* | Supported     | Not Supported |Supported\*\*\*\*| Supported     |
-| Range                          | Not Supported | Supported\*\* | Not Supported | Not Supported | Not Supported   | Supported     |
-| Reciprocal                     | Supported     | Supported\*\* | Not Supported | Not Supported | Not Supported   | Supported     |
-| ReduceAnd                      | Supported     | Supported\*\* | Supported     | Not Supported |Supported\*\*\*\*| Supported     |
-| ReduceL1                       | Supported     | Supported\*\* | Not Supported | Not Supported | Supported       | Supported     |
-| ReduceL2                       | Supported     | Supported\*\* | Not Supported | Not Supported | Supported       | Supported     |
-| ReduceLogSum                   | Supported     | Supported\*\* | Not Supported | Not Supported | Supported       | Supported     |
-| ReduceLogSumExp                | Supported     | Supported\*\* | Not Supported | Not Supported | Not Supported   | Supported     |
-| ReduceMax                      | Supported     | Supported\*\* | Supported     | Not Supported | Supported       | Supported     |
-| ReduceMean                     | Supported     | Supported\*\* | Supported     | Not Supported | Supported       | Supported     |
-| ReduceMin                      | Supported     | Supported\*\* | Supported     | Not Supported | Supported       | Supported     |
-| ReduceOr                       | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*| Supported     |
-| ReduceProd                     | Supported     | Supported\*\* | Not Supported | Not Supported | Supported       | Supported     |
-| ReduceSum                      | Supported     | Supported\*\* | Supported     | Not Supported | Supported       | Supported     |
-| ReduceSumSquare                | Supported     | Supported\*\* | Not Supported | Not Supported | Not Supported   | Supported     |
-| RegionYolo                     | Supported     | Supported\*\* | Supported     | Not Supported |Supported\*\*\*\*| Supported     |
-| ReorgYolo                      | Supported     | Supported\*\* | Supported     | Not Supported | Supported       | Supported     |
-| Resample                       | Supported     | Supported\*\* | Supported     | Not Supported | Not Supported   | Supported     |
-| Reshape                        | Supported     |Supported\*\*\*| Supported     | Supported     | Supported       | Supported\*   |
-| ReverseSequence                | Supported     | Supported\*\* | Supported     | Not Supported |Supported\*\*\*\*| Supported     |
-| RNN                            | Not Supported | Supported     | Supported     | Not Supported | Supported       | Not Supported |
-| ROIPooling                     | Supported\*   | Supported     | Supported     | Not Supported |Supported\*\*\*\*| Supported     |
-| ScaleShift                     | Supported     |Supported\*\*\*| Supported\*   | Supported     | Not Supported   | Supported     |
-| ScatterUpdate                  | Not Supported | Supported\*\* | Supported     | Not Supported | Not Supported   | Supported     |
-| Select                         | Supported     | Supported     | Supported     | Not Supported | Supported       | Supported     |
-| Selu                           | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*| Supported     |
-| ShuffleChannels                | Supported     | Supported\*\* | Not Supported | Not Supported | Supported       | Supported     |
-| Sign                           | Supported     | Supported\*\* | Supported     | Not Supported | Supported       | Supported     |
-| Sin                            | Supported     | Supported\*\* | Not Supported | Not Supported | Supported       | Supported     |
-| Sinh                           | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*| Supported     |
-| SimplerNMS                     | Supported     | Supported\*\* | Not Supported | Not Supported | Not Supported   | Supported     |
-| Slice                          | Supported     |Supported\*\*\*| Supported     | Supported     | Not Supported   | Supported     |
-| SoftMax                        | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       | Supported     |
-| Softplus                       | Supported     | Supported\*\* | Supported     | Not Supported | Supported       | Supported     |
-| Softsign                       | Supported     | Supported\*\* | Not Supported | Supported     | Not Supported   | Supported     |
-| SpaceToDepth                   | Not Supported | Supported\*\* | Not Supported | Not Supported | Supported\*     | Supported     |
-| SpatialTransformer             | Not Supported | Supported\*\* | Not Supported | Not Supported | Not Supported   | Supported     |
-| Split                          | Supported     |Supported\*\*\*| Supported     | Supported     | Supported       | Supported     |
-| Squeeze                        | Supported     | Supported\*\* | Supported     | Supported     | Supported       | Supported     |
-| StridedSlice                   | Supported     | Supported\*\* | Supported     | Not Supported | Supported\*     | Supported     |
-| Tan                            | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*| Supported     |
-| TensorIterator                 | Not Supported | Supported     | Supported     | Supported     | Supported       | Not Supported |
-| Tile                           | Supported\*\* |Supported\*\*\*| Supported     | Not Supported | Supported       | Supported     |
-| TopK                           | Supported     | Supported\*\* | Supported     | Not Supported |Supported\*\*\*\*| Supported     |
-| Unpooling                      | Supported     | Not Supported | Not Supported | Not Supported | Not Supported   | Not Supported |
-| Unsqueeze                      | Supported     | Supported\*\* | Supported     | Supported     | Supported       | Supported     |
-| Upsampling                     | Supported     | Not Supported | Not Supported | Not Supported | Not Supported   | Not Supported |
+| Layers                         | GPU           | CPU           | VPU           | GNA           | Arm® CPU    |
+|:-------------------------------|:-------------:|:-------------:|:-------------:|:-------------:|:---------------:|
+| Abs                            | Supported     | Supported\*\* | Supported     | Not Supported | Supported       |
+| Acos                           | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*|
+| Acosh                          | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*|
+| Activation-Clamp               | Supported     |Supported\*\*\*| Supported     | Supported     | Supported       |
+| Activation-ELU                 | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       |
+| Activation-Exp                 | Supported     |Supported\*\*\*| Supported     | Supported     | Supported       |
+| Activation-Leaky ReLU          | Supported     |Supported\*\*\*| Supported     | Supported     | Not Supported   |
+| Activation-Not                 | Supported     |Supported\*\*\*| Supported     | Not Supported | Not Supported   |
+| Activation-PReLU               | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       |
+| Activation-ReLU                | Supported     |Supported\*\*\*| Supported     | Supported     | Supported       |
+| Activation-ReLU6               | Supported     |Supported\*\*\*| Supported     | Not Supported | Not Supported   |
+| Activation-Sigmoid/Logistic    | Supported     |Supported\*\*\*| Supported     | Supported     | Supported       |
+| Activation-TanH                | Supported     |Supported\*\*\*| Supported     | Supported     | Supported       |
+| ArgMax                         | Supported     | Supported\*\* | Supported     | Not Supported | Not Supported   |
+| Asin                           | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*|
+| Asinh                          | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*|
+| Atan                           | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*|
+| Atanh                          | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*|
+| BatchNormalization             | Supported     | Supported     | Supported     | Not Supported | Supported       |
+| BinaryConvolution              | Supported     | Supported     | Not Supported | Not Supported | Not Supported   |
+| Broadcast                      | Supported     | Supported\*\* | Supported     | Not Supported | Supported       |
+| Ceil                           | Supported     | Supported\*\* | Supported     | Not Supported | Supported       |
+| Concat                         | Supported     |Supported\*\*\*| Supported     | Supported     | Supported       |
+| Const                          | Supported     | Supported     | Supported     | Supported     | Supported       |
+| Convolution-Dilated            | Supported     | Supported     | Supported     | Not Supported | Supported       |
+| Convolution-Dilated 3D         | Supported     | Supported     | Not Supported | Not Supported | Not Supported   |
+| Convolution-Grouped            | Supported     | Supported     | Supported     | Not Supported | Supported       |
+| Convolution-Grouped 3D         | Supported     | Supported     | Not Supported | Not Supported | Not Supported   |
+| Convolution-Ordinary           | Supported     | Supported     | Supported     | Supported\*   | Supported       |
+| Convolution-Ordinary 3D        | Supported     | Supported     | Not Supported | Not Supported | Not Supported   |
+| Cos                            | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*|
+| Cosh                           | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*|
+| Crop                           | Supported     | Supported     | Supported     | Supported     | Not Supported   |
+| CTCGreedyDecoder               | Supported\*\* | Supported\*\* | Supported\*   | Not Supported |Supported\*\*\*\*|
+| Deconvolution                  | Supported     | Supported     | Supported     | Not Supported | Not Supported   |
+| Deconvolution 3D               | Supported     | Supported     | Not Supported | Not Supported | Not Supported   |
+| DeformableConvolution          | Supported     | Supported     | Not Supported | Not Supported | Not Supported   |
+| DepthToSpace                   | Supported     | Supported\*\* | Not Supported | Not Supported | Supported\*     |
+| DetectionOutput                | Supported     | Supported\*\* | Supported\*   | Not Supported |Supported\*\*\*\*|
+| Eltwise-And                    | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       |
+| Eltwise-Add                    | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       |
+| Eltwise-Div                    | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       |
+| Eltwise-Equal                  | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported\*     |
+| Eltwise-FloorMod               | Supported     |Supported\*\*\*| Supported     | Not Supported |Supported\*\*\*\*|
+| Eltwise-Greater                | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       |
+| Eltwise-GreaterEqual           | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       |
+| Eltwise-Less                   | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported\*     |
+| Eltwise-LessEqual              | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported\*     |
+| Eltwise-LogicalAnd             | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       |
+| Eltwise-LogicalOr              | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       |
+| Eltwise-LogicalXor             | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       |
+| Eltwise-Max                    | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       |
+| Eltwise-Min                    | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       |
+| Eltwise-Mul                    | Supported     |Supported\*\*\*| Supported     | Supported     | Supported       |
+| Eltwise-NotEqual               | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported\*     |
+| Eltwise-Pow                    | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       |
+| Eltwise-Prod                   | Supported     |Supported\*\*\*| Supported     | Supported     | Not Supported   |
+| Eltwise-SquaredDiff            | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       |
+| Eltwise-Sub                    | Supported     |Supported\*\*\*| Supported     | Supported     | Supported       |
+| Eltwise-Sum                    | Supported     |Supported\*\*\*| Supported     | Supported     |Supported\*\*\*\*|
+| Erf                            | Supported     | Supported\*\* | Supported     | Not Supported |Supported\*\*\*\*|
+| Exp                            | Supported     | Supported     | Supported     | Supported     | Supported       |
+| FakeQuantize                   | Not Supported | Supported     | Not Supported | Not Supported | Supported\*     |
+| Fill                           | Not Supported | Supported\*\* | Not Supported | Not Supported | Not Supported   |
+| Flatten                        | Supported     | Supported     | Supported     | Not Supported | Not Supported   |
+| Floor                          | Supported     | Supported\*\* | Supported     | Not Supported | Supported       |
+| FullyConnected (Inner Product) | Supported     |Supported\*\*\*| Supported     | Supported     | Supported       |
+| Gather                         | Supported     | Supported\*\* | Supported     | Not Supported | Supported\*     |
+| GatherTree                     | Not Supported | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*|
+| Gemm                           | Supported     | Supported     | Supported     | Not Supported | Not Supported   |
+| GRN                            | Supported\*\* | Supported\*\* | Supported     | Not Supported | Supported       |
+| HardSigmoid                    | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*|
+| Interp                         | Supported\*\* | Supported\*\* | Supported     | Not Supported | Supported\*     |
+| Log                            | Supported     | Supported\*\* | Supported     | Supported     | Supported       |
+| LRN (Norm)                     | Supported     | Supported     | Supported     | Not Supported | Supported\*     |
+| LSTMCell                       | Supported     | Supported     | Supported     | Supported     | Supported       |
+| GRUCell                        | Supported     | Supported     | Not Supported | Not Supported | Supported       |
+| RNNCell                        | Supported     | Supported     | Not Supported | Not Supported | Supported       |
+| LSTMSequence                   | Supported     | Supported     | Supported     | Not Supported |Supported\*\*\*\*|
+| GRUSequence                    | Supported     | Supported     | Not Supported | Not Supported |Supported\*\*\*\*|
+| RNNSequence                    | Supported     | Supported     | Not Supported | Not Supported |Supported\*\*\*\*|
+| LogSoftmax                     | Supported     | Supported\*\* | Not Supported | Not Supported | Supported       |
+| Memory                         | Not Supported | Supported     | Not Supported | Supported     | Not Supported   |
+| MVN                            | Supported     | Supported\*\* | Supported\*   | Not Supported | Supported\*     |
+| Neg                            | Supported     | Supported\*\* | Not Supported | Not Supported | Supported       |
+| NonMaxSuppression              | Not Supported | Supported\*\* | Supported     | Not Supported |Supported\*\*\*\*|
+| Normalize                      | Supported     | Supported\*\* | Supported\*   | Not Supported | Supported\*     |
+| OneHot                         | Supported     | Supported\*\* | Supported     | Not Supported |Supported\*\*\*\*|
+| Pad                            | Supported     | Supported\*\* | Supported\*   | Not Supported | Supported\*     |
+| Permute                        | Supported     | Supported     | Supported     | Supported\*   | Not Supported   |
+| Pooling(AVG,MAX)               | Supported     | Supported     | Supported     | Supported     | Supported       |
+| Pooling(AVG,MAX) 3D            | Supported     | Supported     | Not Supported | Not Supported | Supported\*     |
+| Power                          | Supported     | Supported\*\* | Supported     | Supported\*   | Supported       |
+| PowerFile                      | Not Supported | Supported\*\* | Not Supported | Not Supported | Not Supported   |
+| PriorBox                       | Supported     | Supported\*\* | Supported     | Not Supported | Supported       |
+| PriorBoxClustered              | Supported\*\* | Supported\*\* | Supported     | Not Supported | Supported       |
+| Proposal                       | Supported     | Supported\*\* | Supported     | Not Supported |Supported\*\*\*\*|
+| PSROIPooling                   | Supported     | Supported\*\* | Supported     | Not Supported |Supported\*\*\*\*|
+| Range                          | Not Supported | Supported\*\* | Not Supported | Not Supported | Not Supported   |
+| Reciprocal                     | Supported     | Supported\*\* | Not Supported | Not Supported | Not Supported   |
+| ReduceAnd                      | Supported     | Supported\*\* | Supported     | Not Supported |Supported\*\*\*\*|
+| ReduceL1                       | Supported     | Supported\*\* | Not Supported | Not Supported | Supported       |
+| ReduceL2                       | Supported     | Supported\*\* | Not Supported | Not Supported | Supported       |
+| ReduceLogSum                   | Supported     | Supported\*\* | Not Supported | Not Supported | Supported       |
+| ReduceLogSumExp                | Supported     | Supported\*\* | Not Supported | Not Supported | Not Supported   |
+| ReduceMax                      | Supported     | Supported\*\* | Supported     | Not Supported | Supported       |
+| ReduceMean                     | Supported     | Supported\*\* | Supported     | Not Supported | Supported       |
+| ReduceMin                      | Supported     | Supported\*\* | Supported     | Not Supported | Supported       |
+| ReduceOr                       | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*|
+| ReduceProd                     | Supported     | Supported\*\* | Not Supported | Not Supported | Supported       |
+| ReduceSum                      | Supported     | Supported\*\* | Supported     | Not Supported | Supported       |
+| ReduceSumSquare                | Supported     | Supported\*\* | Not Supported | Not Supported | Not Supported   |
+| RegionYolo                     | Supported     | Supported\*\* | Supported     | Not Supported |Supported\*\*\*\*|
+| ReorgYolo                      | Supported     | Supported\*\* | Supported     | Not Supported | Supported       |
+| Resample                       | Supported     | Supported\*\* | Supported     | Not Supported | Not Supported   |
+| Reshape                        | Supported     |Supported\*\*\*| Supported     | Supported     | Supported       |
+| ReverseSequence                | Supported     | Supported\*\* | Supported     | Not Supported |Supported\*\*\*\*|
+| RNN                            | Not Supported | Supported     | Supported     | Not Supported | Supported       |
+| ROIPooling                     | Supported\*   | Supported     | Supported     | Not Supported |Supported\*\*\*\*|
+| ScaleShift                     | Supported     |Supported\*\*\*| Supported\*   | Supported     | Not Supported   |
+| ScatterUpdate                  | Not Supported | Supported\*\* | Supported     | Not Supported | Not Supported   |
+| Select                         | Supported     | Supported     | Supported     | Not Supported | Supported       |
+| Selu                           | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*|
+| ShuffleChannels                | Supported     | Supported\*\* | Not Supported | Not Supported | Supported       |
+| Sign                           | Supported     | Supported\*\* | Supported     | Not Supported | Supported       |
+| Sin                            | Supported     | Supported\*\* | Not Supported | Not Supported | Supported       |
+| Sinh                           | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*|
+| SimplerNMS                     | Supported     | Supported\*\* | Not Supported | Not Supported | Not Supported   |
+| Slice                          | Supported     |Supported\*\*\*| Supported     | Supported     | Not Supported   |
+| SoftMax                        | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       |
+| Softplus                       | Supported     | Supported\*\* | Supported     | Not Supported | Supported       |
+| Softsign                       | Supported     | Supported\*\* | Not Supported | Supported     | Not Supported   |
+| SpaceToDepth                   | Not Supported | Supported\*\* | Not Supported | Not Supported | Supported\*     |
+| SpatialTransformer             | Not Supported | Supported\*\* | Not Supported | Not Supported | Not Supported   |
+| Split                          | Supported     |Supported\*\*\*| Supported     | Supported     | Supported       |
+| Squeeze                        | Supported     | Supported\*\* | Supported     | Supported     | Supported       |
+| StridedSlice                   | Supported     | Supported\*\* | Supported     | Not Supported | Supported\*     |
+| Tan                            | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*|
+| TensorIterator                 | Not Supported | Supported     | Supported     | Supported     | Supported       |
+| Tile                           | Supported\*\* |Supported\*\*\*| Supported     | Not Supported | Supported       |
+| TopK                           | Supported     | Supported\*\* | Supported     | Not Supported |Supported\*\*\*\*|
+| Unpooling                      | Supported     | Not Supported | Not Supported | Not Supported | Not Supported   |
+| Unsqueeze                      | Supported     | Supported\*\* | Supported     | Supported     | Supported       |
+| Upsampling                     | Supported     | Not Supported | Not Supported | Not Supported | Not Supported   |
 
 \*- support is limited to the specific parameters. Refer to "Known Layers Limitation" section for the device [from the list of supported](Supported_Devices.md).
 
