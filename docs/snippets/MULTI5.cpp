@@ -1,15 +1,11 @@
-#include <ie_core.hpp>
+#include <openvino/openvino.hpp>
 
 int main() {
-std::string device_name = "MULTI:HDDL,GPU";
-const std::map< std::string, std::string > full_config = {};
 //! [part5]
-InferenceEngine::Core ie; 
-InferenceEngine::CNNNetwork cnnNetwork = ie.ReadNetwork("sample.xml");
-// 'device_name' can be "MULTI:HDDL,GPU" to configure the multi-device to use HDDL and GPU
-InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, device_name, full_config);
-// new metric allows to query the optimal number of requests:
-uint32_t nireq = exeNetwork.GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
+ov::Core core;
+ov::CompiledModel compileModel = core.compile_model("sample.xml", "MULTI:HDDL,GPU");
+// query the optimal number of requests
+uint32_t nireq = compileModel.get_property(ov::optimal_number_of_infer_requests);
 //! [part5]
 return 0;
 }
