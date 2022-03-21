@@ -183,12 +183,12 @@ To deploy the OpenVINO Runtime components from the development machine to the ta
      
 @endsphinxdirective
 
-The package is unpacked to the destination directory and the following files and subdirectories are created:
-   
-   * `setupvars.sh` — Copy of `setupvars.sh`
-   * `runtime` — Contains the OpenVINO runtime binary files.
-   * `install_dependencies` — Snapshot of the `install_dependencies` directory from the OpenVINO installation directory.
-   * `<user_data>` — The directory with the user data (IRs, datasets, etc.) you specified while configuring the package.
+   The package is unpacked to the destination directory and the following files and subdirectories are created:
+      
+      * `setupvars.sh` — Copy of `setupvars.sh`
+      * `runtime` — Contains the OpenVINO runtime binary files.
+      * `install_dependencies` — Snapshot of the `install_dependencies` directory from the OpenVINO installation directory.
+      * `<user_data>` — The directory with the user data (IRs, datasets, etc.) you specified while configuring the package.
 
 3. For Linux, to run inference on a target Intel® GPU, Intel® Movidius™ VPU, or Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, you need to install additional dependencies by running the `install_openvino_dependencies.sh` script on the target machine:
 
