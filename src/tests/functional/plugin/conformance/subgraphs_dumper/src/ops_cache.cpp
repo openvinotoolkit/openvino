@@ -15,16 +15,17 @@ using namespace SubgraphsDumper;
 
 void OPCache::update_ops_cache(const std::shared_ptr<ov::Node> &op,
                                const std::string &source_model) {
-    const bool op_found = [&] {
+    const std::shared_ptr<ov::Node> cachedOp = [&] {
         for (auto &&it : m_ops_cache) {
             if (manager.match_any(it.first, op, it.second)) {
                 it.second.found_in_models[source_model] += 1;
-                return true;
+                return it.first;
             }
         }
-        return false;
+        return std::shared_ptr<ov::Node>{};
     }();
-    if (!op_found) {
+
+    auto saveOpToCash = [&] {
         const auto &clone_fn = SubgraphsDumper::ClonersMap::cloners.at(op->get_type_info());
         LayerTestsUtils::OPInfo meta(source_model);
         try {
@@ -36,6 +37,23 @@ void OPCache::update_ops_cache(const std::shared_ptr<ov::Node> &op,
             m_ops_cache.insert({op_clone, meta});
         } catch (std::exception &e) {
             std::cout << e.what() << std::endl;
+        }
+    };
+
+    if (!cachedOp.get()) {
+        saveOpToCash();
+    } else {
+        for (int i = 0; i < op->get_input_size(); i++) {
+            auto shape = op->get_input_shape(i);
+            unsigned long shapeSize = ov::shape_size(shape) * op->get_element_type().size();
+
+            auto cachedOpShape = cachedOp->get_input_shape(i);
+            unsigned long cachedOpShapeSize = ov::shape_size(cachedOpShape) * cachedOp->get_element_type().size();
+
+            if (shapeSize < cachedOpShapeSize) {
+                m_ops_cache.erase(cachedOp);
+                saveOpToCash();
+            }
         }
     }
 }
