@@ -49,6 +49,7 @@ class SwitchMergeOptimization(FrontReplacementSubgraph):
     enabled = True
 
     def find_and_replace_pattern(self, graph: Graph):
+        return
         for merge in graph.get_op_nodes(op='Merge'):
             for merge_switch_in_port in range(2):
                 if merge.in_port(merge_switch_in_port).disconnected() or \

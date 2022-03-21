@@ -8,7 +8,7 @@ from openvino.tools.mo.front.common.partial_infer.utils import int64_array, is_f
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.middle.passes.infer import partial_infer
 from openvino.tools.mo.ops.op import Op
-
+from openvino.tools.mo.utils.graph import node_incoming_neighbourhood
 
 class If(Op):
     """
@@ -28,6 +28,8 @@ class If(Op):
             'version': 'opset8',
             'infer': self.infer,
             'type_infer': self.type_infer,
+            'in_ports_count': 1,
+            'out_ports_count': 1,
         }
         base_attrs.update(attrs)
         super().__init__(graph, base_attrs, attrs)
@@ -137,7 +139,7 @@ class If(Op):
                 .format(output_node.name, port_id)
             outputs_mapping[port_id][branch_name] = output_node
             out_node_shape = output_node.in_port(0).data.get_shape()
-            graph_contain_fake_outputs = graph_contain_fake_outputs and np.any(out_node_shape == 0)
+            graph_contain_fake_outputs = graph_contain_fake_outputs and np.any(out_node_shape == 0).astype(dtype=np.bool)
         return graph_contain_fake_outputs
 
     @staticmethod
