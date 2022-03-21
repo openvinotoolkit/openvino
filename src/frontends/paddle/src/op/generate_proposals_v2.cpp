@@ -54,9 +54,7 @@ NamedOutputs generate_proposals_v2(const NodeContext& node) {
     auto partial_anchors_shape = std::make_shared<default_opset::Gather>(scores_shape, gather_indices, gather_axis);
     auto const_4 = default_opset::Constant::create<int64_t>(ov::element::i64, {1}, {4});
     auto anchors_shape = std::make_shared<default_opset::Concat>(OutputVector{partial_anchors_shape, const_4}, 0);
-    auto dim4_anchor = std::make_shared<default_opset::Reshape>(anchors, anchors_shape, true);
-
-    auto reshaped_anchors = std::make_shared<default_opset::Reshape>(anchors, dim4_anchor, true);
+    auto reshaped_anchors = std::make_shared<default_opset::Reshape>(anchors, anchors_shape, true);
 
     auto variances_bbox_deltas = single_bbox_deltas;
     if (variances.get_node()) {
