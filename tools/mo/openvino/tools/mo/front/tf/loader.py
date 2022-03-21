@@ -210,9 +210,9 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
         if not graph_file_name and meta_graph_file:
             meta_graph_file = deducing_metagraph_path(meta_graph_file)
             input_meta_graph_def = read_file_to_graph_def(tf_v1.MetaGraphDef(), meta_graph_file, is_binary)
-            for n in range(len(input_meta_graph_def.graph_def.node)):
-                if '_output_shapes' in input_meta_graph_def.graph_def.node[n].attr:
-                    del input_meta_graph_def.graph_def.node[n].attr['_output_shapes']
+            for node in input_meta_graph_def.graph_def.node:
+                if '_output_shapes' in node.attr:
+                    del node.attr['_output_shapes']
             # pylint: disable=no-member
             with tf_v1.Session() as sess:
                 restorer = tf_v1.train.import_meta_graph(input_meta_graph_def)
