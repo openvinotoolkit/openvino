@@ -18,19 +18,19 @@
 namespace ov {
 namespace intel_cpu {
 
-void MKLDNNExtension::GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept {
+void Extension::GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept {
     static const InferenceEngine::Version version = {
         {1, 0},             // extension API version
         "1.0",
-        "MKLDNNExtension"   // extension description message
+        "Extension"   // extension description message
     };
 
     versionInfo = &version;
 }
 
-void MKLDNNExtension::Unload() noexcept {}
+void Extension::Unload() noexcept {}
 
-std::map<std::string, ngraph::OpSet> MKLDNNExtension::getOpSets() {
+std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
     auto cpu_plugin_opset = []() {
         ngraph::OpSet opset;
 
@@ -119,11 +119,11 @@ std::map<std::string, ngraph::OpSet> MKLDNNExtension::getOpSets() {
     return opsets;
 }
 
-std::vector<std::string> MKLDNNExtension::getImplTypes(const std::shared_ptr<ngraph::Node>&) {
+std::vector<std::string> Extension::getImplTypes(const std::shared_ptr<ngraph::Node>&) {
     return {};
 }
 
-InferenceEngine::ILayerImpl::Ptr MKLDNNExtension::getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) {
+InferenceEngine::ILayerImpl::Ptr Extension::getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) {
     return nullptr;
 }
 
@@ -131,4 +131,4 @@ InferenceEngine::ILayerImpl::Ptr MKLDNNExtension::getImplementation(const std::s
 }   // namespace ov
 
 // Generate exported function
-IE_DEFINE_EXTENSION_CREATE_FUNCTION(ov::intel_cpu::MKLDNNExtension)
+IE_DEFINE_EXTENSION_CREATE_FUNCTION(ov::intel_cpu::Extension)

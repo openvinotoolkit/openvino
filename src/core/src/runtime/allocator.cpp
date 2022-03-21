@@ -19,11 +19,11 @@ struct DeafaultAllocator {
 #if defined(_WIN32)
             return _aligned_malloc(bytes, alignment);
 #else
-            void* ret = nullptr;
-            if (posix_memalign(&ret, std::max(sizeof(void*), alignment), bytes) != 0) {
+            void* result = nullptr;
+            if (posix_memalign(&result, std::max(sizeof(void*), alignment), bytes) != 0) {
                 OPENVINO_UNREACHABLE("posix_memalign failed");
             }
-            return ret;
+            return result;
 #endif
         }
     }
