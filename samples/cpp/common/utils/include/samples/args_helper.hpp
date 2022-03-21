@@ -90,7 +90,6 @@ void printInputAndOutputsInfoShort(const T& network) {
                 out_name += name + " , ";
             }
             out_name = out_name.substr(0, out_name.size() - 3);
-
         } catch (const ov::Exception&) {
         }
         try {
