@@ -1150,12 +1150,12 @@ TEST(reorder_gpu_f32, basic_bfyx_to_bfzyx)
 
     auto output = outputs.begin()->second.get_memory();
     EXPECT_TRUE(output->get_layout().format == format::bfzyx);
-    auto sizes = output->get_layout().size;
-    EXPECT_TRUE(sizes.batch[0] == 2);
-    EXPECT_TRUE(sizes.feature[0] == 2);
-    EXPECT_TRUE(sizes.spatial[0] == 2);
-    EXPECT_TRUE(sizes.spatial[1] == 2);
-    EXPECT_TRUE(sizes.spatial[2] == 1);
+    auto l = output->get_layout();
+    EXPECT_TRUE(l.batch() == 2);
+    EXPECT_TRUE(l.feature() == 2);
+    EXPECT_TRUE(l.spatial(0) == 2);
+    EXPECT_TRUE(l.spatial(1) == 2);
+    EXPECT_TRUE(l.spatial(2) == 1);
 
     float answers[16] = {
         1.f, 0.f,
@@ -1214,12 +1214,12 @@ TEST(reorder_gpu_f32, basic_yxfb_to_bfzyx)
 
     auto output = outputs.begin()->second.get_memory();
     EXPECT_TRUE(output->get_layout().format == format::bfzyx);
-    auto sizes = output->get_layout().size;
-    EXPECT_TRUE(sizes.batch[0] == 2);
-    EXPECT_TRUE(sizes.feature[0] == 2);
-    EXPECT_TRUE(sizes.spatial[0] == 2);
-    EXPECT_TRUE(sizes.spatial[1] == 2);
-    EXPECT_TRUE(sizes.spatial[2] == 1);
+    auto l = output->get_layout();
+    EXPECT_TRUE(l.batch() == 2);
+    EXPECT_TRUE(l.feature() == 2);
+    EXPECT_TRUE(l.spatial(0) == 2);
+    EXPECT_TRUE(l.spatial(1) == 2);
+    EXPECT_TRUE(l.spatial(2) == 1);
 
     float answers[16] = {
         1.0f,  2.0f,
@@ -1290,12 +1290,12 @@ TEST(reorder_gpu_f32, basic_bfzyx_to_bfyx)
 
     auto output = outputs.begin()->second.get_memory();
     EXPECT_TRUE(output->get_layout().format == format::bfyx);
-    auto sizes = output->get_layout().size;
-    EXPECT_TRUE(sizes.batch[0] == 2);
-    EXPECT_TRUE(sizes.feature[0] == 2);
-    EXPECT_TRUE(sizes.spatial[0] == 2);
-    EXPECT_TRUE(sizes.spatial[1] == 4);
-    EXPECT_TRUE(sizes.spatial[2] == 1);
+    auto l = output->get_layout();
+    EXPECT_TRUE(l.batch() == 2);
+    EXPECT_TRUE(l.feature() == 2);
+    EXPECT_TRUE(l.spatial(0) == 2);
+    EXPECT_TRUE(l.spatial(1) == 4);
+    EXPECT_TRUE(l.spatial(2) == 1);
 
     float answers[32] = {
         1.f, 0.f,
@@ -1832,13 +1832,12 @@ TEST(reorder_gpu_f32, bfwzyx_bfyx_chain)
 
     auto output = outputs.begin()->second.get_memory();
     EXPECT_TRUE(output->get_layout().format == format::bfwzyx);
-    auto sizes = output->get_layout().size;
-    EXPECT_EQ(sizes.batch[0], 1);
-    EXPECT_EQ(sizes.feature[0], 4);
-    EXPECT_EQ(sizes.spatial[0], 2);
-    EXPECT_EQ(sizes.spatial[1], 2);
-    EXPECT_EQ(sizes.spatial[2], 1);
-    EXPECT_EQ(sizes.spatial[2], 1);
+    auto l = output->get_layout();
+    EXPECT_EQ(l.batch(), 1);
+    EXPECT_EQ(l.feature(), 4);
+    EXPECT_EQ(l.spatial(0), 2);
+    EXPECT_EQ(l.spatial(1), 2);
+    EXPECT_EQ(l.spatial(2), 1);
 
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     ASSERT_EQ(output_ptr.size(), expected.size());
@@ -2069,7 +2068,7 @@ TEST(reorder_gpu_f32, b_fs_yx_fsv16_to_bfyx_opt_not_allowed)
             input_layout("input", input->get_layout()),
             data("weights", weights),
             reorder(reorder_name, "input", format::bfyx, data_types::f32),
-            convolution("convolution", reorder_name, {"weights"}, { 1, 1, 1, 1 }, { 0, 0, -1, -1 }, { 1, 1, 1, 1 }));
+            convolution("convolution", reorder_name, {"weights"}, { 1, 1 }, { 1, 1 }, { 1, 1 }));
 
     build_options bo;
     bo.set_option(build_option::optimize_data(true));
@@ -2404,8 +2403,8 @@ struct reorder_test_param {
     tensor in_shape;
     tensor out_shape;
     tensor kernel;
-    tensor stride;
-    tensor pad;
+    ov::Strides stride;
+    ov::CoordinateDiff pad;
     data_types data_type;
     format input_format;
     data_types weights_type;
@@ -2478,7 +2477,7 @@ public:
 
     layout get_input_layout(T& p) {
         auto pad = p.pad;
-        std::vector<int> pad_ = { 0, 0, pad.spatial[0], pad.spatial[1] };
+        std::vector<int> pad_ = { 0, 0, static_cast<int>(pad[1]), static_cast<int>(pad[0]) };
         return layout{ p.data_type, p.input_format, p.in_shape, padding{pad_} };
     }
 
@@ -2527,7 +2526,7 @@ TEST_P(testing_removal_reorder, only_remove_reorder_shallow_depth_input) {
         data("bias", get_mem(get_bias_layout(p))),
         data("weights_sec", get_mem(get_weights_layout(p))),
         reorder("reorder_fp32", "input", format::bfyx, data_types::f32),
-        convolution("conv_prim", "reorder_fp32", { "weights" }, { "bias" }, 1, p.stride, p.pad, tensor{1}, p.in_shape, data_types::u8, false),
+        convolution("conv_prim", "reorder_fp32", { "weights" }, { "bias" }, 1, p.stride, p.pad, {1, 1}, p.in_shape, data_types::u8, false),
         reorder("reorder_conv", "conv_prim", reorder_layout),
         convolution("conv_output", "reorder_conv", { "weights_sec" }, 1, p.stride, p.pad),
         reorder("reorder_bfyx", "conv_output", format::b_fs_yx_fsv32, data_types::f32),
@@ -2604,7 +2603,7 @@ TEST_P(testing_removal_reorder, removal_padded_reorder) {
 
 INSTANTIATE_TEST_SUITE_P(reorder_gpu_testing, testing_removal_reorder,
                         ::testing::ValuesIn(std::vector<reorder_test_param>{
-                                            reorder_test_param{{1, 32, 4, 4}, {1, 32, 8, 8}, {1, 1, 1, 1}, tensor{1}, tensor{0},
+                                            reorder_test_param{{1, 32, 4, 4}, {1, 32, 8, 8}, {1, 1, 1, 1}, {1, 1}, {0, 0},
                                                                 data_types::f16, format::bfyx, data_types::f16, format::goiyx, data_types::f16, format::b_fs_yx_fsv16},
                                             }));
 

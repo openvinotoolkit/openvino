@@ -16,13 +16,15 @@
 #include <vector>
 
 using namespace InferenceEngine;
-using namespace ov::intel_cpu;
 using namespace mkldnn;
 using namespace mkldnn::impl::cpu;
 using namespace mkldnn::impl::cpu::x64;
 using namespace mkldnn::impl::utils;
 
 #define GET_OFF(field) offsetof(jit_args_softmax, field)
+
+namespace ov {
+namespace intel_cpu {
 
 struct jit_args_softmax {
     const void* src;
@@ -325,3 +327,6 @@ void SoftmaxGeneric::execute(const uint8_t *src_data, uint8_t *dst_data, int B, 
         IE_THROW() << "Unsupported input precision: " << input_prec.name();
     }
 }
+
+}   // namespace intel_cpu
+}   // namespace ov

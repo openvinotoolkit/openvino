@@ -49,7 +49,6 @@ ov::op::v0::Constant::Constant(const shared_ptr<ngraph::runtime::Tensor>& tensor
         allocate_buffer(false);
         tensor->read(get_data_ptr_nc(), tensor->get_size_in_bytes());
     }
-    m_all_elements_bitwise_identical = are_all_data_elements_bitwise_identical();
     constructor_validate_and_infer_types();
 }
 
@@ -126,7 +125,7 @@ ov::op::v0::Constant::Constant(const element::Type& type,
         case Type_t::dynamic:
             throw std::runtime_error("deserialize unsupported type dynamic");
         }
-        m_all_elements_bitwise_identical = true;
+        update_identical_flags(true, true);
     } else {
         switch (m_element_type) {
         case Type_t::boolean:
@@ -182,7 +181,7 @@ ov::op::v0::Constant::Constant(const element::Type& type,
         case Type_t::dynamic:
             throw std::runtime_error("deserialize unsupported type dynamic");
         }
-        m_all_elements_bitwise_identical = are_all_data_elements_bitwise_identical();
+        update_identical_flags(false, false);
     }
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
@@ -205,16 +204,15 @@ void ov::op::v0::Constant::allocate_buffer(bool memset_allocation) {
 
 ov::op::v0::Constant::Constant(const element::Type& type, const ov::Shape& shape, const void* data)
     : Constant(false, type, shape) {
-    size_t size = ceil(shape_size(m_shape) * m_element_type.bitwidth() / 8.f);
+    size_t size = (shape_size(m_shape) * m_element_type.bitwidth() + 7) >> 3;
     std::memcpy(get_data_ptr_nc(), data, size);
-    m_all_elements_bitwise_identical = are_all_data_elements_bitwise_identical();
 }
 
 ov::op::v0::Constant::Constant(const Constant& other) {
     m_element_type = other.m_element_type;
     m_shape = other.m_shape;
     m_data = other.m_data;
-    m_all_elements_bitwise_identical = other.m_all_elements_bitwise_identical;
+    update_identical_flags(other.m_all_elements_bitwise_identical_checked, other.m_all_elements_bitwise_identical);
     constructor_validate_and_infer_types();
 }
 
@@ -225,7 +223,7 @@ ov::op::v0::Constant::Constant(const Constant& other, const ov::Shape& new_shape
     m_element_type = other.m_element_type;
     m_shape = new_shape;
     m_data = other.m_data;
-    m_all_elements_bitwise_identical = other.m_all_elements_bitwise_identical;
+    update_identical_flags(other.m_all_elements_bitwise_identical_checked, other.m_all_elements_bitwise_identical);
     constructor_validate_and_infer_types();
 }
 
@@ -531,6 +529,11 @@ bool ov::op::v0::Constant::are_all_data_elements_bitwise_identical() const {
     return rc;
 }
 
+void ov::op::v0::Constant::update_identical_flags(bool is_checked, bool identical_value) const {
+    m_all_elements_bitwise_identical_checked = is_checked;
+    m_all_elements_bitwise_identical = identical_value;
+}
+
 bool ov::op::v0::Constant::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v0_Constant_visit_attributes);
     ov::Shape prev_shape = m_shape;
@@ -544,7 +547,7 @@ bool ov::op::v0::Constant::visit_attributes(AttributeVisitor& visitor) {
         allocate_buffer(false);
     }
     visitor.on_attribute("value", m_data);
-    m_all_elements_bitwise_identical = are_all_data_elements_bitwise_identical();
+    update_identical_flags(false, false);
     return true;
 }
 
