@@ -25,7 +25,7 @@ Below you can find summary on the associated tips.
 How the full-stack application uses the inference component _end-to-end_ is also important.  For example, what are the stages that needs to be orchestrated? In some cases a significant part of the workload time is spent on bringing and preparing the input data. Below you can find multiple tips on connecting the data input pipeline and the model inference efficiently.
 These are also common performance tricks that help both latency and throughput scenarios.
 
-Further documents cover the  _runtime_ performance optimizations topics. Please also consider [matrix support of the features by the individual devices](@ref openvino_docs_OV_UG_features_support_matrix).
+Further documents cover the associated  _runtime_ performance optimizations topics. Please also consider [matrix support of the features by the individual devices](@ref openvino_docs_OV_UG_features_support_matrix).
 
 **General, application-level optimizations**, and specifically:
  

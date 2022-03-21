@@ -15,7 +15,7 @@ In contrast, the `ov::InferRequest::start_async()` and `ov::InferRequest::wait()
 
 > **NOTE**: Although the Synchronous API can be somewhat easier to start with, in the production code always prefer to use the Asynchronous (callbacks-based, below) API, as it is the most general and scalable way to implement the flow control for any possible number of requests (and hence both latency and throughput scenarios).
 
-Let's see how the OpenVINO Async API can improve overall throughput rate of the application. The key advantage of the Async approach is as follows:  while a device is busy with the inference, the application can do other things in parallel (e.g. populating inputs or scheduling other requests) rather than wait for the inference to complete.
+Let's see how the OpenVINO Async API can improve overall frame rate of the application. The key advantage of the Async approach is as follows:  while a device is busy with the inference, the application can do other things in parallel (e.g. populating inputs or scheduling other requests) rather than wait for the inference to complete.
 
 In the example below, inference is applied to the results of the video decoding. So it is possible to keep two parallel infer requests, and while the current is processed, the input frame for the next is being captured. This essentially hides the latency of capturing, so that the overall frame rate is rather determined only by the slowest part of the pipeline (decoding IR inference) and not by the sum of the stages.
 
@@ -36,6 +36,8 @@ You can compare the pseudo-codes for the regular and async-based approaches:
 The technique can be generalized to any available parallel slack. For example, you can do inference and simultaneously encode the resulting or previous frames or run further inference, like emotion detection on top of the face detection results.
 Refer to the [Object Detection С++ Demo](@ref omz_demos_object_detection_demo_cpp), [Object Detection Python Demo](@ref omz_demos_object_detection_demo_python)(latency-oriented Async API showcase) and [Benchmark App Sample](../../samples/cpp/benchmark_app/README.md) for complete examples of the Async API in action.
 
+> **NOTE**: Using the Asynchronous API is a must for [throughput-oriented scenarios](./dldt_deployment_optimization_tput.md).
+
 ### Notes on Callbacks
 Notice that the Async's `ov::InferRequest::wait()` waits for the specific request only. However, running multiple inference requests in parallel provides no guarantees on the completion order. This may complicate a possible logic based on the `ov::InferRequest::wait`. The most scalable approach is using callbacks (set via the `ov::InferRequest::set_callback`) that are executed upon completion of the request. The callback functions will be used by the OpenVINO runtime to notify on the results (or errors. 
 This is more event-driven approach.
@@ -48,7 +50,7 @@ Few important points on the callbacks:
 Within the OpenVINO, each device may have different requirements on the memory padding, alignment, etc. However the **input/output tensors** are also accessible by the application code. 
 As every `ov::InferRequest` is created by the particular instance of the `ov::CompiledModel`(that is already device-specific) the requirements are respected and the requests' input/output tensors are still device-friendly.
 Thus:
-* `get_tensor` (that offers `data()` method to get a system-memory pointer to the tensor's content), is a recommended way to populate the inference inputs (and read back the outputs) **from/to the host memory**
+* `get_tensor` (that offers the `data()` method to get a system-memory pointer to the tensor's content), is a recommended way to populate the inference inputs (and read back the outputs) **from/to the host memory**
    * For example, the GPU inputs/outputs tensors are mapped to the host (which is fast) only when the `get_tensor` is used, while for the `set_tensor` a copy into the internal GPU structures may happen
 * In contrast, when the input tensors are already in the **on-device memory** (e.g. as a result of the video-decoding), prefer the `set_tensor` as a zero-copy way to proceed
    * Consider [GPU device Remote tensors API](../OV_Runtime_UG//supported_plugins/GPU_RemoteTensor_API.md).

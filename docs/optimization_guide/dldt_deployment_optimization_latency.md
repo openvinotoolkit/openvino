@@ -13,13 +13,14 @@
 ## Latency Specifics
 A significant fraction of applications focused on the situations where typically a single model is loaded (and single input is used) at a time.
 This is a regular "consumer" use case and a default (also for the legacy reasons) performance setup for any OpenVINO device.
-Notice that an application can  create more than one request if needed (for example to support asynchronous inputs population), the question is really about how many requests are being executed in parallel.
+Notice that an application can  create more than one request if needed (for example to support [asynchronous inputs population](./dldt_deployment_optimization_common.md)), the performance depends on **how many requests are being executed in parallel**.
 
 Similarly, when multiple models are served on the same device, it is important whether the models are executed simultaneously, or in chain (for example in the inference pipeline).
-As expected, the lowest latency is achieved with only one concurrent inference at a moment. Accordingly, any additional concurrency usually results in the latency growing fast.
+As expected, the easiest way to achieve the lowest latency is **running only one concurrent inference at a moment**. Accordingly, any additional concurrency usually results in the latency growing fast.
 
-However, for example, specific configurations, like multi-socket CPUs can deliver as high number of requests (at the same minimal latency) as there are NUMA nodes in the machine.
-Thus, human expertise is required to get the most out of the device even in the latency case. Consider using [OpenVINO high-level performance hints](../OV_Runtime_UG/performance_hints.md) instead.
+However, some conventional "root" device (e.g. CPU or GPU) can be in fact internally composed of several "sub-devices".  In many cases letting the OpenVINO to transparently leverage the "sub-devices" helps to improve the application throughput (e.g. serve multiple clients simultaneously) without degrading the latency.  For example, the multi-socket CPUs can deliver as high number of requests (at the same minimal latency) as there are NUMA nodes in the machine. Similarly, a multi-tile GPU (which is essentially multiple GPUs in a single package), can deliver a multi-tile scalability with the number of inference requests, while preserving the single-tile latency.
+
+Thus, human expertise is required to get more _throughput_ out of the device even in the latency-oriented cases. OpenVINO can take the configuration burden via [OpenVINO high-level performance hints](../OV_Runtime_UG/performance_hints.md).
 
 > **NOTE**: [OpenVINO performance hints](./dldt_deployment_optimization_hints.md) is a recommended way for performance configuration, which is both device-agnostic and future-proof. 
 
