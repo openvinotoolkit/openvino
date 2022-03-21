@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "subgraph_tests/crop4d.hpp"
+#include "subgraph_tests/strided_slice.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace SubgraphTestsDefinitions;
@@ -16,6 +16,10 @@ std::vector<StridedSliceSpecificParams> ss_only_test_cases = {
                                     { 0, 0, 0, 0 },
                                     { 1, 1, 1, 1 }, { 1, 1, 1, 1 },
                                     { 1, 1, 1, 1 }, { 1, 0, 1, 1 },  { 0, 0, 0, 0 },  { 1, 0, 0, 0 },  { 0, 0, 0, 0 } },
+        StridedSliceSpecificParams{ { 1, 2, 100 },
+                                    { 0, 0, 0 },
+                                    { 1, 1, 1 }, { 1, 1, 1 },
+                                    { 1, 1, 1 }, { 1, 0, 1 },  { 0, 0, 0 },  { 1, 0, 0 },  { 0, 0, 0 } },
 };
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -31,7 +35,7 @@ const std::vector<std::map<std::string, std::string>> configs = {
 };
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_crop4d_gna, Crop4dTest,
+        smoke_stridedslice_gna, StridedSliceTest,
         ::testing::Combine(
         ::testing::ValuesIn(ss_only_test_cases),
         ::testing::ValuesIn(netPrecisions),
@@ -41,6 +45,6 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
         ::testing::ValuesIn(configs)),
-        Crop4dTest::getTestCaseName);
+        StridedSliceTest::getTestCaseName);
 
 }  // namespace

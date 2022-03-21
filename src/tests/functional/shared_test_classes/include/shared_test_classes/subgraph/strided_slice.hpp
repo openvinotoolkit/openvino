@@ -25,7 +25,7 @@ struct StridedSliceSpecificParams {
     std::vector<int64_t> ellipsisAxisMask;
 };
 
-using Crop4dParams = std::tuple<
+using StridedSliceParams = std::tuple<
         StridedSliceSpecificParams,
         InferenceEngine::Precision,        // Net precision
         InferenceEngine::Precision,        // Input precision
@@ -36,10 +36,10 @@ using Crop4dParams = std::tuple<
         std::map<std::string, std::string> // Additional network configuration
 >;
 
-class Crop4dTest : public testing::WithParamInterface<Crop4dParams>,
+class StridedSliceTest : public testing::WithParamInterface<StridedSliceParams>,
                               virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<Crop4dParams> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<StridedSliceParams> &obj);
 
 protected:
     void SetUp() override;
