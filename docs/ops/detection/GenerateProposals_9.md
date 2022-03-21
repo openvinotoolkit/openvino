@@ -74,7 +74,7 @@ All proposals of the whole batch are concated image by image, and distinguishabl
 
 * **1**: `im_info` - tensor of type *T* and shape `[num_batches, 3]` or `[num_batches, 4]` providing input image info. The image info is layout as `[image_height, image_width, scale_height_and_width]` or as `[image_height, image_width, scale_height, scale_width]`. **Required.**
 
-* **2**: `anchors` - tensor of type *T* with shape `[number_of_anchors, height, width, 4]` providing anchors. Each anchor is layouted as `[xmin, ymin, xmax, ymax]`. **Required.**
+* **2**: `anchors` - tensor of type *T* with shape `[height, width, number_of_anchors, 4]` providing anchors. Each anchor is layouted as `[xmin, ymin, xmax, ymax]`. **Required.**
 
 * **3**: `boxesdeltas` - tensor of type *T* with shape `[num_batches, number_of_anchors * 4, height, width]` providing deltas for anchors. The delta consists of 4 element tuples with layout `[dx, dy, log(dw), log(dh)]`. **Required.**
 
