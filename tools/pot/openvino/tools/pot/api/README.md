@@ -29,7 +29,8 @@ All implementations should override `__len__()` function, which should return th
 
 Having implementations of `DataLoader` and `Engine` APIs, it is possible to apply basic optimization methods, e.g. [**DefaultQuantization**](@ref pot_compression_algorithms_quantization_default_README). 
 
-POT works on top of own model representation (Model Optimizer internal representation) which is different from OpenVINO `Model` so that POT API provides own method to load and save model objects from OpenVINO Intermediate Representation: `load_model` and `save_model`.
+### Helpers
+POT works on top of own model representation (Model Optimizer internal representation) which is different from OpenVINO `Model` so that POT API provides own method to load and save model objects from OpenVINO Intermediate Representation: `load_model` and `save_model`. POT also has a concept of `Pipeline` that sequentially applies specified optimization methods to the model. `create_pipeine` method is used to instantiate a `Pipeline`.
 
 The code snippet below shows basic quantization workflow.
 ```
@@ -64,14 +65,14 @@ algorithms = [
 data_loader = UserDataLoader(..)
 
 # Step 2: load model
-ir_model = load_model(model_config=model_config)
+model = load_model(model_config=model_config)
 
 # Step 3: Initialize the engine for metric calculation and statistics collection.
 engine = IEEngine(config=engine_config, data_loader=data_loader, metric=None)
 
-# Step 4: Create a pipeline of compression algorithms.
-# quantization_algorithm is defined in the Settings
+# Step 4: Create a pipeline of compression algorithms and run it.
 pipeline = create_pipeline(algorithms, engine)
+compressed_model = pipeline.run(model=model)
 
 # Step 5 (Optional): Compress model weights to quantized precision
 #                    in order to reduce the size of the final .bin file.
