@@ -31,8 +31,8 @@ Figure below shows the optimization workflow:
 
 ### Features
 
-* Two post-training 8-bit quantization algorithms: fast [DefaultQuantization](openvino/tools/pot/algorithms/quantization/default/README.md) and precise [AccuracyAwareQuantization](openvino/tools/pot/algorithms/quantization/accuracy_aware/README.md).
-* Quantization for various types of hardware: CPU, GPU, VPU, GNA. The first three devices can use the same quantized model while GNA-quantized models are compatible with CPU.
+* Two post-training [quantization](@ref pot_compression_algorithms_quantization_README) algorithms: fast [DefaultQuantization](openvino/tools/pot/algorithms/quantization/default/README.md) and precise [AccuracyAwareQuantization](openvino/tools/pot/algorithms/quantization/accuracy_aware/README.md).
+* Quantization for various types of hardware: CPU, GPU, VPU, GNA. The first three devices can use the same quantized model while GNA-quantized models are compatible with CPU only.
 * [Python* API](openvino/tools/pot/api/README.md) and [Command-line tool](docs/CLI.md) interfaces.
 * (Experimental) [Ranger algorithm](@ref pot_ranger_README) for the model protection in safety-critical cases.
 
