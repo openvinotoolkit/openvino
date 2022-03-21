@@ -69,6 +69,39 @@ bitbake-layers add-layer ../meta-openembedded/meta-python
 bitbake-layers add-layer ../meta-clang
 ```
 
+### Set up BitBake Configurations
+
+Include extra configuration in `conf/local.conf` in your build directory as required.
+
+```sh
+# Build with SSE4.2, AVX2 etc. extensions
+MACHINE = "intel-skylake-64"
+
+# Enable clDNN GPU plugin when needed.
+# This requires meta-clang and meta-oe layers to be included in bblayers.conf
+# and is not enabled by default.
+PACKAGECONFIG:append:pn-openvino-inference-engine = " opencl"
+
+# Enable building OpenVINO Python API.
+# This requires meta-python layer to be included in bblayers.conf.
+PACKAGECONFIG:append:pn-openvino-inference-engine = " python3"
+
+# This adds OpenVINO related libraries in the target image.
+CORE_IMAGE_EXTRA_INSTALL:append = " openvino-inference-engine"
+
+# This adds OpenVINO samples in the target image.
+CORE_IMAGE_EXTRA_INSTALL:append = " openvino-inference-engine-samples"
+
+# Include OpenVINO Python API package in the target image.
+CORE_IMAGE_EXTRA_INSTALL:append = " openvino-inference-engine-python3"
+
+# Enable MYRIAD plugin
+CORE_IMAGE_EXTRA_INSTALL:append = " openvino-inference-engine-vpu-firmware"
+
+# Include Model Optimizer in the target image.
+CORE_IMAGE_EXTRA_INSTALL:append = " openvino-model-optimizer"
+```
+
 ## Step 2: Build a Yocto Image with OpenVINO Packages
 
 Run BitBake to build your image with OpenVINO packages. To build the minimal image, for example, run:
