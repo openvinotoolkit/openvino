@@ -7,7 +7,7 @@
    :hidden:
 
    Quantizing your model <pot_default_quantization_usage>
-   Quantizing model with accuracy control <>
+   Quantizing model with accuracy control <pot_accuracyaware_usage>
    Quantization Best Practices <pot_docs_BestPractices>
    Protecting your model <pot_ranger_README>
    API description <pot_compression_api_README>

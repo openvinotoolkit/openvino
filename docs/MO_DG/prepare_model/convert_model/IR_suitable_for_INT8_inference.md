@@ -7,7 +7,7 @@ For details, refer to [Low Precision Inference on the CPU](../../../OV_Runtime_U
 
 Intermediate Representation (IR) should be specifically formed to be suitable for low precision inference. 
 Such an IR is called a Low Precision IR and you can generate it in two ways:
-- [Quantize regular IR with the Post-Training Optimization tool](@ref pot_README)
+- [Quantize regular IR with the Post-Training Optimization tool](@ref pot_introdution)
 - Use the Model Optimizer for a model pretrained for Low Precision inference: TensorFlow\* pre-TFLite models (`.pb` model file with `FakeQuantize*` operations) and ONNX\* quantized models.
 Both TensorFlow and ONNX quantized models could be prepared by [Neural Network Compression Framework](https://github.com/openvinotoolkit/nncf/blob/develop/README.md).
 

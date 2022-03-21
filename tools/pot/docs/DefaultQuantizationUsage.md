@@ -1,11 +1,11 @@
 # Quantizing your model {#pot_default_quantization_usage}
 
 ## Introduction
-This document describes how to apply model quantization in a basic scenario without accuracy control and using some unannotated dataset. The Post-Training Optimization Tool provides a Python* API that allows creating scripts that result to optimized models. The figure below shows the common workflow.
+This document describes how to apply model quantization in a basic scenario with DefautltQuantization method without accuracy control and using some unannotated dataset. The Post-Training Optimization Tool provides a Python* API that allows creating scripts that result to optimized models. The figure below shows the common workflow.
 
 ![](./images/api.png)
 
-## Data preparation
+## Prepare data
 In most cases, it is required to implement only `openvino.tools.pot.DataLoader` interface which allows loading data from a dataset and applies model-specific pre-processing providing access by index. Any implementation should override the following methods: 
 
 - `__len__()` methods, which returns the size of the dataset
@@ -13,7 +13,7 @@ In most cases, it is required to implement only `openvino.tools.pot.DataLoader` 
    - `(data, annotation)`
    - `(data, annotation, metadata)`
 
-`data` can be either `numpy.array` object or dictionary where key is the name of the mode input and value is `numpy.array` which corresponds to the input.
+`data` can be either `numpy.array` object or dictionary where key is the name of the mode input and value is `numpy.array` which corresponds to the input. Since `annotation` is not used by DefautltQuantization method this object can be `None` in this case. `metadata` is an optional field.
   
 Users can wrap framework data loading classes by `openvino.tools.pot.DataLoader` interface which is usually straightforward, for example, for `torch.utils.data.Dataset` that has various implementation in the TorchVision project.
 
@@ -21,10 +21,20 @@ Users can wrap framework data loading classes by `openvino.tools.pot.DataLoader`
 
 Having implementations of `openvino.tools.pot.DataLoader`, it is possible to use  [**DefaultQuantization**](@ref pot_compression_algorithms_quantization_default_README) method which is aimed at fast full quantization.
 
-## Quantization parameters
-DefaultQuantization algorithm has mandatory and optional parameters which are defined as a distionary.   
+## Define quantization parameters
+DefaultQuantization algorithm has mandatory and optional parameters which are defined as a distionary:
+```
+{
+        "name": "DefaultQuantization",
+        "params": {
+            "target_device": "ANY",
+            "stat_subset_size": 300
+        },
+    }
+```  
+- `"target_device"` - currently, only two options are available: `"ANY"` (or `"CPU"`) -  to quantize model for CPU, GPU, or VPU, and `"GNA"` - for inference on GNA.
 - `"stat_subset_size"` - size of subset to calculate activations statistics used for quantization. The whole dataset is used if no parameter specified. We recommend using not less than 300 samples.
-- `"target_device"` - currently, only two options are available: `"ANY"` or `"CPU"` -  to quantize model for CPU, GPU, or VPU, and `"GNA"`.
+
 
 For more details on how to use these parameters please refer to [Best Practices](@ref pot_docs_BestPractices) document.
 
@@ -56,14 +66,14 @@ engine_config = Dict({"device": "CPU"})
 algorithms = [
     {
         "name": "DefaultQuantization",
-        "stat_subset_size": 300,
         "params": {
             "target_device": "ANY",
+            "stat_subset_size": 300
         },
     }
 ]
 
-# Step 1: create user's data loader
+# Step 1: implement and create user's data loader
 data_loader = UserDataLoader(..)
 
 # Step 2: load model
@@ -88,6 +98,8 @@ compressed_model_paths = save_model(
     model_name="optimized_model",
 )
 ```
+
+In case if accuracy degradation is high after quantization, [AccuracyAwareQuantization](@ref pot_accuracyaware_usage) method is recommended.
 
 ## Examples
 
