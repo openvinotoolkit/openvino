@@ -1,20 +1,32 @@
 # DefaultQuantization Algorithm {#pot_compression_algorithms_quantization_default_README}
 
 ## Overview
-DefaultQuantization algorithm is designed to perform a fast and in many cases accurate 8-bits quantization of NNs.
-![](../../../../../../docs/images/default_quantization_pipeline.png)
-The algorithm consists of three methods that are sequentially applied to a model:
-*  ActivationChannelAlignment - Used as a preliminary step before quantization and allows you to align ranges of output activations of Convolutional layers in order to reduce the quantization error.
-*  MinMaxQuantization - This is a vanilla quantization method that automatically inserts [FakeQuantize](@ref openvino_docs_ops_quantization_FakeQuantize_1) operations into the model graph based on the specified  target hardware and initializes them
-using statistics collected on the calibration dataset.
-*  FastBiasCorrection - Adjusts biases of Convolutional and Fully-Connected layers based on the quantization error of the layer in order to make the overall error unbiased.
+DefaultQuantization algorithm is designed to do a fast and, in many cases, accurate 8-bits quantization. It does not have any control of accuracy metric but provides a lot of knobs that can be used to imporove it.
 
-This algorithm uses a two-stage statistic collection procedure, where the model is being inferred over the calibration 
-subset, so the wall-time of quantization basically depends on the size of the subset. 
+For more details on how to use DefaultQuantization in the optimization workflow please refer to [**Python\* API**](@ref pot_compression_api_README), [**Simplified mode**](@ref pot_docs_simplified_mode), and [**Model Zoo flow**](@ref pot_compression_cli_README).
+
+## Examples
+            
+ A template and full specification for DefaultQuantization algorithm:
+ * [Template](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/default_quantization_template.json)
+ * [Full specification](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/default_quantization_spec.json)
+
+Command-line example:
+* [Quantization of Image Classification model](https://docs.openvino.ai/latest/pot_configs_examples_README.html) 
+
+API tutorials:
+* [Quantization of Image Classification model](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/301-tensorflow-training-openvino)
+* [Quantization of Object Detection model from Model Zoo](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/111-detection-quantization)
+* [Quantization of Segmentation model for mediacal data](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/110-ct-segmentation-quantize)
+* [Quantization of BERT for Text Classification](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/105-language-quantize-bert)
+
+API examples:
+* [Quantization of 3D segmentation model](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/3d_segmentation)
+* [Quantization of Face Detection model](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/face_detection)
+* [Quantizatin of speech model for GNA device](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/speech)
 
 ## Parameters
-The algorithm accepts all the parameters introduced by three algorithms that it relies on. These parameters should be
-described in the corresponding section in the configuration file (see example below):
+DefaultQuantization algorithm has mandatory and optional parameters. For more details on how to use these parameters please refer to [Best Practices](@ref pot_docs_BestPractices) document. Here is an example of the compression section with DefualtQuantization method and its parameters:
 ```json
 "compression": {
     "algorithms": [
@@ -28,7 +40,7 @@ described in the corresponding section in the configuration file (see example be
 }
 ```
 
-DefaultQuantization algorithm' parameters can be roughly divided into two groups: mandatory and optional.
+
 
 ### Mandatory parameters
 - `"preset"` - preset which controls the quantization mode (symmetric and asymmetric). It can take two values:
@@ -113,25 +125,6 @@ mode on the existing HW.
 - `"use_layerwise_tuning"` - enables layer-wise fine-tuning of model parameters (biases, Convolution/MatMul weights and FakeQuantize scales) by minimizing the mean squared error between original and quantized layer outputs.
 Enabling this option may increase compressed model accuracy, but will result in increased execution time and memory consumption.
 
-## Examples
-            
- A template and full specification for DefaultQuantization algorithm:
- * [Template](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/default_quantization_template.json)
- * [Full specification](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/default_quantization_spec.json)
-
-Command-line example:
-* [Quantization of Image Classification model](https://docs.openvino.ai/latest/pot_configs_examples_README.html) 
-
-API tutorials:
-* [Quantization of Image Classification model](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/301-tensorflow-training-openvino)
-* [Quantization of Object Detection model from Model Zoo](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/111-detection-quantization)
-* [Quantization of Segmentation model for mediacal data](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/110-ct-segmentation-quantize)
-* [Quantization of BERT for Text Classification](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/105-language-quantize-bert)
-
-API examples:
-* [Quantization of 3D segmentation model](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/3d_segmentation)
-* [Quantization of Face Detection model](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/face_detection)
-* [Speech example for GNA device](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/speech)
 
 ## See also
 * [Optimization with Simplified mode](@ref pot_docs_simplified_mode)

@@ -1,29 +1,13 @@
 # AccuracyAwareQuantization Algorithm {#pot_compression_algorithms_quantization_accuracy_aware_README}
 
 ## Overview
-AccuracyAware algorithm is designed to perform accurate quantization and allows the model to stay in the 
-pre-defined range of accuracy drop, for example 1%, defined by the user in the configuration file. This may cause a 
+AccuracyAwareQuantization algorithm is aimed at accurate quantization and allows the model's accuracy to stay within the 
+pre-defined range defined by the user in the configuration file. This may cause a 
 degradation in performance in comparison to [DefaultQuantization](../default/README.md) algorithm because some layers can be reverted back to the original precision. The algorithm requires annotated dataset and cannot be used with the [Simplified mode](@ref pot_docs_simplified_mode).
 
 > **NOTE**: In case of GNA `target_device`, POT moves INT8 weights to INT16 to stay in the pre-defined range of the accuracy drop. Thus, the algorithm works for the `performance` (INT8) preset only. For the `accuracy` preset, this algorithm is not performed, but the parameters tuning is available (if `tune_hyperparams` option is enabled).
 
-Generally, the algorithm consists of the following steps:
-1. The model gets fully quantized using the DefaultQuantization algorithm.
-2. The quantized and full-precision models are compared on a subset of the validation set in order to find mismatches in the target accuracy metric. A ranking subset is extracted based on the mismatches.
-3. Optionally, if the accuracy criteria cannot be satisfied with fully symmetric quantization, the quantized model gets converted to mixed mode, and step 2 is repeated.
-4. A layer-wise ranking is performed in order to get a contribution of each quantized layer into the accuracy drop. To
-get this ranking we revert every layer (one-by-one) back to floating-point precision and measure how it affects accuracy. 
-5. Based on the ranking, the most "problematic" layer is reverted back to the original precision. This change is followed by the evaluation of the obtained model on the full validation set in order to get a new accuracy drop.
-6. If the accuracy criteria are satisfied for all pre-defined accuracy metrics defined in the configuration file,
- the algorithm finishes. Otherwise, it continues reverting the next "problematic" layer.
-7. It may happen that regular reverting does not get any accuracy improvement or even worsen the accuracy. Then the 
-re-ranking is triggered as it is described in step 4. However, it is possible to specify the maximum number of reverting
-layers using a special parameter. Moreover, the algorithm saves intermediate results (models) that can be used at any time 
-without a need to wait until it finishes.
-
-The figure below shows the diagram of the algorithm.
-
-![](../../../../../../docs/images/aa_quantization_pipeline.png)
+For more details on how to use AccuracyAwareQuantization in the optimization workflow please refer to [**Python\* API**](@ref pot_compression_api_README) and [**Model Zoo flow**](@ref pot_compression_cli_README).
 
 ## Parameters
 Since the [DefaultQuantization](../default/README.md) algorithm is used as an initialization, all its parameters are also valid and can be specified. Here we

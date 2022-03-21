@@ -11,7 +11,7 @@
 @endsphinxdirective
 
 ## Overview
-The Post-Training Optimization Tool (POT) provides a Python* API that allows creating custom scripts that result to optimized models. This can be helpful when the optimizing model consists of several submodels ot has uncommon pre-processing of input data. POT API contains mandatory and optional insterfaces that should be implemented on the user's side to use optimization method provided by POT. The figure below shows the common API structure.
+The Post-Training Optimization Tool (POT) provides a Python* API that allows creating Python* scripts that result to optimized models. This can be helpful when the optimizing model consists of several submodels ot has uncommon pre-processing of input data. POT API contains mandatory and optional insterfaces that should be implemented on the user's side to use optimization method provided by POT. The figure below shows the common API structure.
 
 
 ![](../../../../docs/images/api.png)
@@ -27,7 +27,11 @@ All implementations should override `__len__()` function, which should return th
 
 - `openvino.tools.pot.Engine` is responsible for model inference and computes model statistics and accuracy metrics required for the most of post-training optimization methods. POT also provides a `openvino.tools.pot.IEEngine` helper that is suits for single model. Implementation of `Engine` interface is required only in the case of cascaded/compund models.
 
-Having implementations of `DataLoader` and `Engine` APIs, it is possible to apply basic optimization methods, e.g. [**DefaultQuantization**](@ref pot_compression_algorithms_quantization_default_README). The code snippet below shows optimiztaion workflow.
+Having implementations of `DataLoader` and `Engine` APIs, it is possible to apply basic optimization methods, e.g. [**DefaultQuantization**](@ref pot_compression_algorithms_quantization_default_README). 
+
+POT works on top of own model representation (Model Optimizer internal representation) which is different from OpenVINO `Model` so that POT API provides own method to load and save model objects from OpenVINO Intermediate Representation: `load_model` and `save_model`.
+
+The code snippet below shows basic quantization workflow.
 ```
 from openvino.tools.pot import IEEngine
 from openvino.tools.pot load_model, save_model
@@ -95,7 +99,7 @@ compressed_model_paths = save_model(
 * API examples:
   * [Quantization of 3D segmentation model](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/3d_segmentation)
   * [Quantization of Face Detection model](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/face_detection)
-  * [Speech example for GNA device](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/speech)
+  * [Quantizatin of speech model for GNA device](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/speech)
 
 ## Detailed API description
 

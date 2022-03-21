@@ -1,4 +1,4 @@
-#  Post-Training Optimization Best Practices {#pot_docs_BestPractices}
+#  Post-Training Quantization Best Practices {#pot_docs_BestPractices}
 This document describes the most common insights about model optimization using the Post-training Optimization Tool (POT). The post-training optimization usually is 
 the fastest and easiest way to get a low-precision model because it does not require model fine-tuning and thus, there is no need in the training dataset, pipeline and availability of
 the powerful training hardware. In some cases, it may lead to not satisfactory accuracy drop, especially when optimizing the whole model.
