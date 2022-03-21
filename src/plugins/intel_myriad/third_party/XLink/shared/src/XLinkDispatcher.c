@@ -1154,13 +1154,13 @@ static XLinkError_t sendEvents(xLinkSchedulerState_t* curr) {
             }
         } else {
             XLINK_RET_ERR_IF(pthread_mutex_lock(&(curr->queueMutex)) != 0, X_LINK_ERROR);
-            if (event->origin == EVENT_REMOTE){ // match remote response with the local request
+            if (event->origin == EVENT_REMOTE) { // match remote response with the local request
                 dispatcherResponseServe(event, curr);
             }
             XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, X_LINK_ERROR);
         }
 
-        if (event->origin == EVENT_REMOTE){
+        if (event->origin == EVENT_REMOTE) {
             event->isServed = EVENT_SERVED;
         }
     }
