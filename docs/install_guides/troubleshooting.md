@@ -7,15 +7,22 @@
 PRC users might encounter errors while downloading sources via PIP during OpenVINO™ installation. To resolve the issues, try one of the following options:
    
 * Add the download source using the ``-i`` parameter with the Python ``pip`` command. For example: 
-``` sh
-pip install openvino-dev -i https://mirrors.aliyun.com/pypi/simple/
-```
+
+   ``` sh
+   pip install openvino-dev -i https://mirrors.aliyun.com/pypi/simple/
+   ```
    Use the ``--trusted-host`` parameter if the URL above is ``http`` instead of ``https``.
+   You can also run the following command to install specific framework. For example:
+   
+   ```
+   pip install openvino-dev[tensorflow2] -i https://mirrors.aliyun.com/pypi/simple/
+   ```
    
 * If you run into incompatibility issues between components after installing OpenVINO, try running ``requirements.txt`` with the following command:
-``` sh
-pip install -r <INSTALL_DIR>/tools/requirements.txt
-```
+
+   ``` sh
+   pip install -r <INSTALL_DIR>/tools/requirements.txt
+   ```
 
 ## Issues with Installing OpenVINO on Linux from Docker
 
