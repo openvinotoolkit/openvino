@@ -89,7 +89,7 @@ Floating-point precision of a GPU primitive is selected based on operation preci
 
 ## Supported features
 
-### Multi-device execution
+### Multi-device execution {#ov_gpu_multi_device}
 If a machine has multiple GPUs (for example integrated GPU and discrete Intel GPU), then any supported model can be executed on all GPUs simultaneously.
 This can be achieved by specifying `"MULTI:GPU.1,GPU.0"` as a target device.
 
@@ -97,7 +97,7 @@ This can be achieved by specifying `"MULTI:GPU.1,GPU.0"` as a target device.
 
 See [Multi-device execution page](../multi_device.md) for more details.
 
-### Automatic batching
+### Automatic batching {#ov_gpu_auto_batch}
 GPU plugin is capable of reporting `ov::max_batch_size` and `ov::optimal_batch_size` metrics with respect to the current hardware platform and model,
 thus automatic batching is automatically enabled when `ov::optimal_batch_size` is > 1 and `ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)` is set.
 Alternatively it can be enabled explicitly via the device notion, e.g. `"BATCH:GPU"`.
@@ -120,7 +120,7 @@ Alternatively it can be enabled explicitly via the device notion, e.g. `"BATCH:G
 
 See [Automatic batching page](../automatic_batching.md) for more details.
 
-### Multi-stream execution
+### Multi-stream execution {#ov_gpu_multi_stream}
 If either `ov::num_streams(n_streams)` with `n_streams > 1` or `ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)` property is set for GPU plugin,
 then multiple streams are created for the model. In case of GPU plugin each stream has its own host thread and associated OpenCL queue
 which means that incoming infer requests can be processed simultaneously.
@@ -132,7 +132,7 @@ since implementation of streams in GPU plugin supports weights memory sharing ac
 
 See [optimization guide](@ref openvino_docs_deployment_optimization_guide_dldt_optimization_guide) for more details.
 
-### Dynamic shapes
+### Dynamic shapes {#ov_gpu_dynamic_shapes}
 GPU plugin supports dynamic shapes for batch dimension only (specified as 'N' in the [layouts terms](../layout_overview.md)) with fixed upper bound. Any other dynamic dimensions are unsupported. Internally GPU plugin creates
 `log2(N)` (`N` - is an upper bound for batch dimension here) low-level execution graphs for batch sizes equal to powers of 2 to emulate dynamic behavior, so that incoming infer request with specific batch size is executed via minimal combination of internal networks.
 For example, batch size 33 may be executed via 2 internal networks with batch size 32 and 1.
@@ -145,7 +145,7 @@ The code snippet below demonstrates how to use dynamic batch in simple scenarios
 
 See [dynamic shapes guide](../ov_dynamic_shapes.md) for more details.
 
-### Preprocessing acceleration
+### Preprocessing acceleration {#ov_gpu_preprocessing}
 GPU plugin has the following additional preprocessing options:
 - `ov::intel_gpu::memory_type::surface` and `ov::intel_gpu::memory_type::buffer` values for `ov::preprocess::InputTensorInfo::set_memory_type()` preprocessing method. These values are intended to be used to provide a hint for the plugin on the type of input Tensors that will be set in runtime to generate proper kernels.
 
@@ -157,14 +157,14 @@ Refer to [RemoteTensor API](./GPU_RemoteTensor_API.md) for usage examples.
 
 See [preprocessing API guide](../preprocessing_overview.md) for more details.
 
-### Models caching
+### Models caching {#ov_gpu_model_cache}
 Cache for GPU plugin may be enabled via common OpenVINO `ov::cache_dir` property. GPU plugin implementation supports only compiled kernels caching,
 thus all plugin specific model transformations are executed on each `ov::Core::compile_model()` call regardless `cache_dir` option, but since
 the kernels compilation is a bottleneck in the model loading process, significant load time reduction can be achieved with `ov::cache_dir` property enabled.
 
 See [Model caching overview page](../Model_caching_overview.md) for more details.
 
-### Extensibility
+### Extensibility {#ov_gpu_extensibility}
 See [GPU Extensibility](@ref openvino_docs_Extensibility_UG_GPU) page.
 
 ### GPU context and memory sharing via RemoteTensor API

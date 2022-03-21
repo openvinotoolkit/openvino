@@ -335,7 +335,7 @@ inline std::istream& operator>>(std::istream& is, PerformanceMode& performance_m
 static constexpr Property<PerformanceMode> performance_mode{"PERFORMANCE_HINT"};
 
 /**
- * @brief (Optional) property that backs the (above) Performance Hints
+ * @brief Optional property that backs the (above) Performance Hints
  * by giving additional information on how many inference requests the application will be keeping in flight
  * usually this value comes from the actual use-case (e.g. number of video-cameras, or other sources of inputs)
  * @ingroup ov_runtime_cpp_prop_api

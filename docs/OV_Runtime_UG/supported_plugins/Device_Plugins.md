@@ -42,15 +42,15 @@ The table below demonstrates support of key features by OpenVINO device plugins.
 
 | Capability | [CPU](CPU.md) | [GPU](GPU.md) | [GNA](GNA.md) | [VPU](VPU.md) | [Arm® CPU](ARM_CPU.md) |
 | ---------- | --- | --- | --- | --- | --- |
-| [Heterogeneous execution](../hetero_execution.md)| Yes | Yes | No | ? | Yes |
-| [Multi-device execution](../multi_device.md) | Yes | Yes | Partial | ? | Yes |
-| [Automatic batching](../automatic_batching.md) | No | Yes | No | ? | No |
-| [Multi-stream execution](@ref openvino_docs_optimization_guide_dldt_optimization_guide) | Yes | Yes | No | ? | Yes |
-| [Models caching](../Model_caching_overview.md) | Yes | Partial | Yes | ? | No |
-| [Dynamic shapes](../ov_dynamic_shapes.md) | Yes | Partial | No | ? | No |
+| [Heterogeneous execution](../hetero_execution.md)| Yes | [Yes]( @ref ov_gpu_hetero) | No | ? | Yes |
+| [Multi-device execution](../multi_device.md) | Yes | [Yes]( @ref ov_gpu_multi_device) | Partial | ? | Yes |
+| [Automatic batching](../automatic_batching.md) | No | [Yes]( @ref ov_gpu_auto_batch) | No | ? | No |
+| [Multi-stream execution](@ref openvino_docs_optimization_guide_dldt_optimization_guide) | Yes | [Yes]( @ref ov_gpu_multi_stream) | No | ? | Yes |
+| [Models caching](../Model_caching_overview.md) | Yes | [Partial]( @ref ov_gpu_model_cache) | Yes | ? | No |
+| [Dynamic shapes](../ov_dynamic_shapes.md) | Yes | [Partial]( @ref ov_gpu_dynamic_shapes) | No | ? | No |
 | Import/Export | Yes | No | Yes | ? | No |
-| [Preprocessing acceleration](../preprocessing_overview.md) | Yes | Yes | No | ? | Partial |
+| [Preprocessing acceleration](../preprocessing_overview.md) | Yes | [Yes]( @ref ov_gpu_preprocessing) | No | ? | Partial |
 | [Stateful models](../network_state_intro.md) | Yes | No | Yes | ? | No |
-| [Extensibility](@ref openvino_docs_Extensibility_UG_Intro) | Yes | Yes | No | ? | No |
+| [Extensibility](@ref openvino_docs_Extensibility_UG_Intro) | Yes | [Yes]( @ref ov_gpu_extensibility) | No | ? | No |
 
 For more details on plugin specific feature limitation, see corresponding plugin pages.
