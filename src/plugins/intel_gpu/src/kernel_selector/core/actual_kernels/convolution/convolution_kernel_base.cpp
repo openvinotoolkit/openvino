@@ -147,10 +147,10 @@ bool ConvolutionKernelBase::CheckPitchForSplitOnly(const convolution_params& par
 ConvolutionKernelBase::DispatchData ConvolutionKernelBase::SetDefault(const convolution_params& params, int) const {
     DispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
-    auto out_layout = params.output.GetLayout();
+    auto out_layout = params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
-    const auto& out = params.output;
+    const auto& out = params.outputs[0];
     if (out_layout == DataLayout::bfyx || out_layout == DataLayout::byxf) {
         dispatchData.gws = {out.X().v, out.Y().v, out.Feature().v * out.Batch().v};
         dims_by_gws = {{Tensor::DataChannelName::X},
@@ -213,7 +213,7 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
     }
 
     if (NeedPaddedInput()) {
-        kd.reorderInput = CovolutionUpdateInputParams(newParams);
+        kd.reorderInput = ConvolutionUpdateInputParams(newParams);
 
         if (kd.reorderInput && !options.allowInputReordering)
             return {};
@@ -299,9 +299,9 @@ static DataTensor GetConvolutionBFYXPaddedTensor(const convolution_params& cp) {
     pad[2].before = cp.padding.z;
 
 
-    const auto inputLimitX = (cp.output.X().v - 1) * cp.stride.x + (cp.filterSize.x - 1) * cp.dilation.x + 1;
-    const auto inputLimitY = (cp.output.Y().v - 1) * cp.stride.y + (cp.filterSize.y - 1) * cp.dilation.y + 1;
-    const auto inputLimitZ = (cp.output.Z().v - 1) * cp.stride.z + (cp.filterSize.z - 1) * cp.dilation.z + 1;
+    const auto inputLimitX = (cp.outputs[0].X().v - 1) * cp.stride.x + (cp.filterSize.x - 1) * cp.dilation.x + 1;
+    const auto inputLimitY = (cp.outputs[0].Y().v - 1) * cp.stride.y + (cp.filterSize.y - 1) * cp.dilation.y + 1;
+    const auto inputLimitZ = (cp.outputs[0].Z().v - 1) * cp.stride.z + (cp.filterSize.z - 1) * cp.dilation.z + 1;
 
 
     pad[0].after = (size_t)std::max(static_cast<int>(inputLimitX) - static_cast<int>(t.X().v) - static_cast<int>(pad[0].before), static_cast<int>(0));
@@ -321,7 +321,7 @@ static DataTensor GetConvolutionBFYXPaddedTensor(const convolution_params& cp) {
     return {dims, t.GetDType(), t.GetLayout()};
 }
 
-bool CovolutionCheckInput(const Params& p, const optional_params& o) {
+bool ConvolutionCheckInput(const Params& p, const optional_params& o) {
     const convolution_params& params = static_cast<const convolution_params&>(p);
     const convolution_optional_params& optParams = static_cast<const convolution_optional_params&>(o);
 
@@ -336,7 +336,7 @@ bool CovolutionCheckInput(const Params& p, const optional_params& o) {
     return true;
 }
 
-bool CovolutionUpdateInputParams(convolution_params& params) {
+bool ConvolutionUpdateInputParams(convolution_params& params) {
     const auto req_input = GetConvolutionBFYXPaddedTensor(params);
     const bool bProperInputDesc = CheckConvolutionPaddedInputDesc(params, req_input);
 
@@ -401,7 +401,7 @@ Datatype ConvolutionKernelBase::GetPackedInputType(const convolution_params& par
 }
 
 Datatype ConvolutionKernelBase::GetPackedOutputType(const convolution_params& params) const {
-    return GetPackedType(params.output.GetDType());
+    return GetPackedType(params.outputs[0].GetDType());
 }
 
 Datatype ConvolutionKernelBase::GetActivationType(const convolution_params& params) const {
@@ -419,8 +419,8 @@ Datatype ConvolutionKernelBase::GetActivationType(const convolution_params& para
     if (params.quantization != QuantizationType::NONE || quantized_inputs || quantized_weights)
         return Datatype::F32;
 
-    if (params.output.GetDType() == Datatype::UINT8 ||
-        params.output.GetDType() == Datatype::INT8) {
+    if (params.outputs[0].GetDType() == Datatype::UINT8 ||
+        params.outputs[0].GetDType() == Datatype::INT8) {
         if (params.inputs[0].GetDType() == Datatype::F32) {
             return Datatype::F32;
         } else if (params.inputs[0].GetDType() == Datatype::F16) {

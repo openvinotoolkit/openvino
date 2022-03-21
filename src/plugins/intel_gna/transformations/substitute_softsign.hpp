@@ -38,7 +38,7 @@ namespace GNAPluginNS {
  */
 class SubstituteSoftsign : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
+  OPENVINO_RTTI("SubstituteSoftsign", "0");
   SubstituteSoftsign();
 };
 

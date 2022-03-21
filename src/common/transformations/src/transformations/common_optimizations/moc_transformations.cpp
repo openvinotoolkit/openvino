@@ -35,6 +35,7 @@
 #include <transformations/common_optimizations/normalize_l2_fusion.hpp>
 #include <transformations/common_optimizations/optimize_strided_slice.hpp>
 #include <transformations/common_optimizations/pad_fusion.hpp>
+#include <transformations/common_optimizations/prelu_fusion.hpp>
 #include <transformations/common_optimizations/random_uniform_fusion.hpp>
 #include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
 #include <transformations/common_optimizations/remove_filtering_boxes_by_size.hpp>
@@ -58,8 +59,6 @@
 #include <transformations/op_conversions/batch_norm_decomposition.hpp>
 #include <transformations/op_conversions/convert_divide.hpp>
 #include <transformations/op_conversions/convert_scatter_elements_to_scatter.hpp>
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::MOCTransformations, "MOCTransformations", 0);
 
 bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     // To avoid issues with dynamism we make nGraph Function dynamic and after we apply all
@@ -155,6 +154,7 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
     common_fusions->add_matcher<ngraph::pass::TransposeToReshape>();
     common_fusions->add_matcher<ngraph::pass::ReshapeSequenceFusion>(m_use_shapes);
     common_fusions->add_matcher<ngraph::pass::MatMulConstTransposesExtraction>();
+    common_fusions->add_matcher<ngraph::pass::PReluFusion>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
     manager.register_pass<ngraph::pass::BinarizeWeights>();

@@ -14,8 +14,6 @@
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::UnrollTensorIterator, "UnrollTensorIterator", 0);
-
 bool ngraph::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(UnrollTensorIterator);
     for (const auto& op : f->get_ops()) {

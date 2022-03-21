@@ -82,10 +82,6 @@ protected:
                                                           const std::shared_ptr<OpPlace>&)> func);
     bool is_function_quantized(const std::shared_ptr<ngraph::Function>& function) const;
 
-    // m_extensions should be the first member here,
-    // m_extensions can contain SO Extension (holder for other Extensions),
-    // so it should be released last.
-    std::vector<Extension::Ptr> m_extensions;
     TelemetryExtension::Ptr m_telemetry;
     std::vector<DecoderTransformationExtension::Ptr> m_transformation_extensions;
     std::vector<ConversionExtensionBase::Ptr> m_conversion_extensions;

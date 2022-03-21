@@ -21,8 +21,6 @@
 #include <numeric>
 #include <climits>
 
-NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::TokenizeSnippets, "Snippets::TokenizeSnippets", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::EnumerateNodes, "Snippets::EnumerateNodes", 0);
 
 namespace ngraph {
 namespace snippets {
@@ -139,7 +137,7 @@ auto get_num_result_children(const std::shared_ptr<const Node> &node) -> size_t 
     }
     return result;
 }
-// Need to update tensor name manually, since MKLDNNGraph::Replicate() looks at input.get_tensor().get_name();
+// Need to update tensor name manually, since intel_cpu::Graph::Replicate() looks at input.get_tensor().get_name();
 // If subgraph->get_output_size() == 1, then the name will be restored correctly from the node name
 auto update_out_tensor_name(std::shared_ptr<ngraph::snippets::op::Subgraph> &subgraph) -> void {
     bool not_set = true;
