@@ -83,7 +83,6 @@ protected:
 
 inline ov::Core createCoreWithTemplate() {
     ov::test::utils::PluginCache::get().reset();
-    PluginCache::get().reset();
     ov::Core core;
 #ifndef OPENVINO_STATIC_LIBRARY
     std::string pluginName = "openvino_template_plugin";
@@ -132,6 +131,9 @@ public:
     std::string deviceName;
 
     void SetUp() override {
+        // w/a for myriad (cann't store 2 caches simultaneously)
+        PluginCache::get().reset();
+
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         OVClassNetworkTest::SetUp();
         deviceName = GetParam();
