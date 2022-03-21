@@ -123,7 +123,7 @@ void apply_make_stateful_ov_nodes() {
     ov::Core core;
     auto ov_model = core.read_model("path_to_the_model");
     // Parameter_1, Result_1, Parameter_3, Result_3 are shared_ptr<Parameter/Result> in the ov_model
-    std::vector<std::pair<std::shared_ptr<ov::opset8::Parameter>, std::shared_ptr<ov::opset8::Result>> pairs
+    std::vector<std::pair<std::shared_ptr<ov::opset8::Parameter>, std::shared_ptr<ov::opset8::Result>>> pairs
             = {/*Parameter_1, Result_1, Parameter_3, Result_3*/};
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::MakeStateful>(pairs);
