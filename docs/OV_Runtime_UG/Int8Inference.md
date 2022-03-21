@@ -14,9 +14,7 @@ Low-precision 8-bit inference is optimized for:
 
 ## Introduction
 
-For 8-bit integer computation, a model must be quantized. You can use a quantized model from [OpenVINO™ Toolkit Intel's Pre-Trained Models](@ref omz_models_group_intel) or quantize a model yourself. For quantization, you can use the following:
-- [Post-Training Optimization Tool](@ref pot_docs_LowPrecisionOptimizationGuide) delivered with the Intel® Distribution of OpenVINO™ toolkit release package
-- [Neural Network Compression Framework](https://www.intel.com/content/www/us/en/artificial-intelligence/posts/openvino-nncf.html) available on GitHub: https://github.com/openvinotoolkit/nncf
+For 8-bit integer computation, a model must be quantized. You can use a quantized model from [OpenVINO™ Toolkit Intel's Pre-Trained Models](@ref omz_models_group_intel) or quantize a model yourself. For more details on how to get quantized model please refer to [Model Optimization](@ref openvino_docs_model_optimization_guide) document.
 
 The quantization process adds [FakeQuantize](../ops/quantization/FakeQuantize_1.md) layers on activations and weights for most layers. Read more about mathematical computations in the [Uniform Quantization with Fine-Tuning](https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md).
 
