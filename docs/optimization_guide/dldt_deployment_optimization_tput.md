@@ -25,7 +25,7 @@ The rest of the document provides low-level details on the OpenVINO's low-level 
 
 ## Low-Level Implementation Details
 ### OpenVINO Streams <a name="ov-streams"></a>
-As detailed in the section <a href="#ov-async-api">OpenVINO Async API</a> running multiple inference requests asynchronously is important for general application efficiency.
+As detailed in the [common-optimizations section](ref @openvino_docs_deployment_optimization_guide_common) running multiple inference requests asynchronously is important for general application efficiency.
 Additionally, most devices support running multiple inference requests in parallel in order to improve the device utilization. The _level_ of the parallelism (i.e. how many requests are really executed in parallel on the device) is commonly referred as a number of 'streams'. Some devices run several requests per stream to amortize the host-side costs.
 Notice that streams (that can be considered as independent queues) are really executing the requests in parallel, but not in the lock step (as e.g. the batching does), this makes the streams much more compatible with [dynamically-shaped inputs](../OV_Runtime_UG/ov_dynamic_shapes.md) when individual requests can have different shapes. 
 

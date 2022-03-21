@@ -16,7 +16,7 @@
 ## Deployment Optimizations Overview {#openvino_docs_deployment_optimization_guide_overview}
 Runtime or deployment optimizations are focused on tuning of the inference _parameters_ (e.g. optimal number of the requests executed simultaneously) and other means of how a model is _executed_. 
 
-As referenced in the parent [performance introduction topic](./dldt_optimization_guide.md), the [dedicated document](./model_optimization_guide.md) covers the  *model-level optimizations* like quantization that unlocks the [int8 inference](../OV_Runtime_UG/Int8Inference.md). Model-optimizations are most general and help any scenario and any device (that accelerated the quantized models). The relevant _runtime_ configuration is `ov::hint::inference_precision` allowing the devices to trade the accuracy for the performance (e.g. by allowing the fp16/bf16 execution for the layers that remain in fp32 after quantization of the original fp32 model). 
+As referenced in the parent [performance introduction topic](./dldt_optimization_guide.md), the [dedicated document](./model_optimization_guide.md) covers the  **model-level optimizations** like quantization that unlocks the [int8 inference](../OV_Runtime_UG/Int8Inference.md). Model-optimizations are most general and help any scenario and any device (that accelerated the quantized models). The relevant _runtime_ configuration is `ov::hint::inference_precision` allowing the devices to trade the accuracy for the performance (e.g. by allowing the fp16/bf16 execution for the layers that remain in fp32 after quantization of the original fp32 model). 
 
 Then, possible optimization should start with defining the use-case. For example, whether the target scenario emphasizes throughput over latency like processing millions of samples by overnight jobs in the data centers.
 In contrast, real-time usages would likely trade off the throughput to deliver the results at minimal latency. Often this is a combined scenario that targets highest possible throughput while maintaining a specific latency threshold.
@@ -27,15 +27,15 @@ These are also common performance tricks that help both latency and throughput s
 
 Further documents cover the  _runtime_ performance optimizations topics. Please also consider [matrix support of the features by the individual devices](@ref openvino_docs_OV_UG_features_support_matrix).
 
-*[General, application-level optimizations](./dldt_deployment_optimization_common.md)*, and specifically:
+**General, application-level optimizations**, and specifically:
  
 * [Inputs Pre-processing with the OpenVINO](../OV_Runtime_UG/preprocessing_overview.md)
 
-* [Async API and 'get_tensor' Idiom](../OV_Runtime_UG/)
+* [Async API and 'get_tensor' Idiom](./dldt_deployment_optimization_common.md)
 
 * For variably-sized inputs, consider [dynamic shapes](../OV_Runtime_UG/ov_dynamic_shapes.md)
 
-*Use-case specific optimizations along with some implementation details*:
+**Use-case specific optimizations** along with some implementation details:
  
 * Optimizing for [throughput](./dldt_deployment_optimization_tput.md) and [latency](./dldt_deployment_optimization_latency.md)
  

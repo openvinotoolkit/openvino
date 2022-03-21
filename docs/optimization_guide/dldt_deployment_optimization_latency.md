@@ -23,7 +23,7 @@ Thus, human expertise is required to get the most out of the device even in the 
 
 > **NOTE**: [OpenVINO performance hints](./dldt_deployment_optimization_hints.md) is a recommended way for performance configuration, which is both device-agnostic and future-proof. 
 
-In the case when there are multiple models to be used simultaneously, consider using different devices for inferencing the different models. Finally, when multiple models are executed in parallel on the device, using additional `ov::hint::model_priority` may help to define relative priorities of the models (please refer to the documentation on the [matrix features support for OpenVINO devices](../OV_Runtime_UG/supported_plugins/Device_Plugins.md) to check for the support of the feature by the specific device).
+In the case when there are multiple models to be used simultaneously, consider using different devices for inferencing the different models. Finally, when multiple models are executed in parallel on the device, using additional `ov::hint::model_priority` may help to define relative priorities of the models (please refer to the documentation on the [matrix features support for OpenVINO devices](ref @openvino_docs_OV_UG_features_support_matrix) to check for the support of the feature by the specific device).
 
 ## First-Inference Latency and Model Load/Compile Time
 There are cases when model loading/compilation are heavily contributing to the end-to-end latencies.

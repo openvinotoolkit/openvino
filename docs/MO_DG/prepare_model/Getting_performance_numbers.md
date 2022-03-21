@@ -56,12 +56,12 @@ Both [C++](../../../samples/cpp/benchmark_app/README.md) and [Python](../../../t
 Below is example of CPU plugin output for a network (since the device is CPU, the layers wall clock `realTime` and the `cpu` time are the same):
 
 ```
-conv1      EXECUTED       layerType: Convolution        realTime: 706        cpu: 706            execType: jit_avx2
-conv2_1_x1  EXECUTED       layerType: Convolution        realTime: 137        cpu: 137            execType: jit_avx2_1x1
-fc6        EXECUTED       layerType: Convolution        realTime: 233        cpu: 233            execType: jit_avx2_1x1
-fc6_nChw8c_nchw      EXECUTED  layerType: Reorder           realTime: 20         cpu: 20             execType: reorder
-out_fc6         EXECUTED       layerType: Output            realTime: 3          cpu: 3              execType: unknown
-relu5_9_x2    OPTIMIZED_OUT     layerType: ReLU             realTime: 0          cpu: 0              execType: undef
+conv1       EXECUTED       layerType: Convolution       realTime: 706        cpu: 706            execType: jit_avx2
+conv2_1_x1  EXECUTED       layerType: Convolution       realTime: 137        cpu: 137            execType: jit_avx2_1x1
+fc6              EXECUTED  layerType: Convolution       realTime: 233        cpu: 233            execType: jit_avx2_1x1
+fc6_nChw8c_nchw  EXECUTED  layerType: Reorder           realTime: 20         cpu: 20             execType: reorder
+out_fc6          EXECUTED  layerType: Output            realTime: 3          cpu: 3              execType: unknown
+relu5_9_x2       OPTIMIZED_OUT     layerType: ReLU             realTime: 0          cpu: 0              execType: undef
 ```
 This contains layers name (as seen in IR), layers type and execution statistics. Notice the `OPTIMIZED_OUT`, which indicates that the particular activation was fused into adjacent convolution.
 Both benchmark_app versions also support "exec_graph_path" command-line option governing the OpenVINO to output the same per-layer execution statistics, but in the form of the plugin-specific [Netron-viewable](https://netron.app/) graph to the specified file.
