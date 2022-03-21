@@ -17,6 +17,7 @@
    :hidden:
 
    openvino_docs_OV_Runtime_User_Guide
+   openvino_2_0_transition_guide
    openvino_docs_install_guides_deployment_manager_tool
    openvino_inference_engine_tools_compile_tool_README
 
@@ -29,6 +30,7 @@
    openvino_docs_optimization_guide_dldt_optimization_guide
    openvino_docs_MO_DG_Getting_Performance_Numbers
    openvino_docs_model_optimization_guide
+   openvino_docs_deployment_optimization_guide_dldt_optimization_guide
    openvino_docs_tuning_utilities
    openvino_docs_performance_benchmarks
 
@@ -61,6 +63,7 @@
    :hidden:
 
    ovms_what_is_openvino_model_server
+   ote_documentation
    ovsa_get_started
 
 .. toctree::
@@ -70,9 +73,7 @@
 
    openvino_docs_Extensibility_UG_Intro
    openvino_docs_transformations
-   Inference Engine Plugin Developer Guide <openvino_docs_ie_plugin_dg_overview>
-   groupie_dev_api
-   Plugin Transformation Pipeline <openvino_docs_IE_DG_plugin_transformation_pipeline>
+   OpenVINO Plugin Developer Guide <openvino_docs_ie_plugin_dg_overview>
    
 .. toctree::
    :maxdepth: 1

@@ -12,7 +12,7 @@ Reasons when you may want to care about input/output layout:
  - Perform model modification:
     - Apply [preprocessing](./preprocessing_overview.md) steps, like subtract means, divide by scales, resize image, convert RGB<->BGR
     - Set/get batch for a model
- - Same operations, used during model conversion phase, see [Model Optimizer model conversion](../MO_DG/prepare_model/convert_model/Converting_Model.md)
+ - Same operations, used during model conversion phase, see [Model Optimizer Embedding Preprocessing Computation](../MO_DG/prepare_model/Additional_Optimizations.md)
  - Improve readability of a model's input and output
 
 ## Layout syntax

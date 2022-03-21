@@ -116,5 +116,5 @@ After the build you can use path to your extension library to load your extensio
 ## See Also
 
 * [OpenVINO Transformations](./ov_transformations.md)
-* [Using Inference Engine Samples](../OV_Runtime_UG/Samples_Overview.md)
+* [Using OpenVINO Runtime Samples](../OV_Runtime_UG/Samples_Overview.md)
 * [Hello Shape Infer SSD sample](../../samples/cpp/hello_reshape_ssd/README.md)

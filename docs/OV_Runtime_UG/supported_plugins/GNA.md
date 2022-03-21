@@ -9,17 +9,17 @@ to save power and free CPU resources.
 
 The GNA plugin provides a way to run inference on Intel® GNA, as well as in the software execution mode on CPU.
 
-See [GNA configuration page](@ref openvino_docs_install_guides_configurations_for_intel_gna) for more details on how to configure machine to use GNA plugin.
+For more details on how to configure a machine to use GNA plugin, see [GNA configuration page](@ref openvino_docs_install_guides_configurations_for_intel_gna).
 
 ## Intel® GNA Generational Differences
 
 The first (1.0) and second (2.0) versions of Intel® GNA found in 10th and 11th generation Intel® Core™ Processors may be considered to be functionally equivalent.  Intel® GNA 2.0 provided performance improvement with respect to Intel® GNA 1.0.  Starting with 12th Generation Intel® Core™ Processors (formerly codenamed Alder Lake), support for Intel® GNA 3.0 features is being added.
 
-In the rest of this documentation, "GNA 2.0" refers to Intel® GNA hardware delivered on 10th and 11th generation Intel® Core™ processors, and the term "GNA 3.0" will be used to refer to GNA hardware delivered on 12th generation Intel® Core™ processors.
+In the rest of this documentation, "GNA 2.0" refers to Intel® GNA hardware delivered on 10th and 11th generation Intel® Core™ processors, and the term "GNA 3.0" refers to GNA hardware delivered on 12th generation Intel® Core™ processors.
 
 ### Intel® GNA Forward and Backward Compatibility
 
-When the user runs a model using the GNA plugin it is compiled internally for the specific hardware target. It is possible to export compiled model using <a href="#import-export">Import/Export</a> functionality to use it later, but in the general case, there is no guarantee that a model compiled and exported for GNA 2.0 will run on GNA 3.0, or vice versa.
+When you run a model using the GNA plugin, it is compiled internally for the specific hardware target. It is possible to export compiled model using <a href="#import-export">Import/Export</a> functionality to use it later, but in the general case, there is no guarantee that a model compiled and exported for GNA 2.0 runs on GNA 3.0, or vice versa.
 
 @sphinxdirective
 
@@ -31,19 +31,19 @@ When the user runs a model using the GNA plugin it is compiled internally for th
 
 @endsphinxdirective
 
-> **NOTE**: In most cases, networks compiled for GNA 2.0 will run as expected on GNA 3.0, although the performance may be worse compared to the case when a network is compiled specifically for the latter.  The exception is networks with convolutions with the number of filters greater than 8192 (see the <a href="#models-and-operations-limitations">Models and Operations Limitations</a> section).
+> **NOTE**: In most cases, networks compiled for GNA 2.0 runs as expected on GNA 3.0, although the performance may be worse compared to the case when a network is compiled specifically for the latter.  The exception is networks with convolutions with the number of filters greater than 8192 (see the <a href="#models-and-operations-limitations">Models and Operations Limitations</a> section).
 
-For optimal work with POT quantized models which includes 2D convolutions on GNA 3.0 hardware the <a href="#support-for-2d-convolutions-using-pot">following requirements</a> should be satisfied.
+For optimal work with POT quantized models which includes 2D convolutions on GNA 3.0 hardware, the <a href="#support-for-2d-convolutions-using-pot">following requirements</a> should be satisfied.
 
-It is recommended to choose a compile target depending on what is a priority: cross-platform execution or performance, memory and power optimization.
+Choose a compile target depending on the priority: cross-platform execution, performance, memory, or power optimization..
 
-You can use the following properties to check interoperability in your own application: `ov::intel_gna::execution_target` and `ov::intel_gna::compile_target`
+Use the following properties to check interoperability in your application: `ov::intel_gna::execution_target` and `ov::intel_gna::compile_target`
 
 [Speech C++ Sample](@ref openvino_inference_engine_samples_speech_sample_README) can be used for experiments (see `-exec_target` and `-compile_target` command line options).
 
 ## Software emulation mode
 
-On platforms without GNA hardware support plugin chooses software emulation mode automatically by default. This means model will anyway run even if you don't have GNA HW within your platform.
+On platforms without GNA hardware support plugin chooses software emulation mode by default. It means, model runs even if you do not have GNA HW within your platform.
 GNA plugin enables you to switch the execution between software emulation mode and hardware execution mode after the model is loaded.
 For details, see description of the `ov::intel_gna::execution_mode` property.
 
@@ -55,7 +55,7 @@ For such workloads, processing should be time constrained, otherwise extra delay
 (QoS) mechanism, which interrupts requests that might cause high-priority Windows audio processes to miss
 the schedule, thereby causing long running GNA tasks to terminate early.
 
-Applications should be prepared for this situation. We recommend to use Automatic QoS Feature described below.
+To prepare the applications correctly, use Automatic QoS Feature described below.
 
 ### Automatic QoS Feature on Windows*
 
