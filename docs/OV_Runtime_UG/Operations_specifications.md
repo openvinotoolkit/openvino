@@ -134,6 +134,7 @@
    openvino_docs_ops_detection_PriorBox_8
    openvino_docs_ops_detection_Proposal_1
    openvino_docs_ops_detection_Proposal_4
+   openvino_docs_ops_generation_EyeLike_9
    openvino_docs_ops_generation_RandomUniform_8
    openvino_docs_ops_generation_Range_1
    openvino_docs_ops_generation_Range_4
