@@ -53,7 +53,7 @@ When comparing the OpenVINO Runtime performance with the framework or another re
 Further, finer-grained insights into inference performance breakdown can be achieved with device-specific performance counters and/or execution graphs.
 Both [C++](../../../samples/cpp/benchmark_app/README.md) and [Python](../../../tools/benchmark_tool/README.md) versions of the `benchmark_app` supports a `-pc` command-line parameter that outputs internal execution breakdown.
 
-For example, below is the part of performance counters for quantized [TensorFlow* implementation of ResNet-50](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf) model inference on [CPU Plugin](supported_plugins/CPU.md).
+For example, below is the part of performance counters for quantized [TensorFlow* implementation of ResNet-50](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf) model inference on [CPU Plugin](../../OV_Runtime_UG/supported_plugins/CPU.md).
 Notice that since the device is CPU, the layers wall clock `realTime` and the `cpu` time are the same. Information about layer precision is also stored in the performance counters. 
 
 | layerName                                                 | execStatus | layerType    | execType             | realTime (ms) | cpuTime (ms) |
@@ -76,7 +76,7 @@ Notice that since the device is CPU, the layers wall clock `realTime` and the `c
    * Suffix `I8` for layers that had 8-bit data type input and were computed in 8-bit precision
    * Suffix `FP32` for layers computed in 32-bit precision 
 
-   All `Convolution` layers are executed in int8 precision. Rest layers are fused into Convolutions using post operations optimization technique, which is described in [Internal CPU Plugin Optimizations](supported_plugins/CPU.md).
+   All `Convolution` layers are executed in int8 precision. Rest layers are fused into Convolutions using post operations optimization technique, which is described in [Internal CPU Plugin Optimizations](../../OV_Runtime_UG/supported_plugins/CPU.md).
    This contains layers name (as seen in IR), layers type and execution statistics.
 
 Both benchmark_app versions also support "exec_graph_path" command-line option governing the OpenVINO to output the same per-layer execution statistics, but in the form of the plugin-specific [Netron-viewable](https://netron.app/) graph to the specified file.
