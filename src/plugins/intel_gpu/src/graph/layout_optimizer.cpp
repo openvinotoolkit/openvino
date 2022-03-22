@@ -456,8 +456,8 @@ bool should_use_winograd_2x3_s1(std::shared_ptr<const convolution> const& prim,
         || weights_layout.size.spatial[0] != 3     // weights have to be 3x3 by definiton
         || weights_layout.size.spatial[1] != 3     // weights have to be 3x3 by definition
         || weights_layout.size.batch[0] % 64 != 0  // current algorithm is effective for ofm to be multiply of 64
-        || prim->stride != tensor {1}               // stride has to be 1x1 by definition
-        || prim->dilation != tensor {1}             // no support for dilation
+        || any_not_one(prim->stride)               // stride has to be 1x1 by definition
+        || any_not_one(prim->dilation)             // no support for dilation
         || prim->split() != 1                      // no support for splitted convolutions
         || (output_size_handling_enabled &&
             prim->with_output_size)                // no support for convolutions with user-specified output size
@@ -495,7 +495,7 @@ bool layout_optimizer::convolution_bfyx_opt(layout const& output_layout,
         output_layout.data_type != data_types::f16 || weights_layout.size.batch[0] % 16 != 0 ||
         !((weights_layout.size.spatial[0] == 1 && weights_layout.size.spatial[1] == 1) ||
           (weights_layout.size.spatial[0] >= 5 && weights_layout.size.spatial[1] >= 5) ||
-          (conv->stride.spatial[0] > 1 && conv->stride.spatial[1] > 1) ||
+          (conv->stride[0] > 1 && conv->stride[1] > 1) ||
           (weights_layout.size.feature[0] <= 32 && output_layout.size.spatial[0] < 224 &&
            output_layout.size.spatial[1] < 224) ||
           (weights_layout.size.feature[0] <= 64 && output_layout.size.spatial[0] < 112 &&
@@ -533,13 +533,14 @@ bool layout_optimizer::convolution_byxf_opt(const layout& input_layout,
 
     // A set of rules that define when byxf mem format has better performance
     if ((output_layout.data_type == data_types::f16 && weights_layout.size.spatial[0] == 1 &&
-        conv->dilation == tensor { 1 } &&
+        all_ones(conv->dilation) &&
         !node.get_transposed() &&
          node.get_groups() == 1 &&
          input_layout.size.feature[0] % 32 == 0 &&
          weights_layout.size.spatial[1] == 1 && output_layout.size.feature[0] % 64 == 0 &&
-         weights_layout.size.batch[0] % 64 == 0 && conv->stride.spatial[0] == 1 && conv->stride.spatial[1] == 1 &&
-         conv->pad.spatial[0] == 0 && conv->pad.spatial[1] == 0) ||
+         weights_layout.size.batch[0] % 64 == 0 &&
+         all_ones(conv->stride) &&
+         all_zeroes(conv->pad)) ||
         // Winograd
         should_use_winograd_2x3_s1(conv, input_layout, weights_layout, _output_size_handling_enabled))
         return true;
@@ -576,7 +577,7 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(const layout& input_layout,
                  out_features_per_group >= 16 &&
                  // Need to extend imad fsv4 kernel to handle e.g. 3 input features per group
                  (in_features_per_group % 4 == 0) &&
-                 ((conv->dilation.spatial[0] + 1) * (ks_x - 1)) <= 16)
+                 ((conv->dilation[conv->dilation.size() - 1] + 1) * (ks_x - 1)) <= 16)
                 return true;
         // Check for fsv16 imad kernel
         else if ((input_layout.format.dimension() == 4) &&
@@ -655,7 +656,7 @@ bool layout_optimizer::convolution_b_fs_zyx_fsv16_opt(const layout& input_layout
                       input_layout.format == format::bs_fs_zyx_bsv16_fsv16);
     bool data_type_ver = input_layout.data_type == data_types::f16 || input_layout.data_type == data_types::f32;
     bool w_layout = weights_layout.data_type == input_layout.data_type;
-    bool single_dilation = conv->dilation == tensor(1);
+    bool single_dilation = all_ones(conv->dilation);
     bool groups_ver = conv->groups == 1 || out_features_per_group % 16 == 0
         || (conv->groups > 1 && out_features_per_group == 8);
 
@@ -680,7 +681,7 @@ bool layout_optimizer::convolution_bs_fs_yx_bsv16_fsv16_opt(const layout& input_
     auto ks_x = weights_layout.size.spatial[0];
     auto ks_y = weights_layout.size.spatial[1];
     int8_sup &= (input_layout.size.spatial[2] == 1 && ((ks_x == 1 && ks_y == 1) || (ks_x == 3 && ks_y == 3) || (ks_x == 7 && ks_y == 7)) &&
-                 output_layout.size.feature[0] % 32 == 0 && conv->split() == 1 && conv->dilation == tensor{1});
+                 output_layout.size.feature[0] % 32 == 0 && conv->split() == 1 && all_ones(conv->dilation));
 
     return (int8_sup || fp16_ver || fp32_ver) && correct_feature && correct_batch && single_group;
 }
@@ -1148,7 +1149,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
         int input_features = input_tensor.feature[0];
         int output_features = expected_tensor.feature[0];
         float f_cost = static_cast<float>(input_features * output_features) / (align_to(input_features, 16) * align_to(output_features, 16));
-        float stride_cost = 1/static_cast<float>(prim->stride.spatial[0]);
+        float stride_cost = 1 / static_cast<float>(prim->stride[prim->stride.size() - 1]);
         if (f_cost * stride_cost > 0.1f)
             expected_format = cldnn::format::b_fs_yx_fsv16;
         else
