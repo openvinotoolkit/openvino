@@ -228,16 +228,39 @@ def test_set_shape(ov_type, numpy_dtype):
 @pytest.mark.parametrize("ref_shape", [
     [1, 3, 24, 24],
     [1, 3, 32, 32],
-    [1, 3, 48, 48],
 ])
-def test_cannot_set_shape_on_preallocated_memory(ref_shape):
+def test_can_set_smaller_or_same_shape_on_preallocated_memory(ref_shape):
     ones_arr = np.ones(shape=(1, 3, 32, 32), dtype=np.float32)
     ones_arr = np.ascontiguousarray(ones_arr)
     ov_tensor = Tensor(ones_arr, shared_memory=True)
     assert np.shares_memory(ones_arr, ov_tensor.data)
+    ov_tensor.shape = ref_shape
+    assert list(ov_tensor.shape) == ref_shape
+
+
+def test_cannot_set_bigger_shape_on_preallocated_memory():
+    ones_arr = np.ones(shape=(1, 3, 32, 32), dtype=np.float32)
+    ones_arr = np.ascontiguousarray(ones_arr)
+    ov_tensor = Tensor(ones_arr, shared_memory=True)
+    ref_shape = [1, 3, 48, 48]
+    assert np.shares_memory(ones_arr, ov_tensor.data)
     with pytest.raises(RuntimeError) as e:
         ov_tensor.shape = ref_shape
     assert "Cannot call setShape for Blobs created on top of preallocated memory" in str(e.value)
+
+
+@pytest.mark.skip(reason="no support yet")
+def test_can_reset_shape_after_decreasing_on_preallocated_memory():
+    ones_arr = np.ones(shape=(1, 3, 32, 32), dtype=np.float32)
+    ones_arr = np.ascontiguousarray(ones_arr)
+    ov_tensor = Tensor(ones_arr, shared_memory=True)
+    ref_shape_1 = [1, 3, 24, 24]
+    ref_shape_2 = [1, 3, 32, 32]
+    assert np.shares_memory(ones_arr, ov_tensor.data)
+    ov_tensor.shape = ref_shape_1
+    assert list(ov_tensor.shape) == ref_shape_1
+    ov_tensor.shape = ref_shape_2
+    assert list(ov_tensor.shape) == ref_shape_2
 
 
 def test_cannot_set_shape_incorrect_dims():
