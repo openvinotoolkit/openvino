@@ -110,11 +110,12 @@ Following the OpenVINO convention for devices names, the *batching* device is na
 ### Testing Automatic Batching Performance with the Benchmark_App
 The `benchmark_app`, that exists in both  [C++](../../samples/cpp/benchmark_app/README.md) and [Python](../../tools/benchmark_tool/README.md) versions, is the best way to evaluate the performance of the Automatic Batching:
  -  The most straighforward way is performance hints:
-- - benchmark_app **-hint tput** -d GPU -m 'path to your favorite model'
+    - benchmark_app **-hint tput** -d GPU -m 'path to your favorite model'
  -  Overriding the strict rules of implicit reshaping by the batch dimension via the explicit device notion:
-- - benchmark_app **-hint none -d BATCH:GPU** -m 'path to your favorite model'
+    - benchmark_app **-hint none -d BATCH:GPU** -m 'path to your favorite model'
  -  Finally, overriding the automatically-deduced batch size as well:
-- - $benchmark_app -hint none -d **BATCH:GPU(16)** -m 'path to your favorite model'
+    - $benchmark_app -hint none -d **BATCH:GPU(16)** -m 'path to your favorite model'
+    - notice that some shell versions (e.g. `bash`) may require putting complex device names to the quotes, i.e. -d "BATCH:GPU(16)"
 
 The last example is also applicable to the CPU or any other device that generally supports the batched execution.  
 

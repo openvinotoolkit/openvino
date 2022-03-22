@@ -7,7 +7,7 @@ Throughput on the other hand, is about inference scenarios in which potentially 
 Here, the overall application inference rate can be significantly improved with the right performance configuration.
 Also, if the model is not already memory bandwidth-limited, the associated increase in latency is not linearly dependent on the number of requests executed in parallel.
 
-With the OpenVINO there are two major means of increasing the throughput by running the multiple requests simultaneously: **batching** and "**streams**", explained in this document. 
+With the OpenVINO there are two major means running the multiple requests simultaneously: **batching** and "**streams**", explained in this document. 
 * Your application may send explicitly batched requests to the OpenVINO
    * Yet different devices behave differently with the batch sizes. The optimal batch size depends on the model, inference precision and other factors.
 * Streams doesn't require the explicit application logic to collect the data, as they don't execute in a lock step, as explained in the next section 
