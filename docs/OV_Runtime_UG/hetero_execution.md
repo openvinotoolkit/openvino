@@ -31,21 +31,22 @@ Following the OpenVINO™ naming convention, the Hetero execution plugin is assi
 #### The Manual Mode
 It assumes setting affinities explicitly for all operations in the model using `ov::Node::get_rt_info` with the `"affinity"` key. 
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_hetero.cpp
-       :language: cpp
-       :fragment: [set_manual_affinities]
+@snippet docs/snippets/ov_hetero.cpp set_manual_affinities
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_hetero.py
-       :language: python
-       :fragment: [set_manual_affinities]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_hetero.py set_manual_affinities
+
+@endsphinxtab
+
+@endsphinxtabset
+
 
 
 
@@ -55,40 +56,40 @@ It decides automatically which operation is assigned to which device according t
 The automatic mode causes "greedy" behavior and assigns all operations that can be executed on a given device to it, according to the priorities you specify (for example, `ov::device::priorities("GPU,CPU")`).
 It does not take into account device peculiarities such as the inability to infer certain operations without other special operations placed before or after that layer. If the device plugin does not support the subgraph topology constructed by the HETERO device, then you should set affinity manually.
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_hetero.cpp
-       :language: cpp
-       :fragment: [compile_model]
+@snippet docs/snippets/ov_hetero.cpp compile_model
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_hetero.py
-       :language: python
-       :fragment: [compile_model]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_hetero.py compile_model
+
+@endsphinxtab
+
+@endsphinxtabset
 
 #### Using Manual and Automatic Modes in Combination
 In some cases you may need to consider manually adjusting affinities which were set automatically. It usually serves minimizing the number of total subgraphs to optimize memory transfers. To do it, you need to "fix" the automatically assigned affinities like so:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_hetero.cpp
-       :language: cpp
-       :fragment: [fix_automatic_affinities]
+@snippet docs/snippets/ov_hetero.cpp fix_automatic_affinities
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_hetero.py
-       :language: python
-       :fragment: [fix_automatic_affinities]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_hetero.py fix_automatic_affinities
+
+@endsphinxtab
+
+@endsphinxtabset
 
 Importantly, the automatic mode will not work if any operation in a model has its `"affinity"` already initialized.
 
@@ -97,21 +98,21 @@ Importantly, the automatic mode will not work if any operation in a model has it
 ### Configure fallback devices
 If you want different devices in Hetero execution to have different device-specific configuration options, you can use the special helper property `ov::device::properties`:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_hetero.cpp
-       :language: cpp
-       :fragment: [configure_fallback_devices]
+@snippet docs/snippets/ov_hetero.cpp configure_fallback_devices
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_hetero.py
-       :language: python
-       :fragment: [configure_fallback_devices]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_hetero.py configure_fallback_devices
+
+@endsphinxtab
+
+@endsphinxtabset
 
 In the example above, the `GPU` device is configured to enable profiling data and uses the default execution precision, while `CPU` has the configuration property to perform inference in `fp32`.
 

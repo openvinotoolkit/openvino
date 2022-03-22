@@ -1,5 +1,4 @@
-Remote Tensor API of GPU Plugin {#openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API}
-================================
+# Remote Tensor API of GPU Plugin {#openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API}
 
 The GPU plugin implementation of the `ov::RemoteContext` and `ov::RemoteTensor` interfaces supports GPU
 pipeline developers who need video memory sharing and interoperability with existing native APIs
@@ -38,49 +37,59 @@ additional parameter.
 To create `ov::RemoteContext` object for user context, explicitly provide the context to the plugin using constructor for one
 of `ov::RemoteContext` derived classes.
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: Linux
+@sphinxtab{Linux}
 
-    .. tab:: Create from cl_context
+@sphinxtabset
 
-        .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-          :language: cpp
-          :fragment: [context_from_cl_context]
+@sphinxtab{Create from cl_context}
 
-    .. tab:: Create from cl_queue
+@snippet docs/snippets/gpu/remote_objects_creation.cpp context_from_cl_context
 
-        .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-          :language: cpp
-          :fragment: [context_from_cl_queue]
+@endsphinxtab
 
-    .. tab:: Create from VADisplay
+@sphinxtab{Create from cl_queue}
 
-        .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-          :language: cpp
-          :fragment: [context_from_va_display]
+@snippet docs/snippets/gpu/remote_objects_creation.cpp context_from_cl_queue
 
-.. tab:: Windows
+@endsphinxtab
 
-    .. tab:: Create from cl_context
+@sphinxtab{Create from VADisplay}
 
-        .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-          :language: cpp
-          :fragment: [context_from_cl_context]
+@snippet docs/snippets/gpu/remote_objects_creation.cpp context_from_va_display
 
-    .. tab:: Create from cl_queue
+@endsphinxtab
 
-        .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-          :language: cpp
-          :fragment: [context_from_cl_queue]
+@endsphinxtabset
 
-    .. tab:: Create from ID3D11Device
+@endsphinxtab
 
-        .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-          :language: cpp
-          :fragment: [context_from_d3d_device]
+@sphinxtab{Windows}
 
-@endsphinxdirective
+@sphinxtabset
+
+@sphinxtab{Create from cl_context}
+
+@snippet docs/snippets/gpu/remote_objects_creation.cpp context_from_cl_context
+
+@endsphinxtab
+
+@sphinxtab{Create from cl_queue}
+
+@snippet docs/snippets/gpu/remote_objects_creation.cpp context_from_cl_queue
+
+@endsphinxtab
+
+@sphinxtab{Create from ID3D11Device}
+
+@snippet docs/snippets/gpu/remote_objects_creation.cpp context_from_d3d_device
+
+@endsphinxtab
+
+@endsphinxtabset
+
+@endsphinxtabset
 
 
 ### Getting RemoteContext from the plugin
@@ -91,22 +100,21 @@ Once the plugin options are changed, the internal context is replaced by the new
 
 To request the current default context of the plugin use one of the following methods:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: Get context from Core
+@sphinxtab{Get context from Core}
 
-    .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-        :language: cpp
-        :fragment: [default_context_from_core]
+@snippet docs/snippets/gpu/remote_objects_creation.cpp default_context_from_core
 
-.. tab:: Get context from CompiledModel
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-        :language: cpp
-        :fragment: [default_context_from_model]
+@sphinxtab{Bacthing via throughput hint}
 
+@snippet docs/snippets/gpu/remote_objects_creation.cpp default_context_from_model
 
-@endsphinxdirective
+@endsphinxtab
+
+@endsphinxtabset
 
 ## Memory sharing between application and GPU plugin
 
@@ -118,61 +126,72 @@ of the `ov::RemoteContext` sub-classes.
 `ov::intel_gpu::ocl::ClContext` has multiple overloads of `create_tensor` methods which allow to wrap pre-allocated native handles with `ov::RemoteTensor`
 object or request plugin to allocate specific device memory. See code snippets below for more details.
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: Wrap native handles
+@sphinxtab{Wrap native handles}
 
-    .. tab:: USM pointer
+@sphinxtabset
 
-        .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-          :language: cpp
-          :fragment: [wrap_usm_pointer]
+@sphinxtab{USM pointer}
 
-    .. tab:: cl_mem
+@snippet docs/snippets/gpu/remote_objects_creation.cpp wrap_usm_pointer
 
-        .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-          :language: cpp
-          :fragment: [wrap_cl_mem]
+@endsphinxtab
 
-    .. tab:: cl::Buffer
+@sphinxtab{cl_mem}
 
-        .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-          :language: cpp
-          :fragment: [wrap_cl_buffer]
+@snippet docs/snippets/gpu/remote_objects_creation.cpp wrap_cl_mem
 
-    .. tab:: cl::Image2D
+@endsphinxtab
 
-        .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-          :language: cpp
-          :fragment: [wrap_cl_image]
+@sphinxtab{cl::Buffer}
 
-    .. tab:: biplanar NV12 surface
+@snippet docs/snippets/gpu/remote_objects_creation.cpp wrap_cl_buffer
 
-        .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-          :language: cpp
-          :fragment: [wrap_nv12_surface]
+@endsphinxtab
 
-.. tab:: Allocate device memory
+@sphinxtab{cl::Image2D}
 
-    .. tab:: USM host memory
+@snippet docs/snippets/gpu/remote_objects_creation.cpp wrap_cl_image
 
-        .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-          :language: cpp
-          :fragment: [allocate_usm_host]
+@endsphinxtab
 
-    .. tab:: USM device memory
+@sphinxtab{biplanar NV12 surface}
 
-        .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-          :language: cpp
-          :fragment: [allocate_usm_device]
+@snippet docs/snippets/gpu/remote_objects_creation.cpp wrap_nv12_surface
 
-    .. tab:: cl::Buffer
+@endsphinxtab
 
-        .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-          :language: cpp
-          :fragment: [allocate_cl_buffer]
+@endsphinxtabset
+@endsphinxtab
 
-@endsphinxdirective
+@sphinxtab{Allocate device memory}
+
+@sphinxtabset
+
+@sphinxtab{USM host memory}
+
+@snippet docs/snippets/gpu/remote_objects_creation.cpp allocate_usm_host
+
+@endsphinxtab
+
+@sphinxtab{USM device memory}
+
+@snippet docs/snippets/gpu/remote_objects_creation.cpp allocate_usm_device
+
+@endsphinxtab
+
+@sphinxtab{cl::Buffer}
+
+@snippet docs/snippets/gpu/remote_objects_creation.cpp allocate_cl_buffer
+
+@endsphinxtab
+
+@endsphinxtabset
+
+@endsphinxtab
+
+@endsphinxtabset
 
 `ov::intel_gpu::ocl::D3DContext` and `ov::intel_gpu::ocl::VAContext` classes are derived from `ov::intel_gpu::ocl::ClContext`,
 thus they provide functionality described above and extends it
@@ -192,22 +211,22 @@ should be added before model compilation:
 Since `ov::intel_gpu::ocl::ClImage2DTensor` (and derived classes) doesn't support batched surfaces, in cases when batching and surface sharing are required
 at the same time, user need to set inputs via `ov::InferRequest::set_tensors` method with vector of shared surfaces for each plane:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: Single batch
+@sphinxtab{Single batch}
 
-    .. doxygensnippet:: docs/snippets/gpu/preprocessing.cpp
-        :language: cpp
-        :fragment: [single_batch]
+@snippet docs/snippets/gpu/preprocessing.cpp single_batch
 
-.. tab:: Multiple batches
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/gpu/preprocessing.cpp
-        :language: cpp
-        :fragment: [batched_case]
+@sphinxtab{Multiple batches}
 
+@snippet docs/snippets/gpu/preprocessing.cpp batched_case
 
-@endsphinxdirective
+@endsphinxtab
+
+@endsphinxtabset
+
 
 I420 color format can be processed in similar way
 

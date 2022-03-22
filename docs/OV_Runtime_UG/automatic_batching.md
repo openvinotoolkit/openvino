@@ -9,77 +9,86 @@ The feature primarily targets existing code written for inferencing many request
 As explained below, the auto-batching functionality can be also used via a special *virtual* device.       
 
 Batching is a straightforward way of leveraging the GPU compute power and saving on communication overheads. The automatic batching is  _implicitly_ triggered on the GPU when the `ov::hint::PerformanceMode::THROUGHPUT` is specified for the `ov::hint::performance_mode` property for the compile_model or set_property calls.
-@sphinxdirective
 
-.. tab:: C++
+@sphinxtabset
 
-    .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
-       :language: cpp
-       :fragment: [compile_model]
+@sphinxtab{C++}
 
-.. tab:: Python
+@snippet docs/snippets/ov_auto_batching.cpp compile_model
 
-    .. doxygensnippet:: docs/snippets/ov_auto_batching.py
-       :language: python
-       :fragment: [compile_model]
+@endsphinxtab
 
-@endsphinxdirective
+@sphinxtab{Python}
+
+@snippet docs/snippets/ov_auto_batching.py compile_model
+
+@endsphinxtab
+
+@endsphinxtabset
+
+
 > **NOTE**: You can disable the Auto-Batching (for example, for the GPU device) from being triggered by the `ov::hint::PerformanceMode::THROUGHPUT`. To do that, pass the `ov::hint::allow_auto_batching` set to **false** in addition to the `ov::hint::performance_mode`:
-@sphinxdirective
 
-.. tab:: C++
 
-    .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
-       :language: cpp
-       :fragment: [compile_model_no_auto_batching]
+@sphinxtabset
 
-.. tab:: Python
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_auto_batching.py
-       :language: python
-       :fragment: [compile_model_no_auto_batching]
+@snippet docs/snippets/ov_auto_batching.cpp compile_model_no_auto_batching
 
-@endsphinxdirective
+@endsphinxtab
+
+@sphinxtab{Python}
+
+@snippet docs/snippets/ov_auto_batching.py compile_model_no_auto_batching
+
+@endsphinxtab
+
+@endsphinxtabset
 
 
 Alternatively, to enable the Auto-Batching in the legacy apps not akin to the notion of the performance hints, you may need to use the **explicit** device notion, such as 'BATCH:GPU'. In both cases (the *throughput* hint or explicit BATCH device), the optimal batch size selection happens automatically (the implementation queries the `ov::optimal_batch_size` property from the device, passing the model's graph as the parameter). The actual value depends on the model and device specifics, for example, on-device memory for the dGPUs.
 Auto-Batching support is not limited to the GPUs, but if a device does not support the `ov::optimal_batch_size` yet, it can work with the auto-batching only when specifying an explicit batch size, for example, "BATCH:<device>(16)".
 
 This _automatic batch size selection_ assumes that the application queries the `ov::optimal_number_of_infer_requests` to create and run the returned number of requests simultaneously:
-@sphinxdirective
 
-.. tab:: C++
+@sphinxtabset
 
-    .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
-       :language: cpp
-       :fragment: [query_optimal_num_requests]
+@sphinxtab{C++}
 
-.. tab:: Python
+@snippet docs/snippets/ov_auto_batching.cpp query_optimal_num_requests
 
-    .. doxygensnippet:: docs/snippets/ov_auto_batching.py
-       :language: python
-       :fragment: [query_optimal_num_requests]
+@endsphinxtab
 
-@endsphinxdirective
+@sphinxtab{Python}
+
+@snippet docs/snippets/ov_auto_batching.py query_optimal_num_requests
+
+@endsphinxtab
+
+@endsphinxtabset
+
 If not enough inputs were collected, the `timeout` value makes the transparent execution fall back to the execution of individual requests. Configuration-wise, this is the AUTO_BATCH_TIMEOUT property.
 The timeout, which adds itself to the execution time of the requests, heavily penalizes the performance. To avoid this, in cases when your parallel slack is bounded, give the OpenVINO an additional hint.
 
 For example, the application processes only 4 video streams, so there is no need to use a batch larger than 4. The most future-proof way to communicate the limitations on the parallelism is to equip the performance hint with the optional `ov::hint::num_requests` configuration key set to 4. For the GPU this will limit the batch size, for the CPU - the number of inference streams, so each device uses the `ov::hint::num_requests` while converting the hint to the actual device configuration options:
-@sphinxdirective
 
-.. tab:: C++
+@sphinxtabset
 
-    .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
-       :language: cpp
-       :fragment: [hint_num_requests]
+@sphinxtab{C++}
 
-.. tab:: Python
+@snippet docs/snippets/ov_auto_batching.cpp hint_num_requests
 
-    .. doxygensnippet:: docs/snippets/ov_auto_batching.py
-       :language: python
-       :fragment: [hint_num_requests]
+@endsphinxtab
 
-@endsphinxdirective
+@sphinxtab{Python}
+
+@snippet docs/snippets/ov_auto_batching.py hint_num_requests
+
+@endsphinxtab
+
+@endsphinxtabset
+
 
 For the *explicit* usage, you can limit the batch size using "BATCH:GPU(4)",  where 4 is the number of requests running in parallel.
 

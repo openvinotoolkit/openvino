@@ -45,6 +45,7 @@ $(document).ready(function () {
         addTableSort();
     }
     addLegalNotice();
+    createSphinxTabSets();
 });
 
 // Determine where we'd go if clicking on a version selector option
@@ -52,6 +53,35 @@ function getPageUrlWithVersion(version) {
     var currentURL = window.location.href;
     var newURL = currentURL.replace(getCurrentVersion(), version);
     return encodeURI(newURL);
+}
+
+
+function createSphinxTabSets() {
+    var sphinxTabSets = $('.sphinxtabset');
+    var tabSetCount = 1000;
+    sphinxTabSets.each(function() {
+        var tabSet = $(this);
+        var inputCount = 1;
+        tabSet.addClass('tab-set docutils');
+        tabSetCount++;
+        tabSet.find('> .sphinxtab').each(function() {
+            var tab = $(this);
+            var checked = '';
+            var tabValue = tab.attr('data-sphinxtab-value');
+            if (inputCount == 1) {
+                checked = 'checked';
+            }
+            var input = $(`<input ${checked} class="tab-input" id="tab-set--${tabSetCount}-input--${inputCount}" name="tab-set--${tabSetCount}" type="radio">`);
+            input.insertBefore(tab);
+            var label = $(`<label class="tab-label" for="tab-set--${tabSetCount}-input--${inputCount}">${tabValue}</label>`);
+            label.click(onLabelClick);
+            label.insertBefore(tab);
+            inputCount++;
+            tab.addClass('tab-content docutils');
+        });
+
+    })
+    ready(); // # this function is available from tabs.js
 }
 
 function updateTitleTag() {
