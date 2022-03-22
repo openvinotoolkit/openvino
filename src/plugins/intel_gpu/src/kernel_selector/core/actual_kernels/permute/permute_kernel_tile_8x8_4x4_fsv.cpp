@@ -78,12 +78,12 @@ static inline std::string GetTiledOutputOrder(size_t size) {
 }
 
 static inline std::string GetReorderedTiledOutputOrder(const permute_params& params) {
-    std::pair<size_t, size_t> dim_change = {params.inputs[0].GetDims().size(), params.output.GetDims().size()};
+    std::pair<size_t, size_t> dim_change = {params.inputs[0].GetDims().size(), params.outputs[0].GetDims().size()};
 
     std::string order_str = "";
     int32_t dim_diff = static_cast<int32_t>(dim_change.first) - static_cast<int32_t>(dim_change.second);
     if (dim_diff == 0) {
-        switch (params.output.GetDims().size()) {
+        switch (params.outputs[0].GetDims().size()) {
            case 4 :
                 order_str = "b, y + lh, x, f";
                 break;
@@ -98,18 +98,18 @@ static inline std::string GetReorderedTiledOutputOrder(const permute_params& par
     } else {
         // dim is expanded
         if (dim_change.first == 4 && dim_change.second == 5) {
-            order_str = ("b, y + lh, x / " + toCodeString(params.output.Y().v)
-                                 + ", x % " + toCodeString(params.output.Y().v)
+            order_str = ("b, y + lh, x / " + toCodeString(params.outputs[0].Y().v)
+                                 + ", x % " + toCodeString(params.outputs[0].Y().v)
                                  + ", f");
         } else if (dim_change.first == 4 && dim_change.second == 6) {
-            order_str = ("b, y + lh, x / (" + toCodeString(params.output.Y().v)
-                                 + " * " + toCodeString(params.output.Z().v) + ")"
-                                 + ", x / " + toCodeString(params.output.Y().v)
-                                 + ", x % " + toCodeString(params.output.Y().v)
+            order_str = ("b, y + lh, x / (" + toCodeString(params.outputs[0].Y().v)
+                                 + " * " + toCodeString(params.outputs[0].Z().v) + ")"
+                                 + ", x / " + toCodeString(params.outputs[0].Y().v)
+                                 + ", x % " + toCodeString(params.outputs[0].Y().v)
                                  + ", f");
         } else if (dim_change.first == 5 && dim_change.second == 6) {
-            order_str = ("b, z + lh, y /" + toCodeString(params.output.Z().v)
-                                 + ", y % " + toCodeString(params.output.Z().v)
+            order_str = ("b, z + lh, y /" + toCodeString(params.outputs[0].Z().v)
+                                 + ", y % " + toCodeString(params.outputs[0].Z().v)
                                  + ", x, f");
         } else {
             throw std::runtime_error("Unsupported combination\n");
@@ -155,7 +155,7 @@ static inline size_t GetFsvAlignment(const permute_params& params) {
 
 static inline size_t GetTileSize(const permute_params& params) {
     const Datatype input_type = params.inputs[0].GetDType();
-    const Datatype output_type = params.output.GetDType();
+    const Datatype output_type = params.outputs[0].GetDType();
 
     // i64 only supports tile size 4
     if ((input_type == Datatype::INT64) || (output_type == Datatype::INT64)) {
@@ -185,7 +185,7 @@ JitConstants PermuteKernel_tile_8x8_4x4_fsv::GetJitConstants(const permute_param
     const size_t tile_size = GetTileSize(params);
     const uint64_t total_lws = dispatchData.lws[0] * dispatchData.lws[1] * dispatchData.lws[2];
     const size_t input_ndims = params.inputs[0].GetDims().size();
-    const size_t output_ndims = params.output.GetDims().size();
+    const size_t output_ndims = params.outputs[0].GetDims().size();
     const size_t fsv_alignment = GetFsvAlignment(params);
 
     jit.AddConstant(MakeJitConstant("INPUT0_TILED_ORDER", GetTiledInputOrder(input_ndims)));
@@ -194,7 +194,7 @@ JitConstants PermuteKernel_tile_8x8_4x4_fsv::GetJitConstants(const permute_param
     jit.AddConstant(MakeJitConstant("FSV_ALIGNMENT", fsv_alignment));
     jit.AddConstant(MakeJitConstant("TRANS_BUF_SIZE", tile_size * total_lws));
 
-    if (params.inputs[0].GetLayout() != params.output.GetLayout()) {
+    if (params.inputs[0].GetLayout() != params.outputs[0].GetLayout()) {
         jit.AddConstant(MakeJitConstant("REORDERED_OUTPUT_TILED_ORDER", GetReorderedTiledOutputOrder(params)));
     } else {
         jit.AddConstant(MakeJitConstant("OUTPUT_TILED_ORDER", GetTiledOutputOrder(output_ndims)));
@@ -233,7 +233,7 @@ static std::vector<size_t> GetBestLwsFromGws(const permute_params& params, const
     std::vector<size_t> dims{0, 1, 2};
 
     // SLM size: elemsize * tile_width * tile_width * work_items <= 64K
-    const size_t elem_size = params.output.ElementSize();
+    const size_t elem_size = params.outputs[0].ElementSize();
     const size_t max_local_mem_size = params.engineInfo.maxLocalMemSize;
     const size_t max_work_group_size = params.engineInfo.maxWorkGroupSize;
     size_t max_num_work_items = std::min(max_work_group_size, max_local_mem_size / (elem_size * tile_width * tile_size));
@@ -308,19 +308,19 @@ bool PermuteKernel_tile_8x8_4x4_fsv::Validate(const Params& p, const optional_pa
 
     const permute_params& params = static_cast<const permute_params&>(p);
     // blocked format => blocked format is not supported
-    if (params.inputs[0].GetLayout() != params.output.GetLayout()) {
+    if (params.inputs[0].GetLayout() != params.outputs[0].GetLayout()) {
         if ((params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv4) ||
             (params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16) ||
             (params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv32)) {
-            if (params.output.GetLayout() != DataLayout::bfyx
-                && params.output.GetLayout() != DataLayout::bfzyx
-                && params.output.GetLayout() != DataLayout::bfwzyx)
+            if (params.outputs[0].GetLayout() != DataLayout::bfyx
+                && params.outputs[0].GetLayout() != DataLayout::bfzyx
+                && params.outputs[0].GetLayout() != DataLayout::bfwzyx)
                 return false;
         } else if ((params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16) ||
                    (params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv32)) {
-            if (params.output.GetLayout() != DataLayout::bfyx
-                && params.output.GetLayout() != DataLayout::bfzyx
-                && params.output.GetLayout() != DataLayout::bfwzyx) {
+            if (params.outputs[0].GetLayout() != DataLayout::bfyx
+                && params.outputs[0].GetLayout() != DataLayout::bfzyx
+                && params.outputs[0].GetLayout() != DataLayout::bfwzyx) {
                 return false;
             }
         } else {

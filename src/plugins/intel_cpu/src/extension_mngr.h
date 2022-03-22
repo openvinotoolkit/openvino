@@ -8,17 +8,15 @@
 #include <vector>
 #include <memory>
 #include <ie_iextension.h>
-#include "nodes/list.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-class MKLDNNExtensionManager {
+class ExtensionManager {
 public:
-    using Ptr = std::shared_ptr<MKLDNNExtensionManager>;
-    MKLDNNExtensionManager() = default;
+    using Ptr = std::shared_ptr<ExtensionManager>;
+    ExtensionManager() = default;
     InferenceEngine::ILayerImpl::Ptr CreateImplementation(const std::shared_ptr<ngraph::Node>& op);
-    std::shared_ptr<InferenceEngine::ILayerImplFactory> CreateExtensionFactory(const std::shared_ptr<ngraph::Node>& op);
     void AddExtension(const InferenceEngine::IExtensionPtr& extension);
     const std::vector<InferenceEngine::IExtensionPtr> & Extensions() const;
 
@@ -28,4 +26,3 @@ private:
 
 }   // namespace intel_cpu
 }   // namespace ov
-

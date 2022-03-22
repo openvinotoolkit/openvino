@@ -67,7 +67,15 @@ void regclass_graph_Input(py::module m) {
                 :return: Output that is connected to the input.
                 :rtype: openvino.runtime.Output
               )");
+    input.def("get_tensor",
+              &ov::Input<ov::Node>::get_tensor,
+              py::return_value_policy::reference_internal,
+              R"(
+                A reference to the tensor descriptor for this input.
 
+                :return: Tensor of the input.
+                :rtype: openvino.pyopenvino.DescriptorTensor
+               )");
     input.def("get_rt_info",
               (ov::RTMap & (ov::Input<ov::Node>::*)()) & ov::Input<ov::Node>::get_rt_info,
               py::return_value_policy::reference_internal,
@@ -77,6 +85,15 @@ void regclass_graph_Input(py::module m) {
                 :return: A dictionary of user defined data.
                 :rtype: openvino.runtime.RTMap
              )");
+    input.def("replace_source_output",
+              &ov::Input<ov::Node>::replace_source_output,
+              py::arg("new_source_output"),
+              R"(
+                Replaces the source output of this input.
+
+                :param new_source_output: A handle for the output that will replace this input's source.
+                :type new_source_output: openvino.runtime.Input
+              )");
     input.def_property_readonly("rt_info", (ov::RTMap & (ov::Input<ov::Node>::*)()) & ov::Input<ov::Node>::get_rt_info);
     input.def_property_readonly("rt_info",
                                 (const ov::RTMap& (ov::Input<ov::Node>::*)() const) & ov::Input<ov::Node>::get_rt_info,

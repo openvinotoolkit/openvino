@@ -38,7 +38,7 @@ KernelsData ArgMaxMinKernelOpt::GetKernelsData(const Params& params, const optio
         if (i == 0)
             input = orgParams.inputs[0];
         else
-            input = orgParams.output;
+            input = orgParams.outputs[0];
 
         auto newParams = orgParams;
         newParams.inputs.resize(1);
