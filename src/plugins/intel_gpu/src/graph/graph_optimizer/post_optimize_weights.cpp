@@ -9,6 +9,7 @@
 #include "include/binary_convolution_inst.h"
 #include "include/deformable_convolution_inst.h"
 #include "lstm_dynamic_input_inst.h"
+#include "resample_inst.h"
 
 namespace cldnn {
 
@@ -62,6 +63,72 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
     node.set_output_layout(output_layout, false);
 }
 
+void post_optimize_weights::unify_const_format(program& p) {
+    for (auto& node : p.get_processing_order()) {
+        if (!node->is_type<resample>() || node->is_input())
+            continue;
+
+        auto& input = node->get_dependency(0);
+        if (!input.is_in_data_flow())
+            continue;
+
+        auto format = input.get_output_layout().format;
+
+        for (auto& fused_prim : node->get_fused_primitives()) {
+            if (!fused_prim.node->is_type<eltwise>() || fused_prim.dep_start_idx >= node->get_dependencies().size())
+                continue;
+
+            auto& dependency = node->get_dependency(fused_prim.dep_start_idx);
+            if (onednn_add_fusing_helpers::is_full_tensor(dependency.get_output_layout())
+                && dependency.is_constant()) {
+                auto dependency_layout = dependency.get_output_layout();
+                auto new_layout = dependency_layout;
+                if (format == dependency_layout.format)
+                    continue;
+
+                new_layout.format = format;
+                auto reorder = _rf.get_reorder(dependency.id(), dependency_layout, new_layout);
+                if (reorder.first) {
+                    p.add_intermediate(reorder.first, *node, fused_prim.dep_start_idx, !reorder.second);
+                    node->get_dependency(fused_prim.dep_start_idx).set_output_layout(new_layout, false);
+                    std::string format(" >>> Const [From:" + dependency_layout.format.to_string()
+                        + " / To:" + new_layout.format.to_string() + "]");
+                    std::cout << ">>> Format mis-match of fused eltwise node: " << node->id() << format << std::endl;
+                }
+            }
+        }
+    }
+}
+
+void post_optimize_weights::validate_weights(program& p) {
+    for (auto& node : p.get_processing_order()) {
+        if (node->is_input())
+            continue;
+
+        auto& input = node->get_dependency(0);
+        if (!input.is_in_data_flow())
+            continue;
+
+        // Check format between inputs of fused post ops sum
+        auto format = input.get_output_layout().format;
+        for (auto& fused_op : node->get_fused_primitives()) {
+            if (!fused_op.node->is_type<eltwise>() || fused_op.dep_start_idx >= node->get_dependencies().size())
+                continue;
+
+            auto& dependency = node->get_dependency(fused_op.dep_start_idx);
+            if (onednn_add_fusing_helpers::is_full_tensor(dependency.get_output_layout()) &&
+                dependency.is_constant()) {
+                if (dependency.get_output_layout().format != format) {
+                    std::string format(" [input:" + input.get_output_layout().format.to_string()
+                        + " / dep:" + dependency.get_output_layout().format.to_string() + "]");
+                    // throw std::runtime_error("Format mis-match of fused eltwise node: " + node->id() + format);
+                    std::cout << ">>> Format mis-match of fused eltwise node: " << node->id() << format << std::endl;
+                }
+            }
+        }
+    }
+}
+
 void post_optimize_weights::run(program& p) {
     for (auto& node : p.get_processing_order()) {
         if (node->type() == convolution::type_id()) {
@@ -79,6 +146,9 @@ void post_optimize_weights::run(program& p) {
             optimize_weights(node->as<lstm_dynamic_input>(), p);
         }
     }
+
+    unify_const_format(p);
+    validate_weights(p);
 }
 
 }  // namespace cldnn

@@ -556,6 +556,7 @@ void network::allocate_primitives() {
             }
         }
     }
+
     // allocate intermediate buffers
     for (auto const& node : _program->get_processing_order()) {
         auto prim = _primitives[node->id()];

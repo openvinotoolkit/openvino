@@ -264,6 +264,8 @@ private:
     weights_bias_offset get_weights_bias_offset(const T& node);
     template<typename T>
     void optimize_weights(T& node, program& p);
+    void unify_const_format(program& p);
+    void validate_weights(program& p);
     reorder_factory& _rf;
 };
 
