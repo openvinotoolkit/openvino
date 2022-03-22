@@ -149,6 +149,9 @@ private:
     void TryToLoadNetWork(AutoLoadContext& context,
                           const std::string& modelPath,
                           const InferenceEngine::CNNNetwork& network);
+    bool IsCpuLoaded(DeviceInformation devInfo, std::map<std::string, std::string>& b);
+    unsigned int GetDeviceOptimalNumberOfInferRequest(DeviceInformation& deviceInfo,
+                                                      const unsigned int defaultNumForTPUT) const;
 
 private:
     std::shared_ptr<InferenceEngine::ICore>                             _core;
