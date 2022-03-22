@@ -1,4 +1,4 @@
-# Configure devices {#openvino_2_0_configure_devices}
+# Configuring Devices {#openvino_2_0_configure_devices}
 
 ### Introduction
 
