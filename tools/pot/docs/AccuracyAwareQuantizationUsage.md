@@ -11,19 +11,24 @@
 @endsphinxdirective
 
 ## Introduction
-In case when [DefaultQuantization](@ref pot_default_quantization_usage) alorithm introduces a significant accuracy degradation AccuracyAwareQuantization algorithm can be used to stay within the pre-defined range defined by the user. This may cause a 
+In case when [DefaultQuantization](@ref pot_default_quantization_usage) alorithm introduces a significant accuracy degradation, AccuracyAwareQuantization algorithm can be used to stay within the pre-defined range defined by the user. This may cause a 
 degradation in performance in comparison to [DefaultQuantization](@ref pot_default_quantization_usage) algorithm because some layers can be reverted back to the original precision.
 
 > **NOTE**: In case of GNA `target_device`, POT moves INT8 weights to INT16 to stay in the pre-defined range of the accuracy drop. Thus, the algorithm works for the `performance` (INT8) preset only. For the `accuracy` preset, this algorithm is not helpful.
 
 ## Prepare data
-This step is the same as in the case of [DefaultQuantization](@ref pot_default_quantization_usage). The only difference is that `__getitem__()` method should `(data, annotation)` or `(data, annotation, metadata)` where `annotation` is required.
+This step is the same as in the case of [DefaultQuantization](@ref pot_default_quantization_usage). The only difference is that `__getitem__()` method should return `(data, annotation)` or `(data, annotation, metadata)` where `annotation` is required and corresponds to the expectations of the `Metric` class.
 
 ## Define accuracy metric
 In order to control accuracy during the optimization a `openvino.tools.pot.Metric` interface should be implemented. Each implementaion should override the following properties:
-- `value` - returns the accuracy metric value for the last model output.
-- `avg_value` - returns the average accuracy metric value for all model outputs.
-- `attributes` - returns a dictionary of metric attributes:
+- `value` - returns the accuracy metric value for the last model output in a format of `Dict[str, numpy.array]`.
+- `avg_value` - returns the average accuracy metric over collected model results in a format of `Dict[str, numpy.array]`.
+- `higher_better` should return `True` if the higher value of the metric corresponds to better performance, otherwise, returns `False`. Default implementation returns `True`.
+
+and methods:
+- `update(output, annotation)` - calculates and updates the accuracy metric value using last model output and annotation.
+- `reset()` - resets collected accuracy metric. 
+- `get_attributes()` - returns a dictionary of metric attributes:
    ```
    {metric_name: {attribute_name: value}}
    ```
@@ -32,12 +37,8 @@ In order to control accuracy during the optimization a `openvino.tools.pot.Metri
     should be increased in accuracy-aware algorithms.
    - `type` - a string representation of metric type. For example, 'accuracy' or 'mean_iou'.
 
-and methods:
-- `update(output, annotation)` - calculates and updates the accuracy metric value using last model output and annotation.
-- `reset()` - resets collected accuracy metric. 
-
 Below is an example of accuracy top-1 metric implementation with POT API:
-```
+```python
 from openvino.tools.pot import metric
 
 class Accuracy(Metric):
@@ -48,6 +49,11 @@ class Accuracy(Metric):
         self._top_k = top_k
         self._name = 'accuracy@top{}'.format(self._top_k)
         self._matches = []
+    
+    @property
+    def value(self):
+        """ Returns accuracy metric value for all model outputs. """
+        return {self._name: self._matches[-1]}
 
     @property
     def avg_value(self):
@@ -94,8 +100,6 @@ engine = IEEngine(config=engine_config, data_loader=data_loader, metric=metric)
 Since the DefaultQuantization algorithm is used as an initialization, all its parameters are also valid and can be specified. Here we
 describe only AccuracyAwareQuantization required parameters:
 - `"maximal_drop"` - maximum accuracy drop which has to be achieved after the quantization. Default value is `0.01` (1%).
-
-For more details on how to use these parameters please refer to [Best Practices](@ref pot_docs_BestPractices) document.
 
 ## Run quantization
 

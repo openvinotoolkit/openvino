@@ -28,13 +28,11 @@ In most cases, it is required to implement only `openvino.tools.pot.DataLoader` 
    - `(data, annotation)`
    - `(data, annotation, metadata)`
 
-`data` can be either `numpy.array` object or dictionary where key is the name of the mode input and value is `numpy.array` which corresponds to the input. Since `annotation` is not used by DefautltQuantization method this object can be `None` in this case. `metadata` is an optional field.
+`data` is the input which is passed to the model so that it should be properly preprocessed. `data` can be either `numpy.array` object or dictionary where key is the name of the model input and value is `numpy.array` which corresponds to this input. Since `annotation` is not used by DefautltQuantization method this object can be `None` in this case. `metadata` is an optional field.
   
 Users can wrap framework data loading classes by `openvino.tools.pot.DataLoader` interface which is usually straightforward, for example, for `torch.utils.data.Dataset` that has various implementation in the TorchVision project.
 
 > **NOTE**: Model-specific preprocessing, for example, mean/scale normalization can be embedded into the model at the convertion step using Model Optimizer component. This should be considered during the implementation the DataLoader interface to avoid "double" normalization which can lead to the loss of accuracy after optimization.
-
-Having implementations of `openvino.tools.pot.DataLoader`, it is possible to use  DefaultQuantization method which is aimed at fast full quantization.
 
 The example below, defines `DataLoader` object for MNIST dataset using TorchVision [implementation](https://pytorch.org/vision/stable/generated/torchvision.datasets.MNIST.html#torchvision.datasets.MNIST):
 ```python
