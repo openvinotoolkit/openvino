@@ -140,117 +140,6 @@ private:
     std::vector<std::pair<std::shared_ptr<Emitter>, ngraph::snippets::RegInfo>> code;
 };
 
-class TileSchedulerEmitter : public jit_emitter {
-public:
-    TileSchedulerEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa,
-                const std::shared_ptr<ov::Node>& n)
-            : jit_emitter(h, isa, n) {
-        const auto tile_scheduler = ov::as_type_ptr<ngraph::snippets::op::TileScheduler>(n);
-        if (!tile_scheduler)
-            IE_THROW() << "TileSchedulerEmitter invoked with invalid op argument";
-        if (!tile_scheduler->compile_params)
-            IE_THROW() << "TileEmitter invoked without compile_params";
-        vector_tile_code = tile_scheduler->vector_region;
-        scalar_tile_code = tile_scheduler->scalar_region;
-        jcp = *reinterpret_cast<const jit_snippets_compile_args*>(tile_scheduler->compile_params);
-    }
-
-    size_t get_inputs_num() const override {return 0;}
-
-    void emit_code(const std::vector<size_t> &in, const std::vector<size_t> &out,
-                   const std::vector<size_t> &pool = {}, const std::vector<size_t> &gpr = {}) const override {
-//        todo: Enable validate arguments
-//        validate_arguments(in, out, pool, gpr);
-        emit_impl(in, out, pool, gpr, nullptr);
-    }
-
-private:
-//    void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out,
-//                            const std::vector<size_t> &pool = {}, const std::vector<size_t> &gpr = {}) const override {
-//        if (in.size() != 4)
-//            IE_THROW() << "TileEmitter got invalid number of inputs. Expected 4, got " << in.size();
-//        if (out.size() != 0)
-//            IE_THROW() << "TileEmitter got unexpected output arguments.";
-//        const size_t num_params = in[2];
-//        if (num_params > SNIPPETS_MAX_SNIPPETS_DIMS)
-//            IE_THROW() << "TileEmitter supports only up to " << SNIPPETS_MAX_SNIPPETS_DIMS <<
-//                       " parameters, got " << num_params;
-//        const size_t dim = in[3];
-//        if (dim >= SNIPPETS_MAX_TILE_RANK)
-//            IE_THROW() << "TileEmitter supports tile ranks up to " << SNIPPETS_MAX_TILE_RANK <<
-//                       " got " << dim;
-//    }
-
-    void emit_impl(const std::vector<size_t>& in,
-                   const std::vector<size_t>& out,
-                   const std::vector<size_t>& pool,
-                   const std::vector<size_t>& gpr,
-                   const ov::intel_cpu::emitter_context *emit_context) const override {
-        const size_t vector_size = in[0];
-        const size_t num_params = in[1];
-        const size_t dim = 0; // tile dimension: 0 - outer, 1 - inner
-        const int reg64_tmp_start { 8 }; // R8, R9, R10, R11, R12, R13, R14, R15 inputs+outputs+1
-
-        Reg64 amount = Reg64(reg64_tmp_start + num_params); // amount
-        std::array<Label, 2> for_body;
-
-        // If R15 is not used, reserve it for use in scalar to avoid redundant push-pop's.
-        // todo: Do we need explicitly check that code contains ScalarEmitter?
-        std::vector<size_t> local_gpr = reg64_tmp_start + num_params < 15 ? std::vector<size_t>{15} : std::vector<size_t>{};
-        std::vector<Reg64> regs(num_params);
-        for (auto i = 0; i < num_params; i++)
-            regs[i] = Reg64(reg64_tmp_start + i);
-
-        const size_t num_vector_tiles = jcp.scheduler_dims[dim] / vector_size;
-        const size_t num_scalar_tiles = jcp.scheduler_dims[dim] % vector_size;
-        // Loop processing could be simplified in some cases
-//        if (num_vector_tiles == 1) {
-//            const ngraph::snippets::RegInfo& regInfo = vector_tile_code.second;
-//            // todo: we should emit operations embedded in vector tile here, not the tile itself
-//            vector_tile_code.first->emit_code(regInfo.first, regInfo.second, pool, local_gpr);
-//        }
-        if ((num_scalar_tiles > 1 || num_vector_tiles > 1) || (num_scalar_tiles == 1 || num_vector_tiles == 1))  {
-            // We need to create a Loop in this case
-            h->mov(amount, jcp.scheduler_dims[dim]);
-            h->L(for_body[0]);
-            {
-                h->push(amount);
-                if (num_vector_tiles > 1) {
-                    const ngraph::snippets::RegInfo& regInfo = vector_tile_code.second;
-                    vector_tile_code.first->emit_code(regInfo.first, regInfo.second, pool, local_gpr);
-                }
-                if (num_scalar_tiles > 1) {
-                    const ngraph::snippets::RegInfo& regInfo = scalar_tile_code.second;
-                    scalar_tile_code.first->emit_code(regInfo.first, regInfo.second, pool, local_gpr);
-                }
-                h->pop(amount);
-
-                // Todo: Load and Store emitters are currently implemented so they ALWAYS increment appropriate pointers
-                //   after reading/writing. This might be a problem if we need to read the same data multiple times (broadcasting shapes).
-                //   To overcome this limitation, we add appropriate negative offsets if necessary.
-                for (auto i = 0; i < num_params; i++) {
-                    if (jcp.scheduler_offsets[i] != 0) {
-                        h->add(regs[i], jcp.scheduler_offsets[i]);
-                    }
-                }
-                // Note that outer dimensions are always incremented by 1 (outer tiles are always scalar)
-                h->sub(amount, 1);
-                h->cmp(amount, 1);
-                h->jge(for_body[0], CodeGenerator::T_NEAR);
-            }
-        }
-//        if (num_scalar_tiles == 1) {
-//            const ngraph::snippets::RegInfo& regInfo = vector_tile_code.second;
-//            // todo: we should emit operations embedded in vector tile here, not the tile itself
-//            scalar_tile_code.first->emit_code(regInfo.first, regInfo.second, pool, local_gpr);
-//        }
-    }
-
-    jit_snippets_compile_args jcp;
-    std::pair<std::shared_ptr<Emitter>, ngraph::snippets::RegInfo> vector_tile_code;
-    std::pair<std::shared_ptr<Emitter>, ngraph::snippets::RegInfo> scalar_tile_code;
-};
-
 ///
 /// \brief    Tile is designed to organize loop over the input and output data. It is essentially a for(...) loop:
 /// it calculates the total number of iterations, performs operations specified by enclosed emitters, advances iteration counters
@@ -280,6 +169,7 @@ public:
         code = tile->region;
         jcp = *reinterpret_cast<const jit_snippets_compile_args*>(tile->compile_params);
     }
+    std::vector<std::pair<std::shared_ptr<Emitter>, ngraph::snippets::RegInfo>> get_code() {return code;}
 
     size_t get_inputs_num() const override {return 0;}
 
@@ -404,6 +294,127 @@ private:
     // }
     jit_snippets_compile_args jcp;
     std::vector<std::pair<std::shared_ptr<Emitter>, ngraph::snippets::RegInfo>> code;
+};
+
+class TileSchedulerEmitter : public jit_emitter {
+public:
+    TileSchedulerEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa,
+                         const std::shared_ptr<ov::Node>& n)
+            : jit_emitter(h, isa, n) {
+        const auto tile_scheduler = ov::as_type_ptr<ngraph::snippets::op::TileScheduler>(n);
+        if (!tile_scheduler)
+            IE_THROW() << "TileSchedulerEmitter invoked with invalid op argument";
+        if (!tile_scheduler->compile_params)
+            IE_THROW() << "TileEmitter invoked without compile_params";
+        vector_tile = tile_scheduler->vector_region;
+        scalar_tile = tile_scheduler->scalar_region;
+//        vector_tile_body = ov::as_type_ptr<TileEmitter>(vector_tile.first)->get_code();
+        vector_tile_body = std::dynamic_pointer_cast<TileEmitter>(vector_tile.first)->get_code();
+//        scalar_tile_body = ov::as_type_ptr<TileEmitter>(vector_tile.first)->get_code();
+        scalar_tile_body = std::dynamic_pointer_cast<TileEmitter>(vector_tile.first)->get_code();
+        jcp = *reinterpret_cast<const jit_snippets_compile_args*>(tile_scheduler->compile_params);
+    }
+
+    size_t get_inputs_num() const override {return 0;}
+
+    void emit_code(const std::vector<size_t> &in, const std::vector<size_t> &out,
+                   const std::vector<size_t> &pool = {}, const std::vector<size_t> &gpr = {}) const override {
+//        todo: Enable validate arguments
+//        validate_arguments(in, out, pool, gpr);
+        emit_impl(in, out, pool, gpr, nullptr);
+    }
+
+private:
+//    void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out,
+//                            const std::vector<size_t> &pool = {}, const std::vector<size_t> &gpr = {}) const override {
+//        if (in.size() != 4)
+//            IE_THROW() << "TileEmitter got invalid number of inputs. Expected 4, got " << in.size();
+//        if (out.size() != 0)
+//            IE_THROW() << "TileEmitter got unexpected output arguments.";
+//        const size_t num_params = in[2];
+//        if (num_params > SNIPPETS_MAX_SNIPPETS_DIMS)
+//            IE_THROW() << "TileEmitter supports only up to " << SNIPPETS_MAX_SNIPPETS_DIMS <<
+//                       " parameters, got " << num_params;
+//        const size_t dim = in[3];
+//        if (dim >= SNIPPETS_MAX_TILE_RANK)
+//            IE_THROW() << "TileEmitter supports tile ranks up to " << SNIPPETS_MAX_TILE_RANK <<
+//                       " got " << dim;
+//    }
+
+    void emit_impl(const std::vector<size_t>& in,
+                   const std::vector<size_t>& out,
+                   const std::vector<size_t>& pool,
+                   const std::vector<size_t>& gpr,
+                   const ov::intel_cpu::emitter_context *emit_context) const override {
+        const size_t vector_size = in[0];
+        const size_t num_params = in[1];
+        const size_t outer_work_amount = jcp.scheduler_dims[0];
+        const int reg64_tmp_start { 8 }; // R8, R9, R10, R11, R12, R13, R14, R15 inputs+outputs+1
+
+        Reg64 amount = Reg64(reg64_tmp_start + num_params); // amount
+        std::array<Label, 2> for_body;
+
+        // If R15 is not used, reserve it for use in scalar to avoid redundant push-pop's.
+        // todo: Do we need explicitly check that code contains ScalarEmitter?
+        std::vector<size_t> local_gpr = reg64_tmp_start + num_params < 15 ? std::vector<size_t>{15} : std::vector<size_t>{};
+        std::vector<Reg64> regs(num_params);
+        for (auto i = 0; i < num_params; i++)
+            regs[i] = Reg64(reg64_tmp_start + i);
+
+        const bool vector_tile_is_needed = jcp.scheduler_dims[1] >= vector_size;
+        const bool scalar_tile_is_needed = jcp.scheduler_dims[1] % vector_size != 0;
+
+        auto emit_tile_code = [&](const std::pair<std::shared_ptr<Emitter>, std::pair<std::vector<size_t>, std::vector<size_t>>> &tile_code,
+                                                                const size_t tile_size){
+            if (jcp.scheduler_dims[1] == tile_size) {
+                // only one vector tile is needed
+                for (auto& c : vector_tile_body)
+                    c.first->emit_code(c.second.first, c.second.second, pool, local_gpr);
+            } else {
+                const ngraph::snippets::RegInfo &regInfo = tile_code.second;
+                tile_code.first->emit_code(regInfo.first, regInfo.second, pool, local_gpr);
+            }
+        };
+
+        if (outer_work_amount == 1) {
+            // emit code directly without looping over external dim
+            if (vector_tile_is_needed)
+                emit_tile_code(vector_tile, vector_size);
+            if (scalar_tile_is_needed)
+                emit_tile_code(scalar_tile, 1);
+        } else if (outer_work_amount > 1) {
+            // We need to create a Loop in this case
+            h->mov(amount, outer_work_amount);
+            h->L(for_body[0]);
+            {
+                h->push(amount);
+                if (vector_tile_is_needed)
+                    emit_tile_code(vector_tile, vector_size);
+                if (scalar_tile_is_needed)
+                    emit_tile_code(scalar_tile, 1);
+                h->pop(amount);
+
+                // Todo: Load and Store emitters are currently implemented so they ALWAYS increment appropriate pointers
+                //   after reading/writing. This might be a problem if we need to read the same data multiple times (broadcasting shapes).
+                //   To overcome this limitation, we add appropriate negative offsets if necessary.
+                for (auto i = 0; i < num_params; i++) {
+                    if (jcp.scheduler_offsets[i] != 0) {
+                        h->add(regs[i], jcp.scheduler_offsets[i]);
+                    }
+                }
+                // Note that outer dimensions are always incremented by 1 (outer tiles are always scalar)
+                h->sub(amount, 1);
+                h->cmp(amount, 1);
+                h->jge(for_body[0], CodeGenerator::T_NEAR);
+            }
+        }
+    }
+
+    jit_snippets_compile_args jcp;
+    std::pair<std::shared_ptr<Emitter>, ngraph::snippets::RegInfo> vector_tile;
+    std::vector<std::pair<std::shared_ptr<Emitter>, ngraph::snippets::RegInfo>> vector_tile_body;
+    std::pair<std::shared_ptr<Emitter>, ngraph::snippets::RegInfo> scalar_tile;
+    std::vector<std::pair<std::shared_ptr<Emitter>, ngraph::snippets::RegInfo>> scalar_tile_body;
 };
 
 class NopEmitter : public jit_emitter {
@@ -746,6 +757,5 @@ private:
 private:
     bool shouldPostIncrement;
 };
-
 }   // namespace intel_cpu
 }   // namespace ov
