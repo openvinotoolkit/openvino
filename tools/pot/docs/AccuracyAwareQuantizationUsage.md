@@ -97,7 +97,7 @@ describe only AccuracyAwareQuantization required parameters:
 
 For more details on how to use these parameters please refer to [Best Practices](@ref pot_docs_BestPractices) document.
 
-## Running quantization
+## Run quantization
 
 The code snippet below shows basic quantization workflow with accuracy control. `UserDataLoader` and `UserMetric` are placeholders for user's implementation of `DataLoader` and `Metric` APIs.
 

@@ -50,7 +50,7 @@ For more full specification of the `DefaultQuantization` method see this [docume
 ## Helpers
 POT works on top of own model representation (Model Optimizer internal representation) which is different from OpenVINO `Model` so that POT API provides own methods to load and save model objects from OpenVINO Intermediate Representation: `load_model` and `save_model`. POT also has a concept of `Pipeline` that sequentially applies specified optimization methods to the model. `create_pipeine` method is used to instantiate a `Pipeline` object.
 
-## Running quantization
+## Run quantization
 
 The code snippet below shows basic quantization workflow. `UserDataLoader` is a placeholder for user's implementation of `openvino.tools.pot.DataLoader`.
 
