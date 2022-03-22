@@ -23,6 +23,7 @@ The best device is chosen using the following logic:
 3. Select the first device capable of supporting the given precision, as presented in the table below.
 4. If the model’s precision is FP32 but there is no device capable of supporting it, offload the model to a device supporting FP16.
 
+@sphinxdirective
 +----------+------------------------------------------------------+-------------------------------------+
 | Choice   || Supported                                           || Supported                          |
 | Priority || Device                                              || model precision                    |
@@ -39,6 +40,7 @@ The best device is chosen using the following logic:
 | 4        || Intel® CPU                                          | FP32, FP16, INT8, BIN               |
 |          || (e.g. Intel® Core™ i7-1165G7)                       |                                     |
 +----------+------------------------------------------------------+-------------------------------------+
+@endsphinxdirective
 
 What is important, **AUTO starts inference with the CPU by default except the priority list is set and there is no CPU in it**. CPU provides very low latency and can start inference with no additional delays. While it performs inference, the Auto-Device plugin continues to load the model to the device best suited for the purpose and transfers the task to it when ready. This way, the devices which are much slower in compile the model, GPU being the best example, do not impede inference at its initial stages. 
 
