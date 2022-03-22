@@ -236,11 +236,11 @@ This step is optional. It modifies the nGraph function to a device-specific oper
 
 Let's explore quantized [TensorFlow* implementation of ResNet-50](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf) model. Use [Model Downloader](@ref omz_tools_downloader) tool to download the `fp16` model from [OpenVINO™ Toolkit - Open Model Zoo repository](https://github.com/openvinotoolkit/open_model_zoo):
 ```sh
-./downloader.py --name resnet-50-tf --precisions FP16-INT8
+omz_downloader --name resnet-50-tf --precisions FP16-INT8
 ```
 After that you should quantize model by the [Model Quantizer](@ref omz_tools_downloader) tool.
 ```sh
-./quantizer.py --model_dir public/resnet-50-tf --dataset_dir <DATASET_DIR> --precisions=FP16-INT8
+omz_quantizer --model_dir public/resnet-50-tf --dataset_dir <DATASET_DIR> --precisions=FP16-INT8
 ```
 
 ### Inference
