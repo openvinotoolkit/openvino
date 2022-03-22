@@ -9,7 +9,7 @@
    Quantizing Model <pot_default_quantization_usage>
    Quantizing Model with Accuracy Control <pot_accuracyaware_usage>
    Quantization Best Practices <pot_docs_BestPractices>
-   Protecting Model <pot_ranger_README>
+   (Experimental) Protecting Model <pot_ranger_README>
    API Description <pot_compression_api_README>
    Command-line Interface <pot_compression_cli_README>
    Examples <pot_examples_description>
