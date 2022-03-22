@@ -1,4 +1,4 @@
-# AccuracyAwareQuantization Algorithm {#pot_compression_algorithms_quantization_accuracy_aware_README}
+# AccuracyAwareQuantization Algorithm {#accuracy_aware_README}
 
 ## Introduction
 AccuracyAwareQuantization algorithm is aimed at accurate quantization and allows the model's accuracy to stay within the 
