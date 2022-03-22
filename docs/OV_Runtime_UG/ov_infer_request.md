@@ -70,37 +70,37 @@ Asynchronous mode can improve application's overall frame-rate, because rather t
 
 Asynchronous mode supports two ways the application waits for inference results:
   * `ov::InferRequest::wait_for` - specifies the maximum duration in milliseconds to block the method. The method is blocked until the specified time has passed, or the result becomes available, whichever comes first.
-    @sphinxdirective
+@sphinxdirective
 
-    .. tab:: C++
+.. tab:: C++
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
-           :language: cpp
-           :fragment: [wait_for]
+    .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
+       :language: cpp
+       :fragment: [wait_for]
 
-    .. tab:: Python
+.. tab:: Python
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.py
-           :language: python
-           :fragment: [wait_for]
+    .. doxygensnippet:: docs/snippets/ov_infer_request.py
+       :language: python
+       :fragment: [wait_for]
 
-    @endsphinxdirective
+@endsphinxdirective
   * `ov::InferRequest::wait` - waits until inference result becomes available
-    @sphinxdirective
+@sphinxdirective
 
-    .. tab:: C++
+.. tab:: C++
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
-           :language: cpp
-           :fragment: [wait]
+    .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
+       :language: cpp
+       :fragment: [wait]
 
-    .. tab:: Python
+.. tab:: Python
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.py
-           :language: python
-           :fragment: [wait]
+    .. doxygensnippet:: docs/snippets/ov_infer_request.py
+       :language: python
+       :fragment: [wait]
 
-    @endsphinxdirective
+@endsphinxdirective
 
 Both methods are thread-safe.
 
@@ -148,72 +148,72 @@ You can use the `ov::InferRequest::cancel` method if you want to abort execution
 `ov::InferRequest` allows to get input/output tensors by tensor name, index, port and without any arguments in case if model has only one input or output.
 
   * `ov::InferRequest::get_input_tensor`, `ov::InferRequest::set_input_tensor`, `ov::InferRequest::get_output_tensor`, `ov::InferRequest::set_output_tensor` methods without arguments can be used to get or set input/output tensor for model with only one input/output:
-    @sphinxdirective
+@sphinxdirective
 
-    .. tab:: C++
+.. tab:: C++
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
-           :language: cpp
-           :fragment: [get_set_one_tensor]
+    .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
+       :language: cpp
+       :fragment: [get_set_one_tensor]
 
-    .. tab:: Python
+.. tab:: Python
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.py
-           :language: python
-           :fragment: [get_set_one_tensor]
+    .. doxygensnippet:: docs/snippets/ov_infer_request.py
+       :language: python
+       :fragment: [get_set_one_tensor]
 
-    @endsphinxdirective
+@endsphinxdirective
 
   * `ov::InferRequest::get_input_tensor`, `ov::InferRequest::set_input_tensor`, `ov::InferRequest::get_output_tensor`, `ov::InferRequest::set_output_tensor` methods with argument can be used to get or set input/output tensor by input/output index:
-    @sphinxdirective
+@sphinxdirective
 
-    .. tab:: C++
+.. tab:: C++
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
-           :language: cpp
-           :fragment: [get_set_index_tensor]
+    .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
+       :language: cpp
+       :fragment: [get_set_index_tensor]
 
-    .. tab:: Python
+.. tab:: Python
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.py
-           :language: python
-           :fragment: [get_set_index_tensor]
+    .. doxygensnippet:: docs/snippets/ov_infer_request.py
+       :language: python
+       :fragment: [get_set_index_tensor]
 
-    @endsphinxdirective
+@endsphinxdirective
 
   * `ov::InferRequest::get_tensor`, `ov::InferRequest::set_tensor` methods can be used to get or set input/output tensor by tensor name:
-    @sphinxdirective
+@sphinxdirective
 
-    .. tab:: C++
+.. tab:: C++
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
-           :language: cpp
-           :fragment: [get_set_tensor]
+    .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
+       :language: cpp
+       :fragment: [get_set_tensor]
 
-    .. tab:: Python
+.. tab:: Python
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.py
-           :language: python
-           :fragment: [get_set_tensor]
+    .. doxygensnippet:: docs/snippets/ov_infer_request.py
+       :language: python
+       :fragment: [get_set_tensor]
 
-    @endsphinxdirective
+@endsphinxdirective
 
   * `ov::InferRequest::get_tensor`, `ov::InferRequest::set_tensor` methods can be used to get or set input/output tensor by port:
-    @sphinxdirective
+@sphinxdirective
 
-    .. tab:: C++
+.. tab:: C++
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
-           :language: cpp
-           :fragment: [get_set_tensor_by_port]
+    .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
+       :language: cpp
+       :fragment: [get_set_tensor_by_port]
 
-    .. tab:: Python
+.. tab:: Python
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.py
-           :language: python
-           :fragment: [get_set_tensor_by_port]
+    .. doxygensnippet:: docs/snippets/ov_infer_request.py
+       :language: python
+       :fragment: [get_set_tensor_by_port]
 
-    @endsphinxdirective
+@endsphinxdirective
 
 ## Examples of InferRequest usages
 
