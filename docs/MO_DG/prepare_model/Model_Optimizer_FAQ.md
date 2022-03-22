@@ -640,11 +640,11 @@ For `--extensions`, the new frontends support only paths to shared libraries (.d
 Inputs freezing (enabled by `--freeze_placeholder_with_value` or `--input` arguments) is not supported on the new frontends.
 The IR conversion falls back to the old path if a user does not select any expected path of conversion explicitly (by `--use_new_frontend` or `--use_legacy_frontend` MO arguments) and unsupported pre-defined scenario is detected on the new frontend path.
 
-#### 106. What does the messages "Output name: `<result_operation_name>` not found" or "Output node with `<result_operation_name>` is not found in graph" mean? <a name="question-106"></a>
+#### 106. What do the messages "Output name: `<result_operation_name>` not found" or "Output node with `<result_operation_name>` is not found in graph" mean? <a name="question-106"></a>
 
-Errors caused by missed output nodes names in graph during use POT tool for model quantization. May appear for some
+Errors are caused by missing output nodes names in a graph when using the POT tool for model quantization. May appear for some
 models only for IRs converted from ONNX models using new frontend (which is default conversion path starting from
 2022.1 release).
 
-To avoid these errors use legacy MO frontend to convert model to IR by providing `--use_legacy_frontend` option.
-After that use produced IR for quantization.
+To avoid such errors, use legacy MO frontend to convert a model to IR by passing the `--use_legacy_frontend` option.
+Then use produced IR for quantization.
