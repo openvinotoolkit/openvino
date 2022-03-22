@@ -11,12 +11,17 @@
 @endsphinxdirective
 
 ## Introduction
-This document describes how to apply model quantization in a basic scenario with DefautltQuantization method without accuracy control using some unannotated dataset. The Post-Training Optimization Tool provides a Python* API that allows creating scripts that result to optimized models. The figure below shows the common workflow.
+This document describes how to apply model quantization with DefautltQuantization method without accuracy control using some unannotated dataset. To use this method, you need to create a Python* script using a Python* API of Post-Training Optimization Tool (POT) and implement data preparation logic and quantization pipeline. In case, if you cannot use Python* API you can try [command-line interface](@ref pot_compression_cli_README) of POT which is designed to quantize models from [Model Zoo](https://github.com/openvinotoolkit/open_model_zoo). The figure below shows the common workflow of the quantization script implemented with POT API.
 
-![](./images/api.png)
+![](./images/default_quantization_flow.png)
 
-## Prepare data
-In most cases, it is required to implement only `openvino.tools.pot.DataLoader` interface which allows loading data from a dataset and applies model-specific pre-processing providing access by index. Any implementation should override the following methods: 
+Such a script should include three basic step:
+1. Prepare and dataset interface
+2. Select quantization parameters
+3. Define and run quantization process
+
+## Prepare data and dataset interface
+In most cases, it is required to implement only `openvino.tools.pot.DataLoader` interface which allows acquiring data from a dataset and applying model-specific pre-processing providing access by index. Any implementation should override the following methods: 
 
 - `__len__()` methods, which returns the size of the dataset
 - `__getitem__()`, which provides indexing in range of 0 to `len(self)`. It should return data in the two possible structures:
@@ -31,7 +36,27 @@ Users can wrap framework data loading classes by `openvino.tools.pot.DataLoader`
 
 Having implementations of `openvino.tools.pot.DataLoader`, it is possible to use  DefaultQuantization method which is aimed at fast full quantization.
 
-## Define quantization parameters
+The example below, defines `DataLoader` object for MNIST dataset using TorchVision [implementation](https://pytorch.org/vision/stable/generated/torchvision.datasets.MNIST.html#torchvision.datasets.MNIST):
+```python
+class MnistDataLoader(DataLoader):
+
+    def __init__(self, dataset_path):
+        super().__init__(dataset_path)
+        self.dataset =  torchvision.datasets.MNIST(root=dataset_path, download=True)
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, index):
+        if index >= len(self):
+            raise IndexError("Index out of dataset size")
+
+        image, annotation = self.dataset[index]
+        return numpy.array(image), annotation
+```
+
+
+## Select quantization parameters
 DefaultQuantization algorithm has mandatory and optional parameters which are defined as a distionary:
 ```
 {
@@ -47,14 +72,11 @@ DefaultQuantization algorithm has mandatory and optional parameters which are de
 
 For more full specification of the `DefaultQuantization` method see this [document](@ref pot_compression_algorithms_quantization_default_README).
 
-## Helpers
-POT works on top of own model representation (Model Optimizer internal representation) which is different from OpenVINO `Model` so that POT API provides own methods to load and save model objects from OpenVINO Intermediate Representation: `load_model` and `save_model`. POT also has a concept of `Pipeline` that sequentially applies specified optimization methods to the model. `create_pipeine` method is used to instantiate a `Pipeline` object.
-
 ## Run quantization
-
+POT API provides own methods to load and save model objects from OpenVINO Intermediate Representation: `load_model` and `save_model`. It also has a concept of `Pipeline` that sequentially applies specified optimization methods to the model. `create_pipeine` method is used to instantiate a `Pipeline` object.
 The code snippet below shows basic quantization workflow. `UserDataLoader` is a placeholder for user's implementation of `openvino.tools.pot.DataLoader`.
 
-```
+```python
 from openvino.tools.pot import IEEngine
 from openvino.tools.pot load_model, save_model
 from openvino.tools.pot import compress_model_weights
@@ -89,7 +111,7 @@ data_loader = UserDataLoader(..)
 model = load_model(model_config=model_config)
 
 # Step 3: Initialize the engine for metric calculation and statistics collection.
-engine = IEEngine(config=engine_config, data_loader=data_loader, metric=None)
+engine = IEEngine(config=engine_config, data_loader=data_loader)
 
 # Step 4: Create a pipeline of compression algorithms and run it.
 pipeline = create_pipeline(algorithms, engine)

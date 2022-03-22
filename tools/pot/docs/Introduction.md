@@ -1,4 +1,4 @@
-# Post-Training Optimization Tool {#pot_introduction}
+# Optimizing models post-training {#pot_introduction}
 
 @sphinxdirective
 
@@ -9,7 +9,6 @@
    Quantizing Model <pot_default_quantization_usage>
    Quantizing Model with Accuracy Control <pot_accuracyaware_usage>
    Quantization Best Practices <pot_docs_BestPractices>
-   (Experimental) Protecting Model <pot_ranger_README>
    API Description <pot_compression_api_README>
    Command-line Interface <pot_compression_cli_README>
    Examples <pot_examples_description>
@@ -19,37 +18,30 @@
 
 ## Introduction
 
-Post-training Optimization Tool (POT) is designed to accelerate the inference of Deep Learning models by applying
-special methods without model retraining or fine-tuning, for example, post-training 8-bit quantization. Therefore, the tool does not
-require a training dataset or a pipeline. To apply post-training algorithms from the POT, you need:
+Post-trianing model optimization is the process of applying special methods without model retraining or fine-tuning, for example, post-training 8-bit quantization. Therefore, therefore this process does not require a training dataset or a training pipeline in the source DL framework. To apply post-training methods in OpenVINO&trade;, you need:
 * A floating-point precision model, FP32 or FP16, converted into the OpenVINO&trade; Intermediate Representation (IR) format
 and run on CPU with the OpenVINO&trade;.
 * A representative calibration dataset representing a use case scenario, for example, 300 images.
 * In case of accuracy constraints, a validation dataset and accuracy metrics should be available.
 
-Figure below shows the optimization workflow:
+For the needs of post-training optimization, OpenVINO&trade; provides a Post-training Optimization Tool (POT) which supports the uniform integer quantization method. This method allows substantially increasing inference performance and reduciing the model size.
+
+Figure below shows the optimization workflow with POT:
 ![](./images/workflow_simple.png)
 
-### Features
-
-* Two post-training quantization algorithms: fast [DefaultQuantization](@ref pot_default_quantization_usage) and precise [AccuracyAwareQuantization](@ref pot_accuracyaware_usage).
-* (Experimental) [Ranger algorithm](@ref pot_ranger_README) for the model protection in safety-critical cases.
-
-POT is also integrated into [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench), a web-based graphical environment 
-that enables you to  to import, optimize, benchmark, visualize, and compare performance of deep learning models. 
 
 ## Quantizing models with POT
-The primary feature of the Post-training Optimization Tool is the uniform integer quantization which allows substantially increasing inference performance and reduciing the model size. Different HW platforms can support different integer precisions and POT is designed to support all of them, for example 8-bit for CPU, GPU, VPU, 16-bit for GNA. Moreover, POT makes specification of HW settings transparent for the user by introducing a concept of `target_device` parameter.
+
+POT provides two main quantization methods that can be used depending on the user's needs and requirements:
+
+*  [DefaultQuantization](@ref pot_default_quantization_usage) is a recommended method that provides fast and accurate results in most cases. It requires only a unannotated dataset for quantization. For details, see the [DefaultQuantization Algorithm](@ref pot_compression_algorithms_quantization_default_README) documentation.
+
+*  [AccuracyAwareQuantization](@ref pot_accuracyaware_usage) is an advanced method which enables remaining at a predefined range of accuracy drop at the cost of performance improvement in case when `DefaultQuantization` cannot guarantee it. The method requires annotated representative dataset and may require more time for quantization. For details, see the
+[AccuracyAwareQuantization Algorithm](@ref pot_compression_algorithms_quantization_accuracy_aware_README) documentation.
+
+POT supports quantization for different HW platforms that has different integer precisions, for example 8-bit in CPU, GPU, VPU, 16-bit for GNA. Moreover, POT makes specification of HW settings transparent for the user by introducing a concept of `target_device` parameter.
 
 > **NOTE**: There is a special `target_device: "ANY"` which leads to portable quantized models compatible with CPU, GPU, and VPU devices. GNA-quantized models are compatible only with CPU.
-
-During the quantization process, the POT tool runs inference of the optimizing model to estimate quantization parameters for input activations of the quantizable operation. It means that a calibration dataset is required to perform quantization. This dataset may have or not have annotation depending on the quantization algorithm that is used and here there are two possible options:
-
-*  [DefaultQuantization](@ref pot_default_quantization_usage) is a default method that provides fast and accurate results in most cases. It requires only a unannotated dataset for quantization. For details, see the [DefaultQuantization Algorithm](@ref pot_compression_algorithms_quantization_default_README) documentation.
-
-*  [AccuracyAwareQuantization](@ref pot_accuracyaware_usage) enables remaining at a predefined range of accuracy drop after quantization at the cost
-   of performance improvement. The method requires annotated representative dataset and may require more time for quantization. For details, see the
-   [AccuracyAwareQuantization Algorithm](@ref pot_compression_algorithms_quantization_accuracy_aware_README) documentation.
 
 For benchmarking results collected for the models optimized with the POT tool, refer to [INT8 vs FP32 Comparison on Select Networks and Platforms](@ref openvino_docs_performance_int8_vs_fp32).
 
