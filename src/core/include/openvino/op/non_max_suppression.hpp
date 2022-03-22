@@ -384,14 +384,14 @@ public:
     /// \param sort_result_descending Specifies whether it is necessary to sort selected
     /// boxes across batches
     /// \param output_type Specifies the output tensor type
-    /// \param soft_NMS_suppressed_by_IOU Specifies whether candidate boxes should be
+    /// \param soft_nms_suppressed_by_iou Specifies whether candidate boxes should be
     /// suppressed by IOU directly in soft NMS.
     NonMaxSuppression(const Output<Node>& boxes,
                       const Output<Node>& scores,
                       const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
                       const bool sort_result_descending = true,
                       const ov::element::Type& output_type = ov::element::i64,
-                      const bool soft_NMS_suppressed_by_IOU = true);
+                      const bool soft_nms_suppressed_by_iou = true);
 
     /// \brief Constructs a NonMaxSuppression operation with default values in the last
     ///        3 inputs.
@@ -404,7 +404,7 @@ public:
     /// \param sort_result_descending Specifies whether it is necessary to sort selected
     /// boxes across batches
     /// \param output_type Specifies the output tensor type
-    /// \param soft_NMS_suppressed_by_IOU Specifies whether candidate boxes should be
+    /// \param soft_nms_suppressed_by_iou Specifies whether candidate boxes should be
     /// suppressed by IOU directly in soft NMS.
     NonMaxSuppression(const Output<Node>& boxes,
                       const Output<Node>& scores,
@@ -412,7 +412,7 @@ public:
                       const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
                       const bool sort_result_descending = true,
                       const ov::element::Type& output_type = ov::element::i64,
-                      const bool soft_NMS_suppressed_by_IOU = true);
+                      const bool soft_nms_suppressed_by_iou = true);
 
     /// \brief Constructs a NonMaxSuppression operation with default values in the last.
     ///        2 inputs.
@@ -426,7 +426,7 @@ public:
     /// \param sort_result_descending Specifies whether it is necessary to sort selected
     /// boxes across batches
     /// \param output_type Specifies the output tensor type
-    /// \param soft_NMS_suppressed_by_IOU Specifies whether candidate boxes should be
+    /// \param soft_nms_suppressed_by_iou Specifies whether candidate boxes should be
     /// suppressed by IOU directly in soft NMS.
     NonMaxSuppression(const Output<Node>& boxes,
                       const Output<Node>& scores,
@@ -435,7 +435,7 @@ public:
                       const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
                       const bool sort_result_descending = true,
                       const ov::element::Type& output_type = ov::element::i64,
-                      const bool soft_NMS_suppressed_by_IOU = true);
+                      const bool soft_nms_suppressed_by_iou = true);
 
     /// \brief Constructs a NonMaxSuppression operation with default value in the last.
     ///        input.
@@ -450,7 +450,7 @@ public:
     /// \param sort_result_descending Specifies whether it is necessary to sort selected
     /// boxes across batches
     /// \param output_type Specifies the output tensor type
-    /// \param soft_NMS_suppressed_by_IOU Specifies whether candidate boxes should be
+    /// \param soft_nms_suppressed_by_iou Specifies whether candidate boxes should be
     /// suppressed by IOU directly in soft NMS.
     NonMaxSuppression(const Output<Node>& boxes,
                       const Output<Node>& scores,
@@ -460,7 +460,7 @@ public:
                       const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
                       const bool sort_result_descending = true,
                       const ov::element::Type& output_type = ov::element::i64,
-                      const bool soft_NMS_suppressed_by_IOU = true);
+                      const bool soft_nms_suppressed_by_iou = true);
 
     /// \brief Constructs a NonMaxSuppression operation.
     ///
@@ -475,7 +475,7 @@ public:
     /// \param sort_result_descending Specifies whether it is necessary to sort selected
     /// boxes across batches
     /// \param output_type Specifies the output tensor type
-    /// \param soft_NMS_suppressed_by_IOU Specifies whether candidate boxes should be
+    /// \param soft_nms_suppressed_by_iou Specifies whether candidate boxes should be
     /// suppressed by IOU directly in soft NMS.
     NonMaxSuppression(const Output<Node>& boxes,
                       const Output<Node>& scores,
@@ -486,7 +486,7 @@ public:
                       const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
                       const bool sort_result_descending = true,
                       const ov::element::Type& output_type = ov::element::i64,
-                      const bool soft_NMS_suppressed_by_IOU = true);
+                      const bool soft_nms_suppressed_by_iou = true);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
@@ -514,11 +514,11 @@ public:
         m_output_type = output_type;
     }
 
-    bool get_soft_NMS_suppressed_by_IOU() const {
-        return m_soft_NMS_suppressed_by_IOU;
+    bool get_soft_nms_suppressed_by_iou() const {
+        return m_soft_nms_suppressed_by_iou;
     }
-    void set_soft_NMS_suppressed_by_IOU(const bool soft_NMS_suppressed_by_IOU) {
-        m_soft_NMS_suppressed_by_IOU = soft_NMS_suppressed_by_IOU;
+    void set_soft_nms_suppressed_by_iou(const bool soft_nms_suppressed_by_iou) {
+        m_soft_nms_suppressed_by_iou = soft_nms_suppressed_by_iou;
     }
     using Node::set_output_type;
 
@@ -532,7 +532,7 @@ protected:
     BoxEncodingType m_box_encoding = BoxEncodingType::CORNER;
     bool m_sort_result_descending = true;
     ov::element::Type m_output_type = ov::element::i64;
-    bool m_soft_NMS_suppressed_by_IOU = true;
+    bool m_soft_nms_suppressed_by_iou = true;
     void validate();
 };
 }  // namespace v9

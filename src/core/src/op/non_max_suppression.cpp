@@ -846,12 +846,12 @@ op::v9::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const op::v9::NonMaxSuppression::BoxEncodingType box_encoding,
                                              const bool sort_result_descending,
                                              const element::Type& output_type,
-                                             const bool soft_NMS_suppressed_by_IOU)
+                                             const bool soft_nms_suppressed_by_iou)
     : Op({boxes, scores}),
       m_box_encoding{box_encoding},
       m_sort_result_descending{sort_result_descending},
       m_output_type{output_type},
-      m_soft_NMS_suppressed_by_IOU{soft_NMS_suppressed_by_IOU} {
+      m_soft_nms_suppressed_by_iou{soft_nms_suppressed_by_iou} {
     constructor_validate_and_infer_types();
 }
 
@@ -861,12 +861,12 @@ op::v9::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const op::v9::NonMaxSuppression::BoxEncodingType box_encoding,
                                              const bool sort_result_descending,
                                              const element::Type& output_type,
-                                             const bool soft_NMS_suppressed_by_IOU)
+                                             const bool soft_nms_suppressed_by_iou)
     : Op({boxes, scores, max_output_boxes_per_class}),
       m_box_encoding{box_encoding},
       m_sort_result_descending{sort_result_descending},
       m_output_type{output_type},
-      m_soft_NMS_suppressed_by_IOU{soft_NMS_suppressed_by_IOU} {
+      m_soft_nms_suppressed_by_iou{soft_nms_suppressed_by_iou} {
     constructor_validate_and_infer_types();
 }
 
@@ -877,12 +877,12 @@ op::v9::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const op::v9::NonMaxSuppression::BoxEncodingType box_encoding,
                                              const bool sort_result_descending,
                                              const element::Type& output_type,
-                                             const bool soft_NMS_suppressed_by_IOU)
+                                             const bool soft_nms_suppressed_by_iou)
     : Op({boxes, scores, max_output_boxes_per_class, iou_threshold}),
       m_box_encoding{box_encoding},
       m_sort_result_descending{sort_result_descending},
       m_output_type{output_type},
-      m_soft_NMS_suppressed_by_IOU{soft_NMS_suppressed_by_IOU} {
+      m_soft_nms_suppressed_by_iou{soft_nms_suppressed_by_iou} {
     constructor_validate_and_infer_types();
 }
 
@@ -894,12 +894,12 @@ op::v9::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const op::v9::NonMaxSuppression::BoxEncodingType box_encoding,
                                              const bool sort_result_descending,
                                              const element::Type& output_type,
-                                             const bool soft_NMS_suppressed_by_IOU)
+                                             const bool soft_nms_suppressed_by_iou)
     : Op({boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold}),
       m_box_encoding{box_encoding},
       m_sort_result_descending{sort_result_descending},
       m_output_type{output_type},
-      m_soft_NMS_suppressed_by_IOU{soft_NMS_suppressed_by_IOU} {
+      m_soft_nms_suppressed_by_iou{soft_nms_suppressed_by_iou} {
     constructor_validate_and_infer_types();
 }
 
@@ -912,12 +912,12 @@ op::v9::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const op::v9::NonMaxSuppression::BoxEncodingType box_encoding,
                                              const bool sort_result_descending,
                                              const element::Type& output_type,
-                                             const bool soft_NMS_suppressed_by_IOU)
+                                             const bool soft_nms_suppressed_by_iou)
     : Op({boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, soft_nms_sigma}),
       m_box_encoding{box_encoding},
       m_sort_result_descending{sort_result_descending},
       m_output_type{output_type},
-      m_soft_NMS_suppressed_by_IOU{soft_NMS_suppressed_by_IOU} {
+      m_soft_nms_suppressed_by_iou{soft_nms_suppressed_by_iou} {
     constructor_validate_and_infer_types();
 }
 
@@ -935,7 +935,7 @@ std::shared_ptr<Node> op::v9::NonMaxSuppression::clone_with_new_inputs(const Out
                                                            m_box_encoding,
                                                            m_sort_result_descending,
                                                            m_output_type,
-                                                           m_soft_NMS_suppressed_by_IOU);
+                                                           m_soft_nms_suppressed_by_iou);
         break;
     case 3:
         return std::make_shared<op::v9::NonMaxSuppression>(new_args.at(0),
@@ -944,7 +944,7 @@ std::shared_ptr<Node> op::v9::NonMaxSuppression::clone_with_new_inputs(const Out
                                                            m_box_encoding,
                                                            m_sort_result_descending,
                                                            m_output_type,
-                                                           m_soft_NMS_suppressed_by_IOU);
+                                                           m_soft_nms_suppressed_by_iou);
         break;
     case 4:
         return std::make_shared<op::v9::NonMaxSuppression>(new_args.at(0),
@@ -954,7 +954,7 @@ std::shared_ptr<Node> op::v9::NonMaxSuppression::clone_with_new_inputs(const Out
                                                            m_box_encoding,
                                                            m_sort_result_descending,
                                                            m_output_type,
-                                                           m_soft_NMS_suppressed_by_IOU);
+                                                           m_soft_nms_suppressed_by_iou);
         break;
     case 5:
         return std::make_shared<op::v9::NonMaxSuppression>(new_args.at(0),
@@ -965,7 +965,7 @@ std::shared_ptr<Node> op::v9::NonMaxSuppression::clone_with_new_inputs(const Out
                                                            m_box_encoding,
                                                            m_sort_result_descending,
                                                            m_output_type,
-                                                           m_soft_NMS_suppressed_by_IOU);
+                                                           m_soft_nms_suppressed_by_iou);
         break;
     default:
         return std::make_shared<op::v9::NonMaxSuppression>(new_args.at(0),
@@ -977,7 +977,7 @@ std::shared_ptr<Node> op::v9::NonMaxSuppression::clone_with_new_inputs(const Out
                                                            m_box_encoding,
                                                            m_sort_result_descending,
                                                            m_output_type,
-                                                           m_soft_NMS_suppressed_by_IOU);
+                                                           m_soft_nms_suppressed_by_iou);
         break;
     }
 }
@@ -1149,7 +1149,7 @@ bool ngraph::op::v9::NonMaxSuppression::visit_attributes(AttributeVisitor& visit
     visitor.on_attribute("box_encoding", m_box_encoding);
     visitor.on_attribute("sort_result_descending", m_sort_result_descending);
     visitor.on_attribute("output_type", m_output_type);
-    visitor.on_attribute("soft_NMS_suppressed_by_IOU", m_soft_NMS_suppressed_by_IOU);
+    visitor.on_attribute("soft_NMS_suppressed_by_IOU", m_soft_nms_suppressed_by_iou);
     return true;
 }
 

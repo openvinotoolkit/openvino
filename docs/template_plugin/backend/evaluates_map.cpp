@@ -1011,7 +1011,7 @@ InfoForNMS9 get_info_for_nms9_eval(const std::shared_ptr<op::v9::NonMaxSuppressi
 
     result.output_type = nms9->get_output_type();
 
-    result.soft_nms_suppressed_by_iou = nms9->get_soft_NMS_suppressed_by_IOU();
+    result.soft_nms_suppressed_by_iou = nms9->get_soft_nms_suppressed_by_iou();
 
     return result;
 }
