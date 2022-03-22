@@ -183,10 +183,7 @@ def serialize_to_csv(report_filename: str, output_dir: os.path, op_list: list, d
         for op in op_list:
             list_to_csv = list()
             for device in device_list:
-                if op in results[device]:
-                    list_to_csv.append(format_string(str(results[device][op])))
-                else:
-                    list_to_csv.append("N/A")
+                list_to_csv.append(format_string(str(results[device][op])) if op in results[device] else "N/A")
             csv_writer.writerow([op] + list_to_csv)
 
     logger.info(f'Final CSV report is saved to {csv_filename}')
