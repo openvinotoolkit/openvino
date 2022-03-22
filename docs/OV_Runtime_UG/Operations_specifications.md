@@ -177,6 +177,7 @@
    openvino_docs_ops_activation_SoftMax_1
    openvino_docs_ops_activation_SoftMax_8
    openvino_docs_ops_activation_SoftPlus_4
+   openvino_docs_ops_activation_SoftSign_9
    openvino_docs_ops_movement_SpaceToBatch_2
    openvino_docs_ops_movement_SpaceToDepth_1
    openvino_docs_ops_movement_Split_1

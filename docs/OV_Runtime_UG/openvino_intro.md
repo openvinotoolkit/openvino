@@ -9,7 +9,6 @@
    :hidden:
 
    openvino_docs_Integrate_OV_with_your_application
-   <!-- should be a part of Integrate OV in user application -->
    openvino_docs_IE_DG_ShapeInference
    openvino_docs_OV_UG_Working_with_devices
    openvino_docs_OV_Runtime_UG_Preprocessing_Overview
@@ -17,11 +16,12 @@
    openvino_docs_IE_DG_supported_plugins_AUTO
    openvino_docs_OV_UG_Running_on_multiple_devices
    openvino_docs_OV_UG_Hetero_execution
+   openvino_docs_OV_UG_Performance_Hints
    openvino_docs_OV_UG_Automatic_Batching
    openvino_docs_IE_DG_network_state_intro
+   openvino_docs_OV_Runtime_UG_Python_API_exclusives
    openvino_2_0_transition_guide
-   openvino_docs_OV_Should_be_in_performance
-
+   
 @endsphinxdirective
 
 ## Introduction
