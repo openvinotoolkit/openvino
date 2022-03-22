@@ -1,4 +1,4 @@
-# OpenVINO™ Deployment Manager Guide {#openvino_docs_install_guides_deployment_manager_tool}
+# Deployment Manager {#openvino_docs_install_guides_deployment_manager_tool}
 
 The Deployment Manager is a Python* command-line tool that creates a deployment package by assembling the model, IR files, your application, and associated dependencies into a runtime package for your target device. This tool is delivered within the Intel® Distribution of OpenVINO™ toolkit for Linux*, Windows* and macOS* release packages and is available after installation in the `<INSTALL_DIR>/tools/deployment_manager` directory.
 
@@ -6,17 +6,18 @@ The Deployment Manager is a Python* command-line tool that creates a deployment 
 
 * Intel® Distribution of OpenVINO™ toolkit
 * To run inference on a target device other than CPU, device drivers must be pre-installed:
-   * **For Linux**, see the following sections in the [installation instructions for Linux](../install_guides/installing-openvino-linux.md): 
-     * Steps for Intel® Processor Graphics (GPU) section 
-     * Steps for Intel® Neural Compute Stick 2 section
-     * Steps for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
-   * **For Windows**, see the following sections in the [installation instructions for Windows](../install_guides/installing-openvino-windows.md):
-     * Steps for Intel® Processor Graphics (GPU)
-     * Steps for the Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
-   * **For macOS**, see the following section in the [installation instructions for macOS](../install_guides/installing-openvino-macos.md): 
-     * Steps for Intel® Neural Compute Stick 2 section
-     
-> **IMPORTANT**: The operating system on the target system must be the same as the development system on which you are creating the package. For example, if the target system is Ubuntu 18.04, the deployment package must be created from the OpenVINO™ toolkit installed on Ubuntu 18.04.     
+   * **For Linux**, see the following sections in the [installation instructions for Linux](../../install_guides/installing-openvino-linux.md):
+     * Steps for [Intel® Processor Graphics (GPU)](../../install_guides/configurations-for-intel-gpu.md) section
+     * Steps for [Intel® Neural Compute Stick 2 section](../../install_guides/configurations-for-ncs2.md)
+     * Steps for [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs](../../install_guides/installing-openvino-config-ivad-vpu.md)
+     * Steps for [Intel® Gaussian & Neural Accelerator (GNA)](../../install_guides/configurations-for-intel-gna.md)
+   * **For Windows**, see the following sections in the [installation instructions for Windows](../../install_guides/installing-openvino-windows.md):
+     * Steps for [Intel® Processor Graphics (GPU)](../../install_guides/configurations-for-intel-gpu.md)
+     * Steps for the [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs](../../install_guides/installing-openvino-config-ivad-vpu.md)
+   * **For macOS**, see the following section in the [installation instructions for macOS](../../install_guides/installing-openvino-macos.md):
+     * Steps for [Intel® Neural Compute Stick 2 section](../../install_guides/configurations-for-ncs2.md)
+
+> **IMPORTANT**: The operating system on the target system must be the same as the development system on which you are creating the package. For example, if the target system is Ubuntu 18.04, the deployment package must be created from the OpenVINO™ toolkit installed on Ubuntu 18.04.
 
 > **TIP**: If your application requires additional dependencies, including the Microsoft Visual C++ Redistributable, use the ['--user_data' option](https://docs.openvino.ai/latest/openvino_docs_install_guides_deployment_manager_tool.html#run-standard-cli-mode) to add them to the deployment archive. Install these dependencies on the target host before running inference.
 
@@ -31,9 +32,9 @@ There are two ways to create a deployment package that includes inference-relate
 .. raw:: html
 
     <div class="collapsible-section" data-title="Click to expand/collapse">
-    
+
 @endsphinxdirective
-  
+
 Interactive mode provides a user-friendly command-line interface that will guide you through the process with text prompts.
 
 To launch the Deployment Manager in interactive mode, open a new terminal window, go to the Deployment Manager tool directory and run the tool script without parameters:
@@ -88,20 +89,20 @@ The script successfully completes and the deployment package is generated in the
 
 @sphinxdirective
 
-.. raw:: html  
+.. raw:: html
 
-    </div>  
-    
+    </div>
+
 @endsphinxdirective
 
 ### Run Standard CLI Mode
-  
+
 @sphinxdirective
 
 .. raw:: html
 
     <div class="collapsible-section" data-title="Click to expand/collapse">
-    
+
 @endsphinxdirective
 
 Alternatively, you can run the Deployment Manager tool in the standard CLI mode. In this mode, you specify the target devices and other parameters as command-line arguments of the Deployment Manager Python script. This mode facilitates integrating the tool in an automation pipeline.
@@ -113,29 +114,29 @@ To launch the Deployment Manager tool in the standard mode, open a new terminal 
 .. tab:: Linux
 
    .. code-block:: sh
-   
+
       cd <INSTALL_DIR>/tools/deployment_manager
-      ./deployment_manager.py <--targets> [--output_dir] [--archive_name] [--user_data]  
-  
-.. tab:: Windows  
+      ./deployment_manager.py <--targets> [--output_dir] [--archive_name] [--user_data]
 
-   .. code-block:: bat  
+.. tab:: Windows
 
-      cd <INSTALL_DIR>\deployment_tools\tools\deployment_manager
+   .. code-block:: bat
+
+      cd <INSTALL_DIR>\tools\deployment_manager
       .\deployment_manager.py <--targets> [--output_dir] [--archive_name] [--user_data]
-  
-.. tab:: macOS  
+
+.. tab:: macOS
 
    .. code-block:: sh
 
       cd <INSTALL_DIR>/tools/deployment_manager
       ./deployment_manager.py <--targets> [--output_dir] [--archive_name] [--user_data]
-  
+
 @endsphinxdirective
 
 The following options are available:
 
-* `<--targets>` (required): List of target devices to run inference. To specify more than one target, separate them with spaces. For example: `--targets cpu gpu vpu`. You can get a list of currently available targets by running the program with the `-h` option. 
+* `<--targets>` (required): List of target devices to run inference. To specify more than one target, separate them with spaces. For example: `--targets cpu gpu vpu`. You can get a list of currently available targets by running the program with the `-h` option.
 
 * `[--output_dir]` (optional): Path to the output directory. By default, it is set to your home directory.
 
@@ -147,44 +148,45 @@ The script successfully completes, and the deployment package is generated in th
 
 @sphinxdirective
 
-.. raw:: html  
+.. raw:: html
 
-    </div>  
-    
+    </div>
+
 @endsphinxdirective
 
 ## Deploy Package on Target Systems
 
-After the Deployment Manager has successfully completed, you can find the generated `.tar.gz` (for Linux or macOS) or `.zip` (for Windows) package in the output directory you specified. 
+After the Deployment Manager has successfully completed, you can find the generated `.tar.gz` (for Linux or macOS) or `.zip` (for Windows) package in the output directory you specified.
 
 To deploy the OpenVINO Runtime components from the development machine to the target system, perform the following steps:
 
 1. Copy the generated archive to the target system using your preferred method.
 
 2. Unpack the archive into the destination directory on the target system (if your archive name is different from the default shown below, replace the `openvino_deployment_package` with the name you use).
-
 @sphinxdirective
-      
-.. tab:: Linux  
-      
-   .. code-block:: sh 
-      
-      tar xf openvino_deployment_package.tar.gz -C <destination_dir>
-      
-.. tab:: Windows  
-      
-   Use the archiver of your choice to unzip the file.  
-         
-.. tab:: macOS  
 
-   .. code-block:: sh
-            
-      tar xf openvino_deployment_package.tar.gz -C <destination_dir>
-      
+.. tab:: Linux
+
+    .. code-block:: sh
+
+        tar xf openvino_deployment_package.tar.gz -C <destination_dir>
+
+.. tab:: Windows
+
+    .. code-block:: bat
+
+        Use the archiver of your choice to unzip the file.
+
+.. tab:: macOS
+
+    .. code-block:: sh
+
+        tar xf openvino_deployment_package.tar.gz -C <destination_dir>
+
 @endsphinxdirective
 
-The package is unpacked to the destination directory and the following files and subdirectories are created:
-         
+  The package is unpacked to the destination directory and the following files and subdirectories are created:
+
    * `setupvars.sh` — Copy of `setupvars.sh`
    * `runtime` — Contains the OpenVINO runtime binary files.
    * `install_dependencies` — Snapshot of the `install_dependencies` directory from the OpenVINO installation directory.
