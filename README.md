@@ -1,5 +1,5 @@
 # OpenVINO™ Toolkit
-[![Stable release](https://img.shields.io/badge/version-2021.4.2-green.svg)](https://github.com/openvinotoolkit/openvino/releases/tag/2021.4.2)
+[![Stable release](https://img.shields.io/badge/version-2022.1-green.svg)](https://github.com/openvinotoolkit/openvino/releases/tag/2022.1)
 [![Apache License Version 2.0](https://img.shields.io/badge/license-Apache_2.0-green.svg)](LICENSE)
 ![GitHub branch checks state](https://img.shields.io/github/checks-status/openvinotoolkit/openvino/master?label=GitHub%20checks)
 ![Azure DevOps builds (branch)](https://img.shields.io/azure-devops/build/openvinoci/b2bab62f-ab2f-4871-a538-86ea1be7d20f/13?label=Public%20CI)
