@@ -55,15 +55,15 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
     if (FLAGS_api != "async" && FLAGS_api != "sync") {
         throw std::logic_error("Incorrect API. Please set -api option to `sync` or `async` value.");
     }
-    if (FLAGS_hint != "none" && (FLAGS_nstreams != "" || FLAGS_nthreads != 0 || FLAGS_pin != "")) {
-        throw std::logic_error("-nstreams, -nthreads and -pin options are fine tune options. To use them you "
-                               "should explicitely set -hint option to none. This is not OpenVINO limitation "
-                               "(those options can be used in OpenVINO together), but a benchmark_app UI rule.");
-    }
     if (!FLAGS_hint.empty() && FLAGS_hint != "throughput" && FLAGS_hint != "tput" && FLAGS_hint != "latency" &&
         FLAGS_hint != "none") {
         throw std::logic_error("Incorrect performance hint. Please set -hint option to"
                                "`throughput`(tput), `latency' value or 'none'.");
+    }
+    if (FLAGS_hint != "none" && (FLAGS_nstreams != "" || FLAGS_nthreads != 0 || FLAGS_pin != "")) {
+        throw std::logic_error("-nstreams, -nthreads and -pin options are fine tune options. To use them you "
+                               "should explicitely set -hint option to none. This is not OpenVINO limitation "
+                               "(those options can be used in OpenVINO together), but a benchmark_app UI rule.");
     }
     if (!FLAGS_report_type.empty() && FLAGS_report_type != noCntReport && FLAGS_report_type != averageCntReport &&
         FLAGS_report_type != detailedCntReport) {
