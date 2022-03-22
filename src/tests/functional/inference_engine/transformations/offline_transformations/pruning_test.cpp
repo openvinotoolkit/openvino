@@ -2165,7 +2165,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUpShapeSubGraph) {
 
 
 TEST_F(TransformationTestsF, MaskPropagationReshapeExtend) {
-    auto inputShapes = PartialShape{1, 6, 8, 8};
+    auto inputShapes = Shape{1, 6, 8, 8};
     auto weightsShape = Shape{6, 6, 1, 1};
 
     auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
@@ -2184,10 +2184,12 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeExtend) {
     auto shape_of = std::make_shared<opset5::ShapeOf>(conv);
     auto reshape_from = std::make_shared<opset5::Reshape>(mul, shape_of, true);
 
+    auto add_const = create_constant_with_zeros(inputShapes, {{}, {2, 3}, {}, {}});
+    auto add = std::make_shared<opset5::Add>(reshape_from, add_const);
 
     auto conv_1_shape = Shape{6, 6, 1, 1};
     auto conv_1_weights = create_constant_with_zeros(conv_1_shape, {{1, 2, 3}, {}, {}, {}});
-    auto conv_1 = std::make_shared<opset5::Convolution>(reshape_from, conv_1_weights, Strides(2, 1),
+    auto conv_1 = std::make_shared<opset5::Convolution>(add, conv_1_weights, Strides(2, 1),
                                                         CoordinateDiff(2, 0),
                                                         CoordinateDiff(2, 0),
                                                         Strides(2, 1));
@@ -2195,40 +2197,34 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeExtend) {
     function = std::make_shared<ngraph::Function>(OutputVector{conv_1}, ParameterVector{input});
     {
         auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
-        auto weights = create_constant_with_zeros({
-                                                     weightsShape[0] - 3,
-                                                     weightsShape[1],
-                                                     weightsShape[2],
-                                                     weightsShape[3],
-                                                    }, {{}, {}, {}, {}});
+        auto weights = create_constant_with_zeros({weightsShape[0] - 2,
+                                                   weightsShape[1],
+                                                   weightsShape[2],
+                                                   weightsShape[3]}, {{1}, {}, {}, {}});
         auto conv = std::make_shared<opset5::Convolution>(input, weights, Strides(2, 1),
-                                                          CoordinateDiff(2, 0),
-                                                          CoordinateDiff(2, 0),
-                                                          Strides(2, 1));
+                                                        CoordinateDiff(2, 0),
+                                                        CoordinateDiff(2, 0),
+                                                        Strides(2, 1));
 
-        auto shape_of_conv = std::make_shared<opset5::ShapeOf>(conv);
+        auto reshape_const = opset5::Constant::create(element::i64, {3}, {1, -1, 8});
+        auto reshape_to = std::make_shared<opset5::Reshape>(conv, reshape_const, true);
 
-        const auto axis = opset6::Constant::create(ov::element::i8, {}, {0});
-        auto dims_to_keep_vec = std::vector<int64_t>{2, 3};
-        const auto dims_to_keep = opset6::Constant::create(element::i64, {dims_to_keep_vec.size()}, dims_to_keep_vec);
-        const auto gather = std::make_shared<opset6::Gather>(shape_of_conv, dims_to_keep, axis);
-        auto dims_to_keep_vec_1 = std::vector<int64_t>{0};
-        const auto dims_to_keep_1 = opset6::Constant::create(element::i64, {dims_to_keep_vec_1.size()}, dims_to_keep_vec_1);
-        const auto gather_1 = std::make_shared<opset6::Gather>(shape_of_conv, dims_to_keep_1, axis);
-        const auto concat = std::make_shared<opset6::Concat>(NodeVector{gather_1, opset6::Constant::create(element::i64, {1}, {6}), gather}, 0);
+        auto mul_const = create_constant_with_zeros({1, 32, 8}, {{}, {5}, {}});
+        auto mul = std::make_shared<opset5::Multiply>(reshape_to, mul_const);
 
-        const auto sub_const = opset5::Constant::create(concat->get_element_type(), {4}, {0, 3, 0, 0});
-        const auto sub = std::make_shared<opset5::Subtract>(concat, sub_const);
+        auto shape_of = std::make_shared<opset5::ShapeOf>(conv);
+        auto reshape_from = std::make_shared<opset5::Reshape>(mul, shape_of, true);
 
-        auto reshape = std::make_shared<opset5::Reshape>(conv, sub, true);
+        auto add_const = create_constant_with_zeros({
+                                                     inputShapes[0],
+                                                     inputShapes[1] - 2,
+                                                     inputShapes[2],
+                                                     inputShapes[3]}, {{}, {}, {}, {}});
+        auto add = std::make_shared<opset5::Add>(reshape_from, add_const);
 
-        auto conv_1_weights = create_constant_with_zeros({
-                                                     conv_1_shape[0],
-                                                     conv_1_shape[1] - 3,
-                                                     conv_1_shape[2],
-                                                     conv_1_shape[3],
-                                                    }, {{}, {}, {}, {}});
-        auto conv_1 = std::make_shared<opset5::Convolution>(reshape, conv_1_weights, Strides(2, 1),
+        auto conv_1_shape = Shape{6, 4, 1, 1};
+        auto conv_1_weights = create_constant_with_zeros(conv_1_shape, {{1, 2, 3}, {}, {}, {}});
+        auto conv_1 = std::make_shared<opset5::Convolution>(add, conv_1_weights, Strides(2, 1),
                                                             CoordinateDiff(2, 0),
                                                             CoordinateDiff(2, 0),
                                                             Strides(2, 1));
@@ -2244,10 +2240,16 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeExtend) {
         m.register_pass<pass::PropagateMasks>();
         m.run_passes(function);
     }
-    compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)),  Mask({{1, 2, 3}, {}, {}, {}}));
-    compare_masks(*getMask(conv->output(0)),  Mask({{}, {1, 2, 3}, {}, {}}));
+    compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)),  Mask({{2, 3}, {}, {}, {}}));
+    compare_masks(*getMask(conv->output(0)),  Mask({{}, {2, 3}, {}, {}}));
+    auto reshape_to_mask = Mask(3);
+    for (auto i = 16; i < 32; ++i)
+        reshape_to_mask.at(1).insert(i);
 
-    compare_masks(*getMask(conv_1_weights.get_node_shared_ptr()->output(0)),  Mask({{}, {1, 2, 3}, {}, {}}));
+    compare_masks(*getMask(reshape_to->output(0)),  reshape_to_mask);
+    compare_masks(*getMask(reshape_from->output(0)),  Mask({{}, {2, 3}, {}, {}}));
+
+    compare_masks(*getMask(conv_1_weights.get_node_shared_ptr()->output(0)),  Mask({{}, {2, 3}, {}, {}}));
     compare_masks(*getMask(conv_1->output(0)),  Mask({{}, {}, {}, {}}));
     {
         pass::Manager m;
@@ -3704,6 +3706,185 @@ TEST_F(TransformationTestsF, PropagateMasksBroadcastedEltwise) {
     enable_accuracy_check();
 }
 
+TEST_F(TransformationTestsF, MaskPropagationComplexReshape) {
+    auto inputShapes = PartialShape{1, 6, 3};
+    auto weightsShape = Shape{3, 60};
+    auto unsquizedShape = Shape{1, 6, 2, 3, 5, 2}; // Restriction: shouldn't be
+                                                      // broadcasted dim in column reshaped shape.
+                                                      // Leads to pruning of all colums
+    auto squizedShape = Shape{1, 6, 60};
+
+    auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
+                                                            /* 1 -> 0 ch, shoudn't be pruned
+                                                               2, 3 -> 1 ch
+                                                               4, 5 -> 2 ch */
+    auto dims_to_remain = std::vector<uint64_t>{7, 56};
+    auto mul_init_mask = Mask(2);
+    for (int i = 0; i < 60; ++i)
+        mul_init_mask.at(1).insert(i);
+
+    auto mul_weights = create_constant_with_zeros(weightsShape, mul_init_mask);
+    auto mul = std::make_shared<opset5::MatMul>(input, mul_weights);
+
+    auto reshape_to_constant = opset5::Constant::create(element::i64, {6}, unsquizedShape);
+    auto reshape_to = std::make_shared<opset5::Reshape>(mul, reshape_to_constant, true);
+
+    auto unsquized_eltwise_const_vec = std::vector<float>(360, 0);
+    for (size_t i = 0; i < 6; ++i)
+        for (auto & elem : dims_to_remain)
+            unsquized_eltwise_const_vec[i * 60 + elem] = 1;
+
+    auto unsquized_eltwise_const = opset6::Constant::create(element::f32, unsquizedShape, unsquized_eltwise_const_vec);
+    auto unsquized_eltwise = std::make_shared<opset5::Add>(reshape_to, unsquized_eltwise_const);
+
+    auto shape_of = std::make_shared<opset5::ShapeOf>(mul);
+    auto reshape_from = std::make_shared<opset5::Reshape>(unsquized_eltwise, shape_of, true);
+
+    auto mul_2_weights = create_constant_with_zeros({weightsShape[1], weightsShape[1]}, mul_init_mask);
+    auto mul_2 = std::make_shared<opset5::MatMul>(reshape_from, mul_2_weights);
+
+    auto reshape_to_constant_2 = opset5::Constant::create(element::i64, {6}, unsquizedShape);
+    auto reshape_to_2 = std::make_shared<opset5::Reshape>(mul_2, reshape_to_constant_2, true);
+
+    auto shape_of_2 = std::make_shared<opset5::ShapeOf>(mul_2);
+    auto reshape_from_2 = std::make_shared<opset5::Reshape>(reshape_to_2, shape_of_2, true);
+
+    for (auto & elem : dims_to_remain)
+        mul_init_mask.at(1).erase(elem);
+
+    mul_init_mask.insert(mul_init_mask.begin(), std::set<uint64_t>{});
+    auto squized_eltwise_const = create_constant_with_zeros(squizedShape, mul_init_mask);
+    auto squized_eltwise = std::make_shared<opset5::Add>(reshape_from_2, squized_eltwise_const);
+
+    auto mul_last_weights = create_constant_with_zeros({weightsShape[1], 1}, {{}, {}});
+    auto mul_last = std::make_shared<opset5::MatMul>(squized_eltwise, mul_last_weights);
+
+    function = std::make_shared<ngraph::Function>(OutputVector{mul_last}, ParameterVector{input});
+    //{
+    //    const auto elements_remain = dims_to_remain.size();
+    //    auto remained_dims_set = std::set<uint64_t>();
+    //    for (size_t i = 0; i < dims_to_remain.size(); ++i)
+    //        remained_dims_set.insert(i);
+
+    //    auto mul_weights_mask = Mask(2);
+    //    mul_weights_mask.at(1) = remained_dims_set;
+    //    auto mul_weights = create_constant_with_zeros({weightsShape[0], elements_remain}, mul_weights_mask);
+    //    auto mul = std::make_shared<opset5::MatMul>(input, mul_weights);
+
+    //    auto reshape_to_constant = opset5::Constant::create(element::i64, {6}, unsquizedShape);
+    //    auto reshape_to = std::make_shared<opset5::Reshape>(mul, reshape_to_constant, true);
+
+    //    auto unsquized_eltwise_const_vec = std::vector<float>(360, 0);
+    //    for (size_t i = 0; i < 6; ++i)
+    //        unsquized_eltwise_const_vec[i * 60 + 7] = 1;
+
+    //    auto unsquized_eltwise_const = opset6::Constant::create(element::f32, unsquizedShape, unsquized_eltwise_const_vec);
+    //    auto unsquized_eltwise = std::make_shared<opset5::Add>(reshape_to, unsquized_eltwise_const);
+
+    //    auto shape_of = std::make_shared<opset5::ShapeOf>(mul);
+    //    auto reshape_from = std::make_shared<opset5::Reshape>(unsquized_eltwise, shape_of, true);
+
+    //    auto mul_2_weights = create_constant_with_zeros({weightsShape[1], weightsShape[1]}, mul_init_mask);
+    //    auto mul_2 = std::make_shared<opset5::MatMul>(reshape_from, mul_2_weights);
+
+    //    auto reshape_to_constant_2 = opset5::Constant::create(element::i64, {6}, unsquizedShape);
+    //    auto reshape_to_2 = std::make_shared<opset5::Reshape>(mul_2, reshape_to_constant_2, true);
+
+    //    auto shape_of_2 = std::make_shared<opset5::ShapeOf>(mul_2);
+    //    auto reshape_from_2 = std::make_shared<opset5::Reshape>(reshape_to_2, shape_of_2, true);
+
+    //    mul_init_mask.at(1).erase(7);
+    //    mul_init_mask.insert(mul_init_mask.begin(), std::set<uint64_t>{});
+    //    auto squized_eltwise_const = create_constant_with_zeros(squizedShape, mul_init_mask);
+    //    auto squized_eltwise = std::make_shared<opset5::Add>(reshape_from_2, squized_eltwise_const);
+
+    //    auto mul_last_weights = create_constant_with_zeros({weightsShape[1], 1}, {{}, {}});
+    //    auto mul_last = std::make_shared<opset5::MatMul>(squized_eltwise, mul_last_weights);
+
+    //    function_ref = std::make_shared<ngraph::Function>(OutputVector{mul_last}, ParameterVector{input});
+    //}
+    if (VISUALIZE_TESTS_TREE) {
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationComplexReshape.svg").run_on_function(function);
+    }
+    {
+        pass::Manager m;
+        m.register_pass<pass::InitMasks>();
+        m.register_pass<pass::PropagateMasks>();
+        m.run_passes(function);
+    }
+
+    auto squized_mask = Mask(2);
+    auto squized_dim = std::set<uint64_t>();
+    for (size_t i = 0; i < 60; ++i)
+        squized_dim.insert(i);
+
+    for (auto & elem : {6, 7, 26, 27, 36, 37, 56, 57})
+        squized_dim.erase(elem);
+
+    squized_mask.at(1) = squized_dim;
+
+    compare_masks(*getMask(mul_weights), squized_mask);
+
+    squized_mask.insert(squized_mask.begin(), std::set<uint64_t>());
+    compare_masks(*getMask(mul->output(0)), squized_mask);
+    compare_masks(*getMask(reshape_to_constant->output(0)), Mask{{}, {}, {}, {1}, {0, 1, 2, 4}, {}});
+    compare_masks(*getMask(reshape_to->output(0)), Mask{{}, {}, {}, {1}, {0, 1, 2, 4}, {}});
+    compare_masks(*getMask(unsquized_eltwise_const), Mask{{}, {}, {}, {1}, {0, 1, 2, 4}, {}});
+    compare_masks(*getMask(unsquized_eltwise->output(0)), Mask{{}, {}, {}, {1}, {0, 1, 2, 4}, {}});
+    compare_masks(*getMask(reshape_from->output(0)), squized_mask);
+
+    auto mul_2_mask = Mask(2);
+    for (short i = 0; i < 2; ++i)
+        mul_2_mask.at(i) = squized_dim;
+
+    compare_masks(*getMask(mul_2_weights), mul_2_mask);
+    compare_masks(*getMask(mul_2->output(0)), squized_mask);
+    compare_masks(*getMask(reshape_to_constant_2->output(0)), Mask{{}, {}, {}, {1}, {0, 1, 2, 4}, {}});
+    compare_masks(*getMask(reshape_to_2->output(0)), Mask{{}, {}, {}, {1}, {0, 1, 2, 4}, {}});
+    compare_masks(*getMask(reshape_from_2->output(0)), squized_mask);
+    compare_masks(*getMask(squized_eltwise_const), squized_mask);
+    compare_masks(*getMask(squized_eltwise->output(0)), squized_mask);
+    auto last_mul_mask = Mask(2);
+    last_mul_mask.at(0) = squized_dim;
+    compare_masks(*getMask(mul_last_weights), last_mul_mask);
+    compare_masks(*getMask(mul_last->output(0)), Mask{{}, {}, {}});
+
+    {
+        // VisualizeTree modifier helps to print Masks and mark nodes with masks
+        auto modifier = [](const Node& node, std::vector<std::string>& attributes) {
+            std::stringstream ss;
+            size_t index{0};
+            for (const auto & output : node.outputs()) {
+                if (const auto & mask = getMask(output)) {
+                    if (!mask->all_dims_are_empty()) {
+                        attributes.emplace_back("color=green");
+                        attributes.emplace_back("penwidth=2");
+                    }
+                    ss << "Mask(" << index << ") : " << *mask << "\\n";
+                }
+                index++;
+            }
+            if (!ss.str().empty()) {
+                auto label = std::find_if(attributes.begin(), attributes.end(),
+                                       [](const std::string & value) { return value.find("label=") != std::string::npos; });
+                if (label != attributes.end()) {
+                    label->pop_back();
+                    *label += "\n" + ss.str() + "\"";
+                } else {
+                    attributes.push_back("label=\"" + ss.str() + "\"");
+                }
+            }
+        };
+
+        pass::Manager m;
+        m.register_pass<pass::ShrinkWeights>();
+        m.register_pass<ngraph::pass::VisualizeTree>(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationComplexReshapeWithMasks.svg", modifier);
+        m.run_passes(function);
+    }
+    disable_rt_info_check();
+    enable_accuracy_check();
+}
+
 class TransformationTestsReshapedPassThroughF :
 public TransformationTestsF,
 public testing::WithParamInterface<bool> {
@@ -3782,22 +3963,18 @@ TEST_P(TransformationTestsReshapedPassThroughF, MaskPropagationReshapedPassThrou
         auto transpose_const = opset5::Constant::create(element::i64, {4}, {0, 2, 3, 1});
         auto transpose = std::make_shared<opset5::Transpose>(reshape, transpose_const);
 
-        const auto shape_of = std::make_shared<opset6::ShapeOf>(transpose);
-
-        const auto axis = opset6::Constant::create(ov::element::i8, {}, {0});
-        auto dims_to_keep_vec = std::vector<int64_t>{3};
-
-        const auto dims_to_keep = opset6::Constant::create(element::i64, {dims_to_keep_vec.size()}, dims_to_keep_vec);
-        const auto gather = std::make_shared<opset6::Gather>(shape_of, dims_to_keep, axis);
-        const auto concat = std::make_shared<opset6::Concat>(
-                                NodeVector{opset6::Constant::create(element::i64, {1}, {-1}), gather}, 0);
-
-        auto rev_flat = std::make_shared<opset5::Reshape>(transpose, concat, true);
+        auto rev_flat_const = opset5::Constant::create(element::i64, {2}, {8, 6});
+        auto rev_flat = std::make_shared<opset5::Reshape>(transpose, rev_flat_const, true);
 
         auto unary_op = std::make_shared<opset5::Softmax>(rev_flat);
 
-        auto shape_of_second = std::make_shared<opset5::ShapeOf>(transpose);
-        auto reshape_recover = std::make_shared<opset5::Reshape>(unary_op, shape_of_second, true);
+        std::shared_ptr<Node> reshape_recover_shape;
+        if (add_shape_of)
+            reshape_recover_shape = std::make_shared<opset5::ShapeOf>(transpose);
+        else
+            reshape_recover_shape = opset5::Constant::create(element::i64, {4}, {1, 4, 2, 6});
+
+        auto reshape_recover = std::make_shared<opset5::Reshape>(unary_op, reshape_recover_shape, true);
 
         auto right_weights = create_constant_with_zeros({weightsShape[0], weightsShape[1] - 4}, {{}, {}});
         auto mul_right = std::make_shared<opset5::MatMul>(input, right_weights);
@@ -3828,36 +4005,9 @@ TEST_P(TransformationTestsReshapedPassThroughF, MaskPropagationReshapedPassThrou
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReshapedPassThroughP" + postfix + ".svg").run_on_function(function);
     }
     {
-        // VisualizeTree modifier helps to print Masks and mark nodes with masks
-        auto modifier = [](const Node& node, std::vector<std::string>& attributes) {
-            std::stringstream ss;
-            size_t index{0};
-            for (const auto & output : node.outputs()) {
-                if (const auto & mask = getMask(output)) {
-                    if (!mask->all_dims_are_empty()) {
-                        attributes.emplace_back("color=green");
-                        attributes.emplace_back("penwidth=2");
-                    }
-                    ss << "Mask(" << index << ") : " << *mask << "\\n";
-                }
-                index++;
-            }
-            if (!ss.str().empty()) {
-                auto label = std::find_if(attributes.begin(), attributes.end(),
-                                       [](const std::string & value) { return value.find("label=") != std::string::npos; });
-                if (label != attributes.end()) {
-                    label->pop_back();
-                    *label += "\n" + ss.str() + "\"";
-                } else {
-                    attributes.push_back("label=\"" + ss.str() + "\"");
-                }
-            }
-        };
-
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
         m.register_pass<pass::PropagateMasks>();
-        m.register_pass<ngraph::pass::VisualizeTree>(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReverseFlattenWithMasks.svg", modifier);
         m.run_passes(function);
     }
 
@@ -3868,9 +4018,9 @@ TEST_P(TransformationTestsReshapedPassThroughF, MaskPropagationReshapedPassThrou
     compare_masks(*getMask(reshape_const->output(0)), Mask{{{}, {}, {1, 2}, {}}});
     compare_masks(*getMask(reshape->output(0)), Mask{{{}, {}, {1, 2}, {}}});
     compare_masks(*getMask(transpose->output(0)), Mask{{}, {1, 2}, {}, {}});
-    compare_masks(*getMask(rev_flat_const->output(0)), Mask{{}, {}});
-    compare_masks(*getMask(rev_flat->output(0)), Mask{{}, {}});
-    compare_masks(*getMask(unary_op->output(0)), Mask{{}, {}});
+    compare_masks(*getMask(rev_flat_const->output(0)), Mask{{2, 3, 4, 5}, {}});
+    compare_masks(*getMask(rev_flat->output(0)), Mask{{2, 3, 4, 5}, {}});
+    compare_masks(*getMask(unary_op->output(0)), Mask{{2, 3, 4, 5}, {}});
     compare_masks(*getMask(reshape_recover->output(0)), Mask{{}, {1, 2}, {}, {}});
     compare_masks(*getMask(right_weights.get_node_shared_ptr()->output(0)), Mask({{}, {2, 3, 4, 5}}));
     compare_masks(*getMask(mul_right->output(0)), Mask{{}, {}, {2, 3, 4, 5}});
@@ -3898,8 +4048,36 @@ TEST_P(TransformationTestsReshapedPassThroughF, MaskPropagationReshapedPassThrou
     compare_masks(*getMask(last_mul->output(0)), Mask{{}, {}});
 
     {
+        // VisualizeTree modifier helps to print Masks and mark nodes with masks
+        auto modifier = [](const Node& node, std::vector<std::string>& attributes) {
+            std::stringstream ss;
+            size_t index{0};
+            for (const auto & output : node.outputs()) {
+                if (const auto & mask = getMask(output)) {
+                    if (!mask->all_dims_are_empty()) {
+                        attributes.emplace_back("color=green");
+                        attributes.emplace_back("penwidth=2");
+                    }
+                    ss << "Mask(" << index << ") : " << *mask << "\\n";
+                }
+                index++;
+            }
+            if (!ss.str().empty()) {
+                auto label = std::find_if(attributes.begin(), attributes.end(),
+                                       [](const std::string & value) { return value.find("label=") != std::string::npos; });
+                if (label != attributes.end()) {
+                    label->pop_back();
+                    *label += "\n" + ss.str() + "\"";
+                } else {
+                    attributes.push_back("label=\"" + ss.str() + "\"");
+                }
+            }
+        };
+
         pass::Manager m;
         m.register_pass<pass::ShrinkWeights>();
+        auto postfix = (add_shape_of)? "True" : "False";
+        m.register_pass<ngraph::pass::VisualizeTree>(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReverseFlattenWithMasks" + postfix + ".svg", modifier);
         m.run_passes(function);
     }
     disable_rt_info_check();

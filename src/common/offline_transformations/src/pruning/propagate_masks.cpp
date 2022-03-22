@@ -444,11 +444,13 @@ public:
             auto weights_shape_broadcasted_dims = dims_set();
             auto input_shape_ones_dims = dims_set();
             auto weights_shape_ones_dims = dims_set();
+            auto input_shape = ov::Shape();
+            auto weights_shape = ov::Shape();
             if (m_input.get_partial_shape().is_static() &&
                 m_weights.get_partial_shape().is_static()) {
                 // Compute brodcasted dims
-                const auto input_shape = m_input.get_shape();
-                const auto weights_shape = m_weights.get_shape();
+                input_shape = m_input.get_shape();
+                weights_shape = m_weights.get_shape();
                 const int64_t input_shape_size_diff = input_shape.size() - weights_shape.size();
                 for (int64_t i = 0; i < input_shape.size(); ++i)
                     if (input_shape[i] == 1 || i < input_shape_size_diff)
@@ -476,10 +478,12 @@ public:
             }
 
             // In case if first of the inputs is constant
-            InitConstMask({0, 1, 2/* potential output channel dim */}).apply(m_input.get_node_shared_ptr());
+            const auto input_axis_set = get_axis_set(input_shape);
+            InitConstMask(input_axis_set).apply(m_input.get_node_shared_ptr());
             auto input_mask = getMask(m_input);
 
-            InitConstMask({0, 1}).apply(m_weights.get_node_shared_ptr());
+            const auto weights_axis_set = get_axis_set(weights_shape);
+            InitConstMask(weights_axis_set).apply(m_weights.get_node_shared_ptr());
             auto weights_mask = getMask(m_weights);
             //auto has_broadcasted_dims = input_shape_broadcasted_dims.size() || weights_shape_broadcasted_dims.size();
             // Prevent case when input_mask don't have masks on broadcasted dims but
@@ -563,6 +567,19 @@ public:
 
         auto m = std::make_shared<ngraph::pattern::Matcher>(eltwise, "ElementwiseMaskPropagation");
         register_matcher(m, callback);
+    }
+
+private:
+    static ngraph::AxisSet get_axis_set(const ov::Shape shape) {
+        ngraph::AxisSet ret_val;
+        if (shape.size()) {
+            ret_val = ngraph::AxisSet();
+            for (size_t i = 0; i < shape.size(); ++i)
+                ret_val.insert(i);
+        } else {
+            ret_val = ngraph::AxisSet({0, 1, 2, 3});
+        }
+        return ret_val;
     }
 };
 
@@ -1030,7 +1047,7 @@ static std::vector<dims_vec> map_reshape_dimensions(
     auto cur_output_dims = dims_vec();
     for (size_t i(0), j(0); i < input_shape.size(); ++i) {
         size_t accum(1);
-        while (true) {
+        while (j < output_shape.size()) {
             accum *= output_shape[j];
             cur_output_dims.push_back(j);
             j++;
@@ -1122,7 +1139,8 @@ static ChannelsMap map_channels(
                     squized_mask_dim_copy.erase(idx);
                 }
             }
-            if (cur_ch_elems.size() != dims_attrs[unsquized_dim].elems_inner_dims) {
+            if (cur_ch_elems.size() !=\
+                dims_attrs[unsquized_dim].elems_inner_dims * dims_attrs[unsquized_dim].elems_outer_dims) {
                 suspicious_elems.insert(cur_ch_elems.begin(), cur_ch_elems.end());
                 continue;
             }
@@ -1632,7 +1650,7 @@ ngraph::pass::PropagateMasks::PropagateMasks() {
     add_matcher<mask_propagation::GroupConvolution>();
     add_matcher<mask_propagation::Elementwise>();
     add_matcher<mask_propagation::PassThrough>();
-    add_matcher<mask_propagation::ReshapedPassThrough>();
+    //add_matcher<mask_propagation::ReshapedPassThrough>();
     add_matcher<mask_propagation::Reduce>();
     add_matcher<mask_propagation::Reshape>();
     add_matcher<mask_propagation::Transpose>();
