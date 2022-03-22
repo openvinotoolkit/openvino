@@ -8,18 +8,13 @@ from openvino.runtime.passes import consumers_count, has_static_dim, has_static_
                                     rank_equals, type_matches, type_matches_any
 from openvino.runtime.utils.types import get_element_type
 
+from utils.utils import *
+
 
 def test_wrap_type_pattern_type():
     for i in range(1, 9):
         WrapType("opset{}.Parameter".format(i))
         WrapType("opset{}::Parameter".format(i))
-
-    def expect_exception(func, message=""):
-        try:
-            func()
-            assert False
-        except Exception as e:
-            assert message in str(e)
 
     # Negative check not to forget to update opset map in get_type function
     expect_exception(lambda: WrapType('opset9.Parameter'), 'Unsupported opset type: opset9')

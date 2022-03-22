@@ -26,6 +26,19 @@ def count_ops(model, op_types):
     return cnt
 
 
+def expect_exception(func, message=""):
+    def check():
+        try:
+            func()
+            return None
+        except Exception as e:
+            return str(e)
+    res = check()
+    if res is None:
+        assert False, "Exception is not thrown!"
+    assert message in res
+
+
 class PatternReplacement(MatcherPass):
     def __init__(self):
         MatcherPass.__init__(self)

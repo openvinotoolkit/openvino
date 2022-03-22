@@ -31,9 +31,14 @@ def test_registration_and_pass_name():
     GraphRewrite().set_name("Anchor")
     BackwardGraphRewrite().set_name("BackAnchor")
 
+    # Preserve legacy behaviour when registered pass doesn't exist
+    # and in this case we shouldn't throw an exception.
+    m.register_pass("NotExistingPass")
 
-print("START")
-m = Manager()
-m.register_pass("ConstantFolding")
-m.register_pass("Serialize", "out.xml", "out.bin")
-print("END")
+
+def test_negative_pass_registration():
+    m = Manager()
+    expect_exception(lambda: m.register_pass(PatternReplacement))
+    expect_exception(lambda: m.register_pass("PatternReplacement", PatternReplacement()))
+    expect_exception(lambda: m.register_pass("Serialize", Serialize("out.xml", "out.bin")))
+    expect_exception(lambda: m.register_pass("Serialize", "out.xml", "out.bin", "out.wrong"))
