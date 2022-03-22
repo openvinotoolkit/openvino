@@ -78,15 +78,6 @@ Measuring inference performance involves many variables and is extremely use-cas
 
 @endsphinxdirective
 
-## forward-tacotron-duration-prediction [241]
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="chart-block" data-loadcsv="csv/forward-tacotron-duration-prediction-241.csv"></div>
-
-@endsphinxdirective
-
 ## inception-v4-TF [299x299]
 
 @sphinxdirective
