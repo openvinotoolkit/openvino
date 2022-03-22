@@ -90,7 +90,7 @@ Each stream is pinned to its own group of physical cores with respect to NUMA no
 See [optimization guide](@ref openvino_docs_deployment_optimization_guide_dldt_optimization_guide) for more details.
 
 > **NOTE**: When it comes to latency, one needs to keep in mind that running only one stream on multi-socket platform may introduce additional overheads on data transfer between NUMA nodes.
-> In that case it is better to run inference on one socket (please see [Optimizing for Throughput](../../optimization_guide/dldt_deployment_optimization_tput.md) for details).
+> In that case it is better to use ov::hint::PerformanceMode::LATENCY performance hint (please see [performance hints overview](@ref openvino_docs_OV_UG_Performance_Hints) for details).
 
 ### Dynamic shapes
 CPU plugin provides full functional support for models with dynamic shapes in terms of the opset coverage.
@@ -104,6 +104,9 @@ But reducing the level of uncertainty will bring performance gains.
 We can reduce memory consumption through memory reuse, and as a result achieve better cache locality, which in its turn leads to better inference performance, if we explicitly set dynamic shapes with defined upper bounds.
 
 @snippet snippets/cpu/dynamic_shape.cpp defined_upper_bound
+
+> **NOTE**: Using fully undefined shapes may result in significantly higher memory consumption compared to inferring the same model with static shapes.
+> If the memory consumption is unacceptable but dynamic shapes are still required, one can reshape the model using shapes with defined upper bound to reduce memory footprint.
 
 Some runtime optimizations works better if the model shapes are known in advance.
 Therefore, if the input data shape is not changed between inference calls, it is recommended to use a model with static shapes or reshape the existing model with the static input shape to get the best performance.
