@@ -82,7 +82,7 @@ bool SliceKernelRef::Validate(const Params &p, const optional_params &o) const {
     if (params.inputs.empty())
         return false;
 
-    if (params.output.Dimentions() > 5 || params.inputs[0].Dimentions() > 5)
+    if (params.outputs[0].Dimentions() > 5 || params.inputs[0].Dimentions() > 5)
         return false;
 
     return true;
@@ -99,8 +99,8 @@ JitConstants SliceKernelRef::GetJitConstants(const slice_params &params) const {
 CommonDispatchData SliceKernelRef::SetDefault(const slice_params &params,
         const optional_params&) const {
     CommonDispatchData dispatchData;
-    dispatchData.gws = { params.output.Batch().v, params.output.Feature().v,
-            params.output.Z().v * params.output.Y().v * params.output.X().v };
+    dispatchData.gws = { params.outputs[0].Batch().v, params.outputs[0].Feature().v,
+            params.outputs[0].Z().v * params.outputs[0].Y().v * params.outputs[0].X().v };
 
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws,
             params.engineInfo);

@@ -12,10 +12,11 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNPoolingNode : public MKLDNNNode {
+class Pooling : public Node {
 public:
-    MKLDNNPoolingNode(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    Pooling(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
@@ -56,7 +57,7 @@ private:
     std::vector<ptrdiff_t> stride;
     std::vector<ptrdiff_t> kernel;
 
-    /// Effective padding. Used to define correct output shape by MKLDNN
+    /// Effective padding. Used to define correct output shape by oneDNN
     /// reshape formula: (iw - kernel + pad_l + pad_r) / strides[i - 2] + 1
     /// should be passed into pooling desc constructor.
     std::vector<ptrdiff_t> effective_pad_begin;
@@ -74,5 +75,6 @@ private:
     std::vector<ptrdiff_t> data_pad_end;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov
