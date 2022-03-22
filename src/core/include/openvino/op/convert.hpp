@@ -10,6 +10,7 @@ namespace ov {
 namespace op {
 namespace v0 {
 /// \brief Elementwise type conversion operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Convert : public Op {
 public:
     OPENVINO_OP("Convert", "opset1");
