@@ -112,7 +112,7 @@ struct StridedViewTensor : public ViewTensor {
     Strides strides;
 };
 
-ITensor::Ptr ITensor::make(const element::Type element_type_,
+ITensor::Ptr make_tensor(const element::Type element_type_,
                            const Shape& shape_,
                            void* ptr,
                            const Strides& byte_strides) {
@@ -126,7 +126,8 @@ struct AllocatedTensor : public ViewTensor {
                      shape_,
                      [&, this] {
                          OPENVINO_ASSERT(allocator_, "Allocator was not initialized");
-                         return const_cast<Allocator&>(allocator_).allocate(this->get_byte_size());
+                         return const_cast<Allocator&>(allocator_).allocate(
+                             element_type_.size()*shape_size(shape_));
                      }()},
           allocator{allocator_} {}
 
@@ -135,7 +136,6 @@ struct AllocatedTensor : public ViewTensor {
     }
 
     void set_shape(const ov::Shape& new_shape) override {
-        // 2. Tensor created on top of preallocated memory
         auto old_byte_size = get_byte_size();
         shape = new_shape;
         if (shape_size(new_shape) > old_byte_size) {
@@ -147,7 +147,7 @@ struct AllocatedTensor : public ViewTensor {
     Allocator allocator;
 };
 
-ITensor::Ptr ITensor::make(const element::Type element_type_, const Shape& shape_, const Allocator& allocator_) {
+ITensor::Ptr make_tensor(const element::Type element_type_, const Shape& shape_, const Allocator& allocator_) {
     return std::make_shared<AllocatedTensor>(element_type_, shape_, allocator_);
 }
 
@@ -195,7 +195,7 @@ struct RoiTensor : public ITensor {
     Shape shape;
 };
 
-ITensor::Ptr ITensor::make(const ITensor::Ptr& other, const Coordinate& begin, const Coordinate& end) {
+ITensor::Ptr make_tensor(const ITensor::Ptr& other, const Coordinate& begin, const Coordinate& end) {
     return std::make_shared<RoiTensor>(other, begin, end);
 }
 

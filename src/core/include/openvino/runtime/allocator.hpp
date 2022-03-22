@@ -78,7 +78,6 @@ class OPENVINO_API Allocator {
     Allocator(const Allocator& other, const std::shared_ptr<void>& so);
 
     friend class ::ov::Tensor;
-
     struct Base : public std::enable_shared_from_this<Base> {
         using Ptr = std::shared_ptr<Base>;
         virtual void* addressof() = 0;
@@ -94,39 +93,10 @@ class OPENVINO_API Allocator {
         ~Base() = default;
     };
 
-    template <class A, typename = void>
-    struct Impl;
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
     template <typename A>
-    struct Impl<A, typename std::enable_if<std::is_convertible<A, AllocatorImpl::Ptr>::value>::type> : public Base {
+    struct Impl : public Base {
         template <typename... Args>
-        Impl(Args&&... args) : a(std::forward<Args>(args)...) {}
-        void* addressof() override {
-            return &a;
-        }
-        const std::type_info& type_info() const override {
-            return typeid(a);
-        }
-        void* allocate(const size_t bytes, const size_t alignment = alignof(max_align_t)) override {
-            return a->allocate(bytes, alignment);
-        };
-        void deallocate(void* handle, const size_t bytes, size_t alignment = alignof(max_align_t)) override {
-            a->deallocate(handle, bytes, alignment);
-        }
-        bool is_equal(const Base& other) const override {
-            if (util::equal(type_info(), other.type_info())) {
-                return a->is_equal(*(static_cast<const A*>(other.addressof())->get()));
-            }
-            return false;
-        }
-        A a;
-    };
-
-    template <typename A>
-    struct Impl<A, typename std::enable_if<!std::is_convertible<A, AllocatorImpl::Ptr>::value>::type> : public Base {
-        template <typename... Args>
-        Impl(Args&&... args) : a(std::forward<Args>(args)...) {}
+        explicit Impl(Args&&... args) : a(std::forward<Args>(args)...) {}
         void* addressof() override {
             return &a;
         }
@@ -135,7 +105,7 @@ class OPENVINO_API Allocator {
         }
         void* allocate(const size_t bytes, const size_t alignment = alignof(max_align_t)) override {
             return a.allocate(bytes, alignment);
-        };
+        }
         void deallocate(void* handle, const size_t bytes, size_t alignment = alignof(max_align_t)) override {
             a.deallocate(handle, bytes, alignment);
         }
@@ -147,7 +117,6 @@ class OPENVINO_API Allocator {
         }
         A a;
     };
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     Base::Ptr _impl;
     std::shared_ptr<void> _so;
@@ -179,15 +148,32 @@ public:
     /// @return reference to the current object
     Allocator& operator=(Allocator&& other) = default;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     /**
-     * @brief Constructs Allocator from the initialized std::shared_ptr
-     * @param impl Initialized shared pointer
+     * @brief Initialize allocator using `ov::AllocatorImpl` interface
+     * Deprecated.
+     *
+     * @param allocator_impl `ov::AllocatorImpl` interface
      */
-    Allocator(const ::ov::AllocatorImpl::Ptr& impl);
+    Allocator(const AllocatorImpl::Ptr& allocator_impl);
 
-    template <typename A>
+    /**
+     * @brief Initialize allocator using any allocator like object
+     * @tparam A Type of allocator
+     * @param a allocator object
+     */
+    template <typename A,
+              typename std::enable_if<!std::is_convertible<A, AllocatorImpl::Ptr>::value &&
+                                          !std::is_same<typename std::decay<A>::type, Allocator>::value &&
+                                          !std::is_abstract<typename std::decay<A>::type>::value &&
+                                          !std::is_convertible<typename std::decay<A>::type, Base::Ptr>::value,
+                                      bool>::type = true>
     Allocator(A&& a) : _impl{std::make_shared<Impl<typename std::decay<A>::type>>(std::forward<A>(a))} {}
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
+    /**
+     * @brief Creates empty instance of allocator
+     */
     Allocator(std::nullptr_t) {}
 
     /**
@@ -209,9 +195,9 @@ public:
     void deallocate(void* ptr, const size_t bytes = 0, const size_t alignment = alignof(max_align_t));
 
     /**
-     * @brief Compares with other AllocatorImpl
+     * @brief Compares with other Allocator
      * @param other Other instance of allocator
-     * @return `true` if and only if memory allocated from one AllocatorImpl can be deallocated from the other and vice
+     * @return `true` if and only if memory allocated from one Allocator can be deallocated from the other and vice
      * versa
      */
     bool operator==(const Allocator& other) const;
@@ -229,9 +215,11 @@ public:
     explicit operator bool() const noexcept;
 };
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace runtime {
 using ov::Allocator;
 using ov::AllocatorImpl;
 }  // namespace runtime
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 }  // namespace ov

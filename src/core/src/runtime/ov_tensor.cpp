@@ -35,19 +35,15 @@ Tensor::Tensor(const std::shared_ptr<ie::Blob>& impl, const std::shared_ptr<void
     OPENVINO_ASSERT(_impl != nullptr, "Tensor was not initialized.");
 }
 
-Tensor::Tensor(const std::shared_ptr<ITensor>& impl, const std::shared_ptr<void>& so) : _impl{impl}, _so{so} {
-    OPENVINO_ASSERT(_impl != nullptr, "Tensor was not initialized.");
-}
-
 Tensor::Tensor(const element::Type element_type, const Shape& shape, const Allocator& allocator)
-    : _impl{ITensor::make(element_type, shape, allocator)} {}
+    : _impl{make_tensor(element_type, shape, allocator)} {}
 
 Tensor::Tensor(const element::Type element_type, const Shape& shape, void* host_ptr, const Strides& byte_strides)
-    : _impl{ITensor::make(element_type, shape, host_ptr, byte_strides)} {}
+    : _impl{make_tensor(element_type, shape, host_ptr, byte_strides)} {}
 
 Tensor::Tensor(const Tensor& owner, const Coordinate& begin, const Coordinate& end)
     : _so{owner._so},
-      _impl{ITensor::make(owner._impl, begin, end)} {}
+      _impl{make_tensor(owner._impl, begin, end)} {}
 
 element::Type Tensor::get_element_type() const {
     OV_TENSOR_STATEMENT(return _impl->get_element_type());

@@ -10,26 +10,20 @@
 #include "openvino/core/except.hpp"
 
 namespace ov {
-struct DeafaultAllocator {
+struct DefaultAllocator {
     void* allocate(const size_t bytes, const size_t alignment) {
         if (alignment == alignof(max_align_t)) {
             return ::operator new(bytes);
         } else {
             OPENVINO_ASSERT((alignment % 2) == 0, "Alignment is not power of 2: ", alignment);
 #if defined(_WIN32)
-            return _aligned_malloc(size, alignment);
-#elif defined(__APPLE__)
-            auto rem = bytes % alignment;
-            auto real_size = (rem) ? (bytes + alignment - rem) : bytes;
-            return memalign(alignment, real_size);
-#elif defined(__ANDROID__) || defined(ANDROID)
-            return memalign(alignment, bytes);
+            return _aligned_malloc(bytes, alignment);
 #else
-            void* ret = nullptr;
-            if (posix_memalign(&ret, std::max(sizeof(void*), alignment), bytes) != 0) {
+            void* result = nullptr;
+            if (posix_memalign(&result, std::max(sizeof(void*), alignment), bytes) != 0) {
                 OPENVINO_UNREACHABLE("posix_memalign failed");
             }
-            return ret;
+            return result;
 #endif
         }
     }
@@ -46,12 +40,30 @@ struct DeafaultAllocator {
         }
     }
 
-    bool is_equal(const DeafaultAllocator&) const {
+    bool is_equal(const DefaultAllocator&) const {
         return true;
     }
 };
 
-Allocator::Allocator() : Allocator{DeafaultAllocator{}} {}
+Allocator::Allocator() : Allocator{DefaultAllocator{}} {}
+
+OPENVINO_SUPPRESS_DEPRECATED_START
+struct AllocatorImplWrapper {
+    AllocatorImplWrapper(const AllocatorImpl::Ptr& impl_) : impl{impl_} {}
+    void* allocate(const size_t bytes, const size_t alignment) {
+        return impl->allocate(bytes, alignment);
+    }
+    void deallocate(void* handle, const size_t bytes, const size_t alignment) {
+        impl->deallocate(handle, bytes, alignment);
+    }
+    bool is_equal(const AllocatorImplWrapper& other) const {
+        return impl->is_equal(*other.impl);
+    }
+    AllocatorImpl::Ptr impl;
+};
+
+Allocator::Allocator(const AllocatorImpl::Ptr& allocator_impl) : Allocator{AllocatorImplWrapper{allocator_impl}} {}
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 Allocator::~Allocator() {
     _impl = {};

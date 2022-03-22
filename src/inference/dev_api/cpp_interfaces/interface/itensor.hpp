@@ -13,6 +13,7 @@
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/allocator.hpp"
 
 namespace InferenceEngine {
 class Blob;
@@ -31,35 +32,6 @@ public:
      * @brief A smart pointer containing ITensor object
      */
     using Ptr = std::shared_ptr<ITensor>;
-
-    /**
-     * @brief Constructs Tensor using element type and shape. Allocate internal host storage using default allocator
-     * @param type Tensor element type
-     * @param shape Tensor shape
-     * @param allocator allocates memory for internal tensor storage
-     */
-    static Ptr make(const element::Type type, const Shape& shape, const Allocator& allocator = {});
-
-    /**
-     * @brief Constructs Tensor using element type and shape. Wraps allocated host memory.
-     * @note Does not perform memory allocation internally
-     * @param type Tensor element type
-     * @param shape Tensor shape
-     * @param host_ptr Pointer to pre-allocated host memory
-     * @param strides Optional strides parameters in bytes. Strides are supposed to be computed automatically based
-     * on shape and element size
-     */
-    static Ptr make(const element::Type type, const Shape& shape, void* host_ptr, const Strides& strides = {});
-
-    /**
-     * @brief Constructs region of interest (ROI) tensor form another tensor.
-     * @note Does not perform memory allocation internally
-     * @param other original tensor
-     * @param begin start coordinate of ROI object inside of the original object.
-     * @param end end coordinate of ROI object inside of the original object.
-     * @note A Number of dimensions in `begin` and `end` must match number of dimensions in `other.get_shape()`
-     */
-    static Ptr make(const ITensor::Ptr& other, const Coordinate& begin, const Coordinate& end);
 
     /**
      * @brief Set new shape for tensor, deallocate/allocate if new total size is bigger than previous one.
@@ -129,8 +101,39 @@ protected:
     ~ITensor() = default;
 };
 
+/**
+ * @brief Constructs Tensor using element type and shape. Allocate internal host storage using default allocator
+ * @param type Tensor element type
+ * @param shape Tensor shape
+ * @param allocator allocates memory for internal tensor storage
+ */
+OPENVINO_API ITensor::Ptr make_tensor(const element::Type type, const Shape& shape, const Allocator& allocator = {});
+
+/**
+ * @brief Constructs Tensor using element type and shape. Wraps allocated host memory.
+ * @note Does not perform memory allocation internally
+ * @param type Tensor element type
+ * @param shape Tensor shape
+ * @param host_ptr Pointer to pre-allocated host memory
+ * @param strides Optional strides parameters in bytes. Strides are supposed to be computed automatically based
+ * on shape and element size
+ */
+OPENVINO_API ITensor::Ptr make_tensor(const element::Type type, const Shape& shape, void* host_ptr, const Strides& strides = {});
+
+/**
+ * @brief Constructs region of interest (ROI) tensor form another tensor.
+ * @note Does not perform memory allocation internally
+ * @param other original tensor
+ * @param begin start coordinate of ROI object inside of the original object.
+ * @param end end coordinate of ROI object inside of the original object.
+ * @note A Number of dimensions in `begin` and `end` must match number of dimensions in `other.get_shape()`
+ */
+OPENVINO_API ITensor::Ptr make_tensor(const ITensor::Ptr& other, const Coordinate& begin, const Coordinate& end);
+
+/** @cond INTERNAL */
 OPENVINO_API std::shared_ptr<ie::Blob> tensor_to_blob(const ITensor::Ptr& tensor);
 
 OPENVINO_API ITensor::Ptr blob_to_tensor(const std::shared_ptr<ie::Blob>& tensor);
+/** @endcond */
 
 }  // namespace ov
