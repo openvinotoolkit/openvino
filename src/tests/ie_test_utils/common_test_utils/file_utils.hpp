@@ -185,8 +185,8 @@ inline int createDirectoryRecursive(const std::string& dirPath) {
         copyDirPath = copyDirPath.substr(0, pos);
     }
     while (!nested_dir_names.empty()) {
-        std::string a = copyDirPath + nested_dir_names.back();
-        if (createDirectory(a) != 0) {
+        copyDirPath = copyDirPath + nested_dir_names.back();
+        if (createDirectory(copyDirPath) != 0) {
             return -1;
         }
         nested_dir_names.pop_back();
