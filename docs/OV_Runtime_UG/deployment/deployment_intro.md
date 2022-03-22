@@ -24,15 +24,31 @@ Once the [OpenVINO application development](../integrate_with_your_application.m
 
 The table below shows which distribution type can be used depending on target operation system:
 
+@sphinxdirective
+
+.. raw:: html
+
+    <div class="collapsible-section" data-title="Click to expand/collapse">
+
+@endsphinxdirective
+
 | Distribution type | Operation systems |
 |------- ---------- | ----------------- |
 | Debian packages | Ubuntu 18.04 long-term support (LTS), 64-bit; Ubuntu 20.04 long-term support (LTS), 64-bit |
 | RMP packages | Red Hat Enterprise Linux 8, 64-bit |
-| Docker images | All operation systems |
+| Docker images | Ubuntu 18.04 long-term support (LTS), 64-bit; Ubuntu 20.04 long-term support (LTS), 64-bit; Red Hat Enterprise Linux 8, 64-bit; Windows Server Core base LTSC 2019, 64-bit; Windows 10, version 20H2, 64-bit |
 | PyPi (pip package manager) | All operation systems |
 | [OpenVINO Deployment Manager](deployment-manager-tool.md) | All operation systems |
 | [Local distribution](local-distribution.md) | All operation systems |
 | [Build OpenVINO statically and link into the final app](https://github.com/openvinotoolkit/openvino/wiki/StaticLibraries) | All operation systems |
+
+@sphinxdirective
+
+.. raw:: html
+
+    </div>
+
+@endsphinxdirective
 
 Depending on the distribution type, the granularity of OpenVINO packages may vary: PyPi distribution [OpenVINO has a single package 'openvino'](https://pypi.org/project/openvino/) containing all the runtime libraries and plugins, while more configurable ways like [Local distribution](local-distribution.md) provide higher granularity, so it is important to now some details about the set of libraries which are part of OpenVINO Runtime package:
 
