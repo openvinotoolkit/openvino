@@ -32,10 +32,8 @@ Figure below shows the optimization workflow:
 
 ### Features
 
-* Two post-training [quantization](@ref pot_compression_algorithms_quantization_README) algorithms: fast [DefaultQuantization](openvino/tools/pot/algorithms/quantization/default/README.md) and precise [AccuracyAwareQuantization](openvino/tools/pot/algorithms/quantization/accuracy_aware/README.md).
+* Two post-training quantization algorithms: fast [DefaultQuantization](@ref pot_default_quantization_usage) and precise [AccuracyAwareQuantization](@ref pot_accuracyaware_usage).
 * (Experimental) [Ranger algorithm](@ref pot_ranger_README) for the model protection in safety-critical cases.
-
-For benchmarking results collected for the models optimized with the POT tool, refer to [INT8 vs FP32 Comparison on Select Networks and Platforms](@ref openvino_docs_performance_int8_vs_fp32).
 
 POT is also integrated into [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench), a web-based graphical environment 
 that enables you to  to import, optimize, benchmark, visualize, and compare performance of deep learning models. 
@@ -52,6 +50,8 @@ During the quantization process, the POT tool runs inference of the optimizing m
 *  [AccuracyAwareQuantization](@ref pot_accuracyaware_usage) enables remaining at a predefined range of accuracy drop after quantization at the cost
    of performance improvement. The method requires annotated representative dataset and may require more time for quantization. For details, see the
    [AccuracyAwareQuantization Algorithm](@ref pot_compression_algorithms_quantization_accuracy_aware_README) documentation.
+
+For benchmarking results collected for the models optimized with the POT tool, refer to [INT8 vs FP32 Comparison on Select Networks and Platforms](@ref openvino_docs_performance_int8_vs_fp32).
 
 ### Examples
 

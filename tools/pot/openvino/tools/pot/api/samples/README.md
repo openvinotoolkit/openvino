@@ -7,7 +7,7 @@
    :hidden:
    
    Quantizatiing Image Classification Model <pot_example_classification_README>
-   Quantizatiing Accuracy-Aware Model <pot_example_object_detection_README>
+   Quantizatiing Object Detection Model with Accuracy Control  <pot_example_object_detection_README>
    Quantizatiing Cascaded Model <pot_example_face_detection_README>
    Quantizatiing Semantic Segmentation Model <pot_example_segmentation_README>
    Quantizatiing 3D Segmentation Model <pot_example_3d_segmentation_README>
@@ -26,7 +26,7 @@ The following examples demonstrate the implementation of `Engine`, `Metric` and 
     - Implements `Metric` interface to calculate Accuracy at top-1 metric
     - Uses DefaultQuantization algorithm for quantization model
 
-2. [Quantizatiing Accuracy-Aware model](./object_detection/README.md)
+2. [Quantizatiing Object Detection Model with Accuracy Control](./object_detection/README.md)
     - Uses single `MobileNetV1 FPN` model from TensorFlow*
     - Implements `Dataloader` to load images of COCO database
     - Implements `Metric` interface to calculate mAP@[.5:.95] metric

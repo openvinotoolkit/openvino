@@ -27,7 +27,7 @@ In most cases, it is required to implement only `openvino.tools.pot.DataLoader` 
   
 Users can wrap framework data loading classes by `openvino.tools.pot.DataLoader` interface which is usually straightforward, for example, for `torch.utils.data.Dataset` that has various implementation in the TorchVision project.
 
-> **NOTE**: model-specific preprocessing, for example, mean/scale normalization can be embedded into the model at the convertion step using Model Optimizer component. This should be considered during the implementation the DataLoader interface to avoid "double" normalization which can lead to the loss of accuracy after optimization.
+> **NOTE**: Model-specific preprocessing, for example, mean/scale normalization can be embedded into the model at the convertion step using Model Optimizer component. This should be considered during the implementation the DataLoader interface to avoid "double" normalization which can lead to the loss of accuracy after optimization.
 
 Having implementations of `openvino.tools.pot.DataLoader`, it is possible to use  DefaultQuantization method which is aimed at fast full quantization.
 

@@ -1,4 +1,4 @@
-# Quantizatiing Accuracy-Aware model {#pot_example_object_detection_README}
+# Quantizatiing Object Detection Model with Accuracy Control {#pot_example_object_detection_README}
 
 This example demonstrates the use of the [Post-training Optimization Toolkit API](@ref pot_compression_api_README) to
  quantize an object detection model in the [accuracy-aware mode](@ref pot_compression_algorithms_quantization_accuracy_aware_README).
