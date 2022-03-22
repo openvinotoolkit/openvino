@@ -133,21 +133,21 @@ The following code creates a model with several outputs:
 OpenVINO™ provides several debug capabilities:
    - To receive additional messages about applied model modifications, rebuild the OpenVINO™ Runtime library with the `-DENABLE_OPENVINO_DEBUG=ON` option.
    - Model can be visualized to image from the xDot format:
-    @sphinxdirective
+@sphinxdirective
 
-    .. tab:: C++
+.. tab:: C++
 
-        .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
-           :language: cpp
-           :fragment: [ov:visualize]
+    .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+       :language: cpp
+       :fragment: [ov:visualize]
 
-    .. tab:: Python
+.. tab:: Python
 
-        .. doxygensnippet:: docs/snippets/ov_model_snippets.py
-           :language: python
-           :fragment: [ov:visualize]
+    .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+       :language: python
+       :fragment: [ov:visualize]
 
-    @endsphinxdirective
+@endsphinxdirective
 
     `ov::pass::VisualizeTree` can be parametrized via environment variables:
 
@@ -159,21 +159,21 @@ OpenVINO™ provides several debug capabilities:
         OV_VISUALIZE_TREE_MEMBERS_NAME=1        - print member names
 
    - Also model can be serialized to IR:
-    @sphinxdirective
+@sphinxdirective
 
-    .. tab:: C++
+.. tab:: C++
 
-        .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
-           :language: cpp
-           :fragment: [ov:serialize]
+    .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+       :language: cpp
+       :fragment: [ov:serialize]
 
-    .. tab:: Python
+.. tab:: Python
 
-        .. doxygensnippet:: docs/snippets/ov_model_snippets.py
-           :language: python
-           :fragment: [ov:serialize]
+    .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+       :language: python
+       :fragment: [ov:serialize]
 
-    @endsphinxdirective
+@endsphinxdirective
 
 ## See Also
 
