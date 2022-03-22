@@ -209,7 +209,7 @@ onnx_model_eye_like_dyn_rank
 
 
 # Constant network
-# MKLDNNGraph::CreateGraph: No inputs for the topology
+# intel_cpu::Graph::CreateGraph: No inputs for the topology
 onnx_size_op_single
 onnx_size_op_graph_end
 onnx_size_op_graph_middle
@@ -496,7 +496,7 @@ relu_4Dbackprop
 # data [<name>] doesn't exist
 parameter_as_output
 
-# MKLDNNGraph::CreateGraph: No inputs for the topology
+# intel_cpu::Graph::CreateGraph: No inputs for the topology
 range_v0_int32
 range_v0_float32
 range_v4_int32

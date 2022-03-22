@@ -113,7 +113,7 @@ ngraph::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
                                                                  fq_node->input_value(2),
                                                                  get_adjusted_output_range(original_output_low),
                                                                  get_adjusted_output_range(original_output_high)});
-        bool fq_on_weights = is_type<opset4::Constant>(data.get_node());
+        bool fq_on_weights = is_type<opset4::Constant>(data.get_node()) || get_constant_from_source(data) != nullptr;
         if (!fq_on_weights && transformation_callback(new_fq_node))
             return false;
 

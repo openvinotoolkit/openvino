@@ -115,6 +115,20 @@ template OutputVector handle_opset6_binary_op<default_opset::Divide>(const Node&
 template OutputVector handle_opset6_binary_op<default_opset::Multiply>(const Node& node);
 template OutputVector handle_opset6_binary_op<default_opset::Subtract>(const Node& node);
 
+const std::string FAILSAFE_NODE = "ONNX_FAILSAFE_NODE";
+
+std::shared_ptr<default_opset::Constant> make_failsafe_constant(const ngraph::element::Type& dtype) {
+    const auto failsafe_constant = default_opset::Constant::create(dtype, Shape{}, {0});
+    auto& rt_info = failsafe_constant->get_rt_info();
+    rt_info[FAILSAFE_NODE] = "";
+    return failsafe_constant;
+}
+
+bool is_failsafe_node(const std::shared_ptr<ov::Node>& node) {
+    const auto& rt_info = node->get_rt_info();
+    return rt_info.find(FAILSAFE_NODE) != rt_info.end();
+}
+
 }  // namespace  common
 }  // namespace onnx_import
 }  // namespace ngraph
