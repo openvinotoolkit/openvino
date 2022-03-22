@@ -2,7 +2,7 @@
 
 This chapter provides you with the information about available capabilities to get you model imported to OpenVINO™.
 
-Before starting inference with the OpenVINO™ toolkit, a pre-trained model should be exported into one of the supported model formats. Many models represented in ONNX, TensorFlow, PaddlePaddle, MXnet, Caffe, and Kaldi formats are supported in OpenVINO. Dedicated APIs and command-line tools are used to import such models to OpenVINO.
+Before starting inference with the OpenVINO™ toolkit, a pre-trained model should be exported into one of the supported model formats. Many models represented in ONNX, TensorFlow, PaddlePaddle, MXnet, Caffe, and Kaldi formats can be imported to OpenVINO using dedicated APIs and command-line tools.
 
 The process of importing is also referred to as model conversion because the original model is being converted to the model format used in OpenVINO. Converted model can be either:
 
