@@ -1,4 +1,14 @@
-# Quantizing model with accuracy control{#pot_accuracyaware_usage}
+# Quantizing Model with Accuracy Control{#pot_accuracyaware_usage}
+
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   AccuracyAwareQuantization method <pot_compression_algorithms_quantization_accuracy_aware_README>
+
+@endsphinxdirective
 
 ## Introduction
 In case when [DefaultQuantization](@ref pot_default_quantization_usage) alorithm introduces a significant accuracy degradation AccuracyAwareQuantization algorithm can be used to stay within the pre-defined range defined by the user. This may cause a 

@@ -1,4 +1,14 @@
-# Quantizing your model {#pot_default_quantization_usage}
+# Quantizing Model {#pot_default_quantization_usage}
+
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   DefaultQuantization method <pot_compression_algorithms_quantization_default_README>
+
+@endsphinxdirective
 
 ## Introduction
 This document describes how to apply model quantization in a basic scenario with DefautltQuantization method without accuracy control using some unannotated dataset. The Post-Training Optimization Tool provides a Python* API that allows creating scripts that result to optimized models. The figure below shows the common workflow.
@@ -25,12 +35,12 @@ Having implementations of `openvino.tools.pot.DataLoader`, it is possible to use
 DefaultQuantization algorithm has mandatory and optional parameters which are defined as a distionary:
 ```
 {
-        "name": "DefaultQuantization",
-        "params": {
-            "target_device": "ANY",
-            "stat_subset_size": 300
-        },
-    }
+    "name": "DefaultQuantization",
+    "params": {
+        "target_device": "ANY",
+        "stat_subset_size": 300
+    },
+}
 ```  
 - `"target_device"` - currently, only two options are available: `"ANY"` (or `"CPU"`) -  to quantize model for CPU, GPU, or VPU, and `"GNA"` - for inference on GNA.
 - `"stat_subset_size"` - size of subset to calculate activations statistics used for quantization. The whole dataset is used if no parameter specified. We recommend using not less than 300 samples.

@@ -70,7 +70,7 @@ During the quantization process, the POT tool runs inference of the optimizing m
 ## See Also
 
 * [Performance Benchmarks](https://docs.openvino.ai/latest/openvino_docs_performance_benchmarks_openvino.html)
-* [Post-Training Optimization Best Practices](docs/BestPractices.md)
-* [Using POT Command-line Interface](docs/CLI.md)
-* [POT Frequently Asked Questions](docs/FrequentlyAskedQuestions.md)
+* [Post-Training Optimization Best Practices](BestPractices.md)
+* [Using POT Command-line Interface](CLI.md)
+* [POT Frequently Asked Questions](FrequentlyAskedQuestions.md)
 * [INT8 Quantization by Using Web-Based Interface of the DL Workbench](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Int_8_Quantization.html)
