@@ -39,7 +39,7 @@ In both cases, optimal batch size is very device-specific. Also as explained bel
 ## Choosing the Batch Size and Number of Streams
 Predicting the inference performance is difficult and finding optimal execution parameters requires direct experiments with measurements.
 One possible throughput optimization strategy is to **set an upper bound for latency and then increase the batch size or number of the streams until that tail latency is met (or the throughput is not growing anymore)**.
-Also, consider [Deep Learning Workbench](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Introduction.html) that builds handy latency vs throughput charts, iterating over possible values of the batch size and number of streams.
+Also, consider [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) that builds handy latency vs throughput charts, iterating over possible values of the batch size and number of streams.
 
 Different devices behave differently with the batch sizes. The optimal batch size depends on the model, inference precision and other factors. Similarly, different devices require different number of execution streams to maximize the throughput.
 Below are general recommendations: 
@@ -47,7 +47,7 @@ Below are general recommendations:
    * Create as many streams as you application runs the requests simultaneously
    * Number of streams should be enough to meet the _average_ parallel slack rather than the peak load
    * _Maximum number of streams_ equals **total number of CPU cores**
-      * As explained in the [CPU streams internals](./dldt_deployment_optimization_internals.md), the CPU cores are evenly distributed between streams, so one core per stream is the finest-grained configuration
+      * As explained in the [CPU streams internals](dldt_deployment_optimization_internals.md), the CPU cores are evenly distributed between streams, so one core per stream is the finest-grained configuration
 * For the **GPU**:
    * When the parallel slack is small (e.g. only 2-4 requests executed simultaneously), then using the streams for the GPU may suffice
       * Notice that the GPU runs 2 request per stream

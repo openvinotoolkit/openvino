@@ -13,6 +13,7 @@ namespace v0 {
 /// x <  0 => f(x) = alpha * (exp(x) - 1.)
 /// x >= 0 => f(x) = x
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Elu : public Op {
 public:
     OPENVINO_OP("Elu", "opset1");
