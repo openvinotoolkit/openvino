@@ -93,13 +93,16 @@ void set_arguments_impl(ocl_kernel_type& kernel,
                 }
                 break;
             case args_t::OUTPUT:
-                if (data.output) {
-                     if (data.output->get_layout().format.is_image_2d())
-                        status = kernel.setArg(i, std::dynamic_pointer_cast<const ocl::gpu_image2d>(data.output)->get_buffer());
-                     else if (memory_capabilities::is_usm_type(data.output->get_allocation_type()))
-                         status = kernel.setArgUsm(i, std::dynamic_pointer_cast<const ocl::gpu_usm>(data.output)->get_buffer());
-                     else
-                        status = kernel.setArg(i, std::dynamic_pointer_cast<const ocl::gpu_buffer>(data.output)->get_buffer());
+                if (args[i].index < data.outputs.size() && data.outputs[args[i].index]) {
+                    const auto& output_mem = data.outputs[args[i].index];
+                    if (output_mem) {
+                         if (output_mem->get_layout().format.is_image_2d())
+                            status = kernel.setArg(i, std::dynamic_pointer_cast<const ocl::gpu_image2d>(output_mem)->get_buffer());
+                         else if (memory_capabilities::is_usm_type(output_mem->get_allocation_type()))
+                             status = kernel.setArgUsm(i, std::dynamic_pointer_cast<const ocl::gpu_usm>(output_mem)->get_buffer());
+                         else
+                            status = kernel.setArg(i, std::dynamic_pointer_cast<const ocl::gpu_buffer>(output_mem)->get_buffer());
+                    }
                 }
                 break;
             case args_t::WEIGHTS:
