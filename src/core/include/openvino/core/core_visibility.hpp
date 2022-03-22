@@ -28,6 +28,10 @@
  * @ingroup ov_cpp_api
  * OpenVINO C++ API to work with operation sets
  *
+ * @defgroup ov_pass_cpp_api Transformation passes
+ * @ingroup ov_cpp_api
+ * OpenVINO C++ API to work with OpenVINO transformations
+ *
  * @defgroup ov_runtime_cpp_api Inference
  * @ingroup ov_cpp_api
  * OpenVINO Inference C++ API provides ov::Core, ov::CompiledModel, ov::InferRequest
