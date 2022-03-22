@@ -87,16 +87,54 @@ std::vector<T> get_reversed_vector(const std::vector<T>& v) {
     return result;
 }
 
-struct Extended_data {
+std::vector<int64_t> get_outer_fft_axes(const std::vector<int64_t>& v) {
+    if(v.empty() || v.size() == 1) {
+        return {};
+    }
+
+    return std::vector<int64_t>(v.rbegin(), v.rend() - 1);
+}
+
+struct Float_data {
+    std::vector<float> data;
+    Shape shape;
+};
+
+Float_data calculate_idft_with_respect_to_given_axis(const Float_data& input_data,
+                                                     const int64_t axis,
+                                                     const int64_t signal_size)
+{
+    Float_data result;
+
+    auto output_shape = input_data.shape;
+    output_shape[axis] = signal_size;
+
+    result.shape = output_shape;
+    result.data = std::vector<float>(shape_size(output_shape), 0.0f);
+
+    const std::vector<int64_t> axes_data = {axis};
+
+    fft(input_data.data.data(),
+        input_data.shape,
+        axes_data.data(),
+        Shape{axes_data.size()},
+        result.data.data(),
+        output_shape,
+        FFTKind::Inverse);
+
+    return result;
+}
+
+struct Complex_data {
     std::vector<complex_type> data;
     Shape shape;
 };
 
-Extended_data extend_input_data(const std::vector<float>& input_data,
-                                const Shape& input_data_shape,
-                                const std::vector<int64_t>& axes_data,
-                                const int64_t last_signal_size) {
-    Extended_data result;
+Complex_data extend_input_data(const std::vector<float>& input_data,
+                               const Shape& input_data_shape,
+                               const std::vector<int64_t>& axes_data,
+                               const int64_t last_signal_size) {
+    Complex_data result;
 
     const auto last_axis = axes_data.back();
     auto shape_of_extended_input_data = input_data_shape;
@@ -172,149 +210,74 @@ void irdft(const std::vector<float>& input_data,
     std::cout << "\n";
     const auto last_axis = axes_data.back();
     std::cout << "last axis: " << last_axis << "\n";
-//     auto shape_of_extended_input_data = input_data_shape;
-//     shape_of_extended_input_data[last_axis] = last_signal_size;
-//     std::cout << "shape_of_extended_input_data: " << shape_of_extended_input_data << "\n";
-//
-//     const auto reversed_input_data_shape = fft_common::reverse_shape(input_data_shape);
-//     const auto reversed_extended_input_data_shape = fft_common::reverse_shape(shape_of_extended_input_data);
-//     std::cout << "reversed_input_data_shape: ";
-//     for (const auto d : reversed_input_data_shape) {
-//         std::cout << d << " ";
-//     }
-//     std::cout << "\n";
-//     std::cout << "reversed_extended_input_data_shape: ";
-//     for (const auto d : reversed_extended_input_data_shape) {
-//         std::cout << d << " ";
-//     }
-//     std::cout << "\n";
-//
-//     const int64_t complex_data_rank = static_cast<int64_t>(reversed_extended_input_data_shape.size());
-//     const auto reversed_axes = reverse_fft_axes(axes_data, complex_data_rank);
-//     std::cout << "complex_data_rank: " << complex_data_rank << "\n";
-//     std::cout << "reversed_axes: ";
-//     for (const auto d : reversed_axes) {
-//         std::cout << d << " ";
-//     }
-//     std::cout << "\n";
-//     const auto reversed_last_axis = reversed_axes.back();
-//     std::cout << "reversed_last_axis: " << reversed_last_axis << "\n";
-//
-//     const auto input_data_strides = fft_common::compute_strides(reversed_input_data_shape);
-//     const auto extended_input_data_strides = fft_common::compute_strides(reversed_extended_input_data_shape);
-//     std::cout << "input_data_strides: ";
-//     for (const auto d : input_data_strides) {
-//         std::cout << d << " ";
-//     }
-//     std::cout << "\n";
-//     std::cout << "extended_input_data_strides: ";
-//     for (const auto d : extended_input_data_strides) {
-//         std::cout << d << " ";
-//     }
-//     std::cout << "\n";
-//
-//     std::vector<complex_type> extended_input_data(extended_input_data_strides.back());
-//     std::cout << "number of elements in complex extended input data: " << extended_input_data_strides.back() << "\n";
-//
-//     const auto outer_extended_shape = shape_for_outer_axes(shape_of_extended_input_data, last_axis);
-//     std::cout << "outer_extended_shape: " << outer_extended_shape << "\n";
-//
-//     const auto outer_shape = shape_for_outer_axes(input_data_shape, last_axis);
-//     std::cout << "outer_shape: " << outer_shape << "\n";
-//
-//     const auto reversed_outer_extended_shape = fft_common::reverse_shape(outer_extended_shape);
-//     std::cout << "reversed_outer_extended_shape: ";
-//     for (const auto d : reversed_outer_extended_shape) {
-//         std::cout << d << " ";
-//     }
-//     std::cout << "\n";
-//     const auto outer_extended_shape_strides = fft_common::compute_strides(reversed_outer_extended_shape);
-//     std::cout << "outer_extended_shape_strides: ";
-//     for (const auto d : outer_extended_shape_strides) {
-//         std::cout << d << " ";
-//     }
-//     std::cout << "\n";
-//     const auto outer_extended_size = outer_extended_shape_strides.back();
-//     std::cout << "outer_extended_size: " << outer_extended_size << "\n";
-//
-//     const auto reversed_outer_shape = fft_common::reverse_shape(outer_shape);
-//     std::cout << "reversed_outer_shape: ";
-//     for (const auto d : reversed_outer_shape) {
-//         std::cout << d << " ";
-//     }
-//     std::cout << "\n";
-//     const complex_type* complex_input_data_ptr = reinterpret_cast<const complex_type*>(input_data.data());
-//     complex_type* extended_data_ptr = extended_input_data.data();
-//
-//     const auto inner_extended_size = reversed_extended_input_data_shape[reversed_last_axis];
-//     std::cout << "inner_extended_size: " << inner_extended_size << "\n";
-//
-//     const auto inner_size = reversed_input_data_shape[reversed_last_axis];
-//     std::cout << "inner_size: " << inner_size << "\n";
-//
-//     const auto inner_bound = last_signal_size / 2 + 1;
-//     std::cout << "inner_bound: " << inner_bound << "\n";
-//
-//     const auto outer_strides = strides_for_outer_axes(input_data_strides, reversed_last_axis);
-//     const auto outer_extended_strides = strides_for_outer_axes(extended_input_data_strides, reversed_last_axis);
-//     std::cout << "outer_strides: ";
-//     for (const auto d : outer_strides) {
-//         std::cout << d << " ";
-//     }
-//     std::cout << "\n";
-//     std::cout << "outer_extended_strides: ";
-//     for (const auto d : outer_extended_strides) {
-//         std::cout << d << " ";
-//     }
-//     std::cout << "\n";
-//     const auto inner_stride = input_data_strides[reversed_last_axis];
-//     const auto inner_extended_stride = extended_input_data_strides[reversed_last_axis];
-//     std::cout << "inner_stride: " << inner_stride << "\n";
-//     std::cout << "inner_extended_stride: " << inner_extended_stride << "\n";
-//
-//     for (int64_t i = 0; i < outer_extended_size; ++i) {
-//         const auto outer_coords = fft_common::coords_from_index(i, outer_extended_shape_strides);
-//         std::cout << "outer_coords: ";
-//         for (const auto d : outer_coords) {
-//             std::cout << d << " ";
-//         }
-//         std::cout << "\n";
-//         const auto outer_input_offset = fft_common::offset_from_coords_and_strides(outer_coords, outer_strides);
-//         std::cout << "outer_input_offset: " << outer_input_offset << "\n";
-//         const auto outer_output_offset = fft_common::offset_from_coords_and_strides(outer_coords, outer_extended_strides);
-//         std::cout << "outer_output_offset: " << outer_output_offset << "\n";
-//
-//         for (int64_t j = 0; j < inner_bound; ++j) {
-//             complex_type value = complex_type(0.0, 0.0);
-//             if (j < inner_size) {
-//                 value = complex_input_data_ptr[outer_input_offset + j * inner_stride];
-//             }
-//             extended_data_ptr[outer_output_offset + j * inner_extended_stride] = value;
-//             if (j > 0 && j < (inner_extended_size - inner_bound + 1)) {
-//                 extended_data_ptr[outer_output_offset + (inner_extended_size - j) * inner_extended_stride] = std::conj(value);
-//             }
-//         }
-//     }
-//     std::cout << "extended_input_data: [";
-//     for (std::size_t i = 0; i < extended_input_data.size(); ++i) {
-//         std::cout << std::real(extended_input_data[i]) << ", " << std::imag(extended_input_data[i]) << ", ";
-//     }
-//     std::cout << "]\n";
+
+    const auto outer_fft_axes = get_outer_fft_axes(axes_data);
+    std::cout << "outer_fft_axes: ";
+    for (const auto a : outer_fft_axes) {
+        std::cout << a << ", ";
+    }
+    std::cout << "\n";
 
     const auto extended_input_data =  extend_input_data(input_data, input_data_shape, axes_data, last_signal_size);
 
+    Float_data float_data{std::vector<float>(extended_input_data.data.size() * 2, 0.0f), extended_input_data.shape};
+
+    memcpy(float_data.data.data(), extended_input_data.data.data(), extended_input_data.data.size() * 2 * sizeof(float));
+    for (const auto a : outer_fft_axes) {
+        // Perform IDFT with respect to the current outer axis, a.
+        std::cout << "current outer fft axes: " << a << "\n";
+        float_data = calculate_idft_with_respect_to_given_axis(float_data, a, output_ifft_shape[a]);
+    }
+    std::cout << "float_data.shape: " << float_data.shape << "\n";
+    std::cout << "float_data.data: [";
+    for (const auto x : float_data.data) {
+        std::cout << x << ", ";
+    }
+    std::cout << "]\n";
+
+    const std::vector<int64_t> inner_axis = {last_axis};
+
+//     Float_data float_data{input_data, input_data_shape};
+//     for (const auto a : outer_fft_axes) {
+//         // Perform IDFT with respect to the current outer axis, a.
+//         std::cout << "current outer fft axes: " << a << "\n";
+//         float_data = calculate_idft_with_respect_to_given_axis(float_data, a, output_ifft_shape[a]);
+//     }
+//     std::cout << "float_data.shape: " << float_data.shape << "\n";
+//     std::cout << "float_data.data: [";
+//     for (const auto x : float_data.data) {
+//         std::cout << x << ", ";
+//     }
+//     std::cout << "]\n";
+//
+//     const std::vector<int64_t> inner_axis = {last_axis};
+//     const auto extended_input_data =  extend_input_data(float_data.data, float_data.shape, inner_axis, last_signal_size);
+// //     const auto extended_input_data =  extend_input_data(input_data, input_data_shape, axes_data, last_signal_size);
+
     std::vector<complex_type> ifft_result(shape_size(output_ifft_shape) / 2);
 
-    const auto reversed_axes_collection = get_reversed_vector(axes_data);
-
     // Here calculation of IDFT
-    fft(reinterpret_cast<const float*>(extended_input_data.data.data()),
-        extended_input_data.shape,
-        reversed_axes_collection.data(),
-        Shape{reversed_axes_collection.size()},
+    fft(float_data.data.data(),
+        float_data.shape,
+        inner_axis.data(),
+        Shape{inner_axis.size()},
         reinterpret_cast<float*>(ifft_result.data()),
         output_ifft_shape,
         FFTKind::Inverse);
+//     fft(reinterpret_cast<const float*>(extended_input_data.data.data()),
+//         extended_input_data.shape,
+//         inner_axis.data(),
+//         Shape{inner_axis.size()},
+//         reinterpret_cast<float*>(ifft_result.data()),
+//         output_ifft_shape,
+//         FFTKind::Inverse);
+// //     fft(reinterpret_cast<const float*>(extended_input_data.data.data()),
+// //         extended_input_data.shape,
+// //         axes_data.data(),
+// //         Shape{axes_data.size()},
+// //         reinterpret_cast<float*>(ifft_result.data()),
+// //         output_ifft_shape,
+// //         FFTKind::Inverse);
 
     std::cout << "fft calculation result: ";
     for (const auto x : ifft_result) {

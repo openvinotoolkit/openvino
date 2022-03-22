@@ -453,8 +453,18 @@ void fft(const float* input_data,
     const auto info = get_info_for_calculation(input_data_shape, axes_data, axes_data_shape, output_shape);
 
     const auto& fft_axes = info.fft_axes;
+    std::cout << "fft_axes: ";
+    for (const auto l : fft_axes) {
+        std::cout << l << ", ";
+    }
+    std::cout << "\n";
     const int64_t fft_rank = info.fft_rank;
     const auto& fft_lengths = info.fft_lengths;
+    std::cout << "fft_lengths: ";
+    for (const auto l : fft_lengths) {
+        std::cout << l << ", ";
+    }
+    std::cout << "\n";
     const auto& fft_strides = info.fft_strides;
     const int64_t fft_size = info.fft_size;
 
