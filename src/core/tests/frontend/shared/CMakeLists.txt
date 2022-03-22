@@ -14,6 +14,7 @@ add_subdirectory(test_builtin_extensions_2)
 
 target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../..)
+
 target_link_libraries(${TARGET_NAME} PUBLIC engines_test_util openvino::runtime
         offline_transformations cnpy commonTestUtils ngraph_test_util openvino::util
         nlohmann_json_schema_validator test_builtin_extensions_1 test_builtin_extensions_2)
