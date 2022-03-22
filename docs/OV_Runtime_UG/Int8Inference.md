@@ -59,30 +59,3 @@ For 8-bit integer computations, a model must be quantized. Quantized models can 
 
 ![int8_flow]
 
-## Performance Counters
-
-Information about layer precision is stored in the performance counters that are
-available from the OpenVINO Runtime API. For example, the part of performance counters table for quantized [TensorFlow* implementation of ResNet-50](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf) model inference on [CPU Plugin](supported_plugins/CPU.md) looks as follows:
-
-
-| layerName                                                 | execStatus | layerType    | execType             | realTime (ms) | cpuTime (ms) |
-| --------------------------------------------------------- | ---------- | ------------ | -------------------- | ------------- | ------------ |
-| resnet\_model/batch\_normalization\_15/FusedBatchNorm/Add | EXECUTED   | Convolution  | jit\_avx512\_1x1\_I8 | 0.377         | 0.377        |
-| resnet\_model/conv2d\_16/Conv2D/fq\_input\_0              | NOT\_RUN   | FakeQuantize | undef                | 0             | 0            |
-| resnet\_model/batch\_normalization\_16/FusedBatchNorm/Add | EXECUTED   | Convolution  | jit\_avx512\_I8      | 0.499         | 0.499        |
-| resnet\_model/conv2d\_17/Conv2D/fq\_input\_0              | NOT\_RUN   | FakeQuantize | undef                | 0             | 0            |
-| resnet\_model/batch\_normalization\_17/FusedBatchNorm/Add | EXECUTED   | Convolution  | jit\_avx512\_1x1\_I8 | 0.399         | 0.399        |
-| resnet\_model/add\_4/fq\_input\_0                         | NOT\_RUN   | FakeQuantize | undef                | 0             | 0            |
-| resnet\_model/add\_4                                      | NOT\_RUN   | Eltwise      | undef                | 0             | 0            |
-| resnet\_model/add\_5/fq\_input\_1                         | NOT\_RUN   | FakeQuantize | undef                | 0             | 0            |
-
-
-   The `exeStatus` column of the table includes possible values:
-   - `EXECUTED` - layer was executed by standalone primitive,
-   - `NOT_RUN` - layer was not executed by standalone primitive or was fused with another operation and executed in another layer primitive.  
-   
-   The `execType` column of the table includes inference primitives with specific suffixes. The layers have the following marks:
-   * Suffix `I8` for layers that had 8-bit data type input and were computed in 8-bit precision
-   * Suffix `FP32` for layers computed in 32-bit precision 
-
-   All `Convolution` layers are executed in int8 precision. Rest layers are fused into Convolutions using post operations optimization technique, which is described in [Internal CPU Plugin Optimizations](supported_plugins/CPU.md).
