@@ -83,7 +83,7 @@ To check **Release Notes** please visit: [Release Notes](https://software.intel.
 
 The core components are now installed. Continue to the next section to configure environment.
 
-## <a name="set-the-environment-variables">Step 2: Configure the Environment
+## <a name="set-the-environment-variables"></a>Step 2: Configure the Environment
 
 > **NOTE**: If you installed the Intel® Distribution of OpenVINO™ to a non-default install directory, replace `C:\Program Files (x86)\Intel` with that directory in this guide's instructions.
 
@@ -99,7 +99,7 @@ You must update several environment variables before you can compile and run Ope
 
 The environment variables are set. Next, you can download some additional tools.
 
-## <a name="model-optimizer">Step 3 (Optional): Download additional components
+## <a name="model-optimizer">Step 3 (Optional): Download Additional Components</a>
 
 > **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. The OpenVINO™ Development Tools can only be installed via PyPI now. See [Install OpenVINO™ Development Tools](installing-model-dev-tools.md) for detailed steps.
 
