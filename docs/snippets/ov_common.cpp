@@ -113,9 +113,9 @@ int main() {
     outputs_aligned(infer_request);
 
     OPENVINO_SUPPRESS_DEPRECATED_START
-    //! [ov_api2_0:load_old_extension]
+    //! [ov_api_2_0:load_old_extension]
     core.add_extension(std::make_shared<InferenceEngine::Extension>("path_to_extension_library.so"));
-    //! [ov_api2_0:load_old_extension]
+    //! [ov_api_2_0:load_old_extension]
     OPENVINO_SUPPRESS_DEPRECATED_END
 
     return 0;
