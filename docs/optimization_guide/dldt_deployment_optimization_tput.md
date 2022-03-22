@@ -9,7 +9,7 @@ Also, if the model is not already memory bandwidth-limited, the associated incre
 With the OpenVINO there are two major means of processing multiple inputs simultaneously: **batching** and "**streams**", explained in this document.
 
 ## OpenVINO Streams
-As detailed in the [common-optimizations section](ref @openvino_docs_deployment_optimization_guide_common) running multiple inference requests asynchronously is important for general application efficiency.
+As detailed in the [common-optimizations section](@ref openvino_docs_deployment_optimization_guide_common) running multiple inference requests asynchronously is important for general application efficiency.
 The [Asynchronous API](./dldt_deployment_optimization_common.md) is in fact the "application side" of scheduling, as every device internally implements a queue. The queue acts as a buffer, storing the inference requests until retrieved by the device at its own pace. 
 
 Further, the devices may actually process multiple inference requests in parallel in order to improve the device utilization and overall throughput. This parallelism is commonly referred as **'streams'**. Some devices (like GPU) may run several requests per stream to amortize the host-side costs.
@@ -70,7 +70,7 @@ The hints also obviates the need for explicit (application-side) batching. With 
 ## Multi-Device Execution
 OpenVINO offers _automatic_, [scalable multi-device inference](../OV_Runtime_UG/multi_device.md). This is simple _application-transparent_ way to improve the throughput. No need to re-architecture existing applications for any explicit multi-device support: no explicit network loading to each device, no separate per-device queues, no additional logic to balance the inference requests between devices, etc. From the application point of view, it is communicating to the single device that internally handles the actual machinery.
 Just like with other throughput-oriented scenarios, there are two major pre-requisites for optimal multi-device performance:
-*	Using the [Asynchronous API](ref @openvino_docs_deployment_optimization_guide_common) and [callbacks](../OV_Runtime_UG/ov_infer_request.md) in particular
+*	Using the [Asynchronous API](@ref openvino_docs_deployment_optimization_guide_common) and [callbacks](../OV_Runtime_UG/ov_infer_request.md) in particular
 *	Providing the multi-device (and hence the underlying devices) with enough data to crunch. As the inference requests are naturally independent data pieces, the multi-device performs load-balancing at the “requests” (outermost) level to minimize the scheduling overhead.
 
 Notice that the resulting performance is usually a fraction of the “ideal” (plain sum) value, when the devices compete for a certain resources, like the memory-bandwidth which is shared between CPU and iGPU.
