@@ -19,32 +19,46 @@ For efficient asynchronous execution, the streams are actually handling inferenc
 So each time you start inference requests (potentially from different application threads), they are actually muxed into a inference queue of the particular `ov:Compiled_Model`. 
 If there is a vacant stream, it pops the request from the queue and actually expedites that to the on-device execution.
 
-The usage of multiple streams is an inherently throughput-oriented approach, as every stream requires a dedicated device memory to do inference in parallel to the rest of streams.
+The multi-streams approach is inherently throughput-oriented, as every stream requires a dedicated device memory to do inference in parallel to the rest of streams.
 Although similar, the streams are always preferable compared to creating multiple `ov:Compiled_Model` instances for the same model, as weights memory is shared across streams, reducing the overall memory consumption.
 Notice that the streams inflate the model load/compilation time.
 Finally, using streams does increase the latency of an individual request, this is why for example the [latency hint](./dldt_deployment_optimization_hints.md) governs a device to create a bare minimum of streams (usually just one).
+Please find the considerations for the optimal number of the streams in the later sections.
 
 ## Batching
-There are two primary ways batching can help your performance. You may configure your clients to send batched requests to TensorFlow Serving, or you may send individual requests and configure TensorFlow Serving to wait up to a predetermined period of time, and per
-To leverage Batching It might be necessary to redesign the application logic in a task if it's adapted from communicating directly with a service to using a message queue.
+Hardware accelerators like GPUs are optimized for massive compute parallelism, so the batching helps to saturate the device and leads to higher throughput.
+While the streams (described) earlier already allow to hide the communication overheads and certain bubbles in the scheduling, running multiple OpenCL kernels simultaneously is less GPU-efficient, compared to calling a kernel on the multiple inputs at once.   
+As explained in the next section, the batching is a must to leverage maximum throughput on the GPUs.
+
+There are two primary ways of using the batching to help application performance:
+* Collecting the inputs explicitly on the application side and then _sending these batched requests to the OpenVINO_
+   * Although this gives flexibility with the possible batching strategies, the approach requires redesigning the application logic
+* _Sending individual requests_, while configuring the OpenVINO to collect and perform inference on the requests in batch [automatically](../OV_Runtime_UG/automatic_batching.md).
+In both cases, optimal batch size is very device-specific. Also as explained below, the optimal batch size depends on the model, inference precision and other factors.
 
 ## Choosing the Batch Size and Number of Streams
-
-Few considerations for selecting **number of streams**:
-* Usually, the Number of service instances deployed only have to be adequate to meet average load rather than the peak load. 
-* Notice that [high-level performance hints](../OV_Runtime_UG/performance_hints.md) allows the implementation to select the optimal number of the streams, _depending on the model's compute demands_, application needs (e.g. number of input sources) and device capabilities (e.g. int8 hardware acceleration, number of cores, tiles, etc).
-
-* Your application may send explicitly batched requests to the OpenVINO
-   * Yet different devices behave differently with the batch sizes. The optimal batch size depends on the model, inference precision and other factors.
-* Streams doesn't require the explicit application logic to collect the data, as they don't execute in a lock step, as explained in the next section 
-   * But just like with the batch size, different devices require different number of execution streams to maximize the throughput.
-
-Predicting inference performance is difficult and finding optimal execution parameters requires direct experiments with measurements.
+Predicting the inference performance is difficult and finding optimal execution parameters requires direct experiments with measurements.
 One possible throughput optimization strategy is to **set an upper bound for latency and then increase the batch size or number of the streams until that tail latency is met (or the throughput is not growing anymore)**.
-Also, consider [Deep Learning Workbench](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Introduction.html).
+Also, consider [Deep Learning Workbench](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Introduction.html) that builds handy latency vs throughput charts, iterating over possible values of the batch size and number of streams.
 
-## OpenVINO Hints as a Way to Select the Execution Parameters Automatically
+Different devices behave differently with the batch sizes. The optimal batch size depends on the model, inference precision and other factors. Similarly, different devices require different number of execution streams to maximize the throughput.
+Below are general recommendations: 
+* For the **CPU always prefer the streams** over the batching
+   * Create as many streams as you application runs the requests simultaneously
+   * Number of streams should be enough to meet the _average_ parallel slack rather than the peak load
+   * _Maximum number of streams_ equals **total number of CPU cores**
+      * As explained in the [CPU streams internals](./dldt_deployment_optimization_internals.md), the CPU cores are evenly distributed between streams, so one core per stream is the finest-grained configuration
+* For the **GPU**:
+   * When the parallel slack is small (e.g. only 2-4 requests executed simultaneously), then using the streams for the GPU may suffice
+      * Notice that the GPU runs 2 request per stream
+   * _Maximum number of streams_ is usually 2, for more portability consider using the `ov::streams::AUTO` (`GPU_THROUGHPUT_AUTO` in the pre-OpenVINO 2.0 parlance)
+   * Typically, for 4 and more requests the batching delivers better throughput for the GPUs. 
 
+> **NOTE**: When playing with [dynamically-shaped inputs](../OV_Runtime_UG/ov_dynamic_shapes.md) use only the streams, as they tolerate individual requests having different shapes. 
+
+> **NOTE**: Using the [High-Level Performance Hints](../OV_Runtime_UG/performance_hints.md) explained in the next section, is the most portable and future-proof option, allowing the OpenVINO to find best combination of streams and batching for a given scenario and model. 
+
+## OpenVINO Hints: Selecting Optimal Execution and Parameters **Automatically**
 Overall, the latency-throughput is not linearly dependent and very _device_ specific. It is also tightly integrated with _model_ characteristics.
 As for the possible inference devices the scenery had already become pretty diverse, the OpenVINO has introduced the dedicated notion of the high-level performance configuration "hints" to describe the target application scenarios.
 The hints are described [here](./dldt_deployment_optimization_hints.md). 
