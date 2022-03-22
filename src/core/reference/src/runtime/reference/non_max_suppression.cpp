@@ -115,15 +115,21 @@ void non_max_suppression(const float* boxes_data,
                          float* selected_scores,
                          const Shape& selected_scores_shape,
                          int64_t* valid_outputs,
-                         const bool sort_result_descending) {
+                         const bool sort_result_descending,
+                         const bool soft_nms_suppressed_by_iou) {
     float scale = 0.0f;
+    // for hard nms, suppressed_by_iou is always true
+    // for soft nms, suppressed_by_iou is true only when soft_nms_suppressed_by_iou is true
+    bool suppressed_by_iou = true;
     if (soft_nms_sigma > 0.0f) {
         scale = -0.5f / soft_nms_sigma;
+        if (!soft_nms_suppressed_by_iou)
+            suppressed_by_iou = false;
     }
 
-    auto func = [iou_threshold, scale](float iou) {
+    auto func = [iou_threshold, scale, suppressed_by_iou](float iou) {
         const float weight = std::exp(scale * iou * iou);
-        return iou <= iou_threshold ? weight : 0.0f;
+        return (iou > iou_threshold && suppressed_by_iou) ? 0.0f : weight;
     };
 
     // boxes shape: {num_batches, num_boxes, 4}
@@ -174,7 +180,7 @@ void non_max_suppression(const float* boxes_data,
                     float iou = intersectionOverUnion(next_candidate.box, selected[j].box);
                     next_candidate.score *= func(iou);
 
-                    if (iou >= iou_threshold) {
+                    if (iou >= iou_threshold && suppressed_by_iou) {
                         should_hard_suppress = true;
                         break;
                     }

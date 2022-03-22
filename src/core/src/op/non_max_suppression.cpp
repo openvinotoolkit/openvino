@@ -855,7 +855,7 @@ op::v9::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
     constructor_validate_and_infer_types();
 }
 
-op::v5::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
+op::v9::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const Output<Node>& scores,
                                              const Output<Node>& max_output_boxes_per_class,
                                              const op::v9::NonMaxSuppression::BoxEncodingType box_encoding,
@@ -870,7 +870,7 @@ op::v5::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
     constructor_validate_and_infer_types();
 }
 
-op::v5::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
+op::v9::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const Output<Node>& scores,
                                              const Output<Node>& max_output_boxes_per_class,
                                              const Output<Node>& iou_threshold,
@@ -886,7 +886,7 @@ op::v5::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
     constructor_validate_and_infer_types();
 }
 
-op::v5::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
+op::v9::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const Output<Node>& scores,
                                              const Output<Node>& max_output_boxes_per_class,
                                              const Output<Node>& iou_threshold,
@@ -903,7 +903,7 @@ op::v5::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
     constructor_validate_and_infer_types();
 }
 
-op::v5::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
+op::v9::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const Output<Node>& scores,
                                              const Output<Node>& max_output_boxes_per_class,
                                              const Output<Node>& iou_threshold,
@@ -981,27 +981,6 @@ std::shared_ptr<Node> op::v9::NonMaxSuppression::clone_with_new_inputs(const Out
         break;
     }
 }
-
-namespace {
-constexpr size_t max_output_boxes_port = 2;
-constexpr size_t iou_threshold_port = 3;
-constexpr size_t score_threshold_port = 4;
-constexpr size_t soft_nms_sigma_port = 5;
-
-inline bool is_float_type_admissible(const element::Type& t) {
-    return t == element::f32 || t == element::f16 || t == element::bf16;
-}
-
-inline bool is_scalar_or_1d_tensor_with_1_element(const ov::PartialShape& p) {
-    if (p.is_dynamic()) {
-        return false;
-    }
-
-    ov::Shape shape = p.to_shape();
-
-    return ngraph::is_scalar(shape) || (is_vector(shape) && (shape[0] == 1));
-}
-}  // namespace
 
 void op::v9::NonMaxSuppression::validate() {
     const auto boxes_ps = get_input_partial_shape(0);

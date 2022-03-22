@@ -35,7 +35,8 @@ void non_max_suppression(const float* boxes_data,
                          float* selected_scores,
                          const Shape& selected_scores_shape,
                          int64_t* valid_outputs,
-                         const bool sort_result_descending);
+                         const bool sort_result_descending,
+                         const bool soft_nms_suppressed_by_iou);
 
 void nms5_postprocessing(const HostTensorVector& outputs,
                          const ngraph::element::Type output_type,
