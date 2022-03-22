@@ -6,7 +6,7 @@
    :maxdepth: 1
    :hidden:
 
-   AccuracyAwareQuantization method <pot_compression_algorithms_quantization_accuracy_aware_README>
+   AccuracyAwareQuantization Method <pot_compression_algorithms_quantization_accuracy_aware_README>
 
 @endsphinxdirective
 
@@ -83,7 +83,7 @@ class Accuracy(Metric):
                              'type': 'accuracy'}}
 ```
 
-An instance of this interface should be passed to `IEEngine` object responsible for model inference.
+An instance of the `Metric` implementation should be passed to `IEEngine` object responsible for model inference.
 
 ```
 metric = UserMetric()

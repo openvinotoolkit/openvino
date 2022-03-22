@@ -6,7 +6,7 @@
    :maxdepth: 1
    :hidden:
 
-   DefaultQuantization method <pot_compression_algorithms_quantization_default_README>
+   DefaultQuantization Method <pot_compression_algorithms_quantization_default_README>
 
 @endsphinxdirective
 
@@ -45,8 +45,7 @@ DefaultQuantization algorithm has mandatory and optional parameters which are de
 - `"target_device"` - currently, only two options are available: `"ANY"` (or `"CPU"`) -  to quantize model for CPU, GPU, or VPU, and `"GNA"` - for inference on GNA.
 - `"stat_subset_size"` - size of subset to calculate activations statistics used for quantization. The whole dataset is used if no parameter specified. We recommend using not less than 300 samples.
 
-
-For more details on how to use these parameters please refer to [Best Practices](@ref pot_docs_BestPractices) document.
+For more full specification of the `DefaultQuantization` method see this [document](@ref pot_compression_algorithms_quantization_default_README).
 
 ## Helpers
 POT works on top of own model representation (Model Optimizer internal representation) which is different from OpenVINO `Model` so that POT API provides own methods to load and save model objects from OpenVINO Intermediate Representation: `load_model` and `save_model`. POT also has a concept of `Pipeline` that sequentially applies specified optimization methods to the model. `create_pipeine` method is used to instantiate a `Pipeline` object.
@@ -109,7 +108,9 @@ compressed_model_paths = save_model(
 )
 ```
 
-In case if accuracy degradation is high after quantization, [AccuracyAwareQuantization](@ref pot_accuracyaware_usage) method is recommended.
+The output of the script is the quantized mode that can be used for inference the same way as original full-precision model.
+
+If accuracy degradation after applying `DefaultQuantization` is high, it is recommended to try tips from [Quantization Best Practices](@ref pot_docs_BestPractices) document or try [AccuracyAwareQuantization](@ref pot_accuracyaware_usage) method.
 
 ## Examples
 

@@ -6,7 +6,7 @@
    :maxdepth: 1
    :hidden:
    
-   Simplified mode <pot_docs_simplified_mode>
+   Simplified Mode <pot_docs_simplified_mode>
    pot_configs_README
 
 @endsphinxdirective
