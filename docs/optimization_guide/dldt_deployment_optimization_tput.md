@@ -6,13 +6,13 @@ Throughput on the other hand, is about inference scenarios in which potentially 
 
 Here, the overall application inference rate can be significantly improved with the right performance configuration.
 Also, if the model is not already memory bandwidth-limited, the associated increase in latency is not linearly dependent on the number of requests executed in parallel.
-With the OpenVINO there are two major means of processing multiple inputs simultaneously: **batching** and "**streams**", explained in this document.
+With the OpenVINO there are two major means of processing multiple inputs simultaneously: **batching** and **streams**, explained in this document.
 
 ## OpenVINO Streams
 As detailed in the [common-optimizations section](@ref openvino_docs_deployment_optimization_guide_common) running multiple inference requests asynchronously is important for general application efficiency.
 The [Asynchronous API](./dldt_deployment_optimization_common.md) is in fact the "application side" of scheduling, as every device internally implements a queue. The queue acts as a buffer, storing the inference requests until retrieved by the device at its own pace. 
 
-Further, the devices may actually process multiple inference requests in parallel in order to improve the device utilization and overall throughput. This parallelism is commonly referred as **'streams'**. Some devices (like GPU) may run several requests per stream to amortize the host-side costs.
+Further, the devices may actually process multiple inference requests in parallel in order to improve the device utilization and overall throughput. This parallelism is commonly referred as 'streams'. Some devices (like GPU) may run several requests per stream to amortize the host-side costs.
 Notice that streams are **really executing the requests in parallel, but not in the lock step** (as e.g. the batching does), which makes the streams fully compatible with [dynamically-shaped inputs](../OV_Runtime_UG/ov_dynamic_shapes.md) when individual requests can have different shapes. 
 
 For efficient asynchronous execution, the streams are actually handling inference with special pool of the threads.
