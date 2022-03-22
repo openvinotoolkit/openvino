@@ -21,21 +21,22 @@ Refer to the [Hello Query Device С++ Sample](../../../samples/cpp/hello_query_d
 
 Based on read-only property `ov::available_devices`, OpenVINO Core collects information about currently available devices enabled by OpenVINO plugins and returns information using the `ov::Core::get_available_devices` method:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_properties_api.cpp
-       :language: cpp
-       :fragment: [get_available_devices]
+@snippet docs/snippets/ov_properties_api.cpp get_available_devices
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_properties_api.py
-       :language: python
-       :fragment: [get_available_devices]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_properties_api.py get_available_devices
+
+@endsphinxtab
+
+@endsphinxtabset
+
 
 The function returns a list of available devices, for example:
 
@@ -73,41 +74,41 @@ For documentation about OpenVINO common device-independent properties, refer to 
 
 The code below demonstrates how to query `HETERO` device priority of devices which will be used to infer the model:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_properties_api.cpp
-       :language: cpp
-       :fragment: [hetero_priorities]
+@snippet docs/snippets/ov_properties_api.cpp hetero_priorities
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_properties_api.py
-       :language: python
-       :fragment: [hetero_priorities]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_properties_api.py hetero_priorities
+
+@endsphinxtab
+
+@endsphinxtabset
 
 > **NOTE**: All properties have a type, which is specified during property declaration. Based on this, actual type under `auto` is automatically deduced by C++ compiler.
 
 To extract device properties such as available devices (`ov::available_devices`), device name (`ov::device::full_name`), supported properties (`ov::supported_properties`), and others, use the `ov::Core::get_property` method:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_properties_api.cpp
-       :language: cpp
-       :fragment: [cpu_device_name]
+@snippet docs/snippets/ov_properties_api.cpp cpu_device_name
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_properties_api.py
-       :language: python
-       :fragment: [cpu_device_name]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_properties_api.py cpu_device_name
+
+@endsphinxtab
+
+@endsphinxtabset
 
 A returned value appears as follows: `Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz`.
 
@@ -123,21 +124,21 @@ A returned value appears as follows: `Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz`.
 
 accept variadic list of properties as last arguments. Each property in such parameters lists should be used as function call to pass property value with specified property type.
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_properties_api.cpp
-       :language: cpp
-       :fragment: [compile_model_with_property]
+@snippet docs/snippets/ov_properties_api.cpp compile_model_with_property
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_properties_api.py
-       :language: python
-       :fragment: [compile_model_with_property]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet  docs/snippets/ov_properties_api.py compile_model_with_property
+
+@endsphinxtab
+
+@endsphinxtabset
 
 The example below specifies hints that a model should be compiled to be inferenced with multiple inference requests in parallel to achive best throughput while inference should be performed without accuracy loss with FP32 precision.
 
@@ -145,21 +146,21 @@ The example below specifies hints that a model should be compiled to be inferenc
 
 `ov::Core::set_property` with a given device name should be used to set global configuration properties which are the same accross multiple `ov::Core::compile_model`, `ov::Core::query_model`, etc. calls, while setting property on the specific `ov::Core::compile_model` call applies properties only for current call:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_properties_api.cpp
-       :language: cpp
-       :fragment: [core_set_property_then_compile]
+@snippet docs/snippets/ov_properties_api.cpp core_set_property_then_compile
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_properties_api.py
-       :language: python
-       :fragment: [core_set_property_then_compile]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet  docs/snippets/ov_properties_api.py core_set_property_then_compile
+
+@endsphinxtab
+
+@endsphinxtabset
 
 ### Properties on CompiledModel level
 
@@ -167,74 +168,75 @@ The example below specifies hints that a model should be compiled to be inferenc
 
 The `ov::CompiledModel::get_property` method is used to get property values the compiled model has been created with or a compiled model level property such as `ov::optimal_number_of_infer_requests`:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_properties_api.cpp
-       :language: cpp
-       :fragment: [optimal_number_of_infer_requests]
+@snippet docs/snippets/ov_properties_api.cpp optimal_number_of_infer_requests
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_properties_api.py
-       :language: python
-       :fragment: [optimal_number_of_infer_requests]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet  docs/snippets/ov_properties_api.py optimal_number_of_infer_requests
+
+@endsphinxtab
+
+@endsphinxtabset
 
 Or the current temperature of the `MYRIAD` device:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_properties_api.cpp
-       :language: cpp
-       :fragment: [device_thermal]
+@snippet docs/snippets/ov_properties_api.cpp device_thermal
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_properties_api.py
-       :language: python
-       :fragment: [device_thermal]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet  docs/snippets/ov_properties_api.py device_thermal
+
+@endsphinxtab
+
+@endsphinxtabset
+
 
 Or the number of threads that would be used for inference on `CPU` device:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_properties_api.cpp
-       :language: cpp
-       :fragment: [inference_num_threads]
+@snippet docs/snippets/ov_properties_api.cpp inference_num_threads
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_properties_api.py
-       :language: python
-       :fragment: [inference_num_threads]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet  docs/snippets/ov_properties_api.py inference_num_threads
+
+@endsphinxtab
+
+@endsphinxtabset
 
 #### Setting properties for compiled model
 
 The only mode that supports this method is [Multi-Device execution](../multi_device.md):
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_properties_api.cpp
-       :language: cpp
-       :fragment: [multi_device]
+@snippet docs/snippets/ov_properties_api.cpp multi_device
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_properties_api.py
-       :language: python
-       :fragment: [multi_device]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet  docs/snippets/ov_properties_api.py multi_device
+
+@endsphinxtab
+
+@endsphinxtabset
