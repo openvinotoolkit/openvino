@@ -260,30 +260,30 @@ Testing by Intel done on: see test date for each HW platform below.
 | Batch size           | 1                                    | 1                                       | 1                                                              |
 | Precision            | INT8                                 | INT8                                    | INT8                                                           |
 | Number of concurrent inference requests | 24                | 5                                       | 4                                                              |
-| Test Date            | March 17, 2022                       | March 17, 2022                          | March 17, 2022                                                  |
+| Test Date            | March 17, 2022                       | March 17, 2022                          | March 17, 2022                                                 |
 | Rated maximum TDP/socket in Watt                            | [165](https://ark.intel.com/content/www/us/en/ark/products/198012/intel-core-i9-10920x-x-series-processor-19-25m-cache-3-50-ghz.html) | [35](https://ark.intel.com/content/www/us/en/ark/products/203901/intel-core-i910900te-processor-20m-cache-up-to-4-60-ghz.html)  | [65](https://ark.intel.com/content/www/us/en/ark/products/134597/intel-core-i912900-processor-30m-cache-up-to-5-10-ghz.html) |
 | CPU Price/socket on Feb 14, 2022, USD<br>Prices may vary    | [700](https://ark.intel.com/content/www/us/en/ark/products/198012/intel-core-i9-10920x-x-series-processor-19-25m-cache-3-50-ghz.html) | [444](https://ark.intel.com/content/www/us/en/ark/products/203901/intel-core-i910900te-processor-20m-cache-up-to-4-60-ghz.html) | [519](https://ark.intel.com/content/www/us/en/ark/products/134597/intel-core-i912900-processor-30m-cache-up-to-5-10-ghz.html)|
 
 **CPU Inference Engines (continue)**
-| Configuration        | Intel® Core™ i7-8700T               | Intel® Core™ i7-1185G7                                         | Intel® Core™ i7-11850HE |
-| -------------------- | ----------------------------------- | --------------------------------                               |----------------------------------|
-| Motherboard          | GIGABYTE* Z370M DS3H-CF             | Intel Corporation<br>internal/Reference<br>Validation Platform | Intel Corporation<br>internal/Reference<br>Validation Platform |
-| CPU                  | Intel® Core™ i7-8700T CPU @ 2.40GHz | Intel® Core™ i7-1185G7 @ 3.00GHz                               | Intel® Core™ i7-11850HE @ 2.60GHz |
-| Hyper Threading      | ON                                  | ON                                                             | ON |
-| Turbo Setting        | ON                                  | ON                                                             | ON |
-| Memory               | 4 x 16 GB DDR4 2400MHz              | 2 x 8 GB DDR4 3200MHz                                          | 2 x 16 GB DDR4 3200MHz |
-| Operating System     | Ubuntu 20.04.3 LTS                  | Ubuntu 20.04.3 LTS                                             | Ubuntu* 18.04.4 LTS |
-| Kernel Version       | 5.4.0-42-generic                    | 5.8.0-050800-generic                                           | 5.13.0-28-generic |
-| BIOS Vendor          | American Megatrends Inc.*           | Intel Corporation                                              | Intel Corporation |
-| BIOS Version         | F14c                                | TGLSFWI1.R00.4391.<br>A00.2109201819                           | TGLIFUI1.R00.4064.<br>A00.2102041619 |
-| BIOS Release         | March 23, 2021                      | September 20, 2021                                             | February 4, 2021 |
-| BIOS Settings        | Select optimized default settings, <br>set OS type to "other", <br>save & exit | Default Settings    | Default Settings |
-| Batch size           | 1                                   | 1                                                              | 1 |
-| Precision            | INT8                                | INT8                                                           | INT8 |
-| Number of concurrent inference requests | 4                | 4                                                              | 4 |
-| Test Date            | March 17, 2022                      | March 17, 2022                                                 | March 17, 2022  |
-| Rated maximum TDP/socket in Watt                           | [35](https://ark.intel.com/content/www/us/en/ark/products/129948/intel-core-i7-8700t-processor-12m-cache-up-to-4-00-ghz.html#tab-blade-1-0-1) | [28](https://ark.intel.com/content/www/us/en/ark/products/208664/intel-core-i7-1185g7-processor-12m-cache-up-to-4-80-ghz-with-ipu.html) | [45](https://ark.intel.com/content/www/us/en/ark/products/213799/intel-core-i7-11850h-processor-24m-cache-up-to-4-80-ghz.html) |
-| CPU Price/socket on Feb 14, 2022, USD<br>Prices may vary   | [303](https://ark.intel.com/content/www/us/en/ark/products/129948/intel-core-i7-8700t-processor-12m-cache-up-to-4-00-ghz.html) | [426](https://ark.intel.com/content/www/us/en/ark/products/208664/intel-core-i7-1185g7-processor-12m-cache-up-to-4-80-ghz-with-ipu.html)               | [395](https://ark.intel.com/content/www/us/en/ark/products/213799/intel-core-i7-11850h-processor-24m-cache-up-to-4-80-ghz.html) |
+| Configuration        | Intel® Core™ i7-8700T               | Intel® Core™ i7-1185G7                                         |
+| -------------------- | ----------------------------------- | --------------------------------                               |
+| Motherboard          | GIGABYTE* Z370M DS3H-CF             | Intel Corporation<br>internal/Reference<br>Validation Platform |
+| CPU                  | Intel® Core™ i7-8700T CPU @ 2.40GHz | Intel® Core™ i7-1185G7 @ 3.00GHz                               |
+| Hyper Threading      | ON                                  | ON                                                             |
+| Turbo Setting        | ON                                  | ON                                                             |
+| Memory               | 4 x 16 GB DDR4 2400MHz              | 2 x 8 GB DDR4 3200MHz                                          |
+| Operating System     | Ubuntu 20.04.3 LTS                  | Ubuntu 20.04.3 LTS                                             |
+| Kernel Version       | 5.4.0-42-generic                    | 5.8.0-050800-generic                                           |
+| BIOS Vendor          | American Megatrends Inc.*           | Intel Corporation                                              |
+| BIOS Version         | F14c                                | TGLSFWI1.R00.4391.<br>A00.2109201819                           |
+| BIOS Release         | March 23, 2021                      | September 20, 2021                                             |
+| BIOS Settings        | Select optimized default settings, <br>set OS type to "other", <br>save & exit | Default Settings    |
+| Batch size           | 1                                   | 1                                                              |
+| Precision            | INT8                                | INT8                                                           |
+| Number of concurrent inference requests | 4                | 4                                                              |
+| Test Date            | March 17, 2022                      | March 17, 2022                                                 |
+| Rated maximum TDP/socket in Watt                           | [35](https://ark.intel.com/content/www/us/en/ark/products/129948/intel-core-i7-8700t-processor-12m-cache-up-to-4-00-ghz.html#tab-blade-1-0-1) | [28](https://ark.intel.com/content/www/us/en/ark/products/208664/intel-core-i7-1185g7-processor-12m-cache-up-to-4-80-ghz-with-ipu.html) |
+| CPU Price/socket on Feb 14, 2022, USD<br>Prices may vary   | [303](https://ark.intel.com/content/www/us/en/ark/products/129948/intel-core-i7-8700t-processor-12m-cache-up-to-4-00-ghz.html) | [426](https://ark.intel.com/content/www/us/en/ark/products/208664/intel-core-i7-1185g7-processor-12m-cache-up-to-4-80-ghz-with-ipu.html)               |
 
 **CPU Inference Engines (continue)**
 
