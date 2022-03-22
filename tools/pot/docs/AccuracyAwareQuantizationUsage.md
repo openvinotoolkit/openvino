@@ -169,6 +169,8 @@ metric_results = pipeline.evaluate(compressed_model)
 
 It is worth noting that now `evaluate` method that can compute accuracy on demand is also available in the `Pipeline` object.
 
+In case when `AccuracyAwareQuantization` does not allow to achieve the desired accuracy-performance trade-off, it is recommended to try Quantization-aware Training from [NNCF](@ref docs_nncf_introduction).
+
 ## Examples
 
  * [Quantization of Object Detection model with control of accuracy](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/object_detection)
