@@ -40,51 +40,51 @@ Interactive mode provides a user-friendly command-line interface that will guide
   
 @sphinxdirective
    
-   .. tab:: Linux  
+.. tab:: Linux  
       
-      .. code-block:: sh
+   .. code-block:: sh
       
-         cd <INSTALL_DIR>/tools/deployment_manager
+      cd <INSTALL_DIR>/tools/deployment_manager
          
-         ./deployment_manager.py  
+      ./deployment_manager.py  
          
-   .. tab:: Windows  
+.. tab:: Windows  
       
-      .. code-block:: bat  
+   .. code-block:: bat  
          
-         cd <INSTALL_DIR>\deployment_tools\tools\deployment_manager
-         .\deployment_manager.py  
+      cd <INSTALL_DIR>\deployment_tools\tools\deployment_manager
+      .\deployment_manager.py  
          
-   .. tab:: macOS  
+.. tab:: macOS  
       
-      .. code-block:: sh
+   .. code-block:: sh
          
-         cd <INSTALL_DIR>/tools/deployment_manager
-         ./deployment_manager.py  
+      cd <INSTALL_DIR>/tools/deployment_manager
+      ./deployment_manager.py  
       
 @endsphinxdirective
 
 2. The target device selection dialog is displayed:
   
-   ![Deployment Manager selection dialog](../img/selection_dialog.png)
+![Deployment Manager selection dialog](../img/selection_dialog.png)
 
-   Use the options provided on the screen to complete selection of the target devices and press **Enter** to proceed to the package generation dialog. if you want to interrupt the generation process and exit the program, type **q** and press **Enter**.
+Use the options provided on the screen to complete selection of the target devices and press **Enter** to proceed to the package generation dialog. if you want to interrupt the generation process and exit the program, type **q** and press **Enter**.
 
 3. Once you accept the selection, the package generation dialog is displayed:
   
-   ![Deployment Manager configuration dialog](../img/configuration_dialog.png)
+![Deployment Manager configuration dialog](../img/configuration_dialog.png)
 
-   The target devices you have selected at the previous step appear on the screen. To go back and change the selection, type **b** and press **Enter**. Use the options provided to configure the generation process, or use the default settings.
+The target devices you have selected at the previous step appear on the screen. To go back and change the selection, type **b** and press **Enter**. Use the options provided to configure the generation process, or use the default settings.
    
-   * `o. Change output directory` (optional): Path to the output directory. By default, it's set to your home directory.
+* `o. Change output directory` (optional): Path to the output directory. By default, it's set to your home directory.
 
-   * `u. Provide (or change) path to folder with user data` (optional): Path to a directory with user data (IRs, models, datasets, etc.) files and subdirectories required for inference, which will be added to the deployment archive. By default, it's set to `None`, which means you will separately copy the user data to the target system.
+* `u. Provide (or change) path to folder with user data` (optional): Path to a directory with user data (IRs, models, datasets, etc.) files and subdirectories required for inference, which will be added to the deployment archive. By default, it's set to `None`, which means you will separately copy the user data to the target system.
 
-   * `t. Change archive name` (optional): Deployment archive name without extension. By default, it is set to `openvino_deployment_package`.
+* `t. Change archive name` (optional): Deployment archive name without extension. By default, it is set to `openvino_deployment_package`.
  
 4. Once all the parameters are set, type **g** and press **Enter** to generate the package for the selected target devices. To interrupt the generation process and exit the program, type **q** and press **Enter**.
 
-   The script successfully completes and the deployment package is generated in the specified output directory. 
+The script successfully completes and the deployment package is generated in the specified output directory. 
 
 @sphinxdirective
 
@@ -183,19 +183,19 @@ To deploy the OpenVINO Runtime components from the development machine to the ta
      
 @endsphinxdirective
 
-   The package is unpacked to the destination directory and the following files and subdirectories are created:
+The package is unpacked to the destination directory and the following files and subdirectories are created:
       
-      * `setupvars.sh` — Copy of `setupvars.sh`
-      * `runtime` — Contains the OpenVINO runtime binary files.
-      * `install_dependencies` — Snapshot of the `install_dependencies` directory from the OpenVINO installation directory.
-      * `<user_data>` — The directory with the user data (IRs, datasets, etc.) you specified while configuring the package.
+   * `setupvars.sh` — Copy of `setupvars.sh`
+   * `runtime` — Contains the OpenVINO runtime binary files.
+   * `install_dependencies` — Snapshot of the `install_dependencies` directory from the OpenVINO installation directory.
+   * `<user_data>` — The directory with the user data (IRs, datasets, etc.) you specified while configuring the package.
 
-   For Linux, to run inference on a target Intel® GPU, Intel® Movidius™ VPU, or Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, you need to install additional dependencies by running the `install_openvino_dependencies.sh` script on the target machine:
+For Linux, to run inference on a target Intel® GPU, Intel® Movidius™ VPU, or Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, you need to install additional dependencies by running the `install_openvino_dependencies.sh` script on the target machine:
 
-   ```sh
-   cd <destination_dir>/openvino/install_dependencies
-   sudo -E ./install_openvino_dependencies.sh
-   ```
+```sh
+cd <destination_dir>/openvino/install_dependencies
+sudo -E ./install_openvino_dependencies.sh
+```
   
 3. Set up the environment variables:
   
