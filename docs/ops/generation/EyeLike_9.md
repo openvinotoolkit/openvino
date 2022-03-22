@@ -33,7 +33,19 @@ output  = [[0 0 1 0]
            [0 0 0 0]]
 ```
 
-Example 3. *EyeLike* output with `output_type` = f16, `diagonal_index` = 5:
+Example 3. *EyeLike* output with `output_type` = i32, `diagonal_index` = -1:
+
+``` 
+num_rows = 3
+
+num_columns = 4
+
+output  = [[0 0 0 0]
+           [1 0 0 0]
+           [0 1 0 0]]
+```
+
+Example 4. *EyeLike* output with `output_type` = f16, `diagonal_index` = 5:
 
 ``` 
 num_rows = 2
@@ -62,9 +74,9 @@ output  = [[0. 0.]
 
 **Inputs**:
 
-*   **1**: `num_rows` - scalar or 1D tensor with 1 non-negative element of type *T* describing the number of rows in each matrix. **Required.**
+*   **1**: `num_rows` - scalar or 1D tensor with 1 non-negative element of type *T_NUM* describing the number of rows in matrix. **Required.**
 
-*   **2**: `num_columns` - scalar or 1D tensor with 1 non-negative element of type *T* describing the number of rows in each matrix. Optionally, with default value equals to `num_rows`.
+*   **2**: `num_columns` - scalar or 1D tensor with 1 non-negative element of type *T_NUM* describing the number of rows in matrix. Optionally, with default value equals to `num_rows`.
 
 
 **Outputs**:
@@ -73,7 +85,7 @@ output  = [[0. 0.]
 
 **Types**
 
-* *T*: `int32` or `int64`.
+* *T_NUM*: `int32` or `int64`.
 
 **Examples**
 
@@ -105,7 +117,6 @@ output  = [[0. 0.]
     </input>
     <output>
         <port id="3" precision="I64" names="EyeLike:0">
-            <dim>-1</dim>
             <dim>-1</dim>
             <dim>-1</dim>
         </port>
