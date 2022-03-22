@@ -1,4 +1,4 @@
-Remote Tensor API of GPU Plugin {#openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API}
+# Remote Tensor API of GPU Plugin {#openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API}
 
 The GPU plugin implementation of the `ov::RemoteContext` and `ov::RemoteTensor` interfaces supports GPU
 pipeline developers who need video memory sharing and interoperability with existing native APIs
