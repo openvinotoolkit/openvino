@@ -18,7 +18,7 @@ For the **end-to-end scenario** though, consider the image pre-processing thru t
 
 **First-inference latency** is another specific case (e.g. when fast application start-up is required) where the resulting performance may be well dominated by the model loading time. Consider [model caching](../OV_Runtime_UG/Model_caching_overview.md) as a way to improve model loading/compilation time.
 
-Finally, **memory footprint** restrictions is another possible concern when designing an application. While this is a motivation for the _model_ optimization techniques referenced in the next section, notice that the the throughput-oriented execution is usually much more memory-hungry, as detailed in the [Deployment Optimization Guide](../optimization_guide/dldt_deployment_optimization_guide.md). 
+Finally, **memory footprint** restrictions is another possible concern when designing an application. While this is a motivation for the _model_ optimization techniques referenced in the next section, notice that the the throughput-oriented execution is usually much more memory-hungry, as detailed in the [Runtime Inference Optimizations](../optimization_guide/dldt_deployment_optimization_guide.md). 
 
 
 > **NOTE**: To get performance numbers for OpenVINO, as well as tips how to measure it and compare with native framework, check [Getting performance numbers](../MO_DG/prepare_model/Getting_performance_numbers.md) page.
@@ -29,9 +29,9 @@ Finally, **memory footprint** restrictions is another possible concern when desi
 
 With the OpenVINO there are two primary ways of improving the inference performance, namely model- and runtime-level optimizations. **These two optimizations directions are fully compatible**. 
 
-- **Model optimization** includes model modification, such as quantization, pruning, optimization of preprocessing, etc. Fore more details, refer to this [document](./model_optimization_guide.md).
+- **Model optimizations** includes model modification, such as quantization, pruning, optimization of preprocessing, etc. Fore more details, refer to this [document](./model_optimization_guide.md).
 
-- **Runtime (Deployment) optimization**  includes tuning of model _execution_ parameters. To read more visit [Deployment Optimization Guide](../optimization_guide/dldt_deployment_optimization_guide.md).
+- **Runtime (Deployment) optimizations**  includes tuning of model _execution_ parameters. To read more visit the [Runtime Inference Optimizations](../optimization_guide/dldt_deployment_optimization_guide.md).
 
 ## Performance benchmarks
 To estimate the performance and compare performance numbers, measured on various supported devices, a wide range of public models are available at [Performance benchmarks](../benchmarks/performance_benchmarks.md) section.
