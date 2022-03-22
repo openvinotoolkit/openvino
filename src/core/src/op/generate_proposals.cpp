@@ -47,6 +47,7 @@ bool op::v9::GenerateProposalsSingleImage::visit_attributes(AttributeVisitor& vi
     visitor.on_attribute("pre_nms_count", m_attrs.pre_nms_count);
     visitor.on_attribute("normalized", m_attrs.normalized);
     visitor.on_attribute("nms_eta", m_attrs.nms_eta);
+    visitor.on_attribute("roi_num_type", m_roi_num_type);
     return true;
 }
 
