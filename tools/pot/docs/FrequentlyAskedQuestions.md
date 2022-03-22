@@ -88,18 +88,9 @@ The following configuration parameters also impact the quantization time duratio
 - `eval_requests_number`: the lower number, the more time might be required for the quantization
 Note that higher values of `stat_requests_number` and `eval_requests_number` increase memory consumption by POT.
 
-### <a name="import">I get "Import Error:... No such file or directory". How can I avoid it?</a>
-
-It happens when some needed library is not available in your environment. To avoid it, execute the following command:
-```sh
-source <INSTALL_DIR>/bin/setupvars.sh
-```
-where `<INSTALL_DIR>` is the directory where the OpenVINO&trade; toolkit is installed.
-
 ### <a name="python">When I execute POT CLI, I get "File "/workspace/venv/lib/python3.6/site-packages/nevergrad/optimization/base.py", line 35... SyntaxError: invalid syntax". What is wrong?</a>
 
-This error is reported when you have an older python version than 3.6 in your environment. Upgrade your python version. Refer to more details about the prerequisites
-on the [Post-Training Optimization Tool](../README.md) page.
+This error is reported when you have an older python version than 3.6 in your environment. Upgrade your python version.
 
 ### <a name="nomodule">What does a message "ModuleNotFoundError: No module named 'some\_module\_name'" mean?</a>
 

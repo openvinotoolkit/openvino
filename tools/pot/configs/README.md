@@ -57,4 +57,3 @@ For details on how to run the Post-Training Optimization Tool with a sample conf
 
 ## See Also
 * [Optimization with Simplified mode](@ref pot_docs_simplified_mode)
-* [POT API](@ref pot_compression_api_README)

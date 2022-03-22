@@ -15,9 +15,7 @@
 
 POT command-line interface (CLI) is aimed at optimizing models that are similar to the models from OpenVINO&trade; [Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) or if there is a valid [AccuracyChecker Tool](@ref omz_tools_accuracy_checker) configuration file for the model. Examples of AccuracyChecker configuration files can be found on [GitHub](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public). Each model folder contains YAML configuration file that can be used with POT as is.
 
-> **NOTE**: There is also the so-called [**Simplified mode**](@ref pot_docs_simplified_mode) aimed at optimizatoin of models from the Computer Vision domain and has a simple dataset preprocessing, like image resize and crop. In this case, you can also use POT CLI for 
-optimization. However, the accuracy results are not guaranteed in this case. Moreover, you are also limited in the 
-optimization methods choice since the accuracy measurement is not available.
+> **NOTE**: There is also the so-called [Simplified mode](@ref pot_docs_simplified_mode) aimed at optimizatoin of models from the Computer Vision domain and has a simple dataset preprocessing, like image resize and crop. In this case, you can also use POT CLI for optimization. However, the accuracy results are not guaranteed in this case. Moreover, you are also limited in the optimization methods choice since the accuracy measurement is not available.
  
 
 ## Run POT CLI 
