@@ -15,9 +15,9 @@ In contrast, the `ov::InferRequest::start_async()` and `ov::InferRequest::wait()
 
 > **NOTE**: Although the Synchronous API can be somewhat easier to start with, in the production code always prefer to use the Asynchronous (callbacks-based, below) API, as it is the most general and scalable way to implement the flow control for any possible number of requests (and hence both latency and throughput scenarios).
 
-Let's see how the OpenVINO Async API can improve overall frame rate of the application. The key advantage of the Async approach is as follows:  while a device is busy with the inference, the application can do other things in parallel (e.g. populating inputs or scheduling other requests) rather than wait for the inference to complete.
+Let's see how the OpenVINO Async API can improve overall frame rate of the application. The key advantage of the Async approach is as follows:  while a device is busy with the inference, the application can do other things in parallel (e.g. populating inputs or scheduling other requests) rather than wait for the current inference to complete first.
 
-In the example below, inference is applied to the results of the video decoding. So it is possible to keep two parallel infer requests, and while the current is processed, the input frame for the next is being captured. This essentially hides the latency of capturing, so that the overall frame rate is rather determined only by the slowest part of the pipeline (decoding IR inference) and not by the sum of the stages.
+In the example below, inference is applied to the results of the video decoding. So it is possible to keep two parallel infer requests, and while the current is processed, the input frame for the next is being captured. This essentially hides the latency of capturing, so that the overall frame rate is rather determined only by the slowest part of the pipeline (decoding vs inference) and not by the sum of the stages.
 
 You can compare the pseudo-codes for the regular and async-based approaches:
 
