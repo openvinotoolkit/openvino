@@ -2,9 +2,7 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import argparse
 import logging as log
-import re
 import sys
 from typing import Dict, List, Tuple
 
@@ -50,16 +48,6 @@ def set_scale_factors(plugin_config: Dict[str, str], scale_factors: List[str], i
     for i in range(len(inputs)):
         log.info(f'For input {inputs[i].get_any_name()} using scale factor of {scale_factors[i]}')
         plugin_config[f'GNA_SCALE_FACTOR_{i}'] = scale_factors[i]
-
-
-def parse_outputs_from_args(args: argparse.Namespace) -> Tuple[List[str], List[int]]:
-    """Get a list of outputs specified in the args"""
-    name_and_port = [output.split(':') for output in re.split(', |,', args.output_layers)]
-    try:
-        return [name for name, _ in name_and_port], [int(port) for _, port in name_and_port]
-    except ValueError:
-        log.error('Incorrect value for -oname/--output_layers option, please specify a port for each output layer.')
-        sys.exit(-4)
 
 
 def get_input_layouts(layout_string: str, inputs: List[Output]) -> Dict[str, str]:

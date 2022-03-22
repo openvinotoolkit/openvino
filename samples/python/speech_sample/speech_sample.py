@@ -3,7 +3,6 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import re
 import sys
 from io import BytesIO
 from timeit import default_timer
@@ -18,7 +17,7 @@ from file_options import read_utterance_file, write_utterance_file
 from utils import (GNA_ATOM_FREQUENCY, GNA_CORE_FREQUENCY,
                    calculate_scale_factor, compare_with_reference,
                    get_input_layouts, get_sorted_scale_factors, log,
-                   parse_outputs_from_args, set_scale_factors)
+                   set_scale_factors)
 
 
 def do_inference(data: Dict[str, np.ndarray], infer_request: InferRequest, cw_l: int = 0, cw_r: int = 0) -> np.ndarray:
@@ -79,9 +78,7 @@ def main():
         model = core.read_model(args.model)
 
 # --------------------------- Step 3. Apply preprocessing -------------------------------------------------------------
-        if args.output_layers:
-            output_layer_names, output_layer_ports = parse_outputs_from_args(args)
-            model.add_outputs(list(zip(output_layer_names, output_layer_ports)))
+        model.add_outputs(args.output[0] + args.reference[0])
 
         if args.layout:
             layouts = get_input_layouts(args.layout, model.inputs)
@@ -182,49 +179,33 @@ def main():
     if len(input_layer_names) != len(input_file_names):
         log.error(f'Number of model inputs ({len(compiled_model.inputs)}) is not equal '
                   f'to number of ark files ({len(input_file_names)})')
-        sys.exit(-3)
+        return 3
 
     input_file_data = [read_utterance_file(file_name) for file_name in input_file_names]
 
     infer_data = [
         {
             input_layer_names[j]: input_file_data[j].utterances[i]
-            for j in range(len(input_layer_names))
+            for j in range(len(input_file_data))
         }
         for i in range(len(input_file_data[0].utterances))
     ]
 
-    if args.output_layers:
-        output_layer_names, output_layer_ports = parse_outputs_from_args(args)
-        # If a name of output layer contains a port number then concatenate output_layer_names and output_layer_ports
-        if ':' in compiled_model.outputs[0].any_name:
-            output_layer_names = [f'{output_layer_names[i]}:{output_layer_ports[i]}' for i in range(len(output_layer_names))]
-    else:
-        output_layer_names = [compiled_model.outputs[0].any_name]
+    output_layer_names = args.output[0] if args.output[0] else [compiled_model.outputs[0].any_name]
+    output_file_names = args.output[1]
 
-    if args.output:
-        output_file_names = re.split(', |,', args.output)
+    reference_layer_names = args.reference[0] if args.reference[0] else [compiled_model.outputs[0].any_name]
+    reference_file_names = args.reference[1]
 
-        if len(output_layer_names) != len(output_file_names):
-            log.error('The number of output files is not equal to the number of model outputs.')
-            sys.exit(-6)
+    reference_file_data = [read_utterance_file(file_name) for file_name in reference_file_names]
 
-    if args.reference:
-        reference_file_names = re.split(', |,', args.reference)
-
-        if len(output_layer_names) != len(reference_file_names):
-            log.error('The number of reference files is not equal to the number of model outputs.')
-            sys.exit(-5)
-
-        reference_file_data = [read_utterance_file(file_name) for file_name in reference_file_names]
-
-        references = [
-            {
-                output_layer_names[j]: reference_file_data[j].utterances[i]
-                for j in range(len(output_layer_names))
-            }
-            for i in range(len(input_file_data[0].utterances))
-        ]
+    references = [
+        {
+            reference_layer_names[j]: reference_file_data[j].utterances[i]
+            for j in range(len(reference_file_data))
+        }
+        for i in range(len(input_file_data[0].utterances))
+    ]
 
 # --------------------------- Step 7. Create infer request ------------------------------------------------------------
     infer_request = compiled_model.create_infer_request()
@@ -260,12 +241,12 @@ def main():
         log.info(f'Frames in utterance: {num_of_frames}')
         log.info(f'Average Infer time per frame: {avg_infer_time_per_frame * 1000:.2f}ms')
 
-        for name in output_layer_names:
+        for name in set(reference_layer_names + output_layer_names):
             log.info('')
-            log.info(f'Output blob name: {name}')
+            log.info(f'Output layer name: {name}')
             log.info(f'Number scores per frame: {results[i][name].shape[1]}')
 
-            if args.reference:
+            if name in references[i].keys():
                 log.info('')
                 compare_with_reference(results[i][name], references[i][name])
 
@@ -291,11 +272,10 @@ def main():
     log.info('')
     log.info(f'Total sample time: {total_infer_time * 1000:.2f}ms')
 
-    if args.output:
-        for i, name in enumerate(output_layer_names):
-            data = [results[i][name] for i in range(len(input_file_data[0].utterances))]
-            write_utterance_file(output_file_names[i], input_file_data[0].keys, data)
-            log.info(f'File {output_file_names[i]} was created!')
+    for i in range(len(output_file_names)):
+        log.info(f'Saving results from "{output_layer_names[i]}" layer to {output_file_names[i]}')
+        data = [results[i][output_layer_names[i]] for i in range(len(input_file_data[0].utterances))]
+        write_utterance_file(output_file_names[i], input_file_data[0].keys, data)
 
 # ----------------------------------------------------------------------------------------------------------------------
     log.info('This sample is an API example, '
