@@ -111,8 +111,10 @@ endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime openvino::runtime::dev)
 
-ov_ncc_naming_style(FOR_TARGET "${TARGET_NAME}"
-                    SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+# ov_ncc_naming_style(FOR_TARGET "${TARGET_NAME}"
+#                     SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+#                     ADDITIONAL_INCLUDE_DIRECTORIES
+#                         $<TARGET_PROPERTY:openvino::runtime,INTERFACE_INCLUDE_DIRECTORIES>)
 
 #
 # Example
