@@ -7,7 +7,7 @@
    :hidden:
    
    DefaultQuantization Algorithm <pot_compression_algorithms_quantization_default_README>
-   AccuracyAwareQuantization Algorithm <pot_compression_algorithms_quantization_accuracy_aware_README>
+   AccuracyAwareQuantization Algorithm <accuracy_aware_README>
    Saturation Issue Workaround <pot_saturation_issue>
    Low-precision Model Representation <pot_docs_model_representation>
 
@@ -28,9 +28,9 @@ Currently, the POT provides two algorithms for 8-bit quantization, which are ver
 wide range of DNN models:
 *  [**DefaultQuantization**](@ref pot_compression_algorithms_quantization_default_README) is a default method that provides fast and in most cases accurate results. It requires only a unannotated dataset for quantization. For details, see the [DefaultQuantization Algorithm](@ref pot_compression_algorithms_quantization_default_README) documentation.
 
-*  [**AccuracyAwareQuantization**](@ref pot_compression_algorithms_quantization_accuracy_aware_README) enables remaining at a predefined range of accuracy drop after quantization at the cost
+*  [**AccuracyAwareQuantization**](@ref accuracy_aware_README) enables remaining at a predefined range of accuracy drop after quantization at the cost
    of performance improvement. The method requires annotated representative dataset and may require more time for quantization. For details, see the
-   [AccuracyAwareQuantization Algorithm](@ref pot_compression_algorithms_quantization_accuracy_aware_README) documentation.
+   [AccuracyAwareQuantization Algorithm](@ref accuracy_aware_README) documentation.
 
 For more details about the representation of the low-precision model please refer to this [document](@ref pot_docs_model_representation).
 

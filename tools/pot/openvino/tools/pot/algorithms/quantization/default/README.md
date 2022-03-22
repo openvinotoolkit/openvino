@@ -98,23 +98,22 @@ mode on the existing HW.
 Enabling this option may increase compressed model accuracy, but will result in increased execution time and memory consumption.
 
 ## Examples
-
-Command-line example:
-* [Quantization of Image Classification model](https://docs.openvino.ai/latest/pot_configs_examples_README.html) 
-
-API tutorials:
+Tutorials:
 * [Quantization of Image Classification model](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/301-tensorflow-training-openvino)
 * [Quantization of Object Detection model from Model Zoo](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/111-detection-quantization)
 * [Quantization of Segmentation model for mediacal data](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/110-ct-segmentation-quantize)
 * [Quantization of BERT for Text Classification](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/105-language-quantize-bert)
 
-API examples:
+Examples:
 * [Quantization of 3D segmentation model](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/3d_segmentation)
 * [Quantization of Face Detection model](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/face_detection)
 * [Quantizatin of speech model for GNA device](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/speech)
 
- A template and full specification for DefaultQuantization algorithm for POT command-line inferface:
- * [Template](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/default_quantization_template.json)
- * [Full specification](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/default_quantization_spec.json)
+Command-line example:
+* [Quantization of Image Classification model](https://docs.openvino.ai/latest/pot_configs_examples_README.html) 
+
+A template and full specification for DefaultQuantization algorithm for POT command-line inferface:
+* [Template](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/default_quantization_template.json)
+* [Full specification](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/default_quantization_spec.json)
 
 

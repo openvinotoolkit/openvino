@@ -6,24 +6,24 @@
    :maxdepth: 1
    :hidden:
 
-   AccuracyAwareQuantization Method <pot_compression_algorithms_quantization_accuracy_aware_README>
+   AccuracyAwareQuantization Method <accuracy_aware_README>
 
 @endsphinxdirective
 
 ## Introduction
-In case when [DefaultQuantization](@ref pot_default_quantization_usage) alorithm introduces a significant accuracy degradation, AccuracyAwareQuantization algorithm can be used to stay within the pre-defined range defined by the user. This may cause a 
-degradation in performance in comparison to [DefaultQuantization](@ref pot_default_quantization_usage) algorithm because some layers can be reverted back to the original precision.
+In case when [DefaultQuantization](@ref pot_default_quantization_usage) alorithm introduces a significant accuracy degradation, AccuracyAwareQuantization algorithm can be used to remain accuracy within the pre-defined range. This may cause a 
+degradation of performance in comparison to [DefaultQuantization](@ref pot_default_quantization_usage) algorithm because some layers can be reverted back to the original precision.
 
-> **NOTE**: In case of GNA `target_device`, POT moves INT8 weights to INT16 to stay in the pre-defined range of the accuracy drop. Thus, the algorithm works for the `performance` (INT8) preset only. For the `accuracy` preset, this algorithm is not helpful.
+> **NOTE**: In case of GNA `target_device`, POT moves INT8 weights to INT16 to stay in the pre-defined range of the accuracy drop. Thus, the algorithm works for the `performance` (INT8) preset only. For the `accuracy` preset, this algorithm is not helpful since the whole model is already in INT16 precision.
 
 ## Prepare data
-This step is the same as in the case of [DefaultQuantization](@ref pot_default_quantization_usage). The only difference is that `__getitem__()` method should return `(data, annotation)` or `(data, annotation, metadata)` where `annotation` is required and corresponds to the expectations of the `Metric` class.
+This step is the same as in the case of [DefaultQuantization](@ref pot_default_quantization_usage). The only difference is that `__getitem__()` method should return `(data, annotation)` or `(data, annotation, metadata)` where `annotation` is required and corresponds to the expectations of the `Metric` class. `metadata` is an optional field that can be used to store additional information required for post-processing.
 
 ## Define accuracy metric
 In order to control accuracy during the optimization a `openvino.tools.pot.Metric` interface should be implemented. Each implementaion should override the following properties:
 - `value` - returns the accuracy metric value for the last model output in a format of `Dict[str, numpy.array]`.
 - `avg_value` - returns the average accuracy metric over collected model results in a format of `Dict[str, numpy.array]`.
-- `higher_better` should return `True` if the higher value of the metric corresponds to better performance, otherwise, returns `False`. Default implementation returns `True`.
+- `higher_better` should return `True` if a higher value of the metric corresponds to a better performance, otherwise, returns `False`. Default implementation returns `True`.
 
 and methods:
 - `update(output, annotation)` - calculates and updates the accuracy metric value using last model output and annotation.
@@ -103,7 +103,7 @@ describe only AccuracyAwareQuantization required parameters:
 
 ## Run quantization
 
-The code snippet below shows basic quantization workflow with accuracy control. `UserDataLoader` and `UserMetric` are placeholders for user's implementation of `DataLoader` and `Metric` APIs.
+The code example below shows basic quantization workflow with accuracy control. `UserDataLoader` and `UserMetric` are placeholders for user's implementation of `DataLoader` and `Metric` APIs.
 
 ```
 from openvino.tools.pot import IEEngine

@@ -37,7 +37,7 @@ POT provides two main quantization methods that can be used depending on the use
 *  [DefaultQuantization](@ref pot_default_quantization_usage) is a recommended method that provides fast and accurate results in most cases. It requires only a unannotated dataset for quantization. For details, see the [DefaultQuantization Algorithm](@ref pot_compression_algorithms_quantization_default_README) documentation.
 
 *  [AccuracyAwareQuantization](@ref pot_accuracyaware_usage) is an advanced method which enables remaining at a predefined range of accuracy drop at the cost of performance improvement in case when `DefaultQuantization` cannot guarantee it. The method requires annotated representative dataset and may require more time for quantization. For details, see the
-[AccuracyAwareQuantization Algorithm](@ref pot_compression_algorithms_quantization_accuracy_aware_README) documentation.
+[AccuracyAwareQuantization Algorithm](@ref accuracy_aware_README) documentation.
 
 POT supports quantization for different HW platforms that has different integer precisions, for example 8-bit in CPU, GPU, VPU, 16-bit for GNA. Moreover, POT makes specification of HW settings transparent for the user by introducing a concept of `target_device` parameter.
 

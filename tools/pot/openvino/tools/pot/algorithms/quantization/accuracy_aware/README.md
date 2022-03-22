@@ -2,14 +2,11 @@
 
 ## Introduction
 AccuracyAwareQuantization algorithm is aimed at accurate quantization and allows the model's accuracy to stay within the 
-pre-defined range defined by the user in the configuration file. This may cause a 
+pre-defined range. This may cause a 
 degradation in performance in comparison to [DefaultQuantization](../default/README.md) algorithm because some layers can be reverted back to the original precision.
 
-> **NOTE**: In case of GNA `target_device`, POT moves INT8 weights to INT16 to stay in the pre-defined range of the accuracy drop. Thus, the algorithm works for the `performance` (INT8) preset only. For the `accuracy` preset, this algorithm is not performed, but the parameters tuning is available (if `tune_hyperparams` option is enabled).
-
-
 ## Parameters
-Since the [DefaultQuantization](../default/README.md) algorithm is used as an initialization, all its parameters are also valid and can be specified. Here is an example of the definition of DefualtQuantization method and its parameters:
+Since the [DefaultQuantization](../default/README.md) algorithm is used as an initialization, all its parameters are also valid and can be specified. Here is an example of the definition of `AccuracyAwareQuantization` method and its parameters:
 ```json
 {
     "name": "AccuracyAwareQuantization", // the name of optimization algorithm 
@@ -19,7 +16,7 @@ Since the [DefaultQuantization](../default/README.md) algorithm is used as an in
 }
 ```
 
-Below is the description of AccuracyAware specific parameters:
+Below is the description of AccuracyAwareQuantization-specific parameters:
 - `"ranking_subset_size"` - size of a subset that is used to rank layers by their contribution to the accuracy drop. 
 Default value is `300`. The more samples it has the better ranking you have, potentially.
 - `"max_iter_num"` - maximum number of iterations of the algorithm, in other words maximum number of layers that may
@@ -49,7 +46,7 @@ quantization time. Default value is `False`.
 
 ## Examples
 
-Example of using POT API with Accuracy-aware algorithm:
+Example:
  * [Quantization of Object Detection model with control of accuracy](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/object_detection)
 
  A template and full specification for AccuracyAwareQuantization algorithm for POT command-line interface:
