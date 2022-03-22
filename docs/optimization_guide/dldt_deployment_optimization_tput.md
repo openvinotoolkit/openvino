@@ -52,9 +52,11 @@ Below are general recommendations:
    * When the parallel slack is small (e.g. only 2-4 requests executed simultaneously), then using the streams for the GPU may suffice
       * Notice that the GPU runs 2 request per stream
    * _Maximum number of streams_ is usually 2, for more portability consider using the `ov::streams::AUTO` (`GPU_THROUGHPUT_AUTO` in the pre-OpenVINO 2.0 parlance)
-   * Typically, for 4 and more requests the batching delivers better throughput for the GPUs. 
+   * Typically, for 4 and more requests the batching delivers better throughput for the GPUs
+   * Batch size can be calculated as "number of inference requests executed _in parallel_" divided by the "number of requests that the streams consume"
+      * E.g. if you process 16 cameras (by 16 requests inferenced _simultaneously_) with 2 GPU streams (each can process 2 requests), the batch size per request is 16/(2*2)=4 
 
-> **NOTE**: When playing with [dynamically-shaped inputs](../OV_Runtime_UG/ov_dynamic_shapes.md) use only the streams, as they tolerate individual requests having different shapes. 
+> **NOTE**: When playing with [dynamically-shaped inputs](../OV_Runtime_UG/ov_dynamic_shapes.md) use only the streams (no batching), as they tolerate individual requests having different shapes. 
 
 > **NOTE**: Using the [High-Level Performance Hints](../OV_Runtime_UG/performance_hints.md) explained in the next section, is the most portable and future-proof option, allowing the OpenVINO to find best combination of streams and batching for a given scenario and model. 
 
