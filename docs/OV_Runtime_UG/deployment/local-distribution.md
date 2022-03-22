@@ -15,7 +15,13 @@ The `plugins.xml` file with information about inference devices must also be tak
 
 > **NOTE**: in Intel Distribution of OpenVINO, `openvino` depends on TBB libraries which are used by OpenVINO Runtime to optimally saturate the devices with computations, so it must be put to the distribution package
 
-### Compute devices
+### Pluggable components
+
+The picture below demonstrates dependnecies between the OpenVINO Runtime core and pluggable libraries:
+
+![deployment_full]
+
+#### Compute devices
 
 For each inference device, OpenVINO Runtime has its own plugin library:
 - `openvino_intel_cpu_plugin` for [Intel CPU devices](../supported_plugins/CPU.md)
@@ -30,14 +36,6 @@ For each inference device, OpenVINO Runtime has its own plugin library:
 - `openvino_arm_cpu_plugin` for [ARM CPU devices](../supported_plugins/ARM_CPU.md)
 
 Depending on what devices is used in the app, put the appropriate libraries to the distribution package.
-
-### Pluggable components
-
-The picture below demonstrates dependnecies between the OpenVINO Runtime core and pluggable libraries:
-
-![deployment_full]
-
-It
 
 #### Execution capabilities
 

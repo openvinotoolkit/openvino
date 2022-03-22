@@ -38,28 +38,28 @@ There are two ways to create a deployment package that includes inference-relate
 Interactive mode provides a user-friendly command-line interface that will guide you through the process with text prompts.
 
 1. To launch the Deployment Manager in interactive mode, open a new terminal window, go to the Deployment Manager tool directory and run the tool script without parameters:
-    @sphinxdirective
+@sphinxdirective
 
-    .. tab:: Linux
+.. tab:: Linux
 
-        .. code-block:: sh
+    .. code-block:: sh
 
-            cd <INSTALL_DIR>/tools/deployment_manager
-            ./deployment_manager.py
+        cd <INSTALL_DIR>/tools/deployment_manager
+        ./deployment_manager.py
 
-    .. tab:: Windows
+.. tab:: Windows
 
-        .. code-block:: bat
+    .. code-block:: bat
 
-            cd <INSTALL_DIR>\tools\deployment_manager
-            .\deployment_manager.py
+        cd <INSTALL_DIR>\tools\deployment_manager
+        .\deployment_manager.py
 
-    .. tab:: macOS
+.. tab:: macOS
 
-        .. code-block:: sh
+    .. code-block:: sh
 
-            cd <INSTALL_DIR>/tools/deployment_manager
-            ./deployment_manager.py
+        cd <INSTALL_DIR>/tools/deployment_manager
+        ./deployment_manager.py
 
 @endsphinxdirective
 
@@ -160,27 +160,27 @@ To deploy the OpenVINO Runtime components from the development machine to the ta
 1. Copy the generated archive to the target system using your preferred method.
 
 2. Unpack the archive into the destination directory on the target system (if your archive name is different from the default shown below, replace the `openvino_deployment_package` with the name you use).
-    @sphinxdirective
+@sphinxdirective
 
-    .. tab:: Linux
+.. tab:: Linux
 
-        .. code-block:: sh
+    .. code-block:: sh
 
-            tar xf openvino_deployment_package.tar.gz -C <destination_dir>
+        tar xf openvino_deployment_package.tar.gz -C <destination_dir>
 
-    .. tab:: Windows
+.. tab:: Windows
 
-        .. code-block:: bat
+    .. code-block:: bat
 
-            Use the archiver of your choice to unzip the file.
+        Use the archiver of your choice to unzip the file.
 
-    .. tab:: macOS
+.. tab:: macOS
 
-        .. code-block:: sh
+    .. code-block:: sh
 
-            tar xf openvino_deployment_package.tar.gz -C <destination_dir>
+        tar xf openvino_deployment_package.tar.gz -C <destination_dir>
 
-    @endsphinxdirective
+@endsphinxdirective
 
   The package is unpacked to the destination directory and the following files and subdirectories are created:
 
@@ -196,29 +196,29 @@ To deploy the OpenVINO Runtime components from the development machine to the ta
    ```
 
 4. Set up the environment variables:
-    @sphinxdirective
+@sphinxdirective
 
-    .. tab:: Linux
+.. tab:: Linux
 
-        .. code-block:: sh
+    .. code-block:: sh
 
-            cd <destination_dir>/openvino/
-            source ./setupvars.sh
+        cd <destination_dir>/openvino/
+        source ./setupvars.sh
 
-    .. tab:: Windows
+.. tab:: Windows
 
-        .. code-block:: bat
+    .. code-block:: bat
 
-            cd <destination_dir>\openvino\
-            .\setupvars.bat
+        cd <destination_dir>\openvino\
+        .\setupvars.bat
 
-    .. tab:: macOS
+.. tab:: macOS
 
-        .. code-block:: sh
+    .. code-block:: sh
 
-            cd <destination_dir>/openvino/
-            source ./setupvars.sh
+        cd <destination_dir>/openvino/
+        source ./setupvars.sh
 
-    @endsphinxdirective
+@endsphinxdirective
 
 You have now finished the deployment of the OpenVINO Runtime components to the target system.

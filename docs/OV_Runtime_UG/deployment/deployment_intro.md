@@ -13,13 +13,13 @@
 
 Once the [OpenVINO application development](../integrate_with_your_application.md) has been finished, usually application developers need to deploy their applications to end users. There are several ways how to achieve that:
 
-- Set a :
+- Set a dependency on existing prebuilt packages (so called _centralized distribution_):
     - Using Debian / RPM packages, a recommended way for a family of Linux operation systems
     - Using pip package manager on PyPi, default approach for Python-based applications
-- _Local distribution_, when all applications will use their own copies of OpenVINO libraries independently on OpenVINO version:
     - Using Docker images
-    - Using [OpenVINO Deployment manager](deployment-manager-tool.md) providing a convinient way for local distribution
-    - Using advanced [Local distribution](local-distribution.md), the approach works for all operation systems
+- Grab a necessary functionality of OpenVINO together with your application (so-called _local distribution_):
+    - Using [OpenVINO Deployment manager](deployment-manager-tool.md) providing a convinient way create a distribution package
+    - Using advanced [Local distribution](local-distribution.md) approach
     - Using [static version of OpenVINO Runtime linked into the final app](https://github.com/openvinotoolkit/openvino/wiki/StaticLibraries)
 
 The table below shows which distribution type can be used depending on target operation system:
@@ -47,6 +47,5 @@ The _optional_ means that if the application does not use the capability enabled
 The information above covers granularity aspects of majority distribution types, more detailed information is only needed and provided in [Local Distribution](local-distribution.md).
 
 > **NOTE**: Depending on target OpenVINO devices, you also have to use [Configurations for GPU](../../install_guides/configurations-for-intel-gpu.md), [Configurations for GNA](../../install_guides/configurations-for-intel-gna.md), [Configurations for NCS2](../../install_guides/configurations-for-ncs2.md) or [Configurations for GNA](../../install_guides/installing-openvino-config-ivad-vpu.md) for proper configuration of deployed machines.
-on.md)
 
 [deployment_simplified]: ../../img/deployment_simplified.png
