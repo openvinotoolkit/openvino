@@ -95,13 +95,13 @@ repositories = {
     'openvino': {
         'github_user': 'openvinotoolkit',
         'github_repo': 'openvino',
-        'github_version': 'master',
+        'github_version': 'releases/2022/1',
         'host_url': 'https://github.com'
     },
     'pot': {
         'github_user': 'openvinotoolkit',
         'github_repo': 'openvino',
-        'github_version': 'master',
+        'github_version': 'releases/2022/1',
         'host_url': 'https://github.com'
     },
     'ote': {
@@ -113,13 +113,13 @@ repositories = {
     'open_model_zoo': {
         'github_user': 'openvinotoolkit',
         'github_repo': 'open_model_zoo',
-        'github_version': 'master',
+        'github_version': 'releases/2022/1',
         'host_url': 'https://github.com'
     },
     'ovms': {
         'github_user': 'openvinotoolkit',
         'github_repo': 'model_server',
-        'github_version': 'main',
+        'github_version': 'develop',
         'host_url': 'https://github.com'
     }
 }
