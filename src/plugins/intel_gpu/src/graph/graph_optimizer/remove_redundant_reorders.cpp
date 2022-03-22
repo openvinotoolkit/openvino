@@ -11,6 +11,7 @@
 #include <list>
 #include <utility>
 
+#include "mvn_inst.h"
 #include "reshape_inst.h"
 #include "one_hot_inst.h"
 #include "permute_inst.h"
@@ -96,7 +97,7 @@ void remove_redundant_reorders::run(program& p) {
                     break;
                 }
 
-                if (usr->is_type<fully_connected>())
+                if (usr->is_type<fully_connected>() || usr->is_type<mvn>())
                     recalc_list.push_back(usr);
             }
 

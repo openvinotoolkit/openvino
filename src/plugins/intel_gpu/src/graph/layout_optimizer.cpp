@@ -382,6 +382,18 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
             }
             return true;
         }
+
+        if (next.is_type<mvn>() && fmt_next == format::bfyx) {
+            if ((fmt_prev == format::bs_fs_yx_bsv16_fsv16
+              || fmt_prev == format::bs_fs_yx_bsv32_fsv16
+              || fmt_prev == format::bs_fs_yx_bsv32_fsv32)
+                && (prev_output_layout.data_padding.upper_size().spatial[0] == 0
+                 && prev_output_layout.data_padding.lower_size().spatial[0] == 0
+                 && prev_output_layout.data_padding.upper_size().spatial[1] == 0
+                 && prev_output_layout.data_padding.lower_size().spatial[1] == 0)) {
+                return true;
+            }
+        }
     }
 
     return false;

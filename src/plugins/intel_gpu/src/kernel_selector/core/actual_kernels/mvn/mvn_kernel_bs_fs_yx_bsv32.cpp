@@ -28,6 +28,12 @@ ParamsKey MVNKernel_bs_fs_yx_bsv32::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
 
+    k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
+    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
+    k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
+    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv32);
+    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
+    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
     k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv16);
     k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv16);
     k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
@@ -49,6 +55,11 @@ bool MVNKernel_bs_fs_yx_bsv32::Validate(const Params& p, const optional_params& 
         return false;
 
     auto params = static_cast<const mvn_params&>(p);
+    // To be choosed b_fs_yx_fsv16_imad i8/u8 kernel.
+    if ((params.inputs[0].GetDType() == Datatype::UINT8 || params.inputs[0].GetDType() == Datatype::INT8)
+        && params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16) {
+        return false;
+    }
 
     // TODO Add support for input padding via iterating over y (parallel or in kernel).
     if (params.inputs[0].X().pad.Total() != 0 || params.inputs[0].Y().pad.Total() != 0)
@@ -84,11 +95,20 @@ JitConstants MVNKernel_bs_fs_yx_bsv32::GetJitConstants(const mvn_params& params,
     jits.AddConstant(MakeJitConstant("ITEM_GROUPS", dispatchData.itemsNum));
     const auto input_layout = params.inputs[0].GetLayout();
 
-    if (input_layout == DataLayout::bs_fs_yx_bsv32_fsv32) {
-        jits.AddConstant(MakeJitConstant("INPUT_SLICE_PITCH", (size_t)(32 * 32)));
+    size_t input_slice_pitch = 1;
+    if (input_layout == DataLayout::b_fs_yx_fsv16) {
+        input_slice_pitch = 16;
+    } else if (input_layout == DataLayout::b_fs_yx_fsv32) {
+        input_slice_pitch = 32;
+    } else if (input_layout == DataLayout::bs_fs_yx_bsv16_fsv16) {
+        input_slice_pitch = 16 * 16;
+    } else if (input_layout == DataLayout::bs_fs_yx_bsv32_fsv32) {
+        input_slice_pitch = 32 * 32;
     } else { // DataLayout::bs_fs_yx_bsv32_fsv16
-        jits.AddConstant(MakeJitConstant("INPUT_SLICE_PITCH", (size_t)(32 * 16)));
+        input_slice_pitch = 32 * 16;
     }
+
+    jits.AddConstant(MakeJitConstant("INPUT_SLICE_PITCH", input_slice_pitch));
 
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order = {"b", "(f + fi)", "(y)", "(x)"};
@@ -182,8 +202,8 @@ MVNKernel_bs_fs_yx_bsv32::MultiDispatchData MVNKernel_bs_fs_yx_bsv32::SetDefault
 }
 
 KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params& params,
-                                                                        const optional_params& options,
-                                                                        bool has_enough_data) const {
+                                                               const optional_params& options,
+                                                               bool has_enough_data) const {
     if (!Validate(params, options))
         return {};
 

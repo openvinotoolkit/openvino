@@ -715,7 +715,7 @@ INSTANTIATE_TEST_SUITE_P(extended,
                                               .extended_tests(format::b_fs_yx_fsv16, data_types::i8)
                                               .extended_tests(format::b_fs_yx_fsv16, data_types::u8)));
 
-struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
+struct mvn_random_test_blocked_format : ::testing::TestWithParam<mvn_basic_test_params> {
     template <typename T>
     void fill_data(cldnn::memory::ptr mem, const tests::VVVVVF<T>& data) {
         auto size = mem->get_layout().size;
@@ -833,6 +833,7 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
         auto prim_opt = mvn("mvn_opt", "input_to_target_layout", params.normalize_variance, 1e-10f, false, params.across_channels);
         prim_opt.output_padding = output_pad;
         topo_opt.add(prim_opt);
+
         auto build_opts_opt = build_options();
         build_opts_opt.set_option(build_option::outputs({"mvn_opt", "input_to_target_layout"}));
         build_opts_opt.set_option(build_option::force_implementations({ {"mvn_opt", {params.input_format, "mvn_gpu_b_fs_yx_fsv16_imad"}} }));
@@ -842,7 +843,6 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
 
         auto outputs_opt = net_opt.execute();
         auto output_opt = outputs_opt.at("mvn_opt").get_memory();
-
         auto output_dtype = output->get_layout().data_type;
         auto output_opt_dtype = output_opt->get_layout().data_type;
         if (output_dtype == output_opt_dtype) {
@@ -865,35 +865,68 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
     }
 };
 
-TEST_P(mvn_random_test_bsv32, random) {
+TEST_P(mvn_random_test_blocked_format, random) {
     this->execute(GetParam());
 }
 
-struct mvn_test_case_generator_bsv32 : std::vector<mvn_basic_test_params> {
-    mvn_test_case_generator_bsv32& add(mvn_basic_test_params params) {
+struct mvn_test_case_generator_blocked_format : std::vector<mvn_basic_test_params> {
+    mvn_test_case_generator_blocked_format& add(mvn_basic_test_params params) {
         push_back(params);
         return *this;
     }
 
-    mvn_test_case_generator_bsv32& bsv32_tests(format::type fmt, data_types in_dt) {
+    mvn_test_case_generator_blocked_format& get(format::type fmt, data_types in_dt) {
         push_back(mvn_basic_test_params{fmt, in_dt, {32, 32, 10, 10}, true, false, false, padding()});
         push_back(mvn_basic_test_params{fmt, in_dt, {32, 32, 10, 10}, false, false, false, padding()});
+        push_back(mvn_basic_test_params{fmt, in_dt, {32, 32, 128, 128}, true, false, false, padding()});
+        push_back(mvn_basic_test_params{fmt, in_dt, {32, 32, 128, 128}, false, false, false, padding()});
         return *this;
     }
 };
 
 INSTANTIATE_TEST_SUITE_P(mvn_bsv32_fsv32,
-                        mvn_random_test_bsv32,
-                        testing::ValuesIn(mvn_test_case_generator_bsv32()
-                                              .bsv32_tests(format::bs_fs_yx_bsv32_fsv32, data_types::i8)));
+                        mvn_random_test_blocked_format,
+                        testing::ValuesIn(mvn_test_case_generator_blocked_format()
+                                              .get(format::bs_fs_yx_bsv32_fsv32, data_types::i8)));
 
 
 INSTANTIATE_TEST_SUITE_P(mvn_bsv32_fsv16,
-                        mvn_random_test_bsv32,
-                        testing::ValuesIn(mvn_test_case_generator_bsv32()
-                                              .bsv32_tests(format::bs_fs_yx_bsv32_fsv16, data_types::f16)));
+                        mvn_random_test_blocked_format,
+                        testing::ValuesIn(mvn_test_case_generator_blocked_format()
+                                              .get(format::bs_fs_yx_bsv32_fsv16, data_types::f16)));
 
-INSTANTIATE_TEST_SUITE_P(mvn_fsv16,
-                        mvn_random_test_bsv32,
-                        testing::ValuesIn(mvn_test_case_generator_bsv32()
-                                              .bsv32_tests(format::b_fs_yx_fsv16, data_types::i8)));
+INSTANTIATE_TEST_SUITE_P(mvn_fsv16_i8,
+                        mvn_random_test_blocked_format,
+                        testing::ValuesIn(mvn_test_case_generator_blocked_format()
+                                              .get(format::b_fs_yx_fsv16, data_types::i8)));
+
+INSTANTIATE_TEST_SUITE_P(mvn_fsv16_fp16,
+                        mvn_random_test_blocked_format,
+                        testing::ValuesIn(mvn_test_case_generator_blocked_format()
+                                              .get(format::b_fs_yx_fsv16, data_types::f16)));
+
+INSTANTIATE_TEST_SUITE_P(mvn_fsv16_fp32,
+                        mvn_random_test_blocked_format,
+                        testing::ValuesIn(mvn_test_case_generator_blocked_format()
+                                              .get(format::b_fs_yx_fsv16, data_types::f32)));
+
+INSTANTIATE_TEST_SUITE_P(mvn_bsv16_fsv16_fp16,
+                        mvn_random_test_blocked_format,
+                        testing::ValuesIn(mvn_test_case_generator_blocked_format()
+                                              .get(format::bs_fs_yx_bsv16_fsv16, data_types::f16)));
+
+INSTANTIATE_TEST_SUITE_P(mvn_bsv16_fsv16_fp32,
+                        mvn_random_test_blocked_format,
+                        testing::ValuesIn(mvn_test_case_generator_blocked_format()
+                                              .get(format::bs_fs_yx_bsv16_fsv16, data_types::f32)));
+
+INSTANTIATE_TEST_SUITE_P(mvn_fsv32_i8,
+                        mvn_random_test_blocked_format,
+                        testing::ValuesIn(mvn_test_case_generator_blocked_format()
+                                              .get(format::b_fs_yx_fsv32, data_types::i8)));
+
+INSTANTIATE_TEST_SUITE_P(mvn_bsv32_fsv16_fp32,
+                        mvn_random_test_blocked_format,
+                        testing::ValuesIn(mvn_test_case_generator_blocked_format()
+                                              .get(format::bs_fs_yx_bsv32_fsv16, data_types::f32)));
+
