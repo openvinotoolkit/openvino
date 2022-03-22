@@ -96,12 +96,19 @@ class CommonLayerTest:
         # IE infer:
         infer_res = ie_engine.infer(input_data=inputs_dict, infer_timeout=infer_timeout)
 
+        print("======================================openvino result")
+        print(infer_res)
+        print("======================================")
+
         if hasattr(self, 'skip_framework') and self.skip_framework:
             warnings.warn('Framework is skipped')
             return
 
         # Framework infer:
         fw_res = self.get_framework_results(inputs_dict=inputs_dict, model_path=model_path)
+        print("======================================framework result")
+        print(fw_res)
+        print("======================================")
 
         if len(fw_res) == len(infer_res) == 1:
             # match output layers directly

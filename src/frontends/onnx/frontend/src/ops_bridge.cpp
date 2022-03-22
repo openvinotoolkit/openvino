@@ -460,6 +460,9 @@ void OperatorsBridge::_load_initial_state() {
     REGISTER_OPERATOR("Where", 1, where);
     REGISTER_OPERATOR("Xor", 1, logical_xor);
 
+    // test
+    REGISTER_OPERATOR("GenerateProposals", 1, generate_proposals);
+
     // deprecated ops
     REGISTER_OPERATOR("Affine", 1, affine);
     REGISTER_OPERATOR("Crop", 1, crop);
@@ -475,10 +478,6 @@ void OperatorsBridge::_load_initial_state() {
                                   "ExperimentalDetectronDetectionOutput",
                                   1,
                                   experimental_detectron_detection_output);
-    REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN,
-                                  "ExperimentalDetectronGenerateProposalsSingleImage",
-                                  1,
-                                  experimental_detectron_generate_proposals);
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "ExperimentalDetectronGroupNorm", 1, group_norm);
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN,
                                   "ExperimentalDetectronPriorGridGenerator",

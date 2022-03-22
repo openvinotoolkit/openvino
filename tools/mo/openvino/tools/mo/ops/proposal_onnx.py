@@ -6,14 +6,14 @@ from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension
 from openvino.tools.mo.ops.op import Op
 
 
-class ExperimentalDetectronGenerateProposalsSingleImage(Op):
-    op = 'ExperimentalDetectronGenerateProposalsSingleImage'
+class GenerateProposalsSingleImage(Op):
+    op = 'GenerateProposals'
 
     def __init__(self, graph, attrs):
         mandatory_props = dict(
             type=self.op,
             op=self.op,
-            version='experimental',
+            version='opset1',
             reverse_infer=self.reverse_infer,
             infer=self.infer
         )
@@ -23,20 +23,24 @@ class ExperimentalDetectronGenerateProposalsSingleImage(Op):
     def backend_attrs(self):
         return [
             'min_size',
-            'nms_threshold',
-            'post_nms_count',
-            'pre_nms_count'
+            'nms_thresh',
+            'post_nms_topN',
+            'pre_nms_topN',
+            'spatial_scale',
+            'legacy_plus_one'
         ]
 
     @staticmethod
     def infer(node):
-        node.out_port(0).data.set_shape([node.post_nms_count, 4])
-        node.out_port(1).data.set_shape([node.post_nms_count])
+        node.out_port(0).data.set_shape([dynamic_dimension, 4])
+        node.out_port(1).data.set_shape([dynamic_dimension])
+        #node.out_port(0).data.set_shape([node.post_nms_count, 4])
+        #node.out_port(1).data.set_shape([node.post_nms_count])
 
     @staticmethod
     def reverse_infer(node):
         set_input_shapes(node,
-                         undefined_shape_of_rank(1),
-                         shape_array([dynamic_dimension_value, 4]),
-                         undefined_shape_of_rank(3),
-                         undefined_shape_of_rank(3))
+                         undefined_shape_of_rank(4),
+                         undefined_shape_of_rank(4),
+                         shape_array([dynamic_dimension_value, 2]),
+                         shape_array([dynamic_dimension_value, 4]))

@@ -70,6 +70,6 @@ void op::v9::GenerateProposalsSingleImage::validate_and_infer_types() {
     const auto roi_num_type = get_roi_num_type();
     NODE_VALIDATION_CHECK(this,
                           (roi_num_type == ov::element::i64) || (roi_num_type == ov::element::i32),
-                          "The third output type must be int64 or int32.");
+                          "The third output type must be int64 or int32. Got:", roi_num_type);
     set_output_type(2, roi_num_type, output_shapes[2]);
 }

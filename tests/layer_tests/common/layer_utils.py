@@ -107,6 +107,9 @@ class InferAPI20(BaseInfer):
 
     def get_inputs_info(self, precision) -> dict:
         core = Core()
+        print("==================================")
+        print(self.model)
+        print(self.weights)
         net = core.read_model(self.model, self.weights)
         inputs_info = {}
         for item in net.inputs:
