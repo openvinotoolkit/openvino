@@ -13,6 +13,7 @@ namespace ngraph {
 namespace runtime {
 namespace reference {
 using ROIPoolingMode = op::v3::ROIAlign::PoolingMode;
+using AlignedMode = op::v9::ROIAlign::AlignedMode;
 template <typename T>
 void roi_align(const T* feature_maps,
                const T* rois,
@@ -26,7 +27,8 @@ void roi_align(const T* feature_maps,
                const int pooled_width,
                const int sampling_ratio,
                const float spatial_scale,
-               const ROIPoolingMode& pooling_mode) {
+               const ROIPoolingMode& pooling_mode,
+               const AlignedMode& aligned_mode = AlignedMode::ASYMMETRIC) {
     auto C = feature_maps_shape[1];
     auto feature_map_height = feature_maps_shape[2];
     auto feature_map_width = feature_maps_shape[3];
@@ -37,15 +39,44 @@ void roi_align(const T* feature_maps,
     CoordinateTransform rois_transform(rois_shape);
     CoordinateTransform out_transform(out_shape);
 
+    bool aligned = false;
+    T offset_src = static_cast<T>(0);
+    T offset_dst = static_cast<T>(0);
+    switch (aligned_mode) {
+    case AlignedMode::TF_HALF_PIXEL_FOR_NN: {
+        aligned = true;
+        offset_dst = static_cast<T>(-0.5);
+        break;
+    }
+    case AlignedMode::HALF_PIXEL: {
+        aligned = true;
+        offset_src = static_cast<T>(0.5);
+        offset_dst = static_cast<T>(-0.5);
+        break;
+    }
+    case AlignedMode::ASYMMETRIC: {
+        break;
+    }
+    default: {
+        throw ngraph_error(std::string("Not supported aligned_mode"));
+        break;
+    }
+    }
+
     for (unsigned int roi_index = 0; roi_index < num_rois; roi_index++) {
         // Get ROI`s corners
-        T x1 = rois[rois_transform.index({roi_index, 0})] * spatial_scale;
-        T y1 = rois[rois_transform.index({roi_index, 1})] * spatial_scale;
-        T x2 = rois[rois_transform.index({roi_index, 2})] * spatial_scale;
-        T y2 = rois[rois_transform.index({roi_index, 3})] * spatial_scale;
+        T x1 = (rois[rois_transform.index({roi_index, 0})] + offset_src) * spatial_scale + offset_dst;
+        T y1 = (rois[rois_transform.index({roi_index, 1})] + offset_src) * spatial_scale + offset_dst;
+        T x2 = (rois[rois_transform.index({roi_index, 2})] + offset_src) * spatial_scale + offset_dst;
+        T y2 = (rois[rois_transform.index({roi_index, 3})] + offset_src) * spatial_scale + offset_dst;
 
-        T roi_width = std::max(x2 - x1, static_cast<T>(1.0));
-        T roi_height = std::max(y2 - y1, static_cast<T>(1.0));
+        T roi_width = x2 - x1;
+        T roi_height = y2 - y1;
+
+        if (!aligned) {
+            roi_width = std::max(roi_width, static_cast<T>(1.0));
+            roi_height = std::max(roi_height, static_cast<T>(1.0));
+        }
 
         T bin_width = roi_width / pooled_width;
         T bin_height = roi_height / pooled_height;
