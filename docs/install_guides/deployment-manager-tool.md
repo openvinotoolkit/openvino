@@ -176,7 +176,7 @@ To deploy the OpenVINO Runtime components from the development machine to the ta
    Use the archiver of your choice to unzip the file.  
       
 .. tab:: macOS  
-   
+
    .. code-block:: sh
          
       tar xf openvino_deployment_package.tar.gz -C <destination_dir>
@@ -211,7 +211,7 @@ sudo -E ./install_openvino_dependencies.sh
 .. tab:: Windows  
    
    .. code-block:: bat  
-      
+    
       cd <destination_dir>\openvino\
       .\setupvars.bat
      
