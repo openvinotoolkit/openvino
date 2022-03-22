@@ -406,22 +406,25 @@ void DumpGna2Model(const Gna2Model& gnaModel,
                 continue;
             }
             const auto& operand = *operation.Operands[j];
-            GnaAllocation found;
+            void * foundPtr = nullptr;
+            std::string foundName = "AllocationNotFound";
             size_t offset = 0;
-            for (auto&& a : allGnaAllocations) {
-                auto x = a.getOffset(operand.Data);
-                if (x.first) {
-                    found = a;
-                    offset = x.second;
-                    break;
-                }
+            auto found = std::find_if(allGnaAllocations.begin(),
+                         allGnaAllocations.end(),
+                         [operand](const GnaAllocation& allocation) {
+                             return allocation.getOffset(operand.Data).first;
+                         });
+            if (found != allGnaAllocations.end()) {
+                foundPtr = found->ptr;
+                foundName = found->GetTagName();
+                offset = found->getOffset(operand.Data).second;
             }
             dumpFile << "\tOperand " << j << " (" << GetOperandName(operation.Type, j) << ")"
                 << " type: " << GetOperandType(operand.Type) <<
                 " shape: " << GetSimpleString(operand.Shape) <<
-                " baseAlloc: " << found.ptr <<
+                " baseAlloc: " << foundPtr <<
                 " offset: " << offset <<
-                " tag: " << found.GetTagName() <<
+                " tag: " << foundName <<
                 " data: " << operand.Data <<
                 " layout: ";
 

@@ -72,7 +72,7 @@ struct GnaAllocation {
     }
 
 private:
-    Gna2MemoryTag tag;
+    Gna2MemoryTag tag = Gna2MemoryTagScratch;
     bool isTagSet = false;
 };
 typedef std::list<GnaAllocation> GnaAllAllocations;
