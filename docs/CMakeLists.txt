@@ -222,7 +222,7 @@ function(build_docs)
                        VERBATIM)
 
     add_custom_target(sphinx_docs
-                      DEPENDS doxygen_xml doxygen_xml_plugin
+                      DEPENDS doxygen_xml
                       COMMAND sphinx-build -j auto -w ${DOCS_BUILD_DIR}/sphinx.log -b html ${RST_OUTPUT} ${SPHINX_OUTPUT}
                       WORKING_DIRECTORY ${RST_OUTPUT}
                       VERBATIM)
