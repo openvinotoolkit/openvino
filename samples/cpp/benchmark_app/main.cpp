@@ -32,7 +32,7 @@
 
 static const size_t progressBarDefaultTotalCount = 1000;
 
-bool ParseAndCheckCommandLine(int argc, char* argv[]) {
+bool parse_and_check_command_line(int argc, char* argv[]) {
     // ---------------------------Parsing and validating input
     // arguments--------------------------------------
     slog::info << "Parsing input parameters" << slog::endl;
@@ -151,7 +151,7 @@ int main(int argc, char* argv[]) {
         // -------------------------------------------------
         next_step();
 
-        if (!ParseAndCheckCommandLine(argc, argv)) {
+        if (!parse_and_check_command_line(argc, argv)) {
             return 0;
         }
 
@@ -789,8 +789,11 @@ int main(int argc, char* argv[]) {
         std::map<std::string, ov::TensorVector> inputsData;
         if (isFlagSetInCommandLine("use_device_mem")) {
             if (device_name.find("GPU") == 0) {
-                inputsData =
-                    ::gpu::get_remote_input_tensors(inputFiles, app_inputs_info, compiledModel, clInputsBuffer);
+                inputsData = ::gpu::get_remote_input_tensors(inputFiles,
+                                                             app_inputs_info,
+                                                             compiledModel,
+                                                             clInputsBuffer,
+                                                             inferRequestsQueue.requests.size());
                 useGpuMem = true;
             } else if (device_name.find("CPU") == 0) {
                 if (newInputType) {

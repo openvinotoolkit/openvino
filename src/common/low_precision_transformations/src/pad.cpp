@@ -14,8 +14,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::PadTransformation, "PadTransformation", 0);
-
 PadTransformation::PadTransformation(const Params& params) : LayerTransformation(params) {
     auto mul = pattern::wrap_type<opset1::Multiply>();
     auto padsBegin = pattern::wrap_type<opset1::Constant>();

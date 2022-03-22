@@ -12,8 +12,6 @@
 #include <cmath>
 #include <cstddef>
 
-NGRAPH_RTTI_DEFINITION(ov::intel_gna::op::SoftSign, "SoftSign", 0);
-
 namespace ov {
 namespace intel_gna {
 namespace op {

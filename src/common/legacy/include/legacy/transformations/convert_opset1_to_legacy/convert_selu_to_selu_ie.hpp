@@ -22,6 +22,6 @@ class ConvertSeluToSeluIEMatcher;
 
 class ngraph::pass::ConvertSeluToSeluIEMatcher: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertSeluToSeluIEMatcher", "0");
     ConvertSeluToSeluIEMatcher();
 };
