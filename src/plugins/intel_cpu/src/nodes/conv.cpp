@@ -23,6 +23,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/cpu_utils.hpp"
 #include <common/primitive_hashing_utils.hpp>
+#include <cpu/cpu_primitive.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -643,6 +644,33 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
                             }
                         }
                     }
+                }
+            }
+
+            if (node == fusedWith[fusedWith.size() - 1] &&
+                outputDataType == memory::data_type::u8 &&
+                fakeQuantizeNode->getAlgorithm() == Algorithm::FQQuantization &&
+                ops.len() == 1 && ops.kind(0) == primitive::kind::sum
+                /*levels == 256*/) {
+                auto &cl = fakeQuantizeNode->getCropLow();
+                auto &isc = fakeQuantizeNode->getInputScale();
+                auto &ish = fakeQuantizeNode->getInputShift();
+
+                if (std::all_of(cl.cbegin(), cl.cend(), [](float val) { return val == 0.0f; }) &&
+                    std::all_of(isc.cbegin(), isc.cend(), [&](float val) { return val == isc[0]; }) &&
+                    std::all_of(ish.cbegin(), ish.cend(), [&](float val) { return val == 0; })) {
+                    std::vector<float> outScales;
+                    int mask = 1 << 1;
+                    attr.get_output_scales(mask, outScales);
+
+                    for (int j = 0; j < outScales.size(); j++) {
+                        outScales[j] *= isc[0];
+                    }
+                    attr.set_output_scales(mask, outScales);
+
+                    ops.get()->entry_[0].sum.scale = isc[0];
+
+                    continue;
                 }
             }
 
