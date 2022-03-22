@@ -1814,8 +1814,10 @@ void GNAGraphCompiler::ConvolutionFilterPrimitive(InferenceEngine::CNNLayerPtr l
 
     const auto noOfInputsDivisor = gnaFlags->input_low_precision ?
         GNALimitations::noOfInputsLowPrecDivisor : GNALimitations::noOfInputsDivisor;
-    const uint32_t orginalInputSize = GetDataDimSize(inputs, 1);
-    const uint32_t orginalOutputSize = GetDataDimSize(outputs, 1);
+    const uint32_t orginalInputSize =
+        InferenceEngine::details::product(++begin(inputs->getDims()), end(inputs->getDims()));
+    const uint32_t orginalOutputSize =
+        InferenceEngine::details::product(++begin(outputs->getDims()), end(outputs->getDims()));
     if (orginalInputSize != orginalOutputSize) {
         THROW_GNA_LAYER_EXCEPTION(filterLayer) << "Number in inputs (" << orginalInputSize <<
             ") should be equal to number of outputs (" << orginalOutputSize << ")!";
@@ -1911,8 +1913,8 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
     uint32_t w_dim_in = GetDataDimSize(inputs, DataDimName::W);
     uint32_t h_dim_in = GetDataDimSize(inputs, DataDimName::H);
     uint32_t c_dim_in = GetDataDimSize(inputs, DataDimName::C);
-    uint32_t n_dim_in = GetDataDimSize(inputs, DataDimName::N);
-    num_columns = n_dim_in;
+    uint32_t b_dim_in = GetDataDimSize(inputs, DataDimName::N);
+    num_columns = b_dim_in;
     num_rows = w_dim_in * h_dim_in * c_dim_in;
 
     if (dnn->new_num_conv_columns) {

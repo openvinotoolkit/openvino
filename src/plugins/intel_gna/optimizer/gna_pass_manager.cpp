@@ -695,21 +695,40 @@ void RemovePermutationsNHWCToNCHWPass::run() {
             data->setLayout(layout);
         };
 
-        auto input_to = getInputTo(pattern_start->outData[0]);
-        IE_ASSERT(!input_to.empty());
-        auto current_layer = input_to.begin()->second;
-        setTransposedOrder(current_layer->input());
-        std::function<void(CNNLayerPtr)> propogateNHWCOrderRecursive =
-            [pattern_end, &propogateNHWCOrderRecursive, &setTransposedOrder](CNNLayerPtr current_layer) {
-            if (current_layer == pattern_end) return;
-            for (size_t i = 0; i < current_layer->outData.size(); ++i) {
-                setTransposedOrder(current_layer->outData[i]);
-                auto input_to = getInputTo(current_layer->outData[i]);
-                IE_ASSERT(!input_to.empty());
-                propogateNHWCOrderRecursive(input_to.begin()->second);
+        std::function<std::list<InferenceEngine::DataPtr>(CNNLayerPtr, const std::list<InferenceEngine::DataPtr>&)> getPathBetweenTransposes =
+            [pattern_start, pattern_end, &getPathBetweenTransposes](CNNLayerPtr current_layer, const std::list<InferenceEngine::DataPtr>& path) {
+            if (current_layer == pattern_end) {
+                // the pattern end has been found, return the full path
+                return path;
             }
+
+            // transpose is reached, the pattern end hasn't been found
+            if (current_layer != pattern_start &&
+                (LayerInfo(current_layer).isPermute() || LayerInfo(current_layer).isPermuteViaReshape())) {
+                return std::list<InferenceEngine::DataPtr>();
+            }
+
+            auto new_path(path);
+            std::list<InferenceEngine::DataPtr> mergedChildPath;
+            for (const auto& output : current_layer->outData) {
+                new_path.push_back(output);
+                for (const auto& input : getInputTo(output)) {
+                    auto childPath = getPathBetweenTransposes(input.second, new_path);
+                    // only the branch with the pattern end will return not empty list
+                    if (!childPath.empty()) {
+                        mergedChildPath.insert(std::end(mergedChildPath), std::begin(childPath), std::end(childPath));
+                        break;
+                    }
+                }
+            }
+
+            return mergedChildPath;
         };
-        propogateNHWCOrderRecursive(current_layer);
+
+        auto path = getPathBetweenTransposes(pattern_start, std::list<InferenceEngine::DataPtr>());
+        for (const auto& data : path) {
+            setTransposedOrder(data);
+        }
 
         if ((LayerInfo(pattern_start).isPermute() || LayerInfo(pattern_start).isPermuteViaReshape()) &&
          !getInputTo(pattern_start->outData.front()).empty()) {
@@ -1341,10 +1360,9 @@ void InsertSplitAligningFilterPass::run() {
                 if (getInputTo(splitOutput).empty()) {
                     gnalog() << "Output port: " << splitOutIndex << " of " << l->name << " unconnected, skipping\n";
                 } else {
-                    auto lastDimSize = GetDataDimSize(splitOutput, 1);
-                    if (lastDimSize != outputSize) {
-                        THROW_GNA_EXCEPTION << l->name << " Convolution Filter doesn't support these input dimensions: lastDimSize="
-                            << lastDimSize << ", outputSize=" << outputSize;
+                    if (splitOutput->getDims().size() > 1 && splitOutput->getDims().front() > 1) {
+                        THROW_GNA_EXCEPTION << l->name << " Convolution Filter doesn't support batch="
+                            << splitOutput->getDims().front();
                     }
 
                     // this split output not beginning from 64 bytes aligned boundary - need to correct by aligning filter layer
