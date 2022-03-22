@@ -86,24 +86,7 @@ OutputVector generate_scan(const Node& node,
     }
 
     // TensorIterator setup
-    auto body_condition = std::make_shared<default_opset::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
-    auto current_iteration = std::make_shared<default_opset::Parameter>(element::i64, Shape{});
-
-    body_inputs.push_back(current_iteration);  // current iteration body input
-    body_outputs.push_back(body_condition);
-
-    auto sequence_length = ng_inputs[num_initial_values + in_offset]
-                               .get_shape()[scan_input_axes[0]];  // TODO: Update to dynamic PartialShape
-
-    Output<ngraph::Node> trip_count = ngraph::op::Constant::create(ngraph::element::i64, {1}, {sequence_length});
-    Output<ngraph::Node> termination_cond = ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
-
-    auto tensor_iterator = std::make_shared<default_opset::Loop>(trip_count, termination_cond);
-    default_opset::Loop::SpecialBodyPorts spec_ports{
-        int64_t(body_inputs.size() - 1), // current_iter_input idx
-        int64_t(body_outputs.size() - 1)}; // body_condidiotn_input idx
-    tensor_iterator->set_special_body_ports(spec_ports);
-
+    auto tensor_iterator = std::make_shared<default_opset::TensorIterator>();
     auto ti_body = std::make_shared<Function>(body_outputs, body_inputs);
     tensor_iterator->set_function(ti_body);
 
