@@ -2,7 +2,7 @@
 
 Users interact with a model by passing data to its _inputs_ before the inference and retrieving data from its _outputs_ after the inference. A model may have one or multiple inputs and outputs. Normally, in OpenVINO™ toolkit, all inputs and outputs in the converted model are identified in the same way as in the original framework model.
 
-OpenVINO uses the _names_ of tensors for identification. Depending on the framework, the names of tensors are formed differently.
+OpenVINO uses the _names of tensors_ for identification. Depending on the framework, the names of tensors are formed differently.
 
 A model accepts inputs and produces outputs of some _shape_. Shape defines the number of dimensions in a tensor and their order. For example, an image classification model can accept tensor of shape [1, 3, 240, 240] and produces tensor of shape [1, 1000].
 
