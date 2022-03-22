@@ -9,6 +9,7 @@ import numpy as np
 
 import openvino.runtime as ov
 from openvino.runtime import Tensor
+from openvino.helpers import pack_data, unpack_data
 
 import pytest
 
@@ -29,7 +30,9 @@ from ..conftest import read_image
     (ov.Type.i64, np.int64),
     (ov.Type.u64, np.uint64),
     (ov.Type.boolean, np.bool),
-    # (ov.Type.u1, np.uint8),
+    (ov.Type.u1, np.uint8),
+    (ov.Type.u4, np.uint8),
+    (ov.Type.i4, np.int8),
 ])
 def test_init_with_ngraph(ov_type, numpy_dtype):
     ov_tensors = []
@@ -175,7 +178,6 @@ def test_init_with_roi_tensor():
     (ov.Type.i64, np.int64),
     (ov.Type.u64, np.uint64),
     (ov.Type.boolean, np.bool),
-    # (ov.Type.u1, np.uint8),
 ])
 def test_write_to_buffer(ov_type, numpy_dtype):
     ov_tensor = Tensor(ov_type, ov.Shape([1, 3, 32, 32]))
@@ -198,7 +200,6 @@ def test_write_to_buffer(ov_type, numpy_dtype):
     (ov.Type.i64, np.int64),
     (ov.Type.u64, np.uint64),
     (ov.Type.boolean, np.bool),
-    # (ov.Type.u1, np.uint8),
 ])
 def test_set_shape(ov_type, numpy_dtype):
     shape = ov.Shape([1, 3, 32, 32])
@@ -268,3 +269,68 @@ def test_cannot_set_shape_incorrect_dims():
     with pytest.raises(RuntimeError) as e:
         ov_tensor.shape = [3, 28, 28]
     assert "Dims and format are inconsistent" in str(e.value)
+
+
+@pytest.mark.parametrize("ov_type", [
+    (ov.Type.u1),
+    (ov.Type.u4),
+    (ov.Type.i4),
+])
+def test_cannot_create_roi_from_packed_tensor(ov_type):
+    ov_tensor = Tensor(ov_type, [1, 3, 48, 48])
+    with pytest.raises(RuntimeError) as e:
+        Tensor(ov_tensor, [0, 0, 24, 24], [1, 3, 48, 48])
+    assert "ROI Tensor for types with bitwidths less then 8 bit is not implemented" in str(e.value)
+
+
+@pytest.mark.parametrize("ov_type", [
+    (ov.Type.u1),
+    (ov.Type.u4),
+    (ov.Type.i4),
+])
+def test_cannot_get_strides_for_packed_tensor(ov_type):
+    ov_tensor = Tensor(ov_type, [1, 3, 48, 48])
+    with pytest.raises(RuntimeError) as e:
+        ov_tensor.get_strides()
+    assert f"Could not get strides for types with bitwidths less then 8 bit." in str(e.value)
+
+
+@pytest.mark.parametrize("dtype", [
+    (np.uint8),
+    (np.int8),
+    (np.uint16),
+    (np.uint32),
+    (np.uint64),
+])
+@pytest.mark.parametrize("ov_type", [
+    (ov.Type.u1),
+    (ov.Type.u4),
+    (ov.Type.i4),
+])
+def test_init_with_packed_buffer(dtype, ov_type):
+    shape = [1, 3, 32, 32]
+    fit = np.dtype(dtype).itemsize * 8 / ov_type.bitwidth
+    assert np.prod(shape) % fit == 0
+    size = int(np.prod(shape) // fit)
+    buffer = np.random.normal(size=size).astype(dtype)
+    ov_tensor = Tensor(buffer, shape, ov_type)
+    assert ov_tensor.data.nbytes == ov_tensor.byte_size
+    assert np.array_equal(ov_tensor.data.view(dtype), buffer)
+
+
+@pytest.mark.parametrize("shape", [
+    ([1, 3, 28, 28]),
+    ([1, 3, 27, 27]),
+])
+@pytest.mark.parametrize("low, high, ov_type, dtype", [
+    (0, 2, ov.Type.u1, np.uint8),
+    (0, 16, ov.Type.u4, np.uint8),
+    (-8, 7, ov.Type.i4, np.int8),
+])
+def test_packing(shape, low, high, ov_type, dtype):
+    ov_tensor = Tensor(ov_type, shape)
+    data = np.random.uniform(low, high, shape).astype(dtype)
+    packed_data = pack_data(data, ov_tensor.element_type)
+    ov_tensor.data[:] = packed_data
+    unpacked = unpack_data(ov_tensor.data, ov_tensor.element_type, ov_tensor.shape)
+    assert np.array_equal(unpacked, data)

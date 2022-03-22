@@ -35,16 +35,17 @@ void regclass_Tensor(py::module m) {
                 :type shared_memory: bool
             )");
 
-    cls.def(py::init([](py::array& array, const ov::Shape& shape) {
-                return Common::tensor_from_pointer(array, shape);
+    cls.def(py::init([](py::array& array, const ov::Shape& shape, const ov::element::Type& ov_type) {
+                return Common::tensor_from_pointer(array, shape, ov_type);
             }),
             py::arg("array"),
             py::arg("shape"),
+            py::arg("type") = ov::element::undefined,
             R"(
                 Another Tensor's special constructor.
 
                 It takes an array or slice of it, and shape that will be
-                selected, starting from the first element of the given array/slice. 
+                selected, starting from the first element of the given array/slice.
                 Please use it only in advanced cases if necessary!
 
                 :param array: Underlaying methods will retrieve pointer on first element
@@ -57,6 +58,7 @@ void regclass_Tensor(py::module m) {
                 :type array: numpy.array
                 :param shape: Shape of the new tensor.
                 :type shape: openvino.runtime.Shape
+                :type type: openvino.runtime.Type (optional).
 
                 :Example:
                 .. code-block:: python
@@ -73,6 +75,56 @@ void regclass_Tensor(py::module m) {
                     print(arr)
                     >>> [[1 2 3]
                     >>>  [9 5 6]]
+
+                    arr = np.array(shape=(100), dtype=np.uint8)
+
+                    t = ov.Tensor(arr, ov.Shape([100, 8]), ov.Type.u1)
+            )");
+
+    cls.def(py::init([](py::array& array, const std::vector<size_t> shape, const ov::element::Type& ov_type) {
+                return Common::tensor_from_pointer(array, shape, ov_type);
+            }),
+            py::arg("array"),
+            py::arg("shape"),
+            py::arg("type") = ov::element::undefined,
+            R"(
+                Another Tensor's special constructor.
+
+                It takes an array or slice of it, and shape that will be
+                selected, starting from the first element of the given array/slice.
+                Please use it only in advanced cases if necessary!
+
+                :param array: Underlaying methods will retrieve pointer on first element
+                              from it, which is simulating `host_ptr` from C++ API.
+                              Tensor memory is being shared with a host,
+                              that means the responsibility of keeping host memory is
+                              on the side of a user. Any action performed on the host
+                              memory will be reflected on this Tensor's memory!
+                              Data is required to be C_CONTIGUOUS.
+                :type array: numpy.array
+                :param shape: Shape of the new tensor.
+                :type shape: list or tuple
+                :type type: openvino.runtime.Type (optional).
+
+                :Example:
+                .. code-block:: python
+
+                    import openvino.runtime as ov
+                    import numpy as np
+
+                    arr = np.array([[1, 2, 3], [4, 5, 6]])
+
+                    t = ov.Tensor(arr[1][0:1], [3])
+
+                    t.data[0] = 9
+
+                    print(arr)
+                    >>> [[1 2 3]
+                    >>>  [9 5 6]]
+
+                    arr = np.array(shape=(100), dtype=np.uint8)
+
+                    t = ov.Tensor(arr, [100, 8], ov.Type.u1)
             )");
 
     cls.def(py::init<const ov::element::Type, const ov::Shape>(), py::arg("type"), py::arg("shape"));
@@ -177,11 +229,12 @@ void regclass_Tensor(py::module m) {
     cls.def_property_readonly(
         "data",
         [](ov::Tensor& self) {
-            return py::array(Common::ov_type_to_dtype().at(self.get_element_type()),
-                             self.get_shape(),
-                             self.get_strides(),
-                             self.data(),
-                             py::cast(self));
+            auto ov_type = self.get_element_type();
+            auto dtype = Common::ov_type_to_dtype().at(ov_type);
+            if (ov_type.bitwidth() < 8) {
+                return py::array(dtype, self.get_byte_size(), self.data(), py::cast(self));
+            }
+            return py::array(dtype, self.get_shape(), self.get_strides(), self.data(), py::cast(self));
         },
         R"(
             Access to Tensor's data.
