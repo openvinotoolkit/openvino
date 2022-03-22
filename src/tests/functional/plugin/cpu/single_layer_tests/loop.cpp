@@ -170,20 +170,20 @@ protected:
         bool exec_cond;
         std::vector<InputShape> shapes;
         std::vector<LOOP_IN_TYPE> types;
-        std::tie(trip_count_type, trip_count, exec_cond, shapes, types, inType) = this->GetParam();
+        std::tie(trip_count_type, trip_count, exec_cond, shapes, types, inType[0]) = this->GetParam();
 
         targetDevice = CommonTestUtils::DEVICE_CPU;
         init_input_shapes(shapes);
         for (auto& target : targetStaticShapes)
             target.insert(target.begin(), ngraph::Shape{});
 
-        auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+        auto params = ngraph::builder::makeDynamicParams(inType[0], inputDynamicShapes);
 
         // Body parameters
         const std::vector<ngraph::PartialShape> body_params_shapes(shapes.size(), ngraph::PartialShape::dynamic());
         ngraph::ParameterVector body_params = { std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, ngraph::Shape{}) };
         for (const auto &pshape : body_params_shapes) {
-            body_params.emplace_back(std::make_shared<ngraph::opset1::Parameter>(inType, pshape));
+            body_params.emplace_back(std::make_shared<ngraph::opset1::Parameter>(inType[0], pshape));
         }
 
         auto exec_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, exec_cond);
@@ -197,7 +197,7 @@ protected:
         auto less = std::make_shared<ngraph::opset5::Less>(body_params[0], const_body_cond);
         auto exec_idx = std::make_shared<ngraph::opset5::Add>(body_params[0], const_body_step);
 
-        auto node_const = std::make_shared<ngraph::opset5::Constant>(inType, ngraph::Shape{}, 2);
+        auto node_const = std::make_shared<ngraph::opset5::Constant>(inType[0], ngraph::Shape{}, 2);
         auto node = std::make_shared<ngraph::opset5::Add>(body_params[1], node_const);
 
         // reference ngraph function is resized by input static shapes in tests but
@@ -241,19 +241,19 @@ protected:
         bool exec_cond;
         std::vector<InputShape> shapes;
         std::vector<LOOP_IN_TYPE> types;
-        std::tie(trip_count_type, trip_count, exec_cond, shapes, types, inType) = this->GetParam();
+        std::tie(trip_count_type, trip_count, exec_cond, shapes, types, inType[0]) = this->GetParam();
 
         targetDevice = CommonTestUtils::DEVICE_CPU;
         init_input_shapes(shapes);
 
-        auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+        auto params = ngraph::builder::makeDynamicParams(inType[0], inputDynamicShapes);
 
         // Set up the cell body, a function from (Xi, Yi) -> (Zo)
         // Body parameters
         const std::vector<ngraph::PartialShape> body_params_shapes(shapes.size(), ngraph::PartialShape::dynamic());
         ngraph::ParameterVector body_params;
         for (const auto &pshape : body_params_shapes) {
-            body_params.emplace_back(std::make_shared<ngraph::opset1::Parameter>(inType, pshape));
+            body_params.emplace_back(std::make_shared<ngraph::opset1::Parameter>(inType[0], pshape));
         }
 
         auto body_condition_const = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
@@ -273,8 +273,8 @@ protected:
 
         // Body
         const auto axis = 1;
-        auto s = ngraph::builder::makeSlice(body_params[0], {0}, {1}, {1}, {axis}, inType);
-        auto constant = ngraph::builder::makeConstant(inType, std::vector<size_t>{1}, std::vector<float>{0.5});
+        auto s = ngraph::builder::makeSlice(body_params[0], {0}, {1}, {1}, {axis}, inType[0]);
+        auto constant = ngraph::builder::makeConstant(inType[0], std::vector<size_t>{1}, std::vector<float>{0.5});
         auto eltwise = std::make_shared<ov::op::v1::Add>(body_params[0], constant);
 
         auto body = std::make_shared<ov::Model>(ngraph::OutputVector{body_condition_const, s, eltwise}, body_params);

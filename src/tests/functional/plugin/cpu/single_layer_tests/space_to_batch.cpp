@@ -61,7 +61,7 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         auto ngPrec = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        inType = outType[0] = ngPrec;
+        inType[0] = outType[0] = ngPrec;
         const std::vector<InputShape> inputShapesVec{inputShapes};
         init_input_shapes(inputShapesVec);
 
@@ -73,7 +73,7 @@ protected:
         auto params = ngraph::builder::makeDynamicParams(ngPrec, {inputDynamicShapes.front()});
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
         auto s2b = ngraph::builder::makeSpaceToBatch(paramOuts[0], ngPrec, blockShape, padsBegin, padsEnd);
-        function = makeNgraphFunction(inType, params, s2b, "SpaceToBatchCPU");
+        function = makeNgraphFunction(inType[0], params, s2b, "SpaceToBatchCPU");
     }
 };
 

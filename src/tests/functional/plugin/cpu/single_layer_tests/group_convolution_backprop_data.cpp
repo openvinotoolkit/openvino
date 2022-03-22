@@ -142,8 +142,8 @@ public:
                 if (i > 0) {
                     continue;
                 }
-                if (inType != ov::element::Type_t::undefined) {
-                    p.input(i).tensor().set_element_type(inType);
+                if (inType[0] != ov::element::Type_t::undefined) {
+                    p.input(i).tensor().set_element_type(inType[0]);
                 }
             }
         }
@@ -216,10 +216,10 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
-            inType = outType[0] = prec = ElementType::bf16;
+            inType[0] = outType[0] = prec = ElementType::bf16;
             rel_threshold = 1e-2f;
         } else {
-            inType = outType[0] = prec;
+            inType[0] = outType[0] = prec;
         }
 
         selectedType = makeSelectedTypeStr(selectedType, prec);

@@ -50,14 +50,14 @@ protected:
         std::int64_t axis;
         bool exclusive;
         bool reverse;
-        std::tie(inType, shapes, axis, exclusive, reverse) = this->GetParam();
-        if (inType == ElementType::bf16)
+        std::tie(inType[0], shapes, axis, exclusive, reverse) = this->GetParam();
+        if (inType[0] == ElementType::bf16)
             rel_threshold = 0.05f;
 
-        selectedType = makeSelectedTypeStr("ref_any", inType);
+        selectedType = makeSelectedTypeStr("ref_any", inType[0]);
         init_input_shapes({shapes});
 
-        auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+        auto params = ngraph::builder::makeDynamicParams(inType[0], inputDynamicShapes);
         auto axisNode = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{}, std::vector<int64_t>{axis})->output(0);
         auto cumSum = ngraph::builder::makeCumSum(params[0], axisNode, exclusive, reverse);
 

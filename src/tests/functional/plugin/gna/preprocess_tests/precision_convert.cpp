@@ -48,7 +48,7 @@ protected:
         abs_threshold = std::numeric_limits<int32_t>::max();
         rel_threshold = std::numeric_limits<int32_t>::max();
 
-        std::tie(net_type, inType, outType[0], targetDevice, conf) = this->GetParam();
+        std::tie(net_type, inType[0], outType[0], targetDevice, conf) = this->GetParam();
 
         configuration.insert(conf.begin(), conf.end());
 

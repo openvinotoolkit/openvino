@@ -174,9 +174,16 @@ void SubgraphBaseTest::configure_model() {
     ov::preprocess::PrePostProcessor p(function);
     {
         auto& params = function->get_parameters();
+        size_t gapSize = params.size() - inType.size();
+        if (gapSize) {
+            auto inTypeDefaultValue = inType[0];
+            for (size_t i = 1; i <= gapSize; i++) {
+                inType.push_back(inTypeDefaultValue);
+            }
+        }
         for (size_t i = 0; i < params.size(); i++) {
-            if (inType != ov::element::Type_t::undefined) {
-                p.input(i).tensor().set_element_type(inType);
+            if (inType[i] != ov::element::Type_t::undefined) {
+                p.input(i).tensor().set_element_type(inType[i]);
             }
         }
     }

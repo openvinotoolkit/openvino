@@ -119,7 +119,7 @@ protected:
         helpers::InputLayerType secondaryInputType;
         std::map<std::string, std::string> additionalConfig;
 
-        std::tie(shapeRelatedParams, netType, inType, outType[0], secondaryInputType, targetDevice, additionalConfig) = basicParamsSet;
+        std::tie(shapeRelatedParams, netType, inType[0], outType[0], secondaryInputType, targetDevice, additionalConfig) = basicParamsSet;
 
         init_input_shapes(shapeRelatedParams.inputShapes);
 
@@ -151,9 +151,9 @@ protected:
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
         if (additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES)
-            inType = outType[0] = netType = ElementType::bf16;
+            inType[0] = outType[0] = netType = ElementType::bf16;
         else
-            inType = outType[0] = netType;
+            inType[0] = outType[0] = netType;
 
         cpuNodeType = nodeType == MatMulNodeType::MatMul ? "MatMul" : "FullyConnected";
         selectedType = makeSelectedTypeStr(selectedType, outType[0]);

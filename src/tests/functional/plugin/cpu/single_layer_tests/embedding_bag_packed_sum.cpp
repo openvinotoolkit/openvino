@@ -60,23 +60,23 @@ protected:
     void SetUp() override {
         embeddingBagPackedSumParams embParams;
         ElementType indPrecision;
-        std::tie(embParams, inType, indPrecision, targetDevice) = this->GetParam();
+        std::tie(embParams, inType[0], indPrecision, targetDevice) = this->GetParam();
 
         InputShape inputShapes;
         std::vector<std::vector<size_t>> indices;
         bool withWeights;
         std::tie(inputShapes, indices, withWeights) = embParams;
 
-        selectedType = makeSelectedTypeStr("ref", inType);
+        selectedType = makeSelectedTypeStr("ref", inType[0]);
         targetDevice = CommonTestUtils::DEVICE_CPU;
 
         init_input_shapes({ inputShapes });
 
-        auto emb_table_node = std::make_shared<ngraph::opset1::Parameter>(inType, inputShapes.first);
+        auto emb_table_node = std::make_shared<ngraph::opset1::Parameter>(inType[0], inputShapes.first);
         ngraph::ParameterVector params = {emb_table_node};
 
         auto embBag = std::dynamic_pointer_cast<ngraph::opset3::EmbeddingBagPackedSum>(ngraph::builder::makeEmbeddingBagPackedSum(
-            inType,
+            inType[0],
             indPrecision,
             emb_table_node,
             indices,

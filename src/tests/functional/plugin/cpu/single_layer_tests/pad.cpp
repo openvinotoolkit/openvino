@@ -60,16 +60,16 @@ protected:
         ngraph::helpers::PadMode padMode;
         float argPadValue;
         CPUSpecificParams cpuParams;
-        std::tie(shapes, inType, padsBegin, padsEnd, argPadValue, padMode, cpuParams) = this->GetParam();
+        std::tie(shapes, inType[0], padsBegin, padsEnd, argPadValue, padMode, cpuParams) = this->GetParam();
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        selectedType = makeSelectedTypeStr("ref", inType);
+        selectedType = makeSelectedTypeStr("ref", inType[0]);
         targetDevice = CommonTestUtils::DEVICE_CPU;
         init_input_shapes({shapes});
 
-        auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+        auto params = ngraph::builder::makeDynamicParams(inType[0], inputDynamicShapes);
         auto pad = ngraph::builder::makePad(params[0], padsBegin, padsEnd, argPadValue, padMode);
-        function = makeNgraphFunction(inType, params, pad, "Pad");
+        function = makeNgraphFunction(inType[0], params, pad, "Pad");
     }
 };
 

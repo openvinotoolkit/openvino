@@ -84,7 +84,7 @@ protected:
         ngraph::helpers::InputLayerType secondaryInputType;
         CommonTestUtils::OpType opType;
         Config additional_config;
-        std::tie(shapes, eltwiseType, secondaryInputType, opType, netType, inType, outType[0], targetDevice, configuration) = basicParamsSet;
+        std::tie(shapes, eltwiseType, secondaryInputType, opType, netType, inType[0], outType[0], targetDevice, configuration) = basicParamsSet;
 
         if (ElementType::bf16 == netType) {
             rel_threshold = 2e-2f;

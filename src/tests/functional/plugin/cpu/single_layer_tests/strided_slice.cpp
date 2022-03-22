@@ -67,17 +67,17 @@ protected:
         InputShape shapes;
         StridedSliceParams ssParams;
         CPUSpecificParams cpuParams;
-        std::tie(shapes, ssParams, inType, cpuParams) = this->GetParam();
+        std::tie(shapes, ssParams, inType[0], cpuParams) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
-        selectedType = makeSelectedTypeStr("ref", inType);
+        selectedType = makeSelectedTypeStr("ref", inType[0]);
         targetDevice = CommonTestUtils::DEVICE_CPU;
         init_input_shapes({shapes});
 
-        auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
-        auto ss = ngraph::builder::makeStridedSlice(params[0], ssParams.begin, ssParams.end, ssParams.strides, inType, ssParams.beginMask,
+        auto params = ngraph::builder::makeDynamicParams(inType[0], inputDynamicShapes);
+        auto ss = ngraph::builder::makeStridedSlice(params[0], ssParams.begin, ssParams.end, ssParams.strides, inType[0], ssParams.beginMask,
                                                     ssParams.endMask, ssParams.newAxisMask, ssParams.shrinkAxisMask, ssParams.ellipsisAxisMask);
-        function = makeNgraphFunction(inType, params, ss, "StridedSlice");
+        function = makeNgraphFunction(inType[0], params, ss, "StridedSlice");
     }
 };
 

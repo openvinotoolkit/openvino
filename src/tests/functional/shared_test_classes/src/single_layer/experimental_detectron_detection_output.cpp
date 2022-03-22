@@ -78,7 +78,7 @@ void ExperimentalDetectronDetectionOutputLayerTest::SetUp() {
         netPrecision,
         targetName) = this->GetParam();
 
-    inType = outType[0] = netPrecision;
+    inType[0] = outType[0] = netPrecision;
     targetDevice = targetName;
 
     init_input_shapes(inputShapes);

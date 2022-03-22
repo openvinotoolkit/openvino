@@ -57,17 +57,17 @@ protected:
         std::tie(inputShapes, inputOrder, netPrecision, targetDevice, additionalConfig, cpuParams) = this->GetParam();
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        inType[0] = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         outType[0] = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
-        selectedType = makeSelectedTypeStr("unknown", inType);
+        selectedType = makeSelectedTypeStr("unknown", inType[0]);
 
         init_input_shapes({inputShapes});
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeDynamicParams(inType, { inputDynamicShapes[0] });
+        auto params = ngraph::builder::makeDynamicParams(inType[0], { inputDynamicShapes[0] });
 
         const auto inputOrderOp = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
                                                                          ov::Shape({inputOrder.size()}),

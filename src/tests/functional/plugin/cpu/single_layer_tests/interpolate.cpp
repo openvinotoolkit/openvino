@@ -131,12 +131,15 @@ public:
         ov::preprocess::PrePostProcessor p(function);
         {
             auto& params = function->get_parameters();
-            for (size_t i = 0; i < params.size(); i++) {
-                if (i > 0) {
-                    continue;
+            size_t gapSize = params.size() - inType.size();
+            if (gapSize) {
+                for (size_t i = 0; i < gapSize; i++) {
+                    inType.push_back(inType[0]);
                 }
-                if (inType != ov::element::Type_t::undefined) {
-                    p.input(i).tensor().set_element_type(inType);
+            }
+            for (size_t i = 0; i < params.size(); i++) {
+                if (inType[i] != ov::element::Type_t::undefined) {
+                    p.input(i).tensor().set_element_type(inType[i]);
                 }
             }
         }
@@ -213,10 +216,10 @@ protected:
         }
 
         if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
-            inType = outType[0] = ngPrc = ElementType::bf16;
+            inType[0] = outType[0] = ngPrc = ElementType::bf16;
             rel_threshold = 1e-2f;
         } else {
-            inType = outType[0] = ngPrc;
+            inType[0] = outType[0] = ngPrc;
         }
 
         init_input_shapes(inputShapes);

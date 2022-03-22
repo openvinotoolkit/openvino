@@ -61,19 +61,19 @@ protected:
         DepthToSpace::DepthToSpaceMode mode;
         std::size_t blockSize;
         CPUSpecificParams cpuParams;
-        std::tie(shapes, inType, mode, blockSize, cpuParams) = this->GetParam();
+        std::tie(shapes, inType[0], mode, blockSize, cpuParams) = this->GetParam();
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         if (selectedType.empty()) {
             selectedType = getPrimitiveType();
         }
-        selectedType = makeSelectedTypeStr(selectedType, inType);
+        selectedType = makeSelectedTypeStr(selectedType, inType[0]);
         targetDevice = CommonTestUtils::DEVICE_CPU;
         init_input_shapes({shapes});
 
-        auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+        auto params = ngraph::builder::makeDynamicParams(inType[0], inputDynamicShapes);
         auto d2s = ngraph::builder::makeDepthToSpace(params[0], mode, blockSize);
-        function = makeNgraphFunction(inType, params, d2s, "DepthToSpace");
+        function = makeNgraphFunction(inType[0], params, d2s, "DepthToSpace");
     }
 };
 

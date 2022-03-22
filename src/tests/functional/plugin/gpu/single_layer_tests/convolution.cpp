@@ -74,7 +74,7 @@ protected:
         convSpecificParams convParams;
         InputShape inputShape;
         auto netType = ElementType::undefined;
-        std::tie(convParams, netType, inType, outType[0], inputShape, targetDevice) = this->GetParam();
+        std::tie(convParams, netType, inType[0], outType[0], inputShape, targetDevice) = this->GetParam();
 
         init_input_shapes({inputShape});
 
@@ -84,7 +84,7 @@ protected:
         size_t convOutChannels;
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
 
-        auto inputParams = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+        auto inputParams = ngraph::builder::makeDynamicParams(inType[0], inputDynamicShapes);
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
 
         auto convolutionNode = ngraph::builder::makeConvolution(paramOuts.front(), netType, kernel, stride, padBegin,

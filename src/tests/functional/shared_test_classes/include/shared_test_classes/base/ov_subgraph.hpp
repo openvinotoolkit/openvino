@@ -47,7 +47,7 @@ protected:
     std::map<std::shared_ptr<ov::Node>, ov::Tensor> inputs;
     std::vector<ov::PartialShape> inputDynamicShapes;
     std::vector<std::vector<ov::Shape>> targetStaticShapes;
-    ElementType inType = ov::element::undefined;
+    std::vector<ElementType> inType = { ov::element::undefined };
     std::vector<ElementType> outType = {
             ov::element::undefined
     };
