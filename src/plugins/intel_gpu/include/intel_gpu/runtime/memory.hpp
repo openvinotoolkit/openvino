@@ -34,6 +34,8 @@ struct memory {
     virtual void unlock(const stream& stream) = 0;
     virtual event::ptr fill(stream& stream, unsigned char pattern) = 0;
     virtual event::ptr fill(stream& stream) = 0;
+    // only supports gpu_usm
+    virtual void* buffer_ptr() const { return nullptr; }
 
     size_t size() const { return _bytes_count; }
     size_t count() const { return _layout.count(); }

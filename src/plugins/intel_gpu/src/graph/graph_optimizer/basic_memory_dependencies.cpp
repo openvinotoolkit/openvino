@@ -36,37 +36,24 @@ void basic_memory_dependencies::run(program& p) {
             add_memory_dependency(it, node);
         }
 
-        if (node->is_type<convolution>() && node->get_preferred_impl_type() == impl_types::onednn) {
-            auto& conv = node->as<convolution>();
-            bool can_reuse_eltwise_mem = false;
+        if (node->get_preferred_impl_type() == impl_types::onednn
+            && (node->is_type<convolution>() || node->is_type<deconvolution>())) {
             size_t eltw_dep = 0;
-
-            for (auto& fused_op : conv.get_fused_primitives()) {
+            for (auto& fused_op : node->get_fused_primitives()) {
                 if (fused_op.node->is_type<eltwise>() && fused_op.deps.size() == 1) {
-                    auto eltw_in_layout = conv.get_dependency(fused_op.dep_start_idx).get_output_layout();
-                    auto conv_out_layout = node->get_output_layout();
-                    if (eltw_dep > 0) {
-                        can_reuse_eltwise_mem = false;
-                        break;
-                    }
+                    // If it is first sum, reuse the buffer
+                    auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(*node, fused_op);
+                    if (fusing_type != add_fusing_type::sum || eltw_dep != 0)
+                        continue;
 
-                    if (eltw_in_layout.size == conv_out_layout.size &&
-                        eltw_in_layout.format == conv_out_layout.format &&
-                        eltw_in_layout.data_padding == conv_out_layout.data_padding &&
-                        data_type_traits::size_of(eltw_in_layout.data_type) == data_type_traits::size_of(conv_out_layout.data_type)) {
-                        eltw_dep = fused_op.dep_start_idx;
-                        can_reuse_eltwise_mem = true;
+                    eltw_dep = fused_op.dep_start_idx;
+                    auto& eltw_node = node->get_dependency(eltw_dep);
+                    eltw_node.can_share_buffer(false);
+                    node->can_share_buffer(false);
+                    for (auto& user : node->get_users()) {
+                        add_memory_dependency(user, &eltw_node);
+                        add_memory_dependency(user, node);
                     }
-                }
-            }
-
-            if (can_reuse_eltwise_mem) {
-                auto& eltw_node = conv.get_dependency(eltw_dep);
-                eltw_node.can_share_buffer(false);
-                conv.can_share_buffer(false);
-                for (auto& user : conv.get_users()) {
-                    add_memory_dependency(user, &eltw_node);
-                    add_memory_dependency(user, &conv);
                 }
             }
         }
