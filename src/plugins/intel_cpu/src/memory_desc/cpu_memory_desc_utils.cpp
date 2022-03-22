@@ -15,7 +15,6 @@
 #include <dnnl_types.h>
 
 using namespace mkldnn;
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 namespace ov {
@@ -90,7 +89,7 @@ BlockedMemoryDescPtr MemoryDescUtils::convertToBlockedMemoryDesc(const MemoryDes
     }
 }
 
-InferenceEngine::Blob::Ptr MemoryDescUtils::interpretAsBlob(const MKLDNNMemory &mem) {
+InferenceEngine::Blob::Ptr MemoryDescUtils::interpretAsBlob(const Memory &mem) {
     // TODO [DS]: Rewrite when IE is moved to the new TensorDescriptor
     auto& memDesc = mem.getDesc();
     InferenceEngine::TensorDesc desc = convertToTensorDesc(memDesc);

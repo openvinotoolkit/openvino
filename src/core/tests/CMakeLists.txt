@@ -13,8 +13,6 @@ set(OV_ONNX_NAMESPACE ngraph_onnx)
 
 if(ENABLE_TESTS)
     add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/core/files\"")
-    add_subdirectory(util)
-    add_subdirectory(engines_util)
     if (ENABLE_OV_ONNX_FRONTEND)
         add_subdirectory(onnx_test_util)
     endif()
@@ -165,6 +163,7 @@ set(SRC
     type_prop/idft.cpp
     type_prop/if.cpp
     type_prop/interpolate.cpp
+    type_prop/irdft.cpp
     type_prop/logical_and.cpp
     type_prop/logical_not.cpp
     type_prop/logical_or.cpp
@@ -197,6 +196,7 @@ set(SRC
     type_prop/prior_box_clustered.cpp
     type_prop/random_uniform.cpp
     type_prop/range.cpp
+    type_prop/rdft.cpp
     type_prop/read_value.cpp
     type_prop/reduce_l1.cpp
     type_prop/reduce_l2.cpp
@@ -263,6 +263,7 @@ set(SRC
     visitors/op/add.cpp
     visitors/op/asin.cpp
     visitors/op/asinh.cpp
+    visitors/op/assign.cpp
     visitors/op/atan.cpp
     visitors/op/atanh.cpp
     visitors/op/avg_pool.cpp
@@ -324,6 +325,7 @@ set(SRC
     visitors/op/interpolate.cpp
     visitors/op/if.cpp
     visitors/op/idft.cpp
+    visitors/op/irdft.cpp
     visitors/op/less_equal.cpp
     visitors/op/less.cpp
     visitors/op/log.cpp
@@ -360,6 +362,8 @@ set(SRC
     visitors/op/proposal.cpp
     visitors/op/psroi_pooling.cpp
     visitors/op/random_uniform.cpp
+    visitors/op/rdft.cpp
+    visitors/op/read_value.cpp
     visitors/op/reduce_l1.cpp
     visitors/op/reduce_l2.cpp
     visitors/op/reduce_logical_and.cpp
