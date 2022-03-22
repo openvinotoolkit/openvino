@@ -163,65 +163,65 @@ To deploy the OpenVINO Runtime components from the development machine to the ta
 
 2. Unpack the archive into the destination directory on the target system (if your archive name is different from the default shown below, replace the `openvino_deployment_package` with the name you use).
 
-   @sphinxdirective
+@sphinxdirective
       
-   .. tab:: Linux  
+.. tab:: Linux  
       
-      .. code-block:: sh 
+   .. code-block:: sh 
       
-         tar xf openvino_deployment_package.tar.gz -C <destination_dir>
+      tar xf openvino_deployment_package.tar.gz -C <destination_dir>
       
-   .. tab:: Windows  
+.. tab:: Windows  
       
-      Use the archiver of your choice to unzip the file.  
+   Use the archiver of your choice to unzip the file.  
          
-   .. tab:: macOS  
+.. tab:: macOS  
 
-      .. code-block:: sh
+   .. code-block:: sh
             
-         tar xf openvino_deployment_package.tar.gz -C <destination_dir>
+      tar xf openvino_deployment_package.tar.gz -C <destination_dir>
       
-   @endsphinxdirective
+@endsphinxdirective
 
-   The package is unpacked to the destination directory and the following files and subdirectories are created:
+The package is unpacked to the destination directory and the following files and subdirectories are created:
          
-      * `setupvars.sh` — Copy of `setupvars.sh`
-      * `runtime` — Contains the OpenVINO runtime binary files.
-      * `install_dependencies` — Snapshot of the `install_dependencies` directory from the OpenVINO installation directory.
-      * `<user_data>` — The directory with the user data (IRs, datasets, etc.) you specified while configuring the package.
+   * `setupvars.sh` — Copy of `setupvars.sh`
+   * `runtime` — Contains the OpenVINO runtime binary files.
+   * `install_dependencies` — Snapshot of the `install_dependencies` directory from the OpenVINO installation directory.
+   * `<user_data>` — The directory with the user data (IRs, datasets, etc.) you specified while configuring the package.
 
 
-   For Linux, to run inference on a target Intel® GPU, Intel® Movidius™ VPU, or Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, you need to install additional dependencies by running the `install_openvino_dependencies.sh` script on the target machine:
+For Linux, to run inference on a target Intel® GPU, Intel® Movidius™ VPU, or Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, you need to install additional dependencies by running the `install_openvino_dependencies.sh` script on the target machine:
 
-   ```sh
-   cd <destination_dir>/openvino/install_dependencies
-   sudo -E ./install_openvino_dependencies.sh
-   ```
+```sh
+cd <destination_dir>/openvino/install_dependencies
+sudo -E ./install_openvino_dependencies.sh
+```
   
-3. Set up the environment variables:
+Set up the environment variables:
   
 @sphinxdirective  
       
-   .. tab:: Linux  
+.. tab:: Linux  
       
-      .. code-block:: sh
+   .. code-block:: sh
          
-         cd <destination_dir>/openvino/
-         source ./setupvars.sh
+      cd <destination_dir>/openvino/
+      source ./setupvars.sh
       
-   .. tab:: Windows  
+.. tab:: Windows  
       
-      .. code-block:: bat  
+   .. code-block:: bat  
       
-         cd <destination_dir>\openvino\
-         .\setupvars.bat
+      cd <destination_dir>\openvino\
+      .\setupvars.bat
       
-   .. tab:: macOS  
+.. tab:: macOS  
       
-      .. code-block:: sh
+   .. code-block:: sh
          
-         cd <destination_dir>/openvino/
-         source ./setupvars.sh
+      cd <destination_dir>/openvino/
+      source ./setupvars.sh
       
 @endsphinxdirective
 
