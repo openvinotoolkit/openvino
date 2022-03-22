@@ -89,6 +89,7 @@ To achieve the best performance with the Automatic Batching, the application sho
  - Operate the number of inference requests that represents the multiple of the batch size. In the above example, for batch size 4, the application should operate 4, 8, 12, 16, etc. requests.
  - Use the requests, grouped by the batch size, together. For example, the first 4 requests are inferred, while the second group of the requests is being populated. Essentially, the Automatic Batching shifts the asynchronousity from the individual requests to the groups of requests that constitute the batches.
   - Balance the 'timeout' value vs the batch size. For example, in many cases having a smaller timeout value/batch size may yield better performance than large batch size, but with the timeout value that is not large enough to accommodate the full number of the required requests.
+  - When the Automatic Batching is enabled, the 'timeout' property of the `ov::CompiledModel` can be changed any time, even after model loading/compilation. For example, setting the value to 0 effectively disables the auto-batching, as requests' collection would be omitted.
   - Carefully apply the auto-batching to the pipelines. For example for the conventional video-sources->detection->classification flow, it is the most benefical to do auto-batching over the inputs to the detection stage. Whereas the resulting number of detections is usually fluent, which makes the auto-batching less applicable for the classification stage.         
 
 The following are limitations of the current implementations:
@@ -110,11 +111,12 @@ Following the OpenVINO convention for devices names, the *batching* device is na
 ### Testing Automatic Batching Performance with the Benchmark_App
 The `benchmark_app`, that exists in both  [C++](../../samples/cpp/benchmark_app/README.md) and [Python](../../tools/benchmark_tool/README.md) versions, is the best way to evaluate the performance of the Automatic Batching:
  -  The most straighforward way is performance hints:
-- - benchmark_app **-hint tput** -d GPU -m 'path to your favorite model'
+    - benchmark_app **-hint tput** -d GPU -m 'path to your favorite model'
  -  Overriding the strict rules of implicit reshaping by the batch dimension via the explicit device notion:
-- - benchmark_app **-hint none -d BATCH:GPU** -m 'path to your favorite model'
+    - benchmark_app **-hint none -d BATCH:GPU** -m 'path to your favorite model'
  -  Finally, overriding the automatically-deduced batch size as well:
-- - $benchmark_app -hint none -d **BATCH:GPU(16)** -m 'path to your favorite model'
+    - $benchmark_app -hint none -d **BATCH:GPU(16)** -m 'path to your favorite model'
+    - notice that some shell versions (e.g. `bash`) may require adding quotes around complex device names, i.e. -d "BATCH:GPU(16)"
 
 The last example is also applicable to the CPU or any other device that generally supports the batched execution.  
 
