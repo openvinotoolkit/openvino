@@ -404,7 +404,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     pass_config->disable<ngraph::pass::ConvertGather8ToGather7>();
     pass_config->disable<ngraph::pass::ConvertMinimum>();
     pass_config->disable<ngraph::pass::ConvertBroadcastToTiles>();
-    pass_config->disable<ngraph::pass::ConvertReduceMeanToPooling>();
+//    pass_config->disable<ngraph::pass::ConvertReduceMeanToPooling>();
     pass_config->disable<ngraph::pass::ConvertReduceMaxToPooling>();
     pass_config->disable<ngraph::pass::ConvertReduceSumToPooling>();
     pass_config->disable<ngraph::pass::SliceToStridedSlice>();
