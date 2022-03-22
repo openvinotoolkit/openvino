@@ -200,7 +200,7 @@ To deploy the OpenVINO Runtime components from the development machine to the ta
   
 3. Set up the environment variables:
   
-   @sphinxdirective  
+@sphinxdirective  
       
    .. tab:: Linux  
       
@@ -223,6 +223,6 @@ To deploy the OpenVINO Runtime components from the development machine to the ta
          cd <destination_dir>/openvino/
          source ./setupvars.sh
       
-   @endsphinxdirective
+@endsphinxdirective
 
 You have now finished the deployment of the OpenVINO Runtime components to the target system.
