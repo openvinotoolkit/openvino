@@ -1,7 +1,7 @@
 # Quantizing your model {#pot_default_quantization_usage}
 
 ## Introduction
-This document describes how to apply model quantization in a basic scenario with DefautltQuantization method without accuracy control and using some unannotated dataset. The Post-Training Optimization Tool provides a Python* API that allows creating scripts that result to optimized models. The figure below shows the common workflow.
+This document describes how to apply model quantization in a basic scenario with DefautltQuantization method without accuracy control using some unannotated dataset. The Post-Training Optimization Tool provides a Python* API that allows creating scripts that result to optimized models. The figure below shows the common workflow.
 
 ![](./images/api.png)
 
@@ -19,7 +19,7 @@ Users can wrap framework data loading classes by `openvino.tools.pot.DataLoader`
 
 > **NOTE**: model-specific preprocessing, for example, mean/scale normalization can be embedded into the model at the convertion step using Model Optimizer component. This should be considered during the implementation the DataLoader interface to avoid "double" normalization which can lead to the loss of accuracy after optimization.
 
-Having implementations of `openvino.tools.pot.DataLoader`, it is possible to use  [**DefaultQuantization**](@ref pot_compression_algorithms_quantization_default_README) method which is aimed at fast full quantization.
+Having implementations of `openvino.tools.pot.DataLoader`, it is possible to use  DefaultQuantization method which is aimed at fast full quantization.
 
 ## Define quantization parameters
 DefaultQuantization algorithm has mandatory and optional parameters which are defined as a distionary:

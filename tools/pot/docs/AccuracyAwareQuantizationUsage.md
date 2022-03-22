@@ -81,7 +81,7 @@ engine = IEEngine(config=engine_config, data_loader=data_loader, metric=metric)
 ```
 
 ## Quantization parameters
-Since the [DefaultQuantization](../default/README.md) algorithm is used as an initialization, all its parameters are also valid and can be specified. Here we
+Since the DefaultQuantization algorithm is used as an initialization, all its parameters are also valid and can be specified. Here we
 describe only AccuracyAwareQuantization required parameters:
 - `"maximal_drop"` - maximum accuracy drop which has to be achieved after the quantization. Default value is `0.01` (1%).
 

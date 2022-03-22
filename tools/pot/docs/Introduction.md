@@ -1,4 +1,4 @@
-# Post-Training Optimization Tool {#pot_introdution}
+# Post-Training Optimization Tool {#pot_introduction}
 
 @sphinxdirective
 
@@ -12,6 +12,7 @@
    Protecting your model <pot_ranger_README>
    API description <pot_compression_api_README>
    Command-line Interface <pot_compression_cli_README>
+   Examples <pot_examples_description>
    pot_docs_FrequentlyAskedQuestions
 
 @endsphinxdirective
@@ -40,15 +41,15 @@ POT is also integrated into [Deep Learning Workbench](@ref workbench_docs_Workbe
 that enables you to  to import, optimize, benchmark, visualize, and compare performance of deep learning models. 
 
 ## Quantizing models with POT
-The primary optimization feature of the Post-training Optimization Tool (POT) is the uniform integer quantization which allows substantially increasing inference performance and reduciing the model size. Different HW platforms can support different integer precisions and POT is designed to support all of them, for example 8-bit for CPU, GPU, VPU, 16-bit for GNA. Moreover, POT makes specification of HW settings transparent for the user by introducing a concept of `target_device` parameter.
+The primary feature of the Post-training Optimization Tool is the uniform integer quantization which allows substantially increasing inference performance and reduciing the model size. Different HW platforms can support different integer precisions and POT is designed to support all of them, for example 8-bit for CPU, GPU, VPU, 16-bit for GNA. Moreover, POT makes specification of HW settings transparent for the user by introducing a concept of `target_device` parameter.
 
 > **NOTE**: There is a special `target_device: "ANY"` which leads to portable quantized models compatible with CPU, GPU, and VPU devices. GNA-quantized models are compatible only with CPU.
 
 During the quantization process, the POT tool runs inference of the optimizing model to estimate quantization parameters for input activations of the quantizable operation. It means that a calibration dataset is required to perform quantization. This dataset may have or not have annotation depending on the quantization algorithm that is used and here there are two possible options:
 
-*  [DefaultQuantization](@ref pot_compression_algorithms_quantization_default_README) is a default method that provides fast and accurate results in most cases. It requires only a unannotated dataset for quantization. For details, see the [DefaultQuantization Algorithm](@ref pot_compression_algorithms_quantization_default_README) documentation.
+*  [DefaultQuantization](@ref pot_default_quantization_usage) is a default method that provides fast and accurate results in most cases. It requires only a unannotated dataset for quantization. For details, see the [DefaultQuantization Algorithm](@ref pot_compression_algorithms_quantization_default_README) documentation.
 
-*  [AccuracyAwareQuantization](@ref pot_compression_algorithms_quantization_accuracy_aware_README) enables remaining at a predefined range of accuracy drop after quantization at the cost
+*  [AccuracyAwareQuantization](@ref pot_accuracyaware_usage) enables remaining at a predefined range of accuracy drop after quantization at the cost
    of performance improvement. The method requires annotated representative dataset and may require more time for quantization. For details, see the
    [AccuracyAwareQuantization Algorithm](@ref pot_compression_algorithms_quantization_accuracy_aware_README) documentation.
 
