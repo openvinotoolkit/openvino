@@ -3,32 +3,15 @@
 
 """Factory functions for all openvino ops."""
 from functools import partial
-from typing import Callable, Iterable, List, Optional, Set, Union
+from typing import List, Optional
 
-import numpy as np
-from openvino.runtime import Node, Shape
-from openvino.runtime.op import Constant, Parameter
+from openvino.runtime import Node
 from openvino.runtime.opset_utils import _get_node_factory
-from openvino.runtime.utils.decorators import binary_op, nameable_op, unary_op
-from openvino.runtime.utils.input_validation import (
-    assert_list_of_ints,
-    check_valid_attributes,
-    is_non_negative_value,
-    is_positive_value,
-)
-from openvino.runtime.utils.node_factory import NodeFactory
+
+from openvino.runtime.utils.decorators import nameable_op
 from openvino.runtime.utils.types import (
     NodeInput,
-    NumericData,
-    NumericType,
-    ScalarData,
-    TensorShape,
-    as_node,
     as_nodes,
-    get_dtype,
-    get_element_type,
-    get_element_type_str,
-    make_constant_node,
 )
 
 _get_node_factory_opset7 = partial(_get_node_factory, "opset7")

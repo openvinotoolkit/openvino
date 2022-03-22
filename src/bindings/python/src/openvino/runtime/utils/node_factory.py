@@ -1,8 +1,6 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import logging as log
-
 from functools import partial
 from typing import Any, Dict, List, Optional, Union
 
