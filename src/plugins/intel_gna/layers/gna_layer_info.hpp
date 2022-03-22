@@ -14,7 +14,9 @@
 #include "gna_permute.hpp"
 #include "gna_lib_ver_selector.hpp"
 #include "gna_copy_layer.hpp"
-
+#include <legacy/ngraph_ops/power.hpp>
+#include <ngraph/opsets/opset8.hpp>
+#include "ops/pwl.hpp"
 
 namespace GNAPluginNS {
 
@@ -118,6 +120,7 @@ class LayerInfo {
             THROW_GNA_EXCEPTION << "batch size is not define in layer '" << layer->name << "'";
         }
     }
+
     bool isActivation() const noexcept {
         IS_VALID();
         static InferenceEngine::details::caseless_set<std::string> activations =
@@ -136,9 +139,10 @@ class LayerInfo {
              "neghalflog",
              "softsign",
              "power",
-             "fakequantize"};
+             "fakequantize",
+             "pwl"};
 
-        if (isPower()) {
+        if (isOfType("power")) {
             auto powerLayer = as<const InferenceEngine::PowerLayer*>();
             return powerLayer != nullptr && powerLayer->power != 1.0f;
         }
@@ -169,7 +173,15 @@ class LayerInfo {
         return isOfType("convolution");
     }
     bool isPower() const noexcept {
-        return isOfType("power");
+        if (isOfType("power")) {
+            return true;
+        }
+        std::shared_ptr<ov::intel_gna::op::Pwl> pwl_node;
+        if (!layer->getNode() || !(pwl_node = std::dynamic_pointer_cast<ov::intel_gna::op::Pwl>(layer->getNode()))) {
+            return false;
+        }
+        return std::dynamic_pointer_cast<ngraph::op::PowerIE>(pwl_node->get_base_node()) ||
+               std::dynamic_pointer_cast<ngraph::opset8::Power>(pwl_node->get_base_node());
     }
     bool has32BInput() const noexcept {
         IS_VALID();

@@ -21,7 +21,7 @@ std::shared_ptr<ngraph::Function> createSoftSignFunction() {
     auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32,
                                                                     ngraph::Shape{ 1, 1, 1, 64 });
 
-    auto softsign = std::make_shared<GNAPluginNS::SoftSign>(input_params);
+    auto softsign = std::make_shared<ov::intel_gna::op::SoftSign>(input_params);
 
     ngraph::ResultVector results{ std::make_shared<ngraph::op::Result>(softsign) };
 
