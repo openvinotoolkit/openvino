@@ -6,7 +6,7 @@
    :maxdepth: 1
    :caption: Importing Models to OpenVINO™ Toolkit
    :hidden:
-   
+
    openvino_docs_importing_models_introduction
    openvino_docs_model_inputs_outputs
    openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide
@@ -38,7 +38,7 @@
 
 .. toctree::
    :maxdepth: 1
-   :caption: Graphical Web Interface for OpenVINO™ toolkit  
+   :caption: Graphical Web Interface for OpenVINO™ toolkit
    :hidden:
 
    workbench_docs_Workbench_DG_Introduction
@@ -56,7 +56,7 @@
    Intel® Deep Learning Streamer <openvino_docs_dlstreamer>
    openvino_docs_gapi_gapi_intro
    OpenCV* Developer Guide <https://docs.opencv.org/master/>
-   OpenCL™ Developer Guide <https://software.intel.com/en-us/openclsdk-devguide>   
+   OpenCL™ Developer Guide <https://software.intel.com/en-us/openclsdk-devguide>
 
 .. toctree::
    :maxdepth: 1
@@ -77,12 +77,12 @@
    Inference Engine Plugin Developer Guide <openvino_docs_ie_plugin_dg_overview>
    groupie_dev_api
    Plugin Transformation Pipeline <openvino_docs_IE_DG_plugin_transformation_pipeline>
-   
+
 .. toctree::
    :maxdepth: 1
    :hidden:
    :caption: Use OpenVINO™ Toolkit Securely
-   
+
    openvino_docs_security_guide_introduction
    openvino_docs_security_guide_workbench
    openvino_docs_IE_DG_protecting_model_guide
@@ -93,7 +93,7 @@
 This section provides reference documents that guide you through developing your own deep learning applications with the OpenVINO™ toolkit. These documents will most helpful if you have first gone through the [Get Started](get_started.md) guide.
 
 ## Importing Models to OpenVINO™ Toolkit
-In this chapter you will learn about available capabilities for importing your models to OpenVINO. With the [Model Downloader](@ref omz_tools_downloader) and [Model Optimizer](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) guides, you will learn to download pre-trained models and convert them for use with the OpenVINO™ toolkit. You can provide your own model or choose a public or Intel model from a broad selection provided in the [Open Model Zoo](model_zoo.md). For ONNX and PaddlePadle models, there is an ability to import them to OpenVINO Runtime directly without converting with Model Optimizer. 
+In this chapter you will learn about available capabilities for importing your models to OpenVINO. With the [Model Optimizer](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) user guide, you will learn convert the models for use with the OpenVINO™ toolkit. You can provide your own model or choose a public or Intel model from a broad selection provided in the [Open Model Zoo](model_zoo.md) and download them using [Model Downloader](@ref omz_tools_downloader). For ONNX and PaddlePadle models, there is an ability to import them without converting with Model Optimizer.
 
 ## Deploying Inference
 The [OpenVINO™ Runtime User Guide](OV_Runtime_UG/openvino_intro.md) explains the process of creating your own application that runs inference with the OpenVINO™ toolkit. The [API Reference](./api_references.html) defines the OpenVINO Runtime API for Python, C++, and C. The OpenVINO Runtime API is what you'll use to create an OpenVINO™ inference application, use enhanced operations sets and other features. After writing your application, you can use the [Deployment Manager](install_guides/deployment-manager-tool.md) for deploying to target devices.
