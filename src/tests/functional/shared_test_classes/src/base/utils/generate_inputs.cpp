@@ -43,7 +43,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::Node>& node,
 namespace Activation {
 ov::runtime::Tensor generate(const ov::element::Type& elemType,
                              const ov::Shape& targetShape,
-                             InputGenerateData inGenData = InputGenerateData(20, 10, 32768, 1)) {
+                             InputGenerateData inGenData = InputGenerateData(10, 20, 32768, 1)) {
     if (!elemType.is_signed()) {
         inGenData.range = 15;
         inGenData.start_from = 0;
