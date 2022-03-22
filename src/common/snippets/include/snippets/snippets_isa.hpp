@@ -20,6 +20,7 @@
 #include "op/powerstatic.hpp"
 #include "op/store.hpp"
 #include "op/tile.hpp"
+#include "op/tile_scheduler.hpp"
 #include "op/vectorload.hpp"
 #include "op/vectorstore.hpp"
 
