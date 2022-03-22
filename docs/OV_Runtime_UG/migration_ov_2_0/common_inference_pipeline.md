@@ -1,6 +1,6 @@
 # Inference Pipeline {#openvino_2_0_inference_pipeline}
 
-Usually to inference model with the OpenVINO™ Runtime an user needs to do the following steps in the application pipeline:
+Usually to infer models with OpenVINO™ Runtime, you need to do the following steps in the application pipeline:
 - 1. Create Core object
 - 2. Read model from the disk
  - 2.1. (Optional) Model preprocessing
@@ -10,7 +10,7 @@ Usually to inference model with the OpenVINO™ Runtime an user needs to do the 
 - 6. Start inference
 - 7. Process the inference results
 
-Code snippets below cover these steps and show how application code should be changed for migration to OpenVINO™ Runtime 2.0.
+The following code shows how to change the application code in each step to migrate to OpenVINO™ Runtime 2.0.
 
 ## 1. Create Core
 
@@ -131,13 +131,13 @@ Inference Engine API:
 
 @sphinxdirective
 
-.. tab:: sync
+.. tab:: Sync
 
     .. doxygensnippet:: docs/snippets/ie_common.cpp
        :language: cpp
        :fragment: [ie:inference]
 
-.. tab:: async
+.. tab:: Async
 
     .. doxygensnippet:: docs/snippets/ie_common.cpp
        :language: cpp
@@ -149,13 +149,13 @@ OpenVINO™ Runtime API 2.0:
 
 @sphinxdirective
 
-.. tab:: sync
+.. tab:: Sync
 
     .. doxygensnippet:: docs/snippets/ov_common.cpp
        :language: cpp
        :fragment: [ov_api_2_0:inference]
 
-.. tab:: async
+.. tab:: Async
 
     .. doxygensnippet:: docs/snippets/ov_common.cpp
        :language: cpp

@@ -33,23 +33,25 @@ void LayerTestsCommon::Run() {
 
     // in case of crash jump will be made and work will be continued
     auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
+    auto &s = Summary::getInstance();
+    s.setDeviceName(targetDevice);
+
+    if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+        s.updateOPsStats(functionRefs, PassRate::Statuses::SKIPPED);
+        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+    } else {
+        s.updateOPsStats(functionRefs, PassRate::Statuses::CRASHED);
+    }
 
     // place to jump in case of a crash
+    int jmpRes = 0;
 #ifdef _WIN32
-    if (setjmp(CommonTestUtils::env) == 0) {
+    jmpRes = setjmp(CommonTestUtils::env);
 #else
-    if (sigsetjmp(CommonTestUtils::env, 1) == 0) {
+    jmpRes = sigsetjmp(CommonTestUtils::env, 1);
 #endif
-        auto &s = Summary::getInstance();
-        s.setDeviceName(targetDevice);
-
-        if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
-            s.updateOPsStats(functionRefs, PassRate::Statuses::SKIPPED);
-            GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
-        } else {
-            s.updateOPsStats(functionRefs, PassRate::Statuses::CRASHED);
-        }
-
+    if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
+        crashHandler->StartTimer();
         try {
             LoadNetwork();
             GenerateInputs();
@@ -67,7 +69,10 @@ void LayerTestsCommon::Run() {
             s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_("Unknown failure occurred.");
         }
-    } else {
+    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
+        IE_THROW() << "Crash happens";
+    } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
+        s.updateOPsStats(functionRefs, PassRate::Statuses::HANGED);
         IE_THROW() << "Crash happens";
     }
 }

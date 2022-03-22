@@ -12,10 +12,11 @@ using proposal_conf = InferenceEngine::Extensions::Cpu::proposal_conf;
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNProposalNode : public MKLDNNNode {
+class Proposal : public Node {
 public:
-    MKLDNNProposalNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    Proposal(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -40,5 +41,6 @@ private:
     bool store_prob;  // store blob with proposal probabilities
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov
