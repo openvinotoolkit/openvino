@@ -47,11 +47,11 @@ Few important points on the callbacks:
 - Although executed asynchronously by a dedicated threads the callbacks should NOT include heavy operations (e.g. I/O) and/or blocking calls. Keep the work done by any callback to a minimum.
 
 ## "get_tensor" Idiom
-Within the OpenVINO, each device may have different requirements on the memory padding, alignment, etc. However the **input/output tensors** are also accessible by the application code. 
+Within the OpenVINO, each device may have different internal requirements on the memory padding, alignment, etc for intermediate tensors. The **input/output tensors** are also accessible by the application code. 
 As every `ov::InferRequest` is created by the particular instance of the `ov::CompiledModel`(that is already device-specific) the requirements are respected and the requests' input/output tensors are still device-friendly.
 Thus:
 * `get_tensor` (that offers the `data()` method to get a system-memory pointer to the tensor's content), is a recommended way to populate the inference inputs (and read back the outputs) **from/to the host memory**
-   * For example, the GPU inputs/outputs tensors are mapped to the host (which is fast) only when the `get_tensor` is used, while for the `set_tensor` a copy into the internal GPU structures may happen
+   * For example, for the GPU device, the inputs/outputs tensors are mapped to the host (which is fast) only when the `get_tensor` is used, while for the `set_tensor` a copy into the internal GPU structures may happen
 * In contrast, when the input tensors are already in the **on-device memory** (e.g. as a result of the video-decoding), prefer the `set_tensor` as a zero-copy way to proceed
    * Consider [GPU device Remote tensors API](../OV_Runtime_UG//supported_plugins/GPU_RemoteTensor_API.md).
 
