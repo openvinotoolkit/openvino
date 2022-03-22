@@ -93,16 +93,11 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
     for (auto& input : node.get_dependencies()) {
         if (input->get_preferred_impl_type() == impl_types::onednn) {
             for (auto& fused_op : input->get_fused_primitives()) {
-                if (fused_op.node->is_type<eltwise>() && fused_op.deps.size() == 1) {
-                    auto& eltw_in = input->get_dependency(fused_op.dep_start_idx);
-                    auto eltw_in_layout = eltw_in.get_output_layout();
-                    auto out_layout = input->get_output_layout();
-
-                    if (!program_helpers::needs_onednn_sum_post_op(fused_op.node->as<eltwise>(), eltw_in_layout))
-                        continue;
-                    if (program_helpers::are_layouts_identical_for_onednn_sum_post_op(eltw_in_layout, out_layout))
-                        return false;
-                }
+                auto add_type = onednn_add_fusing_helpers::get_add_fusing_type(*input, fused_op);
+                if (add_type == add_fusing_type::sum)
+                    return false;
+                else
+                    continue;
             }
             is_onednn_impl = true;
         }
@@ -225,7 +220,6 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
 void concat_in_place_optimization::optimize_cascade(concatenation_node& node, std::list<concatenation_node*>& need_reoptimization) {
     auto out_layout = node.get_output_layout();
     auto out_rank = out_layout.get_rank();
-    auto def_fmt = format::get_default_format(out_rank);
     auto concat_axis = node.get_primitive()->axis;
     // We need to transform axis from bf[w][z]yx order to bfxy[z][w] due to tensor.sizes() usages here
     // should be removed once pad representation is changed

@@ -13,10 +13,11 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNEmbeddingSegmentsSumNode : public MKLDNNNode, public MKLDNNEmbeddingBagSumNode {
+class EmbeddingSegmentsSum : public Node, public EmbeddingBagSum {
 public:
-    MKLDNNEmbeddingSegmentsSumNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    EmbeddingSegmentsSum(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -47,5 +48,6 @@ private:
     size_t indicesSize_ = 0;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

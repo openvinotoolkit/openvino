@@ -12,6 +12,7 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
 enum TopKLayoutType {
     topk_ncsp,
@@ -75,10 +76,10 @@ struct jit_uni_topk_kernel {
     jit_topk_config_params jcp_;
 };
 
-class MKLDNNTopKNode : public MKLDNNNode {
+class TopK : public Node {
 public:
-    MKLDNNTopKNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNTopKNode() override = default;
+    TopK(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    ~TopK() override = default;
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -146,5 +147,6 @@ private:
     std::string errorPrefix;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

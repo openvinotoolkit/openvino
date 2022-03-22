@@ -16,6 +16,7 @@ using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
 enum InterpolateLayoutType {
     planar,
@@ -92,9 +93,9 @@ struct jit_uni_interpolate_kernel {
 };
 
 
-class MKLDNNInterpolateNode : public MKLDNNNode {
+class Interpolate : public Node {
 public:
-    MKLDNNInterpolateNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    Interpolate(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -105,7 +106,7 @@ public:
     bool canBeInPlace() const override {
         return false;
     }
-    bool canFuse(const MKLDNNNodePtr& node) const override;
+    bool canFuse(const NodePtr& node) const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
@@ -115,11 +116,11 @@ public:
     void prepareParams() override;
 
     struct InterpolateAttrs {
-        InterpolateMode mode;
-        InterpolateCoordTransMode coordTransMode;
-        InterpolateNearestMode nearestMode;
-        bool antialias;
-        float cubeCoeff;
+        InterpolateMode mode = InterpolateMode::nearest;
+        InterpolateCoordTransMode coordTransMode = InterpolateCoordTransMode::half_pixel;
+        InterpolateNearestMode nearestMode = InterpolateNearestMode::round_prefer_floor;
+        bool antialias = false;
+        float cubeCoeff = -0.75;
         std::vector<int> padBegin;
         std::vector<int> padEnd;
         InferenceEngine::Precision inPrc;
@@ -259,5 +260,6 @@ private:
     std::string errorPrefix;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov
