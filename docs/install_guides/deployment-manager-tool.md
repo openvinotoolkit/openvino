@@ -40,27 +40,27 @@ Interactive mode provides a user-friendly command-line interface that will guide
   
 @sphinxdirective
    
-.. tab:: Linux  
-   
-   .. code-block:: sh
-   
-      cd <INSTALL_DIR>/tools/deployment_manager
+   .. tab:: Linux  
       
-      ./deployment_manager.py  
+      .. code-block:: sh
       
-.. tab:: Windows  
-   
-   .. code-block:: bat  
+         cd <INSTALL_DIR>/tools/deployment_manager
+         
+         ./deployment_manager.py  
+         
+   .. tab:: Windows  
       
-      cd <INSTALL_DIR>\deployment_tools\tools\deployment_manager
-      .\deployment_manager.py  
-        
-.. tab:: macOS  
-   
-   .. code-block:: sh
+      .. code-block:: bat  
+         
+         cd <INSTALL_DIR>\deployment_tools\tools\deployment_manager
+         .\deployment_manager.py  
+         
+   .. tab:: macOS  
       
-      cd <INSTALL_DIR>/tools/deployment_manager
-      ./deployment_manager.py  
+      .. code-block:: sh
+         
+         cd <INSTALL_DIR>/tools/deployment_manager
+         ./deployment_manager.py  
       
 @endsphinxdirective
 
