@@ -6,7 +6,7 @@
    :maxdepth: 1
    :hidden:
    
-   pot_introduсtion
+   pot_introduction
    docs_nncf_introduction
 
 @endsphinxdirective
@@ -15,7 +15,7 @@
 
 - **Model Optimizer** implements optimization to a model, most of them added by default, but you can configure mean/scale values, batch size, RGB vs BGR input channels, and other parameters to speed-up preprocess of a model ([Embedding Preprocessing Computation](../MO_DG/prepare_model/Additional_Optimizations.md)).
 
-- **Post-training Optimization tool** [(POT)](@ref pot_introduсtion) is designed to optimize the inference of deep learning models by applying post-training methods that do not require model retraining or fine-tuning, for example, post-training 8-bit quantization. 
+- **Post-training Optimization tool** [(POT)](../../tools/pot/docs/Introduction.md) is designed to optimize the inference of deep learning models by applying post-training methods that do not require model retraining or fine-tuning, for example, post-training 8-bit quantization. 
 
 - **Neural Network Compression Framework** [(NNCF)](./nncf_introduction.md) provides a suite of advanced methods for training-time model optimization within the DL framework, such as PyTorch and TensorFlow. It supports the methods, like Quantization-aware Training and Filter Pruning. NNCF-optimized models can be inferred with OpenVINO using all the available workflows.
 
