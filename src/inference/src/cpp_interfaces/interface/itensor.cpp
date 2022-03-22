@@ -113,9 +113,9 @@ struct StridedViewTensor : public ViewTensor {
 };
 
 ITensor::Ptr make_tensor(const element::Type element_type_,
-                           const Shape& shape_,
-                           void* ptr,
-                           const Strides& byte_strides) {
+                         const Shape& shape_,
+                         void* ptr,
+                         const Strides& byte_strides) {
     return byte_strides.empty() ? std::make_shared<ViewTensor>(element_type_, shape_, ptr)
                                 : std::make_shared<StridedViewTensor>(element_type_, shape_, ptr, byte_strides);
 }
@@ -126,8 +126,7 @@ struct AllocatedTensor : public ViewTensor {
                      shape_,
                      [&, this] {
                          OPENVINO_ASSERT(allocator_, "Allocator was not initialized");
-                         return const_cast<Allocator&>(allocator_).allocate(
-                             element_type_.size()*shape_size(shape_));
+                         return const_cast<Allocator&>(allocator_).allocate(element_type_.size() * shape_size(shape_));
                      }()},
           allocator{allocator_} {}
 
@@ -405,3 +404,6 @@ ie::Blob::Ptr tensor_to_blob(const ITensor::Ptr& tensor) {
     }
 }
 }  // namespace ov
+
+template class InferenceEngine::TBlob<ov::float16>;
+template class InferenceEngine::TBlob<ov::bfloat16>;

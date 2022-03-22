@@ -9,16 +9,13 @@
  */
 #pragma once
 
+#include <ie_blob.h>
+
 #include "openvino/core/coordinate.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/runtime/common.hpp"
 #include "openvino/runtime/allocator.hpp"
-
-namespace InferenceEngine {
-class Blob;
-}  // namespace InferenceEngine
-
+#include "openvino/runtime/common.hpp"
 namespace ov {
 
 /**
@@ -118,7 +115,10 @@ OPENVINO_API ITensor::Ptr make_tensor(const element::Type type, const Shape& sha
  * @param strides Optional strides parameters in bytes. Strides are supposed to be computed automatically based
  * on shape and element size
  */
-OPENVINO_API ITensor::Ptr make_tensor(const element::Type type, const Shape& shape, void* host_ptr, const Strides& strides = {});
+OPENVINO_API ITensor::Ptr make_tensor(const element::Type type,
+                                      const Shape& shape,
+                                      void* host_ptr,
+                                      const Strides& strides = {});
 
 /**
  * @brief Constructs region of interest (ROI) tensor form another tensor.
@@ -137,3 +137,8 @@ OPENVINO_API ITensor::Ptr blob_to_tensor(const std::shared_ptr<ie::Blob>& tensor
 /** @endcond */
 
 }  // namespace ov
+
+/** @cond INTERNAL */
+extern template class OPENVINO_API InferenceEngine::TBlob<ov::float16>;
+extern template class OPENVINO_API InferenceEngine::TBlob<ov::bfloat16>;
+/** @endcond */
