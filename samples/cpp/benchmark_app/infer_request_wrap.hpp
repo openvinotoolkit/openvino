@@ -147,7 +147,10 @@ public:
         return std::chrono::duration_cast<ns>(_endTime - _startTime).count() * 0.000001;
     }
 
-    void put_idle_request(size_t id, size_t lat_group_id, const double latency, const std::exception_ptr& ptr = nullptr) {
+    void put_idle_request(size_t id,
+                          size_t lat_group_id,
+                          const double latency,
+                          const std::exception_ptr& ptr = nullptr) {
         std::unique_lock<std::mutex> lock(_mutex);
         if (ptr) {
             inferenceException = ptr;
