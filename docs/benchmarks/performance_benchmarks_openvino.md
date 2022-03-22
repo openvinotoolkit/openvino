@@ -105,6 +105,16 @@ Measuring inference performance involves many variables and is extremely use-cas
 
 @endsphinxdirective
 
+## resnet-18-pytorch [224x224]
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/resnet-18-pytorch-224x224.csv"></div>
+
+@endsphinxdirective
+
+
 ## resnet_50_TF [224x224]
 
 @sphinxdirective
