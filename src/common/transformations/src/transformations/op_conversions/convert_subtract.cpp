@@ -4,73 +4,64 @@
 
 #include "transformations/op_conversions/convert_subtract.hpp"
 
-#include <memory>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include <vector>
+#include <openvino/core/validation_util.hpp>
 
 #include "itt.hpp"
+#include "transformations/rt_info/dequantization_node.hpp"
+
+static bool convert_subtract(const std::shared_ptr<ngraph::Node>& node) {
+    auto sub = std::dynamic_pointer_cast<ngraph::opset1::Subtract>(node);
+    if (!sub) {
+        return false;
+    }
+
+    if (ov::is_dequantization_node(sub)) {
+        return false;
+    }
+
+    if (!sub->get_input_element_type(1).is_signed()) {
+        return false;
+    }
+
+    std::shared_ptr<ngraph::Node> neg = std::make_shared<ngraph::opset1::Multiply>(
+        sub->get_input_node_shared_ptr(1),
+        opset1::Constant::create(sub->get_input_element_type(1), Shape{}, {-1}));
+    if (auto constant = ov::get_constant_from_source(neg))
+        neg = constant;
+
+    auto add = std::make_shared<ngraph::opset1::Add>(sub->get_input_node_shared_ptr(0), neg);
+
+    add->set_friendly_name(sub->get_friendly_name());
+    ngraph::copy_runtime_info(sub, {neg, add});
+    ngraph::replace_node(sub, add);
+
+    return true;
+}
 
 ngraph::pass::ConvertSubtract::ConvertSubtract() {
     MATCHER_SCOPE(ConvertSubtract);
     auto sub = ngraph::pattern::wrap_type<ngraph::opset1::Subtract>();
 
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        if (transformation_callback(m.get_match_root())) {
-            return false;
-        }
+        auto node = m.get_match_root();
+        return convert_subtract(node);
+    };
 
-        auto sub = std::dynamic_pointer_cast<ngraph::opset1::Subtract>(m.get_match_root());
-        if (!sub) {
-            return false;
-        }
+    auto m = std::make_shared<ngraph::pattern::Matcher>(sub, matcher_name);
+    this->register_matcher(m, callback);
+}
 
-        if (sub->input(0).get_element_type() != sub->input(1).get_element_type()) {
-            return false;
-        }
+ngraph::pass::ConvertSubtractWithConstant::ConvertSubtractWithConstant() {
+    MATCHER_SCOPE(ConvertSubtractWithConstant);
+    auto sub = ngraph::pattern::wrap_type<ngraph::opset1::Subtract>(
+        {pattern::any_input(), pattern::wrap_type<op::Constant>()});
 
-        if (sub->input(0).get_element_type() == sub->input(1).get_element_type()) {
-            const auto subChildren = sub->output(0).get_target_inputs();
-            if (subChildren.size() == 1ul) {
-                const std::shared_ptr<Node> child = subChildren.begin()->get_node()->shared_from_this();
-                if (child != nullptr) {
-                    if (ov::is_type<opset1::Convolution>(child) ||
-                        ov::is_type<opset1::ConvolutionBackpropData>(child) ||
-                        ov::is_type<opset1::GroupConvolution>(child) ||
-                        ov::is_type<opset1::GroupConvolutionBackpropData>(child) ||
-                        ov::is_type<opset1::MatMul>(child) ||
-                        (ov::is_type<opset1::Reshape>(child) && (child->output(0).get_target_inputs().size() == 1ul) &&
-                         (ov::is_type<opset1::GroupConvolution>(
-                              child->output(0).get_target_inputs().begin()->get_node()->shared_from_this()) ||
-                          ov::is_type<opset1::GroupConvolutionBackpropData>(
-                              child->output(0).get_target_inputs().begin()->get_node()->shared_from_this())))) {
-                        const auto input1Type = sub->input(0).get_element_type();
-                        const auto input2Type = sub->input(1).get_element_type();
-                        if (((input1Type == element::u8) && (input2Type == element::u8)) ||
-                            ((input1Type == element::i8) && (input2Type == element::i8))) {
-                            // we should not execute transformation by reasons:
-                            // 1. LPT asymmetric quantization pattern has to be keep as is
-                            // 2. Subtract operation has unsigned/signed integer value which is not safe to multiply by
-                            // -1
-                            return false;
-                        }
-                    }
-                }
-            }
-        }
-
-        auto neg = std::make_shared<ngraph::opset1::Multiply>(
-            sub->input(1).get_source_output(),
-            opset1::Constant::create(sub->get_input_element_type(1), Shape{}, {-1}));
-
-        auto add = std::make_shared<ngraph::opset1::Add>(sub->input(0).get_source_output(), neg);
-
-        add->set_friendly_name(sub->get_friendly_name());
-        ngraph::copy_runtime_info(sub, {neg, add});
-        ngraph::replace_node(sub, add);
-
-        return true;
+    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        auto node = m.get_match_root();
+        return convert_subtract(node);
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(sub, matcher_name);

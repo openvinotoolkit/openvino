@@ -55,10 +55,11 @@
 #include <transformations/common_optimizations/transpose_sinking.hpp>
 #include <transformations/common_optimizations/transpose_to_reshape.hpp>
 #include <transformations/init_node_info.hpp>
-#include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
+#include <transformations/low_precision/mark_dequantization_subgraph.hpp>
 #include <transformations/op_conversions/batch_norm_decomposition.hpp>
 #include <transformations/op_conversions/convert_divide.hpp>
 #include <transformations/op_conversions/convert_scatter_elements_to_scatter.hpp>
+#include <transformations/op_conversions/convert_subtract.hpp>
 
 bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     // To avoid issues with dynamism we make nGraph Function dynamic and after we apply all
@@ -77,7 +78,7 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
 
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     if (m_low_precision_enabled) {
-        manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
+        manager.register_pass<ngraph::pass::MarkDequantizationSubgraph>(
             element::TypeVector{ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4});
     }
     if (!m_use_shapes) {
@@ -162,6 +163,7 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
 
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
     decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
+    decomp->add_matcher<ngraph::pass::ConvertSubtractWithConstant>();
     decomp->add_matcher<ngraph::pass::ConvertDivideWithConstant>();
 
     manager.register_pass<ngraph::pass::LinOpSequenceFusion>();

@@ -1,6 +1,6 @@
 #include <ie_core.hpp>
 
-#include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
+#include <transformations/low_precision/mark_dequantization_subgraph.hpp>
 
 #include <low_precision/common/operation_per_tensor_quantization_restriction.hpp>
 #include <low_precision/convert_subtract_constant.hpp>
@@ -38,8 +38,8 @@ const bool useLpt = ngraph::pass::low_precision::LowPrecision::isFunctionQuantiz
 auto defaultPrecisions =
     useLpt ? ngraph::pass::low_precision::precision_set::int8_support : std::vector<ov::element::Type>{};
 if (useLpt) {
-    // disable constant folding on constant subgraph to use the subgraph for LPT
-    manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(defaultPrecisions);
+    // disable constant folding on dequantization subgraphs so they can be processed by LPT
+    manager.register_pass<ngraph::pass::MarkDequantizationSubgraph>(defaultPrecisions);
 }
 
 // nGraph common transformations happen here

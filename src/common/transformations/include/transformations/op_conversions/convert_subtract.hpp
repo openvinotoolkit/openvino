@@ -13,6 +13,7 @@ namespace ngraph {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertSubtract;
+class TRANSFORMATIONS_API ConvertSubtractWithConstant;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -21,4 +22,10 @@ class ngraph::pass::ConvertSubtract : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertSubtract", "0");
     ConvertSubtract();
+};
+
+class ngraph::pass::ConvertSubtractWithConstant : public ngraph::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("ConvertSubtractWithConstant", "0");
+    ConvertSubtractWithConstant();
 };
