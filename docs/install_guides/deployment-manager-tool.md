@@ -36,7 +36,7 @@ There are two ways to create a deployment package that includes inference-relate
   
 Interactive mode provides a user-friendly command-line interface that will guide you through the process with text prompts.
 
-1. To launch the Deployment Manager in interactive mode, open a new terminal window, go to the Deployment Manager tool directory and run the tool script without parameters:
+To launch the Deployment Manager in interactive mode, open a new terminal window, go to the Deployment Manager tool directory and run the tool script without parameters:
   
 @sphinxdirective
    
@@ -64,13 +64,13 @@ Interactive mode provides a user-friendly command-line interface that will guide
       
 @endsphinxdirective
 
-2. The target device selection dialog is displayed:
+The target device selection dialog is displayed:
   
 ![Deployment Manager selection dialog](../img/selection_dialog.png)
 
 Use the options provided on the screen to complete selection of the target devices and press **Enter** to proceed to the package generation dialog. if you want to interrupt the generation process and exit the program, type **q** and press **Enter**.
 
-3. Once you accept the selection, the package generation dialog is displayed:
+Once you accept the selection, the package generation dialog is displayed:
   
 ![Deployment Manager configuration dialog](../img/configuration_dialog.png)
 
@@ -82,7 +82,7 @@ The target devices you have selected at the previous step appear on the screen. 
 
 * `t. Change archive name` (optional): Deployment archive name without extension. By default, it is set to `openvino_deployment_package`.
  
-4. Once all the parameters are set, type **g** and press **Enter** to generate the package for the selected target devices. To interrupt the generation process and exit the program, type **q** and press **Enter**.
+Once all the parameters are set, type **g** and press **Enter** to generate the package for the selected target devices. To interrupt the generation process and exit the program, type **q** and press **Enter**.
 
 The script successfully completes and the deployment package is generated in the specified output directory. 
 
@@ -163,65 +163,65 @@ To deploy the OpenVINO Runtime components from the development machine to the ta
 
 2. Unpack the archive into the destination directory on the target system (if your archive name is different from the default shown below, replace the `openvino_deployment_package` with the name you use).
 
-@sphinxdirective
-   
-.. tab:: Linux  
-   
-   .. code-block:: sh 
-   
-      tar xf openvino_deployment_package.tar.gz -C <destination_dir>
-     
-.. tab:: Windows  
-   
-   Use the archiver of your choice to unzip the file.  
+   @sphinxdirective
       
-.. tab:: macOS  
-
-   .. code-block:: sh
+   .. tab:: Linux  
+      
+      .. code-block:: sh 
+      
+         tar xf openvino_deployment_package.tar.gz -C <destination_dir>
+      
+   .. tab:: Windows  
+      
+      Use the archiver of your choice to unzip the file.  
          
-      tar xf openvino_deployment_package.tar.gz -C <destination_dir>
-     
-@endsphinxdirective
+   .. tab:: macOS  
 
-The package is unpacked to the destination directory and the following files and subdirectories are created:
+      .. code-block:: sh
+            
+         tar xf openvino_deployment_package.tar.gz -C <destination_dir>
       
-   * `setupvars.sh` — Copy of `setupvars.sh`
-   * `runtime` — Contains the OpenVINO runtime binary files.
-   * `install_dependencies` — Snapshot of the `install_dependencies` directory from the OpenVINO installation directory.
-   * `<user_data>` — The directory with the user data (IRs, datasets, etc.) you specified while configuring the package.
+   @endsphinxdirective
 
-For Linux, to run inference on a target Intel® GPU, Intel® Movidius™ VPU, or Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, you need to install additional dependencies by running the `install_openvino_dependencies.sh` script on the target machine:
+   The package is unpacked to the destination directory and the following files and subdirectories are created:
+         
+      * `setupvars.sh` — Copy of `setupvars.sh`
+      * `runtime` — Contains the OpenVINO runtime binary files.
+      * `install_dependencies` — Snapshot of the `install_dependencies` directory from the OpenVINO installation directory.
+      * `<user_data>` — The directory with the user data (IRs, datasets, etc.) you specified while configuring the package.
 
-```sh
-cd <destination_dir>/openvino/install_dependencies
-sudo -E ./install_openvino_dependencies.sh
-```
+   For Linux, to run inference on a target Intel® GPU, Intel® Movidius™ VPU, or Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, you need to install additional dependencies by running the `install_openvino_dependencies.sh` script on the target machine:
+
+   ```sh
+   cd <destination_dir>/openvino/install_dependencies
+   sudo -E ./install_openvino_dependencies.sh
+   ```
   
 3. Set up the environment variables:
   
-@sphinxdirective  
-   
-.. tab:: Linux  
-   
-   .. code-block:: sh
+   @sphinxdirective  
       
-      cd <destination_dir>/openvino/
-      source ./setupvars.sh
-     
-.. tab:: Windows  
-   
-   .. code-block:: bat  
-    
-      cd <destination_dir>\openvino\
-      .\setupvars.bat
-     
-.. tab:: macOS  
-   
-   .. code-block:: sh
+   .. tab:: Linux  
       
-      cd <destination_dir>/openvino/
-      source ./setupvars.sh
-     
-@endsphinxdirective
+      .. code-block:: sh
+         
+         cd <destination_dir>/openvino/
+         source ./setupvars.sh
+      
+   .. tab:: Windows  
+      
+      .. code-block:: bat  
+      
+         cd <destination_dir>\openvino\
+         .\setupvars.bat
+      
+   .. tab:: macOS  
+      
+      .. code-block:: sh
+         
+         cd <destination_dir>/openvino/
+         source ./setupvars.sh
+      
+   @endsphinxdirective
 
 You have now finished the deployment of the OpenVINO Runtime components to the target system.
