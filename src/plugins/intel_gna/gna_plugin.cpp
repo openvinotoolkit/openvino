@@ -336,10 +336,8 @@ std::string GNAPluginNS::GNAPlugin::GetCompileTarget() const {
         return gnadevice->GetCompileTarget();
     } else if (!config.gnaCompileTarget.empty()) {
         return config.gnaCompileTarget;
-    } else if (GNADeviceHelper::isGnaLibVersionSupportGna3()) {
-        return InferenceEngine::GNAConfigParams::GNA_TARGET_3_0;
     }
-    return InferenceEngine::GNAConfigParams::GNA_TARGET_2_0;
+    return InferenceEngine::GNAConfigParams::GNA_TARGET_3_0;
 }
 
 GNAPlugin::GNAPlugin(const std::map<std::string, std::string>& configMap) {
@@ -370,7 +368,7 @@ void GNAPlugin::InitGNADevice() {
                     config.swExactMode,
                     gnaFlags->performance_counting,
                     !config.dumpXNNPath.empty(),
-                    GetDeviceVersionFromString(config.dumpXNNGeneration));
+                    GetDeviceVersionFromString(config.gnaCompileTarget));
         size_t page_size_bytes = 4096;
         gnamem = std::make_shared<gna_memory_device>(memory::GNAAllocator(gnadevice), page_size_bytes);
     }
@@ -995,15 +993,16 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     void *pParallelExecutionData  = nullptr;
 
     // reserving more bytes for intermediate data in parallel case - TODO: this works incorrectly in compact mode at lest
-    rwSegmentSize = gnamem->getRWBytes();
+    rwSegmentSize = gnamem->getRegionBytes(REGION_SCRATCH);
+    rwSegmentSize += gnamem->getRegionBytes(REGION_INPUTS);
+    rwSegmentSize += gnamem->getRegionBytes(REGION_OUTPUTS);
     if (gnaFlags->num_requests > 1) {
-        gnamem->getQueue(REGION_SCRATCH)->reserve_ptr(nullptr, &pParallelExecutionData, gnamem->getRWBytes() * (gnaFlags->num_requests - 1), 64);
+        gnamem->getQueue(REGION_SCRATCH)->reserve_ptr(nullptr, &pParallelExecutionData, rwSegmentSize * (gnaFlags->num_requests - 1), 64);
     }
 
     gnamem->commit(gnaFlags->compact_mode);
 
-    dnn->Init(gnamem->getBasePtr(),
-             gnamem->getTotalBytes(),
+    dnn->Init(gnamem.get(),
              gnaFlags->sw_fp32 ? kDnnFloat : kDnnInt,
              1);
 
@@ -1035,8 +1034,11 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
             if (ptr_in == nullptr) {
                 ptr_out = nullptr;
             } else {
-                auto offset = reinterpret_cast<uint8_t *>(ptr_in) - reinterpret_cast<uint8_t *>(gnamem->getBasePtr());
-                ptr_out = basePtr + offset;
+                const auto found = gnamem->getOffsetForMerged(ptr_in);
+                if (!found.first) {
+                    THROW_GNA_EXCEPTION << "Relocation offset for parallel infer requests was not found\n";
+                }
+                ptr_out = basePtr + found.second;
             }
         };
 
@@ -1120,9 +1122,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
                 {TranspositionInfo{dnn->do_rotate_input, dnn->num_rotate_rows, dnn->num_rotate_columns}}});
         }
     }
-    if (gnadevice) {
-        gnadevice->AppendOperationMode(config.gnaPrecision.name());
-    }
     DumpXNNToFile();
 
 #ifdef PLOT
@@ -1145,12 +1144,10 @@ void GNAPlugin::createRequestConfigsForGnaModels() {
 }
 
 int GNAPlugin::GetDeviceVersionFromString(const std::string deviceString) {
-    if (deviceString == "GNA35") {
-        return static_cast<int>(Gna2DeviceVersionEmbedded3_5);
-    }
-    if (deviceString.empty())
+    if (deviceString.empty() || deviceString == InferenceEngine::GNAConfigParams::GNA_TARGET_2_0) {
         return static_cast<int>(Gna2DeviceVersionEmbedded1_0);
-    THROW_GNA_EXCEPTION << "Wrong GNA generation for embedded model dump: " << deviceString;
+    }
+    return static_cast<int>(Gna2DeviceVersionEmbedded3_5);
 }
 
 void GNAPlugin::DumpXNNToFile() const {
@@ -1171,7 +1168,7 @@ void GNAPlugin::DumpXNNToFile() const {
 
     if (InferenceEngine::GNAConfigParams::GNA_TARGET_2_0 == gnadevice->getEffectiveGnaCompileTarget()) {
         auto dump = gnadevice->dumpXnn(modelId);
-        dump.header.RwRegionSize = gnamem->getRWBytes();
+        dump.header.RwRegionSize = gnamem->getRegionBytes(REGION_SCRATCH);
         dump.header.InputScalingFactor = inputsDesc.begin()->scale_factor;
         dump.header.OutputScalingFactor = outputsDesc.begin()->scale_factor;
         dumpStream.write(reinterpret_cast<char*>(&dump.header), sizeof(Gna2ModelSueCreekHeader));
@@ -1185,7 +1182,7 @@ void GNAPlugin::DumpXNNToFile() const {
             output_size += o.get_required_size();
         auto inSF = inputsDesc.begin()->scale_factor;
         auto outSF = outputsDesc.front().scale_factor;
-        gnadevice->dumpTLVForDeviceVersion(modelId, dumpStream, Gna2DeviceVersionEmbedded3_5,
+        gnadevice->dumpTLVForDeviceVersion(modelId, dumpStream,
             input_size, output_size, inSF, outSF);
     }
     gnadevice->releaseModel(modelId);
@@ -1648,7 +1645,7 @@ void GNAPlugin::Export(std::ostream &outStream) {
         serial.AddState(memoryConnection.second.gna_ptr, memoryConnection.second.reserved_size, memoryConnection.first, state->GetScaleFactor());
     }
 
-    serial.Export(gnamem->getBasePtr(), gnamem->getTotalBytes(), outStream);
+    serial.Export(gnadevice->getAllAllocations(), outStream);
 }
 
 std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GNAPlugin::GetPerformanceCounts() {

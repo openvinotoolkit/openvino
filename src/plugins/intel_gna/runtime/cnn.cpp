@@ -57,10 +57,6 @@ void CNNMaxPoolLegacy(intel_dnn_component_t *component, intel_dnn_number_type_t 
     const uint32_t num_pool_step = component->op.maxpool.poolingStrideXY[0];
     const uint32_t num_rows_in = num_inputs / in_c;
 
-    if (num_rows_in % num_pool_step != num_pool_size % num_pool_step) {
-        THROW_GNA_EXCEPTION << "Bad number of rows in CNNMaxPoolLegacy!" << component->original_layer_name;
-    }
-
     if (number_type == kDnnInt) {
         int32_t *ptr_inputs = reinterpret_cast<int32_t *>(component->ptr_inputs);
         int32_t *ptr_outputs = reinterpret_cast<int32_t *>(component->ptr_outputs);

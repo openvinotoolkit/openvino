@@ -55,11 +55,11 @@ TEST_F(GNAMemoryTest, canStore2Blobs) {
 TEST_F(GNAMemoryTest, canStoreBlobsALIGNED) {
     float input[] = {1, 2, 3, 4, 5, 6, 7, 8};
     float* pFuture = nullptr;
-
-    mem.getQueue(REGION_SCRATCH)->push_ptr(nullptr, &pFuture, input, 3*4, 8);
+    auto queue = mem.getQueue(REGION_SCRATCH);
+    queue->push_ptr(nullptr, &pFuture, input, 3 * 4, 8);
     mem.commit();
 
-    ASSERT_EQ(16 , mem.getTotalBytes());
+    ASSERT_EQ(16, queue->getSize());
 
     ASSERT_NE(pFuture, input);
     ASSERT_NE(pFuture, nullptr);
@@ -75,12 +75,12 @@ TEST_F(GNAMemoryTest, canStore2BlobsALIGNED) {
     float input[] = {1, 2, 3, 4, 5, 6, 7, 8};
     float* pFuture = nullptr;
     float* pFuture2 = nullptr;
-
-    mem.getQueue(REGION_SCRATCH)->push_ptr(nullptr, &pFuture, input, 3*4, 8);
-    mem.getQueue(REGION_SCRATCH)->push_ptr(nullptr, &pFuture2, input, 3*4, 16);
+    auto queue = mem.getQueue(REGION_SCRATCH);
+    queue->push_ptr(nullptr, &pFuture, input, 3 * 4, 8);
+    queue->push_ptr(nullptr, &pFuture2, input, 3 * 4, 16);
     mem.commit();
 
-    ASSERT_EQ(32 , mem.getTotalBytes());
+    ASSERT_EQ(32 , queue->getSize());
 
     ASSERT_NE(pFuture, nullptr);
 
@@ -284,8 +284,8 @@ TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSizeEmptyReqs) {
     mem.getQueue(REGION_RO)->push_value(nullptr, nullptr, 13.f, 2);
     mem.commit();
 
-    ASSERT_EQ(mem.getTotalBytes(), 0);
-    ASSERT_EQ(mem.getRWBytes(), 0);
+    ASSERT_EQ(mem.getRegionBytes(rRegion::REGION_SCRATCH), 0);
+    ASSERT_EQ(mem.getRegionBytes(rRegion::REGION_RO), 0);
 }
 
 TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSizeWithEmptyReqs) {
@@ -301,8 +301,8 @@ TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSizeWithEmptyReqs) {
     mem.getQueue(REGION_RO)->push_value(nullptr, nullptr, 13.f, 2);
     mem.commit();
 
-    ASSERT_EQ(mem.getTotalBytes(), 4 * sizeof(float));
-    ASSERT_EQ(mem.getRWBytes(), 2 * sizeof(float));
+    ASSERT_EQ(mem.getRegionBytes(rRegion::REGION_RO), 2 * sizeof(float));
+    ASSERT_EQ(mem.getRegionBytes(rRegion::REGION_SCRATCH), 2 * sizeof(float));
 }
 
 TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSize) {
@@ -312,12 +312,12 @@ TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSize) {
     mem.getQueue(REGION_RO)->push_value(nullptr, pFuture2, 13.f, 2);
     mem.commit();
 
-    ASSERT_EQ(mem.getTotalBytes(), 4 * sizeof(float));
-    ASSERT_EQ(mem.getRWBytes(), 2 * sizeof(float));
+    ASSERT_EQ(mem.getRegionBytes(rRegion::REGION_RO), 2 * sizeof(float));
+    ASSERT_EQ(mem.getRegionBytes(rRegion::REGION_SCRATCH), 2 * sizeof(float));
 }
 
 TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSizeWithAlignment) {
-    GNAMemory<std::allocator<uint8_t>> memAligned(64);
+    GNAMemory<GNAPluginNS::memory::GNAFloatAllocator> memAligned(64);
     float* pFuture1 = reinterpret_cast<float*>(&pFuture1);
     float* pFuture2 = reinterpret_cast<float*>(&pFuture2);
 
@@ -325,8 +325,8 @@ TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSizeWithAlignment) {
     memAligned.getQueue(REGION_RO)->push_value(nullptr, pFuture2, 13.f, 2);
     memAligned.commit();
 
-    ASSERT_EQ(memAligned.getTotalBytes(), 128);
-    ASSERT_EQ(memAligned.getRWBytes(), 64);
+    ASSERT_EQ(memAligned.getRegionBytes(rRegion::REGION_RO), 64);
+    ASSERT_EQ(memAligned.getRegionBytes(rRegion::REGION_SCRATCH), 64);
 }
 
 TEST_F(GNAMemoryTest, canSetUpReadWriteSectionPtr) {
@@ -339,8 +339,8 @@ TEST_F(GNAMemoryTest, canSetUpReadWriteSectionPtr) {
     mem.getQueue(REGION_RO)->push_value(nullptr, pFuture3, 32.f,  4);
     mem.commit();
 
-    ASSERT_EQ(mem.getTotalBytes(), (2+3+4) * sizeof(float));
-    ASSERT_EQ(mem.getRWBytes(), 3 * sizeof(float));
+    ASSERT_EQ(mem.getRegionBytes(rRegion::REGION_RO), (2 + 4) * sizeof(float));
+    ASSERT_EQ(mem.getRegionBytes(rRegion::REGION_SCRATCH), 3 * sizeof(float));
 
     ASSERT_NE(&pFuture2[0], &pFuture1[0]);
     ASSERT_LT(&pFuture1[0], &pFuture3[0]);
@@ -359,7 +359,7 @@ TEST_F(GNAMemoryTest, canSetUpReadWriteSectionPtr) {
 }
 
 
-TEST_F(GNAMemoryTest, DISABLED_canUpdateSizeOfPushRequestWithBindRequest) {
+TEST_F(GNAMemoryTest, canUpdateSizeOfPushRequestWithBindRequest) {
     float input[]  = {1, 2, 3};
     float *pFuture = nullptr;
     float *pFuture2 = nullptr;
@@ -373,7 +373,7 @@ TEST_F(GNAMemoryTest, DISABLED_canUpdateSizeOfPushRequestWithBindRequest) {
 
     mem.commit();
 
-    ASSERT_EQ(mem.getTotalBytes(), 4 * len);
+    ASSERT_EQ(mem.getRegionBytes(REGION_SCRATCH), 4 * len);
     ASSERT_NE(pFuture, nullptr);
     ASSERT_EQ(pFuture2, pFuture + 3);
     ASSERT_EQ(pFuture3, pFuture + 9);
@@ -389,7 +389,7 @@ TEST_F(GNAMemoryTest, DISABLED_canUpdateSizeOfPushRequestWithBindRequest) {
     ASSERT_FLOAT_EQ(pFuture[8], 0);
 }
 
-TEST_F(GNAMemoryTest, DISABLED_canUpdateSizeOfPushRequestWithBindRequestWhenPush) {
+TEST_F(GNAMemoryTest, canUpdateSizeOfPushRequestWithBindRequestWhenPush) {
     float input[]  = {1, 2, 3};
     float input2[]  = {6, 7, 8};
 
@@ -405,7 +405,7 @@ TEST_F(GNAMemoryTest, DISABLED_canUpdateSizeOfPushRequestWithBindRequestWhenPush
 
     mem.commit();
 
-    ASSERT_EQ(mem.getTotalBytes(), 3 * len);
+    ASSERT_EQ(mem.getRegionBytes(REGION_SCRATCH), 3 * len);
     ASSERT_NE(pFuture, nullptr);
     ASSERT_NE(pFutureInput2, nullptr);
     ASSERT_EQ(pFuture2, pFuture + 3);
@@ -421,7 +421,7 @@ TEST_F(GNAMemoryTest, DISABLED_canUpdateSizeOfPushRequestWithBindRequestWhenPush
     ASSERT_FLOAT_EQ(pFutureInput2[2], 8);
 }
 
-TEST_F(GNAMemoryTest, DISABLED_canUpdateSizeOfPushRequestWithBindRequestWhenAlloc) {
+TEST_F(GNAMemoryTest, canUpdateSizeOfPushRequestWithBindRequestWhenAlloc) {
     float input[]  = {1, 2, 3};
 
     float *pFutureInput = nullptr;
@@ -436,7 +436,7 @@ TEST_F(GNAMemoryTest, DISABLED_canUpdateSizeOfPushRequestWithBindRequestWhenAllo
 
     mem.commit();
 
-    ASSERT_EQ(mem.getTotalBytes(), 3 * len);
+    ASSERT_EQ(mem.getRegionBytes(REGION_SCRATCH), 3 * len);
     ASSERT_NE(pFuture, nullptr);
     ASSERT_NE(pFutureInput, nullptr);
     ASSERT_EQ(pFuture2, pFuture + 3);

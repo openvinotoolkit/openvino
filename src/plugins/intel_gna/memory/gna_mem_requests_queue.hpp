@@ -179,12 +179,22 @@ public:
         return _size;
     }
 
-    size_t getSize() {
+    size_t getSize() const {
         return _size;
     }
 
-    void *getBasePtr() {
+    void *getBasePtr() const {
         return _basePtr.get();
+    }
+
+    std::pair<bool, uint32_t> getOffset(void * ptr) const {
+        auto ptrBegin = static_cast<uint8_t*>(getBasePtr());
+        auto size = getSize();
+        if (ptr >= ptrBegin && ptr < ptrBegin + size) {
+            auto curOffset = static_cast<uint8_t*>(ptr) - ptrBegin;
+            return {true, curOffset};
+        }
+        return {false, 0};
     }
 
     template<class T>

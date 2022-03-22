@@ -27,55 +27,13 @@
 #include "gna2-model-export-api.h"
 #include "gna2-model-suecreek-header.h"
 
+#include "gna_device_allocation.hpp"
+
 enum GnaWaitStatus : int {
     GNA_REQUEST_COMPLETED = 0,  // and removed from GNA library queue
     GNA_REQUEST_ABORTED = 1,    // for QoS purposes
     GNA_REQUEST_PENDING = 2     // for device busy purposes
 };
-
-struct GnaAllocation {
-    void* ptr = nullptr;
-    size_t sizeRequested = 0;
-    size_t sizeGranted = 0;
-    void SetTag(Gna2MemoryTag in) {
-        isTagSet = true;
-        tag = in;
-    }
-    bool isTag(Gna2MemoryTag in) {
-        return isTagSet && in == tag;
-    }
-    std::string GetTagName() const {
-        static const std::map< Gna2MemoryTag, std::string > tm = {
-                { Gna2MemoryTagReadWrite, "Gna2MemoryTagReadWrite" },
-                { Gna2MemoryTagInput, "Gna2MemoryTagInput" },
-                { Gna2MemoryTagOutput, "Gna2MemoryTagOutput" },
-                { Gna2MemoryTagReadOnly, "Gna2MemoryTagReadOnly" },
-                { Gna2MemoryTagExternalBufferInput, "Gna2MemoryTagExternalBufferInput" },
-                { Gna2MemoryTagExternalBufferOutput, "Gna2MemoryTagExternalBufferOutput" },
-                { Gna2MemoryTagScratch, "Gna2MemoryTagScratch" },
-                { Gna2MemoryTagState, "Gna2MemoryTagState" },
-        };
-        if (!isTagSet) {
-            return "Gna2MemoryTag_NotSet_";
-        }
-        auto f = tm.find(tag);
-        if (f != tm.end()) {
-            return f->second;
-        }
-        return "Gna2MemoryTag_" + std::to_string(tag) + "_";
-    }
-    std::pair<bool, size_t> getOffset(void* offset) const {
-        std::pair<bool, size_t> v;
-        v.first = offset >= ptr && offset < static_cast<uint8_t*>(ptr) + sizeGranted;
-        v.second = v.first ? static_cast<uint8_t*>(offset) - static_cast<uint8_t*>(ptr) : 0;
-        return v;
-    }
-
-private:
-    Gna2MemoryTag tag;
-    bool isTagSet = false;
-};
-typedef std::list<GnaAllocation> GnaAllAllocations;
 
 /**
  * holds gna - style handle in RAII way
@@ -88,7 +46,7 @@ class GNADeviceHelper {
     }
 
     std::string modeOfOperation = "default";
-    GnaAllAllocations allAllocations;
+    GnaAllocations allAllocations;
     uint32_t nGnaDeviceIndex = 0;
     bool swExactMode = false;
     Gna2DeviceVersion detectedGnaDevVersion = Gna2DeviceVersionSoftwareEmulation;
@@ -142,8 +100,6 @@ public:
     uint8_t *alloc(uint32_t size_requested, uint32_t *size_granted);
     void tagMemoryRegion(void* memPtr, const GNAPluginNS::memory::rRegion memoryTag);
 
-    static bool isGnaLibVersionSupportGna3();
-
     void setUpActiveList(unsigned req_config_id, uint32_t layerIndex, uint32_t* ptr_active_indices, uint32_t num_active_indices);
     uint32_t propagate(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode);
     uint32_t createModel(Gna2Model& gnaModel) const;
@@ -180,7 +136,7 @@ public:
         Gna2DeviceVersion targetDeviceVersion);
 
     void dumpTLVForDeviceVersion(const uint32_t modelId, std::ostream& outStream,
-        Gna2DeviceVersion targetDeviceVersion, uint32_t input_size, uint32_t output_size,
+        uint32_t input_size, uint32_t output_size,
         float inSF, float outSF);
 
     void free(void * ptr);
@@ -192,9 +148,8 @@ public:
     std::string getEffectiveGnaCompileTarget() const;
     std::string GetCompileTarget() const;
 
-    // used for MODEL_DUMP filename
-    void AppendOperationMode(std::string in) {
-        modeOfOperation += in;
+    const GnaAllocations& getAllAllocations() const {
+        return allAllocations;
     }
 
  private:
@@ -214,7 +169,7 @@ public:
     Gna2DeviceVersion getDefaultTarget() const;
     Gna2DeviceVersion getTargetDevice(bool execTarget) const;
 
-    void createVirtualDevice(Gna2DeviceVersion devVersion, std::string purpose = "");
+    void createVirtualDevice(Gna2DeviceVersion devVersion);
     void updateGnaDeviceVersion();
 
     void initGnaPerfCounters() {

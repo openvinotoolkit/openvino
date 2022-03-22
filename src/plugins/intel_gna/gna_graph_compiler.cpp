@@ -196,8 +196,6 @@ void GNAGraphCompiler::fillSplitConnections(InferenceEngine::CNNLayerPtr layer) 
 void GNAPluginNS::GNAGraphCompiler::SetValidatorTarget(std::string target) {
     if (InferenceEngine::GNAConfigParams::GNA_TARGET_3_0 == target) {
         cnn2dValidator.reset(new GNALimitations::Cnn2D::Validator_30());
-    } else if (InferenceEngine::GNAConfigParams::GNA_TARGET_3_5 == target) {
-        cnn2dValidator.reset(new GNALimitations::Cnn2D::Validator_35());
     }
 }
 
@@ -207,7 +205,7 @@ void GNAPluginNS::GNAGraphCompiler::ValidateCnn2D(std::string name, const uint32
     if (cnn2dValidator) {
         cnn2dValidator->ValidateCnn2D(name, inHeight, inWidth, inChannels, kH, kW, kN, strideH, strideW, dilH, dilW, inPrecision);
     } else {
-        THROW_GNA_EXCEPTION << "No CNN2D validator found for current target in layer " << name;
+        THROW_GNA_EXCEPTION << "No Cnn2D validator found for layer " << name;
     }
 }
 
@@ -216,7 +214,7 @@ void GNAPluginNS::GNAGraphCompiler::ValidatePooling2D(std::string name, const ui
     if (cnn2dValidator) {
         cnn2dValidator->ValidatePooling2D(name, windowH, windowW, strideH, strideW);
     } else {
-        THROW_GNA_EXCEPTION << "No CNN2D validator found for current target in layer " << name;
+        THROW_GNA_EXCEPTION << "No Pooling2D validator found for layer " << name;
     }
 }
 
@@ -920,9 +918,24 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
         getScaleFactor(layer, QuantizedDataType::output),
         ptr_inputs,
         ptr_outputs);
-    size_t num_data_bytes_out = InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims()))
-        * outputs->getPrecision().size();
+    size_t num_data_bytes_out = InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims()));
 
+    // Need to reserve more memory otherwise the compiled model would not be
+    // backward compatible with GNA 2.0
+    // GNA 2.0 produces more outputs from 1D pooling than latter GNA generations (including GNA 3.0)
+    // When the model is compiled for some newer GNA generation (than GNA 2.0)
+    // but it does not use any specific new GNA features it should be correct to import and run using previous GNA HW
+    if (!is2DPooling) {
+        const auto hLegacy =
+            GNAPluginNS::GNAConvolutionLayer::outputFromPoolingLegacy(h_dim_in, pooling._stride[X_AXIS]);
+        const auto wLegacy =
+            GNAPluginNS::GNAConvolutionLayer::outputFromPoolingLegacy(w_dim_in, pooling._stride[Y_AXIS]);
+        if (num_data_bytes_out < hLegacy * wLegacy * c_dim_out) {
+            num_data_bytes_out = hLegacy * wLegacy * c_dim_out;
+        }
+    }
+
+    num_data_bytes_out *= outputs->getPrecision().size();
     const auto hw_in = h_dim_in * w_dim_in;
 
     // TODO: Is this really needed?, find out why
@@ -2240,7 +2253,7 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer,
                 // memory layer not yet initialized
                 if (nextMemoryLayer.reserved_size == 0) {
                     auto memorySize = InferenceEngine::details::product(nextMemoryLayer.getDims()) * nextMemoryLayer.elementSizeBytes();
-                    gnamem->getQueue(REGION_SCRATCH)->reserve_ptr(nullptr, &nextMemoryLayer.gna_ptr, ALIGN64(memorySize), 64);
+                    gnamem->getQueue(REGION_STATES)->reserve_ptr(nullptr, &nextMemoryLayer.gna_ptr, ALIGN64(memorySize), 64);
                     gnamem->getQueue(REGION_AUTO)->bind_ptr(nullptr, ptr, &nextMemoryLayer.gna_ptr, getOffsetForBinding(layer));
                     nextMemoryLayer.reserved_size = ALIGN64(memorySize);
                 } else {

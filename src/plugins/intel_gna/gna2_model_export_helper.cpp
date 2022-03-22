@@ -10,7 +10,7 @@
 #include "gna_api_wrapper.hpp"
 #include "gna2-device-api.h"
 
-#include <gna2-tlv-writer.h>
+#include "gna2-tlv-writer.h"
 
 #include <cstdint>
 #include <fstream>
@@ -56,6 +56,8 @@ void * ExportSueLegacyUsingGnaApi2(
 
 #define Gna2TlvTypeOVInputScaleFactor GNA2_TLV_IMPL_CHAR_TO_TYPE("OVIS")
 #define Gna2TlvTypeOVOutputScaleFactor GNA2_TLV_IMPL_CHAR_TO_TYPE("OVOS")
+#define Gna2ExportTlv(...) 1
+
 static_assert(std::numeric_limits<float>::is_iec559, "Float is not IEC 559 compatible");
 typedef std::array<char, sizeof(Gna2TlvRecord) + sizeof(float)> TlvFloatRecord;
 
@@ -148,9 +150,6 @@ void ExportTlvModel(uint32_t modelId,
 
     const auto gnaLibraryVersion = GNADeviceHelper::GetGnaLibraryVersion();
 
-#ifdef ENABLE_GNA_TLV_EXPORT
-    const char* userData = nullptr;
-    uint32_t userDataSize = 0;
     uint32_t outTlvSize = 0;
     auto tlv_status = Gna2ExportTlv(
         deviceVersionToExport,
@@ -167,8 +166,8 @@ void ExportTlvModel(uint32_t modelId,
         input_size,
         output_size,
         gnaLibraryVersion.c_str(),
-        userData,
-        userDataSize);
+        nullptr,
+        0);
 
     if (Gna2TlvStatusSuccess == tlv_status) {
         outStream.write(outTlv, outTlvSize);
@@ -177,7 +176,6 @@ void ExportTlvModel(uint32_t modelId,
         outStream.write(tlvInSF.data(), tlvInSF.size());
         outStream.write(tlvOutSF.data(), tlvOutSF.size());
     }
-#endif
     gnaUserFree(outTlv);
 
     gnaUserFree(bufferLayerDescriptors);

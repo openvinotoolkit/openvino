@@ -15,6 +15,7 @@
 #include <functional>
 #include <iostream>
 #include <fstream>
+#include <utility>
 #include "gna_lib_ver_selector.hpp"
 #include "memory_solver.hpp"
 #include "gna_allocator.hpp"
@@ -37,10 +38,11 @@ class GNAFloatAllocator : public std::allocator < uint8_t > {
 class GNAMemoryInterface {
 public:
     virtual GNAMemRequestsQueue* getQueue(rRegion region) = 0;
+    virtual GNAMemRequestsQueue* getQueue(void* ptr) = 0;
     virtual void commit(bool isCompact = false) = 0;
-    virtual void* getBasePtr() = 0;
-    virtual size_t getRWBytes() = 0;
-    virtual size_t getTotalBytes() = 0;
+    virtual std::pair<bool, uint32_t> getOffsetForMerged(void* ptr) = 0;
+    virtual size_t getRegionBytes(rRegion region) = 0;
+    virtual ~GNAMemoryInterface() = default;
 };
 
 /**
@@ -54,7 +56,6 @@ protected:
     std::map<rRegion, std::unique_ptr<GNAMemRequestsQueue>> _mem_queues;
     size_t _total = 0;
     Allocator _allocator;
-    std::shared_ptr<uint8_t> heap = nullptr;
     size_t _page_alignment = 1;
     bool _is_compact_mode = false;
 
@@ -66,7 +67,7 @@ protected:
         _mem_queues.insert(std::make_pair(REGION_SCRATCH, new GNAMemRequestsScratchQueue()));
         _mem_queues.insert(std::make_pair(REGION_STATES, new GNAMemRequestsStatesQueue()));
         _mem_queues.insert(std::make_pair(REGION_AUTO, new GNAMemRequestsBindingsQueue()));
-        }
+    }
 
  public:
     explicit GNAMemory(size_t pageAlignment = 1)
@@ -124,20 +125,32 @@ protected:
         return _mem_queues[region].get();
     }
 
-    void *getBasePtr() override {
-        return heap.get();
-    }
-
-    size_t getRWBytes() override {
-        return ALIGN(getQueue(REGION_SCRATCH)->calcSize(), _page_alignment);
-    }
-
-    size_t getTotalBytes() override {
-        _total = 0;
-        for (const auto &queue : _mem_queues) {
-            _total += ALIGN(queue.second->calcSize(), _page_alignment);
+    GNAMemRequestsQueue* getQueue(void* ptr) override {
+        for (auto& queuePair : _mem_queues) {
+            const auto offset = queuePair.second->getOffset(ptr);
+            if (offset.first) {
+                return queuePair.second.get();
+            }
         }
-        return _total;
+        return nullptr;
+    }
+
+    std::pair<bool, uint32_t> getOffsetForMerged(void * ptr) override {
+        uint32_t curOffset = 0;
+        for (auto& queuePair : _mem_queues) {
+            const auto offset = queuePair.second->getOffset(ptr);
+            if (offset.first) {
+                curOffset += offset.second;
+                return {true, curOffset};
+            }
+            const auto size = queuePair.second->getSize();
+            curOffset += ALIGN64(size);
+        }
+        return {false, 0};
+    }
+
+    size_t getRegionBytes(rRegion region) override {
+        return ALIGN(getQueue(region)->calcSize(), _page_alignment);
     }
 
     template<class T>
@@ -159,8 +172,9 @@ protected:
 
  protected:
     std::shared_ptr<uint8_t> allocate(size_t bytes) {
-        std::shared_ptr<uint8_t> sp(_allocator.allocate(bytes), [=](uint8_t *p) {
-            _allocator.deallocate(p, bytes);
+        Allocator nA = _allocator;
+        std::shared_ptr<uint8_t> sp(_allocator.allocate(bytes), [nA, bytes](uint8_t* p) mutable {
+            nA.deallocate(p, bytes);
         });
         std::fill(sp.get(), sp.get() + bytes, 0);
         return sp;
@@ -215,7 +229,6 @@ protected:
             // skipping Bind, crossregion and empty requests
             if (re._type == REQUEST_BIND || re._ptr_out == nullptr) continue;
 
-            // uint8_t offset = mRequests->_basePtr.get() + re._offset;
             auto cptr = mRequests->_basePtr.get() + re._offset;
             size_t cptr_avail_size = r_size - re._offset;
             auto sz = re._element_size * re._num_elements;
@@ -258,7 +271,7 @@ protected:
 #ifdef GNA_HEAP_PROFILER
     void memoryDump() {
         for (const auto &queue : _mem_queues) {
-            std::ofstream dumpFile("gna_memory_requests_" + std::string(rRegionToStr(queue.first)) + ".txt", std::ios::out);
+            std::ofstream dumpFile("gna_memory_requests_" + rRegionToStr(queue.first) + ".txt", std::ios::out);
             for (auto &re : queue.second->_mem_requests) {
             dumpFile << "region: " << rRegionToStr(re._region) << ", "
                     << "type: " << std::setw(17) << rTypeToStr(re._type) << " "
