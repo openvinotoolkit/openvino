@@ -786,9 +786,9 @@ WARN_LOGFILE           =
 # Note: If this tag is empty the current directory is searched.
 
 INPUT                  = "@DOCS_BUILD_DIR@/openvino/docs/IE_PLUGIN_DG/" \
-						 "@OpenVINO_SOURCE_DIR@/src/common/transformations/include/transformations" \
-						 "@OpenVINO_SOURCE_DIR@/src/inference/dev_api" \
-						 "@OpenVINO_SOURCE_DIR@/src/common/itt/include/openvino" \
+                         "@OpenVINO_SOURCE_DIR@/src/common/transformations/include/transformations" \
+                         "@OpenVINO_SOURCE_DIR@/src/inference/dev_api" \
+                         "@OpenVINO_SOURCE_DIR@/src/common/itt/include/openvino" \
                          "@OpenVINO_SOURCE_DIR@/src/common/conditional_compilation/include/" \
                          "@OpenVINO_SOURCE_DIR@/src/common/low_precision_transformations/include/" \
                          "@OpenVINO_SOURCE_DIR@/src/common/snippets/include/" \
