@@ -437,8 +437,10 @@ void Concat::initOptimalPrimitiveDescriptor() {
                 childConf.setMemDesc(childConf.getMemDesc()->cloneWithNewPrecision(config.outConfs[i].getMemDesc()->getPrecision()));
 
                 if (getChildEdgeAt(i)->getChild()->getSelectedPrimitiveDescriptor()) {
-                    if (!childConf.getMemDesc()->isDefined() && childConf.inPlace() >= 0)
+                    if (!childConf.getMemDesc()->isDefined() && childConf.inPlace() >= 0) {
                         getChildEdgeAt(i)->getChild()->initOptimalPrimitiveDescriptor();
+                        childConf = getChildEdgeAt(i)->getChild()->getSelectedPrimitiveDescriptor()->getConfig().inConfs[num];
+                    }
 
                     if (childConf.getMemDesc()->isDefined() && config.outConfs[i].getPortDesc()->isCompatible(*childConf.getPortDesc())) {
                         config.outConfs[i].setMemDesc(childConf.getMemDesc());
