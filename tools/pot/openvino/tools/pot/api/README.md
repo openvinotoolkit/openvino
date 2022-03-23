@@ -1,4 +1,4 @@
-# API reference {#pot_compression_api_README}
+# API reference  {#pot_compression_api_README}
 
 Post-trianing Optimization Tool API provides a full set of interaces and helpers that allow user to implement a custom optimization pipeline for various types o DL models including cascaded or compound models. Below is a full specificatoin of this API:
 
@@ -21,6 +21,7 @@ or
 ```
 (data, annotation, metadata)
 ```
+`data` is the input which is passed to the model at inderence so that it should be properly preprocessed. `data` can be either `numpy.array` object or dictionary where key is the name of the model input and value is `numpy.array` which corresponds to this input. The format of `annotation` should correspond to the expectations of the `Metric` class. `metadata` is an optional field that can be used to store additional information required for post-processing.
 
 ### Metric
 
@@ -29,10 +30,15 @@ class openvino.tools.pot.Metric()
 ```
 An abstract class representing an accuracy metric.
 
-All subclasses should override the following properties:
-- `value` - returns the accuracy metric value for the last model output.
-- `avg_value` - returns the average accuracy metric value for all model outputs.
-- `attributes` - returns a dictionary of metric attributes:
+All instances should override the following properties:
+- `value` - returns the accuracy metric value for the last model output in a format of `Dict[str, numpy.array]`.
+- `avg_value` - returns the average accuracy metric over collected model results in a format of `Dict[str, numpy.array]`.
+- `higher_better` should return `True` if a higher value of the metric corresponds to a better performance, otherwise, returns `False`. Default implementation returns `True`.
+
+and methods:
+- `update(output, annotation)` - calculates and updates the accuracy metric value using last model output and annotation. The model ouput and annotation should be passed in this method. It should also contain the model specific post-processing in case if the model returns the raw output.
+- `reset()` - resets collected accuracy metric. 
+- `get_attributes()` - returns a dictionary of metric attributes:
    ```
    {metric_name: {attribute_name: value}}
    ```
@@ -40,10 +46,6 @@ All subclasses should override the following properties:
    - `direction` - (`higher-better` or `higher-worse`) a string parameter defining whether metric value 
     should be increased in accuracy-aware algorithms.
    - `type` - a string representation of metric type. For example, 'accuracy' or 'mean_iou'.
-
-All subclasses should override the following methods:
-- `update(output, annotation)` - calculates and updates the accuracy metric value using last model output and annotation.
-- `reset()` - resets collected accuracy metric.
 
 ### Engine
 

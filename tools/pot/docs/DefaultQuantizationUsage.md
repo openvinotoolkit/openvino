@@ -33,29 +33,50 @@ You can wrap framework data loading classes by `openvino.tools.pot.DataLoader` i
 
 > **NOTE**: Model-specific preprocessing, for example, mean/scale normalization can be embedded into the model at the convertion step using Model Optimizer component. This should be considered during the implementation of the DataLoader interface to avoid "double" normalization which can lead to the loss of accuracy after optimization.
 
-The code example below defines `DataLoader` object for MNIST dataset using TorchVision [implementation](https://pytorch.org/vision/stable/generated/torchvision.datasets.MNIST.html#torchvision.datasets.MNIST):
+The code example below defines `DataLoader` object that loads images from a specified folder and transforms to a `numpy.array` with (1, 3, 224, 224) shape:
 
 ```python
-class MnistDataLoader(DataLoader):
+import os
+
+import numpy as np
+import cv2 as cv
+
+from openvino.tools.pot import DataLoader
+
+class ImageLoader(DataLoader):
 
     def __init__(self, dataset_path):
-        """ Creates an instance of MNIST dataset class from TorchVision """
-        super().__init__(dataset_path)
-        self.dataset = torchvision.datasets.MNIST(root=dataset_path, download=True)
+        """ Load images from folder using TorchVision implementation """
+        super().__init__({})
+
+        # Collect names of image files
+        self._files = []
+        all_files_in_dir = os.listdir(dataset_path)
+        for name in all_files_in_dir:
+            file = os.path.join(dataset_path, name)
+            if cv.haveImageReader(file):
+                self._files.append(file)
+
+        # Define shape of the model
+        self._shape = (224,224)
 
     def __len__(self):
         """ Returns the length of the dataset """
-        return len(self.dataset)
+        return len(self._files)
 
     def __getitem__(self, index):
-        """ Returns data and annotation by index
+        """ Returns image data by index in the NCHW layout
         Note: model-specific preprocessing is omitted, consider adding it here
         """
         if index >= len(self):
             raise IndexError("Index out of dataset size")
 
-        image, annotation = self.dataset[index]
-        return numpy.array(image), annotation # convert data to numpy
+        image = cv.imread(self._files[index]) # read image with OpenCV
+        image = cv.resize(image, self._shape) # resize to a target input size
+        image = np.expand_dims(image, 0)  # add batch dimension
+        print(image.shape)
+        image = image.transpose(0, 3, 1, 2)  # convert to NCHW layout
+        return image, None   # annotation is set to None
 ```
 
 ## Select quantization parameters
@@ -136,11 +157,15 @@ The output of the script is the quantized model that can be used for inference t
 
 If accuracy degradation after applying the Default Quantization method is high, it is recommended to try tips from [Quantization Best Practices](@ref pot_docs_BestPractices) document or use [Accuracy-aware Quantization](@ref pot_accuracyaware_usage) method.
 
+## Quantizing cascaded models
+In some cases, when the optimizing model is a cascaded model, i.e. consists of several submodels, for example, MT-CNN, you will need to implement a complex inference pipeline that can properly handle different submodels and data flow between them. POT API provides an `Engine` interface for this purpose which allows customization of the inference logic. However, we suggest inheriting from `IEEngine` helper class that already contains all the logic required to do the inference based on OpenVINO&trade; Python API. See the following example
+
 ## Examples
 
 * Tutorials:
   * [Quantization of Image Classification model](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/301-tensorflow-training-openvino)
   * [Quantization of Object Detection model from Model Zoo](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/111-detection-quantization)
+  * [Quantization of Segmentation model for medical data](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/110-ct-segmentation-quantize)
   * [Quantization of BERT for Text Classification](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/105-language-quantize-bert)
 * Samples:
   * [Quantization of 3D segmentation model](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/3d_segmentation)

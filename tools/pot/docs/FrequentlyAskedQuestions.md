@@ -26,9 +26,7 @@ Yes, POT is developed on GitHub as a part of [https://github.com/openvinotoolkit
 ### <a name="dataset">Can I quantize my model without a dataset?</a>
 
 In general, you should have a dataset. The dataset should be annotated if you want to validate the accuracy.
-If your dataset is not annotated, you can still quantize the model in the Simplified mode but you will not be able to measure the accuracy.
-See [Post-Training Optimization Best Practices](BestPractices.md) for more details.
-You can also use [POT API](../openvino/tools/pot/api/README.md) to integrate the post-training quantization into the custom inference pipeline.
+If your dataset is not annotated, you can use [Default Quantization](@ref pot_default_quantization_usage) to quantize the model or command-line interface with [Simplified mode](@ref pot_docs_simplified_mode).
 
 ### <a name="framework">Can a model in any framework be quantized by the POT?</a>
 
@@ -37,10 +35,11 @@ The POT accepts models in the OpenVINO&trade; Intermediate Representation (IR) f
 
 ### <a name="noac">I'd like to quantize a model and I've converted it to IR but I don't have the Accuracy Checker config. What can I do?</a>
 
-To create the Accuracy Checker configuration file, refer to [Accuracy Checker documentation](@ref omz_tools_accuracy_checker) and
-try to find the configuration file for your model among the ones available in the Accuracy Checker examples. An alternative way is to quantize the model
-in the Simplified mode but you will not be able to measure the accuracy. See [Post-Training Optimization Best Practices](BestPractices.md) for more details.
-Also, you can use [POT API](../openvino/tools/pot/api/README.md) to integrate the post-training quantization into your pipeline without the Accuracy Checker.
+1. Try quantization using Python* API of the Post-training Optimization Tool. For more details see [Default Quantization](@ref pot_default_quantization_usage.
+2. If you consider command-line usage only refer to [Accuracy Checker documentation](@ref omz_tools_accuracy_checker) to create the Accuracy Checker configuration file,  and
+try to find the configuration file for your model among the ones available in the Accuracy Checker examples. 
+3. An alternative way is to quantize the model
+in the [Simplified mode](#ref pot_docs_simplified_mode) but you will not be able to measure the accuracy.
 
 ### <a name="tradeoff">What is a tradeoff when you go to low precision?</a>
 
@@ -53,10 +52,10 @@ The other benefit of having a model in low precision is its smaller size.
 
 First of all, you should validate the POT compression pipeline you are running, which can be done with the following steps:
 1.	Make sure the accuracy of the original uncompressed model has the value you expect. Run your POT pipeline with an empty compression config and evaluate the resulting model metric. Compare this uncompressed model accuracy metric value with your reference.
-2.	Run your compression pipeline with a single compression algorithm ([DefaultQuantization](../openvino/tools/pot/algorithms/quantization/default/README.md) or [AccuracyAwareQuantization](../openvino/tools/pot/algorithms/quantization/accuracy_aware/README.md)) without any parameter values specified in the config (except for `preset` and `stat_subset_size`). Make sure you get the undesirable accuracy drop/performance gain in this case.
+2.	Run your compression pipeline with a single compression algorithm ([Default Quantization](@ref pot_default_quantization_usage) or [Accuracy-aware Quantization](@ref pot_accuracyaware_usage)) without any parameter values specified in the config (except for `preset` and `stat_subset_size`). Make sure you get the undesirable accuracy drop/performance gain in this case.
 
 Finally, if you have done the steps above and the problem persists, you could try to compress your model using the [Neural Network Compression Framework (NNCF)](https://github.com/openvinotoolkit/nncf_pytorch).
-Note that NNCF usage requires you to have a PyTorch-based training pipeline of your model in order to perform compression-aware fine-tuning. See [Low Precision Optimization Guide](LowPrecisionOptimizationGuide.md) for more details.
+Note that NNCF usage requires you to have a PyTorch or TensorFlow 2 based training pipeline of your model in order to perform Quantization-aware Training. See [Low Precision Optimization Guide](LowPrecisionOptimizationGuide.md) for more details.
 
 ### <a name="memory">I get “RuntimeError: Cannot get memory” and “RuntimeError: Output data was not allocated” when I quantize my model by the POT.</a>
 
@@ -73,12 +72,13 @@ which is usually more accurate and takes more time but requires less memory. See
 
 It can happen due to the following reasons:
 - A wrong or not representative dataset was used during the quantization and accuracy validation. Please make sure that your data and labels are correct and they sufficiently reflect the use case.
-- A wrong Accuracy Checker configuration file was used during the quantization. Refer to [Accuracy Checker documentation](@ref omz_tools_accuracy_checker) for more information.
+- In the case if command-line interface was used for quantization, a wrong Accuracy Checker configuration file could lead to this problem. Refer to [Accuracy Checker documentation](@ref omz_tools_accuracy_checker) for more information.
+- If [Default Quantization](@ref pot_default_quantization_usage) was used for quantization you can also try [Accuracy-aware Quantization](@ref pot_accuracyaware_usage) method that allows to control maximum accuracy deviation.
 
 ### <a name="longtime">The quantization process of my model takes a lot of time. Can it be decreased somehow?</a>
 
 Quantization time depends on multiple factors such as the size of the model and the dataset. It also depends on the algorithm:
-the [DefaultQuantization](../openvino/tools/pot/algorithms/quantization/default/README.md) algorithm takes less time than the [AccuracyAwareQuantization](../openvino/tools/pot/algorithms/quantization/accuracy_aware/README.md) algorithm.
+the [Default Quantization](@ref pot_default_quantization_usage) algorithm takes less time than the [ [Accuracy-aware Quantization](@ref pot_accuracyaware_usage) algorithm.
 The following configuration parameters also impact the quantization time duration
 (see details in [Post-Training Optimization Best Practices](BestPractices.md)):
 - `use_fast_bias`: when set to `false`, it increases the quantization time

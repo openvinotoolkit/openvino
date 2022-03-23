@@ -23,7 +23,7 @@ A script for Accuracy-aware Quantization should include four steps:
 4. Define and run quantization process
 
 ## Prepare data and dataset interface
-This step is the same as in the case of [Default Quantization](@ref pot_default_quantization_usage). The only difference is that `__getitem__()` method should return `(data, annotation)` or `(data, annotation, metadata)` where `annotation` is required and corresponds to the expectations of the `Metric` class. `metadata` is an optional field that can be used to store additional information required for post-processing.
+This step is the same as in the case of [Default Quantization](@ref pot_default_quantization_usage). The only difference is that `__getitem__()` method should return `(data, annotation)` or `(data, annotation, metadata)` where `annotation` is required and it format should correspond to the expectations of the `Metric` class. `metadata` is an optional field that can be used to store additional information required for post-processing.
 
 ## Define accuracy metric
 In order to control accuracy during the optimization a `openvino.tools.pot.Metric` interface should be implemented. Each implementaion should override the following properties:
@@ -45,7 +45,7 @@ and methods:
 
 Below is an example of the accuracy top-1 metric implementation with POT API:
 ```python
-from openvino.tools.pot import metric
+from openvino.tools.pot import Metric
 
 class Accuracy(Metric):
 
@@ -109,7 +109,7 @@ describe only Accuracy-aware Quantization required parameters:
 
 ## Run quantization
 
-The code example below shows basic quantization workflow with accuracy control.
+The code example below shows basic quantization workflow with accuracy control. `UserDataLoader()` is a placeholder for the implementation of `DataLoader`.
 
 ```python
 from openvino.tools.pot import IEEngine
@@ -141,7 +141,7 @@ algorithms = [
 ]
 
 # Step 1: implement and create user's data loader
-data_loader = MnistDataLoader("./minst")
+data_loader = UserDataLoader()
 
 # Step 2: implement and create user's data loader
 metric = Accuracy()
