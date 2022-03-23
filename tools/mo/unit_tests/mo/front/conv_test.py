@@ -72,6 +72,7 @@ class PadFusingTest(unittest.TestCase):
         graph = partial_infer(graph)
         mark_shape_of_sugraph_as_unfusable(graph)
         for_graph_and_each_sub_graph_recursively(graph, fuse_pad)
+        graph.clean_up()
 
         conv_fused_with_pad = regular_op_with_empty_data('conv', {'type': 'Convolution',
                                                                   'op': 'Convolution',

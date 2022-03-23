@@ -42,12 +42,10 @@ def mark_unfused_nodes(graph: Graph, regex_masks: str):
 
 def mark_shape_of_sugraph_as_unfusable(graph: Graph):
     def condition_to_continue(node: Node):
-        res = True
         for i, port in node.out_ports().items():
             if port.data.get_value() is None:
-                res = False
-                break
-        return res
+                return False
+        return True
 
     starting_nodes = graph.get_op_nodes(op='ShapeOf')
     shapeof_subgraph_nodes = MarkSubGraphsWithCorrectLayout.bfs(starting_nodes, set(), condition_to_continue)

@@ -52,7 +52,8 @@ def pad_op_transform(graph: Graph, match: dict):
         op['exclude_pad'] = False
     assert (graph[match['pad_output'].node][match['op'].node][0]['in'] == 0)
 
-    pad_op.in_port(0).get_connection().set_destination(match['op'].in_port(0))
+    match['op'].in_port(0).disconnect()
+    pad_op.in_port(0).get_connection().add_destination(match['op'].in_port(0))
 
 
 def fuse_pad(graph: Graph):
