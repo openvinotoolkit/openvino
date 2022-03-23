@@ -82,8 +82,8 @@ void set_arguments_impl(ze_kernel_handle_t kernel,
                 }
                 break;
             case args_t::OUTPUT:
-                if (data.output) {
-                    auto ptr = std::dynamic_pointer_cast<const ze::gpu_usm>(data.output)->get_buffer().get();
+                if (args[i].index < data.outputs.size() && data.outputs[args[i].index])  {
+                    auto ptr = std::dynamic_pointer_cast<const ze::gpu_usm>(data.outputs[args[i].index])->get_buffer().get();
                     status = zeKernelSetArgumentValue(kernel, i, sizeof(void*), &ptr);
                     ZE_CHECK(status);
                 }
