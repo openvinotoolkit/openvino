@@ -110,9 +110,10 @@ sudo yum install openvino-opencv-<VERSION>.<UPDATE>.<PATCH>
 
 Install external software dependencies if you decide to [install OpenVINO Model Development Tools.](installing-model-dev-tools.md)
 
-Refer to <a href="openvino_docs_install_guides_installing_openvino_linux.html#install-external-dependencies">Install External Software Dependencies</a> for detailed guide.
 
-## <a name="configure-inference"></a>Step 5 (Optional): Configure Inference on Non-CPU Devices
+Refer to <a href="openvino_docs_install_guides_installing_openvino_linux.html#install-external-dependencies">Install External Software Dependencies</a> for detailed steps.
+
+### Step 5 (Optional): Configure Inference on Non-CPU Devices
 
 @sphinxdirective
 
@@ -139,6 +140,15 @@ Refer to <a href="openvino_docs_install_guides_installing_openvino_linux.html#in
 
 @endsphinxdirective
 
+## What's Next?
+
+Now you may continue with the following tasks:
+
+* To convert models for use with OpenVINO, see [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+* See pre-trained deep learning models in our [Open Model Zoo](../model_zoo.md).
+* Try out OpenVINO via [OpenVINO Notebooks](https://docs.openvino.ai/latest/notebooks/notebooks.html).
+* To write your own OpenVINO™ applications, see [OpenVINO Runtime User Guide](../OV_Runtime_UG/openvino_intro.md).
+* See sample applications in [OpenVINO™ Toolkit Samples Overview](../OV_Runtime_UG/Samples_Overview.md).
 
 ## <a name="next"></a>What's Next?
 

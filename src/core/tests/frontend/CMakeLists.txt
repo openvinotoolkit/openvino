@@ -1,8 +1,6 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
-add_subdirectory(shared)
-
 if (ENABLE_OV_PADDLE_FRONTEND)
     add_subdirectory(paddle)
 endif()
