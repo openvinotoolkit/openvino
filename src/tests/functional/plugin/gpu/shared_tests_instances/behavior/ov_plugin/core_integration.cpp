@@ -673,6 +673,46 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassQueryNetworkTest, OVClassQueryNetworkTest,
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassLoadNetworkTest, OVClassLoadNetworkTest, ::testing::Values("GPU"));
 
+const std::vector<ov::AnyMap> gpuCorrectConfigs = {
+        {
+            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
+            ov::hint::allow_auto_batching(false)
+        },
+        {
+            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
+            ov::hint::allow_auto_batching(true)
+        }
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassLoadNetworkWithCorrectPropertiesAutoBatchingTest, OVClassLoadNetworkWithCorrectPropertiesTest,
+                            ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                                ::testing::ValuesIn(gpuCorrectConfigs)));
+
+const std::vector<ov::AnyMap> autoCorrectConfigs = {
+        {
+            ov::device::priorities(CommonTestUtils::DEVICE_GPU),
+            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
+            ov::hint::allow_auto_batching(false)
+        },
+        {
+            ov::device::priorities(CommonTestUtils::DEVICE_GPU),
+            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
+            ov::hint::allow_auto_batching(true)
+        }
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_OVClassLoadNetworkWithCorrectPropertiesAutoBatchingTest, OVClassLoadNetworkWithCorrectPropertiesTest,
+                        ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_MULTI, CommonTestUtils::DEVICE_AUTO),
+                        ::testing::ValuesIn(autoCorrectConfigs)));
+
+const std::vector<ov::AnyMap> batchCorrectConfigs = {
+    {}
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_Batch_OVClassLoadNetworkWithCorrectPropertiesAutoBatchingTest, OVClassLoadNetworkWithCorrectPropertiesTest,
+                        ::testing::Combine(::testing::Values("BATCH:GPU"),
+                        ::testing::ValuesIn(batchCorrectConfigs)));
+
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassHeteroExecutableNetworkGetMetricTest,
         OVClassLoadNetworkAfterCoreRecreateTest,
         ::testing::Values("GPU"));

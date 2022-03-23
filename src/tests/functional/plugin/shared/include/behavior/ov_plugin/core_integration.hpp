@@ -63,11 +63,13 @@ class OVClassSetDevicePriorityConfigTest : public ::testing::Test, public ::test
 protected:
     std::string deviceName;
     ov::AnyMap configuration;
+    std::shared_ptr<ngraph::Function> actualNetwork;
 
 public:
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         std::tie(deviceName, configuration) = GetParam();
+        actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
     }
 };
 
@@ -96,6 +98,7 @@ using OVClassSetModelPriorityConfigTest = OVClassBaseTestP;
 using OVClassSetLogLevelConfigTest = OVClassBaseTestP;
 using OVClassSpecificDeviceTestSetConfig = OVClassBaseTestP;
 using OVClassSpecificDeviceTestGetConfig = OVClassBaseTestP;
+using OVClassLoadNetworkWithCorrectPropertiesTest = OVClassSetDevicePriorityConfigTest;
 
 class OVClassSeveralDevicesTest : public OVClassNetworkTest,
                                   public ::testing::WithParamInterface<std::vector<std::string>> {
@@ -992,6 +995,11 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkWithBigDeviceIDThrows) {
     } else {
         GTEST_SKIP();
     }
+}
+
+TEST_P(OVClassLoadNetworkWithCorrectPropertiesTest, LoadNetworkWithCorrectPropertiesTest) {
+    ov::Core ie = createCoreWithTemplate();
+    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, deviceName, configuration));
 }
 
 TEST_P(OVClassLoadNetworkTest, LoadNetworkWithInvalidDeviceIDThrows) {
