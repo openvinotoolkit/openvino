@@ -60,9 +60,9 @@ void printInputAndOutputsInfoShort(const T& network) {
                 in_name += name + " , ";
             }
             in_name = in_name.substr(0, in_name.size() - 3);
-
         } catch (const ov::Exception&) {
         }
+
         try {
             node_name = input.get_node()->get_friendly_name();
         } catch (const ov::Exception&) {
