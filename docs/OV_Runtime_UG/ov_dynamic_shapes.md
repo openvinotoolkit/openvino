@@ -115,8 +115,8 @@ For the same reason it is not recommended to leave dimensions as undefined witho
 
 When specifying bounds, the lower bound is not so important as upper bound, because knowing of upper bound allows inference devices to more precisely allocate memory for intermediate tensors for inference and use lesser number of tuned kernels for different sizes.
 Precisely speaking benefits of specifying lower or upper bound is device dependent.
-Depending on the plugin specifying upper bounds can be required.
-<TODO: reference to plugin limitations table>.
+Depending on the plugin specifying upper bounds can be required. For information about dynamic shapes support on different devices, see the [Features Support Matrix](@ref features_support_matrix).
+
 If users known lower and upper bounds for dimension it is recommended to specify them even when plugin can execute model without the bounds.
 
 ### Setting Input Tensors
