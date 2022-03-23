@@ -14,6 +14,10 @@
 
 namespace ov {
 namespace pass {
+/**
+ * @brief Manager class allows to manage transformation passes
+ * @ingroup ov_pass_cpp_api
+ */
 class OPENVINO_API Manager {
 public:
     Manager();

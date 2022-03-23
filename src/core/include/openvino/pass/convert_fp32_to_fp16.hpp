@@ -8,6 +8,10 @@
 
 namespace ov {
 namespace pass {
+/**
+ * @brief ConvertFP32ToFP16 transformation
+ * @ingroup ov_pass_cpp_api
+ */
 class OPENVINO_API ConvertFP32ToFP16 : public ModelPass {
 public:
     OPENVINO_RTTI("ConvertFP32ToFP16");
