@@ -5,7 +5,7 @@ The [MTCNN](https://github.com/openvinotoolkit/open_model_zoo/blob/master/models
 A custom `DataLoader` is created to load [WIDER FACE](http://shuoyang1213.me/WIDERFACE/) dataset for a face detection task 
 and the implementation of Recall metric is used for the model evaluation. In addition, this example demonstrates how one can implement 
 an engine to infer a cascaded (composite) model that is represented by multiple submodels in an OpenVino&trade; Intermediate Representation (IR)
-and has a complex staged inference pipeline.
+and has a complex staged inference pipeline. The code of the example is available on [GitHub](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/face_detection).
 
 ## How to prepare the data
 
@@ -18,15 +18,15 @@ can be downloaded separately and are located in the `wider_face_split/wider_face
 
 1. Launch [Model Downloader](@ref omz_tools_downloader) tool to download `mtcnn` model from the Open Model Zoo repository.
    ```sh
-   python3 ./downloader.py --name mtcnn*
+   omz_downloader --name mtcnn*
    ```
 2. Launch [Model Converter](@ref omz_tools_downloader) tool to generate Intermediate Representation (IR) files for the model:
    ```sh
-   python3 ./converter.py --name mtcnn* --mo <PATH_TO_MODEL_OPTIMIZER>/mo.py
+   omz_converter --name mtcnn* --mo <PATH_TO_MODEL_OPTIMIZER>/mo.py
    ```
-3. Launch the example script:
+3. Launch the example script from the example directory:
    ```sh
-   python3 <POT_DIR>/api/examples/face_detection/face_detection_example.py -pm <PATH_TO_IR_XML_OF_PNET_MODEL> 
+   python3 ./face_detection_example.py -pm <PATH_TO_IR_XML_OF_PNET_MODEL> 
    -rm <PATH_TO_IR_XML_OF_RNET_MODEL> -om <PATH_TO_IR_XML_OF_ONET_MODEL> -d <WIDER_val/images> -a <wider_face_split/wider_face_val_bbx_gt.txt>
    ```
    Optional: you can specify .bin files of corresponding IRs directly using the `-pw/--pnet-weights`, `-rw/--rnet-weights` and `-ow/--onet-weights` options.

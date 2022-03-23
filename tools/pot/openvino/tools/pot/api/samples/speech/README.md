@@ -4,7 +4,7 @@ This example demonstrates the use of the [Post-training Optimization Tool API](@
 Quantization for GNA is different from CPU quantization due to device specific: GNA supports quantized inputs in INT16 and INT32 (for activations) precision and quantized weights in INT8 and INT16 precision.
 
 This example contains pre-selected quantization options based on the DefaultQuantization algorithm and created for models from [Kaldi](http://kaldi-asr.org/doc/) framework, and its data format.
-A custom `ArkDataLoader` is created to load the dataset from files with .ark extension for speech analysis task.
+A custom `ArkDataLoader` is created to load the dataset from files with .ark extension for speech analysis task. 
 
 ## How to prepare the data
 
