@@ -847,12 +847,12 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::ROIPooling
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v8::RandomUniform> &node) {
-    const auto out_shape_ = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {4}, {1, 3, 3, 3});
+    const auto params = ngraph::builder::makeDynamicParams(ov::element::i32, {{3}});
     const auto min_value = ngraph::builder::makeConstant<float>(ov::element::f32, {}, {0.f});
     const auto max_value = ngraph::builder::makeConstant<float>(ov::element::f32, {}, {1.f});
-    auto Node = std::make_shared<ov::op::v8::RandomUniform>(out_shape_, min_value, max_value, ov::element::f32, 10, 10);
+    auto Node = std::make_shared<ov::op::v8::RandomUniform>(params.at(0), min_value, max_value, ov::element::f32, 10, 10);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(Node)};
-    return std::make_shared<ov::Model>(results, ov::ParameterVector{}, "RandomUniformGraph");
+    return std::make_shared<ov::Model>(results, params, "RandomUniformGraph");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Range> &node) {
