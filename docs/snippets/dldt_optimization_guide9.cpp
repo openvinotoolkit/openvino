@@ -1,7 +1,6 @@
 #include <ie_core.hpp>
 
 int main() {
-using namespace InferenceEngine;
 //! [part9]
 while(true) {
     // capture frame
