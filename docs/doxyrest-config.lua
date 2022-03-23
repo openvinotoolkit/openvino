@@ -79,7 +79,7 @@ EXTRA_PAGE_LIST = {}
 --! is not set (otherwise, the title of intro file will be used).
 --!
 
-INDEX_TITLE = "Inference Engine C++ API Reference"
+INDEX_TITLE = "OpenVINO Runtime C++ API Reference"
 
 --!
 --! File with project introduction (reStructuredText). When non-nil, this file
