@@ -64,10 +64,7 @@ public:
         const auto kernel = ov::as_type_ptr<ngraph::snippets::op::Kernel>(n);
         if (!kernel)
             IE_THROW() << "KernelEmitter invoked with invalid op argument";
-        if (!kernel->compile_params)
-            IE_THROW() << "KernelEmitter invoked without compile_params";
         body = kernel->region;
-        jcp = *reinterpret_cast<const jit_snippets_compile_args*>(kernel->compile_params);
     }
 
     size_t get_inputs_num() const override {return 0;}
@@ -81,18 +78,20 @@ public:
 private:
     void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out,
                             const std::vector<size_t> &pool = {}, const std::vector<size_t> &gpr = {}) const override {
-        if (in.size() != 2)
-            IE_THROW() << "KernelEmitter got invalid number of inputs. Expected 2, got " << in.size();
+//        if (in.size() != 2)
+//            IE_THROW() << "KernelEmitter got invalid number of inputs. Expected 2, got " << in.size();
+        if (in.size() != 0)
+            IE_THROW() << "KernelEmitter doesn't accept arguments.";
         if (out.size() != 0)
             IE_THROW() << "KernelEmitter got unexpected output arguments.";
-        const size_t num_params = in[0] + in[1];
-        if (num_params > SNIPPETS_MAX_SNIPPETS_DIMS)
-            IE_THROW() << "KernelEmitter supports only up to " << SNIPPETS_MAX_SNIPPETS_DIMS <<
-                       " parameters, got " << num_params;
-        const int64_t harness_num_dims = jcp.output_dims.size() - 1;
-        if (harness_num_dims > SNIPPETS_MAX_HARNESS_DIMS)
-            IE_THROW() << "KernelEmitter supports harness with up to " << SNIPPETS_MAX_HARNESS_DIMS <<
-                       " dims, got " << harness_num_dims;
+//        const size_t num_params = in[0] + in[1];
+//        if (num_params > SNIPPETS_MAX_SNIPPETS_DIMS)
+//            IE_THROW() << "KernelEmitter supports only up to " << SNIPPETS_MAX_SNIPPETS_DIMS <<
+//                       " parameters, got " << num_params;
+//        const int64_t harness_num_dims = jcp.output_dims.size() - 1;
+//        if (harness_num_dims > SNIPPETS_MAX_HARNESS_DIMS)
+//            IE_THROW() << "KernelEmitter supports harness with up to " << SNIPPETS_MAX_HARNESS_DIMS <<
+//                       " dims, got " << harness_num_dims;
     }
 
     void emit_impl(const std::vector<size_t>& in,
@@ -100,36 +99,7 @@ private:
                    const std::vector<size_t>& pool,
                    const std::vector<size_t>& gpr,
                    const ov::intel_cpu::emitter_context *emit_context) const override {
-        const size_t num_inputs = in[0];
-        const size_t num_outputs = in[1];
-        const size_t num_params = num_inputs + num_outputs;
-        int reg64_tmp_start { 8 }; // R8, R9, R10, R11, R12, R13, R14, R15 inputs+outputs+1
-        const int64_t harness_num_dims = jcp.output_dims.size() - 1;
-
-        Reg64 reg_indexes   { dnnl::impl::cpu::x64::abi_param1 };
-        Reg64 reg_const_params { dnnl::impl::cpu::x64::abi_param2 };
-        Xbyak::Reg64 reg_tmp_64 { dnnl::impl::cpu::x64::abi_not_param1};
-
         h->preamble();
-
-        std::vector<Reg64> regs(num_params);
-        auto init_ptrs_with_offsets = [&](Reg64 pointer, const int64_t *offsets) {
-            for (int j = 0; j < harness_num_dims; j++) {
-                if (jcp.output_dims[j] != 1 && offsets[j] != 0) {
-                    h->mov(reg_tmp_64, offsets[j]);
-                    h->imul(reg_tmp_64, h->ptr[reg_indexes + j * sizeof(size_t)]);
-                    h->add(pointer, reg_tmp_64);
-                }
-            }
-        };
-        for (auto i = 0; i < num_params; i++) {
-            regs[i] = Reg64(reg64_tmp_start + i);
-            if (i < num_inputs)
-                h->mov(regs[i], h->ptr[reg_const_params + GET_OFF(src_ptrs) + i * sizeof(void*)]);
-            else
-                h->mov(regs[i], h->ptr[reg_const_params + GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*)]);
-            init_ptrs_with_offsets(regs[i], &jcp.data_offsets[i * harness_num_dims]);
-        }
 
         for (auto& c : body) {
             c.first->emit_code(c.second.first, c.second.second, pool, gpr);
@@ -138,7 +108,6 @@ private:
         h->postamble();
     }
 
-    jit_snippets_compile_args jcp;
     std::vector<EmitterCode> body;
 };
 
@@ -261,19 +230,46 @@ private:
                    const std::vector<size_t>& pool,
                    const std::vector<size_t>& gpr,
                    const ov::intel_cpu::emitter_context *emit_context) const override {
-        const size_t vector_size = in[0];
-        const size_t num_params = in[1];
+        const size_t num_inputs = in[0];
+        const size_t num_outputs = in[1];
+        const size_t vector_size = in[2];
+        const size_t num_params = num_inputs + num_outputs;
         const size_t outer_work_amount = jcp.scheduler_dims[0];
         const size_t inner_work_amount = jcp.scheduler_dims[1];
         const int reg64_tmp_start { 8 }; // R8, R9, R10, R11, R12, R13, R14, R15 inputs+outputs+1
+        const int64_t harness_num_dims = jcp.output_dims.size() - 1;
 
-        Reg64 amount = Reg64(reg64_tmp_start + num_params); // amount
+        // These are kernel runtime input arguments
+        Reg64 reg_indexes   { dnnl::impl::cpu::x64::abi_param1 };
+        Reg64 reg_const_params { dnnl::impl::cpu::x64::abi_param2 };
+
+        Xbyak::Reg64 reg_tmp_64 { dnnl::impl::cpu::x64::abi_not_param1};
+        Reg64 reg_amount = Reg64(reg64_tmp_start + num_params); // amount
         Label for_body;
 
         // If R15 is not used, reserve it for use in scalar to avoid redundant push-pop's.
         // todo: Do we need explicitly check that code contains ScalarEmitter?
         std::vector<size_t> local_gpr = reg64_tmp_start + num_params < 15 ? std::vector<size_t>{15} : std::vector<size_t>{};
         std::vector<Reg64> regs(num_params);
+
+        auto init_ptrs_with_offsets = [&](Reg64 pointer, const int64_t *offsets) {
+            for (int j = 0; j < harness_num_dims; j++) {
+                if (jcp.output_dims[j] != 1 && offsets[j] != 0) {
+                    h->mov(reg_tmp_64, offsets[j]);
+                    h->imul(reg_tmp_64, h->ptr[reg_indexes + j * sizeof(size_t)]);
+                    h->add(pointer, reg_tmp_64);
+                }
+            }
+        };
+        for (auto i = 0; i < num_params; i++) {
+            regs[i] = Reg64(reg64_tmp_start + i);
+            if (i < num_inputs)
+                h->mov(regs[i], h->ptr[reg_const_params + GET_OFF(src_ptrs) + i * sizeof(void*)]);
+            else
+                h->mov(regs[i], h->ptr[reg_const_params + GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*)]);
+            init_ptrs_with_offsets(regs[i], &jcp.data_offsets[i * harness_num_dims]);
+        }
+
         for (auto i = 0; i < num_params; i++)
             regs[i] = Reg64(reg64_tmp_start + i);
 
@@ -287,7 +283,7 @@ private:
                         c.first->emit_code(c.second.first, c.second.second, pool, local_gpr);
                 } else if (tile_condition) {
                     // Need to set proper work amount for inner tiles before code emission
-                    h->mov(amount, inner_work_amount);
+                    h->mov(reg_amount, inner_work_amount);
                     const ngraph::snippets::RegInfo &regInfo = tile.second;
                     tile.first->emit_code(regInfo.first, regInfo.second, pool, local_gpr);
                 }
@@ -301,12 +297,12 @@ private:
             emit_tiles();
         } else if (outer_work_amount > 1) {
             // We need to create a Loop in this case
-            h->mov(amount, outer_work_amount);
+            h->mov(reg_amount, outer_work_amount);
             h->L(for_body);
             {
-                h->push(amount);
+                h->push(reg_amount);
                 emit_tiles();
-                h->pop(amount);
+                h->pop(reg_amount);
 
                 // Todo: Load and Store emitters are currently implemented so they ALWAYS increment appropriate pointers
                 //   after reading/writing. This might be a problem if we need to read the same data multiple times (broadcasting shapes).
@@ -317,8 +313,8 @@ private:
                     }
                 }
                 // Note that outer dimensions are always incremented by 1 (outer tiles are always scalar)
-                h->sub(amount, 1);
-                h->cmp(amount, 1);
+                h->sub(reg_amount, 1);
+                h->cmp(reg_amount, 1);
                 h->jge(for_body, CodeGenerator::T_NEAR);
             }
         }

@@ -83,16 +83,14 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
     // wrapping into tiles2D
     auto tile_scheduler = std::make_shared<ngraph::snippets::op::TileScheduler>(vector_region, scalar_region);
     tile_scheduler->compile_params = compile_params;
-    std::vector<EmitterCode> tiles2D;
-    tiles2D.emplace_back(std::make_pair(target->get(ngraph::snippets::op::TileScheduler::get_type_info_static())(tile_scheduler),
-                                     std::make_pair(std::vector<size_t>({target->get_lanes(), nptrs}), std::vector<size_t>{})));
+    const auto& tile_scheduler_region = std::make_pair(target->get(ngraph::snippets::op::TileScheduler::get_type_info_static())(tile_scheduler),
+                                                       std::make_pair(std::vector<size_t>({in, out, target->get_lanes()}), std::vector<size_t>{}));
 
     OV_ITT_TASK_NEXT(GENERATE, "::EmitCode")
     // emission
-    auto tiles2DKernel = std::make_shared<ngraph::snippets::op::Kernel>(tiles2D);
-    tiles2DKernel->compile_params = compile_params;
+    auto tiles2DKernel = std::make_shared<ngraph::snippets::op::Kernel>(std::vector<EmitterCode> {tile_scheduler_region});
     std::shared_ptr<Emitter> kernel = target->get(ngraph::snippets::op::Kernel::get_type_info_static())(tiles2DKernel);
-    kernel->emit_code({in, out}, {});
+    kernel->emit_code({}, {});
     OV_ITT_TASK_NEXT(GENERATE, "::EmitData")
     lowered.insert(lowered.end(), scalar_lowered.begin(), scalar_lowered.end());
     for (auto& op : lowered) {
