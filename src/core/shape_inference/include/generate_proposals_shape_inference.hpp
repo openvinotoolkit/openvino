@@ -92,7 +92,7 @@ void shape_infer(const GenerateProposalsSingleImage* op,
     if (im_info_shape_rank.is_static()) {
         output_shapes[2] = ov::PartialShape({im_info_shape[0]});
     } else {
-        output_shapes[2] = ov::PartialShape::dynamic();
+        output_shapes[2] = ov::PartialShape::dynamic(1);
     }
 }
 

@@ -12,17 +12,6 @@ namespace frontend {
 namespace paddle {
 namespace op {
 
-std::shared_ptr<ngraph::Node> get_one_batch(const NodeContext& node,
-                                            const ngraph::Output<ov::Node>& input,
-                                            const int64_t input_rank) {
-    std::string input_name = input.get_node()->get_friendly_name();
-
-    auto squeeze_axes = default_opset::Constant::create<int32_t>(ov::element::i64, {1}, {0});
-    auto output = std::make_shared<default_opset::Squeeze>(input, squeeze_axes);
-
-    return output;
-}
-
 NamedOutputs generate_proposals_v2(const NodeContext& node) {
     auto bbox_deltas = node.get_input("BboxDeltas");  // [N，4 * A，H，W]
     auto im_shape = node.get_input("ImShape");        // [N, 2]
@@ -31,10 +20,6 @@ NamedOutputs generate_proposals_v2(const NodeContext& node) {
     Output<Node> variances;
     if (node.has_input("Variances"))
         variances = node.get_input("Variances");  // [H，W，A，4] or [H * W * A, 4]
-
-    auto single_bbox_deltas = get_one_batch(node, bbox_deltas, 4);
-    auto single_im_shape = get_one_batch(node, im_shape, 2);
-    auto single_scores = get_one_batch(node, scores, 4);
 
     // attribute
     ov::op::v9::GenerateProposalsSingleImage::Attributes attrs;
@@ -48,15 +33,15 @@ NamedOutputs generate_proposals_v2(const NodeContext& node) {
     attrs.normalized = not node.get_attribute<bool>("pixel_offset", true);
 
     // reshape anchors from to [H, W, A, 4] if it is [H * W * A, 4]
-    auto scores_shape = std::make_shared<default_opset::ShapeOf>(single_scores);
-    auto gather_indices = default_opset::Constant::create<int64_t>(ov::element::i64, {3}, {1, 2, 0});
+    auto scores_shape = std::make_shared<default_opset::ShapeOf>(scores);
+    auto gather_indices = default_opset::Constant::create<int64_t>(ov::element::i64, {3}, {2, 3, 1});
     auto gather_axis = default_opset::Constant::create<int64_t>(ov::element::i64, {}, {0});
     auto partial_anchors_shape = std::make_shared<default_opset::Gather>(scores_shape, gather_indices, gather_axis);
     auto const_4 = default_opset::Constant::create<int64_t>(ov::element::i64, {1}, {4});
     auto anchors_shape = std::make_shared<default_opset::Concat>(OutputVector{partial_anchors_shape, const_4}, 0);
     auto reshaped_anchors = std::make_shared<default_opset::Reshape>(anchors, anchors_shape, true);
 
-    auto variances_bbox_deltas = single_bbox_deltas;
+    auto variances_bbox_deltas = bbox_deltas;
     if (variances.get_node()) {
         // Reshape variances to [H, W, A, 4] if it is [H * W * A, 4]
         auto dim4_variances = std::make_shared<default_opset::Reshape>(variances, anchors_shape, true);
@@ -66,26 +51,31 @@ NamedOutputs generate_proposals_v2(const NodeContext& node) {
         auto transpose_order = default_opset::Constant::create(ov::element::i64, {3}, {2, 0, 1});
         auto transposed_variances = std::make_shared<default_opset::Transpose>(reshaped_variances, transpose_order);
         // auto transposed_variances = default_opset::Constant::create(ov::element::f32, {}, {2.0});
-        variances_bbox_deltas = std::make_shared<default_opset::Multiply>(single_bbox_deltas, transposed_variances);
+        variances_bbox_deltas = std::make_shared<default_opset::Multiply>(bbox_deltas, transposed_variances);
     }
 
     // generate im_info from im_scale
+    auto batch_index = default_opset::Constant::create<int64_t>(ov::element::i64, {1}, {0});
+    auto batch = std::make_shared<default_opset::Gather>(scores_shape, batch_index, gather_axis);
     auto im_scale = default_opset::Constant::create(ov::element::f32, {1}, {1.0});
-    auto im_info = std::make_shared<default_opset::Concat>(OutputVector{single_im_shape, im_scale}, 0);
+    auto im_scales = std::make_shared<default_opset::Broadcast>(im_scale, batch);
+    auto const_1 = default_opset::Constant::create<int64_t>(ov::element::i64, {1}, {1});
+    auto reshape_im_scales = std::make_shared<default_opset::Unsqueeze>(im_scales, const_1);
+    auto im_info = std::make_shared<default_opset::Concat>(OutputVector{im_shape, reshape_im_scales}, 1);
 
     // input:
-    //  1. im_info: [H, W, S] or [H, W, S_H, S_W]
+    //  1. im_info: [N, H, W, S] or [N, H, W, S_H, S_W]
     //  2. anchors: [H, W, A, 4]
-    //  3. deltas: [A*4, H, W]
-    //  4. scores: [A, H, W]
+    //  3. deltas: [N, A*4, H, W]
+    //  4. scores: [N, A, H, W]
     // output:
     //  1. rois: [proposals_num, 4]
     //  2. scores: [proposals_num]
-    //  3. roi_num: [1]
+    //  3. roi_num: [N]
     auto proposal = std::make_shared<ov::op::v9::GenerateProposalsSingleImage>(im_info,
                                                                                reshaped_anchors,
                                                                                variances_bbox_deltas,
-                                                                               single_scores,
+                                                                               scores,
                                                                                attrs);
     proposal->set_roi_num_type(ov::element::i32);
 

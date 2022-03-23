@@ -406,6 +406,7 @@ void GenerateProposalsSingleImageNode::execute(mkldnn::stream strm) {
         std::vector<int64_t> roi_num(batch_size);
         uint8_t* p_roi_num = reinterpret_cast<uint8_t*>(&roi_num[0]);
         auto roi_num_type = getOriginalOutputPrecisionAtPort(OUTPUT_ROI_NUM);
+        const auto roi_num_item_size = roi_num_type == Precision::I32 ? sizeof(int32_t) : sizeof(int64_t);
         for (int n = 0; n < batch_size; ++n) {
             // input image height & width
             const float img_H = p_img_info_cpu[0];
@@ -443,13 +444,13 @@ void GenerateProposalsSingleImageNode::execute(mkldnn::stream strm) {
             roi_item.resize(new_num_rois * 4);
             score_item.resize(new_num_rois);
 
-            p_roi_num += roi_num_type == Precision::I32 ? n * sizeof(int32_t) : n * sizeof(int64_t);
             fill_output_blobs(&unpacked_boxes[0], &roi_indices_[0], &roi_item[total_num_rois * 4], &score_item[total_num_rois],
                               p_roi_num, pre_nms_topn, num_rois, post_nms_topn_, roi_num_type);
             p_deltas_item += deltas_dims_size;
             p_scores_item += score_dims_size;
             p_img_info_cpu += im_info_dims_size;
             total_num_rois = new_num_rois;
+            p_roi_num += roi_num_item_size;
         }
         // copy to out memory
         redefineOutputMemory({{total_num_rois, 4}, {total_num_rois}, {batch_size}});

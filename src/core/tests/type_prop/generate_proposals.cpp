@@ -114,7 +114,7 @@ TEST(type_prop, generate_proposals_dynamic) {
         if (s.im_info_shape.rank().is_static()) {
             EXPECT_EQ(proposals->get_output_partial_shape(2), PartialShape{s.im_info_shape[0]});
         } else {
-            EXPECT_EQ(proposals->get_output_partial_shape(2), PartialShape::dynamic());
+            EXPECT_EQ(proposals->get_output_partial_shape(2), PartialShape::dynamic(1));
         }
     }
 }

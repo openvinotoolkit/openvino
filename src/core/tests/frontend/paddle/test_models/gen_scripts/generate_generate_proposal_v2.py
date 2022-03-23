@@ -221,3 +221,17 @@ if __name__ == "__main__":
     attr["post_nms_top_n"] = 60
 
     generate_proposals_v2(input_name, input_data, attr)
+
+    # test case 6
+    input_name = "generate_proposals_v2_6"
+    input_data["scores"] = np.random.rand(2, 6, 10, 8).astype('float32')
+    input_data["bbox_deltas"] = np.random.rand(2, 24, 10, 8).astype('float32')
+    input_data["im_shape"] = np.array([[1000, 1000]] * 2).astype('float32')
+    input_data["anchors"] = np.reshape(np.arange(10 * 8 * 6 * 4),
+                                        [10, 8, 6, 4]).astype('float32')
+    input_data["variances"] = np.ones((10, 8, 6, 4)).astype('float32')
+
+    attr["pre_nms_top_n"] = 100
+    attr["post_nms_top_n"] = 60
+
+    generate_proposals_v2(input_name, input_data, attr)
