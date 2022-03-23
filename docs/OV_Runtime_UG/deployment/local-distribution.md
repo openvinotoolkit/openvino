@@ -37,7 +37,11 @@ As it is shown on the picture above, some plugin libraries may have OS-specific 
 
 @sphinxdirective
 
-.. tab:: Windows
+.. raw:: html
+
+    <div class="collapsible-section" data-title="Windows OS: Click to expand/collapse">
+
+@endsphinxdirective
 
 | Device      | Dependency |
 |-------------|------------|
@@ -48,7 +52,20 @@ As it is shown on the picture above, some plugin libraries may have OS-specific 
 | GNA         | `gna.dll` |
 | Arm® CPU    |  `-`      |
 
-.. tab:: Linux
+@sphinxdirective
+
+.. raw:: html
+
+    </div>
+
+@endsphinxdirective
+@sphinxdirective
+
+.. raw:: html
+
+    <div class="collapsible-section" data-title="Linux OS: Click to expand/collapse">
+
+@endsphinxdirective
 
 | Device      | Dependency  |
 |-------------|-------------|
@@ -59,13 +76,32 @@ As it is shown on the picture above, some plugin libraries may have OS-specific 
 | GNA         | `gna.dll`   |
 | Arm® CPU    |  `-`        |
 
-.. tab:: MacOS
+@sphinxdirective
+
+.. raw:: html
+
+    </div>
+
+@endsphinxdirective
+@sphinxdirective
+
+.. raw:: html
+
+    <div class="collapsible-section" data-title="MacOS: Click to expand/collapse">
+
+@endsphinxdirective
 
 | Device      | Dependency  |
 |-------------|-------------|
 | CPU         |     `-`     |
 | MYRIAD      | `libusb.dylib`, `usb-ma2x8x.mvcmd`, `pcie-ma2x8x.mvcmd` |
 | Arm® CPU    |  `-`        |
+
+@sphinxdirective
+
+.. raw:: html
+
+    </div>
 
 @endsphinxdirective
 

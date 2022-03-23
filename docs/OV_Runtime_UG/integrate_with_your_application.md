@@ -8,6 +8,7 @@
 
    openvino_docs_OV_Runtime_UG_Model_Representation
    openvino_docs_OV_Runtime_UG_Infer_request
+   openvino_docs_OV_Runtime_UG_Python_API_exclusives
 
 @endsphinxdirective
 

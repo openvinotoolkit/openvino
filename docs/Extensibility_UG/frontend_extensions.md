@@ -86,7 +86,7 @@ Previous sections cover the case when a single operation is mapped to a single o
 
 In case if one-to-one mapping is not possible, *decomposition to multiple operations* should be considered. It is achieved by using more verbose and less automated `ConversionExtension` class. It enables writing arbitrary code to replace a single framework operation by multiple connected OpenVINO operations constructing dependency graph of any complexity.
 
-`ConversionExtension` maps a single operation to a function which builds a graph using OpenVINO operation classes. Follow chapter “Build a Model in OpenVINO Runtime” in [](../OV_Runtime_UG/model_representation.md) to learn how to use OpenVINO operation classes to build a fragment of model for replacement.
+`ConversionExtension` maps a single operation to a function which builds a graph using OpenVINO operation classes. Follow chapter [Build a Model in OpenVINO Runtime](@ref ov_ug_build_model) to learn how to use OpenVINO operation classes to build a fragment of model for replacement.
 
 The next example illustrates using `ConversionExtension` for conversion of “ThresholdedRelu” from ONNX according to the formula: `ThresholdedRelu(x, alpha) -> Multiply(x, Convert(Greater(x, alpha), type=float))`.
 
