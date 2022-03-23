@@ -269,7 +269,6 @@ ngraph::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
                 auto indices_constant = as_type_ptr<opset8::Constant>(gather->get_input_node_shared_ptr(1));
                 if (!indices_constant || !check_shape_of_gather(gather)) {
                     update_expected_gather_location(gather);
-                    gather_dims_expected_location++;
                     continue;
                 }
 
