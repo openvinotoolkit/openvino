@@ -14,6 +14,8 @@ using namespace Xbyak;
 namespace ov {
 namespace intel_cpu {
 
+using EmitterCode = std::pair<std::shared_ptr<ngraph::snippets::Emitter>, ngraph::snippets::RegInfo>;
+
 #define SNIPPETS_MAX_SNIPPETS_DIMS 7
 #define SNIPPETS_MAX_HARNESS_DIMS 5
 #define SNIPPETS_MAX_TILE_RANK 2
@@ -64,7 +66,7 @@ public:
             IE_THROW() << "KernelEmitter invoked with invalid op argument";
         if (!kernel->compile_params)
             IE_THROW() << "KernelEmitter invoked without compile_params";
-        code = kernel->region;
+        body = kernel->region;
         jcp = *reinterpret_cast<const jit_snippets_compile_args*>(kernel->compile_params);
     }
 
@@ -129,7 +131,7 @@ private:
             init_ptrs_with_offsets(regs[i], &jcp.data_offsets[i * harness_num_dims]);
         }
 
-        for (auto& c : code) {
+        for (auto& c : body) {
             c.first->emit_code(c.second.first, c.second.second, pool, gpr);
         }
 
@@ -137,7 +139,7 @@ private:
     }
 
     jit_snippets_compile_args jcp;
-    std::vector<std::pair<std::shared_ptr<Emitter>, ngraph::snippets::RegInfo>> code;
+    std::vector<EmitterCode> body;
 };
 
 ///
@@ -164,12 +166,9 @@ public:
         const auto tile = ov::as_type_ptr<ngraph::snippets::op::Tile>(n);
         if (!tile)
             IE_THROW() << "TileEmitter invoked with invalid op argument";
-        if (!tile->compile_params)
-            IE_THROW() << "TileEmitter invoked without compile_params";
-        code = tile->region;
-        jcp = *reinterpret_cast<const jit_snippets_compile_args*>(tile->compile_params);
+        body = tile->region;
     }
-    std::vector<std::pair<std::shared_ptr<Emitter>, ngraph::snippets::RegInfo>> get_code() {return code;}
+    std::vector<EmitterCode> get_body() {return body;}
 
     size_t get_inputs_num() const override {return 0;}
 
@@ -182,18 +181,14 @@ public:
 private:
     void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out,
                             const std::vector<size_t> &pool = {}, const std::vector<size_t> &gpr = {}) const override {
-        if (in.size() != 4)
+        if (in.size() != 2)
             IE_THROW() << "TileEmitter got invalid number of inputs. Expected 4, got " << in.size();
         if (out.size() != 0)
             IE_THROW() << "TileEmitter got unexpected output arguments.";
-        const size_t num_params = in[2];
+        const size_t num_params = in[1];
         if (num_params > SNIPPETS_MAX_SNIPPETS_DIMS)
             IE_THROW() << "TileEmitter supports only up to " << SNIPPETS_MAX_SNIPPETS_DIMS <<
                        " parameters, got " << num_params;
-        const size_t dim = in[3];
-        if (dim >= SNIPPETS_MAX_TILE_RANK)
-            IE_THROW() << "TileEmitter supports tile ranks up to " << SNIPPETS_MAX_TILE_RANK <<
-                       " got " << dim;
     }
 
     void emit_impl(const std::vector<size_t>& in,
@@ -202,9 +197,7 @@ private:
                    const std::vector<size_t>& gpr,
                    const ov::intel_cpu::emitter_context *emit_context) const override {
         const size_t inc = in[0];
-        const size_t previous_inc = in[1]; // increment of a previous tile in the same dim (0 if the first tile in the dim)
-        const size_t num_params = in[2];
-        const size_t dim = in[3]; // tile dimension: 0 - outer, 1 - inner
+        const size_t num_params = in[1];
         const int reg64_tmp_start { 8 }; // R8, R9, R10, R11, R12, R13, R14, R15 inputs+outputs+1
         Reg64 amount = Reg64(reg64_tmp_start + num_params); // amount
         std::array<Label, 2> for_body;
@@ -212,88 +205,28 @@ private:
         // If R15 is not used, reserve it for use in scalar to avoid redundant push-pop's.
         // todo: Do we need explicitly check that code contains ScalarEmitter?
         std::vector<size_t> local_gpr = reg64_tmp_start + num_params < 15 ? std::vector<size_t>{15} : std::vector<size_t>{};
-        std::vector<Reg64> regs(num_params);
-        for (auto i = 0; dim == 0 && i < num_params; i++)
-            regs[i] = Reg64(reg64_tmp_start + i);
-        // Loop processing could be simplified in some cases
-        if (inc > jcp.scheduler_dims[dim]) {
-            return;
-        } else if (inc == jcp.scheduler_dims[dim]) {
-            for (auto& c : code) {
+
+        // Note that:
+        // * Work amount must be set by TileScheduler that executes Tiles
+        // * TileScheduler execute Tile only if it has to perform >= 1 iterations
+        // Todo: remove this after tests
+//        h->cmp(amount, inc);
+//        h->jl(for_body[0], CodeGenerator::T_NEAR);
+        h->L(for_body[1]);
+        {
+            h->push(amount);
+            for (auto& c : body) {
                 c.first->emit_code(c.second.first, c.second.second, pool, local_gpr);
             }
-        } else {
-            // The previous tile has done nothing, all the work is ours
-            if (previous_inc == 0 || previous_inc > jcp.scheduler_dims[dim]) {
-                h->mov(amount, jcp.scheduler_dims[dim]);
-            // The previous tile has done all the work
-            } else if (jcp.scheduler_dims[dim] % previous_inc == 0) {
-                return;
-            }// else: the previous tile has already set a proper work amount
+            h->pop(amount);
+            h->sub(amount, inc);
             h->cmp(amount, inc);
-            h->jl(for_body[0], CodeGenerator::T_NEAR);
-
-            h->L(for_body[1]);
-            {
-                h->push(amount);
-                for (auto& c : code) {
-                    c.first->emit_code(c.second.first, c.second.second, pool, local_gpr);
-                }
-                h->pop(amount);
-                // Todo: Load and Store emitters are currently implemented so they ALWAYS increment appropriate pointers
-                //   after reading/writing. This might be a problem if we need to read the same data multiple times (broadcasting shapes).
-                //   To overcome this limitation, we add appropriate negative offsets if necessary.
-                for (auto i = 0; dim == 0 && i < num_params; i++) {
-                    if (jcp.scheduler_offsets[i] != 0) {
-                        h->add(regs[i], jcp.scheduler_offsets[i]);
-                    }
-                }
-                    h->sub(amount, inc);
-                    h->cmp(amount, inc);
-                    h->jge(for_body[1], CodeGenerator::T_NEAR);
-            }
-
-            h->L(for_body[0]);
+            h->jge(for_body[1], CodeGenerator::T_NEAR);
         }
+//        h->L(for_body[0]);
     }
 
-    // A = <42, 17>
-    // B = < 1, 17>
-    // for (auto k = 0; k < dom_0; k++) { // 42
-    //   for (auto n = 0; n < dom_1; n++) { // 17
-    //     auto a = *ptr0; ptr0 += vlan; // vector/scalar load
-    //     auto b = *ptr1; ptr1 += vlan; // vector/scalar load
-    //   }
-    //   ptr0 -= 0*dom_1;
-    //   ptr1 -= 1*dom_1;
-    // }
-
-    // broadcast by MVD is extra case
-    // A = <42, 17>
-    // B = <42,  1>
-    // for (auto k = 0; k < dom_0; k++) { // 42
-    //   for (auto n = 0; n < dom_1; n++) { // 17
-    //     auto a = *ptr0; ptr0 += vlan; // vector/scalar load
-    //     auto b = *ptr1;  // broadcast load
-    //   }
-    //   ptr0 -= 0*dom_1;
-    //   ptr1 += sizeof(ptr1[0]); //ptr1 -= -sizeof(ptr1[0]);
-    // }
-
-    // A = <42, 17, 31>
-    // B = < 1, 17, 31>
-    // for (auto k = 0; k < dom_0; k++) { // 42
-    //   for (auto n = 0; n < dom_1; n++) { // 17
-    //     for (auto m = 0; m < dom_2; m++) { // 31
-    //       auto a = *ptr0; ptr0 += vlan; // vector/scalar load
-    //       auto b = *ptr1; ptr1 += vlan; // vector/scalar load
-    //     }
-    //   }
-    //   ptr0 -= 0*dom_1*dom2;
-    //   ptr1 -= 1*dom_1*dom2;
-    // }
-    jit_snippets_compile_args jcp;
-    std::vector<std::pair<std::shared_ptr<Emitter>, ngraph::snippets::RegInfo>> code;
+    std::vector<EmitterCode> body;
 };
 
 class TileSchedulerEmitter : public jit_emitter {
@@ -308,10 +241,8 @@ public:
             IE_THROW() << "TileEmitter invoked without compile_params";
         vector_tile = tile_scheduler->vector_region;
         scalar_tile = tile_scheduler->scalar_region;
-//        vector_tile_body = ov::as_type_ptr<TileEmitter>(vector_tile.first)->get_code();
-        vector_tile_body = std::dynamic_pointer_cast<TileEmitter>(vector_tile.first)->get_code();
-//        scalar_tile_body = ov::as_type_ptr<TileEmitter>(vector_tile.first)->get_code();
-        scalar_tile_body = std::dynamic_pointer_cast<TileEmitter>(vector_tile.first)->get_code();
+        vector_tile_body = std::dynamic_pointer_cast<TileEmitter>(vector_tile.first)->get_body();
+        scalar_tile_body = std::dynamic_pointer_cast<TileEmitter>(vector_tile.first)->get_body();
         jcp = *reinterpret_cast<const jit_snippets_compile_args*>(tile_scheduler->compile_params);
     }
 
@@ -325,22 +256,6 @@ public:
     }
 
 private:
-//    void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out,
-//                            const std::vector<size_t> &pool = {}, const std::vector<size_t> &gpr = {}) const override {
-//        if (in.size() != 4)
-//            IE_THROW() << "TileEmitter got invalid number of inputs. Expected 4, got " << in.size();
-//        if (out.size() != 0)
-//            IE_THROW() << "TileEmitter got unexpected output arguments.";
-//        const size_t num_params = in[2];
-//        if (num_params > SNIPPETS_MAX_SNIPPETS_DIMS)
-//            IE_THROW() << "TileEmitter supports only up to " << SNIPPETS_MAX_SNIPPETS_DIMS <<
-//                       " parameters, got " << num_params;
-//        const size_t dim = in[3];
-//        if (dim >= SNIPPETS_MAX_TILE_RANK)
-//            IE_THROW() << "TileEmitter supports tile ranks up to " << SNIPPETS_MAX_TILE_RANK <<
-//                       " got " << dim;
-//    }
-
     void emit_impl(const std::vector<size_t>& in,
                    const std::vector<size_t>& out,
                    const std::vector<size_t>& pool,
@@ -353,7 +268,7 @@ private:
         const int reg64_tmp_start { 8 }; // R8, R9, R10, R11, R12, R13, R14, R15 inputs+outputs+1
 
         Reg64 amount = Reg64(reg64_tmp_start + num_params); // amount
-        std::array<Label, 2> for_body;
+        Label for_body;
 
         // If R15 is not used, reserve it for use in scalar to avoid redundant push-pop's.
         // todo: Do we need explicitly check that code contains ScalarEmitter?
@@ -364,13 +279,15 @@ private:
 
         auto emit_tiles = [&]() {
             auto process_tile =
-                    [&pool, &local_gpr](bool body_condition, const std::vector<EmitterCode>& body,
+                    [&](bool body_condition, const std::vector<EmitterCode>& body,
                                         bool tile_condition, const EmitterCode& tile) {
                 if (body_condition) {
                     // emit Tile body directly if only one tile iteration is needed
                     for (auto& c : body)
                         c.first->emit_code(c.second.first, c.second.second, pool, local_gpr);
                 } else if (tile_condition) {
+                    // Need to set proper work amount for inner tiles before code emission
+                    h->mov(amount, inner_work_amount);
                     const ngraph::snippets::RegInfo &regInfo = tile.second;
                     tile.first->emit_code(regInfo.first, regInfo.second, pool, local_gpr);
                 }
@@ -385,7 +302,7 @@ private:
         } else if (outer_work_amount > 1) {
             // We need to create a Loop in this case
             h->mov(amount, outer_work_amount);
-            h->L(for_body[0]);
+            h->L(for_body);
             {
                 h->push(amount);
                 emit_tiles();
@@ -402,11 +319,10 @@ private:
                 // Note that outer dimensions are always incremented by 1 (outer tiles are always scalar)
                 h->sub(amount, 1);
                 h->cmp(amount, 1);
-                h->jge(for_body[0], CodeGenerator::T_NEAR);
+                h->jge(for_body, CodeGenerator::T_NEAR);
             }
         }
     }
-    using EmitterCode = std::pair<std::shared_ptr<Emitter>, ngraph::snippets::RegInfo>;
     jit_snippets_compile_args jcp;
     EmitterCode vector_tile;
     std::vector<EmitterCode> vector_tile_body;

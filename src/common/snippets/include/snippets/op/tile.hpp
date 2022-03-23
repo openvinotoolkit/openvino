@@ -27,7 +27,6 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
         return std::make_shared<Tile>(region);
     }
-    const void *compile_params;
 };
 
 } // namespace op

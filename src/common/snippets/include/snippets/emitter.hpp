@@ -51,5 +51,7 @@ public:
     virtual ~Emitter() = default;
 };
 
+using EmitterCode = std::pair<std::shared_ptr<Emitter>, ngraph::snippets::RegInfo>;
+
 } // namespace snippets
 } // namespace ngraph

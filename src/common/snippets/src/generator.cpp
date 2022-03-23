@@ -52,9 +52,9 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
 
     OV_ITT_TASK_CHAIN(GENERATE, ngraph::pass::itt::domains::SnippetsTransform, "Snippets::Generator", "::VectorTile")
     // vector tile
-    std::vector<std::pair<std::shared_ptr<ngraph::snippets::Emitter>, ngraph::snippets::RegInfo>> lowered;
+    std::vector<EmitterCode> lowered;
     for (auto n : m->get_ordered_ops()) {
-        lowered.push_back(std::make_pair(target->get(n->get_type_info())(n), ngraph::snippets::getRegisters(n)));
+        lowered.emplace_back(std::make_pair(target->get(n->get_type_info())(n), ngraph::snippets::getRegisters(n)));
     }
     OV_ITT_TASK_NEXT(GENERATE, "::ScalarTile")
 
@@ -65,33 +65,26 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
     mng.register_pass<ngraph::snippets::pass::ReplaceStoresWithScalarStores>();
     mng.run_passes(m_scalar);
     OV_ITT_TASK_NEXT(GENERATE, "::ScalarTile_get")
-    std::vector<std::pair<std::shared_ptr<Emitter>, RegInfo>> scalar_lowered;
+    std::vector<EmitterCode> scalar_lowered;
     for (auto n : m_scalar->get_ordered_ops()) {
-        scalar_lowered.push_back(std::make_pair(target->get(n->get_type_info())(n), ngraph::snippets::getRegisters(n)));
+        scalar_lowered.emplace_back(std::make_pair(target->get(n->get_type_info())(n), ngraph::snippets::getRegisters(n)));
     }
     OV_ITT_TASK_NEXT(GENERATE, "::Tiles1D")
 
     // wrapping into tiles1D
-    std::vector<std::pair<std::shared_ptr<Emitter>, RegInfo>> tiles1D;
-    auto tile = std::make_shared<ngraph::snippets::op::Tile>(lowered);
-    tile->compile_params = compile_params;
-    tiles1D.push_back(std::make_pair(target->get(ngraph::snippets::op::Tile::get_type_info_static())(tile),
-                                   std::make_pair(std::vector<size_t>({target->get_lanes(), 0, nptrs, 1}), std::vector<size_t>{})));
-    tile = std::make_shared<ngraph::snippets::op::Tile>(scalar_lowered);
-    tile->compile_params = compile_params;
-    tiles1D.push_back(std::make_pair(target->get(ngraph::snippets::op::Tile::get_type_info_static())(tile),
-                    std::make_pair(std::vector<size_t>{{1, target->get_lanes(), nptrs, 1}}, std::vector<size_t>{})));
+    const auto& vector_tile = std::make_shared<ngraph::snippets::op::Tile>(lowered);
+    const auto& vector_region = std::make_pair(target->get(ngraph::snippets::op::Tile::get_type_info_static())(vector_tile),
+                                   std::make_pair(std::vector<size_t>({target->get_lanes(), nptrs}), std::vector<size_t>{}));
+    const auto& scalar_tile = std::make_shared<ngraph::snippets::op::Tile>(scalar_lowered);
+    const auto& scalar_region = std::make_pair(target->get(ngraph::snippets::op::Tile::get_type_info_static())(scalar_tile),
+                    std::make_pair(std::vector<size_t>{{1, nptrs}}, std::vector<size_t>{}));
 
     OV_ITT_TASK_NEXT(GENERATE, "::Tiles2D")
     // wrapping into tiles2D
-    auto tile_scheduler = std::make_shared<ngraph::snippets::op::TileScheduler>(tiles1D[0], tiles1D[1]);
+    auto tile_scheduler = std::make_shared<ngraph::snippets::op::TileScheduler>(vector_region, scalar_region);
     tile_scheduler->compile_params = compile_params;
-    std::vector<std::pair<std::shared_ptr<Emitter>, RegInfo>> tiles2D;
-//    tile = std::make_shared<ngraph::snippets::op::Tile>(tiles1D);
-//    tile->compile_params = compile_params;
-//    tiles2D.push_back(std::make_pair(target->get(ngraph::snippets::op::Tile::get_type_info_static())(tile),
-//                                     std::make_pair(std::vector<size_t>({1, 0, nptrs, 0}), std::vector<size_t>{})));
-    tiles2D.push_back(std::make_pair(target->get(ngraph::snippets::op::TileScheduler::get_type_info_static())(tile_scheduler),
+    std::vector<EmitterCode> tiles2D;
+    tiles2D.emplace_back(std::make_pair(target->get(ngraph::snippets::op::TileScheduler::get_type_info_static())(tile_scheduler),
                                      std::make_pair(std::vector<size_t>({target->get_lanes(), nptrs}), std::vector<size_t>{})));
 
     OV_ITT_TASK_NEXT(GENERATE, "::EmitCode")
