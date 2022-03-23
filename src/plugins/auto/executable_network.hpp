@@ -159,7 +159,6 @@ private:
     mutable std::mutex                                                  _confMutex;
     bool                                                                _exitFlag = {false};
     const InferenceEngine::CNNNetwork                                   _network;
-    int                                                                 _cpuHelpInferCount = 0;
     RequestWrapper::Ptr                                                 _requestWrapper;
     unsigned int                                                        _cpuHelpInferCount = 0;
     double                                                              _cpuHelpFps = 0.0;
