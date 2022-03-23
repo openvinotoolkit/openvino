@@ -274,7 +274,7 @@ def main():
 
     for i in range(len(output_file_names)):
         log.info(f'Saving results from "{output_layer_names[i]}" layer to {output_file_names[i]}')
-        data = [results[i][output_layer_names[i]] for i in range(len(input_file_data[0].utterances))]
+        data = [results[j][output_layer_names[i]] for j in range(len(input_file_data[0].utterances))]
         write_utterance_file(output_file_names[i], input_file_data[0].keys, data)
 
 # ----------------------------------------------------------------------------------------------------------------------
