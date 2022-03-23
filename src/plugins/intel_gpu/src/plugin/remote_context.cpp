@@ -364,13 +364,13 @@ AnyMap ExecutionContextImpl::getParams() const {
 
 std::string ExecutionContextImpl::getDeviceName() const noexcept {
     auto devName = m_plugin.lock()->GetName();
-#ifdef GPU_ENABLE_ZE_BACKEND
+//#ifdef GPU_ENABLE_ZE_BACKEND
     auto engine_type = cldnn::engine_types::ze;
     auto runtime_type = cldnn::runtime_types::ze;
-#else
+/*#else
     auto engine_type = cldnn::engine_types::ocl;
     auto runtime_type = cldnn::runtime_types::ocl;
-#endif
+#endif*/
     try {
         // Use actual runtime and engine types
         cldnn::device_query device_query(engine_type, runtime_type);
