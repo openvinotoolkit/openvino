@@ -45,11 +45,13 @@ private:
         std::string name;
         TransformationType prev;
     };
-    // std::hash<int> is necessary for Ubuntu-16.04 (gcc-5.4 and defect in C++11 standart)
-    const std::unordered_map<TransformationType, TransformationInfo, std::hash<uint8_t>> infoMap =
-        {{TransformationType::Common,     {"common", TransformationType::NumOfTypes}},
-         {TransformationType::Lpt,        {"lpt", TransformationType::NumOfTypes}},
-         {TransformationType::Snippets,   {"snippets", TransformationType::Common}},
+    // std::hash<std::underlying_type<FILTER>::type> is necessary for Ubuntu-16.04 (gcc-5.4 and defect in C++11 standart)
+    const std::unordered_map<TransformationType, TransformationInfo,
+                             std::hash<std::underlying_type<TransformationType>::type>> infoMap =
+        {{TransformationType::PreLpt,     {"preLpt", TransformationType::NumOfTypes}},
+         {TransformationType::Lpt,        {"lpt", TransformationType::PreLpt}},
+         {TransformationType::PostLpt,    {"postLpt", TransformationType::Lpt}},
+         {TransformationType::Snippets,   {"snippets", TransformationType::PostLpt}},
          {TransformationType::Specific,   {"cpuSpecificOpSet", TransformationType::Snippets}}};
     std::bitset<TransformationType::NumOfTypes>& wasDumped(void) {
         static std::bitset<TransformationType::NumOfTypes> wasDumped;

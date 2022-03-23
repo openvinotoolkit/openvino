@@ -158,15 +158,17 @@ private:
 public:
     struct TransformationFilter {
         enum Type : uint8_t {
-            Common = 0, Lpt, Snippets, Specific, NumOfTypes
+            PreLpt = 0, Lpt, PostLpt, Snippets, Specific, NumOfTypes
         };
         std::bitset<NumOfTypes> filter;
 
         PropertySetterPtr getPropertySetter() {
             return PropertySetterPtr(new BitsetFilterPropertySetter<NumOfTypes>("transformations", filter,
-                {{"all", {Common, Lpt, Snippets, Specific}},
-                 {"common", {Common}},
+                {{"all", {PreLpt, Lpt, PostLpt, Snippets, Specific}},
+                 {"common", {PreLpt, PostLpt}},
+                 {"prelpt", {PreLpt}},
                  {"lpt", {Lpt}},
+                 {"postlpt", {PostLpt}},
                  {"snippets", {Snippets}},
                  {"specific", {Specific}}
                 }));

@@ -40,8 +40,11 @@ e.g. for [disabling](graph_transformation_disabling.md) or [serialization](graph
 
 The following tokens are supported:
 * all\
-equals to <common,lpt,snippets,specific>
-* common
+equals to <preLpt,lpt,postLpt,snippets,specific>
+* common \
+equals to <preLpt,postLpt>
+* preLpt
 * lpt
+* postLpt
 * snippets
 * specific
