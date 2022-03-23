@@ -10,7 +10,7 @@ Performance can be measured for two inference modes: latency- and throughput-ori
 
 Upon start-up, the application reads command-line parameters and loads a network and inputs (images/binary files) to the specified device.
 
-  **NOTE**: By default, OpenVINO� Toolkit Samples, Tools and Demos expect input with BGR channels order.
+  **NOTE**: By default, OpenVINO™ Toolkit Samples, Tools and Demos expect input with BGR channels order.
   If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application
   or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified.
   For more information about the argument, refer to **When to Reverse Input Channels** section of
