@@ -9,6 +9,7 @@
 #include "snippets/op/subgraph.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset5.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/op/loop.hpp>
 #include "transformations/utils/utils.hpp"
@@ -84,12 +85,15 @@ auto is_layout_oblivious(const std::shared_ptr<const Node> &n) -> bool {
     auto is_layout_oblivious_unary = [](const std::shared_ptr<const Node> &n) -> bool {
         return ov::is_type<opset1::Abs>(n)
             || ov::is_type<opset1::Clamp>(n)
+            || ov::is_type<opset1::Floor>(n)
+            || ov::is_type<opset1::Ceiling>(n)
             || ov::is_type<opset1::Elu>(n)
             || ov::is_type<opset1::Erf>(n)
             || ov::is_type<opset1::Exp>(n)
             || ov::is_type<opset1::LogicalNot>(n)
             || ov::is_type<opset1::Negative>(n)
             || ov::is_type<opset1::Relu>(n)
+            || ov::is_type<opset5::Round>(n)
             || ov::is_type<opset1::Sigmoid>(n)
             || ov::is_type<opset1::Sqrt>(n)
             || ov::is_type<opset1::Tanh>(n)
@@ -263,8 +267,8 @@ TokenizeSnippets::TokenizeSnippets() {
         OutputVector internal_inputs;
 
         auto input_values = node->input_values();
-        /* 
-        * Called with subgraph->input_value(i) arg and used to 
+        /*
+        * Called with subgraph->input_value(i) arg and used to
         * Check that the attached node input subgraph has the same input as the node itself.
         * If true, then ternary merge is initiated.
         *        input
@@ -511,7 +515,7 @@ TokenizeSnippets::TokenizeSnippets() {
         for (size_t i = 0; i < act_body1->get_parameters().size(); i++) {
             act_body1->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
         }
-        subgraph->get_rt_info()["originalLayersNames"] = node->get_friendly_name();
+        subgraph->get_rt_info()["originalLayersNames"] = fusedNames;
 
         remark(1) << "Replacement (merge) done for: "
                     << subgraph->get_friendly_name()
