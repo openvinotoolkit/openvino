@@ -35,12 +35,12 @@ TEST(op, is_parameter) {
 }
 
 TEST(op, opset_multi_thread) {
-    auto doTest = [&](std::function<const ngraph::OpSet&()> fun) {
-        std::atomic<const ngraph::OpSet*> opset{nullptr};
+    auto doTest = [&](std::function<const ov::OpSet&()> fun) {
+        std::atomic<const ov::OpSet*> opset{nullptr};
         std::atomic_bool failed{false};
         auto threadFun = [&]() {
-            const ngraph::OpSet* op = &fun();
-            const ngraph::OpSet* current = opset;
+            const ov::OpSet* op = &fun();
+            const ov::OpSet* current = opset;
             do {
                 if (current != nullptr && current != op) {
                     failed = true;
@@ -54,11 +54,13 @@ TEST(op, opset_multi_thread) {
         t2.join();
         ASSERT_FALSE(failed);
     };
-    doTest(ngraph::get_opset1);
-    doTest(ngraph::get_opset2);
-    doTest(ngraph::get_opset3);
-    doTest(ngraph::get_opset4);
-    doTest(ngraph::get_opset5);
-    doTest(ngraph::get_opset6);
-    doTest(ngraph::get_opset7);
+    doTest(ov::get_opset1);
+    doTest(ov::get_opset2);
+    doTest(ov::get_opset3);
+    doTest(ov::get_opset4);
+    doTest(ov::get_opset5);
+    doTest(ov::get_opset6);
+    doTest(ov::get_opset7);
+    doTest(ov::get_opset8);
+    doTest(ov::get_opset9);
 }
