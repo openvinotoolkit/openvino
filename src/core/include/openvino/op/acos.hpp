@@ -13,6 +13,7 @@ namespace op {
 namespace v0 {
 /// \brief Elementwise inverse cosine (arccos) operation.
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Acos : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Acos", "opset1", util::UnaryElementwiseArithmetic);

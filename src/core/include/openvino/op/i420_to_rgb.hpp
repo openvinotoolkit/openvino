@@ -30,6 +30,7 @@ namespace v8 {
 ///        B = 1.164 * (Y - 16) + 2.018 * (U - 128)
 ///        Then R, G, B values are clipped to range (0, 255)
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API I420toRGB : public util::ConvertColorI420Base {
 public:
     OPENVINO_OP("I420toRGB", "opset8", util::ConvertColorI420Base);

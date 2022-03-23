@@ -24,6 +24,7 @@ namespace v1 {
 /// | Type                   | Description                                                                                                    |
 /// | ---------------------- | -------------------------------------------------------------------------------------------------------------- |
 /// | \f$N[d_1,\dots,d_n]\f$ | The tensor \f$T\f$, where \f$T[i_1,\dots,i_n] = \texttt{arg0}[i_1,\dots,i_n]^{\texttt{arg1}[i_1,\dots,i_n]}\f$ |
+/// \ingroup ov_ops_cpp_api
 // clang-format on
 class OPENVINO_API Power : public util::BinaryElementwiseArithmetic {
 public:

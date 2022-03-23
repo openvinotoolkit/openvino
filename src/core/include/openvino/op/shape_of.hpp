@@ -10,6 +10,7 @@ namespace ov {
 namespace op {
 namespace v3 {
 /// \brief Operation that returns the shape of its input argument as a tensor.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API ShapeOf : public Op {
 public:
     OPENVINO_OP("ShapeOf", "opset3", op::Op, 3);
@@ -50,6 +51,7 @@ private:
 
 namespace v0 {
 /// \brief Operation that returns the shape of its input argument as a tensor.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API ShapeOf : public Op {
 public:
     OPENVINO_OP("ShapeOf", "opset1");

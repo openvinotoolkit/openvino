@@ -19,6 +19,7 @@ namespace ov {
 namespace op {
 namespace v0 {
 /// \brief Class for constants.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Constant : public Op {
 public:
     OPENVINO_OP("Constant", "opset1");

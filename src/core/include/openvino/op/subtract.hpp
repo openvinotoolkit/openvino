@@ -10,6 +10,7 @@ namespace ov {
 namespace op {
 namespace v1 {
 /// \brief Elementwise subtraction operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Subtract : public util::BinaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Subtract", "opset1", util::BinaryElementwiseArithmetic, 1);

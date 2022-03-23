@@ -21,6 +21,7 @@ namespace v3 {
 ///
 /// \note       Note this class represents only single *cell* and not whole GRU *layer*.
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API GRUCell : public util::RNNCellBase {
 public:
     OPENVINO_OP("GRUCell", "opset3", op::util::RNNCellBase, 3);

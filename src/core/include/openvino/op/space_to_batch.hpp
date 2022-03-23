@@ -20,6 +20,7 @@ namespace v1 {
 ///         (pads_begin[2] + D_2 + pads_end[2]) / block_shape[2], ...,
 ///         (pads_begin[N - 1] + D_{N - 1} + pads_end[N - 1]) / block_shape[N - 1]`
 ///         of the same type as `data` input.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API SpaceToBatch : public Op {
 public:
     OPENVINO_OP("SpaceToBatch", "opset2", op::Op, 1);

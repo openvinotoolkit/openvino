@@ -12,6 +12,7 @@ namespace op {
 namespace v8 {
 /// \brief Adaptive average pooling operation.
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API AdaptiveAvgPool : public Op {
 public:
     OPENVINO_OP("AdaptiveAvgPool", "opset8");

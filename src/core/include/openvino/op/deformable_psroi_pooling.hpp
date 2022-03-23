@@ -9,6 +9,9 @@
 namespace ov {
 namespace op {
 namespace v1 {
+/// \brief DeformablePSROIPooling operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API DeformablePSROIPooling : public Op {
 public:
     OPENVINO_OP("DeformablePSROIPooling", "opset1", op::Op, 1);

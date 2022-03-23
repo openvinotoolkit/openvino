@@ -12,6 +12,7 @@ namespace v0 {
 /// \brief      Parameterized, bounded sigmoid-like, piecewise linear
 ///             function. min(max(alpha*x + beta, 0), 1)
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API HardSigmoid : public Op {
 public:
     OPENVINO_OP("HardSigmoid", "opset1");

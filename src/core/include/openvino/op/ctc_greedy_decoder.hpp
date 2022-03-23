@@ -9,6 +9,9 @@
 namespace ov {
 namespace op {
 namespace v0 {
+/// \brief CTCGreedyDecoder operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API CTCGreedyDecoder : public Op {
 public:
     OPENVINO_OP("CTCGreedyDecoder", "opset1");

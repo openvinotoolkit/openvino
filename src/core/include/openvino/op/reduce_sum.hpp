@@ -57,6 +57,7 @@ namespace v1 {
 /// | Type                                      | Description                                                                                                      |
 /// | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 /// | \f$N[\textit{delete}(A,d_1,\dots,d_n)]\f$ | The tensor \f$T\f$, where \f$T\f$ is the input tensor with the `reduction_axes` \f$A\f$ eliminated by summation. |
+/// \ingroup ov_ops_cpp_api
 // clang-format on
 class OPENVINO_API ReduceSum : public util::ArithmeticReductionKeepDims {
 public:

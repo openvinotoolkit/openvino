@@ -29,6 +29,7 @@ namespace v8 {
 ///        B = 1.164 * (Y - 16) + 2.018 * (U - 128)
 ///        Then R, G, B values are clipped to range (0, 255)
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API NV12toRGB : public util::ConvertColorNV12Base {
 public:
     OPENVINO_OP("NV12toRGB", "opset8", util::ConvertColorNV12Base);

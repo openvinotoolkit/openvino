@@ -10,6 +10,7 @@ namespace ov {
 namespace op {
 namespace v1 {
 /// \brief Elementwise division operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Divide : public util::BinaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Divide", "opset1", util::BinaryElementwiseArithmetic, 1);

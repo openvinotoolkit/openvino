@@ -14,6 +14,7 @@ namespace op {
 namespace v1 {
 /// \brief Computes indices and values of the k maximum/minimum values
 ///        for each slice along specified axis.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API TopK : public Op {
 public:
     OPENVINO_OP("TopK", "opset1", op::Op, 1);
@@ -118,6 +119,7 @@ protected:
 namespace v3 {
 /// \brief Computes indices and values of the k maximum/minimum values
 ///        for each slice along specified axis.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API TopK : public v1::TopK {
 public:
     OPENVINO_OP("TopK", "opset3", op::Op, 3);

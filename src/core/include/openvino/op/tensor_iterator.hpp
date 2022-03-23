@@ -14,6 +14,7 @@ namespace ov {
 namespace op {
 namespace v0 {
 /// \brief  Iterate a body over tensors, accumulating into tensors.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API TensorIterator : public op::util::SubGraphOp {
 public:
     OPENVINO_OP("TensorIterator", "opset1", op::util::SubGraphOp);

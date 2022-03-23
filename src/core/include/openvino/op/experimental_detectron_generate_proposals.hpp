@@ -16,6 +16,7 @@ namespace op {
 namespace v6 {
 /// \brief An operation ExperimentalDetectronGenerateProposalsSingleImage
 /// computes ROIs and their scores based on input data.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API ExperimentalDetectronGenerateProposalsSingleImage : public Op {
 public:
     OPENVINO_OP("ExperimentalDetectronGenerateProposalsSingleImage", "opset6", op::Op, 6);

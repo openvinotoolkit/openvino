@@ -13,6 +13,7 @@ namespace op {
 namespace v3 {
 /// \brief Elementwise inverse hyperbolic cos operation.
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Acosh : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Acosh", "opset4", util::UnaryElementwiseArithmetic, 3);

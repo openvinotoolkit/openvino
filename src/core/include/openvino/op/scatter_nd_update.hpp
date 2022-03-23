@@ -10,6 +10,7 @@ namespace ov {
 namespace op {
 namespace v3 {
 /// \brief Add updates to slices from inputs addressed by indices
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API ScatterNDUpdate : public util::ScatterNDBase {
 public:
     OPENVINO_OP("ScatterNDUpdate", "opset4", util::ScatterNDBase, 3);

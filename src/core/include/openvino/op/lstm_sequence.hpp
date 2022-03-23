@@ -28,6 +28,7 @@ namespace v0 {
 /// \sa         LSTMCell, RNNCell, GRUCell
 ///
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API LSTMSequence : public Op {
 public:
     OPENVINO_OP("LSTMSequence", "opset1");
@@ -147,6 +148,7 @@ namespace v5 {
 /// \sa         LSTMCell, RNNCell, GRUCell
 ///
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API LSTMSequence : public util::RNNCellBase {
 public:
     OPENVINO_OP("LSTMSequence", "opset5", util::RNNCellBase, 5);

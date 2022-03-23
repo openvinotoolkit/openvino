@@ -12,6 +12,7 @@ namespace v4 {
 /// \brief Reduction operation using L2 norm:
 ///
 /// Reduces the tensor, eliminating the specified reduction axes by taking the L2-norm.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API ReduceL2 : public util::ArithmeticReductionKeepDims {
 public:
     OPENVINO_OP("ReduceL2", "opset4", util::ArithmeticReductionKeepDims, 4);

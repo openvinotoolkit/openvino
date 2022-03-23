@@ -11,6 +11,9 @@
 namespace ov {
 namespace op {
 namespace v0 {
+/// \brief Unsqueeze operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Unsqueeze : public Op {
 public:
     OPENVINO_OP("Unsqueeze", "opset1");

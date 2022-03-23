@@ -9,6 +9,9 @@
 namespace ov {
 namespace op {
 namespace v4 {
+/// \brief CTCLoss operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API CTCLoss : public Op {
 public:
     OPENVINO_OP("CTCLoss", "opset4", op::Op, 4);
