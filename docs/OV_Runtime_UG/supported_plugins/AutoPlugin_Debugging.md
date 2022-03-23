@@ -13,38 +13,18 @@ There are six levels of logs, which can be called explicitly or set via the `OPE
 5 - ov::log::Level::TRACE  
 
 @sphinxdirective
-.. tab:: C++ API
 
-   .. code-block:: cpp
+.. tab:: C++
 
-      ov::Core core;
+    .. doxygensnippet:: docs/snippets/AUTO6.cpp
+       :language: cpp
+       :fragment: [part6]
+ 
+.. tab:: Python
 
-      // read a network in IR, PaddlePaddle, or ONNX format
-      std::shared_ptr<ov::Model> model = core.read_model("sample.xml");
-
-      // load a network to AUTO and set log level to debug
-      ov::CompiledModel compiled_model = core.compile_model(model, "AUTO", {{ov::log::level.name(), "LOG_DEBUG"}});
-
-      // or set log level with set_config and load network
-      core.set_property("AUTO", {{ov::log::level.name(), "LOG_DEBUG"}});
-      ov::CompiledModel compiled_model2 = core.compile_model(model, "AUTO");
-	  
-.. tab:: Python API
-
-   .. code-block:: python
-
-      from openvino.runtime import Core
-      core = Core()
-      
-      # read a network in IR, PaddlePaddle, or ONNX format
-      model = core.read_model(model_path)
-      
-      # load a network to AUTO and set log level to debug
-      compiled_model = core.compile_model(model=model, device_name="AUTO", config={"LOG_LEVEL":"LOG_DEBUG"});
-      
-      // or set log level with set_config and load network
-      ie.SetConfig(config={"LOG_LEVEL":"LOG_DEBUG"}, device_name="AUTO");
-      compiled_model = core.compile_model(model=model, device_name="AUTO");
+    .. doxygensnippet:: docs/snippets/ov_auto.py
+       :language: python
+       :fragment: [part6]
 
 .. tab:: OS environment variable
 
