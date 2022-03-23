@@ -1233,6 +1233,10 @@ TEST(model, add_output_ordered_ops) {
     }
     EXPECT_TRUE(relu_found);
     EXPECT_TRUE(relu_result_found);
+    // Invalidate result
+    ops_before = model->get_ordered_ops();
+    res->set_arguments(ov::NodeVector{});
+    EXPECT_EQ(model->get_ordered_ops().size(), ops_before.size() - 1);
 }
 
 namespace {

@@ -966,6 +966,7 @@ ov::Output<ov::Node> ov::Model::add_output(const ov::Output<ov::Node>& port) {
     if (m_shared_rt_info->get_use_topological_cache()) {
         // Full update of topological cache is not needed, 'result' can be just inserted to the end
         m_cached_ordered_ops.push_back(result);
+        result->insert_info(m_shared_rt_info);  // Just for consistency, not required for Result nodes
     }
     return result->output(0);
 }
