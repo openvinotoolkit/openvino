@@ -41,6 +41,7 @@ public:
     virtual void* getBasePtr() = 0;
     virtual size_t getRWBytes() = 0;
     virtual size_t getTotalBytes() = 0;
+    virtual ~GNAMemoryInterface() = default;
 };
 
 /**

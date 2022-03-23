@@ -119,7 +119,6 @@ void GNADeviceHelper::setUpActiveList(const uint32_t requestConfigId, uint32_t l
 }
 
 uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode) {
-    static int idx = 0;
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     uint32_t reqId{};
     if ((gna2AccelerationMode == Gna2AccelerationModeHardware ||
@@ -128,7 +127,8 @@ uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2Accelera
         gnawarn() << "GNA Device not detected, consider using other mode of acceleration";
     }
     const auto status1 = Gna2RequestConfigSetAccelerationMode(requestConfigId, gna2AccelerationMode);
-
+#ifdef GNA_DUMP_TLV_ALLOCATIONS
+    static int idx = 0;
     for (auto&& a : allAllocations) {
         auto name = a.GetTagName();
         std::ofstream file(std::to_string(idx) + name + ".BeforeGna2RequestEnqueue.bin", std::ios::out | std::ios::binary);
@@ -149,6 +149,7 @@ uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2Accelera
         }
     }
     idx++;
+#endif
     checkGna2Status(status1, "Gna2RequestConfigSetAccelerationMode");
     const auto status2 = Gna2RequestEnqueue(requestConfigId, &reqId);
     checkGna2Status(status2, "Gna2RequestEnqueue");
@@ -477,7 +478,7 @@ GnaWaitStatus GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
         return GNA_REQUEST_ABORTED;
     }
     checkGna2Status(status, "Gna2RequestWait");
-
+#ifdef GNA_DUMP_TLV_ALLOCATIONS
     for (auto&& a : allAllocations) {
         auto name = a.GetTagName();
         std::ofstream file(std::to_string(idx) + name + ".AfterGna2RequestWait.bin", std::ios::out | std::ios::binary);
@@ -497,6 +498,7 @@ GnaWaitStatus GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
             }
         }
     }
+#endif
     idx++;
     updateGnaPerfCounters();
     return GNA_REQUEST_COMPLETED;
