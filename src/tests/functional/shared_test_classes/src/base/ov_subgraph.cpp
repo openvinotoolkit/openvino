@@ -36,6 +36,13 @@ std::ostream& operator <<(std::ostream& os, const InputShape& inputShape) {
     return os;
 }
 
+SubgraphBaseTest::SubgraphBaseTest() {
+    inType.reserve(10);
+    inType.push_back(ov::element::Type_t::undefined);
+    outType.reserve(10);
+    outType.push_back(ov::element::Type_t::undefined);
+}
+
 void SubgraphBaseTest::run() {
     bool isCurrentTestDisabled = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled();
 

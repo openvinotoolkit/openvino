@@ -133,11 +133,15 @@ public:
             auto& params = function->get_parameters();
             size_t gapSize = params.size() - inType.size();
             if (gapSize) {
-                for (size_t i = 0; i < gapSize; i++) {
-                    inType.push_back(inType[0]);
+                auto inTypeDefaultValue = inType[0];
+                for (size_t i = 1; i <= gapSize; i++) {
+                    inType.push_back(inTypeDefaultValue);
                 }
             }
             for (size_t i = 0; i < params.size(); i++) {
+                if (i > 0) {
+                    continue;
+                }
                 if (inType[i] != ov::element::Type_t::undefined) {
                     p.input(i).tensor().set_element_type(inType[i]);
                 }
@@ -147,8 +151,9 @@ public:
             auto results = function->get_results();
             size_t gapSize = results.size() - outType.size();
             if (gapSize) {
-                for (size_t i = 0; i < gapSize; i++) {
-                    outType.push_back(outType[0]);
+                auto outTypeDefaultValue = outType[0];
+                for (size_t i = 1; i <= gapSize; i++) {
+                    outType.push_back(outTypeDefaultValue);
                 }
             }
             for (size_t i = 0; i < results.size(); i++) {
@@ -216,10 +221,13 @@ protected:
         }
 
         if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
-            inType[0] = outType[0] = ngPrc = ElementType::bf16;
+            ngPrc = ElementType::bf16;
+            inType.front() = ElementType::bf16;
+            outType.front() = ElementType::bf16;
             rel_threshold = 1e-2f;
         } else {
-            inType[0] = outType[0] = ngPrc;
+            inType.front() = ngPrc;
+            outType.front() = ngPrc;
         }
 
         init_input_shapes(inputShapes);
