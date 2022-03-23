@@ -3,6 +3,7 @@
 
 import argparse
 import os
+import csv
 import xml.etree.ElementTree as ET
 
 from jinja2 import Environment, FileSystemLoader
@@ -175,7 +176,6 @@ def format_string(input_str: str):
 
 
 def serialize_to_csv(report_filename: str, output_dir: os.path, op_list: list, device_list: list, results: dict):
-    import csv
     csv_filename = os.path.join(output_dir, report_filename + '.csv')
     with open(csv_filename, "w", newline='') as output_csv_file:
         csv_writer = csv.writer(output_csv_file, dialect='excel')
