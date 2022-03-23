@@ -432,7 +432,7 @@ bool check_name(const ov::OutputVector& nodes, const std::string& node_name) {
 
 /**
  * @brief Parse scale factors per input
- * Format : <input_name1>:<sf1>,<input2>:<sf2> or just <sf>
+ * Format : <input_name1>=<sf1>,<input2>=<sf2> or just <sf>
  * @param inputs model inputs
  * @param values_string values_string input string
  * @return map of scale factors per input
@@ -454,11 +454,11 @@ std::map<std::string, float> parse_scale_factors(const ov::OutputVector& inputs,
     std::map<std::string, float> result;
     auto scale_factor_strings = split(values_string, ',');
     for (auto& scale_factor_string : scale_factor_strings) {
-        auto values = split(scale_factor_string, ':');
+        auto values = split(scale_factor_string, '=');
         if (values.size() == 1) {
             if (scale_factor_strings.size() != 1) {
                 throw std::logic_error("Unrecognized scale factor format! "
-                                       "Please specify <input_name1>:<sf1>,<input_name2>:<sf2> or "
+                                       "Please specify <input_name1>=<sf1>,<input_name2>=<sf2> or "
                                        "just <sf> to be applied to all inputs");
             }
             auto scale_factor = get_sf(values.at(0));
@@ -468,8 +468,7 @@ std::map<std::string, float> parse_scale_factors(const ov::OutputVector& inputs,
         } else if (values.size() > 0) {
             auto sf_sting = values.back();
             values.pop_back();
-            // input name can contain port, concat back
-            auto input_name = concat(values, ':');
+            auto input_name = values.back();
             check_name(inputs, input_name);
             result[input_name] = get_sf(sf_sting, input_name);
         }
