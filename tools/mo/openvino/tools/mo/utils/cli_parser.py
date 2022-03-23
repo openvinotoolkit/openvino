@@ -191,6 +191,18 @@ def readable_dirs_or_empty(paths: str):
     return paths
 
 
+def readable_dirs_or_files_or_empty(paths: str):
+    """
+    Checks that comma separated list of paths are readable directories, files or a provided path is empty.
+    :param paths: comma separated list of paths.
+    :return: comma separated list of paths.
+    """
+    if paths:
+        paths_list = [readable_file_or_dir(path) for path in paths.split(',')]
+        return ','.join(paths_list)
+    return paths
+
+
 def readable_dir(path: str):
     """
     Check that specified path is a readable directory.
@@ -277,7 +289,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'parameter, this scale ' +
                                    'is not applied for any input that does not match with ' +
                                    'the original input of the model.' +
-                                   'If both --mean and --scale  are specified, ' +
+                                   'If both --mean_values and --scale  are specified, ' +
                                    'the mean is subtracted first and then scale is applied ' +
                                    'regardless of the order of options in command line.')
     common_group.add_argument('--reverse_input_channels',
@@ -390,12 +402,14 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               action=DeprecatedStoreTrue, default=False)
     # we use CanonicalizeDirCheckExistenceAction instead of readable_dirs to handle empty strings
     common_group.add_argument("--extensions",
-                              help="Directory or a comma separated list of directories with extensions. To disable all "
-                                   "extensions including those that are placed at the default location, pass an empty "
-                                   "string.",
+                              help="Paths or a comma-separated list of paths to libraries (.so or .dll) "
+                                   "with extensions. For the legacy MO path (if `--use_legacy_frontend` is used), "
+                                   "a directory or a comma-separated list of directories with extensions are supported. "
+                                   "To disable all extensions including those that are placed at the default location, "
+                                   "pass an empty string.",
                               default=import_extensions.default_path(),
                               action=CanonicalizePathCheckExistenceAction,
-                              type=readable_dirs_or_empty)
+                              type=readable_dirs_or_files_or_empty)
     common_group.add_argument("--batch", "-b",
                               type=check_positive,
                               default=None,
@@ -761,7 +775,7 @@ def get_all_cli_parser(frontEndManager=None):
     parser = argparse.ArgumentParser(usage='%(prog)s [options]')
 
     frameworks = list(set(['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'] +
-                          (frontEndManager.get_available_front_ends() if frontEndManager else [])))
+                          (get_available_front_ends(frontEndManager) if frontEndManager else [])))
 
     parser.add_argument('--framework',
                         help='Name of the framework used to train the input model.',
@@ -1000,8 +1014,14 @@ def parse_layouts_by_destination(s: str, parsed: dict, dest: str = None) -> None
             elif m2:
                 found_g = m2.groups()
             else:
-                raise Error("More then one layout provided for --{}layout without providing name.".format(
-                    dest + '_' if dest else ''))
+                error_msg = "Invalid usage of --{}layout parameter. Please use following syntax for each tensor " \
+                            "or operation name:" \
+                            "\n  name(nchw)" \
+                            "\n  name[n,c,h,w]".format(dest + '_' if dest else '')
+                if dest is None:
+                    error_msg += "\n  name(nhwc->[n,h,w,c])" \
+                                 "\n  name[n,h,w,c]->[n,c,h,w]"
+                raise Error(error_msg)
             write_found_layout(found_g[0], found_g[1], parsed, dest)
 
 
@@ -1600,3 +1620,14 @@ def get_meta_info(argv: argparse.Namespace):
         if key in meta_data:
             meta_data[key] = ','.join([os.path.join('DIR', os.path.split(i)[1]) for i in meta_data[key].split(',')])
     return meta_data
+
+
+def get_available_front_ends(fem=None):
+    # Use this function as workaround to avoid IR frontend usage by MO
+    if fem is None:
+        return []
+    available_moc_front_ends = fem.get_available_front_ends()
+    if 'ir' in available_moc_front_ends:
+        available_moc_front_ends.remove('ir')
+
+    return available_moc_front_ends

@@ -11,8 +11,6 @@
 
 #include "transformations/utils/utils.hpp"
 
-NGRAPH_RTTI_DEFINITION(ov::intel_cpu::FullyConnectedBiasFusion, "FullyConnectedBiasFusion", 0);
-
 ov::intel_cpu::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
     auto input = ngraph::pattern::any_input();
     auto weights = ngraph::pattern::any_input(ngraph::pattern::has_static_shape());

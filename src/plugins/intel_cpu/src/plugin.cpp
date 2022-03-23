@@ -21,7 +21,6 @@
 #include <tuple>
 #include <unordered_set>
 #include <ie_system_conf.h>
-#include <nodes/list.hpp>
 #include <ie_ngraph_utils.hpp>
 
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
@@ -133,10 +132,12 @@
 
 #include <cpu/x64/cpu_isa_traits.hpp>
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 #define IE_CPU_PLUGIN_THROW(...) IE_THROW(__VA_ARGS__) << "CPU plugin: "
+
+namespace ov {
+namespace intel_cpu {
 
 static std::string getDeviceFullName() {
     std::string brand_string;
@@ -163,7 +164,7 @@ static std::string getDeviceFullName() {
 Engine::Engine() :
     deviceFullName(getDeviceFullName()) {
     _pluginName = "CPU";
-    extensionManager->AddExtension(std::make_shared<ov::intel_cpu::MKLDNNExtension>());
+    extensionManager->AddExtension(std::make_shared<Extension>());
 }
 
 Engine::~Engine() {
@@ -330,6 +331,10 @@ private:
         auto isSequencePrimitiveSupported = [](const_node_ptr &node) -> bool {
             const auto& data = node->input(0);
             const auto& data_pshape = data.get_partial_shape();
+            // WA: dynamic shapes make impossible to check seq_len due to shapeOf subgraphs
+            // but the sequence is still supported in CPU and doesn't need to be decomposed
+            if (data_pshape.is_dynamic())
+                return true;
             if (data_pshape.rank().is_static() && data_pshape.rank().get_length() > 1 && !data_pshape[1].is_static())
                 return false;
             auto max_seq_len = data.get_shape().at(1);
@@ -382,13 +387,13 @@ private:
         pass_config->set_callback<ngraph::pass::MVN6Decomposition>(
                 [](const_node_ptr &node) -> bool {
                     std::string errorMessage;
-                    return MKLDNNMVNNode::isSupportedOperation(node, errorMessage);
+                    return node::MVN::isSupportedOperation(node, errorMessage);
                 });
 
         pass_config->set_callback<ngraph::pass::NormalizeL2Decomposition>(
                 [](const_node_ptr &node) -> bool {
                     std::string errorMsg;
-                    return MKLDNNNormalizeL2Node::isSupportedOperation(node, errorMsg);
+                    return node::NormalizeL2::isSupportedOperation(node, errorMsg);
                 });
 
         pass_config->enable<ngraph::pass::SoftmaxDecomposition>();
@@ -451,10 +456,10 @@ private:
 
         if (useLpt) {
             pass_config->set_callback<ngraph::pass::AddFakeQuantizeFusion,
-                                    ngraph::pass::MulFakeQuantizeFusion,
-                                    ngraph::pass::FakeQuantizeMulFusion>([](const_node_ptr &node) -> bool {
+                                      ngraph::pass::MulFakeQuantizeFusion,
+                                      ngraph::pass::FakeQuantizeMulFusion>([](const_node_ptr &node) -> bool {
                 std::string errMsg;
-                return !MKLDNNFakeQuantizeNode::isSupportedOperation(node, errMsg);
+                return !node::FakeQuantize::isSupportedOperation(node, errMsg);
             });
 
             pass_config->set_callback<ngraph::pass::ConvertQuantizeDequantize>([&defaultPrecisions](const_node_ptr &node) -> bool {
@@ -473,7 +478,7 @@ private:
         CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(Lpt);
 
         using namespace ngraph::pass::low_precision;
-        OV_ITT_SCOPE(FIRST_INFERENCE, ov::intel_cpu::itt::domains::intel_cpu_LT, "LowPrecisionTransformations");
+        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "LowPrecisionTransformations");
 
         auto supportedPrecisions = std::vector<OperationPrecisionRestriction>({
             OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
@@ -540,7 +545,7 @@ private:
 
         postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::FakeQuantizeDecomposition>([](const_node_ptr &node) -> bool {
             std::string errMsg;
-            return MKLDNNFakeQuantizeNode::isSupportedOperation(node, errMsg);
+            return node::FakeQuantize::isSupportedOperation(node, errMsg);
         });
         postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::UnrollTensorIterator>([](const_node_ptr &node) -> bool {
             // UnrollTI transformation is disabled by default, is turned on by LowLatency transformation
@@ -674,7 +679,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
                                    engConfig.perfHintsConfig.ovPerfHintNumRequests);
         }
         config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(num_streams);
-        config[ov::num_streams.name()] = ov::util::to_string(ov::streams::NUMA);
+        config[ov::num_streams.name()] = ov::util::to_string(num_streams);
     }
 }
 
@@ -747,7 +752,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
         conf.batchLimit = static_cast<int>(network.getBatchSize());
     }
 
-    return std::make_shared<MKLDNNExecNetwork>(clonedNetwork, conf, extensionManager, weightsSharing, shared_from_this());
+    return std::make_shared<ExecNetwork>(clonedNetwork, conf, extensionManager, weightsSharing, shared_from_this());
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
@@ -939,7 +944,7 @@ void Engine::AddExtension(const InferenceEngine::IExtensionPtr& extension) {
 QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config) const {
     QueryNetworkResult res;
 
-    MKLDNNWeightsSharing::Ptr fake_w_cache;
+    WeightsSharing::Ptr fake_w_cache;
     auto function = network.getFunction();
     if (function != nullptr) {
         std::unordered_set<std::string> originalOps;
@@ -967,9 +972,9 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
         std::unordered_set<std::string> unsupported;
         for (auto op : ops) {
             auto layerIsSupported = [&] {
-                std::unique_ptr<MKLDNNNode> ptr;
+                std::unique_ptr<Node> ptr;
                 try {
-                    ptr.reset(MKLDNNNode::factory().create(op, {mkldnn::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
+                    ptr.reset(Node::factory().create(op, {mkldnn::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
                 } catch (InferenceEngine::Exception&) {
                     return false;
                 }
@@ -1031,7 +1036,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
 
     CNNNetworkDeserializer deserializer(networkModel,
         [this](const std::string& model, const Blob::CPtr& weights) {
-            return GetCore()->ReadNetwork(model, weights);
+            return GetCore()->ReadNetwork(model, weights, true);
         });
 
     CNNNetwork cnnnetwork;
@@ -1044,7 +1049,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
         conf.batchLimit = static_cast<int>(cnnnetwork.getBatchSize());
     }
 
-    auto execNetwork = std::make_shared<MKLDNNExecNetwork>(cnnnetwork, conf, extensionManager, weightsSharing, shared_from_this());
+    auto execNetwork = std::make_shared<ExecNetwork>(cnnnetwork, conf, extensionManager, weightsSharing, shared_from_this());
 
     execNetwork->setNetworkInputs(cnnnetwork.getInputsInfo());
     execNetwork->setNetworkOutputs(cnnnetwork.getOutputsInfo());
@@ -1053,5 +1058,9 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
     return execNetwork;
 }
 
+}   // namespace intel_cpu
+}   // namespace ov
+
+using namespace ov::intel_cpu;
 static const Version version = {{2, 1}, CI_BUILD_NUMBER, "openvino_intel_cpu_plugin"};
 IE_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, version)

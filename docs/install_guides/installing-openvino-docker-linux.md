@@ -5,11 +5,17 @@ This guide provides steps on creating a Docker image with Intel® Distribution o
 ## <a name="system-requirments"></a>System Requirements
 
 @sphinxdirective
-.. tab:: Target Operating Systems
-
-  * Ubuntu 18.04 long-term support (LTS), 64-bit
-  * Ubuntu 20.04 long-term support (LTS), 64-bit
-  * Red Hat Enterprise Linux 8, 64-bit
+.. tab:: Target Operating Systems with Python Version
+  
+  +----------------------------------------------+--------------------------+
+  | Operating System                             | Supported Python Version |
+  +==============================================+==========================+
+  | Ubuntu 18.04 long-term support (LTS), 64-bit |  3.6                     |
+  +----------------------------------------------+--------------------------+
+  | Ubuntu 20.04 long-term support (LTS), 64-bit |  3.8                     |
+  +----------------------------------------------+--------------------------+
+  | Red Hat Enterprise Linux 8, 64-bit           |  3.6                     |
+  +----------------------------------------------+--------------------------+
 
 .. tab:: Host Operating Systems
 
@@ -20,8 +26,10 @@ This guide provides steps on creating a Docker image with Intel® Distribution o
   To launch a Linux image on WSL2 when trying to run inferences on a GPU, make sure that the following requirements are met:
 
   - Only Windows 10 with 21H2 update or above installed and Windows 11 are supported.
-  - Intel GPU driver on Windows host with version 30.0.100.9684 or above need be installed. Please see [this article](https://www.intel.com/content/www/us/en/artificial-intelligence/harness-the-power-of-intel-igpu-on-your-machine.html#articleparagraph_983312434) for more details.
+  - Intel GPU driver on Windows host with version 30.0.100.9684 or above need be installed. Please see `this article`_ for more details.
   - From 2022.1 release, the Docker images contain preinstalled recommended version of OpenCL Runtime with WSL2 support.
+  
+  .. _this article: https://www.intel.com/content/www/us/en/artificial-intelligence/harness-the-power-of-intel-igpu-on-your-machine.html#articleparagraph_983312434
 
 @endsphinxdirective
 
@@ -50,7 +58,7 @@ You can find prebuilt images on:
 
 ## <a name="prepare-dockerfile"></a>Preparing a Dockerfile
 
-You can use the [available Dockerfiles on GitHub](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate a Dockerfile with your settings via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci) which can generate a Dockerfile, build, test and deploy an image with the the Intel® Distribution of OpenVINO™ toolkit.
+You can use the [available Dockerfiles on GitHub](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate a Dockerfile with your settings via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci) which can generate a Dockerfile, build, test and deploy an image with the Intel® Distribution of OpenVINO™ toolkit.
 You can also try our [Tutorials](https://github.com/openvinotoolkit/docker_ci/tree/master/docs/tutorials) which demonstrate the usage of Docker containers with OpenVINO. 
 
 ## <a name="configure-image"></a>Configuring the Image for Different Devices
@@ -59,7 +67,7 @@ If you want to run inferences on a CPU or Intel® Neural Compute Stick 2, no ext
 
 ### Configuring Docker Image for GPU
 
-By default, the distributed Docker image for OpenVINO has the the recommended version of Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL Driver for the operating system installed inside. If you want to build an image with a custom version of OpenCL Runtime included, you need to modify the Dockerfile using the lines below (the 19.41.14441 version is used as an example) and build the image manually:
+By default, the distributed Docker image for OpenVINO has the recommended version of Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL Driver for the operating system installed inside. If you want to build an image with a custom version of OpenCL Runtime included, you need to modify the Dockerfile using the lines below (the 19.41.14441 version is used as an example) and build the image manually:
 
 **Ubuntu 18.04/20.04**:
 

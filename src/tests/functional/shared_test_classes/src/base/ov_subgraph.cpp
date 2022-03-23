@@ -37,27 +37,31 @@ std::ostream& operator <<(std::ostream& os, const InputShape& inputShape) {
 }
 
 void SubgraphBaseTest::run() {
+    bool isCurrentTestDisabled = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled();
+
+    LayerTestsUtils::PassRate::Statuses status = isCurrentTestDisabled ?
+        LayerTestsUtils::PassRate::Statuses::SKIPPED :
+        LayerTestsUtils::PassRate::Statuses::CRASHED;
+    summary.setDeviceName(targetDevice);
+    summary.updateOPsStats(function, status);
+
+    if (isCurrentTestDisabled)
+        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+
     // in case of crash jump will be made and work will be continued
     auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
 
     // place to jump in case of a crash
+    int jmpRes = 0;
 #ifdef _WIN32
-    if (setjmp(CommonTestUtils::env) == 0) {
+    jmpRes = setjmp(CommonTestUtils::env);
 #else
-    if (sigsetjmp(CommonTestUtils::env, 1) == 0) {
+    jmpRes = sigsetjmp(CommonTestUtils::env, 1);
 #endif
-        bool isCurrentTestDisabled = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled();
+    if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
+        crashHandler->StartTimer();
 
-        LayerTestsUtils::PassRate::Statuses status = isCurrentTestDisabled ?
-            LayerTestsUtils::PassRate::Statuses::SKIPPED :
-            LayerTestsUtils::PassRate::Statuses::CRASHED;
-        summary.setDeviceName(targetDevice);
-        summary.updateOPsStats(function, status);
-
-        if (isCurrentTestDisabled)
-            GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
-
-        ASSERT_FALSE(targetStaticShapes.empty()) << "Target Static Shape is empty!!!";
+        ASSERT_FALSE(targetStaticShapes.empty() && !function->get_parameters().empty()) << "Target Static Shape is empty!!!";
         std::string errorMessage;
         try {
             compile_model();
@@ -89,7 +93,10 @@ void SubgraphBaseTest::run() {
         if (status != LayerTestsUtils::PassRate::Statuses::PASSED) {
             GTEST_FATAL_FAILURE_(errorMessage.c_str());
         }
-    } else {
+    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
+        IE_THROW() << "Crash happens";
+    } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
+        summary.updateOPsStats(function, LayerTestsUtils::PassRate::Statuses::HANGED);
         IE_THROW() << "Crash happens";
     }
 }
@@ -317,6 +324,10 @@ void SubgraphBaseTest::validate() {
 }
 
 void SubgraphBaseTest::init_input_shapes(const std::vector<InputShape>& shapes) {
+    if (shapes.empty()) {
+        targetStaticShapes = {{}};
+        return;
+    }
     size_t targetStaticShapeSize = shapes.front().second.size();
     for (size_t i = 1; i < shapes.size(); ++i) {
         if (targetStaticShapeSize < shapes[i].second.size()) {

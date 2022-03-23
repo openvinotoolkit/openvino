@@ -73,12 +73,12 @@ OpenVINO™ Documentation
 	    <p> Learn about the alternative, web-based version of OpenVINO. DL Workbench container installation Required. </p>
 	 </a>
 	 <a href="openvino_docs_OV_Runtime_User_Guide.html" >
-	    <h3>Inference Engine </h3>
-	    <p> Learn about OpenVINO's inference mechanism which executes the IR and ONNX models on target devices. </p>  
+	    <h3>OpenVINO™ Runtime </h3>
+	    <p> Learn about OpenVINO's inference mechanism which executes the IR, ONNX, Paddle models on target devices. </p>  
 	 </a>
 	 <a href="openvino_docs_optimization_guide_dldt_optimization_guide.html" >
 	    <h3>Tune & Optimize </h3>
-	    <p> Use quantization, pruning, and sparsity algorithms to make your application as efficient as possible. </p> 
+	    <p> Model-level (e.g. quantization) and Runtime (i.e. application) -level  optimizations to make your inference as fast as possible. </p> 
 	 </a>
 	 <a href="openvino_docs_performance_benchmarks.html" >
 	    <h3>Performance<br /> Benchmarks </h3>

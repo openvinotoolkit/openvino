@@ -4,7 +4,7 @@
 
 .. toctree::
    :maxdepth: 1
-   
+
    openvino_docs_ops_arithmetic_Abs_1
    openvino_docs_ops_arithmetic_Acos_1
    openvino_docs_ops_arithmetic_Acosh_3
@@ -85,6 +85,7 @@
    openvino_docs_ops_image_I420toBGR_8
    openvino_docs_ops_image_I420toRGB_8
    openvino_docs_ops_signals_IDFT_7
+   openvino_docs_ops_signals_IRDFT_9
    openvino_docs_ops_infrastructure_If_8
    openvino_docs_ops_image_Interpolate_1
    openvino_docs_ops_image_Interpolate_4
@@ -136,6 +137,7 @@
    openvino_docs_ops_generation_RandomUniform_8
    openvino_docs_ops_generation_Range_1
    openvino_docs_ops_generation_Range_4
+   openvino_docs_ops_signals_RDFT_9
    openvino_docs_ops_infrastructure_ReadValue_3
    openvino_docs_ops_activation_ReLU_1
    openvino_docs_ops_reduction_ReduceL1_4
@@ -175,6 +177,7 @@
    openvino_docs_ops_activation_SoftMax_1
    openvino_docs_ops_activation_SoftMax_8
    openvino_docs_ops_activation_SoftPlus_4
+   openvino_docs_ops_activation_SoftSign_9
    openvino_docs_ops_movement_SpaceToBatch_2
    openvino_docs_ops_movement_SpaceToDepth_1
    openvino_docs_ops_movement_Split_1
