@@ -66,7 +66,8 @@ class Tensor;
  * @brief Wraps allocator implementation to provide safe way to store allocater loaded from shared library
  *        And constructs default based on `new` `delete` c++ calls allocator if created without parameters
  *        Accepts any [std::pmr::memory_resource](https://en.cppreference.com/w/cpp/memory/memory_resource) like
- * allocator
+ *        allocator
+ * @ingroup ov_runtime_cpp_api
  */
 class OPENVINO_API Allocator {
     /**

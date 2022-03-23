@@ -149,7 +149,7 @@ TEST_F(OVTensorTest, cannotCreateTensorWithWrongStrides) {
         // strides values are element-wise >= ov::row_major_strides(shape) values
         EXPECT_THROW(ov::Tensor(el, shape, data, byteStrides({2, 1}, el)), ov::Exception);
         EXPECT_THROW(ov::Tensor(el, shape, data, byteStrides({3, 0}, el)), ov::Exception);
-        EXPECT_THROW(ov::Tensor(el, shape, data, byteStrides({3, 2}, el)), ov::Exception);
+        EXPECT_NO_THROW(ov::Tensor(el, shape, data, byteStrides({3, 2}, el)));
         EXPECT_NO_THROW(ov::Tensor(el, shape, data, byteStrides({6, 2}, el)));
     }
     {

@@ -29,6 +29,7 @@ Blob::CPtr IVariableStateInternal::GetState() const {
 namespace ov {
 
 IVariableState::IVariableState(const std::string& name_) : name{name_} {}
+
 std::string IVariableState::get_name() const {
     return name;
 }

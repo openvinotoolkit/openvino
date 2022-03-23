@@ -32,8 +32,8 @@ class ITensor;
 
 /**
  * @brief Tensor API holding host memory
- *
  * It can throw exceptions safely for the application, where it is properly handled.
+ * @ingroup ov_runtime_cpp_api
  */
 class OPENVINO_API Tensor {
 protected:
@@ -219,6 +219,9 @@ public:
     }
 };
 
+/**
+ * @brief A vector of Tensor's
+ */
 using TensorVector = std::vector<Tensor>;
 
 namespace runtime {

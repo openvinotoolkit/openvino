@@ -35,17 +35,17 @@ Strides ITensor::get_strides() const {
                     element_type);
     auto shape = get_shape();
     Strides strides;
-    strides.reserve(shape.size());
-    std::partial_sum(shape.begin(), shape.end(), std::back_inserter(strides), std::multiplies<size_t>());
-    for (auto&& stride : strides) {
-        stride *= element_type.size();
+    if (!shape.empty()) {
+        strides.resize(shape.size());
+        strides.back() = element_type.size();
+        std::copy(shape.rbegin(), shape.rend() - 1, strides.rbegin() + 1);
+        std::partial_sum(strides.rbegin(), strides.rend(), strides.rbegin(), std::multiplies<size_t>());
     }
     return strides;
 }
 
 size_t ITensor::get_byte_size() const {
-    auto strides = get_strides();
-    return !strides.empty() ? strides.back() : 0;
+    return (get_size() * get_element_type().bitwidth() + 8 - 1) / 8;
 }
 
 void* ITensor::data(const element::Type) const {
@@ -64,7 +64,9 @@ struct ViewTensor : public ITensor {
     ViewTensor(const element::Type element_type_, const Shape& shape_, void* ptr_)
         : element_type{element_type_},
           shape{shape_},
-          ptr{ptr_} {}
+          ptr{ptr_} {
+        OPENVINO_ASSERT(ptr != nullptr);
+    }
 
     void* data(const element::Type element_type) const override {
         if (element_type != element::undefined) {
@@ -104,6 +106,20 @@ struct StridedViewTensor : public ViewTensor {
             get_element_type().bitwidth() >= 8,
             "Could not create strided access tensor for types with bitwidths less then 8 bit. Tensor type: ",
             get_element_type());
+        OPENVINO_ASSERT(get_shape().size() == strides.size());
+        auto shape_strides = ITensor::get_strides();
+        for (size_t i = 0; i < strides.size(); ++i) {
+            OPENVINO_ASSERT(shape_strides[i] <= strides[i],
+                            "shape stride: ",
+                            shape_strides[i],
+                            ", stride: ",
+                            strides[i]);
+            OPENVINO_ASSERT((strides[i] % get_element_type().size()) == 0,
+                            "shape stride: ",
+                            shape_strides[i],
+                            ", stride: ",
+                            strides[i]);
+        }
     }
 
     Strides get_strides() const override {
@@ -158,8 +174,15 @@ struct RoiTensor : public ITensor {
         OPENVINO_ASSERT(owner->get_element_type().bitwidth() >= 8,
                         "ROI Tensor for types with bitwidths less then 8 bit is not implemented. Tensor type: ",
                         owner->get_element_type());
-        for (size_t i = 0; i < shape.size(); ++i) {
+        auto owner_shape = owner->get_shape();
+        OPENVINO_ASSERT(owner_shape.size() == begin.size());
+        OPENVINO_ASSERT(begin.size() == end.size());
+        shape.resize(begin.size());
+        for (size_t i = 0; i < begin.size(); ++i) {
+            OPENVINO_ASSERT(begin[i] <= owner_shape[i]);
+            OPENVINO_ASSERT(end[i] <= owner_shape[i]);
             shape[i] = end[i] - begin[i];
+            OPENVINO_ASSERT(shape[i] <= owner_shape[i]);
         }
     }
 
@@ -185,7 +208,7 @@ struct RoiTensor : public ITensor {
         auto offsets = get_offsets();
         auto strides = get_strides();
         for (size_t i = 0; i < strides.size(); ++i) {
-            byte_offset += offsets[i] * ((i == 0) ? 1 : strides[i - 1]);
+            byte_offset += offsets[i] * strides[i];
         }
         return static_cast<uint8_t*>(owner_data) + byte_offset;
     }

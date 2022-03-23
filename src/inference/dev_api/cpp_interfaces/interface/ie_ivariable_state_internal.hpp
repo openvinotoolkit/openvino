@@ -89,7 +89,7 @@ class ITensor;
 class OPENVINO_API IVariableState : public std::enable_shared_from_this<IVariableState> {
 public:
     /**
-     * @brief A shared pointer to a IVariableStateInternal interface
+     * @brief A shared pointer to a IVariableState interface
      */
     using Ptr = std::shared_ptr<IVariableState>;
 
@@ -118,6 +118,9 @@ public:
      * @return The value of the variable state
      */
     virtual std::shared_ptr<ITensor> get_state() const;
+
+protected:
+    ~IVariableState() = default;
 
     std::string name;
     std::shared_ptr<ITensor> state;

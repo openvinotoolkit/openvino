@@ -26,6 +26,7 @@ class IVariableState;
 
 /**
  * @brief VariableState class
+ * @ingroup ov_runtime_cpp_api
  */
 class OPENVINO_RUNTIME_API VariableState {
     std::shared_ptr<IVariableState> _impl;
