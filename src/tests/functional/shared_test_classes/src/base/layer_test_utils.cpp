@@ -32,7 +32,11 @@ void LayerTestsCommon::Run() {
     }
 
     // in case of crash jump will be made and work will be continued
-    auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
+#ifdef IGNORE_CRASH
+    auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler(true));
+#else
+    auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler(false));
+#endif
     auto &s = Summary::getInstance();
     s.setDeviceName(targetDevice);
 

@@ -77,23 +77,5 @@ int main(int argc, char* argv[]) {
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::AddGlobalTestEnvironment(new LayerTestsUtils::TestEnvironment);
 
-    auto exernalSignalHandler = [](int errCode) {
-        std::cerr << "Unexpected application crash with code: " << errCode << std::endl;
-
-        // set default handler for crash
-        signal(SIGINT, SIG_DFL);
-        signal(SIGTERM, SIG_DFL);
-
-        if (errCode == SIGINT || errCode == SIGTERM) {
-            auto& s = LayerTestsUtils::Summary::getInstance();
-            s.saveReport();
-            exit(1);
-        }
-    };
-
-    // killed by extarnal
-    signal(SIGINT, exernalSignalHandler);
-    signal(SIGTERM , exernalSignalHandler);
-
     return RUN_ALL_TESTS();
 }

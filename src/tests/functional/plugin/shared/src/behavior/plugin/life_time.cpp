@@ -70,7 +70,7 @@ namespace BehaviorTestsDefinitions {
 
     TEST_P(HoldersTest, Orders) {
         // in case of crash jump will be made and work will be continued
-        auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
+        auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler(true));
 
         // Test failed if crash happens
 #ifdef _WIN32
@@ -86,7 +86,7 @@ namespace BehaviorTestsDefinitions {
 
     TEST_P(HoldersTestImportNetwork, Orders) {
         // in case of crash jump will be made and work will be continued
-        auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
+        auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler(true));
 
         // Test failed if crash happens
 #ifdef _WIN32

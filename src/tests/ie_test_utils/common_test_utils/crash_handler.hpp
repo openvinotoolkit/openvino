@@ -21,7 +21,7 @@ class CrashHandler {
 private:
     static unsigned int MAX_TEST_WORK_TIME;
 public:
-    CrashHandler();
+    CrashHandler(bool continueWorkAfterCrash);
     ~CrashHandler();
     static void SetUpTimeout(unsigned int timeout);
     void StartTimer();

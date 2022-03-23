@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "functional_test_utils/include/functional_test_utils/layer_test_utils/summary.hpp"
+
 #include "crash_handler.hpp"
 #include <limits.h>
 
@@ -11,13 +13,23 @@ namespace CommonTestUtils {
 jmp_buf env;
 unsigned int CrashHandler::MAX_TEST_WORK_TIME = UINT_MAX;
 
-CrashHandler::CrashHandler() {
+CrashHandler::CrashHandler(bool continueWorkAfterCrash) {
     // setup default value for timeout in 15 minutes
     if (MAX_TEST_WORK_TIME == UINT_MAX) {
         MAX_TEST_WORK_TIME = 900;
     }
 
-    auto crashHandler = [](int errCode) {
+    auto handleCrashAndExit = [](int errCode) {
+        std::cerr << "Unexpected application crash with code: " << errCode << std::endl;
+        auto& s = LayerTestsUtils::Summary::getInstance();
+        s.saveReport();
+#ifndef _WIN32
+        alarm(0);
+#endif
+        exit(errCode);
+    };
+
+    auto handleCrashAndContinue = [](int errCode) {
         std::cerr << "Unexpected application crash with code: " << errCode << std::endl;
 
         // reset custom signal handler to avoid infinit loop
@@ -30,11 +42,12 @@ CrashHandler::CrashHandler() {
         signal(SIGFPE, SIG_DFL);
         signal(SIGALRM, SIG_DFL);
 #endif
+        exit(errCode);
 
 #ifdef _WIN32
         longjmp(env, JMP_STATUS::anyError);
 #else
-// reset timeout
+        // reset timeout
         alarm(0);
 
         if (errCode == SIGALRM) {
@@ -46,15 +59,27 @@ CrashHandler::CrashHandler() {
 #endif
     };
 
+    if (continueWorkAfterCrash) {
     // setup custom handler for signals
-    signal(SIGABRT, crashHandler);
-    signal(SIGSEGV, crashHandler);
-    signal(SIGILL, crashHandler);
+        signal(SIGABRT, handleCrashAndContinue);
+        signal(SIGSEGV, handleCrashAndContinue);
+        signal(SIGILL, handleCrashAndContinue);
 #ifndef _WIN32
-    signal(SIGFPE, crashHandler);
-    signal(SIGBUS, crashHandler);
-    signal(SIGALRM, crashHandler);
+        signal(SIGFPE, handleCrashAndContinue);
+        signal(SIGBUS, handleCrashAndContinue);
+        signal(SIGALRM, handleCrashAndContinue);
 #endif
+    } else {
+        // setup custom handler for signals
+        signal(SIGABRT, handleCrashAndExit);
+        signal(SIGSEGV, handleCrashAndExit);
+        signal(SIGILL, handleCrashAndExit);
+#ifndef _WIN32
+        signal(SIGFPE, handleCrashAndExit);
+        signal(SIGBUS, handleCrashAndExit);
+        signal(SIGALRM, handleCrashAndExit);
+#endif
+    }
 }
 
 CrashHandler::~CrashHandler() {
