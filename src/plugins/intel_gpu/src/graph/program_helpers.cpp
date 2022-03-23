@@ -208,11 +208,8 @@ add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
         return add_fusing_type::not_supported;
     }
 
-    auto& eltw_node = desc.node->as<eltwise>();
     auto& dep_node = p_node.get_dependency(desc.dep_start_idx);
-
     auto p_layout = p_node.get_output_layout();
-    auto e_layout = eltw_node.get_output_layout();
     auto d_layout = dep_node.get_output_layout();
 
     if (is_full_tensor(p_layout) && is_full_tensor(d_layout)) {
