@@ -14,6 +14,6 @@ $ make -j8
 $ cd $TEMPLATE_PLUGIN_HOME
 $ mkdir $TEMPLATE_PLUGIN_HOME/build
 $ cd $TEMPLATE_PLUGIN_HOME/build
-$ cmake -DOpenVINODeveloperPackage_DIR=$DLDT_HOME/build ..
+$ cmake -DOpenVINODeveloperPackage_DIR=$OPENVINO_HOME/build ..
 $ make -j8
 ```

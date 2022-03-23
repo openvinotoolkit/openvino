@@ -8,12 +8,18 @@ set(TARGET_NAME "openvino_template_plugin")
 file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
+set(skip_plugin)
+
+if (NOT ENABLE_TEMPLATE_REGISTRATION)
+    # Skip install and registration of template component
+    set(skip_plugin SKIP_INSTALL SKIP_REGISTRATION)
+endif()
+
 # adds a shared library with plugin
 ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "TEMPLATE"
               SOURCES ${SOURCES} ${HEADERS}
-              SKIP_INSTALL # ATTENTION: comment to install component
-              SKIP_REGISTRATION # ATTENTION: comment to register component
+              ${skip_plugin}
               VERSION_DEFINES_FOR template_plugin.cpp
               ADD_CLANG_FORMAT)
 
@@ -31,6 +37,8 @@ target_link_libraries(${TARGET_NAME} PRIVATE
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
-# ATTENTION: uncomment to register plugins in the plugins.xml file
-# ov_register_plugins(MAIN_TARGET ${TARGET_NAME})
+if (ENABLE_TEMPLATE_REGISTRATION)
+    # Update the plugins.xml file
+    ov_register_plugins(MAIN_TARGET ${TARGET_NAME})
+endif()
 # [cmake:plugin]
