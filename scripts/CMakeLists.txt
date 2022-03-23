@@ -34,7 +34,7 @@ if(UNIX)
     set(_setupvars_file setupvars/setupvars.sh)
 elseif(WIN32)
     set(_setupvars_file setupvars/setupvars.bat)
-    if (USE_BUILD_TYPE_SUBFOLDER AND CMAKE_BUILD_TYPE AND NOT CMAKE_BUILD_TYPE EQUAL "Debug" AND NOT CMAKE_BUILD_TYPE EQUAL "Release")
+    if (USE_BUILD_TYPE_SUBFOLDER AND CMAKE_BUILD_TYPE AND NOT CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT CMAKE_BUILD_TYPE STREQUAL "Release")
         # Patch primary configuration in setupvars.bat which is "Release" by default.
         # Note setupvars secondary configuration is always "Debug".
         message(STATUS "Patching content of ${_setupvars_file} for CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}")
