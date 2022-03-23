@@ -5,8 +5,13 @@ import numpy as np
 import openvino.runtime.opset8 as ov
 from openvino.runtime import Model, Shape
 
-from openvino.runtime.op.util import InvariantInputDescription, BodyOutputDescription,\
-    SliceInputDescription, MergedInputDescription, ConcatOutputDescription
+from openvino.runtime.op.util import (
+    InvariantInputDescription,
+    BodyOutputDescription,
+    SliceInputDescription,
+    MergedInputDescription,
+    ConcatOutputDescription,
+)
 
 
 def test_simple_loop():
@@ -29,7 +34,9 @@ def test_simple_loop():
     sum = ov.add(X_i, Y_i)
     Zo = ov.multiply(sum, M_body)
 
-    body = Model([body_condition, Zo], [current_iteration, X_i, Y_i, M_body], "body_function")
+    body = Model(
+        [body_condition, Zo], [current_iteration, X_i, Y_i, M_body], "body_function"
+    )
 
     loop = ov.loop(trip_count, exec_condition)
     loop.set_function(body)
@@ -87,8 +94,11 @@ def test_loop_basic():
     iter_cnt = ov.range(zero, np.int32(16), np.int32(1))
     body_const_condition = ov.constant(bool_val)
 
-    graph_body = Model([curr_cma, cma_hist, body_const_condition], [body_timestep,
-                       body_data_in, body_prev_cma, body_const_one], "body_function")
+    graph_body = Model(
+        [curr_cma, cma_hist, body_const_condition],
+        [body_timestep, body_data_in, body_prev_cma, body_const_one],
+        "body_function",
+    )
 
     ti_slice_input_desc = [
         # timestep
@@ -137,14 +147,17 @@ def test_loop_basic():
     input_desc = loop.get_input_descriptions()
     output_desc = loop.get_output_descriptions()
 
-    assert len(input_desc) == len(ti_slice_input_desc) + \
-        len(ti_merged_input_desc) + len(ti_invariant_input_desc)
+    assert len(input_desc) == len(ti_slice_input_desc) + len(
+        ti_merged_input_desc
+    ) + len(ti_invariant_input_desc)
     assert len(output_desc) == len(ti_body_output_desc) + len(ti_concat_output_desc)
 
     for i in range(len(ti_slice_input_desc)):
         assert input_desc[i].get_type_info() == ti_slice_input_desc[i].get_type_info()
         assert input_desc[i].input_index == ti_slice_input_desc[i].input_index
-        assert input_desc[i].body_parameter_index == ti_slice_input_desc[i].body_parameter_index
+        assert (
+            input_desc[i].body_parameter_index == ti_slice_input_desc[i].body_parameter_index
+        )
         assert input_desc[i].start == ti_slice_input_desc[i].start
         assert input_desc[i].stride == ti_slice_input_desc[i].stride
         assert input_desc[i].part_size == ti_slice_input_desc[i].part_size
@@ -152,22 +165,41 @@ def test_loop_basic():
         assert input_desc[i].axis == ti_slice_input_desc[i].axis
 
     for i in range(len(ti_merged_input_desc)):
-        assert input_desc[len(ti_slice_input_desc)
-                          + i].get_type_info() == ti_merged_input_desc[i].get_type_info()
-        assert input_desc[len(ti_slice_input_desc) + i].input_index == ti_merged_input_desc[i].input_index
-        assert input_desc[len(ti_slice_input_desc)
-                          + i].body_parameter_index == ti_merged_input_desc[i].body_parameter_index
-        assert input_desc[len(ti_slice_input_desc)
-                          + i].body_value_index == ti_merged_input_desc[i].body_value_index
+        assert (
+            input_desc[len(ti_slice_input_desc) + i].get_type_info() == ti_merged_input_desc[i].get_type_info()
+        )
+        assert (
+            input_desc[len(ti_slice_input_desc) + i].input_index == ti_merged_input_desc[i].input_index
+        )
+        assert (
+            input_desc[len(ti_slice_input_desc) + i].body_parameter_index == ti_merged_input_desc[i].body_parameter_index
+        )
+        assert (
+            input_desc[len(ti_slice_input_desc) + i].body_value_index == ti_merged_input_desc[i].body_value_index
+        )
 
     for i in range(len(ti_concat_output_desc)):
-        assert output_desc[len(ti_body_output_desc)
-                           + i].get_type_info() == ti_concat_output_desc[i].get_type_info()
-        assert output_desc[len(ti_body_output_desc) + i].output_index == ti_concat_output_desc[i].output_index
-        assert output_desc[len(ti_body_output_desc)
-                           + i].body_value_index == ti_concat_output_desc[i].body_value_index
-        assert output_desc[len(ti_body_output_desc) + i].start == ti_concat_output_desc[i].start
-        assert output_desc[len(ti_body_output_desc) + i].stride == ti_concat_output_desc[i].stride
-        assert output_desc[len(ti_body_output_desc) + i].part_size == ti_concat_output_desc[i].part_size
-        assert output_desc[len(ti_body_output_desc) + i].end == ti_concat_output_desc[i].end
-        assert output_desc[len(ti_body_output_desc) + i].axis == ti_concat_output_desc[i].axis
+        assert (
+            output_desc[len(ti_body_output_desc) + i].get_type_info() == ti_concat_output_desc[i].get_type_info()
+        )
+        assert (
+            output_desc[len(ti_body_output_desc) + i].output_index == ti_concat_output_desc[i].output_index
+        )
+        assert (
+            output_desc[len(ti_body_output_desc) + i].body_value_index == ti_concat_output_desc[i].body_value_index
+        )
+        assert (
+            output_desc[len(ti_body_output_desc) + i].start == ti_concat_output_desc[i].start
+        )
+        assert (
+            output_desc[len(ti_body_output_desc) + i].stride == ti_concat_output_desc[i].stride
+        )
+        assert (
+            output_desc[len(ti_body_output_desc) + i].part_size == ti_concat_output_desc[i].part_size
+        )
+        assert (
+            output_desc[len(ti_body_output_desc) + i].end == ti_concat_output_desc[i].end
+        )
+        assert (
+            output_desc[len(ti_body_output_desc) + i].axis == ti_concat_output_desc[i].axis
+        )

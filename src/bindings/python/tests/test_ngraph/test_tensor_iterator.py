@@ -130,13 +130,10 @@ def test_tensor_iterator_basic():
         assert input_desc[i].axis == ti_slice_input_desc[i].axis
 
     for i in range(len(ti_merged_input_desc)):
-        assert input_desc[len(ti_slice_input_desc)
-                          + i].get_type_info() == ti_merged_input_desc[i].get_type_info()
+        assert input_desc[len(ti_slice_input_desc) + i].get_type_info() == ti_merged_input_desc[i].get_type_info()
         assert input_desc[len(ti_slice_input_desc) + i].input_index == ti_merged_input_desc[i].input_index
-        assert input_desc[len(ti_slice_input_desc)
-                          + i].body_parameter_index == ti_merged_input_desc[i].body_parameter_index
-        assert input_desc[len(ti_slice_input_desc)
-                          + i].body_value_index == ti_merged_input_desc[i].body_value_index
+        assert input_desc[len(ti_slice_input_desc) + i].body_parameter_index == ti_merged_input_desc[i].body_parameter_index
+        assert input_desc[len(ti_slice_input_desc) + i].body_value_index == ti_merged_input_desc[i].body_value_index
 
     for i in range(len(ti_body_output_desc)):
         assert output_desc[i].get_type_info() == ti_body_output_desc[i].get_type_info()

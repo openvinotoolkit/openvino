@@ -7,12 +7,6 @@
 from openvino.utils import add_openvino_libs_to_path
 from pkg_resources import get_distribution, DistributionNotFound
 
-try:
-    __version__ = get_distribution("openvino-core").version
-except DistributionNotFound:
-    __version__ = "0.0.0.dev0"
-
-add_openvino_libs_to_path()
 
 # Openvino pybind bindings and python extended classes
 from openvino.pyopenvino import Dimension
@@ -62,6 +56,14 @@ from openvino.runtime import opset8
 # Helper functions for openvino module
 from openvino.runtime.ie_api import tensor_from_file
 from openvino.runtime.ie_api import compile_model
+
+
+try:
+    __version__ = get_distribution("openvino-core").version
+except DistributionNotFound:
+    __version__ = "0.0.0.dev0"
+
+add_openvino_libs_to_path()
 
 # Extend Node class to support binary operators
 Node.__add__ = opset8.add
