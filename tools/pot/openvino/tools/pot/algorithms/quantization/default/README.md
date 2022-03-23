@@ -5,9 +5,9 @@ DefaultQuantization algorithm is designed to do a fast and, in many cases, accur
 
 ## Parameters
 DefaultQuantization algorithm has mandatory and optional parameters. For more details on how to use these parameters please refer to [Best Practices](@ref pot_docs_BestPractices) document. Here is an example of the definition of DefualtQuantization method and its parameters:
-```json
+```python
 {
-    "name": "DefaultQuantization", // the name of optimization algorithm 
+    "name": "DefaultQuantization", # the name of optimization algorithm 
     "params": {
         ...
     }

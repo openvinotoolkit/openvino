@@ -1,5 +1,15 @@
 #  Post-Training Quantization Best Practices {#pot_docs_BestPractices}
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   
+   Saturation Issue <pot_saturation_issue>
+
+@endsphinxdirective
+
 ## Introduction
 The [Default Quantization](@ref pot_default_quantization_usage) of the Post-training Optimization Tool (POT) is 
 the fastest and easiest way to get a quantized model because it requires only some unannotated representative dataset to be provided in most cases. Thus, it is recommended to use it as a starting point when it comes to model optimization. However, it can lead to significant accuracy deviation in some cases. This document is aimed at providing the tips to address this issue.
@@ -40,28 +50,23 @@ and applied after model quantization as a part of the Default Quantization algor
    > **NOTE**: Changing this option can substantially increase quantization time in the POT tool.
 3.  Another important option is a `range_estimator`. It defines how to calculate the minimum and maximum of quantization range for weights and activations.
 For example, the following `range_estimator` for activations can improve the accuracy for Faster R-CNN based networks:
-```
-"compression": {
-    "target_device": "ANY",        
-    "algorithms": [
-        {
-            "name": "DefaultQuantization", 
-            "params": {
-                "preset": "performance", 
-                "stat_subset_size": 300  
-                                         
+```python
+{
+    "name": "DefaultQuantization", 
+    "params": {
+        "preset": "performance", 
+        "stat_subset_size": 300  
+                                    
 
-                "activations": {
-                    "range_estimator": {
-                        "max": {
-                            "aggregator": "max",
-                            "type": "abs_max"
-                        }
-                    }
+        "activations": {                 # defines activation
+            "range_estimator": {         # defines how to estimate statistics 
+                "max": {                 # right border of the quantizating floating-point range
+                    "aggregator": "max", # use max(x) to aggregate statistics over calibration dataset
+                    "type": "abs_max"    # use abs(max(x)) to get per-sample statistics
                 }
             }
         }
-    ]
+    }
 }
 ```
 
@@ -75,10 +80,7 @@ For example, `DetectionOutput` layer of SSD model expressed as a subgraph should
 One of the sources for the ignored scope can be the Accuracy-aware algorithm which can revert layers back to the original precision (see details below).
 
 ## Accuracy-aware Quantization
-In case when the steps above do not lead to the accurate quantized model you may use the so-called [Accuracy-aware Quantization](@ref pot_accuracyaware_usage) algorithm which leads to mixed-precision models.
-The whole idea behind that is to revert quantized layers back to floating-point precision based on their contribution to the accuracy drop until the desired accuracy degradation with respect to
-the full-precision model is satisfied.
-
+In case when the steps above do not lead to the accurate quantized model you may use the so-called [Accuracy-aware Quantization](@ref pot_accuracyaware_usage) algorithm which leads to mixed-precision models. 
 A fragment of Accuracy-aware Quantization configuration with default settings is shown below below:
 ```python
 {
@@ -96,6 +98,9 @@ A fragment of Accuracy-aware Quantization configuration with default settings is
 Since the Accuracy-aware Quantization calls the Default Quantization at the first step it means that all the parameters of the latter one are also valid and can be applied to the accuracy-aware scenario.
 
 > **NOTE**: In general case, possible speedup after applying the Accuracy-aware Quantization algorithm is less than after the Default Quantization when the model gets fully-quantized.
+
+### Reducing the performance gap of Accuracy-aware Quantization
+To improve model performance after Accuracy-aware Quantization you can try the `"tune_hyperparams"` setting and set it `True`. It will enable searching of optimal quantization parameters before reverting layers to the "backup" precision. Note, that this can increase the overall quantization time.
 
 If you do not achieve the desired accuracy and performance after applying the 
 Accuracy-aware Quantization algorithm or you need an accurate fully-quantized model, we recommend either using Quantization-Aware Training from [NNCF](@ref docs_nncf_introduction).
