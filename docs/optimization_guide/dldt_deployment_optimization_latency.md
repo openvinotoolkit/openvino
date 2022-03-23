@@ -5,7 +5,7 @@
 .. toctree::
    :maxdepth: 1
    :hidden:
-    
+
    openvino_docs_IE_DG_Model_caching_overview
 
 @endsphinxdirective
@@ -22,9 +22,9 @@ However, some conventional "root" devices (e.g. CPU or GPU) can be in fact inter
 
 Thus, human expertise is required to get more _throughput_ out of the device even in the inherently latency-oriented cases. OpenVINO can take this configuration burden via [high-level performance hints](../OV_Runtime_UG/performance_hints.md).
 
-> **NOTE**: [OpenVINO performance hints](./dldt_deployment_optimization_hints.md) is a recommended way for performance configuration, which is both device-agnostic and future-proof. 
+> **NOTE**: [OpenVINO performance hints](./dldt_deployment_optimization_hints.md) is a recommended way for performance configuration, which is both device-agnostic and future-proof.
 
-In the case when there are multiple models to be used simultaneously, consider using different devices for inferencing the different models. Finally, when multiple models are executed in parallel on the device, using additional `ov::hint::model_priority` may help to define relative priorities of the models (please refer to the documentation on the [matrix features support for OpenVINO devices](@ref openvino_docs_OV_UG_features_support_matrix) to check for the support of the feature by the specific device).
+In the case when there are multiple models to be used simultaneously, consider using different devices for inferencing the different models. Finally, when multiple models are executed in parallel on the device, using additional `ov::hint::model_priority` may help to define relative priorities of the models (please refer to the documentation on the [matrix features support for OpenVINO devices](@ref features_support_matrix) to check for the support of the feature by the specific device).
 
 ## First-Inference Latency and Model Load/Compile Time
 There are cases when model loading/compilation are heavily contributing to the end-to-end latencies.
