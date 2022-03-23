@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "ngraph/opsets/opset5.hpp"
 #include "jit_mkldnn_emitters.hpp"
 
 namespace ov {
@@ -138,6 +139,27 @@ public:
         else
             IE_THROW(NotImplemented) << "Subgraph node doesn't support ngraph operation Gelu with approximation mode: " << approximationMode;
 
+        set_injector();
+    }
+};
+
+class jit_round_emitter : public jit_mkldnn_emitter {
+public:
+    jit_round_emitter(
+        mkldnn::impl::cpu::x64::jit_generator *host,
+        mkldnn::impl::cpu::x64::cpu_isa_t host_isa,
+        const std::shared_ptr<ngraph::Node>& n,
+        InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32) : jit_mkldnn_emitter(host, host_isa, n, exec_prc) {
+        const auto round = getNgraphOpAs<ngraph::op::v5::Round>(n);
+        const auto mode = round->get_mode();
+        if ((mode != ngraph::opset5::Round::RoundMode::HALF_AWAY_FROM_ZERO) &&
+            (mode != ngraph::opset5::Round::RoundMode::HALF_TO_EVEN)) {
+            IE_THROW(NotImplemented) << "Round emitter doesn't support ngraph operation Round with mode: " << static_cast<int>(mode);
+        }
+
+        kind = mode == ngraph::opset5::Round::RoundMode::HALF_AWAY_FROM_ZERO ?
+            dnnl_eltwise_round_half_away_from_zero :
+            dnnl_eltwise_round_half_to_even;
         set_injector();
     }
 };

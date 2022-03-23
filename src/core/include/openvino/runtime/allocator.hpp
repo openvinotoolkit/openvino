@@ -67,6 +67,7 @@ class Tensor;
  *        And constructs default based on `new` `delete` c++ calls allocator if created without parameters
  *        Accepts any [std::pmr::memory_resource](https://en.cppreference.com/w/cpp/memory/memory_resource) like
  * allocator
+ * @ingroup ov_runtime_cpp_api
  */
 class OPENVINO_API Allocator {
     /**
