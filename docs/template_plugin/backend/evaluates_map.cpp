@@ -3326,7 +3326,7 @@ bool evaluate(const shared_ptr<op::v9::GenerateProposalsSingleImage>& op,
 
     std::vector<float> output_rois;
     std::vector<float> output_scores;
-    int64_t output_num;
+    std::vector<int64_t> output_num;
 
     runtime::reference::generate_proposals_single_image(im_info_data,
                                                         anchors_data,
@@ -3341,7 +3341,7 @@ bool evaluate(const shared_ptr<op::v9::GenerateProposalsSingleImage>& op,
                                                         output_scores,
                                                         output_num);
 
-    uint64_t num_selected = static_cast<uint64_t>(output_num);
+    uint64_t num_selected = static_cast<uint64_t>(std::accumulate(output_num.begin(), output_num.end(), 0));
 
     Shape output_rois_shape = Shape{num_selected, 4};
     Shape output_scores_shape = Shape{num_selected};
@@ -3352,7 +3352,7 @@ bool evaluate(const shared_ptr<op::v9::GenerateProposalsSingleImage>& op,
     outputs[1]->set_shape(output_scores_shape);
 
     const auto roi_num_type = op->get_output_element_type(2);
-    Shape output_roi_num_shape = Shape{1};
+    Shape output_roi_num_shape = Shape{im_info_shape[0]};
     outputs[2]->set_element_type(roi_num_type);
     outputs[2]->set_shape(output_roi_num_shape);
 
@@ -3363,6 +3363,7 @@ bool evaluate(const shared_ptr<op::v9::GenerateProposalsSingleImage>& op,
                                                                        roi_num_type,
                                                                        output_rois,
                                                                        output_scores,
+                                                                       output_num,
                                                                        output_rois_shape,
                                                                        output_scores_shape);
 

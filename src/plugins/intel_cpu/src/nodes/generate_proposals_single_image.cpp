@@ -325,7 +325,6 @@ void GenerateProposalsSingleImageNode::initSupportedPrimitiveDescriptors() {
 }
 
 void GenerateProposalsSingleImageNode::executeDynamicImpl(mkldnn::stream strm) {
-    redefineOutputMemory({{0, 4}, {0}, {1}});
     execute(strm);
 }
 
@@ -343,7 +342,7 @@ void GenerateProposalsSingleImageNode::execute(mkldnn::stream strm) {
 
         size_t deltas_dims_size = 1;
         const auto &deltaDims = getParentEdgeAt(INPUT_DELTAS)->getMemory().getStaticDims();
-        for (size_t i = 0; i < deltaDims.size(); i++) {
+        for (size_t i = 1; i < deltaDims.size(); i++) {
             deltas_dims_size *= deltaDims[i];
         }
         if (anchor_dims_size != deltas_dims_size)
@@ -351,7 +350,7 @@ void GenerateProposalsSingleImageNode::execute(mkldnn::stream strm) {
 
         size_t score_dims_size = 1;
         const auto &scoreDims = getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims();
-        for (size_t i = 0; i < scoreDims.size(); i++) {
+        for (size_t i = 1; i < scoreDims.size(); i++) {
             score_dims_size *= scoreDims[i];
         }
         if (deltas_dims_size != (4 * score_dims_size))
@@ -359,7 +358,7 @@ void GenerateProposalsSingleImageNode::execute(mkldnn::stream strm) {
 
         size_t im_info_dims_size = 1;
         const auto &infoDims = getParentEdgeAt(INPUT_IM_INFO)->getMemory().getStaticDims();
-        for (size_t i = 0; i < infoDims.size(); i++) {
+        for (size_t i = 1; i < infoDims.size(); i++) {
             im_info_dims_size *= infoDims[i];
         }
 
@@ -369,30 +368,11 @@ void GenerateProposalsSingleImageNode::execute(mkldnn::stream strm) {
         const float *p_anchors_item = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_ANCHORS)->getMemoryPtr()->GetPtr());
         const float *p_img_info_cpu = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_IM_INFO)->getMemoryPtr()->GetPtr());
 
-        const int anchors_num = scoreDims[0];
+        const int anchors_num = scoreDims[1];
 
-        // bottom shape: (num_anchors) x H x W
-        const int bottom_H = deltaDims[1];
-        const int bottom_W = deltaDims[2];
-
-        // input image height & width
-        const float img_H = p_img_info_cpu[0];
-        const float img_W = p_img_info_cpu[1];
-
-        // scale factor for height & width
-        float scale_h;
-        float scale_w;
-        if (im_info_dims_size == 3) {
-            scale_h = p_img_info_cpu[2];
-            scale_w = p_img_info_cpu[2];
-        } else if (im_info_dims_size == 4) {
-            scale_h = p_img_info_cpu[2];
-            scale_w = p_img_info_cpu[3];
-        }
-
-        // minimum box width & height
-        const float min_box_H = min_size_ * scale_h;
-        const float min_box_W = min_size_ * scale_w;
+        // bottom shape: N x (num_anchors) x H x W
+        const int bottom_H = deltaDims[2];
+        const int bottom_W = deltaDims[3];
 
         // number of all proposals = num_anchors * H * W
         const int num_proposals = anchors_num * bottom_H * bottom_W;
@@ -420,8 +400,30 @@ void GenerateProposalsSingleImageNode::execute(mkldnn::stream strm) {
         std::vector<int> is_dead(pre_nms_topn);
 
         // Execute
-        int batch_size = 1;  // inputs[INPUT_DELTAS]->getTensorDesc().getDims()[0];
+        int batch_size = scoreDims[0];
+        int total_num_rois = 0;
+        std::vector<float> roi_item, score_item;
+        std::vector<int64_t> roi_num(batch_size);
+        uint8_t* p_roi_num = reinterpret_cast<uint8_t*>(&roi_num[0]);
+        auto roi_num_type = getOriginalOutputPrecisionAtPort(OUTPUT_ROI_NUM);
         for (int n = 0; n < batch_size; ++n) {
+            // input image height & width
+            const float img_H = p_img_info_cpu[0];
+            const float img_W = p_img_info_cpu[1];
+            // scale factor for height & width
+            float scale_h;
+            float scale_w;
+            if (im_info_dims_size == 3) {
+                scale_h = p_img_info_cpu[2];
+                scale_w = p_img_info_cpu[2];
+            } else if (im_info_dims_size == 4) {
+                scale_h = p_img_info_cpu[2];
+                scale_w = p_img_info_cpu[3];
+            }
+            // minimum box width & height
+            const float min_box_H = min_size_ * scale_h;
+            const float min_box_W = min_size_ * scale_w;
+
             refine_anchors(p_deltas_item, p_scores_item, p_anchors_item,
                            reinterpret_cast<float *>(&proposals_[0]), anchors_num, bottom_H,
                            bottom_W, img_H, img_W,
@@ -437,16 +439,26 @@ void GenerateProposalsSingleImageNode::execute(mkldnn::stream strm) {
             nms_cpu(pre_nms_topn, &is_dead[0], &unpacked_boxes[0], &roi_indices_[0], &num_rois, 0,
                     nms_thresh_, post_nms_topn_, coordinates_offset_);
 
-            // Only supported when batch size = 1
-            redefineOutputMemory({{num_rois, 4}, {num_rois}, {1}});
-            float *p_roi_item       = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROIS)[0]->getMemoryPtr()->GetPtr());
-            float *p_roi_score_item = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_SCORES)[0]->getMemoryPtr()->GetPtr());
-            uint8_t *p_roi_num_item = reinterpret_cast<uint8_t *>(getChildEdgesAtPort(OUTPUT_ROI_NUM)[0]->getMemoryPtr()->GetPtr());
+            int new_num_rois = total_num_rois + num_rois;
+            roi_item.resize(new_num_rois * 4);
+            score_item.resize(new_num_rois);
 
-            auto roi_num_type = getOriginalOutputPrecisionAtPort(OUTPUT_ROI_NUM);
-            fill_output_blobs(&unpacked_boxes[0], &roi_indices_[0], p_roi_item, p_roi_score_item,
-                              p_roi_num_item, pre_nms_topn, num_rois, post_nms_topn_, roi_num_type);
+            p_roi_num += roi_num_type == Precision::I32 ? n * sizeof(int32_t) : n * sizeof(int64_t);
+            fill_output_blobs(&unpacked_boxes[0], &roi_indices_[0], &roi_item[total_num_rois * 4], &score_item[total_num_rois],
+                              p_roi_num, pre_nms_topn, num_rois, post_nms_topn_, roi_num_type);
+            p_deltas_item += deltas_dims_size;
+            p_scores_item += score_dims_size;
+            p_img_info_cpu += im_info_dims_size;
+            total_num_rois = new_num_rois;
         }
+        // copy to out memory
+        redefineOutputMemory({{total_num_rois, 4}, {total_num_rois}, {batch_size}});
+        float *p_roi_item       = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROIS)[0]->getMemoryPtr()->GetPtr());
+        float *p_roi_score_item = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_SCORES)[0]->getMemoryPtr()->GetPtr());
+        uint8_t* p_roi_num_item = reinterpret_cast<uint8_t *>(getChildEdgesAtPort(OUTPUT_ROI_NUM)[0]->getMemoryPtr()->GetPtr());
+        memcpy(p_roi_item, &roi_item[0], roi_item.size() * sizeof(float));
+        memcpy(p_roi_score_item, &score_item[0], score_item.size() * sizeof(float));
+        memcpy(p_roi_num_item, &roi_num[0], getChildEdgesAtPort(OUTPUT_ROI_NUM)[0]->getMemoryPtr()->GetSize());
     } catch (const std::exception &e) {
         std::string errorMsg = e.what();
         IE_THROW() << errorMsg;

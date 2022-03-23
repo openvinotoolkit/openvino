@@ -28,14 +28,14 @@ public:
 
 private:
     // Inputs:
-    //      im_info, shape [3]
+    //      im_info, shape [N, 3]
     //      anchors, shape [H, W, A, 4]
-    //      deltas,  shape [A * 4, H, W]
-    //      scores,  shape [A, H, W]
+    //      deltas,  shape [N, A * 4, H, W]
+    //      scores,  shape [N, A, H, W]
     // Outputs:
     //      rois,    shape [rois_num, 4]
     //      scores,  shape [rois_num]
-    //      roi_num, shape [1]
+    //      roi_num, shape [N]
 
     const int INPUT_IM_INFO {0};
     const int INPUT_ANCHORS {1};

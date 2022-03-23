@@ -29,7 +29,7 @@ void generate_proposals_single_image(const std::vector<float>& im_info,
                                      const Shape& scores_shape,
                                      std::vector<float>& output_rois,
                                      std::vector<float>& output_scores,
-                                     int64_t& num_rois);
+                                     std::vector<int64_t>& num_rois);
 
 void generate_proposals_single_image_postprocessing(void* prois,
                                                     void* pscores,
@@ -38,6 +38,7 @@ void generate_proposals_single_image_postprocessing(void* prois,
                                                     const ngraph::element::Type roi_num_type,
                                                     const std::vector<float>& output_rois,
                                                     const std::vector<float>& output_scores,
+                                                    const std::vector<int64_t>& num_rois,
                                                     const Shape& output_rois_shape,
                                                     const Shape& output_scores_shape);
 
