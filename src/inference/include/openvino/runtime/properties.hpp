@@ -291,10 +291,10 @@ static constexpr Property<Priority> model_priority{"MODEL_PRIORITY"};
  * @ingroup ov_runtime_cpp_prop_api
  */
 enum class PerformanceMode {
-    UNDEFINED = -1,  //!<  Undefined value, performance setting may vary from device to device
-    LATENCY = 1,     //!<  Optimize for latency
-    THROUGHPUT = 2,  //!<  Optimize for throughput
-    CUMULATIVE_THROUGHPUT = 3, //!< Optimize for cumulative throughput
+    UNDEFINED = -1,             //!<  Undefined value, performance setting may vary from device to device
+    LATENCY = 1,                //!<  Optimize for latency
+    THROUGHPUT = 2,             //!<  Optimize for throughput
+    CUMULATIVE_THROUGHPUT = 3,  //!< Optimize for cumulative throughput
 };
 
 /** @cond INTERNAL */
