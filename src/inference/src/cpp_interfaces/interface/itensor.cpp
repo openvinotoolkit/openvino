@@ -44,7 +44,8 @@ Strides ITensor::get_strides() const {
 }
 
 size_t ITensor::get_byte_size() const {
-    return get_strides().back();
+    auto strides = get_strides();
+    return !strides.empty() ? strides.back() : 0;
 }
 
 void* ITensor::data(const element::Type) const {
@@ -113,9 +114,9 @@ struct StridedViewTensor : public ViewTensor {
 };
 
 ITensor::Ptr make_tensor(const element::Type element_type_,
-                           const Shape& shape_,
-                           void* ptr,
-                           const Strides& byte_strides) {
+                         const Shape& shape_,
+                         void* ptr,
+                         const Strides& byte_strides) {
     return byte_strides.empty() ? std::make_shared<ViewTensor>(element_type_, shape_, ptr)
                                 : std::make_shared<StridedViewTensor>(element_type_, shape_, ptr, byte_strides);
 }
@@ -126,8 +127,7 @@ struct AllocatedTensor : public ViewTensor {
                      shape_,
                      [&, this] {
                          OPENVINO_ASSERT(allocator_, "Allocator was not initialized");
-                         return const_cast<Allocator&>(allocator_).allocate(
-                             element_type_.size()*shape_size(shape_));
+                         return const_cast<Allocator&>(allocator_).allocate(element_type_.size() * shape_size(shape_));
                      }()},
           allocator{allocator_} {}
 
@@ -332,6 +332,7 @@ struct TensorRemoteBlob : public ie::RemoteBlob {
 
 template <typename T>
 struct TensorMemoryBlob : public ie::TBlob<T> {
+    ~TensorMemoryBlob() override = default;
     explicit TensorMemoryBlob(const ITensor::Ptr& tensor_) try : ie
         ::TBlob<T>{[&] {
                        auto element_type = tensor_->get_element_type();
@@ -382,7 +383,6 @@ ie::Blob::Ptr tensor_to_blob(const ITensor::Ptr& tensor) {
         switch (tensor->get_element_type()) {
             CASE(f32, float);
             CASE(f64, double);
-            CASE(f16, float16);
             CASE(i4, int8_t);
             CASE(i8, int8_t);
             CASE(i16, int16_t);
@@ -394,7 +394,6 @@ ie::Blob::Ptr tensor_to_blob(const ITensor::Ptr& tensor) {
             CASE(u32, uint32_t);
             CASE(u64, uint64_t);
             CASE(u1, int8_t);
-            CASE(bf16, bfloat16);
             CASE(boolean, bool);
         default:
             OPENVINO_UNREACHABLE("Unsupported element type");
