@@ -62,7 +62,7 @@ public:
 #if 0  // TODO: support dilation
         const auto& dilation = primitive->dilation;
 #else
-        const tensor dilation = {0, 0, 1, 1, 1};
+        const ov::Strides dilation(arg.get_output_layout().get_spatial_rank(), 1);
 #endif
         const auto actual_split = split;
 
@@ -86,15 +86,20 @@ public:
         uint32_t kz = spatial_size == 2 ? 1 : weights_size.spatial[2];
         deconv_params.filterSize = { kx, ky, kz };
 
-        deconv_params.padding = {(uint32_t)std::max(pad.spatial[0], 0),
-                                 (uint32_t)std::max(pad.spatial[1], 0),
-                                 (uint32_t)std::max(pad.spatial[2], 0)};
+        uint32_t pad_z = std::max<std::ptrdiff_t>(pad.size() >= 3 ? pad[pad.size() - 3] : 0, 0);
+        uint32_t pad_y = std::max<std::ptrdiff_t>(pad.size() >= 2 ? pad[pad.size() - 2] : 0, 0);
+        uint32_t pad_x = std::max<std::ptrdiff_t>(pad.size() >= 1 ? pad[pad.size() - 1] : 0, 0);
+        deconv_params.padding = {pad_x, pad_y, pad_z};
 
-        deconv_params.stride = {(uint32_t)stride.spatial[0], (uint32_t)stride.spatial[1], (uint32_t)stride.spatial[2]};
+        uint32_t stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
+        uint32_t stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
+        uint32_t stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
+        deconv_params.stride = {stride_x, stride_y, stride_z};
 
-        deconv_params.dilation = {(uint32_t)dilation.spatial[0],
-                                  (uint32_t)dilation.spatial[1],
-                                  (uint32_t)dilation.spatial[2]};
+        uint32_t dilation_z = dilation.size() >= 3 ? dilation[dilation.size() - 3] : 1;
+        uint32_t dilation_y = dilation.size() >= 2 ? dilation[dilation.size() - 2] : 1;
+        uint32_t dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
+        deconv_params.dilation = {dilation_x, dilation_y, dilation_z};
 
         auto& kernel_selector = kernel_selector::deconvolution_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(deconv_params, deconv_optional_params);

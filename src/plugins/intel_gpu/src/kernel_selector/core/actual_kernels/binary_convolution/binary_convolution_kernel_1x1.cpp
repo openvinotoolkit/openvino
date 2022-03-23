@@ -36,7 +36,7 @@ ParamsKey BinaryConvolutionKernel1x1::GetSupportedKey() const {
 BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernel1x1::SetDefault(const binary_convolution_params& params, int) const {
     DispatchData dispatchData = BinaryConvolutionKernelBase::SetDefault(params);
 
-    const auto& out = params.output;
+    const auto& out = params.outputs[0];
 
     auto x = out.X().v;
     auto y = out.Y().v;
@@ -59,13 +59,13 @@ KernelsPriority BinaryConvolutionKernel1x1::GetKernelsPriority(const Params& /*p
 }
 
 bool BinaryConvolutionKernel1x1::Validate(const Params& p, const optional_params& o) const {
-    if (!BinaryConvolutionKernelBase::Validate(p, o) || !CovolutionBinaryCheckInput(p, o))
+    if (!BinaryConvolutionKernelBase::Validate(p, o) || !ConvolutionBinaryCheckInput(p, o))
         return false;
 
     const auto& params = static_cast<const binary_convolution_params&>(p);
 
     const auto& input = params.inputs[0];
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
 
     const bool bOutputSizes = output.X().v != input.X().v || output.Y().v != input.Y().v;
     const bool bFilterSize = params.filterSize.x != 1 || params.filterSize.y != 1;
@@ -84,9 +84,9 @@ JitConstants BinaryConvolutionKernel1x1::GetJitConstants(const binary_convolutio
 
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
     jit.AddConstant(MakeJitConstant("INPUT0_FEATURE_NUM_PACKED", CeilDiv(params.inputs[0].Feature().v, ic_pack_size)));
-    jit.AddConstant(MakeJitConstant("OUTPUT_FEATURE_NUM_PACKED", CeilDiv(params.output.Feature().v, ic_pack_size)));
+    jit.AddConstant(MakeJitConstant("OUTPUT_FEATURE_NUM_PACKED", CeilDiv(params.outputs[0].Feature().v, ic_pack_size)));
     jit.AddConstant(MakeJitConstant("PADDED_INPUT", params.inputs[0].X().pad.Total() != 0));
-    jit.AddConstant(MakeJitConstant("PADDED_OUTPUT", params.output.X().pad.Total() != 0));
+    jit.AddConstant(MakeJitConstant("PADDED_OUTPUT", params.outputs[0].X().pad.Total() != 0));
     jit.AddConstant(MakeJitConstant("XY_BLOCK_SIZE", xy_block_size));
     if (params.inputs[0].Feature().v % ic_pack_size) {
         jit.AddConstant(MakeJitConstant("LEFTOVERS_IC", params.inputs[0].Feature().v % ic_pack_size));
@@ -94,7 +94,7 @@ JitConstants BinaryConvolutionKernel1x1::GetJitConstants(const binary_convolutio
                                         (0xFFFFFFFF >> (ic_pack_size - params.inputs[0].Feature().v % ic_pack_size))));
     }
 
-    if (params.output.GetDType() == Datatype::BINARY) {
+    if (params.outputs[0].GetDType() == Datatype::BINARY) {
         jit.AddConstant(MakeJitConstant("BINARY_PACKED_OUTPUT", 1));
     }
 
@@ -168,7 +168,7 @@ JitConstants BinaryConvolutionKernel1x1::GetFusedPrimitivesJitConstants(const bi
                 std::string cast_type = (fused_dep.tensors[0].GetDType() == Datatype::F32) ? "as_float" : "as_half";
 
                 prepare_data += "\\\n\tint packed_res = 0;";
-                if (fused_dep.tensors[0].Feature().v == params.output.Feature().v) {
+                if (fused_dep.tensors[0].Feature().v == params.outputs[0].Feature().v) {
                     prepare_data += "\\\n\t" + vec_data_type + " " + var_name_in + " = " + cast_type_vec +
                                     get_aligned_load2(fused_dep_codegen.GetInputPtrName(0), "f_block*OC_BLOCK_SIZE") + ";";
                     eltwise_fused_ops += "\\\n\t" + data_type + " thresh = (oc < 16) ? " + get_shuffle(var_name_in + ".s0", "oc") +
@@ -180,7 +180,7 @@ JitConstants BinaryConvolutionKernel1x1::GetFusedPrimitivesJitConstants(const bi
                 }
 
 
-                if (fused_dep.tensors[2].Feature().v == params.output.Feature().v) {
+                if (fused_dep.tensors[2].Feature().v == params.outputs[0].Feature().v) {
                     // Per-channel output value
                     prepare_data += "\\\n\t" + vec_data_type + " " + var_name_out + " = " + cast_type_vec +
                                     get_aligned_load2(fused_dep_codegen.GetInputPtrName(3), "f_block*OC_BLOCK_SIZE") + ";";

@@ -57,8 +57,8 @@ quantization time. Default value is `False`.
 
 ## Examples
 
-A template and full specification for AccuracyAwareQuantization algorithm can be found:
- * [Template](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/accuracy_aware_quantization_template.json)
+A template and full specification for AccuracyAwareQuantization algorithm:
+ * [Template](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/openvino/tools/pot/configs/templates/accuracy_aware_quantization_template.json)
  * [Full specification](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/accuracy_aware_quantization_spec.json)
 
 Example of using POT API with Accuracy-aware algorithm:

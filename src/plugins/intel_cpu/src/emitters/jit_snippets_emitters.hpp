@@ -51,7 +51,7 @@ struct jit_snippets_compile_args {
 /// \param      in[0]       The number of the node inputs
 /// \param      in[1]      The number of the node outputs
 ///
-// Todo: Scheduler dims and offsets are currently calculated in MKLDNN Subgraph node and passed to the KernelEmitter.
+// Todo: Scheduler dims and offsets are currently calculated in Subgraph node and passed to the KernelEmitter.
 //  However, it seems more natural to calculate all the offsets right in the Kernel op, because the calculation is
 //  not device-specific. It is based only on input/output dims (which we already know) and harness num dims
 //  (which we should pass from the plugin). It seems also better to wrap the enclosed emitters in tiles in the Kernel op

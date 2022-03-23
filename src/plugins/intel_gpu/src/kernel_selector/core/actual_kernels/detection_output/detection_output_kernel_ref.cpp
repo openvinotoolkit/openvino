@@ -261,6 +261,35 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
                 cldnnJit.AddConstant(MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_MXNET", "true"));
             } else {
                 if (detectOutParams.detectOutParams.top_k > 0) {
+                    auto estimateRegPressure = [&]() {
+                        // Assume that the kernel is compiled with SIMD16 instuctions
+                        const size_t simd = 16;
+                        const size_t reg_num = 128;
+                        const size_t bytes_per_reg = 32;
+                        const size_t max_reg_bytes = reg_num * bytes_per_reg;
+
+                        size_t bytes_used = 0;
+                        const auto num_prior_boxes = detectOutParams.inputs[1].Feature().v / detectOutParams.detectOutParams.num_classes;
+                        const auto top_k = std::min(detectOutParams.detectOutParams.top_k, (int32_t)num_prior_boxes);
+
+                        // Memory buffer for decoded_bboxes array
+                        bytes_used += top_k * 4 * BytesPerElement(detectOutParams.inputs[0].GetDType());
+                        // Memory buffer for decoded_bbox_cur and decoded_bbox_kept arrays
+                        bytes_used += 8 * BytesPerElement(detectOutParams.inputs[0].GetDType());
+                        // Memory for get_decoded_bbox function execution
+                        bytes_used += (4 * BytesPerElement(detectOutParams.inputs[2].GetDType()) + 12 * 4);
+                        // Memory for jaccardOverlap function execution
+                        bytes_used += 5 * BytesPerElement(detectOutParams.inputs[0].GetDType());
+                        // Approximate amount of additional memory for local variables
+                        bytes_used += 10 * 4;
+                        bytes_used *= simd;
+
+                        return static_cast<float>(bytes_used) / static_cast<float>(max_reg_bytes);
+                    };
+
+                    if (estimateRegPressure() > 0.8)
+                        cldnnJit.AddConstant(MakeJitConstant("USE_LOCAL_MEMORY", "true"));
+
                     cldnnJit.AddConstant(MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE_OPT", "true"));
                 } else {
                     cldnnJit.AddConstant(MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE", "true"));

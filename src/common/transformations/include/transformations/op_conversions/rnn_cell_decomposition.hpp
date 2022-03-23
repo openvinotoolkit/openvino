@@ -4,12 +4,10 @@
 
 #pragma once
 
-#include <vector>
 #include <memory>
-
-#include <transformations_visibility.hpp>
-
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
+#include <vector>
 
 namespace ngraph {
 namespace pass {
@@ -30,8 +28,8 @@ class TRANSFORMATIONS_API RNNCellDecomposition;
  * *
  */
 
-class ngraph::pass::RNNCellDecomposition: public ngraph::pass::MatcherPass {
+class ngraph::pass::RNNCellDecomposition : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("RNNCellDecomposition", "0");
     RNNCellDecomposition();
 };
