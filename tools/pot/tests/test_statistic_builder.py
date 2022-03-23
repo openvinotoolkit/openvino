@@ -88,7 +88,7 @@ def create_(tmp_path, models, model_name, model_framework, quantization_mode,
 @pytest.mark.parametrize(
     'model_name, model_framework, quantization_mode, inplace_statistics, \
      algorithm,  preset, granularity, add_output_nodes, type_max, type_min', TEST_MODELS,
-    ids=['{}_{}_{}_{}_{}_{}_{}_{}_{}'.format(m[0], m[1], m[2], m[3], m[4],
+    ids=['{}_{}_{}_{}_{}_{}_{}_{}_{}'.format(m[0], m[1], m[2], m[3], m[4].name,
                                              m[5], m[6], m[7], m[8], m[9]) for m in TEST_MODELS])
 def test_statistics_collector_subsets(tmp_path, models, model_name, model_framework,
                                       quantization_mode, inplace_statistics, algorithm,
