@@ -13,10 +13,6 @@
 #include <ngraph/log.hpp>
 #include <ngraph/ngraph.hpp>
 
-<<<<<<< HEAD
-=======
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ShrinkWeights, "ShrinkWeights", 0);
-
 template<typename T>
 static std::string vec_to_str(const std::vector<T> m) {
     std::ostringstream out;
@@ -27,7 +23,6 @@ static std::string vec_to_str(const std::vector<T> m) {
     return out.str();
 }
 
->>>>>>> Reshape shape subgraph support
 bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     int64_t reduced_weights_count{0};
     int64_t total_weights_count{0};

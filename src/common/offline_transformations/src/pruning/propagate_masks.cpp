@@ -12,6 +12,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset7.hpp>
+#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/log.hpp>
@@ -792,7 +793,7 @@ public:
     PassThrough() {
         auto unary_op = pattern::wrap_type<op::util::UnaryElementwiseArithmetic, opset6::Clamp, opset6::Swish,
                                            opset6::Elu, opset6::HardSigmoid, opset6::PRelu, opset6::Mish,
-                                           opset6::Softmax, opset6::SoftPlus, opset6::Convert, opset6::ConvertLike,
+                                           opset6::Softmax, opset8::Softmax, opset6::SoftPlus, opset6::Convert, opset6::ConvertLike,
                                            opset6::AvgPool, opset6::MaxPool, opset6::ROIPooling, opset6::PSROIPooling,
                                            opset6::Pad, opset6::MVN, opset6::Gelu, opset7::Gelu>();
 
