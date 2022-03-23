@@ -292,7 +292,7 @@ def test_cannot_get_strides_for_packed_tensor(ov_type):
     ov_tensor = Tensor(ov_type, [1, 3, 48, 48])
     with pytest.raises(RuntimeError) as e:
         ov_tensor.get_strides()
-    assert f"Could not get strides for types with bitwidths less then 8 bit." in str(e.value)
+    assert "Could not get strides for types with bitwidths less then 8 bit." in str(e.value)
 
 
 @pytest.mark.parametrize("dtype", [
