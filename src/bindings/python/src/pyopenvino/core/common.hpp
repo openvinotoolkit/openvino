@@ -19,6 +19,7 @@
 #include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "pyopenvino/core/containers.hpp"
 #include "pyopenvino/graph/any.hpp"
 
@@ -54,6 +55,8 @@ PyAny from_ov_any(const ov::Any& any);
 uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual);
 
 py::dict outputs_to_dict(const std::vector<ov::Output<const ov::Node>>& outputs, ov::InferRequest& request);
+
+ov::pass::Serialize::Version convert_to_version(const std::string& version);
 
 // Use only with classes that are not creatable by users on Python's side, because
 // Objects created in Python that are wrapped with such wrapper will cause memory leaks.

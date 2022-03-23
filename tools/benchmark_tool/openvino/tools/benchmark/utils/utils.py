@@ -3,9 +3,8 @@
 
 from collections import defaultdict
 import datetime
-from openvino.runtime import Core, Model, PartialShape, Dimension, Layout, Type
+from openvino.runtime import Core, Model, PartialShape, Dimension, Layout, Type, serialize
 from openvino.preprocess import PrePostProcessor
-from openvino.runtime.passes import Manager
 
 from .constants import DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, \
     CPU_DEVICE_NAME, GPU_DEVICE_NAME
@@ -308,11 +307,7 @@ def process_help_inference_string(benchmark_app, device_number_streams):
 
 
 def dump_exec_graph(compiled_model, model_path):
-    weight_path = model_path[:model_path.find(".xml")] + ".bin"
-    pass_manager = Manager()
-    pass_manager.register_pass("Serialize", model_path, weight_path)
-    pass_manager.run_passes(compiled_model.get_runtime_model())
-
+    serialize(compiled_model.get_runtime_model(), model_path)
 
 
 def print_perf_counters(perf_counts_list):
