@@ -5,7 +5,7 @@
 set(TARGET_NAME benchmark_app_legacy)
 
 file (GLOB SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
-file (GLOB HDR ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
+file (GLOB HDR (${CMAKE_CURRENT_SOURCE_DIR}/*.hpp ${CMAKE_CURRENT_SOURCE_DIR}/*.h))
 
 if(OpenVINO_SOURCE_DIR)
     set(OpenVINO_DIR "${CMAKE_BINARY_DIR}")

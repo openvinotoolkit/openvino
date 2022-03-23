@@ -54,6 +54,10 @@ struct dirent {
         d_name = static_cast<char*>(malloc(slen + 1));
         wcstombs_s(&i, d_name, slen + 1, wsFilePath, slen);
     }
+
+    dirent(const dirent&) = delete;
+    const dirent& operator=(const dirent&) = delete;
+    
     ~dirent() {
         free(d_name);
     }
