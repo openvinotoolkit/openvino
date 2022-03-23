@@ -195,7 +195,7 @@ def set_default_tensor_names_for_parameters_results(graph: Graph):
 
 def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_name: str,
                     mean_data: [list, None] = None, input_names: list = None, meta_info: dict = None,
-                    use_temporary_path=False, convert_types=False):
+                    use_temporary_path=False, convert_types=False, rename_results=True):
     if input_names is None:
         input_names = []
     if meta_info is None:
@@ -220,7 +220,8 @@ def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_
 
     for_graph_and_each_sub_graph_recursively(graph, RemoveUselessConvert().find_and_replace_pattern)
 
-    ResultRename().find_and_replace_pattern(graph)
+    if rename_results:
+        ResultRename().find_and_replace_pattern(graph)
     set_default_tensor_names_for_parameters_results(graph)
 
     for sub_graph in [graph] + collect_sub_graphs(graph):
