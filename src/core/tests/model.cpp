@@ -1202,6 +1202,39 @@ TEST(model, add_output_cache_invalidation_op_name) {
     EXPECT_EQ(ov::opset8::Relu::get_type_info_static().name, std::string(added_type_name));
 }
 
+TEST(model, add_output_ordered_ops) {
+    auto shape = ov::Shape{1, 1, 224, 224};
+    auto type = ov::element::f32;
+    auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
+    param->set_friendly_name("Param1");
+    auto op = std::make_shared<ov::opset8::Add>(param, param);
+    op->set_friendly_name("OpName");
+    auto op1 = std::make_shared<ov::opset8::Abs>(op);
+    auto op2 = std::make_shared<ov::opset8::Relu>(op1);
+    auto op3 = std::make_shared<ov::opset8::Abs>(op2);
+    op3->set_friendly_name("Op3");
+    auto res = std::make_shared<ov::op::v0::Result>(op3);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{param});
+    auto ops_before = model->get_ordered_ops();
+    auto new_res = model->add_output(op2);
+    auto ops_after = model->get_ordered_ops();
+    EXPECT_EQ(ops_after.size(), ops_before.size() + 1)
+        << "Before: " << ops_before.size() << ". After: " << ops_after.size();
+    bool relu_found = false, relu_result_found = false;
+    for (const auto& node : ops_after) {
+        if (ov::as_type_ptr<ov::opset8::Relu>(node)) {
+            relu_found = true;
+            EXPECT_FALSE(relu_result_found);
+        } else if (ov::as_type_ptr<ov::opset8::Result>(node) &&
+                   ov::as_type_ptr<ov::opset8::Relu>(node->get_input_node_shared_ptr(0))) {
+            relu_result_found = true;
+            EXPECT_TRUE(relu_found);
+        }
+    }
+    EXPECT_TRUE(relu_found);
+    EXPECT_TRUE(relu_result_found);
+}
+
 namespace {
 bool all_ops_have_same_info(const std::shared_ptr<ov::Model>& f) {
     auto shared_info = ov::ModelAccessor(f).get_shared_info();
