@@ -11,11 +11,22 @@ FILE(GLOB tests "*.cpp")
 
 add_subdirectory("${OpenVINO_SOURCE_DIR}/tests/lib" tests_shared_lib)
 
+if (DEFINED ENV{DL_SDK_TEMP} AND NOT $ENV{DL_SDK_TEMP} STREQUAL "")
+    file(TO_CMAKE_PATH $ENV{DL_SDK_TEMP} tempPath)
+else ()
+    set(tempPath ${OpenVINO_SOURCE_DIR}temp)
+endif()
+
+find_library(_iomp5_lib NAMES iomp5 REQUIRED HINTS "${tempPath}/omp/lib")
+# message("${tempPath}")
+# message("${_iomp5_lib}")
+
 foreach(test_source ${tests})
     get_filename_component(test_name ${test_source} NAME_WE)
     add_executable(${test_name} ${test_source})
 
-    target_link_libraries(${test_name} PRIVATE memory_tests_helper tests_shared_lib)
+    target_link_libraries(${test_name} PRIVATE memory_tests_helper tests_shared_lib ${_iomp5_lib})
+    # target_link_libraries(${test_name} PRIVATE memory_tests_helper tests_shared_lib)
 
     add_dependencies(memory_tests ${test_name})
 

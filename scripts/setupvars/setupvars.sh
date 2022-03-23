@@ -53,6 +53,8 @@ if [ -e "$INSTALLDIR/runtime/3rdparty/tbb" ]; then
     fi
     export LD_LIBRARY_PATH=$INSTALLDIR/runtime/3rdparty/tbb/lib:${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     export TBB_DIR=$INSTALLDIR/runtime/3rdparty/tbb/cmake
+elif [ -e "$INSTALLDIR/runtime/3rdparty/omp" ]; then
+    export LD_LIBRARY_PATH=$INSTALLDIR/runtime/3rdparty/omp/lib:${LD_LIBRARY_PATH}
 fi
 
 if [ -e "$INSTALLDIR/tools/compile_tool" ]; then

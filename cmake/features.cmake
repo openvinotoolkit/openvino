@@ -63,7 +63,7 @@ cmake_dependent_option (ENABLE_WHEEL "Build wheel packages for PyPi" OFF
 if(X86 OR ARM OR (MSVC AND (ARM OR AARCH64)) )
     set(THREADING_DEFAULT "SEQ")
 else()
-    set(THREADING_DEFAULT "TBB")
+    set(THREADING_DEFAULT "OMP")
 endif()
 set(THREADING "${THREADING_DEFAULT}" CACHE STRING "Threading")
 set_property(CACHE THREADING PROPERTY STRINGS "TBB" "TBB_AUTO" "OMP" "SEQ")
