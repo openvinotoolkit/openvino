@@ -617,31 +617,15 @@ bool MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipeli
             }
             devices.push_back(_loadContext[ACTUALDEVICE].deviceInfo);
         } else {
-            if (_context.performanceHint == PluginConfigParams::CUMULATIVE_THROUGHPUT) {
-                std::unique_lock<std::mutex> lock(_confMutex);
-                auto cumulativeDevices = _loadContext[ACTUALDEVICE].cumulativeDevices;
-                lock.unlock();
+            if (_loadContext[ACTUALDEVICE].isAlready) {
+                devices.push_back(_loadContext[ACTUALDEVICE].deviceInfo);
 
-                if (_loadContext[ACTUALDEVICE].isAlready) {
-                    devices.push_back(_loadContext[ACTUALDEVICE].deviceInfo);
-                } else {
-                    //only CPU_HELP is ready
-                    if (cumulativeDevices.size() == 0 && _loadContext[CPU].isAlready) {
-                        // replace deviceName with workName, so schedule can select correct
-                        // idleWorkerQueue
-                        auto deviceInfo = _loadContext[CPU].deviceInfo;
-                        deviceInfo.deviceName = _loadContext[CPU].workName;
-                        devices.push_back(std::move(deviceInfo));
-                    }
-                }
+                if (_context.performanceHint == PluginConfigParams::CUMULATIVE_THROUGHPUT) {
+                    std::unique_lock<std::mutex> lock(_confMutex);
+                    auto cumulativeDevices = _loadContext[ACTUALDEVICE].cumulativeDevices;
+                    lock.unlock();
 
-                for (auto deviceInfo : cumulativeDevices) {
-                    auto deviceName = deviceInfo.deviceName;
-                    auto deviceToFind =
-                        std::find_if(devices.begin(), devices.end(), [deviceName](DeviceInformation& d) {
-                            return d.deviceName == deviceName;
-                        });
-                    if (deviceToFind == devices.end()) {
+                    for (auto deviceInfo : cumulativeDevices) {
                         // if device is cpu, using CPU_HELP's deviceInfo
                         if (_loadContext[CPU].isAlready &&
                             IsCpuLoaded(deviceInfo, _loadContext[CPU].deviceInfo.config)) {
@@ -654,16 +638,12 @@ bool MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipeli
                     }
                 }
             } else {
-                // _acceleratorDevice could be the same as _cpuDevice, such as AUTO:CPU
-                if (_loadContext[ACTUALDEVICE].isAlready) {
-                    devices.push_back(_loadContext[ACTUALDEVICE].deviceInfo);
-                } else {
-                    // replace deviceName with workName, so schedule can select correct
-                    // idleWorkerQueue
-                    auto deviceInfo = _loadContext[CPU].deviceInfo;
-                    deviceInfo.deviceName = _loadContext[CPU].workName;
-                    devices.push_back(std::move(deviceInfo));
-                }
+                // only CPU_HELP is ready
+                // replace deviceName with workName, so schedule can select correct
+                // idleWorkerQueue
+                auto deviceInfo = _loadContext[CPU].deviceInfo;
+                deviceInfo.deviceName = _loadContext[CPU].workName;
+                devices.push_back(std::move(deviceInfo));
             }
         }
     } else {
