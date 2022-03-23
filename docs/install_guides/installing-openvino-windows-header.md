@@ -13,7 +13,7 @@
 
 @endsphinxdirective
 
-If you want to install Intel® Distribution of OpenVINO™ toolkit on your Windows machine, there are a few ways to accomplish this. We prepared following options for you: 
+If you want to install Intel® Distribution of OpenVINO™ toolkit on Windows, you may use the following options to accomplish this: 
 
 * [Install OpenVINO Runtime using an installer](installing-openvino-windows.md)
 * [Install OpenVINO from PyPI](installing-openvino-pip.md)
