@@ -201,15 +201,9 @@ def create_test_onnx_models():
 
     # Expected for extract_subgraph 4
     input_tensors = [
-        make_tensor_value_info(
-            "out1/placeholder_port_0", onnx.TensorProto.FLOAT, (2, 2)
-        ),
-        make_tensor_value_info(
-            "out4/placeholder_port_0", onnx.TensorProto.FLOAT, (2, 2)
-        ),
-        make_tensor_value_info(
-            "out4/placeholder_port_1", onnx.TensorProto.FLOAT, (2, 2)
-        ),
+        make_tensor_value_info("out1/placeholder_port_0", onnx.TensorProto.FLOAT, (2, 2)),
+        make_tensor_value_info("out4/placeholder_port_0", onnx.TensorProto.FLOAT, (2, 2)),
+        make_tensor_value_info("out4/placeholder_port_1", onnx.TensorProto.FLOAT, (2, 2)),
     ]
     output_tensors = [
         make_tensor_value_info("out1", onnx.TensorProto.FLOAT, (1, 2)),
@@ -303,15 +297,9 @@ def create_test_onnx_models():
     # Expected for test_override_all_inputs
     input_tensors = [
         make_tensor_value_info("in3", onnx.TensorProto.FLOAT, (2, 2)),
-        make_tensor_value_info(
-            "out1/placeholder_port_0", onnx.TensorProto.FLOAT, (2, 2)
-        ),
-        make_tensor_value_info(
-            "out4/placeholder_port_0", onnx.TensorProto.FLOAT, (2, 2)
-        ),
-        make_tensor_value_info(
-            "out4/placeholder_port_1", onnx.TensorProto.FLOAT, (2, 2)
-        ),
+        make_tensor_value_info("out1/placeholder_port_0", onnx.TensorProto.FLOAT, (2, 2)),
+        make_tensor_value_info("out4/placeholder_port_0", onnx.TensorProto.FLOAT, (2, 2)),
+        make_tensor_value_info("out4/placeholder_port_1", onnx.TensorProto.FLOAT, (2, 2)),
     ]
     output_tensors = [
         make_tensor_value_info("out1", onnx.TensorProto.FLOAT, (1, 2)),
@@ -527,16 +515,12 @@ def compare_functions(current, expected):  # noqa: C901 the function is too comp
             result = False
             msg += f"Not equal output size of {current_ops[i].get_friendly_name()}. "
         for j in range(current_ops[i].get_output_size()):
-            if current_ops[i].get_output_partial_shape(j) != expected_ops[
-                i
-            ].get_output_partial_shape(j):
+            if current_ops[i].get_output_partial_shape(j) != expected_ops[i].get_output_partial_shape(j):
                 result = False
                 msg += f"Not equal op partial shapes of {current_ops[i].get_friendly_name()}. "
                 msg += f"Current: {current_ops[i].get_partial_shape({j})}, "
                 msg += f"expected: {expected_ops[i].get_partial_shape({j})}. "
-            if current_ops[i].get_output_element_type(j) != expected_ops[
-                i
-            ].get_output_element_type(j):
+            if current_ops[i].get_output_element_type(j) != expected_ops[i].get_output_element_type(j):
                 result = False
                 msg += f"Not equal output element type of {current_ops[i].get_friendly_name()}. "
                 msg += f"Current: {current_ops[i].get_output_element_type(j)}, "
@@ -556,12 +540,8 @@ def test_extract_subgraph():
     model = fe.load("input_model.onnx")
     assert model
 
-    place1 = model.get_place_by_tensor_name(tensor_name="add_out").get_input_port(
-        input_port_index=0
-    )  # in1
-    place2 = model.get_place_by_tensor_name(tensor_name="add_out").get_input_port(
-        input_port_index=1
-    )  # in2
+    place1 = model.get_place_by_tensor_name(tensor_name="add_out").get_input_port(input_port_index=0)  # in1
+    place2 = model.get_place_by_tensor_name(tensor_name="add_out").get_input_port(input_port_index=1)  # in2
     place3 = model.get_place_by_tensor_name(tensor_name="add_out")
     model.extract_subgraph(inputs=[place1, place2], outputs=[place3])
     result_func = fe.convert(model)
@@ -626,16 +606,13 @@ def test_extract_subgraph_4():
 
     out4_tensor = model.get_place_by_tensor_name(tensor_name="out4")
     place1 = model.get_place_by_operation_name_and_input_port(
-        operation_name="split1", input_port_index=0
-    )
+        operation_name="split1", input_port_index=0)
     place2 = out4_tensor.get_producing_operation().get_input_port(input_port_index=0)
     place3 = out4_tensor.get_producing_operation().get_input_port(input_port_index=1)
     place4 = model.get_place_by_tensor_name(tensor_name="out1")
     place5 = model.get_place_by_tensor_name(tensor_name="out2")
     place6 = model.get_place_by_tensor_name(tensor_name="out4")
-    model.extract_subgraph(
-        inputs=[place1, place2, place3], outputs=[place4, place5, place6]
-    )
+    model.extract_subgraph(inputs=[place1, place2, place3], outputs=[place4, place5, place6])
     result_func = fe.convert(model)
 
     expected_model = fe.load("extract_subgraph_4.onnx")
@@ -830,8 +807,7 @@ def test_override_all_inputs():
     assert model
 
     place1 = model.get_place_by_operation_name_and_input_port(
-        operation_name="split1", input_port_index=0
-    )
+        operation_name="split1", input_port_index=0)
     out4_tensor = model.get_place_by_tensor_name(tensor_name="out4")
     place2 = out4_tensor.get_producing_operation().get_input_port(input_port_index=0)
     place3 = out4_tensor.get_producing_operation().get_input_port(input_port_index=1)
@@ -858,9 +834,7 @@ def test_override_all_inputs_invalid_place():
     assert model2
 
     out3_tensor = model2.get_place_by_tensor_name(tensor_name="out3")
-    invalid_place = out3_tensor.get_producing_operation().get_input_port(
-        input_port_index=0
-    )
+    invalid_place = out3_tensor.get_producing_operation().get_input_port(input_port_index=0)
 
     out1_tensor = model.get_place_by_tensor_name(tensor_name="out1")
     place1 = out1_tensor.get_producing_operation().get_input_port(input_port_index=0)
@@ -1223,9 +1197,7 @@ def test_get_consuming_ports_2():
     ).get_input_port(input_port_index=0)
     assert split_op_consuming_ports[0].is_equal(abs_input_port)
     out2_tensor = model.get_place_by_tensor_name(tensor_name="out2")
-    sin_input_port = out2_tensor.get_producing_operation().get_input_port(
-        input_port_index=0
-    )
+    sin_input_port = out2_tensor.get_producing_operation().get_input_port(input_port_index=0)
     assert split_op_consuming_ports[1].is_equal(sin_input_port)
 
     split_out_port_0 = split_op.get_output_port(output_port_index=0)
@@ -1299,9 +1271,7 @@ def test_get_consuming_operations():
     assert len(split_op_port_consuming_ops) == 1
     assert split_op_port_consuming_ops[0].is_equal(split_op)
 
-    add_out_port = model.get_place_by_tensor_name(
-        tensor_name="add_out"
-    ).get_producing_port()
+    add_out_port = model.get_place_by_tensor_name(tensor_name="add_out").get_producing_port()
     add_out_port_consuming_ops = add_out_port.get_consuming_operations()
     assert len(add_out_port_consuming_ops) == 1
     assert add_out_port_consuming_ops[0].is_equal(split_op)
@@ -1314,16 +1284,12 @@ def test_get_consuming_operations():
     out2_tensor = model.get_place_by_tensor_name(tensor_name="out2")
     out2_tensor_consuming_ops = out2_tensor.get_consuming_operations()
     assert len(out2_tensor_consuming_ops) == 0
-    out2_port_consuming_ops = (
-        out2_tensor.get_producing_port().get_consuming_operations()
-    )
+    out2_port_consuming_ops = (out2_tensor.get_producing_port().get_consuming_operations())
     assert len(out2_port_consuming_ops) == 0
 
     split_out_1_consuming_ops = split_op.get_consuming_operations(output_port_index=1)
     assert len(split_out_1_consuming_ops) == 1
-    split_out_sp_out_2_consuming_ops = split_op.get_consuming_operations(
-        output_name="sp_out2"
-    )
+    split_out_sp_out_2_consuming_ops = split_op.get_consuming_operations(output_name="sp_out2")
     assert len(split_out_sp_out_2_consuming_ops) == 1
     assert split_out_1_consuming_ops[0].is_equal(split_out_sp_out_2_consuming_ops[0])
     assert split_out_1_consuming_ops[0].is_equal(sin_op)
@@ -1437,9 +1403,7 @@ def test_get_place_by_operation_name_and_input_port():
     model = fe.load("input_model.onnx")
     assert model
 
-    place1 = model.get_place_by_operation_name_and_input_port(
-        operation_name="split1", input_port_index=0
-    )
+    place1 = model.get_place_by_operation_name_and_input_port(operation_name="split1", input_port_index=0)
     sp_out1_tensor = model.get_place_by_tensor_name("out2")
     place2 = sp_out1_tensor.get_producing_operation().get_input_port(input_port_index=0)
 
@@ -1454,13 +1418,9 @@ def test_get_place_by_operation_name_and_output_port():
     model = fe.load("input_model_2.onnx")
     assert model
 
-    place1 = model.get_place_by_operation_name_and_output_port(
-        operation_name="split2", output_port_index=0
-    )
+    place1 = model.get_place_by_operation_name_and_output_port(operation_name="split2", output_port_index=0)
     sp_out1_tensor = model.get_place_by_tensor_name("sp_out1")
-    place2 = sp_out1_tensor.get_producing_operation().get_output_port(
-        output_port_index=0
-    )
+    place2 = sp_out1_tensor.get_producing_operation().get_output_port(output_port_index=0)
 
     assert place1.is_equal(place2)
 
@@ -1617,9 +1577,7 @@ def test_set_name_for_operation_without_name():
     output_name = "add_out"
     new_name = "Add_new"
 
-    operation = model.get_place_by_tensor_name(
-        tensor_name=output_name
-    ).get_producing_operation()
+    operation = model.get_place_by_tensor_name(tensor_name=output_name).get_producing_operation()
     # assure the test is performed on node with empty name
     assert (
         not operation.get_names()
@@ -1630,9 +1588,7 @@ def test_set_name_for_operation_without_name():
     # actual rename
     model.set_name_for_operation(operation=operation, new_name=new_name)
 
-    new_operation = model.get_place_by_tensor_name(
-        tensor_name=output_name
-    ).get_producing_operation()
+    new_operation = model.get_place_by_tensor_name(tensor_name=output_name).get_producing_operation()
     assert new_operation
     assert new_operation.is_equal(operation)  # previous Place object holds the handle
 
@@ -1652,9 +1608,7 @@ def test_free_name_for_operation():
     operation = model.get_place_by_operation_name(operation_name=name)
     assert not operation
 
-    new_split1 = model.get_place_by_tensor_name(
-        tensor_name="out1"
-    ).get_producing_operation()
+    new_split1 = model.get_place_by_tensor_name(tensor_name="out1").get_producing_operation()
     assert split1.is_equal(new_split1)
 
 
@@ -1835,9 +1789,7 @@ def test_add_name_for_tensor_and_cut_it_off():
     tensor = model.get_place_by_tensor_name(tensor_name="in2")
     model.add_name_for_tensor(tensor, "extra_name")
 
-    split_in = model.get_place_by_operation_name("split2").get_input_port(
-        input_port_index=0
-    )
+    split_in = model.get_place_by_operation_name("split2").get_input_port(input_port_index=0)
     model.extract_subgraph(inputs=[split_in], outputs=[])
 
     ov_model = fe.convert(model)
@@ -1853,9 +1805,7 @@ def test_add_name_for_tensor_and_override_all_inputs():
     model = fe.load("input_model_2.onnx")
 
     # test with an InputEdge type of Place
-    split_in = model.get_place_by_operation_name("split2").get_input_port(
-        input_port_index=0
-    )
+    split_in = model.get_place_by_operation_name("split2").get_input_port(input_port_index=0)
     model.add_name_for_tensor(split_in, "extra_name")
     model.override_all_inputs([split_in])
 

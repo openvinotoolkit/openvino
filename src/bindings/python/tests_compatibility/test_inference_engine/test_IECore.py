@@ -37,12 +37,8 @@ def test_get_version(device):
     assert device in version, "{} plugin version wasn't found in versions"
     assert hasattr(version[device], "major"), "Returned version has no field 'major'"
     assert hasattr(version[device], "minor"), "Returned version has no field 'minor'"
-    assert hasattr(
-        version[device], "description"
-    ), "Returned version has no field 'description'"
-    assert hasattr(
-        version[device], "build_number"
-    ), "Returned version has no field 'build_number'"
+    assert hasattr(version[device], "description"), "Returned version has no field 'description'"
+    assert hasattr(version[device], "build_number"), "Returned version has no field 'build_number'"
 
 
 def test_load_network(device):
@@ -269,18 +265,14 @@ def test_incorrect_xml():
     ie = IECore()
     with pytest.raises(Exception) as e:
         ie.read_network(model="./model.xml", weights=Path(test_net_bin))
-    assert "Path to the model ./model.xml doesn't exist or it's a directory" in str(
-        e.value
-    )
+    assert "Path to the model ./model.xml doesn't exist or it's a directory" in str(e.value)
 
 
 def test_incorrect_bin():
     ie = IECore()
     with pytest.raises(Exception) as e:
         ie.read_network(model=test_net_xml, weights="./model.bin")
-    assert "Path to the weights ./model.bin doesn't exist or it's a directory" in str(
-        e.value
-    )
+    assert "Path to the weights ./model.bin doesn't exist or it's a directory" in str(e.value)
 
 
 def test_read_net_from_buffer():

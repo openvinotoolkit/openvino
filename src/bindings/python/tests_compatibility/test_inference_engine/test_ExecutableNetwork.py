@@ -295,12 +295,8 @@ def test_multi_out_data(device):
     assert "fc_out" in exec_net.outputs and "28/Reshape" in exec_net.outputs
     assert isinstance(exec_net.outputs["fc_out"], ie.CDataPtr)
     assert isinstance(exec_net.outputs["28/Reshape"], ie.CDataPtr)
-    assert exec_net.outputs["fc_out"].name == "fc_out" and exec_net.outputs[
-        "fc_out"
-    ].shape == [1, 10]
-    assert exec_net.outputs["28/Reshape"].name == "28/Reshape" and exec_net.outputs[
-        "28/Reshape"
-    ].shape == [1, 5184]
+    assert exec_net.outputs["fc_out"].name == "fc_out" and exec_net.outputs["fc_out"].shape == [1, 10]
+    assert exec_net.outputs["28/Reshape"].name == "28/Reshape" and exec_net.outputs["28/Reshape"].shape == [1, 5184]
     del ie_core
     pass
 

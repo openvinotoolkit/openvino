@@ -105,9 +105,7 @@ def test_access_output_buffer(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     executable_network = ie_core.load_network(net, device, num_requests=1)
-    buffer = (
-        executable_network.requests[0]._get_blob_buffer("fc_out".encode()).to_numpy()
-    )
+    buffer = executable_network.requests[0]._get_blob_buffer("fc_out".encode()).to_numpy()
     assert buffer.shape == (1, 10)
     assert buffer.strides == (40, 4)
     assert buffer.dtype == np.float32
@@ -124,9 +122,7 @@ def test_write_to_input_blobs_directly(device):
     request = executable_network.requests[0]
     input_data = request.input_blobs["data"]
     input_data.buffer[:] = img
-    assert np.array_equal(
-        executable_network.requests[0].input_blobs["data"].buffer, img
-    )
+    assert np.array_equal(executable_network.requests[0].input_blobs["data"].buffer, img)
     del executable_network
     del ie_core
     del net
@@ -433,9 +429,7 @@ def test_set_zero_batch_size(device):
     request = exec_net.requests[0]
     with pytest.raises(ValueError) as e:
         request.set_batch(0)
-    assert "Batch size should be positive integer number but 0 specified" in str(
-        e.value
-    )
+    assert "Batch size should be positive integer number but 0 specified" in str(e.value)
     del exec_net
     del ie_core
     del net
@@ -448,9 +442,7 @@ def test_set_negative_batch_size(device):
     request = exec_net.requests[0]
     with pytest.raises(ValueError) as e:
         request.set_batch(-1)
-    assert "Batch size should be positive integer number but -1 specified" in str(
-        e.value
-    )
+    assert "Batch size should be positive integer number but -1 specified" in str(e.value)
     del exec_net
     del ie_core
     del net
