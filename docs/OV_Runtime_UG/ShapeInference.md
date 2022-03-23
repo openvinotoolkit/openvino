@@ -181,6 +181,8 @@ There are other approaches to change model input shapes during the stage of <a h
 ### Dynamic Shape Notice
 
 Shape-changing functionality could be used to turn dynamic model input into a static one and vice versa.
+It is recommended to always set static shapes in case if the shape of data is not going to change from one inference to another.
+Setting static shapes avoids possible functional limitations, memory and run time overheads for dynamic shapes that vary depending on hardware plugin and model used.
 To learn more about dynamic shapes in OpenVINO please see a [dedicated article](../OV_Runtime_UG/ov_dynamic_shapes.md).
 
 ### Usage of Reshape Method <a name="usage_of_reshape_method"></a>
