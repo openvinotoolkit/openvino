@@ -349,6 +349,7 @@ private:
         const size_t vector_size = in[0];
         const size_t num_params = in[1];
         const size_t outer_work_amount = jcp.scheduler_dims[0];
+        const size_t inner_work_amount = jcp.scheduler_dims[1];
         const int reg64_tmp_start { 8 }; // R8, R9, R10, R11, R12, R13, R14, R15 inputs+outputs+1
 
         Reg64 amount = Reg64(reg64_tmp_start + num_params); // amount
@@ -361,37 +362,33 @@ private:
         for (auto i = 0; i < num_params; i++)
             regs[i] = Reg64(reg64_tmp_start + i);
 
-        const bool vector_tile_is_needed = jcp.scheduler_dims[1] >= vector_size;
-        const bool scalar_tile_is_needed = jcp.scheduler_dims[1] % vector_size != 0;
-
-        auto emit_tile_code = [&](const std::pair<std::shared_ptr<Emitter>, std::pair<std::vector<size_t>, std::vector<size_t>>> &tile_code,
-                                                                const size_t tile_size){
-            if (jcp.scheduler_dims[1] == tile_size) {
-                // only one vector tile is needed
-                for (auto& c : vector_tile_body)
-                    c.first->emit_code(c.second.first, c.second.second, pool, local_gpr);
-            } else {
-                const ngraph::snippets::RegInfo &regInfo = tile_code.second;
-                tile_code.first->emit_code(regInfo.first, regInfo.second, pool, local_gpr);
-            }
+        auto emit_tiles = [&]() {
+            auto process_tile =
+                    [&pool, &local_gpr](bool body_condition, const std::vector<EmitterCode>& body,
+                                        bool tile_condition, const EmitterCode& tile) {
+                if (body_condition) {
+                    // emit Tile body directly if only one tile iteration is needed
+                    for (auto& c : body)
+                        c.first->emit_code(c.second.first, c.second.second, pool, local_gpr);
+                } else if (tile_condition) {
+                    const ngraph::snippets::RegInfo &regInfo = tile.second;
+                    tile.first->emit_code(regInfo.first, regInfo.second, pool, local_gpr);
+                }
+            };
+            process_tile(inner_work_amount == vector_size, vector_tile_body, inner_work_amount > vector_size, vector_tile);
+            process_tile(inner_work_amount % vector_size == 1, scalar_tile_body, inner_work_amount % vector_size > 1, scalar_tile);
         };
 
         if (outer_work_amount == 1) {
             // emit code directly without looping over external dim
-            if (vector_tile_is_needed)
-                emit_tile_code(vector_tile, vector_size);
-            if (scalar_tile_is_needed)
-                emit_tile_code(scalar_tile, 1);
+            emit_tiles();
         } else if (outer_work_amount > 1) {
             // We need to create a Loop in this case
             h->mov(amount, outer_work_amount);
             h->L(for_body[0]);
             {
                 h->push(amount);
-                if (vector_tile_is_needed)
-                    emit_tile_code(vector_tile, vector_size);
-                if (scalar_tile_is_needed)
-                    emit_tile_code(scalar_tile, 1);
+                emit_tiles();
                 h->pop(amount);
 
                 // Todo: Load and Store emitters are currently implemented so they ALWAYS increment appropriate pointers
@@ -409,12 +406,12 @@ private:
             }
         }
     }
-
+    using EmitterCode = std::pair<std::shared_ptr<Emitter>, ngraph::snippets::RegInfo>;
     jit_snippets_compile_args jcp;
-    std::pair<std::shared_ptr<Emitter>, ngraph::snippets::RegInfo> vector_tile;
-    std::vector<std::pair<std::shared_ptr<Emitter>, ngraph::snippets::RegInfo>> vector_tile_body;
-    std::pair<std::shared_ptr<Emitter>, ngraph::snippets::RegInfo> scalar_tile;
-    std::vector<std::pair<std::shared_ptr<Emitter>, ngraph::snippets::RegInfo>> scalar_tile_body;
+    EmitterCode vector_tile;
+    std::vector<EmitterCode> vector_tile_body;
+    EmitterCode scalar_tile;
+    std::vector<EmitterCode> scalar_tile_body;
 };
 
 class NopEmitter : public jit_emitter {
