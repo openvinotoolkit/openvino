@@ -4,9 +4,10 @@
 
 #include "iml_type_mapper.h"
 
-using namespace ov::intel_cpu;
+namespace ov {
+namespace intel_cpu {
 
-impl_desc_type ov::intel_cpu::parse_impl_name(std::string impl_desc_name) {
+impl_desc_type parse_impl_name(std::string impl_desc_name) {
     impl_desc_type res = impl_desc_type::unknown;
 
 #define REPLACE_WORD(_wrd, _sub) auto pos = impl_desc_name.find(#_wrd); \
@@ -55,7 +56,7 @@ impl_desc_type ov::intel_cpu::parse_impl_name(std::string impl_desc_name) {
     return res;
 }
 
-const char* ov::intel_cpu::impl_type_to_string(impl_desc_type type) {
+const char* impl_type_to_string(impl_desc_type type) {
 #define CASE(_type) do {                    \
     if (type == _type) return #_type;       \
 } while (0)
@@ -111,3 +112,6 @@ const char* ov::intel_cpu::impl_type_to_string(impl_desc_type type) {
 #undef CASE
     return "unknown";
 }
+
+}   // namespace intel_cpu
+}   // namespace ov

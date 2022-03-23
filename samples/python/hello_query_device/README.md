@@ -1,6 +1,6 @@
 # Hello Query Device Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_hello_query_device_README}
 
-This sample demonstrates how to show OpenVINO™ Runtime devices and prints their metrics and default configuration values using [Query Device API feature](../../../docs/OV_Runtime_UG/InferenceEngine_QueryAPI.md).
+This sample demonstrates how to show OpenVINO™ Runtime devices and prints their metrics and default configuration values using [Query Device API feature](../../../docs/OV_Runtime_UG/supported_plugins/config_properties.md).
 
 The following Python API is used in the application:
 
@@ -28,7 +28,7 @@ python hello_query_device.py
 
 ## Sample Output
 
-The application prints all available devices with their supported metrics and default values for configuration parameters.  
+The application prints all available devices with their supported metrics and default values for configuration parameters.
 For example:
 
 ```

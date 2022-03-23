@@ -138,8 +138,9 @@ setup(
     url='https://software.intel.com/openvino-toolkit',
     packages=find_packages(exclude=["tests", "tests.*",
                                     "tools", "tools.*"]),
-    package_data={"openvino.tools.pot.configs.hardware": ['*.json'],
-                  "openvino.tools.pot.api.samples": ['*.md', '*/*.md']},
+    package_data={'openvino.tools.pot.configs.hardware': ['*.json'],
+                  'openvino.tools.pot.api.samples': ['*.md', '*/*.md'],
+                  'openvino.tools.pot.configs.templates': ['*.json']},
     include_package_data=True,
     cmdclass={
         'install': InstallCmd,

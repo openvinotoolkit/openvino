@@ -40,8 +40,8 @@
 //   from previous kernel and output using single work-group.
 //     This kernel will produce the results of the final detections form the result of previous kernel.
 //     If the total of detections per each batch is greater than KEEP_TOP_K, detections are sorted using
-//     iterative quick sort and it is stored as KEEP_TOP_K. Final detections contain information about 
-//     filetered detection described with 7 elements [batch_id, class_id, confidence, x_1, y_1, x_2, y_2].
+//     iterative quick sort and it is stored as KEEP_TOP_K. Final detections contain information about
+//     filtered detection described with 7 elements [batch_id, class_id, confidence, x_1, y_1, x_2, y_2].
 //
 // =================================================================================================================
 // Required jit constants:
@@ -565,7 +565,11 @@ KERNEL (detection_output_stage_2_nms_caffe)(__global INPUT0_TYPE* input_location
     const int classId = get_global_id(1);
     const int loc_label = ((SHARE_LOCATION)? 0 : classId);
     const int scoresInfoIdx = batchId * NUM_CLASSES_ACC + classId;
-    INPUT0_TYPE decoded_bboxes[TOP_K * 4];
+#ifdef USE_LOCAL_MEMORY
+    __local   INPUT0_TYPE decoded_bboxes[TOP_K * 4];
+#else
+    __private INPUT0_TYPE decoded_bboxes[TOP_K * 4];
+#endif
 
     __global SCORES_INFO *scoresList = (__global SCORES_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
 

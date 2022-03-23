@@ -1,9 +1,9 @@
 # AccuracyAwareQuantization Algorithm {#pot_compression_algorithms_quantization_accuracy_aware_README}
 
 ## Overview
-AccuracyAware algorithm is designed to perform accurate 8-bit quantization and allows the model to stay in the 
+AccuracyAware algorithm is designed to perform accurate quantization and allows the model to stay in the 
 pre-defined range of accuracy drop, for example 1%, defined by the user in the configuration file. This may cause a 
-degradation in performance in comparison to [DefaultQuantization](../default/README.md) algorithm because some layers can be reverted back to the original precision.
+degradation in performance in comparison to [DefaultQuantization](../default/README.md) algorithm because some layers can be reverted back to the original precision. The algorithm requires annotated dataset and cannot be used with the [Simplified mode](@ref pot_docs_simplified_mode).
 
 > **NOTE**: In case of GNA `target_device`, POT moves INT8 weights to INT16 to stay in the pre-defined range of the accuracy drop. Thus, the algorithm works for the `performance` (INT8) preset only. For the `accuracy` preset, this algorithm is not performed, but the parameters tuning is available (if `tune_hyperparams` option is enabled).
 
@@ -55,27 +55,18 @@ Default value is `0.5`.
 to the floating-point precision. It can bring additional performance and accuracy boost but increase overall 
 quantization time. Default value is `False`.
 
- Below is a fragment of the configuration file that shows overall structure of parameters for this algorithm.
+## Examples
 
-```
-"name": "AccuracyAwareQuantization", // compression algorithm name
-    "params": {
-        "ranking_subset_size": 300, // A size of a subset which is used to rank layers by their contribution to the accuracy drop
-        "max_iter_num": 30,    // Maximum number of iterations of the algorithm (maximum of layers that may be reverted back to full-precision)
-        "maximal_drop": 0.005,      // Maximum accuracy drop which has to be achieved after the quantization
-        "drop_type": "absolute",    // Drop type of the accuracy metric: relative or absolute (default)
-        "use_prev_if_drop_increase": false,      // Whether to use NN snapshot from the previous algorithm iteration in case if drop increases
-        "base_algorithm": "DefaultQuantization", // Base algorithm that is used to quantize model at the beginning
-        "convert_to_mixed_preset": false,  // Whether to convert the model to mixed mode if the accuracy criteria 
-                                           // of the symmetrically quantized model are not satisfied
-        "metrics": [                    // An optional list of metrics that are taken into account during optimization
-                                        // If not specified, all metrics defined in engine config are used
-            {
-                "name": "accuracy",     // Metric name to optimize
-                "baseline_value": 0.72  // Baseline metric value of the original model
-            }
-        ],
-        "metric_subset_ratio": 0.5  // A part of the validation set that is used to compare element-wise full-precision and 
-                                    // quantized models in case of predefined metric values of the original model
-    }
-```
+A template and full specification for AccuracyAwareQuantization algorithm:
+ * [Template](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/openvino/tools/pot/configs/templates/accuracy_aware_quantization_template.json)
+ * [Full specification](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/accuracy_aware_quantization_spec.json)
+
+Example of using POT API with Accuracy-aware algorithm:
+ * [Quantization of Object Detection model with control of accuracy](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/object_detection)
+
+ ## See also
+* [Optimization with Simplified mode](@ref pot_docs_simplified_mode)
+* [Use POT Command-line for Model Zoo models](@ref pot_compression_cli_README)
+* [POT API](@ref pot_compression_api_README)
+* [Post-Training Optimization Best Practices](@ref pot_docs_BestPractices)
+

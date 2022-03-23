@@ -17,7 +17,7 @@
 #include "pass_manager.h"
 #include "primitive_type.h"
 #include "program_dump_graph.h"
-#include "sliding_window_utils.h"
+#include "sliding_window_utils.hpp"
 #include "program_helpers.h"
 
 #include "roi_pooling_inst.h"
@@ -89,6 +89,9 @@
 #ifdef __unix__
 #include <sys/resource.h>
 #endif
+
+using namespace ov::runtime::intel_gpu;
+
 program::program(engine& engine_ref,
                  topology const& topology,
                  build_options const& options,
@@ -107,6 +110,7 @@ program::program(engine& engine_ref,
     prepare_nodes(topology);
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
+    program_node::reset_unique_id();
     if (no_optimizations) {
         init_graph();
     } else {
@@ -295,14 +299,18 @@ bool program::analyze_output_size_handling_need() {
                 {0, 0, prim->output_size.spatial[0], prim->output_size.spatial[1], prim->output_size.spatial[2]},
                 1);
 
+            tensor size(1);
+            for (size_t i = 0; i < prim->size.size(); i++) {
+                size.spatial[i] = prim->size[prim->size.size() - i - 1];
+            }
             // TODO: Check compatibility of output size calculation (with caffe).
             auto primInputSize = prim_node.input().get_output_layout().size;
             auto calc_output_range = calc_sliding_window_output_range<swor_mode::exceed_once_data>(
                 primInputSize,
-                prim->size,
-                prim->pad,
+                size,
+                ov::CoordinateDiff(prim->pad.begin(), prim->pad.end()),
                 prim->stride,
-                {1, 1, 1, 1},
+                ov::Strides(prim->stride.size(), 1),
                 true,
                 1);
 
@@ -482,8 +490,6 @@ void program::pre_optimize_graph(bool is_internal) {
     // handle symmetric and asymmetric padding for input
     apply_opt_pass<handle_input_padding>();
 
-    apply_opt_pass<handle_permute>();
-
     processing_order.calculate_BFS_processing_order();  // this method makes sense only for OOOQ (out of order execution queue)
 
     apply_opt_pass<reverse_optional_nodes_outputs>();
@@ -561,7 +567,12 @@ void program::post_optimize_graph(bool is_internal) {
 
     apply_opt_pass<remove_redundant_reorders>(lo, false, true);  // TODO: do we need it at this place also?
 
+#ifdef GPU_DEBUG_CONFIG
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    if (!is_internal && (!options.get<build_option_type::partial_build_program>()->enabled() || !debug_config->dry_run_path.empty())) {
+#else
     if (!is_internal && !options.get<build_option_type::partial_build_program>()->enabled()) {
+#endif
         // ToDo remove hidden dependencies from propagate_constants pass
         apply_opt_pass<propagate_constants>();
     }

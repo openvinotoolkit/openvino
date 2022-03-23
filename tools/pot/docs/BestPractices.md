@@ -10,7 +10,7 @@ we suggest reading the following [POT documentation](../README.md).
 > floating-point model is a prerequisite for model optimization. 
 > It is also worth mentioning that in the case of 8-bit quantization it is recommended to run POT on the same CPU
 > architecture when optimizing for CPU or VNNI-based CPU when quantizing for a non-CPU device, such as GPU, VPU, or GNA.
-> It should help to avoid the impact of the saturation issue that occurs on AVX and SSE based CPU devices. 
+> It should help to avoid the impact of the [saturation issue](@ref pot_saturation_issue) that occurs on AVX and SSE based CPU devices. 
 
 ## Get Started with Post-Training Quantization
 
@@ -18,7 +18,7 @@ Post-training quantization is a basic feature of the POT and it has lots of knob
 quantized model. However, as a starting point we suggest using the `DefaultQuantization` algorithm with default settings.
 In many cases it leads to satisfied accuracy and performance speedup. 
 
-A fragment of the configuration file (`config/default_quantization_template.json` in the POT directory) with default settings is shown below:
+A fragment of the configuration file (`openvino/tools/pot/configs/templates/default_quantization_template.json` in the POT directory) with default settings is shown below:
 ```
 "compression": {
   "target_device": "ANY", // Target device, the specificity of which will be taken into account during optimization.
@@ -78,7 +78,7 @@ For example, the following `range_estimator` for activations can improve the acc
 }
 ```
 
-Find the possible options and their description in the `config/default_quantization_spec.json` file in the POT directory.
+Find the possible options and their description in the `configs/default_quantization_spec.json` file in the POT directory.
 
 4.  The next option is `stat_subset_size`. It controls the size of the calibration dataset used by POT to collect statistics for quantization parameters initialization.
 It is assumed that this dataset should contain a sufficient number of representative samples. Thus, varying this parameter may affect accuracy (higher is better). 
@@ -92,7 +92,7 @@ In case when the steps above do not lead to the accurate quantized model you may
 The whole idea behind that is to revert quantized layers back to floating-point precision based on their contribution to the accuracy drop until the desired accuracy degradation with respect to
 the full-precision model is satisfied.
 
-A fragment of the configuration file with default settings is shown below (`configs/accuracy_aware_quantization_template.json`):
+A fragment of the configuration file with default settings is shown below (`openvino/tools/pot/configs/templates/accuracy_aware_quantization_template.json`):
 ```
 "compression": {
         "target_device": "ANY", // Target device, the specificity of which will be taken into account during optimization.

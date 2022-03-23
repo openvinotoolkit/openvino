@@ -30,14 +30,9 @@ void LayerTestsCommon::Run() {
         functionRefs = ngraph::clone_function(*function);
         functionRefs->set_friendly_name("refFunction");
     }
-    auto crashHandler = [](int errCode) {
-        auto &s = Summary::getInstance();
-        s.saveReport();
-        std::cout << "Unexpected application crash!" << std::endl;
-        std::abort();
-    };
-    signal(SIGSEGV, crashHandler);
 
+    // in case of crash jump will be made and work will be continued
+    auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
     auto &s = Summary::getInstance();
     s.setDeviceName(targetDevice);
 
@@ -48,22 +43,37 @@ void LayerTestsCommon::Run() {
         s.updateOPsStats(functionRefs, PassRate::Statuses::CRASHED);
     }
 
-    try {
-        LoadNetwork();
-        GenerateInputs();
-        Infer();
-        Validate();
-        s.updateOPsStats(functionRefs, PassRate::Statuses::PASSED);
-    }
-    catch (const std::runtime_error &re) {
-        s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
-        GTEST_FATAL_FAILURE_(re.what());
-    } catch (const std::exception &ex) {
-        s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
-        GTEST_FATAL_FAILURE_(ex.what());
-    } catch (...) {
-        s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
-        GTEST_FATAL_FAILURE_("Unknown failure occurred.");
+    // place to jump in case of a crash
+    int jmpRes = 0;
+#ifdef _WIN32
+    jmpRes = setjmp(CommonTestUtils::env);
+#else
+    jmpRes = sigsetjmp(CommonTestUtils::env, 1);
+#endif
+    if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
+        crashHandler->StartTimer();
+        try {
+            LoadNetwork();
+            GenerateInputs();
+            Infer();
+            Validate();
+            s.updateOPsStats(functionRefs, PassRate::Statuses::PASSED);
+        }
+        catch (const std::runtime_error &re) {
+            s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
+            GTEST_FATAL_FAILURE_(re.what());
+        } catch (const std::exception &ex) {
+            s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
+            GTEST_FATAL_FAILURE_(ex.what());
+        } catch (...) {
+            s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
+            GTEST_FATAL_FAILURE_("Unknown failure occurred.");
+        }
+    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
+        IE_THROW() << "Crash happens";
+    } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
+        s.updateOPsStats(functionRefs, PassRate::Statuses::HANGED);
+        IE_THROW() << "Crash happens";
     }
 }
 

@@ -32,7 +32,6 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 63469
         R"(.*ConversionLayerTest.*ConvertLike.*)",
         // TODO: Issue: 34055
-        R"(.*ShapeOfLayerTest.*)",
         R"(.*ReluShapeOfSubgraphTest.*)",
         // TODO: Issue: 43314
         R"(.*Broadcast.*mode=BIDIRECTIONAL.*inNPrec=BOOL.*)",
@@ -67,8 +66,6 @@ std::vector<std::string> disabledTestPatterns() {
 
         // TODO: 57562 No dynamic output shape support
         R"(.*NonZeroLayerTest.*)",
-        // TODO: 74961.  Enforce precision via inType and outType does not work properly.
-        R"(.*(RNN|GRU|LSTM).*ENFORCE_BF16=YES.*)",
         // Not expected behavior
         R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
         R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
@@ -99,18 +96,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNetWithIncorrectConfig.*)",
         R"(.*Hetero.*Behavior.*ExecutableNetworkBaseTest.*ExecGraphInfo.*)",
         R"(.*Hetero.*Behavior.*ExecutableNetworkBaseTest.*CanCreateTwoExeNetworksAndCheckFunction.*)",
-
-        // CVS-74306
-        R"(.*importExportedIENetworkParameterResultOnly.*elementType=(i8|u8).*)",
-        R"(.*importExportedIENetworkParameterResultOnly.*elementType=(i16|u16).*)",
-        R"(.*importExportedIENetworkParameterResultOnly.*elementType=(i64|u64).*)",
-        R"(.*importExportedIENetworkParameterResultOnly.*elementType=u32.*)",
-
-        // CVS-74307
-        R"(.*ConstantResultOnly.*elementType=(i8|u8).*)",
-        R"(.*ConstantResultOnly.*elementType=(i16|u16).*)",
-        R"(.*ConstantResultOnly.*elementType=(i64|u64).*)",
-        R"(.*ConstantResultOnly.*elementType=(u32|f16).*)",
 
         // CPU plugin does not support some precisions
         R"(smoke_CachingSupportCase_CPU/LoadNetworkCacheTestBase.CompareWithRefImpl/ReadConcatSplitAssign_f32_batch1_CPU)",
@@ -144,9 +129,6 @@ std::vector<std::string> disabledTestPatterns() {
             *IS=_TS=\(\(4\.5\.6\.7\)\)_RS=\(\(1\.1\.6\.1\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.1\.1\.1\)\)_\(\(1\.1\.6\.1\)\).*)",
         // Issue: 69222
         R"(.*smoke_PriorBoxClustered.*PriorBoxClusteredLayerCPUTest.*_netPRC=f16_.*)",
-        // Issue: 74817
-        // Sporadic failings with NAN on Dynamic shape cases with jit implementation
-        R"(.*DefConvLayoutTest7.*)",
         // Issue: 71968
         R"(.*LSTMSequenceCommonZeroClip.*PURE.*CONST.*hidden_size=10.*sigmoid.sigmoid.sigmoid.*reverse.*FP32_targetDevice=CPU.*)",
         // Issue: 72005
@@ -183,6 +165,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*LoopLayerCPUTest.*trip_count=0.*)",
         R"(.*LoopForDiffShapesLayerCPUTest.*exec_cond=0.*)",
         R"(.*LoopForDiffShapesLayerCPUTest.*trip_count=0.*)",
+        // [ INFO ] Can't compile network without cache for ..  with precision ..
+        R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*KSOFunction.*)",
+        R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*NonMaxSuppression.*)",
+        R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*Nms.*)",
     };
 
 #define FIX_62820 0

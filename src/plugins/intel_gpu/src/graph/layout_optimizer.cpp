@@ -198,12 +198,11 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     // Not to fuse reorder if this removal changes input format of its next node which has reuse in fused_op
     if (next.get_preferred_impl_type() == impl_types::onednn) {
         for (auto& fused_op : next.get_fused_primitives()) {
-            if (fused_op.node->is_type<eltwise>() && fused_op.deps.size() == 1) {
+            if (fused_op.node->is_type<eltwise>()) {
                 auto eltw_in_layout = next.get_dependency(fused_op.dep_start_idx).get_output_layout();
                 auto out_layout = next.get_output_layout();
-                if (program_helpers::needs_onednn_sum_post_op(fused_op.node->as<eltwise>(), eltw_in_layout) &&
-                    program_helpers::are_layouts_identical_for_onednn_sum_post_op(eltw_in_layout, out_layout) &&
-                    prev.get_output_layout().format != out_layout.format)
+                auto add_type = onednn_add_fusing_helpers::get_add_fusing_type(next, fused_op);
+                if (add_type == add_fusing_type::sum && prev.get_output_layout().format != out_layout.format)
                     return false;
             }
         }
@@ -371,27 +370,15 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
             }
         }
 
-        if (next.is_type<quantize>())
+        if (next.is_type<quantize>() && prev.get_users().size() == 1)
             return true;
 
         if (next.is_type<permute>()) {
-            auto is_rotating_except_batch = [](const std::vector<uint16_t>& order) {
-                // Target transform: Rotate feature dim to back to be taken as inner-most axis
-                // ex) 0(b), 4(f), 1(z), 2(y), 3(x)
-                // ex) 0(b), 3(f), 1(y), 2(x)
-                if ((int32_t) order[1] != order.size() - 1) return false;
-                if ((int32_t) order[0] != 0) return false;
-                for (int32_t i = 2; i < (int32_t) order.size(); ++i) {
-                    if ((int32_t)order[i] !=  (i - 1)) return false;
-                }
-                return true;
-            };
-
             auto& permute_order = next.as<permute>().get_primitive()->permute_order;
             if ((fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::b_fs_yx_fsv32 || fmt_prev == format::b_fs_zyx_fsv32 ||
                 fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_zyx_fsv16 || fmt_prev == format::bs_fs_yx_bsv16_fsv16)
                 && permute_order[1] == 2
-                && (!is_rotating_except_batch(permute_order))) {
+                && (!next.as<permute>().is_rotating_except_batch())) {
                     return false;
             }
             return true;
@@ -439,23 +426,11 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
         return true;
 
     if (prev.is_type<permute>()) {
-        auto is_rotating_except_batch = [](const std::vector<uint16_t>& order) {
-            // Target transform: Rotate feature dim to back to be taken as inner-most axis
-            // ex) 0(b), 4(f), 1(z), 2(y), 3(x)
-            // ex) 0(b), 3(f), 1(y), 2(x)
-            if ((int32_t) order[1] != order.size() - 1) return false;
-            if ((int32_t) order[0] != 0) return false;
-            for (int32_t i = 2; i < (int32_t) order.size(); ++i) {
-                if ((int32_t)order[i] !=  (i - 1)) return false;
-            }
-            return true;
-        };
-
         auto& permute_order = prev.as<permute>().get_primitive()->permute_order;
         if ((fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::b_fs_yx_fsv32 || fmt_prev == format::b_fs_zyx_fsv32 ||
          fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_zyx_fsv16 || fmt_prev == format::bs_fs_yx_bsv16_fsv16)
          && permute_order[1] == 2
-         && (!is_rotating_except_batch(permute_order))) {
+         && (!prev.as<permute>().is_rotating_except_batch())) {
             return false;
         }
         return true;
@@ -480,8 +455,8 @@ bool should_use_winograd_2x3_s1(std::shared_ptr<const convolution> const& prim,
         || weights_layout.size.spatial[0] != 3     // weights have to be 3x3 by definiton
         || weights_layout.size.spatial[1] != 3     // weights have to be 3x3 by definition
         || weights_layout.size.batch[0] % 64 != 0  // current algorithm is effective for ofm to be multiply of 64
-        || prim->stride != tensor {1}               // stride has to be 1x1 by definition
-        || prim->dilation != tensor {1}             // no support for dilation
+        || any_not_one(prim->stride)               // stride has to be 1x1 by definition
+        || any_not_one(prim->dilation)             // no support for dilation
         || prim->split() != 1                      // no support for splitted convolutions
         || (output_size_handling_enabled &&
             prim->with_output_size)                // no support for convolutions with user-specified output size
@@ -519,7 +494,7 @@ bool layout_optimizer::convolution_bfyx_opt(layout const& output_layout,
         output_layout.data_type != data_types::f16 || weights_layout.size.batch[0] % 16 != 0 ||
         !((weights_layout.size.spatial[0] == 1 && weights_layout.size.spatial[1] == 1) ||
           (weights_layout.size.spatial[0] >= 5 && weights_layout.size.spatial[1] >= 5) ||
-          (conv->stride.spatial[0] > 1 && conv->stride.spatial[1] > 1) ||
+          (conv->stride[0] > 1 && conv->stride[1] > 1) ||
           (weights_layout.size.feature[0] <= 32 && output_layout.size.spatial[0] < 224 &&
            output_layout.size.spatial[1] < 224) ||
           (weights_layout.size.feature[0] <= 64 && output_layout.size.spatial[0] < 112 &&
@@ -557,13 +532,14 @@ bool layout_optimizer::convolution_byxf_opt(const layout& input_layout,
 
     // A set of rules that define when byxf mem format has better performance
     if ((output_layout.data_type == data_types::f16 && weights_layout.size.spatial[0] == 1 &&
-        conv->dilation == tensor { 1 } &&
+        all_ones(conv->dilation) &&
         !node.get_transposed() &&
          node.get_groups() == 1 &&
          input_layout.size.feature[0] % 32 == 0 &&
          weights_layout.size.spatial[1] == 1 && output_layout.size.feature[0] % 64 == 0 &&
-         weights_layout.size.batch[0] % 64 == 0 && conv->stride.spatial[0] == 1 && conv->stride.spatial[1] == 1 &&
-         conv->pad.spatial[0] == 0 && conv->pad.spatial[1] == 0) ||
+         weights_layout.size.batch[0] % 64 == 0 &&
+         all_ones(conv->stride) &&
+         all_zeroes(conv->pad)) ||
         // Winograd
         should_use_winograd_2x3_s1(conv, input_layout, weights_layout, _output_size_handling_enabled))
         return true;
@@ -600,7 +576,7 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(const layout& input_layout,
                  out_features_per_group >= 16 &&
                  // Need to extend imad fsv4 kernel to handle e.g. 3 input features per group
                  (in_features_per_group % 4 == 0) &&
-                 ((conv->dilation.spatial[0] + 1) * (ks_x - 1)) <= 16)
+                 ((conv->dilation[conv->dilation.size() - 1] + 1) * (ks_x - 1)) <= 16)
                 return true;
         // Check for fsv16 imad kernel
         else if ((input_layout.format.dimension() == 4) &&
@@ -679,7 +655,7 @@ bool layout_optimizer::convolution_b_fs_zyx_fsv16_opt(const layout& input_layout
                       input_layout.format == format::bs_fs_zyx_bsv16_fsv16);
     bool data_type_ver = input_layout.data_type == data_types::f16 || input_layout.data_type == data_types::f32;
     bool w_layout = weights_layout.data_type == input_layout.data_type;
-    bool single_dilation = conv->dilation == tensor(1);
+    bool single_dilation = all_ones(conv->dilation);
     bool groups_ver = conv->groups == 1 || out_features_per_group % 16 == 0
         || (conv->groups > 1 && out_features_per_group == 8);
 
@@ -704,7 +680,7 @@ bool layout_optimizer::convolution_bs_fs_yx_bsv16_fsv16_opt(const layout& input_
     auto ks_x = weights_layout.size.spatial[0];
     auto ks_y = weights_layout.size.spatial[1];
     int8_sup &= (input_layout.size.spatial[2] == 1 && ((ks_x == 1 && ks_y == 1) || (ks_x == 3 && ks_y == 3) || (ks_x == 7 && ks_y == 7)) &&
-                 output_layout.size.feature[0] % 32 == 0 && conv->split() == 1 && conv->dilation == tensor{1});
+                 output_layout.size.feature[0] % 32 == 0 && conv->split() == 1 && all_ones(conv->dilation));
 
     return (int8_sup || fp16_ver || fp32_ver) && correct_feature && correct_batch && single_group;
 }
@@ -788,16 +764,6 @@ static bool is_node_for_onednn(deconvolution_node const& node) {
                                input_layout.data_type == output_layout.data_type;
 
     auto spatial_dims_num = input_layout.get_spatial_rank();
-
-    // oneDNN doesn't support sum post ops for deconvolutions
-    for (auto& fused_op : node.get_fused_primitives()) {
-        if (fused_op.node->is_type<eltwise>() && fused_op.deps.size() == 1) {
-            auto eltw_in_layout = node.get_dependency(fused_op.dep_start_idx).get_output_layout();
-            if (program_helpers::needs_onednn_sum_post_op(fused_op.node->as<eltwise>(), eltw_in_layout)) {
-                return false;
-            }
-        }
-    }
 
     return onednn_valid_dt && onednn_valid_params && spatial_dims_num <= 3;
 }
@@ -979,23 +945,6 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
     bool onednn_valid_post_ops = get_post_ops_count(node) <= 32;
     bool use_onednn_impls = _optimization_attributes.use_onednn_impls && input_layout.data_type != data_types::f32;
     bool i8_u8_input = input_layout.data_type == data_types::u8 || input_layout.data_type == data_types::i8;
-
-    if (use_onednn_impls && onednn_valid_post_ops) {
-        for (auto& fo : node.get_fused_primitives()) {
-            if (fo.node->is_type<eltwise>()) {
-                auto in_layout = node.get_dependency(fo.dep_start_idx).get_output_layout();
-                auto out_layout = node.get_output_layout();
-                auto in_dt = in_layout.data_type;
-                auto out_dt = out_layout.data_type;
-                if ((out_layout.count() == in_layout.count()) &&
-                    (data_type_traits::is_floating_point(in_dt) || data_type_traits::is_floating_point(out_dt)) && in_dt != out_dt &&
-                    program_helpers::needs_onednn_sum_post_op(fo.node->as<eltwise>(), in_layout)) {
-                    onednn_valid_post_ops = false;
-                    break;
-                }
-            }
-        }
-    }
 
     if (use_onednn_impls && onednn_valid_post_ops) {
         std::function<bool(const program_node&)> has_any_convolutions_below;
@@ -1182,7 +1131,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
         int input_features = input_tensor.feature[0];
         int output_features = expected_tensor.feature[0];
         float f_cost = static_cast<float>(input_features * output_features) / (align_to(input_features, 16) * align_to(output_features, 16));
-        float stride_cost = 1/static_cast<float>(prim->stride.spatial[0]);
+        float stride_cost = 1 / static_cast<float>(prim->stride[prim->stride.size() - 1]);
         if (f_cost * stride_cost > 0.1f)
             expected_format = cldnn::format::b_fs_yx_fsv16;
         else
@@ -1406,23 +1355,6 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             impl_candidate = impl_types::ocl;
         }
 
-        // [WA] to avoid an onednn kernel issue of multiple sum post-ops
-        if (!node.get_fused_primitives().empty()) {
-            size_t sum_post_op_cnt = 0;
-            for (auto& fused_op : node.get_fused_primitives()) {
-                if (fused_op.node->is_type<eltwise>() && node.get_dependencies().size() > fused_op.dep_start_idx && fused_op.deps.size() == 1)  {
-                    auto& eltw_in = node.get_dependency(fused_op.dep_start_idx);
-                    if (program_helpers::are_layouts_identical_for_onednn_sum_post_op(eltw_in.get_output_layout(), node.get_output_layout()) &&
-                        program_helpers::needs_onednn_sum_post_op(fused_op.node->as<eltwise>(), eltw_in.get_output_layout())) {
-                        if (sum_post_op_cnt > 0)
-                            return impl_types::ocl;
-
-                        sum_post_op_cnt += 1;
-                    }
-                }
-            }
-        }
-
         if (node.is_type<convolution>()) {
             // oneDNN doesn't have good support for groups with fsv16 fmt
             auto& conv = node.as<convolution>();
@@ -1451,29 +1383,8 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             impl_candidate = impl_types::ocl;
         }
 
-        size_t eltw_dep = 0;
         for (auto& fo : node.get_fused_primitives()) {
-            if (fo.node->is_type<eltwise>()) {
-                auto in_layout = node.get_dependency(fo.dep_start_idx).get_output_layout();
-                auto out_layout = node.get_output_layout();
-                auto in_dt = in_layout.data_type;
-                auto out_dt = out_layout.data_type;
-                if (program_helpers::needs_onednn_sum_post_op(fo.node->as<eltwise>(), in_layout)) {
-                    if ((out_layout.count() == in_layout.count()) &&
-                        (data_type_traits::is_floating_point(in_dt) || data_type_traits::is_floating_point(out_dt)) && in_dt != out_dt) {
-                        impl_candidate = impl_types::ocl;
-                        break;
-                    }
-                    if (in_layout.size == out_layout.size && in_layout.format == out_layout.format && in_layout.data_padding == out_layout.data_padding &&
-                        data_type_traits::size_of(in_dt) == data_type_traits::size_of(out_dt)) {
-                        if (eltw_dep > 0) {
-                            impl_candidate = impl_types::ocl;
-                            break;
-                        }
-                        eltw_dep = fo.dep_start_idx;
-                    }
-                }
-            } else if (fo.node->is_type<activation>()) {
+            if (fo.node->is_type<activation>()) {
                 // Some activations aren't implemented in oneDNN
                 auto activation_prim = fo.node->as<activation>().get_primitive();
                 if (activation_prim->activation_function == activation_func::negative ||
@@ -1519,9 +1430,17 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
                     auto out_layout = node.get_output_layout();
                     auto in_dt = in_layout.data_type;
                     auto out_dt = out_layout.data_type;
-                    if ((out_layout.count() == in_layout.count()) &&
-                        (data_type_traits::is_floating_point(in_dt) || data_type_traits::is_floating_point(out_dt)) && in_dt != out_dt &&
-                        program_helpers::needs_onednn_sum_post_op(fo.node->as<eltwise>(), in_layout)) {
+                    // if it is not eltwise sum and input is full tensor
+                    if ((out_layout.count() == in_layout.count()) && in_dt != out_dt
+                        && (data_type_traits::is_floating_point(in_dt) || data_type_traits::is_floating_point(out_dt))
+                        && onednn_add_fusing_helpers::is_full_tensor(in_layout)) {
+                        impl_candidate = impl_types::ocl;
+                        break;
+                    }
+
+                    // WA: onednn sum/binary_add post-op are not supported due to perf drop.
+                    auto add_type = onednn_add_fusing_helpers::get_add_fusing_type(node, fo);
+                    if (add_type == add_fusing_type::sum || add_type == add_fusing_type::binary_per_tensor || add_type == add_fusing_type::binary_per_oc) {
                         impl_candidate = impl_types::ocl;
                         break;
                     }
@@ -1707,6 +1626,17 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         } else {
             expected = format::any;
         }
+    } else if (node.is_type<permute>()) {
+        if (node.get_dependencies().size() == 1 && node.get_dependencies().front()->is_type<convolution>()) {
+            auto& conv_node = node.get_dependencies().front()->as<convolution>();
+            const auto& fmt = get_preferred_format(conv_node);
+            // if the preferred format of the previous conv of permute is fs_b_yx_fsv32,
+            // it is better to set to b_fs_yx_fsv32 that supports tiled permute (permute_tile_8x8_4x4_fsv)
+            // because fs_b_yx_fsv32 is only supported by permute_ref.
+            if (node.as<permute>().is_rotating_except_batch() && fmt == format::fs_b_yx_fsv32) {
+                expected = format::b_fs_yx_fsv32;
+            }
+        }
     }
 
     return expected;
@@ -1716,21 +1646,8 @@ bool layout_optimizer::all_users_simple_format_until_output(program_node& origin
     if (cur_node.is_output()) return true;
     if (cur_depth > max_depth) return false;
 
-    auto is_rotating_except_batch = [](const std::vector<uint16_t>& order) {
-        // Target transform: Rotate feature dim to back to be taken as inner-most axis
-        // ex) 0(b), 4(f), 1(z), 2(y), 3(x)
-        // ex) 0(b), 3(f), 1(y), 2(x)
-        if ((int32_t) order[1] != order.size() - 1) return false;
-        if ((int32_t) order[0] != 0) return false;
-        for (int32_t i = 2; i < (int32_t) order.size(); ++i) {
-            if ((int32_t)order[i] !=  (i - 1)) return false;
-        }
-        return true;
-    };
-
     if (cur_node.is_type<permute>()) {
-        auto& permute_order = cur_node.as<permute>().get_primitive()->permute_order;
-        if (!is_rotating_except_batch(permute_order))
+        if (!cur_node.as<permute>().is_rotating_except_batch())
             return false;
     }
 
