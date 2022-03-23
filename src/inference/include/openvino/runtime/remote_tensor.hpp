@@ -17,7 +17,8 @@ namespace ov {
 class RemoteContext;
 
 /**
- * @brief Remote memory access and interpretation API.
+ * @brief Remote memory access and interoperability API.
+ * @ingroup ov_runtime_cpp_api
  */
 class OPENVINO_RUNTIME_API RemoteTensor : public Tensor {
     using Tensor::Tensor;

@@ -33,6 +33,7 @@ namespace ocl {
  * which is shared with VA output surface.
  * The plugin object derived from this class can be obtained with VAContext::create_tensor() call.
  * @note User can also obtain OpenCL 2D image handle from this class.
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 class VASurfaceTensor : public ClImage2DTensor {
 public:
@@ -69,6 +70,7 @@ public:
  * The plugin object derived from this class can be obtained either with
  * CompiledModel::get_context() or Core::create_context() calls.
  * @note User can also obtain OpenCL context handle from this class.
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 class VAContext : public ClContext {
 public:

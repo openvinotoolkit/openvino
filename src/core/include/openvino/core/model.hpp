@@ -34,7 +34,11 @@ class FrontEnd;
 }
 
 class ModelAccessor;
-/// A user-defined model.
+
+/**
+ * @brief A user-defined model
+ * @ingroup ov_model_cpp_api
+ */
 class OPENVINO_API Model : public std::enable_shared_from_this<Model> {
     friend class frontend::FrontEnd;
     friend OPENVINO_API std::shared_ptr<Model> clone_model(const Model& func,

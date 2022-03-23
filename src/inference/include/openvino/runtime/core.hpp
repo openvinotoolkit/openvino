@@ -34,6 +34,7 @@ namespace ov {
 
 /**
  * @brief This class represents an OpenVINO runtime Core entity.
+ * @ingroup ov_runtime_cpp_api
  * User applications can create several Core class instances, but in this case the underlying plugins
  * are created multiple times and not shared between several Core instances. The recommended way is to have
  * a single Core instance per application.
