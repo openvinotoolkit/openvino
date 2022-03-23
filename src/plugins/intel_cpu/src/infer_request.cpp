@@ -827,6 +827,10 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
                     data->allocate();
                 } else {
                     const auto& blobDims = data->getTensorDesc().getDims();
+                    // in static shape case is enough information that shapes are incompatible to throw exception
+                    // but in dynamic shape case we also need to handle following corner case:
+                    // on blob initialization stage we create empty blob with dimensions equal 0
+                    // so if we have blob with all zero dimension we mustn't throw exception
                     if (!shape.compatible(ov::PartialShape(blobDims)) && (!isDynamic || blobDims.size() != shape.rank().get_length() ||
                             std::any_of(blobDims.begin(), blobDims.end(), [](const size_t& dims) { return dims != 0; } ))) {
                         IE_THROW(ParameterMismatch) << "Network input and output use the same name: " << name
