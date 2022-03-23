@@ -58,6 +58,9 @@ Output<Node> create_constant_with_zeros(const Shape & shape, const Mask & mask) 
     return std::make_shared<opset5::Constant>(element::f32, shape, values);
 }
 
+class DISABLED_TransformationTestsF:
+public TransformationTestsF{};
+
 // Uncomment, specify PRUNING_TARGET_IR_PATH var and
 // include <openvino/util/env_util.hpp> to check pruning on given IR
 TEST(TransformationTests, PruneIRTest) {
@@ -252,11 +255,8 @@ TEST_F(TransformationTestsF, PropagateMasksBasic) {
     compare_masks(*getMask(mul->output(0)), Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(weights2.get_node_shared_ptr()->output(0)), Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(conv2->output(0)),    Mask({{}, {}, {}, {}}));
-    {
-        pass::Manager m;
-        m.register_pass<pass::ShrinkWeights>();
-        m.run_passes(function);
-    }
+
+    manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
@@ -317,11 +317,8 @@ TEST_F(TransformationTestsF, PropagateMasksDynamicConvolution) {
     compare_masks(*getMask(mul_const), Mask({{2}, {}, {}}));
     compare_masks(*getMask(weights2->output(0)), Mask({{}, {2}, {}, {}}));
     compare_masks(*getMask(conv2->output(0)),    Mask({{}, {}, {}, {}}));
-    {
-        pass::Manager m;
-        m.register_pass<pass::ShrinkWeights>();
-        m.run_passes(function);
-    }
+
+    manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
@@ -497,11 +494,8 @@ TEST_F(TransformationTestsF, PropagateMaskPassThrough) {
     compare_masks(*getMask(relu->output(0)),     Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(clamp->output(0)),     Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(max_pool->output(0)),     Mask({{}, {1, 2, 3}, {}, {}}));
-    {
-        pass::Manager m;
-        m.register_pass<pass::ShrinkWeights>();
-        m.run_passes(function);
-    }
+
+    manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
@@ -649,11 +643,8 @@ TEST_F(TransformationTestsF, PropagateMasksHardDependencies) {
     //compare_masks(*getMask(relu),     Mask({{}, {0, 1, 2, 3, 4, 5}, {}, {}}));
     //compare_masks(*getMask(weights2), Mask({{}, {0, 1, 2, 3, 4, 5}, {}, {}}));
     //compare_masks(*getMask(conv2),    Mask({{}, {}, {}, {}}));
-    {
-        pass::Manager m;
-        m.register_pass<pass::ShrinkWeights>();
-        m.run_passes(function);
-    }
+
+    manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
@@ -767,11 +758,8 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolution) {
 
     compare_masks(*getMask(weights_2->output(0)),  Mask({{}, {0, 1, 2, 3, 4}, {}, {}}));
     compare_masks(*getMask(conv2->output(0)),  Mask({{}, {}, {}, {}}));
-    {
-        pass::Manager m;
-        m.register_pass<pass::ShrinkWeights>();
-        m.run_passes(function);
-    }
+
+    manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
@@ -905,11 +893,8 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolutionWithShapeOf)
     compare_masks(*getMask(conv2->output(0)),  Mask({{}, {}, {}, {}}));
 
     compare_masks(*getMask(weights_2->output(0)),  Mask({{}, {0, 1, 2, 3}, {}, {}}));
-    {
-        pass::Manager m;
-        m.register_pass<pass::ShrinkWeights>();
-        m.run_passes(function);
-    }
+
+    manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
@@ -1023,11 +1008,8 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerTensor) {
 
     compare_masks(*getMask(weights_2->output(0)),  Mask({{}, {0 , 1, 2, 3, 4}, {}, {}}));
     compare_masks(*getMask(conv2->output(0)),  Mask({{}, {}, {}, {}}));
-    {
-        pass::Manager m;
-        m.register_pass<pass::ShrinkWeights>();
-        m.run_passes(function);
-    }
+
+    manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
@@ -1208,11 +1190,8 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerChannel) {
     compare_masks(*getMask(fq->input(2).get_source_output()),  Mask({{}, {0, 1, 2, 3, 4}, {}, {}}));
     compare_masks(*getMask(fq->input(3).get_source_output()),  Mask({{}, {0, 1, 2, 3, 4}, {}, {}}));
     compare_masks(*getMask(fq->input(4).get_source_output()),  Mask({{}, {0, 1, 2, 3, 4}, {}, {}}));
-    {
-        pass::Manager m;
-        m.register_pass<pass::ShrinkWeights>();
-        m.run_passes(function);
-    }
+
+    manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
@@ -1305,11 +1284,8 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagation) {
 
     compare_masks(*getMask(concat->output(0)),  Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
     compare_masks(*getMask(weights_out_conv.get_node_shared_ptr()->output(0)),  Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
-    {
-        pass::Manager m;
-        m.register_pass<pass::ShrinkWeights>();
-        m.run_passes(function);
-    }
+
+    manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
@@ -1412,11 +1388,8 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagationUp) {
 
     compare_masks(*getMask(concat->output(0)),  Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
     compare_masks(*getMask(weights_out_conv.get_node_shared_ptr()->output(0)),  Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
-    {
-        pass::Manager m;
-        m.register_pass<pass::ShrinkWeights>();
-        m.run_passes(function);
-    }
+
+    manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
@@ -1560,11 +1533,8 @@ TEST_F(TransformationTestsF, PruneConvIsClosingAndInGroup) {
 
     compare_masks(*getMask(weights_end_conv.get_node_shared_ptr()->output(0)),  Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(end_conv->output(0)),  Mask({{}, {}, {}, {}}));
-    {
-        pass::Manager m;
-        m.register_pass<pass::ShrinkWeights>();
-        m.run_passes(function);
-    }
+
+    manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
@@ -1725,7 +1695,8 @@ TEST_F(TransformationTestsF, PruneReducelayerUp) {
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneReducelayerUp.svg").run_on_function(function);
 
     pass::Manager m;
-    m.register_pass<pass::Pruning>();
+    m.register_pass<pass::InitMasks>();
+    m.register_pass<pass::PropagateMasks>();
     m.run_passes(function);
 
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)),  Mask({{1, 2, 3}, {}, {}, {}}));
@@ -1733,6 +1704,10 @@ TEST_F(TransformationTestsF, PruneReducelayerUp) {
 
     compare_masks(*getMask(conv_1_weights.get_node_shared_ptr()->output(0)),  Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(conv_1->output(0)),  Mask({{}, {}, {}, {}}));
+
+    manager.register_pass<pass::ShrinkWeights>();
+    disable_rt_info_check();
+    enable_accuracy_check();
 }
 
 
@@ -1820,11 +1795,8 @@ TEST_F(TransformationTestsF, PruneReduceLayerDown) {
 
     compare_masks(*getMask(weights_end_conv.get_node_shared_ptr()->output(0)),  Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(end_conv->output(0)),  Mask({{}, {}, {}, {}}));
-    {
-        pass::Manager m;
-        m.register_pass<pass::ShrinkWeights>();
-        m.run_passes(function);
-    }
+
+    manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
@@ -1981,11 +1953,8 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUp) {
 
     compare_masks(*getMask(conv_1_weights.get_node_shared_ptr()->output(0)),  Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(conv_1->output(0)),  Mask({{}, {}, {}, {}}));
-    {
-        pass::Manager m;
-        m.register_pass<pass::ShrinkWeights>();
-        m.run_passes(function);
-    }
+
+    manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
@@ -2057,11 +2026,8 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUpWithShapeOf) {
 
     compare_masks(*getMask(conv_1_weights.get_node_shared_ptr()->output(0)),  Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(conv_1->output(0)),  Mask({{}, {}, {}, {}}));
-    {
-        pass::Manager m;
-        m.register_pass<pass::ShrinkWeights>();
-        m.run_passes(function);
-    }
+
+    manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
@@ -2154,11 +2120,8 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUpShapeSubGraph) {
 
     compare_masks(*getMask(conv_1_weights.get_node_shared_ptr()->output(0)),  Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(conv_1->output(0)),  Mask({{}, {}, {}, {}}));
-    {
-        pass::Manager m;
-        m.register_pass<pass::ShrinkWeights>();
-        m.run_passes(function);
-    }
+
+    manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
     enable_accuracy_check();
 }
@@ -2251,17 +2214,15 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeExtend) {
 
     compare_masks(*getMask(conv_1_weights.get_node_shared_ptr()->output(0)),  Mask({{}, {2, 3}, {}, {}}));
     compare_masks(*getMask(conv_1->output(0)),  Mask({{}, {}, {}, {}}));
-    {
-        pass::Manager m;
-        m.register_pass<pass::ShrinkWeights>();
-        m.run_passes(function);
-    }
+
+    manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
     enable_accuracy_check();
 }
 
 
-TEST_F(TransformationTestsF, MaskPropagationReshapeDown) {
+// Reason: current algo can't process such branching multiply cases
+TEST_F(DISABLED_TransformationTestsF, MaskPropagationReshapeDownMul) {
     auto inputShapes = PartialShape{1, 1, 24, 24};
     auto weightsShape = Shape{8, 1, 1, 1};
 
@@ -2335,7 +2296,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeDown) {
         function_ref = std::make_shared<ngraph::Function>(OutputVector{last_conv}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
-        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReshapeDown.svg").run_on_function(function);
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReshapeDownMul.svg").run_on_function(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -2350,15 +2311,106 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeDown) {
 
     compare_masks(*getMask(last_conv_weights.get_node_shared_ptr()->output(0)),  Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(last_conv->output(0)),  Mask({{}, {}, {}, {}}));
+
+    manager.register_pass<pass::ShrinkWeights>();
+    disable_rt_info_check();
+    enable_accuracy_check();
+}
+
+TEST_F(TransformationTestsF, MaskPropagationReshapeDownAdd) {
+    auto inputShapes = PartialShape{1, 1, 24, 24};
+    auto weightsShape = Shape{8, 1, 1, 1};
+
+    auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
+    auto weights = create_constant_with_zeros(weightsShape, {{1, 2, 3}, {}, {}, {}});
+    auto first_conv = std::make_shared<opset5::Convolution>(input, weights, Strides(2, 1),
+                                                            CoordinateDiff(2, 0),
+                                                            CoordinateDiff(2, 0),
+                                                            Strides(2, 1));
+
+
+
+    auto reshape_const = opset5::Constant::create(element::i64, Shape{4}, {1, 8, 576, 1});
+    auto reshape = std::make_shared<opset5::Reshape>(first_conv, reshape_const, true);
+
+    auto reshape_conv_weights = create_constant_with_zeros({8, 8, 1, 1}, {{1, 2, 3}, {}, {}, {}});
+    auto reshape_conv = std::make_shared<opset5::Convolution>(reshape, reshape_conv_weights,
+                                                             Strides(2, 1),
+                                                             CoordinateDiff(2, 0),
+                                                             CoordinateDiff(2, 0),
+                                                             Strides(2, 1));
+
+    auto reshape_const_1 = opset5::Constant::create(element::i64, Shape{4}, {1, 8, 24, 24});
+    auto reshape_1 = std::make_shared<opset5::Reshape>(reshape_conv, reshape_const_1, true);
+
+    auto add = std::make_shared<opset5::Add>(first_conv, reshape_1);
+
+    auto last_conv_weights = create_constant_with_zeros({8, 8, 8, 8}, {{1, 2, 3}, {}, {}, {}});
+    auto last_conv = std::make_shared<opset5::Convolution>(add, last_conv_weights,
+                                                           Strides(2, 1),
+                                                           CoordinateDiff(2, 0),
+                                                           CoordinateDiff(2, 0),
+                                                           Strides(2, 1));
+
+    function = std::make_shared<ngraph::Function>(OutputVector{last_conv}, ParameterVector{input});
+    {
+        auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
+        auto weights = create_constant_with_zeros({
+                                                    weightsShape[0] - 3,
+                                                    weightsShape[1],
+                                                    weightsShape[2],
+                                                    weightsShape[3],
+                                                   }, {{}, {}, {}, {}});
+        auto first_conv = std::make_shared<opset5::Convolution>(input, weights, Strides(2, 1),
+                                                                CoordinateDiff(2, 0),
+                                                                CoordinateDiff(2, 0),
+                                                                Strides(2, 1));
+
+        auto reshape_const = opset5::Constant::create(element::i64, Shape{4}, {1, 5, 576, 1});
+        auto reshape = std::make_shared<opset5::Reshape>(first_conv, reshape_const, true);
+
+        auto reshape_conv_weights = create_constant_with_zeros({5, 5, 1, 1}, {{}, {}, {}, {}});
+        auto reshape_conv = std::make_shared<opset5::Convolution>(reshape, reshape_conv_weights,
+                                                                 Strides(2, 1),
+                                                                 CoordinateDiff(2, 0),
+                                                                 CoordinateDiff(2, 0),
+                                                                 Strides(2, 1));
+
+        auto reshape_const_1 = opset5::Constant::create(element::i64, Shape{4}, {1, 5, 24, 24});
+        auto reshape_1 = std::make_shared<opset5::Reshape>(reshape_conv, reshape_const_1, true);
+
+        auto add = std::make_shared<opset5::Add>(first_conv, reshape_1);
+
+        auto last_conv_weights = create_constant_with_zeros({8, 5, 8, 8}, {{1, 2, 3}, {}, {}, {}});
+        auto last_conv = std::make_shared<opset5::Convolution>(add, last_conv_weights,
+                                                               Strides(2, 1),
+                                                               CoordinateDiff(2, 0),
+                                                               CoordinateDiff(2, 0),
+                                                               Strides(2, 1));
+
+        function_ref = std::make_shared<ngraph::Function>(OutputVector{last_conv}, ParameterVector{input});
+    }
+    if (VISUALIZE_TESTS_TREE)
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReshapeDownAdd.svg").run_on_function(function);
     {
         pass::Manager m;
-        m.register_pass<pass::ShrinkWeights>();
+        m.register_pass<pass::InitMasks>();
+        m.register_pass<pass::PropagateMasks>();
         m.run_passes(function);
     }
+    compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)),  Mask({{1, 2, 3}, {}, {}, {}}));
+    compare_masks(*getMask(first_conv->output(0)),  Mask({{}, {1, 2, 3}, {}, {}}));
+
+    compare_masks(*getMask(reshape_conv_weights.get_node_shared_ptr()->output(0)),  Mask({{1, 2, 3}, {1, 2, 3}, {}, {}}));
+    compare_masks(*getMask(reshape_conv->output(0)),  Mask({{}, {1, 2, 3}, {}, {}}));
+
+    compare_masks(*getMask(last_conv_weights.get_node_shared_ptr()->output(0)),  Mask({{}, {1, 2, 3}, {}, {}}));
+    compare_masks(*getMask(last_conv->output(0)),  Mask({{}, {}, {}, {}}));
+
+    manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
-
 
 TEST(TransformationTests, MaskPropagationStopReshapeUp) {
     auto inputShapes = PartialShape{1, 6, 8, 8};
@@ -2395,6 +2447,11 @@ TEST(TransformationTests, MaskPropagationStopReshapeUp) {
 
     compare_masks(*getMask(conv_1_weights.get_node_shared_ptr()->output(0)),  Mask({{}, {}, {}, {}}));
     compare_masks(*getMask(conv_1->output(0)),  Mask({{}, {}, {}, {}}));
+    {
+        pass::Manager m;
+        m.register_pass<pass::ShrinkWeights>();
+        m.run_passes(function);
+    }
 }
 
 
@@ -2449,6 +2506,11 @@ TEST(TransformationTests, MaskPropagationStopReshapeDown) {
 
     compare_masks(*getMask(last_conv_weights.get_node_shared_ptr()->output(0)),  Mask({{}, {}, {}, {}}));
     compare_masks(*getMask(last_conv->output(0)),  Mask({{}, {}, {}, {}}));
+    {
+        pass::Manager m;
+        m.register_pass<pass::ShrinkWeights>();
+        m.run_passes(function);
+    }
 }
 
 
@@ -2503,11 +2565,8 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUnsqueezeUp) {
     compare_masks(*getMask(left_up_weights.get_node_shared_ptr()->output(0)), Mask({{}, {1, 2}}));
     compare_masks(*getMask(mul_left_up->output(0)),  Mask({{}, {1, 2}}));
     compare_masks(*getMask(mul_left->output(0)),  Mask({{}, {}, {}}));
-    {
-        pass::Manager m;
-        m.register_pass<pass::ShrinkWeights>();
-        m.run_passes(function);
-    }
+
+    manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
     enable_accuracy_check();
 }
@@ -2571,11 +2630,8 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUnsqueezeDown) {
 
     compare_masks(*getMask(left_weights.get_node_shared_ptr()->output(0)),  Mask({{1, 2}, {}}));
     compare_masks(*getMask(mul_left->output(0)),  Mask({{}, {}, {}}));
-    {
-        pass::Manager m;
-        m.register_pass<pass::ShrinkWeights>();
-        m.run_passes(function);
-    }
+
+    manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
     enable_accuracy_check();
 }
@@ -2733,11 +2789,8 @@ TEST_F(TransformationTestsF, PruneSEBlock) {
 
     compare_masks(*getMask(weights_end_conv.get_node_shared_ptr()->output(0)),  Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(end_conv->output(0)),  Mask({{}, {}, {}, {}}));
-    {
-        pass::Manager m;
-        m.register_pass<pass::ShrinkWeights>();
-        m.run_passes(function);
-    }
+
+    manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
@@ -2825,11 +2878,8 @@ TEST_F(TransformationTestsF, PropagateMasksLinear) {
     compare_masks(*getMask(linear->output(0)), Mask{{}, {0, 1, 2}});
     compare_masks(*getMask(weights_last_linear.get_node_shared_ptr()->output(0)), Mask{{0, 1, 2}, {}});
     compare_masks(*getMask(last_linear->output(0)), Mask{{}, {}});
-    {
-        pass::Manager m;
-        m.register_pass<pass::ShrinkWeights>();
-        m.run_passes(function);
-    }
+
+    manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
@@ -3082,11 +3132,8 @@ TEST_F(TransformationTestsF, MaskPropagationLinearOuterDims) {
 
     compare_masks(*getMask(last_mul_const.get_node_shared_ptr()->output(0)),  ref_last_mul_mask);
     compare_masks(*getMask(last_mul->output(0)),  Mask({{}, {}}));
-    {
-        pass::Manager m;
-        m.register_pass<pass::ShrinkWeights>();
-        m.run_passes(function);
-    }
+
+    manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
     enable_accuracy_check();
 }
@@ -3223,11 +3270,8 @@ TEST_F(TransformationTestsF, PruneMasksMatMulColsStopRowsUp) {
     compare_masks(*getMask(linear->output(0)), Mask{{}, {}, {0, 1, 2}});
     compare_masks(*getMask(weights_last_linear.get_node_shared_ptr()->output(0)), Mask{{0, 1, 2}, {}});
     compare_masks(*getMask(last_linear->output(0)), Mask{{}, {}, {}});
-    {
-        pass::Manager m;
-        m.register_pass<pass::ShrinkWeights>();
-        m.run_passes(function);
-    }
+
+    manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
@@ -3304,11 +3348,8 @@ TEST_F(TransformationTestsF, PruneMasksMatMulRowsStopColsUp) {
     compare_masks(*getMask(linear->output(0)), Mask{{}, {0, 1, 2}, {}});
     compare_masks(*getMask(weights_last_linear.get_node_shared_ptr()->output(0)), Mask{{}, {0, 1, 2}});
     compare_masks(*getMask(last_linear->output(0)), Mask{{}, {}, {}});
-    {
-        pass::Manager m;
-        m.register_pass<pass::ShrinkWeights>();
-        m.run_passes(function);
-    }
+
+    manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
@@ -3400,11 +3441,8 @@ TEST_F(TransformationTestsF, PropagateFlattenUp) {
     compare_masks(*getMask(reshape->output(0)), Mask(reshape_ref_mask));
     compare_masks(*getMask(weights_linear.get_node_shared_ptr()->output(0)), Mask(linear_ref_mask));
     compare_masks(*getMask(linear->output(0)), Mask{{}, {}});
-    {
-        pass::Manager m;
-        m.register_pass<pass::ShrinkWeights>();
-        m.run_passes(function);
-    }
+
+    manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
@@ -3473,11 +3511,8 @@ TEST_F(TransformationTestsF, PropagateFlattenDown) {
     linear_mask[1] = {};
     compare_masks(*getMask(linear_const.get_node_shared_ptr()->output(0)),  linear_mask);
     compare_masks(*getMask(linear->output(0)), {{}, {}});
-    {
-        pass::Manager m;
-        m.register_pass<pass::ShrinkWeights>();
-        m.run_passes(function);
-    }
+
+    manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
     enable_accuracy_check();
 }
@@ -3527,11 +3562,8 @@ TEST_F(TransformationTestsF, PropagateMasksTranspose) {
     compare_masks(*getMask(mul->output(0)), Mask({{}, {1, 2, 3}}));
     compare_masks(*getMask(relu->output(0)), Mask({{}, {1, 2, 3}}));
     compare_masks(*getMask(last_mul->output(0)), Mask{{}, {}});
-    {
-        pass::Manager m;
-        m.register_pass<pass::ShrinkWeights>();
-        m.run_passes(function);
-    }
+
+    manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
     enable_accuracy_check();
 }
@@ -3697,11 +3729,8 @@ TEST_F(TransformationTestsF, PropagateMasksBroadcastedEltwise) {
 
     compare_masks(*getMask(last_mul_const.get_node_shared_ptr()->output(0)),  ref_last_mul_mask);
     compare_masks(*getMask(last_mul->output(0)),  Mask({{}, {}}));
-    {
-        pass::Manager m;
-        m.register_pass<pass::ShrinkWeights>();
-        m.run_passes(function);
-    }
+
+    manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
     enable_accuracy_check();
 }
@@ -3740,6 +3769,9 @@ TEST_F(TransformationTestsF, MaskPropagationComplexReshape) {
     auto shape_of = std::make_shared<opset5::ShapeOf>(mul);
     auto reshape_from = std::make_shared<opset5::Reshape>(unsquized_eltwise, shape_of, true);
 
+    for (auto & dim_to_remain : dims_to_remain)
+        mul_init_mask.at(1).erase(dim_to_remain);
+
     auto mul_2_weights = create_constant_with_zeros({weightsShape[1], weightsShape[1]}, mul_init_mask);
     auto mul_2 = std::make_shared<opset5::MatMul>(reshape_from, mul_2_weights);
 
@@ -3749,8 +3781,8 @@ TEST_F(TransformationTestsF, MaskPropagationComplexReshape) {
     auto shape_of_2 = std::make_shared<opset5::ShapeOf>(mul_2);
     auto reshape_from_2 = std::make_shared<opset5::Reshape>(reshape_to_2, shape_of_2, true);
 
-    for (auto & elem : dims_to_remain)
-        mul_init_mask.at(1).erase(elem);
+    //for (auto & elem : dims_to_remain)
+    //    mul_init_mask.at(1).erase(elem);
 
     mul_init_mask.insert(mul_init_mask.begin(), std::set<uint64_t>{});
     auto squized_eltwise_const = create_constant_with_zeros(squizedShape, mul_init_mask);
@@ -3760,49 +3792,55 @@ TEST_F(TransformationTestsF, MaskPropagationComplexReshape) {
     auto mul_last = std::make_shared<opset5::MatMul>(squized_eltwise, mul_last_weights);
 
     function = std::make_shared<ngraph::Function>(OutputVector{mul_last}, ParameterVector{input});
-    //{
-    //    const auto elements_remain = dims_to_remain.size();
-    //    auto remained_dims_set = std::set<uint64_t>();
-    //    for (size_t i = 0; i < dims_to_remain.size(); ++i)
-    //        remained_dims_set.insert(i);
+    const auto remained_dims = std::vector<uint64_t>{6, 7, 26, 27, 36, 37, 56, 57};
+    {
+        const auto elements_remain = remained_dims.size();
+        auto zero_idxs = std::vector<uint64_t>{0, 2, 3, 4, 5, 7};
+        auto zero_idxs_set = std::set<uint64_t>(zero_idxs.begin(), zero_idxs.end());
+        auto unsquized_const = std::vector<uint64_t>();
+        for (size_t i = 0; i < 6; ++i)
+            for (size_t j = 0; j < remained_dims.size(); ++j)
+                if (std::find(zero_idxs.begin(), zero_idxs.end(), j) != zero_idxs.end())
+                    unsquized_const.push_back(0);
+                else
+                    unsquized_const.push_back(1);
 
-    //    auto mul_weights_mask = Mask(2);
-    //    mul_weights_mask.at(1) = remained_dims_set;
-    //    auto mul_weights = create_constant_with_zeros({weightsShape[0], elements_remain}, mul_weights_mask);
-    //    auto mul = std::make_shared<opset5::MatMul>(input, mul_weights);
+        auto mul_weights_mask = Mask(2);
+        mul_weights_mask.at(1) = zero_idxs_set;
+        auto mul_weights = create_constant_with_zeros({weightsShape[0], elements_remain}, {{0, 1, 2}, {}});
+        auto mul = std::make_shared<opset5::MatMul>(input, mul_weights);
 
-    //    auto reshape_to_constant = opset5::Constant::create(element::i64, {6}, unsquizedShape);
-    //    auto reshape_to = std::make_shared<opset5::Reshape>(mul, reshape_to_constant, true);
+        auto squized_shape = Shape{1, 6, 2, 2, 1, 2};
+        auto reshape_to_constant = opset5::Constant::create(element::i64, {6}, squized_shape);
+        auto reshape_to = std::make_shared<opset5::Reshape>(mul, reshape_to_constant, true);
 
-    //    auto unsquized_eltwise_const_vec = std::vector<float>(360, 0);
-    //    for (size_t i = 0; i < 6; ++i)
-    //        unsquized_eltwise_const_vec[i * 60 + 7] = 1;
+        auto unsquized_eltwise_const = opset5::Constant::create(element::f32, squized_shape, unsquized_const);
+        auto unsquized_eltwise = std::make_shared<opset5::Add>(reshape_to, unsquized_eltwise_const);
 
-    //    auto unsquized_eltwise_const = opset6::Constant::create(element::f32, unsquizedShape, unsquized_eltwise_const_vec);
-    //    auto unsquized_eltwise = std::make_shared<opset5::Add>(reshape_to, unsquized_eltwise_const);
+        auto shape_of = std::make_shared<opset5::ShapeOf>(mul);
+        auto reshape_from = std::make_shared<opset5::Reshape>(unsquized_eltwise, shape_of, true);
 
-    //    auto shape_of = std::make_shared<opset5::ShapeOf>(mul);
-    //    auto reshape_from = std::make_shared<opset5::Reshape>(unsquized_eltwise, shape_of, true);
+        auto mul_2_weights = create_constant_with_zeros({elements_remain, elements_remain}, mul_weights_mask);
+        auto mul_2 = std::make_shared<opset5::MatMul>(reshape_from, mul_2_weights);
 
-    //    auto mul_2_weights = create_constant_with_zeros({weightsShape[1], weightsShape[1]}, mul_init_mask);
-    //    auto mul_2 = std::make_shared<opset5::MatMul>(reshape_from, mul_2_weights);
+        auto reshape_to_constant_2 = opset5::Constant::create(element::i64, {6}, squized_shape);
+        auto reshape_to_2 = std::make_shared<opset5::Reshape>(mul_2, reshape_to_constant_2, true);
 
-    //    auto reshape_to_constant_2 = opset5::Constant::create(element::i64, {6}, unsquizedShape);
-    //    auto reshape_to_2 = std::make_shared<opset5::Reshape>(mul_2, reshape_to_constant_2, true);
+        auto shape_of_2 = std::make_shared<opset5::ShapeOf>(mul_2);
+        auto reshape_from_2 = std::make_shared<opset5::Reshape>(reshape_to_2, shape_of_2, true);
 
-    //    auto shape_of_2 = std::make_shared<opset5::ShapeOf>(mul_2);
-    //    auto reshape_from_2 = std::make_shared<opset5::Reshape>(reshape_to_2, shape_of_2, true);
+        auto squized_eltwise_mask = Mask(3);
+        squized_eltwise_mask.at(2) = zero_idxs_set;
+        auto squized_eltwise_const = create_constant_with_zeros({1, 6, elements_remain}, squized_eltwise_mask);
+        auto squized_eltwise = std::make_shared<opset5::Add>(reshape_from_2, squized_eltwise_const);
 
-    //    mul_init_mask.at(1).erase(7);
-    //    mul_init_mask.insert(mul_init_mask.begin(), std::set<uint64_t>{});
-    //    auto squized_eltwise_const = create_constant_with_zeros(squizedShape, mul_init_mask);
-    //    auto squized_eltwise = std::make_shared<opset5::Add>(reshape_from_2, squized_eltwise_const);
+        auto last_mul_mask = Mask(2);
+        last_mul_mask.at(0) = zero_idxs_set;
+        auto mul_last_weights = create_constant_with_zeros({elements_remain, 1}, last_mul_mask);
+        auto mul_last = std::make_shared<opset5::MatMul>(squized_eltwise, mul_last_weights);
 
-    //    auto mul_last_weights = create_constant_with_zeros({weightsShape[1], 1}, {{}, {}});
-    //    auto mul_last = std::make_shared<opset5::MatMul>(squized_eltwise, mul_last_weights);
-
-    //    function_ref = std::make_shared<ngraph::Function>(OutputVector{mul_last}, ParameterVector{input});
-    //}
+        function_ref = std::make_shared<ngraph::Function>(OutputVector{mul_last}, ParameterVector{input});
+    }
     if (VISUALIZE_TESTS_TREE) {
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationComplexReshape.svg").run_on_function(function);
     }
@@ -3818,7 +3856,7 @@ TEST_F(TransformationTestsF, MaskPropagationComplexReshape) {
     for (size_t i = 0; i < 60; ++i)
         squized_dim.insert(i);
 
-    for (auto & elem : {6, 7, 26, 27, 36, 37, 56, 57})
+    for (auto & elem : remained_dims)
         squized_dim.erase(elem);
 
     squized_mask.at(1) = squized_dim;
@@ -3876,10 +3914,8 @@ TEST_F(TransformationTestsF, MaskPropagationComplexReshape) {
             }
         };
 
-        pass::Manager m;
-        m.register_pass<pass::ShrinkWeights>();
-        m.register_pass<ngraph::pass::VisualizeTree>(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationComplexReshapeWithMasks.svg", modifier);
-        m.run_passes(function);
+        manager.register_pass<pass::ShrinkWeights>();
+        manager.register_pass<ngraph::pass::VisualizeTree>(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationComplexReshapeWithMasks.svg", modifier);
     }
     disable_rt_info_check();
     enable_accuracy_check();
@@ -4047,39 +4083,36 @@ TEST_P(TransformationTestsReshapedPassThroughF, MaskPropagationReshapedPassThrou
     compare_masks(*getMask(last_mul_const.get_node_shared_ptr()->output(0)), ref_flatten_mask);
     compare_masks(*getMask(last_mul->output(0)), Mask{{}, {}});
 
-    {
-        // VisualizeTree modifier helps to print Masks and mark nodes with masks
-        auto modifier = [](const Node& node, std::vector<std::string>& attributes) {
-            std::stringstream ss;
-            size_t index{0};
-            for (const auto & output : node.outputs()) {
-                if (const auto & mask = getMask(output)) {
-                    if (!mask->all_dims_are_empty()) {
-                        attributes.emplace_back("color=green");
-                        attributes.emplace_back("penwidth=2");
-                    }
-                    ss << "Mask(" << index << ") : " << *mask << "\\n";
+    // VisualizeTree modifier helps to print Masks and mark nodes with masks
+    auto modifier = [](const Node& node, std::vector<std::string>& attributes) {
+        std::stringstream ss;
+        size_t index{0};
+        for (const auto & output : node.outputs()) {
+            if (const auto & mask = getMask(output)) {
+                if (!mask->all_dims_are_empty()) {
+                    attributes.emplace_back("color=green");
+                    attributes.emplace_back("penwidth=2");
                 }
-                index++;
+                ss << "Mask(" << index << ") : " << *mask << "\\n";
             }
-            if (!ss.str().empty()) {
-                auto label = std::find_if(attributes.begin(), attributes.end(),
-                                       [](const std::string & value) { return value.find("label=") != std::string::npos; });
-                if (label != attributes.end()) {
-                    label->pop_back();
-                    *label += "\n" + ss.str() + "\"";
-                } else {
-                    attributes.push_back("label=\"" + ss.str() + "\"");
-                }
+            index++;
+        }
+        if (!ss.str().empty()) {
+            auto label = std::find_if(attributes.begin(), attributes.end(),
+                                   [](const std::string & value) { return value.find("label=") != std::string::npos; });
+            if (label != attributes.end()) {
+                label->pop_back();
+                *label += "\n" + ss.str() + "\"";
+            } else {
+                attributes.push_back("label=\"" + ss.str() + "\"");
             }
-        };
+        }
+    };
 
-        pass::Manager m;
-        m.register_pass<pass::ShrinkWeights>();
-        auto postfix = (add_shape_of)? "True" : "False";
-        m.register_pass<ngraph::pass::VisualizeTree>(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReverseFlattenWithMasks" + postfix + ".svg", modifier);
-        m.run_passes(function);
-    }
+    manager.register_pass<pass::ShrinkWeights>();
+    auto postfix = (add_shape_of)? "True" : "False";
+    manager.register_pass<ngraph::pass::VisualizeTree>(std::string(VISUALIZE_TREE_ROOT) +
+    "MaskPropagationReverseFlattenWithMasks" + postfix + ".svg", modifier);
     disable_rt_info_check();
     enable_accuracy_check();
 }
