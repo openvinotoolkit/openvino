@@ -24,7 +24,7 @@ special methods without model retraining or fine-tuning, for example, post-train
 require a training dataset or a pipeline. To apply post-training algorithms from the POT, you need:
 * A floating-point precision model, FP32 or FP16, converted into the OpenVINO&trade; Intermediate Representation (IR) format
 and run on CPU with the OpenVINO&trade;.
-* A representative calibration dataset representing a use case scenario, for example, 300 images.
+* A representative calibration dataset representing a use case scenario, for example, 300 samples.
 
 Figure below shows the optimization workflow:
 ![](docs/images/workflow_simple.png)

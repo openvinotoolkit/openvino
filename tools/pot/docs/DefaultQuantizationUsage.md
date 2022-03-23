@@ -11,11 +11,11 @@
 @endsphinxdirective
 
 ## Introduction
-This document describes how to apply model quantization with DefautltQuantization method without accuracy control using some unannotated dataset. To use this method, you need to create a Python* script using a Python* API of Post-Training Optimization Tool (POT) and implement data preparation logic and quantization pipeline. In case if you are not familiar with Python*, you can try [command-line interface](@ref pot_compression_cli_README) of POT which is designed to quantize models from [Model Zoo](https://github.com/openvinotoolkit/open_model_zoo). The figure below shows the common workflow of the quantization script implemented with POT API.
+This document describes how to apply model quantization with the Defautlt Quantization method without accuracy control using some unannotated dataset. To use this method, you need to create a Python* script using a API of Post-Training Optimization Tool (POT) and implement data preparation logic and quantization pipeline. In case if you are not familiar with Python*, you can try [command-line interface](@ref pot_compression_cli_README) of POT which is designed to quantize models from OpenVINO&trade; [Model Zoo](https://github.com/openvinotoolkit/open_model_zoo). The figure below shows the common workflow of the quantization script implemented with POT API.
 
 ![](./images/default_quantization_flow.png)
 
-Such a script should include three basic step:
+Such a script should include three basic steps:
 1. Prepare data and dataset interface
 2. Select quantization parameters
 3. Define and run quantization process
@@ -24,38 +24,43 @@ Such a script should include three basic step:
 In most cases, it is required to implement only `openvino.tools.pot.DataLoader` interface which allows acquiring data from a dataset and applying model-specific pre-processing providing access by index. Any implementation should override the following methods: 
 
 - `__len__()`, returns the size of the dataset
-- `__getitem__()`, provides indexing in range of 0 to `len(self)`. It should return data in the two possible formats:
+- `__getitem__()`, provides access to the data by index in range of 0 to `len(self)`. It also can encapsulate a logic of model-specific pre-processing. The method should return data in the following format:
    - `(data, annotation)`
 
-where `data` is the input which is passed to the model at inderence so that it should be properly preprocessed. `data` can be either `numpy.array` object or dictionary where key is the name of the model input and value is `numpy.array` which corresponds to this input. Since `annotation` is not used by DefautltQuantization method this object can be `None` in this case.
+where `data` is the input which is passed to the model at inderence so that it should be properly preprocessed. `data` can be either `numpy.array` object or dictionary where key is the name of the model input and value is `numpy.array` which corresponds to this input. Since `annotation` is not used by the Defautlt Quantization method this object can be `None` in this case.
   
-Users can wrap framework data loading classes by `openvino.tools.pot.DataLoader` interface which is usually straightforward. For example, `torch.utils.data.Dataset` has a similar interface as `openvino.tools.pot.DataLoader` so that its TorchVision implementations can be easily wrapped by POT API.
+You can wrap framework data loading classes by `openvino.tools.pot.DataLoader` interface which is usually straightforward. For example, `torch.utils.data.Dataset` has a similar interface as `openvino.tools.pot.DataLoader` so that its TorchVision implementations can be easily wrapped by POT API.
 
 > **NOTE**: Model-specific preprocessing, for example, mean/scale normalization can be embedded into the model at the convertion step using Model Optimizer component. This should be considered during the implementation of the DataLoader interface to avoid "double" normalization which can lead to the loss of accuracy after optimization.
 
 The code example below defines `DataLoader` object for MNIST dataset using TorchVision [implementation](https://pytorch.org/vision/stable/generated/torchvision.datasets.MNIST.html#torchvision.datasets.MNIST):
+
 ```python
 class MnistDataLoader(DataLoader):
 
     def __init__(self, dataset_path):
+        """ Creates an instance of MNIST dataset class from TorchVision """
         super().__init__(dataset_path)
-        self.dataset =  torchvision.datasets.MNIST(root=dataset_path, download=True)
+        self.dataset = torchvision.datasets.MNIST(root=dataset_path, download=True)
 
     def __len__(self):
+        """ Returns the length of the dataset """
         return len(self.dataset)
 
     def __getitem__(self, index):
+        """ Returns data and annotation by index
+        Note: model-specific preprocessing is omitted, consider adding it here
+        """
         if index >= len(self):
             raise IndexError("Index out of dataset size")
 
         image, annotation = self.dataset[index]
-        return numpy.array(image), annotation
+        return numpy.array(image), annotation # convert data to numpy
 ```
-
 
 ## Select quantization parameters
-DefaultQuantization algorithm has mandatory and optional parameters which are defined as a distionary:
-```
+Default Quantization algorithm has mandatory and optional parameters which are defined as a distionary:
+```python
 {
     "name": "DefaultQuantization",
     "params": {
@@ -67,7 +72,7 @@ DefaultQuantization algorithm has mandatory and optional parameters which are de
 - `"target_device"` - currently, only two options are available: `"ANY"` (or `"CPU"`) -  to quantize model for CPU, GPU, or VPU, and `"GNA"` - for inference on GNA.
 - `"stat_subset_size"` - size of data subset to calculate activations statistics used for quantization. The whole dataset is used if no parameter specified. We recommend using not less than 300 samples.
 
-Full specification of the `DefaultQuantization` method is available in this [document](@ref pot_compression_algorithms_quantization_default_README).
+Full specification of the Default Quantization method is available in this [document](@ref pot_compression_algorithms_quantization_default_README).
 
 ## Run quantization
 POT API provides own methods to load and save model objects from OpenVINO Intermediate Representation: `load_model` and `save_model`. It also has a concept of `Pipeline` that sequentially applies specified optimization methods to the model. `create_pipeine` method is used to instantiate a `Pipeline` object.
@@ -102,7 +107,7 @@ algorithms = [
 ]
 
 # Step 1: implement and create user's data loader
-data_loader = UserDataLoader(..)
+data_loader = MnistDataLoader("./mnist")
 
 # Step 2: load model
 model = load_model(model_config=model_config)
@@ -129,7 +134,7 @@ compressed_model_paths = save_model(
 
 The output of the script is the quantized model that can be used for inference the same way as the original full-precision model.
 
-If accuracy degradation after applying `DefaultQuantization` is high, it is recommended to try tips from [Quantization Best Practices](@ref pot_docs_BestPractices) document or use [AccuracyAwareQuantization](@ref pot_accuracyaware_usage) method.
+If accuracy degradation after applying the Default Quantization method is high, it is recommended to try tips from [Quantization Best Practices](@ref pot_docs_BestPractices) document or use [Accuracy-aware Quantization](@ref pot_accuracyaware_usage) method.
 
 ## Examples
 

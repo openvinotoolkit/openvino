@@ -33,5 +33,7 @@ Once the model is optimized using the aforementioned tools it can be used for in
 
 ![](../img/WHAT_TO_USE.svg)
 
+If you are not familiar with model optimization methods we recommend to start from [post-training methods](@ref pot_introduction).
+
 ## See also
 - [Deployment optimization](./dldt_deployment_optimization_guide.md)

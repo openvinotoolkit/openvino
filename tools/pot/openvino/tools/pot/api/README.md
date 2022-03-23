@@ -1,4 +1,4 @@
-# Detailed API desciption {#pot_compression_api_README}
+# API reference {#pot_compression_api_README}
 
 Post-trianing Optimization Tool API provides a full set of interaces and helpers that allow user to implement a custom optimization pipeline for various types o DL models including cascaded or compound models. Below is a full specificatoin of this API:
 
