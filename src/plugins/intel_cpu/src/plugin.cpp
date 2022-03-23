@@ -83,6 +83,8 @@
 #include <transformations/utils/utils.hpp>
 #include <snippets/pass/collapse_subgraph.hpp>
 #include "ngraph_transformations/snippets_mark_skipped.hpp"
+#include <transformations/op_conversions/convert_roi_align_v9_to_v0.hpp>
+#include <transformations/op_conversions/convert_roi_align_v0_to_v9.hpp>
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
@@ -409,11 +411,13 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     pass_config->disable<ngraph::pass::ConvertReduceSumToPooling>();
     pass_config->disable<ngraph::pass::SliceToStridedSlice>();
     pass_config->disable<ngraph::pass::ConvertDetectionOutput8ToDetectionOutput1>();
+    pass_config->disable<ngraph::pass::ConvertROIAlign9To0>();
 
     pass_config->enable<ngraph::pass::NormalizeL2Decomposition>();
     pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
     pass_config->enable<ngraph::pass::ConvertGather1ToGather7>();
     pass_config->enable<ngraph::pass::ConvertDetectionOutput1ToDetectionOutput8>();
+    pass_config->enable<ngraph::pass::ConvertROIAlign0To9>();
 
     if (useLpt) {
         CPU_LPT_SCOPE(LowPrecisionTransformations_Part3);

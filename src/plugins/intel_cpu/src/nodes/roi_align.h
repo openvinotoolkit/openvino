@@ -21,6 +21,12 @@ enum ROIAlignLayoutType {
     nspc
 };
 
+enum ROIAlignedMode {
+    ra_asymmetric,
+    ra_tf_half_pixel_for_nn,
+    ra_half_pixel
+};
+
 struct jit_roi_align_params {
     Algorithm alg;
     InferenceEngine::Precision data_prc;
@@ -79,6 +85,7 @@ private:
     int pooledW = 7;
     int samplingRatio = 2;
     float spatialScale = 1.0f;
+    ROIAlignedMode alignedMode;
     template <typename inputType, typename outputType>
     void executeSpecified();
     template<typename T>
