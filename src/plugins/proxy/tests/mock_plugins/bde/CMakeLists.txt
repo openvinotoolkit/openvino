@@ -12,5 +12,6 @@ ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "BDE"
               SOURCES ${SOURCES} ${HEADERS}
               SKIP_INSTALL
+              SKIP_REGISTRATION
               ADD_CLANG_FORMAT)
 
