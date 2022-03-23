@@ -35,10 +35,10 @@ public:
         auto with_auto_batching = this->GetParam();
         if (with_auto_batching) { // BATCH:GPU
             config =
-                    // explicit batch size 4 to avoid fallback to no auto-batching (i.e. plain GPU)
                     {{CONFIG_KEY(PERFORMANCE_HINT) , CONFIG_VALUE(THROUGHPUT)},
-                            // no timeout to avoid increasing the test time
-                            {CONFIG_KEY(AUTO_BATCH_TIMEOUT) , "0 "}};
+                            // immediate timeout to avoid increasing the test time
+                            {CONFIG_KEY(AUTO_BATCH_TIMEOUT) , "0"},
+                            };
             }
         fn_ptr = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(with_auto_batching ? CommonTestUtils::DEVICE_BATCH : deviceName);
     }
@@ -293,7 +293,7 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserQueue_out_of_order) {
     // In this scenario we create shared OCL queue and run simple pre-process action and post-process action (buffer copies in both cases)
     // without calling thread blocks
     auto remote_context = make_shared_context(*ie, deviceName, ocl_instance->_queue.get());
-    auto exec_net_shared = ie->LoadNetwork(net, remote_context, config);
+    auto exec_net_shared = ie->LoadNetwork(net, remote_context); // no auto-batching support, so no config is passed
     auto inf_req_shared = exec_net_shared.CreateInferRequest();
 
     // Allocate shared buffers for input and output data which will be set to infer request
@@ -385,7 +385,7 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserQueue_in_order) {
     // In this scenario we create shared OCL queue and run simple pre-process action and post-process action (buffer copies in both cases)
     // without calling thread blocks
     auto remote_context = make_shared_context(*ie, deviceName, ocl_instance->_queue.get());
-    auto exec_net_shared = ie->LoadNetwork(net, remote_context, config);
+    auto exec_net_shared = ie->LoadNetwork(net, remote_context); // no auto-batching support, so no config is passed
     auto inf_req_shared = exec_net_shared.CreateInferRequest();
 
     // Allocate shared buffers for input and output data which will be set to infer request
