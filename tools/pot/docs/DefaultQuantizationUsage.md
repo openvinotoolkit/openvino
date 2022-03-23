@@ -158,7 +158,7 @@ The output of the script is the quantized model that can be used for inference t
 If accuracy degradation after applying the Default Quantization method is high, it is recommended to try tips from [Quantization Best Practices](@ref pot_docs_BestPractices) document or use [Accuracy-aware Quantization](@ref pot_accuracyaware_usage) method.
 
 ## Quantizing cascaded models
-In some cases, when the optimizing model is a cascaded model, i.e. consists of several submodels, for example, MT-CNN, you will need to implement a complex inference pipeline that can properly handle different submodels and data flow between them. POT API provides an `Engine` interface for this purpose which allows customization of the inference logic. However, we suggest inheriting from `IEEngine` helper class that already contains all the logic required to do the inference based on OpenVINO&trade; Python API. See the following example
+In some cases, when the optimizing model is a cascaded model, i.e. consists of several submodels, for example, MT-CNN, you will need to implement a complex inference pipeline that can properly handle different submodels and data flow between them. POT API provides an `Engine` interface for this purpose which allows customization of the inference logic. However, we suggest inheriting from `IEEngine` helper class that already contains all the logic required to do the inference based on OpenVINO&trade; Python API. See the following [example](@ref pot_example_face_detection_README).
 
 ## Examples
 
