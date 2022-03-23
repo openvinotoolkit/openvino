@@ -10,7 +10,11 @@ Each operation in `ov::Model` has the `std::shared_ptr<ov::Node>` type.
 
 For details on how to build a model in OpenVINO™ Runtime, see the [Build a Model in OpenVINO™ Runtime](@ref build_model) section.
 
-OpenVINO™ Runtime allows using tensor names or indexes to work wit model inputs/outputs. To get model input/output ports, use the `ov::Model::inputs()` or `ov::Model::outputs()` methods respectively.
+OpenVINO™ Runtime allows to use different approaches to work with model inputs/outputs:
+ - `ov::Model::inputs()`/`ov::Model::outputs()` methods allow to get vector of all input/output ports.
+ - For a model which has only one input or output you can use methods `ov::Model::input()` or `ov::Model::output()` without arguments to get input or output port respectively.
+ - Methods `ov::Model::input()` and `ov::Model::output()` can be used with index of input or output from the framework model to get specific port by index.
+ - You can use tensor name of input or output from the original framework model together with methods `ov::Model::input()` or `ov::Model::output()` to get specific port. It means that you don't need to have any additional mapping of names from framework to OpenVINO, as it was before, OpenVINO™ Runtime allows using of native framework tensor names.
 
 @sphinxdirective
 
@@ -64,7 +68,7 @@ The `ov::Op` class represents any abstract operation in the model representation
 
 Operation set (opset) is a collection of operations that can be used to construct a model. The `ov::OpSet` class  provides a functionality to work with operation sets.
 For each operation set, OpenVINO™ Runtime provides a separate namespace, for example `opset8`.
-Each OpenVINO™ Release release introduces new operations and add these operations to a new operation set. New operation sets help to introduce a new version of operations that change behavior of previous operations. Using operation sets allows you to avoid changes in your application if new operations have been introduced.
+Each OpenVINO™ Release introduces new operations and add these operations to a new operation set. New operation sets help to introduce a new version of operations that change behavior of previous operations. Using operation sets allows you to avoid changes in your application if new operations have been introduced.
 For a complete list of operation sets supported in OpenVINO™ toolkit, see [Available Operations Sets](../ops/opset.md).
 To add support of custom operations, see the [Add Custom OpenVINO Operations](../Extensibility_UG/Intro.md) document.
 
@@ -133,21 +137,21 @@ The following code creates a model with several outputs:
 OpenVINO™ provides several debug capabilities:
    - To receive additional messages about applied model modifications, rebuild the OpenVINO™ Runtime library with the `-DENABLE_OPENVINO_DEBUG=ON` option.
    - Model can be visualized to image from the xDot format:
-    @sphinxdirective
+@sphinxdirective
 
-    .. tab:: C++
+.. tab:: C++
 
-        .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
-           :language: cpp
-           :fragment: [ov:visualize]
+    .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+       :language: cpp
+       :fragment: [ov:visualize]
 
-    .. tab:: Python
+.. tab:: Python
 
-        .. doxygensnippet:: docs/snippets/ov_model_snippets.py
-           :language: python
-           :fragment: [ov:visualize]
+    .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+       :language: python
+       :fragment: [ov:visualize]
 
-    @endsphinxdirective
+@endsphinxdirective
 
     `ov::pass::VisualizeTree` can be parametrized via environment variables:
 
@@ -159,21 +163,21 @@ OpenVINO™ provides several debug capabilities:
         OV_VISUALIZE_TREE_MEMBERS_NAME=1        - print member names
 
    - Also model can be serialized to IR:
-    @sphinxdirective
+@sphinxdirective
 
-    .. tab:: C++
+.. tab:: C++
 
-        .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
-           :language: cpp
-           :fragment: [ov:serialize]
+    .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+       :language: cpp
+       :fragment: [ov:serialize]
 
-    .. tab:: Python
+.. tab:: Python
 
-        .. doxygensnippet:: docs/snippets/ov_model_snippets.py
-           :language: python
-           :fragment: [ov:serialize]
+    .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+       :language: python
+       :fragment: [ov:serialize]
 
-    @endsphinxdirective
+@endsphinxdirective
 
 ## See Also
 

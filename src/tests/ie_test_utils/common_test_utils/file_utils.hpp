@@ -185,8 +185,8 @@ inline int createDirectoryRecursive(const std::string& dirPath) {
         copyDirPath = copyDirPath.substr(0, pos);
     }
     while (!nested_dir_names.empty()) {
-        std::string a = copyDirPath + nested_dir_names.back();
-        if (createDirectory(a) != 0) {
+        copyDirPath = copyDirPath + nested_dir_names.back();
+        if (createDirectory(copyDirPath) != 0) {
             return -1;
         }
         nested_dir_names.pop_back();
@@ -195,14 +195,17 @@ inline int createDirectoryRecursive(const std::string& dirPath) {
 }
 
 inline std::vector<std::string> getFileListByPatternRecursive(const std::vector<std::string>& folderPaths,
-                                                              const std::regex& pattern) {
-    auto getFileListByPattern = [&pattern](const std::string& folderPath) {
+                                                              const std::vector<std::regex>& patterns) {
+    auto getFileListByPattern = [&patterns](const std::string& folderPath) {
         std::vector<std::string> allFilePaths;
         CommonTestUtils::directoryFileListRecursive(folderPath, allFilePaths);
         std::set<std::string> result;
         for (auto& filePath : allFilePaths) {
-            if (CommonTestUtils::fileExists(filePath) && std::regex_match(filePath, pattern)) {
-                result.insert(filePath);
+            for (const auto& pattern : patterns) {
+                if (CommonTestUtils::fileExists(filePath) && std::regex_match(filePath, pattern)) {
+                    result.insert(filePath);
+                    break;
+                }
             }
         }
         return result;
