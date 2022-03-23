@@ -2,6 +2,7 @@
 
 Usually to infer models with OpenVINO™ Runtime, you need to do the following steps in the application pipeline:
 - 1. Create Core object
+ - 1.1. (Optional) Load extensions
 - 2. Read model from the disk
  - 2.1. (Optional) Model preprocessing
 - 3. Load the model to the device
@@ -21,6 +22,18 @@ Inference Engine API:
 OpenVINO™ Runtime API 2.0:
 
 @snippet docs/snippets/ov_common.cpp ov_api_2_0:create_core
+
+### 1.1 (Optional) Load extensions
+
+To load model with custom operation, you need to add extensions for these operations. We highly recommend to use [OpenVINO Extensibility API](../../Extensibility_UG/Intro.md) to write extensions, but if you already have old extensions you can load it to new OpenVINO™ Runtime:
+
+Inference Engine API:
+
+@snippet docs/snippets/ie_common.cpp ie:load_old_extension
+
+OpenVINO™ Runtime API 2.0:
+
+@snippet docs/snippets/ov_common.cpp ov_api_2_0:load_old_extension
 
 ## 2. Read model from the disk
 
