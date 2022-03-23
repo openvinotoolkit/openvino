@@ -516,7 +516,8 @@ def compare_functions(current, expected):  # noqa: C901 the function is too comp
 
     for i in range(len(current_ops)):
         if (
-            current_ops[i].get_friendly_name() != expected_ops[i].get_friendly_name() and current_ops[i].get_type_name() != "Constant"
+            current_ops[i].get_friendly_name() != expected_ops[i].get_friendly_name()
+            and current_ops[i].get_type_name() != "Constant"
         ):  # const have different names
             result = False
             msg += "Not equal op name. "
@@ -1621,7 +1622,9 @@ def test_set_name_for_operation_without_name():
     ).get_producing_operation()
     # assure the test is performed on node with empty name
     assert (
-        not operation.get_names() or len(operation.get_names()) == 0 or not operation.get_names()[0]
+        not operation.get_names()
+        or len(operation.get_names()) == 0
+        or not operation.get_names()[0]
     )
 
     # actual rename

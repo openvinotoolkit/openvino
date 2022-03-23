@@ -156,7 +156,8 @@ def test_loop_basic():
         assert input_desc[i].get_type_info() == ti_slice_input_desc[i].get_type_info()
         assert input_desc[i].input_index == ti_slice_input_desc[i].input_index
         assert (
-            input_desc[i].body_parameter_index == ti_slice_input_desc[i].body_parameter_index
+            input_desc[i].body_parameter_index
+            == ti_slice_input_desc[i].body_parameter_index
         )
         assert input_desc[i].start == ti_slice_input_desc[i].start
         assert input_desc[i].stride == ti_slice_input_desc[i].stride
@@ -166,40 +167,52 @@ def test_loop_basic():
 
     for i in range(len(ti_merged_input_desc)):
         assert (
-            input_desc[len(ti_slice_input_desc) + i].get_type_info() == ti_merged_input_desc[i].get_type_info()
+            input_desc[len(ti_slice_input_desc) + i].get_type_info()
+            == ti_merged_input_desc[i].get_type_info()
         )
         assert (
-            input_desc[len(ti_slice_input_desc) + i].input_index == ti_merged_input_desc[i].input_index
+            input_desc[len(ti_slice_input_desc) + i].input_index
+            == ti_merged_input_desc[i].input_index
         )
         assert (
-            input_desc[len(ti_slice_input_desc) + i].body_parameter_index == ti_merged_input_desc[i].body_parameter_index
+            input_desc[len(ti_slice_input_desc) + i].body_parameter_index
+            == ti_merged_input_desc[i].body_parameter_index
         )
         assert (
-            input_desc[len(ti_slice_input_desc) + i].body_value_index == ti_merged_input_desc[i].body_value_index
+            input_desc[len(ti_slice_input_desc) + i].body_value_index
+            == ti_merged_input_desc[i].body_value_index
         )
 
     for i in range(len(ti_concat_output_desc)):
         assert (
-            output_desc[len(ti_body_output_desc) + i].get_type_info() == ti_concat_output_desc[i].get_type_info()
+            output_desc[len(ti_body_output_desc) + i].get_type_info()
+            == ti_concat_output_desc[i].get_type_info()
         )
         assert (
-            output_desc[len(ti_body_output_desc) + i].output_index == ti_concat_output_desc[i].output_index
+            output_desc[len(ti_body_output_desc) + i].output_index
+            == ti_concat_output_desc[i].output_index
         )
         assert (
-            output_desc[len(ti_body_output_desc) + i].body_value_index == ti_concat_output_desc[i].body_value_index
+            output_desc[len(ti_body_output_desc) + i].body_value_index
+            == ti_concat_output_desc[i].body_value_index
         )
         assert (
-            output_desc[len(ti_body_output_desc) + i].start == ti_concat_output_desc[i].start
+            output_desc[len(ti_body_output_desc) + i].start
+            == ti_concat_output_desc[i].start
         )
         assert (
-            output_desc[len(ti_body_output_desc) + i].stride == ti_concat_output_desc[i].stride
+            output_desc[len(ti_body_output_desc) + i].stride
+            == ti_concat_output_desc[i].stride
         )
         assert (
-            output_desc[len(ti_body_output_desc) + i].part_size == ti_concat_output_desc[i].part_size
+            output_desc[len(ti_body_output_desc) + i].part_size
+            == ti_concat_output_desc[i].part_size
         )
         assert (
-            output_desc[len(ti_body_output_desc) + i].end == ti_concat_output_desc[i].end
+            output_desc[len(ti_body_output_desc) + i].end
+            == ti_concat_output_desc[i].end
         )
         assert (
-            output_desc[len(ti_body_output_desc) + i].axis == ti_concat_output_desc[i].axis
+            output_desc[len(ti_body_output_desc) + i].axis
+            == ti_concat_output_desc[i].axis
         )
