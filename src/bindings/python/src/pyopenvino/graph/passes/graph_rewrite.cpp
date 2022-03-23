@@ -11,7 +11,7 @@
 
 namespace py = pybind11;
 
-void regclass_GraphRewrite(py::module m) {
+void regclass_passes_GraphRewrite(py::module m) {
     py::class_<ov::pass::GraphRewrite, std::shared_ptr<ov::pass::GraphRewrite>, ov::pass::ModelPass, ov::pass::PassBase>
         graph_rewrite(m, "GraphRewrite");
     graph_rewrite.doc() =

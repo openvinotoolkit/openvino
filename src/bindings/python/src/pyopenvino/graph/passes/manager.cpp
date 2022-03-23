@@ -31,7 +31,7 @@ inline Version convert_to_version(const std::string& version) {
                         "'! The supported versions are: 'UNSPECIFIED'(default), 'IR_V10', 'IR_V11'.");
 }
 
-void regclass_Manager(py::module m) {
+void regclass_passes_Manager(py::module m) {
     py::class_<ov::pass::Manager> manager(m, "Manager");
     manager.doc() = "openvino.runtime.passes.Manager execute sequence of transformation on a given Model";
 

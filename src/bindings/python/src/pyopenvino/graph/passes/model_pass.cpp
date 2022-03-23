@@ -26,7 +26,7 @@ public:
     }
 };
 
-void regclass_ModelPass(py::module m) {
+void regclass_passes_ModelPass(py::module m) {
     py::class_<ov::pass::ModelPass, std::shared_ptr<ov::pass::ModelPass>, ov::pass::PassBase, PyModelPass> model_pass(
         m,
         "ModelPass");

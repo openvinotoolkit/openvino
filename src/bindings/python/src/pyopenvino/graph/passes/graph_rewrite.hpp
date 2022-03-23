@@ -8,4 +8,4 @@
 
 namespace py = pybind11;
 
-void regclass_GraphRewrite(py::module m);
+void regclass_passes_GraphRewrite(py::module m);

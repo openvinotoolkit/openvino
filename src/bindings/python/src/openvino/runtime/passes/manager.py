@@ -11,6 +11,7 @@ class Manager(ManagerBase):
         self.passes_list = []  # need to keep python instances alive
 
     def register_pass(self, *args, **kwargs):
+        """Register transformation for further execution."""
         for arg in args:
             if isinstance(arg, PassBase):
                 self.passes_list.append(arg)

@@ -11,6 +11,7 @@ class GraphRewrite(GraphRewriteBase):
         self.passes_list = []  # need to keep python instances alive
 
     def add_matcher(self, transformation):
+        """Append MatcherPass instance to the end of execution list."""
         self.passes_list.append(transformation)
         return super().add_matcher(transformation)
 
@@ -22,5 +23,6 @@ class BackwardGraphRewrite(BackwardGraphRewriteBase):
         self.passes_list = []  # need to keep python instances alive
 
     def add_matcher(self, transformation):
+        """Append MatcherPass instance to the end of execution list."""
         self.passes_list.append(transformation)
         return super().add_matcher(transformation)

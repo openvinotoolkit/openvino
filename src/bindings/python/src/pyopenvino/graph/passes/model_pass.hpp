@@ -8,4 +8,4 @@
 
 namespace py = pybind11;
 
-void regclass_ModelPass(py::module m);
+void regclass_passes_ModelPass(py::module m);

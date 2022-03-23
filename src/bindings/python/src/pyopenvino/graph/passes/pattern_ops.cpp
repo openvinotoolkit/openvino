@@ -496,7 +496,7 @@ void reg_predicates(py::module m) {
     m.def("type_matches_any", &ov::pass::pattern::type_matches_any);
 }
 
-void reg_pass_pattern_ops(py::module m) {
+void reg_passes_pattern_ops(py::module m) {
     reg_pattern_any_input(m);
     reg_pattern_wrap_type(m);
     reg_pattern_or(m);

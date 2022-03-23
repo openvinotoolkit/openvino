@@ -16,7 +16,7 @@
 
 namespace py = pybind11;
 
-void regclass_Matcher(py::module m) {
+void regclass_passes_Matcher(py::module m) {
     py::class_<ov::pass::pattern::Matcher, std::shared_ptr<ov::pass::pattern::Matcher>> matcher(m, "Matcher");
     matcher.doc() = "openvino.runtime.passes.Matcher wraps ov::pass::pattern::Matcher";
     matcher.def(py::init([](const std::shared_ptr<ov::Node>& node, const std::string& name) {
@@ -130,13 +130,15 @@ void regclass_Matcher(py::module m) {
 
 class PyMatcherPass : public ov::pass::MatcherPass {
 public:
-    using ov::pass::MatcherPass::register_matcher;
+    void py_register_matcher(const std::shared_ptr<ov::pass::pattern::Matcher>& matcher,
+                             const ov::matcher_pass_callback& callback) {
+        register_matcher(matcher, callback);
+    }
 };
 
-void regclass_MatcherPass(py::module m) {
-    py::class_<ov::pass::MatcherPass, std::shared_ptr<ov::pass::MatcherPass>, ov::pass::PassBase> matcher_pass(
-        m,
-        "MatcherPass");
+void regclass_passes_MatcherPass(py::module m) {
+    py::class_<ov::pass::MatcherPass, std::shared_ptr<ov::pass::MatcherPass>, ov::pass::PassBase, PyMatcherPass>
+        matcher_pass(m, "MatcherPass");
     matcher_pass.doc() = "openvino.runtime.passes.MatcherPass wraps ov::pass::MatcherPass";
     matcher_pass.def(py::init<>());
     matcher_pass.def(
@@ -184,7 +186,7 @@ void regclass_MatcherPass(py::module m) {
     matcher_pass.def("register_matcher",
                      static_cast<void (ov::pass::MatcherPass::*)(const std::shared_ptr<ov::pass::pattern::Matcher>&,
                                                                  const ov::graph_rewrite_callback& callback)>(
-                         &PyMatcherPass::register_matcher),
+                         &PyMatcherPass::py_register_matcher),
                      py::arg("matcher"),
                      py::arg("callback"),
                      R"(
