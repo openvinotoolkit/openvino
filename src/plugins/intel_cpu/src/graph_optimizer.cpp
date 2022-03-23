@@ -1120,7 +1120,12 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
             continue;
 
         auto parent1 = graphNode->getParentEdgesAtPort(0)[0]->getParent();
+        if (parent1->getType() == Type::Eltwise && parent1->getAlgorithm() == Algorithm::EltwiseAdd)
+            continue;
+
         auto parent2 = graphNode->getParentEdgesAtPort(1)[0]->getParent();
+        if (parent2->getType() == Type::Eltwise && parent2->getAlgorithm() == Algorithm::EltwiseAdd)
+            continue;
 
         bool isSuitableParent1 = parent1->getType() == Type::Convolution
                                     || parent1->getType() == Type::BinaryConvolution;
