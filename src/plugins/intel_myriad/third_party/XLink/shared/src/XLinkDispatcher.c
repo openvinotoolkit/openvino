@@ -657,7 +657,7 @@ static void* eventReader(void* ctx)
 
     mvLog(MVLOG_INFO,"eventReader thread started");
 
-    while (1) {
+    while (!curr->resetXLink) {
         int sc = glControlFunc->eventReceive(&event);
 
         mvLog(MVLOG_DEBUG,"Reading %s (scheduler %d, fd %p, event id %d, event stream_id %u, event size %u)\n",
@@ -1205,6 +1205,7 @@ static XLinkError_t sendEvents(xLinkSchedulerState_t* curr) {
 #ifndef __PC__
                 // Stop scheduler thread after XLINK_RESET_RESP was successfully sent to host
                 if (toSend->header.type == XLINK_RESET_RESP) {
+                    curr->resetXLink = 1;
                     mvLog(MVLOG_DEBUG, "Stop scheduler thread.");
                 }
 #endif
