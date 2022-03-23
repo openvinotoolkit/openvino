@@ -48,19 +48,37 @@ Then device name can be passed to `ov::Core::compile_model()` method:
 
 @sphinxtab{Running on default device}
 
+@sphinxtab{C++}
 @snippet docs/snippets/gpu/compile_model.cpp compile_model_default_gpu
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/compile_model.py compile_model_default_gpu
+@endsphinxtab
 
 @endsphinxtab
 
 @sphinxtab{Running on specific GPU}
 
+@sphinxtab{C++}
 @snippet docs/snippets/gpu/compile_model.cpp compile_model_gpu_with_id
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/compile_model.py compile_model_gpu_with_id
+@endsphinxtab
 
 @endsphinxtab
 
 @sphinxtab{Running on specific tile}
 
+@sphinxtab{C++}
 @snippet docs/snippets/gpu/compile_model.cpp compile_model_gpu_with_id_and_tile
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/compile_model.py compile_model_gpu_with_id_and_tile
+@endsphinxtab
 
 @endsphinxtab
 
@@ -93,7 +111,21 @@ Floating-point precision of a GPU primitive is selected based on operation preci
 If a machine has multiple GPUs (for example integrated GPU and discrete Intel GPU), then any supported model can be executed on all GPUs simultaneously.
 This can be achieved by specifying `"MULTI:GPU.1,GPU.0"` as a target device.
 
-@snippet snippets/gpu/compile_model.cpp compile_model_multi
+@sphinxdirective
+
+.. tab:: C++
+
+    .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
+       :language: cpp
+       :fragment: [compile_model_multi]
+
+.. tab:: Python
+
+    .. doxygensnippet:: docs/snippets/gpu/compile_model.py
+       :language: python
+       :fragment: [compile_model_multi]
+
+@endsphinxdirective
 
 See [Multi-device execution page](../multi_device.md) for more details.
 
@@ -106,13 +138,25 @@ Alternatively it can be enabled explicitly via the device notion, e.g. `"BATCH:G
 
 @sphinxtab{Batching via BATCH plugin}
 
+@sphinxtab{C++}
 @snippet docs/snippets/gpu/compile_model.cpp compile_model_batch_plugin
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/compile_model.py compile_model_batch_plugin
+@endsphinxtab
 
 @endsphinxtab
 
 @sphinxtab{Bacthing via throughput hint}
 
+@sphinxtab{C++}
 @snippet docs/snippets/gpu/compile_model.cpp compile_model_auto_batch
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/compile_model.py compile_model_auto_batch
+@endsphinxtab
 
 @endsphinxtab
 
@@ -141,7 +185,21 @@ For example, batch size 33 may be executed via 2 internal networks with batch si
 
 The code snippet below demonstrates how to use dynamic batch in simple scenarios:
 
-@snippet snippets/gpu/dynamic_batch.cpp dynamic_batch
+@sphinxdirective
+
+.. tab:: C++
+
+    .. doxygensnippet:: docs/snippets/gpu/dynamic_batch.cpp
+       :language: cpp
+       :fragment: [dynamic_batch]
+
+.. tab:: Python
+
+    .. doxygensnippet:: docs/snippets/gpu/dynamic_batch.py
+       :language: python
+       :fragment: [dynamic_batch]
+
+@endsphinxdirective
 
 See [dynamic shapes guide](../ov_dynamic_shapes.md) for more details.
 
