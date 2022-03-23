@@ -49,12 +49,16 @@ void kernel_runner::prepare_kernel_args(const kernel_selector::KernelsData& kern
     }
     // Prepare output buffer
     if (output_buffers.empty()) {
-        int num_of_output_elements = static_cast<int>(base_params.output.PhysicalSize());
-        output_buffers.push_back(_engine.allocate_memory(
-            {from_data_type(base_params.output.GetDType()), format::bfyx, tensor(1, 1, num_of_output_elements, 1)}));
+        for (auto i = 0; i < base_params.outputs.size(); ++i) {
+            int num_of_output_elements = static_cast<int>(base_params.outputs[i].PhysicalSize());
+            output_buffers.push_back(_engine.allocate_memory({from_data_type(base_params.outputs[0].GetDType()),
+                                                             format::bfyx, tensor(1, 1, num_of_output_elements, 1)}));
+        }
+    }
+    for (const auto& output : output_buffers) {
+        args.outputs.push_back(output);
     }
 
-    args.output = output_buffers[0];
 
     if (weights_and_bias_exist) {
         // Prepare weight buffer

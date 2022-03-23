@@ -18,7 +18,7 @@
 namespace ov {
 namespace intel_cpu {
 
-class MKLDNNNode;
+class Node;
 typedef size_t PerfKey;
 
 class PerfCount {
@@ -101,18 +101,18 @@ private:
         _total.num++;
         _isItrStarted = false;
     }
-    void finish_itr(const PerfKey itrKey, const std::shared_ptr<MKLDNNNode>& node);
+    void finish_itr(const PerfKey itrKey, const std::shared_ptr<Node>& node);
 
     friend class PerfHelper;
     friend class PerfHelperStage;
 };
 
 class PerfHelper {
-    const std::shared_ptr<MKLDNNNode>& _node;
+    const std::shared_ptr<Node>& _node;
     const PerfKey _itrKey;
 
 public:
-    explicit PerfHelper(const std::shared_ptr<MKLDNNNode>& node, const PerfKey itrKey);
+    explicit PerfHelper(const std::shared_ptr<Node>& node, const PerfKey itrKey);
     ~PerfHelper();
 };
 
@@ -126,10 +126,10 @@ public:
     ~PerfHelperStage() { _count.finish_stage(_cntrIdx); }
 };
 
-class MKLDNNGraph;
-PerfKey perfGetKey(MKLDNNGraph& graph);
-class MKLDNNExecNetwork;
-void perfDump(const MKLDNNExecNetwork& execNet);
+class Graph;
+PerfKey perfGetKey(Graph& graph);
+class ExecNetwork;
+void perfDump(const ExecNetwork& execNet);
 
 }   // namespace intel_cpu
 }   // namespace ov

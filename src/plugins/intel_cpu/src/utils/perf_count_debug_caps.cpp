@@ -17,9 +17,9 @@ static double perfAvg(const double sum, const uint64_t num);
 static double perfPercent(const uint64_t val, const uint64_t total);
 static double perfDeviationPercent(const std::vector<double>& values, const double sum);
 static void perfShapeToStr(const VectorDims& shape, std::string& str);
-static void perfDumpNodes(const std::string& path, const std::vector<MKLDNNNodePtr>& nodes, const std::vector<std::string>& modelInputShapes);
+static void perfDumpNodes(const std::string& path, const std::vector<NodePtr>& nodes, const std::vector<std::string>& modelInputShapes);
 
-void PerfCount::finish_itr(const PerfKey itrKey, const std::shared_ptr<MKLDNNNode>& node) {
+void PerfCount::finish_itr(const PerfKey itrKey, const std::shared_ptr<Node>& node) {
     finish_itr();
 
     assert(itrKey <= _perfData.size());
@@ -46,7 +46,7 @@ void PerfCount::finish_itr(const PerfKey itrKey, const std::shared_ptr<MKLDNNNod
     perfData.nodeShapesSet.insert(std::make_pair(std::move(in), std::move(out)));
 }
 
-PerfHelper::PerfHelper(const std::shared_ptr<MKLDNNNode>& node, const PerfKey itrKey) :
+PerfHelper::PerfHelper(const std::shared_ptr<Node>& node, const PerfKey itrKey) :
         _node(node), _itrKey(itrKey) {
     _node->PerfCounter().start_itr();
 }
@@ -59,7 +59,7 @@ PerfHelper::~PerfHelper() {
     }
 }
 
-PerfKey perfGetKey(MKLDNNGraph& graph) {
+PerfKey perfGetKey(Graph& graph) {
     if (graph.config.perfTablesPath.empty() || !graph.config.collectPerfCounters)
         return std::numeric_limits<PerfKey>::max();
 
@@ -71,7 +71,7 @@ PerfKey perfGetKey(MKLDNNGraph& graph) {
     return graph.perfKeysMap.emplace(std::move(modelInputDims), graph.perfKeysMap.size()).first->second;
 }
 
-void perfDump(const MKLDNNExecNetwork& execNet) {
+void perfDump(const ExecNetwork& execNet) {
     auto& graphs = execNet._graphs;
     const auto graphsNum = graphs.size();
     auto& graph = graphs[0];
@@ -159,7 +159,7 @@ static void perfShapeToStr(const VectorDims& shape, std::string& str) {
     str.push_back('}');
 }
 
-static void perfDumpNodes(const std::string& path, const std::vector<MKLDNNNodePtr>& nodes,
+static void perfDumpNodes(const std::string& path, const std::vector<NodePtr>& nodes,
                    const std::vector<std::string>& modelInputShapes) {
     assert(modelInputShapes.size());
     const std::string pathPrefix(path + "perf_");

@@ -144,9 +144,15 @@ public:
 class pooling_f32_activation : public PoolingFusingTest {};
 TEST_P(pooling_f32_activation, basic) {
     auto p = GetParam();
+
+    auto r = get_input_layout(p).get_spatial_rank();
+    ov::Shape kernel(r, 3);
+    ov::Strides stride(r, 1);
+    ov::Shape pad(r, 1);
+
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        pooling("pooling", "input", p.pool_mode, tensor{ 1, 1, 3, 3 }, tensor{ 1 }, tensor{ { 0, 0, 1, 1, 0, 0 }, 0 }),
+        pooling("pooling", "input", p.pool_mode, kernel, stride, pad),
         activation("act", "pooling", activation_func::relu),
         reorder("output_reorder", "act", format::bfyx, data_types::f32)
     );
@@ -175,10 +181,16 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, pooling_f32_activation, ::testing::ValuesI
 class pooling_f32_scale : public PoolingFusingTest {};
 TEST_P(pooling_f32_scale, basic) {
     auto p = GetParam();
+
+    auto r = get_input_layout(p).get_spatial_rank();
+    ov::Shape kernel(r, 3);
+    ov::Strides stride(r, 1);
+    ov::Shape pad(r, 1);
+
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / tensor{ 1, 1, 3, 3 }.count())),
-        pooling("pooling", "input", p.pool_mode, tensor{ 1, 1, 3, 3 }, tensor{ 1 }, tensor{ { 0, 0, 1, 1, 0, 0 }, 0 }),
+        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / 9.0f)),
+        pooling("pooling", "input", p.pool_mode, kernel, stride, pad),
         scale("scale", "pooling", "scale_data"),
         reorder("output_reorder", "scale", format::bfyx, data_types::f32)
     );
@@ -189,10 +201,16 @@ TEST_P(pooling_f32_scale, basic) {
 
 TEST_P(pooling_f32_scale, fp16_scale_out) {
     auto p = GetParam();
+
+    auto r = get_input_layout(p).get_spatial_rank();
+    ov::Shape kernel(r, 3);
+    ov::Strides stride(r, 1);
+    ov::Shape pad(r, 1);
+
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / tensor{ 1, 1, 3, 3 }.count())),
-        pooling("pooling", "input", p.pool_mode, tensor{ 1, 1, 3, 3 }, tensor{ 1 }, tensor{ { 0, 0, 1, 1, 0, 0 }, 0 }),
+        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / 9.0f)),
+        pooling("pooling", "input", p.pool_mode, kernel, stride, pad),
         scale("scale", "pooling", "scale_data", optional_data_type{ data_types::f16 }),
         reorder("output_reorder", "scale", format::bfyx, data_types::f32)
     );
@@ -220,14 +238,19 @@ class pooling_scale_activation_quantize : public PoolingFusingTest {};
 TEST_P(pooling_scale_activation_quantize, basic) {
     auto p = GetParam();
 
+    auto r = get_input_layout(p).get_spatial_rank();
+    ov::Shape kernel(r, 4);
+    ov::Strides stride(r, 2);
+    ov::Shape pad(r, 0);
+
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("in_lo", get_mem(get_single_element_layout(p), min_random, 0)),
         data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), 0)),
         data("out_hi", get_mem(get_single_element_layout(p), 255)),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / tensor{ 1, 1, 4, 4 }.count())),
-        pooling("pooling", "input", "", p.pool_mode, tensor(1, 1, 4, 4), tensor(1, 1, 2, 2)),
+        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / 16.0f)),
+        pooling("pooling", "input", "", p.pool_mode, kernel, stride, pad),
         scale("scale", "pooling", "scale_data"),
         activation("activation", "scale", activation_func::relu),
         quantize("quantize", "activation", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::u8),
@@ -241,14 +264,19 @@ TEST_P(pooling_scale_activation_quantize, basic) {
 TEST_P(pooling_scale_activation_quantize, i8_output_data_type) {
     auto p = GetParam();
 
+    auto r = get_input_layout(p).get_spatial_rank();
+    ov::Shape kernel(r, 4);
+    ov::Strides stride(r, 2);
+    ov::Shape pad(r, 0);
+
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127, 127)),
         data("out_hi", get_mem(get_single_element_layout(p), -127, 127)),
-        data("scale_data",  get_mem(get_per_channel_layout(p), 1.0f / tensor{ 1, 1, 4, 4 }.count())),
-        pooling("pooling", "input", "", p.pool_mode, tensor(1, 1, 4, 4), tensor(1, 1, 2, 2)),
+        data("scale_data",  get_mem(get_per_channel_layout(p), 1.0f / 16.0f)),
+        pooling("pooling", "input", "", p.pool_mode, kernel, stride, pad),
         scale("scale", "pooling", "scale_data"),
         activation("activation", "scale", activation_func::relu),
         quantize("quantize", "activation", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
@@ -262,14 +290,19 @@ TEST_P(pooling_scale_activation_quantize, i8_output_data_type) {
 TEST_P(pooling_scale_activation_quantize, per_channel) {
     auto p = GetParam();
 
+    auto r = get_input_layout(p).get_spatial_rank();
+    ov::Shape kernel(r, 4);
+    ov::Strides stride(r, 2);
+    ov::Shape pad(r, 0);
+
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), 0)),
         data("out_hi", get_mem(get_single_element_layout(p), 255)),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / tensor{ 1, 1, 4, 4 }.count())),
-        pooling("pooling", "input", "", p.pool_mode, tensor(1, 1, 4, 4), tensor(1, 1, 2, 2)),
+        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / 16.0f)),
+        pooling("pooling", "input", "", p.pool_mode, kernel, stride, pad),
         scale("scale", "pooling", "scale_data"),
         activation("activation", "scale", activation_func::atan),
         quantize("quantize", "activation", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::u8),
@@ -326,10 +359,15 @@ class pooling_scale_activation : public PoolingFusingTest {};
 TEST_P(pooling_scale_activation, basic) {
     auto p = GetParam();
 
+    auto r = get_input_layout(p).get_spatial_rank();
+    ov::Shape kernel(r, 4);
+    ov::Strides stride(r, 2);
+    ov::Shape pad(r, 0);
+
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / tensor{ 1, 1, 4, 4 }.count())),
-        pooling("pooling", "input", "", p.pool_mode, tensor(1, 1, 4, 4), tensor(1, 1, 2, 2)),
+        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / 16.0f)),
+        pooling("pooling", "input", "", p.pool_mode, kernel, stride, pad),
         scale("scale", "pooling", "scale_data"),
         activation("activation", "scale", activation_func::relu),
         reorder("output_reorder", "activation", p.default_format, data_types::f32)
@@ -342,10 +380,15 @@ TEST_P(pooling_scale_activation, basic) {
 TEST_P(pooling_scale_activation, eltwise_mul) {
     auto p = GetParam();
 
+    auto r = get_input_layout(p).get_spatial_rank();
+    ov::Shape kernel(r, 4);
+    ov::Strides stride(r, 2);
+    ov::Shape pad(r, 0);
+
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("scale_data", get_mem(get_per_channel_layout(p))),
-        pooling("pooling", "input", "", p.pool_mode, tensor(1, 1, 4, 4), tensor(1, 1, 2, 2)),
+        pooling("pooling", "input", "", p.pool_mode, kernel, stride, pad),
         eltwise("scale", { "pooling", "scale_data" }, eltwise_mode::prod, p.default_type),
         activation("activation", "scale", activation_func::relu),
         reorder("output_reorder", "activation", p.default_format, data_types::f32)
@@ -530,9 +573,15 @@ public:
 class pooling_onednn_activation1 : public PoolingOneDNNFusingTest {};
 TEST_P(pooling_onednn_activation1, basic) {
     auto p = GetParam();
+
+    auto r = get_input_layout(p).get_spatial_rank();
+    ov::Shape kernel(r, 3);
+    ov::Strides stride(r, 1);
+    ov::Shape pad(r, 1);
+
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        pooling("pooling", "input", p.pool_mode, tensor{ 1, 1, 3, 3 }, tensor{ 1 }, tensor{ { 0, 0, 1, 1, 0, 0 }, 0 }),
+        pooling("pooling", "input", p.pool_mode, kernel, stride, pad),
         activation("act", "pooling", activation_func::relu),
         reorder("output_reorder", "act", format::bfyx, data_types::f32)
     );
@@ -544,6 +593,12 @@ TEST_P(pooling_onednn_activation1, basic) {
 class pooling_onednn_activation2 : public PoolingOneDNNFusingTest {};
 TEST_P(pooling_onednn_activation2, basic) {
     auto p = GetParam();
+
+    auto r = get_input_layout(p).get_spatial_rank();
+    ov::Shape kernel(r, 3);
+    ov::Strides stride(r, 1);
+    ov::Shape pad(r, 1);
+
     create_topologies(
         input_layout("input", get_input_layout(p)),
         pooling("pooling", "input", p.pool_mode, { 1, 1, 3, 3 }, { 1, 1, 1, 1 }),

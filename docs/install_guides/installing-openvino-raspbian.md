@@ -21,7 +21,7 @@
   * Intel® Neural Compute Stick 2, which as one of the Intel® Movidius™ Visual Processing Units (VPUs)
 
   .. note::
-    The current version of the Intel® Distribution of OpenVINO™ toolkit for macOS supports inference on Intel CPUs and Intel® Neural Compute Stick 2 devices only.
+    The current version of the Intel® Distribution of OpenVINO™ toolkit for Raspbian OS supports inference on Intel CPUs and Intel® Neural Compute Stick 2 devices only.
 
 .. tab:: Software Requirements
 
@@ -59,7 +59,7 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
 
 Now the OpenVINO™ toolkit components are installed. Additional configuration steps are still required. Continue to the next sections to install External Software Dependencies, configure the environment and set up USB rules.
 
-## <a name="install-dependencies"></a>Step 2: Install External Software Dependencies
+## <a name="install-external-dependencies"></a>Step 2: Install External Software Dependencies
 
 CMake version 3.7.2 or higher is required for building the OpenVINO™ toolkit sample application. To install, open a Terminal window and run the following command:
 ```sh
@@ -68,7 +68,7 @@ sudo apt install cmake
 
 CMake is installed. Continue to the next section to set the environment variables.
 
-## <a name="set-environment-variables"></a>Step 3: Set the Environment Variables
+## <a name="set-the-environment-variables"></a>Step 3: Set the Environment Variables
 
 You must update several environment variables before you can compile and run OpenVINO™ toolkit applications. Run the following script to temporarily set the environment variables:
 ```sh
@@ -91,10 +91,8 @@ Only if you want to perform inference on Intel® Neural Compute Stick 2, follow 
 
 ## <a name="workflow-for-raspberry-pi"></a>Step 5 (Optional): Workflow for Raspberry Pi
 
-If you want to use your model for inference, the model must be converted to the .bin and .xml Intermediate Representation (IR) files that are used as input by OpenVINO™ Runtime. OpenVINO™ toolkit support on Raspberry Pi only includes the OpenVINO™ Runtime module of the Intel® Distribution of OpenVINO™ toolkit. The Model Optimizer is available on [pypi.org](https://pypi.org/project/openvino-dev/). To get the optimized models you can use one of the following options:
+If you want to use your model for inference, the model must be converted to the .bin and .xml Intermediate Representation (IR) files that are used as input by OpenVINO Runtime. The installation on Raspberry Pi only includes OpenVINO Runtime. Model Optimizer is available on [pypi.org](https://pypi.org/project/openvino-dev/). To get the optimized models, you can use one of the following options:
 
-* Download public and Intel's pre-trained models from the [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) using [Model Downloader tool](@ref omz_tools_downloader).
+* Download public and Intel's pre-trained models from the [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) using [Model Downloader tool](@ref omz_tools_downloader). For more information on pre-trained models, see [Pre-Trained Models Documentation](@ref omz_models_group_intel)
 
-   For more information on pre-trained models, see [Pre-Trained Models Documentation](@ref omz_models_group_intel)
-
-* Convert the model using the Model Optimizer.
+* Convert the models using the Model Optimizer.

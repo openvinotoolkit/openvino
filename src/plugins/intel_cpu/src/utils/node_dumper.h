@@ -10,16 +10,16 @@
 namespace ov {
 namespace intel_cpu {
 
-void dumpInputBlobs(const MKLDNNNodePtr &node, const Config& config, int count = -1);
-void dumpOutputBlobs(const MKLDNNNodePtr &node, const Config& config, int count = -1);
+void dumpInputBlobs(const NodePtr &node, const Config& config, int count = -1);
+void dumpOutputBlobs(const NodePtr &node, const Config& config, int count = -1);
 
 class DumpHelper {
-    const MKLDNNNodePtr& node;
+    const NodePtr& node;
     const int count;
     const Config& config;
 
 public:
-    explicit DumpHelper(const MKLDNNNodePtr& _node, const Config& _config, const uint8_t nestingLevel, int _count = -1)
+    explicit DumpHelper(const NodePtr& _node, const Config& _config, const uint8_t nestingLevel, int _count = -1)
         : node(_node), config(_config), count(nestingLevel > 1 ? _count : -1) {
         // -1 is used to omit count for main CPU plugin execution graph
         dumpInputBlobs(node, config, count);

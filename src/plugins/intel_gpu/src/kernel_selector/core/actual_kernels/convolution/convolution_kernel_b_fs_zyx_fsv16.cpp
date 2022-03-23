@@ -94,7 +94,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_zyx_fsv16::SetDefault
                                                                            int autoTuneIndex) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params, autoTuneIndex);
 
-    const auto& out = params.output;
+    const auto& out = params.outputs[0];
     const auto& input = params.inputs[0];
 
     auto x = out.X().v;
@@ -185,18 +185,18 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_zyx_fsv16::SetDefault
 KernelsPriority ConvolutionKernel_b_fs_zyx_fsv16::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     const auto& p = static_cast<const convolution_params&>(params);
 
-    return p.output.Batch().v == 1 ? FORCE_PRIORITY_2 : FORCE_PRIORITY_7;
+    return p.outputs[0].Batch().v == 1 ? FORCE_PRIORITY_2 : FORCE_PRIORITY_7;
 }
 
 bool ConvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p, const optional_params& o) const {
-    if (!ConvolutionKernelBase::Validate(p, o) || !CovolutionCheckInput(p, o)) {
+    if (!ConvolutionKernelBase::Validate(p, o) || !ConvolutionCheckInput(p, o)) {
         return false;
     }
 
     const auto& params = static_cast<const convolution_params&>(p);
 
     const auto& input = params.inputs[0];
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
 
     if (output.GetDType() != use_data_type)
         return false;
@@ -223,7 +223,7 @@ bool ConvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p, const optional_
 JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution_params& params,
                                                                const DispatchData& dispatchData) const {
     auto input = params.inputs[0];
-    auto output = params.output;
+    auto output = params.outputs[0];
     auto jit = Parent::GetJitConstants(params, dispatchData);
 
     const bool is_1stconv = input.Feature().v == 3 && input.GetLayout() == DataLayout::bfzyx;
@@ -357,20 +357,20 @@ JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution
 
     if (is_1stconv || params.groups > 1) {
         jit.AddConstant(MakeJitConstant("IC_FULL", params.inputs[0].Feature().LogicalDimPadded()));
-        jit.AddConstant(MakeJitConstant("OC_FULL", params.output.Feature().LogicalDimPadded()));
+        jit.AddConstant(MakeJitConstant("OC_FULL", params.outputs[0].Feature().LogicalDimPadded()));
     } else {
         jit.AddConstant(MakeJitConstant("IC_FULL", Align(params.inputs[0].Feature().LogicalDimPadded(), 16)));
-        jit.AddConstant(MakeJitConstant("OC_FULL", Align(params.output.Feature().LogicalDimPadded(), 16)));
+        jit.AddConstant(MakeJitConstant("OC_FULL", Align(params.outputs[0].Feature().LogicalDimPadded(), 16)));
     }
 
     jit.AddConstant(MakeJitConstant("ID_FULL", params.inputs[0].Z().LogicalDimPadded()));
     jit.AddConstant(MakeJitConstant("IH_FULL", params.inputs[0].Y().LogicalDimPadded()));
     jit.AddConstant(MakeJitConstant("IW_FULL", params.inputs[0].X().LogicalDimPadded()));
-    jit.AddConstant(MakeJitConstant("OD_FULL", params.output.Z().LogicalDimPadded()));
-    jit.AddConstant(MakeJitConstant("OH_FULL", params.output.Y().LogicalDimPadded()));
-    jit.AddConstant(MakeJitConstant("OW_FULL", params.output.X().LogicalDimPadded()));
+    jit.AddConstant(MakeJitConstant("OD_FULL", params.outputs[0].Z().LogicalDimPadded()));
+    jit.AddConstant(MakeJitConstant("OH_FULL", params.outputs[0].Y().LogicalDimPadded()));
+    jit.AddConstant(MakeJitConstant("OW_FULL", params.outputs[0].X().LogicalDimPadded()));
 
-    if (params.output.Feature().v % feature_block_size != 0) {
+    if (params.outputs[0].Feature().v % feature_block_size != 0) {
         jit.AddConstant(MakeJitConstant("OUTPUT_LEFTOVERS", 1));
         jit.AddConstant(MakeJitConstant("OC_NOTALLIGNED", output.Feature().v));
     }

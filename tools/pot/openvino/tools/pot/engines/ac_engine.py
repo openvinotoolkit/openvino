@@ -248,7 +248,7 @@ class ACEngine(Engine):
         if not stats_layout:
             return
         dataset_index = kwargs['dataset_indices'][0]
-        append_stats(self._accumulated_layer_stats, stats_layout, value, dataset_index, self.inference_for_shape)
+        append_stats(self._accumulated_layer_stats, stats_layout, value, dataset_index)
 
     @staticmethod
     def _set_requests_number(params, requests_number):

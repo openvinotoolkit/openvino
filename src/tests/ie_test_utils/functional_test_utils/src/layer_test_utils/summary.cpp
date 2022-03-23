@@ -70,20 +70,27 @@ void Summary::updateOPsStats(const ngraph::NodeTypeInfo &op, const PassRate::Sta
             case PassRate::CRASHED:
                 passrate.crashed++;
                 break;
+            case PassRate::HANGED:
+                passrate.hanged++;
+                passrate.crashed--;
+                break;
         }
     } else {
         switch (status) {
             case PassRate::PASSED:
-                opsStats[op] = PassRate(1, 0, 0, 0);
+                opsStats[op] = PassRate(1, 0, 0, 0, 0);
                 break;
             case PassRate::FAILED:
-                opsStats[op] = PassRate(0, 1, 0, 0);
+                opsStats[op] = PassRate(0, 1, 0, 0, 0);
                 break;
             case PassRate::SKIPPED:
-                opsStats[op] = PassRate(0, 0, 1, 0);
+                opsStats[op] = PassRate(0, 0, 1, 0, 0);
                 break;
             case PassRate::CRASHED:
-                opsStats[op] = PassRate(0, 0, 0, 1);
+                opsStats[op] = PassRate(0, 0, 0, 1, 0);
+                break;
+            case PassRate::HANGED:
+                opsStats[op] = PassRate(0, 0, 0, 0, 1);
                 break;
         }
     }
@@ -96,7 +103,7 @@ void Summary::updateOPsImplStatus(const ngraph::NodeTypeInfo &op, const bool imp
             it->second.isImplemented = true;
         }
     } else {
-        opsStats[op] = PassRate(0, 0, 0, 0);
+        opsStats[op] = PassRate(0, 0, 0, 0, 0);
         opsStats[op].isImplemented = implStatus;
     }
 }
@@ -129,7 +136,8 @@ std::map<std::string, PassRate> Summary::getOpStatisticFromReport() {
         auto f = std::stoi(child.attribute("failed").value());
         auto s = std::stoi(child.attribute("skipped").value());
         auto c = std::stoi(child.attribute("crashed").value());
-        PassRate obj(p, f, s, c);
+        auto h = std::stoi(child.attribute("hanged").value());
+        PassRate obj(p, f, s, c, h);
         oldOpsStat.insert({entry, obj});
     }
     return oldOpsStat;
@@ -217,11 +225,11 @@ void Summary::updateOPsImplStatus(const std::shared_ptr<ngraph::Function> &funct
 
 #ifdef IE_TEST_DEBUG
 void Summary::saveDebugReport(const char* className, const char* opName, unsigned long passed, unsigned long failed,
-                             unsigned long skipped, unsigned long crashed) {
+                              unsigned long skipped, unsigned long crashed, unsigned long hanged) {
     std::string outputFilePath = "./part_report.txt";
     std::ofstream file;
     file.open(outputFilePath, std::ios_base::app);
-    file << className << ' ' << opName << ' ' << passed << ' ' << failed << ' ' << skipped << ' ' << crashed << '\n';
+    file << className << ' ' << opName << ' ' << passed << ' ' << failed << ' ' << skipped << ' ' << crashed << ' ' << hanged << '\n';
     file.close();
 }
 #endif  //IE_TEST_DEBUG
@@ -302,6 +310,7 @@ void Summary::saveReport() {
         entry.append_attribute("failed").set_value(it.second.failed);
         entry.append_attribute("skipped").set_value(it.second.skipped);
         entry.append_attribute("crashed").set_value(it.second.crashed);
+        entry.append_attribute("hanged").set_value(it.second.hanged);
         entry.append_attribute("passrate").set_value(it.second.getPassrate());
     }
 
@@ -316,6 +325,7 @@ void Summary::saveReport() {
                 entry.append_attribute("failed").set_value(item.second.failed);
                 entry.append_attribute("skipped").set_value(item.second.skipped);
                 entry.append_attribute("crashed").set_value(item.second.crashed);
+                entry.append_attribute("hanged").set_value(item.second.hanged);
                 entry.append_attribute("passrate").set_value(item.second.getPassrate());
             } else {
                 entry = currentDeviceNode.child(item.first.c_str());
@@ -324,7 +334,8 @@ void Summary::saveReport() {
                 auto f = std::stoi(entry.attribute("failed").value()) + item.second.failed;
                 auto s = std::stoi(entry.attribute("skipped").value()) + item.second.skipped;
                 auto c = std::stoi(entry.attribute("crashed").value()) + item.second.crashed;
-                PassRate obj(p, f, s, c);
+                auto h = std::stoi(entry.attribute("hanged").value()) + item.second.hanged;
+                PassRate obj(p, f, s, c, h);
 
                 (implStatus || obj.isImplemented)
                     ? entry.attribute("implemented").set_value(true)
@@ -333,6 +344,7 @@ void Summary::saveReport() {
                 entry.attribute("failed").set_value(obj.failed);
                 entry.attribute("skipped").set_value(obj.skipped);
                 entry.attribute("crashed").set_value(obj.crashed);
+                entry.attribute("hanged").set_value(obj.hanged);
                 entry.attribute("passrate").set_value(obj.getPassrate());
             }
         }

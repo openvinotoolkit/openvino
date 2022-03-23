@@ -202,7 +202,7 @@ class IEEngine(Engine):
         :param annotations: list of annotations [(img_id, annotation)]
         """
         dataset_index = annotations[0][0] if annotations is not None and annotations[0][0] else 0
-        append_stats(self._accumulated_layer_stats, stats_layout, outputs, dataset_index, self.inference_for_shape)
+        append_stats(self._accumulated_layer_stats, stats_layout, outputs, dataset_index)
 
     def _update_metrics(self, output, annotations, need_metrics_per_sample=False):
         """ Updates metrics.
@@ -328,18 +328,11 @@ class IEEngine(Engine):
                 start_time = time()
 
         progress_log_fn = logger.info if print_progress else logger.debug
-        try:
-            self._ie.set_property(self._device,
-                                  {'CPU_THROUGHPUT_STREAMS': 'CPU_THROUGHPUT_AUTO', 'CPU_BIND_THREAD': 'YES'})
-        except AttributeError:
-            self._ie.set_config({'CPU_THROUGHPUT_STREAMS': 'CPU_THROUGHPUT_AUTO', 'CPU_BIND_THREAD': 'YES'},
-                                self._device)
+        self._ie.set_property(self._device,
+                              {'CPU_THROUGHPUT_STREAMS': 'CPU_THROUGHPUT_AUTO', 'CPU_BIND_THREAD': 'YES'})
         # Load model to the plugin
         compiled_model = self._ie.compile_model(model=self._model, device_name=self._device)
-        try:
-            optimal_requests_num = compiled_model.get_property('OPTIMAL_NUMBER_OF_INFER_REQUESTS')
-        except AttributeError:
-            optimal_requests_num = compiled_model.get_metric('OPTIMAL_NUMBER_OF_INFER_REQUESTS')
+        optimal_requests_num = compiled_model.get_property('OPTIMAL_NUMBER_OF_INFER_REQUESTS')
         requests_num = optimal_requests_num if requests_num == 0 else requests_num
         logger.debug('Async mode requests number: %d', requests_num)
         infer_queue = AsyncInferQueue(compiled_model, requests_num)
