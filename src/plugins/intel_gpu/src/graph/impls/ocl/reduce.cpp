@@ -59,12 +59,17 @@ struct reduce_impl : typed_primitive_impl_ocl<reduce> {
 
 public:
     static primitive_impl* create(const reduce_node& arg) {
-        auto reduce_params = get_default_params<kernel_selector::reduce_params>(arg);
+        const auto& prim = arg.get_primitive();
+        const auto& param_info = kernel_impl_params(arg.get_program(), prim, arg.get_unique_id(),
+                                                    arg.get_input_layouts(), arg.get_output_layout(),
+                                                    arg.get_fused_primitives(),
+                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params());
+        auto reduce_params = get_default_params<kernel_selector::reduce_params>(param_info);
         auto reduce_optional_params = get_default_optional_params<kernel_selector::reduce_optional_params>(arg.get_program());
 
-        reduce_params.reduceAxes = arg.get_primitive()->axes;
-        reduce_params.keepDims = arg.get_primitive()->keep_dims;
-        reduce_params.reduceMode = cldnn_2_reduce_mode(arg.get_primitive()->mode);
+        reduce_params.reduceAxes = prim->axes;
+        reduce_params.keepDims = prim->keep_dims;
+        reduce_params.reduceMode = cldnn_2_reduce_mode(prim->mode);
 
         auto& kernel_selector = kernel_selector::reduce_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(reduce_params, reduce_optional_params);

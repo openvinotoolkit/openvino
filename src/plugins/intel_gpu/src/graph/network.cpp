@@ -538,7 +538,7 @@ void network::allocate_primitives() {
         if (node->get_preferred_impl_type() == impl_types::onednn) {
             size_t eltw_dep = 0;
             for (auto& fused_op : node->get_fused_primitives()) {
-                if (fused_op.node->is_type<eltwise>() && fused_op.deps.size() == 1) {
+                if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1) {
                     // If it is first sum, reuse the buffer
                     auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(*node, fused_op);
                     if (fusing_type != add_fusing_type::sum || eltw_dep != 0)

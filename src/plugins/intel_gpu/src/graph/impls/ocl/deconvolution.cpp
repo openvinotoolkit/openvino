@@ -54,7 +54,6 @@ public:
     static primitive_impl* create(const deconvolution_node& arg) {
         const auto& primitive = arg.get_primitive();
         const auto& weights_layout = arg.weights(0).get_output_layout().convert_to_weights_layout(primitive->grouped_weights_shape);
-
         const auto& split = primitive->split();
         const auto& stride = primitive->stride;
 #if 0  // TODO: support dilation
@@ -67,8 +66,14 @@ public:
         const auto& pad = primitive->pad;
         const auto& groups = primitive->groups;
 
+        const auto& bias_layout = arg.bias_term() ?  arg.bias().get_output_layout() : layout(data_types::f32, format::any, tensor());
+        const auto& param_info = kernel_impl_params(arg.get_program(), primitive, arg.get_unique_id(),
+                                                    arg.get_input_layouts(), arg.get_output_layout(),
+                                                    arg.get_fused_primitives(),
+                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params(),
+                                                    weights_layout, arg.bias_term(), bias_layout);
         auto deconv_params = get_weights_bias_default_params<kernel_selector::deconvolution_params>(
-            arg,
+            param_info,
             (groups > 1) ? 1 : actual_split,
             1,
             primitive->grouped_weights_shape);

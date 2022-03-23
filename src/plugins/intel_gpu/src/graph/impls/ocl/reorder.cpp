@@ -42,10 +42,13 @@ protected:
 
 public:
     static primitive_impl* create(const reorder_node& arg) {
-        auto&& input_layout = arg.input().get_output_layout();
+        const auto& prim = arg.get_primitive();
         auto&& output_layout = arg.get_output_layout();
-
-        auto reorder_params = get_default_params<kernel_selector::reorder_params>(arg);
+        const auto& param_info = kernel_impl_params(arg.get_program(), prim, arg.get_unique_id(),
+                                                    arg.get_input_layouts(), arg.get_output_layout(),
+                                                    arg.get_fused_primitives(),
+                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params());
+        auto reorder_params = get_default_params<kernel_selector::reorder_params>(param_info);
         auto reorder_optional_params =
             get_default_optional_params<kernel_selector::reorder_optional_params>(arg.get_program());
 
@@ -57,7 +60,7 @@ public:
         }
 
         if (arg.has_mean()) {
-            if (input_layout.format == cldnn::format::nv12) {
+            if (param_info.input_layouts[0].format == cldnn::format::nv12) {
                 const auto& mean_layout = arg.mean_nv12().get_output_layout();
                 reorder_params.mean = convert_data_tensor(mean_layout);
                 reorder_params.mode = kernel_selector::mean_subtruct_mode::IN_BUFFER;
@@ -66,15 +69,15 @@ public:
                 reorder_params.mean = convert_data_tensor(mean_layout);
                 reorder_params.mode = kernel_selector::mean_subtruct_mode::IN_BUFFER;
             }
-        } else if (arg.get_primitive()->subtract_per_feature.empty() == false) {
+        } else if (prim->subtract_per_feature.empty() == false) {
             reorder_params.mode = kernel_selector::mean_subtruct_mode::INSIDE_PARAMS;
-            reorder_params.meanValues = arg.get_primitive()->subtract_per_feature;
+            reorder_params.meanValues = prim->subtract_per_feature;
         } else {
             reorder_params.mode = kernel_selector::mean_subtruct_mode::NONE;
         }
 
         if (reorder_params.mode != kernel_selector::mean_subtruct_mode::NONE) {
-            switch (arg.get_primitive()->mean_mode) {
+            switch (prim->mean_mode) {
                 case reorder_mean_mode::none:
                     reorder_params.mean_op = kernel_selector::mean_op::NONE;
                     break;
@@ -98,7 +101,7 @@ public:
             reorder_params.winograd_nr_tiles_x = ceil_div(output_layout.spatial(0), 4);
         }
 
-        reorder_params.winograd = input_layout.format.is_winograd() || output_layout.format.is_winograd();
+        reorder_params.winograd = param_info.input_layouts[0].format.is_winograd() || output_layout.format.is_winograd();
 
         auto& kernel_selector = kernel_selector::reorder_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(reorder_params, reorder_optional_params);

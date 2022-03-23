@@ -79,12 +79,14 @@ protected:
 public:
     static primitive_impl* create(const pooling_node& arg) {
         validate_args(arg);
-
-        auto pool_params = get_default_params<kernel_selector::pooling_params>(arg);
+        const auto primitive = arg.get_primitive();
+        const auto& param_info = kernel_impl_params(arg.get_program(), primitive, arg.get_unique_id(),
+                                                    arg.get_input_layouts(), arg.get_output_layout(),
+                                                    arg.get_fused_primitives(),
+                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params());
+        auto pool_params = get_default_params<kernel_selector::pooling_params>(param_info);
         auto pool_optional_params =
             get_default_optional_params<kernel_selector::pooling_optional_params>(arg.get_program());
-
-        const auto primitive = arg.get_primitive();
 
         pool_params.maxPoolOpset8Features = primitive->maxPoolOpset8Features;
         if (pool_params.maxPoolOpset8Features) {

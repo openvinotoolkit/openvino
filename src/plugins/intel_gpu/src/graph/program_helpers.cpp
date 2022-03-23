@@ -193,20 +193,23 @@ bool onednn_add_fusing_helpers::is_full_tensor(const layout& l) {
 
 void onednn_add_fusing_helpers::for_eltwise(
     const program_node& node, eltwise_mode mode,
-    std::function<void(const program_node& p_node, const eltwise_node& e_node,
+    std::function<void(const program_node& p_node,
                     const fused_primitive_desc& desc)> func) {
     for (auto& fo : node.get_fused_primitives()) {
-        if (fo.node->is_type<eltwise>() && fo.node->as<eltwise>().get_primitive()->mode == mode) {
-            func(node, fo.node->as<eltwise>(), fo);
+        if (fo.is_type<eltwise>() && fo.typed_desc<eltwise>()->mode == mode) {
+            func(node, fo);
         }
     }
 }
 
 add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
     const program_node& p_node, const fused_primitive_desc& desc) {
-    if (!desc.node->is_type<eltwise>() || desc.node->as<eltwise>().get_primitive()->mode != eltwise_mode::sum) {
+    if (!desc.is_type<eltwise>()) {
         return add_fusing_type::not_supported;
     }
+     if (desc.typed_desc<eltwise>()->mode != eltwise_mode::sum) {
+         return add_fusing_type::not_supported;
+     }
 
     auto& dep_node = p_node.get_dependency(desc.dep_start_idx);
     auto p_layout = p_node.get_output_layout();

@@ -36,7 +36,6 @@ protected:
 public:
     static primitive_impl* create(const arg_max_min_node& arg) {
         const auto& primitive = arg.get_primitive();
-
         const auto& axis = primitive->axis;
         const auto& top_k = primitive->top_k;
         const auto& out_type = primitive->output_type;
@@ -45,7 +44,12 @@ public:
         const auto& values_first = primitive->values_first;
         const auto& outputs_num = primitive->input.size() == 3 ? 2 : 1;  // second output passed as input for TOP_K layer
 
-        auto argm_params = get_default_params<kernel_selector::arg_max_min_params>(arg);
+        const auto& param_info = kernel_impl_params(arg.get_program(), primitive, arg.get_unique_id(),
+                                                    arg.get_input_layouts(), arg.get_output_layout(),
+                                                    arg.get_fused_primitives(),
+                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params());
+
+        auto argm_params = get_default_params<kernel_selector::arg_max_min_params>(param_info);
         auto argm_optional_params =
             get_default_optional_params<kernel_selector::arg_max_min_optional_params>(arg.get_program());
 

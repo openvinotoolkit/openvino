@@ -25,11 +25,17 @@ struct embedding_bag_impl : typed_primitive_impl_ocl<embedding_bag> {
 
 public:
     static primitive_impl* create(const embedding_bag_node& arg) {
-        auto embedding_bag_params = get_default_params<kernel_selector::embedding_bag_params>(arg);
+        const auto& primitive = arg.get_primitive();
+        const auto& param_info = kernel_impl_params(arg.get_program(), primitive, arg.get_unique_id(),
+                                                    arg.get_input_layouts(), arg.get_output_layout(),
+                                                    arg.get_fused_primitives(),
+                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params());
+
+        auto embedding_bag_params = get_default_params<kernel_selector::embedding_bag_params>(param_info);
         auto embedding_bag_optional_params =
             get_default_optional_params<kernel_selector::embedding_bag_optional_params>(arg.get_program());
 
-        switch (arg.get_primitive()->type) {
+        switch (primitive->type) {
         case embedding_bag::packed_sum:
             embedding_bag_params.type = kernel_selector::EmbeddingBagType::PACKED_SUM;
             break;

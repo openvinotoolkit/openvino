@@ -32,21 +32,19 @@ using namespace cldnn;
 static size_t get_post_ops_count(const program_node& node) {
     size_t onednn_post_ops_count = 0;
     for (auto& fo : node.get_fused_primitives()) {
-        if (fo.node->is_type<activation>() || fo.node->is_type<eltwise>()) {
+        if (fo.is_type<activation>() || fo.is_type<eltwise>()) {
             onednn_post_ops_count++;
-        } else if (fo.node->is_type<quantize>()) {
-            auto& q = fo.node->as<quantize>();
-
+        } else if (fo.is_type<quantize>()) {
             // pre-scale, pre-shift
-            if (q.get_per_tensor_input_scale() && q.get_per_tensor_input_shift()) {
+            const auto& q_param = fo.get_typed_fuse_params<kernel_selector::quantize_fuse_params>();
+            if (q_param->per_tensor_input_scale && q_param->per_tensor_input_shift) {
                 onednn_post_ops_count++;
             } else {
                 onednn_post_ops_count += 2;
             }
 
             // post-scale, post-shift
-            if (q.get_need_post_scale() && q.get_need_post_shift() &&
-                q.get_per_tensor_output_scale() && q.get_per_tensor_output_shift()) {
+            if (q_param->has_post_scale && q_param->has_post_shift && q_param->per_tensor_output_scale && q_param->per_tensor_output_shift) {
                 onednn_post_ops_count++;
             } else {
                 onednn_post_ops_count += 2;
@@ -54,7 +52,7 @@ static size_t get_post_ops_count(const program_node& node) {
 
             auto out_dt = fo.output_layout.data_type;
             auto output_type_is_int8 = out_dt == data_types::u8 || out_dt == data_types::i8;
-            auto out_range_usage = q.get_per_tensor_output_range() && q.get_output_lo_val() < q.get_output_hi_val();
+            auto out_range_usage = q_param->per_tensor_output_range && (q_param->out_lo < q_param->out_hi);
 
             if (out_range_usage) {
                 // round
@@ -63,12 +61,12 @@ static size_t get_post_ops_count(const program_node& node) {
                 }
 
                 // clamp
-                if (q.get_need_clamp()) {
+                if (q_param->has_clamp) {
                     onednn_post_ops_count++;
                 }
             } else {
                 // clamp
-                if (q.get_need_clamp()) {
+                if (q_param->has_clamp) {
                     onednn_post_ops_count += 2;
                 }
                 // round
@@ -198,7 +196,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     // Not to fuse reorder if this removal changes input format of its next node which has reuse in fused_op
     if (next.get_preferred_impl_type() == impl_types::onednn) {
         for (auto& fused_op : next.get_fused_primitives()) {
-            if (fused_op.node->is_type<eltwise>()) {
+            if (fused_op.is_type<eltwise>()) {
                 auto out_layout = next.get_output_layout();
                 auto add_type = onednn_add_fusing_helpers::get_add_fusing_type(next, fused_op);
                 if (add_type == add_fusing_type::sum && prev.get_output_layout().format != out_layout.format)
@@ -355,9 +353,10 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
             std::set<size_t> dep_idx_set;
             for (auto& p : next.get_fused_primitives()) {
                 // find eltwise sum primitive which has dependency nodes, and gather dependency indices of it.
-                if (p.node->is_type<eltwise>() && p.node->as<eltwise>().get_primitive()->mode == eltwise_mode::sum) {
-                    for (size_t i = p.dep_start_idx; i < p.dep_start_idx + p.total_num_deps; i++)
+                if (p.is_type<eltwise>() && p.typed_desc<eltwise>()->mode == eltwise_mode::sum) {
+                    for (size_t i = p.dep_start_idx; i < p.dep_start_idx + p.total_num_deps; i++) {
                         dep_idx_set.insert(i);
+                    }
                 }
             }
             // The current reorder can be fused if it is a dependency of eltwise sum primitive fused.
@@ -823,12 +822,11 @@ static bool is_scale_shift(const eltwise_node& node) {
         return false;
 
     auto fused_op0 = node.get_fused_primitives().front();
-    auto fused_op0_node = fused_op0.node;
 
-    if (!fused_op0_node->is_type<eltwise>())
+    if (!fused_op0.is_type<eltwise>())
         return false;
 
-    if (fused_op0_node->as<eltwise>().get_primitive()->mode != eltwise_mode::sum)
+    if (fused_op0.typed_desc<eltwise>()->mode != eltwise_mode::sum)
         return false;
 
     return true;
@@ -1383,9 +1381,9 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         }
 
         for (auto& fo : node.get_fused_primitives()) {
-            if (fo.node->is_type<activation>()) {
+            if (fo.is_type<activation>()) {
                 // Some activations aren't implemented in oneDNN
-                auto activation_prim = fo.node->as<activation>().get_primitive();
+                auto activation_prim = fo.typed_desc<activation>();
                 if (activation_prim->activation_function == activation_func::negative ||
                     activation_prim->activation_function == activation_func::negation ||
                     activation_prim->activation_function == activation_func::sign)
@@ -1422,7 +1420,7 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         }
 
         for (auto& fo : node.get_fused_primitives()) {
-            if (fo.node->is_type<eltwise>()) {
+            if (fo.is_type<eltwise>()) {
                 // FC checkings
                 if (node.is_type<fully_connected>()) {
                     auto in_layout = node.get_dependency(fo.dep_start_idx).get_output_layout();
@@ -1448,8 +1446,8 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
                 // which don't correlate with fc checkings in the code above
                 // Temprorary WA: disable onednn gemm with sum post-op inside
                 } else {
-                    auto& e_node = fo.node->as<eltwise>();
-                    if (e_node.get_primitive()->mode == eltwise_mode::sum) {
+                    //auto& e_node = fo.node->as<eltwise>();
+                    if (fo.typed_desc<eltwise>()->mode == eltwise_mode::sum) {
                         impl_candidate = impl_types::ocl;
                         break;
                     }

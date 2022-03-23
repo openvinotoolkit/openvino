@@ -833,11 +833,11 @@ kernel_selector::activation_function get_kernel_selector_activation_param(activa
     }
 }
 
-void set_params(const program_node& node, kernel_selector::params& params) {
-    const auto& program = node.get_program();
+void set_params(const kernel_impl_params& param_info, kernel_selector::params& params) {
+    const auto& program = param_info.prog;
     const auto& device_info = program.get_engine().get_device_info();
 
-    params.uniqueID = std::to_string(node.get_unique_id());
+    params.uniqueID = std::to_string(param_info.unique_id);
     params.engineInfo.bSubGroupSupport = device_info.supports_subgroups;
     params.engineInfo.bSubGroupShortSupport = device_info.supports_subgroups_short;
     params.engineInfo.bSubGroupCharSupport = device_info.supports_subgroups_char;
@@ -863,8 +863,8 @@ void set_params(const program_node& node, kernel_selector::params& params) {
     auto impl_forcing_bo = program.get_options().get<build_option_type::force_implementations>();
     const auto& impl_forcing = impl_forcing_bo->forcing;
 
-    if (impl_forcing.count(node.id()) != 0) {
-        params.forceImplementation = impl_forcing.at(node.id()).kernel_name;
+    if (impl_forcing.count(param_info.desc->id) != 0) {
+        params.forceImplementation = impl_forcing.at(param_info.desc->id).kernel_name;
     }
 }
 

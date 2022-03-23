@@ -652,7 +652,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         // changes the input format of eltwise sum post-op to use binary add.
         if (conv_node.get_preferred_impl_type() == impl_types::onednn) {
             onednn_add_fusing_helpers::for_eltwise(conv_node, eltwise_mode::sum,
-                [&](const program_node& p_node, const eltwise_node& e_node, const fused_primitive_desc& desc) {
+                [&](const program_node& p_node, const fused_primitive_desc& desc) {
                     auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(p_node, desc);
                     if (fusing_type == add_fusing_type::binary_per_tensor) {
                         auto& dep_node = p_node.get_dependency(desc.dep_start_idx);

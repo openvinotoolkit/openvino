@@ -51,12 +51,18 @@ struct permute_impl : typed_primitive_impl_ocl<permute> {
     }
 
     static primitive_impl* create(const permute_node& arg) {
-        auto permute_params = get_default_params<kernel_selector::permute_params>(arg);
+        const auto& prim = arg.get_primitive();
+        const auto& param_info = kernel_impl_params(arg.get_program(), prim,  arg.get_unique_id(),
+                                                    arg.get_input_layouts(), arg.get_output_layout(),
+                                                    arg.get_fused_primitives(),
+                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params());
+
+        auto permute_params = get_default_params<kernel_selector::permute_params>(param_info);
         auto permute_optional_params =
             get_default_optional_params<kernel_selector::permute_optional_params>(arg.get_program());
 
         auto in_rank = arg.get_dependency(0).get_output_layout().get_rank();
-        auto permute_order = convert_permute_order(arg.get_primitive()->permute_order, in_rank);
+        auto permute_order = convert_permute_order(prim->permute_order, in_rank);
         permute_params.order = permute_order;
         auto& kernel_selector = kernel_selector::permute_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(permute_params, permute_optional_params);

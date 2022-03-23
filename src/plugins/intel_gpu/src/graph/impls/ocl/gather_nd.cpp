@@ -23,13 +23,18 @@ struct gather_nd_impl : typed_primitive_impl_ocl<gather_nd> {
     }
 
     static primitive_impl* create(const gather_nd_node& arg) {
-        auto gather_nd_params = get_default_params<kernel_selector::gather_nd_params>(arg);
+        const auto& prim = arg.get_primitive();
+        const auto& param_info = kernel_impl_params(arg.get_program(), prim, arg.get_unique_id(),
+                                                    arg.get_input_layouts(), arg.get_output_layout(),
+                                                    arg.get_fused_primitives(),
+                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params());
+        auto gather_nd_params = get_default_params<kernel_selector::gather_nd_params>(param_info);
         auto gather_nd_optional_params =
             get_default_optional_params<kernel_selector::gather_nd_optional_params>(arg.get_program());
 
-        gather_nd_params.indices_rank = arg.get_primitive()->indices_rank;
-        gather_nd_params.batch_dims = arg.get_primitive()->batch_dims;
-        gather_nd_params.batch_merged_output = arg.get_primitive()->batch_merged_output;
+        gather_nd_params.indices_rank = prim->indices_rank;
+        gather_nd_params.batch_dims = prim->batch_dims;
+        gather_nd_params.batch_merged_output = prim->batch_merged_output;
 
         gather_nd_params.inputs.push_back(convert_data_tensor(arg.input(1).get_output_layout()));
 

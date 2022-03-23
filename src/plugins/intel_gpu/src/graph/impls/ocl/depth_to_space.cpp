@@ -25,12 +25,19 @@ struct depth_to_space_impl : typed_primitive_impl_ocl<depth_to_space> {
 
 public:
     static primitive_impl* create(const depth_to_space_node& arg) {
-        auto depth_to_space_params = get_default_params<kernel_selector::depth_to_space_params>(arg);
+        const auto& prim = arg.get_primitive();
+
+        const auto& param_info = kernel_impl_params(arg.get_program(), prim, arg.get_unique_id(),
+                                                    arg.get_input_layouts(), arg.get_output_layout(),
+                                                    arg.get_fused_primitives(),
+                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params());
+
+        auto depth_to_space_params = get_default_params<kernel_selector::depth_to_space_params>(param_info);
         auto depth_to_space_optional_params =
             get_default_optional_params<kernel_selector::depth_to_space_optional_params>(arg.get_program());
 
-        depth_to_space_params.block_size = arg.get_primitive()->block_size;
-        depth_to_space_params.mode = arg.get_primitive()->mode == depth_to_space_mode::blocks_first ? kernel_selector::depth_to_space_mode::BLOCKS_FIRST
+        depth_to_space_params.block_size = prim->block_size;
+        depth_to_space_params.mode = prim->mode == depth_to_space_mode::blocks_first ? kernel_selector::depth_to_space_mode::BLOCKS_FIRST
                                                                                                     : kernel_selector::depth_to_space_mode::DEPTH_FIRST;
 
         auto& kernel_selector = kernel_selector::depth_to_space_kernel_selector::Instance();

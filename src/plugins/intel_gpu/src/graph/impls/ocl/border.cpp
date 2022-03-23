@@ -23,11 +23,16 @@ struct border_impl : typed_primitive_impl_ocl<border> {
     }
 
     static primitive_impl* create(const border_node& arg) {
-        auto b_params = get_default_params<kernel_selector::border_params>(arg, 1);
+        auto desc = arg.get_primitive();
+
+        const auto& param_info = kernel_impl_params(arg.get_program(), desc, arg.get_unique_id(),
+                                                    arg.get_input_layouts(), arg.get_output_layout(),
+                                                    arg.get_fused_primitives(),
+                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params());
+
+        auto b_params = get_default_params<kernel_selector::border_params>(param_info, 1);
         auto b_optional_params =
             get_default_optional_params<kernel_selector::border_optional_params>(arg.get_program());
-
-        auto desc = arg.get_primitive();
 
         b_params.lt_sizes = convert_dim_vector(desc->left_top_sizes);
         b_params.rb_sizes = convert_dim_vector(desc->right_bottom_sizes);
