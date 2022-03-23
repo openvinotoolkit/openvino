@@ -20,6 +20,7 @@
 #include "cpp/ie_plugin.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include "cpp_interfaces/interface/iremote_context.hpp"
 #include "cpp_interfaces/interface/itensor.hpp"
 #include "file_utils.h"
 #include "ie_cache_guard.hpp"
@@ -1727,7 +1728,7 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->LoadNetwork(toCNN(model),
-                                       context._impl,
+                                       std::make_shared<ie::OVRemoteContext>(context._impl),
                                        any_copy(flatten_sub_properties(context.get_device_name(), config)));
         return {exec._ptr, exec._so};
     });

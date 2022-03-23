@@ -9,13 +9,11 @@
  */
 #pragma once
 
-
-#include "openvino/core/coordinate.hpp"
-#include "openvino/core/shape.hpp"
-#include "openvino/core/type/element_type.hpp"
-#include "openvino/runtime/allocator.hpp"
+#include "ie_remote_context.hpp"
 #include "openvino/runtime/common.hpp"
 namespace ov {
+
+class ITensor;
 
 /**
  * @brief This class represents an OpenVINO abstraction
@@ -46,7 +44,9 @@ public:
      * @param params Map of the low-level tensor object parameters.
      * @return Pointer to a plugin object that implements the RemoteTensor interface.
      */
-    virtual ITensor::Ptr create_tensor(const element::Type& type, const Shape& shape, const AnyMap& params = {});
+    virtual std::shared_ptr<ITensor> create_tensor(const element::Type type,
+                                                   const Shape& shape,
+                                                   const AnyMap& params = {});
 
     /**
      * @brief Returns a map of device-specific parameters required for low-level
@@ -57,7 +57,7 @@ public:
      * Abstract method.
      * @return A map of name/parameter elements.
      */
-    AnyMap get_params() const;
+    virtual AnyMap get_params() const;
 
     /**
      * @brief This method is used to create a host tensor object friendly for the device in current context.
@@ -67,13 +67,35 @@ public:
      * @param shape Tensor shape.
      * @return A tensor instance with device friendly memory.
      */
-    ITensor::Ptr create_host_tensor(const element::Type type, const Shape& shape);
+    virtual std::shared_ptr<ITensor> create_host_tensor(const element::Type type, const Shape& shape);
 
 protected:
     /**
      * @brief RemoteContext destructor
      */
-    ~RemoteContext() = default;
+    ~IRemoteContext() = default;
+};
+
+struct OPENVINO_API IERemoteContext : public IRemoteContext {
+    explicit IERemoteContext(const InferenceEngine::RemoteContext::Ptr& impl_);
+    std::string get_device_name() const override;
+    std::shared_ptr<ITensor> create_tensor(const element::Type type, const Shape& shape, const AnyMap& params) override;
+    AnyMap get_params() const override;
+    std::shared_ptr<ITensor> create_host_tensor(const element::Type type, const Shape& shape) override;
+
+    InferenceEngine::RemoteContext::Ptr impl;
 };
 
 }  // namespace ov
+
+namespace InferenceEngine {
+struct OPENVINO_API OVRemoteContext : public RemoteContext {
+    OVRemoteContext(const ov::IRemoteContext::Ptr& impl_) : impl{impl_} {}
+    ~OVRemoteContext() override = default;
+    std::string getDeviceName() const noexcept override;
+    RemoteBlob::Ptr CreateBlob(const TensorDesc& tensorDesc, const ParamMap& params = {}) override;
+    MemoryBlob::Ptr CreateHostBlob(const TensorDesc& tensorDesc) override;
+    ParamMap getParams() const override;
+    ov::IRemoteContext::Ptr impl;
+};
+}  // namespace InferenceEngine

@@ -146,8 +146,7 @@ public:
 /// \throws ::ov::AssertFailure if the macro is executed.
 #define OPENVINO_UNREACHABLE(...)                   OPENVINO_ASSERT(false, "Unreachable: ", __VA_ARGS__)
 #define OPENVINO_ASSERT_HELPER(exc_class, ctx, ...) CALL_OVERLOAD(OPENVINO_ASSERT_HELPER, exc_class, ctx, __VA_ARGS__)
-#define OPENVINO_NOT_IMPLEMENTED(...) \
-    OPENVINO_ASSERT_HELPER(::ov::NotImplemented, "", false, "Not Implemented: ", __VA_ARGS__)
+#define OPENVINO_NOT_IMPLEMENTED                    OPENVINO_ASSERT_HELPER(::ov::NotImplemented, "", false, "Not Implemented", "")
 
 #define GLUE(x, y) x y
 

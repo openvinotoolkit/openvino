@@ -26,6 +26,7 @@ namespace ov {
 
 class Core;
 class CompiledModel;
+class IRemoteContext;
 
 /**
  * @brief This class represents an abstraction
@@ -35,8 +36,16 @@ class CompiledModel;
  */
 class OPENVINO_RUNTIME_API RemoteContext {
 protected:
-    std::shared_ptr<InferenceEngine::RemoteContext> _impl;  //!< Pointer to the remote context implementation.
-    std::shared_ptr<void> _so;  //!< Reference to the shared object that loaded implementation.
+    std::shared_ptr<IRemoteContext> _impl;  //!< Pointer to the remote context implementation.
+    std::shared_ptr<void> _so;              //!< Reference to the shared object that loaded implementation.
+
+    /**
+     * @brief Constructs RemoteContext from the initialized std::shared_ptr.
+     * @param impl Initialized shared pointer.
+     * @param so Plugin to use. This is required to ensure that RemoteContext can work properly even if a plugin
+     * object is destroyed.
+     */
+    RemoteContext(const std::shared_ptr<IRemoteContext>& impl, const std::shared_ptr<void>& so);
 
     /**
      * @brief Constructs RemoteContext from the initialized std::shared_ptr.
@@ -142,7 +151,7 @@ public:
      * @param params Map of the low-level tensor object parameters.
      * @return Pointer to a plugin object that implements the RemoteTensor interface.
      */
-    RemoteTensor create_tensor(const element::Type& type, const Shape& shape, const AnyMap& params = {});
+    RemoteTensor create_tensor(const element::Type type, const Shape& shape, const AnyMap& params = {});
 
     /**
      * @brief Returns a map of device-specific parameters required for low-level
