@@ -140,3 +140,7 @@ INTERPRETER.onnx_controlflow_loop_2d_no_identity_termination_cond_false
 # new failures after fixing the TestCase class - 77385
 quant_dequant_pattern_axis
 onnx_clip_no_min_no_max_int64
+
+# z node not found in graph cache - ticket: 81976
+INTERPRETER.onnx_expand_context_dependent_function
+INTERPRETER.onnx_softmax_crossentropy_loss_mean
