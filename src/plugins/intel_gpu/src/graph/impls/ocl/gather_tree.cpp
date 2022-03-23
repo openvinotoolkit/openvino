@@ -23,13 +23,17 @@ struct gather_tree_impl : typed_primitive_impl_ocl<gather_tree> {
     }
 
     static primitive_impl* create(const gather_tree_node& arg) {
-        auto b_params = get_default_params<kernel_selector::gather_tree_params>(arg, 1);
+        auto desc = arg.get_primitive();
+        const auto& param_info = kernel_impl_params(arg.get_program(), desc, arg.get_unique_id(),
+                                                    arg.get_input_layouts(), arg.get_output_layout(),
+                                                    arg.get_fused_primitives(),
+                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params());
+        auto b_params = get_default_params<kernel_selector::gather_tree_params>(param_info, 1);
         auto b_optional_params = get_default_optional_params<kernel_selector::gather_tree_optional_params>(arg.get_program());
 
         for (size_t i = 1; i < arg.get_dependencies().size(); i++) {
             b_params.inputs.push_back(convert_data_tensor(arg.get_dependency(i).get_output_layout(), 1));
         }
-        auto desc = arg.get_primitive();
 
         auto& kernel_selector = kernel_selector::gather_tree_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(b_params, b_optional_params);

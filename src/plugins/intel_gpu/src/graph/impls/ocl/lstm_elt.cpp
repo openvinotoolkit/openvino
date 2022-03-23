@@ -35,7 +35,12 @@ protected:
 
 public:
     static primitive_impl* create(const lstm_elt_node& arg) {
-        auto lstm_elt_params = get_default_params<kernel_selector::lstm_elt_params>(arg);
+        const auto& prim = arg.get_primitive();
+        const auto& param_info = kernel_impl_params(arg.get_program(), prim, arg.get_unique_id(),
+                                                    arg.get_input_layouts(), arg.get_output_layout(),
+                                                    arg.get_fused_primitives(),
+                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params());
+        auto lstm_elt_params = get_default_params<kernel_selector::lstm_elt_params>(param_info);
         auto lstm_elt_optional_params =
             get_default_optional_params<kernel_selector::lstm_elt_optional_params>(arg.get_program());
 
@@ -48,7 +53,6 @@ public:
             }
         }
 
-        const auto& prim = arg.get_primitive();
         if (!prim->activations.empty()) {
             auto a_sz = prim->activations.size();
             auto param_sz = prim->activation_params.size();

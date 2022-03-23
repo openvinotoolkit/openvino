@@ -24,15 +24,20 @@ struct space_to_depth_impl : typed_primitive_impl_ocl<space_to_depth> {
 
 public:
     static primitive_impl* create(const space_to_depth_node& arg) {
-        auto space_to_depth_params = get_default_params<kernel_selector::space_to_depth_params>(arg);
+        const auto& prim = arg.get_primitive();
+        const auto& param_info = kernel_impl_params(arg.get_program(), prim, arg.get_unique_id(),
+                                                    arg.get_input_layouts(), arg.get_output_layout(),
+                                                    arg.get_fused_primitives(),
+                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params());
+        auto space_to_depth_params = get_default_params<kernel_selector::space_to_depth_params>(param_info);
         auto space_to_depth_optional_params =
                 get_default_optional_params<kernel_selector::space_to_depth_optional_params>(arg.get_program());
 
-        space_to_depth_params.depth_mode = (arg.get_primitive()->mode == space_to_depth::blocks_first) ?
+        space_to_depth_params.depth_mode = (prim->mode == space_to_depth::blocks_first) ?
                                            kernel_selector::SpaceToDepthMode::BLOCKS_FIRST :
                                            kernel_selector::SpaceToDepthMode::DEPTH_FIRST;
 
-        space_to_depth_params.block_size = arg.get_primitive()->block_size;
+        space_to_depth_params.block_size = prim->block_size;
 
         auto& kernel_selector = kernel_selector::space_to_depth_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(space_to_depth_params, space_to_depth_optional_params);

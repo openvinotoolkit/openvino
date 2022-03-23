@@ -26,11 +26,14 @@ struct space_to_batch_impl : typed_primitive_impl_ocl<space_to_batch> {
 
 public:
     static primitive_impl* create(const space_to_batch_node& arg) {
-        auto space_to_batch_params = get_default_params<kernel_selector::space_to_batch_params>(arg);
+        auto primitive = arg.get_primitive();
+        const auto& param_info = kernel_impl_params(arg.get_program(), primitive, arg.get_unique_id(),
+                                                    arg.get_input_layouts(), arg.get_output_layout(),
+                                                    arg.get_fused_primitives(),
+                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params());
+        auto space_to_batch_params = get_default_params<kernel_selector::space_to_batch_params>(param_info);
         auto space_to_batch_optional_params =
             get_default_optional_params<kernel_selector::space_to_batch_optional_params>(arg.get_program());
-
-        auto primitive = arg.get_primitive();
 
         space_to_batch_params.block_shape = convert_dim_vector(primitive->block_shape);
         space_to_batch_params.pads_begin = convert_dim_vector(primitive->pads_begin);

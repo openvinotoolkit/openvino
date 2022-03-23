@@ -41,13 +41,21 @@ protected:
 
 public:
     static primitive_impl* create(const fully_connected_node& arg) {
-        auto fc_params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(arg);
+        const auto primitive = arg.get_primitive();
+        const auto& bias_layout = arg.bias_term() ?  arg.bias().get_output_layout() : layout(data_types::f32, format::any, tensor());
+
+        const auto& weights_layout = arg.weights().get_output_layout();
+        const auto& param_info = kernel_impl_params(arg.get_program(), primitive, arg.get_unique_id(),
+                                                    arg.get_input_layouts(), arg.get_output_layout(),
+                                                    arg.get_fused_primitives(),
+                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params(),
+                                                    weights_layout, arg.bias_term(), bias_layout);
+
+        auto fc_params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(param_info);
         auto fc_optional_params =
             get_default_weights_bias_optional_params<kernel_selector::fully_connected_optional_params>(
                 arg.get_program());
         fc_optional_params.allowInputReordering = true;
-
-        const auto primitive = arg.get_primitive();
 
         if (primitive->input_size != 3)
             fc_params.outputs = { fc_params.outputs[0].FlattenFeatureAndSpatials() };

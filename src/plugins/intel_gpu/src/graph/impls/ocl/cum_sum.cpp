@@ -46,11 +46,22 @@ struct cum_sum_impl : typed_primitive_impl_ocl<cum_sum> {
 
 public:
     static primitive_impl* create(const cum_sum_node& arg) {
-        auto cum_sum_params = get_default_params<kernel_selector::cum_sum_params>(arg);
+        const auto& prim = arg.get_primitive();
+        std::vector<layout> input_layouts;
+        for (auto i : arg.get_dependencies()) {
+            input_layouts.push_back(i->get_output_layout());
+        }
+
+        const auto& param_info = kernel_impl_params(arg.get_program(), prim, arg.get_unique_id(),
+                                                    input_layouts, arg.get_output_layout(),
+                                                    arg.get_fused_primitives(),
+                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params());
+
+        auto cum_sum_params = get_default_params<kernel_selector::cum_sum_params>(param_info);
         auto cum_sum_optional_params =
             get_default_optional_params<kernel_selector::cum_sum_optional_params>(arg.get_program());
 
-        cum_sum_params.axis = convert_axis(arg.get_primitive()->axis);
+        cum_sum_params.axis = convert_axis(prim->axis);
         cum_sum_params.exclusive = arg.get_primitive()->exclusive;
         cum_sum_params.reverse = arg.get_primitive()->reverse;
 

@@ -10,6 +10,7 @@
 #include "intel_gpu/graph/program.hpp"
 
 #include "kernel_selector_helper.h"
+#include "fused_primitive_desc.h"
 #include "meta_utils.h"
 
 #include <set>
@@ -87,18 +88,6 @@ struct fused_primitive_desc_onednn {
 };
 #endif // ENABLE_ONEDNN_FOR_GPU
 
-struct fused_primitive_desc {
-    std::shared_ptr<program_node> node;
-    size_t dep_start_idx;
-    std::vector<std::pair<primitive_id, size_t>> deps;
-    std::map<primitive_id, size_t> fused_deps;
-    size_t total_num_deps = 0;
-    activation_func activation;
-    activation_additional_params activation_params = { 0.f, 0.f };
-    layout input_layout = layout(data_types::f32, format::bfyx, tensor());
-    layout output_layout = layout(data_types::f32, format::bfyx, tensor());
-};
-
 /*
     Base class for all primitives which wraps API class and extends it to be used
     in graph context.
@@ -157,6 +146,14 @@ public:
 
     std::vector<program_node*> const& get_dependencies() const { return dependencies; }
     program_node& get_dependency(size_t idx) const { return *dependencies.at(idx); }
+
+    std::vector<layout> const get_input_layouts() const {
+        std::vector<layout> layouts;
+        for (const auto& i : dependencies) {
+            layouts.push_back(i->get_output_layout());
+        }
+        return layouts;
+    }
 
     // replaces idx-th dependency of 'this' with 'new_dep', calls program::remove_if_dangling(old_dep)
     void replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling = true);

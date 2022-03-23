@@ -22,11 +22,15 @@ struct random_uniform_impl : typed_primitive_impl_ocl<random_uniform> {
     }
 
     static primitive_impl *create(const random_uniform_node &arg) {
+        const auto &primitive = arg.get_primitive();
+        const auto& param_info = kernel_impl_params(arg.get_program(), primitive, arg.get_unique_id(),
+                                                    arg.get_input_layouts(), arg.get_output_layout(),
+                                                    arg.get_fused_primitives(),
+                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params());
         auto params = get_default_params<kernel_selector::random_uniform_params>(
-                arg);
+                param_info);
         auto &random_uniform_kernel_selector =
                 kernel_selector::random_uniform_kernel_selector::Instance();
-        const auto &primitive = arg.get_primitive();
         params.global_seed = primitive->global_seed;
         params.op_seed = primitive->op_seed;
         params.inputs.push_back(convert_data_tensor(arg.input(1).get_output_layout()));
