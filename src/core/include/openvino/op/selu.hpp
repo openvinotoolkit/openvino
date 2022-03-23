@@ -10,6 +10,7 @@ namespace ov {
 namespace op {
 namespace v0 {
 /// \brief Performs a SELU activation function on all elements of the input node
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Selu : public Op {
 public:
     OPENVINO_OP("Selu", "opset1");
