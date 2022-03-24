@@ -65,7 +65,7 @@ output  = [[0. 0.]
 
 * *diagonal_index*
 
-    * **Description**: index of the diagonal to be populated. A positive value refers to an upper diagonal and a negative value refers to a lower diagonal. Value `0` populates the main diagonal.
+    * **Description**: index of the diagonal to be populated. A positive value refers to an upper diagonal and a negative value refers to a lower diagonal. Value `0` populates the main diagonal. If `diagonal_index` is positive value and is not less than `num_rows` or if `diagonal_index` is negative value and is not more than `num_rows`, matrix will be filled with only zeros.
     * **Range of values**: any integer value
     * **Type**: int
     * **Default value**: *0*
@@ -113,12 +113,29 @@ output  = [[0. 0.]
     <data output_type="i64" diagonal_index="2"/>
     <input>
         <port id="0" precision="I32"/>  <!-- num rows : 5 -->
-        <port id="1" precision="I32"/>  <!-- num columns : 3 -->
+        <port id="1" precision="I32"/>  <!-- num columns -->
     </input>
     <output>
         <port id="3" precision="I64" names="EyeLike:0">
             <dim>5</dim>
-            <dim>3</dim>
+            <dim>-1</dim>
+        </port>
+    </output>
+</layer>
+```
+
+*Example 3*
+
+```xml
+<layer ... name="EyeLike" type="EyeLike">
+    <data output_type="i64" diagonal_index="2"/>
+    <input>
+        <port id="0" precision="I32"/>  <!-- num rows -->
+    </input>
+    <output>
+        <port id="3" precision="I64" names="EyeLike:0">
+            <dim>-1</dim>
+            <dim>-1</dim>
         </port>
     </output>
 </layer>
