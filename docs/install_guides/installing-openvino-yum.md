@@ -14,11 +14,11 @@ The complete list of supported hardware is available in the [Release Notes](http
 
 - Red Hat Enterprise Linux 8, 64-bit
 
-Software
+**Software**
 
-- `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
-- GCC* 8.2.0
-- `Python 3.6 - 3.9, 64-bit <https://www.python.org/downloads/windows/>`_
+- [CMake 3.13 or higher, 64-bit](https://cmake.org/download/)
+- GCC 8.2.0
+- [Python 3.6 - 3.9, 64-bit](https://www.python.org/downloads/windows/)
 
 ## Install OpenVINO Runtime
 
