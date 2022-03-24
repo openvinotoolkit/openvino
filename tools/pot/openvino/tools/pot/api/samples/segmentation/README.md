@@ -1,4 +1,4 @@
-# Quantizatiing Semantic Segmentation Model {#pot_sample_segmentation_README}
+# Quantizatiing Semantic Segmentation Model {#pot_example_segmentation_README}
 
 This example demonstrates the use of the [Post-training Optimization Tool API](@ref pot_compression_api_README) for the task of quantizing a segmentation model.
 The [DeepLabV3](https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/deeplabv3/deeplabv3.md) model from TensorFlow* is used for this purpose.

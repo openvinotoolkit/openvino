@@ -1,18 +1,4 @@
-# Quantization {#pot_compression_algorithms_quantization_README}
-
-@sphinxdirective
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   
-   DefaultQuantization Algorithm <pot_compression_algorithms_quantization_default_README>
-   AccuracyAwareQuantization Algorithm <accuracy_aware_README>
-   Saturation Issue Workaround <pot_saturation_issue>
-   Low-precision Model Representation <pot_docs_model_representation>
-
-
-@endsphinxdirective
+# Quantization
 
 ## Introduction
 
