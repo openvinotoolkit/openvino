@@ -22,8 +22,7 @@
 
 using namespace InferenceEngine;
 using namespace ov::intel_cpu;
-
-namespace {
+namespace ReorderCPUTest {
 void checkReorder(const ov::intel_cpu::Memory& inputMemory,
                    const ov::intel_cpu::Memory& outputMemory,
                    const InferenceEngine::Precision& prescision) {
@@ -167,7 +166,9 @@ protected:
     InferenceEngine::Precision prec;
 };
 
-}// namespace
+}// namespace ReorderCPUTest
+
+using namespace ReorderCPUTest;
 
 /*
  * Test Reorder::optimizedNcsp2Nspc() and Reorder::optimizedNspc2Ncsp() for
@@ -176,7 +177,7 @@ protected:
  */
 class ReorderCustomizedStrideTest : public ::testing::Test,
                                     public ::testing::WithParamInterface<ReorderCustomImplTestParamSet>,
-                                    public ReorderCPUTestGraph {
+                                    public ::ReorderCPUTest::ReorderCPUTestGraph {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ReorderCustomImplTestParamSet>& obj) {
         ReorderCustomImplTestParamSet p = obj.param;
@@ -317,9 +318,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReorderTestCustomStrideWithFactor,
 /*
  * ReorderCPUTest to test the CPU plugin-in dynamism and RT cache
  */
-class ReorderCPUTest : public ::testing::Test,
+class ReorderDynamismCPUTest : public ::testing::Test,
                        public ::testing::WithParamInterface<ReorderCPUTestParamSet>,
-                       public ReorderCPUTestGraph {
+                       public ::ReorderCPUTest::ReorderCPUTestGraph {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ReorderCPUTestParamSet>& obj) {
         ReorderCPUTestParamSet p = obj.param;
@@ -397,7 +398,7 @@ private:
     std::vector<std::vector<size_t>> inputShapes;
 };
 
-TEST_P(ReorderCPUTest, CompareResult) {
+TEST_P(ReorderDynamismCPUTest, CompareResult) {
     Run();
 }
 
@@ -424,6 +425,6 @@ const auto reorderCpuTestDynamismParams =
                                              InferenceEngine::Precision::I8});
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReorderTestDynamism,
-                         ReorderCPUTest,
+                         ReorderDynamismCPUTest,
                          reorderCpuTestDynamismParams,
-                         ReorderCPUTest::getTestCaseName);
+                         ReorderDynamismCPUTest::getTestCaseName);
