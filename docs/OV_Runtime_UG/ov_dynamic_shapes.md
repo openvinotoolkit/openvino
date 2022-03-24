@@ -51,21 +51,20 @@ To avoid the tricks mentioned in the previous section there is a way to directly
 This is achieved with the same reshape method that is used for alternating static shape of inputs.
 Dynamic dimensions are specified as `-1` or `ov::Dimension()` instead of a positive number used for static dimensions:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.cpp
-       :language: cpp
-       :fragment: [ov_dynamic_shapes:reshape_undefined]
+@snippet docs/snippets/ov_dynamic_shapes.cpp ov_dynamic_shapes:reshape_undefined
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.py
-       :language: python
-       :fragment: [reshape_undefined]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_dynamic_shapes.py reshape_undefined
+@endsphinxtab
+
+@endsphinxtabset
 
 To simplify the code, the examples assume that the model has a single input and single output.
 However, there are no limitations on the number of inputs and outputs to apply dynamic shapes.
@@ -90,21 +89,19 @@ To get information about setting input shapes using Model Optimizer, refer to [S
 Besides marking a dimension just dynamic, you can also specify lower and/or upper bounds that define a range of allowed values for the dimension.
 Bounds are coded as arguments for `ov::Dimension`:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.cpp
-       :language: cpp
-       :fragment: [ov_dynamic_shapes:reshape_bounds]
+@snippet docs/snippets/ov_dynamic_shapes.cpp ov_dynamic_shapes:reshape_bounds
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.py
-       :language: python
-       :fragment: [reshape_bounds]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_dynamic_shapes.py reshape_bounds
+@endsphinxtab
+@endsphinxtabset
 
 Information about bounds gives opportunity for the inference plugin to apply additional optimizations.
 Using dynamic shapes assumes the plugins apply more loose optimization technique during model compilation
@@ -114,8 +111,8 @@ For the same reason it is not recommended to leave dimensions as undefined witho
 
 When specifying bounds, the lower bound is not so important as upper bound, because knowing of upper bound allows inference devices to more precisely allocate memory for intermediate tensors for inference and use lesser number of tuned kernels for different sizes.
 Precisely speaking benefits of specifying lower or upper bound is device dependent.
-Depending on the plugin specifying upper bounds can be required.
-<TODO: reference to plugin limitations table>.
+Depending on the plugin specifying upper bounds can be required. For information about dynamic shapes support on different devices, see the [Features Support Matrix](@ref features_support_matrix).
+
 If users known lower and upper bounds for dimension it is recommended to specify them even when plugin can execute model without the bounds.
 
 ### Setting Input Tensors
@@ -124,21 +121,19 @@ Preparing model with the reshape method was the first step.
 The second step is passing a tensor with an appropriate shape to infer request.
 This is similar to [regular steps](integrate_with_your_application.md), but now we can pass tensors with different shapes for the same executable model and even for the same inference request:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.cpp
-       :language: cpp
-       :fragment: [ov_dynamic_shapes:set_input_tensor]
+@snippet docs/snippets/ov_dynamic_shapes.cpp ov_dynamic_shapes:set_input_tensor
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.py
-       :language: python
-       :fragment: [set_input_tensor]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_dynamic_shapes.py set_input_tensor
+@endsphinxtab
+@endsphinxtabset
 
 In the example above `set_input_tensor` is used to specify input tensors.
 The real dimensions of the tensor is always static, because it is a concrete tensor and it doesn't have any dimension variations in contrast to model inputs.
@@ -149,21 +144,20 @@ Without doing that, the tensor returned by `get_input_tensor` is an empty tensor
 Setting shape for input tensor is required when the corresponding input has at least one dynamic dimension regardless of bounds information.
 The following example makes the same sequence of two infer request as the previous example but using `get_input_tensor` instead of `set_input_tensor`:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.cpp
-       :language: cpp
-       :fragment: [ov_dynamic_shapes:get_input_tensor]
+@snippet docs/snippets/ov_dynamic_shapes.cpp ov_dynamic_shapes:get_input_tensor
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.py
-       :language: python
-       :fragment: [get_input_tensor]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet  docs/snippets/ov_dynamic_shapes.py get_input_tensor
+@endsphinxtab
+
+@endsphinxtabset
 
 ### Dynamic Shapes in Outputs
 
@@ -174,41 +168,40 @@ The same is true for other dimensions, like sequence length for NLP models or sp
 Whether or not output has dynamic dimensions can be examined by querying output partial shape after model read or reshape.
 The same is applicable for inputs. For example:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.cpp
-       :language: cpp
-       :fragment: [ov_dynamic_shapes:print_dynamic]
+@snippet docs/snippets/ov_dynamic_shapes.cpp ov_dynamic_shapes:print_dynamic
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.py
-       :language: python
-       :fragment: [print_dynamic]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_dynamic_shapes.py print_dynamic
+@endsphinxtab
+
+@endsphinxtabset
 
 Appearing `?` or ranges like `1..10` means there are dynamic dimensions in corresponding inputs or outputs.
 
 Or more programmatically:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.cpp
-       :language: cpp
-       :fragment: [ov_dynamic_shapes:detect_dynamic]
+@snippet docs/snippets/ov_dynamic_shapes.cpp ov_dynamic_shapes:detect_dynamic
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.py
-       :language: python
-       :fragment: [detect_dynamic]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_dynamic_shapes.py detect_dynamic
+@endsphinxtab
+
+@endsphinxtabset
+
 
 If at least one dynamic dimension exists in output of the model, shape of the corresponding output tensor will be set as the result of inference call.
 Before the first inference, memory for such a tensor is not allocated and has shape `[0]`.
