@@ -210,9 +210,9 @@ int main(int argc, char* argv[]) {
         ov::Core core;
 
         if (FLAGS_d.find("CPU") != std::string::npos && !FLAGS_l.empty()) {
-            // CPU (MKLDNN) extensions is loaded as a shared library
+            // CPU plugin extensions is loaded as a shared library
             core.add_extension(FLAGS_l);
-            slog::info << "CPU (MKLDNN) extensions is loaded " << FLAGS_l << slog::endl;
+            slog::info << "CPU plugin extensions is loaded " << FLAGS_l << slog::endl;
         }
 
         // Load clDNN Extensions
@@ -437,6 +437,9 @@ int main(int argc, char* argv[]) {
             compiledModel = core.compile_model(FLAGS_m, device_name);
             auto duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Load network took " << double_to_string(duration_ms) << " ms" << slog::endl;
+            slog::info << "Original network I/O parameters:" << slog::endl;
+            printInputAndOutputsInfoShort(compiledModel);
+
             if (statistics)
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
@@ -466,6 +469,9 @@ int main(int argc, char* argv[]) {
             auto model = core.read_model(FLAGS_m);
             auto duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Read network took " << double_to_string(duration_ms) << " ms" << slog::endl;
+            slog::info << "Original network I/O parameters:" << slog::endl;
+            printInputAndOutputsInfoShort(*model);
+
             if (statistics)
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
@@ -633,6 +639,9 @@ int main(int argc, char* argv[]) {
 
             auto duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Import network took " << double_to_string(duration_ms) << " ms" << slog::endl;
+            slog::info << "Original network I/O paramteters:" << slog::endl;
+            printInputAndOutputsInfoShort(compiledModel);
+
             if (statistics)
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
@@ -1094,9 +1103,7 @@ int main(int argc, char* argv[]) {
 
         if (!FLAGS_exec_graph_path.empty()) {
             try {
-                std::string fileName = fileNameNoExt(FLAGS_exec_graph_path);
-                ov::pass::Serialize serializer(fileName + ".xml", fileName + ".bin");
-                serializer.run_on_model(std::const_pointer_cast<ov::Model>(compiledModel.get_runtime_model()));
+                ov::serialize(compiledModel.get_runtime_model(), FLAGS_exec_graph_path);
                 slog::info << "executable graph is stored to " << FLAGS_exec_graph_path << slog::endl;
             } catch (const std::exception& ex) {
                 slog::err << "Can't get executable graph: " << ex.what() << slog::endl;
