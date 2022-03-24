@@ -4,4 +4,4 @@
 
 include(${PYTHON_SOURCE_DIR}/pyopenvino/frontend/frontend_module.cmake)
 frontend_module(py_paddle_frontend paddle pyopenvino_${PYTHON_VERSION})
-add_dependencies(ie_wheel py_paddle_frontend)
+

@@ -4,4 +4,4 @@
 
 include(${PYTHON_SOURCE_DIR}/pyopenvino/frontend/frontend_module.cmake)
 frontend_module(py_onnx_frontend onnx pyopenvino_${PYTHON_VERSION})
-add_dependencies(ie_wheel py_onnx_frontend)
+
