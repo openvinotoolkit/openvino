@@ -291,7 +291,8 @@ class GNAPluginTested : public GNAPluginNS::GNAPlugin {
 public:
     std::shared_ptr<GNAMemoryTested> gnamem_t;
     GNAPluginTested() : GNAPluginNS::GNAPlugin() {
-        gnamem_t = std::make_shared<GNAMemoryTested>(make_polymorph<std::allocator<uint8_t>>());
+        size_t page_size_bytes = 4096;
+        gnamem_t = std::make_shared<GNAMemoryTested>(make_polymorph<std::allocator<uint8_t>>(), page_size_bytes);
         gnamem = gnamem_t;
         graphCompiler.setGNAMemoryPtr(gnamem);
     }
