@@ -22,20 +22,8 @@
 
 using namespace InferenceEngine;
 using namespace ov::intel_cpu;
-/*
- * Test Reorder::optimizedNcsp2Nspc() and Reorder::optimizedNspc2Ncsp() for
- * inPlace and non-inPlace cases. Specifically, the test checks that dst batch strides are
- * correctly taken into account by the custom impls (the case when the reorder is followed by an inplace concat).
- */
-struct ReorderCustomImplTestParamSet {
-    // logical dimension of input
-    std::vector<size_t> srcDims;
-    bool isNspc2Ncsp;
-    uint32_t strideFactor;
-    InferenceEngine::Precision prec;
-    size_t stridedIndice;
-};
 
+namespace {
 void check_reorder(const ov::intel_cpu::Memory& inputMemory,
                    const ov::intel_cpu::Memory& outputMemory,
                    const InferenceEngine::Precision& prescision) {
@@ -65,17 +53,9 @@ void check_reorder(const ov::intel_cpu::Memory& inputMemory,
             break;
         }
         default:
-            FAIL();
+            FAIL() << "Unsupported data precision" << prescision.name();
         }
     }
-}
-
-std::string precisionInfo(const InferenceEngine::Precision& prescision) {
-    if (prescision == Precision::FP32)
-        return "Precision::FP32";
-    if (prescision == Precision::I8)
-        return "Precision::I8";
-    return "Unsupported precision type";
 }
 
 std::string layoutInfo(const LayoutType& layout) {
@@ -105,90 +85,49 @@ void fillData(const ov::intel_cpu::Memory& inputMemory, const InferenceEngine::P
             *(static_cast<int8_t*>(inputReorderData) + mdInput.off_l(i, false)) = static_cast<int8_t>(i);
         break;
     default:
-        FAIL();
+        FAIL() << "Unsupported data precision" << prec.name();
     }
 }
+struct ReorderCustomImplTestParamSet {
+    // logical dimension of input
+    std::vector<size_t> srcDims;
+    bool isNspc2Ncsp;
+    uint32_t strideFactor;
+    InferenceEngine::Precision prec;
+    size_t stridedAxis;
+};
 
-class ReorderCustomizedStrideTest : public ::testing::Test,
-                                    public ::testing::WithParamInterface<ReorderCustomImplTestParamSet> {
+struct ReorderCPUTestParamSet {
+    ngraph::PartialShape inputPartialShape;
+    // logical dimension vector  of input
+    std::vector<std::vector<size_t>> inputShapes;
+    LayoutType srcLayout;
+    LayoutType dstLayout;
+    InferenceEngine::Precision prec;
+};
+
+class ReorderTestGraph {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<ReorderCustomImplTestParamSet>& obj) {
-        ReorderCustomImplTestParamSet p = obj.param;
-        std::ostringstream result;
-        result << "IS:(";
-        result << CommonTestUtils::vec2str(p.srcDims);
-        result << (p.isNspc2Ncsp ? "_NSPC2NCSP" : "_NCSP2NSPC");
-        result << "_InputDataType:" << precisionInfo(p.prec);
-        result << "_OutputDataType:" << precisionInfo(p.prec);
-        result << "_StrideFactor:" << p.strideFactor;
-        result << "_StridedLogicChannelIndice:" << p.stridedIndice;
-        result << ")";
-        return result.str();
-    }
-
-    void Run() {
-        buildReorderGraph();
-        infer();
-        validate();
-    }
-
-protected:
-    void SetUp() override {
-        ReorderCustomImplTestParamSet p = ::testing::TestWithParam<ReorderCustomImplTestParamSet>::GetParam();
-        srcDims = p.srcDims;
-
-        if (p.isNspc2Ncsp) {
-            // The custom NSPC2NCSP  impl is used only if an input shape complies with:
-            assert(srcDims[1] <= 64 && srcDims[1] >= 16 && (getNumElems(srcDims) / srcDims[1]) >= 128);
-            // The custom NSPC2NCSP impl is used only for FP32
-            prec = InferenceEngine::Precision::FP32;
-            srcOrder = std::vector<size_t>{0, 2, 3, 1};
-            dstOrder = std::vector<size_t>{0, 1, 2, 3};
-        } else {
-            assert(getNumElems(srcDims) <= 256);
-            srcOrder = std::vector<size_t>{0, 1, 2, 3};
-            dstOrder = std::vector<size_t>{0, 2, 3, 1};
-            // The custom NSPC2NCSP  impl is used only for U8
-            prec = InferenceEngine::Precision::I8;
-        }
-        dstDims = srcDims;
-        // Create strided dst layout for the inPlace case,
-        // For example: If need C indice stride changes, need to set the H indice.
-        dstDims[p.stridedIndice + 1] *= p.strideFactor;
-    }
-
-    void buildReorderGraph() {
-        auto getBlockedDims = [](const std::vector<size_t>& dims, const std::vector<size_t>& order) {
-            std::vector<size_t> result;
-            result.reserve(order.size());
-            for (auto i : order)
-                result.push_back(dims[i]);
-            return result;
-        };
-        auto getStrides = [](const std::vector<size_t>& dims) {
-            std::vector<size_t> result(dims.size());
-            result[dims.size() - 1] = 1;
-            for (int i = dims.size() - 2; i >= 0; --i) {
-                result[i] = result[i + 1] * dims[i + 1];
-            }
-            return result;
-        };
-        cpuEngine = {dnnl::engine::kind::cpu, 0};
+    void buildReorderGraph(const ov::intel_cpu::CpuBlockedMemoryDesc& inputDesc,
+                    const ov::intel_cpu::CpuBlockedMemoryDesc& outputDesc,
+                    const ov::intel_cpu::Shape& srcShape,
+                    const ov::intel_cpu::Shape& dstShape) {
+        const mkldnn::engine cpuEngine = {dnnl::engine::kind::cpu, 0};
         ov::intel_cpu::WeightsSharing::Ptr weightsCache;
 
-        inputNode = std::make_shared<ov::intel_cpu::node::Input>(ov::intel_cpu::Shape(srcDims),
-                                                                     prec,
-                                                                     "Reorder_Input",
-                                                                     "Input",
-                                                                     cpuEngine,
-                                                                     weightsCache);
+        auto inputNode = std::make_shared<ov::intel_cpu::node::Input>(srcShape,
+                                                                      prec,
+                                                                      "Reorder_Input",
+                                                                      "Input",
+                                                                      cpuEngine,
+                                                                      weightsCache);
         reorderNode = std::make_shared<ov::intel_cpu::node::Reorder>("Reorder", cpuEngine, weightsCache);
-        auto outputNode = std::make_shared<ov::intel_cpu::node::Input>(ov::intel_cpu::Shape(dstDims),
-                                                                           prec,
-                                                                           "Reorder_Output",
-                                                                           "Output",
-                                                                           cpuEngine,
-                                                                           weightsCache);
+        auto outputNode = std::make_shared<ov::intel_cpu::node::Input>(dstShape,
+                                                                       prec,
+                                                                       "Reorder_Output",
+                                                                       "Output",
+                                                                       cpuEngine,
+                                                                       weightsCache);
 
         parentEdge = std::make_shared<ov::intel_cpu::Edge>(inputNode, reorderNode, 0, 0);
         childEdge = std::make_shared<ov::intel_cpu::Edge>(reorderNode, outputNode, 0, 0);
@@ -198,29 +137,6 @@ protected:
         reorderNode->addEdge(childEdge);
 
         auto rtParamsCache = std::make_shared<ov::intel_cpu::MultiCache>(100);
-
-        const std::vector<size_t> srcBlockedDims = getBlockedDims(srcDims, srcOrder);
-        const std::vector<size_t> srcStrides = getStrides(srcBlockedDims);
-        const std::vector<size_t> offsetPaddingToData(srcDims.size(), 0);
-
-        const std::vector<size_t> dstBlockedDims = getBlockedDims(dstDims, dstOrder);
-        const std::vector<size_t> dstStrides = getStrides(dstBlockedDims);
-
-        const ov::intel_cpu::CpuBlockedMemoryDesc inputDesc(prec,
-                                                            ov::intel_cpu::Shape(srcDims),
-                                                            srcBlockedDims,
-                                                            srcOrder,
-                                                            0,
-                                                            offsetPaddingToData,
-                                                            srcStrides);
-
-        const ov::intel_cpu::CpuBlockedMemoryDesc outputDesc(prec,
-                                                             ov::intel_cpu::Shape(srcDims),
-                                                             getBlockedDims(srcDims, dstOrder),
-                                                             dstOrder,
-                                                             0,
-                                                             offsetPaddingToData,
-                                                             dstStrides);
 
         auto parentMemory = std::make_shared<ov::intel_cpu::Memory>(cpuEngine);
         auto childMemory = std::make_shared<ov::intel_cpu::Memory>(cpuEngine);
@@ -240,13 +156,119 @@ protected:
         }
         // Select inputDesc as primitive descriptor for reorder node
         reorderNode->selectPrimitiveDescriptorByIndex(0);
+        stream = mkldnn::stream{cpuEngine};
+    }
+
+protected:
+    mkldnn::stream stream;
+    std::shared_ptr<ov::intel_cpu::node::Reorder> reorderNode;
+    std::shared_ptr<ov::intel_cpu::Edge> parentEdge;
+    std::shared_ptr<ov::intel_cpu::Edge> childEdge;
+    InferenceEngine::Precision prec;
+};
+
+}  // namespace
+
+/*
+ * Test Reorder::optimizedNcsp2Nspc() and Reorder::optimizedNspc2Ncsp() for
+ * inPlace and non-inPlace cases. Specifically, the test checks that dst batch strides are
+ * correctly taken into account by the custom impls (the case when the reorder is followed by an inplace concat).
+ */
+class ReorderCustomizedStrideTest : public ::testing::Test,
+                                    public ::testing::WithParamInterface<ReorderCustomImplTestParamSet>,
+                                    public ::ReorderTestGraph {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<ReorderCustomImplTestParamSet>& obj) {
+        ReorderCustomImplTestParamSet p = obj.param;
+        std::ostringstream result;
+        result << "IS:(";
+        result << CommonTestUtils::vec2str(p.srcDims);
+        result << (p.isNspc2Ncsp ? "_NSPC2NCSP" : "_NCSP2NSPC");
+        result << "_InputDataType:" << p.prec.name();
+        result << "_OutputDataType:" << p.prec.name();
+        result << "_StrideFactor:" << p.strideFactor;
+        result << "_StridedLogicChannelIndice:" << p.stridedAxis;
+        result << ")";
+        return result.str();
+    }
+
+    void Run() {
+        buildCustomizedReorderGraph();
+        infer();
+        validate();
+    }
+
+protected:
+    void SetUp() override {
+        ReorderCustomImplTestParamSet p = ::testing::TestWithParam<ReorderCustomImplTestParamSet>::GetParam();
+        srcDims = p.srcDims;
+
+        if (p.isNspc2Ncsp) {
+            // The custom NSPC2NCSP  impl is used only if an input shape complies with:
+            ASSERT_TRUE(srcDims[1] <= 64 && srcDims[1] >= 16 && (getNumElems(srcDims) / srcDims[1]) >= 128);
+            // The custom NSPC2NCSP impl is used only for FP32
+            prec = InferenceEngine::Precision::FP32;
+            srcOrder = std::vector<size_t>{0, 2, 3, 1};
+            dstOrder = std::vector<size_t>{0, 1, 2, 3};
+        } else {
+            ASSERT_LE(getNumElems(srcDims), 256);
+            srcOrder = std::vector<size_t>{0, 1, 2, 3};
+            dstOrder = std::vector<size_t>{0, 2, 3, 1};
+            // The custom NSPC2NCSP  impl is used only for U8
+            prec = InferenceEngine::Precision::I8;
+        }
+        dstDims = srcDims;
+        // Create strided dst layout for the inPlace case,
+        // For example: If need channel axis stride changes, need to set the height axis dimension.
+        dstDims[p.stridedAxis + 1] *= p.strideFactor;
+    }
+
+    void buildCustomizedReorderGraph() {
+        auto getBlockedDims = [](const std::vector<size_t>& dims, const std::vector<size_t>& order) {
+            std::vector<size_t> result;
+            result.reserve(order.size());
+            for (auto i : order)
+                result.push_back(dims[i]);
+            return result;
+        };
+        auto getStrides = [](const std::vector<size_t>& dims) {
+            std::vector<size_t> result(dims.size());
+            result[dims.size() - 1] = 1;
+            for (int i = dims.size() - 2; i >= 0; --i) {
+                result[i] = result[i + 1] * dims[i + 1];
+            }
+            return result;
+        };
+        const std::vector<size_t> srcBlockedDims = getBlockedDims(srcDims, srcOrder);
+        const std::vector<size_t> srcStrides = getStrides(srcBlockedDims);
+        const std::vector<size_t> offsetPaddingToData(srcDims.size(), 0);
+        const std::vector<size_t> dstBlockedDims = getBlockedDims(dstDims, dstOrder);
+        const std::vector<size_t> dstStrides = getStrides(dstBlockedDims);
+
+        const ov::intel_cpu::CpuBlockedMemoryDesc inputDesc(prec,
+                                                            ov::intel_cpu::Shape(srcDims),
+                                                            srcBlockedDims,
+                                                            srcOrder,
+                                                            0,
+                                                            offsetPaddingToData,
+                                                            srcStrides);
+
+        const ov::intel_cpu::CpuBlockedMemoryDesc outputDesc(prec,
+                                                             ov::intel_cpu::Shape(srcDims),
+                                                             getBlockedDims(srcDims, dstOrder),
+                                                             dstOrder,
+                                                             0,
+                                                             offsetPaddingToData,
+                                                             dstStrides);
+        const auto& srcShape = ov::intel_cpu::Shape{srcDims};
+        const auto& destShape = ov::intel_cpu::Shape{dstDims};
+        buildReorderGraph(inputDesc, outputDesc, srcShape, destShape);
     }
 
     void infer() {
         generateInput();
         reorderNode->createPrimitive();
-        mkldnn::stream strm(cpuEngine);
-        reorderNode->execute(strm);
+        reorderNode->execute(stream);
     }
 
     void validate(void) {
@@ -267,18 +289,11 @@ protected:
         return result;
     }
 
-    mkldnn::engine cpuEngine;
+private:
     std::vector<size_t> srcDims;
     std::vector<size_t> srcOrder;
     std::vector<size_t> dstDims;
     std::vector<size_t> dstOrder;
-    InferenceEngine::Precision prec;
-
-    mkldnn::stream stream;
-    std::shared_ptr<ov::intel_cpu::node::Reorder> reorderNode;
-    std::shared_ptr<ov::intel_cpu::node::Input> inputNode;
-    std::shared_ptr<ov::intel_cpu::Edge> parentEdge;
-    std::shared_ptr<ov::intel_cpu::Edge> childEdge;
 };
 
 TEST_P(ReorderCustomizedStrideTest, OutputIsStrided) {
@@ -298,19 +313,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReorderTestCustomStrideWithFactor,
                          ReorderCustomizedStrideTest,
                          stridedParameter,
                          ReorderCustomizedStrideTest::getTestCaseName);
+
 /*
  * ReorderCPUTest to test the CPU plugin-in dynamism and RT cache
  */
-struct ReorderCPUTestParamSet {
-    ngraph::PartialShape inputPartialShape;
-    // logical dimension vector  of input
-    std::vector<std::vector<size_t>> inputShapes;
-    LayoutType srcLayout;
-    LayoutType dstLayout;
-    InferenceEngine::Precision prec;
-};
-
-class ReorderCPUTest : public ::testing::Test, public ::testing::WithParamInterface<ReorderCPUTestParamSet> {
+class ReorderCPUTest : public ::testing::Test,
+                       public ::testing::WithParamInterface<ReorderCPUTestParamSet>,
+                       public ::ReorderTestGraph {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ReorderCPUTestParamSet>& obj) {
         ReorderCPUTestParamSet p = obj.param;
@@ -322,8 +331,8 @@ public:
         }
         result << "_InputLayoutType:" << layoutInfo(p.srcLayout) << ".";
         result << "_OutputLayoutType:" << layoutInfo(p.dstLayout) << ".";
-        result << "_InputDataType:" << precisionInfo(p.prec);
-        result << "_OutputDataType:" << precisionInfo(p.prec);
+        result << "_InputDataType:" << p.prec.name();
+        result << "_OutputDataType:" << p.prec.name();
         result << ")";
         return result.str();
     }
@@ -349,91 +358,43 @@ protected:
         check_reorder(parentEdge->getMemory(), childEdge->getMemory(), prec);
     }
 
-    struct buildReorderParams {
-        ov::intel_cpu::Shape srcDims;
-        ov::intel_cpu::Shape dstDims;
+    struct BuildReorderParams {
+        ov::intel_cpu::Shape srcShape;
+        ov::intel_cpu::Shape dstShape;
         LayoutType srcLayout;
         LayoutType dstLayout;
-        InferenceEngine::Precision prec;
     };
 
     void SetUp() override {
         ReorderCPUTestParamSet reorderTestParam = this->GetParam();
-        buildReorderParams reorderParams;
+        BuildReorderParams reorderParams;
         reorderParams.srcLayout = reorderTestParam.srcLayout;
         reorderParams.dstLayout = reorderTestParam.dstLayout;
-        reorderParams.prec = reorderTestParam.prec;
-        reorderParams.srcDims = ov::intel_cpu::Shape(reorderTestParam.inputPartialShape);
-        reorderParams.dstDims = reorderParams.srcDims;
+        reorderParams.srcShape = ov::intel_cpu::Shape(reorderTestParam.inputPartialShape);
+        reorderParams.dstShape = reorderParams.srcShape;
         inputShapes = reorderTestParam.inputShapes;
         prec = reorderTestParam.prec;
 
-        auto rtParamsCache = std::make_shared<ov::intel_cpu::MultiCache>(100);
-        buildReorderNode(reorderParams);
-        reorderNode->setRuntimeCache(rtParamsCache);
+        buildReorderDynamismGraph(reorderParams);
     }
 
-    void buildReorderNode(const buildReorderParams& reorderParams) {
+    void buildReorderDynamismGraph(const BuildReorderParams& reorderParams) {
         BlockedDescCreator::CreatorsMap blockCreatorMap = BlockedDescCreator::getCommonCreators();
         auto srcBlockedDescCreator = blockCreatorMap[reorderParams.srcLayout];
         auto dstBlockedDescCreator = blockCreatorMap[reorderParams.dstLayout];
 
-        const mkldnn::engine cpuEngine(dnnl::engine::kind::cpu, 0);
-        ov::intel_cpu::WeightsSharing::Ptr weightsCache;
-
-        auto inputNode = std::make_shared<ov::intel_cpu::node::Input>(reorderParams.srcDims,
-                                                                          reorderParams.prec,
-                                                                          "Reorder_Input",
-                                                                          "Parameter",
-                                                                          cpuEngine,
-                                                                          weightsCache);
-        reorderNode = std::make_shared<ov::intel_cpu::node::Reorder>("Reorder", cpuEngine, weightsCache);
-        auto outputNode = std::make_shared<ov::intel_cpu::node::Input>(reorderParams.dstDims,
-                                                                           reorderParams.prec,
-                                                                           "Reorder_Output",
-                                                                           "Output",
-                                                                           cpuEngine,
-                                                                           weightsCache);
-
-        parentEdge = std::make_shared<ov::intel_cpu::Edge>(inputNode, reorderNode, 0, 0);
-        childEdge = std::make_shared<ov::intel_cpu::Edge>(reorderNode, outputNode, 0, 0);
-        parentEdge->changeStatus(ov::intel_cpu::Edge::Status::NeedAllocation);
-        childEdge->changeStatus(ov::intel_cpu::Edge::Status::NeedAllocation);
-        reorderNode->addEdge(parentEdge);
-        reorderNode->addEdge(childEdge);
-        inputDesc = srcBlockedDescCreator->createDesc(reorderParams.prec, reorderParams.srcDims);
+        inputDesc = srcBlockedDescCreator->createDesc(prec, reorderParams.srcShape);
+        const auto& reorderInputDesc = inputDesc;
 
         const ov::intel_cpu::CpuBlockedMemoryDesc outputDesc =
-            dstBlockedDescCreator->createDesc(reorderParams.prec, reorderParams.dstDims);
+            dstBlockedDescCreator->createDesc(prec, reorderParams.dstShape);
 
-        auto parentMemory = std::make_shared<ov::intel_cpu::Memory>(cpuEngine);
-        auto childMemory = std::make_shared<ov::intel_cpu::Memory>(cpuEngine);
-        parentMemory->Create(inputDesc, nullptr);
-        childMemory->Create(outputDesc, nullptr);
-        parentEdge->reuse(parentMemory);
-        childEdge->reuse(childMemory);
-
-        reorderNode->setDescs(inputDesc, outputDesc);
-
-        std::array<std::shared_ptr<ov::intel_cpu::Node>, 3> nodes{inputNode, reorderNode, outputNode};
-        for (auto& n : nodes) {
-            n->init();
-            n->getSupportedDescriptors();
-            n->initSupportedPrimitiveDescriptors();
-        }
-        // Select inputDesc as primitive descriptor for reorder node
-        reorderNode->selectPrimitiveDescriptorByIndex(0);
-        stream = {cpuEngine};
+        buildReorderGraph(reorderInputDesc, outputDesc, reorderParams.srcShape, reorderParams.dstShape);
     }
 
 private:
-    mkldnn::stream stream;
-    std::shared_ptr<ov::intel_cpu::node::Reorder> reorderNode;
-    std::shared_ptr<ov::intel_cpu::Edge> parentEdge;
-    std::shared_ptr<ov::intel_cpu::Edge> childEdge;
     ov::intel_cpu::CpuBlockedMemoryDesc inputDesc{InferenceEngine::Precision::FP32, ov::intel_cpu::Shape{}};
     std::vector<std::vector<size_t>> inputShapes;
-    InferenceEngine::Precision prec;
 };
 
 TEST_P(ReorderCPUTest, CompareResult) {
