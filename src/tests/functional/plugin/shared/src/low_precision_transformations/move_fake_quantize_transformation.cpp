@@ -23,13 +23,13 @@ std::string MoveFakeQuantizeTransformation::getTestCaseName(testing::TestParamIn
     std::vector<ngraph::PartialShape> inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    bool oneInputWithSplit;
+    std::string split_type;
     MoveFakeQuantizeTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, oneInputWithSplit, param) = obj.param;
+    std::tie(netPrecision, inputShape, targetDevice, params, split_type, param) = obj.param;
 
     std::ostringstream result;
     result << getTestCaseNameByParams(netPrecision, inputShape[0], targetDevice, params) <<
-        "SPLIT:" << oneInputWithSplit << "_" <<
+        "SPLIT:" << split_type << "_" <<
         "OP:" << param.operation << "_" <<
         "FQ:" << param.fakeQuantizeAfter << "_" <<
         "DQ:" << param.dequantizationAfter;
@@ -40,9 +40,9 @@ void MoveFakeQuantizeTransformation::SetUp() {
     ngraph::element::Type netPrecision;
     std::vector<ngraph::PartialShape> inputShapes;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    bool oneInputWithSplit;
+    std::string split_type;
     MoveFakeQuantizeTransformationParam param;
-    std::tie(netPrecision, inputShapes, targetDevice, params, oneInputWithSplit, param) = this->GetParam();
+    std::tie(netPrecision, inputShapes, targetDevice, params, split_type, param) = this->GetParam();
 
     function = ngraph::builder::subgraph::MoveFakeQuantize::get(
         netPrecision,
@@ -58,7 +58,7 @@ void MoveFakeQuantizeTransformation::SetUp() {
         {},
         {},
         param.axis,
-        oneInputWithSplit);
+        split_type);
 }
 
 void MoveFakeQuantizeTransformation::Run() {

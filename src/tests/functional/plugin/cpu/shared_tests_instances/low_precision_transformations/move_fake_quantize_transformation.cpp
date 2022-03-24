@@ -148,7 +148,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, MoveFakeQuantizeTransformation,
         ::testing::ValuesIn(shapes),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
-        ::testing::ValuesIn({false, true}),
+        ::testing::ValuesIn({std::string("")}),
         ::testing::ValuesIn(params)),
     MoveFakeQuantizeTransformation::getTestCaseName);
 } // namespace testValues1
@@ -179,7 +179,38 @@ namespace testValues2 {
             ::testing::ValuesIn(shapes),
             ::testing::Values(CommonTestUtils::DEVICE_CPU),
             ::testing::ValuesIn(trasformationParamValues),
-            ::testing::ValuesIn({false}),
+            ::testing::ValuesIn({std::string("")}),
             ::testing::ValuesIn(params)),
         MoveFakeQuantizeTransformation::getTestCaseName);
 } // namespace testValues2
+
+namespace testValues3 {
+
+    const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> params = {
+        // with split
+        {
+            3,
+            "",
+            {256ul, {},  {-1.28f}, {1.27f}, {-1.28f}, {1.27f}},
+            {},
+            {},
+            "Concatenation",
+            "FP32",
+            1
+        },
+    };
+    const std::vector<std::vector<ngraph::PartialShape>> shapes = {
+        {{ 1, 1, 16, 16 }, { 1, 1, 16, 16 }, { 1, 1, 16, 16 }},
+        {{ 4, 1, 16, 16 }, { 4, 1, 16, 16 }, { 4, 1, 16, 16 }}
+    };
+
+    INSTANTIATE_TEST_SUITE_P(smoke_LPT, MoveFakeQuantizeTransformation,
+        ::testing::Combine(
+            ::testing::ValuesIn(netPrecisions),
+            ::testing::ValuesIn(shapes),
+            ::testing::Values(CommonTestUtils::DEVICE_CPU),
+            ::testing::ValuesIn(trasformationParamValues),
+            ::testing::ValuesIn({std::string("VariadicSplit"), std::string("Split")}),
+            ::testing::ValuesIn(params)),
+        MoveFakeQuantizeTransformation::getTestCaseName);
+} // namespace testValues3

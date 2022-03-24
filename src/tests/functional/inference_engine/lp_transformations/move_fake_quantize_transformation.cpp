@@ -125,7 +125,7 @@ public:
         std::vector<ngraph::PartialShape> inputShapes = std::get<1>(GetParam());
         //const auto shape = std::get<1>(GetParam());
         MoveFakeQuantizeTransformationTestValues testValues = std::get<2>(GetParam());
-        const std::string oneInputWithSplit = std::get<3>(GetParam());
+        const std::string split_type = std::get<3>(GetParam());
         // dequantization output precision depends on input precision
         // to avoid huge amount of tests cases let's define dequantization output precision as input precision
         if (!testValues.actual.dequantizationBefore.multiply.empty()) {
@@ -152,9 +152,7 @@ public:
             },
             ngraph::element::undefined,
             testValues.axis,
-            oneInputWithSplit);
-        ngraph::pass::VisualizeTree("C:\\Users\\ndemasho\\rep\\Visual\\test.actual.dot")
-            .run_on_function(actualFunction);
+            split_type);
 
         auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
                 ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::AvgPool>({{0, testValues.params.precisionsOnActivations}})
@@ -201,13 +199,13 @@ public:
             },
             testValues.result.precisionAfterOperation,
             testValues.axis,
-            oneInputWithSplit);
+            split_type);
     }
     static std::string getTestCaseName(testing::TestParamInfo<MoveFakeQuantizeTransformationParams> obj) {
         const ngraph::element::Type precision = std::get<0>(obj.param);
         const std::vector<ngraph::PartialShape> shape = std::get<1>(obj.param);
         const MoveFakeQuantizeTransformationTestValues testValues = std::get<2>(obj.param);
-        const std::string oneInputWithSplit = std::get<3>(obj.param);
+        const std::string split_type = std::get<3>(obj.param);
 
         std::ostringstream result;
         result <<
@@ -216,7 +214,7 @@ public:
             "axis_" << testValues.axis << "_" <<
             testValues.actual << "_" <<
             testValues.result << "_" <<
-            oneInputWithSplit;
+            split_type;
         return result.str();
     }
 };
@@ -435,7 +433,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(shapes),
         ::testing::ValuesIn(testValues),
-        ::testing::ValuesIn({ std::string("") })),
+        ::testing::ValuesIn({std::string("")})),
     MoveFakeQuantizeTransformation::getTestCaseName);
 } // namespace perTensorValues
 
@@ -582,7 +580,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(shapes),
         ::testing::ValuesIn(testValues),
-        ::testing::ValuesIn({ std::string("") })),
+        ::testing::ValuesIn({std::string("")})),
     MoveFakeQuantizeTransformation::getTestCaseName);
 } // namespace perChannelValues
 
@@ -646,7 +644,7 @@ namespace testValues3 {
             ::testing::ValuesIn(precisions),
             ::testing::ValuesIn(shapes),
             ::testing::ValuesIn(testValues),
-            ::testing::ValuesIn({ std::string("") })),
+            ::testing::ValuesIn({std::string("")})),
         MoveFakeQuantizeTransformation::getTestCaseName);
 } // namespace testValues3
 
@@ -704,7 +702,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(shapes),
         ::testing::ValuesIn(testValues),
-        ::testing::ValuesIn({ std::string("") })),
+        ::testing::ValuesIn({std::string("")})),
     MoveFakeQuantizeTransformation::getTestCaseName);
 } // namespace NegativeTestValues
 
@@ -750,7 +748,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(shapes),
         ::testing::ValuesIn(testValues),
-        ::testing::ValuesIn({ std::string("VariadicSplit"), std::string("Split") })),
+        ::testing::ValuesIn({std::string("VariadicSplit"), std::string("Split")})),
     MoveFakeQuantizeTransformation::getTestCaseName);
 } // namespace withSplit
 } // namespace

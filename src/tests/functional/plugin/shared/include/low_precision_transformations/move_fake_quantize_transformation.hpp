@@ -34,7 +34,7 @@ typedef std::tuple <
     std::vector<ngraph::PartialShape>,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
-    bool,
+    std::string,
     MoveFakeQuantizeTransformationParam
 > MoveFakeQuantizeTransformationParams;
 
