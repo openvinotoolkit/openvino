@@ -16,12 +16,8 @@ namespace runtime {
 namespace reference {
 namespace fft_common {
 std::vector<int64_t> reverse_shape(const ngraph::Shape& shape) {
-    size_t complex_data_rank = shape.size() - 1;
-
-    std::vector<int64_t> reversed_shape(complex_data_rank);
-    for (size_t i = 0; i < complex_data_rank; ++i) {
-        reversed_shape[i] = static_cast<int64_t>(shape[complex_data_rank - i - 1]);
-    }
+    std::vector<int64_t> reversed_shape(shape.begin(), shape.end() - 1);
+    std::reverse(reversed_shape.begin(), reversed_shape.end());
     return reversed_shape;
 }
 
