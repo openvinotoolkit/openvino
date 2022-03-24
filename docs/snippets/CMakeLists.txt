@@ -79,11 +79,6 @@ list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/dldt_optimization_guide2.c
                          "${CMAKE_CURRENT_SOURCE_DIR}/dldt_optimization_guide3.cpp"
                          "${CMAKE_CURRENT_SOURCE_DIR}/dldt_optimization_guide4.cpp")
 
-if(CMAKE_COMPILER_IS_GNUCXX)
-    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/ov_extensions.cpp" PROPERTIES
-                                COMPILE_OPTIONS "-Wno-error=attributes")
-endif()
-
 # create a static library
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})

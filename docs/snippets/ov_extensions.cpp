@@ -19,6 +19,26 @@
 
 #include <identity.hpp>
 
+//! [frontend_extension_CustomOperation]
+class CustomOperation : public ov::op::Op {
+
+    std::string attr1;
+    int attr2;
+
+public:
+
+    OPENVINO_OP("CustomOperation");
+
+    bool visit_attributes(ov::AttributeVisitor& visitor) override {
+        visitor.on_attribute("attr1", attr1);
+        visitor.on_attribute("attr2", attr2);
+        return true;
+    }
+
+    // ... implement other required methods
+    //! [frontend_extension_CustomOperation]
+    std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector&) const override { return nullptr; }
+};
 
 int main() {
 {
@@ -67,27 +87,6 @@ core.read_model("/path/to/model.onnx");
 //! [frontend_extension_MyRelu]
 core.add_extension(ov::frontend::OpExtension<>("Relu", "MyRelu"));
 //! [frontend_extension_MyRelu]
-
-//! [frontend_extension_CustomOperation]
-class CustomOperation : public ov::op::Op {
-
-    std::string attr1;
-    int attr2;
-
-public:
-
-    OPENVINO_OP("CustomOperation");
-
-    bool visit_attributes(ov::AttributeVisitor& visitor) override {
-        visitor.on_attribute("attr1", attr1);
-        visitor.on_attribute("attr2", attr2);
-        return true;
-    }
-
-    // ... implement other required methods
-    //! [frontend_extension_CustomOperation]
-    std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector&) const override { return nullptr; }
-};
 
 //! [frontend_extension_CustomOperation_as_is]
 core.add_extension(ov::frontend::OpExtension<CustomOperation>());
