@@ -4,7 +4,7 @@
 
 **Category**: *Generation*
 
-**Short description**: *EyeLike* operation generates identity matrix.
+**Short description**: *EyeLike* operation generates shift matrix.
 
 **Detailed description**:
 
