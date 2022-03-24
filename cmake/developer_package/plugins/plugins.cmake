@@ -147,7 +147,7 @@ function(ie_add_plugin)
         endif()
     endif()
 
-    if(NOT IE_PLUGIN_SKIP_REGISTRATION)
+    if(NOT IE_PLUGIN_SKIP_REGISTRATION OR NOT BUILD_SHARED_LIBS)
         # check that plugin with such name is not registered
         foreach(plugin_entry IN LISTS PLUGIN_FILES)
             string(REPLACE ":" ";" plugin_entry "${plugin_entry}")

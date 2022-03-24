@@ -6,14 +6,14 @@ As a backend for actual computations OpenVINO reference implementations is used,
 ## How to build
 
 ```bash
-$ cd $OPENVINO_HOME
-$ mkdir $OPENVINO_HOME/build
-$ cd $OPENVINO_HOME/build
+$ cd <openvino_dir>
+$ mkdir <openvino_dir>/build
+$ cd <openvino_dir>/build
 $ cmake -DENABLE_TESTS=ON -DENABLE_FUNCTIONAL_TESTS=ON ..
 $ make -j8
-$ cd $TEMPLATE_PLUGIN_HOME
-$ mkdir $TEMPLATE_PLUGIN_HOME/build
-$ cd $TEMPLATE_PLUGIN_HOME/build
-$ cmake -DOpenVINODeveloperPackage_DIR=$OPENVINO_HOME/build ..
+$ cd <template_plugin_dir>
+$ mkdir <template_plugin_dir>/build
+$ cd <template_plugin_dir>/build
+$ cmake -DOpenVINODeveloperPackage_DIR=<openvino_dir>/build ..
 $ make -j8
 ```
