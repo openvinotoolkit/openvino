@@ -128,16 +128,10 @@ public:
     }
 
     void configure_model() override {
+        align_parameters();
         ov::preprocess::PrePostProcessor p(function);
         {
             auto& params = function->get_parameters();
-            size_t gapSize = params.size() - inType.size();
-            if (gapSize) {
-                auto inTypeDefaultValue = inType[0];
-                for (size_t i = 1; i <= gapSize; i++) {
-                    inType.push_back(inTypeDefaultValue);
-                }
-            }
             for (size_t i = 0; i < params.size(); i++) {
                 if (i > 0) {
                     continue;
@@ -149,13 +143,6 @@ public:
         }
         {
             auto results = function->get_results();
-            size_t gapSize = results.size() - outType.size();
-            if (gapSize) {
-                auto outTypeDefaultValue = outType[0];
-                for (size_t i = 1; i <= gapSize; i++) {
-                    outType.push_back(outTypeDefaultValue);
-                }
-            }
             for (size_t i = 0; i < results.size(); i++) {
                 if (outType[i] != ov::element::Type_t::undefined) {
                     p.output(i).tensor().set_element_type(outType[i]);

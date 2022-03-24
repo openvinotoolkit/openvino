@@ -176,8 +176,7 @@ void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
     }
 }
 
-void SubgraphBaseTest::configure_model() {
-    // configure input precision
+void SubgraphBaseTest::align_parameters() {
     ov::preprocess::PrePostProcessor p(function);
     {
         auto& params = function->get_parameters();
@@ -188,6 +187,27 @@ void SubgraphBaseTest::configure_model() {
                 inType.push_back(inTypeDefaultValue);
             }
         }
+    }
+    {
+        auto& results = function->get_results();
+        size_t gapSize = results.size() - outType.size();
+        if (gapSize) {
+            auto outTypeDefaultValue = outType[0];
+            for (size_t i = 1; i <= gapSize; i++) {
+                outType.push_back(outTypeDefaultValue);
+            }
+        }
+    }
+}
+
+void SubgraphBaseTest::configure_model() {
+    // align number of inputs outputs attributes to tensor inputs outputs
+    align_parameters();
+
+    // configure input precision
+    ov::preprocess::PrePostProcessor p(function);
+    {
+        auto& params = function->get_parameters();
         for (size_t i = 0; i < params.size(); i++) {
             if (inType[i] != ov::element::Type_t::undefined) {
                 p.input(i).tensor().set_element_type(inType[i]);
@@ -198,13 +218,6 @@ void SubgraphBaseTest::configure_model() {
     // configure output precision
     {
         auto results = function->get_results();
-        size_t gapSize = results.size() - outType.size();
-        if (gapSize) {
-            auto outTypeDefaultValue = outType[0];
-            for (size_t i = 1; i <= gapSize; i++) {
-                outType.push_back(outTypeDefaultValue);
-            }
-        }
         for (size_t i = 0; i < results.size(); i++) {
             if (outType[i] != ov::element::Type_t::undefined) {
                 p.output(i).tensor().set_element_type(outType[i]);
