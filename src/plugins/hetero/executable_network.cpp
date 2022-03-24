@@ -68,11 +68,9 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
       _heteroPlugin{plugin},
       _name{originalNetwork.getName()},
       _config{config} {
-    auto originalFunction = originalNetwork.getFunction();
-    IE_ASSERT(originalFunction != nullptr);
-
-    auto clonned_function = ngraph::clone_function(*originalFunction);
-    InferenceEngine::CNNNetwork clonned_network(clonned_function);
+    auto clonned_network = InferenceEngine::details::cloneNetwork(originalNetwork);
+    auto clonned_function = clonned_network.getFunction();
+    IE_ASSERT(clonned_function != nullptr);
 
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::ConstantFolding>();
