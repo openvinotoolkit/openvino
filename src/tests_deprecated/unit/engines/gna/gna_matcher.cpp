@@ -374,7 +374,7 @@ void GNAPropagateMatcher :: match() {
         };
 
         StrictMock<GNACppApi> mockApi;
-        std::vector<uint8_t> data;
+        std::vector<std::vector<uint8_t>> data;
 
         if (_env.config[GNA_CONFIG_KEY(DEVICE_MODE)].compare(GNA_CONFIG_VALUE(SW_FP32)) != 0 &&
             !_env.matchThrows) {
@@ -383,9 +383,9 @@ void GNAPropagateMatcher :: match() {
                 uint32_t *sizeGranted,
                 void **memoryAddress
                 ) {
-                data.resize(sizeRequested);
+                data.push_back(std::vector<uint8_t>(sizeRequested));
                 *sizeGranted = sizeRequested;
-                *memoryAddress = &data.front();
+                *memoryAddress = data.back().data();
                 return Gna2StatusSuccess;
             }));
 
@@ -801,7 +801,7 @@ void GNAQueryStateMatcher :: match() {
 
     EXPECT_CALL(mockApi, Gna2InstrumentationConfigCreate(_,_,_,_)).WillOnce(Return(Gna2StatusSuccess));
 
-    EXPECT_CALL(mockApi, Gna2MemoryFree(_)).WillOnce(Return(Gna2StatusSuccess));
+    EXPECT_CALL(mockApi, Gna2MemoryFree(_)).Times(AtLeast(1)).WillRepeatedly(Return(Gna2StatusSuccess));
 
     EXPECT_CALL(mockApi, Gna2DeviceClose(_)).WillOnce(Return(Gna2StatusSuccess));
 

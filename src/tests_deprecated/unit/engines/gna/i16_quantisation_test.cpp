@@ -523,6 +523,7 @@ TEST_F(I16QuantisationTest, TI_PropagateForward) {
         .called_with().pwls_inserted_into_nnet({kActIdentity});
 }
 
+// TODO check failure with mem
 TEST_F(I16QuantisationTest, SplitToConcatWith2Inputs1360NotAlignedNoFC) {
     assert_that().onInferModel(SplitToConcatWith2Inputs1360NotAlignedNoFC())
             .inNotCompactMode()
