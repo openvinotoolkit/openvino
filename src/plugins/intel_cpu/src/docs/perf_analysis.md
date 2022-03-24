@@ -20,7 +20,7 @@ which means performance tuning for a specific model leads to the improvement of 
    ```shell script
    ./benchmark_app -m <path_to_model>/<model_name>.xml -hint latency -t 10 -exec_graph_path <path_to_exec_graph>/<exec_graph_name>.xml --report_type average_counters --report_folder <path_to_report_folder> -pc
    ```
-   See [benhamrk tool documentation](https://docs.openvino.ai/latest/openvino_inference_engine_samples_benchmark_app_README.html) for details.
+   See [benchmark tool documentation](https://docs.openvino.ai/latest/openvino_inference_engine_samples_benchmark_app_README.html) for details.
    Latency mode is used by default because it gives performance results that are easy to interpret since only one stream per CPU socket is created and
    all the infer requests are executed sequentially.
 3. Make an outcome table summarizing the average time per each layer type.
