@@ -221,9 +221,7 @@ class PrepareLibs(build_clib):
                     set_rpath(comp_data["rpath"], os.path.realpath(path))
 
     def generate_package(self, src_dirs):
-        """
-        Collect package data files from preinstalled dirs and put all runtime libraries to the subpackage.
-        """
+        """Collect package data files from preinstalled dirs and put all runtime libraries to the subpackage."""
         # additional blacklist filter, just to fix cmake install issues
         blacklist = [".lib", ".pdb", "_debug.dll", "_debug.dylib"]
         package_dir = os.path.join(get_package_dir(PY_INSTALL_CFG), WHEEL_LIBS_INSTALL_DIR)
@@ -293,9 +291,7 @@ class CustomClean(clean):
 
 
 def ignore_patterns(*patterns):
-    """
-    Filter names by given patterns.
-    """
+    """Filter names by given patterns."""
     return lambda name: any(fnmatchcase(name, pat=pat) for pat in patterns)
 
 
@@ -415,7 +411,7 @@ def get_dir_list(install_cfg):
 
 
 def get_package_dir(install_cfg):
-    """Get python package path based on config. All the packages should be located in one directory"""
+    """Get python package path based on config. All the packages should be located in one directory."""
     py_package_path = ""
     dirs = get_dir_list(install_cfg)
     if len(dirs) != 0:
