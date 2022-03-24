@@ -95,12 +95,12 @@ output  = [[0. 0.]
 <layer ... name="EyeLike" type="EyeLike">
     <data output_type="i32"/>
     <input>
-        <port id="0" precision="I32"/>  <!-- num rows -->
+        <port id="0" precision="I32"/>  <!-- num rows : 10-->
     </input>
     <output>
         <port id="3" precision="I32" names="EyeLike:0">
-            <dim>-1</dim>
-            <dim>-1</dim>
+            <dim>10</dim>
+            <dim>10</dim>
         </port>
     </output>
 </layer>
@@ -112,13 +112,13 @@ output  = [[0. 0.]
 <layer ... name="EyeLike" type="EyeLike">
     <data output_type="i64" diagonal_index="2"/>
     <input>
-        <port id="0" precision="I32"/>  <!-- num rows -->
-        <port id="1" precision="I32"/>  <!-- num columns -->
+        <port id="0" precision="I32"/>  <!-- num rows : 5 -->
+        <port id="1" precision="I32"/>  <!-- num columns : 3 -->
     </input>
     <output>
         <port id="3" precision="I64" names="EyeLike:0">
-            <dim>-1</dim>
-            <dim>-1</dim>
+            <dim>5</dim>
+            <dim>3</dim>
         </port>
     </output>
 </layer>
