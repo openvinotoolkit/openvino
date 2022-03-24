@@ -55,7 +55,7 @@ First of all, you should validate the POT compression pipeline you are running, 
 2.	Run your compression pipeline with a single compression algorithm ([Default Quantization](@ref pot_default_quantization_usage) or [Accuracy-aware Quantization](@ref pot_accuracyaware_usage)) without any parameter values specified in the config (except for `preset` and `stat_subset_size`). Make sure you get the undesirable accuracy drop/performance gain in this case.
 
 Finally, if you have done the steps above and the problem persists, you could try to compress your model using the [Neural Network Compression Framework (NNCF)](https://github.com/openvinotoolkit/nncf_pytorch).
-Note that NNCF usage requires you to have a PyTorch or TensorFlow 2 based training pipeline of your model in order to perform Quantization-aware Training. See [Low Precision Optimization Guide](LowPrecisionOptimizationGuide.md) for more details.
+Note that NNCF usage requires you to have a PyTorch or TensorFlow 2 based training pipeline of your model in order to perform Quantization-aware Training. See [Model Optimization Guide](@ref openvino_docs_model_optimization_guide) for more details.
 
 ### <a name="memory">I get “RuntimeError: Cannot get memory” and “RuntimeError: Output data was not allocated” when I quantize my model by the POT.</a>
 
