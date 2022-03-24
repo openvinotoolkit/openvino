@@ -324,7 +324,9 @@ public:
         else
             use_broadcast = false;
 
-        assert(n->get_input_element_type(0) == n->get_output_element_type(0));
+        if (n->get_input_element_type(0) != n->get_output_element_type(0))
+            IE_THROW() << "BroadcastMoveEmitter supports only equal input and output types but gets: "
+                << n->get_input_element_type(0) << " and " << n->get_output_element_type(0);
         byte_size = n->get_input_element_type(0).size();
     }
     size_t get_inputs_num() const override {return 1;}
@@ -458,9 +460,11 @@ public:
     StoreEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : MemoryEmitter(h, isa, n) {
         if (auto node = ov::as_type_ptr<ngraph::snippets::op::StoreConvert>(n)) {
-            assert(n->get_input_element_type(0) == ov::element::f32);
+            if (n->get_input_element_type(0) != ov::element::f32)
+                IE_THROW() << "StoreConvertEmitter supports only f32 input type but gets: " << n->get_input_element_type(0);
         } else {
-            assert(src_prc == dst_prc);
+            if (src_prc != dst_prc)
+                IE_THROW() << "StoreEmitter supports only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
         }
 
         store_emitter.reset(new jit_store_emitter(h, isa));
@@ -488,7 +492,7 @@ private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
         if (!store_emitter)
-            throw ov::Exception("Store emitter isn't initialized!");
+            IE_THROW() << "Store CPU emitter isn't initialized for StoreEmitter!";
         store_emitter->emit_code({in[0]}, {ea}, std::make_shared<store_emitter_context>(src_prc, dst_prc, lanes),
                                  aux_vec_idxs, aux_gpr_idxs);
 
@@ -513,9 +517,11 @@ public:
     ScalarStoreEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : MemoryEmitter(h, isa, n) {
         if (auto node = ov::as_type_ptr<ngraph::snippets::op::ScalarStoreConvert>(n)) {
-            assert(n->get_input_element_type(0) == ov::element::f32);
+            if (n->get_input_element_type(0) != ov::element::f32)
+                IE_THROW() << "ScalarStoreConvertEmitter supports only f32 input type but gets: " << n->get_input_element_type(0);
         } else {
-            assert(src_prc == dst_prc);
+            if (src_prc != dst_prc)
+                IE_THROW() << "ScalarStoreEmitter supports only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
         }
 
         store_emitter.reset(new jit_store_emitter(h, isa));
@@ -542,7 +548,7 @@ private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
         if (!store_emitter)
-            throw ov::Exception("Store emitter isn't initialized!");
+            IE_THROW() << "Store CPU emitter isn't initialized for ScalarStoreEmitter!";
         store_emitter->emit_code({in[0]}, {ea}, std::make_shared<store_emitter_context>(src_prc, dst_prc, 1),
                                  aux_vec_idxs, aux_gpr_idxs);
 
@@ -566,9 +572,11 @@ public:
     LoadEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : MemoryEmitter(h, isa, n), shouldPostIncrement(*n->get_input_shape(0).rbegin() != 1) {
         if (auto node = ov::as_type_ptr<ngraph::snippets::op::LoadConvert>(n)) {
-            assert(n->get_output_element_type(0) == ov::element::f32);
+            if (n->get_output_element_type(0) != ov::element::f32)
+                IE_THROW() << "LoadConvertEmitter supports only f32 output type but gets: " << n->get_output_element_type(0);
         } else {
-            assert(src_prc == dst_prc);
+            if (src_prc != dst_prc)
+                IE_THROW() << "LoadEmitter supports only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
         }
 
         load_emitter.reset(new jit_load_emitter(h, isa));
@@ -598,7 +606,7 @@ private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
         if (!load_emitter)
-            throw ov::Exception("Load emitter isn't initialized!");
+            IE_THROW() << "Load CPU emitter isn't initialized for LoadEmitter!";
         load_emitter->emit_code({ea}, {out[0]}, std::make_shared<load_emitter_context>(src_prc, dst_prc, lanes),
                                 aux_vec_idxs, aux_gpr_idxs);
 
@@ -624,7 +632,8 @@ class BroadcastLoadEmitter : public MemoryEmitter {
 public:
     BroadcastLoadEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : MemoryEmitter(h, isa, n) {
-        assert(src_prc == dst_prc);
+        if (src_prc != dst_prc)
+            IE_THROW() << "BroadcastEmitters support only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
     }
     size_t get_inputs_num() const override {return 0;}
 
@@ -667,9 +676,11 @@ public:
     ScalarLoadEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : MemoryEmitter(h, isa, n), shouldPostIncrement(*n->get_input_shape(0).rbegin() != 1) {
         if (auto node = ov::as_type_ptr<ngraph::snippets::op::ScalarLoadConvert>(n)) {
-            assert(n->get_input_element_type(0) == ov::element::f32);
+            if (n->get_output_element_type(0) != ov::element::f32)
+                IE_THROW() << "ScalarLoadConvertEmitter supports only f32 output type but gets: " << n->get_output_element_type(0);
         } else {
-            assert(src_prc == dst_prc);
+            if (src_prc != dst_prc)
+                IE_THROW() << "ScalarLoadEmitter supports only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
         }
 
         load_emitter.reset(new jit_load_emitter(h, isa));
@@ -697,7 +708,7 @@ private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
         if (!load_emitter)
-            throw ov::Exception("Load emitter isn't initialized!");
+            IE_THROW() << "Load CPU emitter isn't initialized for ScalarLoadEmitter!";
         load_emitter->emit_code({ea}, {out[0]}, std::make_shared<load_emitter_context>(src_prc, dst_prc, 1),
                                 aux_vec_idxs, aux_gpr_idxs);
 
