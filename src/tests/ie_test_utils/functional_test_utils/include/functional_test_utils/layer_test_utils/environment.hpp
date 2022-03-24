@@ -15,7 +15,7 @@ namespace LayerTestsUtils {
 class TestEnvironment : public ::testing::Environment {
 public:
     void TearDown() override {
-        Summary::getInstance().saveReport();
+        OpSummary::getInstance().saveReport();
     };
 };
 }  // namespace LayerTestsUtils

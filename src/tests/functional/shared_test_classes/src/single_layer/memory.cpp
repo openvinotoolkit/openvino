@@ -58,14 +58,14 @@ namespace LayerTestsDefinitions {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         using namespace LayerTestsUtils;
         auto crashHandler = [](int errCode) {
-            auto &s = Summary::getInstance();
+            auto &s = OpSummary::getInstance();
             s.saveReport();
             std::cout << "Unexpected application crash!" << std::endl;
             std::abort();
         };
         signal(SIGSEGV, crashHandler);
 
-        auto &s = LayerTestsUtils::Summary::getInstance();
+        auto &s = LayerTestsUtils::OpSummary::getInstance();
         s.setDeviceName(targetDevice);
         if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
             s.updateOPsStats(function, PassRate::Statuses::SKIPPED);

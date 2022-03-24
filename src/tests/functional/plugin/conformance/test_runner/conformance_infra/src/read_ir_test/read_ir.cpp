@@ -56,7 +56,7 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParam
 void ReadIRTest::query_model() {
     // in case of crash jump will be made and work will be continued
     auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
-    auto &s = LayerTestsUtils::Summary::getInstance();
+    auto &s = LayerTestsUtils::OpSummary::getInstance();
 
     // place to jump in case of a crash
     int jmpRes = 0;

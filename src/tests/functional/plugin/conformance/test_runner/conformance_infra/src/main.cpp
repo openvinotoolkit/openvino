@@ -45,11 +45,11 @@ int main(int argc, char* argv[]) {
     }
 
     FuncTestUtils::SkipTestsConfig::disable_tests_skipping = FLAGS_disable_test_config;
-    LayerTestsUtils::Summary::setExtendReport(FLAGS_extend_report);
-    LayerTestsUtils::Summary::setExtractBody(FLAGS_extract_body);
-    LayerTestsUtils::Summary::setSaveReportWithUniqueName(FLAGS_report_unique_name);
-    LayerTestsUtils::Summary::setOutputFolder(FLAGS_output_folder);
-    LayerTestsUtils::Summary::setSaveReportTimeout(FLAGS_save_report_timeout);
+    LayerTestsUtils::OpSummary::setExtendReport(FLAGS_extend_report);
+    LayerTestsUtils::OpSummary::setExtractBody(FLAGS_extract_body);
+    LayerTestsUtils::OpSummary::setSaveReportWithUniqueName(FLAGS_report_unique_name);
+    LayerTestsUtils::OpSummary::setOutputFolder(FLAGS_output_folder);
+    LayerTestsUtils::OpSummary::setSaveReportTimeout(FLAGS_save_report_timeout);
     if (FLAGS_shape_mode == std::string("static")) {
         ov::test::subgraph::shapeMode = ov::test::subgraph::ShapeMode::STATIC;
     } else if (FLAGS_shape_mode == std::string("dynamic")) {
@@ -85,7 +85,7 @@ int main(int argc, char* argv[]) {
         signal(SIGTERM, SIG_DFL);
 
         if (errCode == SIGINT || errCode == SIGTERM) {
-            auto& s = LayerTestsUtils::Summary::getInstance();
+            auto& s = LayerTestsUtils::OpSummary::getInstance();
             s.saveReport();
             exit(1);
         }

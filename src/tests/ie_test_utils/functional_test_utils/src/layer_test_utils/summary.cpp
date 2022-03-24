@@ -13,23 +13,23 @@ using namespace LayerTestsUtils;
 # define getpid _getpid
 #endif
 
-Summary *Summary::p_instance = nullptr;
+OpSummary *OpSummary::p_instance = nullptr;
 bool Summary::extendReport = false;
-bool Summary::extractBody = false;
+bool OpSummary::extractBody = false;
 bool Summary::saveReportWithUniqueName = false;
 size_t Summary::saveReportTimeout = 0;
 const char* Summary::outputFolder = ".";
-SummaryDestroyer Summary::destroyer;
+OpSummaryDestroyer OpSummary::destroyer;
 
-SummaryDestroyer::~SummaryDestroyer() {
+OpSummaryDestroyer::~OpSummaryDestroyer() {
     delete p_instance;
 }
 
-void SummaryDestroyer::initialize(Summary *p) {
+void OpSummaryDestroyer::initialize(OpSummary *p) {
     p_instance = p;
 }
 
-Summary::Summary() {
+OpSummary::OpSummary() {
     opsets.push_back(ngraph::get_opset1());
     opsets.push_back(ngraph::get_opset2());
     opsets.push_back(ngraph::get_opset3());
@@ -40,15 +40,15 @@ Summary::Summary() {
     opsets.push_back(ngraph::get_opset8());
 }
 
-Summary &Summary::getInstance() {
+OpSummary &OpSummary::getInstance() {
     if (!p_instance) {
-        p_instance = new Summary();
+        p_instance = new OpSummary();
         destroyer.initialize(p_instance);
     }
     return *p_instance;
 }
 
-void Summary::updateOPsStats(const ngraph::NodeTypeInfo &op, const PassRate::Statuses &status) {
+void OpSummary::updateOPsStats(const ngraph::NodeTypeInfo &op, const PassRate::Statuses &status) {
     auto it = opsStats.find(op);
     if (it != opsStats.end()) {
         auto &passrate = it->second;
@@ -96,7 +96,7 @@ void Summary::updateOPsStats(const ngraph::NodeTypeInfo &op, const PassRate::Sta
     }
 }
 
-void Summary::updateOPsImplStatus(const ngraph::NodeTypeInfo &op, const bool implStatus) {
+void OpSummary::updateOPsImplStatus(const ngraph::NodeTypeInfo &op, const bool implStatus) {
     auto it = opsStats.find(op);
     if (it != opsStats.end()) {
         if (!it->second.isImplemented && implStatus) {
@@ -108,7 +108,7 @@ void Summary::updateOPsImplStatus(const ngraph::NodeTypeInfo &op, const bool imp
     }
 }
 
-std::string Summary::getOpVersion(const ngraph::NodeTypeInfo &type_info) {
+std::string OpSummary::getOpVersion(const ngraph::NodeTypeInfo &type_info) {
     for (size_t i = 0; i < opsets.size(); i++) {
         if (opsets[i].contains_type(type_info)) {
             return std::to_string(i+1);
@@ -117,7 +117,7 @@ std::string Summary::getOpVersion(const ngraph::NodeTypeInfo &type_info) {
     return "undefined";
 }
 
-std::map<std::string, PassRate> Summary::getOpStatisticFromReport() {
+std::map<std::string, PassRate> OpSummary::getStatisticFromReport() {
     pugi::xml_document doc;
 
     std::ifstream file;
@@ -143,7 +143,7 @@ std::map<std::string, PassRate> Summary::getOpStatisticFromReport() {
     return oldOpsStat;
 }
 
-void Summary::updateOPsStats(const std::shared_ptr<ngraph::Function> &function, const PassRate::Statuses &status) {
+void OpSummary::updateOPsStats(const std::shared_ptr<ngraph::Function> &function, const PassRate::Statuses &status) {
     if (function->get_parameters().empty()) {
         return;
     }
@@ -188,7 +188,7 @@ void Summary::updateOPsStats(const std::shared_ptr<ngraph::Function> &function, 
     }
 }
 
-void Summary::updateOPsImplStatus(const std::shared_ptr<ngraph::Function> &function, const bool implStatus) {
+void OpSummary::updateOPsImplStatus(const std::shared_ptr<ngraph::Function> &function, const bool implStatus) {
     if (function->get_parameters().empty()) {
         return;
     }
@@ -234,7 +234,7 @@ void Summary::saveDebugReport(const char* className, const char* opName, unsigne
 }
 #endif  //IE_TEST_DEBUG
 
-void Summary::saveReport() {
+void OpSummary::saveReport() {
     if (isReported) {
         return;
     }
@@ -258,7 +258,7 @@ void Summary::saveReport() {
         opsInfo.insert(type_info_set.begin(), type_info_set.end());
     }
 
-    auto &summary = Summary::getInstance();
+    auto &summary = OpSummary::getInstance();
     auto stats = summary.getOPsStats();
 
     pugi::xml_document doc;
@@ -315,7 +315,7 @@ void Summary::saveReport() {
     }
 
     if (extendReport && fileExists) {
-        auto opStataFromReport = summary.getOpStatisticFromReport();
+        auto opStataFromReport = summary.getStatisticFromReport();
         for (auto &item : opStataFromReport) {
             pugi::xml_node entry;
             if (opList.find(item.first) == opList.end()) {

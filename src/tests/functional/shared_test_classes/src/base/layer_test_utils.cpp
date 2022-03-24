@@ -33,7 +33,7 @@ void LayerTestsCommon::Run() {
 
     // in case of crash jump will be made and work will be continued
     auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
-    auto &s = Summary::getInstance();
+    auto &s = OpSummary::getInstance();
     s.setDeviceName(targetDevice);
 
     if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {

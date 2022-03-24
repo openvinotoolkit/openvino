@@ -14,14 +14,15 @@
 namespace LayerTestsUtils {
 
 class Summary;
+class OpSummary;
 
-class SummaryDestroyer {
+class OpSummaryDestroyer {
 private:
-    Summary *p_instance;
+    OpSummary *p_instance;
 public:
-    ~SummaryDestroyer();
+    ~OpSummaryDestroyer();
 
-    void initialize(Summary *p);
+    void initialize(OpSummary *p);
 };
 
 
@@ -67,47 +68,24 @@ struct PassRate {
 };
 
 class Summary {
-private:
-    static Summary *p_instance;
-    static SummaryDestroyer destroyer;
-    std::map<ngraph::NodeTypeInfo, PassRate> opsStats = {};
+protected:
     std::string deviceName;
     bool isReported = false;
     static size_t saveReportTimeout;
     static bool extendReport;
-    static bool extractBody;
     static bool saveReportWithUniqueName;
     static const char *outputFolder;
-    std::vector<ngraph::OpSet> opsets;
 
-    friend class SummaryDestroyer;
-
-    std::string getOpVersion(const ngraph::NodeTypeInfo &type_info);
-
-protected:
-    Summary();
-
-    ~Summary() = default;
+    Summary() = default;
+    virtual ~Summary() = default;
 
 public:
     void setDeviceName(std::string device) { deviceName = device; }
 
-    std::map<std::string, PassRate> getOpStatisticFromReport();
+    virtual std::map<std::string, PassRate> getStatisticFromReport() { return std::map<std::string, PassRate>(); }
 
     std::string getDeviceName() const { return deviceName; }
 
-    std::map<ngraph::NodeTypeInfo, PassRate> getOPsStats() { return opsStats; }
-
-    void updateOPsStats(const std::shared_ptr<ngraph::Function> &function, const PassRate::Statuses &status);
-    void updateOPsImplStatus(const std::shared_ptr<ngraph::Function> &function, const bool implStatus);
-
-    void updateOPsStats(const ngraph::NodeTypeInfo &op, const PassRate::Statuses &status);
-    void updateOPsImplStatus(const ngraph::NodeTypeInfo &op, const bool implStatus);
-
-    static Summary &getInstance();
-    std::vector<ngraph::OpSet> getOpSets() {
-        return opsets;
-    }
 
     // #define IE_TEST_DEBUG
 
@@ -116,10 +94,7 @@ public:
                          unsigned long skipped, unsigned long crashed, unsigned long hanged);
     #endif  //IE_TEST_DEBUG
 
-    void saveReport();
-
-    static void setExtractBody(bool val) { extractBody = val; }
-    static bool getExtractBody() { return extractBody; }
+    virtual void saveReport() {}
 
     static void setExtendReport(bool val) { extendReport = val; }
     static bool getExtendReport() { return extendReport; }
@@ -131,6 +106,44 @@ public:
     static size_t getSaveReportTimeout() { return saveReportTimeout; }
 
     static void setOutputFolder(const std::string &val) { outputFolder = val.c_str(); }
+};
+
+class OpSummary : public virtual Summary {
+private:
+    static OpSummary *p_instance;
+    static bool extractBody;
+    std::vector<ngraph::OpSet> opsets;
+    std::map<ngraph::NodeTypeInfo, PassRate> opsStats = {};
+
+    std::string getOpVersion(const ngraph::NodeTypeInfo &type_info);
+
+protected:
+    static OpSummaryDestroyer destroyer;
+    OpSummary();
+
+    friend class OpSummaryDestroyer;
+
+public:
+    static OpSummary &getInstance();
+
+    std::map<ngraph::NodeTypeInfo, PassRate> getOPsStats() { return opsStats; }
+
+    std::vector<ngraph::OpSet> getOpSets() {
+        return opsets;
+    }
+
+    static void setExtractBody(bool val) { extractBody = val; }
+    static bool getExtractBody() { return extractBody; }
+
+    std::map<std::string, PassRate> getStatisticFromReport() override;
+    void saveReport() override;
+
+
+    void updateOPsStats(const std::shared_ptr<ngraph::Function> &function, const PassRate::Statuses &status);
+    void updateOPsImplStatus(const std::shared_ptr<ngraph::Function> &function, const bool implStatus);
+
+    void updateOPsStats(const ngraph::NodeTypeInfo &op, const PassRate::Statuses &status);
+    void updateOPsImplStatus(const ngraph::NodeTypeInfo &op, const bool implStatus);
 };
 
 }  // namespace LayerTestsUtils

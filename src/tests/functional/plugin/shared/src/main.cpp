@@ -16,14 +16,14 @@ int main(int argc, char *argv[]) {
         if (std::string(argv[i]) == "--disable_tests_skipping") {
             FuncTestUtils::SkipTestsConfig::disable_tests_skipping = true;
         } else if (std::string(argv[i]) == "--extract_body") {
-            LayerTestsUtils::Summary::setExtractBody(true);
+            LayerTestsUtils::OpSummary::setExtractBody(true);
         } else if (std::string(argv[i]) == "--help") {
             print_custom_help = true;
         } else if (std::string(argv[i]).find("--output_folder") != std::string::npos) {
             outputFolderPath = std::string(argv[i]).substr(std::string("--output_folder").length() + 1);
-            LayerTestsUtils::Summary::setOutputFolder(outputFolderPath);
+            LayerTestsUtils::OpSummary::setOutputFolder(outputFolderPath);
         } else if (std::string(argv[i]).find("--report_unique_name") != std::string::npos) {
-            LayerTestsUtils::Summary::setSaveReportWithUniqueName(true);
+            LayerTestsUtils::OpSummary::setSaveReportWithUniqueName(true);
         } else if (std::string(argv[i]).find("--save_report_timeout") != std::string::npos) {
             size_t timeout;
             try {
@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
             } catch (...) {
                 throw std::runtime_error("Incorrect value of \"--save_report_timeout\" argument");
             }
-            LayerTestsUtils::Summary::setSaveReportTimeout(timeout);
+            LayerTestsUtils::OpSummary::setSaveReportTimeout(timeout);
         }
     }
 
@@ -56,8 +56,8 @@ int main(int argc, char *argv[]) {
         std::cout << std::endl;
     }
 
-    if (LayerTestsUtils::Summary::getSaveReportWithUniqueName() &&
-            LayerTestsUtils::Summary::getExtendReport()) {
+    if (LayerTestsUtils::OpSummary::getSaveReportWithUniqueName() &&
+            LayerTestsUtils::OpSummary::getExtendReport()) {
         throw std::runtime_error("Using mutually exclusive arguments: --extend_report and --report_unique_name");
     }
 
