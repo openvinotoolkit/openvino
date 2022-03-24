@@ -90,7 +90,7 @@ public:
      * @brief Constructor
      *
      */
-    FileStorageCacheManager(std::string&& cachePath) : m_cachePath(std::move(cachePath)) {}
+    FileStorageCacheManager(std::string cachePath) : m_cachePath(std::move(cachePath)) {}
 
     /**
      * @brief Destructor
