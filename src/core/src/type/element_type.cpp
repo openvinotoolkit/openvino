@@ -258,7 +258,7 @@ std::ostream& ov::element::operator<<(std::ostream& out, const ov::element::Type
 }
 
 std::istream& ov::element::operator>>(std::istream& in, ov::element::Type& obj) {
-    static const std::unordered_map<std::string, ov::element::Type> legacy = {
+    const std::unordered_map<std::string, ov::element::Type> legacy = {
         {"BOOL", ov::element::boolean},
         {"BF16", ov::element::bf16},
         {"I4", ov::element::i4},
