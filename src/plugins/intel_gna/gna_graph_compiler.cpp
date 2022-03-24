@@ -37,6 +37,7 @@
 #include "gna_groups.hpp"
 #include "backend/gna_limitations.hpp"
 #include "descriptions/gna_desc.hpp"
+#include "ops/pwl.hpp"
 
 using namespace InferenceEngine;
 using namespace std;
@@ -783,28 +784,19 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
         float output_pwl_scale_factor = getScaleFactor(layer, QuantizedDataType::output);
         float input_pwl_scale_factor = getScaleFactor(layer, QuantizedDataType::input);
 
-        if (!gnaFlags->sw_fp32) {
-            if (gnaFlags->uniformPwlDesign) {
-                uint32_t num_segments = POW_NUM_SEGMENTS;
-                if (activation_type.args.pow.exponent == 0.0f) {
-                    num_segments = 3;
-                }
-                ptr_pwl_segments.resize(num_segments);
-
-                PwlDesign(activation_type,
-                    &*ptr_pwl_segments.begin(),
-                    static_cast<uint32_t>(ptr_pwl_segments.size()),
-                    input_pwl_scale_factor,
-                    output_pwl_scale_factor,
-                    gnaFlags->input_low_precision);
-            } else {
-                PwlDesignOpt(activation_type,
-                    ptr_pwl_segments,
-                    input_pwl_scale_factor,
-                    output_pwl_scale_factor,
-                    gnaFlags->pwlMaxErrorPercent,
-                    gnaFlags->input_low_precision);
+        if (!gnaFlags->sw_fp32 && gnaFlags->uniformPwlDesign) {
+            uint32_t num_segments = POW_NUM_SEGMENTS;
+            if (activation_type.args.pow.exponent == 0.0f) {
+                num_segments = 3;
             }
+            ptr_pwl_segments.resize(num_segments);
+
+            PwlDesign(activation_type,
+                &*ptr_pwl_segments.begin(),
+                static_cast<uint32_t>(ptr_pwl_segments.size()),
+                input_pwl_scale_factor,
+                output_pwl_scale_factor,
+                gnaFlags->input_low_precision);
         }
 
         ptr_pwl_segments_target = reinterpret_cast<gna_pwl_segment_t*>(&ptr_pwl_segments_target);
@@ -1923,7 +1915,8 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
         {"neghalflog", kActNegHalfLog},
         {"identity", kActIdentity},
         {"softsign", kActSoftSign},
-        {"fakequantize", kActFakeQuantize}
+        {"fakequantize", kActFakeQuantize},
+        {"pwl", kActPwl}
     };
 
     auto it = supportedActivations.find(type);
@@ -1992,8 +1985,6 @@ case name:\
         GET_ACTIVATION_NAME(kActIdentity);
         GET_ACTIVATION_NAME(kActSoftSign);
         GET_ACTIVATION_NAME(kActCustom);
-        GET_ACTIVATION_NAME(kActExp);
-        GET_ACTIVATION_NAME(kActLog);
         GET_ACTIVATION_NAME(kActSign);
         GET_ACTIVATION_NAME(kActAbs);
         GET_ACTIVATION_NAME(kActNegLog);
@@ -2038,8 +2029,8 @@ case name:\
                 ptr_pwl_segments,
                 input_pwl_scale_factor,
                 output_pwl_scale_factor,
-                gnaFlags->pwlMaxErrorPercent,
-                gnaFlags->input_low_precision);
+                gnaFlags->input_low_precision,
+                layer->getNode());
         }
         ptr_pwl_segments_target = reinterpret_cast<gna_pwl_segment_t*>(&ptr_pwl_segments_target);
     }
@@ -2175,7 +2166,8 @@ void GNAGraphCompiler::CreateLayerPrimitive(CNNLayerPtr layer) {
           "sign",
           "abs",
           "neglog",
-          "neghalflog"},
+          "neghalflog",
+          "pwl"},
           CREATE(PWLPrimitive)},
         {{"Convolution"}, CREATE(ConvolutionPrimitive)},
         {{"Permute"}, CREATE(PermutePrimitive)},  // permute of certain form (2D transpose) can be assimilated in followed FC layer
