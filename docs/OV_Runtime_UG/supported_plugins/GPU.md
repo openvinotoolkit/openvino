@@ -219,7 +219,17 @@ See [dynamic shapes guide](../ov_dynamic_shapes.md) for more details.
 GPU plugin has the following additional preprocessing options:
 - `ov::intel_gpu::memory_type::surface` and `ov::intel_gpu::memory_type::buffer` values for `ov::preprocess::InputTensorInfo::set_memory_type()` preprocessing method. These values are intended to be used to provide a hint for the plugin on the type of input Tensors that will be set in runtime to generate proper kernels.
 
-@snippet snippets/gpu/preprocessing.cpp init_preproc
+@sphinxtabset
+
+@sphinxtab{C++}
+@snippet docs/snippets/gpu/preprocessing.cpp init_preproc
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/preprocessing.py init_preproc
+@endsphinxtab
+
+@endsphinxtabset
 
 With such preprocessing GPU plugin will expect `ov::intel_gpu::ocl::ClImage2DTensor` (or derived) to be passed for each NV12 plane via `ov::InferRequest::set_tensor()` or `ov::InferRequest::set_tensors()` methods.
 
