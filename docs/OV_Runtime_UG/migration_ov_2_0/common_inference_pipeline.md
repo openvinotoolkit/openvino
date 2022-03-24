@@ -39,7 +39,17 @@ To load model with custom operation, you need to add extensions for these operat
 
 Inference Engine API:
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/ie_common.cpp ie:load_old_extension
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/ie_common.py ie:load_old_extension
+@endsphinxtab
+
+@endsphinxtabset
 
 OpenVINO™ Runtime API 2.0:
 
@@ -49,7 +59,17 @@ OpenVINO™ Runtime API 2.0:
 
 Inference Engine API:
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/ie_common.cpp ie:read_model
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/ie_common.py ie:read_model
+@endsphinxtab
+
+@endsphinxtabset
 
 OpenVINO™ Runtime API 2.0:
 
@@ -68,7 +88,17 @@ See detailed guide [how to migrate preprocessing in OpenVINO Runtime API 2.0](./
 
 Inference Engine API:
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/ie_common.cpp ie:compile_model
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/ie_common.py ie:compile_model
+@endsphinxtab
+
+@endsphinxtabset
 
 OpenVINO™ Runtime API 2.0:
 
@@ -80,7 +110,17 @@ If you need to configure OpenVINO Runtime devices with additional configuration 
 
 Inference Engine API:
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/ie_common.cpp ie:create_infer_request
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/ie_common.py ie:create_infer_request
+@endsphinxtab
+
+@endsphinxtabset
 
 OpenVINO™ Runtime API 2.0:
 
@@ -94,25 +134,65 @@ Inference Engine API fills inputs as `I32` precision (**not** aligned with the o
 
 @sphinxtab{IR v10}
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/ie_common.cpp ie:get_input_tensor
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/ie_common.py ie:get_input_tensor
+@endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
 @sphinxtab{IR v11}
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/ie_common.cpp ie:get_input_tensor
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/ie_common.py ie:get_input_tensor
+@endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
 @sphinxtab{ONNX}
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/ie_common.cpp ie:get_input_tensor
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/ie_common.py ie:get_input_tensor
+@endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
 @sphinxtab{Model created in code}
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/ie_common.cpp ie:get_input_tensor
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/ie_common.py ie:get_input_tensor
+@endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
@@ -156,13 +236,33 @@ Inference Engine API:
 
 @sphinxtab{Sync}
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/ie_common.cpp ie:inference
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/ie_common.py ie:inference
+@endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
 @sphinxtab{Async}
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/ie_common.cpp ie:start_async_and_wait
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/ie_common.py ie:start_async_and_wait
+@endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
@@ -194,25 +294,65 @@ Inference Engine API processes outputs as `I32` precision (**not** aligned with 
 
 @sphinxtab{IR v10}
 
-@snippet docs/snippets/ov_common.cpp ov_api_2_0:inference
+@sphinxtabset
+
+@sphinxtab{C++}
+@snippet docs/snippets/ie_common.cpp ie:get_output_tensor
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/ie_common.py ie:get_output_tensor
+@endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
 @sphinxtab{IR v11}
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/ie_common.cpp ie:get_output_tensor
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/ie_common.py ie:get_output_tensor
+@endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
 @sphinxtab{ONNX}
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/ie_common.cpp ie:get_output_tensor
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/ie_common.py ie:get_output_tensor
+@endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
 @sphinxtab{Model created in code}
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/ie_common.cpp ie:get_output_tensor
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/ie_common.py ie:get_output_tensor
+@endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
