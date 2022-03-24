@@ -53,7 +53,7 @@ void check_reorder(const ov::intel_cpu::Memory& inputMemory,
             break;
         }
         default:
-            FAIL() << "Unsupported data precision" << prescision.name();
+            FAIL() << "Unsupported data precision in the test" << prescision.name();
         }
     }
 }
@@ -85,7 +85,7 @@ void fillData(const ov::intel_cpu::Memory& inputMemory, const InferenceEngine::P
             *(static_cast<int8_t*>(inputReorderData) + mdInput.off_l(i, false)) = static_cast<int8_t>(i);
         break;
     default:
-        FAIL() << "Unsupported data precision" << prec.name();
+        FAIL() << "Unsupported data precision in the test" << prec.name();
     }
 }
 struct ReorderCustomImplTestParamSet {
