@@ -70,6 +70,14 @@ All proposals of the whole batch are concated image by image, and distinguishabl
     * **Default value**: `1.0`
     * **Required**: *no*
 
+* *roi_num_type*
+
+    * **Description**: the type of element of output 3 `rpnroisnum`.
+    * **Range of values**: i32, i64
+    * **Type**: string
+    * **Default value**: `i64`
+    * **Required**: *no*
+
 **Inputs**
 
 * **1**: `im_info` - tensor of type *T* and shape `[num_batches, 3]` or `[num_batches, 4]` providing input image info. The image info is layout as `[image_height, image_width, scale_height_and_width]` or as `[image_height, image_width, scale_height, scale_width]`. **Required.**
@@ -93,13 +101,13 @@ The `height` and `width` from inputs `anchors`, `boxesdeltas` and `scores` are t
 **Types**
 
 * *T*: any supported floating-point type.
-* *T_IND*: `int64` or `int32`.
+* *T_IND*: `int64` or `int32` which is specified from *roi_num_type* values.
 
 **Example**
 
 ```xml
 <layer ... type="GenerateProposals" version="opset9">
-    <data min_size="0.0" nms_threshold="0.699999988079071" post_nms_count="1000" pre_nms_count="1000"/>
+    <data min_size="0.0" nms_threshold="0.699999988079071" post_nms_count="1000" pre_nms_count="1000" roi_num_type="i32"/>
     <input>
         <port id="0">
             <dim>8</dim>
