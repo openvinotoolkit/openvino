@@ -71,7 +71,7 @@ jobs:
         run: python -m mypy ./ --config-file ./setup.cfg
         working-directory: src/bindings/python/src/compatibility/openvino
       - name: Run Bandit
-        run: python -m bandit -r ./ -f screen
+        run: python -m bandit -r ./ -c bandit.config -f screen
         working-directory: src/bindings/python/src/compatibility/openvino
 
       
