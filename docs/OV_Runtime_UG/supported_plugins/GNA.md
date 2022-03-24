@@ -287,7 +287,7 @@ Intel® GNA plugin supports the processing of context-windowed speech frames in 
 
 Please refer to [Layout API overview](@ref openvino_docs_OV_Runtime_UG_Layout_Overview) to determine batch dimension.
 
-To set layout of model inputs in runtime use [Preprocessing API](@ref openvino_docs_OV_Runtime_UG_Preprocessing_Overview):
+To set layout of model inputs in runtime use [Optimize Preprocessing](@ref openvino_docs_OV_Runtime_UG_Preprocessing_Overview) guide:
 
 @sphinxdirective
 .. tab:: C++
