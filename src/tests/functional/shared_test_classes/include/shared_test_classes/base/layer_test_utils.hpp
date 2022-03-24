@@ -27,8 +27,8 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/precision_utils.hpp"
-#include "functional_test_utils/layer_test_utils/summary.hpp"
-#include "functional_test_utils/layer_test_utils/environment.hpp"
+#include "functional_test_utils/summary/op_summary.hpp"
+#include "functional_test_utils/summary/environment.hpp"
 
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"

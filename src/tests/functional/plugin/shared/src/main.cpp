@@ -4,8 +4,8 @@
 
 #include "gtest/gtest.h"
 
-#include "functional_test_utils/layer_test_utils/environment.hpp"
-#include "functional_test_utils/layer_test_utils/summary.hpp"
+#include "functional_test_utils/summary/environment.hpp"
+#include "functional_test_utils/summary/op_summary.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
 int main(int argc, char *argv[]) {

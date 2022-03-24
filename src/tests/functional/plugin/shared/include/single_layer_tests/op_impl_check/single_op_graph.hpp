@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <functional_test_utils/layer_test_utils/summary.hpp>
+#include <functional_test_utils/summary/op_summary.hpp>
 #include <ngraph_functions/subgraph_builders.hpp>
 
 namespace ov {

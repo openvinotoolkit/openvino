@@ -4,7 +4,7 @@
 
 #include <pugixml.hpp>
 
-#include "functional_test_utils/layer_test_utils/summary.hpp"
+#include "functional_test_utils/summary/op_summary.hpp"
 #include "common_test_utils/file_utils.hpp"
 
 using namespace LayerTestsUtils;
@@ -159,8 +159,8 @@ void OpSummary::updateOPsStats(const std::shared_ptr<ngraph::Function> &function
 
     for (const auto &op : function->get_ordered_ops()) {
         if ((ngraph::is_type<ngraph::op::Parameter>(op) ||
-            ngraph::is_type<ngraph::op::Constant>(op) ||
-            ngraph::is_type<ngraph::op::Result>(op)) && isFunctionalGraph) {
+             ngraph::is_type<ngraph::op::Constant>(op) ||
+             ngraph::is_type<ngraph::op::Result>(op)) && isFunctionalGraph) {
             continue;
         }
         if (extractBody) {
@@ -338,8 +338,8 @@ void OpSummary::saveReport() {
                 PassRate obj(p, f, s, c, h);
 
                 (implStatus || obj.isImplemented)
-                    ? entry.attribute("implemented").set_value(true)
-                    : entry.attribute("implemented").set_value(false);
+                ? entry.attribute("implemented").set_value(true)
+                : entry.attribute("implemented").set_value(false);
                 entry.attribute("passed").set_value(obj.passed);
                 entry.attribute("failed").set_value(obj.failed);
                 entry.attribute("skipped").set_value(obj.skipped);

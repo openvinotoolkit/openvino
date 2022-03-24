@@ -8,7 +8,7 @@
 
 #include "ngraph/ngraph.hpp"
 
-#include "functional_test_utils/layer_test_utils/summary.hpp"
+#include "functional_test_utils/summary/summary.hpp"
 
 namespace LayerTestsUtils {
 

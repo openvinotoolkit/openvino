@@ -9,7 +9,7 @@
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/common_utils.hpp"
 
-#include "functional_test_utils/layer_test_utils/summary.hpp"
+#include "functional_test_utils/summary/op_summary.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 
 namespace ov {
