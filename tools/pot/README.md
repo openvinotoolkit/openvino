@@ -1,4 +1,4 @@
-# Post-Training Optimization Tool {#pot_README}
+# Post-Training Optimization Tool
 
 ## Introduction
 
