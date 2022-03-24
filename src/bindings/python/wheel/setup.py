@@ -111,7 +111,7 @@ PY_INSTALL_CFG = {
 
 
 class PrebuiltExtension(Extension):
-    """Initialize Extension"""
+    """Initialize Extension."""
 
     def __init__(self, name, sources, *args, **kwargs):
         if len(sources) != 1:
@@ -121,7 +121,7 @@ class PrebuiltExtension(Extension):
 
 
 class CustomBuild(build):
-    """Custom implementation of build_clib"""
+    """Custom implementation of build_clib."""
 
     cmake_build_types = ["Release", "Debug", "RelWithDebInfo", "MinSizeRel"]
     user_options = [
@@ -198,7 +198,7 @@ class CustomBuild(build):
 
 
 class PrepareLibs(build_clib):
-    """Prepare prebuilt libraries"""
+    """Prepare prebuilt libraries."""
 
     def run(self):
         self.configure(LIB_INSTALL_CFG)
@@ -222,8 +222,7 @@ class PrepareLibs(build_clib):
 
     def generate_package(self, src_dirs):
         """
-        Collect package data files from preinstalled dirs and
-        put all runtime libraries to the subpackage
+        Collect package data files from preinstalled dirs and put all runtime libraries to the subpackage.
         """
         # additional blacklist filter, just to fix cmake install issues
         blacklist = [".lib", ".pdb", "_debug.dll", "_debug.dylib"]
@@ -245,7 +244,7 @@ class PrepareLibs(build_clib):
 
 
 class CopyExt(build_ext):
-    """Copy extension files to the build directory"""
+    """Copy extension files to the build directory."""
 
     def run(self):
         if len(self.extensions) == 1:
@@ -270,7 +269,7 @@ class CopyExt(build_ext):
 
 
 class CustomInstall(install):
-    """Enable build_clib during the installation"""
+    """Enable build_clib during the installation."""
 
     def run(self):
         self.run_command("build")
@@ -278,7 +277,7 @@ class CustomInstall(install):
 
 
 class CustomClean(clean):
-    """Clean up staging directories"""
+    """Clean up staging directories."""
 
     def clean(self, install_cfg):
         for comp, comp_data in install_cfg.items():
@@ -295,13 +294,13 @@ class CustomClean(clean):
 
 def ignore_patterns(*patterns):
     """
-    Filter names by given patterns
+    Filter names by given patterns.
     """
     return lambda name: any(fnmatchcase(name, pat=pat) for pat in patterns)
 
 
 def is_tool(name):
-    """Check if the command-line tool is available"""
+    """Check if the command-line tool is available."""
     try:
         devnull = subprocess.DEVNULL
         subprocess.Popen([name], stdout=devnull, stderr=devnull).communicate()  # nosec
@@ -312,8 +311,8 @@ def is_tool(name):
 
 
 def remove_rpath(file_path):
-    """
-    Remove rpath from binaries
+    """Remove rpath from binaries.
+
     :param file_path: binary path
     :type file_path: pathlib.Path
     """
@@ -332,7 +331,7 @@ def remove_rpath(file_path):
 
 
 def set_rpath(rpath, executable):
-    """Setting rpath for linux and macOS libraries"""
+    """Setting rpath for linux and macOS libraries."""
     print(f"Setting rpath {rpath} for {executable}")  # noqa: T001
     cmd = []
     rpath_tool = ""
@@ -361,7 +360,7 @@ def set_rpath(rpath, executable):
 
 
 def find_prebuilt_extensions(search_dirs):
-    """collect prebuilt python extensions"""
+    """Collect prebuilt python extensions."""
     extensions = []
     ext_pattern = ""
     if sys.platform == "linux":
@@ -388,21 +387,21 @@ def find_prebuilt_extensions(search_dirs):
 
 
 def get_description(desc_file_path):
-    """read description from README.md"""
+    """Read description from README.md."""
     with open(desc_file_path, "r", encoding="utf-8") as fstream:
         description = fstream.read()
     return description
 
 
 def get_dependencies(requirements_file_path):
-    """read dependencies from requirements.txt"""
+    """Read dependencies from requirements.txt."""
     with open(requirements_file_path, "r", encoding="utf-8") as fstream:
         dependencies = fstream.read()
     return dependencies
 
 
 def get_dir_list(install_cfg):
-    """collect all available directories with libs or python packages"""
+    """Collect all available directories with libs or python packages."""
     dirs = []
     for comp_info in install_cfg.values():
         cfg_prefix = comp_info.get("prefix")
@@ -416,10 +415,7 @@ def get_dir_list(install_cfg):
 
 
 def get_package_dir(install_cfg):
-    """
-    Get python package path based on config
-    All the packages should be located in one directory
-    """
+    """Get python package path based on config. All the packages should be located in one directory"""
     py_package_path = ""
     dirs = get_dir_list(install_cfg)
     if len(dirs) != 0:
