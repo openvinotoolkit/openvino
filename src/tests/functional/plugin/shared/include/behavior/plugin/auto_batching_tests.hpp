@@ -143,8 +143,8 @@ class AutoBatching_Test_DetectionOutput : public AutoBatching_Test {
 public:
     void SetUp() override {
         std::tie(device_name, use_get_blob, num_streams, num_requests, num_batch) = this->GetParam();
-        fn_ptrs = {ngraph::builder::subgraph::makeEltwisePlusDetectionOutput(),
-                   ngraph::builder::subgraph::makeEltwisePlusDetectionOutput()};
+        fn_ptrs = {ngraph::builder::subgraph::makeDetectionOutput(),
+                   ngraph::builder::subgraph::makeDetectionOutput()};
     };
 
     static std::string getTestCaseName(const testing::TestParamInfo<AutoBatchTwoNetsParams> &obj) {

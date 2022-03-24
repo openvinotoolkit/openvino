@@ -14,6 +14,7 @@
 #include <remote_blob_tests/remote_blob_helpers.hpp>
 #include <common_test_utils/test_common.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
+#include "base/ov_behavior_test_utils.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
@@ -62,16 +63,22 @@ class OVRemoteTensorInputBlob_Test : public OVRemoteTensor_Test,
 protected:
     std::shared_ptr<ngraph::Function> fn_ptr;
     std::string deviceName;
+    ov::AnyMap config;
 
 public:
     void SetUp() override {
-        fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
         deviceName = CommonTestUtils::DEVICE_GPU;
         RemoteTensorSharingType sharing_type;
         bool with_auto_batching;
         std::tie(sharing_type, with_auto_batching) = this->GetParam();
-        if (with_auto_batching)  // BATCH:GPU
-            deviceName = std::string(CommonTestUtils::DEVICE_BATCH) + ":" + deviceName;
+        if (with_auto_batching) {
+            config =
+                    {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
+                     // immediate timeout to avoid increasing the test time
+                     ov::auto_batch_timeout(0)
+                    };
+        }
+        fn_ptr = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(with_auto_batching ? CommonTestUtils::DEVICE_BATCH : deviceName);
     }
     static std::string getTestCaseName(const testing::TestParamInfo<RemoteTensorSharingTestOptionsParams>& obj) {
         RemoteTensorSharingType sharing_type;
@@ -160,7 +167,7 @@ TEST_P(OVRemoteTensorInputBlob_Test, smoke_canInputRemoteTensor) {
                     || RemoteTensorSharingType::PLUGIN_USM_DEVICE_TENSOR == sharing_type))
         GTEST_SKIP();
 
-    auto exec_net = ie.compile_model(function, deviceName);
+    auto exec_net = ie.compile_model(function, deviceName, config);
 
     // regular inference
     auto inf_req_regular = exec_net.create_infer_request();
@@ -343,10 +350,14 @@ public:
         fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
         deviceName = CommonTestUtils::DEVICE_GPU;
         auto with_auto_batching = this->GetParam();
-        if (with_auto_batching) { // BATCH:GPU
-            deviceName = std::string(CommonTestUtils::DEVICE_BATCH) + ":" + deviceName;
-            config = {{CONFIG_KEY(ALLOW_AUTO_BATCHING), CONFIG_VALUE(YES)}};
+        if (with_auto_batching) {
+            config =
+                    {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
+                            // immediate timeout to avoid increasing the test time
+                     ov::auto_batch_timeout(0)
+                    };
         }
+        fn_ptr = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(with_auto_batching ? CommonTestUtils::DEVICE_BATCH : deviceName);
     }
     static std::string getTestCaseName(const testing::TestParamInfo<bool>& obj) {
         auto with_auto_batch = obj.param;
@@ -478,7 +489,7 @@ TEST_P(OVRemoteTensor_TestsWithContext, smoke_canInferOnUserQueue_out_of_order) 
     cl::Buffer shared_output_buffer(ocl_instance->_context, CL_MEM_READ_WRITE, out_size, NULL, &err);
 
     auto remote_context = ov::intel_gpu::ocl::ClContext(ie, ocl_instance->_queue.get());
-    auto exec_net_shared = ie.compile_model(function, remote_context);
+    auto exec_net_shared = ie.compile_model(function, remote_context); // no auto-batching support, so no config is passed
     auto gpu_context = exec_net_shared.get_context().as<ov::intel_gpu::ocl::ClContext>();
 
     auto gpu_in_tensor = gpu_context.create_tensor(input->get_output_element_type(0), input->get_output_shape(0), shared_input_buffer);
@@ -558,7 +569,7 @@ TEST_P(OVRemoteTensor_TestsWithContext, smoke_canInferOnUserQueue_in_order) {
     cl::Buffer shared_output_buffer(ocl_instance->_context, CL_MEM_READ_WRITE, out_size, NULL, &err);
 
     auto remote_context = ov::intel_gpu::ocl::ClContext(ie, ocl_instance->_queue.get());
-    auto exec_net_shared = ie.compile_model(function, remote_context);
+    auto exec_net_shared = ie.compile_model(function, remote_context); // no auto-batching support, so no config is passed
     auto gpu_context = exec_net_shared.get_context().as<ov::intel_gpu::ocl::ClContext>();
 
     auto gpu_in_tensor = gpu_context.create_tensor(input->get_output_element_type(0), input->get_output_shape(0), shared_input_buffer);
