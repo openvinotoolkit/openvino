@@ -302,6 +302,8 @@ int dispatcherRemoteEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response
         case XLINK_READ_REL_SPEC_REQ:
             XLINK_EVENT_ACKNOWLEDGE(response);
             response->header.type = XLINK_READ_REL_SPEC_RESP;
+            response->header.size = event->header.size;
+            response->header.streamId = event->header.streamId;
             response->deviceHandle = event->deviceHandle;
             stream = getStreamById(event->deviceHandle.xLinkFD,
                                    event->header.streamId);
@@ -328,6 +330,8 @@ int dispatcherRemoteEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response
         case XLINK_READ_REL_REQ:
             XLINK_EVENT_ACKNOWLEDGE(response);
             response->header.type = XLINK_READ_REL_RESP;
+            response->header.size = event->header.size;
+            response->header.streamId = event->header.streamId;
             response->deviceHandle = event->deviceHandle;
             stream = getStreamById(event->deviceHandle.xLinkFD,
                                    event->header.streamId);
