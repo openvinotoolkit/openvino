@@ -3,9 +3,10 @@
 import numpy as np
 
 from openvino.runtime import Model, PartialShape, Shape, opset8
-from openvino.runtime.passes import Manager, Serialize, ConstantFolding, VisualizeTree, MakeStateful, ConvertFP32ToFP16, LowLatency2
+from openvino.runtime.passes import Manager, ConstantFolding, MakeStateful,\
+    ConvertFP32ToFP16, LowLatency2
 
-from utils.utils import *
+from utils.utils import count_ops
 
 
 def get_model():

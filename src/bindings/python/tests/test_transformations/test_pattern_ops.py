@@ -2,13 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 import numpy as np
 
-from openvino.runtime import Model, PartialShape, opset8
+from openvino.runtime import PartialShape, opset8
 from openvino.runtime.passes import Matcher, WrapType, Or, AnyInput
-from openvino.runtime.passes import consumers_count, has_static_dim, has_static_dims, has_static_shape, has_static_rank, \
-                                    rank_equals, type_matches, type_matches_any
+from openvino.runtime.passes import consumers_count, has_static_dim, has_static_dims, \
+    has_static_shape, has_static_rank, type_matches, type_matches_any
 from openvino.runtime.utils.types import get_element_type
 
-from utils.utils import *
+from utils.utils import expect_exception
 
 
 def test_wrap_type_pattern_type():
@@ -17,15 +17,15 @@ def test_wrap_type_pattern_type():
         WrapType("opset{}::Parameter".format(i))
 
     # Negative check not to forget to update opset map in get_type function
-    expect_exception(lambda: WrapType('opset9.Parameter'), 'Unsupported opset type: opset9')
+    expect_exception(lambda: WrapType("opset9.Parameter"), "Unsupported opset type: opset9")
 
     # Generic negative test cases
-    expect_exception(lambda: WrapType(''))
-    expect_exception(lambda: WrapType('opset8'))
-    expect_exception(lambda: WrapType('Parameter'))
-    expect_exception(lambda: WrapType('opset.Parameter'))
-    expect_exception(lambda: WrapType('opset8,Parameter'))
-    expect_exception(lambda: WrapType('Parameter.opset8'))
+    expect_exception(lambda: WrapType(""))
+    expect_exception(lambda: WrapType("opset8"))
+    expect_exception(lambda: WrapType("Parameter"))
+    expect_exception(lambda: WrapType("opset.Parameter"))
+    expect_exception(lambda: WrapType("opset8,Parameter"))
+    expect_exception(lambda: WrapType("Parameter.opset8"))
 
 
 def test_wrap_type_ctors():
@@ -38,7 +38,8 @@ def test_wrap_type_ctors():
     assert m.match(relu)
     assert m.match(prelu)
 
-    m = Matcher(WrapType(["opset8.Relu", "opset8.PRelu"], WrapType("opset8.Parameter").output(0)), "FindActivation")
+    m = Matcher(WrapType(["opset8.Relu", "opset8.PRelu"],
+                WrapType("opset8.Parameter").output(0)), "FindActivation")
     assert m.match(relu)
 
 
@@ -94,10 +95,14 @@ def test_all_predicates():
     assert Matcher(WrapType("opset8.Parameter", has_static_rank()), "Test").match(dynamic_param)
     assert not Matcher(WrapType("opset8.Parameter", has_static_rank()), "Test").match(fully_dynamic_param)
 
-    assert Matcher(WrapType("opset8.Parameter", type_matches(get_element_type(np.float32))), "Test").match(static_param)
-    assert not Matcher(WrapType("opset8.Parameter", type_matches(get_element_type(np.float32))), "Test").match(dynamic_param)
+    assert Matcher(WrapType("opset8.Parameter",
+                            type_matches(get_element_type(np.float32))), "Test").match(static_param)
+    assert not Matcher(WrapType("opset8.Parameter",
+                                type_matches(get_element_type(np.float32))), "Test").match(dynamic_param)
 
-    assert Matcher(WrapType("opset8.Parameter", type_matches_any([get_element_type(np.float32),
-                                                                  get_element_type(np.long)])), "Test").match(static_param)
-    assert Matcher(WrapType("opset8.Parameter", type_matches_any([get_element_type(np.float32),
-                                                                  get_element_type(np.long)])), "Test").match(dynamic_param)
+    assert Matcher(WrapType("opset8.Parameter",
+                            type_matches_any([get_element_type(np.float32),
+                                              get_element_type(np.long)])), "Test").match(static_param)
+    assert Matcher(WrapType("opset8.Parameter",
+                            type_matches_any([get_element_type(np.float32),
+                                              get_element_type(np.long)])), "Test").match(dynamic_param)

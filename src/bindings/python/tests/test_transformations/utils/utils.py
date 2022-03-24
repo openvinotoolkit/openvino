@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.runtime import Model, PartialShape, opset8
-from openvino.runtime.passes import Manager, ModelPass, GraphRewrite, Matcher, MatcherPass, WrapType, BackwardGraphRewrite
+from openvino.runtime.passes import ModelPass, Matcher, MatcherPass, WrapType
 
 
 def get_test_function():
@@ -35,7 +35,7 @@ def expect_exception(func, message=""):
             return str(e)
     res = check()
     if res is None:
-        assert False, "Exception is not thrown!"
+        raise AssertionError("Exception is not thrown!")
     assert message in res
 
 
@@ -71,5 +71,5 @@ class MyModelPass(ModelPass):
 
     def run_on_model(self, model):
         for op in model.get_ops():
-            if op.get_type_info().name == 'Relu':
+            if op.get_type_info().name == "Relu":
                 self.model_changed = True

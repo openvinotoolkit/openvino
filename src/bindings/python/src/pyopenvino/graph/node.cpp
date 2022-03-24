@@ -320,8 +320,6 @@ void regclass_graph_Node(py::module m) {
     node.def("set_arguments", [](const std::shared_ptr<ov::Node>& self, const ov::OutputVector& args) {
         self->set_arguments(args);
     });
-    node.def("input_value", &ov::Node::input_value, py::arg("input_index"));
-    node.def("input_values", &ov::Node::input_values);
 
     node.def_property_readonly("shape", &ov::Node::get_shape);
     node.def_property_readonly("name", &ov::Node::get_name);

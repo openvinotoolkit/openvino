@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 from openvino.runtime.passes import Manager
 
-from utils.utils import *
+from utils.utils import get_test_function, MyModelPass
 
 
 def test_model_pass():

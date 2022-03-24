@@ -1,9 +1,9 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-from openvino.runtime import Model, PartialShape, opset8
-from openvino.runtime.passes import Manager, GraphRewrite, BackwardGraphRewrite, MatcherPass, WrapType, Matcher
+from openvino.runtime import opset8
+from openvino.runtime.passes import Manager, GraphRewrite, MatcherPass, WrapType, Matcher
 
-from utils.utils import *
+from utils.utils import count_ops, get_test_function, PatternReplacement
 
 
 def test_graph_rewrite():
@@ -15,7 +15,7 @@ def test_graph_rewrite():
     anchor.add_matcher(PatternReplacement())
     m.run_passes(model)
 
-    assert count_ops(model, 'Relu') == [2]
+    assert count_ops(model, "Relu") == [2]
 
 
 def test_register_new_node():
@@ -71,5 +71,3 @@ def test_register_new_node():
 
     assert ins.model_changed
     assert rem.model_changed
-
-#TODO: test Backward

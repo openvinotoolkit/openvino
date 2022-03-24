@@ -1,10 +1,10 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-from openvino.runtime import Model, PartialShape, opset8
-from openvino.runtime.passes import Manager, ModelPass, GraphRewrite, Matcher, MatcherPass, WrapType, BackwardGraphRewrite
-from openvino.runtime.utils import replace_node, replace_output_update_name
+from openvino.runtime import opset8
+from openvino.runtime.passes import Manager, Matcher, MatcherPass, WrapType
+from openvino.runtime.utils import replace_node
 
-from utils.utils import *
+from utils.utils import count_ops, get_test_function, PatternReplacement
 
 
 def test_simple_pattern_replacement():
@@ -32,7 +32,7 @@ def test_simple_pattern_replacement():
     m.register_pass(MatcherPass(*pattern_replacement()))
     m.run_passes(model)
 
-    assert count_ops(model, ('Relu', 'Exp')) == [0, 1]
+    assert count_ops(model, ("Relu", "Exp")) == [0, 1]
 
 
 def test_matcher_pass():
@@ -44,7 +44,7 @@ def test_matcher_pass():
     m.run_passes(model)
 
     assert p.model_changed
-    assert count_ops(model, 'Relu') == [2]
+    assert count_ops(model, "Relu") == [2]
 
 
 def test_matcher_pass_apply():
@@ -53,4 +53,4 @@ def test_matcher_pass_apply():
     p = PatternReplacement()
     p.apply(model.get_result().input_value(0).get_node())
 
-    assert count_ops(model, 'Relu') == [2]
+    assert count_ops(model, "Relu") == [2]
