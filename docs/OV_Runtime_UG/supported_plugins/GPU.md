@@ -48,6 +48,8 @@ Then device name can be passed to `ov::Core::compile_model()` method:
 
 @sphinxtab{Running on default device}
 
+@sphinxtabset
+
 @sphinxtab{C++}
 @snippet docs/snippets/gpu/compile_model.cpp compile_model_default_gpu
 @endsphinxtab
@@ -56,9 +58,13 @@ Then device name can be passed to `ov::Core::compile_model()` method:
 @snippet docs/snippets/gpu/compile_model.py compile_model_default_gpu
 @endsphinxtab
 
+@endsphinxtabset
+
 @endsphinxtab
 
 @sphinxtab{Running on specific GPU}
+
+@sphinxtabset
 
 @sphinxtab{C++}
 @snippet docs/snippets/gpu/compile_model.cpp compile_model_gpu_with_id
@@ -68,9 +74,13 @@ Then device name can be passed to `ov::Core::compile_model()` method:
 @snippet docs/snippets/gpu/compile_model.py compile_model_gpu_with_id
 @endsphinxtab
 
+@endsphinxtabset
+
 @endsphinxtab
 
 @sphinxtab{Running on specific tile}
+
+@sphinxtabset
 
 @sphinxtab{C++}
 @snippet docs/snippets/gpu/compile_model.cpp compile_model_gpu_with_id_and_tile
@@ -79,6 +89,8 @@ Then device name can be passed to `ov::Core::compile_model()` method:
 @sphinxtab{Python}
 @snippet docs/snippets/gpu/compile_model.py compile_model_gpu_with_id_and_tile
 @endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
@@ -134,6 +146,8 @@ Alternatively it can be enabled explicitly via the device notion, e.g. `"BATCH:G
 
 @sphinxtab{Batching via BATCH plugin}
 
+@sphinxtabset
+
 @sphinxtab{C++}
 @snippet docs/snippets/gpu/compile_model.cpp compile_model_batch_plugin
 @endsphinxtab
@@ -142,9 +156,13 @@ Alternatively it can be enabled explicitly via the device notion, e.g. `"BATCH:G
 @snippet docs/snippets/gpu/compile_model.py compile_model_batch_plugin
 @endsphinxtab
 
+@endsphinxtabset
+
 @endsphinxtab
 
 @sphinxtab{Bacthing via throughput hint}
+
+@sphinxtabset
 
 @sphinxtab{C++}
 @snippet docs/snippets/gpu/compile_model.cpp compile_model_auto_batch
@@ -153,6 +171,8 @@ Alternatively it can be enabled explicitly via the device notion, e.g. `"BATCH:G
 @sphinxtab{Python}
 @snippet docs/snippets/gpu/compile_model.py compile_model_auto_batch
 @endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
