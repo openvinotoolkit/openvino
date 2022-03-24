@@ -111,21 +111,17 @@ Floating-point precision of a GPU primitive is selected based on operation preci
 If a machine has multiple GPUs (for example integrated GPU and discrete Intel GPU), then any supported model can be executed on all GPUs simultaneously.
 This can be achieved by specifying `"MULTI:GPU.1,GPU.0"` as a target device.
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
+@snippet docs/snippets/gpu/compile_model.cpp compile_model_multi
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
-       :language: cpp
-       :fragment: [compile_model_multi]
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/compile_model.py compile_model_multi
+@endsphinxtab
 
-.. tab:: Python
-
-    .. doxygensnippet:: docs/snippets/gpu/compile_model.py
-       :language: python
-       :fragment: [compile_model_multi]
-
-@endsphinxdirective
+@endsphinxtabset
 
 See [Multi-device execution page](../multi_device.md) for more details.
 
@@ -185,21 +181,17 @@ For example, batch size 33 may be executed via 2 internal networks with batch si
 
 The code snippet below demonstrates how to use dynamic batch in simple scenarios:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
+@snippet docs/snippets/gpu/dynamic_batch.cpp dynamic_batch
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/gpu/dynamic_batch.cpp
-       :language: cpp
-       :fragment: [dynamic_batch]
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/dynamic_batch.py dynamic_batch
+@endsphinxtab
 
-.. tab:: Python
-
-    .. doxygensnippet:: docs/snippets/gpu/dynamic_batch.py
-       :language: python
-       :fragment: [dynamic_batch]
-
-@endsphinxdirective
+@endsphinxtabset
 
 See [dynamic shapes guide](../ov_dynamic_shapes.md) for more details.
 
