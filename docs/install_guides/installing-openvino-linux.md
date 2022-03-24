@@ -1,6 +1,6 @@
 # Install and Configure Intel® Distribution of OpenVINO™ Toolkit for Linux {#openvino_docs_install_guides_installing_openvino_linux}
 
-> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. These tools are now only available on [pypi.org](https://pypi.org/project/openvino-dev/).
+> **NOTE**: With the 2022.1 release, the OpenVINO™ Development Tools can only be installed via PyPI. If you want to develop or optimize your models with OpenVINO, see [Install OpenVINO Development Tools](installing-model-dev-tools.md) for detailed steps.
 
 ## System Requirements
 
@@ -35,9 +35,7 @@
 
 @endsphinxdirective
 
-## Overview
-
-This guide provides step-by-step instructions on how to install the Intel® Distribution of OpenVINO™ toolkit. Links are provided for each type of compatible hardware including downloads, initialization and configuration steps. The following steps will be covered:
+## Installation Flow
 
 1. <a href="#install-openvino">Install the Intel® Distribution of OpenVINO™ Toolkit</a>
 2. <a href="#install-external-dependencies">Install External Software Dependencies</a>
@@ -49,43 +47,47 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
 @sphinxdirective
 
 .. important::
-   Before you start your journey with installation of the Intel® Distribution of OpenVINO™, we encourage you to check our :ref:`code samples <code samples>` in C, C++, Python and :ref:`notebook tutorials <notebook tutorials>` that we prepared for you, so you could see all the amazing things that you can achieve with our tool.
+   Before installation of the Intel® Distribution of OpenVINO™, you may check our prepared :ref:`code samples <code samples>` in C, C++, Python and :ref:`notebook tutorials <notebook tutorials>`, so you can check capabilities of OpenVINO™ toolkit.
 
 @endsphinxdirective
 
 ## <a name="install-openvino"></a>Step 1: Install the Intel® Distribution of OpenVINO™ Toolkit
 
-1. Select and download the Intel® Distribution of OpenVINO™ toolkit installer file from [Intel® Distribution of OpenVINO™ toolkit for Linux](https://software.intel.com/en-us/openvino-toolkit/choose-download).
-2. Open a command prompt terminal window. You can use the keyboard shortcut: Ctrl+Alt+T
-3. Change directories to where you downloaded the Intel Distribution of OpenVINO™ toolkit for Linux file.<br>
-   If you downloaded the starter script to the current user's `Downloads` directory:
+1. Download the Intel® Distribution of OpenVINO™ toolkit installer file from [Intel® Distribution of OpenVINO™ toolkit for Linux](https://software.intel.com/en-us/openvino-toolkit/choose-download).
+2. Open a Linux command line window with keyboard shortcut: *Ctrl+Alt+T*
+3. Change directory position to the one in which you saved toolkit file.<br>
+   ```sh
+   cd ~/<SAVE_DIR>
+   ```
+   **EXAMPLE:** If you downloaded the starter script to the current user `Downloads` directory:
    ```sh
    cd ~/Downloads/
    ```
-   You should find there a bootstrapper script `l_openvino_toolkit_p_<version>.sh`.
+   There will be a bootstrapper script `l_openvino_toolkit_p_<version>.sh`.
 4. Add executable rights for the current user:
    ```sh
    chmod +x l_openvino_toolkit_p_<version>.sh
    ```
-5. If you want to use graphical user interface (GUI) installation wizard, run the script without any parameters:
-   ```sh
-   ./l_openvino_toolkit_p_<version>.sh
-   ```
-   <br>You should see the following dialog box open up:
+5. You can run installation now in:
+   + Command Line (CLI), by adding parameters `-a` for additional arguments and `--cli` to run installation in command line:
+     ```sh
+     ./l_openvino_toolkit_p_<version>.sh -a --cli
+     ```
+     > **NOTE**: To get additional information on all parameters that can be used, use the help option: `--help`.
 
-   @sphinxdirective
-   
-   .. image:: _static/images/openvino-install.png
-      :width: 400px
-      :align: center
-   
-   @endsphinxdirective
+   + Graphical User Interface (GUI), by running script without any additional parameters:
+     ```sh
+     ./l_openvino_toolkit_p_<version>.sh
+     ```
+     <br>Installation dialog box will start up:
 
-   Otherwise, you can add parameters `-a` for additional arguments and `--cli` to run installation in command line (CLI):
-   ```sh
-   ./l_openvino_toolkit_p_<version>.sh -a --cli
-   ```
-   > **NOTE**: To get additional information on all parameters that can be used, use the help option: `--help`. Among others, you can find there `-s` option which offers silent mode, which together with `--eula approve` allows you to run whole installation with default values without any user inference.
+      @sphinxdirective
+
+      .. image:: _static/images/openvino-install.png
+         :width: 400px
+         :align: center
+
+      @endsphinxdirective
    
 6. Follow the instructions on your screen. During the installation you will be asked to accept the license agreement. Your acceptance is required to continue. Check the installation process on the image below:<br>
 
@@ -104,8 +106,6 @@ The core components are now installed. Continue to the next section to install a
 
 ## <a name="install-external-dependencies"></a>Step 2: Install External Software Dependencies
 
-This script enables you to install Linux platform development tools and components to work with the product.
-
 1. Go to the `install_dependencies` directory:
    ```sh
    cd <INSTALL_DIR>/install_dependencies
@@ -114,26 +114,25 @@ This script enables you to install Linux platform development tools and componen
    ```sh
    sudo -E ./install_openvino_dependencies.sh
    ```
-   
-   Once the dependencies are installed, continue to the next section to set your environment variables.
 
 ## <a name="set-the-environment-variables"></a>Step 3: Configure the Environment
 
-You must update several environment variables before you can compile and run OpenVINO™ applications. Set environment variables as follows:
+To compile and run OpenVINO™ applications, update environment variables:
 
 ```sh
 source <INSTALL_DIR>/setupvars.sh
 ```  
 
-If you have more than one OpenVINO™ version on your machine, you can easily switch its version by sourcing `setupvars.sh` of your choice.
+@sphinxdirective
 
-> **NOTE**: You can also run this script every time when you start new terminal session. Open `~/.bashrc` in your favorite editor, and add `source <INSTALL_DIR>/setupvars.sh`. Next time when you open a terminal, you will see `[setupvars.sh] OpenVINO™ environment initialized`. Changing `.bashrc` is not recommended when you have many OpenVINO™ versions on your machine and want to switch among them, as each may require different setup.
+.. important::
+   In case you have more than one OpenVINO™ version on your machine, you can switch between them by sourcing `setupvars.sh` of your choice.
 
-The environment variables are set. Next, you can download some additional tools.
+@endsphinxdirective
+
+<!-- > **NOTE**: You can also run this script every time when you start new terminal session. Open `~/.bashrc` in your favorite editor, and add `source <INSTALL_DIR>/setupvars.sh`. Next time when you open a terminal, you will see `[setupvars.sh] OpenVINO™ environment initialized`. Changing `.bashrc` is not recommended when you have many OpenVINO™ versions on your machine and want to switch among them, as each may require different setup. -->
 
 ## <a name="model-optimizer">Step 4 (Optional): Download Additional Components
-
-> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. The OpenVINO™ Development Tools can only be installed via PyPI now. See [Install OpenVINO™ Development Tools](installing-model-dev-tools.md) for detailed steps.
 
 @sphinxdirective
 
@@ -191,6 +190,8 @@ Developing in C++:
 ## <a name="uninstall"></a>Uninstalling the Intel® Distribution of OpenVINO™ Toolkit
 
 To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalling-openvino.md).
+
+## Additional Resources
 
 @sphinxdirective
 
