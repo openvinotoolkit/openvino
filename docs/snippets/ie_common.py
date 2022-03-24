@@ -43,7 +43,17 @@ request.infer()
 from copy import deepcopy
 
 #! [ie:start_async_and_wait]
+# Start async inference on a single infer request
+request.async_infer()
+# Wait for 1 milisecond
+request.wait(1)
+# Wait for inference completion
+request.wait()
+
+# Demonstrates async pipeline using ExecutableNetwork
 results = []
+
+# Callback to process inference results
 def callback(output_blobs, status_code):
     # copy output blobs data
     outputs_copy = deepcopy(output_blobs)
@@ -62,6 +72,13 @@ for _ in range(total_frames):
     idle_id = exec_network.get_idle_request_id()
     # Start asynchronous inference on idle request
     exec_network.start_async(request_id=idle_id, inputs=next(input_data))
-# wait for the rest requests to complete
+# Wait for the rest requests to complete
 exec_network.wait()
 #! [ie:start_async_and_wait]
+
+#! [ie:get_output_tensor]
+# Get inference results mapped to output layers names
+results = request.infer(input_data)
+# Acessing output blobs directly
+output_blobs = request.output_blobs
+#! [ie:get_output_tensor]
