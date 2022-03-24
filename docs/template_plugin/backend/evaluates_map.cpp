@@ -2128,9 +2128,8 @@ InfoForRFFT9 get_info_for_rfft9_eval(const std::vector<std::shared_ptr<HostTenso
     auto output_shape = result.input_data_shape;
 
     int64_t input_rank = static_cast<int64_t>(result.input_data_shape.size());
-    int64_t complex_data_rank = input_rank;
     auto canonicalized_axes =
-        runtime::reference::canonicalize_axes(result.axes_data.data(), result.axes_data_shape, complex_data_rank);
+        runtime::reference::canonicalize_axes(result.axes_data.data(), result.axes_data_shape, input_rank);
 
     size_t num_of_axes = result.axes_data.size();
     auto signal_size = fft_v7::get_signal_size(inputs, num_of_axes);
