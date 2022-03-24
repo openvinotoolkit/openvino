@@ -142,9 +142,9 @@ jobs:
 
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="$(CMAKE_CMD) --build . --config Release"
+      call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) --build . --config Release
     workingDirectory: $(BUILD_DIR)
-    displayName: 'Build Win - IB'
+    displayName: 'Build Win'
 
   - script: dir $(REPO_DIR)\bin\ /s
     displayName: 'List bin files'
