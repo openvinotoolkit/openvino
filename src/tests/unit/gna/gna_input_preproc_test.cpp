@@ -15,9 +15,11 @@ class GNAPluginForInPrecisionTest : public GNAPluginNS::GNAPlugin {
 public:
 using GNAPlugin::GNAPlugin;
 using GNAPlugin::ImportFrames;
-using GNAPlugin::InitGNADevice;
     void setLowPrc() {
         this->gnaFlags->input_low_precision = true;
+    }
+    void setGNADeviceHelper(){
+        this->gnadevice = std::make_shared<GNADeviceHelper>();
     }
 };
 
@@ -40,7 +42,7 @@ public:
     }
 
     void Run() {
-        auto sf = std::stod(gna_config["GNA_SCALE_FACTOR_0"]);
+        auto sf = std::stof(gna_config["GNA_SCALE_FACTOR_0"]);
         std::vector<T> plugin_inputs(shape[1]);
         plugin.ImportFrames(&(plugin_inputs.front()),
                             &(inputVals.front()),
@@ -53,12 +55,7 @@ public:
                             shape[1]);
 
         for (int i = 0; i < shape[1]; ++i) {
-            if (plugin_inputs[i] != referenceVals[i]) {
-                std::ostringstream err;
-                err << "Actual and reference value of input doesn't match: " << plugin_inputs[i] << " vs "
-                    << referenceVals[i];
-                FAIL() << err.str();
-            }
+            EXPECT_EQ(plugin_inputs[i], referenceVals[i]);
         }
     }
 
@@ -87,7 +84,7 @@ TEST_F(GNAInputPrecisionTestFp32toI16, GNAInputPrecisionTestI16) {
     std::vector<float> inputs(8, 16);
     std::vector<int16_t> refs(8, 128);
     SetUp(inputs, refs, config);
-    plugin.InitGNADevice();
+    plugin.setGNADeviceHelper();
     Run();
 }
 
@@ -100,7 +97,7 @@ TEST_F(GNAInputPrecisionTestFp32toI8, GNAInputPrecisionTestI8) {
     std::vector<float> inputs(8, 12);
     std::vector<int8_t> refs(8, 48);
     SetUp(inputs, refs, config);
-    plugin.InitGNADevice();
+    plugin.setGNADeviceHelper();
     plugin.setLowPrc();
     Run();
 }
@@ -128,7 +125,6 @@ TEST_F(GNAInputPrecisionTestI16toI16, GNAInputPrecisionTestI16) {
     std::vector<int16_t> inputs(8, 16);
     std::vector<int16_t> refs(8, 16);
     SetUp(inputs, refs, config);
-    plugin.InitGNADevice();
     Run();
 }
 
@@ -141,7 +137,6 @@ TEST_F(GNAInputPrecisionTestI16toI8, GNAInputPrecisionTestI8) {
     std::vector<int16_t> inputs(8, 12);
     std::vector<int8_t> refs(8, 120);
     SetUp(inputs, refs, config);
-    plugin.InitGNADevice();
     plugin.setLowPrc();
     Run();
 }
@@ -158,7 +153,6 @@ TEST_F(GNAInputPrecisionTestU8toI16, GNAInputPrecisionTestI16) {
     std::vector<uint8_t> inputs(8, 16);
     std::vector<int16_t> refs(8, 128);
     SetUp(inputs, refs, config);
-    plugin.InitGNADevice();
     Run();
 }
 
@@ -171,7 +165,6 @@ TEST_F(GNAInputPrecisionTestU8toI8, GNAInputPrecisionTestI8) {
     std::vector<uint8_t> inputs(8, 120);
     std::vector<int8_t> refs(8, 120);
     SetUp(inputs, refs, config);
-    plugin.InitGNADevice();
     plugin.setLowPrc();
     Run();
 }
