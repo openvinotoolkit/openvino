@@ -10,7 +10,6 @@
 
 #include "snippets_isa.hpp"
 #include "emitter.hpp"
-#include "openvino/pass/manager.hpp"
 
 namespace ngraph {
 namespace snippets {

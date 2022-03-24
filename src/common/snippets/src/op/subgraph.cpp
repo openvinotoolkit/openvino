@@ -259,11 +259,12 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
         return n->get_input_shape(0).back() != 1;
     };
 
+    const auto supported_exec_type = m_generator->get_target_machine()->get_supported_exec_types().front();
     const size_t lanes = m_generator->get_target_machine()->get_lanes();
 
     ngraph::pass::Manager manager;
 
-    manager.register_pass<snippets::pass::PrecisionPropagation>();
+    manager.register_pass<snippets::pass::PrecisionPropagation>(supported_exec_type);
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::EliminateConvert>();
 
