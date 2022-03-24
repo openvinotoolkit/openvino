@@ -12,7 +12,7 @@ Also, while the resulting performance may be optimal for the specific combinatio
 Beyond execution _parameters_ there are potentially many device-specific details like _scheduling_ that greatly affect the performance. 
 Specifically, GPU-oriented tricks like batching, which combines many (potentially tens) of input images to achieve optimal throughput, do not always map well to the CPU, as e.g. detailed in the next sections.
 The hints allow to really hide _execution_ specifics required to saturate the device. For example, no need to explicitly combine multiple inputs into a batch to achieve good GPU performance.
-Instead, it is possible to keep a separate infer request per camera or another source of input and process the requests in parallel using <a href="#ov-async-api">OpenVINO Async API</a>.
+Instead, it is possible to keep a separate infer request per camera or another source of input and process the requests in parallel using Async API as explained in the [common-optimizations section](@ref openvino_docs_deployment_optimization_guide_common).
 
 The only requirement for the application to leverage the throughput is about **running multiple inference requests in parallel**.
 OpenVINO's device-specific implementation of the hints will take care of the rest. This allows a developer to greatly simplify the app-logic.

@@ -1,8 +1,8 @@
-# OpenVINO™ Runtime User Guide {#openvino_docs_OV_Runtime_User_Guide}
+# Performing inference with OpenVINO Runtime {#openvino_docs_OV_Runtime_User_Guide}
 
 @sphinxdirective
 
-.. _deep learning inference engine:
+.. _deep learning openvino runtime:
 
 .. toctree::
    :maxdepth: 1
@@ -19,8 +19,6 @@
    openvino_docs_OV_UG_Performance_Hints
    openvino_docs_OV_UG_Automatic_Batching
    openvino_docs_IE_DG_network_state_intro
-   openvino_docs_OV_Runtime_UG_Python_API_exclusives
-   openvino_2_0_transition_guide
    
 @endsphinxdirective
 
@@ -46,6 +44,6 @@ The scheme below illustrates the typical workflow for deploying a trained deep l
            <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen height="315" width="100%"
            src="https://www.youtube.com/embed/e6R13V8nbak">
            </iframe>
-   * - **Inference Engine Concept**. Duration: 3:43
+   * - **OpenVINO Runtime Concept**. Duration: 3:43
      
 @endsphinxdirective

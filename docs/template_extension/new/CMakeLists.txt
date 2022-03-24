@@ -15,10 +15,4 @@ add_library(${TARGET_NAME} MODULE ${SRC})
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_OPENVINO_EXTENSION_API)
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
-
-# To map custom operation to framework
-if(OpenVINO_Frontend_ONNX_FOUND)
-    target_link_libraries(${TARGET_NAME} PRIVATE openvino::frontend::onnx)
-    target_compile_definitions(${TARGET_NAME} PRIVATE OPENVINO_ONNX_FRONTEND_ENABLED)
-endif()
 # [cmake:extension]

@@ -1,4 +1,4 @@
-# Model Optimizer User Guide {#openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide}
+# Convert model with Model Optimizer {#openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide}
 
 @sphinxdirective
 

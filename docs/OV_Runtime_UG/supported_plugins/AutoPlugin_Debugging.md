@@ -69,7 +69,6 @@ All major performance calls of both OpenVINO™ Runtime and the AUTO plugin are 
 @endsphinxdirective
 
 For more information, you can refer to:
-* [OpenVINO profiling](https://docs.openvino.ai/latest/groupie_dev_profiling.html)
 * [Intel® VTune™ Profiler User Guide](https://www.intel.com/content/www/us/en/develop/documentation/vtune-help/top/api-support/instrumentation-and-tracing-technology-apis.html)
 
 ### Analyze Code Performance on Linux

@@ -29,7 +29,7 @@ OpenVINO™ Documentation
          alt="OpenVINO allows to process models built with Caffe, Keras, mxnet, TensorFlow, ONNX, and PyTorch. They can be easily optimized and deployed on devices running Windows, Linux, or MacOS." />
       <div style="clear:both;"> </div>
       <p>Check the full range of supported hardware in the 
-         <a href="openvino_docs_IE_DG_supported_plugins_Supported_Devices.html"> Supported Devices page</a> and see how it stacks up in our
+         <a href="openvino_docs_OV_UG_Working_with_devices.html"> Supported Devices page</a> and see how it stacks up in our
          <a href="openvino_docs_performance_benchmarks.html"> Performance Benchmarks page.</a> <br />
 	 Supports deployment on Windows, Linux, and macOS.
       </p>      

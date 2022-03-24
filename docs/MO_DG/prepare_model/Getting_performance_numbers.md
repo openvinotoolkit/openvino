@@ -9,7 +9,7 @@ When evaluating performance of your model with the OpenVINO Runtime, you must me
 
 - Track separately the operations that happen outside the OpenVINO Runtime, like video decoding. 
 
-> **NOTE**: Some image pre-processing can be baked into the IR and accelerated accordingly. For more information, refer to [Embedding the Preprocessing](Additional_Optimizations.md). Also consider [_runtime_ preprocessing optimizations](../../optimization_guide/dldt_deployment_optimization_common).
+> **NOTE**: Some image pre-processing can be baked into the IR and accelerated accordingly. For more information, refer to [Embedding the Preprocessing](Additional_Optimizations.md). Also consider [Runtime Optimizations of the Preprocessing](../../optimization_guide/dldt_deployment_optimization_common).
 
 ## Tip 2. Getting Credible Performance Numbers 
 
@@ -53,17 +53,32 @@ When comparing the OpenVINO Runtime performance with the framework or another re
 Further, finer-grained insights into inference performance breakdown can be achieved with device-specific performance counters and/or execution graphs.
 Both [C++](../../../samples/cpp/benchmark_app/README.md) and [Python](../../../tools/benchmark_tool/README.md) versions of the `benchmark_app` supports a `-pc` command-line parameter that outputs internal execution breakdown.
 
-Below is example of CPU plugin output for a network (since the device is CPU, the layers wall clock `realTime` and the `cpu` time are the same):
+For example, below is the part of performance counters for quantized [TensorFlow* implementation of ResNet-50](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf) model inference on [CPU Plugin](../../OV_Runtime_UG/supported_plugins/CPU.md).
+Notice that since the device is CPU, the layers wall clock `realTime` and the `cpu` time are the same. Information about layer precision is also stored in the performance counters. 
 
-```
-conv1      EXECUTED       layerType: Convolution        realTime: 706        cpu: 706            execType: jit_avx2
-conv2_1_x1  EXECUTED       layerType: Convolution        realTime: 137        cpu: 137            execType: jit_avx2_1x1
-fc6        EXECUTED       layerType: Convolution        realTime: 233        cpu: 233            execType: jit_avx2_1x1
-fc6_nChw8c_nchw      EXECUTED  layerType: Reorder           realTime: 20         cpu: 20             execType: reorder
-out_fc6         EXECUTED       layerType: Output            realTime: 3          cpu: 3              execType: unknown
-relu5_9_x2    OPTIMIZED_OUT     layerType: ReLU             realTime: 0          cpu: 0              execType: undef
-```
-This contains layers name (as seen in IR), layers type and execution statistics. Notice the `OPTIMIZED_OUT`, which indicates that the particular activation was fused into adjacent convolution.
+| layerName                                                 | execStatus | layerType    | execType             | realTime (ms) | cpuTime (ms) |
+| --------------------------------------------------------- | ---------- | ------------ | -------------------- | ------------- | ------------ |
+| resnet\_model/batch\_normalization\_15/FusedBatchNorm/Add | EXECUTED   | Convolution  | jit\_avx512\_1x1\_I8 | 0.377         | 0.377        |
+| resnet\_model/conv2d\_16/Conv2D/fq\_input\_0              | NOT\_RUN   | FakeQuantize | undef                | 0             | 0            |
+| resnet\_model/batch\_normalization\_16/FusedBatchNorm/Add | EXECUTED   | Convolution  | jit\_avx512\_I8      | 0.499         | 0.499        |
+| resnet\_model/conv2d\_17/Conv2D/fq\_input\_0              | NOT\_RUN   | FakeQuantize | undef                | 0             | 0            |
+| resnet\_model/batch\_normalization\_17/FusedBatchNorm/Add | EXECUTED   | Convolution  | jit\_avx512\_1x1\_I8 | 0.399         | 0.399        |
+| resnet\_model/add\_4/fq\_input\_0                         | NOT\_RUN   | FakeQuantize | undef                | 0             | 0            |
+| resnet\_model/add\_4                                      | NOT\_RUN   | Eltwise      | undef                | 0             | 0            |
+| resnet\_model/add\_5/fq\_input\_1                         | NOT\_RUN   | FakeQuantize | undef                | 0             | 0            |
+
+
+   The `exeStatus` column of the table includes possible values:
+   - `EXECUTED` - layer was executed by standalone primitive,
+   - `NOT_RUN` - layer was not executed by standalone primitive or was fused with another operation and executed in another layer primitive.  
+   
+   The `execType` column of the table includes inference primitives with specific suffixes. The layers have the following marks:
+   * Suffix `I8` for layers that had 8-bit data type input and were computed in 8-bit precision
+   * Suffix `FP32` for layers computed in 32-bit precision 
+
+   All `Convolution` layers are executed in int8 precision. Rest layers are fused into Convolutions using post operations optimization technique, which is described in [Internal CPU Plugin Optimizations](../../OV_Runtime_UG/supported_plugins/CPU.md).
+   This contains layers name (as seen in IR), layers type and execution statistics.
+
 Both benchmark_app versions also support "exec_graph_path" command-line option governing the OpenVINO to output the same per-layer execution statistics, but in the form of the plugin-specific [Netron-viewable](https://netron.app/) graph to the specified file.
 
 Notice that on some devices, the execution graphs/counters may be pretty intrusive overhead-wise. 

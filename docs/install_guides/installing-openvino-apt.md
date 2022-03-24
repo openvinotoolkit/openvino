@@ -38,21 +38,21 @@ The complete list of supported hardware is available in the [Release Notes](http
       > **NOTE**: You might need to install GnuPG: `sudo apt-get install gnupg`   
       
 2.	Add the repository via the following command:
-    @sphinxdirective
+@sphinxdirective
 
-    .. tab:: Ubuntu 18
+.. tab:: Ubuntu 18
 
-        .. code-block:: sh
+   .. code-block:: sh
 
-            echo "deb https://apt.repos.intel.com/openvino/2022 bionic main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
+      echo "deb https://apt.repos.intel.com/openvino/2022 bionic main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
 
-    .. tab:: Ubuntu 20
+.. tab:: Ubuntu 20
 
-        .. code-block:: sh
+   .. code-block:: sh
 
-            echo "deb https://apt.repos.intel.com/openvino/2022 focal main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
+      echo "deb https://apt.repos.intel.com/openvino/2022 focal main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
 
-    @endsphinxdirective
+@endsphinxdirective
 
 
 3.	Update the list of packages via the update command:

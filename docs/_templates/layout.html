@@ -14,3 +14,13 @@
 <script src="{{ pathto('_static/js/viewer.min.js', 1) }}"></script>
 <script src="/assets/versions_raw.js"></script>
 {% endblock %}
+
+{% block docs_navbar %}
+{{ super() }}
+<div class="transition-banner container-fluid alert alert-info alert-dismissible fade show" role="alert">
+    <p>OpenVINO 2022.1 introduces a new version of OpenVINO API (API 2.0). For more information on the changes and transition steps, see the <a href="openvino_2_0_transition_guide.html">transition guide</a></p>
+    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+      <span aria-hidden="true">&times;</span>
+    </button>
+</div>
+{% endblock %}

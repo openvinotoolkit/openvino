@@ -1,4 +1,4 @@
-# OpenVINO™ Transition Guide for API 2.0 {#openvino_2_0_transition_guide}
+# Transition to OpenVINO™ 2.0 {#openvino_2_0_transition_guide}
 
 @sphinxdirective
 

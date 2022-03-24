@@ -7,11 +7,6 @@
 //! [op:common_include]
 #include <openvino/op/op.hpp>
 //! [op:common_include]
-//! [op:frontend_include]
-#ifdef OPENVINO_ONNX_FRONTEND_ENABLED
-#    include <openvino/frontend/onnx/extension/op.hpp>
-#endif
-//! [op:frontend_include]
 
 //! [op:header]
 namespace TemplateExtension {
@@ -19,10 +14,6 @@ namespace TemplateExtension {
 class Identity : public ov::op::Op {
 public:
     OPENVINO_OP("Identity");
-
-#ifdef OPENVINO_ONNX_FRONTEND_ENABLED
-    OPENVINO_FRAMEWORK_MAP(onnx)
-#endif
 
     Identity() = default;
     Identity(const ov::Output<ov::Node>& arg);
