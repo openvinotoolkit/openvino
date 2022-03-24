@@ -15,7 +15,17 @@ For the CPU plugin `"CPU"` device name is used, and even though there can be mor
 On multi-socket platforms, load balancing and memory usage distribution between NUMA nodes are handled automatically.   
 In order to use CPU for inference the device name should be passed to `ov::Core::compile_model()` method:
 
-@snippet snippets/cpu/compile_model.cpp compile_model_default
+@sphinxtabset
+
+@sphinxtab{C++}
+@snippet docs/snippets/cpu/compile_model.cpp compile_model_default
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/cpu/compile_model.py compile_model_default
+@endsphinxtab
+
+@endsphinxtabset
 
 ## Supported inference data types
 CPU plugin supports the following data types as inference precision of internal primitives:
@@ -55,7 +65,17 @@ Using bf16 precision provides the following performance benefits:
 
 To check if the CPU device can support the bfloat16 data type use the [query device properties interface](./config_properties.md) to query ov::device::capabilities property, which should contain `BF16` in the list of CPU capabilities:
 
-@snippet snippets/cpu/Bfloat16Inference0.cpp part0
+@sphinxtabset
+
+@sphinxtab{C++}
+@snippet docs/snippets/cpu/Bfloat16Inference0.cpp part0
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/cpu/Bfloat16Inference.py part0
+@endsphinxtab
+
+@endsphinxtabset
 
 In case if the model was converted to bf16, ov::hint::inference_precision is set to ov::element::bf16 and can be checked via ov::CompiledModel::get_property call. The code below demonstrates how to get the element type:
 
@@ -63,7 +83,17 @@ In case if the model was converted to bf16, ov::hint::inference_precision is set
 
 To infer the model in f32 precision instead of bf16 on targets with native bf16 support, set the ov::hint::inference_precision to ov::element::f32.
 
-@snippet snippets/cpu/Bfloat16Inference2.cpp part2
+@sphinxtabset
+
+@sphinxtab{C++}
+@snippet docs/snippets/cpu/Bfloat16Inference2.cpp part2
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/cpu/Bfloat16Inference.py part2
+@endsphinxtab
+
+@endsphinxtabset
 
 Bfloat16 software simulation mode is available on CPUs with Intel® AVX-512 instruction set that do not support the native `avx512_bf16` instruction. This mode is used for development purposes and it does not guarantee good performance.
 To enable the simulation, one have to explicitly set ov::hint::inference_precision to ov::element::bf16.
@@ -78,7 +108,17 @@ To enable the simulation, one have to explicitly set ov::hint::inference_precisi
 If a machine has OpenVINO supported devices other than CPU (for example integrated GPU), then any supported model can be executed on CPU and all the other devices simultaneously.
 This can be achieved by specifying `"MULTI:CPU,GPU.0"` as a target device in case of simultaneous usage of CPU and GPU.
 
-@snippet snippets/cpu/compile_model.cpp compile_model_multi
+@sphinxtabset
+
+@sphinxtab{C++}
+@snippet docs/snippets/cpu/compile_model.cpp compile_model_multi
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/cpu/compile_model.py compile_model_multi
+@endsphinxtab
+
+@endsphinxtabset
 
 See [Multi-device execution page](../multi_device.md) for more details.
 
@@ -103,7 +143,17 @@ The most flexible configuration is the fully undefined shape, when we do not app
 But reducing the level of uncertainty will bring performance gains.
 We can reduce memory consumption through memory reuse, and as a result achieve better cache locality, which in its turn leads to better inference performance, if we explicitly set dynamic shapes with defined upper bounds.
 
-@snippet snippets/cpu/dynamic_shape.cpp defined_upper_bound
+@sphinxtabset
+
+@sphinxtab{C++}
+@snippet docs/snippets/cpu/dynamic_shape.cpp defined_upper_bound
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/cpu/dynamic_shape.py defined_upper_bound
+@endsphinxtab
+
+@endsphinxtabset
 
 > **NOTE**: Using fully undefined shapes may result in significantly higher memory consumption compared to inferring the same model with static shapes.
 > If the memory consumption is unacceptable but dynamic shapes are still required, one can reshape the model using shapes with defined upper bound to reduce memory footprint.
@@ -111,7 +161,17 @@ We can reduce memory consumption through memory reuse, and as a result achieve b
 Some runtime optimizations works better if the model shapes are known in advance.
 Therefore, if the input data shape is not changed between inference calls, it is recommended to use a model with static shapes or reshape the existing model with the static input shape to get the best performance.
 
-@snippet snippets/cpu/dynamic_shape.cpp static_shape
+@sphinxtabset
+
+@sphinxtab{C++}
+@snippet docs/snippets/cpu/dynamic_shape.cpp static_shape
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/cpu/dynamic_shape.py static_shape
+@endsphinxtab
+
+@endsphinxtabset
 
 See [dynamic shapes guide](../ov_dynamic_shapes.md) for more details.
 
@@ -211,4 +271,3 @@ For some performance-critical DL operations, the CPU plugin uses optimized imple
 * [Supported Devices](Supported_Devices.md)
 * [Optimization guide](@ref openvino_docs_optimization_guide_dldt_optimization_guide)
 * [СPU plugin developers documentation](https://github.com/openvinotoolkit/openvino/wiki/CPUPluginDevelopersDocs)
-
