@@ -823,7 +823,7 @@ extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<long lon
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<unsigned long>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<unsigned long long>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<bool>);
-template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<char>);
+extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<char>);
 #endif
 
 /**
