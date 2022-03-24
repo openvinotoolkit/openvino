@@ -16,7 +16,7 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassCommon, IEClassBasicTestP,
-        ::testing::Values(std::make_pair(getPluginLibNameByDevice(ov::test::conformance::targetDevice), ov::test::conformance::targetDevice)));
+        ::testing::Values(std::make_pair(get_plugin_lib_name_by_device(ov::test::conformance::targetDevice), ov::test::conformance::targetDevice)));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassNetworkTestP, IEClassNetworkTestP,
@@ -28,11 +28,11 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_SUPPORTED_METRICS,
-        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_AVAILABLE_DEVICES,
@@ -40,7 +40,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_FULL_DEVICE_NAME,
-        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
@@ -56,11 +56,11 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_ThrowUnsupported,
-        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetConfigTest, IEClassGetConfigTest_ThrowUnsupported,
-        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetAvailableDevices, IEClassGetAvailableDevices,

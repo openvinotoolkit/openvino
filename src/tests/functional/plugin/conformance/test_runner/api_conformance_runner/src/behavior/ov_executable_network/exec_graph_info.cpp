@@ -29,7 +29,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          ::testing::Combine(
                                  ::testing::ValuesIn(ovExecGraphInfoElemTypes),
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU),
-                                 ::testing::ValuesIn(empty_config)),
+                                 ::testing::ValuesIn(empty_ov_config)),
                          OVExecGraphImportExportTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
@@ -37,7 +37,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
                          ::testing::Combine(
                                  ::testing::ValuesIn(ovExecGraphInfoElemTypes),
                                  ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                 ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_MULTI))),
+                                 ::testing::ValuesIn(generate_ov_configs(CommonTestUtils::DEVICE_MULTI))),
                          OVExecGraphImportExportTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
@@ -45,14 +45,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
         ::testing::Combine(
                 ::testing::ValuesIn(ovExecGraphInfoElemTypes),
                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_AUTO))),
+                ::testing::ValuesIn(generate_ov_configs(CommonTestUtils::DEVICE_AUTO))),
         OVExecGraphImportExportTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
          OVExecGraphImportExportTest,
         ::testing::Combine(::testing::ValuesIn(ovExecGraphInfoElemTypes),
                            ::testing::Values(CommonTestUtils::DEVICE_HETERO),
-                           ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_HETERO))),
+                           ::testing::ValuesIn(generate_ov_configs(CommonTestUtils::DEVICE_HETERO))),
         OVExecGraphImportExportTest::getTestCaseName);
 
 }  // namespace

@@ -13,7 +13,7 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassImportExportTestP, IEClassImportExportTestP,
-        ::testing::Values(generateComplexDeviceName(CommonTestUtils::DEVICE_HETERO)));
+        ::testing::Values(generate_complex_device_name(CommonTestUtils::DEVICE_HETERO)));
 
 //
 // Executable Network GetMetric
@@ -21,23 +21,23 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
-        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_NETWORK_NAME,
-        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
-        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_ThrowsUnsupported,
-        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 //
 // Executable Network GetConfig / SetConfig

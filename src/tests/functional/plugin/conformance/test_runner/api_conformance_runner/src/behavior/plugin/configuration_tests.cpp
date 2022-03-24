@@ -53,13 +53,13 @@ namespace {
     INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, CorrectConfigTests,
             ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI, pluginMultiConfigs))),
+                ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_MULTI, pluginMultiConfigs))),
             CorrectConfigTests::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, CorrectConfigTests,
             ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO, pluginMultiConfigs))),
+                ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_AUTO, pluginMultiConfigs))),
             CorrectConfigTests::getTestCaseName);
 
     const std::vector<std::map<std::string, std::string>> inPluginConfigs = {
@@ -89,13 +89,13 @@ namespace {
     INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, IncorrectConfigTests,
             ::testing::Combine(
             ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-            ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI, pluginMultiInConfigs))),
+            ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_MULTI, pluginMultiInConfigs))),
             IncorrectConfigTests::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, IncorrectConfigTests,
             ::testing::Combine(
             ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-            ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO, pluginMultiInConfigs))),
+            ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_AUTO, pluginMultiInConfigs))),
             IncorrectConfigTests::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigAPITests,
@@ -107,13 +107,13 @@ namespace {
     INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, IncorrectConfigAPITests,
             ::testing::Combine(
             ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-            ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI, pluginMultiInConfigs))),
+            ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_MULTI, pluginMultiInConfigs))),
             IncorrectConfigAPITests::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, IncorrectConfigAPITests,
             ::testing::Combine(
             ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-            ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO, pluginMultiInConfigs))),
+            ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_AUTO, pluginMultiInConfigs))),
             IncorrectConfigAPITests::getTestCaseName);
 
     const std::vector<std::map<std::string, std::string>> pluginConfigsCheck = {

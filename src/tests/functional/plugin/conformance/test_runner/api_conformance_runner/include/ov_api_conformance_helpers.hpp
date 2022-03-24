@@ -4,74 +4,37 @@
 
 #pragma once
 
-#include "conformance.hpp"
-#include "common_test_utils/test_constants.hpp"
-
-// TODO: fix namespaces
+#include "api_conformance_helpers.hpp"
 
 namespace ov {
 namespace test {
 namespace conformance {
 
-inline const std::string get_plugin_lib_name_by_device(const std::string& deviceName) {
-    const std::map<std::string, std::string> devices{
-            { "AUTO", "openvino_auto_plugin" },
-            { "HDDL", "intel_hddl_plugin" },
-            { "VPUX", "openvino_intel_vpux_plugin" },
-            { "AUTO", "openvino_auto_plugin" },
-            { "CPU", "openvino_intel_cpu_plugin" },
-            { "GNA", "openvino_intel_gna_plugin" },
-            { "GPU", "openvino_intel_gpu_plugin" },
-            { "HETERO", "openvino_hetero_plugin" },
-            { "MULTI", "openvino_auto_plugin" },
-            { "MYRIAD", "openvino_intel_myriad_plugin" },
-            { "TEMPLATE", "openvino_template_plugin" },
-    };
-    if (devices.find(deviceName) == devices.end()) {
-        throw std::runtime_error("Incorrect device name");
-    }
-    return devices.at(deviceName);
-}
-
-
-inline const std::vector<ov::AnyMap> generate_configs(const std::string& targetDevice,
-                                                                         const std::vector<ov::AnyMap>& config = {}) {
-    std::pair<std::string, ov::Any> defaultConfig;
-    if (targetDevice ==  std::string(CommonTestUtils::DEVICE_MULTI) || targetDevice ==  std::string(CommonTestUtils::DEVICE_AUTO)) {
-        defaultConfig = ov::device::priorities(ov::test::conformance::targetDevice);
-    } else if (targetDevice ==  std::string(CommonTestUtils::DEVICE_HETERO)) {
-        defaultConfig = ov::device::priorities(ov::test::conformance::targetDevice);
-    } else if (targetDevice ==  std::string(CommonTestUtils::DEVICE_BATCH)) {
-        defaultConfig = { CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , std::string(ov::test::conformance::targetDevice)};
+inline const std::vector<ov::AnyMap> generate_ov_configs(const std::string& target_plugin,
+                                                         const std::vector<ov::AnyMap>& config = {}) {
+    std::pair<std::string, ov::Any> default_config;
+    if (target_plugin ==  std::string(CommonTestUtils::DEVICE_MULTI) ||
+        target_plugin ==  std::string(CommonTestUtils::DEVICE_AUTO) ||
+        target_plugin ==  std::string(CommonTestUtils::DEVICE_HETERO)) {
+        default_config = ov::device::priorities(ov::test::conformance::targetDevice);
+    } else if (target_plugin ==  std::string(CommonTestUtils::DEVICE_BATCH)) {
+        default_config = { CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , std::string(ov::test::conformance::targetDevice)};
     } else {
-        throw std::runtime_error("Incorrect target device: " + targetDevice);
+        throw std::runtime_error("Incorrect target device: " + target_plugin);
     }
 
     std::vector<ov::AnyMap> resultConfig;
     if (config.empty()) {
-        return {{defaultConfig}};
+        return {{default_config}};
     }
     for (auto configItem : config) {
-        configItem.insert(defaultConfig);
+        configItem.insert(default_config);
         resultConfig.push_back(configItem);
     }
     return resultConfig;
 }
 
-inline const std::string generate_complex_device_name(const std::string& deviceName) {
-    return deviceName + ":" + ov::test::conformance::targetDevice;
-}
-
-inline const std::vector<std::string> return_all_possible_device_combination() {
-    std::vector<std::string> res{ov::test::conformance::targetDevice};
-    std::vector<std::string> devices{CommonTestUtils::DEVICE_HETERO, CommonTestUtils::DEVICE_AUTO, CommonTestUtils::DEVICE_MULTI};
-    for (const auto& device : devices) {
-        res.emplace_back(generate_complex_device_name(device));
-    }
-    return res;
-}
-
-const std::vector<ov::AnyMap> empty_config = {
+const std::vector<ov::AnyMap> empty_ov_config = {
         {},
 };
 

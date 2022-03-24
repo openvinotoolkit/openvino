@@ -12,30 +12,30 @@ using namespace ov::test::conformance;
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestCallbackTests,
                          ::testing::Combine(
                                  ::testing::Values(targetDevice),
-                                 ::testing::ValuesIn(emptyConfig)),
+                                 ::testing::ValuesIn(empty_config)),
                          InferRequestCallbackTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestCallbackTests,
                          ::testing::Combine(
                                  ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI))),
+                                 ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_MULTI))),
                          InferRequestCallbackTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestCallbackTests,
                          ::testing::Combine(
                                  ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO))),
+                                 ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_AUTO))),
                          InferRequestCallbackTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, InferRequestCallbackTests,
                          ::testing::Combine(
                                  ::testing::Values(CommonTestUtils::DEVICE_HETERO),
-                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_HETERO))),
+                                 ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_HETERO))),
                          InferRequestCallbackTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Batch_BehaviorTests, InferRequestCallbackTests,
                          ::testing::Combine(
                                  ::testing::Values(CommonTestUtils::DEVICE_BATCH),
-                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_BATCH))),
+                                 ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_BATCH))),
                          InferRequestCallbackTests::getTestCaseName);
 }  // namespace
