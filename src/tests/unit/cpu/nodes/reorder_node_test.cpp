@@ -24,31 +24,31 @@ using namespace InferenceEngine;
 using namespace ov::intel_cpu;
 
 namespace {
-void check_reorder(const ov::intel_cpu::Memory& inputMemory,
+void checkReorder(const ov::intel_cpu::Memory& inputMemory,
                    const ov::intel_cpu::Memory& outputMemory,
                    const InferenceEngine::Precision& prescision) {
-    auto src_data = inputMemory.GetData();
-    auto dst_data = outputMemory.GetData();
+    auto srcData = inputMemory.GetData();
+    auto dstData = outputMemory.GetData();
     auto mdInput = inputMemory.GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
     auto mdOutput = outputMemory.GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
 
-    const dnnl::impl::memory_desc_wrapper mdw_i(mdInput.data);
-    const dnnl::impl::memory_desc_wrapper mdw_o(mdOutput.data);
-    auto nelems = mdw_i.nelems();
+    const dnnl::impl::memory_desc_wrapper mdwInput(mdInput.data);
+    const dnnl::impl::memory_desc_wrapper mdwOutput(mdOutput.data);
+    auto nelems = mdwInput.nelems();
 
     for (size_t i = 0; i < nelems; ++i) {
-        auto src_offset = mdw_i.off_l(i, false);
-        auto dst_offset = mdw_o.off_l(i, false);
+        auto srcOffset = mdwInput.off_l(i, false);
+        auto dstOffset = mdwOutput.off_l(i, false);
         switch (prescision) {
         case InferenceEngine::Precision::FP32: {
-            auto s = *(static_cast<float*>(src_data) + src_offset);
-            auto d = *(static_cast<float*>(dst_data) + dst_offset);
+            auto s = *(static_cast<float*>(srcData) + srcOffset);
+            auto d = *(static_cast<float*>(dstData) + dstOffset);
             ASSERT_EQ(s, d) << "mismatch at position " << i;
             break;
         }
         case InferenceEngine::Precision::I8: {
-            auto s = *(static_cast<int8_t*>(src_data) + src_offset);
-            auto d = *(static_cast<int8_t*>(dst_data) + dst_offset);
+            auto s = *(static_cast<int8_t*>(srcData) + srcOffset);
+            auto d = *(static_cast<int8_t*>(dstData) + dstOffset);
             ASSERT_EQ(s, d) << "mismatch at position " << i;
             break;
         }
@@ -58,7 +58,7 @@ void check_reorder(const ov::intel_cpu::Memory& inputMemory,
     }
 }
 
-std::string layoutInfo(const LayoutType& layout) {
+std::string layoutName(const LayoutType& layout) {
     if (layout == LayoutType::nspc)
         return "nspc";
     if (layout == LayoutType::ncsp)
@@ -167,7 +167,7 @@ protected:
     InferenceEngine::Precision prec;
 };
 
-}  // namespace
+}// namespace
 
 /*
  * Test Reorder::optimizedNcsp2Nspc() and Reorder::optimizedNspc2Ncsp() for
@@ -176,7 +176,7 @@ protected:
  */
 class ReorderCustomizedStrideTest : public ::testing::Test,
                                     public ::testing::WithParamInterface<ReorderCustomImplTestParamSet>,
-                                    public ::ReorderCPUTestGraph {
+                                    public ReorderCPUTestGraph {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ReorderCustomImplTestParamSet>& obj) {
         ReorderCustomImplTestParamSet p = obj.param;
@@ -272,7 +272,7 @@ protected:
     }
 
     void validate(void) {
-        check_reorder(parentEdge->getMemory(), childEdge->getMemory(), prec);
+        checkReorder(parentEdge->getMemory(), childEdge->getMemory(), prec);
     }
 
     // Fill srcData so that the results of NSPC2NCSP and NCSP2NSPC reorders are incremental numbers 0,1,2,...
@@ -319,7 +319,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReorderTestCustomStrideWithFactor,
  */
 class ReorderCPUTest : public ::testing::Test,
                        public ::testing::WithParamInterface<ReorderCPUTestParamSet>,
-                       public ::ReorderCPUTestGraph {
+                       public ReorderCPUTestGraph {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ReorderCPUTestParamSet>& obj) {
         ReorderCPUTestParamSet p = obj.param;
@@ -329,8 +329,8 @@ public:
         for (const auto inputShape : p.inputShapes) {
             result << CommonTestUtils::vec2str(inputShape);
         }
-        result << "_InputLayoutType:" << layoutInfo(p.srcLayout) << ".";
-        result << "_OutputLayoutType:" << layoutInfo(p.dstLayout) << ".";
+        result << "_InputLayoutType:" << layoutName(p.srcLayout) << ".";
+        result << "_OutputLayoutType:" << layoutName(p.dstLayout) << ".";
         result << "_InputDataType:" << p.prec.name();
         result << "_OutputDataType:" << p.prec.name();
         result << ")";
@@ -355,7 +355,7 @@ protected:
         reorderNode->executeDynamic(stream);
     }
     void validate(void) {
-        check_reorder(parentEdge->getMemory(), childEdge->getMemory(), prec);
+        checkReorder(parentEdge->getMemory(), childEdge->getMemory(), prec);
     }
 
     struct BuildReorderParams {
