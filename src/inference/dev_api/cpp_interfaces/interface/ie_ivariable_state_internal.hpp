@@ -128,6 +128,7 @@ protected:
 
 struct OPENVINO_API IEVariableState : public IVariableState {
     explicit IEVariableState(const InferenceEngine::IVariableStateInternal::Ptr& impl_);
+    ~IEVariableState() = default;
     std::string get_name() const override;
     void reset() override;
     void set_state(const std::shared_ptr<ITensor>& new_state) override;

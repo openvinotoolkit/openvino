@@ -301,7 +301,11 @@ struct BlobTensor : public ITensor {
 };
 
 ITensor::Ptr blob_to_tensor(const std::shared_ptr<ie::Blob>& blob) {
-    return std::make_shared<BlobTensor>(blob);
+    if (blob == nullptr) {
+        return {};
+    } else {
+        return std::make_shared<BlobTensor>(blob);
+    }
 }
 
 struct TensorRemoteBlob : public ie::RemoteBlob {
@@ -385,7 +389,7 @@ struct TensorMemoryBlob : public ie::TBlob<T> {
                                              shape,
                                              ie::BlockingDesc{shape, blk_order, 0, dim_offset, blk_strides}};
                    }(),
-                   tensor_->data<T>(),
+                   static_cast<T*>(tensor_->data()),
                    tensor_->get_byte_size()},
             tensor{tensor_} {}
     catch (const std::exception& ex) {
@@ -397,7 +401,9 @@ struct TensorMemoryBlob : public ie::TBlob<T> {
 };
 
 ie::Blob::Ptr tensor_to_blob(const ITensor::Ptr& tensor) {
-    if (auto blob_tensor = dynamic_cast<const BlobTensor*>(tensor.get())) {
+    if (tensor == nullptr) {
+        return {};
+    } else if (auto blob_tensor = dynamic_cast<const BlobTensor*>(tensor.get())) {
         return blob_tensor->blob;
     } else if (tensor->get_properties().empty()) {
 #define CASE(precision, T)   \
@@ -418,6 +424,10 @@ ie::Blob::Ptr tensor_to_blob(const ITensor::Ptr& tensor) {
             CASE(u64, uint64_t);
             CASE(u1, int8_t);
             CASE(boolean, bool);
+        case element::f16:
+            return std::make_shared<TensorMemoryBlob<int16_t>>(tensor);
+        case element::bf16:
+            return std::make_shared<TensorMemoryBlob<int16_t>>(tensor);
         default:
             OPENVINO_UNREACHABLE("Unsupported element type");
         }

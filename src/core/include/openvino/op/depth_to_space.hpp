@@ -18,6 +18,7 @@ namespace v0 {
 ///
 ///        Output node produces a tensor with shape:
 ///        [N, C/(blocksize * blocksize), H * blocksize, W * blocksize]
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API DepthToSpace : public Op {
 public:
     OPENVINO_OP("DepthToSpace", "opset1");
