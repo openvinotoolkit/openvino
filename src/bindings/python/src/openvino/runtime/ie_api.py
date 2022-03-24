@@ -256,7 +256,9 @@ class Core(CoreBase):
     def compile_model(
         self, model: Union[Model, str], device_name: str = None, config: dict = None
     ) -> CompiledModel:
-        """Creates a compiled model from a source Model object or
+        """Creates a compiled model.
+
+        Creates a compiled model from a source Model object or
         reads model and creates a compiled model from IR / ONNX / PDPD file.
         This can be more efficient than using read_model + compile_model(model_in_memory_object) flow,
         especially for cases when caching is enabled and cached model is available.
@@ -269,7 +271,8 @@ class Core(CoreBase):
         :param device_name: Optional. Name of the device to load the model to. If not specified,
                             the default OpenVINO device will be selected by AUTO plugin.
         :type device_name: str
-        :param config: Optional dict of pairs: (property name, property value) relevant only for this load operation.
+        :param config: Optional dict of pairs:
+                       (property name, property value) relevant only for this load operation.
         :type config: dict
         :return: A compiled model.
         :rtype: openvino.runtime.CompiledModel
@@ -291,9 +294,11 @@ class Core(CoreBase):
         :param model_stream: Input stream, containing a model previously exported, using export_model method.
         :type model_stream: bytes
         :param device_name: Name of device to which compiled model is imported.
-                            Note: if device_name is not used to compile the original model, an exception is thrown.
+                            Note: if device_name is not used to compile the original model,
+                            an exception is thrown.
         :type device_name: str
-        :param properties: Optional map of pairs: (property name, property value) relevant only for this load operation.
+        :param properties: Optional map of pairs: (property name,
+                           property value) relevant only for this load operation.
         :type properties: dict, optional
         :return: A compiled model.
         :rtype: openvino.runtime.CompiledModel
