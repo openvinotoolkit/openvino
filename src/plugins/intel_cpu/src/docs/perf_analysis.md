@@ -55,7 +55,9 @@ which means performance tuning for a specific model leads to the improvement of 
            operations from the OpenVINO operation set that have highly optimized implementations in plugins.
            <details>
            <summary>See MVN pattern example</summary>
+           
            ![mvn_pattern](./img/mvn_pattern.png)
+           
            </details>
            But some times the mapping does not properly work due to deviations from the programmed pattern.
            During the analysis we need to detect such situations to adjust the pattern matching mechanism.
@@ -64,7 +66,9 @@ which means performance tuning for a specific model leads to the improvement of 
            result with the same tensor as the initial one.
            <details>
            <summary>See an example</summary>
+           
            ![double_transpose](./img/double_transpose.png)
+           
            </details>
         2. Can the in-place memory usage be applied? Some operations may be performed without transferring data from the
            input tensor to the output, i.e., in-place. In such conditions either only input or output memory is used.
