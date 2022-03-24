@@ -16,9 +16,6 @@ public:
 using GNAPlugin::GNAPlugin;
 using GNAPlugin::ImportFrames;
 using GNAPlugin::InitGNADevice;
-    std::shared_ptr<GNAPluginNS::GnaInputs> getInputsPtr() {
-        return this->inputs_ptr_;
-    }
     void setLowPrc() {
         this->gnaFlags->input_low_precision = true;
     }
@@ -33,49 +30,6 @@ public:
         gna_config = config;
         shape = {1, input_vals.size()};
         plugin = GNAPluginForInPrecisionTest(gna_config);
-    }
-
-    void Run() {
-        InferenceEngine::BlobMap input;
-        input["Parameter"] = GenerateInputFromVec(inputVals);
-
-        auto is1D = input.begin()->second->getTensorDesc().getLayout() == Layout::C;
-        auto is3D = input.begin()->second->getTensorDesc().getLayout() == Layout::CHW;
-        auto dims = input.begin()->second->getTensorDesc().getDims();
-        auto  importedElements = is1D ? dims[0] : details::product(++std::begin(dims), std::end(dims));
-
-        auto sf = std::stod(gna_config["GNA_SCALE_FACTOR_0"]);
-
-        auto  importedFrames = (is3D || is1D) ? 1 : dims[0];
-        auto  targetGroups = is1D ? 1 : dims[0];
-
-        T *plugin_inputs = new T[shape[1]];
-
-        plugin.ImportFrames(plugin_inputs,
-                            input.begin()->second->cbuffer().as<float *>(),
-                            input.begin()->second->getTensorDesc().getPrecision(),
-                            sf,
-                            orientation,
-                            importedFrames,
-                            targetGroups,
-                            importedElements,
-                            importedElements);
-
-        for (int i = 0; i < shape[1]; ++i) {
-            if (plugin_inputs[i] != referenceVals[i]) {
-                std::ostringstream err;
-                err << "Actual and reference value of input doesn't match: " << plugin_inputs[i] << " vs "
-                    << referenceVals[i];
-                delete [] plugin_inputs;
-                FAIL() << err.str();
-            }
-        }
-        delete [] plugin_inputs;
-    }
-
-protected:
-    InferenceEngine::Blob::Ptr GenerateInputFromVec(std::vector<U>& values) const {
-        Precision prc;
         if (std::is_same<U, float>::value) {
             prc = Precision::FP32;
         } else if (std::is_same<U, int16_t>::value) {
@@ -83,18 +37,33 @@ protected:
         } else {
             prc = Precision::U8;
         }
-        TensorDesc desc = {prc, shape, Layout::ANY};
-        InferenceEngine::Blob::Ptr blob = make_blob_with_precision(desc);
-        blob->allocate();
-
-        auto* rawBlobDataPtr = blob->buffer().as<U*>();
-        for (size_t i = 0; i < blob->size(); i++) {
-            rawBlobDataPtr[i] = values[i];
-        }
-        return blob;
     }
 
-    ngraph::element::Type netPrecision = ngraph::element::f32;
+    void Run() {
+        auto sf = std::stod(gna_config["GNA_SCALE_FACTOR_0"]);
+        std::vector<T> plugin_inputs(shape[1]);
+        plugin.ImportFrames(&(plugin_inputs.front()),
+                            &(inputVals.front()),
+                            prc,
+                            sf,
+                            orientation,
+                            shape[0],
+                            shape[0],
+                            shape[1],
+                            shape[1]);
+
+        for (int i = 0; i < shape[1]; ++i) {
+            if (plugin_inputs[i] != referenceVals[i]) {
+                std::ostringstream err;
+                err << "Actual and reference value of input doesn't match: " << plugin_inputs[i] << " vs "
+                    << referenceVals[i];
+                FAIL() << err.str();
+            }
+        }
+    }
+
+protected:
+    Precision prc;
     std::shared_ptr<ov::Model> function;
     CNNNetwork cnnNet;
     SizeVector shape = {1, 8};
