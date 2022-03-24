@@ -86,7 +86,7 @@ class ITensor;
  * @brief Minimal interface for variable state implementation
  * @ingroup ie_dev_api_variable_state_api
  */
-class OPENVINO_API IVariableState : public std::enable_shared_from_this<IVariableState> {
+class INFERENCE_ENGINE_API_CLASS(IVariableState) : public std::enable_shared_from_this<IVariableState> {
 public:
     /**
      * @brief A shared pointer to a IVariableState interface
@@ -126,9 +126,8 @@ protected:
     std::shared_ptr<ITensor> state;
 };
 
-struct OPENVINO_API IEVariableState : public IVariableState {
+struct INFERENCE_ENGINE_API_CLASS(IEVariableState) : public IVariableState {
     explicit IEVariableState(const InferenceEngine::IVariableStateInternal::Ptr& impl_);
-    ~IEVariableState() = default;
     std::string get_name() const override;
     void reset() override;
     void set_state(const std::shared_ptr<ITensor>& new_state) override;
