@@ -8,3 +8,7 @@ ov_add_frontend(NAME paddle
                 PROTOBUF_LITE
                 FILEDESCRIPTION "FrontEnd to load and convert PaddlePaddle file format"
                 LINK_LIBRARIES openvino::util openvino::runtime::dev)
+
+if(ENABLE_TESTS)
+    add_subdirectory(tests)
+endif()
