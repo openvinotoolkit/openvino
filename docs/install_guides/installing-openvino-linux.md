@@ -48,7 +48,7 @@ Optimized for these processors:
    - [PyPi package](https://pypi.org/project/openvino/)
    - [Docker image](https://catalog.redhat.com/software/containers/intel/openvino-runtime/606ff4d7ecb5241699188fb3)
 
-Software
+**Software**
 
   * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
   * GCC 4.8 (for CentOS 7.6), GCC 7.5.0 (for Ubuntu 18.04) or GCC 9.3.0 (for Ubuntu 20.04)
