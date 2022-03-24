@@ -55,13 +55,10 @@ NamedOutputs generate_proposals_v2(const NodeContext& node) {
     }
 
     // generate im_info from im_scale
-    auto batch_index = default_opset::Constant::create<int64_t>(ov::element::i64, {1}, {0});
-    auto batch = std::make_shared<default_opset::Gather>(scores_shape, batch_index, gather_axis);
-    auto im_scale = default_opset::Constant::create(ov::element::f32, {1}, {1.0});
-    auto im_scales = std::make_shared<default_opset::Broadcast>(im_scale, batch);
-    auto const_1 = default_opset::Constant::create<int64_t>(ov::element::i64, {1}, {1});
-    auto reshape_im_scales = std::make_shared<default_opset::Unsqueeze>(im_scales, const_1);
-    auto im_info = std::make_shared<default_opset::Concat>(OutputVector{im_shape, reshape_im_scales}, 1);
+    auto pads_begin = default_opset::Constant::create<int64_t>(ov::element::i64, {2}, {0, 0});
+    auto pads_end = default_opset::Constant::create<int64_t>(ov::element::i64, {2}, {0, 1});
+    auto im_scale = default_opset::Constant::create(ov::element::f32, {}, {1.0});
+    auto im_info = std::make_shared<default_opset::Pad>(im_shape, pads_begin, pads_end, im_scale, ov::op::PadMode::CONSTANT);
 
     // input:
     //  1. im_info: [N, H, W, S] or [N, H, W, S_H, S_W]
