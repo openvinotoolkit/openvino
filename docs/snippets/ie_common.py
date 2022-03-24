@@ -82,3 +82,7 @@ results = request.infer(input_data)
 # Acessing output blobs directly
 output_blobs = request.output_blobs
 #! [ie:get_output_tensor]
+
+#! [ie:load_old_extension]
+core.add_extension("path_to_extension_library.so", "CPU")
+#! [ie:load_old_extension]
