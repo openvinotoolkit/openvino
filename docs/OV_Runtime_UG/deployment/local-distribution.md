@@ -2,7 +2,7 @@
 
 The local distribution implies that each C or C++ application / installer will have its own copies of OpenVINO Runtime binaries. However, OpenVINO has a scalable plugin-based architecture which implies that some components can be loaded in runtime only if they are really needed. So, it is important to understand which minimal set of libraries is really needed to deploy the application and this guide helps to achieve this goal.
 
-> **NOTE**: The steps below are operation system independent and refer to a library file name without any prefixes (like `lib` on Unix systems) or suffixes (like `.dll` on Windows OS). Do not put `.lib` files on Windows OS to the distribution, because such files are needed only on build / linker stage.
+> **NOTE**: The steps below are operation system independent and refer to a library file name without any prefixes (like `lib` on Unix systems) or suffixes (like `.dll` on Windows OS). Do not put `.lib` files on Windows OS to the distribution, because such files are needed only on a linker stage.
 
 Local dsitribution is also appropriate for OpenVINO binaries built from sources using [Build instructions](https://github.com/openvinotoolkit/openvino/wiki#how-to-build), but the guide below supposes OpenVINO Runtime is built dynamically. For case of [Static OpenVINO Runtime](https://github.com/openvinotoolkit/openvino/wiki/StaticLibraries) select the required OpenVINO capabilities on CMake configuration stage using [CMake Options for Custom Compilation](https://github.com/openvinotoolkit/openvino/wiki/CMakeOptionsForCustomCompilation), the build and link the OpenVINO components into the final application.
 
@@ -26,16 +26,84 @@ The picture below demonstrates dependnecies between the OpenVINO Runtime core an
 For each inference device, OpenVINO Runtime has its own plugin library:
 - `openvino_intel_cpu_plugin` for [Intel CPU devices](../supported_plugins/CPU.md)
 - `openvino_intel_gpu_plugin` for [Intel GPU devices](../supported_plugins/GPU.md)
- - Has `OpenCL` library as a dependency
 - `openvino_intel_gna_plugin` for [Intel GNA devices](../supported_plugins/GNA.md)
- - Has `gna` backend library as a dependency
 - `openvino_intel_myriad_plugin` for [Intel MYRIAD devices](../supported_plugins/MYRIAD.md)
- - Has `usb` library as a dependency
 - `openvino_intel_hddl_plugin` for [Intel HDDL device](../supported_plugins/HDDL.md)
- - Has libraries from `runtime/3rdparty/hddl` as a dependency
 - `openvino_arm_cpu_plugin` for [ARM CPU devices](../supported_plugins/ARM_CPU.md)
 
 Depending on what devices is used in the app, put the appropriate libraries to the distribution package.
+
+As it is shown on the picture above, some plugin libraries may have OS-specific dependencies which are either backend libraries or additional supports files with firmware, etc. Refer to the table below for details:
+
+@sphinxdirective
+
+.. raw:: html
+
+    <div class="collapsible-section" data-title="Windows OS: Click to expand/collapse">
+
+@endsphinxdirective
+
+| Device      | Dependency |
+|-------------|------------|
+| CPU         |  `-`       |
+| GPU         | `OpenCL.dll`, `cache.json` |
+| MYRIAD      | `usb.dll`, `usb-ma2x8x.mvcmd`, `pcie-ma2x8x.elf` |
+| HDDL        | `bsl.dll`, `hddlapi.dll`, `json-c.dll`, `libcrypto-1_1-x64.dll`, `libssl-1_1-x64.dll`, `mvnc-hddl.dll` |
+| GNA         | `gna.dll` |
+| Arm® CPU    |  `-`      |
+
+@sphinxdirective
+
+.. raw:: html
+
+    </div>
+
+@endsphinxdirective
+@sphinxdirective
+
+.. raw:: html
+
+    <div class="collapsible-section" data-title="Linux OS: Click to expand/collapse">
+
+@endsphinxdirective
+
+| Device      | Dependency  |
+|-------------|-------------|
+| CPU         |  `-`        |
+| GPU         | `libOpenCL.so`, `cache.json` |
+| MYRIAD      | `libusb.so`, `usb-ma2x8x.mvcmd`, `pcie-ma2x8x.mvcmd` |
+| HDDL        | `libbsl.so`, `libhddlapi.so`, `libmvnc-hddl.so` |
+| GNA         | `gna.dll`   |
+| Arm® CPU    |  `-`        |
+
+@sphinxdirective
+
+.. raw:: html
+
+    </div>
+
+@endsphinxdirective
+@sphinxdirective
+
+.. raw:: html
+
+    <div class="collapsible-section" data-title="MacOS: Click to expand/collapse">
+
+@endsphinxdirective
+
+| Device      | Dependency  |
+|-------------|-------------|
+| CPU         |     `-`     |
+| MYRIAD      | `libusb.dylib`, `usb-ma2x8x.mvcmd`, `pcie-ma2x8x.mvcmd` |
+| Arm® CPU    |  `-`        |
+
+@sphinxdirective
+
+.. raw:: html
+
+    </div>
+
+@endsphinxdirective
 
 #### Execution capabilities
 

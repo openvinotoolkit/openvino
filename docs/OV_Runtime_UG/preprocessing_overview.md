@@ -1,4 +1,4 @@
-# Overview of Preprocessing API {#openvino_docs_OV_Runtime_UG_Preprocessing_Overview}
+# Optimize Preprocessing {#openvino_docs_OV_Runtime_UG_Preprocessing_Overview}
 
 @sphinxdirective
 

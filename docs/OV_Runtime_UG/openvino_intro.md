@@ -1,4 +1,4 @@
-# OpenVINO™ Runtime User Guide {#openvino_docs_OV_Runtime_User_Guide}
+# Performing inference with OpenVINO Runtime {#openvino_docs_OV_Runtime_User_Guide}
 
 @sphinxdirective
 
