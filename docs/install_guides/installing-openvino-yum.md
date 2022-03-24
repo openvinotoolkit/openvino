@@ -16,11 +16,11 @@ The complete list of supported hardware is available in the [Release Notes](http
 
 - CentOS 7.6, 64-bit
 
-Software
+**Software**
 
-- `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
-- GCC* 4.8
-- `Python 3.6 - 3.9, 64-bit <https://www.python.org/downloads/windows/>`_
+- [CMake 3.13 or higher, 64-bit](https://cmake.org/download/)
+- GCC 4.8
+- [Python 3.6 - 3.9, 64-bit](https://www.python.org/downloads/windows/)
 
 ## Included with Runtime Package
 
