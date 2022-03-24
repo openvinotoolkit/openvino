@@ -14,7 +14,7 @@
 #include "ngraph/log.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "onnx_import/core/null_node.hpp"
-#include "utils/reshape.hpp"
+#include "openvino/core/validation_util.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -30,7 +30,8 @@ OutputVector scan_to_tensor_iterator(const OutputVector& node_inputs,
                                      const std::vector<int64_t>& scan_input_directions,
                                      const std::vector<int64_t>& scan_output_axes,
                                      const std::vector<int64_t>& scan_output_directions,
-                                     int64_t in_offset = 0) {
+                                     int64_t in_offset = 0,
+                                     const std::string& node_description = "") {
     const size_t num_initial_values = body_inputs.size() - num_scan_inputs;
     const size_t num_scan_outputs = body_outputs.size() - num_initial_values;
 
@@ -46,10 +47,11 @@ OutputVector scan_to_tensor_iterator(const OutputVector& node_inputs,
     // and then squeezed to restore original shape.
     for (size_t i = 0; i < num_scan_inputs; ++i) {
         const auto in_idx = num_initial_values + i;
-        const auto axis = scan_input_axes[i];
+        const auto axis = ov::normalize_axis(node_description,
+                                             scan_input_axes[i],
+                                             node_inputs[in_idx + in_offset].get_partial_shape().rank());
         const auto axis_node = default_opset::Constant::create(element::i64, Shape{1}, {axis});
 
-        auto shape = node_inputs[in_idx + in_offset].get_partial_shape();
         if (shape.rank().is_static()) {
             shape[axis] = 1;
         }
@@ -78,7 +80,9 @@ OutputVector scan_to_tensor_iterator(const OutputVector& node_inputs,
     // Set slicing for Scan (TensorIterator) inputs
     for (size_t i = 0; i < num_scan_inputs; ++i) {
         const auto in_idx = num_initial_values + i;
-        const auto axis = scan_input_axes[i];
+        const auto axis = ov::normalize_axis(node_description,
+                                             scan_input_axes[i],
+                                             node_inputs[in_idx + in_offset].get_partial_shape().rank());
         if (scan_input_directions[i]) {  // reverse direction
             tensor_iterator->set_sliced_input(body_inputs[in_idx], node_inputs[in_idx + in_offset], -1, -1, 1, 0, axis);
         } else {  // forward direction
@@ -95,7 +99,9 @@ OutputVector scan_to_tensor_iterator(const OutputVector& node_inputs,
     }
     for (size_t i = 0; i < num_scan_outputs; ++i) {
         const auto out_idx = num_initial_values + i;
-        const auto axis = scan_output_axes[i];
+        const auto axis = ov::normalize_axis(node_description,
+                                             scan_output_axes[i],
+                                             node_inputs[out_idx + in_offset].get_partial_shape().rank());
         if (scan_output_directions[i]) {  // reverse direction
             outputs.push_back(tensor_iterator->get_concatenated_slices(body_outputs[out_idx], -1, -1, 1, 0, axis));
         } else {  // forward direction
@@ -142,7 +148,8 @@ OutputVector import_onnx_scan(const Node& node,
                                    scan_input_directions,
                                    scan_output_axes,
                                    scan_output_directions,
-                                   in_offset);
+                                   in_offset,
+                                   node.get_description());
 }
 
 }  // namespace

@@ -4843,6 +4843,30 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_scan15_ND_mixed_vals) {
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_scan15_ND_mixed_vals_neg_axes) {
+    // Negative indices for scan_input_axes and scsn_output_axes attributes
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/scan15_ND_mixed_neg_axes.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{1, 3, 2}, {0, 0, 0, 0, 0, 0});
+    test_case.add_input<float>(Shape{1, 3, 2}, {1, 1, 1, 1, 1, 1});
+    std::vector<float> sequence_vals{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.,  1.1, 1.2, 1.3, 1.4, 1.5,
+                                     1.6, 1.7, 1.8, 1.9, 2.,  2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.};
+    test_case.add_input<float>(Shape{1, 3, 5, 2}, sequence_vals);  // multiply factor (reverse)
+    test_case.add_input<float>(Shape{1, 5, 3, 2}, sequence_vals);  // div factor
+
+    test_case.add_expected_output<float>(Shape{1, 3, 2},
+                                         {2.7327938, 2.1428573, 21.070545, 16.92727, 49.765778, 41.444443});
+    test_case.add_expected_output<float>(Shape{1, 3, 2},
+                                         {0.40161943, 0.5274726, 16.80789, 14.025973, 59.98805, 50.518517});
+    test_case.add_expected_output<float>(
+        Shape{1, 3, 2, 5},
+        {0.40161943, 2.7327938, 7.3076925, 10.,       9.,       0.5274726, 2.1428573, 4.714286,  6.,        5.,
+         16.80789,   21.070545, 20.185184, 13.851851, 6.333333, 14.025973, 16.92727,  15.799998, 10.799999, 5.,
+         59.98805,   49.765778, 33.074867, 16.690908, 5.8,      50.518517, 41.444443, 27.444445, 14.,       5.});
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_scan8_ND_b4_ones) {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/scan8_ND_b4.onnx"));
 
