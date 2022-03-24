@@ -642,7 +642,7 @@ class GNATest : public U, public GNATestConfigurability<GNATest<U>>  {
         return *this;
     }
     GNATest & gna() {
-        _env.config[GNA_CONFIG_KEY(DEVICE_MODE)] = GNA_CONFIG_VALUE(SW_EXACT);
+        _env.config[GNA_CONFIG_KEY(DEVICE_MODE)] = GNA_CONFIG_VALUE(AUTO);
         return *this;
     }
     GNATest & from() {
