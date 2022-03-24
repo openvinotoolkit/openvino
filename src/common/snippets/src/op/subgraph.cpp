@@ -326,8 +326,6 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
     convert_to_snippet_dialect();
     opt.run_passes(m_body);
 
-    ov::pass::Serialize("/home/sidorova/openvino/snippets/graphs/load_convert.xml",
-                        "/home/sidorova/openvino/snippets/graphs/load_convert.bin").run_on_model(m_body);
     // generation flow
     snippets::pass::AssignRegisters().run_on_model(m_body);
 
