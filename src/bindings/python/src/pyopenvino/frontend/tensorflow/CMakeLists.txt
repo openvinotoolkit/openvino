@@ -4,3 +4,4 @@
 
 include(${PYTHON_SOURCE_DIR}/pyopenvino/frontend/frontend_module.cmake)
 frontend_module(py_tensorflow_frontend tensorflow tests)
+add_dependencies(ie_wheel py_tensorflow_frontend)
