@@ -5,6 +5,20 @@
 ![Azure DevOps builds (branch)](https://img.shields.io/azure-devops/build/openvinoci/b2bab62f-ab2f-4871-a538-86ea1be7d20f/13?label=Public%20CI)
 [![PyPI Downloads](https://pepy.tech/badge/openvino)](https://pepy.tech/project/openvino)
 
+## Contents:
+
+ - What is OpenVINO?
+    - Components
+ - Supported Hardware matrix
+ - [License](#License)
+ - Documentation
+ - Tutorials
+ - Products which uses OpenVINO
+ - System requirements
+ - How to build
+ - How to contribute
+ - See also
+
 This toolkit allows developers to deploy pre-trained deep learning models
 through a high-level OpenVINO™ Runtime C++ and Python APIs integrated with application logic.
 
