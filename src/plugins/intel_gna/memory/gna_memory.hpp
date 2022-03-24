@@ -160,8 +160,9 @@ protected:
 
  protected:
     std::shared_ptr<uint8_t> allocate(size_t bytes) {
-        std::shared_ptr<uint8_t> sp(_allocator.allocate(bytes), [=](uint8_t *p) {
-            _allocator.deallocate(p, bytes);
+        Allocator nA = _allocator;
+        std::shared_ptr<uint8_t> sp(_allocator.allocate(bytes), [nA, bytes](uint8_t* p) mutable {
+            nA.deallocate(p, bytes);
         });
         std::fill(sp.get(), sp.get() + bytes, 0);
         return sp;
