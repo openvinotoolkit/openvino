@@ -198,12 +198,10 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     // Not to fuse reorder if this removal changes input format of its next node which has reuse in fused_op
     if (next.get_preferred_impl_type() == impl_types::onednn) {
         for (auto& fused_op : next.get_fused_primitives()) {
-            if (fused_op.node->is_type<eltwise>() && fused_op.deps.size() == 1) {
-                auto eltw_in_layout = next.get_dependency(fused_op.dep_start_idx).get_output_layout();
+            if (fused_op.node->is_type<eltwise>()) {
                 auto out_layout = next.get_output_layout();
-                if (program_helpers::needs_onednn_sum_post_op(fused_op.node->as<eltwise>(), eltw_in_layout) &&
-                    program_helpers::are_layouts_identical_for_onednn_sum_post_op(eltw_in_layout, out_layout) &&
-                    prev.get_output_layout().format != out_layout.format)
+                auto add_type = onednn_add_fusing_helpers::get_add_fusing_type(next, fused_op);
+                if (add_type == add_fusing_type::sum && prev.get_output_layout().format != out_layout.format)
                     return false;
             }
         }
@@ -948,23 +946,6 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
     bool i8_u8_input = input_layout.data_type == data_types::u8 || input_layout.data_type == data_types::i8;
 
     if (use_onednn_impls && onednn_valid_post_ops) {
-        for (auto& fo : node.get_fused_primitives()) {
-            if (fo.node->is_type<eltwise>()) {
-                auto in_layout = node.get_dependency(fo.dep_start_idx).get_output_layout();
-                auto out_layout = node.get_output_layout();
-                auto in_dt = in_layout.data_type;
-                auto out_dt = out_layout.data_type;
-                if ((out_layout.count() == in_layout.count()) &&
-                    (data_type_traits::is_floating_point(in_dt) || data_type_traits::is_floating_point(out_dt)) && in_dt != out_dt &&
-                    program_helpers::needs_onednn_sum_post_op(fo.node->as<eltwise>(), in_layout)) {
-                    onednn_valid_post_ops = false;
-                    break;
-                }
-            }
-        }
-    }
-
-    if (use_onednn_impls && onednn_valid_post_ops) {
         std::function<bool(const program_node&)> has_any_convolutions_below;
         has_any_convolutions_below = [&](const program_node& node) -> bool {
             for (auto& usr : node.get_users()) {
@@ -1373,23 +1354,6 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             impl_candidate = impl_types::ocl;
         }
 
-        // [WA] to avoid an onednn kernel issue of multiple sum post-ops
-        if (!node.get_fused_primitives().empty()) {
-            size_t sum_post_op_cnt = 0;
-            for (auto& fused_op : node.get_fused_primitives()) {
-                if (fused_op.node->is_type<eltwise>() && node.get_dependencies().size() > fused_op.dep_start_idx && fused_op.deps.size() == 1)  {
-                    auto& eltw_in = node.get_dependency(fused_op.dep_start_idx);
-                    if (program_helpers::are_layouts_identical_for_onednn_sum_post_op(eltw_in.get_output_layout(), node.get_output_layout()) &&
-                        program_helpers::needs_onednn_sum_post_op(fused_op.node->as<eltwise>(), eltw_in.get_output_layout())) {
-                        if (sum_post_op_cnt > 0)
-                            return impl_types::ocl;
-
-                        sum_post_op_cnt += 1;
-                    }
-                }
-            }
-        }
-
         if (node.is_type<convolution>()) {
             // oneDNN doesn't have good support for groups with fsv16 fmt
             auto& conv = node.as<convolution>();
@@ -1418,29 +1382,8 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             impl_candidate = impl_types::ocl;
         }
 
-        size_t eltw_dep = 0;
         for (auto& fo : node.get_fused_primitives()) {
-            if (fo.node->is_type<eltwise>()) {
-                auto in_layout = node.get_dependency(fo.dep_start_idx).get_output_layout();
-                auto out_layout = node.get_output_layout();
-                auto in_dt = in_layout.data_type;
-                auto out_dt = out_layout.data_type;
-                if (program_helpers::needs_onednn_sum_post_op(fo.node->as<eltwise>(), in_layout)) {
-                    if ((out_layout.count() == in_layout.count()) &&
-                        (data_type_traits::is_floating_point(in_dt) || data_type_traits::is_floating_point(out_dt)) && in_dt != out_dt) {
-                        impl_candidate = impl_types::ocl;
-                        break;
-                    }
-                    if (in_layout.size == out_layout.size && in_layout.format == out_layout.format && in_layout.data_padding == out_layout.data_padding &&
-                        data_type_traits::size_of(in_dt) == data_type_traits::size_of(out_dt)) {
-                        if (eltw_dep > 0) {
-                            impl_candidate = impl_types::ocl;
-                            break;
-                        }
-                        eltw_dep = fo.dep_start_idx;
-                    }
-                }
-            } else if (fo.node->is_type<activation>()) {
+            if (fo.node->is_type<activation>()) {
                 // Some activations aren't implemented in oneDNN
                 auto activation_prim = fo.node->as<activation>().get_primitive();
                 if (activation_prim->activation_function == activation_func::negative ||
@@ -1486,15 +1429,17 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
                     auto out_layout = node.get_output_layout();
                     auto in_dt = in_layout.data_type;
                     auto out_dt = out_layout.data_type;
-                    if ((out_layout.count() == in_layout.count()) &&
-                        (data_type_traits::is_floating_point(in_dt) || data_type_traits::is_floating_point(out_dt)) && in_dt != out_dt &&
-                        program_helpers::needs_onednn_sum_post_op(fo.node->as<eltwise>(), in_layout)) {
+                    // if it is not eltwise sum and input is full tensor
+                    if ((out_layout.count() == in_layout.count()) && in_dt != out_dt
+                        && (data_type_traits::is_floating_point(in_dt) || data_type_traits::is_floating_point(out_dt))
+                        && onednn_add_fusing_helpers::is_full_tensor(in_layout)) {
                         impl_candidate = impl_types::ocl;
                         break;
                     }
 
-                    if (fo.node->as<eltwise>().get_primitive()->mode == eltwise_mode::sum &&
-                        program_helpers::needs_onednn_sum_post_op(fo.node->as<eltwise>(), in_layout)) {
+                    // WA: onednn sum/binary_add post-op are not supported due to perf drop.
+                    auto add_type = onednn_add_fusing_helpers::get_add_fusing_type(node, fo);
+                    if (add_type == add_fusing_type::sum || add_type == add_fusing_type::binary_per_tensor || add_type == add_fusing_type::binary_per_oc) {
                         impl_candidate = impl_types::ocl;
                         break;
                     }
