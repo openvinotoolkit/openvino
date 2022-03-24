@@ -106,7 +106,7 @@ struct ReorderCPUTestParamSet {
     InferenceEngine::Precision prec;
 };
 
-class ReorderTestGraph {
+class ReorderCPUTestGraph {
 public:
     void buildReorderGraph(const ov::intel_cpu::CpuBlockedMemoryDesc& inputDesc,
                     const ov::intel_cpu::CpuBlockedMemoryDesc& outputDesc,
@@ -176,7 +176,7 @@ protected:
  */
 class ReorderCustomizedStrideTest : public ::testing::Test,
                                     public ::testing::WithParamInterface<ReorderCustomImplTestParamSet>,
-                                    public ::ReorderTestGraph {
+                                    public ::ReorderCPUTestGraph {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ReorderCustomImplTestParamSet>& obj) {
         ReorderCustomImplTestParamSet p = obj.param;
@@ -319,7 +319,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReorderTestCustomStrideWithFactor,
  */
 class ReorderCPUTest : public ::testing::Test,
                        public ::testing::WithParamInterface<ReorderCPUTestParamSet>,
-                       public ::ReorderTestGraph {
+                       public ::ReorderCPUTestGraph {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ReorderCPUTestParamSet>& obj) {
         ReorderCPUTestParamSet p = obj.param;
