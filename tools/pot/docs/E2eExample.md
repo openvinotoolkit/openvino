@@ -1,4 +1,4 @@
-# End-to-end Command-line Interface example {#pot_configs_examples_README}
+# End-to-end Command-line Interface Example {#pot_configs_examples_README}
 
 This tutorial describes an example of running post-training quantization for **MobileNet v2 model from PyTorch** framework, 
 particularly by the DefaultQuantization algorithm.
@@ -24,13 +24,13 @@ In case of issues while running the example, refer to [POT Frequently Asked Ques
 
 2. Download the MobileNet v2 PyTorch model using [Model Downloader](@ref omz_tools_downloader) tool from the Open Model Zoo repository:
    ```sh
-   python3 ./downloader.py --name mobilenet-v2-pytorch
+   omz_downloader --name mobilenet-v2-pytorch
    ```
    After that the original full-precision model is located in `<EXAMPLE_DIR>/public/mobilenet-v2-pytorch/`.
 
 3. Convert the model to the OpenVINO™ Intermediate Representation (IR) format using [Model Converter](@ref omz_tools_downloader) tool:
    ```sh
-   python3 ./converter.py --name mobilenet-v2-pytorch
+   omz_converter --name mobilenet-v2-pytorch
    ```
    After that the full-precision model in the IR format is located in `<EXAMPLE_DIR>/public/mobilenet-v2-pytorch/FP32/`.
    
@@ -40,7 +40,7 @@ For more information about the Model Optimizer, refer to its [documentation](@re
 
 Check the performance of the full-precision model in the IR format using [Deep Learning Benchmark](@ref openvino_inference_engine_tools_benchmark_tool_README) tool:
    ```sh
-   python3 ./benchmark_app.py -m <EXAMPLE_DIR>/public/mobilenet-v2-pytorch/FP32/mobilenet-v2-pytorch.xml
+   benchmark_app -m <EXAMPLE_DIR>/public/mobilenet-v2-pytorch/FP32/mobilenet-v2-pytorch.xml
    ```
    Note that the results might be different dependently on characteristics of your machine. On a machine with Intel&reg; Core&trade; i9-10920X CPU @ 3.50GHz it is like:
    ```sh
@@ -168,7 +168,7 @@ specify the full-precision model in the IR format, `"config": "./mobilenet_v2_py
 
 Check the performance of the quantized model using [Deep Learning Benchmark](@ref openvino_inference_engine_tools_benchmark_tool_README) tool:
 ```sh
-python3 ./benchmark_app.py -m <INT8_MODEL>
+benchmark_app -m <INT8_MODEL>
 ```
 where `<INT8_MODEL>` is the path to the quantized model.  
 Note that the results might be different dependently on characteristics of your machine. On a machine with Intel&reg; Core&trade; i9-10920X CPU @ 3.50GHz it is like:
