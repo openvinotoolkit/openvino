@@ -599,7 +599,9 @@ public:
     /**
      *@brief Virtual destructor.
      */
-    virtual ~TBlob();
+    virtual ~TBlob() {
+        deallocate();
+    }
 
     /**
      * @brief Creates an new empty rvalue LockedMemory object.
@@ -806,6 +808,8 @@ protected:
     }
 };
 
+// These should not be exported for WIN32 to avoid usage of '_handle' and '_allocator' across CRT bounaries
+#ifndef WIN32
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<float>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<double>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<int8_t>);
@@ -819,7 +823,8 @@ extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<long lon
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<unsigned long>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<unsigned long long>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<bool>);
-extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<char>);
+template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<char>);
+#endif
 
 /**
  * @brief Creates a blob with the given tensor descriptor.
