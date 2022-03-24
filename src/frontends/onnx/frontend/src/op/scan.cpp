@@ -21,38 +21,23 @@ namespace onnx_import {
 namespace op {
 
 namespace {
-OutputVector generate_scan(const Node& node,
-                           int64_t default_axis,
-                           int64_t in_offset,
-                           std::string&& in_directions_attr_name) {
-    const auto& ng_inputs = node.get_ng_inputs();
 
-    const auto& subgraphs = node.get_subgraphs();
-    auto body_graph = subgraphs.at("body");
-    auto body_outputs = body_graph->get_ng_outputs();
-    auto body_inputs = body_graph->get_ng_parameters();
-
-    const int64_t num_scan_inputs = node.get_attribute_value<int64_t>("num_scan_inputs");
+OutputVector scan_to_tensor_iterator(const OutputVector& node_inputs,
+                                     ParameterVector& body_inputs,
+                                     OutputVector& body_outputs,
+                                     int64_t num_scan_inputs,
+                                     const std::vector<int64_t>& scan_input_axes,
+                                     const std::vector<int64_t>& scan_input_directions,
+                                     const std::vector<int64_t>& scan_output_axes,
+                                     const std::vector<int64_t>& scan_output_directions,
+                                     int64_t in_offset = 0) {
     const size_t num_initial_values = body_inputs.size() - num_scan_inputs;
     const size_t num_scan_outputs = body_outputs.size() - num_initial_values;
 
-    std::vector<int64_t> scan_input_axes =
-        node.get_attribute_value<std::vector<int64_t>>("scan_input_axes",
-                                                       std::vector<int64_t>(num_scan_inputs, default_axis));
-    std::vector<int64_t> scan_input_directions =
-        node.get_attribute_value<std::vector<int64_t>>(in_directions_attr_name,
-                                                       std::vector<int64_t>(num_scan_inputs, 0));
-    std::vector<int64_t> scan_output_axes =
-        node.get_attribute_value<std::vector<int64_t>>("scan_output_axes",
-                                                       std::vector<int64_t>(num_scan_outputs, default_axis));
-    std::vector<int64_t> scan_output_directions =
-        node.get_attribute_value<std::vector<int64_t>>("scan_output_directions",
-                                                       std::vector<int64_t>(num_scan_outputs, 0));
-
     // Body inputs alignment
     for (size_t i = 0; i < num_initial_values; ++i) {
-        body_inputs[i]->set_element_type(ng_inputs[i + in_offset].get_element_type());
-        body_inputs[i]->set_partial_shape(ng_inputs[i + in_offset].get_partial_shape());
+        body_inputs[i]->set_element_type(node_inputs[i + in_offset].get_element_type());
+        body_inputs[i]->set_partial_shape(node_inputs[i + in_offset].get_partial_shape());
         body_inputs[i]->validate_and_infer_types();
     }
     // Single slice of TensorIterator sliced input has the same rank as the input,
@@ -64,7 +49,7 @@ OutputVector generate_scan(const Node& node,
         const auto axis = scan_input_axes[i];
         const auto axis_node = default_opset::Constant::create(element::i64, Shape{1}, {axis});
 
-        auto shape = ng_inputs[in_idx + in_offset].get_partial_shape();
+        auto shape = node_inputs[in_idx + in_offset].get_partial_shape();
         if (shape.rank().is_static()) {
             shape[axis] = 1;
         }
@@ -95,9 +80,9 @@ OutputVector generate_scan(const Node& node,
         const auto in_idx = num_initial_values + i;
         const auto axis = scan_input_axes[i];
         if (scan_input_directions[i]) {  // reverse direction
-            tensor_iterator->set_sliced_input(body_inputs[in_idx], ng_inputs[in_idx + in_offset], -1, -1, 1, 0, axis);
+            tensor_iterator->set_sliced_input(body_inputs[in_idx], node_inputs[in_idx + in_offset], -1, -1, 1, 0, axis);
         } else {  // forward direction
-            tensor_iterator->set_sliced_input(body_inputs[in_idx], ng_inputs[in_idx + in_offset], 0, 1, 1, -1, axis);
+            tensor_iterator->set_sliced_input(body_inputs[in_idx], node_inputs[in_idx + in_offset], 0, 1, 1, -1, axis);
         }
     }
 
@@ -105,7 +90,7 @@ OutputVector generate_scan(const Node& node,
     OutputVector outputs;
     for (size_t i = 0; i < num_initial_values; ++i) {
         // Back edge for state input/output
-        tensor_iterator->set_merged_input(body_inputs[i], ng_inputs[i + in_offset], body_outputs[i]);
+        tensor_iterator->set_merged_input(body_inputs[i], node_inputs[i + in_offset], body_outputs[i]);
         outputs.push_back(tensor_iterator->get_iter_value(body_outputs[i], -1));
     }
     for (size_t i = 0; i < num_scan_outputs; ++i) {
@@ -120,6 +105,46 @@ OutputVector generate_scan(const Node& node,
 
     return outputs;
 }
+
+OutputVector import_onnx_scan(const Node& node,
+                              int64_t default_axis,
+                              int64_t in_offset,
+                              std::string&& in_directions_attr_name) {
+    const auto& node_inputs = node.get_ng_inputs();
+
+    const auto& subgraphs = node.get_subgraphs();
+    auto body_graph = subgraphs.at("body");
+    auto body_outputs = body_graph->get_ng_outputs();
+    auto body_inputs = body_graph->get_ng_parameters();
+
+    const int64_t num_scan_inputs = node.get_attribute_value<int64_t>("num_scan_inputs");
+    const size_t num_initial_values = body_inputs.size() - num_scan_inputs;
+    const size_t num_scan_outputs = body_outputs.size() - num_initial_values;
+
+    std::vector<int64_t> scan_input_axes =
+        node.get_attribute_value<std::vector<int64_t>>("scan_input_axes",
+                                                       std::vector<int64_t>(num_scan_inputs, default_axis));
+    std::vector<int64_t> scan_input_directions =
+        node.get_attribute_value<std::vector<int64_t>>(in_directions_attr_name,
+                                                       std::vector<int64_t>(num_scan_inputs, 0));
+    std::vector<int64_t> scan_output_axes =
+        node.get_attribute_value<std::vector<int64_t>>("scan_output_axes",
+                                                       std::vector<int64_t>(num_scan_outputs, default_axis));
+    std::vector<int64_t> scan_output_directions =
+        node.get_attribute_value<std::vector<int64_t>>("scan_output_directions",
+                                                       std::vector<int64_t>(num_scan_outputs, 0));
+
+    return scan_to_tensor_iterator(node_inputs,
+                                   body_inputs,
+                                   body_outputs,
+                                   num_scan_inputs,
+                                   scan_input_axes,
+                                   scan_input_directions,
+                                   scan_output_axes,
+                                   scan_output_directions,
+                                   in_offset);
+}
+
 }  // namespace
 
 namespace set_1 {
@@ -127,7 +152,7 @@ namespace set_1 {
 OutputVector scan(const Node& node) {
     // ONNX Scan-8 has additional sequence_lens input,
     // and sequence scan_input axis is assumed to be always 1
-    return generate_scan(node, 1, 1, "directions");
+    return import_onnx_scan(node, 1, 1, "directions");
 }
 
 }  // namespace set_1
@@ -135,7 +160,7 @@ OutputVector scan(const Node& node) {
 namespace set_9 {
 
 OutputVector scan(const Node& node) {
-    return generate_scan(node, 0, 0, "scan_input_directions");
+    return import_onnx_scan(node, 0, 0, "scan_input_directions");
 }
 
 }  // namespace set_9
