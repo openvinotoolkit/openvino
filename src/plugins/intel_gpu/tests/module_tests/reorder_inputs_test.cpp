@@ -39,7 +39,7 @@ TEST(reorder_inputs, propagation) {
     topology.add(data("weights", weights));
     topology.add(input_layout("input", input->get_layout()));
     topology.add(convolution("conv1", "input", { "weights" }));
-    topology.add(pooling("pool", "conv1", pooling_mode::max, { 1, 1, 1, 1 }, { 1, 1, 1, 1 }));
+    topology.add(pooling("pool", "conv1", pooling_mode::max, { 1, 1 }, { 1, 1 }));
     topology.add(convolution("conv2", "pool", { "weights" }));
 
     build_options build_opts;
@@ -75,7 +75,7 @@ TEST(reorder_inputs, impl_forcing_basic_format) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(pooling("pool", "input", pooling_mode::max, { 1, 1, 2, 1 }, { 1, 1, 2, 1 }));
+    topology.add(pooling("pool", "input", pooling_mode::max, { 1, 2 }, { 1, 2 }));
 
     implementation_desc pool_impl = { format::yxfb, "" };
 
@@ -113,7 +113,7 @@ TEST(reorder_inputs, impl_forcing_not_existing) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(pooling("pool", "input", pooling_mode::max, { 1, 1, 2, 1 }, { 1, 1, 2, 1 }));
+    topology.add(pooling("pool", "input", pooling_mode::max, { 1, 2 }, { 1, 2 }));
 
     implementation_desc pool_impl = { format::any, "NOT_EXISTING" };
 
