@@ -17,7 +17,17 @@ The following code shows how to change the application code in each step to migr
 
 Inference Engine API:
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/ie_common.cpp ie:create_core
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/ie_common.py ie:create_core
+@endsphinxtab
+
+@endsphinxtabset
 
 OpenVINO™ Runtime API 2.0:
 
