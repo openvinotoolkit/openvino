@@ -58,5 +58,5 @@ NNCF provides various examples and tutorials that demonstrate usage of optimizat
 ## See also
 - [Compressed Model Zoo](https://github.com/openvinotoolkit/nncf#nncf-compressed-model-zoo)
 - [NNCF in HuggingFace Optimum](https://github.com/openvinotoolkit/openvino_contrib/tree/master/modules/optimum)
-- [OpenVINO&trade; Post-training Optimization tool](../../tools/pot/README.md)
+- [Post-training optimization](../../tools/pot/docs/Introduction.md)
 
