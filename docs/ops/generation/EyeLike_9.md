@@ -65,7 +65,7 @@ output  = [[0. 0.]
 
 * *diagonal_index*
 
-    * **Description**: index of the diagonal to be populated. A positive value refers to an upper diagonal and a negative value refers to a lower diagonal. Value `0` populates the main diagonal. If `diagonal_index` is positive value and is not less than `num_rows` or if `diagonal_index` is negative value and is not more than `num_rows`, matrix will be filled with only zeros.
+    * **Description**: index of the diagonal to be populated. A positive value refers to an upper diagonal and a negative value refers to a lower diagonal. Value `0` populates the main diagonal. If `diagonal_index` is positive value and is not less than `num_rows` or if `diagonal_index` is negative value and is not more than `num_columns`, matrix will be filled with only zeros.
     * **Range of values**: any integer value
     * **Type**: int
     * **Default value**: *0*
