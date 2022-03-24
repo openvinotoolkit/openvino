@@ -31,7 +31,7 @@ public:
         const std::vector<ov::Any>& concatAttributes,
         const ngraph::element::Type precisionAfterOperation,
         const std::int64_t& axis,
-        const bool oneInputWithSplit);
+        const std::string Split);
 };
 
 }  // namespace subgraph

@@ -177,7 +177,8 @@ bool MoveFakeQuantize::canBeTransformed(const TransformationContext& context, st
     bool only_split = true;
     const size_t id = concat->get_input_node_ptr(0)->get_instance_id();
     for (size_t i = 1; i < concat->get_input_size(); ++i) {
-        if (!is_type<opset1::Split>(concat->get_input_node_ptr(i)) ||
+        if (!is_type<opset1::Split>(concat->get_input_node_ptr(i)) &&
+            !is_type<opset1::VariadicSplit>(concat->get_input_node_ptr(i)) ||
             concat->get_input_node_ptr(i)->get_instance_id() != id) {
             only_split = false;
             break;

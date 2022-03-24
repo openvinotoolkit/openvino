@@ -33,10 +33,11 @@ std::shared_ptr<ngraph::Function> MoveFakeQuantize::get(
     const std::vector<ov::Any>& concatAttributes,
     const ngraph::element::Type precisionAfterOperation,
     const std::int64_t& axis,
-    const bool oneInputWithSplit) {
-    std::vector<std::shared_ptr<ngraph::opset1::Parameter>> inputs(oneInputWithSplit ? 1 : concatInputsCount);
+    const std::string split_type) {
+    bool with_split = split_type.size();
+    std::vector<std::shared_ptr<ngraph::opset1::Parameter>> inputs(with_split ? 1 : concatInputsCount);
     std::vector<ov::Output<ov::Node>> concatParents(concatInputsCount);
-    if (oneInputWithSplit) {
+    if (with_split) {
         auto newInputShape = inputShapes[0];
         int channels = 0;
         bool channelsWasIdentified = false;
@@ -58,7 +59,12 @@ std::shared_ptr<ngraph::Function> MoveFakeQuantize::get(
         std::vector<int> split_lengths_values(inputShapes.size(), 1);
         split_lengths_values[split_lengths_values.size() - 1] = channels - (split_lengths_values.size() - 1);
         const auto split_lengths = std::make_shared<ngraph::opset1::Constant>(element::i32, Shape{split_lengths_values.size()}, split_lengths_values);
-        const auto split = std::make_shared<ngraph::opset1::VariadicSplit>(inputs[0], axis_constant, split_lengths);
+        std::shared_ptr<Node> split;
+        if (split_type == "VariadicSplit") {
+            split = std::make_shared<ngraph::opset1::VariadicSplit>(inputs[0], axis_constant, split_lengths);
+        } else {
+            split = std::make_shared<ngraph::opset1::Split>(inputs[0], axis_constant, inputShapes.size());
+        }
         for (size_t i = 0; i < concatInputsCount; i++) {
             concatParents[i] = split->output(i);
         }

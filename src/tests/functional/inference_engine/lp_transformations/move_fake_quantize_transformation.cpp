@@ -115,7 +115,7 @@ typedef std::tuple <
     ngraph::element::Type,
     std::vector<ngraph::PartialShape>,
     MoveFakeQuantizeTransformationTestValues,
-    bool
+    std::string
 > MoveFakeQuantizeTransformationParams;
 
 class MoveFakeQuantizeTransformation : public LayerTransformation, public testing::WithParamInterface<MoveFakeQuantizeTransformationParams> {
@@ -125,7 +125,7 @@ public:
         std::vector<ngraph::PartialShape> inputShapes = std::get<1>(GetParam());
         //const auto shape = std::get<1>(GetParam());
         MoveFakeQuantizeTransformationTestValues testValues = std::get<2>(GetParam());
-        const bool oneInputWithSplit = std::get<3>(GetParam());
+        const std::string oneInputWithSplit = std::get<3>(GetParam());
         // dequantization output precision depends on input precision
         // to avoid huge amount of tests cases let's define dequantization output precision as input precision
         if (!testValues.actual.dequantizationBefore.multiply.empty()) {
@@ -153,6 +153,8 @@ public:
             ngraph::element::undefined,
             testValues.axis,
             oneInputWithSplit);
+        ngraph::pass::VisualizeTree("C:\\Users\\ndemasho\\rep\\Visual\\test.actual.dot")
+            .run_on_function(actualFunction);
 
         auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
                 ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::AvgPool>({{0, testValues.params.precisionsOnActivations}})
@@ -205,7 +207,7 @@ public:
         const ngraph::element::Type precision = std::get<0>(obj.param);
         const std::vector<ngraph::PartialShape> shape = std::get<1>(obj.param);
         const MoveFakeQuantizeTransformationTestValues testValues = std::get<2>(obj.param);
-        const bool oneInputWithSplit = std::get<3>(obj.param);
+        const std::string oneInputWithSplit = std::get<3>(obj.param);
 
         std::ostringstream result;
         result <<
@@ -433,7 +435,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(shapes),
         ::testing::ValuesIn(testValues),
-        ::testing::ValuesIn({ false, true })),
+        ::testing::ValuesIn({ std::string("") })),
     MoveFakeQuantizeTransformation::getTestCaseName);
 } // namespace perTensorValues
 
@@ -580,7 +582,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(shapes),
         ::testing::ValuesIn(testValues),
-        ::testing::ValuesIn({ false })),
+        ::testing::ValuesIn({ std::string("") })),
     MoveFakeQuantizeTransformation::getTestCaseName);
 } // namespace perChannelValues
 
@@ -644,7 +646,7 @@ namespace testValues3 {
             ::testing::ValuesIn(precisions),
             ::testing::ValuesIn(shapes),
             ::testing::ValuesIn(testValues),
-            ::testing::ValuesIn({ false })),
+            ::testing::ValuesIn({ std::string("") })),
         MoveFakeQuantizeTransformation::getTestCaseName);
 } // namespace testValues3
 
@@ -702,7 +704,53 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(shapes),
         ::testing::ValuesIn(testValues),
-        ::testing::ValuesIn({ false })),
+        ::testing::ValuesIn({ std::string("") })),
     MoveFakeQuantizeTransformation::getTestCaseName);
 } // namespace NegativeTestValues
+
+namespace withSplit {
+const std::vector<std::vector<ngraph::PartialShape>> shapes = {
+    {{ 1, 1, 9, 9 }, { 1, 1, 9, 9 }},
+    {{ 4, 3, 9, 9 }, { 4, 3, 9, 9 }},
+    {{ -1, -1, -1, -1 }, { -1, -1, -1, -1 }}
+};
+
+const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
+    {
+        LayerTransformation::createParamsU8I8(),
+        false,
+        1,
+        {
+            2,
+            {},
+            {},
+            {},
+            "",
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
+            {},
+            {}
+        },
+        {
+            2,
+            {},
+            {},
+            {},
+            "",
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
+            {},
+            {}
+        },
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    MoveFakeQuantizeTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(precisions),
+        ::testing::ValuesIn(shapes),
+        ::testing::ValuesIn(testValues),
+        ::testing::ValuesIn({ std::string("VariadicSplit"), std::string("Split") })),
+    MoveFakeQuantizeTransformation::getTestCaseName);
+} // namespace withSplit
 } // namespace
