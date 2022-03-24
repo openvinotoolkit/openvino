@@ -39,7 +39,7 @@ DeformableConvolutionKernel_bfyx_conv::DispatchData DeformableConvolutionKernel_
                                                                                                       int autoTuneIndex) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params, autoTuneIndex);
 
-    const auto& out = params.output;
+    const auto& out = params.outputs[0];
 
     auto x = out.X().v;
     auto y = out.Y().v;
