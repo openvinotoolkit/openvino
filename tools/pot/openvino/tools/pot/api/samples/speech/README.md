@@ -30,4 +30,4 @@ For generating data from original formats to .ark, please, follow the [Kaldi dat
     - `-p`, `--preset` option. Defines preset for quantization: `performance` for INT8 weights, `accuracy` for INT16 weights;
     - `-s`, `--subset_size` option. Defines subset size for calibration;
     - `-o`, `--output` option. Defines output folder for quantized model.
-3. Validate your INT8 model using `./speech_example` from the Inference Engine examples. Follow the [speech example description link](@ref openvino_inference_engine_examples_speech_example_README) for details.
+3. Validate your INT8 model using `./speech_example` from the Inference Engine examples. Follow the [speech example description link](@ref openvino_inference_engine_samples_speech_sample_README) for details.

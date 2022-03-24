@@ -21,11 +21,11 @@ POT command-line interface (CLI) is aimed at optimizing models that are similar 
 ## Run POT CLI 
 There are two ways how to run POT via command line:
 
-- **Basic usage for DefaultQuantization**. In this case you can run POT with basic setting just specifying all the options via command line. `-q default` stands for [DefaultQuantization](openvino/tools/pot/algorithms/quantization/default/README.md) algorithm:
+- **Basic usage for DefaultQuantization**. In this case you can run POT with basic setting just specifying all the options via command line. `-q default` stands for [DefaultQuantization](../openvino/tools/pot/algorithms/quantization/default/README.md) algorithm:
    ```sh
    pot -q default -m <path_to_xml> -w <path_to_bin> --ac-config <path_to_AC_config_yml>
    ```
-- **Basic usage for AccuracyAwareQauntization**. You can also run [AccuracyAwareQuantization](openvino/tools/pot/algorithms/quantization/accuracy_aware/README.md) method with basic options. `--max-drop 0.01` option defines maximum accuracy deviation to 1 absolute percent from the original model:
+- **Basic usage for AccuracyAwareQauntization**. You can also run [AccuracyAwareQuantization](../openvino/tools/pot/algorithms/quantization/accuracy_aware/README.md) method with basic options. `--max-drop 0.01` option defines maximum accuracy deviation to 1 absolute percent from the original model:
    ```sh
    pot -q accuracy_aware -m <path_to_xml> -w <path_to_bin> --ac-config <path_to_AC_config_yml> --max-drop 0.01
    ```

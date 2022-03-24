@@ -46,9 +46,7 @@ from openvino.tools.pot import DataLoader
 class ImageLoader(DataLoader):
 
     def __init__(self, dataset_path):
-        """ Load images from folder using TorchVision implementation """
-        super().__init__({})
-
+        """ Load images from folder  """
         # Collect names of image files
         self._files = []
         all_files_in_dir = os.listdir(dataset_path)
@@ -73,8 +71,6 @@ class ImageLoader(DataLoader):
 
         image = cv.imread(self._files[index]) # read image with OpenCV
         image = cv.resize(image, self._shape) # resize to a target input size
-        image = np.expand_dims(image, 0)  # add batch dimension
-        print(image.shape)
         image = image.transpose(0, 3, 1, 2)  # convert to NCHW layout
         return image, None   # annotation is set to None
 ```
