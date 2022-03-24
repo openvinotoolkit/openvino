@@ -1553,3 +1553,7 @@ onnx_model_attention_dynamic_shapes
 
 # Cannot find blob with name: Y
 onnx_bool_init_and
+
+# z node not found in graph cache ticket: 81976
+IE_CPU.onnx_expand_context_dependent_function
+IE_CPU.onnx_softmax_crossentropy_loss_mean
