@@ -12,7 +12,7 @@ There are two options for using the custom operation configuration file:
 @sphinxtabset
 
 @sphinxtab{C++}
-@snippet ocs/snippets/gpu/custom_kernels_api.cpp part0
+@snippet docs/snippets/gpu/custom_kernels_api.cpp part0
 @endsphinxtab
 
 @sphinxtab{Python}
