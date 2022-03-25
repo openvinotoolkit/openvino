@@ -920,9 +920,19 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
         getScaleFactor(layer, QuantizedDataType::output),
         ptr_inputs,
         ptr_outputs);
-    size_t num_data_bytes_out = InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims()))
-        * outputs->getPrecision().size();
+    size_t num_data_bytes_out = InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims()));
 
+    if (!is2DPooling) {
+        const auto hLegacy =
+            GNAPluginNS::GNAConvolutionLayer::outputFromPoolingLegacy(h_dim_in, pooling._stride[X_AXIS]);
+        const auto wLegacy =
+            GNAPluginNS::GNAConvolutionLayer::outputFromPoolingLegacy(w_dim_in, pooling._stride[Y_AXIS]);
+        if (num_data_bytes_out < hLegacy * wLegacy * c_dim_out) {
+            num_data_bytes_out = hLegacy * wLegacy * c_dim_out;
+        }
+    }
+
+    num_data_bytes_out *= outputs->getPrecision().size();
     const auto hw_in = h_dim_in * w_dim_in;
 
     // TODO: Is this really needed?, find out why
