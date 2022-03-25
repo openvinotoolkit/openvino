@@ -11,13 +11,14 @@
     - [Components](#components)
  - [Supported Hardware matrix](#supported-hardware-matrix)
  - [License](#license)
- - Documentation
- - Tutorials
- - Products which uses OpenVINO
- - System requirements
- - How to build
- - How to contribute
- - See also
+ - [Documentation](#documentation)
+ - [Tutorials](#tutorials)
+ - [Products which use OpenVINO](#products-which-use-openvino)
+ - [System requirements](#system-requirements)
+ - [How to build](#how-to-build)
+ - [How to contribute](#how-to-contribute)
+ - [Get a support](#get-a-support)
+ - [See also](#see-also)
 
 ## What is OpenVINO toolkit?
 
@@ -28,10 +29,23 @@ It supports pre-trained models from the [Open Model Zoo], along with 100+ open
 source and public models in popular formats such as TensorFlow, ONNX, PaddlePaddle, MXNet, Caffe, Kaldi.
 
 ### Components
-* [OpenVINO™ Runtime]
-* [Model Optimizer]
-* [Post-Training Optimization Tool]
-* [Samples]
+* [OpenVINO™ Runtime] - is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions on the platform of your choice.
+    * [core](https://github.com/openvinotoolkit/openvino/tree/update_readme/src/core) - provides the base API for model representation and modification.
+    * [inference](https://github.com/openvinotoolkit/openvino/tree/update_readme/src/inference) - provides an API to infer models on device.
+    * [transformations](https://github.com/openvinotoolkit/openvino/tree/master/src/common/transformations) - contains the set of common transformations which are used in OpenVINO plugins.
+    * [low precision transformations](https://github.com/openvinotoolkit/openvino/tree/master/src/common/low_precision_transformations) - contains the set of transformations which are used in low precision models
+    * [bindings](https://github.com/openvinotoolkit/openvino/tree/master/src/bindings) - contains all awailable OpenVINO bindings which are maintained by OpenVINO team.
+        * [c](https://github.com/openvinotoolkit/openvino/tree/master/src/bindings/c) - provides C API for OpenVINO™ Runtime
+        * [python](https://github.com/openvinotoolkit/openvino/tree/master/src/bindings/python) - Python API for OpenVINO™ Runtime
+* [Plugins](https://github.com/openvinotoolkit/openvino/tree/master/src/plugins) - contains OpenVINO plugins which are maintained in open-source by OpenVINO team. For more information please taje a look to the [list of supported devices](#supported-hardware-matrix).
+* [Frontends](https://github.com/openvinotoolkit/openvino/tree/master/src/frontends) - contains available OpenVINO frontends which allow to read model from native framework format.
+    * [IR](https://github.com/openvinotoolkit/openvino/tree/master/src/frontends/ir) allows to read model from OpenVINO IR format.
+    * [ONNX](https://github.com/openvinotoolkit/openvino/tree/master/src/frontends/onnx) allows to read native ONNX models.
+    * [Paddle Paddle](https://github.com/openvinotoolkit/openvino/tree/master/src/frontends/paddle) allows to read native Paddle Paddle models.
+    * [Tensorflow](https://github.com/openvinotoolkit/openvino/tree/master/src/frontends/tensorflow) allows to read native Tensorflow models.
+* [Model Optimizer] - is a cross-platform command-line tool that facilitates the transition between training and deployment environments, performs static model analysis, and adjusts deep learning models for optimal execution on end-point target devices.
+* [Post-Training Optimization Tool] - is designed to accelerate the inference of deep learning models by applying special methods without model retraining or fine-tuning, for example, post-training 8-bit quantization. 
+* [Samples] - applications on C, C++ and Python languages which shows basic use cases of OpenVINO usages.
 
 ## Supported Hardware matrix
 
@@ -121,29 +135,66 @@ Also OpenVINO™ Toolkit contains several plugins which should simplify to load 
 OpenVINO™ Toolkit is licensed under [Apache License Version 2.0](LICENSE).
 By contributing to the project, you agree to the license and copyright terms therein and release your contribution under these terms.
 
-## Resources
-* Docs: https://docs.openvino.ai/
-* Wiki: https://github.com/openvinotoolkit/openvino/wiki
-* Issue tracking: https://github.com/openvinotoolkit/openvino/issues
-* Storage: https://storage.openvinotoolkit.org/
-* Additional OpenVINO™ toolkit modules: https://github.com/openvinotoolkit/openvino_contrib
-* [Intel® Distribution of OpenVINO™ toolkit Product Page](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html)
-* [Intel® Distribution of OpenVINO™ toolkit Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes)
+## Documentation
 
-## Support
+### User documentation
+
+The latest documentation for OpenVINO™ Toolkit is availabe [here](https://docs.openvino.ai/). This documentation contains detailed information about all OpenVINO components and provides all important information which could be needed if you create an application which is based on binaty OpenVINO distribution or own OpenVINO version without source code modification.
+
+### Developer documentation
+
+[Developer documentation](#todo-add) contains information about architectural decisions which are applied inside the OpenVINO components. This documentation has all necessary information which could be needed in order to contribute to OpenVINO.
+
+## Tutorials
+
+The list of OpenVINO tutorials:
+
+- [Jupiter notebooks](https://github.com/openvinotoolkit/openvino_notebooks)
+
+## Products which use OpenVINO
+
+- [OpenCV](https://opencv.org/)
+- [ONNX Runtime](https://onnxruntime.ai/)
+- [OpenVINO™ Integration with TensorFlow](https://www.intel.com/content/www/us/en/developer/tools/devcloud/edge/build/ovtfoverview.html)
+
+## System requirements
+
+The full information about system requirements depends on platform and available in section `System requirement` on dedicated pages:
+- [Linux](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_linux.html)
+- [Windows](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_windows.html)
+- [macOS](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_macos.html)
+- [Raspbian](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_raspbian.html)
+
+## How to build
+
+Please take a look to [OpenVINO Wiki](https://github.com/openvinotoolkit/openvino/wiki#how-to-build) to get more information about OpenVINO build process.
+
+## How to contribute
+
+See [CONTRIBUTING](./CONTRIBUTING.md) for details. Thank you!
+
+## Get a support
+
 Please report questions, issues and suggestions using:
 
 * The [`openvino`](https://stackoverflow.com/questions/tagged/openvino) tag on StackOverflow\*
 * [GitHub* Issues](https://github.com/openvinotoolkit/openvino/issues)
 * [Forum](https://software.intel.com/en-us/forums/computer-vision)
 
+## See also
+
+* [OpenVINO Wiki](https://github.com/openvinotoolkit/openvino/wiki)
+* [OpenVINO Storage](https://storage.openvinotoolkit.org/)
+* Additional OpenVINO™ toolkit modules: 
+    * [openvino_contrib](https://github.com/openvinotoolkit/openvino_contrib)
+* [Intel® Distribution of OpenVINO™ toolkit Product Page](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html)
+* [Intel® Distribution of OpenVINO™ toolkit Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes)
+
 ---
 \* Other names and brands may be claimed as the property of others.
 
 [Open Model Zoo]:https://github.com/openvinotoolkit/open_model_zoo
-[OpenVINO™ Runtime]:https://docs.openvino.ai/latest/openvino_docs_OV_Runtime_User_Guide.html
+[OpenVINO™ Runtime]:https://docs.openvino.ai/nightly/openvino_docs_OV_Runtime_User_Guide.html
 [Model Optimizer]:https://docs.openvino.ai/latest/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html
 [Post-Training Optimization Tool]:https://docs.openvino.ai/latest/pot_README.html
 [Samples]:https://github.com/openvinotoolkit/openvino/tree/master/samples
-[tag on StackOverflow]:https://stackoverflow.com/search?q=%23openvino
-
