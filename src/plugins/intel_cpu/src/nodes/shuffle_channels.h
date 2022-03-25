@@ -13,11 +13,12 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNShuffleChannelsNode : public MKLDNNNode {
+class ShuffleChannels : public Node {
 public:
-    MKLDNNShuffleChannelsNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNShuffleChannelsNode() override = default;
+    ShuffleChannels(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    ~ShuffleChannels() override = default;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override {};
@@ -60,5 +61,6 @@ private:
     bool supportDynamicBatch = false;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

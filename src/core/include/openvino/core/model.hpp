@@ -34,7 +34,11 @@ class FrontEnd;
 }
 
 class ModelAccessor;
-/// A user-defined model.
+
+/**
+ * @brief A user-defined model
+ * @ingroup ov_model_cpp_api
+ */
 class OPENVINO_API Model : public std::enable_shared_from_this<Model> {
     friend class frontend::FrontEnd;
     friend OPENVINO_API std::shared_ptr<Model> clone_model(const Model& func,
@@ -42,7 +46,7 @@ class OPENVINO_API Model : public std::enable_shared_from_this<Model> {
     std::shared_ptr<void> m_shared_object;  // Frontend plugin shared object handle.
 
 public:
-    static const ::ov::DiscreteTypeInfo& get_type_info_static() {
+    _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() {
         static const ::ov::DiscreteTypeInfo type_info_static{"Model", static_cast<uint64_t>(0)};
         return type_info_static;
     }
