@@ -11,7 +11,6 @@
 #include <utility>
 
 #include "ngraph/compatibility.hpp"
-#include "ngraph/factory.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/node.hpp"
 

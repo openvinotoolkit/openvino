@@ -9,7 +9,6 @@
 #include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
-#include "ngraph/factory.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/util/multi_subgraph_base.hpp"
 #include "ngraph/runtime/reference/if.hpp"

@@ -7,7 +7,6 @@
 #include "ngraph/attribute_adapter.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/deprecated.hpp"
-#include "ngraph/factory.hpp"
 
 namespace ngraph {
 template <typename BASE_TYPE>

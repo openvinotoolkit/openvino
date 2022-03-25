@@ -7,7 +7,6 @@
 #include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
-#include "ngraph/factory.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/opsets/opset5.hpp"
 #include "ngraph/runtime/reference/loop.hpp"
