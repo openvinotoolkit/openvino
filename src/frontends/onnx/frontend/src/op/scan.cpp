@@ -75,7 +75,7 @@ OutputVector scan_to_tensor_iterator(const OutputVector& node_inputs,
 
     // TensorIterator setup
     auto tensor_iterator = std::make_shared<default_opset::TensorIterator>();
-    auto ti_body = std::make_shared<Function>(body_outputs, body_inputs);
+    auto ti_body = std::make_shared<ov::Model>(body_outputs, body_inputs);
     tensor_iterator->set_function(ti_body);
 
     // Set slicing for Scan (TensorIterator) inputs
