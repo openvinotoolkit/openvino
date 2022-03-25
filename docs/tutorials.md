@@ -13,7 +13,9 @@
 
 @endsphinxdirective
 
-This collection of Python tutorials are written for running on [Jupyter*](https://jupyter.org) notebooks. The tutorials provide an introduction to the OpenVINO™ toolkit and explain how to use the Python API and tools for optimized deep learning inference. You can run the code one section at a time to see how to integrate your application with OpenVINO™ libraries.
+This collection of Python tutorials are prepared to be run on [Jupyter*](https://jupyter.org) notebooks. Those tutorials purpouse are to provide You an introduction to the OpenVINO™ toolkit and to explain, how to use the Python API and tools for optimized deep learning inference. Codes can be run one section at a time to see how to integrate your application with OpenVINO™ libraries.
+
+Tutorials featuring the below logo may be run remotely using Binder without setup. 
 
 @sphinxdirective
 
@@ -25,5 +27,4 @@ This collection of Python tutorials are written for running on [Jupyter*](https:
 
 @endsphinxdirective
 
-
-Tutorials showing this logo may be run remotely using Binder with no setup, although running the notebooks on a local system is recommended for best performance. See the [OpenVINO™ Notebooks Installation Guide](https://github.com/openvinotoolkit/openvino_notebooks/blob/main/README.md#-installation-guide) to install and run locally.
+Yet, for the best performance, it is recommended to run the notebooks on a local system. To learn how to install and run notebooks locally, check the [OpenVINO™ Notebooks Installation Guide.](https://github.com/openvinotoolkit/openvino_notebooks/blob/main/README.md#-installation-guide)
