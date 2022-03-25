@@ -13,7 +13,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, ctc_greedy_decoder_op) {
-    NodeBuilder::get_ops().register_factory<opset1::CTCGreedyDecoder>();
+    NodeBuilder::get_ops().insert<opset1::CTCGreedyDecoder>();
     bool m_ctc_merge_repeated = false;
     auto data = make_shared<op::Parameter>(element::f32, Shape{3, 1, 3});
     auto masks = make_shared<op::Parameter>(element::i32, Shape{3, 1});

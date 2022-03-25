@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, logsoftmax_op) {
-    NodeBuilder::get_ops().register_factory<opset5::LogSoftmax>();
+    NodeBuilder::get_ops().insert<opset5::LogSoftmax>();
     auto data = make_shared<op::Parameter>(element::f32, Shape{3, 2, 3});
 
     int64_t axis = 2;

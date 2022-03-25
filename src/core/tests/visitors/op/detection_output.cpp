@@ -53,7 +53,7 @@ void is_equal_attrs(const DetectionOutputBase::AttributesBase& attrs1,
 }  // namespace
 
 TEST(attributes, detection_output_op) {
-    NodeBuilder::get_ops().register_factory<op::v0::DetectionOutput>();
+    NodeBuilder::get_ops().insert<op::v0::DetectionOutput>();
     const auto box_logits = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2 * 1 * 4});
     const auto class_preds = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2 * 32});
     const auto proposals = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 2 * 4});
@@ -78,7 +78,7 @@ TEST(attributes, detection_output_op) {
 
 // ------------------------------ V8 ------------------------------
 TEST(attributes, detection_output_v8) {
-    NodeBuilder::get_ops().register_factory<op::v8::DetectionOutput>();
+    NodeBuilder::get_ops().insert<op::v8::DetectionOutput>();
     const auto box_logits = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2 * 1 * 4});
     const auto class_preds = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2 * 32});
     const auto proposals = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 2 * 4});

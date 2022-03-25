@@ -40,7 +40,7 @@ TYPED_TEST_P(BinaryOperatorVisitor, Auto_Broadcast)
     using OP_Type = typename TypeParam::op_type;
     const ngraph::element::Type_t element_type = TypeParam::element_type;
 
-    ngraph::test::NodeBuilder::get_ops().register_factory<OP_Type>();
+    ngraph::test::NodeBuilder::get_ops().insert<OP_Type>();
     const auto A =
         std::make_shared<ngraph::op::Parameter>(element_type, ngraph::PartialShape{1, 2, 3});
     const auto B =

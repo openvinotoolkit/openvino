@@ -19,7 +19,7 @@ using GenerateProposals = opset9::GenerateProposals;
 using Attrs = opset9::GenerateProposals::Attributes;
 
 TEST(attributes, generate_proposals) {
-    NodeBuilder::get_ops().register_factory<GenerateProposals>();
+    NodeBuilder::get_ops().insert<GenerateProposals>();
 
     Attrs attrs;
     attrs.min_size = 0.0f;

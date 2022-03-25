@@ -13,7 +13,7 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 
 TEST(attributes, adaptive_avg_pool_op) {
-    NodeBuilder::get_ops().register_factory<opset8::AdaptiveAvgPool>();
+    NodeBuilder::get_ops().insert<opset8::AdaptiveAvgPool>();
     const auto A = make_shared<op::Parameter>(element::f32, Shape{1, 3, 5, 4});
     const auto out_shape = op::Constant::create<int64_t>(element::i64, Shape{2}, {4, 3});
 

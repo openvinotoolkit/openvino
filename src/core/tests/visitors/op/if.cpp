@@ -16,7 +16,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, if_op) {
-    NodeBuilder::get_ops().register_factory<If>();
+    NodeBuilder::get_ops().insert<If>();
     auto X = make_shared<Parameter>(element::f32, Shape{1, 2, 2});
     auto Y = make_shared<Parameter>(element::f32, Shape{1, 2, 2});
     auto cond = std::make_shared<Constant>(element::boolean, Shape{1}, true);

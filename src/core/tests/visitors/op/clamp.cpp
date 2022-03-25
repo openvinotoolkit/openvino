@@ -14,7 +14,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, clamp_op) {
-    NodeBuilder::get_ops().register_factory<opset1::Clamp>();
+    NodeBuilder::get_ops().insert<opset1::Clamp>();
     auto data = make_shared<op::Parameter>(element::f32, Shape{2, 4});
 
     double min = 0.4;

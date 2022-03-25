@@ -18,7 +18,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, mvn_v1_op) {
-    NodeBuilder::get_ops().register_factory<opset3::MVN>();
+    NodeBuilder::get_ops().insert<opset3::MVN>();
     const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 3, 4, 5});
 
     const auto axes = AxisSet{0, 1};
@@ -37,7 +37,7 @@ TEST(attributes, mvn_v1_op) {
 }
 
 TEST(attributes, mvn_v6_op) {
-    NodeBuilder::get_ops().register_factory<opset6::MVN>();
+    NodeBuilder::get_ops().insert<opset6::MVN>();
     const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 3, 4, 5});
     auto axes = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {2, 3});
 

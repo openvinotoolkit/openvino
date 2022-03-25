@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, convolution) {
-    NodeBuilder::get_ops().register_factory<op::v1::Convolution>();
+    NodeBuilder::get_ops().insert<op::v1::Convolution>();
     auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 124, 124});
     auto filters = make_shared<op::Parameter>(element::f32, Shape{2, 16, 3, 3});
     auto strides = Strides{1, 1};

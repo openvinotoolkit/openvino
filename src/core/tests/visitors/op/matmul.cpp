@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, matmul_op) {
-    NodeBuilder::get_ops().register_factory<opset1::MatMul>();
+    NodeBuilder::get_ops().insert<opset1::MatMul>();
     auto A = make_shared<op::Parameter>(element::f32, Shape{0, 2});
     auto B = make_shared<op::Parameter>(element::f32, Shape{2, 0});
 

@@ -15,7 +15,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, assign_v3_op) {
-    NodeBuilder::get_ops().register_factory<opset3::Assign>();
+    NodeBuilder::get_ops().insert<opset3::Assign>();
     const auto in = make_shared<op::Parameter>(element::f32, Shape{1});
     const string variable_id = "v0";
     const auto read_value = make_shared<opset3::ReadValue>(in, variable_id);
@@ -28,7 +28,7 @@ TEST(attributes, assign_v3_op) {
 }
 
 TEST(attributes, assign_v6_op) {
-    NodeBuilder::get_ops().register_factory<opset6::Assign>();
+    NodeBuilder::get_ops().insert<opset6::Assign>();
     const auto in = make_shared<op::Parameter>(element::f32, Shape{1});
     const auto variable = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "v0"});
     const auto read_value = make_shared<opset6::ReadValue>(in, variable);

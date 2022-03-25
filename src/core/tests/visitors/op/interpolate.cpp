@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, interpolate_op1) {
-    NodeBuilder::get_ops().register_factory<opset1::Interpolate>();
+    NodeBuilder::get_ops().insert<opset1::Interpolate>();
     auto img = make_shared<op::Parameter>(element::f32, Shape{1, 3, 32, 32});
     auto out_shape = make_shared<op::Parameter>(element::i32, Shape{2});
 
@@ -45,7 +45,7 @@ TEST(attributes, interpolate_op1) {
 }
 
 TEST(attributes, interpolate_op4) {
-    NodeBuilder::get_ops().register_factory<opset4::Interpolate>();
+    NodeBuilder::get_ops().insert<opset4::Interpolate>();
     auto img = make_shared<op::Parameter>(element::f32, Shape{1, 3, 32, 32});
     auto out_shape = make_shared<op::Parameter>(element::i32, Shape{2});
     auto scales = op::v0::Constant::create(element::f32, {1}, {1.0});

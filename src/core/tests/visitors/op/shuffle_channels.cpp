@@ -14,7 +14,7 @@ using ngraph::test::NodeBuilder;
 TEST(attributes, shuffle_channels_op) {
     using ShuffleChannels = opset3::ShuffleChannels;
 
-    NodeBuilder::get_ops().register_factory<ShuffleChannels>();
+    NodeBuilder::get_ops().insert<ShuffleChannels>();
     auto data = make_shared<op::Parameter>(element::i32, Shape{2, 64, 16, 16});
     auto axis = 1;
     auto groups = 2;

@@ -12,7 +12,7 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 
 TEST(attributes, batch_to_space_op) {
-    NodeBuilder::get_ops().register_factory<op::v1::BatchToSpace>();
+    NodeBuilder::get_ops().insert<op::v1::BatchToSpace>();
     auto data = make_shared<op::Parameter>(element::f32, Shape{2, 128});
     auto block_shape = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{1, 2});
     auto crops_begin = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{0, 2});

@@ -14,7 +14,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, random_uniform_op) {
-    NodeBuilder::get_ops().register_factory<opset8::RandomUniform>();
+    NodeBuilder::get_ops().insert<opset8::RandomUniform>();
     auto out_shape = make_shared<opset8::Constant>(element::i64, Shape{3}, vector<int64_t>{3, 2, 4});
     auto min_val = make_shared<opset8::Constant>(element::f32, Shape{}, 0);
     auto max_val = make_shared<opset8::Constant>(element::f32, Shape{}, 1);

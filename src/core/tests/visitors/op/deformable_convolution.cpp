@@ -15,7 +15,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, deformable_convolution_default_attributes) {
-    NodeBuilder::get_ops().register_factory<opset1::DeformableConvolution>();
+    NodeBuilder::get_ops().insert<opset1::DeformableConvolution>();
     const Shape inputs_shape{1, 1, 5, 5};
     auto data = make_shared<op::Parameter>(element::f32, Shape{1, 1, 5, 5});
     auto filters = make_shared<op::Parameter>(element::f32, Shape{1, 1, 3, 3});
@@ -43,7 +43,7 @@ TEST(attributes, deformable_convolution_default_attributes) {
 }
 
 TEST(attributes, deformable_convolution_attributes) {
-    NodeBuilder::get_ops().register_factory<opset1::DeformableConvolution>();
+    NodeBuilder::get_ops().insert<opset1::DeformableConvolution>();
     const Shape inputs_shape{1, 1, 5, 5};
     auto data = make_shared<op::Parameter>(element::f32, Shape{1, 2, 5, 5});
     auto filters = make_shared<op::Parameter>(element::f32, Shape{2, 1, 3, 3});
@@ -79,7 +79,7 @@ TEST(attributes, deformable_convolution_attributes) {
 }
 
 TEST(attributes, deformable_convolution_v8_default_attributes) {
-    NodeBuilder::get_ops().register_factory<opset8::DeformableConvolution>();
+    NodeBuilder::get_ops().insert<opset8::DeformableConvolution>();
     const Shape inputs_shape{1, 1, 5, 5};
     auto data = make_shared<op::Parameter>(element::f32, Shape{1, 1, 5, 5});
     auto filters = make_shared<op::Parameter>(element::f32, Shape{1, 1, 3, 3});
@@ -108,7 +108,7 @@ TEST(attributes, deformable_convolution_v8_default_attributes) {
 }
 
 TEST(attributes, deformable_convolution_v8_attributes) {
-    NodeBuilder::get_ops().register_factory<opset8::DeformableConvolution>();
+    NodeBuilder::get_ops().insert<opset8::DeformableConvolution>();
     const Shape inputs_shape{1, 1, 5, 5};
     auto data = make_shared<op::Parameter>(element::f32, Shape{1, 2, 5, 5});
     auto filters = make_shared<op::Parameter>(element::f32, Shape{2, 1, 3, 3});

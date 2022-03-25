@@ -13,7 +13,7 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 
 TEST(attributes, tanh_op) {
-    NodeBuilder::get_ops().register_factory<op::Tanh>();
+    NodeBuilder::get_ops().insert<op::Tanh>();
     const auto data_node = make_shared<op::Parameter>(element::f32, Shape{1});
     const auto tanh = make_shared<op::Tanh>(data_node);
 

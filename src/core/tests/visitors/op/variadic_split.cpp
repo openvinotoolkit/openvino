@@ -16,7 +16,7 @@ using ngraph::test::ValueMap;
 TEST(attributes, variadic_split_op) {
     using namespace opset1;
 
-    NodeBuilder::get_ops().register_factory<op::v1::VariadicSplit>();
+    NodeBuilder::get_ops().insert<op::v1::VariadicSplit>();
     auto data = make_shared<Parameter>(element::i32, Shape{200});
     auto axis = make_shared<Parameter>(element::i32, Shape{1});
     auto split_lengths = make_shared<Parameter>(element::i32, Shape{1});

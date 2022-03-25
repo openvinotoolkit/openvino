@@ -13,7 +13,7 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 
 TEST(attributes, prelu_op) {
-    NodeBuilder::get_ops().register_factory<opset1::PRelu>();
+    NodeBuilder::get_ops().insert<opset1::PRelu>();
     const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 2, 1, 2});
     const auto slope = make_shared<op::Parameter>(element::f32, Shape{5});
 

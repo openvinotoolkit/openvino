@@ -13,7 +13,7 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 
 TEST(attributes, grn_op) {
-    NodeBuilder::get_ops().register_factory<opset1::GRN>();
+    NodeBuilder::get_ops().insert<opset1::GRN>();
     auto data = make_shared<op::Parameter>(element::f32, Shape{2, 3, 4, 5});
 
     float bias = 1.25f;

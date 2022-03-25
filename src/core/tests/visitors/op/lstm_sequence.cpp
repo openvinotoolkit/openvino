@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, lstm_sequence_op) {
-    NodeBuilder::get_ops().register_factory<opset5::LSTMSequence>();
+    NodeBuilder::get_ops().insert<opset5::LSTMSequence>();
 
     const size_t batch_size = 4;
     const size_t num_directions = 2;
@@ -66,7 +66,7 @@ TEST(attributes, lstm_sequence_op) {
 }
 
 TEST(attributes, lstm_sequence_v1_op) {
-    NodeBuilder::get_ops().register_factory<opset5::LSTMSequence>();
+    NodeBuilder::get_ops().insert<opset1::LSTMSequence>();
 
     const size_t batch_size = 4;
     const size_t num_directions = 2;

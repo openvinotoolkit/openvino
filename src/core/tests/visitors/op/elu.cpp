@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, elu_op) {
-    NodeBuilder::get_ops().register_factory<opset1::Elu>();
+    NodeBuilder::get_ops().insert<opset1::Elu>();
     auto data = make_shared<op::Parameter>(element::f32, Shape{2, 4});
 
     double alpha = 0.1;

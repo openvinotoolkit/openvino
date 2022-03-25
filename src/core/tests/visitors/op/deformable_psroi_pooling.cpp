@@ -14,7 +14,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, deformable_psroi_pooling_op) {
-    NodeBuilder::get_ops().register_factory<opset1::DeformablePSROIPooling>();
+    NodeBuilder::get_ops().insert<opset1::DeformablePSROIPooling>();
     auto input = make_shared<op::Parameter>(element::f32, Shape{2, 16, 67, 32});
     auto coords = make_shared<op::Parameter>(element::f32, Shape{300, 5});
 

@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, proposal_op) {
-    NodeBuilder::get_ops().register_factory<opset1::Proposal>();
+    NodeBuilder::get_ops().insert<opset1::Proposal>();
     const auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1024, 2, 128, 128});
     const auto class_logits = make_shared<op::Parameter>(element::f32, Shape{1024, 4, 128, 128});
     const auto image_shape = make_shared<op::Parameter>(element::f32, Shape{4});

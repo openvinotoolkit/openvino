@@ -368,7 +368,7 @@ protected:
 };
 
 TEST(attributes, user_op) {
-    NodeBuilder::get_ops().register_factory<Oracle>();
+    NodeBuilder::get_ops().insert<Oracle>();
     auto program = make_shared<op::Parameter>(element::i32, Shape{200});
     auto data = make_shared<op::Parameter>(element::i32, Shape{200});
     auto result = make_shared<op::Result>(data);

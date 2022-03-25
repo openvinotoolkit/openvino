@@ -13,7 +13,7 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 
 TEST(attributes, mish_op) {
-    NodeBuilder::get_ops().register_factory<opset4::Mish>();
+    NodeBuilder::get_ops().insert<opset4::Mish>();
     const auto A = make_shared<op::Parameter>(element::f32, Shape{5, 2});
 
     const auto mish = make_shared<opset4::Mish>(A);

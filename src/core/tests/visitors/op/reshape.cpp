@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, reshape_op) {
-    NodeBuilder::get_ops().register_factory<opset1::Reshape>();
+    NodeBuilder::get_ops().insert<opset1::Reshape>();
     auto data = make_shared<op::Parameter>(element::i32, Shape{2, 3, 4});
     auto pattern = make_shared<op::Parameter>(element::i32, Shape{2});
 

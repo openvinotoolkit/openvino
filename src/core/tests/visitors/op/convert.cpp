@@ -13,7 +13,7 @@ using ngraph::test::ValueMap;
 TEST(attributes, convert_op_v0) {
     using Convert = op::v0::Convert;
 
-    NodeBuilder::get_ops().register_factory<Convert>();
+    NodeBuilder::get_ops().insert<Convert>();
     auto data = std::make_shared<op::Parameter>(element::f32, Shape{2, 4});
     const element::Type destination_type = element::Type_t::i32;
 

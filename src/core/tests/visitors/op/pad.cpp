@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, pad_op) {
-    NodeBuilder::get_ops().register_factory<opset1::Pad>();
+    NodeBuilder::get_ops().insert<opset1::Pad>();
     auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
     auto pads_begin = make_shared<op::Parameter>(element::i64, Shape{1});
     auto pads_end = make_shared<op::Parameter>(element::i64, Shape{1});

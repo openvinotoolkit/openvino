@@ -15,7 +15,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, gather_nd_v5_op) {
-    NodeBuilder::get_ops().register_factory<opset5::GatherND>();
+    NodeBuilder::get_ops().insert<opset5::GatherND>();
     int batch_dims = 1;
     auto P = make_shared<op::Parameter>(element::f32, Shape{2, 3, 4});
     auto I = make_shared<op::Parameter>(element::i32, Shape{2, 1});
@@ -28,7 +28,7 @@ TEST(attributes, gather_nd_v5_op) {
 }
 
 TEST(attributes, gather_nd_v8_op) {
-    NodeBuilder::get_ops().register_factory<opset8::GatherND>();
+    NodeBuilder::get_ops().insert<opset8::GatherND>();
     int batch_dims = 1;
     auto P = make_shared<op::Parameter>(element::f32, Shape{2, 3, 4});
     auto I = make_shared<op::Parameter>(element::i32, Shape{2, 1});

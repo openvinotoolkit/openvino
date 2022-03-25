@@ -23,7 +23,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, divide) {
-    NodeBuilder::get_ops().register_factory<opset1::Divide>();
+    NodeBuilder::get_ops().insert<opset1::Divide>();
 
     const auto in1 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
     const auto in2 = make_shared<op::Parameter>(element::f32, Shape{2, 4});

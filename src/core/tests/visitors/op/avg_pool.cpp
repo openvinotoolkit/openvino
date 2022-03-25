@@ -15,7 +15,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, avg_pool_op) {
-    NodeBuilder::get_ops().register_factory<opset1::AvgPool>();
+    NodeBuilder::get_ops().insert<opset1::AvgPool>();
     auto data = make_shared<op::Parameter>(element::f32, Shape{64, 3, 5});
 
     auto strides = Strides{2};
@@ -41,7 +41,7 @@ TEST(attributes, avg_pool_op) {
 }
 
 TEST(attributes, avg_pool_v8_op) {
-    NodeBuilder::get_ops().register_factory<opset8::AvgPool>();
+    NodeBuilder::get_ops().insert<opset8::AvgPool>();
     const auto data = make_shared<op::Parameter>(element::i32, Shape{1, 3, 37, 37});
 
     const auto strides = Strides{1, 1};

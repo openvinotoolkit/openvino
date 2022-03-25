@@ -19,7 +19,7 @@ using ExperimentalGenerator = opset6::ExperimentalDetectronPriorGridGenerator;
 using Attrs = opset6::ExperimentalDetectronPriorGridGenerator::Attributes;
 
 TEST(attributes, detectron_prior_grid_generator) {
-    NodeBuilder::get_ops().register_factory<ExperimentalGenerator>();
+    NodeBuilder::get_ops().insert<ExperimentalGenerator>();
 
     Attrs attrs;
     attrs.flatten = true;

@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, one_hot_op) {
-    NodeBuilder::get_ops().register_factory<opset1::OneHot>();
+    NodeBuilder::get_ops().insert<opset1::OneHot>();
     auto indices = make_shared<op::Parameter>(element::i64, Shape{1, 3, 2, 3});
     auto depth = op::Constant::create(element::i64, Shape{}, {4});
     auto on_value = op::Constant::create(element::f32, Shape{}, {1.0f});

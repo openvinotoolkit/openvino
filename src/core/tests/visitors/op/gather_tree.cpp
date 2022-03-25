@@ -13,7 +13,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, gather_tree_op) {
-    NodeBuilder::get_ops().register_factory<opset1::GatherTree>();
+    NodeBuilder::get_ops().insert<opset1::GatherTree>();
 
     auto step_ids = std::make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
     auto parent_idx = std::make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});

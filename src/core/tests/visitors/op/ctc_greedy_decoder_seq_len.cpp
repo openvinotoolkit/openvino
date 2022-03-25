@@ -14,7 +14,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, ctc_greedy_decoder_seq_len_op) {
-    NodeBuilder::get_ops().register_factory<opset6::CTCGreedyDecoderSeqLen>();
+    NodeBuilder::get_ops().insert<opset6::CTCGreedyDecoderSeqLen>();
     bool merge_repeated = false;
     auto data = make_shared<op::Parameter>(element::f32, Shape{1, 3, 3});
     auto seq_len = make_shared<op::Parameter>(element::i32, Shape{1});

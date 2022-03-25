@@ -13,7 +13,7 @@ using namespace ov;
 using ngraph::test::NodeBuilder;
 
 TEST(attributes, grid_sample_defaults) {
-    NodeBuilder::get_ops().register_factory<opset9::GridSample>();
+    NodeBuilder::get_ops().insert<opset9::GridSample>();
     const auto data = make_shared<opset9::Parameter>(element::f32, Shape{1, 3, 10, 10});
     const auto grid = make_shared<opset9::Parameter>(element::f32, Shape{1, 5, 5, 2});
 

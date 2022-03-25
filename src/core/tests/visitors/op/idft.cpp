@@ -12,7 +12,7 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 
 TEST(attributes, idft_op) {
-    NodeBuilder::get_ops().register_factory<op::v7::IDFT>();
+    NodeBuilder::get_ops().insert<op::v7::IDFT>();
     auto data = make_shared<op::Parameter>(element::f32, Shape{2, 10, 10, 2});
     auto axes = op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2});
     auto idft = make_shared<op::v7::IDFT>(data, axes);
@@ -24,7 +24,7 @@ TEST(attributes, idft_op) {
 }
 
 TEST(attributes, idft_op_signal) {
-    NodeBuilder::get_ops().register_factory<op::v7::IDFT>();
+    NodeBuilder::get_ops().insert<op::v7::IDFT>();
     auto data = make_shared<op::Parameter>(element::f32, Shape{2, 10, 10, 2});
     auto axes = op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2});
     auto signal = op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {20});

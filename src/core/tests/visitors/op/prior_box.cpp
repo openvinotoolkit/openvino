@@ -18,7 +18,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, prior_box_op) {
-    NodeBuilder::get_ops().register_factory<opset1::PriorBox>();
+    NodeBuilder::get_ops().insert<opset1::PriorBox>();
     const auto layer_shape = make_shared<op::Parameter>(element::i64, Shape{128, 128});
     const auto image_shape = make_shared<op::Parameter>(element::i64, Shape{32, 32});
 
@@ -60,7 +60,7 @@ TEST(attributes, prior_box_op) {
 }
 
 TEST(attributes, prior_box_v8_op) {
-    NodeBuilder::get_ops().register_factory<opset8::PriorBox>();
+    NodeBuilder::get_ops().insert<opset8::PriorBox>();
     const auto layer_shape = make_shared<op::Parameter>(element::i64, Shape{128, 128});
     const auto image_shape = make_shared<op::Parameter>(element::i64, Shape{32, 32});
 

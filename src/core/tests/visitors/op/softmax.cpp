@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, softmax_op) {
-    NodeBuilder::get_ops().register_factory<opset1::Softmax>();
+    NodeBuilder::get_ops().insert<opset1::Softmax>();
     auto data = make_shared<op::Parameter>(element::i32, Shape{200});
     auto axis = 0;
     auto softmax = make_shared<opset1::Softmax>(data, axis);

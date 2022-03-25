@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/factory.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 
@@ -388,7 +387,7 @@ public:
 
     // Does not validate, since inputs aren't set
     std::shared_ptr<Node> create() {
-        std::shared_ptr<Node> node(get_ops().create(m_node_type_info));
+        std::shared_ptr<Node> node(get_ops().create(m_node_type_info.name));
         node->visit_attributes(*this);
         return node;
     }
@@ -398,15 +397,15 @@ public:
     AttributeVisitor& get_node_loader() {
         return *this;
     }
-    static FactoryRegistry<Node>& get_ops() {
-        static FactoryRegistry<Node> registry = [] {
-            FactoryRegistry<Node> registry;
-#define NGRAPH_OP(NAME, NAMESPACE, VERSION) registry.register_factory<NAMESPACE::NAME>();
+    static OpSet& get_ops() {
+        static OpSet opset;
+        static std::once_flag flag;
+        std::call_once(flag, [&]() {
+#define NGRAPH_OP(NAME, NAMESPACE, VERSION) opset.insert<NAMESPACE::NAME>();
 #include "op_version_tbl.hpp"
 #undef NGRAPH_OP
-            return registry;
-        }();
-        return registry;
+        });
+        return opset;
     }
 
 protected:

@@ -13,7 +13,7 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 
 TEST(attributes, roll_op) {
-    NodeBuilder::get_ops().register_factory<opset7::Roll>();
+    NodeBuilder::get_ops().insert<opset7::Roll>();
     const auto A = make_shared<op::Parameter>(element::f32, Shape{4, 3});
     const auto B = make_shared<op::Constant>(element::i32, Shape{3});
     const auto C = make_shared<op::Constant>(element::i32, Shape{3});

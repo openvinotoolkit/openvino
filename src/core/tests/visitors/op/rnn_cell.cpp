@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, rnn_cell_op_custom_attributes) {
-    NodeBuilder::get_ops().register_factory<opset1::RNNCell>();
+    NodeBuilder::get_ops().insert<opset1::RNNCell>();
     auto X = make_shared<op::Parameter>(element::f32, Shape{2, 3});
     auto H = make_shared<op::Parameter>(element::f32, Shape{2, 3});
     auto W = make_shared<op::Parameter>(element::f32, Shape{3, 3});
@@ -43,7 +43,7 @@ TEST(attributes, rnn_cell_op_custom_attributes) {
 }
 
 TEST(attributes, rnn_cell_op_default_attributes) {
-    NodeBuilder::get_ops().register_factory<opset1::RNNCell>();
+    NodeBuilder::get_ops().insert<opset1::RNNCell>();
     auto X = make_shared<op::Parameter>(element::f32, Shape{2, 3});
     auto H = make_shared<op::Parameter>(element::f32, Shape{2, 3});
     auto W = make_shared<op::Parameter>(element::f32, Shape{3, 3});

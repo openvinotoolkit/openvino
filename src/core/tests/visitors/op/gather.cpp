@@ -15,7 +15,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, gather_v7_op) {
-    NodeBuilder::get_ops().register_factory<opset7::Gather>();
+    NodeBuilder::get_ops().insert<opset7::Gather>();
     auto data = make_shared<opset1::Parameter>(element::i32, Shape{2, 3, 4});
     auto indices = make_shared<opset1::Parameter>(element::i32, Shape{2});
     auto axis = make_shared<opset1::Constant>(element::i32, Shape{}, 2);
@@ -29,7 +29,7 @@ TEST(attributes, gather_v7_op) {
 }
 
 TEST(attributes, gather_v8_op) {
-    NodeBuilder::get_ops().register_factory<opset8::Gather>();
+    NodeBuilder::get_ops().insert<opset8::Gather>();
     auto data = make_shared<opset1::Parameter>(element::i32, Shape{2, 3, 4});
     auto indices = make_shared<opset1::Parameter>(element::i32, Shape{2});
     auto axis = make_shared<opset1::Constant>(element::i32, Shape{}, 2);

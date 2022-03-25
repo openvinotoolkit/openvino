@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, gru_sequence_op) {
-    NodeBuilder::get_ops().register_factory<opset5::GRUSequence>();
+    NodeBuilder::get_ops().insert<opset5::GRUSequence>();
 
     const size_t batch_size = 4;
     const size_t num_directions = 2;

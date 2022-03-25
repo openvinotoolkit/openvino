@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, reverse_op_enum_mode) {
-    NodeBuilder::get_ops().register_factory<opset1::Reverse>();
+    NodeBuilder::get_ops().insert<opset1::Reverse>();
     auto data = make_shared<op::Parameter>(element::i32, Shape{200});
     auto reversed_axes = make_shared<op::Parameter>(element::i32, Shape{200});
 
@@ -29,7 +29,7 @@ TEST(attributes, reverse_op_enum_mode) {
 }
 
 TEST(attributes, reverse_op_string_mode) {
-    NodeBuilder::get_ops().register_factory<opset1::Reverse>();
+    NodeBuilder::get_ops().insert<opset1::Reverse>();
     auto data = make_shared<op::Parameter>(element::i32, Shape{200});
     auto reversed_axes = make_shared<op::Parameter>(element::i32, Shape{200});
 

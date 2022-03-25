@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, space_to_depth_op) {
-    NodeBuilder::get_ops().register_factory<opset1::SpaceToDepth>();
+    NodeBuilder::get_ops().insert<opset1::SpaceToDepth>();
     auto data = make_shared<op::Parameter>(element::i32, Shape{2, 3, 50, 50});
 
     auto block_size = 2;

@@ -13,7 +13,7 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 
 TEST(attributes, hardsigmoid_op) {
-    NodeBuilder::get_ops().register_factory<opset1::HardSigmoid>();
+    NodeBuilder::get_ops().insert<opset1::HardSigmoid>();
     const auto data = make_shared<op::Parameter>(element::f32, Shape{2, 5});
     const auto alpha = make_shared<op::Parameter>(element::f32, Shape{});
     const auto beta = make_shared<op::Parameter>(element::f32, Shape{});

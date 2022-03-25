@@ -27,7 +27,7 @@ TYPED_TEST_P(BatchNormAttrTest, batch_norm_inference_op) {
     element::Type et = element::f32;
     double epsilon = 0.001;
 
-    NodeBuilder::get_ops().register_factory<TypeParam>();
+    NodeBuilder::get_ops().insert<TypeParam>();
     auto data_batch = make_shared<op::Parameter>(et, in_shape);
     auto gamma = make_shared<op::Parameter>(et, ch_shape);
     auto beta = make_shared<op::Parameter>(et, ch_shape);

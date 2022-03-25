@@ -19,7 +19,7 @@ using ExperimentalProposals = opset6::ExperimentalDetectronGenerateProposalsSing
 using Attrs = opset6::ExperimentalDetectronGenerateProposalsSingleImage::Attributes;
 
 TEST(attributes, detectron_proposals) {
-    NodeBuilder::get_ops().register_factory<ExperimentalProposals>();
+    NodeBuilder::get_ops().insert<ExperimentalProposals>();
 
     Attrs attrs;
     attrs.min_size = 0.0f;

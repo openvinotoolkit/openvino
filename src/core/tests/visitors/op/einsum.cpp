@@ -14,7 +14,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, einsum_v7_op) {
-    NodeBuilder::get_ops().register_factory<opset7::Einsum>();
+    NodeBuilder::get_ops().insert<opset7::Einsum>();
     auto input1 = make_shared<opset1::Parameter>(element::i32, Shape{2, 3});
     auto input2 = make_shared<opset1::Parameter>(element::i32, Shape{3, 4});
     std::string equation = "ab,bc->ac";

@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, topk_op) {
-    NodeBuilder::get_ops().register_factory<opset1::TopK>();
+    NodeBuilder::get_ops().insert<opset1::TopK>();
     auto data = make_shared<op::Parameter>(element::i32, Shape{2, 3, 4, 5});
     auto k = make_shared<op::Parameter>(element::i32, Shape{});
 

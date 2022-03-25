@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, split_op) {
-    NodeBuilder::get_ops().register_factory<opset1::Split>();
+    NodeBuilder::get_ops().insert<opset1::Split>();
     auto data = make_shared<op::Parameter>(element::i32, Shape{200});
     auto axis = make_shared<op::Parameter>(element::i32, Shape{});
     auto num_splits = 2;

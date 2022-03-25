@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, ctc_loss) {
-    NodeBuilder::get_ops().register_factory<opset4::CTCLoss>();
+    NodeBuilder::get_ops().insert<opset4::CTCLoss>();
 
     auto logits = make_shared<op::Parameter>(element::f32, Shape{10, 120, 28});
     auto logit_length = make_shared<op::Parameter>(element::i32, Shape{10});

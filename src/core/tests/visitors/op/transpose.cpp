@@ -15,7 +15,7 @@ using ngraph::test::NodeBuilder;
 TEST(attributes, transpose_op) {
     using namespace opset1;
 
-    NodeBuilder::get_ops().register_factory<Transpose>();
+    NodeBuilder::get_ops().insert<Transpose>();
     const auto data_input = make_shared<Parameter>(element::f32, Shape{1, 2, 3});
     const auto axes_order_input = make_shared<Parameter>(element::i32, Shape{3});
 

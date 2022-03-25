@@ -33,7 +33,7 @@ TYPED_TEST_P(UnaryOperatorVisitor, No_Attribute_4D) {
     using OP_Type = typename TypeParam::op_type;
     const ngraph::element::Type_t element_type = TypeParam::element_type;
 
-    ngraph::test::NodeBuilder::get_ops().register_factory<OP_Type>();
+    ngraph::test::NodeBuilder::get_ops().insert<OP_Type>();
     const auto A = std::make_shared<ngraph::op::Parameter>(element_type, ngraph::PartialShape{2, 2, 2, 2});
 
     const auto op_func = std::make_shared<OP_Type>(A);

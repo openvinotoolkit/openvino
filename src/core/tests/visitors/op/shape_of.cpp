@@ -16,7 +16,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, shapeof_op1) {
-    NodeBuilder::get_ops().register_factory<op::v0::ShapeOf>();
+    NodeBuilder::get_ops().insert<op::v0::ShapeOf>();
     auto data = make_shared<op::Parameter>(element::i32, Shape{2, 3, 4});
     auto shapeof = make_shared<op::v0::ShapeOf>(data);
     NodeBuilder builder(shapeof);
@@ -27,7 +27,7 @@ TEST(attributes, shapeof_op1) {
 }
 
 TEST(attributes, shapeof_op3) {
-    NodeBuilder::get_ops().register_factory<op::v3::ShapeOf>();
+    NodeBuilder::get_ops().insert<op::v3::ShapeOf>();
     auto data = make_shared<op::Parameter>(element::i32, Shape{2, 3, 4});
     auto shapeof = make_shared<op::v3::ShapeOf>(data, element::Type_t::i64);
     NodeBuilder builder(shapeof);

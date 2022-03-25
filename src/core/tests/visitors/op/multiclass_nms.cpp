@@ -16,7 +16,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, multiclass_nms_v8_op_custom_attributes) {
-    NodeBuilder::get_ops().register_factory<opset8::MulticlassNms>();
+    NodeBuilder::get_ops().insert<opset8::MulticlassNms>();
     auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 1, 4});
     auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1});
 
@@ -65,7 +65,7 @@ TEST(attributes, multiclass_nms_v8_op_custom_attributes) {
 }
 
 TEST(attributes, multiclass_nms_v8_op_default_attributes) {
-    NodeBuilder::get_ops().register_factory<opset8::MulticlassNms>();
+    NodeBuilder::get_ops().insert<opset8::MulticlassNms>();
     auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 1, 4});
     auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1});
 
@@ -91,7 +91,7 @@ TEST(attributes, multiclass_nms_v8_op_default_attributes) {
 }
 
 TEST(attributes, multiclass_nms_v9_op_custom_attributes) {
-    NodeBuilder::get_ops().register_factory<opset9::MulticlassNms>();
+    NodeBuilder::get_ops().insert<opset9::MulticlassNms>();
     auto boxes = make_shared<op::Parameter>(element::f32, Shape{3, 2, 4});
     auto scores = make_shared<op::Parameter>(element::f32, Shape{3, 2});
     auto roisnum = make_shared<op::Parameter>(element::i32, Shape{2});
@@ -141,7 +141,7 @@ TEST(attributes, multiclass_nms_v9_op_custom_attributes) {
 }
 
 TEST(attributes, multiclass_nms_v9_op_default_attributes) {
-    NodeBuilder::get_ops().register_factory<opset9::MulticlassNms>();
+    NodeBuilder::get_ops().insert<opset9::MulticlassNms>();
     auto boxes = make_shared<op::Parameter>(element::f32, Shape{3, 2, 4});
     auto scores = make_shared<op::Parameter>(element::f32, Shape{3, 2});
     auto roisnum = make_shared<op::Parameter>(element::i32, Shape{2});

@@ -14,7 +14,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, experimental_detectron_topkrois_op) {
-    NodeBuilder::get_ops().register_factory<opset6::ExperimentalDetectronTopKROIs>();
+    NodeBuilder::get_ops().insert<opset6::ExperimentalDetectronTopKROIs>();
     size_t num_rois = 1;
     auto input_rois = std::make_shared<op::Parameter>(element::f32, Shape{2, 4});
     auto input_probs = std::make_shared<op::Parameter>(element::f32, Shape{2});

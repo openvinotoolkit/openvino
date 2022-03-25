@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, bucketize_v3_op_default_attributes) {
-    NodeBuilder::get_ops().register_factory<opset3::Bucketize>();
+    NodeBuilder::get_ops().insert<opset3::Bucketize>();
     auto data = make_shared<op::Parameter>(element::f32, Shape{2, 3, 4});
     auto buckets = make_shared<op::Parameter>(element::f32, Shape{5});
     auto bucketize = make_shared<opset3::Bucketize>(data, buckets);
@@ -30,7 +30,7 @@ TEST(attributes, bucketize_v3_op_default_attributes) {
 }
 
 TEST(attributes, bucketize_v3_op_custom_attributes) {
-    NodeBuilder::get_ops().register_factory<opset3::Bucketize>();
+    NodeBuilder::get_ops().insert<opset3::Bucketize>();
     auto data = make_shared<op::Parameter>(element::f32, Shape{2, 3, 4});
     auto buckets = make_shared<op::Parameter>(element::f32, Shape{5});
     element::Type output_type = element::i32;

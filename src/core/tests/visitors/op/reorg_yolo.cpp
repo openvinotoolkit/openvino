@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, reorg_yolo_op_stride) {
-    NodeBuilder::get_ops().register_factory<opset3::ReorgYolo>();
+    NodeBuilder::get_ops().insert<opset3::ReorgYolo>();
     const auto data = make_shared<op::Parameter>(element::i32, Shape{1, 64, 26, 26});
 
     const auto op = make_shared<op::v0::ReorgYolo>(data, 2);
@@ -28,7 +28,7 @@ TEST(attributes, reorg_yolo_op_stride) {
 }
 
 TEST(attributes, reorg_yolo_op_strides) {
-    NodeBuilder::get_ops().register_factory<opset3::ReorgYolo>();
+    NodeBuilder::get_ops().insert<opset3::ReorgYolo>();
     const auto data = make_shared<op::Parameter>(element::i32, Shape{1, 64, 26, 26});
 
     const auto op = make_shared<op::v0::ReorgYolo>(data, Strides{2});

@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, broadcast_v3) {
-    NodeBuilder::get_ops().register_factory<opset3::Broadcast>();
+    NodeBuilder::get_ops().insert<opset3::Broadcast>();
     const auto arg = make_shared<op::Parameter>(element::i64, Shape{1, 3, 1});
     const auto shape = make_shared<op::Parameter>(element::i64, Shape{3});
     const auto broadcast_spec = op::BroadcastType::BIDIRECTIONAL;

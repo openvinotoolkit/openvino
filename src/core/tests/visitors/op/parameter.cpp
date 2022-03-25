@@ -15,7 +15,7 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 
 TEST(attributes, parameter_op) {
-    NodeBuilder::get_ops().register_factory<opset1::Parameter>();
+    NodeBuilder::get_ops().insert<opset1::Parameter>();
     auto parameter = std::make_shared<op::Parameter>(element::f32, PartialShape{Dimension{1}, Dimension{4}});
 
     NodeBuilder builder(parameter);

@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, reverse_sequence_op) {
-    NodeBuilder::get_ops().register_factory<opset1::ReverseSequence>();
+    NodeBuilder::get_ops().insert<opset1::ReverseSequence>();
     auto data = make_shared<op::Parameter>(element::i32, Shape{2, 3, 4, 2});
     auto seq_indices = make_shared<op::Parameter>(element::i32, Shape{4});
 

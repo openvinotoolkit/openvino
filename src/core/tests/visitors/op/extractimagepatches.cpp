@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, extractimagepatches_op) {
-    NodeBuilder::get_ops().register_factory<opset3::ExtractImagePatches>();
+    NodeBuilder::get_ops().insert<opset3::ExtractImagePatches>();
     auto data = make_shared<op::Parameter>(element::i32, Shape{64, 3, 10, 10});
 
     auto sizes = Shape{3, 3};

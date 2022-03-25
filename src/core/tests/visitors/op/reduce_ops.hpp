@@ -54,7 +54,7 @@ TYPED_TEST_P(ReduceOperatorVisitor, keep_dims_3D)
 
     bool keep_dims = true;
 
-    ngraph::test::NodeBuilder::get_ops().register_factory<OP_Type>();
+    ngraph::test::NodeBuilder::get_ops().insert<OP_Type>();
     const auto data = make_shared<op::Parameter>(in_et, in_shape);
     const auto reduction_axes = make_shared<op::Parameter>(axes_et, axes_shape);
     const auto reduce_op = make_shared<OP_Type>(data, reduction_axes, keep_dims);
@@ -78,7 +78,7 @@ TYPED_TEST_P(ReduceOperatorVisitor, do_not_keep_dims_3D)
 
     bool keep_dims = false;
 
-    ngraph::test::NodeBuilder::get_ops().register_factory<OP_Type>();
+    ngraph::test::NodeBuilder::get_ops().insert<OP_Type>();
     const auto data = make_shared<op::Parameter>(in_et, in_shape);
     const auto reduction_axes = make_shared<op::Parameter>(axes_et, axes_shape);
     const auto reduce_op = make_shared<OP_Type>(data, reduction_axes, keep_dims);

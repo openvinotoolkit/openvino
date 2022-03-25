@@ -13,7 +13,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, select) {
-    NodeBuilder::get_ops().register_factory<opset1::Select>();
+    NodeBuilder::get_ops().insert<opset1::Select>();
     auto in_cond = std::make_shared<op::Parameter>(element::boolean, Shape{3, 2});
     auto in_then = std::make_shared<op::Parameter>(element::f32, Shape{3, 2});
     auto in_else = std::make_shared<op::Parameter>(element::f32, Shape{3, 2});

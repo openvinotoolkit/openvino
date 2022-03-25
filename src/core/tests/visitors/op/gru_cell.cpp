@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, gru_cell_op) {
-    NodeBuilder::get_ops().register_factory<opset5::GRUCell>();
+    NodeBuilder::get_ops().insert<opset5::GRUCell>();
     auto X = make_shared<op::Parameter>(element::f32, Shape{2, 3});
     auto H = make_shared<op::Parameter>(element::f32, Shape{2, 3});
     auto W = make_shared<op::Parameter>(element::f32, Shape{9, 3});

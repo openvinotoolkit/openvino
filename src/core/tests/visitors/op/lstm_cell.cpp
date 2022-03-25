@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, lstm_cell_op) {
-    NodeBuilder::get_ops().register_factory<opset4::LSTMCell>();
+    NodeBuilder::get_ops().insert<opset4::LSTMCell>();
     auto X = make_shared<op::Parameter>(element::f32, Shape{2, 3});
     auto H = make_shared<op::Parameter>(element::f32, Shape{2, 3});
     auto W = make_shared<op::Parameter>(element::f32, Shape{12, 3});

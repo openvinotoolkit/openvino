@@ -14,7 +14,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(visitor_without_attribute, embedding_bag_packed_sum_op) {
-    NodeBuilder::get_ops().register_factory<opset3::EmbeddingBagOffsetsSum>();
+    NodeBuilder::get_ops().insert<opset3::EmbeddingBagOffsetsSum>();
     auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2});
     auto indices = make_shared<op::Parameter>(element::i64, Shape{3, 4});
     auto per_sample_weights = make_shared<op::Parameter>(element::f32, Shape{3, 4});

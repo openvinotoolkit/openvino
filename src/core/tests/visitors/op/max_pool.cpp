@@ -15,7 +15,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, max_pool_op) {
-    NodeBuilder::get_ops().register_factory<opset1::MaxPool>();
+    NodeBuilder::get_ops().insert<opset1::MaxPool>();
     auto data = make_shared<op::Parameter>(element::f32, Shape{64, 3, 5});
 
     auto strides = Strides{2};
@@ -38,7 +38,7 @@ TEST(attributes, max_pool_op) {
 }
 
 TEST(attributes, max_pool_v8_op) {
-    NodeBuilder::get_ops().register_factory<opset8::MaxPool>();
+    NodeBuilder::get_ops().insert<opset8::MaxPool>();
     const auto data = make_shared<op::Parameter>(element::i32, Shape{1, 3, 37, 37});
 
     const auto strides = Strides{1, 1};

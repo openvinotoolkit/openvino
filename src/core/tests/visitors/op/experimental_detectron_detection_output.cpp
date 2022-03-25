@@ -19,7 +19,7 @@ using Attrs = opset6::ExperimentalDetectronDetectionOutput::Attributes;
 using ExperimentalDetection = opset6::ExperimentalDetectronDetectionOutput;
 
 TEST(attributes, detectron_detection_output) {
-    NodeBuilder::get_ops().register_factory<ExperimentalDetection>();
+    NodeBuilder::get_ops().insert<ExperimentalDetection>();
 
     Attrs attrs;
     attrs.class_agnostic_box_regression = false;

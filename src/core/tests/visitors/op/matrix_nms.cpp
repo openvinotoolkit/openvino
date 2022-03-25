@@ -18,7 +18,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, matrix_nms_v8_op_custom_attributes) {
-    NodeBuilder::get_ops().register_factory<opset8::MatrixNms>();
+    NodeBuilder::get_ops().insert<opset8::MatrixNms>();
     auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 1, 4});
     auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1});
 
@@ -70,7 +70,7 @@ TEST(attributes, matrix_nms_v8_op_custom_attributes) {
 }
 
 TEST(attributes, matrix_nms_v8_op_default_attributes) {
-    NodeBuilder::get_ops().register_factory<opset8::MatrixNms>();
+    NodeBuilder::get_ops().insert<opset8::MatrixNms>();
     auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 1, 4});
     auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1});
 

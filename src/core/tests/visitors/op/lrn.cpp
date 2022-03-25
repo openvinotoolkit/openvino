@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, lrn_op) {
-    NodeBuilder::get_ops().register_factory<opset1::LRN>();
+    NodeBuilder::get_ops().insert<opset1::LRN>();
     const auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
     const auto axes = make_shared<op::Parameter>(element::i32, Shape{2});
 

@@ -13,7 +13,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, scatter_elements_update) {
-    NodeBuilder::get_ops().register_factory<opset3::ScatterElementsUpdate>();
+    NodeBuilder::get_ops().insert<opset3::ScatterElementsUpdate>();
 
     auto data = std::make_shared<op::Parameter>(element::f32, Shape{2, 4, 5, 7});
     auto indices = std::make_shared<op::Parameter>(element::i16, Shape{2, 2, 2, 2});

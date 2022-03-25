@@ -13,7 +13,7 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 
 TEST(attributes, selu_op) {
-    NodeBuilder::get_ops().register_factory<opset1::Selu>();
+    NodeBuilder::get_ops().insert<opset1::Selu>();
     const auto data_input = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
     const auto alpha = make_shared<op::Parameter>(element::f32, Shape{1});
     const auto lambda = make_shared<op::Parameter>(element::f32, Shape{1});

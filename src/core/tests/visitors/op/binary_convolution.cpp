@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, bin_convolution) {
-    NodeBuilder::get_ops().register_factory<op::v1::Convolution>();
+    NodeBuilder::get_ops().insert<op::v1::Convolution>();
     const PartialShape data_batch_shape{1, 1, 5, 5};
     const PartialShape filters_shape{1, 1, 3, 3};
     Strides strides{1, 1};

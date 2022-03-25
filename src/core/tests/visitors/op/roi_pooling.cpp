@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, roi_pooling_op) {
-    NodeBuilder::get_ops().register_factory<opset3::ROIPooling>();
+    NodeBuilder::get_ops().insert<opset3::ROIPooling>();
     const auto data = make_shared<op::Parameter>(element::f32, Shape{2, 3, 4, 5});
     const auto coords = make_shared<op::Parameter>(element::f32, Shape{2, 5});
 

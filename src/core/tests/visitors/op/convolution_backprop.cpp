@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, convolution_backprop_op) {
-    NodeBuilder::get_ops().register_factory<opset1::ConvolutionBackpropData>();
+    NodeBuilder::get_ops().insert<opset1::ConvolutionBackpropData>();
     auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 124, 124});
     auto filters = make_shared<op::Parameter>(element::f32, Shape{16, 2, 3, 3});
     auto strides = Strides{1, 1};
@@ -46,7 +46,7 @@ TEST(attributes, convolution_backprop_op) {
 }
 
 TEST(attributes, convolution_backprop_output_shape_output_padding) {
-    NodeBuilder::get_ops().register_factory<opset1::ConvolutionBackpropData>();
+    NodeBuilder::get_ops().insert<opset1::ConvolutionBackpropData>();
     const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 124, 124});
     const auto filter = make_shared<op::Parameter>(element::f32, Shape{16, 2, 3, 3});
     const auto output_shape = make_shared<op::Parameter>(element::i32, Shape{2});

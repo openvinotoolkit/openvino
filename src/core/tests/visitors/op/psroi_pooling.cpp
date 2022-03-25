@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, psroi_pooling_op) {
-    NodeBuilder::get_ops().register_factory<opset1::PSROIPooling>();
+    NodeBuilder::get_ops().insert<opset1::PSROIPooling>();
     auto input = make_shared<op::Parameter>(element::f32, Shape{1, 1024, 63, 38});
     auto coords = make_shared<op::Parameter>(element::f32, Shape{300, 5});
 

@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, region_yolo_op) {
-    NodeBuilder::get_ops().register_factory<opset1::RegionYolo>();
+    NodeBuilder::get_ops().insert<opset1::RegionYolo>();
     auto data = make_shared<op::Parameter>(element::f32, Shape{1, 255, 26, 26});
 
     size_t num_coords = 4;

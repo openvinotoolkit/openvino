@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, strided_slice_op) {
-    NodeBuilder::get_ops().register_factory<opset1::StridedSlice>();
+    NodeBuilder::get_ops().insert<opset1::StridedSlice>();
     auto data = make_shared<op::Parameter>(element::i32, Shape{2, 3, 4, 5});
     auto begin = make_shared<op::Parameter>(element::i32, Shape{2});
     auto end = make_shared<op::Parameter>(element::i32, Shape{2});
