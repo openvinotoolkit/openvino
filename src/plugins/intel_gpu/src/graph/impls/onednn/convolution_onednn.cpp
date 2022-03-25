@@ -153,9 +153,9 @@ protected:
         dnnl::memory::dims pad_l(prim->pad.begin(), prim->pad.end());
         dnnl::memory::dims pad_r(prim->pad.begin(), prim->pad.end());
 
-        auto input_md = onednn::layout_to_memory_desc(input.get_output_layout());
+        auto input_md = onednn::layout_to_memory_desc(input.get_output_layout(), dnnl::memory::format_tag::any);
         auto weights_md = onednn::layout_to_memory_desc(weights.get_output_layout(), dnnl::memory::format_tag::any);
-        auto output_md = onednn::layout_to_memory_desc(arg.get_output_layout());
+        auto output_md = onednn::layout_to_memory_desc(arg.get_output_layout(), dnnl::memory::format_tag::any);
         auto grouped_weights = format::is_grouped(weights.get_output_layout().format) || prim->grouped_weights_shape;
 
         for (size_t i = 0; i < dilation.size(); i++) {
