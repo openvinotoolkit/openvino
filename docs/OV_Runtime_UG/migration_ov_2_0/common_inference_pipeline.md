@@ -31,7 +31,17 @@ Inference Engine API:
 
 OpenVINO™ Runtime API 2.0:
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/ov_common.cpp ov_api_2_0:create_core
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/ov_common.py ov_api_2_0:create_core
+@endsphinxtab
+
+@endsphinxtabset
 
 ### 1.1 (Optional) Load extensions
 
@@ -53,7 +63,17 @@ Inference Engine API:
 
 OpenVINO™ Runtime API 2.0:
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/ov_common.cpp ov_api_2_0:load_old_extension
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/ov_common.py ov_api_2_0:load_old_extension
+@endsphinxtab
+
+@endsphinxtabset
 
 ## 2. Read model from the disk
 
@@ -73,7 +93,17 @@ Inference Engine API:
 
 OpenVINO™ Runtime API 2.0:
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/ov_common.cpp ov_api_2_0:read_model
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/ov_common.py ov_api_2_0:read_model
+@endsphinxtab
+
+@endsphinxtabset
 
 Read model has the same structure as in the example from [Model Creation](./graph_construction.md) migration guide.
 
@@ -102,7 +132,17 @@ Inference Engine API:
 
 OpenVINO™ Runtime API 2.0:
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/ov_common.cpp ov_api_2_0:compile_model
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/ov_common.py ov_api_2_0:compile_model
+@endsphinxtab
+
+@endsphinxtabset
 
 If you need to configure OpenVINO Runtime devices with additional configuration parameters, please, refer to the migration [Configure devices](./configure_devices.md) guide.
 
@@ -124,7 +164,17 @@ Inference Engine API:
 
 OpenVINO™ Runtime API 2.0:
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/ov_common.cpp ov_api_2_0:create_infer_request
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/ov_common.py ov_api_2_0:create_infer_request
+@endsphinxtab
+
+@endsphinxtabset
 
 ## 5. Fill input tensors
 
@@ -204,25 +254,65 @@ OpenVINO™ Runtime API 2.0 fills inputs as `I64` precision (aligned with the or
 
 @sphinxtab{IR v10}
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/ov_common.cpp ov_api_2_0:get_input_tensor_v10
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/ov_common.py ov_api_2_0:get_input_tensor_v10
+@endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
 @sphinxtab{IR v11}
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/ov_common.cpp ov_api_2_0:get_input_tensor_aligned
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/ov_common.py ov_api_2_0:get_input_tensor_aligned
+@endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
 @sphinxtab{ONNX}
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/ov_common.cpp ov_api_2_0:get_input_tensor_aligned
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/ov_common.py ov_api_2_0:get_input_tensor_aligned
+@endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
 @sphinxtab{Model created in code}
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/ov_common.cpp ov_api_2_0:get_input_tensor_aligned
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/ov_common.py ov_api_2_0:get_input_tensor_aligned
+@endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
@@ -274,13 +364,33 @@ OpenVINO™ Runtime API 2.0:
 
 @sphinxtab{Sync}
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/ov_common.cpp ov_api_2_0:inference
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/ov_common.py ov_api_2_0:inference
+@endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
 @sphinxtab{Async}
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/ov_common.cpp ov_api_2_0:start_async_and_wait
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/ov_common.py ov_api_2_0:start_async_and_wait
+@endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
@@ -366,25 +476,65 @@ OpenVINO™ Runtime API 2.0 processes outputs:
 
 @sphinxtab{IR v10}
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/ov_common.cpp ov_api_2_0:get_output_tensor_v10
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/ov_common.py ov_api_2_0:get_output_tensor_v10
+@endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
 @sphinxtab{IR v11}
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/ov_common.cpp ov_api_2_0:get_output_tensor_aligned
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/ov_common.py ov_api_2_0:get_output_tensor_aligned
+@endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
 @sphinxtab{ONNX}
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/ov_common.cpp ov_api_2_0:get_output_tensor_aligned
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/ov_common.py ov_api_2_0:get_output_tensor_aligned
+@endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
 @sphinxtab{Model created in code}
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/ov_common.cpp ov_api_2_0:get_output_tensor_aligned
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/ov_common.py ov_api_2_0:get_output_tensor_aligned
+@endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 

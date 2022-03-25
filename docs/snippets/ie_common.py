@@ -4,7 +4,7 @@
 
 
 #! [ie:create_core]
-from urllib import request
+import numpy as np
 import openvino.inference_engine as ie
 core = ie.IECore()
 #! [ie:create_core]
@@ -22,46 +22,46 @@ exec_network = core.load_network(network, "CPU", num_requests=4)
 # Done in the previous step
 #! [ie:create_infer_request]
 
-input_data = {}
-
 #! [ie:get_input_tensor]
-request = exec_network.requests[0]
-# Get inpub blobs mapped to input layer names
-input_blobs = request.input_blobs
-# Copy input data in input blobs
-for input_name in input_blobs:
-    input_blobs[input_name].buffer[:] = input_data[input_name]
-
-# Or just pass the data in infer() to fill input blobs and run inference
-request.infer(input_data)
+infer_request = exec_network.requests[0]
+# Get input blobs mapped to input layers names
+input_blobs = infer_request.input_blobs
+data = input_blobs["data1"].buffer
+# Original I64 precision was converted to I32
+assert data.dtype == np.int32
+# Fill the first blob ...
 #! [ie:get_input_tensor]
 
 #! [ie:inference]
-request.infer()
+results = infer_request.infer()
 #! [ie:inference]
 
-from copy import deepcopy
+input_data = iter(list())
+
+def process_results(results, frame_id):
+    pass
 
 #! [ie:start_async_and_wait]
 # Start async inference on a single infer request
-request.async_infer()
+infer_request.async_infer()
 # Wait for 1 milisecond
-request.wait(1)
+infer_request.wait(1)
 # Wait for inference completion
-request.wait()
+infer_request.wait()
 
 # Demonstrates async pipeline using ExecutableNetwork
+
 results = []
 
 # Callback to process inference results
-def callback(output_blobs, status_code):
-    # copy output blobs data
-    outputs_copy = deepcopy(output_blobs)
-    results.append(outputs_copy)
+def callback(output_blobs, _):
+    # Copy the data from output blobs to numpy array
+    results_copy = {out_name: out_blob.buffer[:] for out_name, out_blob in output_blobs.items()}
+    results.append(process_results(results_copy))
 
 # Setting callback for each infer requests
-for request in exec_network.requests:
-    request.set_completion_callback(callback, py_data=request.output_blobs)
+for infer_request in exec_network.requests:
+    infer_request.set_completion_callback(callback, py_data=infer_request.output_blobs)
 
 # Async pipline is managed by ExecutableNetwork
 total_frames = 100
@@ -72,15 +72,17 @@ for _ in range(total_frames):
     idle_id = exec_network.get_idle_request_id()
     # Start asynchronous inference on idle request
     exec_network.start_async(request_id=idle_id, inputs=next(input_data))
-# Wait for the rest requests to complete
+# Wait for all requests to complete
 exec_network.wait()
 #! [ie:start_async_and_wait]
 
 #! [ie:get_output_tensor]
-# Get inference results mapped to output layers names
-results = request.infer(input_data)
-# Acessing output blobs directly
-output_blobs = request.output_blobs
+# Get output blobs mapped to output layers names
+output_blobs = infer_request.output_blobs
+data = output_blobs["out1"].buffer
+# Original I64 precision was converted to I32
+assert data.dtype == np.int32
+# Process output data
 #! [ie:get_output_tensor]
 
 #! [ie:load_old_extension]
