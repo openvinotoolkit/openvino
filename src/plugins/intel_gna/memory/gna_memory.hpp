@@ -38,7 +38,7 @@ class GNAMemoryInterface {
 public:
     virtual GNAMemRequestsQueue* getQueue(rRegion region) = 0;
     virtual void commit(bool isCompact = false) = 0;
-    virtual void* getBasePtr() = 0;
+    virtual uint32_t getOffsetForMerged(void* ptr) = 0;
     virtual size_t getRWBytes() = 0;
     virtual size_t getTotalBytes() = 0;
     virtual ~GNAMemoryInterface() = default;
@@ -55,7 +55,6 @@ protected:
     std::map<rRegion, std::unique_ptr<GNAMemRequestsQueue>> _mem_queues;
     size_t _total = 0;
     Allocator _allocator;
-    std::shared_ptr<uint8_t> heap = nullptr;
     size_t _page_alignment = 1;
     bool _is_compact_mode = false;
 
@@ -125,8 +124,26 @@ protected:
         return _mem_queues[region].get();
     }
 
-    void *getBasePtr() override {
-        return heap.get();
+    uint32_t getOffsetForMerged(void * ptr) override {
+        std::list<rRegion> orderOfQueue{
+            rRegion::REGION_RO,
+            rRegion::REGION_INPUTS,
+            rRegion::REGION_OUTPUTS,
+            rRegion::REGION_STATES,
+            rRegion::REGION_SCRATCH,
+        };
+
+        uint32_t curOffset = 0;
+        for (auto r : orderOfQueue) {
+            auto& q = *getQueue(r);
+            auto ptrBegin = static_cast<uint8_t*>(q.getBasePtr());
+            auto size = q.getSize();
+            if (ptr >= ptrBegin && ptr < ptrBegin + size) {
+                curOffset += static_cast<uint8_t*>(ptr) - ptrBegin;
+                return curOffset;
+            }
+            curOffset += ALIGN64(size);
+        }
     }
 
     size_t getRWBytes() override {

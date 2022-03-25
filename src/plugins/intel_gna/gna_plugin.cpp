@@ -1000,7 +1000,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
     gnamem->commit(gnaFlags->compact_mode);
 
-    dnn->Init(gnamem->getBasePtr(),
+    dnn->Init(nullptr,
              gnamem->getTotalBytes(),
              gnaFlags->sw_fp32 ? kDnnFloat : kDnnInt,
              1);
@@ -1033,7 +1033,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
             if (ptr_in == nullptr) {
                 ptr_out = nullptr;
             } else {
-                auto offset = reinterpret_cast<uint8_t *>(ptr_in) - reinterpret_cast<uint8_t *>(gnamem->getBasePtr());
+                auto offset = gnamem->getOffsetForMerged(ptr_in);
                 ptr_out = basePtr + offset;
             }
         };
@@ -1646,7 +1646,7 @@ void GNAPlugin::Export(std::ostream &outStream) {
         serial.AddState(memoryConnection.second.gna_ptr, memoryConnection.second.reserved_size, memoryConnection.first, state->GetScaleFactor());
     }
 
-    serial.Export(gnamem->getBasePtr(), gnamem->getTotalBytes(), outStream);
+    serial.Export(gnadevice->getAllAllocations(), outStream);
 }
 
 std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GNAPlugin::GetPerformanceCounts() {
