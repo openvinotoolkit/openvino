@@ -28,9 +28,9 @@ static bool convert_subtract(const std::shared_ptr<Node>& node) {
         return false;
     }
 
-    std::shared_ptr<Node> neg = std::make_shared<opset1::Multiply>(
-        sub->get_input_node_shared_ptr(1),
-        opset1::Constant::create(sub->get_input_element_type(1), Shape{}, {-1}));
+    std::shared_ptr<Node> neg =
+        std::make_shared<opset1::Multiply>(sub->get_input_node_shared_ptr(1),
+                                           opset1::Constant::create(sub->get_input_element_type(1), Shape{}, {-1}));
     NodeVector new_nodes;
     if (auto constant = ov::get_constant_from_source(neg)) {
         neg = constant;
@@ -63,8 +63,7 @@ pass::ConvertSubtract::ConvertSubtract() {
 
 pass::ConvertSubtractWithConstant::ConvertSubtractWithConstant() {
     MATCHER_SCOPE(ConvertSubtractWithConstant);
-    auto sub = pattern::wrap_type<opset1::Subtract>(
-        {pattern::any_input(), pattern::wrap_type<op::Constant>()});
+    auto sub = pattern::wrap_type<opset1::Subtract>({pattern::any_input(), pattern::wrap_type<op::Constant>()});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto node = m.get_match_root();
