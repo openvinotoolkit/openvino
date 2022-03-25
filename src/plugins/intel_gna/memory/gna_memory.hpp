@@ -15,6 +15,7 @@
 #include <functional>
 #include <iostream>
 #include <fstream>
+#include <utility>
 #include "gna_lib_ver_selector.hpp"
 #include "memory_solver.hpp"
 #include "gna_allocator.hpp"
@@ -38,7 +39,7 @@ class GNAMemoryInterface {
 public:
     virtual GNAMemRequestsQueue* getQueue(rRegion region) = 0;
     virtual void commit(bool isCompact = false) = 0;
-    virtual uint32_t getOffsetForMerged(void* ptr) = 0;
+    virtual std::pair<bool, uint32_t> getOffsetForMerged(void* ptr) = 0;
     virtual size_t getRWBytes() = 0;
     virtual size_t getTotalBytes() = 0;
     virtual ~GNAMemoryInterface() = default;
@@ -124,7 +125,7 @@ protected:
         return _mem_queues[region].get();
     }
 
-    uint32_t getOffsetForMerged(void * ptr) override {
+    std::pair<bool, uint32_t> getOffsetForMerged(void * ptr) override {
         std::list<rRegion> orderOfQueue{
             rRegion::REGION_RO,
             rRegion::REGION_INPUTS,
@@ -140,10 +141,11 @@ protected:
             auto size = q.getSize();
             if (ptr >= ptrBegin && ptr < ptrBegin + size) {
                 curOffset += static_cast<uint8_t*>(ptr) - ptrBegin;
-                return curOffset;
+                return {true, curOffset};
             }
             curOffset += ALIGN64(size);
         }
+        return {false, 0};
     }
 
     size_t getRWBytes() override {

@@ -995,7 +995,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     // reserving more bytes for intermediate data in parallel case - TODO: this works incorrectly in compact mode at lest
     rwSegmentSize = gnamem->getRWBytes();
     if (gnaFlags->num_requests > 1) {
-        gnamem->getQueue(REGION_SCRATCH)->reserve_ptr(nullptr, &pParallelExecutionData, gnamem->getRWBytes() * (gnaFlags->num_requests - 1), 64);
+        gnamem->getQueue(REGION_SCRATCH)->reserve_ptr(nullptr, &pParallelExecutionData, rwSegmentSize * (gnaFlags->num_requests - 1), 64);
     }
 
     gnamem->commit(gnaFlags->compact_mode);
@@ -1033,8 +1033,11 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
             if (ptr_in == nullptr) {
                 ptr_out = nullptr;
             } else {
-                auto offset = gnamem->getOffsetForMerged(ptr_in);
-                ptr_out = basePtr + offset;
+                const auto found = gnamem->getOffsetForMerged(ptr_in);
+                if (!found.first) {
+                    THROW_GNA_EXCEPTION << "Relocation offset for parallel infer requests was not found\n";
+                }
+                ptr_out = basePtr + found.second;
             }
         };
 
