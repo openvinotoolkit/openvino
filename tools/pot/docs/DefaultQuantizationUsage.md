@@ -71,6 +71,7 @@ class ImageLoader(DataLoader):
 
         image = cv.imread(self._files[index]) # read image with OpenCV
         image = cv.resize(image, self._shape) # resize to a target input size
+        image = np.expand_dims(image, 0)  # add batch dimension
         image = image.transpose(0, 3, 1, 2)  # convert to NCHW layout
         return image, None   # annotation is set to None
 ```
@@ -93,7 +94,7 @@ Full specification of the Default Quantization method is available in this [docu
 
 ## Run quantization
 POT API provides own methods to load and save model objects from OpenVINO Intermediate Representation: `load_model` and `save_model`. It also has a concept of `Pipeline` that sequentially applies specified optimization methods to the model. `create_pipeine` method is used to instantiate a `Pipeline` object.
-A code example below shows basic quantization workflow. `UserDataLoader` is a placeholder for user's implementation of `openvino.tools.pot.DataLoader`.
+A code example below shows basic quantization workflow:
 
 ```python
 from openvino.tools.pot import IEEngine
@@ -102,16 +103,15 @@ from openvino.tools.pot import compress_model_weights
 from openvino.tools.pot import create_pipeline
 
 # Model config specifies the model name and paths to model .xml and .bin file
-model_config = Dict(
-    {
-        "model_name": "model",
-        "model": path_to_xml,
-        "weights": path_to_bin,
-    }
-)
+model_config = 
+{
+    "model_name": "model",
+    "model": path_to_xml,
+    "weights": path_to_bin,
+}
 
 # Engine config
-engine_config = Dict({"device": "CPU"})
+engine_config = {"device": "CPU"}
 
 algorithms = [
     {
@@ -124,7 +124,7 @@ algorithms = [
 ]
 
 # Step 1: implement and create user's data loader
-data_loader = MnistDataLoader("./mnist")
+data_loader = ImageLoader("<path_to_images>")
 
 # Step 2: load model
 model = load_model(model_config=model_config)
