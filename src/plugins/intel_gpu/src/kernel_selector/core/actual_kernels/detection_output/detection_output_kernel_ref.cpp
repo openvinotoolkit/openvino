@@ -246,17 +246,25 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
                                        MakeJitConstant("NUM_PRIOR_BLOCKS", num_score_block)});
             }
         } else if (i == 1) {
-             if (detectOutParams.detectOutParams.decrease_label_id) {
+            if (detectOutParams.detectOutParams.decrease_label_id) {
+                // Always use local memory since LWS size is 1x1x16 (16 WI * 100 (stack size) * 4 (int size) = 6.25 KB of SLM memory)
+                cldnnJit.AddConstant(MakeJitConstant("USE_LOCAL_MEMORY_FOR_STACK", true));
                 cldnnJit.AddConstants({MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_MXNET", "true"),
                                        MakeJitConstant("LOCAL_WORK_NUM", dispatchData.lws[2]),
                                        MakeJitConstant("PARTITION_STEP", GetPartitionStep(dispatchData.lws[2]))});
-             } else {
+            } else {
+                // Limit local memory usage for two buffers: __range [LWS1 * LWS2 * 2 * 4 (int size) bytes]
+                //                                           stack [LWS1 * LWS2 * 100 * 4 (int size) bytes]
+                auto req_local_mem_size = dispatchData.lws[1] * dispatchData.lws[2] * 2 * 4 +
+                                          dispatchData.lws[1] * dispatchData.lws[2] * 100 * 4;
+                if (req_local_mem_size < detectOutParams.engineInfo.maxLocalMemSize)
+                    cldnnJit.AddConstant(MakeJitConstant("USE_LOCAL_MEMORY_FOR_STACK", true));
                 cldnnJit.AddConstants({MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE", "true"),
                                        MakeJitConstant("LOCAL_CLASS_NUM", dispatchData.lws[1]),
                                        MakeJitConstant("LOCAL_WORK_NUM", dispatchData.lws[2]),
                                        MakeJitConstant("PARTITION_STEP", GetPartitionStep(dispatchData.lws[2]))});
-             }
-         } else if (i == 2) {
+            }
+        } else if (i == 2) {
             if (detectOutParams.detectOutParams.decrease_label_id) {
                 cldnnJit.AddConstant(MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_MXNET", "true"));
             } else {
@@ -295,10 +303,16 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
                     cldnnJit.AddConstant(MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE", "true"));
                 }
             }
-         } else {
+        } else {
             if (detectOutParams.detectOutParams.decrease_label_id) {
                 cldnnJit.AddConstant(MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_MXNET", "true"));
+                // Always use local memory since LWS size is 1x1x1
+                cldnnJit.AddConstant(MakeJitConstant("USE_LOCAL_MEMORY_FOR_STACK", true));
             } else {
+                // Limit local memory usage for stack buffer [LWS0 * 100 * 4 (int size) bytes]
+                auto req_local_mem_size = dispatchData.lws[0] * 100 * 4;
+                if (req_local_mem_size < detectOutParams.engineInfo.maxLocalMemSize)
+                    cldnnJit.AddConstant(MakeJitConstant("USE_LOCAL_MEMORY_FOR_STACK", true));
                 cldnnJit.AddConstants({MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE", "true"),
                                        MakeJitConstant("LOCAL_BATCHES_NUM", dispatchData.lws[0])});
             }
