@@ -26,7 +26,7 @@
 .. tab:: Software Requirements
 
   * `CMake 3.13 or higher <https://cmake.org/download/>`_ (choose "macOS 10.13 or later"). Add `/Applications/CMake.app/Contents/bin` to path (for default install). 
-  * `Python 3.6 - 3.9 <https://www.python.org/downloads/mac-osx/>`_ (choose 3.6.x - 3.9.x). Install and	add to path.
+  * `Python 3.6 - 3.9 <https://www.python.org/downloads/mac-osx/>`_ (choose 3.6 - 3.9). Install and	add to path.
   * Apple Xcode Command Line Tools. In the terminal, run `xcode-select --install` from any directory
   * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
 
@@ -60,7 +60,7 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
 
    @endsphinxdirective
 
-5. Follow the instructions on your screen. During the installation you will be asked to accept the license agreement. The acceptance is required to continue.
+5. Follow the instructions on your screen. During the installation you will be asked to accept the license agreement. Your acceptance is required to continue.
    ![](../img/openvino-install-macos-run-boostrapper-script.gif)
    Click on the image to see the details.
 
@@ -96,7 +96,7 @@ The environment variables are set. Continue to the next section if you want to d
 
 .. dropdown:: OpenCV
 
-   OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples and demos also use OpenCV as a dependency. The Intel® Distribution of OpenVINO™ provides a script to install OpenCV: ``<INSTALL_DIR>/extras/scripts/download_opencv.sh``.
+   OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. The Intel® Distribution of OpenVINO™ provides a script to install OpenCV: ``<INSTALL_DIR>/extras/scripts/download_opencv.sh``.
 
    .. note::
       Make sure you have 2 prerequisites installed: ``curl`` and ``tar``.
@@ -142,20 +142,20 @@ To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalli
 
 .. dropdown:: Additional Resources
       
-   * Convert models for use with OpenVINO™: :ref:`Model Optimizer Developer Guide <deep learning model optimizer>`
-   * Write your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning inference engine>`
-   * Information on sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
-   * Information on a supplied set of models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
+   * Converting models for use with OpenVINO™: :ref:`Model Optimizer Developer Guide <deep learning model optimizer>`
+   * Writing your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning openvino runtime>`
+   * Sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
+   * Pre-trained deep learning models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
    * IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit`_ 
-      
-   To learn more about converting models from specific frameworks, go to:
-      
+
+<!---
+   To learn more about converting models from specific frameworks, go to:  
    * :ref:`Convert Your Caffe Model <convert model caffe>`
    * :ref:`Convert Your TensorFlow Model <convert model tf>`
    * :ref:`Convert Your MXNet Modele <convert model mxnet>`
    * :ref:`Convert Your Kaldi Model <convert model kaldi>`
    * :ref:`Convert Your ONNX Model <convert model onnx>`
-      
+--->   
    .. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
 
 @endsphinxdirective

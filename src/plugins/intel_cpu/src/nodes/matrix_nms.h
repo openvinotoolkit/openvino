@@ -13,6 +13,7 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
 enum class MatrixNmsSortResultType {
     CLASSID,  // sort selected boxes by class id (ascending) in each batch element
@@ -22,9 +23,9 @@ enum class MatrixNmsSortResultType {
 
 enum MatrixNmsDecayFunction { GAUSSIAN, LINEAR };
 
-class MKLDNNMatrixNmsNode : public MKLDNNNode {
+class MatrixNms : public Node {
 public:
-    MKLDNNMatrixNmsNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr& cache);
+    MatrixNms(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr& cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -103,5 +104,6 @@ private:
     size_t nmsMatrix(const float* boxesData, const float* scoresData, BoxInfo* filterBoxes, const int64_t batchIdx, const int64_t classIdx);
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov
