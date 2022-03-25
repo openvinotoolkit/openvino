@@ -91,7 +91,10 @@ class ScatterNDUpdate(ScatterNDBase):
                     # a case when updates is a scalar
                     indx = 0
                     updates_value = [updates_value]
-                output_value[indices_value[indx]] = updates_value[indx]
+                insert_index = indices_value[indx]
+                if isinstance(insert_index, np.ndarray):
+                    insert_index = tuple(insert_index)
+                output_value[insert_index] = updates_value[indx]
 
             node.out_port(0).data.set_value(output_value)
 
