@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+
 if(NOT ENABLE_PYTHON)
     message(WARNING "Please enable IE & nGraph Python API (pyopenvino) targets to enable Model Optimizer target")
 else()
