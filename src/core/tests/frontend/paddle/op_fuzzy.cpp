@@ -138,7 +138,7 @@ static const std::vector<std::string> models{std::string("argmax"),
                                              std::string("gather_one_dimension"),
                                              std::string("gather_one_dimension2"),
                                              // gather_axis_input
-                                             // (CPU plugin not support parameterized Axis input),
+                                             // (CVS-82724: not support Axis as input),
                                              std::string("gelu_erf"),
                                              std::string("gelu_tanh"),
                                              // greater_equal_big_int64(failure due to CPU inference),

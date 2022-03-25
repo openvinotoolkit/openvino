@@ -14,9 +14,12 @@ NamedOutputs gather(const NodeContext& node) {
     const auto index_node = node.get_input("Index");
     Output<Node> axis_node;
 
-    PADDLE_OP_CHECK(node, !node.has_input("Axis"), "OpenVINO not support parameterized Axis input!");
-    const auto axis_value = node.get_attribute<int>("axis", 0);
-    axis_node = default_opset::Constant::create(element::i32, Shape{}, {axis_value});
+    if (node.has_input("Axis")) {
+        axis_node = node.get_input("Axis");
+    } else {
+        const auto axis_value = node.get_attribute<int>("axis", 0);
+        axis_node = default_opset::Constant::create(element::i32, Shape{}, {axis_value});
+    }
 
     return node.default_single_output_mapping(
         {std::make_shared<default_opset::Gather>(data_node, index_node, axis_node)},
