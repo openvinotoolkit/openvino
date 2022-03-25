@@ -1,4 +1,4 @@
-# High-level Performance Hints (Presets) {#openvino_docs_deployment_optimization_guide_hints}
+# Prefer Prortable High-level Performance Hints {#openvino_docs_deployment_optimization_guide_hints}
 
 Each of the OpenVINO's [supported devices](../OV_Runtime_UG/supported_plugins/Supported_Devices.md) offers a bunch of low-level performance settings. 
 Tweaking this detailed configuration requires deep architecture understanding.
