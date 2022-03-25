@@ -240,7 +240,7 @@ Outputs of the model:
 
 1. With benchmark app:
 ```sh
-python3 benchmark_app.py -m <path to the generated GNMT IR> -d CPU
+benchmark_app -m <path to the generated GNMT IR> -d CPU
 ```
 
 
