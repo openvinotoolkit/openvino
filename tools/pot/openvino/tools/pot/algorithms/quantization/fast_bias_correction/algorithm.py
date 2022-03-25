@@ -159,8 +159,8 @@ class FastBiasCorrection(Algorithm):
                     bias = nu.get_bias_for_node(op_node)
                     after_biased_conv = nu.get_node_output(bias, 0)[0]
                     after_biased_conv_name = get_quantized_input_key(after_biased_conv)
-                inputs_outputs_layout[after_biased_conv_name] = \
-                    {"shape": TensorStatistic(func=lambda x, **kwargs: x.shape, shape_for_inference=True)}
+                    inputs_outputs_layout[after_biased_conv_name] = \
+                        {"shape": TensorStatistic(func=lambda x, **kwargs: x.shape, shape_for_inference=True)}
 
         return inputs_outputs_layout
 
