@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -82,36 +82,40 @@ bool convert_sequence_to_ti(const std::shared_ptr<ngraph::Node>& sequence,
         reverse_seq_before = std::make_shared<ngraph::opset5::ReverseSequence>(X, seq_lengths, 0, 1);
     }
 
+    auto axis_0 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
+    auto axis_1 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
+
     // TensorIterator Body: begin
     auto X_param_pshape = X_pshape;
     X_param_pshape[1] = 1;  // split by seq_lengths dimension
     auto X_body_param = std::make_shared<ngraph::opset5::Parameter>(X.get_element_type(), X_param_pshape);
-    auto H_body_param = std::make_shared<ngraph::opset5::Parameter>(H_t.get_element_type(), H_t.get_partial_shape());
+
+    const auto squeezed_h = ngraph::op::util::make_try_fold<ngraph::opset5::Squeeze>(H_t, axis_1);
+    auto H_body_param = std::make_shared<ngraph::opset5::Parameter>(squeezed_h->get_element_type(),
+                                                                    squeezed_h->get_output_partial_shape(0));
     auto seq_body_param =
         std::make_shared<ngraph::opset5::Parameter>(seq_lengths.get_element_type(), seq_lengths.get_partial_shape());
 
     // LSTM sequence case
     const bool cell_state_defined = C_t.get_node_shared_ptr() != nullptr;
-    std::shared_ptr<ngraph::opset5::Parameter> C_body_param =
-        cell_state_defined
-            ? std::make_shared<ngraph::opset5::Parameter>(C_t.get_element_type(), C_t.get_partial_shape())
-            : nullptr;
-
-    auto axis_0 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
-    auto axis_1 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
+    std::shared_ptr<ngraph::opset5::Parameter> C_body_param = nullptr;
+    std::shared_ptr<ngraph::Node> squeezed_c = nullptr;
+    if (cell_state_defined) {
+        squeezed_c = ngraph::op::util::make_try_fold<ngraph::opset5::Squeeze>(C_t, axis_1);
+        C_body_param = std::make_shared<ngraph::opset5::Parameter>(squeezed_c->get_element_type(),
+                                                                   squeezed_c->get_output_partial_shape(0));
+    }
 
     const auto squeezed_x = ngraph::op::util::make_try_fold<ngraph::opset5::Squeeze>(X_body_param, axis_1);
-    const auto squeezed_h = ngraph::op::util::make_try_fold<ngraph::opset5::Squeeze>(H_body_param, axis_1);
     const auto squeezed_w = ngraph::op::util::make_try_fold<ngraph::opset5::Squeeze>(W, axis_0);
     const auto squeezed_r = ngraph::op::util::make_try_fold<ngraph::opset5::Squeeze>(R, axis_0);
     const auto squeezed_b = ngraph::op::util::make_try_fold<ngraph::opset5::Squeeze>(B, axis_0);
 
     std::shared_ptr<ngraph::Node> cell;
     if (const auto lstm_sequence = ngraph::as_type_ptr<ngraph::opset5::LSTMSequence>(sequence)) {
-        const auto squeezed_c = ngraph::op::util::make_try_fold<ngraph::opset5::Squeeze>(C_body_param, axis_1);
         cell = std::make_shared<ngraph::opset5::LSTMCell>(squeezed_x,
-                                                          squeezed_h,
-                                                          squeezed_c,
+                                                          H_body_param,
+                                                          C_body_param,
                                                           squeezed_w,
                                                           squeezed_r,
                                                           squeezed_b,
@@ -122,7 +126,7 @@ bool convert_sequence_to_ti(const std::shared_ptr<ngraph::Node>& sequence,
                                                           lstm_sequence->get_clip());
     } else if (const auto rnn_sequence = ngraph::as_type_ptr<ngraph::opset5::RNNSequence>(sequence)) {
         cell = std::make_shared<ngraph::opset5::RNNCell>(squeezed_x,
-                                                         squeezed_h,
+                                                         H_body_param,
                                                          squeezed_w,
                                                          squeezed_r,
                                                          squeezed_b,
@@ -133,7 +137,7 @@ bool convert_sequence_to_ti(const std::shared_ptr<ngraph::Node>& sequence,
                                                          rnn_sequence->get_clip());
     } else if (const auto gnn_sequence = ngraph::as_type_ptr<ngraph::opset5::GRUSequence>(sequence)) {
         cell = std::make_shared<ngraph::opset5::GRUCell>(squeezed_x,
-                                                         squeezed_h,
+                                                         H_body_param,
                                                          squeezed_w,
                                                          squeezed_r,
                                                          squeezed_b,
@@ -143,40 +147,32 @@ bool convert_sequence_to_ti(const std::shared_ptr<ngraph::Node>& sequence,
                                                          gnn_sequence->get_activations_beta(),
                                                          gnn_sequence->get_clip(),
                                                          gnn_sequence->get_linear_before_reset());
+    } else {
+        return false;
     }
 
     ngraph::ParameterVector body_params;
     ngraph::ResultVector body_results;
-    auto unsqueeze_dum_dir_h = std::make_shared<ngraph::opset5::Unsqueeze>(cell->output(0), axis_1);
-    ngraph::Output<ngraph::Node> h_node_to_result = unsqueeze_dum_dir_h;
 
-    auto unsqueeze_dum_dir_c =
-        cell_state_defined ? std::make_shared<ngraph::opset5::Unsqueeze>(cell->output(1), axis_1) : nullptr;
-    ngraph::Output<ngraph::Node> c_node_to_result =
-        cell_state_defined ? unsqueeze_dum_dir_c : ngraph::Output<ngraph::Node>();
+    ngraph::Output<ngraph::Node> hidden_state = cell->output(0);
+    ngraph::Output<ngraph::Node> cell_state;
+    if (cell_state_defined)
+        cell_state = cell->output(1);
 
     auto tensor_iterator = std::make_shared<ngraph::opset5::TensorIterator>();
     if (enable_mask) {
         const auto current_iter = get_current_iter(body_params, body_results, seq_body_param);
-        h_node_to_result = get_masked_value(tensor_iterator,
-                                            body_params,
-                                            body_results,
-                                            current_iter,
-                                            unsqueeze_dum_dir_h,
-                                            seq_body_param);
+        hidden_state =
+            get_masked_value(tensor_iterator, body_params, body_results, current_iter, hidden_state, seq_body_param);
         if (cell_state_defined)
-            c_node_to_result = get_masked_value(tensor_iterator,
-                                                body_params,
-                                                body_results,
-                                                current_iter,
-                                                unsqueeze_dum_dir_c,
-                                                seq_body_param);
+            cell_state =
+                get_masked_value(tensor_iterator, body_params, body_results, current_iter, cell_state, seq_body_param);
     }
 
-    auto H_res = std::make_shared<ngraph::opset5::Result>(h_node_to_result);
-    auto C_res = cell_state_defined ? std::make_shared<ngraph::opset5::Result>(c_node_to_result) : nullptr;
-    auto unsqueeze_seq_len = std::make_shared<ngraph::opset5::Unsqueeze>(h_node_to_result, axis_1);
-    auto concat_res = std::make_shared<ngraph::opset5::Result>(unsqueeze_seq_len);
+    auto H_res = std::make_shared<ngraph::opset5::Result>(hidden_state);
+    auto C_res = cell_state_defined ? std::make_shared<ngraph::opset5::Result>(cell_state) : nullptr;
+    auto hidden_state_unsqueezed = std::make_shared<ngraph::opset5::Unsqueeze>(hidden_state, axis_1);
+    auto concat_res = std::make_shared<ngraph::opset5::Result>(hidden_state_unsqueezed);
 
     body_params.push_back(X_body_param);
     body_params.push_back(H_body_param);
@@ -196,21 +192,21 @@ bool convert_sequence_to_ti(const std::shared_ptr<ngraph::Node>& sequence,
         if (!enable_mask) {
             // Reversed order, stride -1
             tensor_iterator->set_sliced_input(X_body_param, X, -1, -1, 1, 0, 1);
-            tensor_iterator->get_concatenated_slices(concat_res, -1, -1, 1, 0, 2);
+            tensor_iterator->get_concatenated_slices(concat_res, -1, -1, 1, 0, 1);
         } else {
             // use ReverseSequence as initializer
             tensor_iterator->set_sliced_input(X_body_param, reverse_seq_before, 0, 1, 1, -1, 1);
-            tensor_iterator->get_concatenated_slices(concat_res, 0, 1, 1, -1, 2);
+            tensor_iterator->get_concatenated_slices(concat_res, 0, 1, 1, -1, 1);
         }
     } else {
         // forward order
         tensor_iterator->set_sliced_input(X_body_param, X, 0, 1, 1, -1, 1);
-        tensor_iterator->get_concatenated_slices(concat_res, 0, 1, 1, -1, 2);
+        tensor_iterator->get_concatenated_slices(concat_res, 0, 1, 1, -1, 1);
     }
 
-    tensor_iterator->set_merged_input(H_body_param, H_t, H_res);
+    tensor_iterator->set_merged_input(H_body_param, squeezed_h, H_res);
     if (cell_state_defined)
-        tensor_iterator->set_merged_input(C_body_param, C_t, C_res);
+        tensor_iterator->set_merged_input(C_body_param, squeezed_c, C_res);
     tensor_iterator->set_invariant_input(seq_body_param, seq_lengths);
 
     ngraph::Output<ngraph::Node> H_out = H_res;
@@ -251,9 +247,13 @@ bool convert_sequence_to_ti(const std::shared_ptr<ngraph::Node>& sequence,
     if (cell_state_defined)
         tensor_iterator->get_iter_value(C_out);
     tensor_iterator->set_friendly_name(sequence->get_friendly_name());
+    ngraph::NodeVector new_nodes{squeezed_h, tensor_iterator};
+    if (cell_state_defined)
+        new_nodes.push_back(squeezed_c);
+    ngraph::OutputVector nodes_to_replace;
     if (enable_mask && is_reverse) {
         auto reverse_seq_after =
-            std::make_shared<ngraph::opset5::ReverseSequence>(tensor_iterator->output(0), seq_lengths, 0, 2);
+            std::make_shared<ngraph::opset5::ReverseSequence>(tensor_iterator->output(0), seq_lengths, 0, 1);
         // Resolve a collision of names data nodes in CNN Network in Reverse case with mask.
         /*
          *   Before transformation (no collisions)
@@ -273,37 +273,31 @@ bool convert_sequence_to_ti(const std::shared_ptr<ngraph::Node>& sequence,
          * Result1
          *                   -- (data_node: other_name.1) --> Identity(rnn_name.1) -- (data_node: rnn_name.1) -> Result2
          */
-        auto identity_1_h = std::make_shared<ngraph::opset5::Unsqueeze>(tensor_iterator->output(1), axis_1);
-        auto identity_2_h = std::make_shared<ngraph::opset5::Squeeze>(identity_1_h, axis_1);
-
-        ngraph::NodeVector new_nodes{reverse_seq_after,
-                                     tensor_iterator,
-                                     reverse_seq_before,
-                                     identity_1_h,
-                                     identity_2_h};
-        ngraph::OutputVector nodes_to_replace{reverse_seq_after, identity_2_h};
+        new_nodes.push_back(reverse_seq_before);
+        new_nodes.push_back(reverse_seq_after);
+        nodes_to_replace.push_back(reverse_seq_after);
+        nodes_to_replace.push_back(tensor_iterator->output(1));
 
         if (cell_state_defined) {
-            auto identity_1_c = std::make_shared<ngraph::opset5::Unsqueeze>(tensor_iterator->output(2), axis_1);
-            auto identity_2_c = std::make_shared<ngraph::opset5::Squeeze>(identity_1_c, axis_1);
-
-            new_nodes.emplace_back(identity_1_c);
-            new_nodes.emplace_back(identity_2_c);
-            nodes_to_replace.emplace_back(identity_2_c);
-
-            identity_2_c->set_friendly_name(sequence->get_friendly_name() + ".2");
+            auto cell_state = tensor_iterator->output(2);
+            new_nodes.emplace_back(cell_state.get_node_shared_ptr());
+            nodes_to_replace.emplace_back(cell_state);
         }
 
-        ngraph::copy_runtime_info(sequence, new_nodes);
-        ngraph::replace_node(sequence, nodes_to_replace);
-
         tensor_iterator->set_friendly_name(sequence->get_friendly_name() + "/tensor_iterator");
-        reverse_seq_after->set_friendly_name(sequence->get_friendly_name() + ".0");
-        identity_2_h->set_friendly_name(sequence->get_friendly_name() + ".1");
     } else {
-        ngraph::copy_runtime_info(sequence, tensor_iterator);
-        ngraph::replace_node(sequence, tensor_iterator);
+        nodes_to_replace = tensor_iterator->outputs();
     }
+
+    for (size_t i = 0; i < nodes_to_replace.size(); i++) {
+        auto unsqueeze = std::make_shared<ngraph::opset5::Unsqueeze>(nodes_to_replace[i], axis_1);
+        unsqueeze->set_friendly_name(sequence->get_friendly_name() + "." + std::to_string(i));
+        nodes_to_replace[i] = unsqueeze;
+        new_nodes.push_back(unsqueeze);
+    }
+    ngraph::copy_runtime_info(sequence, new_nodes);
+    ngraph::replace_node(sequence, nodes_to_replace);
+
     return true;
 }
 }  // namespace
