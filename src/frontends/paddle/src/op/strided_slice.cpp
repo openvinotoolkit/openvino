@@ -10,48 +10,34 @@ namespace ov {
 namespace frontend {
 namespace paddle {
 namespace op {
+Output<Node> idx_node(const std::string& T1, const std::string& T2, const std::string& T3, const NodeContext& node) {
+    if (node.has_input(T1)) {
+        return node.get_input(T1);
+    } else if (node.has_input(T2)) {
+        auto inputs = node.get_ng_inputs(T2);
+        return std::make_shared<default_opset::Concat>(inputs, 0);
+    } else {
+        auto values = node.get_attribute<std::vector<int32_t>>(T3);
+        return default_opset::Constant::create(element::i32, {values.size()}, values);
+    }
+}
+
 NamedOutputs strided_slice(const NodeContext& node) {
     const auto data = node.get_input("Input");
     const auto axes = node.get_attribute<std::vector<int32_t>>("axes");
-    Output<Node> start_idx_node, end_idx_node, strides_idx_node;
-    if (node.has_input("StartsTensor")) {
-        start_idx_node = node.get_input("StartsTensor");
-    } else if (node.has_input("StartsTensorList")) {
-        auto inputs = node.get_ng_inputs("StartsTensorList");
-        start_idx_node = std::make_shared<default_opset::Concat>(inputs, 0);
-    } else {
-        auto starts = node.get_attribute<std::vector<int32_t>>("starts");
-        start_idx_node = default_opset::Constant::create(element::i32, {starts.size()}, starts);
-    }
 
-    if (node.has_input("EndsTensor")) {
-        end_idx_node = node.get_input("EndsTensor");
-    } else if (node.has_input("EndsTensorList")) {
-        auto inputs = node.get_ng_inputs("EndsTensorList");
-        end_idx_node = std::make_shared<default_opset::Concat>(inputs, 0);
-    } else {
-        auto ends = node.get_attribute<std::vector<int32_t>>("ends");
-        end_idx_node = default_opset::Constant::create(element::i32, {ends.size()}, ends);
-    }
-
-    if (node.has_input("StridesTensor")) {
-        strides_idx_node = node.get_input("StridesTensor");
-    } else if (node.has_input("StridesTensorList")) {
-        auto inputs = node.get_ng_inputs("StridesTensorList");
-        strides_idx_node = std::make_shared<default_opset::Concat>(inputs, 0);
-    } else {
-        auto strides = node.get_attribute<std::vector<int32_t>>("strides");
-        strides_idx_node = default_opset::Constant::create(element::i32, {strides.size()}, strides);
-    }
+    Output<Node> start_idx_node = idx_node("StartsTensor", "StartsTensorList", "starts", node);
+    Output<Node> end_idx_node = idx_node("EndsTensor", "EndsTensorList", "ends", node);
+    Output<Node> strides_idx_node = idx_node("StridesTensor", "StridesTensorList", "strides", node);
 
     const auto shape_node = std::make_shared<default_opset::ShapeOf>(data, element::Type_t::i32);
-    const auto shape_shape_node = std::make_shared<default_opset::ShapeOf>(shape_node, element::i32);
+    const auto rank_node = std::make_shared<default_opset::ShapeOf>(shape_node, element::i32);
     const auto const_0_node = default_opset::Constant::create(element::i32, {}, {0});
     const auto const_max_node = default_opset::Constant::create(element::i32, {}, {INT_MAX});
     const auto const_1_node = default_opset::Constant::create(element::i32, {}, {1});
-    const auto start_node = std::make_shared<default_opset::Broadcast>(const_0_node, shape_shape_node);
-    const auto end_node = std::make_shared<default_opset::Broadcast>(const_max_node, shape_shape_node);
-    const auto strides_node = std::make_shared<default_opset::Broadcast>(const_1_node, shape_shape_node);
+    const auto start_node = std::make_shared<default_opset::Broadcast>(const_0_node, rank_node);
+    const auto end_node = std::make_shared<default_opset::Broadcast>(const_max_node, rank_node);
+    const auto strides_node = std::make_shared<default_opset::Broadcast>(const_1_node, rank_node);
     const auto axes_node = default_opset::Constant::create(element::i32, {axes.size(), 1}, axes);
     const auto fixed_start_node =
         std::make_shared<default_opset::ScatterNDUpdate>(start_node, axes_node, start_idx_node);

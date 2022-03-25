@@ -12,6 +12,9 @@ namespace op {
 NamedOutputs roi_align(const NodeContext& node) {
     const auto data_node = node.get_input("X");
     const auto roi_node = node.get_input("ROIs");
+    // TODO: support 'aligned' feature #82319
+    const auto aligned = node.get_attribute("aligned", false);
+    PADDLE_OP_CHECK(node, !aligned, "OpenVINO not support 'aligned' feature!");
 
     // limitation for batch_size = 1
     const auto roi_node_shape = std::make_shared<default_opset::ShapeOf>(roi_node, element::i32);
