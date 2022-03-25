@@ -195,6 +195,6 @@ Please report questions, issues and suggestions using:
 
 [Open Model Zoo]:https://github.com/openvinotoolkit/open_model_zoo
 [OpenVINO™ Runtime]:https://docs.openvino.ai/nightly/openvino_docs_OV_Runtime_User_Guide.html
-[Model Optimizer]:https://docs.openvino.ai/latest/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html
-[Post-Training Optimization Tool]:https://docs.openvino.ai/latest/pot_README.html
+[Model Optimizer]:https://docs.openvino.ai/nightly/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html
+[Post-Training Optimization Tool]:https://docs.openvino.ai/nightly/pot_README.html
 [Samples]:https://github.com/openvinotoolkit/openvino/tree/master/samples
