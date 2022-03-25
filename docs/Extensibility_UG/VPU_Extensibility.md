@@ -9,7 +9,7 @@ To customize your topology with an OpenCL layer, carry out the tasks described o
 
 1. Write and compile your OpenCL code with the standalone offline OpenCL compiler (`clc`).
 2. Write a configuration file to bind the OpenCL kernel to the topology file (`.xml`) of the model IR.
-3. Pass the configuration file to the Inference Engine with the model IR.
+3. Pass the configuration file to the OpenVINO™ Runtime with the model IR.
 
 ## Compile OpenCL code for VPU (Intel® Neural Compute Stick 2)
 
@@ -23,7 +23,7 @@ The OpenCL toolchain for the Intel® Neural Compute Stick 2 supports offline com
    * `SHAVE_LDSCRIPT_DIR=<INSTALL_DIR>/tools/cl_compiler/ldscripts/`
    * `SHAVE_MYRIAD_LD_DIR=<INSTALL_DIR>/tools/cl_compiler/bin/`
    * `SHAVE_MOVIASM_DIR=<INSTALL_DIR>/tools/cl_compiler/bin/`
-2. Run the compilation with the command below. You should use `--strip-binary-header` to make an OpenCL runtime-agnostic binary runnable with the Inference Engine.
+2. Run the compilation with the command below. You should use `--strip-binary-header` to make an OpenCL runtime-agnostic binary runnable with the OpenVINO™ Runtime.
    ```bash
    cd <INSTALL_DIR>/tools/cl_compiler/bin
    ./clc --strip-binary-header custom_layer.cl -o custom_layer.bin
@@ -31,7 +31,7 @@ The OpenCL toolchain for the Intel® Neural Compute Stick 2 supports offline com
 
 ## Write a Configuration File
 
-To tie the topology IR for a layer you customize, prepare a configuration file, so that the Inference Engine can find parameters for your kernel and the execution work grid is described.
+To tie the topology IR for a layer you customize, prepare a configuration file, so that the OpenVINO™ Runtime can find parameters for your kernel and the execution work grid is described.
 For example, consider the following OpenCL kernel signature:
 ```cpp
 __kernel void reorg_nhwc(__global const half *src, __global half *out, int w, int h, int c, int stride);
@@ -55,7 +55,7 @@ A configuration file for this kernel might be the following:
 ```
 Each custom layer is described with the `CustomLayer` node. It has the following nodes and attributes:
   - Root node `CustomLayer` contains the following attributes:
-    - `name` – (Required) The name of the Inference Engine layer to bind the kernel with.
+    - `name` – (Required) The name of the OpenVINO™ Runtime layer to bind the kernel with.
     - `type` and `version` – (Required) Reserved for future use. Set them to `MVCL` and `1` respectively.
     - `max-shaves` – (Optional) The maximum number of SHAVE cores that should be dedicated for the layer. It is useful for debugging concurrency issues or for resource saving that memory bound kernel does not scale well with the number of cores, so more resources can be left for the rest of a topology.
   - Sub-node `Kernel` must contain the following attributes:
@@ -155,24 +155,12 @@ Each custom layer is described with the `CustomLayer` node. It has the following
   </CustomLayer>
 ```
 
-## Pass Configuration File to Inference Runtime
+## Pass Configuration File to OpenVINO™ Runtime
 
 > **NOTE**: If both native and custom layer implementations are present, the custom kernel has a priority over the native one.
-Before loading the network that features the custom layers, provide a separate configuration file and load it using the InferenceEngine::Core::SetConfig() method with the PluginConfigParams::KEY_CONFIG_FILE key and the configuration file name as a value:
-```cpp
-InferenceEngine::Core core;
-// Load custom layers
-core.SetConfig({ { InferenceEngine::PluginConfigParams::KEY_CONFIG_FILE, "<path to the xml file>" } }, "MYRIAD");
-```
-Optionally, set a path to a custom layers description with a pair of `VPU_CUSTOM_LAYERS` and  `/path/to/your/customLayers.xml`
-as a network configuration:
-```cpp
-InferenceEngine::Core core;
-std::map<std::string, std::string> networkConfig;
-config["VPU_CUSTOM_LAYERS"] = "/path/to/your/customLayers.xml";
-// Load custom layers in network config
-auto exeNetwork = core.LoadNetwork(cnnNetwork, "MYRIAD", networkConfig);
-```
+Before loading the network that features the custom layers, provide a separate configuration file and load it using the ov::Core::set_property() method with the "CONFIG_KEY" key and the configuration file name as a value before loading the network that uses custom operations to the plugin:
+
+@snippet docs/snippets/vpu/custom_op.cpp part0
 
 ## Optimizing Kernels with OpenCL for VPU (Intel® Neural Compute Stick 2)
 
