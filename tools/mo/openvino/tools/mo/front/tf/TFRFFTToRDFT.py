@@ -32,5 +32,5 @@ class TFRFFTToRDFT(FrontReplacementSubgraph):
 
             rename_nodes([(tf_rfft, tf_rfft_name + '/to_be_removed'), (rdft_node, tf_rfft_name)])
 
-            # if graph.graph['layout'] == 'NHWC':
-            #     rdft_node['need_insert_transposes_for_dft'] = True
+            if graph.graph['layout'] == 'NHWC':
+                rdft_node['need_insert_transposes_for_dft'] = True

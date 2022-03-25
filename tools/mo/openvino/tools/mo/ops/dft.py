@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+import numpy as np
+
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.op import Op
@@ -167,7 +169,7 @@ class RDFT(Op):
             signal_size = RDFT.canonicalize_signal_size(signal_size, axes, src_shape)
             output_shape[axes] = signal_size
         output_shape[axes[-1]] = output_shape[axes[-1]] // 2 + 1
-        output_shape.append(2)
+        output_shape = np.ma.append(output_shape, 2)
 
         node.out_port(0).data.set_shape(output_shape)
 
@@ -255,11 +257,12 @@ class IRDFT(FFTBase):
         assert input_rank >= len(axes) + 1, \
             'The input rank must be greater than number of IRDFT node {} axes'.format(node_name)
         axes = FFTBase.canonicalize_axes(axes, input_rank)
-        assert (input_rank - 1) not in axes, '(I)DFT node {} axes cannot contain the last axis'.format(node_name)
-        assert len(set(axes)) == len(axes), '(I)DFT node {} axes must be unique.'.format(node_name)
+        assert (input_rank - 1) not in axes, 'IRDFT node {} axes cannot contain the last axis'.format(node_name)
+        assert len(set(axes)) == len(axes), 'IRDFT node {} axes must be unique.'.format(node_name)
 
         output_shape = src_shape.copy()
-        output_shape.pop()
+        input_rank = len(output_shape)
+        output_shape = output_shape[0: input_rank - 1]
         if node.is_in_port_connected(2):
             signal_size = FFTBase.get_signal_size(node)
             for i, axis in enumerate(axes):
