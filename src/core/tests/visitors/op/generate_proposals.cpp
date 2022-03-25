@@ -40,7 +40,7 @@ TEST(attributes, generate_proposals) {
 
     auto g_proposals = ov::as_type_ptr<GenerateProposals>(builder.create());
 
-    const auto expected_attr_count = 6;
+    const auto expected_attr_count = 7;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 
     EXPECT_EQ(g_proposals->get_attrs().min_size, proposals->get_attrs().min_size);
