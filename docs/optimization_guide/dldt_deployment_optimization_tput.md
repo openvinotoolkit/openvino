@@ -9,8 +9,8 @@ Here, a trade-off between overall throughput and serial performance of individua
 
 ##  Basic and Advanced Ways of Leveraging Throughput 
 With the OpenVINO there are two means of leveraging the throughput with the individual device:
-* Basic flow with [OpenVINO performance hints](@ref throughput_hints) which is inherently portable and more future-proof
-* Advanced (low-level) approach of  **batching** and **streams**, explained in the separate [document](./dldt_deployment_optimization_tput_advanced.md).
+* Basic flow with [OpenVINO performance hints](./dldt_deployment_optimization_hints.md) which is inherently portable and more future-proof
+* Advanced (low-level) approach of explicit  **batching** and **streams**, explained in the separate [document](./dldt_deployment_optimization_tput_advanced.md).
 
 However, all possible design decisions, are predicated on the requirement that sufficient parallelism exists, as detailed in the [next section](@ref throughput_app_design).
 
@@ -21,6 +21,7 @@ Finally, consider the _automatic_ multi-device execution covered below.
 Most generally, throughput-oriented inference applications should:
 * Expose substantial amounts of _inputs_ parallelism (e.g. process multiple video-sources)
 * Decompose the data flow into a collection of concurrent inference requests that are aggressively scheduled to be executed in parallel
+   * Query the `ov::optimal_number_of_infer_requests` to create the optimal number of the requests from the resulting `ov::CompiledModel` (upon configuration/compilation)
 * Use the Async API with callbacks, to avoid any dependency on the requests' completion order, as explained in the [common-optimizations section](@ref openvino_docs_deployment_optimization_guide_common)
 
 ## Multi-Device Execution

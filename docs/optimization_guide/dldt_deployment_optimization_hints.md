@@ -8,7 +8,7 @@ Also, while the resulting performance may be optimal for the specific combinatio
 - Similarly the optimal batch size is very much specific to the particular instance of the GPU.
 - Compute vs memory-bandwidth requirements for the model being inferenced, as well as inference precision, possible model's quantization also contribute to the optimal parameters selection.
 - Finally, the optimal execution parameters of one device do not transparently map to another device type, for example:
-    - Both the CPU and GPU devices support the notion of the [streams](@ref throughput_streams), yet the optimal number of the streams is deduced very differently.
+    - Both the CPU and GPU devices support the notion of the [streams](./dldt_deployment_optimization_tput_advanced.md), yet the optimal number of the streams is deduced very differently.
  
 Here, to mitigate the performance configuration complexity the **Performance Hints** offer the high-level "presets" for the **latency** and **throughput**, as detailed in the [Performance Hints usage](../OV_Runtime_UG/performance_hints.md).
 
