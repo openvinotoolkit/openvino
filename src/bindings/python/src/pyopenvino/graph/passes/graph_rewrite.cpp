@@ -15,7 +15,7 @@ void regclass_passes_GraphRewrite(py::module m) {
     py::class_<ov::pass::GraphRewrite, std::shared_ptr<ov::pass::GraphRewrite>, ov::pass::ModelPass, ov::pass::PassBase>
         graph_rewrite(m, "GraphRewrite");
     graph_rewrite.doc() =
-        "openvino.runtime.passes.GraphRewrite execute sequence of MatcherPass transformations in topological order";
+        "openvino.runtime.passes.GraphRewrite executes sequence of MatcherPass transformations in topological order";
 
     graph_rewrite.def(py::init<>());
     graph_rewrite.def(py::init([](const std::shared_ptr<ov::pass::MatcherPass>& pass) {
@@ -25,8 +25,8 @@ void regclass_passes_GraphRewrite(py::module m) {
                       R"(
                       Register single MatcherPass pass inside GraphRewrite.
 
-                      :param pass: MatcherPass instance
-                      :type pass: MatcherPass
+                      :param pass: openvino.runtime.passes.MatcherPass instance
+                      :type pass: openvino.runtime.passes.MatcherPass
     // )");
 
     graph_rewrite.def("add_matcher",
@@ -36,8 +36,8 @@ void regclass_passes_GraphRewrite(py::module m) {
                       R"(
                       Register single MatcherPass pass inside GraphRewrite.
 
-                      :param pass: MatcherPass instance
-                      :type pass: MatcherPass
+                      :param pass: openvino.runtime.passes.MatcherPass instance
+                      :type pass: openvino.runtime.passes.MatcherPass
     // )");
 
     py::class_<ov::pass::BackwardGraphRewrite,
@@ -46,7 +46,7 @@ void regclass_passes_GraphRewrite(py::module m) {
                ov::pass::ModelPass,
                ov::pass::PassBase>
         back_graph_rewrite(m, "BackwardGraphRewrite");
-    back_graph_rewrite.doc() = "openvino.runtime.passes.BackwardGraphRewrite execute sequence of MatcherPass "
+    back_graph_rewrite.doc() = "openvino.runtime.passes.BackwardGraphRewrite executes sequence of MatcherPass "
                                "transformations in reversed topological order";
 
     back_graph_rewrite.def(py::init<>());
@@ -57,8 +57,8 @@ void regclass_passes_GraphRewrite(py::module m) {
                            R"(
                            Register single MatcherPass pass inside BackwardGraphRewrite.
 
-                           :param pass: MatcherPass instance
-                           :type pass: MatcherPass
+                           :param pass: openvino.runtime.passes.MatcherPass instance
+                           :type pass: openvino.runtime.passes.MatcherPass
     // )");
 
     back_graph_rewrite.def(
@@ -69,7 +69,7 @@ void regclass_passes_GraphRewrite(py::module m) {
         R"(
         Register single MatcherPass pass inside BackwardGraphRewrite.
 
-        :param pass: MatcherPass instance
-        :type pass: MatcherPass
+        :param pass: openvino.runtime.passes.MatcherPass instance
+        :type pass: openvino.runtime.passes.MatcherPass
     // )");
 }

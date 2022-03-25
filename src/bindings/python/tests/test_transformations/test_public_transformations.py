@@ -1,12 +1,13 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+import os
 import numpy as np
 
-from openvino.runtime import Model, PartialShape, Shape, opset8
+from openvino.runtime import Model, PartialShape, Shape, opset8, Core
 from openvino.runtime.passes import Manager, ConstantFolding, MakeStateful,\
-    ConvertFP32ToFP16, LowLatency2
+    ConvertFP32ToFP16, LowLatency2, Serialize
 
-from utils.utils import count_ops
+from utils.utils import count_ops, get_test_function
 
 
 def get_model():
@@ -89,3 +90,25 @@ def test_low_latency2():
 
     # TODO: create TI which will be transformed by LowLatency2
     assert count_ops(model, "TensorIterator") == [1]
+
+
+def test_serialize_pass():
+    core = Core()
+    xml_path = "serialized_function.xml"
+    bin_path = "serialized_function.bin"
+
+    func = get_test_function()
+
+    m = Manager()
+    m.register_pass(Serialize(xml_path, bin_path))
+    m.run_passes(func)
+
+    assert func is not None
+
+    res_func = core.read_model(model=xml_path, weights=bin_path)
+
+    assert func.get_parameters() == res_func.get_parameters()
+    assert func.get_ordered_ops() == res_func.get_ordered_ops()
+
+    os.remove(xml_path)
+    os.remove(bin_path)

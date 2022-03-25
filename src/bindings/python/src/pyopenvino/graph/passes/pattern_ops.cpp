@@ -115,7 +115,7 @@ void reg_pattern_wrap_type(py::module m) {
                   :type type_name: str
 
                   :param input: Node output.
-                  :type input: Output
+                  :type input: openvino.runtime.Output
     // )");
 
     wrap_type.def(py::init([](const std::string& type_name, const std::shared_ptr<ov::Node>& input) {
@@ -132,7 +132,7 @@ void reg_pattern_wrap_type(py::module m) {
                   :type type_name: str
 
                   :param input: Input node.
-                  :type input: Node
+                  :type input: openvino.runtime.Node
     // )");
 
     wrap_type.def(py::init([](const std::string& type_name, const ov::Output<ov::Node>& input, const Predicate& pred) {
@@ -150,7 +150,7 @@ void reg_pattern_wrap_type(py::module m) {
                   :type type_name: str
 
                   :param input: Node output.
-                  :type input: Output
+                  :type input: openvino.runtime.Output
 
                   :param predicate: Function that performs additional checks for matching.
                   :type predicate: function
@@ -172,7 +172,7 @@ void reg_pattern_wrap_type(py::module m) {
                   :type type_name: str
 
                   :param input: Input node.
-                  :type input: Node
+                  :type input: openvino.runtime.Node
 
                   :param predicate: Function that performs additional checks for matching.
                   :type predicate: function
@@ -190,7 +190,7 @@ void reg_pattern_wrap_type(py::module m) {
                   :type type_name: str
 
                   :param inputs: Node outputs.
-                  :type inputs: List[Output]
+                  :type inputs: List[openvino.runtime.Output]
     // )");
 
     wrap_type.def(py::init([](const std::string& type_name, const ov::NodeVector& inputs) {
@@ -207,7 +207,7 @@ void reg_pattern_wrap_type(py::module m) {
                   :type type_name: str
 
                   :param inputs: Input nodes.
-                  :type inputs: List[Node]
+                  :type inputs: List[openvino.runtime.Node]
     // )");
 
     wrap_type.def(py::init([](const std::string& type_name, const ov::OutputVector& inputs, const Predicate& pred) {
@@ -223,7 +223,7 @@ void reg_pattern_wrap_type(py::module m) {
                   :type type_name: str
 
                   :param inputs: Node outputs.
-                  :type inputs: List[Output]
+                  :type inputs: List[openvino.runtime.Output]
 
                   :param predicate: Function that performs additional checks for matching.
                   :type predicate: function
@@ -244,7 +244,7 @@ void reg_pattern_wrap_type(py::module m) {
                   :type type_name: str
 
                   :param inputs: Input nodes.
-                  :type inputs: List[Node]
+                  :type inputs: List[openvino.runtime.Node]
 
                   :param predicate: Function that performs additional checks for matching.
                   :type predicate: function
@@ -290,7 +290,7 @@ void reg_pattern_wrap_type(py::module m) {
                   :type type_names: List[str]
 
                   :param input: Node output.
-                  :type input: Output
+                  :type input: openvino.runtime.Output
     // )");
 
     wrap_type.def(py::init([](const std::vector<std::string>& type_names, const std::shared_ptr<ov::Node>& input) {
@@ -307,7 +307,7 @@ void reg_pattern_wrap_type(py::module m) {
                   :type type_name: List[str]
 
                   :param input: Input node.
-                  :type input: Node
+                  :type input: openvino.runtime.Node
     // )");
 
     wrap_type.def(
@@ -327,7 +327,7 @@ void reg_pattern_wrap_type(py::module m) {
         :type type_names: List[str]
 
         :param input: Node output.
-        :type input: Output
+        :type input: openvino.runtime.Output
 
         :param predicate: Function that performs additional checks for matching.
         :type predicate: function
@@ -350,7 +350,7 @@ void reg_pattern_wrap_type(py::module m) {
         :type type_names: List[str]
 
         :param input: Input node.
-        :type input: Node
+        :type input: openvino.runtime.Node
 
         :param predicate: Function that performs additional checks for matching.
         :type predicate: function
@@ -368,7 +368,7 @@ void reg_pattern_wrap_type(py::module m) {
       :type type_names: List[str]
 
       :param inputs: Nodes outputs.
-      :type inputs: List[Output]
+      :type inputs: List[openvino.runtime.Output]
     // )");
 
     wrap_type.def(py::init([](const std::vector<std::string>& type_names, const ov::NodeVector& inputs) {
@@ -385,7 +385,7 @@ void reg_pattern_wrap_type(py::module m) {
         :type type_names: List[str]
 
         :param inputs: Input nodes.
-        :type inputs: List[Node]
+        :type inputs: List[openvino.runtime.Node]
     // )");
 
     wrap_type.def(
@@ -402,7 +402,7 @@ void reg_pattern_wrap_type(py::module m) {
         :type type_names: List[str]
 
         :param inputs: Nodes outputs.
-        :type inputs: List[Output]
+        :type inputs: List[openvino.runtime.Output]
 
         :param predicate: Function that performs additional checks for matching.
         :type predicate: function
@@ -424,7 +424,7 @@ void reg_pattern_wrap_type(py::module m) {
         :type type_names: List[str]
 
         :param inputs: Input nodes.
-        :type inputs: List[Node]
+        :type inputs: List[openvino.runtime.Node]
 
         :param predicate: Function that performs additional checks for matching.
         :type predicate: function
@@ -443,7 +443,7 @@ void reg_pattern_or(py::module m) {
                 Create pattern Or operation which is used to match any of given inputs.
 
                 :param inputs: Operation inputs.
-                :type inputs: List[Output]
+                :type inputs: List[openvino.runtime.Output]
     // )");
 
     or_type.def(py::init([](const ov::NodeVector& inputs) {
@@ -454,7 +454,7 @@ void reg_pattern_or(py::module m) {
                 Create pattern Or operation which is used to match any of given inputs.
 
                 :param inputs: Operation inputs.
-                :type inputs: List[Node]
+                :type inputs: List[openvino.runtime.Node]
     // )");
 }
 

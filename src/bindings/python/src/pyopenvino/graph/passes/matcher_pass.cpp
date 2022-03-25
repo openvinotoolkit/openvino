@@ -29,7 +29,7 @@ void regclass_passes_Matcher(py::module m) {
                 Matcher object is used for pattern matching on Model.
 
                 :param node: pattern root node.
-                :type node: Node
+                :type node: openvino.runtime.Node
 
                 :param name: pattern name. Usually matches the MatcherPass class name.
                 :type name: str
@@ -45,7 +45,7 @@ void regclass_passes_Matcher(py::module m) {
                 Matcher object is used for pattern matching on Model.
 
                 :param node: pattern root node output.
-                :type node: Output
+                :type node: openvino.runtime.Output
 
                 :param name: pattern name. Usually matches the MatcherPass class name.
                 :type name: str
@@ -56,7 +56,7 @@ void regclass_passes_Matcher(py::module m) {
                 R"(
                 Get Matcher name.
 
-                :return: Matcher name.
+                :return: openvino.runtime.passes.Matcher name.
                 :rtype: str
     //)");
 
@@ -66,7 +66,7 @@ void regclass_passes_Matcher(py::module m) {
                 Get matched root node inside Model. Should be used after match() method is called.
 
                 :return: matched node.
-                :rtype: Node
+                :rtype: openvino.runtime.Node
     //)");
 
     matcher.def("get_match_value",
@@ -75,7 +75,7 @@ void regclass_passes_Matcher(py::module m) {
                 Get matched node output inside Model. Should be used after match() method is called.
 
                 :return: matched node output.
-                :rtype: Output
+                :rtype: openvino.runtime.Output
     //)");
 
     matcher.def("get_match_nodes",
@@ -150,14 +150,14 @@ void regclass_passes_MatcherPass(py::module m) {
         R"(
         Create MatcherPass from existing Matcher and callback objects.
 
-        :param matcher: Matcher with registered pattern.
-        :type matcher: Matcher
+        :param matcher: openvino.runtime.passes.Matcher with registered pattern.
+        :type matcher: openvino.runtime.passes.Matcher
 
         :param callback: Function that performs transformation on the matched nodes.
         :type callback: function
 
-        :return: created MatcherPass instance.
-        :rtype: MatcherPass
+        :return: created openvino.runtime.passes.MatcherPass instance.
+        :rtype: openvino.runtime.passes.MatcherPass
     //)");
 
     matcher_pass.def("apply",
@@ -176,11 +176,11 @@ void regclass_passes_MatcherPass(py::module m) {
                      R"(
                      Register node for additional pattern matching.
 
-                     :param node: node for matching.
-                     :type node: Node
+                     :param node: openvino.runtime.Node for matching.
+                     :type node: openvino.runtime.Node
 
                      :return: registered node instance
-                     :rtype: Node
+                     :rtype: openvino.runtime.Node
     //)");
 
     matcher_pass.def("register_matcher",
@@ -192,8 +192,8 @@ void regclass_passes_MatcherPass(py::module m) {
                      R"(
                      Initialize matcher and callback for further execution.
 
-                     :param matcher: Matcher with registered pattern.
-                     :type matcher: Matcher
+                     :param matcher: openvino.runtime.passes.Matcher with registered pattern.
+                     :type matcher: openvino.runtime.passes.Matcher
 
                      :param callback: Function that performs transformation on the matched nodes.
                      :type callback: function

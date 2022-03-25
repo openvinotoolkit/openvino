@@ -38,8 +38,8 @@ void regclass_passes_ModelPass(py::module m) {
                    R"(
                    run_on_model must be defined in inherited class. This method is used to work with Model directly.
 
-                   :param model: Model to be transformed.
-                   :type model: Model
+                   :param model: openvino.runtime.Model to be transformed.
+                   :type model: openvino.runtime.Model
 
                    :return: True in case if Model was changed and False otherwise.
                    :rtype: bool

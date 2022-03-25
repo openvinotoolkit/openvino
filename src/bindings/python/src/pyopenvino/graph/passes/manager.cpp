@@ -33,7 +33,7 @@ inline Version convert_to_version(const std::string& version) {
 
 void regclass_passes_Manager(py::module m) {
     py::class_<ov::pass::Manager> manager(m, "Manager");
-    manager.doc() = "openvino.runtime.passes.Manager execute sequence of transformation on a given Model";
+    manager.doc() = "openvino.runtime.passes.Manager executes sequence of transformation on a given Model";
 
     manager.def(py::init<>());
     manager.def("set_per_pass_validation",
@@ -50,10 +50,10 @@ void regclass_passes_Manager(py::module m) {
                 &ov::pass::Manager::run_passes,
                 py::arg("model"),
                 R"(
-                Execute sequence of transformations on given Model.
+                Executes sequence of transformations on given Model.
 
-                :param model: Model to be transformed.
-                :type model: Model
+                :param model: openvino.runtime.Model to be transformed.
+                :type model: openvino.runtime.Model
     // )");
 
     manager.def("register_pass",
@@ -63,7 +63,7 @@ void regclass_passes_Manager(py::module m) {
                 Register pass instance for execution. Execution order matches the registration order.
 
                 :param transformation: transformation instance.
-                :type transformation: PassBase
+                :type transformation: openvino.runtime.passes.PassBase
     // )");
 
     manager.def(
