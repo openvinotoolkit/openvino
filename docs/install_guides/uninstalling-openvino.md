@@ -1,13 +1,17 @@
 # Uninstalling the Intel® Distribution of OpenVINO™ Toolkit {#openvino_docs_install_guides_uninstalling_openvino}
 
-> **NOTE**: Uninstallation procedures remove all Intel® Distribution of OpenVINO™ Toolkit component files but don't affect user files in the installation directory.
+> **NOTE**: Uninstallation procedures remove all Intel® Distribution of OpenVINO™ Toolkit component files and don't affect user files in the installation directory.
 
 ## Uninstall Using the Original Installation Package
 
 @sphinxdirective
 .. tab:: Windows
 
-  Use initial bootstrapper file ``w_openvino_toolkit_p_<version>.exe`` to select product for uninstallation. Follow the wizard instructions. Select **Remove** option when presented. If you have more product versions installed, you can select one from a drop-down menu in GUI.
+  1. Open the initial bootstrapper file ``w_openvino_toolkit_p_<version>.exe``. 
+  2. Follow the wizard instructions on Your screen. 
+  3. Select **Remove** option once it presents. 
+  
+  > **NOTE**: If you have more product versions installed, you can select the one to uninstall from a drop-down menu in GUI.
 
   .. image:: _static/images/openvino-uninstall-dropdown-win.png
     :width: 500px
@@ -15,21 +19,23 @@
     
 .. tab:: Linux
 
-  If you want to use graphical user interface (GUI) installation wizard, run the script without any parameters:
+  To use graphical user interface (GUI) installation wizard, run in terminal:
   
   .. code-block:: sh
   
     ./l_openvino_toolkit_p_<version>.sh
 
-  Follow the wizard instructions.
-
-  Otherwise, you can add parameters `-a` for additional arguments and `--cli` to run installation in command line (CLI):
+  To use command line (CLI), run in terminal:
   
   .. code-block:: sh
     
     ./l_openvino_toolkit_p_<version>.sh -a --cli
 
-  Follow the wizard. Select **Remove** option when presented. If you have more product versions installed, you can select one from a drop-down menu in GUI and from a list in CLI.
+  After using uninstallation method:
+  1. Follow the wizard. 
+  2. Select **Remove** option when presented. 
+  
+  > **NOTE**: If you have more product versions installed, you can select one to uninstall from a drop-down menu in GUI and from a list in CLI.
 
   .. image:: _static/images/openvino-uninstall-dropdown-linux.png
     :width: 500px
@@ -37,7 +43,12 @@
 
 .. tab:: macOS
 
-  Use initial bootstrapper file ``m_openvino_toolkit_p_<version>.dmg`` to select product for uninstallation. Mount the file and double-click ``bootstrapper.app``. Follow the wizard instructions. Select **Remove** option when presented. If you have more product versions installed, you can select one from a drop-down menu in GUI.
+  1. Open initial bootstrapper file ``m_openvino_toolkit_p_<version>.dmg``.
+  2. Mount the file and double-click ``bootstrapper.app``. 
+  3. Follow the wizard instructions. 
+  4. Select **Remove** option once it presents. 
+  
+  > **NOTE**: If you have more product versions installed, you can select one to uninstall from a drop-down menu in GUI.
 
   .. image:: _static/images/openvino-uninstall-dropdown-macos.png
     :width: 500px
@@ -50,13 +61,13 @@
 @sphinxdirective
 .. tab:: Windows
 
-  1. Choose the **Apps & Features** option from the Windows Settings app.
+  **Option 1:**
+  1. Open the **Apps & Features** option from the Windows Settings app.
   2. From the list of installed applications, select the Intel® Distribution of OpenVINO™ Toolkit and click **Uninstall**.
   3. Follow the uninstallation wizard instructions.
 
-  Alternatively, follow the steps:
-  
-  1. Go to installation directory.
+  **Option 2:**
+  1. Go to installation directory on Your PC.
   2. In ``OpenVINO`` directory find ``Installer`` folder and open it.
   3. Double-click on ``installer.exe`` and you will be presented with dialog box shown below.
 
@@ -68,7 +79,7 @@
   
     /home/<user>/intel/openvino_installer/installer
 
-  or in a case of administrative installation:
+  In a case of administrative installation:
 
   .. code-block:: sh
 
@@ -86,7 +97,8 @@
 
   2. Follow the uninstallation wizard instructions.
 
-Finally, complete the procedure with clicking on **Modify** and then selecting **Uninstall** option:
+
+Complete the procedure with pressing on **Modify** and then selecting **Uninstall** option from drop down menu:
 
 .. tab:: Windows
   
@@ -100,7 +112,7 @@ Finally, complete the procedure with clicking on **Modify** and then selecting *
     :width: 500px
     :align: center
     
-  if GUI is not available, installer also could be run in a CLI mode:
+  if GUI is not available, uninstallation can also be run in CLI:
 
   .. image:: _static/images/openvino-uninstall-cli.png
      :width: 500px
