@@ -1,7 +1,7 @@
 deprecated.rst
 global.rst
 exampleexample.rst
-openvino_docs_OV_UG_lpt_addtransformation.rst
+openvino_docs_OV_UG_lpt_AddTransformation.rst
 openvino_docs_OV_UG_lpt_alignquantizationintervals.rst
 openvino_docs_OV_UG_lpt_alignquantizationparameters.rst
 openvino_docs_OV_UG_lpt_avgpooltransformation.rst
