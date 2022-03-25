@@ -1,4 +1,6 @@
-# OpenVINO Streams
+# Using Advanced Throughput Options: Streams and Batching {#openvino_docs_deployment_optimization_guide_tput_advanced}
+
+## OpenVINO Streams
 As detailed in the [common-optimizations section](@ref openvino_docs_deployment_optimization_guide_common) running multiple inference requests asynchronously is important for general application efficiency.
 Internally, every device internally implements a queue. The queue acts as a buffer, storing the inference requests until retrieved by the device at its own pace. 
 The devices may actually process multiple inference requests in parallel in order to improve the device utilization and overall throughput.
@@ -16,13 +18,13 @@ Few general considerations:
    * Always prefer streams over creating multiple `ov:Compiled_Model` instances for the same model, as weights memory is shared across streams, reducing the memory consumption
 * Notice that the streams also inflate the model load (compilation) time.
 
-## Further Details
+### Further Details
 For efficient asynchronous execution, the streams are actually handling the inference with a special pool of the threads (a thread per stream).
 Each time you start inference requests (potentially from different application threads), they are actually muxed into a inference queue of the particular `ov:Compiled_Model`. 
 If there is a vacant stream, it pops the request from the queue and actually expedites that to the on-device execution.
 There are further device-specific details e.g. for the CPU, that you may find in the [internals](dldt_deployment_optimization_internals.md) section.
 
-# Batching
+## Batching
 Hardware accelerators like GPUs are optimized for massive compute parallelism, so the batching helps to saturate the device and leads to higher throughput.
 While the streams (described earlier) already help to hide the communication overheads and certain bubbles in the scheduling, running multiple OpenCL kernels simultaneously is less GPU-efficient, compared to calling a kernel on the multiple inputs at once.   
 As explained in the next section, the batching is a must to leverage maximum throughput on the GPUs.
@@ -34,7 +36,7 @@ There are two primary ways of using the batching to help application performance
 In both cases, optimal batch size is very device-specific. Also as explained below, the optimal batch size depends on the model, inference precision and other factors.
 
 @anchor throughput_advanced
-# Choosing the Number of Streams and/or Batch Size
+## Choosing the Number of Streams and/or Batch Size
 Predicting the inference performance is difficult and finding optimal execution parameters requires direct experiments with measurements.
 Different devices behave differently with the batch sizes. The optimal batch size depends on the model, inference precision and other factors.
 Similarly, different devices require different number of execution streams to saturate
@@ -65,11 +67,10 @@ Also, consider [OpenVINO Deep Learning Workbench](@ref workbench_docs_Workbench_
 * For the **GPU**:
    * When the parallel slack is small (e.g. only 2-4 requests executed simultaneously), then using the streams for the GPU may suffice
       * Notice that the GPU runs 2 request per stream, so 4 requests can be served by 2 streams
-      * Alternatively, consider single stream with small batch size (e.g. 2), that would total the same 4 inputs in flight
+      * Alternatively, consider single stream with small batch size (e.g. 2) with 2 requests, that would total the same 4 inputs in flight
    * Typically, for 4 and more requests the batching delivers better throughput
    * Batch size can be calculated as "number of inference requests executed in parallel" divided by the "number of requests that the streams consume"
       * E.g. if you process 16 cameras (by 16 requests inferenced _simultaneously_) with the two GPU streams (each can process two requests), the batch size per request is 16/(2*2)=4 
 
 * For the **CPU always use the streams first**
    * On the high-end CPUs, using moderate (2-8) batch size _in addition_ to the maximum number of streams, may further improve the performance.
-
