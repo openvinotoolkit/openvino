@@ -10,6 +10,7 @@
    openvino_docs_deployment_optimization_guide_latency
    openvino_docs_deployment_optimization_guide_tput
    openvino_docs_deployment_optimization_guide_hints
+   openvino_docs_deployment_optimization_guide_tput_advanced
    openvino_docs_deployment_optimization_guide_internals
 
 @endsphinxdirective
