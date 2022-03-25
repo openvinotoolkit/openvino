@@ -9,8 +9,8 @@ Here, a trade-off between overall throughput and serial performance of individua
 
 ##  Basic and Advanced Ways of Leveraging Throughput 
 With the OpenVINO there are two means of leveraging the throughput with the individual device:
-* Basic flow with [OpenVINO performance hints](./dldt_deployment_optimization_hints.md) which is inherently portable and more future-proof
-* Advanced (low-level) approach of explicit  **batching** and **streams**, explained in the separate [document](dldt_deployment_optimization_tput_advanced.md).
+* **Basic (high-level)** flow with [OpenVINO performance hints](./dldt_deployment_optimization_hints.md) which is inherently **portable and future-proof**
+* **Advanced (low-level) approach** of explicit  **batching** and **streams**, explained in the separate [document](dldt_deployment_optimization_tput_advanced.md).
 
 However, all possible design decisions, are predicated on the requirement that sufficient parallelism exists, as detailed in the [next section](@ref throughput_app_design).
 
