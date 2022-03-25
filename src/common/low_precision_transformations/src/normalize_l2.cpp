@@ -19,8 +19,6 @@ using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::pass::low_precision;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::NormalizeL2Transformation, "NormalizeL2Transformation", 0);
-
 namespace normalize_l2 {
 
 template<typename T>

@@ -473,7 +473,10 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
             if (info.layout.empty()) {
                 switch (item.get_partial_shape().size()) {
                 case 3:
-                    newLayout = "CHW";
+                    newLayout = (item.get_partial_shape()[2].get_max_length() <= 4 &&
+                                 item.get_partial_shape()[0].get_max_length() > 4)
+                                    ? "HWC"
+                                    : "CHW";
                     break;
                 case 4:
                     // Rough check for layout type, basing on max number of image channels
@@ -821,7 +824,7 @@ std::string parameter_name_to_tensor_name(const std::string& name,
                                           const std::vector<ov::Output<const ov::Node>>& outputs_info) {
     if (std::any_of(inputs_info.begin(), inputs_info.end(), [name](const ov::Output<const ov::Node>& port) {
             try {
-                return name == port.get_any_name();
+                return port.get_names().count(name) > 0;
             } catch (const ov::Exception&) {
                 return false;  // Some ports might have no names - so this is workaround
             }
@@ -829,7 +832,7 @@ std::string parameter_name_to_tensor_name(const std::string& name,
         return name;
     } else if (std::any_of(outputs_info.begin(), outputs_info.end(), [name](const ov::Output<const ov::Node>& port) {
                    try {
-                       return name == port.get_any_name();
+                       return port.get_names().count(name) > 0;
                    } catch (const ov::Exception&) {
                        return false;  // Some ports might have no names - so this is workaround
                    }

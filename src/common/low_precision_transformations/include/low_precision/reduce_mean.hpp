@@ -24,7 +24,7 @@ namespace low_precision {
  */
 class LP_TRANSFORMATIONS_API ReduceMeanTransformation : public ReduceBaseTransformation {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ReduceMeanTransformation", "0");
     ReduceMeanTransformation(const Params& params = Params());
     bool isPrecisionPreserved(std::shared_ptr<Node> reduce) const noexcept override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const override;

@@ -56,7 +56,7 @@ JitConstants LRNKernelBase::GetJitConstants(const lrn_params& params, const LRNK
 }
 
 LRNKernelBase::DispatchData LRNKernelBase::SetDefault(const lrn_params& params) const {
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
 
     DispatchData dispatchData;
 

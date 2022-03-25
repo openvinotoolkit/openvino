@@ -37,23 +37,31 @@ std::ostream& operator <<(std::ostream& os, const InputShape& inputShape) {
 }
 
 void SubgraphBaseTest::run() {
+    bool isCurrentTestDisabled = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled();
+
+    LayerTestsUtils::PassRate::Statuses status = isCurrentTestDisabled ?
+        LayerTestsUtils::PassRate::Statuses::SKIPPED :
+        LayerTestsUtils::PassRate::Statuses::CRASHED;
+    summary.setDeviceName(targetDevice);
+    summary.updateOPsStats(function, status);
+
+    if (isCurrentTestDisabled)
+        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+
     // in case of crash jump will be made and work will be continued
     auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
 
     // place to jump in case of a crash
+    int jmpRes = 0;
 #ifdef _WIN32
-    if (setjmp(CommonTestUtils::env) == 0) {
+    jmpRes = setjmp(CommonTestUtils::env);
 #else
-    if (sigsetjmp(CommonTestUtils::env, 1) == 0) {
+    jmpRes = sigsetjmp(CommonTestUtils::env, 1);
 #endif
-        LayerTestsUtils::PassRate::Statuses status = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()
-                                                        ? LayerTestsUtils::PassRate::Statuses::SKIPPED
-                                                        : LayerTestsUtils::PassRate::Statuses::CRASHED;
-        summary.setDeviceName(targetDevice);
-        summary.updateOPsStats(function, status);
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
+        crashHandler->StartTimer();
 
-        ASSERT_FALSE(targetStaticShapes.empty()) << "Target Static Shape is empty!!!";
+        ASSERT_FALSE(targetStaticShapes.empty() && !function->get_parameters().empty()) << "Target Static Shape is empty!!!";
         std::string errorMessage;
         try {
             compile_model();
@@ -68,7 +76,7 @@ void SubgraphBaseTest::run() {
                     generate_inputs(targetStaticShapeVec);
                 } catch (const std::exception& ex) {
                     throw std::runtime_error("Incorrect target static shape: " +
-                                            CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
+                                             CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
                 }
                 infer();
                 validate();
@@ -85,7 +93,10 @@ void SubgraphBaseTest::run() {
         if (status != LayerTestsUtils::PassRate::Statuses::PASSED) {
             GTEST_FATAL_FAILURE_(errorMessage.c_str());
         }
-    } else {
+    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
+        IE_THROW() << "Crash happens";
+    } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
+        summary.updateOPsStats(function, LayerTestsUtils::PassRate::Statuses::HANGED);
         IE_THROW() << "Crash happens";
     }
 }
@@ -235,11 +246,24 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
 
     auto functionToProcess = ov::clone_model(*functionRefs);
     //TODO: remove this conversions as soon as function interpreter fully support bf16 and f16
-    static const precisions_array precisions = {
-            { ngraph::element::bf16, ngraph::element::f32 },
-            { ngraph::element::f16, ngraph::element::f32}
+    precisions_array precisions = {
+            { ngraph::element::bf16, ngraph::element::f32 }
     };
-
+    auto convert_added = false;
+    for (const auto &param : function->get_parameters()) {
+        for (size_t i = 0; i < param->get_output_size(); i++) {
+            for (const auto &node : param->get_output_target_inputs(i)) {
+                std::shared_ptr<ov::Node> nodePtr = node.get_node()->shared_from_this();
+                if (std::dynamic_pointer_cast<ov::op::v0::Convert>(nodePtr)) {
+                    convert_added = true;
+                    break;
+                }
+            }
+        }
+    }
+    if (!convert_added) {
+        precisions.push_back({ ngraph::element::f16, ngraph::element::f32});
+    }
     pass::Manager manager;
     manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
     manager.run_passes(functionToProcess);
@@ -300,6 +324,10 @@ void SubgraphBaseTest::validate() {
 }
 
 void SubgraphBaseTest::init_input_shapes(const std::vector<InputShape>& shapes) {
+    if (shapes.empty()) {
+        targetStaticShapes = {{}};
+        return;
+    }
     size_t targetStaticShapeSize = shapes.front().second.size();
     for (size_t i = 1; i < shapes.size(); ++i) {
         if (targetStaticShapeSize < shapes[i].second.size()) {

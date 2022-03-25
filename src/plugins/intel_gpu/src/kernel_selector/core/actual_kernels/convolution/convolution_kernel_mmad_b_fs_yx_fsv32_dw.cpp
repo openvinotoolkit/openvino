@@ -52,7 +52,7 @@ bool ConvolutionKernel_mmad_b_fs_yx_fsv32_dw::Validate(const Params& p, const op
 
     auto params = dynamic_cast<const convolution_params&>(p);
 
-    if (params.inputs[0].Feature().v != params.groups || params.output.Feature().v != params.groups)
+    if (params.inputs[0].Feature().v != params.groups || params.outputs[0].Feature().v != params.groups)
         return false;
 
     if ((params.quantization == QuantizationType::ASYMMETRIC_DATA || params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS)
@@ -67,12 +67,12 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_b_fs_yx_fsv32_dw::Set
                                                                                         int /*autoTuneIndex*/) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
     auto in_layout = cp.inputs[0].GetLayout();
-    auto out_layout = cp.output.GetLayout();
+    auto out_layout = cp.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::FEATURE },
                                                                      { Tensor::DataChannelName::X, Tensor::DataChannelName::Y },
                                                                      { Tensor::DataChannelName::BATCH }};
 
-    dispatchData.gws = { cp.output.Feature().v, cp.output.X().v * cp.output.Y().v, cp.output.Batch().v };
+    dispatchData.gws = { cp.outputs[0].Feature().v, cp.outputs[0].X().v * cp.outputs[0].Y().v, cp.outputs[0].Batch().v };
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, cp.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
