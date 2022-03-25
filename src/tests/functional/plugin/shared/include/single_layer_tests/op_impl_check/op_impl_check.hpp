@@ -24,7 +24,7 @@ using OpImplParams = std::tuple<
 class OpImplCheckTest : public testing::WithParamInterface<OpImplParams>,
                         public CommonTestUtils::TestsCommon {
 protected:
-    LayerTestsUtils::OpSummary& summary = LayerTestsUtils::OpSummary::getInstance();
+    ov::test::utils::OpSummary& summary = ov::test::utils::OpSummary::getInstance();
     std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
     std::shared_ptr<ov::Model> function;
     std::string targetDevice;

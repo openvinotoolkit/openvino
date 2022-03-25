@@ -16,7 +16,7 @@ OpGenerator getOpGeneratorMap();
 
 static const std::vector<std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Model>>> createFunctions() {
     std::vector<std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Model>>> res;
-    auto opsets = LayerTestsUtils::OpSummary::getInstance().getOpSets();
+    auto opsets = ov::test::utils::OpSummary::getInstance().getOpSets();
     auto opGenerator = getOpGeneratorMap();
     std::set<ngraph::NodeTypeInfo> opsInfo;
     for (const auto& opset : opsets) {

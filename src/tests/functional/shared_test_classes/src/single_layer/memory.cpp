@@ -58,20 +58,20 @@ namespace LayerTestsDefinitions {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         using namespace LayerTestsUtils;
         auto crashHandler = [](int errCode) {
-            auto &s = OpSummary::getInstance();
+            auto &s = ov::test::utils::OpSummary::getInstance();
             s.saveReport();
             std::cout << "Unexpected application crash!" << std::endl;
             std::abort();
         };
         signal(SIGSEGV, crashHandler);
 
-        auto &s = LayerTestsUtils::OpSummary::getInstance();
+        auto &s = ov::test::utils::OpSummary::getInstance();
         s.setDeviceName(targetDevice);
         if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
-            s.updateOPsStats(function, PassRate::Statuses::SKIPPED);
+            s.updateOPsStats(function, ov::test::utils::PassRate::Statuses::SKIPPED);
             GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
         } else {
-            s.updateOPsStats(function, PassRate::Statuses::CRASHED);
+            s.updateOPsStats(function, ov::test::utils::PassRate::Statuses::CRASHED);
         }
 
         try {
@@ -87,16 +87,16 @@ namespace LayerTestsDefinitions {
                 Infer();
                 Validate();
             }
-            s.updateOPsStats(functionRefs, PassRate::Statuses::PASSED);
+            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::PASSED);
         }
         catch (const std::runtime_error &re) {
-            s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
+            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_(re.what());
         } catch (const std::exception &ex) {
-            s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
+            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_(ex.what());
         } catch (...) {
-            s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
+            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_("Unknown failure occurred.");
         }
     }

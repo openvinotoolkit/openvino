@@ -6,7 +6,9 @@
 
 #include "summary.hpp"
 
-namespace LayerTestsUtils {
+namespace ov {
+namespace test {
+namespace utils {
 
 class Summary;
 class OpSummary;
@@ -58,4 +60,6 @@ public:
     void updateOPsImplStatus(const ngraph::NodeTypeInfo &op, const bool implStatus);
 };
 
-}  // namespace LayerTestsUtils
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

@@ -8,9 +8,11 @@
 
 #include "ngraph/ngraph.hpp"
 
-#include "functional_test_utils/summary/summary.hpp"
+#include "functional_test_utils/summary/op_summary.hpp"
 
-namespace LayerTestsUtils {
+namespace ov {
+namespace test {
+namespace utils {
 
 class TestEnvironment : public ::testing::Environment {
 public:
@@ -18,4 +20,7 @@ public:
         OpSummary::getInstance().saveReport();
     };
 };
-}  // namespace LayerTestsUtils
+
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

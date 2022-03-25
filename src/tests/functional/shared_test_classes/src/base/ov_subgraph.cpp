@@ -39,9 +39,9 @@ std::ostream& operator <<(std::ostream& os, const InputShape& inputShape) {
 void SubgraphBaseTest::run() {
     bool isCurrentTestDisabled = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled();
 
-    LayerTestsUtils::PassRate::Statuses status = isCurrentTestDisabled ?
-        LayerTestsUtils::PassRate::Statuses::SKIPPED :
-        LayerTestsUtils::PassRate::Statuses::CRASHED;
+    ov::test::utils::PassRate::Statuses status = isCurrentTestDisabled ?
+         ov::test::utils::PassRate::Statuses::SKIPPED :
+         ov::test::utils::PassRate::Statuses::CRASHED;
     summary.setDeviceName(targetDevice);
     summary.updateOPsStats(function, status);
 
@@ -81,22 +81,22 @@ void SubgraphBaseTest::run() {
                 infer();
                 validate();
             }
-            status = LayerTestsUtils::PassRate::Statuses::PASSED;
+            status = ov::test::utils::PassRate::Statuses::PASSED;
         } catch (const std::exception& ex) {
-            status = LayerTestsUtils::PassRate::Statuses::FAILED;
+            status = ov::test::utils::PassRate::Statuses::FAILED;
             errorMessage = ex.what();
         } catch (...) {
-            status = LayerTestsUtils::PassRate::Statuses::FAILED;
+            status = ov::test::utils::PassRate::Statuses::FAILED;
             errorMessage = "Unknown failure occurred.";
         }
         summary.updateOPsStats(function, status);
-        if (status != LayerTestsUtils::PassRate::Statuses::PASSED) {
+        if (status != ov::test::utils::PassRate::Statuses::PASSED) {
             GTEST_FATAL_FAILURE_(errorMessage.c_str());
         }
     } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
         IE_THROW() << "Crash happens";
     } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
-        summary.updateOPsStats(function, LayerTestsUtils::PassRate::Statuses::HANGED);
+        summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::HANGED);
         IE_THROW() << "Crash happens";
     }
 }

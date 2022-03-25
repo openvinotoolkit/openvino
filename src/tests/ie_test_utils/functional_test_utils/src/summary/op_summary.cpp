@@ -7,7 +7,7 @@
 #include "functional_test_utils/summary/op_summary.hpp"
 #include "common_test_utils/file_utils.hpp"
 
-using namespace LayerTestsUtils;
+using namespace ov::test::utils;
 
 #ifdef _WIN32
 # define getpid _getpid

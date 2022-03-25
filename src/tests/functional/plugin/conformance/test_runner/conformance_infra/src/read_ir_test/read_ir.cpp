@@ -14,7 +14,7 @@
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/crash_handler.hpp"
-#include "functional_test_utils/layer_test_utils/op_info.hpp"
+#include "functional_test_utils/summary/op_info.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
 #include "read_ir_test/read_ir.hpp"
@@ -56,7 +56,7 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParam
 void ReadIRTest::query_model() {
     // in case of crash jump will be made and work will be continued
     auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
-    auto &s = LayerTestsUtils::OpSummary::getInstance();
+    auto &s = ov::test::utils::OpSummary::getInstance();
 
     // place to jump in case of a crash
     int jmpRes = 0;
@@ -74,21 +74,21 @@ void ReadIRTest::query_model() {
         s.setDeviceName(targetDevice);
 
         if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
-            s.updateOPsStats(functionRefs, LayerTestsUtils::PassRate::Statuses::SKIPPED);
+            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::SKIPPED);
             GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
         } else {
-            s.updateOPsStats(functionRefs, LayerTestsUtils::PassRate::Statuses::CRASHED);
+            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::CRASHED);
         }
         try {
             SubgraphBaseTest::query_model();
-            s.updateOPsStats(functionRefs, LayerTestsUtils::PassRate::Statuses::PASSED);
+            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::PASSED);
         } catch (...) {
-            s.updateOPsStats(functionRefs, LayerTestsUtils::PassRate::Statuses::FAILED);
+            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::FAILED);
         }
     } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
         IE_THROW() << "Crash happens";
     } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
-        s.updateOPsStats(functionRefs, LayerTestsUtils::PassRate::Statuses::HANGED);
+        s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::HANGED);
         IE_THROW() << "Crash happens";
     }
 }

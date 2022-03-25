@@ -11,7 +11,7 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "functional_test_utils/layer_test_utils/environment.hpp"
+#include "functional_test_utils/summary/environment.hpp"
 
 #include "read_ir_test/read_ir.hpp"
 #include "gflag_config.hpp"
@@ -45,11 +45,11 @@ int main(int argc, char* argv[]) {
     }
 
     FuncTestUtils::SkipTestsConfig::disable_tests_skipping = FLAGS_disable_test_config;
-    LayerTestsUtils::OpSummary::setExtendReport(FLAGS_extend_report);
-    LayerTestsUtils::OpSummary::setExtractBody(FLAGS_extract_body);
-    LayerTestsUtils::OpSummary::setSaveReportWithUniqueName(FLAGS_report_unique_name);
-    LayerTestsUtils::OpSummary::setOutputFolder(FLAGS_output_folder);
-    LayerTestsUtils::OpSummary::setSaveReportTimeout(FLAGS_save_report_timeout);
+    ov::test::utils::OpSummary::setExtendReport(FLAGS_extend_report);
+    ov::test::utils::OpSummary::setExtractBody(FLAGS_extract_body);
+    ov::test::utils::OpSummary::setSaveReportWithUniqueName(FLAGS_report_unique_name);
+    ov::test::utils::OpSummary::setOutputFolder(FLAGS_output_folder);
+    ov::test::utils::OpSummary::setSaveReportTimeout(FLAGS_save_report_timeout);
     if (FLAGS_shape_mode == std::string("static")) {
         ov::test::subgraph::shapeMode = ov::test::subgraph::ShapeMode::STATIC;
     } else if (FLAGS_shape_mode == std::string("dynamic")) {
@@ -75,7 +75,7 @@ int main(int argc, char* argv[]) {
     }
 
     ::testing::InitGoogleTest(&argc, argv);
-    ::testing::AddGlobalTestEnvironment(new LayerTestsUtils::TestEnvironment);
+    ::testing::AddGlobalTestEnvironment(new ov::test::utils::TestEnvironment);
 
     auto exernalSignalHandler = [](int errCode) {
         std::cerr << "Unexpected application crash with code: " << errCode << std::endl;
@@ -85,7 +85,7 @@ int main(int argc, char* argv[]) {
         signal(SIGTERM, SIG_DFL);
 
         if (errCode == SIGINT || errCode == SIGTERM) {
-            auto& s = LayerTestsUtils::OpSummary::getInstance();
+            auto& s = ov::test::utils::OpSummary::getInstance();
             s.saveReport();
             exit(1);
         }

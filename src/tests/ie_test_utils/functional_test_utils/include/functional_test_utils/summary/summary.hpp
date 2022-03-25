@@ -11,7 +11,9 @@
 
 #include "common_test_utils/test_constants.hpp"
 
-namespace LayerTestsUtils {
+namespace ov {
+namespace test {
+namespace utils {
 
 struct PassRate {
     enum Statuses {
@@ -64,6 +66,7 @@ protected:
     static const char *outputFolder;
 
     Summary() = default;
+
     virtual ~Summary() = default;
 
 public:
@@ -76,23 +79,28 @@ public:
 
     // #define IE_TEST_DEBUG
 
-    #ifdef IE_TEST_DEBUG
+#ifdef IE_TEST_DEBUG
     void saveDebugReport(const char* className, const char* opName, unsigned long passed, unsigned long failed,
                          unsigned long skipped, unsigned long crashed, unsigned long hanged);
-    #endif  //IE_TEST_DEBUG
+#endif  //IE_TEST_DEBUG
 
     virtual void saveReport() {}
 
     static void setExtendReport(bool val) { extendReport = val; }
+
     static bool getExtendReport() { return extendReport; }
 
     static void setSaveReportWithUniqueName(bool val) { saveReportWithUniqueName = val; }
+
     static bool getSaveReportWithUniqueName() { return saveReportWithUniqueName; }
 
     static void setSaveReportTimeout(size_t val) { saveReportTimeout = val; }
+
     static size_t getSaveReportTimeout() { return saveReportTimeout; }
 
     static void setOutputFolder(const std::string &val) { outputFolder = val.c_str(); }
 };
 
-}  // namespace LayerTestsUtils
+}  // namespace utils
+}  // namespace test
+}  // namespace ov
