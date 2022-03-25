@@ -31,4 +31,5 @@ pytest
 radon
 retrying
 tox
+types-pkg_resources
 wheel

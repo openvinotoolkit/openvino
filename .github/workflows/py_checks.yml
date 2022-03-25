@@ -105,15 +105,15 @@ jobs:
         run: python -m flake8 tests/ --config=setup.cfg
         working-directory: src/bindings/python
       # IE Python API mypy check
-      - name: Run MyPy
+      - name: Run MyPy on IE Python API
         run: python -m mypy ./ --config-file ./setup.cfg
         working-directory: src/bindings/python/src/compatibility/openvino
       # nGraph Python API mypy check
-      - name: Run MyPy
+      - name: Run MyPy nGraph Python API
         run: python -m mypy ./src/compatibility/ngraph --config-file ./setup.cfg
         working-directory: src/bindings/python
       # Python API 2.0 mypy check
-      - name: Run MyPy
+      - name: Run MyPy on Python API 2.0
         run: python -m mypy ./src/openvino --config-file ./setup.cfg
         working-directory: src/bindings/python
 
