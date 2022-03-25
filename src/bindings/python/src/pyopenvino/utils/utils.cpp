@@ -14,15 +14,9 @@ ov::Any py_object_to_any(const pybind11::object& py_obj) {
         return py_obj.cast<int64_t>();
     } else if (pybind11::isinstance<pybind11::list>(py_obj)) {
         auto _list = py_obj.cast<pybind11::list>();
-        enum class PY_TYPE : int {
-            UNKNOWN = 0,
-            STR,
-            INT,
-            FLOAT,
-            BOOL
-        };
+        enum class PY_TYPE : int { UNKNOWN = 0, STR, INT, FLOAT, BOOL };
         PY_TYPE detected_type = PY_TYPE::UNKNOWN;
-        for (const auto &it: _list) {
+        for (const auto& it : _list) {
             auto check_type = [&](PY_TYPE type) {
                 if (detected_type == PY_TYPE::UNKNOWN || detected_type == type) {
                     detected_type = type;
@@ -42,16 +36,16 @@ ov::Any py_object_to_any(const pybind11::object& py_obj) {
         }
 
         switch (detected_type) {
-            case PY_TYPE::STR:
-                return _list.cast<std::vector<std::string>>();
-            case PY_TYPE::FLOAT:
-                return _list.cast<std::vector<double>>();
-            case PY_TYPE::INT:
-                return _list.cast<std::vector<int64_t>>();
-            case PY_TYPE::BOOL:
-                return _list.cast<std::vector<bool>>();
-            default:
-                OPENVINO_ASSERT(false, "Unsupported attribute type.");
+        case PY_TYPE::STR:
+            return _list.cast<std::vector<std::string>>();
+        case PY_TYPE::FLOAT:
+            return _list.cast<std::vector<double>>();
+        case PY_TYPE::INT:
+            return _list.cast<std::vector<int64_t>>();
+        case PY_TYPE::BOOL:
+            return _list.cast<std::vector<bool>>();
+        default:
+            OPENVINO_ASSERT(false, "Unsupported attribute type.");
         }
     }
     OPENVINO_ASSERT(false, "Unsupported attribute type.");

@@ -3,13 +3,13 @@
 //
 
 #include "pyopenvino/graph/util.hpp"
-#include "pyopenvino/utils/utils.hpp"
 
 #include <pybind11/numpy.h>
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/pass/manager.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 

@@ -52,7 +52,7 @@ def test_convert_precision():
     m.run_passes(model)
 
     assert model is not None
-    # TODO: fix bug with float16 type comparison
+    # TODO: fix bug 82773 with float16 type comparison
     # assert model.get_parameters()[0].get_element_type() == np.float16
 
 
