@@ -20,8 +20,6 @@ using namespace ov;
 
 class TestHashAttribute : public RuntimeAttribute {
 public:
-    OPENVINO_RTTI("TestHashAttribute", "0");
-
     TestHashAttribute() = default;
 
     bool visit_attributes(AttributeVisitor &visitor) override {
@@ -190,8 +188,6 @@ void check_changed_attribute(T& value1, const T& value2, std::shared_ptr<Model>&
 
 TEST(TransformationTests, FasterHash_attributes) {
     class HashCustomOp : public op::Op {
-        OPENVINO_OP("HashCustomOp", "hashopset", op::Op, 1);
-
     public:
         HashCustomOp(const Output<Node>& arg0): op::Op({arg0}) {
             set_output_size(1);
