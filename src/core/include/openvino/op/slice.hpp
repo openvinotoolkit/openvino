@@ -11,6 +11,7 @@ namespace op {
 namespace v8 {
 /// \brief Slice operation.
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Slice : public Op {
 public:
     OPENVINO_OP("Slice", "opset8");

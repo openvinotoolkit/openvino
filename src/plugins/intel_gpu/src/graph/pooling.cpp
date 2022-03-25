@@ -4,10 +4,12 @@
 
 #include "pooling_inst.h"
 #include "primitive_type_base.h"
-#include "sliding_window_utils.h"
+#include "sliding_window_utils.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
+
+using namespace ov::runtime::intel_gpu;
 
 namespace cldnn {
 primitive_type_id pooling::type_id() {
@@ -70,33 +72,42 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node) {
     }
 
     if (desc->global_pooling) {
-        window_size.spatial[0] = input_layout.size.spatial[0];
-        window_size.spatial[1] = input_layout.size.spatial[1];
-        window_size.spatial[2] = input_layout.size.spatial[2];
+        window_size = ov::Shape(input_layout.get_spatial_rank(), 1);
+        for (size_t i = 0; i < input_layout.get_spatial_rank(); i++) {
+            window_size[i] = input_layout.spatial(input_layout.get_spatial_rank() - i - 1);
+        }
     }
+
+    uint32_t stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
+    uint32_t stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
+    uint32_t stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
+
+    uint32_t kernel_z = window_size.size() >= 3 ? window_size[window_size.size() - 3] : 1;
+    uint32_t kernel_y = window_size.size() >= 2 ? window_size[window_size.size() - 2] : 1;
+    uint32_t kernel_x = window_size.size() >= 1 ? window_size[window_size.size() - 1] : 1;
 
     // TODO: Consider moving general parameter verification to arguments constructor.
     CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
                                    "stride spatial X",
-                                   stride.spatial[0],
+                                   stride_x,
                                    "",
                                    0,
                                    "Stride spatial X must be positive (>= 1)");
     CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
                                    "stride spatial Y",
-                                   stride.spatial[1],
+                                   stride_y,
                                    "",
                                    0,
                                    "Stride spatial Y must be positive (>= 1)");
     CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
                                    "window size spatial X",
-                                   window_size.spatial[0],
+                                   kernel_x,
                                    "",
                                    0,
                                    "Size X (of pooling window) must be positive (>= 1)");
     CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
                                    "window size spatial Y",
-                                   window_size.spatial[1],
+                                   kernel_y,
                                    "",
                                    0,
                                    "Size Y (of pooling window) must be positive (>= 1)");
@@ -104,13 +115,13 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node) {
         // 3D
         CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
                                        "stride spatial Z",
-                                       stride.spatial[1],
+                                       stride_z,
                                        "",
                                        0,
                                        "Stride spatial Z must be positive (>= 1)");
         CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
                                        "window size spatial Z",
-                                       window_size.spatial[2],
+                                       kernel_z,
                                        "",
                                        0,
                                        "Size Z (of pooling window) must be positive (>= 1)");
@@ -145,11 +156,15 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node) {
     }
 
     // TODO: Check compatibility of output size calculation (with caffe).
+    tensor size(1);
+    for (size_t i = 0; i < window_size.size(); i++) {
+        size.spatial[i] = window_size[window_size.size() - i - 1];
+    }
     auto output_range = calc_sliding_window_output_range<swor_mode::exceed_once_data>(input_layout.size,
-                                                                                      window_size,
-                                                                                      pad,
+                                                                                      size,
+                                                                                      ov::CoordinateDiff(pad.begin(), pad.end()),
                                                                                       stride,
-                                                                                      {1, 1, 1, 1},
+                                                                                      ov::Strides(window_size.size(), 1),
                                                                                       true,
                                                                                       1);
 
@@ -172,9 +187,9 @@ std::string pooling_inst::to_string(pooling_node const& node) {
 
     json_composite pooling_info;
     pooling_info.add("mode", mode);
-    pooling_info.add("stride", strd.to_string());
-    pooling_info.add("kernel size", kernel_size.to_string());
-    pooling_info.add("pad", desc->pad.to_string());
+    pooling_info.add("stride", cldnn::to_string(strd));
+    pooling_info.add("kernel size", cldnn::to_string(kernel_size));
+    pooling_info.add("pad", cldnn::to_string(desc->pad));
     if (desc->with_output_size) {
         json_composite ud_out_size_info;
         ud_out_size_info.add("size", desc->output_size.to_string());

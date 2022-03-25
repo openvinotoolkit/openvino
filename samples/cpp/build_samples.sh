@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 usage() {
-    echo "Build inference engine samples"
+    echo "Build OpenVINO Runtime samples"
     echo
     echo "Options:"
     echo "  -h                       Print the help message"
@@ -55,7 +55,7 @@ trap 'error ${LINENO}' ERR
 SAMPLES_PATH="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" && pwd )"
 
 if ! command -v cmake &>/dev/null; then
-    printf "\n\nCMAKE is not installed. It is required to build OpenVINO samples. Please install it. \n\n"
+    printf "\n\nCMAKE is not installed. It is required to build OpenVINO Runtime samples. Please install it. \n\n"
     exit 1
 fi
 
