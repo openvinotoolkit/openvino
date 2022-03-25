@@ -1,3 +1,4 @@
+
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -8,13 +9,31 @@
 #define GET_UPDATES_INDEX(prefix, idx_order) CAT(prefix, _GET_INDEX)(idx_order)
 #define GET_OUTPUT_INDEX(idx_order) OUTPUT_GET_INDEX(idx_order)
 
-#if OUTPUT_DIMS == 4
-    #define ORDER b,f,y,x
-#elif OUTPUT_DIMS == 5
-    #define ORDER b,f,z,y,x
-#elif OUTPUT_DIMS == 6
-    #define ORDER b,f,w,z,y,x
+#if INPUT2_DIMS == 4
+    #define UPD_ORDER upd_b,upd_f,upd_y,upd_x
+#elif INPUT2_DIMS == 5
+    #define UPD_ORDER upd_b,upd_f,upd_z,upd_y,upd_x
+#elif INPUT2_DIMS == 6
+    #define UPD_ORDER upd_b,upd_f,upd_w,upd_z,upd_y,upd_x
 #endif
+
+#if INPUT1_DIMS == 4
+    #define IDX_ORDER idx_b,idx_f,idx_y,idx_x
+#elif INPUT1_DIMS == 5
+    #define IDX_ORDER idx_b,idx_f,idx_z,idx_y,idx_x
+#elif INPUT1_DIMS == 6
+    #define IDX_ORDER idx_b,idx_f,idx_w,idx_z,idx_y,idx_x
+#endif
+
+#if OUTPUT_DIMS == 4
+    #define OUT_ORDER out_b,out_f,out_y,out_x
+#elif OUTPUT_DIMS == 5
+    #define OUT_ORDER out_b,out_f,out_z,out_y,out_x
+#elif OUTPUT_DIMS == 6
+    #define OUT_ORDER out_b,out_f,out_w,out_z,out_y,out_x
+#endif
+
+#define INDICES_MAX_DIM 6
 
 KERNEL(scatter_nd_update_ref)(const __global INPUT0_TYPE* data,
                    const __global INPUT1_TYPE* indices,
@@ -31,14 +50,13 @@ KERNEL(scatter_nd_update_ref)(const __global INPUT0_TYPE* data,
     const uint dim2 = get_global_id(2);
 
 #ifndef IS_SECOND_ITER // First kernel
-    const uint x = dim0 % OUTPUT_SIZE_X;
-    const uint y = dim0 / OUTPUT_SIZE_X;
-    const uint z = dim1 % OUTPUT_SIZE_Z;
-    const uint w = dim1 / OUTPUT_SIZE_Z;
-    const uint f = dim2 % OUTPUT_FEATURE_NUM;
-    const uint b = dim2 / OUTPUT_FEATURE_NUM;
-
-    const uint output_idx = GET_OUTPUT_INDEX(ORDER);
+    const uint out_x = dim0 % OUTPUT_SIZE_X;
+    const uint out_y = dim0 / OUTPUT_SIZE_X;
+    const uint out_z = dim1 % OUTPUT_SIZE_Z;
+    const uint out_w = dim1 / OUTPUT_SIZE_Z;
+    const uint out_f = dim2 % OUTPUT_FEATURE_NUM;
+    const uint out_b = dim2 / OUTPUT_FEATURE_NUM;
+    const uint output_idx = GET_OUTPUT_INDEX(OUT_ORDER);
     INPUT0_TYPE val = data[output_idx];
     #if HAS_FUSED_OPS
         FUSED_OPS_FIRST_KERNEL;
@@ -49,81 +67,108 @@ KERNEL(scatter_nd_update_ref)(const __global INPUT0_TYPE* data,
 
 #else // Second kernel
 
-    const uint blockND[] = {INPUT_BLOCK_ND};
-    const uint k = INDICES_LAST_DIM;
+    const uint blockND[] = {INPUT0_BLOCK_ND};
+    const uint indicesND[] = {INPUT1_BLOCK_ND};
     const uint size_to_update = blockND[INDICES_LAST_DIM];
-    const uint indices_idx = dim2;
-    const uint indices_offset = indices_idx * k;
-    uint dst_offset = 0;
+    // const uint indices_dim[INPUT1_DIMS] = {INPUT1_BATCH_NUM, INPUT1_FEATURE_NUM, INPUT1_SIZE_Y, INPUT1_SIZE_X};
 
-    for (uint i = 0; i < k; i++) {
-        INPUT1_TYPE idxValue = indices[indices_offset + i];
-        dst_offset += idxValue * blockND[i + 1];
+    #if INPUT1_DIMS == 4
+        const uint indices_dim[INPUT1_DIMS] = {INPUT1_BATCH_NUM, INPUT1_FEATURE_NUM, INPUT1_SIZE_Y, INPUT1_SIZE_X};
+    #elif INPUT1_DIMS == 5
+        const uint indices_dim[INPUT1_DIMS] = {INPUT1_BATCH_NUM, INPUT1_FEATURE_NUM, INPUT1_SIZE_Z, INPUT1_SIZE_Y, INPUT1_SIZE_X};
+    #elif INPUT1_DIMS == 6
+        const uint indices_dim[INPUT1_DIMS] = {INPUT1_BATCH_NUM, INPUT1_FEATURE_NUM, INPUT1_SIZE_W, INPUT1_SIZE_Z, INPUT1_SIZE_Y, INPUT1_SIZE_X};
+    #endif
+
+    // Get indices index
+    uint idx[INDICES_MAX_DIM] = {0};
+    uint rmd_idx = dim2;
+    for(int i = 0; i < INDICES_RANK - 1; ++i)
+    {
+        idx[i] = rmd_idx / indicesND[INPUT1_DIMS - INDICES_RANK + i];
+        rmd_idx %= indicesND[INPUT1_DIMS - INDICES_RANK + i];
     }
+    
+    uint out[INDICES_MAX_DIM] = {0};
+    for (int i = 0; i < indices_dim[INDICES_RANK - 1]; ++i)
+    {
+        idx[INDICES_RANK - 1] = i;
 
-    uint update_offset = indices_idx * size_to_update;
-
-    for (int i = 0; i < size_to_update; i++) {
-        uint dst_idx = dst_offset + i;
-        uint up_idx = update_offset + i;
-        INPUT2_TYPE val = updates[up_idx];
-
-    #if HAS_FUSED_OPS
-        #if OUTPUT_DIMS == 4
-            const uint y_pitch = OUTPUT_SIZE_X;
-            const uint f_pitch = y_pitch * OUTPUT_SIZE_Y;
-            const uint b_pitch = f_pitch * OUTPUT_FEATURE_NUM;
-
-            const uint b_remain = dst_idx % b_pitch;
-            const uint f_remain = b_remain % f_pitch;
-            const uint y_remain = f_remain % y_pitch;
-
-            const uint b = dst_idx / b_pitch;
-            const uint f = b_remain / f_pitch;
-            const uint y = f_remain / y_pitch;
-            const uint x = y_remain;
-        #elif OUTPUT_DIMS == 5
-            const uint y_pitch = OUTPUT_SIZE_X;
-            const uint z_pitch = y_pitch * OUTPUT_SIZE_Y;
-            const uint f_pitch = z_pitch * OUTPUT_SIZE_Z;
-            const uint b_pitch = f_pitch * OUTPUT_FEATURE_NUM;
-
-            const uint b_remain = dst_idx % b_pitch;
-            const uint f_remain = b_remain % f_pitch;
-            const uint z_remain = f_remain % z_pitch;
-            const uint y_remain = z_remain % y_pitch;
-
-            const uint b = dst_idx / b_pitch;
-            const uint f = b_remain / f_pitch;
-            const uint z = f_remain / z_pitch;
-            const uint y = z_remain / y_pitch;
-            const uint x = y_remain;
-        #elif OUTPUT_DIMS == 6
-            const uint y_pitch = OUTPUT_SIZE_X;
-            const uint z_pitch = y_pitch * OUTPUT_SIZE_Y;
-            const uint w_pitch = z_pitch * OUTPUT_SIZE_Z;
-            const uint f_pitch = w_pitch * OUTPUT_SIZE_W;
-            const uint b_pitch = f_pitch * OUTPUT_FEATURE_NUM;
-
-            const uint b_remain = dst_idx % b_pitch;
-            const uint f_remain = b_remain % f_pitch;
-            const uint w_remain = f_remain % w_pitch;
-            const uint z_remain = w_remain % z_pitch;
-            const uint y_remain = z_remain % y_pitch;
-
-            const uint b = dst_idx / b_pitch;
-            const uint f = b_remain / f_pitch;
-            const uint w = f_remain / w_pitch;
-            const uint z = w_remain / z_pitch;
-            const uint y = z_remain / y_pitch;
-            const uint x = y_remain;
+        const uint idx_b = idx[0];
+        const uint idx_f = idx[1];
+        #if INPUT1_DIMS == 4
+            const uint idx_y = idx[2];
+            const uint idx_x = idx[3];
+        #elif INPUT1_DIMS == 5
+            const uint idx_z = idx[2];
+            const uint idx_y = idx[3];
+            const uint idx_x = idx[4];
+        #elif INPUT1_DIMS == 6
+            const uint idx_w = idx[2];
+            const uint idx_z = idx[3];
+            const uint idx_y = idx[4];
+            const uint idx_x = idx[5];
         #endif
 
-        FUSED_OPS_SECOND_KERNEL;
-        output[dst_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT_SECOND_KERNEL);
-    #else
-        output[dst_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
-    #endif
+        uint index = GET_UPDATES_INDEX(INPUT1, IDX_ORDER);
+        out[i] = indices[index];
+    }
+    
+    for(int i = 0; i < size_to_update; ++i)
+    {
+        // Define updates index
+        uint upd[INDICES_MAX_DIM] = {0};
+        for(int j = 0; j < INDICES_RANK - 1; ++j)
+        {
+            upd[j] = idx[j];
+        }
+
+        uint rmd = i;
+        for (int j = indices_dim[INDICES_RANK - 1], k = INDICES_RANK - 1; j < INPUT0_DIMS; ++j, ++k)
+        {
+            out[j] = rmd / blockND[j + 1];
+            upd[k] = out[j];
+            rmd %= blockND[j + 1];
+        }
+
+        // Get update index
+        const uint upd_b = upd[0];
+        const uint upd_f = upd[1];
+        #if INPUT2_DIMS == 4
+            const uint upd_y = upd[2];
+            const uint upd_x = upd[3];
+        #elif INPUT2_DIMS == 5
+            const uint upd_z = upd[2];
+            const uint upd_y = upd[3];
+            const uint upd_x = upd[4];
+        #elif INPUT2_DIMS == 6
+            const uint upd_w = upd[2];
+            const uint upd_z = upd[3];
+            const uint upd_y = upd[4];
+            const uint upd_x = upd[5];   
+        #endif
+        uint upd_idx = GET_UPDATES_INDEX(INPUT2, UPD_ORDER);
+        
+        // Get output index
+        const uint out_b = out[0];
+        const uint out_f = out[1];
+        #if INPUT0_DIMS == 4
+            const uint out_y = out[2];
+            const uint out_x = out[3];
+        #elif INPUT0_DIMS == 5
+            const uint out_z = out[2];
+            const uint out_y = out[3];
+            const uint out_x = out[4];
+        #elif INPUT0_DIMS == 6
+            const uint out_w = out[2];
+            const uint out_z = out[3];
+            const uint out_y = out[4];
+            const uint out_x = out[5];   
+        #endif
+        uint out_idx = GET_OUTPUT_INDEX(OUT_ORDER);
+
+        uint val = updates[upd_idx];
+        output[out_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
     }
 #endif
 
@@ -137,6 +182,18 @@ KERNEL(scatter_nd_update_ref)(const __global INPUT0_TYPE* data,
 #undef GET_OUTPUT_INDEX
 #endif
 
-#ifdef ORDER
-#undef ORDER
+#ifdef UPD_ORDER
+#undef UPD_ORDER
+#endif
+
+#ifdef IDX_ORDER
+#undef IDX_ORDER
+#endif
+
+#ifdef OUT_ORDER
+#undef OUT_ORDER
+#endif
+
+#ifdef INDICES_MAX_DIM
+#undef INDICES_MAX_DIM
 #endif
