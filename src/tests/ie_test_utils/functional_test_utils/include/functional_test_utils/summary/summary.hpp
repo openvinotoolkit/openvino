@@ -60,6 +60,8 @@ class Summary {
 protected:
     std::string deviceName;
     bool isReported = false;
+
+    static std::string reportFilename;
     static size_t saveReportTimeout;
     static bool extendReport;
     static bool saveReportWithUniqueName;
@@ -86,16 +88,15 @@ public:
 
     virtual void saveReport() {}
 
-    static void setExtendReport(bool val) { extendReport = val; }
+    static void setReportFilename(const std::string& val) { reportFilename = val; }
 
+    static void setExtendReport(bool val) { extendReport = val; }
     static bool getExtendReport() { return extendReport; }
 
     static void setSaveReportWithUniqueName(bool val) { saveReportWithUniqueName = val; }
-
     static bool getSaveReportWithUniqueName() { return saveReportWithUniqueName; }
 
     static void setSaveReportTimeout(size_t val) { saveReportTimeout = val; }
-
     static size_t getSaveReportTimeout() { return saveReportTimeout; }
 
     static void setOutputFolder(const std::string &val) { outputFolder = val.c_str(); }

@@ -121,10 +121,10 @@ std::map<std::string, PassRate> OpSummary::getStatisticFromReport() {
     pugi::xml_document doc;
 
     std::ifstream file;
-    file.open(CommonTestUtils::REPORT_FILENAME);
+    file.open(CommonTestUtils::OP_REPORT_FILENAME);
 
     pugi::xml_node root;
-    doc.load_file(CommonTestUtils::REPORT_FILENAME);
+    doc.load_file(CommonTestUtils::OP_REPORT_FILENAME);
     root = doc.child("report");
 
     pugi::xml_node resultsNode = root.child("results");
@@ -239,7 +239,7 @@ void OpSummary::saveReport() {
         return;
     }
 
-    std::string filename = CommonTestUtils::REPORT_FILENAME;
+    std::string filename = CommonTestUtils::OP_REPORT_FILENAME;
     if (saveReportWithUniqueName) {
         auto processId = std::to_string(getpid());
         filename += "_" + processId + "_" + std::string(CommonTestUtils::GetTimestamp());
