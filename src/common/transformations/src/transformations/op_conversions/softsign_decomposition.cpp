@@ -13,7 +13,7 @@
 ngraph::pass::SoftSignDecomposition::SoftSignDecomposition() {
     MATCHER_SCOPE(SoftSignDecomposition);
     auto softsign = pattern::wrap_type<ngraph::opset9::SoftSign>();
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m){
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto m_softsign = m.get_match_root();
 
         if (transformation_callback(m_softsign)) {

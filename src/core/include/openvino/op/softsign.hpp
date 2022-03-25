@@ -9,7 +9,7 @@
 namespace ov {
 namespace op {
 namespace v9 {
-class OPENVINO_API SoftSign: public Op{
+class OPENVINO_API SoftSign: public Op {
 public:
     OPENVINO_OP("SoftSign", "opset9");
     BWDCMP_RTTI_DECLARATION;
@@ -32,6 +32,6 @@ public:
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 };
-} // namespace v9
-} // namespace op
-} // namespace ov
+}  // namespace v9
+}  // namespace op
+}  // namespace ov

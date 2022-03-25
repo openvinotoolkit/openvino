@@ -16,6 +16,6 @@ void softsign(const T* arg, T* out, size_t count) {
         out[i] = arg[i] / (1 + std::abs(arg[i]));
     }
 }
-} // namespace reference
-} // namespace runtime
-} // namespace ngraph
+}  // namespace reference
+}  // namespace runtime
+}  // namespace ngraph

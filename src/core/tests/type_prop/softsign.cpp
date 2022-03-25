@@ -24,6 +24,6 @@ TEST(type_prop, softsign_partial) {
 
     // rank unknown
     auto softsign_partial =
-            make_shared<op::v9::SoftSign>(make_shared<op::Parameter>(element::f32, PartialShape::dynamic()));
+        make_shared<op::v9::SoftSign>(make_shared<op::Parameter>(element::f32, PartialShape::dynamic()));
     ASSERT_TRUE(softsign_partial->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
