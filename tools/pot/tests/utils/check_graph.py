@@ -16,7 +16,7 @@ def check_graph(tmp_path, graph, model_name, model_framework, check_weights=Fals
     model_name = '_'.join([model_name, model_framework])
     ir_name_xml = model_name + '.xml'
     path_to_ir_xml = tmp_path.joinpath(ir_name_xml)
-    save_graph(graph, tmp_path.as_posix(), model_name)
+    save_graph(graph, tmp_path.as_posix(), model_name, rename_results=False)
 
     path_to_ref_ir_xml = REFERENCE_MODELS_PATH.joinpath(ir_name_xml)
 
