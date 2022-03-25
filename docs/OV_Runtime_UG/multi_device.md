@@ -1,39 +1,43 @@
 # Running on multiple devices simultaneously {#openvino_docs_OV_UG_Running_on_multiple_devices}
 
-## Introducing the Multi-Device Plugin (C++)
+
+
+The Multi-Device execution mode, or MULTI for short, uses a "virtual" or a "proxy" device, which does not bind to a specific type of hardware. Instead, it assigns available computing devices to particular inference requests, which are then executed in parallel. 
+
+The potential gains from using Multi-Device execution are:
+* improved throughput from using multiple devices at once,
+* increase in performance stability due to multiple devices sharing inference workload.
+
+Importantly, the process is automated and does not require you to explicitly compile the model on every device or create and balance inference requests.
+
+
+
+
+
+
+
+
+
+
+## Using the Multi-Device Mode 
+
+Following the OpenVINO™ naming convention, the Multi-Device mode is assigned the label of “MULTI.” The only configuration option available for it is a prioritized list of devices to use:
 
 @sphinxdirective
-.. raw:: html
 
-    <div id="switcher-cpp" class="switcher-anchor">C++</div>
++---------------------------+---------------------------------+-----------------------------------------------------------+
+| Property                  | Property values                 | Description                                               |
++===========================+=================================+===========================================================+
+| ov::device::priorities    | | device names                  | | Specifies the devices for Auto-Device plugin to select. |
+|                           | | comma-separated, no spaces    | | The device sequence will be taken as priority           |
+|                           | |                               | | from high to low.                                       |
+|                           | |                               | | Priorities can be set directly as a string.             |
++---------------------------+---------------------------------+-----------------------------------------------------------+
+
 @endsphinxdirective
 
-The Multi-Device plugin automatically assigns inference requests to available computational devices to execute the requests in parallel. By contrast, the Heterogeneous plugin can run different layers on different devices but not in parallel. The potential gains with the Multi-Device plugin are:
 
-* Improved throughput from using multiple devices (compared to single-device execution)
-* More consistent performance, since the devices share the inference burden (if one device is too busy, another can take more of the load)
-
-Note that with Multi-Device the application logic is left unchanged, so you don't need to explicitly compile the model on every device, create and balance the inference requests and so on. From the application point of view, this is just another device that handles the actual machinery. The only thing that is required to leverage performance is to provide the multi-device (and hence the underlying devices) with enough inference requests to process. For example, if you were processing 4 cameras on the CPU (with 4 inference requests), it might be desirable to process more cameras (with more requests in flight) to keep CPU and GPU busy via Multi-Device.
-
-The setup of Multi-Device can be described in three major steps:
-
-1. Prepare configure for each device. 
-2. Compile the model on the Multi-Device plugin created on top of a (prioritized) list of the configured devices with the configure prepared in step one.
-3. As with any other CompiledModel call (resulting from `compile_model`), you create as many requests as needed to saturate the devices.
-
-These steps are covered below in detail.
-
-### Defining and Configuring the Multi-Device Plugin
-
-Following the OpenVINO™ convention of labeling devices, the Multi-Device plugin uses the name "MULTI". The only configuration option for the Multi-Device plugin is a prioritized list of devices to use:
-
-| Parameter name | Parameter values | Default | Description |
-| -------------- | ---------------- | --- | --- |
-| ov::device::priorities | comma-separated device names with no spaces | N/A | Prioritized list of devices |
-
-You can set the priorities directly as a string.
-
-Basically, there are three ways to specify the devices to be use by the "MULTI":
+There are three ways to specify the devices to be used by MULTI:
 
 @sphinxdirective
 
@@ -42,6 +46,15 @@ Basically, there are three ways to specify the devices to be use by the "MULTI":
     .. doxygensnippet:: docs/snippets/MULTI0.cpp
        :language: cpp
        :fragment: [part0]
+
+
+
+
+
+
+
+
+
 
 @endsphinxdirective
 
@@ -173,6 +186,34 @@ Please refer to the code of the `benchmark_app`, that exists in both  [C++](../.
 -	Multi-device logic always attempts to save on the (e.g. inputs) data copies between device-agnostic, user-facing inference requests 
     and device-specific 'worker' requests that are being actually scheduled behind the scene. 
     To facilitate the copy savings, it is recommended to run the requests in the order that they were created.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## Introducing the Multi-Device Plugin (Python)
 
