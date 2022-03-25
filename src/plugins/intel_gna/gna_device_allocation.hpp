@@ -12,6 +12,7 @@
 #include <set>
 #include <vector>
 #include <list>
+#include <utility>
 
 #include "gna2-model-export-api.h"
 
@@ -100,16 +101,17 @@ GnaAllAllocations orderedAllocations(const GnaAllAllocations& all) {
     return GnaAllAllocations(allVector.begin(), allVector.end());
 }
 
-uint32_t getAllAllocationOffsetFromBase(const GnaAllAllocations& all, void* ptr) {
+std::pair<bool, uint32_t> checkAndGetAllAllocationOffsetFromBase(const GnaAllAllocations& all, void* ptr) {
     uint32_t curOffset = 0;
     for (auto& r : orderedAllocations(all)) {
         auto ptrBegin = static_cast<uint8_t*>(r.ptr);
         const auto size = r.sizeForExport();
         if (ptr >= ptrBegin && ptr < ptrBegin + size) {
             curOffset += static_cast<uint8_t*>(ptr) - ptrBegin;
-            return curOffset;
+            return {true, curOffset};
         }
         curOffset += size;
     }
+    return {false, 0};
 }
 }  // namespace

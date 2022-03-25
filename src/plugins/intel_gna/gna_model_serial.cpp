@@ -397,7 +397,11 @@ void GNAModelSerial::Export(const GnaAllAllocations& allocations, std::ostream& 
 
     auto getTensorWithProperOffset = [&allocations](const Gna2Tensor& tensor) {
         Gna2Tensor out = tensor;
-        out.Data = reinterpret_cast<void*>(getAllAllocationOffsetFromBase(allocations, tensor.Data));
+        const auto found = checkAndGetAllAllocationOffsetFromBase(allocations, tensor.Data);
+        if (!found.first) {
+            THROW_GNA_EXCEPTION << "Tensor data pointer not found in allocations\n";
+        }
+        out.Data = reinterpret_cast<void*>(found.second);
         return out;
     };
 
@@ -410,7 +414,11 @@ void GNAModelSerial::Export(const GnaAllAllocations& allocations, std::ostream& 
         ep.precision = desc.model_precision;
         ep.orientation = desc.orientation;
         ep.tensor_names_count = static_cast<uint8_t>(desc.tensor_names.size());
-        ep.descriptor_offset = getAllAllocationOffsetFromBase(allocations, *desc.ptrs.begin());
+        const auto found = checkAndGetAllAllocationOffsetFromBase(allocations, *desc.ptrs.begin());
+        if (!found.first) {
+            THROW_GNA_EXCEPTION << "Endpoint data pointer not found in allocations\n";
+        }
+        ep.descriptor_offset = found.second;
         // shape
         ep.shape.NumberOfDimensions = desc.dims.size();
         for (size_t i=0; i < ep.shape.NumberOfDimensions; ++i) {
@@ -521,7 +529,11 @@ void GNAModelSerial::Export(const GnaAllAllocations& allocations, std::ostream& 
         std::string name;
         float scale_factor = 1.0f;
         std::tie(gna_ptr, reserved_size, name, scale_factor) = state;
-        writeBits(getAllAllocationOffsetFromBase(allocations, gna_ptr), os);
+        const auto found = checkAndGetAllAllocationOffsetFromBase(allocations, gna_ptr);
+        if (!found.first) {
+            THROW_GNA_EXCEPTION << "State data pointer not found in allocations\n";
+        }
+        writeBits(found.second, os);
         writeBits(reserved_size, os);
         const auto nameSize = strlen(name.c_str()) + 1;
         writeBits(static_cast<uint32_t>(nameSize), os);
