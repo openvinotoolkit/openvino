@@ -31,12 +31,8 @@ void LayerTestsCommon::Run() {
         functionRefs->set_friendly_name("refFunction");
     }
 
-    // in case of crash jump will be made and work will be continued
-#ifdef IGNORE_CRASH
-    auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler(true));
-#else
+    // in case of crash save report and finish work
     auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler(false));
-#endif
     auto &s = Summary::getInstance();
     s.setDeviceName(targetDevice);
 
@@ -47,37 +43,23 @@ void LayerTestsCommon::Run() {
         s.updateOPsStats(functionRefs, PassRate::Statuses::CRASHED);
     }
 
-    // place to jump in case of a crash
-    int jmpRes = 0;
-#ifdef _WIN32
-    jmpRes = setjmp(CommonTestUtils::env);
-#else
-    jmpRes = sigsetjmp(CommonTestUtils::env, 1);
-#endif
-    if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
-        crashHandler->StartTimer();
-        try {
-            LoadNetwork();
-            GenerateInputs();
-            Infer();
-            Validate();
-            s.updateOPsStats(functionRefs, PassRate::Statuses::PASSED);
-        }
-        catch (const std::runtime_error &re) {
-            s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
-            GTEST_FATAL_FAILURE_(re.what());
-        } catch (const std::exception &ex) {
-            s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
-            GTEST_FATAL_FAILURE_(ex.what());
-        } catch (...) {
-            s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
-            GTEST_FATAL_FAILURE_("Unknown failure occurred.");
-        }
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
-        IE_THROW() << "Crash happens";
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
-        s.updateOPsStats(functionRefs, PassRate::Statuses::HANGED);
-        IE_THROW() << "Crash happens";
+    crashHandler->StartTimer();
+    try {
+        LoadNetwork();
+        GenerateInputs();
+        Infer();
+        Validate();
+        s.updateOPsStats(functionRefs, PassRate::Statuses::PASSED);
+    }
+    catch (const std::runtime_error &re) {
+        s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
+        GTEST_FATAL_FAILURE_(re.what());
+    } catch (const std::exception &ex) {
+        s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
+        GTEST_FATAL_FAILURE_(ex.what());
+    } catch (...) {
+        s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
+        GTEST_FATAL_FAILURE_("Unknown failure occurred.");
     }
 }
 

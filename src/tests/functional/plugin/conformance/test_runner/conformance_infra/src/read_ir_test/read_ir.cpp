@@ -54,189 +54,154 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParam
 }
 
 void ReadIRTest::query_model() {
-    // in case of crash jump will be made and work will be continued
-#ifdef IGNORE_CRASH
-    auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler(true));
-#else
+    // in case of crash save report and finish work
     auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler(false));
-#endif
     auto &s = LayerTestsUtils::Summary::getInstance();
 
-    // place to jump in case of a crash
-    int jmpRes = 0;
-#ifdef _WIN32
-    jmpRes = setjmp(CommonTestUtils::env);
-#else
-    jmpRes = sigsetjmp(CommonTestUtils::env, 1);
-#endif
-    if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
-        crashHandler->StartTimer();
-        if (functionRefs == nullptr) {
-            functionRefs = ngraph::clone_function(*function);
-            functionRefs->set_friendly_name("refFunction");
-        }
-        s.setDeviceName(targetDevice);
+    crashHandler->StartTimer();
+    if (functionRefs == nullptr) {
+        functionRefs = ngraph::clone_function(*function);
+        functionRefs->set_friendly_name("refFunction");
+    }
+    s.setDeviceName(targetDevice);
 
-        if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
-            s.updateOPsStats(functionRefs, LayerTestsUtils::PassRate::Statuses::SKIPPED);
-            GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
-        } else {
-            s.updateOPsStats(functionRefs, LayerTestsUtils::PassRate::Statuses::CRASHED);
-        }
-        try {
-            SubgraphBaseTest::query_model();
-            s.updateOPsStats(functionRefs, LayerTestsUtils::PassRate::Statuses::PASSED);
-        } catch (...) {
-            s.updateOPsStats(functionRefs, LayerTestsUtils::PassRate::Statuses::FAILED);
-        }
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
-        IE_THROW() << "Crash happens";
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
-        s.updateOPsStats(functionRefs, LayerTestsUtils::PassRate::Statuses::HANGED);
-        IE_THROW() << "Crash happens";
+    if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+        s.updateOPsStats(functionRefs, LayerTestsUtils::PassRate::Statuses::SKIPPED);
+        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+    } else {
+        s.updateOPsStats(functionRefs, LayerTestsUtils::PassRate::Statuses::CRASHED);
+    }
+    try {
+        SubgraphBaseTest::query_model();
+        s.updateOPsStats(functionRefs, LayerTestsUtils::PassRate::Statuses::PASSED);
+    } catch (...) {
+        s.updateOPsStats(functionRefs, LayerTestsUtils::PassRate::Statuses::FAILED);
     }
 }
 
 void ReadIRTest::SetUp() {
-    // in case of crash jump will be made and work will be continued
-#ifdef IGNORE_CRASH
-    auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler(true));
-#else
+    // in case of crash save report and finish work
     auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler(false));
-#endif
 
-    // place to jump in case of a crash
-    int jmpRes = 0;
-#ifdef _WIN32
-    jmpRes = setjmp(CommonTestUtils::env);
-#else
-    jmpRes = sigsetjmp(CommonTestUtils::env, 1);
-#endif
-    if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
-        crashHandler->StartTimer();
-        std::tie(pathToModel, targetDevice, configuration) = this->GetParam();
-        function = core->read_model(pathToModel);
-        const auto metaFile = CommonTestUtils::replaceExt(pathToModel, "meta");
-        if (CommonTestUtils::fileExists(metaFile)) {
-            pugi::xml_document doc;
-            doc.load_file(metaFile.c_str());
-            auto models = doc.child("meta_info").child("models");
-            sourceModel = models.child("initial_model").attribute("name").as_string();
-            for (const auto &model : models.children("model")) {
-                ocuranceInModels.push_back({model.attribute("name").as_string(), model.attribute("count").as_uint()});
-            }
-            auto portsInfo = doc.child("meta_info").child("ports_info");
-            auto getPortInfo = [&](size_t id) {
-                LayerTestsUtils::PortInfo info;
-                for (const auto &p : portsInfo.children()) {
-                    if (p.attribute("id").as_uint() == id) {
-                        info.convert_to_const = p.attribute("convert_to_const").as_bool();
-                        if (std::strcmp(p.attribute("min").as_string(), "undefined") != 0) {
-                            info.min = p.attribute("min").as_double();
-                        } else {
-                            info.min = -10;
-                        }
-                        if (std::strcmp(p.attribute("max").as_string(), "undefined") != 0) {
-                            info.max = p.attribute("max").as_double();
-                        } else {
-                            info.max = 10;
-                        }
-                        break;
-                    }
-                }
-                return info;
-            };
-
-            auto params = function->get_parameters();
-            for (const auto &param : params) {
-                auto idx = -1;
-                for (size_t i = 0; i < param->get_output_size(); i++) {
-                    for (const auto &node : param->get_output_target_inputs(i)) {
-                        const auto nodePtr = node.get_node()->shared_from_this();
-                        for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
-                            if (nodePtr->get_input_node_ptr(port)->shared_from_this() == param->shared_from_this()) {
-                                idx = port;
-                                break;
-                            }
-                        }
-                    }
-                }
-                EXPECT_GE(idx, 0);
-
-                auto info = getPortInfo(idx);
-                if (info.convert_to_const) {
-                    const auto constant = ngraph::builder::makeConstant(param->get_element_type(),
-                                                                        param->get_shape(),
-                                                                        std::vector<double>{},
-                                                                        true,
-                                                                        info.max,
-                                                                        info.min,
-                                                                        1);
-                    ov::replace_node(param, constant);
-                    function->remove_parameter(param);
-                }
-            }
+    crashHandler->StartTimer();
+    std::tie(pathToModel, targetDevice, configuration) = this->GetParam();
+    function = core->read_model(pathToModel);
+    const auto metaFile = CommonTestUtils::replaceExt(pathToModel, "meta");
+    if (CommonTestUtils::fileExists(metaFile)) {
+        pugi::xml_document doc;
+        doc.load_file(metaFile.c_str());
+        auto models = doc.child("meta_info").child("models");
+        sourceModel = models.child("initial_model").attribute("name").as_string();
+        for (const auto &model : models.children("model")) {
+            ocuranceInModels.push_back({model.attribute("name").as_string(), model.attribute("count").as_uint()});
         }
-
-        bool hasDynamic = false;
-        for (const auto& param : function->get_parameters()) {
-            if (param->get_partial_shape().is_dynamic()) {
-                hasDynamic = true;
-                break;
-            }
-        }
-        if (hasDynamic && ov::test::subgraph::shapeMode == ov::test::subgraph::ShapeMode::STATIC) {
-            GTEST_SKIP() << "Dynamic cases are skipped according `shape_mode`";
-        } else if (!hasDynamic && ov::test::subgraph::shapeMode == ov::test::subgraph::ShapeMode::DYNAMIC) {
-            GTEST_SKIP() << "Static cases are skipped according `shape_mode`";
-        }
-
-        std::vector<InputShape> inputShapes;
-        for (const auto& param : function -> get_parameters()) {
-            if (param->get_partial_shape().is_static()) {
-                inputShapes.push_back(InputShape{{}, {param->get_shape()}});
-            } else {
-                std::vector<ov::Shape> staticShapes = { param->get_partial_shape().get_min_shape(),
-                                                        param->get_partial_shape().get_min_shape(),
-                                                        param->get_partial_shape().get_max_shape() };
-                ov::Shape midShape;
-                for (const auto s : param->get_partial_shape()) {
-                    int dimValue = 1;
-                    if (s.is_dynamic()) {
-                        size_t range = s.get_max_length() - s.get_min_length();
-                        if (range > std::numeric_limits<char>::max()) {
-                            CommonTestUtils::fill_data_random(&range, 1, std::numeric_limits<char>::max(), s.get_min_length(), 1);
-                        }
-                        CommonTestUtils::fill_data_random(&dimValue, 1, range, s.get_min_length(), 1);
+        auto portsInfo = doc.child("meta_info").child("ports_info");
+        auto getPortInfo = [&](size_t id) {
+            LayerTestsUtils::PortInfo info;
+            for (const auto &p : portsInfo.children()) {
+                if (p.attribute("id").as_uint() == id) {
+                    info.convert_to_const = p.attribute("convert_to_const").as_bool();
+                    if (std::strcmp(p.attribute("min").as_string(), "undefined") != 0) {
+                        info.min = p.attribute("min").as_double();
                     } else {
-                        dimValue = s.get_length();
+                        info.min = -10;
                     }
-                    midShape.push_back(dimValue);
+                    if (std::strcmp(p.attribute("max").as_string(), "undefined") != 0) {
+                        info.max = p.attribute("max").as_double();
+                    } else {
+                        info.max = 10;
+                    }
+                    break;
                 }
-                staticShapes[1] = midShape;
+            }
+            return info;
+        };
 
-                // Shape validation to avoid large values
-                for (auto& shape : staticShapes) {
-                    for (auto& dim : shape) {
-                        if (dim == 0) {
-                            dim = 1;
-                        } else if (dim > std::numeric_limits<char>::max()) {
-                            dim = std::numeric_limits<char>::max();
+        auto params = function->get_parameters();
+        for (const auto &param : params) {
+            auto idx = -1;
+            for (size_t i = 0; i < param->get_output_size(); i++) {
+                for (const auto &node : param->get_output_target_inputs(i)) {
+                    const auto nodePtr = node.get_node()->shared_from_this();
+                    for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
+                        if (nodePtr->get_input_node_ptr(port)->shared_from_this() == param->shared_from_this()) {
+                            idx = port;
+                            break;
                         }
                     }
                 }
-                inputShapes.push_back(InputShape{param->get_partial_shape(), staticShapes});
+            }
+            EXPECT_GE(idx, 0);
+
+            auto info = getPortInfo(idx);
+            if (info.convert_to_const) {
+                const auto constant = ngraph::builder::makeConstant(param->get_element_type(),
+                                                                    param->get_shape(),
+                                                                    std::vector<double>{},
+                                                                    true,
+                                                                    info.max,
+                                                                    info.min,
+                                                                    1);
+                ov::replace_node(param, constant);
+                function->remove_parameter(param);
             }
         }
-        if (inputShapes.empty()) {
-            GTEST_SKIP() << "The graph is constant. The case is not applicable for Operation conformance scenario";
-        }
-        init_input_shapes(inputShapes);
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
-        IE_THROW() << "Crash happens";
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
-        IE_THROW() << "Hange happens";
     }
+
+    bool hasDynamic = false;
+    for (const auto& param : function->get_parameters()) {
+        if (param->get_partial_shape().is_dynamic()) {
+            hasDynamic = true;
+            break;
+        }
+    }
+    if (hasDynamic && ov::test::subgraph::shapeMode == ov::test::subgraph::ShapeMode::STATIC) {
+        GTEST_SKIP() << "Dynamic cases are skipped according `shape_mode`";
+    } else if (!hasDynamic && ov::test::subgraph::shapeMode == ov::test::subgraph::ShapeMode::DYNAMIC) {
+        GTEST_SKIP() << "Static cases are skipped according `shape_mode`";
+    }
+
+    std::vector<InputShape> inputShapes;
+    for (const auto& param : function -> get_parameters()) {
+        if (param->get_partial_shape().is_static()) {
+            inputShapes.push_back(InputShape{{}, {param->get_shape()}});
+        } else {
+            std::vector<ov::Shape> staticShapes = { param->get_partial_shape().get_min_shape(),
+                                                    param->get_partial_shape().get_min_shape(),
+                                                    param->get_partial_shape().get_max_shape() };
+            ov::Shape midShape;
+            for (const auto s : param->get_partial_shape()) {
+                int dimValue = 1;
+                if (s.is_dynamic()) {
+                    size_t range = s.get_max_length() - s.get_min_length();
+                    if (range > std::numeric_limits<char>::max()) {
+                        CommonTestUtils::fill_data_random(&range, 1, std::numeric_limits<char>::max(), s.get_min_length(), 1);
+                    }
+                    CommonTestUtils::fill_data_random(&dimValue, 1, range, s.get_min_length(), 1);
+                } else {
+                    dimValue = s.get_length();
+                }
+                midShape.push_back(dimValue);
+            }
+            staticShapes[1] = midShape;
+
+            // Shape validation to avoid large values
+            for (auto& shape : staticShapes) {
+                for (auto& dim : shape) {
+                    if (dim == 0) {
+                        dim = 1;
+                    } else if (dim > std::numeric_limits<char>::max()) {
+                        dim = std::numeric_limits<char>::max();
+                    }
+                }
+            }
+            inputShapes.push_back(InputShape{param->get_partial_shape(), staticShapes});
+        }
+    }
+    if (inputShapes.empty()) {
+        GTEST_SKIP() << "The graph is constant. The case is not applicable for Operation conformance scenario";
+    }
+    init_input_shapes(inputShapes);
 }
 
 } // namespace subgraph

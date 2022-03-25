@@ -46,7 +46,7 @@ class Runner():
             groups[test_type] = i
 
             # try to collect group by operation and PRC
-            matches = re.match(r"(.*PRC=.*_IR_name=(.*))_\d*.xml", test)
+            matches = re.match(r"(.*PRC=.*_IR_name(=.*_))\d*.xml", test)
             if (matches):
                 groups[matches[1]] = i
                 groups[matches[2]] = i
@@ -79,7 +79,6 @@ class Runner():
             gtest_filter = matches[1]
 
         test_filter = gtest_filter
-
         args_list = [self.path_to_bin]
         args_list.append(f"--gtest_filter={test_filter}")
         conformance_args = re.sub(r"--gtest_filter=.*? ", "", self.args)
@@ -125,7 +124,7 @@ class Runner():
                         test_filter += ":-"
                     else:
                         test_filter += ":"
-                    test_filter += ":*" + item + "*"
+                    test_filter += "*" + item + "*"
                     if (item == match):
                         break
 

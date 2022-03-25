@@ -48,60 +48,42 @@ void SubgraphBaseTest::run() {
     if (isCurrentTestDisabled)
         GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
 
-    // in case of crash jump will be made and work will be continued
-#ifdef IGNORE_CRASH
-    auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler(true));
-#else
+    // in case of crash save report and finish work
     auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler(false));
-#endif
 
-    // place to jump in case of a crash
-    int jmpRes = 0;
-#ifdef _WIN32
-    jmpRes = setjmp(CommonTestUtils::env);
-#else
-    jmpRes = sigsetjmp(CommonTestUtils::env, 1);
-#endif
-    if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
-        crashHandler->StartTimer();
+    crashHandler->StartTimer();
 
-        ASSERT_FALSE(targetStaticShapes.empty() && !function->get_parameters().empty()) << "Target Static Shape is empty!!!";
-        std::string errorMessage;
-        try {
-            compile_model();
-            for (const auto& targetStaticShapeVec : targetStaticShapes) {
-                try {
-                    if (!inputDynamicShapes.empty()) {
-                        // resize ngraph function according new target shape
-                        // Note: output shapes of some nodes depend on the input data
-                        // so for some tests we need to override this function and replace parameter with constant node to get correct output shapes
-                        init_ref_function(functionRefs, targetStaticShapeVec);
-                    }
-                    generate_inputs(targetStaticShapeVec);
-                } catch (const std::exception& ex) {
-                    throw std::runtime_error("Incorrect target static shape: " +
-                                             CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
+    ASSERT_FALSE(targetStaticShapes.empty() && !function->get_parameters().empty()) << "Target Static Shape is empty!!!";
+    std::string errorMessage;
+    try {
+        compile_model();
+        for (const auto& targetStaticShapeVec : targetStaticShapes) {
+            try {
+                if (!inputDynamicShapes.empty()) {
+                    // resize ngraph function according new target shape
+                    // Note: output shapes of some nodes depend on the input data
+                    // so for some tests we need to override this function and replace parameter with constant node to get correct output shapes
+                    init_ref_function(functionRefs, targetStaticShapeVec);
                 }
-                infer();
-                validate();
+                generate_inputs(targetStaticShapeVec);
+            } catch (const std::exception& ex) {
+                throw std::runtime_error("Incorrect target static shape: " +
+                                            CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
             }
-            status = LayerTestsUtils::PassRate::Statuses::PASSED;
-        } catch (const std::exception& ex) {
-            status = LayerTestsUtils::PassRate::Statuses::FAILED;
-            errorMessage = ex.what();
-        } catch (...) {
-            status = LayerTestsUtils::PassRate::Statuses::FAILED;
-            errorMessage = "Unknown failure occurred.";
+            infer();
+            validate();
         }
-        summary.updateOPsStats(function, status);
-        if (status != LayerTestsUtils::PassRate::Statuses::PASSED) {
-            GTEST_FATAL_FAILURE_(errorMessage.c_str());
-        }
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
-        IE_THROW() << "Crash happens";
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
-        summary.updateOPsStats(function, LayerTestsUtils::PassRate::Statuses::HANGED);
-        IE_THROW() << "Crash happens";
+        status = LayerTestsUtils::PassRate::Statuses::PASSED;
+    } catch (const std::exception& ex) {
+        status = LayerTestsUtils::PassRate::Statuses::FAILED;
+        errorMessage = ex.what();
+    } catch (...) {
+        status = LayerTestsUtils::PassRate::Statuses::FAILED;
+        errorMessage = "Unknown failure occurred.";
+    }
+    summary.updateOPsStats(function, status);
+    if (status != LayerTestsUtils::PassRate::Statuses::PASSED) {
+        GTEST_FATAL_FAILURE_(errorMessage.c_str());
     }
 }
 
