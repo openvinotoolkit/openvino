@@ -59,9 +59,9 @@ struct PassRate {
 class Summary {
 protected:
     std::string deviceName;
+    const char* reportFilename;
     bool isReported = false;
 
-    static std::string reportFilename;
     static size_t saveReportTimeout;
     static bool extendReport;
     static bool saveReportWithUniqueName;
@@ -88,7 +88,7 @@ public:
 
     virtual void saveReport() {}
 
-    static void setReportFilename(const std::string& val) { reportFilename = val; }
+    void setReportFilename(const std::string& val) { reportFilename = val.c_str(); }
 
     static void setExtendReport(bool val) { extendReport = val; }
     static bool getExtendReport() { return extendReport; }
