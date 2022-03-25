@@ -1118,6 +1118,207 @@ TEST(model, add_output_port_to_result) {
     EXPECT_EQ(out, result->output(0));
 }
 
+TEST(model, add_output_performance) {
+    using namespace std::chrono;
+    auto test = [](int cnt, bool& timeout) -> size_t {
+        auto shape = ov::Shape{1, 1, 224, 224};
+        auto type = ov::element::f32;
+        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
+        param->set_friendly_name("Param1");
+        param->output(0).set_names({"Param1"});
+        ov::NodeVector nodes;
+        std::shared_ptr<ov::Node> op = param;
+        for (int i = 0; i < cnt; i++) {
+            op = std::make_shared<ov::opset8::Add>(op, op);
+            op->set_friendly_name("OpNameAdd" + std::to_string(i));
+            op->output(0).set_names({"Add" + std::to_string(i)});
+        }
+        auto res = std::make_shared<ov::op::v0::Result>(op);
+        auto model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{param});
+        auto start = steady_clock::now();
+        // Add outputs to all nodes via op+port and tensor names
+        for (int i = 0; i < cnt; i++) {
+            model->add_output("Add" + std::to_string(i));
+            model->add_output("OpNameAdd" + std::to_string(i), 0);
+            if (i % 100 == 0 && duration_cast<seconds>(steady_clock::now() - start).count() > 30) {
+                timeout = true;
+                return 0;
+            }
+        }
+        auto end = steady_clock::now();
+        return duration_cast<microseconds>(end - start).count();
+    };
+    bool timeout = false;
+    auto t1 = test(200, timeout);
+    EXPECT_FALSE(timeout);
+    auto t2 = test(10000, timeout);  // Should be ~50 times longer, not 2500 times
+    EXPECT_FALSE(timeout);
+    EXPECT_LE(t2, t1 * 1000);  // Check 1000 times threshold (expected 50) which is definitely enough
+}
+
+TEST(model, add_output_cache_invalidation_tensor_name) {
+    auto shape = ov::Shape{1, 1, 224, 224};
+    auto type = ov::element::f32;
+    auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
+    param->output(0).set_names({"Param1"});
+    auto op = std::make_shared<ov::opset8::Add>(param, param);
+    op->output(0).set_names({"TensorName"});
+    auto op1 = std::make_shared<ov::opset8::Abs>(op);
+    auto op2 = std::make_shared<ov::opset8::Relu>(op1);
+    auto op3 = std::make_shared<ov::opset8::Abs>(op2);
+    op3->output(0).set_names({"Tensor3"});
+    auto res = std::make_shared<ov::op::v0::Result>(op3);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{param});
+    model->add_output("Tensor3");  // This creates cache
+
+    op->output(0).set_names({"OldTensorName"});
+    op2->output(0).set_names({"TensorName"});
+    auto added = model->add_output("TensorName");  // This shall update cache as "TensorName" points to another node
+    // Verify that output is added to 'op2'
+    auto added_type_name = added.get_node_shared_ptr()->input(0).get_source_output().get_node()->get_type_name();
+    EXPECT_EQ(ov::opset8::Relu::get_type_info_static().name, std::string(added_type_name));
+}
+
+TEST(model, add_output_cache_invalidation_op_name) {
+    auto shape = ov::Shape{1, 1, 224, 224};
+    auto type = ov::element::f32;
+    auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
+    param->set_friendly_name("Param1");
+    auto op = std::make_shared<ov::opset8::Add>(param, param);
+    op->set_friendly_name("OpName");
+    auto op1 = std::make_shared<ov::opset8::Abs>(op);
+    auto op2 = std::make_shared<ov::opset8::Relu>(op1);
+    auto op3 = std::make_shared<ov::opset8::Abs>(op2);
+    op3->set_friendly_name("Op3");
+    auto res = std::make_shared<ov::op::v0::Result>(op3);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{param});
+    model->add_output("Op3", 0);  // This creates cache
+
+    op->set_friendly_name("OldOpName");
+    op2->set_friendly_name("OpName");
+    auto added = model->add_output("OpName", 0);  // This shall update cache as "OpName" points to another node
+    // Verify that output is added to 'op2'
+    auto added_type_name = added.get_node_shared_ptr()->input(0).get_source_output().get_node()->get_type_name();
+    EXPECT_EQ(ov::opset8::Relu::get_type_info_static().name, std::string(added_type_name));
+}
+
+TEST(model, add_output_ordered_ops) {
+    auto shape = ov::Shape{1, 1, 224, 224};
+    auto type = ov::element::f32;
+    auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
+    param->set_friendly_name("Param1");
+    auto op = std::make_shared<ov::opset8::Add>(param, param);
+    op->set_friendly_name("OpName");
+    auto op1 = std::make_shared<ov::opset8::Abs>(op);
+    auto op2 = std::make_shared<ov::opset8::Relu>(op1);
+    auto op3 = std::make_shared<ov::opset8::Abs>(op2);
+    op3->set_friendly_name("Op3");
+    auto res = std::make_shared<ov::op::v0::Result>(op3);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{param});
+    auto ops_before = model->get_ordered_ops();
+    auto new_res = model->add_output(op2);
+    auto ops_after = model->get_ordered_ops();
+    EXPECT_EQ(ops_after.size(), ops_before.size() + 1)
+        << "Before: " << ops_before.size() << ". After: " << ops_after.size();
+    bool relu_found = false, relu_result_found = false;
+    for (const auto& node : ops_after) {
+        if (ov::as_type_ptr<ov::opset8::Relu>(node)) {
+            relu_found = true;
+            EXPECT_FALSE(relu_result_found);
+        } else if (ov::as_type_ptr<ov::opset8::Result>(node) &&
+                   ov::as_type_ptr<ov::opset8::Relu>(node->get_input_node_shared_ptr(0))) {
+            relu_result_found = true;
+            EXPECT_TRUE(relu_found);
+        }
+    }
+    EXPECT_TRUE(relu_found);
+    EXPECT_TRUE(relu_result_found);
+    // Invalidate result
+    ops_before = model->get_ordered_ops();
+    res->set_arguments(ov::NodeVector{});
+    EXPECT_EQ(model->get_ordered_ops().size(), ops_before.size() - 1);
+}
+
+// Scenario:
+// 1. Create model with nodes A,B,C.
+// 2. Add output to some node 'A' - 'names cache' will be created
+// 3. Remove some node 'B' - ordered_ops_cache will be 'false'
+// 4. Assign name 'B' to existing node 'C'
+// 5. Call get_ordered_ops (ordered_ops_cache=true)
+// 6. Expect: Add_output to 'B' - output to node 'C' shall be added on step 4
+// Without clearing 'names cache' on step 5 - test will incorrectly add output to 'B'
+TEST(model, add_output_clear_cached_tensor_name_by_ordered_ops) {
+    // 1. Create model with nodes A,B,C.
+    auto shape = ov::Shape{1, 1, 224, 224};
+    auto type = ov::element::f32;
+    auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
+    auto op1 = std::make_shared<ov::opset8::Abs>(param);
+    op1->get_default_output().set_names({"A"});
+    auto op2 = std::make_shared<ov::opset8::Relu>(op1);
+    op2->get_default_output().set_names({"B"});
+    auto op3 = std::make_shared<ov::opset8::Abs>(op2);
+    op3->get_default_output().set_names({"C"});
+    auto op4 = std::make_shared<ov::opset8::Subtract>(op3, op3);
+    op4->get_default_output().set_names({"D"});
+    auto res = std::make_shared<ov::op::v0::Result>(op4);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{param});
+    // 2. Add output to some node 'A' - 'names cache' will be created
+    auto a_output = model->add_output("A");
+    auto ops_before = model->get_ordered_ops();
+    // 3. Remove some node 'B' - ordered_ops_cache will be 'false'
+    auto op2_new = std::make_shared<ov::opset8::Add>(op1, op1);
+    model->replace_node(op2, op2_new);
+    // 4. Assign name 'B' to existing node 'C'
+    op3->get_default_output().set_names({"B"});
+    // 5. Call get_ordered_ops (ordered_ops_cache=true)
+    auto ops_after = model->get_ordered_ops();
+    EXPECT_EQ(ops_after.size(), ops_before.size());
+    // 6. Expect: Add_output to 'B' - output to node 'C' shall be added on step 4
+    auto b_output = model->add_output("B");
+    std::string b_type = b_output.get_node_shared_ptr()->get_input_node_shared_ptr(0)->get_type_name();
+    EXPECT_EQ(b_type, op3->get_type_name());
+}
+
+// Same as above, but for add_output(opName, idx) case. Scenario:
+// 1. Create model with nodes A,B,C.
+// 2. Add output to some node 'A' - 'names cache' will be created
+// 3. Remove some node 'B' - ordered_ops_cache will be 'false'
+// 4. Assign name 'B' to existing node 'C'
+// 5. Call get_ordered_ops (ordered_ops_cache=true)
+// 6. Expect: Add_output to 'B' - output to node 'C' shall be added on step 4
+// Without clearing 'names cache' on step 5 - test will incorrectly add output to 'B'
+TEST(model, add_output_clear_cached_op_name_by_ordered_ops) {
+    // 1. Create model with nodes A,B,C.
+    auto shape = ov::Shape{1, 1, 224, 224};
+    auto type = ov::element::f32;
+    auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
+    auto op1 = std::make_shared<ov::opset8::Abs>(param);
+    op1->set_friendly_name("A");
+    auto op2 = std::make_shared<ov::opset8::Relu>(op1);
+    op2->set_friendly_name("B");
+    auto op3 = std::make_shared<ov::opset8::Abs>(op2);
+    op3->set_friendly_name("C");
+    auto op4 = std::make_shared<ov::opset8::Subtract>(op3, op3);
+    op4->set_friendly_name("D");
+    auto res = std::make_shared<ov::op::v0::Result>(op4);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{param});
+    // 2. Add output to some node 'A' - 'names cache' will be created
+    auto a_output = model->add_output("A", 0);
+    auto ops_before = model->get_ordered_ops();
+    // 3. Remove some node 'B' - ordered_ops_cache will be 'false'
+    auto op2_new = std::make_shared<ov::opset8::Add>(op1, op1);
+    model->replace_node(op2, op2_new);
+    // 4. Assign name 'B' to existing node 'C'
+    op3->set_friendly_name("B");
+    // 5. Call get_ordered_ops (ordered_ops_cache=true)
+    auto ops_after = model->get_ordered_ops();
+    EXPECT_EQ(ops_after.size(), ops_before.size());
+    // 6. Expect: Add_output to 'B' - output to node 'C' shall be added on step 4
+    auto b_output = model->add_output("B", 0);
+    std::string b_type = b_output.get_node_shared_ptr()->get_input_node_shared_ptr(0)->get_type_name();
+    EXPECT_EQ(b_type, op3->get_type_name());
+}
+
 namespace {
 bool all_ops_have_same_info(const std::shared_ptr<ov::Model>& f) {
     auto shared_info = ov::ModelAccessor(f).get_shared_info();
