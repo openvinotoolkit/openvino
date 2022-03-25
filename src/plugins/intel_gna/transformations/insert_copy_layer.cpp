@@ -31,7 +31,7 @@ namespace {
         NGRAPH_CHECK(input_op);
         NGRAPH_CHECK(output_op);
 
-        auto copy_op = std::make_shared<GNAPluginNS::Copy>(input_op->output(output_op->input(index).get_source_output().get_index()), false);
+        auto copy_op = std::make_shared<GNAPluginNS::Copy>(input_op->output(output_op->input(index).get_source_output().get_index()));
         copy_op->set_friendly_name(input_op->get_friendly_name() + "/copy_layer/" + output_op->get_friendly_name() + "." + std::to_string(index));
         ngraph::copy_runtime_info(input_op, copy_op);
 
