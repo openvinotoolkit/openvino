@@ -6,7 +6,7 @@ These instructions are applicable only to the Faster R-CNN model converted to th
 
 **Step 2**. To generate the Intermediate Representation (IR) of the model, change your current working directory to the Model Optimizer installation directory and run the Model Optimizer with the following parameters:
 ```sh
- mo
+ mo \
 --input_model FasterRCNN-10.onnx \
 --input_shape [1,3,800,800] \
 --input 0:2 \
