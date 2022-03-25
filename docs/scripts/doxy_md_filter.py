@@ -127,7 +127,7 @@ class DoxyMDFilter:
         reference_links = set(re.findall(REFERENCE_LINKS_PATTERN, self.content))
         md_links = inline_links
         md_links.update(reference_links)
-        return md_links
+        return sorted(md_links, key=len, reverse=True)
 
 
 def get_label(file):
