@@ -79,6 +79,7 @@ void SubgraphBaseTest::run() {
                                              CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
                 }
                 infer();
+                generate_inputs(targetStaticShapeVec);
                 validate();
             }
             status = LayerTestsUtils::PassRate::Statuses::PASSED;
