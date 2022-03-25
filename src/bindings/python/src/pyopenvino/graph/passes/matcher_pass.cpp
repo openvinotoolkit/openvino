@@ -33,7 +33,7 @@ void regclass_passes_Matcher(py::module m) {
 
                 :param name: pattern name. Usually matches the MatcherPass class name.
                 :type name: str
-    // )");
+    )");
 
     matcher.def(py::init([](ov::Output<ov::Node>& output, const std::string& name) {
                     return std::make_shared<ov::pass::pattern::Matcher>(output, name);
@@ -49,7 +49,7 @@ void regclass_passes_Matcher(py::module m) {
 
                 :param name: pattern name. Usually matches the MatcherPass class name.
                 :type name: str
-    // )");
+    )");
 
     matcher.def("get_name",
                 &ov::pass::pattern::Matcher::get_name,
@@ -58,7 +58,7 @@ void regclass_passes_Matcher(py::module m) {
 
                 :return: openvino.runtime.passes.Matcher name.
                 :rtype: str
-    //)");
+    )");
 
     matcher.def("get_match_root",
                 &ov::pass::pattern::Matcher::get_match_root,
@@ -67,7 +67,7 @@ void regclass_passes_Matcher(py::module m) {
 
                 :return: matched node.
                 :rtype: openvino.runtime.Node
-    //)");
+    )");
 
     matcher.def("get_match_value",
                 &ov::pass::pattern::Matcher::get_match_value,
@@ -76,7 +76,7 @@ void regclass_passes_Matcher(py::module m) {
 
                 :return: matched node output.
                 :rtype: openvino.runtime.Output
-    //)");
+    )");
 
     matcher.def("get_match_nodes",
                 &ov::pass::pattern::Matcher::get_matched_nodes,
@@ -84,8 +84,8 @@ void regclass_passes_Matcher(py::module m) {
                 Get NodeVector of matched nodes. Should be used after match() method is called.
 
                 :return: matched nodes vector.
-                :rtype: List[Node]
-    //)");
+                :rtype: List[openvino.runtime.Node]
+    )");
 
     matcher.def("get_match_values",
                 static_cast<const ov::OutputVector& (ov::pass::pattern::Matcher::*)() const>(
@@ -94,8 +94,8 @@ void regclass_passes_Matcher(py::module m) {
                 Get OutputVector of matched outputs. Should be used after match() method is called.
 
                 :return: matched outputs vector.
-                :rtype: List[Output]
-    //)");
+                :rtype: List[openvino.runtime.Output]
+    )");
 
     matcher.def("get_pattern_value_map",
                 &ov::pass::pattern::Matcher::get_pattern_value_map,
@@ -105,7 +105,7 @@ void regclass_passes_Matcher(py::module m) {
 
                 :return: mapping of pattern nodes to matched nodes.
                 :rtype: dict
-    //)");
+    )");
 
     matcher.def("match",
                 static_cast<bool (ov::pass::pattern::Matcher::*)(const ov::Output<ov::Node>&)>(
@@ -115,7 +115,7 @@ void regclass_passes_Matcher(py::module m) {
 
                 :return: status of matching.
                 :rtype: bool
-    //)");
+    )");
 
     matcher.def("match",
                 static_cast<bool (ov::pass::pattern::Matcher::*)(std::shared_ptr<ov::Node>)>(
@@ -125,7 +125,7 @@ void regclass_passes_Matcher(py::module m) {
 
                 :return: status of matching.
                 :rtype: bool
-    //)");
+    )");
 }
 
 class PyMatcherPass : public ov::pass::MatcherPass {
@@ -158,7 +158,7 @@ void regclass_passes_MatcherPass(py::module m) {
 
         :return: created openvino.runtime.passes.MatcherPass instance.
         :rtype: openvino.runtime.passes.MatcherPass
-    //)");
+    )");
 
     matcher_pass.def("apply",
                      &ov::pass::MatcherPass::apply,
@@ -168,7 +168,7 @@ void regclass_passes_MatcherPass(py::module m) {
 
                      :return: callback return code.
                      :rtype: bool
-    //)");
+    )");
 
     matcher_pass.def("register_new_node",
                      &ov::pass::MatcherPass::register_new_node_,
@@ -181,7 +181,7 @@ void regclass_passes_MatcherPass(py::module m) {
 
                      :return: registered node instance
                      :rtype: openvino.runtime.Node
-    //)");
+    )");
 
     matcher_pass.def("register_matcher",
                      static_cast<void (ov::pass::MatcherPass::*)(const std::shared_ptr<ov::pass::pattern::Matcher>&,
@@ -197,5 +197,5 @@ void regclass_passes_MatcherPass(py::module m) {
 
                      :param callback: Function that performs transformation on the matched nodes.
                      :type callback: function
-    // )");
+    )");
 }

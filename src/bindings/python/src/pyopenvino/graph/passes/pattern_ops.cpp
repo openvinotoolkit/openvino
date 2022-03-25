@@ -84,7 +84,7 @@ void reg_pattern_wrap_type(py::module m) {
 
                   :param type_name: node type. For example: "opset8.Abs"
                   :type type_name: str
-    // )");
+    )");
 
     wrap_type.def(py::init([](const std::string& type_name, const Predicate& pred) {
                       return std::make_shared<ov::pass::pattern::op::WrapType>(get_type(type_name), pred);
@@ -99,7 +99,7 @@ void reg_pattern_wrap_type(py::module m) {
 
                   :param predicate: Function that performs additional checks for matching.
                   :type predicate: function
-    // )");
+    )");
 
     wrap_type.def(py::init([](const std::string& type_name, const ov::Output<ov::Node>& input) {
                       return std::make_shared<ov::pass::pattern::op::WrapType>(get_type(type_name),
@@ -116,7 +116,7 @@ void reg_pattern_wrap_type(py::module m) {
 
                   :param input: Node output.
                   :type input: openvino.runtime.Output
-    // )");
+    )");
 
     wrap_type.def(py::init([](const std::string& type_name, const std::shared_ptr<ov::Node>& input) {
                       return std::make_shared<ov::pass::pattern::op::WrapType>(get_type(type_name),
@@ -133,7 +133,7 @@ void reg_pattern_wrap_type(py::module m) {
 
                   :param input: Input node.
                   :type input: openvino.runtime.Node
-    // )");
+    )");
 
     wrap_type.def(py::init([](const std::string& type_name, const ov::Output<ov::Node>& input, const Predicate& pred) {
                       return std::make_shared<ov::pass::pattern::op::WrapType>(get_type(type_name),
@@ -154,7 +154,7 @@ void reg_pattern_wrap_type(py::module m) {
 
                   :param predicate: Function that performs additional checks for matching.
                   :type predicate: function
-    // )");
+    )");
 
     wrap_type.def(
         py::init([](const std::string& type_name, const std::shared_ptr<ov::Node>& input, const Predicate& pred) {
@@ -176,7 +176,7 @@ void reg_pattern_wrap_type(py::module m) {
 
                   :param predicate: Function that performs additional checks for matching.
                   :type predicate: function
-    // )");
+    )");
 
     wrap_type.def(py::init([](const std::string& type_name, const ov::OutputVector& inputs) {
                       return std::make_shared<ov::pass::pattern::op::WrapType>(get_type(type_name), nullptr, inputs);
@@ -191,7 +191,7 @@ void reg_pattern_wrap_type(py::module m) {
 
                   :param inputs: Node outputs.
                   :type inputs: List[openvino.runtime.Output]
-    // )");
+    )");
 
     wrap_type.def(py::init([](const std::string& type_name, const ov::NodeVector& inputs) {
                       return std::make_shared<ov::pass::pattern::op::WrapType>(get_type(type_name),
@@ -208,7 +208,7 @@ void reg_pattern_wrap_type(py::module m) {
 
                   :param inputs: Input nodes.
                   :type inputs: List[openvino.runtime.Node]
-    // )");
+    )");
 
     wrap_type.def(py::init([](const std::string& type_name, const ov::OutputVector& inputs, const Predicate& pred) {
                       return std::make_shared<ov::pass::pattern::op::WrapType>(get_type(type_name), pred, inputs);
@@ -227,7 +227,7 @@ void reg_pattern_wrap_type(py::module m) {
 
                   :param predicate: Function that performs additional checks for matching.
                   :type predicate: function
-    // )");
+    )");
 
     wrap_type.def(py::init([](const std::string& type_name, const ov::NodeVector& inputs, const Predicate& pred) {
                       return std::make_shared<ov::pass::pattern::op::WrapType>(get_type(type_name),
@@ -248,7 +248,7 @@ void reg_pattern_wrap_type(py::module m) {
 
                   :param predicate: Function that performs additional checks for matching.
                   :type predicate: function
-    // )");
+    )");
 
     wrap_type.def(py::init([](const std::vector<std::string>& type_names) {
                       return std::make_shared<ov::pass::pattern::op::WrapType>(get_types(type_names));
@@ -259,7 +259,7 @@ void reg_pattern_wrap_type(py::module m) {
 
                   :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
                   :type type_names: List[str]
-    // )");
+    )");
 
     wrap_type.def(py::init([](const std::vector<std::string>& type_names, const Predicate& pred) {
                       return std::make_shared<ov::pass::pattern::op::WrapType>(get_types(type_names), pred);
@@ -274,7 +274,7 @@ void reg_pattern_wrap_type(py::module m) {
 
                   :param predicate: Function that performs additional checks for matching.
                   :type predicate: function
-    // )");
+    )");
 
     wrap_type.def(py::init([](const std::vector<std::string>& type_names, const ov::Output<ov::Node>& input) {
                       return std::make_shared<ov::pass::pattern::op::WrapType>(get_types(type_names),
@@ -291,7 +291,7 @@ void reg_pattern_wrap_type(py::module m) {
 
                   :param input: Node output.
                   :type input: openvino.runtime.Output
-    // )");
+    )");
 
     wrap_type.def(py::init([](const std::vector<std::string>& type_names, const std::shared_ptr<ov::Node>& input) {
                       return std::make_shared<ov::pass::pattern::op::WrapType>(get_types(type_names),
@@ -308,7 +308,7 @@ void reg_pattern_wrap_type(py::module m) {
 
                   :param input: Input node.
                   :type input: openvino.runtime.Node
-    // )");
+    )");
 
     wrap_type.def(
         py::init(
@@ -331,7 +331,7 @@ void reg_pattern_wrap_type(py::module m) {
 
         :param predicate: Function that performs additional checks for matching.
         :type predicate: function
-    // )");
+    )");
 
     wrap_type.def(py::init([](const std::vector<std::string>& type_names,
                               const std::shared_ptr<ov::Node>& input,
@@ -354,7 +354,7 @@ void reg_pattern_wrap_type(py::module m) {
 
         :param predicate: Function that performs additional checks for matching.
         :type predicate: function
-    // )");
+    )");
 
     wrap_type.def(py::init([](const std::vector<std::string>& type_names, const ov::OutputVector& inputs) {
                       return std::make_shared<ov::pass::pattern::op::WrapType>(get_types(type_names), nullptr, inputs);
@@ -369,7 +369,7 @@ void reg_pattern_wrap_type(py::module m) {
 
       :param inputs: Nodes outputs.
       :type inputs: List[openvino.runtime.Output]
-    // )");
+    )");
 
     wrap_type.def(py::init([](const std::vector<std::string>& type_names, const ov::NodeVector& inputs) {
                       return std::make_shared<ov::pass::pattern::op::WrapType>(get_types(type_names),
@@ -386,7 +386,7 @@ void reg_pattern_wrap_type(py::module m) {
 
         :param inputs: Input nodes.
         :type inputs: List[openvino.runtime.Node]
-    // )");
+    )");
 
     wrap_type.def(
         py::init([](const std::vector<std::string>& type_names, const ov::OutputVector& inputs, const Predicate& pred) {
@@ -406,7 +406,7 @@ void reg_pattern_wrap_type(py::module m) {
 
         :param predicate: Function that performs additional checks for matching.
         :type predicate: function
-    // )");
+    )");
 
     wrap_type.def(
         py::init([](const std::vector<std::string>& type_names, const ov::NodeVector& inputs, const Predicate& pred) {
@@ -428,7 +428,7 @@ void reg_pattern_wrap_type(py::module m) {
 
         :param predicate: Function that performs additional checks for matching.
         :type predicate: function
-    // )");
+    )");
 }
 
 void reg_pattern_or(py::module m) {
@@ -444,7 +444,7 @@ void reg_pattern_or(py::module m) {
 
                 :param inputs: Operation inputs.
                 :type inputs: List[openvino.runtime.Output]
-    // )");
+    )");
 
     or_type.def(py::init([](const ov::NodeVector& inputs) {
                     return std::make_shared<ov::pass::pattern::op::Or>(ov::as_output_vector(inputs));
@@ -455,7 +455,7 @@ void reg_pattern_or(py::module m) {
 
                 :param inputs: Operation inputs.
                 :type inputs: List[openvino.runtime.Node]
-    // )");
+    )");
 }
 
 void reg_pattern_any_input(py::module m) {
@@ -469,7 +469,7 @@ void reg_pattern_any_input(py::module m) {
                   }),
                   R"(
                   Create pattern AnyInput operation which is used to match any type of node.
-    // )");
+    )");
 
     any_input.def(py::init([](const Predicate& pred) {
                       return std::make_shared<ov::pass::pattern::op::Label>(ov::element::dynamic,
@@ -482,7 +482,7 @@ void reg_pattern_any_input(py::module m) {
 
                   :param pred: Function that performs additional checks for matching.
                   :type pred: function
-    // )");
+    )");
 }
 
 void reg_predicates(py::module m) {

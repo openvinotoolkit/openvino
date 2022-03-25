@@ -27,7 +27,7 @@ void regclass_passes_GraphRewrite(py::module m) {
 
                       :param pass: openvino.runtime.passes.MatcherPass instance
                       :type pass: openvino.runtime.passes.MatcherPass
-    // )");
+    )");
 
     graph_rewrite.def("add_matcher",
                       static_cast<std::shared_ptr<ov::pass::MatcherPass> (ov::pass::GraphRewrite::*)(
@@ -38,7 +38,7 @@ void regclass_passes_GraphRewrite(py::module m) {
 
                       :param pass: openvino.runtime.passes.MatcherPass instance
                       :type pass: openvino.runtime.passes.MatcherPass
-    // )");
+    )");
 
     py::class_<ov::pass::BackwardGraphRewrite,
                std::shared_ptr<ov::pass::BackwardGraphRewrite>,
@@ -59,7 +59,7 @@ void regclass_passes_GraphRewrite(py::module m) {
 
                            :param pass: openvino.runtime.passes.MatcherPass instance
                            :type pass: openvino.runtime.passes.MatcherPass
-    // )");
+    )");
 
     back_graph_rewrite.def(
         "add_matcher",
@@ -71,5 +71,5 @@ void regclass_passes_GraphRewrite(py::module m) {
 
         :param pass: openvino.runtime.passes.MatcherPass instance
         :type pass: openvino.runtime.passes.MatcherPass
-    // )");
+    )");
 }

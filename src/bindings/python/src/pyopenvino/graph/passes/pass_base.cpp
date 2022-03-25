@@ -22,7 +22,7 @@ void regclass_passes_PassBase(py::module m) {
 
                   :param name: Transformation name.
                   :type name: str
-    // )");
+    )");
     pass_base.def("get_name",
                   &ov::pass::PassBase::get_name,
                   R"(
@@ -30,5 +30,5 @@ void regclass_passes_PassBase(py::module m) {
 
                   :return: Transformation name.
                   :rtype: str
-    //)");
+    )");
 }

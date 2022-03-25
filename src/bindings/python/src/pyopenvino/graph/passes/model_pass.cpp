@@ -43,5 +43,5 @@ void regclass_passes_ModelPass(py::module m) {
 
                    :return: True in case if Model was changed and False otherwise.
                    :rtype: bool
-    //)");
+    )");
 }

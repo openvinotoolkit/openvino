@@ -9,9 +9,11 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/pass/manager.hpp"
-#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
+
+template <typename... Args>
+using overload_cast_ = pybind11::detail::overload_cast_impl<Args...>;
 
 void* numpy_to_c(py::array a) {
     py::buffer_info info = a.request();

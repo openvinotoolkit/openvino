@@ -44,7 +44,7 @@ void regclass_passes_Manager(py::module m) {
 
                 :param new_state: flag which enables or disables model validation.
                 :type new_state: bool
-    // )");
+    )");
 
     manager.def("run_passes",
                 &ov::pass::Manager::run_passes,
@@ -54,7 +54,7 @@ void regclass_passes_Manager(py::module m) {
 
                 :param model: openvino.runtime.Model to be transformed.
                 :type model: openvino.runtime.Model
-    // )");
+    )");
 
     manager.def("register_pass",
                 &ov::pass::Manager::register_pass_instance,
@@ -64,7 +64,7 @@ void regclass_passes_Manager(py::module m) {
 
                 :param transformation: transformation instance.
                 :type transformation: openvino.runtime.passes.PassBase
-    // )");
+    )");
 
     manager.def(
         "register_pass",
@@ -85,7 +85,7 @@ void regclass_passes_Manager(py::module m) {
 
                 :param pass_name: String to set the type of a pass.
                 :type pass_name: str
-    // )");
+    )");
 
     manager.def(
         "register_pass",
@@ -130,7 +130,7 @@ void regclass_passes_Manager(py::module m) {
         2. IR version 11
             pass_manager = Manager()
             pass_manager.register_pass("Serialize", output_files=("example.xml", "example.bin"), version="IR_V11")
-    // )");
+    )");
 
     manager.def(
         "register_pass",
@@ -177,5 +177,5 @@ void regclass_passes_Manager(py::module m) {
         2. IR version 11
             pass_manager = Manager()
             pass_manager.register_pass("Serialize", xml_path="example.xml", bin_path="example.bin", version="IR_V11")
-    // )");
+    )");
 }

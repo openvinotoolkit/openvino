@@ -34,7 +34,7 @@ void regclass_transformations(py::module m) {
 
                   :param path_to_xml: Path where *.bin file will be saved.
                   :type path_to_xml: str
-    // )");
+    )");
 
     serialize.def(
         py::init(
@@ -55,7 +55,7 @@ void regclass_transformations(py::module m) {
 
         :param version: serialized IR version.
         :type version: int
-    // )");
+    )");
 
     py::class_<ov::pass::ConstantFolding,
                std::shared_ptr<ov::pass::ConstantFolding>,
@@ -86,7 +86,7 @@ void regclass_transformations(py::module m) {
 
                   :param don_only: Enable only dot file generation.
                   :type don_only: bool
-    // )");
+    )");
 
     py::class_<ov::pass::MakeStateful, std::shared_ptr<ov::pass::MakeStateful>, ov::pass::ModelPass, ov::pass::PassBase>
         make_stateful(m, "MakeStateful");
