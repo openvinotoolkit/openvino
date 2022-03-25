@@ -12,7 +12,7 @@ using namespace ngraph;
 namespace {  // helpers
 
 template <typename T>
-static uint64_t hash_combine(uint64_t seed, const T& a) {
+uint64_t hash_combine(uint64_t seed, const T& a) {
     // Hash combine formula from boost
     return seed ^ (std::hash<T>()(a) + 0x9e3779b9 + (seed << 6) + (seed >> 2));
 }
@@ -24,12 +24,12 @@ void join_hash(uint64_t& hash, const Container& c) {
     }
 }
 
-size_t hash_combine(const void* v, int64_t size) {
-    constexpr auto cel_size = sizeof(size_t);
-    auto seed = static_cast<size_t>(size);
-    const auto data = static_cast<const size_t*>(v);
+uint64_t hash_combine(const void* v, size_t size) {
+    constexpr auto cel_size = sizeof(uint64_t);
+    auto seed = static_cast<uint64_t>(size);
+    const auto data = static_cast<const uint64_t*>(v);
     const auto steps = size / cel_size;
-    const auto d_end = std::next(data, steps);
+    const auto d_end = std::next(data, static_cast<int64_t>(steps));
     // Slower version: this is > ~2 times slower than calculation of separate 4 sums
     //    for (auto d = data; d < d_end; ++d) {
     //        sum ^= *d + 0x9e3779b9 + (sum << 6) + (sum >> 2);
@@ -38,9 +38,9 @@ size_t hash_combine(const void* v, int64_t size) {
     // ---- Faster version ---
     // Calculate 4 separate independent hash sums within one cycle
     constexpr auto fast_step = 4;
-    size_t sum[fast_step] = {0};
+    uint64_t sum[fast_step] = {0};
     const auto fast_step_cnt = steps / fast_step;
-    const auto d_end_fast = std::next(data, fast_step_cnt * fast_step);
+    const auto d_end_fast = std::next(data, static_cast<int64_t>(fast_step_cnt * fast_step));
     for (auto d = data; d < d_end_fast; d += fast_step) {
         // This appears to be almost 2 times faster to calculate separate sums than do it with step=1
         for (auto i = 0; i < fast_step; i++) {
@@ -54,7 +54,7 @@ size_t hash_combine(const void* v, int64_t size) {
         seed = hash_combine(seed, sum[i]);
     }
     // ---- End Faster version ----
-    size_t last_bytes{0};
+    uint64_t last_bytes{0};
     std::memcpy(&last_bytes, d_end, size % cel_size);
     seed ^= last_bytes + 0x9e3779b9 + (seed << 6) + (seed >> 2);
     return seed;
@@ -146,7 +146,7 @@ std::unordered_map<ov::Node*, int> create_layer_ids(const std::vector<std::share
 }
 
 class HashSerializer : public ov::AttributeVisitor {
-    size_t& m_hash;
+    uint64_t& m_hash;
 
     void input_descriptions_on_adapter(
         const std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::InputDescription>>& input_descriptions) {
@@ -185,7 +185,7 @@ class HashSerializer : public ov::AttributeVisitor {
     }
 
 public:
-    explicit HashSerializer(size_t& hash) : m_hash(hash) {}
+    explicit HashSerializer(uint64_t& hash) : m_hash(hash) {}
 
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
         m_hash = hash_combine(m_hash, name);
@@ -346,7 +346,8 @@ void model_2_hash(uint64_t& hash, const ov::Model& f) {
     std::vector<std::shared_ptr<ov::Node>> result;
     for (const auto& n : sorted_ops) {
         ov::Node* node = n.get();
-        const std::string& node_type_name{node->get_type_name()};
+        std::string node_type_name{node->get_type_name()};
+        hash = hash_combine(hash, node_type_name);
         // Don't include auto-generated names into hash
         if (!is_name_auto_generated(*node)) {
             hash = hash_combine(hash, node->get_friendly_name());
