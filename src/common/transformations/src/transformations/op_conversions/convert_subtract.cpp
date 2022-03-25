@@ -12,8 +12,10 @@
 #include "itt.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
 
-static bool convert_subtract(const std::shared_ptr<ngraph::Node>& node) {
-    auto sub = std::dynamic_pointer_cast<ngraph::opset1::Subtract>(node);
+using namespace ngraph;
+
+static bool convert_subtract(const std::shared_ptr<Node>& node) {
+    auto sub = std::dynamic_pointer_cast<opset1::Subtract>(node);
     if (!sub) {
         return false;
     }
@@ -26,44 +28,44 @@ static bool convert_subtract(const std::shared_ptr<ngraph::Node>& node) {
         return false;
     }
 
-    std::shared_ptr<ngraph::Node> neg = std::make_shared<ngraph::opset1::Multiply>(
+    std::shared_ptr<Node> neg = std::make_shared<opset1::Multiply>(
         sub->get_input_node_shared_ptr(1),
         opset1::Constant::create(sub->get_input_element_type(1), Shape{}, {-1}));
     if (auto constant = ov::get_constant_from_source(neg))
         neg = constant;
 
-    auto add = std::make_shared<ngraph::opset1::Add>(sub->get_input_node_shared_ptr(0), neg);
+    auto add = std::make_shared<opset1::Add>(sub->get_input_node_shared_ptr(0), neg);
 
     add->set_friendly_name(sub->get_friendly_name());
-    ngraph::copy_runtime_info(sub, {neg, add});
-    ngraph::replace_node(sub, add);
+    copy_runtime_info(sub, {neg, add});
+    replace_node(sub, add);
 
     return true;
 }
 
-ngraph::pass::ConvertSubtract::ConvertSubtract() {
+pass::ConvertSubtract::ConvertSubtract() {
     MATCHER_SCOPE(ConvertSubtract);
-    auto sub = ngraph::pattern::wrap_type<ngraph::opset1::Subtract>();
+    auto sub = pattern::wrap_type<opset1::Subtract>();
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto node = m.get_match_root();
         return convert_subtract(node);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(sub, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(sub, matcher_name);
     this->register_matcher(m, callback);
 }
 
-ngraph::pass::ConvertSubtractWithConstant::ConvertSubtractWithConstant() {
+pass::ConvertSubtractWithConstant::ConvertSubtractWithConstant() {
     MATCHER_SCOPE(ConvertSubtractWithConstant);
-    auto sub = ngraph::pattern::wrap_type<ngraph::opset1::Subtract>(
+    auto sub = pattern::wrap_type<opset1::Subtract>(
         {pattern::any_input(), pattern::wrap_type<op::Constant>()});
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto node = m.get_match_root();
         return convert_subtract(node);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(sub, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(sub, matcher_name);
     this->register_matcher(m, callback);
 }
