@@ -9,9 +9,9 @@ import openvino.inference_engine as ie
 core = ie.IECore()
 #! [ie:create_core]
 
-#! [ie:create_core]
+#! [ie:read_model]
 network = core.read_network("model.xml")
-#! [ie:create_core]
+#! [ie:read_model]
 
 #! [ie:compile_model]
 # Load network to the device and create infer requests
