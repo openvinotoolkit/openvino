@@ -536,54 +536,22 @@ void network::allocate_primitives() {
 
     for (auto const& node : _program->get_processing_order()) {
         if (node->get_preferred_impl_type() == impl_types::onednn) {
-            bool can_reuse_eltwise_mem = false;
             size_t eltw_dep = 0;
-
             for (auto& fused_op : node->get_fused_primitives()) {
                 if (fused_op.node->is_type<eltwise>() && fused_op.deps.size() == 1) {
-                    auto& eltw_in = node->get_dependency(fused_op.dep_start_idx);
-                    auto eltw_in_layout = eltw_in.get_output_layout();
-                    auto out_layout = node->get_output_layout();
-
-                    if (!program_helpers::needs_onednn_sum_post_op(fused_op.node->as<eltwise>(), eltw_in_layout))
+                    // If it is first sum, reuse the buffer
+                    auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(*node, fused_op);
+                    if (fusing_type != add_fusing_type::sum || eltw_dep != 0)
                         continue;
-
-                    if (program_helpers::are_layouts_identical_for_onednn_sum_post_op(eltw_in_layout, out_layout)) {
-                        if (eltw_dep > 0)
-                            throw std::runtime_error("Unsupported multiple full size tensors.");
-
-                        eltw_dep = fused_op.dep_start_idx;
-                        can_reuse_eltwise_mem = true;
+                    eltw_dep = fused_op.dep_start_idx;
+                    auto& eltw_in = node->get_dependency(eltw_dep);
+                    if (_primitives.find(eltw_in.id()) != _primitives.end() && _primitives.find(node->id()) != _primitives.end()) {
+                        auto& eltw_inst = _primitives.at(eltw_in.id());
+                        auto& prim_inst = _primitives.at(node->id());
+                        auto& eltw_mem = eltw_inst->output_memory();
+                        auto new_mem = eltw_mem.get_engine()->reinterpret_buffer(eltw_mem, node->get_output_layout());
+                        prim_inst->set_output_memory(new_mem);
                     }
-
-                    if (!can_reuse_eltwise_mem) {
-                        if (_primitives.find(eltw_in.id()) != _primitives.end() && _primitives.find(node->id()) != _primitives.end()) {
-                            auto& eltw_inst = _primitives.at(eltw_in.id());
-                            auto& prim_inst = _primitives.at(node->id());
-                            auto eltw_mem_type = eltw_inst->output_memory().get_allocation_type();
-                            auto prim_mem_type = prim_inst->output_memory().get_allocation_type();
-
-                            // Keep lockable memory type for `prim_inst` output if needed
-                            if (eltw_mem_type != prim_mem_type && eltw_mem_type != allocation_type::cl_mem && eltw_mem_type != allocation_type::usm_host)
-                                can_reuse_eltwise_mem = false;
-                        }
-                    }
-
-                    if (program_helpers::needs_onednn_sum_post_op(fused_op.node->as<eltwise>(), eltw_in_layout) && !can_reuse_eltwise_mem) {
-                        throw std::runtime_error("Buffer reuse is required for onednn sum post operation.");
-                    }
-                }
-            }
-
-            if (can_reuse_eltwise_mem) {
-                auto& eltw_in = node->get_dependency(eltw_dep);
-                if (_primitives.find(eltw_in.id()) != _primitives.end() && _primitives.find(node->id()) != _primitives.end()) {
-                    auto& eltw_inst = _primitives.at(eltw_in.id());
-                    auto& prim_inst = _primitives.at(node->id());
-                    auto& eltw_mem = eltw_inst->output_memory();
-                    auto new_mem = eltw_mem.get_engine()->reinterpret_buffer(eltw_mem, node->get_output_layout());
-
-                    prim_inst->set_output_memory(new_mem);
                 }
             }
         }
@@ -698,8 +666,21 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         }
 
         GPU_DEBUG_IF(debug_config->verbose >= 1) {
+            std::ostringstream in_addr;
+            // buffer_ptr() only support usm_memory
+            for (size_t i = 0; i < get_primitive(inst->id())->dependencies().size(); i++) {
+                auto& in_mem = get_primitive(inst->id())->dep_memory(i);
+                in_addr << in_mem.buffer_ptr();
+                if (i < get_primitive(inst->id())->dependencies().size() - 1) {
+                    in_addr << ", ";
+                }
+            }
+            auto& out_mem = get_primitive(inst->id())->output_memory();
+
             GPU_DEBUG_COUT << "Execute " << inst->id() << ", memory type: "
-                           << inst->output_memory().get_allocation_type() << std::endl;
+                           << inst->output_memory().get_allocation_type() << ", in_usm("
+                           << in_addr.str() << "), out_usm("
+                           << out_mem.buffer_ptr() << ")" << std::endl;
         }
 
         // If a node has mutable input or it's an output, then the input/output buffers might be changed
