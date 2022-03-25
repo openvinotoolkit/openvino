@@ -1,6 +1,6 @@
 # High-level Performance Hints {#openvino_docs_OV_UG_Performance_Hints}
 
-Each of the OpenVINO's [supported devices](supported_plugins/Supported_Devices.md) offers low-level performance settings. Tweaking this detailed configuration requires deep architecture understanding.
+Each of the OpenVINO's [supported devices](supported_plugins/Device_Plugins.md) offers low-level performance settings. Tweaking this detailed configuration requires deep architecture understanding.
 Also, while the performance may be optimal for the specific combination of the device and the inferred model, the resulting configuration is not necessarily optimal for another device or model.
 The OpenVINO performance hints are the new way to configure the performance with the _portability_ in mind. 
 

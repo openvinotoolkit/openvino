@@ -21,7 +21,7 @@ TEST(extension, load_extension) {
 
 TEST(extension, load_extension_and_cast) {
     std::vector<ov::Extension::Ptr> so_extensions = ov::detail::load_extensions(get_extension_path());
-    ASSERT_EQ(1, so_extensions.size());
+    ASSERT_LE(1, so_extensions.size());
     std::vector<ov::Extension::Ptr> extensions;
     std::vector<std::shared_ptr<void>> so;
     for (const auto& ext : so_extensions) {
@@ -31,7 +31,7 @@ TEST(extension, load_extension_and_cast) {
         }
     }
     so_extensions.clear();
-    EXPECT_EQ(1, extensions.size());
+    EXPECT_LE(1, extensions.size());
     EXPECT_NE(nullptr, dynamic_cast<ov::BaseOpExtension*>(extensions[0].get()));
     EXPECT_NE(nullptr, std::dynamic_pointer_cast<ov::BaseOpExtension>(extensions[0]));
     extensions.clear();

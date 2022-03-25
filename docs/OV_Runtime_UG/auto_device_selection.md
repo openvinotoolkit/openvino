@@ -205,14 +205,14 @@ For unlimited device choice:
 @sphinxdirective
 .. code-block:: sh
 
-   ./benchmark_app –d AUTO –m <model> -i <input> -niter 1000
+   benchmark_app –d AUTO –m <model> -i <input> -niter 1000
 @endsphinxdirective
 
 For limited device choice:
 @sphinxdirective
 .. code-block:: sh
 
-   ./benchmark_app –d AUTO:CPU,GPU,MYRIAD –m <model> -i <input> -niter 1000
+   benchmark_app –d AUTO:CPU,GPU,MYRIAD –m <model> -i <input> -niter 1000
 @endsphinxdirective
 
 For more information, refer to the [C++](../../samples/cpp/benchmark_app/README.md) or [Python](../../tools/benchmark_tool/README.md) version instructions.	
