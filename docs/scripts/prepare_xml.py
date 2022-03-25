@@ -25,6 +25,8 @@ def prepare_xml(xml_dir: Path):
             if matches:
                 for match in matches:
                     contents = contents.replace(match, saxutils.escape(match))
+            # escape asterisks
+            contents = contents.replace('*', '\\*')
             contents = str.encode(contents)
             root = etree.fromstring(contents)
             anchors = root.xpath('//anchor')

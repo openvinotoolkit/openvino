@@ -161,7 +161,7 @@ VERBATIM_TO_CODE_BLOCK = "cpp"
 --! reStructuredText (asterisks are used to mark **bold** or *italic* blocks).
 --!
 
-ESCAPE_ASTERISKS = true
+ESCAPE_ASTERISKS = false
 
 --!
 --! If the original doxy comments contain pipe characters ``|``, they have to be
