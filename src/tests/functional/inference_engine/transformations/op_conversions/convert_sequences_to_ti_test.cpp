@@ -16,6 +16,8 @@
 #include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "transformations/control_flow/unroll_tensor_iterator.hpp"
+#include "transformations/serialize.hpp"
 
 using namespace testing;
 using namespace ngraph;
@@ -529,4 +531,39 @@ TEST(TransformationTests, ConvertGRUSequenceToTensorIteratorDynamic) {
 
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
+}
+
+TEST(TransformationTests, outputs_test) {
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, 2, -1});
+        auto Y = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, 1, 128});
+        auto seq_lengths = ngraph::opset5::Constant::create(element::i32, Shape{1}, {2});
+
+        auto w_val = std::vector<float>(384 * 16, 0);
+        auto r_val = std::vector<float>(384 * 128, 0);
+        auto b_val = std::vector<float>(384, 0);
+        auto W = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{1, 384, 16}, w_val);
+        auto R = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{1, 384, 128}, r_val);
+        auto B = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{1, 384}, b_val);
+
+        auto rnn_sequence = std::make_shared<opset5::GRUSequence>(X, Y, seq_lengths, W, R, B, 128,
+                                                                  op::RecurrentSequenceDirection::FORWARD);
+        rnn_sequence->output(0).set_names({"GRUSequence_135.0"});
+        rnn_sequence->output(1).set_names({"GRUSequence_135.1"});
+        auto Y_out = std::make_shared<opset5::Result>(rnn_sequence->output(0));
+        auto Ho = std::make_shared<opset5::Result>(rnn_sequence->output(1));
+        Y_out->set_friendly_name("Y_out");
+        Ho->set_friendly_name("Ho");
+
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{Y_out, Ho}, ngraph::ParameterVector{X, Y});
+
+        ngraph::pass::Manager m;
+        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ngraph::pass::ConvertGRUSequenceToTensorIterator>();
+        m.register_pass<ngraph::pass::UnrollTensorIterator>();
+        //m.register_pass<ngraph::pass::Serialize>("/home/itikhonov/OpenVINO/temp/gru_seq_unroll.xml", "/home/itikhonov/OpenVINO/temp/gru_seq_unroll.bin");
+        m.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
 }

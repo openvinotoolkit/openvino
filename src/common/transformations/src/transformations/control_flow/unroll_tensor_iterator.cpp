@@ -136,6 +136,9 @@ bool ngraph::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngra
                     NGRAPH_SUPPRESS_DEPRECATED_START
                     concat->output(0).get_tensor().set_name(
                         op::util::create_ie_output_name(sub_graph_op->output(concat_desc->m_output_index)));
+                    std::cout << "XXXXXX "
+                              << op::util::create_ie_output_name(sub_graph_op->output(concat_desc->m_output_index))
+                              << std::endl;
                     NGRAPH_SUPPRESS_DEPRECATED_END
                     // connect the Concat layer to the corresponding TI outputs
                     for (auto& input : sub_graph_op->output(concat_desc->m_output_index).get_target_inputs()) {
@@ -150,6 +153,9 @@ bool ngraph::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngra
                     NGRAPH_SUPPRESS_DEPRECATED_START
                     input_to_res.get_tensor().set_name(
                         op::util::create_ie_output_name(sub_graph_op->output(concat_desc->m_output_index)));
+                    std::cout << "XXXXXX "
+                              << op::util::create_ie_output_name(sub_graph_op->output(concat_desc->m_output_index))
+                              << std::endl;
                     NGRAPH_SUPPRESS_DEPRECATED_END
                     for (auto& input : sub_graph_op->output(concat_desc->m_output_index).get_target_inputs()) {
                         input.replace_source_output(input_to_res);
@@ -168,6 +174,9 @@ bool ngraph::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngra
                 NGRAPH_SUPPRESS_DEPRECATED_START
                 in_value.get_tensor().set_name(
                     op::util::create_ie_output_name(sub_graph_op->output(output_desc->m_output_index)));
+                std::cout << "XXXXXX "
+                          << op::util::create_ie_output_name(sub_graph_op->output(output_desc->m_output_index))
+                          << std::endl;
                 NGRAPH_SUPPRESS_DEPRECATED_END
                 for (const auto& input : sub_graph_op->output(output_desc->m_output_index).get_target_inputs()) {
                     input.replace_source_output(result->get_input_source_output(0));
