@@ -19,6 +19,7 @@
 #include <ngraph/pass/manager.hpp>
 #include <inference_engine.hpp>
 #include <openvino/util/env_util.hpp>
+#include <openvino/op/util/attr_types.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -60,6 +61,13 @@ Output<Node> create_constant_with_zeros(const Shape & shape, const Mask & mask) 
 
 class DISABLED_TransformationTestsF:
 public TransformationTestsF{};
+
+
+class TransformationTestsBoolParamF :
+public TransformationTestsF,
+public testing::WithParamInterface<bool> {
+};
+
 
 // Uncomment, specify PRUNING_TARGET_IR_PATH var and
 // include <openvino/util/env_util.hpp> to check pruning on given IR
@@ -3085,14 +3093,14 @@ TEST_F(TransformationTestsF, MaskPropagationLinearOuterDims) {
         auto transpose_const = opset5::Constant::create(element::i64, {4}, {0, 2, 3, 1});
         auto transpose = std::make_shared<opset5::Transpose>(reshape, transpose_const);
 
-        auto left_weights = create_constant_with_zeros(weightsLeftShape, {{}, {1, 2}});
+        auto left_weights = create_constant_with_zeros({weightsLeftShape[0], weightsLeftShape[1] - 2}, {{}, {}});
 
         auto mul_left = std::make_shared<opset5::MatMul>(transpose, left_weights);
 
-        auto flatten_const = opset5::Constant::create(element::i64, {2}, {1, 24});
+        auto flatten_const = opset5::Constant::create(element::i64, {2}, {1, 8});
         auto flatten = std::make_shared<opset5::Reshape>(mul_left, flatten_const, true);
 
-        auto last_mul_const = create_constant_with_zeros({24, 2}, {{}, {0}});
+        auto last_mul_const = create_constant_with_zeros({8, 2}, {{}, {0}});
         auto last_mul = std::make_shared<opset5::MatMul>(flatten, last_mul_const);
 
         function_ref  = std::make_shared<ngraph::Function>(OutputVector{last_mul}, ParameterVector{input});
@@ -3113,13 +3121,18 @@ TEST_F(TransformationTestsF, MaskPropagationLinearOuterDims) {
 
     compare_masks(*getMask(transpose->output(0)), Mask({{}, {1, 2}, {}, {}}));
 
-    compare_masks(*getMask(left_weights.get_node_shared_ptr()->output(0)),  Mask({{}, {}}));
-    compare_masks(*getMask(mul_left->output(0)),  Mask({{}, {1, 2}, {}, {}}));
+    compare_masks(*getMask(left_weights.get_node_shared_ptr()->output(0)),  Mask({{}, {1, 2}}));
+    compare_masks(*getMask(mul_left->output(0)),  Mask({{}, {1, 2}, {}, {1, 2}}));
 
-    auto ref_flatten_mask = Mask();
     auto ref_dim = std::set<uint64_t>();
     for (uint64_t i = 6; i < 18; ++i)
         ref_dim.insert(i);
+    for (uint64_t i = 0; i < 6; ++i)
+        for (auto & zero_dim : {1, 2, 4, 5})
+            ref_dim.insert(i * 6 + zero_dim);
+
+
+    auto ref_flatten_mask = Mask();
     ref_flatten_mask.push_back({});
     ref_flatten_mask.push_back(ref_dim);
 
@@ -3611,17 +3624,18 @@ TEST(TransformationTests, PropagateMasksTransposeStop) {
 }
 
 
-TEST_F(TransformationTestsF, PropagateMasksBroadcastedEltwise) {
-    auto inputShapes = PartialShape{1, 6, 3};
-    auto weightsShape = Shape{3, 12};
-    auto EltwiseShape = Shape{1, 6, 12};
-    auto broadcastedEltwiseShape = Shape{1, 1, 1, 6};
+// Reason: a net, when broadcasting is changing output values
+TEST_F(DISABLED_TransformationTestsF, PropagateMasksBroadcastedEltwiseWithInputs) {
+    constexpr size_t heads(6), dim_in_head(3), dim(12);
+    auto inputShapes = PartialShape{2, heads, dim_in_head};
+    auto weightsShape = Shape{dim_in_head, dim};
+    auto EltwiseShape = Shape{2, heads, dim};
+    auto broadcastedEltwiseShape = Shape{1, 1, 1, heads};
+    auto broadcastedEltwiseShapeShort = Shape{2, 2, heads};
     auto weightsLeftShape = Shape{6, 3};
 
     auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
-                                                            /* 1 -> 0 ch, shoudn't be pruned
-                                                               2, 3 -> 1 ch
-                                                               4, 5 -> 2 ch */
+
     auto right_weights = create_constant_with_zeros(weightsShape, {{}, {1, 2, 3, 4, 5}});
     auto mul_right = std::make_shared<opset5::MatMul>(input, right_weights);
 
@@ -3634,34 +3648,45 @@ TEST_F(TransformationTestsF, PropagateMasksBroadcastedEltwise) {
     auto transpose_const = opset5::Constant::create(element::i64, {4}, {0, 2, 3, 1});
     auto transpose = std::make_shared<opset5::Transpose>(reshape, transpose_const);
 
-    auto broadcasted_eltwise_weights = create_constant_with_zeros(broadcastedEltwiseShape, {{}, {}, {}, {}});
+    auto broadcasted_eltwise_weights = create_constant_with_zeros(broadcastedEltwiseShape, {{0}, {}, {}, {}});
     auto broadcasted_eltwise = std::make_shared<opset5::Add>(transpose, broadcasted_eltwise_weights);
+    broadcasted_eltwise->set_friendly_name("Eltwise broadcasted same rank");
+
+    auto transpose_to_const = opset5::Constant::create(element::i64, {4}, {1, 0, 2, 3});
+    auto transpose_to = std::make_shared<opset5::Transpose>(broadcasted_eltwise, transpose_to_const);
+
+    auto broadcasted_eltwise_weights_short = create_constant_with_zeros(broadcastedEltwiseShapeShort, {{}, {0, 1}, {}});
+    auto broadcasted_eltwise_short = std::make_shared<opset5::Add>(transpose_to, broadcasted_eltwise_weights_short);
+    broadcasted_eltwise_short->set_friendly_name("Eltwise broadcasted smaller rank");
+
+    auto transpose_from = std::make_shared<opset5::Transpose>(broadcasted_eltwise_short, transpose_to_const);
 
     auto dummy_eltwise_weights = std::make_shared<opset5::Parameter>(element::f32, broadcastedEltwiseShape);
     auto dummy_eltwise_inputs = std::make_shared<opset5::Parameter>(element::f32, broadcastedEltwiseShape);
     auto dummy_eltwise = std::make_shared<opset5::Add>(dummy_eltwise_inputs, dummy_eltwise_weights);
 
-    auto broadcasted_eltwise_without_weights_mask = std::make_shared<opset5::Add>(broadcasted_eltwise, dummy_eltwise);
+    auto broadcasted_eltwise_without_weights_mask = std::make_shared<opset5::Add>(transpose_from, dummy_eltwise);
+    broadcasted_eltwise_without_weights_mask->set_friendly_name("Eltwise broadcasted same rank without weights mask");
 
     auto left_weights = create_constant_with_zeros(weightsLeftShape, {{}, {1, 2}});
 
     auto mul_left = std::make_shared<opset5::MatMul>(broadcasted_eltwise_without_weights_mask, left_weights);
 
-    auto flatten_const = opset5::Constant::create(element::i64, {2}, {1, 36});
+    auto flatten_const = opset5::Constant::create(element::i64, {2}, {2, 36});
     auto flatten = std::make_shared<opset5::Reshape>(mul_left, flatten_const, true);
 
     auto last_mul_const = create_constant_with_zeros({36, 2}, {{}, {0}});
     auto last_mul = std::make_shared<opset5::MatMul>(flatten, last_mul_const);
 
-    function = std::make_shared<ngraph::Function>(OutputVector{last_mul}, ParameterVector{input, dummy_eltwise_inputs, dummy_eltwise_weights});
+    function = std::make_shared<ngraph::Function>(OutputVector{last_mul},
+                                                  ParameterVector{input, dummy_eltwise_inputs, dummy_eltwise_weights});
     {
         auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
-        auto right_weights = create_constant_with_zeros({weightsShape[0], weightsShape[1] - 4}, {{}, {}});
+
+        auto right_weights = create_constant_with_zeros({weightsShape[0], weightsShape[1] - 4}, {{}, {1}});
         auto mul_right = std::make_shared<opset5::MatMul>(input, right_weights);
 
-        auto eltwise_mul_const = create_constant_with_zeros({ EltwiseShape[0],
-                                                              EltwiseShape[1],
-                                                              EltwiseShape[2] - 4}, {{}, {1}, {}});
+        auto eltwise_mul_const = create_constant_with_zeros({EltwiseShape[0], EltwiseShape[1], EltwiseShape[2] - 4}, {{}, {1}, {}});
         auto eltwise_mul = std::make_shared<opset5::Multiply>(mul_right, eltwise_mul_const);
 
         auto reshape_const = opset5::Constant::create(element::i64, {4}, {0, 0, 4, 2});
@@ -3670,29 +3695,40 @@ TEST_F(TransformationTestsF, PropagateMasksBroadcastedEltwise) {
         auto transpose_const = opset5::Constant::create(element::i64, {4}, {0, 2, 3, 1});
         auto transpose = std::make_shared<opset5::Transpose>(reshape, transpose_const);
 
-        auto broadcasted_eltwise_weights = create_constant_with_zeros(broadcastedEltwiseShape, {{}, {}, {}, {}});
+        auto broadcasted_eltwise_weights = create_constant_with_zeros(broadcastedEltwiseShape, {{0}, {}, {}, {}});
         auto broadcasted_eltwise = std::make_shared<opset5::Add>(transpose, broadcasted_eltwise_weights);
+
+        auto transpose_to_const = opset5::Constant::create(element::i64, {4}, {1, 0, 2, 3});
+        auto transpose_to = std::make_shared<opset5::Transpose>(broadcasted_eltwise, transpose_to_const);
+
+        auto broadcasted_eltwise_weights_short = create_constant_with_zeros(broadcastedEltwiseShapeShort, {{}, {0, 1}, {}});
+        auto broadcasted_eltwise_short = std::make_shared<opset5::Add>(transpose_to, broadcasted_eltwise_weights_short);
+
+        auto transpose_from = std::make_shared<opset5::Transpose>(broadcasted_eltwise_short, transpose_to_const);
 
         auto dummy_eltwise_weights = std::make_shared<opset5::Parameter>(element::f32, broadcastedEltwiseShape);
         auto dummy_eltwise_inputs = std::make_shared<opset5::Parameter>(element::f32, broadcastedEltwiseShape);
         auto dummy_eltwise = std::make_shared<opset5::Add>(dummy_eltwise_inputs, dummy_eltwise_weights);
 
-        auto broadcasted_eltwise_without_weights_mask = std::make_shared<opset5::Add>(broadcasted_eltwise, dummy_eltwise);
+        auto broadcasted_eltwise_without_weights_mask = std::make_shared<opset5::Add>(transpose_from, dummy_eltwise);
 
-        auto left_weights = create_constant_with_zeros(weightsLeftShape, {{}, {1, 2}});
+        auto left_weights = create_constant_with_zeros({weightsLeftShape[0], weightsLeftShape[1] - 2}, {{}, {}});
 
         auto mul_left = std::make_shared<opset5::MatMul>(broadcasted_eltwise_without_weights_mask, left_weights);
 
-        auto flatten_const = opset5::Constant::create(element::i64, {2}, {1, 24});
+        auto flatten_const = opset5::Constant::create(element::i64, {2}, {2, 8});
         auto flatten = std::make_shared<opset5::Reshape>(mul_left, flatten_const, true);
 
-        auto last_mul_const = create_constant_with_zeros({24, 2}, {{}, {0}});
+        auto last_mul_const = create_constant_with_zeros({8, 2}, {{}, {0}});
         auto last_mul = std::make_shared<opset5::MatMul>(flatten, last_mul_const);
 
-        function_ref = std::make_shared<ngraph::Function>(OutputVector{last_mul}, ParameterVector{input, dummy_eltwise_inputs, dummy_eltwise_weights});
+        function_ref = std::make_shared<ngraph::Function>(OutputVector{last_mul},
+                                                          ParameterVector{input, dummy_eltwise_inputs, dummy_eltwise_weights});
     }
-    if (VISUALIZE_TESTS_TREE)
-        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksBroadcastedEltwise.svg").run_on_function(function);
+    if (VISUALIZE_TESTS_TREE) {
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) +\
+                                    "PropagateMasksBroadcastedEltwiseWithInputs.svg").run_on_function(function);
+    }
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -3706,17 +3742,188 @@ TEST_F(TransformationTestsF, PropagateMasksBroadcastedEltwise) {
     compare_masks(*getMask(reshape->output(0)),  Mask({{}, {}, {1, 2}, {}}));
 
     compare_masks(*getMask(transpose->output(0)), Mask({{}, {1, 2}, {}, {}}));
-
     compare_masks(*getMask(broadcasted_eltwise->output(0)), Mask({{}, {1, 2}, {}, {}}));
+
+    compare_masks(*getMask(transpose_to), Mask{{1, 2}, {}, {}, {}});
+    compare_masks(*getMask(broadcasted_eltwise_weights_short), Mask{{}, {}, {}});
+    compare_masks(*getMask(broadcasted_eltwise_short->output(0)), Mask{{1, 2}, {}, {}, {}});
+    compare_masks(*getMask(transpose_from), Mask{{}, {1, 2}, {}, {}});
+
     compare_masks(*getMask(broadcasted_eltwise_without_weights_mask->output(0)), Mask({{}, {1, 2}, {}, {}}));
 
-    compare_masks(*getMask(left_weights.get_node_shared_ptr()->output(0)),  Mask({{}, {}}));
-    compare_masks(*getMask(mul_left->output(0)),  Mask({{}, {1, 2}, {}, {}}));
+    compare_masks(*getMask(left_weights.get_node_shared_ptr()->output(0)),  Mask({{}, {1, 2}}));
+    compare_masks(*getMask(mul_left->output(0)),  Mask({{}, {1, 2}, {}, {1, 2}}));
 
     auto ref_flatten_mask = Mask();
     auto ref_dim = std::set<uint64_t>();
     for (uint64_t i = 6; i < 18; ++i)
         ref_dim.insert(i);
+    for (uint64_t i = 0; i < 6; ++i)
+        for (auto & zero_dim : {1, 2, 4, 5})
+            ref_dim.insert(i * 6 + zero_dim);
+
+    ref_flatten_mask.push_back({});
+    ref_flatten_mask.push_back(ref_dim);
+
+    compare_masks(*getMask(flatten_const->output(0)),  ref_flatten_mask);
+    compare_masks(*getMask(flatten->output(0)),  ref_flatten_mask);
+
+    auto ref_last_mul_mask = Mask();
+    ref_last_mul_mask.push_back(ref_dim);
+    ref_last_mul_mask.push_back({});
+
+    compare_masks(*getMask(last_mul_const.get_node_shared_ptr()->output(0)),  ref_last_mul_mask);
+    compare_masks(*getMask(last_mul->output(0)),  Mask({{}, {}}));
+
+    manager.register_pass<pass::ShrinkWeights>();
+    disable_rt_info_check();
+    enable_accuracy_check();
+}
+
+TEST_F(TransformationTestsF, PropagateMasksBroadcastedEltwise) {
+    constexpr size_t heads(6), dim_in_head(3), dim(12);
+    auto inputShapes = PartialShape{2, heads, dim_in_head};
+    auto weightsShape = Shape{dim_in_head, dim};
+    auto EltwiseShape = Shape{2, heads, dim};
+    auto broadcastedEltwiseShape = Shape{1, 1, 1, heads};
+    auto broadcastedEltwiseShapeShort = Shape{2, 2, heads};
+    auto weightsLeftShape = Shape{6, 3};
+
+    auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
+
+    auto right_weights = create_constant_with_zeros(weightsShape, {{}, {1, 2, 3, 4, 5}});
+    auto mul_right = std::make_shared<opset5::MatMul>(input, right_weights);
+
+    auto eltwise_mul_const = create_constant_with_zeros(EltwiseShape, {{}, {1}, {}});
+    auto eltwise_mul = std::make_shared<opset5::Multiply>(mul_right, eltwise_mul_const);
+
+    auto reshape_const = opset5::Constant::create(element::i64, {4}, {0, 0, 6, 2});
+    auto reshape = std::make_shared<opset5::Reshape>(eltwise_mul, reshape_const, true);
+
+    auto transpose_const = opset5::Constant::create(element::i64, {4}, {0, 2, 3, 1});
+    auto transpose = std::make_shared<opset5::Transpose>(reshape, transpose_const);
+
+    auto broadcasted_eltwise_weights = create_constant_with_zeros(broadcastedEltwiseShape, {{0}, {}, {}, {}});
+    auto broadcasted_eltwise = std::make_shared<opset5::Add>(transpose, broadcasted_eltwise_weights);
+    broadcasted_eltwise->set_friendly_name("Eltwise broadcasted same rank");
+
+    auto transpose_to_const = opset5::Constant::create(element::i64, {4}, {1, 0, 2, 3});
+    auto transpose_to = std::make_shared<opset5::Transpose>(broadcasted_eltwise, transpose_to_const);
+
+    auto broadcasted_eltwise_weights_short = create_constant_with_zeros(broadcastedEltwiseShapeShort, {{}, {0, 1}, {}});
+    auto broadcasted_eltwise_short = std::make_shared<opset5::Add>(transpose_to, broadcasted_eltwise_weights_short);
+    broadcasted_eltwise_short->set_friendly_name("Eltwise broadcasted smaller rank");
+
+    auto broadcasted_eltwise_short2 = std::make_shared<opset5::Add>(broadcasted_eltwise_short, transpose_to);
+    broadcasted_eltwise_short2->set_friendly_name("Eltwise broadcasted smaller rank reversed");
+
+    auto transpose_from = std::make_shared<opset5::Transpose>(broadcasted_eltwise_short2, transpose_to_const);
+
+    // Constants should be zero as broadcasted values!
+    auto dummy_eltwise_weights = std::make_shared<opset5::Constant>(element::f32, broadcastedEltwiseShape, 0);
+    auto dummy_eltwise_inputs = std::make_shared<opset5::Constant>(element::f32, broadcastedEltwiseShape, 0);
+    auto dummy_eltwise = std::make_shared<opset5::Add>(dummy_eltwise_inputs, dummy_eltwise_weights);
+
+    auto broadcasted_eltwise_without_weights_mask = std::make_shared<opset5::Add>(transpose_from, dummy_eltwise);
+    broadcasted_eltwise_without_weights_mask->set_friendly_name("Eltwise broadcasted same rank without weights mask");
+
+    auto left_weights = create_constant_with_zeros(weightsLeftShape, {{}, {1, 2}});
+
+    auto mul_left = std::make_shared<opset5::MatMul>(broadcasted_eltwise_without_weights_mask, left_weights);
+
+    auto flatten_const = opset5::Constant::create(element::i64, {2}, {2, 36});
+    auto flatten = std::make_shared<opset5::Reshape>(mul_left, flatten_const, true);
+
+    auto last_mul_const = create_constant_with_zeros({36, 2}, {{}, {0}});
+    auto last_mul = std::make_shared<opset5::MatMul>(flatten, last_mul_const);
+
+    function = std::make_shared<ngraph::Function>(OutputVector{last_mul},
+                                                  ParameterVector{input});
+    {
+        auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
+
+        auto right_weights = create_constant_with_zeros({weightsShape[0], weightsShape[1] - 4}, {{}, {1}});
+        auto mul_right = std::make_shared<opset5::MatMul>(input, right_weights);
+
+        auto eltwise_mul_const = create_constant_with_zeros({EltwiseShape[0], EltwiseShape[1], EltwiseShape[2] - 4}, {{}, {1}, {}});
+        auto eltwise_mul = std::make_shared<opset5::Multiply>(mul_right, eltwise_mul_const);
+
+        auto reshape_const = opset5::Constant::create(element::i64, {4}, {0, 0, 4, 2});
+        auto reshape = std::make_shared<opset5::Reshape>(eltwise_mul, reshape_const, true);
+
+        auto transpose_const = opset5::Constant::create(element::i64, {4}, {0, 2, 3, 1});
+        auto transpose = std::make_shared<opset5::Transpose>(reshape, transpose_const);
+
+        auto broadcasted_eltwise_weights = create_constant_with_zeros(broadcastedEltwiseShape, {{0}, {}, {}, {}});
+        auto broadcasted_eltwise = std::make_shared<opset5::Add>(transpose, broadcasted_eltwise_weights);
+
+        auto transpose_to_const = opset5::Constant::create(element::i64, {4}, {1, 0, 2, 3});
+        auto transpose_to = std::make_shared<opset5::Transpose>(broadcasted_eltwise, transpose_to_const);
+
+        auto broadcasted_eltwise_weights_short = create_constant_with_zeros(broadcastedEltwiseShapeShort, {{}, {0, 1}, {}});
+        auto broadcasted_eltwise_short = std::make_shared<opset5::Add>(transpose_to, broadcasted_eltwise_weights_short);
+
+        // NOT WORKING AS EXPECTED!!!!
+        auto broadcasted_eltwise_short2 = std::make_shared<opset5::Add>(broadcasted_eltwise_short, transpose_to);
+
+        auto transpose_from = std::make_shared<opset5::Transpose>(broadcasted_eltwise_short2, transpose_to_const);
+
+        auto dummy_eltwise_weights = std::make_shared<opset5::Constant>(element::f32, broadcastedEltwiseShape, 0);
+        auto dummy_eltwise_inputs = std::make_shared<opset5::Constant>(element::f32, broadcastedEltwiseShape, 0);
+        auto dummy_eltwise = std::make_shared<opset5::Add>(dummy_eltwise_inputs, dummy_eltwise_weights);
+
+        auto broadcasted_eltwise_without_weights_mask = std::make_shared<opset5::Add>(transpose_from, dummy_eltwise);
+
+        auto left_weights = create_constant_with_zeros({weightsLeftShape[0], weightsLeftShape[1] - 2}, {{}, {}});
+
+        auto mul_left = std::make_shared<opset5::MatMul>(broadcasted_eltwise_without_weights_mask, left_weights);
+
+        auto flatten_const = opset5::Constant::create(element::i64, {2}, {2, 8});
+        auto flatten = std::make_shared<opset5::Reshape>(mul_left, flatten_const, true);
+
+        auto last_mul_const = create_constant_with_zeros({8, 2}, {{}, {0}});
+        auto last_mul = std::make_shared<opset5::MatMul>(flatten, last_mul_const);
+
+        function_ref = std::make_shared<ngraph::Function>(OutputVector{last_mul},
+                                                          ParameterVector{input});
+    }
+    if (VISUALIZE_TESTS_TREE) {
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) +\
+                                    "PropagateMasksBroadcastedEltwise.svg").run_on_function(function);
+    }
+    {
+        pass::Manager m;
+        m.register_pass<pass::InitMasks>();
+        m.register_pass<pass::PropagateMasks>();
+        m.run_passes(function);
+    }
+    compare_masks(*getMask(right_weights.get_node_shared_ptr()->output(0)),  Mask({{}, {2, 3, 4, 5}}));
+    compare_masks(*getMask(mul_right->output(0)),  Mask({{}, {}, {2, 3, 4, 5}}));
+
+    compare_masks(*getMask(reshape_const->output(0)),  Mask({{}, {}, {1, 2}, {}}));
+    compare_masks(*getMask(reshape->output(0)),  Mask({{}, {}, {1, 2}, {}}));
+
+    compare_masks(*getMask(transpose->output(0)), Mask({{}, {1, 2}, {}, {}}));
+    compare_masks(*getMask(broadcasted_eltwise->output(0)), Mask({{}, {1, 2}, {}, {}}));
+
+    compare_masks(*getMask(transpose_to), Mask{{1, 2}, {}, {}, {}});
+    compare_masks(*getMask(broadcasted_eltwise_weights_short), Mask{{}, {}, {}});
+    compare_masks(*getMask(broadcasted_eltwise_short->output(0)), Mask{{1, 2}, {}, {}, {}});
+    compare_masks(*getMask(transpose_from), Mask{{}, {1, 2}, {}, {}});
+
+    compare_masks(*getMask(broadcasted_eltwise_without_weights_mask->output(0)), Mask({{}, {1, 2}, {}, {}}));
+
+    compare_masks(*getMask(left_weights.get_node_shared_ptr()->output(0)),  Mask({{}, {1, 2}}));
+    compare_masks(*getMask(mul_left->output(0)),  Mask({{}, {1, 2}, {}, {1, 2}}));
+
+    auto ref_flatten_mask = Mask();
+    auto ref_dim = std::set<uint64_t>();
+    for (uint64_t i = 6; i < 18; ++i)
+        ref_dim.insert(i);
+    for (uint64_t i = 0; i < 6; ++i)
+        for (auto & zero_dim : {1, 2, 4, 5})
+            ref_dim.insert(i * 6 + zero_dim);
+
     ref_flatten_mask.push_back({});
     ref_flatten_mask.push_back(ref_dim);
 
@@ -3921,12 +4128,7 @@ TEST_F(TransformationTestsF, MaskPropagationComplexReshape) {
     enable_accuracy_check();
 }
 
-class TransformationTestsReshapedPassThroughF :
-public TransformationTestsF,
-public testing::WithParamInterface<bool> {
-};
-
-TEST_P(TransformationTestsReshapedPassThroughF, MaskPropagationReshapedPassThroughP) {
+TEST_P(TransformationTestsBoolParamF, MaskPropagationReshapedPassThroughP) {
     auto inputShapes = PartialShape{1, 6, 3};
     auto weightsShape = Shape{3, 12};
     auto EltwiseShape = Shape{1, 6, 12};
@@ -4118,7 +4320,186 @@ TEST_P(TransformationTestsReshapedPassThroughF, MaskPropagationReshapedPassThrou
 }
 
 
+// TODO: find the way to test different layouts of elementwise operations
+// TODO: extend elementwise
+TEST_P(TransformationTestsBoolParamF, MaskPropagationBroadcastedSameRankEltwiseSwapedLayoutP) {
+    uint64_t a(3), b(4), c(5), d(6);
+    auto inputShapes = PartialShape{1, a, b};
+    auto weightsShape = Shape{b, c};
+    auto weightsShape2 = Shape{c, d};
+
+    auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
+    auto mul_const = create_constant_with_zeros(weightsShape, {{}, {1, 2, 3}});
+    auto mul = std::make_shared<opset5::MatMul>(input, mul_const);
+
+    // Check broadcasting is working for input and weights with different ranks
+    // CONSTANT SHOULD BE ZERO BECAUSE IT'S A CONDITION FOR FUNCTIONS TO PRUNE
+    //auto broadcasted_add_const = create_constant_with_zeros({1, c}, {{0}, {}});
+    //auto broadcasted_add = std::make_shared<opset5::Add>(mul, broadcasted_add_const);
+
+    auto mul_last_const = create_constant_with_zeros(weightsShape2, {{}, {}});
+    auto mult_const = opset5::Constant::create(element::f32, {1, 1}, {5});
+
+    std::shared_ptr<Node> mult;
+    const auto reverse_mul = GetParam();
+    //if (reverse_mul)
+        mult = std::make_shared<opset5::Multiply>(mult_const, mul_last_const);
+    //else
+    //    mult = std::make_shared<opset5::Multiply>(mul_last_const, mult_const);
+
+    //auto mul_last = std::make_shared<opset5::MatMul>(broadcasted_add, mult);
+    auto mul_last = std::make_shared<opset5::MatMul>(mul, mult);
+
+    function = std::make_shared<ngraph::Function>(OutputVector{mul_last}, ParameterVector{input});
+    {
+        auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
+        auto mul_const = create_constant_with_zeros({weightsShape[0], weightsShape[1] - 3}, {{}, {}});
+        auto mul = std::make_shared<opset5::MatMul>(input, mul_const);
+
+        auto mul_last_const = create_constant_with_zeros({weightsShape2[0] - 3, weightsShape2[1]}, {{}, {}});
+        auto mult_const = opset5::Constant::create(element::f32, {1, 1}, {5});
+
+        std::shared_ptr<Node> mult;
+        //const auto reverse_mul = GetParam();
+        //if (reverse_mul)
+            mult = std::make_shared<opset5::Multiply>(mult_const, mul_last_const);
+        //else
+        //    mult = std::make_shared<opset5::Multiply>(mul_last_const, mult_const);
+
+        auto mul_last = std::make_shared<opset5::MatMul>(mul, mult);
+
+        function_ref = std::make_shared<ngraph::Function>(OutputVector{mul_last}, ParameterVector{input});
+    }
+    if (VISUALIZE_TESTS_TREE) {
+        auto postfix = (reverse_mul)? "True" : "False";
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) +\
+        "MaskPropagationBroadcastedSameRankEltwiseSwapedLayoutP" + postfix + ".svg").run_on_function(function);
+    }
+    {
+        pass::Manager m;
+        m.register_pass<pass::InitMasks>();
+        m.register_pass<pass::PropagateMasks>();
+        m.run_passes(function);
+    }
+
+    compare_masks(*getMask(mul_const), Mask{{}, {1, 2, 3}});
+    compare_masks(*getMask(mul->output(0)), Mask{{}, {}, {1, 2, 3}});
+    //compare_masks(*getMask(broadcasted_add_const), Mask{{}});
+    //compare_masks(*getMask(broadcasted_add->output(0)), Mask{{}, {}, {1, 2, 3}});
+    compare_masks(*getMask(mul_last_const), Mask{{1, 2, 3}, {}});
+    compare_masks(*getMask(mult_const), Mask{{}, {}});
+    compare_masks(*getMask(mult->output(0)), Mask{{1, 2, 3}, {}});
+    compare_masks(*getMask(mul_last->output(0)), Mask{{}, {}, {}});
+
+
+    manager.register_pass<pass::ShrinkWeights>();
+    disable_rt_info_check();
+    enable_accuracy_check();
+}
+
+
+TEST(TransformationTests, MaskPropagationBroadcastedEltwiseInputAndWeightsBroadcasted) {
+    constexpr uint64_t a(3), b(4), c(5), d(6);
+    auto inputShapes = PartialShape{1, a, b};
+    auto weightsShape = Shape{b, c};
+    auto weightsShape2 = Shape{c * d, d};
+
+    auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
+    auto mul_const = create_constant_with_zeros(weightsShape, {{}, {1, 2, 3}});
+    auto mul = std::make_shared<opset5::MatMul>(input, mul_const);
+
+    auto reshape_const = opset5::Constant::create(element::i64, Shape{4}, std::vector<int64_t>{1, a, c, 1});
+    auto reshape = std::make_shared<opset5::Reshape>(mul, reshape_const, true);
+
+    auto mult_const = create_constant_with_zeros({1, a, 1, d}, {{}, {}, {}, {2}});
+    auto mult = std::make_shared<opset5::Multiply>(reshape, mult_const);
+
+    auto reshape_from_const = opset5::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{1, a, c * d});
+    auto reshape_from = std::make_shared<opset5::Reshape>(mult, reshape_from_const, true);
+
+    auto mul_last_const = create_constant_with_zeros(weightsShape2, {{}, {}});
+    auto mul_last = std::make_shared<opset5::MatMul>(reshape_from, mul_last_const);
+
+    auto function = std::make_shared<ngraph::Function>(OutputVector{mul_last}, ParameterVector{input});
+
+    if (VISUALIZE_TESTS_TREE) {
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) +\
+        "MaskPropagationBroadcastedEltwiseInputAndWeightsBroadcasted.svg").run_on_function(function);
+    }
+    {
+        pass::Manager m;
+        m.register_pass<pass::InitMasks>();
+        m.register_pass<pass::PropagateMasks>();
+        m.run_passes(function);
+    }
+
+    compare_masks(*getMask(mul_const), Mask{{}, {}});
+    compare_masks(*getMask(mul->output(0)), Mask{{}, {}, {}});
+    compare_masks(*getMask(mul_last_const), Mask{{}, {}});
+    compare_masks(*getMask(reshape_const), Mask{{}, {}, {}, {}});
+    compare_masks(*getMask(reshape->output(0)), Mask{{}, {}, {}, {}});
+    check_mask_is_not_exist(getMask(mult_const));
+    compare_masks(*getMask(mult->output(0)), Mask{{}, {}, {}, {}});
+    compare_masks(*getMask(reshape_from_const), Mask{{}, {}, {}});
+    compare_masks(*getMask(reshape_from->output(0)), Mask{{}, {}, {}});
+    compare_masks(*getMask(mul_last->output(0)), Mask{{}, {}, {}});
+
+    {
+        pass::Manager m;
+        m.register_pass<pass::ShrinkWeights>();
+        m.run_passes(function);
+    }
+}
+
+
+// TODO: FIX THIS TEST
+TEST_F(DISABLED_TransformationTestsF, MaskPropagationBroadcastedEltwiseWrongBroadcastingMode) {
+    constexpr uint64_t a(3), b(4), c(5), d(6);
+    auto inputShapes = PartialShape{a, b};
+    auto weightsShape = Shape{b, c};
+    auto weightsShape2 = Shape{c, d};
+
+    auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
+    auto mul_const = create_constant_with_zeros(weightsShape, {{}, {1, 2, 3}});
+    auto mul = std::make_shared<opset5::MatMul>(input, mul_const);
+
+    auto mult_const = create_constant_with_zeros({c}, {{0, 1, 2, 3, 4}});
+    // TODO: Find the way to broadcast by PDPD
+    auto mult = std::make_shared<opset5::Multiply>(mul, mult_const, ov::op::AutoBroadcastType::PDPD);
+
+
+    auto mul_last_const = create_constant_with_zeros(weightsShape2, {{}, {}});
+    auto mul_last = std::make_shared<opset5::MatMul>(mult, mul_last_const);
+
+    auto function = std::make_shared<ngraph::Function>(OutputVector{mul_last}, ParameterVector{input});
+
+    if (VISUALIZE_TESTS_TREE) {
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) +\
+        "MaskPropagationBroadcastedEltwiseWrongBroadcastingMode.svg").run_on_function(function);
+    }
+    {
+        pass::Manager m;
+        m.register_pass<pass::InitMasks>();
+        m.register_pass<pass::PropagateMasks>();
+        m.run_passes(function);
+    }
+
+    compare_masks(*getMask(mul_const), Mask{{}, {}});
+    compare_masks(*getMask(mul->output(0)), Mask{{}, {}});
+    compare_masks(*getMask(mul_last_const), Mask{{}, {}});
+    check_mask_is_not_exist(getMask(mult_const));
+    compare_masks(*getMask(mult->output(0)), Mask{{}, {}});
+    compare_masks(*getMask(mul_last_const), Mask{{}, {}});
+    compare_masks(*getMask(mul_last->output(0)), Mask{{}, {}, {}});
+
+    {
+        pass::Manager m;
+        m.register_pass<pass::ShrinkWeights>();
+        m.run_passes(function);
+    }
+}
+
 INSTANTIATE_TEST_CASE_P(
-        MaskPropagationReshapedPassThrough,
-        TransformationTestsReshapedPassThroughF,
+        TransformationTestsBoolParam,
+        TransformationTestsBoolParamF,
         ::testing::Values(false, true));

@@ -439,8 +439,8 @@ public:
             using dims_set = std::set<int64_t>;
             auto input_shape_broadcasted_dims = dims_set();
             auto weights_shape_broadcasted_dims = dims_set();
-            auto input_shape_ones_dims = dims_set();
-            auto weights_shape_ones_dims = dims_set();
+            auto input_shape_mask = dims_set();
+            auto weights_shape_mask = dims_set();
             auto input_shape = ov::Shape();
             auto weights_shape = ov::Shape();
             if (m_input.get_partial_shape().is_static() &&
@@ -449,32 +449,55 @@ public:
                 input_shape = m_input.get_shape();
                 weights_shape = m_weights.get_shape();
                 const int64_t input_shape_size_diff = input_shape.size() - weights_shape.size();
-                for (int64_t i = 0; i < input_shape.size(); ++i)
-                    if (input_shape[i] == 1 || i < input_shape_size_diff)
-                        input_shape_ones_dims.insert(i);
-
                 const int64_t weights_shape_size_diff = -input_shape_size_diff;
-                for (int64_t i = 0; i < weights_shape.size(); ++i)
-                    if (weights_shape[i] == 1 || i < weights_shape_size_diff)
-                        weights_shape_ones_dims.insert(i);
-                // Union sets
-                std::copy(input_shape_ones_dims.begin(), input_shape_ones_dims.end(),
-                          std::inserter(input_shape_broadcasted_dims, input_shape_broadcasted_dims.begin()));
-                std::copy(weights_shape_ones_dims.begin(), weights_shape_ones_dims.end(),
-                          std::inserter(weights_shape_broadcasted_dims, weights_shape_broadcasted_dims.begin()));
-                for (auto & elem : input_shape_broadcasted_dims) {
-                    const auto shifted_elem = elem + weights_shape_size_diff;
-                    if (shifted_elem >= 0)
+                for (int64_t i = 0; i < input_shape.size(); ++i) {
+                    const auto shifted_elem = i + weights_shape_size_diff;
+                    if (shifted_elem >= 0 && input_shape[i] == 1 &&
+                        weights_shape[shifted_elem] != 1)
+                        input_shape_broadcasted_dims.insert(i);
+                    if (shifted_elem < 0 && input_shape[i] != 1)
                         weights_shape_broadcasted_dims.insert(shifted_elem);
                 }
+                for (int64_t i = 0; i < weights_shape.size(); ++i) {
+                    const auto shifted_elem = i + input_shape_size_diff;
+                    if (shifted_elem >=0 && weights_shape[i] == 1 &&
+                        input_shape[shifted_elem] != 1)
+                        weights_shape_broadcasted_dims.insert(i);
+                    if (shifted_elem < 0 && weights_shape[i] != 1)
+                        input_shape_broadcasted_dims.insert(shifted_elem);
+                }
+                const auto ge_zero_pred = [](int64_t x) { return x >= 0; };
+                std::copy_if(input_shape_broadcasted_dims.begin(), input_shape_broadcasted_dims.end(),
+                          std::inserter(input_shape_mask, input_shape_mask.begin()), ge_zero_pred);
+                std::copy_if(weights_shape_broadcasted_dims.begin(), weights_shape_broadcasted_dims.end(),
+                          std::inserter(weights_shape_mask, weights_shape_mask.begin()), ge_zero_pred);
+
                 for (auto & elem : weights_shape_broadcasted_dims) {
                     const auto shifted_elem = elem + input_shape_size_diff;
                     if (shifted_elem >= 0)
-                        input_shape_broadcasted_dims.insert(shifted_elem);
+                        input_shape_mask.insert(shifted_elem);
+                }
+
+                for (auto & elem : input_shape_broadcasted_dims) {
+                    const auto shifted_elem = elem + weights_shape_size_diff;
+                    if (shifted_elem >= 0)
+                        weights_shape_mask.insert(shifted_elem);
                 }
             }
 
-            // In case if first of the inputs is constant
+            if ((input_shape_broadcasted_dims.size() || weights_shape_broadcasted_dims.size()) &&
+                 m_output.get_node_shared_ptr()->get_autob() != ov::op::AutoBroadcastType::NUMPY) {
+                NGRAPH_DEBUG << "Can't propagate mask through " << m_output.get_node()->get_friendly_name()
+                             << " because node is using unsupported broadcast mode." << std::endl;
+            }
+
+            // Prevent case when input_shape and weights_shape both has broadcasted dims
+            if (input_shape_broadcasted_dims.size() && weights_shape_broadcasted_dims.size()) {
+                NGRAPH_DEBUG << "Can't propagate mask through " << m_output.get_node()->get_friendly_name()
+                             << " because both input shapes contains broadcasted dims."<< std::endl;
+                return false;
+            }
+
             const auto input_axis_set = get_axis_set(input_shape);
             InitConstMask(input_axis_set).apply(m_input.get_node_shared_ptr());
             auto input_mask = getMask(m_input);
@@ -482,31 +505,14 @@ public:
             const auto weights_axis_set = get_axis_set(weights_shape);
             InitConstMask(weights_axis_set).apply(m_weights.get_node_shared_ptr());
             auto weights_mask = getMask(m_weights);
-            //auto has_broadcasted_dims = input_shape_broadcasted_dims.size() || weights_shape_broadcasted_dims.size();
-            // Prevent case when input_mask don't have masks on broadcasted dims but
-            // weights_mask has
-            bool inp_has_masks_on_broadcasted_dims = false;
-            if (input_mask) {
-                for (auto & dim : input_shape_broadcasted_dims)
-                    if (!input_mask->at(dim).empty()) {
-                        inp_has_masks_on_broadcasted_dims = true;
-                        break;
-                    }
-            }
-            bool weights_has_masks_on_broadcasted_dims = false;
-            if (weights_mask) {
-                for (auto & dim : weights_shape_broadcasted_dims)
-                    if (!weights_mask->at(dim).empty()) {
-                        weights_has_masks_on_broadcasted_dims = true;
-                        break;
-                    }
-            }
-            if (!inp_has_masks_on_broadcasted_dims && weights_has_masks_on_broadcasted_dims) {
-                // Swap input and weights
+
+            if (input_shape_broadcasted_dims.size()) {
+                // Swap input and weights inputs
                 std::swap(input_mask, weights_mask);
+                std::swap(input_shape_mask, weights_shape_mask);
                 std::swap(input_shape_broadcasted_dims, weights_shape_broadcasted_dims);
-                std::swap(input_shape_ones_dims, weights_shape_ones_dims);
             }
+
             if (!input_mask) {
                 NGRAPH_DEBUG << "No input mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
                 return false;
@@ -514,13 +520,14 @@ public:
             if (!weights_mask) {
                 // Set dummy mask to weight input in case this input has no mask
                 // and has broadcastable dimentions
-                if (!weights_shape_ones_dims.size()) {
+                if (!weights_shape_broadcasted_dims.size()) {
                     NGRAPH_DEBUG << "No weights mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
                     return false;
                 }
                 weights_mask = std::make_shared<Mask>(m_weights.get_partial_shape().rank().get_length());
                 setMask(m_weights, weights_mask);
             }
+
             auto input_mask_row = input_mask.get();
             auto weights_mask_row = weights_mask.get();
             // Merging masks from two inputs
@@ -535,22 +542,22 @@ public:
                     result_mask = input_mask_row->intersect_masks_reversed(weights_mask_row);
                 }
                 cur_mask->copy_value_from_mask_reversed(result_mask.get());
-                cur_mask->copy_value_from_mask_reversed_masked(input_mask_row, input_shape_broadcasted_dims, true);
+                cur_mask->copy_value_from_mask_reversed_masked(input_mask_row, input_shape_mask, true);
                 return true;
             };
             output_mask->add_callback(out_mask_callback, input_mask);
 
-            input_mask->add_callback([weights_mask_row, input_shape_broadcasted_dims](Mask::Ptr cur_mask) -> bool {
-                cur_mask->copy_value_from_mask_reversed_masked(weights_mask_row, input_shape_broadcasted_dims);
+            input_mask->add_callback([weights_mask_row, input_shape_mask](Mask::Ptr cur_mask) -> bool {
+                cur_mask->copy_value_from_mask_reversed_masked(weights_mask_row, input_shape_mask);
                 return true;
             }, weights_mask);
             input_mask->add_callback([output_mask_row](Mask::Ptr cur_mask) -> bool {
                 cur_mask->copy_value_from_mask_reversed(output_mask_row);
                 return true;
             }, output_mask);
-            weights_mask->add_callback([input_mask_row, weights_shape_broadcasted_dims](Mask::Ptr cur_mask) -> bool {
-                cur_mask->copy_value_from_mask_reversed_masked(input_mask_row, weights_shape_broadcasted_dims);
-                for (auto & dim : weights_shape_broadcasted_dims)
+            weights_mask->add_callback([input_mask_row, weights_shape_mask](Mask::Ptr cur_mask) -> bool {
+                cur_mask->copy_value_from_mask_reversed_masked(input_mask_row, weights_shape_mask);
+                for (auto & dim : weights_shape_mask)
                     cur_mask->at(dim).clear();
                 return true;
             }, input_mask);
