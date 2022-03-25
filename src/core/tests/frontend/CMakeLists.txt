@@ -9,10 +9,6 @@ if (ENABLE_OV_ONNX_FRONTEND)
     add_subdirectory(onnx)
 endif()
 
-if (ENABLE_OV_TF_FRONTEND)
-    add_subdirectory(tensorflow)
-endif()
-
 set(SRC ${CMAKE_CURRENT_SOURCE_DIR}/mock_frontend.cpp)
 set(MOCK1_FE_NAME openvino_mock1_frontend)
 add_library(${MOCK1_FE_NAME} SHARED EXCLUDE_FROM_ALL ${SRC})
