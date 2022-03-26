@@ -27,7 +27,7 @@ endif()
 #               [OBJECT_LIBRARIES <object_libs>]
 #               [VERSION_DEFINES_FOR <source>]
 #               [SKIP_INSTALL]
-#               [SKIP_REGISTRATION]
+#               [SKIP_REGISTRATION] Skip creation of <device>.xml
 #               [ADD_CLANG_FORMAT]
 #               )
 #
@@ -147,6 +147,7 @@ function(ie_add_plugin)
         endif()
     endif()
 
+    # Enable for static build to generate correct plugins.hpp
     if(NOT IE_PLUGIN_SKIP_REGISTRATION OR NOT BUILD_SHARED_LIBS)
         # check that plugin with such name is not registered
         foreach(plugin_entry IN LISTS PLUGIN_FILES)
