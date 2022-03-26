@@ -701,9 +701,11 @@ void MultiDeviceExecutableNetwork::run(Task inferPipelineTask) {
 MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
     if (_workModeIsAUTO) {
         // this is necessary to guarantee member destroyed after getting future
-        if (_loadContext[CPU].isEnabled) {
+        if (_loadContext[CPU].isEnabled || _context.performanceHint == PluginConfigParams::CUMULATIVE_THROUGHPUT) {
             _exitFlag = true;
-            _loadContext[CPU].future.wait();
+            if (_loadContext[CPU].future.valid()) {
+                _loadContext[CPU].future.wait();
+            }
             WaitActualNetworkReady();
             // it's necessary to wait the loading network threads to stop here.
             _multiPlugin->executorManager()->clear("AutoDeviceAsyncLoad");
