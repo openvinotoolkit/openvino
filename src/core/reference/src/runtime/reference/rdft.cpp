@@ -41,9 +41,9 @@ void clip_and_write_result(const std::vector<int64_t>& axes_data,
     const auto last_axis = axes_data.back();
     rdft_result_shape[last_axis] = rdft_result_shape[last_axis] / 2 + 1;
 
-    const auto reversed_rdft_result_shape = fft_common::reverse_shape(rdft_result_shape);
+    const auto reversed_rdft_result_shape = fft_common::reverse_shape_of_emulated_complex_tensor(rdft_result_shape);
     const auto rdft_output_strides = fft_common::compute_strides(reversed_rdft_result_shape);
-    const auto reversed_output_fft_shape = fft_common::reverse_shape(output_fft_shape);
+    const auto reversed_output_fft_shape = fft_common::reverse_shape_of_emulated_complex_tensor(output_fft_shape);
     const auto output_fft_strides = fft_common::compute_strides(reversed_output_fft_shape);
     const auto rdft_output_size = rdft_output_strides.back();
 

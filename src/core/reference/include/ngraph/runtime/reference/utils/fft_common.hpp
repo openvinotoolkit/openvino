@@ -20,11 +20,13 @@ namespace reference {
 namespace fft_common {
 // To simplify calculation of strides for all axes of 'shape' of some complex
 // tensor, we reverse numbers in 'shape'. Because we have no native support for
-// complex numbers in tensors, we interpret FFT input tensors of the shape
+// complex numbers in tensors, we interpret float input tensors of the shape
 // [N_0, ..., N_{r - 1}, 2] as a complex tensor with the shape
 // [N_0, ..., N_{r - 1}]. Hence, we convert 'shape=[N_0, ..., N_{r - 1}, 2]'
 // into [N_{r - 1}, ..., N_0].
-std::vector<int64_t> reverse_shape(const ngraph::Shape& shape);
+// At this time, complex tensors are supported only for FFT-like operations, as
+// DFT, IDFT, RDFT
+std::vector<int64_t> reverse_shape_of_emulated_complex_tensor(const ngraph::Shape& shape);
 
 // Calculates strides for all axes.
 std::vector<int64_t> compute_strides(const std::vector<int64_t>& v);

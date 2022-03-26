@@ -317,7 +317,7 @@ InfoForFFTCalculation get_info_for_calculation(const Shape& input_data_shape,
 
     const int64_t complex_data_rank = static_cast<int64_t>(input_data_shape.size() - 1);
 
-    const auto reversed_output_shape = fft_common::reverse_shape(output_shape);
+    const auto reversed_output_shape = fft_common::reverse_shape_of_emulated_complex_tensor(output_shape);
     auto fft_axes = get_axes(axes_data, axes_data_shape, complex_data_rank);
     reverse_fft_axes(fft_axes, complex_data_rank);
 
@@ -337,7 +337,7 @@ InfoForFFTCalculation get_info_for_calculation(const Shape& input_data_shape,
     const auto output_strides = fft_common::compute_strides(reversed_output_shape);
     const auto output_fft_strides = get_lengths(output_strides, fft_axes);
     const auto output_outer_strides = get_lengths(output_strides, outer_axes);
-    const auto reversed_input_shape =fft_common::reverse_shape(input_data_shape);
+    const auto reversed_input_shape =fft_common::reverse_shape_of_emulated_complex_tensor(input_data_shape);
     const auto input_fft_lengths = get_lengths(reversed_input_shape, fft_axes);
     const auto input_strides = fft_common::compute_strides(reversed_input_shape);
     const auto input_fft_strides = get_lengths(input_strides, fft_axes);
