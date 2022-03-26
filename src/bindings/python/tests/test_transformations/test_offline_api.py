@@ -9,7 +9,6 @@ from openvino.offline_transformations import apply_moc_transformations, apply_po
     compress_model_transformation
 
 from openvino.runtime import Model, PartialShape, Core
-from openvino.runtime.passes import Manager, Serialize
 import openvino.runtime as ov
 
 
