@@ -17,13 +17,15 @@ function(set_ie_threading_interface_for TARGET_NAME)
     endmacro()
 
     if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
-        if(IEDevScripts_DIR)
+        # when ENABLE_SYSTEM_TBB is enabled, we don't have to use
+        # our custom TBB scripts from cmake/developer_package/[tbb/]TBBConfig.cmake
+        if(IEDevScripts_DIR AND NOT ENABLE_SYSTEM_TBB)
             find_package(TBB COMPONENTS tbb tbbmalloc
                          PATHS IEDevScripts_DIR
                          NO_CMAKE_FIND_ROOT_PATH
                          NO_DEFAULT_PATH)
         else()
-            find_dependency(TBB COMPONENTS tbb tbbmalloc)
+            find_package(TBB COMPONENTS tbb tbbmalloc)
         endif()
         # oneTBB does not define TBB_IMPORTED_TARGETS
         if(TBB_FOUND AND NOT TBB_IMPORTED_TARGETS)

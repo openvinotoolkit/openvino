@@ -12,6 +12,7 @@
 #  * `Runtime`: OpenVINO C++ and C Core & Inference Runtime, frontend common
 #  * `ONNX`: OpenVINO ONNX frontend
 #  * `Paddle`: OpenVINO Paddle frontend
+#  * `TensorFlow`: OpenVINO TensorFlow frontend
 #
 # If no components are specified, `Runtime` component is provided:
 #
@@ -146,14 +147,20 @@ set(_ov_package_prefix_dir "${PACKAGE_PREFIX_DIR}")
 
 set(THREADING "@THREADING@")
 if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND NOT TBB_FOUND)
-    set_and_check(_tbb_dir "@PACKAGE_IE_TBB_DIR@")
+    set(enable_system_tbb "@ENABLE_SYSTEM_TBB@")
+    if(NOT enable_system_tbb)
+        set_and_check(_tbb_dir "@PACKAGE_IE_TBB_DIR@")
+        set(find_package_extra_args CONFIG
+                                    PATHS ${TBBROOT}/cmake
+                                          ${_tbb_dir}
+                                    NO_CMAKE_FIND_ROOT_PATH
+                                    NO_DEFAULT_PATH)
+    endif()
+    unset(enable_system_tbb)
+
     _ov_find_dependency(TBB
                         COMPONENTS tbb tbbmalloc
-                        CONFIG
-                        PATHS ${TBBROOT}/cmake
-                              ${_tbb_dir}
-                        NO_CMAKE_FIND_ROOT_PATH
-                        NO_DEFAULT_PATH)
+                        ${find_package_extra_args})
 
     set(install_tbbbind "@install_tbbbind@")
     if(install_tbbbind)
@@ -164,6 +171,7 @@ if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND NOT TBB_FOUND
                             NO_DEFAULT_PATH)
         set_target_properties(${TBBBIND_2_5_IMPORTED_TARGETS} PROPERTIES IMPORTED_GLOBAL ON)
     endif()
+    unset(install_tbbbind)
 endif()
 
 _ov_find_dependency(Threads)
