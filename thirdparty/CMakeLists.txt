@@ -115,7 +115,7 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         if(ENABLE_SYSTEM_PROTOBUF)
             set(link_type INTERFACE)
         endif()
-        if(CMAKE_COMPILER_IS_GNUCXX OR OV_CPACK_COMPILER_IS_CLANG)
+        if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
             target_compile_options(${target} ${link_type} -Wno-undef)
         endif()
     endforeach()

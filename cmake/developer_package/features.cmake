@@ -56,7 +56,7 @@ ie_option (VERBOSE_BUILD "shows extra information about build" OFF)
 
 ie_option (ENABLE_UNSAFE_LOCATIONS "skip check for MD5 for dependency" OFF)
 
-ie_dependent_option (ENABLE_FUZZING "instrument build for fuzzing" OFF "OV_CPACK_COMPILER_IS_CLANG; NOT WIN32" OFF)
+ie_dependent_option (ENABLE_FUZZING "instrument build for fuzzing" OFF "OV_COMPILER_IS_CLANG; NOT WIN32" OFF)
 
 #
 # Check features

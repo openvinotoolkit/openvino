@@ -26,7 +26,7 @@ elseif(SELECTIVE_BUILD STREQUAL "ON")
 
     target_compile_definitions(${TARGET_NAME} INTERFACE SELECTIVE_BUILD)
 
-    if(CMAKE_COMPILER_IS_GNUCXX OR OV_CPACK_COMPILER_IS_CLANG)
+    if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
         # After disabling a block of code, some variables might be unused.
         target_compile_options(${TARGET_NAME} INTERFACE
                                 -Wno-unused-function

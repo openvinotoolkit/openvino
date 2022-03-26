@@ -605,7 +605,7 @@ if (ENABLE_OV_ONNX_FRONTEND)
     target_compile_definitions(ov_core_unit_tests PRIVATE ENABLE_OV_ONNX_FRONTEND)
 endif()
 
-if (OV_CPACK_COMPILER_IS_CLANG)
+if (OV_COMPILER_IS_CLANG)
     target_compile_options(ov_core_unit_tests PRIVATE -Wno-undef -Wno-reserved-id-macro)
 endif()
 

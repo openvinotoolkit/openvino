@@ -165,7 +165,7 @@ function(ov_disable_all_warnings)
     foreach(target IN LISTS ARGN)
         if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
             target_compile_options(${target} PRIVATE /WX-)
-        elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_CPACK_COMPILER_IS_CLANG)
+        elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
             target_compile_options(${target} PRIVATE -w)
         elseif(UNIX AND CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
             # 193: zero used for undefined preprocessing identifier "XXX"
