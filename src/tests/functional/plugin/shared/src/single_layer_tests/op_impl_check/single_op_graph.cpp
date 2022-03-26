@@ -849,7 +849,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v8::RandomUnif
     const auto params = ngraph::builder::makeDynamicParams(ov::element::i32, {{3}});
     const auto min_value = ngraph::builder::makeConstant<float>(ov::element::f16, {}, {0.f});
     const auto max_value = ngraph::builder::makeConstant<float>(ov::element::f16, {}, {1.f});
-    auto Node = std::make_shared<ov::op::v8::RandomUniform>(params.at(0), min_value, max_value, ov::element::f32, 10, 10);
+    auto Node = std::make_shared<ov::op::v8::RandomUniform>(params.at(0), min_value, max_value, ov::element::f16, 10, 10);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(Node)};
     return std::make_shared<ov::Model>(results, params, "RandomUniformGraph");
 }

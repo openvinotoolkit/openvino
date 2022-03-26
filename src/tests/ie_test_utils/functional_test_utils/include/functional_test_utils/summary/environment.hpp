@@ -9,6 +9,7 @@
 #include "ngraph/ngraph.hpp"
 
 #include "functional_test_utils/summary/op_summary.hpp"
+#include "functional_test_utils/summary/api_summary.hpp"
 
 namespace ov {
 namespace test {
@@ -18,6 +19,7 @@ class TestEnvironment : public ::testing::Environment {
 public:
     void TearDown() override {
         OpSummary::getInstance().saveReport();
+        ApiSummary::getInstance().saveReport();
     };
 };
 

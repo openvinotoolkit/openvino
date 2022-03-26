@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "summary.hpp"
+
 namespace ov {
 namespace test {
 namespace utils {
@@ -16,6 +18,41 @@ enum ov_entity {
     ov_compiled_model,
     ov_infer_request
 };
+
+class ApiSummary;
+
+class ApiSummaryDestroyer {
+private:
+    ApiSummary *p_instance;
+public:
+    ~ApiSummaryDestroyer();
+
+    void initialize(ApiSummary *p);
+};
+
+class ApiSummary : public virtual Summary {
+private:
+    static ApiSummary *p_instance;
+    std::map<ov_entity, std::map<std::string, PassRate>> apiStats = {};
+    static const std::map<ov_entity, std::string> apiInfo;
+
+protected:
+    ApiSummary();
+    static ApiSummaryDestroyer destroyer;
+    friend class ApiSummaryDestroyer;
+
+public:
+    static ApiSummary &getInstance();
+
+    std::map<ov_entity, std::map<std::string, PassRate>> getApiStats() { return apiStats; }
+
+
+    void updateStat(ov_entity, std::string, PassRate::Statuses);
+
+//    std::map<std::string, PassRate> getStatisticFromReport() override;
+    void saveReport() override;
+};
+
 
 }  // namespace utils
 }  // namespace test

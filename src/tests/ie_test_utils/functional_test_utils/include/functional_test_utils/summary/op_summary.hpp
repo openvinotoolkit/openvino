@@ -10,7 +10,6 @@ namespace ov {
 namespace test {
 namespace utils {
 
-class Summary;
 class OpSummary;
 
 class OpSummaryDestroyer {
@@ -32,9 +31,8 @@ private:
     std::string getOpVersion(const ngraph::NodeTypeInfo &type_info);
 
 protected:
-    static OpSummaryDestroyer destroyer;
     OpSummary();
-
+    static OpSummaryDestroyer destroyer;
     friend class OpSummaryDestroyer;
 
 public:
@@ -51,7 +49,6 @@ public:
 
     std::map<std::string, PassRate> getStatisticFromReport() override;
     void saveReport() override;
-
 
     void updateOPsStats(const std::shared_ptr<ngraph::Function> &function, const PassRate::Statuses &status);
     void updateOPsImplStatus(const std::shared_ptr<ngraph::Function> &function, const bool implStatus);

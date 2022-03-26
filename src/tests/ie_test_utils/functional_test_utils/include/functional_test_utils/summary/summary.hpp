@@ -72,11 +72,11 @@ protected:
     virtual ~Summary() = default;
 
 public:
-    void setDeviceName(std::string device) { deviceName = device; }
+    void setDeviceName(std::string device);
 
-    virtual std::map<std::string, PassRate> getStatisticFromReport() { return std::map<std::string, PassRate>(); }
+    virtual std::map<std::string, PassRate> getStatisticFromReport();
 
-    std::string getDeviceName() const { return deviceName; }
+    std::string getDeviceName() const;
 
 
     // #define IE_TEST_DEBUG
@@ -88,7 +88,7 @@ public:
 
     virtual void saveReport() {}
 
-    void setReportFilename(const std::string& val) { reportFilename = val.c_str(); }
+    void setReportFilename(const std::string& val);
 
     static void setExtendReport(bool val) { extendReport = val; }
     static bool getExtendReport() { return extendReport; }

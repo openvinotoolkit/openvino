@@ -7,6 +7,7 @@
 #include "ov_behavior_test_utils.hpp"
 
 #include "functional_test_utils/plugin_cache.hpp"
+#include "functional_test_utils/summary/api_summary.hpp"
 
 namespace BehaviorTestsUtils {
 
@@ -89,6 +90,14 @@ public:
     void TearDown() override {
         if (!configuration.empty()) {
             PluginCache::get().reset();
+        }
+        auto apiSummary = ov::test::utils::ApiSummary::getInstance();
+        if (this->HasFailure()) {
+            apiSummary.updateStat(ov::test::utils::ov_entity::ie_infer_request, targetDevice, ov::test::utils::PassRate::Statuses::FAILED);
+        } else if (this->IsSkipped()) {
+            apiSummary.updateStat(ov::test::utils::ov_entity::ie_infer_request, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
+        } else {
+            apiSummary.updateStat(ov::test::utils::ov_entity::ie_infer_request, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
         }
     }
 
