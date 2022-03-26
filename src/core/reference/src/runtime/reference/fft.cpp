@@ -337,7 +337,7 @@ InfoForFFTCalculation get_info_for_calculation(const Shape& input_data_shape,
     const auto output_strides = fft_common::compute_strides(reversed_output_shape);
     const auto output_fft_strides = get_lengths(output_strides, fft_axes);
     const auto output_outer_strides = get_lengths(output_strides, outer_axes);
-    const auto reversed_input_shape =fft_common::reverse_shape_of_emulated_complex_tensor(input_data_shape);
+    const auto reversed_input_shape = fft_common::reverse_shape_of_emulated_complex_tensor(input_data_shape);
     const auto input_fft_lengths = get_lengths(reversed_input_shape, fft_axes);
     const auto input_strides = fft_common::compute_strides(reversed_input_shape);
     const auto input_fft_strides = get_lengths(input_strides, fft_axes);
