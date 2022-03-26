@@ -169,6 +169,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*KSOFunction.*)",
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*NonMaxSuppression.*)",
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*Nms.*)",
+        R"(.*smoke_Snippets_Eltwise/AddConvert.*)",
+        R"(.*smoke_Snippets_ConvMul/ConvEltwise.*)",
+        R"(.*smoke_Snippets_Eltwise/ThreeInputsEltwiseConvert.*)",
     };
 
 #define FIX_62820 0

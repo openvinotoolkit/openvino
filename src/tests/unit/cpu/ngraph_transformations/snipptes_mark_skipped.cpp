@@ -38,17 +38,17 @@ TEST_F(SnippetsMarkSkippedTests, smoke_Snippets_SkipAfterInputsMatMulEltwise) {
     run();
 }
 
-TEST_F(SnippetsMarkSkippedTests, smoke_Snippets_SkipConvFused_ConvMulActivation) {
-    std::vector<std::shared_ptr<Node>> eltwiseOps {std::make_shared<ov::op::v1::Multiply>(),
-                                                   std::make_shared<ov::op::v0::Tanh>(),
-                                                   std::make_shared<ov::op::v0::Sqrt>()};
-    std::vector<Shape> inputShapes {{1, 2, 16, 16}, {1, 2, 1, 16}};
-    const auto &f = ConvMulActivationFunction(inputShapes, eltwiseOps);
-    function = f.getOriginal();
-    // Fully tokenizable, since Mul with 2 inputs isn't fused into Convolution
-    function_ref = f.getReference();
-    run();
-}
+//TEST_F(SnippetsMarkSkippedTests, smoke_Snippets_SkipConvFused_ConvMulActivation) {
+//    std::vector<std::shared_ptr<Node>> eltwiseOps {std::make_shared<ov::op::v1::Multiply>(),
+//                                                   std::make_shared<ov::op::v0::Tanh>(),
+//                                                   std::make_shared<ov::op::v0::Sqrt>()};
+//    std::vector<Shape> inputShapes {{1, 2, 16, 16}, {1, 2, 1, 16}};
+//    const auto &f = ConvMulActivationFunction(inputShapes, eltwiseOps);
+//    function = f.getOriginal();
+//    // Fully tokenizable, since Mul with 2 inputs isn't fused into Convolution
+//    function_ref = f.getReference();
+//    run();
+//}
 
 TEST_F(SnippetsMarkSkippedTests, smoke_SkipConvFused_ConvSumActivation) {
     std::vector<std::shared_ptr<Node>> eltwiseOps {std::make_shared<ov::op::v1::Add>(),
