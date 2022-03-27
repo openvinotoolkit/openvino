@@ -50,7 +50,7 @@ const Containers::TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs
 
 void set_request_tensors(ov::InferRequest& request, const py::dict& inputs);
 
-PyAny from_ov_any(const ov::Any& any);
+py::object from_ov_any(const ov::Any& any);
 
 uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual);
 

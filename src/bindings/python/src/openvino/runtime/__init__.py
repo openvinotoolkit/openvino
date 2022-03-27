@@ -32,13 +32,12 @@ from openvino.pyopenvino import Coordinate
 from openvino.pyopenvino import Layout
 from openvino.pyopenvino import ConstOutput
 from openvino.pyopenvino import layout_helpers
+from openvino.runtime.ie_api import OVAny
 from openvino.pyopenvino import RTMap
-
 from openvino.runtime.ie_api import Core
 from openvino.runtime.ie_api import CompiledModel
 from openvino.runtime.ie_api import InferRequest
 from openvino.runtime.ie_api import AsyncInferQueue
-from openvino.runtime.ie_api import OVAny
 from openvino.pyopenvino import Version
 from openvino.pyopenvino import Tensor
 from openvino.pyopenvino import Extension

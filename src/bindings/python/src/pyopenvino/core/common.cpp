@@ -293,40 +293,40 @@ void set_request_tensors(ov::InferRequest& request, const py::dict& inputs) {
     }
 }
 
-PyAny from_ov_any(const ov::Any& any) {
+py::object from_ov_any(const ov::Any& any) {
     // Check for py::object
     if (any.is<py::object>()) {
         return any.as<py::object>();
     }
     // Check for std::string
     else if (any.is<std::string>()) {
-        return PyUnicode_FromString(any.as<std::string>().c_str());
+        return py::cast<py::object>(PyUnicode_FromString(any.as<std::string>().c_str()));
     }
     // Check for int
     else if (any.is<int>()) {
         auto val = any.as<int>();
-        return PyLong_FromLong((long)val);
+        return py::cast<py::object>(PyLong_FromLong((long)val));
     } else if (any.is<int64_t>()) {
         auto val = any.as<int64_t>();
-        return PyLong_FromLong((long)val);
+        return py::cast<py::object>(PyLong_FromLong((long)val));
     }
     // Check for unsinged int
     else if (any.is<unsigned int>()) {
         auto val = any.as<unsigned int>();
-        return PyLong_FromLong((unsigned long)val);
+        return py::cast<py::object>(PyLong_FromLong((unsigned long)val));
     }
     // Check for float
     else if (any.is<float>()) {
         auto val = any.as<float>();
-        return PyFloat_FromDouble((double)val);
+        return py::cast<py::object>(PyFloat_FromDouble((double)val));
     } else if (any.is<double>()) {
         auto val = any.as<double>();
-        return PyFloat_FromDouble(val);
+        return py::cast<py::object>(PyFloat_FromDouble(val));
     }
     // Check for bool
     else if (any.is<bool>()) {
         auto val = any.as<bool>();
-        return val ? Py_True : Py_False;
+        return py::cast<py::object>(val ? Py_True : Py_False);
     }
     // Check for std::vector<std::string>
     else if (any.is<std::vector<std::string>>()) {
@@ -336,7 +336,7 @@ PyAny from_ov_any(const ov::Any& any) {
             PyObject* str_val = PyUnicode_FromString(it.c_str());
             PyList_Append(list, str_val);
         }
-        return list;
+        return py::cast<py::object>(list);
     }
     // Check for std::vector<int>
     else if (any.is<std::vector<int>>()) {
@@ -345,7 +345,7 @@ PyAny from_ov_any(const ov::Any& any) {
         for (const auto& it : val) {
             PyList_Append(list, PyLong_FromLong(it));
         }
-        return list;
+        return py::cast<py::object>(list);
     }
     // Check for std::vector<int64_t>
     else if (any.is<std::vector<int64_t>>()) {
@@ -354,7 +354,7 @@ PyAny from_ov_any(const ov::Any& any) {
         for (const auto& it : val) {
             PyList_Append(list, PyLong_FromLong(it));
         }
-        return list;
+        return py::cast<py::object>(list);
     }
     // Check for std::vector<unsigned int>
     else if (any.is<std::vector<unsigned int>>()) {
@@ -363,7 +363,7 @@ PyAny from_ov_any(const ov::Any& any) {
         for (const auto& it : val) {
             PyList_Append(list, PyLong_FromLong(it));
         }
-        return list;
+        return py::cast<py::object>(list);
     }
     // Check for std::vector<float>
     else if (any.is<std::vector<float>>()) {
@@ -372,7 +372,7 @@ PyAny from_ov_any(const ov::Any& any) {
         for (const auto& it : val) {
             PyList_Append(list, PyFloat_FromDouble((double)it));
         }
-        return list;
+        return py::cast<py::object>(list);
     }
     // Check for std::tuple<unsigned int, unsigned int>
     else if (any.is<std::tuple<unsigned int, unsigned int>>()) {
@@ -380,7 +380,7 @@ PyAny from_ov_any(const ov::Any& any) {
         PyObject* tuple = PyTuple_New(2);
         PyTuple_SetItem(tuple, 0, PyLong_FromUnsignedLong((unsigned long)std::get<0>(val)));
         PyTuple_SetItem(tuple, 1, PyLong_FromUnsignedLong((unsigned long)std::get<1>(val)));
-        return tuple;
+        return py::cast<py::object>(tuple);
     }
     // Check for std::tuple<unsigned int, unsigned int, unsigned int>
     else if (any.is<std::tuple<unsigned int, unsigned int, unsigned int>>()) {
@@ -389,7 +389,7 @@ PyAny from_ov_any(const ov::Any& any) {
         PyTuple_SetItem(tuple, 0, PyLong_FromUnsignedLong((unsigned long)std::get<0>(val)));
         PyTuple_SetItem(tuple, 1, PyLong_FromUnsignedLong((unsigned long)std::get<1>(val)));
         PyTuple_SetItem(tuple, 2, PyLong_FromUnsignedLong((unsigned long)std::get<2>(val)));
-        return tuple;
+        return py::cast<py::object>(tuple);
     }
     // Check for std::map<std::string, std::string>
     else if (any.is<std::map<std::string, std::string>>()) {
@@ -398,7 +398,7 @@ PyAny from_ov_any(const ov::Any& any) {
         for (const auto& it : val) {
             PyDict_SetItemString(dict, it.first.c_str(), PyUnicode_FromString(it.second.c_str()));
         }
-        return dict;
+        return py::cast<py::object>(dict);
     }
     // Check for std::map<std::string, int>
     else if (any.is<std::map<std::string, int>>()) {
@@ -407,7 +407,7 @@ PyAny from_ov_any(const ov::Any& any) {
         for (const auto& it : val) {
             PyDict_SetItemString(dict, it.first.c_str(), PyLong_FromLong((long)it.second));
         }
-        return dict;
+        return py::cast<py::object>(dict);
     }
     // Check for std::vector<ov::PropertyName>
     else if (any.is<std::vector<ov::PropertyName>>()) {
@@ -418,10 +418,10 @@ PyAny from_ov_any(const ov::Any& any) {
             std::string mutability = it.is_mutable() ? "RW" : "RO";
             PyDict_SetItemString(dict, property_name.c_str(), PyUnicode_FromString(mutability.c_str()));
         }
-        return dict;
+        return py::cast<py::object>(dict);
     } else {
         PyErr_SetString(PyExc_TypeError, "Failed to convert parameter to Python representation!");
-        return (PyObject*)NULL;
+        return py::cast<py::object>((PyObject*)NULL);
     }
 }
 

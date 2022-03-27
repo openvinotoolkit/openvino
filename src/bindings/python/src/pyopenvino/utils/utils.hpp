@@ -5,9 +5,12 @@
 #pragma once
 
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 #include <openvino/core/any.hpp>
 
-ov::Any py_object_to_any(const pybind11::object& py_obj) {
+inline ov::Any py_object_to_any(const pybind11::object& py_obj) {
+
+
     if (pybind11::isinstance<pybind11::str>(py_obj)) {
         return py_obj.cast<std::string>();
     } else if (pybind11::isinstance<pybind11::bool_>(py_obj)) {
@@ -57,6 +60,11 @@ ov::Any py_object_to_any(const pybind11::object& py_obj) {
             default:
                 OPENVINO_ASSERT(false, "Unsupported attribute type.");
         }
+    } else if (pybind11::isinstance<pybind11::tuple>(py_obj)) {
+        auto _tuple = py_obj.cast<pybind11::tuple>();
+
+    } else if (pybind11::isinstance<pybind11::object>(py_obj)) {
+        return py_obj;
     }
     OPENVINO_ASSERT(false, "Unsupported attribute type.");
 }
