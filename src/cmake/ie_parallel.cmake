@@ -98,8 +98,10 @@ function(set_ie_threading_interface_for TARGET_NAME)
                 get_target_property(include_directories ${library} INTERFACE_INCLUDE_DIRECTORIES)
                 if(include_directories)
                     foreach(include_directory IN LISTS include_directories)
-                        target_include_directories(${TARGET_NAME} SYSTEM BEFORE
-                            ${LINK_TYPE} $<BUILD_INTERFACE:${include_directory}>)
+                        if(NOT "${include_directory}" MATCHES "^/usr.*$")
+                            target_include_directories(${TARGET_NAME} SYSTEM BEFORE
+                                ${LINK_TYPE} $<BUILD_INTERFACE:${include_directory}>)
+                        endif()
                     endforeach()
                 endif()
             endif()
