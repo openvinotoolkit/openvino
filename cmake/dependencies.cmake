@@ -159,6 +159,9 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT ENABLE_SYST
     if(EXISTS "${TBBROOT}/lib/cmake/TBB/TBBConfig.cmake")
         # oneTBB case
         update_deps_cache(TBB_DIR "${TBB}/lib/cmake/TBB" "Path to TBB cmake folder")
+    elseif(EXISTS "${TBBROOT}/lib64/cmake/TBB/TBBConfig.cmake")
+        # oneTBB case
+        update_deps_cache(TBB_DIR "${TBB}/lib64/cmake/TBB" "Path to TBB cmake folder")
     else()
         update_deps_cache(TBB_DIR "${TBB}/cmake" "Path to TBB cmake folder")
     endif()

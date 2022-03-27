@@ -28,7 +28,7 @@ if(install_tbbbind)
     list(APPEND PATH_VARS "IE_TBBBIND_DIR")
 endif()
 
-# install only downloaded TBB, system one is not installed
+# install only downloaded TBB, system | custom one is not installed
 if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND TBBROOT MATCHES ${TEMP})
     ie_cpack_add_component(tbb REQUIRED)
     ie_cpack_add_component(tbb_dev REQUIRED)

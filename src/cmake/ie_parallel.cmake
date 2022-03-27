@@ -16,18 +16,18 @@ function(set_ie_threading_interface_for TARGET_NAME)
          endif ()
     endmacro()
 
-    if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
-        # when ENABLE_SYSTEM_TBB is enabled, we don't have to use
-        # our custom TBB scripts from cmake/developer_package/[tbb/]TBBConfig.cmake
-        if(IEDevScripts_DIR AND NOT ENABLE_SYSTEM_TBB)
+    if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
+        find_package(TBB COMPONENTS tbb tbbmalloc)
+        if(NOT TBB_FOUND AND IEDevScripts_DIR)
+            # use our custom scripts for old TBB versions
+            # which are exposed via `export TBBROOT=<tbbroot>`
+            # see https://github.com/openvinotoolkit/openvino/pull/1288
             find_package(TBB COMPONENTS tbb tbbmalloc
-                         PATHS IEDevScripts_DIR
+                         PATHS ${IEDevScripts_DIR}
                          NO_CMAKE_FIND_ROOT_PATH
                          NO_DEFAULT_PATH)
-        else()
-            find_package(TBB COMPONENTS tbb tbbmalloc)
         endif()
-        # oneTBB does not define TBB_IMPORTED_TARGETS
+        # WA for oneTBB: it does not define TBB_IMPORTED_TARGETS
         if(TBB_FOUND AND NOT TBB_IMPORTED_TARGETS)
             foreach(target TBB::tbb TBB::tbbmalloc)
                 if(TARGET ${target})
