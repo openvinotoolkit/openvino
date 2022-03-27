@@ -64,9 +64,11 @@ install(FILES cpp/CMakeLists.txt
 
 # install Python samples
 
-ie_cpack_add_component(python_samples)
+if(ENABLE_PYTHON)
+    ie_cpack_add_component(python_samples)
 
-install(DIRECTORY python/
-        DESTINATION samples/python
-        USE_SOURCE_PERMISSIONS
-        COMPONENT python_samples)
+    install(DIRECTORY python/
+            DESTINATION samples/python
+            USE_SOURCE_PERMISSIONS
+            COMPONENT python_samples)
+endif()
