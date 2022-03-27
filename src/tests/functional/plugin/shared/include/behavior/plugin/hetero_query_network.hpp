@@ -16,10 +16,10 @@ namespace HeteroTests {
 class HeteroQueryNetworkTest : public ::testing::TestWithParam<std::string>  {
 public:
     void RunTest(std::string& deviceName) {
-            ASSERT_GT(deviceName.size(), 0);
+        ASSERT_GT(deviceName.size(), 0);
 
-    //this model is a subgraph of "ctpn" model from omz
-    std::string model = R"V0G0N(
+        //this model is a subgraph of "ctpn" model from omz
+        std::string model = R"V0G0N(
 <net name="Network" version="11">
     <layers>
         <layer id="0" name="input" type="Parameter" version="opset1">
@@ -384,84 +384,82 @@ public:
     </edges>
 </net>
 )V0G0N";
+        InferenceEngine::Core ie;
+        Blob::Ptr weights;
 
-    InferenceEngine::Core ie;
-    Blob::Ptr weights;
+        weights = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {160}, InferenceEngine::Layout::C));
+        weights->allocate();
 
-    weights = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {160}, InferenceEngine::Layout::C));
-    weights->allocate();
+        auto *dataI64 = weights->buffer().as<int64_t *>();
+        auto *dataI32 = weights->buffer().as<int32_t *>();
+        dataI64[0] = 0;
+        dataI64[1] = 3;
+        dataI64[2] = 1;
+        dataI64[3] = 2;
 
-    auto *dataI64 = weights->buffer().as<int64_t *>();
-    auto *dataI32 = weights->buffer().as<int32_t *>();
-    dataI64[0] = 0;
-    dataI64[1] = 3;
-    dataI64[2] = 1;
-    dataI64[3] = 2;
+        dataI64[4] = 0;
+        dataI64[5] = 2;
+        dataI64[6] = 3;
+        dataI64[7] = 1;
 
-    dataI64[4] = 0;
-    dataI64[5] = 2;
-    dataI64[6] = 3;
-    dataI64[7] = 1;
+        dataI32[16] = 0;
+        dataI32[17] = 2;
+        dataI32[18] = 3;
+        dataI32[19] = 1;
 
-    dataI32[16] = 0;
-    dataI32[17] = 2;
-    dataI32[18] = 3;
-    dataI32[19] = 1;
+        dataI64[10] = 0;
 
-    dataI64[10] = 0;
+        dataI64[11] = 0;
+        dataI64[12] = 1;
+        dataI64[13] = 1;
 
-    dataI64[11] = 0;
-    dataI64[12] = 1;
-    dataI64[13] = 1;
+        dataI64[14] = 0;
 
-    dataI64[14] = 0;
+        dataI64[15] = 1;
+        dataI64[16] = 2;
+        dataI64[17] = 1;
 
-    dataI64[15] = 1;
-    dataI64[16] = 2;
-    dataI64[17] = 1;
+        dataI64[18] = 0;
 
-    dataI64[18] = 0;
+        dataI32[38] = 0xFFFFFFFF;
+        dataI32[39] = 20;
 
-    dataI32[38] = 0xFFFFFFFF;
-    dataI32[39] = 20;
+        auto network = ie.ReadNetwork(model, weights);
 
-    auto network = ie.ReadNetwork(model, weights);
+        QueryNetworkResult result;
+        OV_ASSERT_NO_THROW(result = ie.QueryNetwork(network, deviceName));
+        ASSERT_EQ(27, result.supportedLayersMap.size());
 
-    QueryNetworkResult result;
-    OV_ASSERT_NO_THROW(result = ie.QueryNetwork(network, deviceName));
-    ASSERT_EQ(27, result.supportedLayersMap.size());
+        std::set<std::string> checkNames = {"input",
+            "rpn_cls_prob/Transpose7580/value758213165",
+            "rpn_cls_prob/Transpose7580",
+            "rpn_cls_prob/Transpose/value756213066",
+            "rpn_cls_prob/Transpose",
+            "Shape_2",
+            "Shape_2/GatherNCHWtoNHWC_input_port_1/value778413036",
+            "Shape_2/GatherNCHWtoNHWC_input_port_2/value778613297",
+            "Shape_2/GatherNCHWtoNHWC",
+            "strided_slice_6/stack",
+            "strided_slice_6/stack_1",
+            "strided_slice_6/stack_2",
+            "strided_slice_6",
+            "Reshape_2/shape/Unsqueeze_input_port_1/value",
+            "Reshape_2/shape/Unsqueeze",
+            "strided_slice_7/stack",
+            "strided_slice_7/stack_1",
+            "strided_slice_7/stack_2",
+            "strided_slice_7",
+            "Reshape_2/shape/Unsqueeze531_input_port_1/value",
+            "Reshape_2/shape/Unsqueeze531",
+            "Reshape_2/shape/Unsqueeze533",
+            "Reshape_2/shape/Unsqueeze535",
+            "Reshape_2/shape",
+            "Reshape_2/Cast_1",
+            "Reshape_2",
+            "Reshape_2:0"};
 
-    std::set<std::string> checkNames = {"input",
-        "rpn_cls_prob/Transpose7580/value758213165",
-        "rpn_cls_prob/Transpose7580",
-        "rpn_cls_prob/Transpose/value756213066",
-        "rpn_cls_prob/Transpose",
-        "Shape_2",
-        "Shape_2/GatherNCHWtoNHWC_input_port_1/value778413036",
-        "Shape_2/GatherNCHWtoNHWC_input_port_2/value778613297",
-        "Shape_2/GatherNCHWtoNHWC",
-        "strided_slice_6/stack",
-        "strided_slice_6/stack_1",
-        "strided_slice_6/stack_2",
-        "strided_slice_6",
-        "Reshape_2/shape/Unsqueeze_input_port_1/value",
-        "Reshape_2/shape/Unsqueeze",
-        "strided_slice_7/stack",
-        "strided_slice_7/stack_1",
-        "strided_slice_7/stack_2",
-        "strided_slice_7",
-        "Reshape_2/shape/Unsqueeze531_input_port_1/value",
-        "Reshape_2/shape/Unsqueeze531",
-        "Reshape_2/shape/Unsqueeze533",
-        "Reshape_2/shape/Unsqueeze535",
-        "Reshape_2/shape",
-        "Reshape_2/Cast_1",
-        "Reshape_2",
-        "Reshape_2:0"};
-
-    for (auto&& name : checkNames) {
-        EXPECT_NE(result.supportedLayersMap.find(name), result.supportedLayersMap.end());
-    }
+        for (auto&& name : checkNames)
+            EXPECT_NE(result.supportedLayersMap.find(name), result.supportedLayersMap.end());
     }
 };
 
