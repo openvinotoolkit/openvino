@@ -536,10 +536,10 @@ std::map<std::string, std::string> parse_input_layouts(const std::string& layout
 }
 
 /**
- * @brief Parse parameters for inputs/outputs like as "<input_name1>=<file1.ark/.npz>,<input_name2>=<file2.ark/.npz>" or
- * "<file.ark/.npz>" in case of one input
- * @param file_paths_string input path
- * @return pair of filename and vector of inputNameBlobs
+ * @brief Parse parameters for inputs/outputs like as "<name1>=<file1.ark/.npz>,<name2>=<file2.ark/.npz>" or
+ * "<file.ark/.npz>" in case of one input/output
+ * @param file_paths_string input/output path
+ * @return pair of filename and vector of tensor_names
  */
 std::pair<std::string, std::vector<std::string>> parse_parameters(const std::string file_paths_string) {
     auto search_string = file_paths_string;

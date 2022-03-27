@@ -20,12 +20,12 @@ from common.common_utils import parse_avg_err
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
-test_data = get_tests(cmd_params={'i': [os.path.join('ark', 'dev93_10.ark')],
+test_data = get_tests(cmd_params={'i': [os.path.join(Environment.env['test_data'], 'ark', 'dev93_10.ark'), 'Parameter=' + os.path.join(Environment.env['test_data'], 'ark', 'dev93_10.ark')],
                                            'm': [os.path.join('wsj', 'FP32', 'wsj_dnn5b.xml')],
                                            'layout': ["[NC]"],
                                            'bs': [1, 2],
-                                           'o': ['res_output.ark'],
-                                           'r': [os.path.join('ark', 'dev93_scores_10.ark')],
+                                           'o': [os.path.join(Environment.env['test_data'], 'res_output.ark'), 'affinetransform14/Fused_Add_:0=' + os.path.join(Environment.env['test_data'], 'res_output.ark')],
+                                           'r': [os.path.join(Environment.env['test_data'], 'ark', 'dev93_scores_10.ark'), 'affinetransform14/Fused_Add_:0=' + os.path.join(Environment.env['test_data'], 'ark', 'dev93_scores_10.ark')],
                                            'qb': [8, 16],
                                            'sf': ["Parameter=2175.43", "2175.43"],
                                            'q': ["static", "user"],
@@ -42,7 +42,7 @@ class TestSpeechSample(SamplesCommonTestClass):
 
     @pytest.mark.parametrize("param", test_data)
     def test_speech_sample_nthreads(self, param):
-        stdout = self._test(param).split('\n')
+        stdout = self._test(param, complete_path=False).split('\n')
         assert os.path.isfile(param['o']), "Ark file after infer was not found"
 
         avg_error = parse_avg_err(stdout)
