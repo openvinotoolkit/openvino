@@ -31,6 +31,7 @@
         "runtime/lib/intel64/libopenvino_ir_frontend.so",
         "runtime/lib/intel64/libopenvino_onnx_frontend.so",
         "runtime/lib/intel64/libopenvino_paddle_frontend.so",
+        "runtime/lib/intel64/libopenvino_tensorflow_fe.so",
         "runtime/lib/intel64/plugins.xml",
         "runtime/3rdparty/tbb"
       ]
