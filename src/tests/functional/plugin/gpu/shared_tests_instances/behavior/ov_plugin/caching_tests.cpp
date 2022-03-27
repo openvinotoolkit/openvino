@@ -29,4 +29,20 @@ namespace {
                                     ::testing::ValuesIn(batchSizesGPU),
                                     ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                             CompileModelCacheTestBase::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_AUTO_GPU, CompileModelCacheTestBase,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(CompileModelCacheTestBase::getStandardFunctions()),
+                                    ::testing::ValuesIn(precisionsGPU),
+                                    ::testing::ValuesIn(batchSizesGPU),
+                                    ::testing::Values(CommonTestUtils::runWithAuto(CommonTestUtils::DEVICE_GPU))),
+                            CompileModelCacheTestBase::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_HETERO_GPU, CompileModelCacheTestBase,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(CompileModelCacheTestBase::getStandardFunctions()),
+                                    ::testing::ValuesIn(precisionsGPU),
+                                    ::testing::ValuesIn(batchSizesGPU),
+                                    ::testing::Values(CommonTestUtils::runWithHetero(CommonTestUtils::DEVICE_GPU))),
+                            CompileModelCacheTestBase::getTestCaseName);
 } // namespace

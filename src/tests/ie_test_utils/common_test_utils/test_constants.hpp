@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <string>
+
 #pragma once
 
 namespace CommonTestUtils {
@@ -17,6 +19,18 @@ const char DEVICE_KEEMBAY[] = "VPUX";
 const char DEVICE_MULTI[] = "MULTI";
 const char DEVICE_TEMPLATE[] = "TEMPLATE";
 const char DEVICE_HETERO[] = "HETERO";
+
+inline std::string runWithAuto(const char device_name[]) {
+    return std::string(DEVICE_AUTO) + ":" + device_name;
+}
+
+inline std::string runWithHetero(const char device_name[]) {
+    return std::string(DEVICE_HETERO) + ":" + device_name;
+}
+
+inline std::string runWithMulti(const char device_name[]) {
+    return std::string(DEVICE_MULTI) + ":" + device_name;
+}
 
 const char REPORT_FILENAME[] = "report";
 const char REPORT_EXTENSION[] = ".xml";

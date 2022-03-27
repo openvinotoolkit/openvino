@@ -169,6 +169,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*KSOFunction.*)",
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*NonMaxSuppression.*)",
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*Nms.*)",
+        // CVS-82911
+        R"(.*ReadConcatSplitAssign_f32_batch1_HETERO.*)",
     };
 
 #define FIX_62820 0

@@ -115,18 +115,6 @@ std::vector<ovModelWithName> CompileModelCacheTestBase::getStandardFunctions() {
     return res;
 }
 
-bool CompileModelCacheTestBase::importExportSupported(ov::Core& core) const {
-    auto supportedProperties = core.get_property(targetDevice, ov::supported_properties);
-    if (std::find(supportedProperties.begin(), supportedProperties.end(), ov::device::capabilities) == supportedProperties.end()) {
-        return false;
-    }
-    auto device_capabilities = core.get_property(targetDevice, ov::device::capabilities);
-    if (std::find(device_capabilities.begin(), device_capabilities.end(), std::string(ov::device::capability::EXPORT_IMPORT)) == device_capabilities.end()) {
-        return false;
-    }
-    return true;
-}
-
 std::string CompileModelCacheTestBase::getTestCaseName(testing::TestParamInfo<compileModelCacheParams> obj) {
     auto param = obj.param;
     auto funcName = std::get<1>(std::get<0>(param));
@@ -171,10 +159,6 @@ void CompileModelCacheTestBase::run() {
             inShapes.push_back(param->get_shape());
         }
         init_input_shapes(static_shapes_to_test_representation(inShapes));
-    }
-    if (!importExportSupported(*core)) {
-        GTEST_COUT << "Plugin doesn't support import and export - skipping test" << std::endl;
-        GTEST_SKIP();
     }
     configure_model();
     try {

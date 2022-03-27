@@ -116,15 +116,6 @@ std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getStandardFunctio
     return res;
 }
 
-bool LoadNetworkCacheTestBase::importExportSupported(InferenceEngine::Core& ie) const {
-    std::vector<std::string> supportedMetricKeys = ie.GetMetric(targetDevice, METRIC_KEY(SUPPORTED_METRICS));
-    auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(),
-                        METRIC_KEY(IMPORT_EXPORT_SUPPORT));
-    auto supported = (it != supportedMetricKeys.end()) &&
-                     ie.GetMetric(targetDevice, METRIC_KEY(IMPORT_EXPORT_SUPPORT)).as<bool>();
-    return supported;
-}
-
 std::string LoadNetworkCacheTestBase::getTestCaseName(testing::TestParamInfo<loadNetworkCacheParams> obj) {
     auto param = obj.param;
     auto funcName = std::get<1>(std::get<0>(param));
@@ -171,10 +162,6 @@ void LoadNetworkCacheTestBase::Run() {
     };
     if (!function) {
         GTEST_COUT << "Can't create function " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;
-        GTEST_SKIP();
-    }
-    if (!importExportSupported(*core)) {
-        GTEST_COUT << "Plugin doesn't support import and export - skipping test" << std::endl;
         GTEST_SKIP();
     }
     cnnNetwork = CNNNetwork{function};

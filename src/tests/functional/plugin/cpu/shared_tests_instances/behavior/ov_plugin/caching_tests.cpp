@@ -86,6 +86,22 @@ namespace {
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                             CompileModelCacheTestBase::getTestCaseName);
 
+    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_AUTO_CPU, CompileModelCacheTestBase,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(CompileModelCacheTestBase::getStandardFunctions()),
+                                    ::testing::ValuesIn(precisionsCPU),
+                                    ::testing::ValuesIn(batchSizesCPU),
+                                    ::testing::Values(CommonTestUtils::runWithAuto(CommonTestUtils::DEVICE_CPU))),
+                            CompileModelCacheTestBase::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_HETERO_CPU, CompileModelCacheTestBase,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(CompileModelCacheTestBase::getStandardFunctions()),
+                                    ::testing::ValuesIn(precisionsCPU),
+                                    ::testing::ValuesIn(batchSizesCPU),
+                                    ::testing::Values(CommonTestUtils::runWithHetero(CommonTestUtils::DEVICE_CPU))),
+                            CompileModelCacheTestBase::getTestCaseName);
+
     INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_CPU_Internal, CompileModelCacheTestBase,
                             ::testing::Combine(
                                     ::testing::ValuesIn(internal_functions_cpu()),
