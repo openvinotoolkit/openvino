@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+include(cmake/ie_parallel.cmake)
+
 if(ENABLE_TBBBIND_2_5)
     # try to find prebuilt version of tbbbind_2_5
     find_package(TBBBIND_2_5 QUIET)

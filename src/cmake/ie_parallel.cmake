@@ -19,6 +19,10 @@ function(set_ie_threading_interface_for TARGET_NAME)
     if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
         find_package(TBB COMPONENTS tbb tbbmalloc)
         if(NOT TBB_FOUND AND IEDevScripts_DIR)
+            # remove invalid TBB_DIR=TBB_DIR-NOTFOUND from cache
+            unset(TBB_DIR CACHE)
+            unset(TBB_DIR)
+
             # use our custom scripts for old TBB versions
             # which are exposed via `export TBBROOT=<tbbroot>`
             # see https://github.com/openvinotoolkit/openvino/pull/1288

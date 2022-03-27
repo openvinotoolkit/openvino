@@ -140,6 +140,17 @@ get_linux_name(LINUX_OS_NAME)
 if(LINUX_OS_NAME MATCHES "^Ubuntu [0-9]+\.[0-9]+$")
     # Debian packages are enabled on Ubuntu systems
     set(ENABLE_SYSTEM_TBB_DEFAULT ON)
+
+    # check whether "default" (customly provided or system one) is available
+    find_package(TBB QUIET)
+    if(NOT TBB_FOUND)
+        message(WARNING "System TBB is not found, custom TBB version will be downloaded from shared drive")
+        # we still need to download prebuilt version of TBB
+        set(ENABLE_SYSTEM_TBB_DEFAULT OFF)
+        # remove invalid TBB_DIR=TBB_DIR-NOTFOUND from cache
+        unset(TBB_DIR CACHE)
+        unset(TBB_DIR)
+    endif()
 else()
     set(ENABLE_SYSTEM_TBB_DEFAULT OFF)
 endif()

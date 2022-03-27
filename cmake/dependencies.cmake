@@ -158,16 +158,22 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT ENABLE_SYST
     update_deps_cache(TBBROOT "${TBB}" "Path to TBB root folder")
     if(EXISTS "${TBBROOT}/lib/cmake/TBB/TBBConfig.cmake")
         # oneTBB case
-        update_deps_cache(TBB_DIR "${TBB}/lib/cmake/TBB" "Path to TBB cmake folder")
+        update_deps_cache(TBB_DIR "${TBBROOT}/lib/cmake/TBB" "Path to TBB cmake folder")
     elseif(EXISTS "${TBBROOT}/lib64/cmake/TBB/TBBConfig.cmake")
-        # oneTBB case
-        update_deps_cache(TBB_DIR "${TBB}/lib64/cmake/TBB" "Path to TBB cmake folder")
+        # 64-bits oneTBB case
+        update_deps_cache(TBB_DIR "${TBBROOT}/lib64/cmake/TBB" "Path to TBB cmake folder")
+    elseif(EXISTS "${TBBROOT}/cmake/TBBConfig.cmake")
+        # custom downloaded or user provided TBB
+        update_deps_cache(TBB_DIR "${TBBROOT}/cmake" "Path to TBB cmake folder")
     else()
-        update_deps_cache(TBB_DIR "${TBB}/cmake" "Path to TBB cmake folder")
+        message(FATAL_ERROR "Failed to find TBBConfig.cmake in ${TBBROOT} tree")
     endif()
 
     update_deps_cache(TBBBIND_2_5_DIR "${TBBBIND_2_5}/cmake" "Path to TBBBIND_2_5 cmake folder")
+
     debug_message(STATUS "tbb=" ${TBB})
+    debug_message(STATUS "tbb_dir=" ${TBB_DIR})
+    debug_message(STATUS "tbbroot=" ${TBBROOT})
 
     if(DEFINED IE_PATH_TO_DEPS)
         unset(IE_PATH_TO_DEPS)
@@ -265,8 +271,6 @@ if(ENABLE_OPENCV)
 else()
     reset_deps_cache(OpenCV_DIR)
 endif()
-
-include(${OpenVINO_SOURCE_DIR}/src/cmake/ie_parallel.cmake)
 
 if(ENABLE_INTEL_GNA)
     reset_deps_cache(
