@@ -39,6 +39,9 @@ public:
     virtual std::string get_variable_id() const = 0;
 
 protected:
+    virtual ~VariableExtension(){};
+
+protected:
     std::shared_ptr<Variable> m_variable;
 };
 }  // namespace util

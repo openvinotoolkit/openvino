@@ -60,6 +60,7 @@
 #include "transformations/disable_decompression_convert_constant_folding.hpp"
 #include <transformations/utils/utils.hpp>
 
+#include "transformations/pwl_approximation.hpp"
 #include "transformations/remove_extra_reshapes.hpp"
 #include "transformations/insert_transpose_after_convolution_or_pooling.hpp"
 #include "transformations/reorder_activation_and_pooling.hpp"
@@ -196,6 +197,9 @@ void GNAPlugin::ExportScores(void *ptr_dst,
                   uint32_t num_vector_stride,
                   Precision precision_in,
                   Precision precision_out) {
+    if (ptr_src == nullptr || ptr_dst == nullptr) {
+        THROW_GNA_EXCEPTION << "Received null pointer arguments";
+    }
     if (precision_out != Precision::I32 && precision_out != Precision::FP32) {
         THROW_GNA_EXCEPTION << "Unsupported target precision for infer : " << precision_out.name();
     }
@@ -702,6 +706,10 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
               transormations
         */
         manager.register_pass<BroadcastAddMultiplyConst>();
+        if (!config.gnaFlags.sw_fp32 && !config.gnaFlags.uniformPwlDesign) {
+            manager.register_pass<PWLApproximationWithFq>(config.gnaFlags.pwlMaxErrorPercent);
+            manager.register_pass<PWLApproximation>(config.gnaFlags.pwlMaxErrorPercent);
+        }
         // UnrollTI should be the last transformation in the transformation pipeline
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
         const auto& pass_config = manager.get_pass_config();
@@ -751,7 +759,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         UpdateInputScaleFromNetwork(network);
     }
 
-    if (MustBeConvertedFromNCHWToNHWC(details::CNNNetSortTopologically(network))) {
+    if (MustBeConvertedFromNCHWToNHWC(CNNNetSortTopologically(network))) {
         FillInputsAndOutputsTranspositionInfo(network);
     }
 
@@ -1209,7 +1217,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
         }
 
         auto dims = input.second->getTensorDesc().getDims();
-        auto  importedElements = is1D ? dims[0] : details::product(++std::begin(dims), std::end(dims));
+        auto  importedElements = is1D ? dims[0] : InferenceEngine::details::product(++std::begin(dims), std::end(dims));
         auto  importedFrames = (is3D || is1D) ? 1 : dims[0];
         auto  targetGroups = is1D ? 1 : dims[0]; // TODO: no proper support for groups yet
 
@@ -1323,7 +1331,7 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
         auto isScalar = outputBlob->getTensorDesc().getLayout() == Layout::SCALAR;
         auto is3D = outputBlob->getTensorDesc().getLayout() == Layout::CHW;
         auto batchSize = (is1D || isScalar || is3D) ? 1 : dims[0];
-        auto elementsPerBatch = isScalar ? 1 : (is1D ? dims.front() : details::product(++std::begin(dims), std::end(dims)));
+        auto elementsPerBatch = isScalar ? 1 : (is1D ? dims.front() : InferenceEngine::details::product(++std::begin(dims), std::end(dims)));
 
         auto transpose_output_info = transpose_outputs_info.find(outputBlobIt.first);
         if (transpose_output_info != std::end(transpose_outputs_info) && FoundPartToTranspose(transpose_output_info->second)) {

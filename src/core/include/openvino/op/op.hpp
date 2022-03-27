@@ -23,14 +23,15 @@
 
 namespace ov {
 namespace op {
-/// Root of all actual ops
+/// \brief Root of all actual ops
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Op : public Node {
 protected:
     Op() : Node() {}
     Op(const OutputVector& arguments);
 
 public:
-    static const ::ov::Node::type_info_t& get_type_info_static() {
+    _OPENVINO_HIDDEN_METHOD static const ::ov::Node::type_info_t& get_type_info_static() {
         static ::ov::Node::type_info_t info{"Op", 0, "util"};
         info.hash();
         return info;

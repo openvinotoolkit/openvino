@@ -13,6 +13,7 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
 struct PortMap {
     // Data map rule
@@ -63,11 +64,11 @@ protected:
  */
 class DynamicBuffer {
 public:
-    DynamicBuffer(const MKLDNNMemoryPtr &from_, const std::vector<MKLDNNMemoryPtr> &to_, const PortMap &map_rule_);
+    DynamicBuffer(const MemoryPtr &from_, const std::vector<MemoryPtr> &to_, const PortMap &map_rule_);
     ~DynamicBuffer() = default;
 
     void execute(const mkldnn::engine& eng, const int iter);
-    void transfer(const MKLDNNNode* node);
+    void transfer(const Node* node);
 
 private:
     void init(const mkldnn::engine& eng);
@@ -86,16 +87,16 @@ private:
     ptrdiff_t chunk_offset_in_byte = 0;
     ptrdiff_t buffer_offset_in_byte = 0;
 
-    MKLDNNMemoryPtr from;
-    std::vector<MKLDNNMemoryPtr> to;
+    MemoryPtr from;
+    std::vector<MemoryPtr> to;
     PortMap map_rule;
 
     std::shared_ptr<mkldnn::memory> mem_holder_buffer;
 };
 
-class MKLDNNTensorIteratorNode : public MKLDNNNode {
+class TensorIterator : public Node {
 public:
-    MKLDNNTensorIteratorNode(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    TensorIterator(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void initSupportedPrimitiveDescriptors() override;
@@ -105,7 +106,7 @@ public:
     void execute(mkldnn::stream strm) override;
     bool isExecutable() const override { return true; }
 
-    void setExtManager(const MKLDNNExtensionManager::Ptr& extMgr) { ext_mng = extMgr; }
+    void setExtManager(const ExtensionManager::Ptr& extMgr) { ext_mng = extMgr; }
 
 protected:
     //  needShapeInfer() should return false
@@ -132,10 +133,10 @@ private:
     void reshapeAndFillOutput(mkldnn::stream strm);
     int getNumIteration(const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) const;
 
-    MKLDNNExtensionManager::Ptr ext_mng;
-    MKLDNNGraph sub_graph;
-    std::vector<std::vector<MKLDNNMemoryPtr>> input_mems;
-    std::vector<MKLDNNMemoryPtr> output_mem;
+    ExtensionManager::Ptr ext_mng;
+    Graph sub_graph;
+    std::vector<std::vector<MemoryPtr>> input_mems;
+    std::vector<MemoryPtr> output_mem;
 
     std::vector<std::shared_ptr<PortMapHelper>>
         first_mappers,   /// < Applied once before loop
@@ -166,5 +167,6 @@ private:
     const std::shared_ptr<ov::Node> ngraphOp;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

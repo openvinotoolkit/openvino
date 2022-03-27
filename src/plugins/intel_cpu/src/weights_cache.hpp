@@ -17,7 +17,7 @@
 // TODO: While CPU plugin has no ease way to clone graph object we use weight
 //       caching in global Engine context to avoid tensor memory duplication.
 //       For same cases it may be switched of (like for single stream execution)
-//       When MKLDNNGraph clone function will be ready you may removed this
+//       When Graph clone function will be ready you may removed this
 //       classes at all.
 
 namespace ov {
@@ -48,57 +48,57 @@ protected:
 };
 
 /**
- * Caching store of MKLDNNMemory objects
+ * Caching store of Memory objects
  * Will return a cached object or create new one
  *
  * Is a thread safe
  */
-class MKLDNNWeightsSharing {
-    struct MKLDNNMemoryInfo {
-        typedef std::shared_ptr<MKLDNNMemoryInfo> Ptr;
+class WeightsSharing {
+    struct MemoryInfo {
+        typedef std::shared_ptr<MemoryInfo> Ptr;
 
-        MKLDNNMemoryInfo(MKLDNNMemoryPtr memoryPtr, bool valid)
+        MemoryInfo(MemoryPtr memoryPtr, bool valid)
             : sharedMemory(memoryPtr)
             , valid(valid)
         {}
 
         std::mutex guard;
-        std::weak_ptr<MKLDNNMemory> sharedMemory;
+        std::weak_ptr<Memory> sharedMemory;
         std::atomic<bool> valid;
     };
 
 public:
-    typedef std::shared_ptr<MKLDNNWeightsSharing> Ptr;
+    typedef std::shared_ptr<WeightsSharing> Ptr;
 
-    class MKLDNNSharedMemory {
+    class SharedMemory {
     public:
-        typedef std::shared_ptr<MKLDNNSharedMemory> Ptr;
+        typedef std::shared_ptr<SharedMemory> Ptr;
 
-        MKLDNNSharedMemory(std::unique_lock<std::mutex> && lock,
-                           const MKLDNNMemoryInfo::Ptr & memory,
-                           MKLDNNMemoryPtr newPtr = nullptr);
+        SharedMemory(std::unique_lock<std::mutex> && lock,
+                     const MemoryInfo::Ptr & memory,
+                     MemoryPtr newPtr = nullptr);
 
-        operator MKLDNNMemoryPtr() const;
+        operator MemoryPtr() const;
         bool isValid() const;
         void valid(bool b);
 
     private:
         std::unique_lock<std::mutex> lock;
-        MKLDNNMemoryInfo::Ptr memory;
-        MKLDNNMemoryPtr newPtr;
+        MemoryInfo::Ptr memory;
+        MemoryPtr newPtr;
     };
 
-    MKLDNNSharedMemory::Ptr findOrCreate(const std::string& key,
-                                         std::function<MKLDNNMemoryPtr(void)> create,
-                                         bool valid = true);
+    SharedMemory::Ptr findOrCreate(const std::string& key,
+                                   std::function<MemoryPtr(void)> create,
+                                   bool valid = true);
 
-    MKLDNNSharedMemory::Ptr get(const std::string& key) const;
+    SharedMemory::Ptr get(const std::string& key) const;
 
     static const SimpleDataHash& GetHashFunc () { return simpleCRC; }
 
 protected:
     mutable std::mutex guard;
-    std::unordered_map<std::string, MKLDNNMemoryInfo::Ptr> sharedWeights;
+    std::unordered_map<std::string, MemoryInfo::Ptr> sharedWeights;
     static const SimpleDataHash simpleCRC;
 };
 
@@ -111,11 +111,11 @@ class NumaNodesWeights {
 public:
     NumaNodesWeights();
 
-    MKLDNNWeightsSharing::Ptr& operator[](int i);
-    const MKLDNNWeightsSharing::Ptr& operator[](int i) const;
+    WeightsSharing::Ptr& operator[](int i);
+    const WeightsSharing::Ptr& operator[](int i) const;
 
 private:
-    std::map<int, MKLDNNWeightsSharing::Ptr> _cache_map;
+    std::map<int, WeightsSharing::Ptr> _cache_map;
 };
 
 }   // namespace intel_cpu

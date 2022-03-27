@@ -65,11 +65,18 @@ class DoxyMDFilter:
         """
         for link in self.md_links:
             link_path = self.parent_folder.joinpath(link).resolve()
-            if os.path.exists(link_path):
+            if os.path.exists(link_path) and link_path in self.file_to_label_mapping:
                 self.content = self.content.replace(link, '@ref ' + self.file_to_label_mapping[link_path])
             else:
                 rel_path = os.path.relpath(link_path, self.input_dir).replace('\\', '/')
                 self.content = self.content.replace(link, rel_path)
+
+    def remove_comment_block_sphinxdirective(self):
+        """
+        Remove comment blocks from `sphinxdirective`
+        """
+        self.content = re.sub(r'\<\!\-\-\s*?\@sphinxdirective', '@sphinxdirective', self.content)
+        self.content = re.sub(r'\@endsphinxdirective\s*?\-\-\>', '@endsphinxdirective', self.content)
 
     def copy_images(self):
         """
@@ -97,6 +104,7 @@ class DoxyMDFilter:
         Do all processing operations on a markdown file
         """
         self.replace_image_links()
+        self.remove_comment_block_sphinxdirective()
         self.replace_md_links()
         self.copy_markdown()
         self.copy_images()
@@ -119,7 +127,7 @@ class DoxyMDFilter:
         reference_links = set(re.findall(REFERENCE_LINKS_PATTERN, self.content))
         md_links = inline_links
         md_links.update(reference_links)
-        return md_links
+        return sorted(md_links, key=len, reverse=True)
 
 
 def get_label(file):

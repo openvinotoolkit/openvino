@@ -94,15 +94,11 @@ protected:
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        // 3rd input type must be integer, thus it cannot be forced to BF16.
         if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
-            if (inputDynamicShapes.size() > 2)
-                throw std::runtime_error("Invalid test case. Cannot enforce integer input to BF16.");
-            inType = outType = ElementType::bf16;
+            selectedType = makeSelectedTypeStr(selectedType, ElementType::bf16);
         } else {
-            outType = netPrecision;
+            selectedType = makeSelectedTypeStr(selectedType, netPrecision);
         }
-        selectedType = makeSelectedTypeStr(selectedType, outType);
 
         auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
         const size_t batchSize = inputDynamicShapes[0][0].is_static() ? inputDynamicShapes[0][0].get_length() :
