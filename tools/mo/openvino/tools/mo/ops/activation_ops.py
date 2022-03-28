@@ -245,6 +245,12 @@ class SoftPlus(Activation):
     operation = staticmethod(lambda x: np.ma.log(np.ma.exp(x) + 1.0))
 
 
+class SoftSign(Activation):
+    op = "SoftSign"
+    version = "opset9"
+    operation = staticmethod(lambda x: x / (1 + np.ma.abs(x)))
+
+
 class Mish(Activation):
     op = 'Mish'
     version = 'opset4'
