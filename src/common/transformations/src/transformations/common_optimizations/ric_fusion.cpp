@@ -682,6 +682,137 @@ public:
 };
 }  // namespace fuse
 
+namespace back_prop {
+namespace {
+std::shared_ptr<opset8::Constant> create_const(const std::vector<int64_t>& values) {
+    return opset8::Constant::create(ov::element::i64, ov::Shape{values.size()}, values);
+}
+}  // namespace
+class Binary : public ngraph::pass::MatcherPass {
+public:
+    Binary() {
+        MATCHER_SCOPE(Binary);
+        auto pattern_root = pattern::wrap_type<op::util::BinaryElementwiseArithmetic, opset8::FakeQuantize>();
+
+        auto callback = [=](pattern::Matcher& m) {
+            const auto& root = m.get_match_root();
+            const auto& output = root->output(0);
+
+            auto inputs = output.get_target_inputs();
+            std::vector<ric_attr::Attribute> attrs;
+            for (const auto& input : inputs) {
+                if (ric_attr::has(input)) {
+                    attrs.push_back(ric_attr::get(output).propagate());
+                } else {
+                    return false;
+                }
+            }
+
+            if (attrs.empty())
+                return false;
+
+            // Check that all RIC attrs can be merged and then merge them
+            auto ric = attrs[0];
+            auto rank = root->get_output_partial_shape(0).rank();
+            if (rank.is_dynamic())
+                return false;
+            auto data_rank = rank.get_length();
+            const auto& output_rank = root->get_output_partial_shape(0).rank();
+            if (!(output_rank.is_static() && output_rank.get_length() == data_rank)) {
+                return false;
+            }
+
+            for (const auto& item : attrs) {
+                if (ric.can_be_merged_with(item)) {
+                    ric.merge_with(item);
+                } else {
+                    return false;
+                }
+            }
+
+            for (const auto& input : inputs) {
+                auto const_output = input.get_source_output();
+                const auto& shape = const_output.get_shape();
+                const int64_t& shape_rank = static_cast<int64_t>(shape.size());
+                if (shape_rank > data_rank) {
+                    // TODO: handle case when constant input broadcast another one
+                    return false;
+                }
+
+                if (data_rank - shape_rank > ric.get_axis()) {
+                    // we don't have to insert RIC for constant, so we keep propagating
+                    continue;
+                }
+
+                const int64_t& new_axis = ric.get_axis() - (data_rank - shape_rank);
+                const auto& axis_dim = shape[new_axis];
+                if (axis_dim == 1) {
+                    // we don't have to insert RIC for constant, so we keep propagating
+                    continue;
+                }
+
+                // finally, insert RIC
+                auto ric_const = ric;
+                ric_const.set_axis(new_axis);
+                ric_const.set_is_final(true);
+                ric_const.set_callback([axis_dim](Input<Node> input, const ric_attr::Attribute& attr) {
+                    auto output = input.get_source_output();
+                    // Handle case when the RIC order is default
+                    auto order = attr.get_order();
+                    if (order.empty()) {
+                        order.resize(axis_dim);
+                        std::iota(order.rbegin(), order.rend(), 0);
+                    }
+                    auto gather =
+                        std::make_shared<opset8::Gather>(output, create_const(order), create_const({attr.get_axis()}));
+                    input.replace_source_output(gather);
+                    // TODO: copy runtime info from RIC sub-graph
+                });
+                ric_attr::set(input, ric_const);
+            }
+
+            return true;
+        };
+
+        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        register_matcher(m, callback);
+    }
+};
+class Unsupported : public ngraph::pass::MatcherPass {
+public:
+    Unsupported() {
+        MATCHER_SCOPE(Unsupported);
+        auto pattern_root = pattern::any_input();
+        auto callback = [=](pattern::Matcher& m) {
+            for (const auto& input : m.get_match_root()->input_values()) {
+                if (ric_attr::has(input)) {
+                    auto ric = ric_attr::get(input);
+                    ric.set_can_be_fused(false);
+                    NGRAPH_DEBUG << "Node is unsupported by RIC Fusion: " << *m.get_match_root() << std::endl;
+                }
+            }
+            return true;
+        };
+
+        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        register_matcher(m, callback);
+    }
+};
+class Constant : public ngraph::pass::MatcherPass {
+public:
+    Constant() {
+        MATCHER_SCOPE(Unsupported);
+        auto pattern_root = pattern::wrap_type<opset8::Constant>();
+        auto callback = [=](pattern::Matcher& m) {
+            return true;
+        };
+
+        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        register_matcher(m, callback);
+    }
+};
+}  // namespace back_prop
+
 bool ngraph::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     Manager m;
     m.set_per_pass_validation(false);
@@ -698,6 +829,10 @@ bool ngraph::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_pt
     ric_prop->add_matcher<prop::PassThrough>();
     ric_prop->add_matcher<prop::Unsupported>();
 
+    auto ric_back_prop = m.register_pass<ov::pass::BackwardGraphRewrite>();
+    ric_back_prop->add_matcher<back_prop::Binary>();
+    ric_back_prop->add_matcher<back_prop::Constant>();
+    ric_back_prop->add_matcher<back_prop::Unsupported>();
     // TODO: validate attributes by request
 
     // Second we fuse available RIC into nodes and remove original nodes related to fused RIC
