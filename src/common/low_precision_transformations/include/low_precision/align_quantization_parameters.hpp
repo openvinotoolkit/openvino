@@ -26,7 +26,7 @@ class LP_TRANSFORMATIONS_API AlignQuantizationParameters;
  * attribute after FakeQuantize operations.
  *
  * For more details about the transformation, refer to
- * [AlignQuantizationParameters](@ref openvino_docs_IE_DG_lpt_AlignQuantizationParameters) page
+ * [AlignQuantizationParameters](@ref openvino_docs_OV_UG_lpt_AlignQuantizationParameters) page
  * in the Inference Engine Developer Guide.
  */
 class ngraph::pass::low_precision::AlignQuantizationParameters : public ngraph::pass::FunctionPass {

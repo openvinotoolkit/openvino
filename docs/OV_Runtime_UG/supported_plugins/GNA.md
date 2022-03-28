@@ -112,7 +112,7 @@ For POT quantized model `ov::hint::inference_precision` property has no effect e
 ### Models caching
 Cache for GNA plugin may be enabled via common OpenVINO `ov::cache_dir` property due to import/export functionality support (see below).
 
-See [Model caching overview page](@ref openvino_docs_IE_DG_Model_caching_overview) for more details.
+See [Model caching overview page](@ref openvino_docs_OV_UG_Model_caching_overview) for more details.
 
 ### Import/Export
 
@@ -159,7 +159,7 @@ Import model:
 ### Stateful models
 GNA plugin natively supports stateful models.
 
-Please refer to [Stateful models] (@ref openvino_docs_IE_DG_network_state_intro) for more details about such models.
+Please refer to [Stateful models] (@ref openvino_docs_OV_UG_network_state_intro) for more details about such models.
 
 > **NOTE**: Typically, GNA is used in streaming scenarios, when minimizing the latency is important. Taking into account that POT does not support the `TensorIterator` operation, the recommendation is to use the `--transform` option of the Model Optimizer to apply `LowLatency2` transformation when converting an original model.
 
@@ -282,9 +282,9 @@ For POT to successfully work with the models including GNA3.0 2D convolutions, t
 
 Intel® GNA plugin supports the processing of context-windowed speech frames in batches of 1-8 frames.
 
-Please refer to [Layout API overview](@ref openvino_docs_OV_Runtime_UG_Layout_Overview) to determine batch dimension.
+Please refer to [Layout API overview](@ref openvino_docs_OV_UG_Layout_Overview) to determine batch dimension.
 
-To set layout of model inputs in runtime use [Optimize Preprocessing](@ref openvino_docs_OV_Runtime_UG_Preprocessing_Overview) guide:
+To set layout of model inputs in runtime use [Optimize Preprocessing](@ref openvino_docs_OV_UG_Preprocessing_Overview) guide:
 
 @sphinxtabset
 
