@@ -139,9 +139,9 @@ from threading import Thread
 
 input_data = []
 
-# processing input data will be done in
-# a separate thread while compiling the model
-# and creating infer request
+# Processing input data will be done in a separate thread
+# while compilation of the model and creation of the infer request
+# is going to be executed in the main thread.
 def prepare_data(input, image_path):
     image = cv2.imread(image_path)
     h, w = list(input.shape)[-2:]
@@ -152,17 +152,17 @@ def prepare_data(input, image_path):
 
 core = ov.Core()
 model = core.read_model("model.xml")
-# create thread with prepare_data target and start it
+# Create thread with prepare_data function as target and start it
 thread = Thread(target=prepare_data, args=[model.input(), "path/to/image"])
 thread.start()
-# the GIL will be released in compile_model
-# it allows a thread we create above to start the job
-# while main thread is running in the background
+# The GIL will be released in compile_model.
+# It allows a thread above to start the job,
+# while main thread is running in the background.
 compiled = core.compile_model(model, "GPU")
-# after returning from compile_model main thread acquires the GIL
-# and goes into create_infer_request which releases it once again
+# After returning from compile_model, the main thread acquires the GIL
+# and starts create_infer_request which releases it once again.
 request = compiled.create_infer_request()
-# join the thread to make sure the input_data is ready
+# Join the thread to make sure the input_data is ready
 thread.join()
 # running the inference
 request.infer(input_data)
