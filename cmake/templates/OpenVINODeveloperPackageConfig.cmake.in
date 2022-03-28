@@ -10,13 +10,14 @@ set_and_check(OpenVINO_SOURCE_DIR "@OpenVINO_SOURCE_DIR@")
 
 # Variables to export in plugin's projects
 
-set(ie_options "@IE_OPTIONS@;CMAKE_BUILD_TYPE;CMAKE_SKIP_RPATH")
-list(APPEND ie_options CMAKE_CXX_COMPILER_LAUNCHER CMAKE_C_COMPILER_LAUNCHER)
+set(ov_options "@IE_OPTIONS@")
+list(APPEND ov_options CMAKE_CXX_COMPILER_LAUNCHER CMAKE_C_COMPILER_LAUNCHER
+                       CMAKE_BUILD_TYPE CMAKE_SKIP_RPATH CMAKE_INSTALL_PREFIX)
 file(TO_CMAKE_PATH "${CMAKE_CURRENT_LIST_DIR}" cache_path)
 
 message(STATUS "The following CMake options are exported from OpenVINO Developer package")
 message("")
-foreach(option IN LISTS ie_options)
+foreach(option IN LISTS ov_options)
     if(NOT DEFINED "${option}")
         load_cache("${cache_path}" READ_WITH_PREFIX "" ${option})
     endif()
@@ -51,10 +52,10 @@ endforeach()
 if(ENABLE_SYSTEM_PUGIXML)
     find_dependency(PugiXML)
     set_property(TARGET pugixml PROPERTY IMPORTED_GLOBAL TRUE)
-    add_library(IE::pugixml ALIAS pugixml)
+    add_library(openvino::pugixml ALIAS pugixml)
 endif()
 
-# inherit OpenCV from main IE project if enabled
+# inherit OpenCV from main OpenVINO project if enabled
 if ("@OpenCV_FOUND@")
     load_cache("${cache_path}" READ_WITH_PREFIX "" OpenCV_DIR)
     find_dependency(OpenCV)
@@ -64,13 +65,11 @@ endif()
 # Extra Compile Flags
 #
 
-if(NOT MSVC)
+if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wno-error=unused-variable)
-    if(CMAKE_COMPILER_IS_GNUCXX)
-        ie_add_compiler_flags(-Wno-error=unused-but-set-variable)
-        if(SUGGEST_OVERRIDE_SUPPORTED)
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
-        endif()
+    ie_add_compiler_flags(-Wno-error=unused-but-set-variable)
+    if(SUGGEST_OVERRIDE_SUPPORTED)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
     endif()
 endif()
 

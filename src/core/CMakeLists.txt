@@ -125,7 +125,7 @@ configure_package_config_file(${OpenVINO_SOURCE_DIR}/cmake/templates/ngraphConfi
     INSTALL_DESTINATION cmake)
 
 write_basic_package_version_file(${CMAKE_BINARY_DIR}/ngraphConfigVersion.cmake
-    VERSION ${IE_VERSION_MAJOR}.${IE_VERSION_MINOR}.${IE_VERSION_PATCH}
+    VERSION ${OpenVINO_VERSION_MAJOR}.${OpenVINO_VERSION_MINOR}.${OpenVINO_VERSION_PATCH}
     COMPATIBILITY SameMajorVersion)
 
 install(FILES ${CMAKE_BINARY_DIR}/ngraphConfig.cmake

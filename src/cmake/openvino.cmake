@@ -4,23 +4,27 @@
 
 set(TARGET_NAME openvino)
 
-add_library(${TARGET_NAME} $<TARGET_OBJECTS:ngraph_obj>
-                           $<TARGET_OBJECTS:frontend_common_obj>
-                           $<TARGET_OBJECTS:inference_engine_obj>
-                           $<TARGET_OBJECTS:inference_engine_transformations_obj>
-                           $<TARGET_OBJECTS:inference_engine_lp_transformations_obj>
-    )
+#
+# Add openvino library
+#
+
+add_library(${TARGET_NAME}
+    $<TARGET_OBJECTS:ngraph_obj>
+    $<TARGET_OBJECTS:frontend_common_obj>
+    $<TARGET_OBJECTS:inference_engine_obj>
+    $<TARGET_OBJECTS:inference_engine_transformations_obj>
+    $<TARGET_OBJECTS:inference_engine_lp_transformations_obj>)
 
 add_library(openvino::runtime ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime)
 ie_add_vs_version_file(NAME ${TARGET_NAME} FILEDESCRIPTION "OpenVINO runtime library")
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
-target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/include>
-                                                 $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/common/include>
-                                                 $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/include>
-                                                 $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/include/ie>
-)
+target_include_directories(${TARGET_NAME} PUBLIC
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/include>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/common/include>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/include>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/include/ie>)
 
 target_link_libraries(${TARGET_NAME} PRIVATE ngraph_reference
                                              ngraph_builders
@@ -61,20 +65,25 @@ install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         INCLUDES DESTINATION runtime/include
                              runtime/include/ie)
 
-# --------------- OpenVINO runtime library dev ------------------------------
+#
+# Add openvin::dev target
+#
+
 add_library(${TARGET_NAME}_dev INTERFACE)
-target_include_directories(${TARGET_NAME}_dev INTERFACE $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/transformations/include>
-                                                        $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/dev_api>
-                                                        $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/dev_api>
-                                                        $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/low_precision_transformations/include>
-                                                        $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_INCLUDE_DIRECTORIES>
-                                                        )
+add_library(openvino::runtime::dev ALIAS ${TARGET_NAME}_dev)
+
+target_include_directories(${TARGET_NAME}_dev INTERFACE
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/transformations/include>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/dev_api>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/dev_api>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/low_precision_transformations/include>
+    $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_compile_definitions(${TARGET_NAME}_dev INTERFACE
     $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_COMPILE_DEFINITIONS>)
 
 target_link_libraries(${TARGET_NAME}_dev INTERFACE ${TARGET_NAME} pugixml::static openvino::itt openvino::util)
-add_library(openvino::runtime::dev ALIAS ${TARGET_NAME}_dev)
+
 set_ie_threading_interface_for(${TARGET_NAME}_dev)
 set_target_properties(${TARGET_NAME}_dev PROPERTIES EXPORT_NAME runtime::dev)
 
@@ -82,13 +91,16 @@ openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME}_dev)
 
 # Install static libraries for case BUILD_SHARED_LIBS=OFF
 ov_install_static_lib(${TARGET_NAME}_dev core)
-# --------------- OpenVINO runtime library dev ------------------------------
 
-
+#
 # Install OpenVINO runtime
+#
 
-list(APPEND PATH_VARS "IE_INCLUDE_DIR" "OV_CORE_DIR"
-                      "IE_PARALLEL_CMAKE")
+list(APPEND PATH_VARS "IE_INCLUDE_DIR")
+
+if(ENABLE_INTEL_GNA)
+    list(APPEND PATH_VARS "GNA_PATH")
+endif()
 
 ie_cpack_add_component(core REQUIRED DEPENDS ${core_components})
 ie_cpack_add_component(core_dev REQUIRED DEPENDS core ${core_dev_components})
@@ -117,10 +129,8 @@ install(EXPORT OpenVINOTargets
         DESTINATION runtime/cmake
         COMPONENT core_dev)
 
-set(OV_CORE_DIR "${CMAKE_BINARY_DIR}/src/core")
 set(PUBLIC_HEADERS_DIR "${OpenVINO_SOURCE_DIR}/src/inference/include")
 set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}/ie")
-set(IE_PARALLEL_CMAKE "${OpenVINO_SOURCE_DIR}/src/cmake/ie_parallel.cmake")
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/InferenceEngineConfig.cmake"
@@ -133,10 +143,8 @@ configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOCo
                               PATH_VARS ${PATH_VARS})
 
 set(IE_INCLUDE_DIR "include/ie")
-set(OV_CORE_DIR ".")
 set(IE_TBB_DIR "${IE_TBB_DIR_INSTALL}")
 set(IE_TBBBIND_DIR "${IE_TBBBIND_DIR_INSTALL}")
-set(IE_PARALLEL_CMAKE "cmake/ie_parallel.cmake")
 set(GNA_PATH "../${IE_CPACK_RUNTIME_PATH}")
 if(WIN32)
     set(GNA_PATH "../${IE_CPACK_LIBRARY_PATH}/../Release")
@@ -159,7 +167,6 @@ configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig-version.cm
 
 install(FILES "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
               "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
-              "${OpenVINO_SOURCE_DIR}/src/cmake/ie_parallel.cmake"
         DESTINATION runtime/cmake
         COMPONENT core_dev)
 

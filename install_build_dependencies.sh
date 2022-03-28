@@ -64,6 +64,7 @@ if [ -f /etc/lsb-release ]; then
             libgstreamer1.0-0 \
             gstreamer1.0-plugins-base \
             libusb-1.0-0-dev \
+            libtinfo5 \
             libopenblas-dev
     if apt-cache search --names-only '^libjson-c2'| grep -q libjson-c2; then
         sudo -E apt-get install -y libjson-c2

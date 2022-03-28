@@ -17,7 +17,7 @@ endif()
 
 # install TBB
 
-# define variables for InferenceEngineConfig.cmake
+# define variables for OpenVINOConfig.cmake
 if(THREADING MATCHES "^(TBB|TBB_AUTO)$")
     set(IE_TBB_DIR "${TBB_DIR}")
     list(APPEND PATH_VARS "IE_TBB_DIR")
@@ -58,6 +58,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND TBBROOT MATCHES ${TEMP})
             COMPONENT tbb_dev)
 endif()
 
+# install tbbbind for static OpenVINO case
 if(install_tbbbind)
     install(DIRECTORY "${TBBBIND_2_5}/lib"
             DESTINATION runtime/3rdparty/tbb_bind_2_5

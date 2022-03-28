@@ -12,8 +12,9 @@ set_and_check(OpenVINO_MAIN_SOURCE_DIR "@OpenVINO_SOURCE_DIR@") # KMB
 
 # Variables to export in plugin's projects
 
-set(ie_options "@IE_OPTIONS@;CMAKE_BUILD_TYPE;CMAKE_SKIP_RPATH")
-list(APPEND ie_options CMAKE_CXX_COMPILER_LAUNCHER CMAKE_C_COMPILER_LAUNCHER)
+set(ie_options "@IE_OPTIONS@")
+list(APPEND ie_options CMAKE_CXX_COMPILER_LAUNCHER CMAKE_C_COMPILER_LAUNCHER
+                       CMAKE_BUILD_TYPE CMAKE_SKIP_RPATH CMAKE_INSTALL_PREFIX)
 file(TO_CMAKE_PATH "${CMAKE_CURRENT_LIST_DIR}" cache_path)
 
 message(STATUS "The following CMake options are exported from Inference Engine Developer package")
@@ -86,13 +87,11 @@ endif()
 # Extra Compile Flags
 #
 
-if(NOT MSVC)
+if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wno-error=unused-variable)
-    if(CMAKE_COMPILER_IS_GNUCXX)
-        ie_add_compiler_flags(-Wno-error=unused-but-set-variable)
-        if(SUGGEST_OVERRIDE_SUPPORTED)
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
-        endif()
+    ie_add_compiler_flags(-Wno-error=unused-but-set-variable)
+    if(SUGGEST_OVERRIDE_SUPPORTED)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
     endif()
 endif()
 
