@@ -43,7 +43,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake -DENABLE_DOCS=ON -DENABLE_PYTHON=ON -DNGRAPH_PYTHON_BUILD_ENABLE=ON -DCMAKE_BUILD_TYPE=Release ..
+          cmake -DENABLE_DOCS=ON -DENABLE_PYTHON=ON -DENABLE_WHEEL=OFF -DNGRAPH_PYTHON_BUILD_ENABLE=ON -DCMAKE_BUILD_TYPE=Release ..
 
       - name: Build doc
         run: |
