@@ -199,7 +199,6 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     if (next.get_preferred_impl_type() == impl_types::onednn) {
         for (auto& fused_op : next.get_fused_primitives()) {
             if (fused_op.node->is_type<eltwise>()) {
-                auto eltw_in_layout = next.get_dependency(fused_op.dep_start_idx).get_output_layout();
                 auto out_layout = next.get_output_layout();
                 auto add_type = onednn_add_fusing_helpers::get_add_fusing_type(next, fused_op);
                 if (add_type == add_fusing_type::sum && prev.get_output_layout().format != out_layout.format)
