@@ -12,6 +12,7 @@
 #include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/common_utils.hpp"
 
+#include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/blob_utils.hpp"
@@ -130,6 +131,10 @@ public:
     std::string deviceName;
 
     void SetUp() override {
+        // TODO: Remove it after fixing issue 69529
+        // w/a for myriad (cann't store 2 caches simultaneously)
+        PluginCache::get().reset();
+
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         OVClassNetworkTest::SetUp();
         deviceName = GetParam();
