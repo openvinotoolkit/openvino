@@ -99,6 +99,8 @@ typedef struct XLinkGlobalHandler_t
     int profEnable;
     XLinkProf_t profilingData;
 
+    unsigned int packetLength;
+
     //Deprecated fields. Begin.
     int loglevel;
     int protocol;

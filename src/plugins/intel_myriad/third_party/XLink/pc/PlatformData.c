@@ -45,6 +45,7 @@
 
 extern int usbFdWrite;
 extern int usbFdRead;
+
 #endif  /*USE_USB_VSC*/
 
 #ifndef XLINK_USB_DATA_TIMEOUT
@@ -55,8 +56,8 @@ extern int usbFdRead;
 // Helpers declaration. Begin.
 // ------------------------------------
 #ifdef USE_USB_VSC
-static int usb_write(libusb_device_handle *f, const void *data, size_t size);
-static int usb_read(libusb_device_handle *f, void *data, size_t size);
+static int usb_write(libusb_device_handle *f, unsigned int packetlength, const void *data, size_t size);
+static int usb_read(libusb_device_handle *f, unsigned int packetlength, void *data, size_t size);
 #endif
 // ------------------------------------
 // Helpers declaration. End.
@@ -68,15 +69,15 @@ static int usb_read(libusb_device_handle *f, void *data, size_t size);
 // Wrappers declaration. Begin.
 // ------------------------------------
 
-static int usbPlatformRead(void *fd, void *data, int size);
-static int pciePlatformRead(void *f, void *data, int size);
+static int usbPlatformRead(void *fd, unsigned int packetlength, void *data, int size);
+static int pciePlatformRead(void *f, unsigned int packetlength, void *data, int size);
 
-static int usbPlatformWrite(void *fd, void *data, int size);
-static int pciePlatformWrite(void *f, void *data, int size);
+static int usbPlatformWrite(void *fd, unsigned int packetlength, void *data, int size);
+static int pciePlatformWrite(void *f, unsigned int packetlength, void *data, int size);
 
-int (*write_fcts[X_LINK_NMB_OF_PROTOCOLS])(void*, void*, int) = \
+int (*write_fcts[X_LINK_NMB_OF_PROTOCOLS])(void*, unsigned int, void*, int) = \
                             {usbPlatformWrite, usbPlatformWrite, pciePlatformWrite};
-int (*read_fcts[X_LINK_NMB_OF_PROTOCOLS])(void*, void*, int) = \
+int (*read_fcts[X_LINK_NMB_OF_PROTOCOLS])(void*, unsigned int, void*, int) = \
                             {usbPlatformRead, usbPlatformRead, pciePlatformRead};
 
 // ------------------------------------
@@ -91,12 +92,12 @@ int (*read_fcts[X_LINK_NMB_OF_PROTOCOLS])(void*, void*, int) = \
 
 int XLinkPlatformWrite(xLinkDeviceHandle_t *deviceHandle, void *data, int size)
 {
-    return write_fcts[deviceHandle->protocol](deviceHandle->xLinkFD, data, size);
+    return write_fcts[deviceHandle->protocol](deviceHandle->xLinkFD, deviceHandle->packetLength, data, size);
 }
 
 int XLinkPlatformRead(xLinkDeviceHandle_t *deviceHandle, void *data, int size)
 {
-    return read_fcts[deviceHandle->protocol](deviceHandle->xLinkFD, data, size);
+    return read_fcts[deviceHandle->protocol](deviceHandle->xLinkFD, deviceHandle->packetLength, data, size);
 }
 
 void* XLinkPlatformAllocateData(uint32_t size, uint32_t alignment)
@@ -133,7 +134,7 @@ void XLinkPlatformDeallocateData(void *ptr, uint32_t size, uint32_t alignment)
 // Wrappers implementation. Begin.
 // ------------------------------------
 
-int usbPlatformRead(void* fd, void* data, int size)
+int usbPlatformRead(void* fd, unsigned int packetlength, void* data, int size)
 {
     int rc = 0;
 #ifndef USE_USB_VSC
@@ -151,8 +152,8 @@ int usbPlatformRead(void* fd, void* data, int size)
 
     while(nread < size)
     {
-        int toRead = (PACKET_LENGTH && (size - nread > PACKET_LENGTH)) \
-                        ? PACKET_LENGTH : size - nread;
+        int toRead = (packetlength && (size - nread > packetlength)) \
+                        ? packetlength : size - nread;
 
         while(toRead > 0)
         {
@@ -173,12 +174,12 @@ int usbPlatformRead(void* fd, void* data, int size)
     }
 #endif  /*USE_LINK_JTAG*/
 #else
-    rc = usb_read((libusb_device_handle *) fd, data, size);
+    rc = usb_read((libusb_device_handle *) fd, packetlength, data, size);
 #endif  /*USE_USB_VSC*/
     return rc;
 }
 
-int usbPlatformWrite(void *fd, void *data, int size)
+int usbPlatformWrite(void *fd, unsigned int packetlength, void *data, int size)
 {
     int rc = 0;
 #ifndef USE_USB_VSC
@@ -195,8 +196,8 @@ int usbPlatformWrite(void *fd, void *data, int size)
     }
     while(byteCount < size)
     {
-       int toWrite = (PACKET_LENGTH && (size - byteCount > PACKET_LENGTH)) \
-                        ? PACKET_LENGTH:size - byteCount;
+       int toWrite = (packetlength && (size - byteCount > packetlength)) \
+                        ? packetlength : size - byteCount;
        int wc = write(usbFdWrite, ((char*)data) + byteCount, toWrite);
 
        if ( wc != toWrite)
@@ -221,7 +222,7 @@ int usbPlatformWrite(void *fd, void *data, int size)
     }
 #endif  /*USE_LINK_JTAG*/
 #else
-    rc = usb_write((libusb_device_handle *) fd, data, size);
+    rc = usb_write((libusb_device_handle *) fd, packetlength, data, size);
 #endif  /*USE_USB_VSC*/
     return rc;
 }
@@ -232,7 +233,7 @@ static int write_pending = 0;
 static int read_pending = 0;
 #endif
 
-int pciePlatformWrite(void *f, void *data, int size)
+int pciePlatformWrite(void *f, unsigned int packetlength, void *data, int size)
 {
 #if (defined(_WIN32) || defined(_WIN64))
     #define CHUNK_SIZE_BYTES (5ULL * 1024ULL * 1024ULL)
@@ -284,7 +285,7 @@ int pciePlatformWrite(void *f, void *data, int size)
 #endif
 }
 
-int pciePlatformRead(void *f, void *data, int size)
+int pciePlatformRead(void *f, unsigned int packetlength, void *data, int size)
 {
 #if (defined(_WIN32) || defined(_WIN64))
     while (size)
@@ -342,14 +343,13 @@ int pciePlatformRead(void *f, void *data, int size)
 // Helpers implementation. Begin.
 // ------------------------------------
 #ifdef USE_USB_VSC
-int usb_read(libusb_device_handle *f, void *data, size_t size)
+int usb_read(libusb_device_handle *f, unsigned int packetlength, void *data, size_t size)
 {
-    const int chunk_size = DEFAULT_CHUNKSZ;
     while(size > 0)
     {
         int bt, ss = (int)size;
-        if(ss > chunk_size)
-            ss = chunk_size;
+        if(ss > packetlength)
+            ss = packetlength;
 #if (defined(_WIN32) || defined(_WIN64))
         int rc = usb_bulk_read(f, USB_ENDPOINT_IN, (unsigned char *)data, ss, &bt, XLINK_USB_DATA_TIMEOUT);
 #else
@@ -363,14 +363,13 @@ int usb_read(libusb_device_handle *f, void *data, size_t size)
     return 0;
 }
 
-int usb_write(libusb_device_handle *f, const void *data, size_t size)
+int usb_write(libusb_device_handle *f, unsigned int packetlength, const void *data, size_t size)
 {
-    const int chunk_size = DEFAULT_CHUNKSZ;
     while(size > 0)
     {
         int bt, ss = (int)size;
-        if(ss > chunk_size)
-            ss = chunk_size;
+        if(ss > packetlength)
+            ss = packetlength;
 #if (defined(_WIN32) || defined(_WIN64) )
         int rc = usb_bulk_write(f, USB_ENDPOINT_OUT, (unsigned char *)data, ss, &bt, XLINK_USB_DATA_TIMEOUT);
 #else

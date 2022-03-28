@@ -23,6 +23,8 @@
 #include <vpu/configuration/options/watchdog_interval.hpp>
 #include <vpu/configuration/options/device_id.hpp>
 #include <vpu/configuration/options/device_connect_timeout.hpp>
+#include <vpu/configuration/options/device_packet_length.hpp>
+#include <vpu/configuration/options/host_packet_length.hpp>
 #include <vpu/configuration/options/memory_type.hpp>
 #include <vpu/configuration/options/enable_async_dma.hpp>
 #include <vpu/configuration/options/enable_mx_boot.hpp>
@@ -97,6 +99,8 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, co
     const std::string& configDevName = config.get<DeviceIDOption>();
     PowerConfig powerConfig = config.get<PowerConfigOption>();
     int enableAsyncDma = config.get<EnableAsyncDMAOption>();
+    unsigned int devicePacketLength = config.get<DevicePacketLength>();
+    unsigned int hostPacketLength = config.get<HostPacketLength>();
     int lastDeviceIdx = devicePool.empty() ? -1 : devicePool.back()->_deviceIdx;
 
     ncStatus_t statusOpen = NC_ERROR;
@@ -142,6 +146,7 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, co
     deviceOpenParams.watchdogInterval = static_cast<int>(config.get<WatchdogIntervalOption>().count());
     deviceOpenParams.memoryType = static_cast<char>(config.get<MemoryTypeOption>());
     deviceOpenParams.customFirmwareDirectory = dirName.c_str();
+    deviceOpenParams.packetLength = hostPacketLength;
 
     // Open new device with specific path to FW folder
     statusOpen = ncDeviceOpen(&device._deviceHandle,
@@ -209,6 +214,14 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, co
 
     if (status != NC_OK) {
         _log->warning("Failed to set option for async DMA");
+        ncDeviceClose(&device._deviceHandle, _mvnc->watchdogHndl());
+        return status;
+    }
+
+    status = ncDeviceSetOption(device._deviceHandle, NC_RW_DEVICE_PACKET_LENGTH, reinterpret_cast<void*>(&devicePacketLength), sizeof(dataLength));
+
+    if (status != NC_OK) {
+        _log->warning("Failed to set packet kength");
         ncDeviceClose(&device._deviceHandle, _mvnc->watchdogHndl());
         return status;
     }

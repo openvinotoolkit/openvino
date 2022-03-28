@@ -69,6 +69,8 @@
 #include "vpu/configuration/options/performance_hint.hpp"
 #include "vpu/configuration/options/performance_hint_num_requests.hpp"
 #include "vpu/configuration/options/ov_throughput_streams.hpp"
+#include "vpu/configuration/options/device_packet_length.hpp"
+#include "vpu/configuration/options/host_packet_length.hpp"
 
 #include "myriad_plugin.h"
 
@@ -251,6 +253,8 @@ Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
     _parsedConfig.registerOption<PerformanceHintOption>();
     _parsedConfig.registerOption<PerformanceHintNumRequestsOption>();
     _parsedConfig.registerOption<OvThroughputStreamsOption>();
+    _parsedConfig.registerOption<DevicePacketLength>();
+    _parsedConfig.registerOption<HostPacketLength>();
 IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<DisableConvertStagesOption>(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES);
     _parsedConfig.registerDeprecatedOption<DisableReorderOption>(InferenceEngine::MYRIAD_DISABLE_REORDER);

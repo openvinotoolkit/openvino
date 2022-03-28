@@ -21,7 +21,6 @@ extern "C"
 #else
 #define MAX_POOLS_ALLOC 32
 #endif
-#define PACKET_LENGTH (64*1024)
 
 typedef enum {
     X_LINK_PLATFORM_SUCCESS = 0,
@@ -36,7 +35,7 @@ typedef enum {
 // Device management. Begin.
 // ------------------------------------
 
-void XLinkPlatformInit();
+void XLinkPlatformInit(XLinkGlobalHandler_t* globalHandler);
 
 #ifdef __PC__
 /**

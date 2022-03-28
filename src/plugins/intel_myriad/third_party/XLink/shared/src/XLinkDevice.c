@@ -80,11 +80,19 @@ XLinkError_t XLinkInitialize(XLinkGlobalHandler_t* globalHandler)
     }
     int i;
 
-    XLinkPlatformInit();
+    XLinkPlatformInit(glHandler);
 
     //Using deprecated fields. Begin.
     int loglevel = globalHandler->loglevel;
     int protocol = globalHandler->protocol;
+    unsigned int packetLength = globalHandler->packetLength;
+    if (packetLength == 0) {
+#ifdef __PC__
+        packetLength = 1024*1024;
+#else
+        packetLength = 64*1024;
+#endif
+    }
     //Using deprecated fields. End.
 
     memset((void*)globalHandler, 0, sizeof(XLinkGlobalHandler_t));
@@ -112,6 +120,7 @@ XLinkError_t XLinkInitialize(XLinkGlobalHandler_t* globalHandler)
 
         link->id = INVALID_LINK_ID;
         link->deviceHandle.xLinkFD = NULL;
+        link->deviceHandle.packetLength = packetLength;
         link->peerState = XLINK_NOT_INIT;
         int stream;
         for (stream = 0; stream < XLINK_MAX_STREAMS; stream++)
@@ -126,10 +135,10 @@ XLinkError_t XLinkInitialize(XLinkGlobalHandler_t* globalHandler)
     link->id = getNextAvailableLinkUniqueId();
     link->peerState = XLINK_UP;
     link->deviceHandle.xLinkFD = NULL;
+    link->deviceHandle.protocol = X_LINK_ANY_PROTOCOL;
+    link->deviceHandle.packetLength = packetLength;
 
-    xLinkDeviceHandle_t temp = {0};
-    temp.protocol = X_LINK_ANY_PROTOCOL;
-    XLINK_RET_IF_FAIL(DispatcherStart(&temp)); //myriad has one
+    XLINK_RET_IF_FAIL(DispatcherStart(&link->deviceHandle)); //myriad has one
 
     while(((sem_wait(&pingSem) == -1) && errno == EINTR)
         continue;
@@ -204,7 +213,7 @@ XLinkError_t XLinkConnect(XLinkHandler_t* handler)
     xLinkEvent_t event = {0};
 
     event.header.type = XLINK_PING_REQ;
-    event.deviceHandle = link->deviceHandle;
+    event.deviceHandle = &link->deviceHandle;
     DispatcherAddEvent(EVENT_LOCAL, &event);
 
     if (DispatcherWaitEventComplete(&link->deviceHandle, XLINK_NO_RW_TIMEOUT)) {
@@ -250,7 +259,7 @@ XLinkError_t XLinkResetRemote(linkId_t id)
     // Add event to reset device. After sending it, dispatcher will close fd link
     xLinkEvent_t event = {0};
     event.header.type = XLINK_RESET_REQ;
-    event.deviceHandle = link->deviceHandle;
+    event.deviceHandle = &link->deviceHandle;
     mvLog(MVLOG_DEBUG, "sending reset remote event\n");
     DispatcherAddEvent(EVENT_LOCAL, &event);
     XLINK_RET_ERR_IF(DispatcherWaitEventComplete(&link->deviceHandle, XLINK_NO_RW_TIMEOUT),
@@ -343,6 +352,49 @@ XLinkError_t XLinkProfPrint()
                glHandler->profilingData.totalBootTime /
                glHandler->profilingData.totalBootCount);
     }
+    return X_LINK_SUCCESS;
+}
+
+XLinkError_t XLinkSetDevicePacketLength(linkId_t linkId, unsigned int packetLength) {
+    XLINK_RET_IF(packetLength % 1024 != 0);
+    xLinkDesc_t* link = getLinkById(linkId);
+    XLINK_RET_IF(link == NULL);
+#ifdef __PC__
+    xLinkEvent_t event = {0};
+    event.header.type = XLINK_SET_PACKET_LENGTH_REQ;
+    event.header.size = packetLength;
+    event.deviceHandle = &link->deviceHandle;
+    DispatcherAddEvent(EVENT_LOCAL, &event);
+
+    if (DispatcherWaitEventComplete(&link->deviceHandle, XLINK_NO_RW_TIMEOUT)) {
+        DispatcherClean(&link->deviceHandle);
+        return X_LINK_TIMEOUT;
+    }
+
+#else
+    link->deviceHandle.packetLength = packetLength;
+#endif
+    return X_LINK_SUCCESS;
+}
+
+XLinkError_t XLinkSetHostPacketLength(linkId_t linkId, unsigned int packetLength) {
+    XLINK_RET_IF(packetLength % 1024 != 0);
+    xLinkDesc_t* link = getLinkById(linkId);
+    XLINK_RET_IF(link == NULL);
+#ifdef __PC__
+    link->deviceHandle.packetLength = packetLength;
+#else
+    xLinkEvent_t event = {0};
+    event.header.type = XLINK_SET_PACKET_LENGTH_REQ;
+    event.header.size = packetLength;
+    event.deviceHandle = &link->deviceHandle;
+    DispatcherAddEvent(EVENT_LOCAL, &event);
+
+    if (DispatcherWaitEventComplete(&link->deviceHandle, XLINK_NO_RW_TIMEOUT)) {
+        DispatcherClean(&link->deviceHandle);
+        return X_LINK_TIMEOUT;
+    }
+#endif
     return X_LINK_SUCCESS;
 }
 

@@ -49,6 +49,7 @@ typedef enum {
 typedef struct xLinkDeviceHandle_t {
     XLinkProtocol_t protocol;
     void* xLinkFD;
+    unsigned int packetLength;
 } xLinkDeviceHandle_t;
 
 /**
@@ -84,6 +85,8 @@ typedef enum
     XLINK_CLOSE_STREAM_REQ,
     XLINK_PING_REQ,
     XLINK_RESET_REQ,
+    XLINK_DROP_REQ,
+    XLINK_SET_PACKET_LENGTH_REQ,
     XLINK_REQUEST_LAST,
     //note that is important to separate request and response
     XLINK_WRITE_RESP,
@@ -94,6 +97,8 @@ typedef enum
     XLINK_CLOSE_STREAM_RESP,
     XLINK_PING_RESP,
     XLINK_RESET_RESP,
+    XLINK_DROP_RESP,
+    XLINK_SET_PACKET_LENGTH_RESP,
     XLINK_RESP_LAST,
 
     /*X_LINK_IPC related events*/
@@ -130,6 +135,8 @@ typedef struct xLinkEventHeader_t{
     char                streamName[MAX_STREAM_NAME_LENGTH];
     streamId_t          streamId;
     uint32_t            size;
+    uint32_t            dropped;
+    uint32_t            canBeServed;
     union{
         uint32_t raw;
         struct{
@@ -147,7 +154,7 @@ typedef struct xLinkEventHeader_t{
 
 typedef struct xLinkEvent_t {
     XLINK_ALIGN_TO_BOUNDARY(64) xLinkEventHeader_t header;
-    xLinkDeviceHandle_t deviceHandle;
+    xLinkDeviceHandle_t* deviceHandle;
     void* data;
 }xLinkEvent_t;
 
@@ -157,6 +164,8 @@ typedef struct xLinkEvent_t {
     (event).header.size = (in_size); \
     (event).data = (in_data); \
     (event).deviceHandle = (in_deviceHandle); \
+    (event).header.dropped = 0; \
+    (event).header.canBeServed = 1; \
 } while(0)
 
 #define XLINK_EVENT_ACKNOWLEDGE(event) do { \

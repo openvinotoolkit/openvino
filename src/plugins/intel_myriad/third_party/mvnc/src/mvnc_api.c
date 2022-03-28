@@ -343,7 +343,7 @@ static void resetAll()
 #endif
 }
 
-static ncStatus_t initializeXLink();
+static ncStatus_t initializeXLink(unsigned int packetLength);
 
 ncStatus_t ncDeviceResetAll() {
 #if defined(NO_BOOT)
@@ -351,7 +351,7 @@ ncStatus_t ncDeviceResetAll() {
 #else
     if (!initialized) {
         ncStatus_t sc;
-        if ((sc = initializeXLink()) != 0) {
+        if ((sc = initializeXLink(ghandler.packetLength)) != 0) {
             return sc;
         }
     }
@@ -360,12 +360,13 @@ ncStatus_t ncDeviceResetAll() {
     return NC_OK;
 }
 
-static ncStatus_t initializeXLink()
+static ncStatus_t initializeXLink(unsigned int packetLength)
 {
     XLinkSetCommonTimeOutMsec(60 * 1000);
     // We sanitize the situation by trying to reset the devices that have been left open
     initialized = 1;
     devices = NULL;
+    ghandler.packetLength = packetLength;
 
     int sc = XLinkInitialize(&ghandler);
     if (sc != X_LINK_SUCCESS) {
@@ -767,7 +768,7 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
 
     if (!initialized) {
         ncStatus_t sc;
-        if ((sc = initializeXLink()) != 0) {
+        if ((sc = initializeXLink(deviceOpenParams.packetLength)) != 0) {
             GLOBAL_UNLOCK();
             return sc;
         }
@@ -1165,7 +1166,7 @@ ncStatus_t ncAvailableDevices(struct ncDeviceDescr_t *deviceDescrPtr,
     CHECK_HANDLE_CORRECT(deviceDescrPtr);
     CHECK_HANDLE_CORRECT(out_countDevices);
 
-    XLinkPlatformInit();
+    XLinkPlatformInit(&ghandler);
     memset(deviceDescrPtr, 0, maxDevices * sizeof(struct ncDeviceDescr_t));
 
     deviceDesc_t in_deviceDsc = {
@@ -2730,6 +2731,23 @@ static ncStatus_t enableAsyncDMA(struct _devicePrivate_t *d,
     return NC_OK;
 }
 
+static ncStatus_t setPacketLength(struct _devicePrivate_t *d,
+                                  ncDeviceOption_t option,
+                                  const void *data, unsigned int dataLength){
+    XLinkError_t rc = X_LINK_SUCCESS;
+    deviceCommand_t config;
+
+    config.arg = *(uint32_t*)data;
+    rc = XLinkSetDevicePacketLength(d->xlink->linkId, config.arg);
+    if (rc != X_LINK_SUCCESS)
+    {
+        mvLog(MVLOG_ERROR, "Failed to write data, rc: %s", XLinkErrorToStr(rc));
+        return parseXLinkError(rc);
+    }
+
+    return NC_OK;
+}
+
 ncStatus_t ncDeviceSetOption(struct ncDeviceHandle_t *deviceHandle,
                             ncDeviceOption_t option,
                             const void *data, unsigned int dataLength){
@@ -2782,6 +2800,11 @@ ncStatus_t ncDeviceSetOption(struct ncDeviceHandle_t *deviceHandle,
         case NC_RW_ENABLE_ASYNC_DMA:
         {
             rc = enableAsyncDMA(d, option, data, dataLength);
+            break;
+        }
+        case NC_RW_DEVICE_PACKET_LENGTH:
+        {
+            rc = setPacketLength(d, option, data, dataLength);
             break;
         }
         default:

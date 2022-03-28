@@ -25,6 +25,7 @@
 #include "XLinkStringUtils.h"
 #include "XLinkPublicDefines.h"
 
+unsigned int g_chunkSize = 1024 * 1024;
 
 #define DEFAULT_VID                 0x03E7
 
@@ -45,7 +46,6 @@
 
 #define OPEN_DEV_ERROR_MESSAGE_LENGTH 128
 
-static unsigned int bulk_chunklen = DEFAULT_CHUNKSZ;
 static int write_timeout = DEFAULT_WRITE_TIMEOUT;
 static int connect_timeout = DEFAULT_CONNECT_TIMEOUT;
 static int initialized;
@@ -75,17 +75,20 @@ static deviceBootInfo_t supportedDevices[] = {
 // for now we'll only use the loglevel for usb boot. can bring it into
 // the rest of usblink later
 // use same levels as mvnc_loglevel for now
-#if (defined(_WIN32) || defined(_WIN64) )
-void initialize_usb_boot()
+void initialize_usb_boot(unsigned chunkSize)
 {
+    g_chunkSize = chunkSize;
+#if (defined(_WIN32) || defined(_WIN64) )
     if (initialized == 0)
     {
         usb_init();
     }
     // We sanitize the situation by trying to reset the devices that have been left open
     initialized = 1;
+#endif
 }
-#else
+
+#if (!defined(_WIN32) && !defined(_WIN64) )
 void __attribute__((constructor)) usb_library_load()
 {
     initialized = !libusb_init(NULL);
@@ -501,7 +504,6 @@ static libusb_device_handle *usb_open_device(libusb_device *dev, uint8_t *endpoi
         if( !(ifdesc->endpoint[i].bEndpointAddress & LIBUSB_ENDPOINT_DIR_MASK) )
         {
             *endpoint = ifdesc->endpoint[i].bEndpointAddress;
-            bulk_chunklen = ifdesc->endpoint[i].wMaxPacketSize;
             libusb_free_config_descriptor(cdesc);
             return h;
         }
@@ -600,7 +602,7 @@ static int send_file(libusb_device_handle *h, uint8_t endpoint, const uint8_t *t
     int wb, twb, wbr;
     double elapsedTime;
     highres_time_t t1, t2;
-    int bulk_chunklen=DEFAULT_CHUNKSZ;
+    int bulk_chunklen = g_chunkSize;
     elapsedTime = 0;
     twb = 0;
     p = tx_buf;

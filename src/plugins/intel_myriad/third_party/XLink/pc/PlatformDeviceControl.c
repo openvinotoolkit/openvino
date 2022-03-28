@@ -85,10 +85,10 @@ static int (*close_fcts[X_LINK_NMB_OF_PROTOCOLS])(void*) = \
 // XLinkPlatform API implementation. Begin.
 // ------------------------------------
 
-void XLinkPlatformInit()
+void XLinkPlatformInit(XLinkGlobalHandler_t* globalHandler)
 {
-#if (defined(_WIN32) || defined(_WIN64))
-    initialize_usb_boot();
+#ifdef __PC__
+    initialize_usb_boot(globalHandler->packetLength);
 #endif
 }
 

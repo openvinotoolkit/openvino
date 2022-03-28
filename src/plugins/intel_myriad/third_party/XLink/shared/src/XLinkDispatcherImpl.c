@@ -47,7 +47,7 @@ int dispatcherEventSend(xLinkEvent_t *event)
     mvLog(MVLOG_DEBUG, "Send event: %s, size %u, streamId %u.\n",
         TypeToStr(event->header.type), event->header.size, event->header.streamId);
 
-    int rc = XLinkPlatformWrite(&event->deviceHandle,
+    int rc = XLinkPlatformWrite(event->deviceHandle,
         &event->header, sizeof(event->header));
 
     if(rc < 0) {
@@ -56,7 +56,7 @@ int dispatcherEventSend(xLinkEvent_t *event)
     }
 
     if (event->header.type == XLINK_WRITE_REQ) {
-        rc = XLinkPlatformWrite(&event->deviceHandle,
+        rc = XLinkPlatformWrite(event->deviceHandle,
             event->data, event->header.size);
         if(rc < 0) {
             mvLog(MVLOG_ERROR,"Write failed %d\n", rc);
@@ -69,17 +69,17 @@ int dispatcherEventSend(xLinkEvent_t *event)
 
 int dispatcherEventReceive(xLinkEvent_t* event){
     static xLinkEvent_t prevEvent = {0};
-    int rc = XLinkPlatformRead(&event->deviceHandle,
+    int rc = XLinkPlatformRead(event->deviceHandle,
         &event->header, sizeof(event->header));
 
     mvLog(MVLOG_DEBUG,"Incoming event %p: %s %d %p prevEvent: %s %d %p\n",
           event,
           TypeToStr(event->header.type),
           (int)event->header.id,
-          event->deviceHandle.xLinkFD,
+          event->deviceHandle->xLinkFD,
           TypeToStr(prevEvent.header.type),
           (int)prevEvent.header.id,
-          prevEvent.deviceHandle.xLinkFD);
+          prevEvent.deviceHandle ? prevEvent.deviceHandle->xLinkFD : NULL);
 
     if(rc < 0) {
         mvLog(MVLOG_DEBUG,"%s() Read failed %d\n", __func__, (int)rc);
@@ -88,7 +88,7 @@ int dispatcherEventReceive(xLinkEvent_t* event){
 
     if (prevEvent.header.id == event->header.id &&
         prevEvent.header.type == event->header.type &&
-        prevEvent.deviceHandle.xLinkFD == event->deviceHandle.xLinkFD) {
+        prevEvent.deviceHandle->xLinkFD == event->deviceHandle->xLinkFD) {
         mvLog(MVLOG_FATAL,"Duplicate id detected. \n");
     }
 
@@ -106,7 +106,7 @@ int dispatcherLocalEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response)
         case XLINK_WRITE_REQ:
         {
             //in case local tries to write after it issues close (writeSize is zero)
-            stream = getStreamById(event->deviceHandle.xLinkFD, event->header.streamId);
+            stream = getStreamById(event->deviceHandle->xLinkFD, event->header.streamId);
 
             if(!stream) {
                 mvLog(MVLOG_DEBUG, "stream %d has been closed!\n", event->header.streamId);
@@ -142,7 +142,7 @@ int dispatcherLocalEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response)
         }
         case XLINK_READ_REQ:
         {
-            stream = getStreamById(event->deviceHandle.xLinkFD, event->header.streamId);
+            stream = getStreamById(event->deviceHandle->xLinkFD, event->header.streamId);
             if(!stream) {
                 mvLog(MVLOG_DEBUG, "stream %d has been closed!\n", event->header.streamId);
                 XLINK_SET_EVENT_FAILED_AND_SERVE(event);
@@ -165,7 +165,7 @@ int dispatcherLocalEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response)
         }
         case XLINK_READ_REL_REQ:
         {
-            stream = getStreamById(event->deviceHandle.xLinkFD, event->header.streamId);
+            stream = getStreamById(event->deviceHandle->xLinkFD, event->header.streamId);
             ASSERT_XLINK(stream);
             XLINK_EVENT_ACKNOWLEDGE(event);
             uint32_t releasedSize = 0;
@@ -177,7 +177,7 @@ int dispatcherLocalEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response)
         case XLINK_READ_REL_SPEC_REQ:
         {
             uint8_t* data = (uint8_t*)event->data;
-            stream = getStreamById(event->deviceHandle.xLinkFD, event->header.streamId);
+            stream = getStreamById(event->deviceHandle->xLinkFD, event->header.streamId);
             ASSERT_XLINK(stream);
             XLINK_EVENT_ACKNOWLEDGE(event);
             uint32_t releasedSize = 0;
@@ -190,7 +190,7 @@ int dispatcherLocalEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response)
         {
             XLINK_EVENT_ACKNOWLEDGE(event);
 #ifdef __PC__
-            event->header.streamId = XLinkAddOrUpdateStream(event->deviceHandle.xLinkFD,
+            event->header.streamId = XLinkAddOrUpdateStream(event->deviceHandle->xLinkFD,
                                                             event->header.streamName,
                                                             event->header.size, 0,
                                                             INVALID_STREAM_ID);
@@ -204,7 +204,7 @@ int dispatcherLocalEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response)
         }
         case XLINK_CLOSE_STREAM_REQ:
         {
-            stream = getStreamById(event->deviceHandle.xLinkFD, event->header.streamId);
+            stream = getStreamById(event->deviceHandle->xLinkFD, event->header.streamId);
 
             ASSERT_XLINK(stream);
             XLINK_EVENT_ACKNOWLEDGE(event);
@@ -231,6 +231,12 @@ int dispatcherLocalEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response)
             mvLog(MVLOG_DEBUG,"XLINK_PING_REQ - do nothing\n");
             break;
         }
+        case XLINK_SET_PACKET_LENGTH_REQ:
+        {
+            XLINK_EVENT_ACKNOWLEDGE(event);
+            mvLog(MVLOG_DEBUG, "XLINK_SET_PACKET_LENGTH_REQ - do nothing\n");
+            break;
+        }
         case XLINK_WRITE_RESP:
         case XLINK_READ_RESP:
         case XLINK_READ_REL_RESP:
@@ -238,6 +244,7 @@ int dispatcherLocalEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response)
         case XLINK_CREATE_STREAM_RESP:
         case XLINK_CLOSE_STREAM_RESP:
         case XLINK_PING_RESP:
+        case XLINK_SET_PACKET_LENGTH_RESP:
             break;
         case XLINK_RESET_RESP:
             //should not happen
@@ -277,7 +284,7 @@ int dispatcherRemoteEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response
                 int xxx = DispatcherUnblockEvent(-1,
                                                 XLINK_READ_REQ,
                                                 response->header.streamId,
-                                                event->deviceHandle.xLinkFD);
+                                                event->deviceHandle->xLinkFD);
                 (void) xxx;
                 mvLog(MVLOG_DEBUG,"unblocked from stream %d %d\n",
                     (int)response->header.streamId, (int)xxx);
@@ -289,7 +296,7 @@ int dispatcherRemoteEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response
             XLINK_EVENT_ACKNOWLEDGE(response);
             response->header.type = XLINK_READ_REL_SPEC_RESP;
             response->deviceHandle = event->deviceHandle;
-            stream = getStreamById(event->deviceHandle.xLinkFD,
+            stream = getStreamById(event->deviceHandle->xLinkFD,
                                    event->header.streamId);
             ASSERT_XLINK(stream);
             stream->remoteFillLevel -= event->header.size;
@@ -300,7 +307,7 @@ int dispatcherRemoteEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response
             releaseStream(stream);
 
             DispatcherUnblockEvent(-1, XLINK_WRITE_REQ, event->header.streamId,
-                                   event->deviceHandle.xLinkFD);
+                                   event->deviceHandle->xLinkFD);
             //with every released packet check if the stream is already marked for close
             if (stream->closeStreamInitiated && stream->localFillLevel == 0)
             {
@@ -308,14 +315,14 @@ int dispatcherRemoteEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response
                 DispatcherUnblockEvent(-1,
                                        XLINK_CLOSE_STREAM_REQ,
                                        event->header.streamId,
-                                       event->deviceHandle.xLinkFD);
+                                       event->deviceHandle->xLinkFD);
             }
             break;
         case XLINK_READ_REL_REQ:
             XLINK_EVENT_ACKNOWLEDGE(response);
             response->header.type = XLINK_READ_REL_RESP;
             response->deviceHandle = event->deviceHandle;
-            stream = getStreamById(event->deviceHandle.xLinkFD,
+            stream = getStreamById(event->deviceHandle->xLinkFD,
                                    event->header.streamId);
             ASSERT_XLINK(stream);
             stream->remoteFillLevel -= event->header.size;
@@ -326,7 +333,7 @@ int dispatcherRemoteEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response
             releaseStream(stream);
 
             DispatcherUnblockEvent(-1, XLINK_WRITE_REQ, event->header.streamId,
-                                   event->deviceHandle.xLinkFD);
+                                   event->deviceHandle->xLinkFD);
             //with every released packet check if the stream is already marked for close
             if (stream->closeStreamInitiated && stream->localFillLevel == 0)
             {
@@ -334,7 +341,7 @@ int dispatcherRemoteEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response
                 int xxx = DispatcherUnblockEvent(-1,
                                                  XLINK_CLOSE_STREAM_REQ,
                                                  event->header.streamId,
-                                                 event->deviceHandle.xLinkFD);
+                                                 event->deviceHandle->xLinkFD);
                 (void) xxx;
             }
             break;
@@ -343,12 +350,12 @@ int dispatcherRemoteEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response
             response->header.type = XLINK_CREATE_STREAM_RESP;
             //write size from remote means read size for this peer
 #ifndef __PC__
-            response->header.streamId = XLinkAddOrUpdateStream(event->deviceHandle.xLinkFD,
+            response->header.streamId = XLinkAddOrUpdateStream(event->deviceHandle->xLinkFD,
                                                                event->header.streamName,
                                                                0, event->header.size,
                                                                event->header.streamId);
 #else
-            response->header.streamId = XLinkAddOrUpdateStream(event->deviceHandle.xLinkFD,
+            response->header.streamId = XLinkAddOrUpdateStream(event->deviceHandle->xLinkFD,
                                                                event->header.streamName,
                                                                0, event->header.size,
                                                                INVALID_STREAM_ID);
@@ -371,7 +378,7 @@ int dispatcherRemoteEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response
             response->header.streamId = event->header.streamId;
             response->deviceHandle = event->deviceHandle;
 
-            streamDesc_t* stream = getStreamById(event->deviceHandle.xLinkFD,
+            streamDesc_t* stream = getStreamById(event->deviceHandle->xLinkFD,
                                                  event->header.streamId);
             if (!stream) {
                 //if we have sent a NACK before, when the event gets unblocked
@@ -422,6 +429,17 @@ int dispatcherRemoteEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response
             response->deviceHandle = event->deviceHandle;
             // need to send the response, serve the event and then reset
             break;
+        case XLINK_SET_PACKET_LENGTH_REQ:
+        {
+            response->header.type = XLINK_SET_PACKET_LENGTH_RESP;
+            response->header.streamId = event->header.streamId;
+            response->deviceHandle = event->deviceHandle;
+            XLINK_EVENT_ACKNOWLEDGE(response);
+
+            event->deviceHandle->packetLength = event->header.size;
+
+            break;
+        }
         case XLINK_WRITE_RESP:
             break;
         case XLINK_READ_RESP:
@@ -434,7 +452,7 @@ int dispatcherRemoteEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response
         {
             // write_size from the response the size of the buffer from the remote
 #ifndef __PC__
-            response->header.streamId = XLinkAddOrUpdateStream(event->deviceHandle.xLinkFD,
+            response->header.streamId = XLinkAddOrUpdateStream(event->deviceHandle->xLinkFD,
                                                                event->header.streamName,
                                                                event->header.size, 0,
                                                                event->header.streamId);
@@ -449,7 +467,7 @@ int dispatcherRemoteEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response
         }
         case XLINK_CLOSE_STREAM_RESP:
         {
-            streamDesc_t* stream = getStreamById(event->deviceHandle.xLinkFD,
+            streamDesc_t* stream = getStreamById(event->deviceHandle->xLinkFD,
                                                  event->header.streamId);
 
             if (!stream){
@@ -469,6 +487,8 @@ int dispatcherRemoteEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response
         case XLINK_PING_RESP:
             break;
         case XLINK_RESET_RESP:
+            break;
+        case XLINK_SET_PACKET_LENGTH_RESP:
             break;
         default:
         {
@@ -661,7 +681,7 @@ int handleIncomingEvent(xLinkEvent_t* event) {
     }
 
     int rc = -1;
-    streamDesc_t* stream = getStreamById(event->deviceHandle.xLinkFD, event->header.streamId);
+    streamDesc_t* stream = getStreamById(event->deviceHandle->xLinkFD, event->header.streamId);
     ASSERT_XLINK(stream);
 
     stream->localFillLevel += event->header.size;
@@ -672,7 +692,7 @@ int handleIncomingEvent(xLinkEvent_t* event) {
     XLINK_OUT_WITH_LOG_IF(buffer == NULL,
         mvLog(MVLOG_FATAL,"out of memory to receive data of size = %lu\n", event->header.size));
 
-    const int sc = XLinkPlatformRead(&event->deviceHandle, buffer, event->header.size);
+    const int sc = XLinkPlatformRead(event->deviceHandle, buffer, event->header.size);
     XLINK_OUT_WITH_LOG_IF(sc < 0, mvLog(MVLOG_ERROR,"%s() Read failed %d\n", __func__, sc));
 
     event->data = buffer;

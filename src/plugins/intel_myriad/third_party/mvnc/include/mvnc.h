@@ -121,7 +121,8 @@ typedef enum {
     NC_RO_DEVICE_PROTOCOL = 2018,               // returns device protocol (USB, PCIe)
     NC_RW_DEVICE_POWER_CONFIG = 2100,           // writes config for the power manager to device
     NC_RW_DEVICE_POWER_CONFIG_RESET = 2101,     // resets power manager config on device
-    NC_RW_ENABLE_ASYNC_DMA = 2102               // enable/disable asynchronous DMA on device
+    NC_RW_ENABLE_ASYNC_DMA = 2102,              // enable/disable asynchronous DMA on device
+    NC_RW_DEVICE_PACKET_LENGTH = 2103           // set packet length to split sent data from the device. Default is 64KB (64*1024)
 } ncDeviceOption_t;
 
 typedef enum {
@@ -160,6 +161,7 @@ typedef struct ncDeviceOpenParams {
     int watchdogInterval;
     char memoryType;
     const char* customFirmwareDirectory;
+    unsigned int packetLength;
 } ncDeviceOpenParams_t;
 
 typedef enum {

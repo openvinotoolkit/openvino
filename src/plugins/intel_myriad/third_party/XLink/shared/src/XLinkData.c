@@ -58,7 +58,7 @@ streamId_t XLinkOpenStream(linkId_t id, const char* name, int stream_write_size)
 
         xLinkEvent_t event = {0};
         XLINK_INIT_EVENT(event, INVALID_STREAM_ID, XLINK_CREATE_STREAM_REQ,
-                         stream_write_size, NULL, link->deviceHandle);
+                         stream_write_size, NULL, &link->deviceHandle);
         mv_strncpy(event.header.streamName, MAX_STREAM_NAME_LENGTH,
                    name, MAX_STREAM_NAME_LENGTH - 1);
 
@@ -110,7 +110,7 @@ XLinkError_t XLinkCloseStream(streamId_t streamId)
 
     xLinkEvent_t event = {0};
     XLINK_INIT_EVENT(event, streamId, XLINK_CLOSE_STREAM_REQ,
-        0, NULL, link->deviceHandle);
+        0, NULL, &link->deviceHandle);
 
     XLINK_RET_IF(addEvent(&event, XLINK_NO_RW_TIMEOUT));
     return X_LINK_SUCCESS;
@@ -128,7 +128,7 @@ XLinkError_t XLinkWriteData(streamId_t streamId, const uint8_t* buffer,
 
     xLinkEvent_t event = {0};
     XLINK_INIT_EVENT(event, streamId, XLINK_WRITE_REQ,
-        size,(void*)buffer, link->deviceHandle);
+        size,(void*)buffer, &link->deviceHandle);
 
     XLINK_RET_IF(addEventWithPerf(&event, &opTime, XLINK_NO_RW_TIMEOUT));
 
@@ -151,7 +151,7 @@ XLinkError_t XLinkReadData(streamId_t streamId, streamPacketDesc_t** packet)
 
     xLinkEvent_t event = {0};
     XLINK_INIT_EVENT(event, streamId, XLINK_READ_REQ,
-        0, NULL, link->deviceHandle);
+        0, NULL, &link->deviceHandle);
 
     XLINK_RET_IF(addEventWithPerf(&event, &opTime, XLINK_NO_RW_TIMEOUT));
 
@@ -180,7 +180,7 @@ XLinkError_t XLinkWriteDataWithTimeout(streamId_t streamId, const uint8_t* buffe
 
     xLinkEvent_t event = {0};
     XLINK_INIT_EVENT(event, streamId, XLINK_WRITE_REQ,
-        size,(void*)buffer, link->deviceHandle);
+        size,(void*)buffer, &link->deviceHandle);
 
     mvLog(MVLOG_WARN,"XLinkWriteDataWithTimeout is not fully supported yet. The XLinkWriteData method is called instead. Desired timeout = %d\n", timeoutMs);
     XLINK_RET_IF_FAIL(addEventWithPerf(&event, &opTime, XLINK_NO_RW_TIMEOUT));
@@ -204,7 +204,7 @@ XLinkError_t XLinkReadDataWithTimeout(streamId_t streamId, streamPacketDesc_t** 
 
     xLinkEvent_t event = {0};
     XLINK_INIT_EVENT(event, streamId, XLINK_READ_REQ,
-        0, NULL, link->deviceHandle);
+        0, NULL, &link->deviceHandle);
 
     XLINK_RET_IF_FAIL(addEventWithPerf(&event, &opTime, timeoutMs));
 
@@ -229,7 +229,7 @@ XLinkError_t XLinkReleaseData(streamId_t streamId)
 
     xLinkEvent_t event = {0};
     XLINK_INIT_EVENT(event, streamId, XLINK_READ_REL_REQ,
-        0, NULL, link->deviceHandle);
+        0, NULL, &link->deviceHandle);
 
     XLINK_RET_IF(addEvent(&event, XLINK_NO_RW_TIMEOUT));
 
@@ -244,7 +244,7 @@ XLinkError_t XLinkReleaseSpecificData(streamId_t streamId, streamPacketDesc_t* p
 
     xLinkEvent_t event = {0};
     XLINK_INIT_EVENT(event, streamId, XLINK_READ_REL_SPEC_REQ,
-        0, (void*)packetDesc->data, link->deviceHandle);
+        0, (void*)packetDesc->data, &link->deviceHandle);
 
     XLINK_RET_IF(addEvent(&event, XLINK_NO_RW_TIMEOUT));
 
@@ -328,9 +328,9 @@ XLinkError_t addEvent(xLinkEvent_t *event, unsigned int timeoutMs)
         xLinkDesc_t* link;
         XLINK_RET_IF(getLinkByStreamId(event->header.streamId, &link));
 
-        if (DispatcherWaitEventComplete(&event->deviceHandle, timeoutMs))  // timeout reached
+        if (DispatcherWaitEventComplete(event->deviceHandle, timeoutMs))  // timeout reached
         {
-            streamDesc_t* stream = getStreamById(event->deviceHandle.xLinkFD,
+            streamDesc_t* stream = getStreamById(event->deviceHandle->xLinkFD,
                                                  event->header.streamId);
             ASSERT_XLINK(stream);
             if (event->header.type == XLINK_READ_REQ)
@@ -341,7 +341,7 @@ XLinkError_t addEvent(xLinkEvent_t *event, unsigned int timeoutMs)
                 //      If we reach timeout with DispatcherWaitEventComplete and before
                 //      we call DispatcherServeEvent, the event actually comes,
                 //      and gets served by XLink stack and event semaphore is posted.
-                DispatcherServeEvent(event->header.id, XLINK_READ_REQ, stream->id, event->deviceHandle.xLinkFD);
+                DispatcherServeEvent(event->header.id, XLINK_READ_REQ, stream->id, event->deviceHandle->xLinkFD);
             }
             releaseStream(stream);
 
@@ -350,7 +350,7 @@ XLinkError_t addEvent(xLinkEvent_t *event, unsigned int timeoutMs)
     }
     else  // No timeout
     {
-        if (DispatcherWaitEventComplete(&event->deviceHandle, timeoutMs))
+        if (DispatcherWaitEventComplete(event->deviceHandle, timeoutMs))
         {
             return X_LINK_TIMEOUT;
         }

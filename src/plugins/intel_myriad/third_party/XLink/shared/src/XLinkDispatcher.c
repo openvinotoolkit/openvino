@@ -79,7 +79,7 @@ typedef struct{
  * @brief Scheduler for each device
  */
 typedef struct {
-    xLinkDeviceHandle_t deviceHandle; //will be device handler
+    xLinkDeviceHandle_t* deviceHandle; //will be device handler
     int schedulerId;
 
     int queueProcPriority;
@@ -229,7 +229,7 @@ XLinkError_t DispatcherStart(xLinkDeviceHandle_t *deviceHandle)
     schedulerState[idx].queueProcPriority = 0;
 
     schedulerState[idx].resetXLink = 0;
-    schedulerState[idx].deviceHandle = *deviceHandle;
+    schedulerState[idx].deviceHandle = deviceHandle;
     schedulerState[idx].schedulerId = idx;
 
     schedulerState[idx].lQueue.cur = schedulerState[idx].lQueue.q;
@@ -339,7 +339,7 @@ int DispatcherClean(xLinkDeviceHandle_t *deviceHandle) {
 
 xLinkEvent_t* DispatcherAddEvent(xLinkEventOrigin_t origin, xLinkEvent_t *event)
 {
-    xLinkSchedulerState_t* curr = findCorrespondingScheduler(event->deviceHandle.xLinkFD);
+    xLinkSchedulerState_t* curr = findCorrespondingScheduler(event->deviceHandle->xLinkFD);
     XLINK_RET_ERR_IF(curr == NULL, NULL);
 
     if(curr->resetXLink) {
@@ -418,7 +418,7 @@ int DispatcherWaitEventComplete(xLinkDeviceHandle_t *deviceHandle, unsigned int 
     if (rc) {
             xLinkEvent_t event = {0};
             event.header.type = XLINK_RESET_REQ;
-            event.deviceHandle = *deviceHandle;
+            event.deviceHandle = deviceHandle;
             mvLog(MVLOG_ERROR,"waiting is timeout, sending reset remote event");
             DispatcherAddEvent(EVENT_LOCAL, &event);
             id = getSem(pthread_self(), curr);
@@ -632,7 +632,7 @@ static void* eventReader(void* ctx)
         int sc = glControlFunc->eventReceive(&event);
 
         mvLog(MVLOG_DEBUG,"Reading %s (scheduler %d, fd %p, event id %d, event stream_id %u, event size %u)\n",
-              TypeToStr(event.header.type), curr->schedulerId, event.deviceHandle.xLinkFD, event.header.id, event.header.streamId, event.header.size);
+              TypeToStr(event.header.type), curr->schedulerId, event.deviceHandle->xLinkFD, event.header.id, event.header.streamId, event.header.size);
 
         if (sc) {
             mvLog(MVLOG_DEBUG,"Failed to receive event (err %d)", sc);
@@ -796,7 +796,7 @@ static xLinkSchedulerState_t* findCorrespondingScheduler(void* xLinkFD)
     }
     for (i=0; i < MAX_SCHEDULERS; i++)
         if (schedulerState[i].schedulerId != -1 &&
-            schedulerState[i].deviceHandle.xLinkFD == xLinkFD) {
+            schedulerState[i].deviceHandle->xLinkFD == xLinkFD) {
             XLINK_RET_ERR_IF(pthread_mutex_unlock(&num_schedulers_mutex) != 0, NULL);
                 return &schedulerState[i];
         }
@@ -1050,17 +1050,17 @@ static int dispatcherReset(xLinkSchedulerState_t* curr)
 {
     ASSERT_XLINK(curr != NULL);
 
-    glControlFunc->closeDeviceFd(&curr->deviceHandle);
+    glControlFunc->closeDeviceFd(curr->deviceHandle);
     if(dispatcherClean(curr)) {
         mvLog(MVLOG_INFO, "Failed to clean dispatcher");
     }
 
-    xLinkDesc_t* link = getLink(curr->deviceHandle.xLinkFD);
+    xLinkDesc_t* link = getLink(curr->deviceHandle->xLinkFD);
     if(link == NULL || XLink_sem_post(&link->dispatcherClosedSem)) {
         mvLog(MVLOG_DEBUG,"can't post dispatcherClosedSem\n");
     }
 
-    glControlFunc->closeLink(curr->deviceHandle.xLinkFD, 1);
+    glControlFunc->closeLink(curr->deviceHandle->xLinkFD, 1);
     mvLog(MVLOG_DEBUG,"Reset Successfully\n");
     return 0;
 }
@@ -1081,13 +1081,13 @@ static XLinkError_t sendEvents(xLinkSchedulerState_t* curr) {
 #endif
         }
 
-        if(event->packet.deviceHandle.xLinkFD
-           != curr->deviceHandle.xLinkFD) {
+        if(event->packet.deviceHandle->xLinkFD
+           != curr->deviceHandle->xLinkFD) {
             mvLog(MVLOG_FATAL,"The file descriptor mismatch between the event and the scheduler.\n"
                               "    Event: id=%d, fd=%p"
                               "    Scheduler fd=%p",
-                              event->packet.header.id, event->packet.deviceHandle.xLinkFD,
-                              curr->deviceHandle.xLinkFD);
+                              event->packet.header.id, event->packet.deviceHandle->xLinkFD,
+                              curr->deviceHandle->xLinkFD);
             event->packet.header.flags.bitField.nack = 1;
             event->packet.header.flags.bitField.ack = 0;
 
@@ -1129,7 +1129,7 @@ static XLinkError_t sendEvents(xLinkSchedulerState_t* curr) {
                 if (toSend->header.type == XLINK_RESET_REQ) {
                     curr->resetXLink = 1;
                     mvLog(MVLOG_DEBUG,"Send XLINK_RESET_REQ, stopping sendEvents thread.");
-                    if(toSend->deviceHandle.protocol == X_LINK_PCIE) {
+                    if(toSend->deviceHandle->protocol == X_LINK_PCIE) {
                         toSend->header.type = XLINK_PING_REQ;
                         mvLog(MVLOG_DEBUG, "Request for reboot not sent, only ping event");
                     } else {

@@ -116,6 +116,26 @@ XLinkError_t XLinkProfStart();
 XLinkError_t XLinkProfStop();
 XLinkError_t XLinkProfPrint();
 
+/**
+ * @brief Set maximum packet length to split sent data on the device.
+ *        For some scenarios configuring packet length can increase throughput of XLink communication channel
+ * @warning Packet length should be greater than 0 and aligned with 1024
+ * @param[in] linkId – link Id obtained from XLinkConnect in the handler parameter
+ * @param[in] packetLength – packet length in bytes
+ * @return Status code of the operation: X_LINK_SUCCESS (0) for success
+ */
+XLinkError_t XLinkSetDevicePacketLength(linkId_t linkId, unsigned int packetLength);
+
+/**
+ * @brief Set maximum packet length to split sent data on the host.
+ *        For some scenarios configuring packet length can increase throughput of XLink communication channel
+ * @warning Packet length should be greater than 0 and aligned with 1024
+ * @param[in] linkId – link Id obtained from XLinkConnect in the handler parameter
+ * @param[in] packetLength – packet length in bytes
+ * @return Status code of the operation: X_LINK_SUCCESS (0) for success
+ */
+XLinkError_t XLinkSetHostPacketLength(linkId_t linkId, unsigned int packetLength);
+
 // ------------------------------------
 // Device management. End.
 // ------------------------------------
