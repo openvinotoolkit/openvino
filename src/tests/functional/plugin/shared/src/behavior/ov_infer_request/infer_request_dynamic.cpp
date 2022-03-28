@@ -275,6 +275,32 @@ TEST_P(OVInferRequestDynamicTests, InferUpperBoundNetworkWithGetTensor) {
     ASSERT_TRUE(checkOutput(req.get_tensor("input_tensor"), req.get_tensor(outputname)));
 }
 
+TEST_P(OVInferRequestDynamicTests, InferUpperBoundNetworkAfterIOTensorsReshaping) {
+    const std::string tensor_name = "input_tensor";
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[tensor_name] = {ov::Dimension(0, 5), ov::Dimension(0, 5), ov::Dimension(0, 5), ov::Dimension(0, 5)};
+    OV_ASSERT_NO_THROW(function->reshape(shapes));
+    // Load ov::Model to target plugins
+    auto execNet = ie->compile_model(function, targetDevice, configuration);
+    // Create InferRequest
+    ov::InferRequest req;
+    ov::Tensor tensor, otensor;
+    const std::string outputname = function->outputs().back().get_any_name();
+    OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
+    OV_ASSERT_NO_THROW(otensor = req.get_tensor(outputname));
+    ASSERT_EQ(0, otensor.get_size()); // output tensor is not allocated
+    OV_ASSERT_NO_THROW(otensor.set_shape({1, 2, 3, 4}));
+    OV_ASSERT_NO_THROW(otensor.set_shape({5, 5, 5, 5}));
+    OV_ASSERT_NO_THROW(otensor.set_shape({1, 2, 3, 4}));
+    OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
+    OV_ASSERT_NO_THROW(tensor.set_shape({1, 2, 3, 4}));
+    OV_ASSERT_NO_THROW(tensor.set_shape({5, 5, 5, 5}));
+    OV_ASSERT_NO_THROW(tensor.set_shape({1, 2, 3, 4}));
+    OV_ASSERT_NO_THROW(req.infer());
+    OV_ASSERT_NO_THROW(req.start_async());
+    OV_ASSERT_NO_THROW(req.wait());
+}
+
 TEST_P(OVInferRequestDynamicTests, InferFullyDynamicNetworkWithGetTensor) {
     const std::string tensor_name = "input_tensor";
     const ov::Shape refShape = inOutShapes[0].first;

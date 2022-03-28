@@ -331,6 +331,39 @@ TEST_P(InferRequestIOBBlobTest, canInferWithGetOut) {
     ASSERT_NO_THROW(InferenceEngine::Blob::Ptr outputBlob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
 }
 
+TEST_P(InferRequestIOBBlobTest, canReallocateExternalBlobViaGet) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::PartialShape shape({1, 3, 10, 10});
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        param->set_friendly_name("param");
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        relu->set_friendly_name("relu");
+        auto result = std::make_shared<ngraph::op::Result>(relu);
+        result->set_friendly_name("result");
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    // Create CNNNetwork from ngraph::Function
+    InferenceEngine::CNNNetwork cnnNet(ngraph);
+    // Load CNNNetwork to target plugins
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    // Create InferRequest
+    auto req = execNet.CreateInferRequest();
+    auto inBlob = req.GetBlob("param");
+    auto outBlob = req.GetBlob("relu");
+    inBlob->allocate();
+    outBlob->allocate();
+
+    ASSERT_NO_THROW(req.Infer());
+}
+
 class InferRequestIOBBlobSetPrecisionTest : public BehaviorTestsUtils::BehaviorTestsBasicBase,
                                             public BehaviorTestsUtils::IEInferRequestTestBase {
 protected:
@@ -343,12 +376,7 @@ protected:
         execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     }
 
-    void TearDown() override {
-        if (!configuration.empty()) {
-            PluginCache::get().reset();
-        }
-        APIBaseTest::TearDown();
-    }
+
 
     InferenceEngine::ExecutableNetwork execNet;
     InferenceEngine::CNNNetwork cnnNet;
