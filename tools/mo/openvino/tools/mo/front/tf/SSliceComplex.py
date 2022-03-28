@@ -39,7 +39,7 @@ class SSliceComplex(FrontReplacementSubgraph):
     After this transformation we need to mark SomeOp1 operation that its input rank has changed because
     its inputs/attributes should probably be updated. Currently we have such a case for a Roll operation.
     """
-    enabled = True
+    enabled = False
 
     def pattern(self):
         return dict(
