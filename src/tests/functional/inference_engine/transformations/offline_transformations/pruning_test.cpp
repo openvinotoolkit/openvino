@@ -1968,7 +1968,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUp) {
 }
 
 
-TEST_F(TransformationTestsF, MaskPropagationReshapeUpWithShapeOf) {
+TEST_P(TransformationTestsBoolParamF, MaskPropagationReshapeUpWithShapeOf) {
     auto inputShapes = PartialShape{1, 6, 8, 8};
     auto weightsShape = Shape{6, 6, 1, 1};
 
@@ -1979,8 +1979,21 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUpWithShapeOf) {
                                                       CoordinateDiff(2, 0),
                                                       Strides(2, 1));
 
-    auto shape_of_conv = std::make_shared<opset5::ShapeOf>(conv);
-    auto reshape = std::make_shared<opset5::Reshape>(conv, shape_of_conv, true);
+    const auto use_shape_of = GetParam();
+    Output<Node> reshape_shape_input;
+    if (use_shape_of) {
+        reshape_shape_input = std::make_shared<opset5::ShapeOf>(conv);
+    } else {
+        auto shape_of = std::make_shared<opset5::ShapeOf>(conv);
+        const auto axis = opset6::Constant::create(ov::element::i8, {}, {0});
+        const auto dims_to_keep = opset6::Constant::create(element::i64, {2}, std::vector<int64_t>{2, 3});
+        const auto gather = std::make_shared<opset6::Gather>(shape_of, dims_to_keep, axis);
+        const auto one_const = opset6::Constant::create(element::i64, {1}, {1});
+        const auto minus_one_const = opset6::Constant::create(element::i64, {1}, {-1});
+        const auto concat = std::make_shared<opset6::Concat>(NodeVector{one_const, minus_one_const, gather}, 0);
+        reshape_shape_input = concat;
+    }
+    auto reshape = std::make_shared<opset5::Reshape>(conv, reshape_shape_input, true);
 
     auto conv_1_shape = Shape{6, 6, 1, 1};
     auto conv_1_weights = create_constant_with_zeros(conv_1_shape, {{1, 2, 3}, {}, {}, {}});
@@ -2003,9 +2016,21 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUpWithShapeOf) {
                                                           CoordinateDiff(2, 0),
                                                           Strides(2, 1));
 
-        auto shape_of_conv = std::make_shared<opset5::ShapeOf>(conv);
+        Output<Node> reshape_shape_input;
+        if (use_shape_of) {
+            reshape_shape_input = std::make_shared<opset5::ShapeOf>(conv);
+        } else {
+            auto shape_of = std::make_shared<opset5::ShapeOf>(conv);
+            const auto axis = opset6::Constant::create(ov::element::i8, {}, {0});
+            const auto dims_to_keep = opset6::Constant::create(element::i64, {2}, std::vector<int64_t>{2, 3});
+            const auto gather = std::make_shared<opset6::Gather>(shape_of, dims_to_keep, axis);
+            const auto one_const = opset6::Constant::create(element::i64, {1}, {1});
+            const auto minus_one_const = opset6::Constant::create(element::i64, {1}, {-1});
+            const auto concat = std::make_shared<opset6::Concat>(NodeVector{one_const, minus_one_const, gather}, 0);
+            reshape_shape_input = concat;
+        }
 
-        auto reshape = std::make_shared<opset5::Reshape>(conv, shape_of_conv, true);
+        auto reshape = std::make_shared<opset5::Reshape>(conv, reshape_shape_input, true);
 
         auto conv_1_shape = Shape{6, 6, 1, 1};
         auto conv_1_weights = create_constant_with_zeros({
@@ -2021,8 +2046,11 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUpWithShapeOf) {
 
         function_ref = std::make_shared<ngraph::Function>(OutputVector{conv_1}, ParameterVector{input});
     }
-    if (VISUALIZE_TESTS_TREE)
-        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReshapeUpWithShapeOf.svg").run_on_function(function);
+    if (VISUALIZE_TESTS_TREE) {
+        const auto postfix = use_shape_of? "True" : "False";
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) +\
+                                    "MaskPropagationReshapeUpWithShapeOf" + postfix + ".svg").run_on_function(function);
+    }
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -3575,6 +3603,79 @@ TEST_F(TransformationTestsF, PropagateMasksTranspose) {
     compare_masks(*getMask(mul->output(0)), Mask({{}, {1, 2, 3}}));
     compare_masks(*getMask(relu->output(0)), Mask({{}, {1, 2, 3}}));
     compare_masks(*getMask(last_mul->output(0)), Mask{{}, {}});
+
+    manager.register_pass<pass::ShrinkWeights>();
+    disable_rt_info_check();
+    enable_accuracy_check();
+}
+
+
+TEST_F(TransformationTestsF, PropagateMasksTransposeComplex) {
+    Shape input_shape{1, 3, 5, 7, 8};
+    Shape weights_shape{5, 7, 3, 8, 1};
+    Shape last_mul_weights_shape {7, 5};
+
+    auto input = std::make_shared<opset5::Parameter>(element::f32, input_shape);
+
+    auto weights = create_constant_with_zeros(weights_shape, {{}, {1, 2, 3}, {}, {}, {}});
+
+    const auto transpose_consts = std::vector<std::vector<int64_t>>{{4, 0, 3, 1, 2},
+                                                                    {0, 4, 1, 3, 2},
+                                                                    {4, 3, 2, 1, 0},
+                                                                    {4, 3, 2, 0, 1}};
+    auto last_output = weights;
+    for (auto & transpose_const_vec : transpose_consts) {
+        auto transpose_const = opset5::Constant::create(element::i64, {transpose_const_vec.size()}, transpose_const_vec);
+        last_output = std::make_shared<opset5::Transpose>(last_output, transpose_const);
+    }
+
+    auto mul = std::make_shared<opset5::MatMul>(input, last_output);
+    auto relu = std::make_shared<opset5::Relu>(mul);
+
+
+    auto last_mul_weights = create_constant_with_zeros(last_mul_weights_shape, {{}, {1, 2, 3}});
+    auto last_mul = std::make_shared<opset5::MatMul>(relu, last_mul_weights);
+
+    function = std::make_shared<Function>(NodeVector{last_mul}, ParameterVector{input});
+    {
+        auto input = std::make_shared<opset5::Parameter>(element::f32, input_shape);
+
+        auto weights = create_constant_with_zeros({weights_shape[0],
+                                                   weights_shape[1] - 3,
+                                                   weights_shape[2],
+                                                   weights_shape[3],
+                                                   weights_shape[4],
+                                                   }, {{}, {}});
+        const auto transpose_consts = std::vector<std::vector<int64_t>>{{4, 0, 3, 1, 2},
+                                                                        {0, 4, 1, 3, 2},
+                                                                        {4, 3, 2, 1, 0},
+                                                                        {4, 3, 2, 0, 1}};
+        auto last_output = weights;
+        for (auto & transpose_const_vec : transpose_consts) {
+            auto transpose_const = opset5::Constant::create(element::i64, {transpose_const_vec.size()}, transpose_const_vec);
+            last_output = std::make_shared<opset5::Transpose>(last_output, transpose_const);
+        }
+        auto mul = std::make_shared<opset5::MatMul>(input, last_output);
+        auto relu = std::make_shared<opset5::Relu>(mul);
+
+        auto last_mul_weights = create_constant_with_zeros({last_mul_weights_shape[0] - 3, last_mul_weights_shape[1]}, {{}, {}});
+        auto last_mul = std::make_shared<opset5::MatMul>(relu, last_mul_weights);
+
+        function_ref = std::make_shared<Function>(NodeVector{last_mul}, ParameterVector{input});
+    }
+    if (VISUALIZE_TESTS_TREE)
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksTransposeComplex.svg").run_on_function(function);
+    {
+        pass::Manager m;
+        m.register_pass<pass::InitMasks>();
+        m.register_pass<pass::PropagateMasks>();
+        m.run_passes(function);
+    }
+    compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)),  Mask({{}, {1, 2, 3}, {}, {}, {}}));
+    compare_masks(*getMask(mul->output(0)), Mask({{}, {}, {}, {}, {1, 2, 3}}));
+    compare_masks(*getMask(relu->output(0)), Mask({{}, {}, {}, {}, {1, 2, 3}}));
+    compare_masks(*getMask(last_mul_weights), Mask{{1, 2, 3}, {}});
+    compare_masks(*getMask(last_mul->output(0)), Mask{{}, {}, {}, {}, {}});
 
     manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();

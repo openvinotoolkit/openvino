@@ -90,10 +90,10 @@ public:
                     const auto forward_order_vec = forward_order->cast_vector<int64_t>();
                     if (forward_order_vec.size() != input_size) return false;
                     auto new_order = std::vector<int64_t>();
-                    for (auto& i : dim_order) {
+                    for (size_t i = 0; i < forward_order_vec.size(); ++i) {
                         const auto dim = std::find(forward_order_vec.begin(), forward_order_vec.end(), i) - forward_order_vec.begin();
                         // Dim should be valid because of transpose operation input_order input restrictions
-                        new_order.push_back(dim);
+                        new_order.push_back(dim_order[dim]);
                     }
                     dim_order = new_order;
                 } else {
@@ -120,7 +120,8 @@ public:
                 matmul->get_friendly_name() << std::endl;
                 return false;
             }
-            const size_t outer_dim = dim_order[shape_rank - shift];
+            const auto idx = shape_rank - shift;
+            const size_t outer_dim = std::find(dim_order.begin(), dim_order.end(), idx) - dim_order.begin();
             // 3. Init mask for Const node
             InitConstMask({outer_dim}/* check only outer dim */).apply(cur_node);
             return true;

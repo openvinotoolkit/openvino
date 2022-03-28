@@ -1252,7 +1252,7 @@ public:
 
             const auto forward_order = input_order_node->cast_vector<int64_t>();
             auto backward_order = std::vector<int64_t>();
-            for (size_t i = 0; i < input_mask->size(); i++) {
+            for (size_t i = 0; i < input_mask->size(); ++i) {
                 const auto dim = std::find(forward_order.begin(), forward_order.end(), i) - forward_order.begin();
                 // Dim should be valid because of transpose operation input_order input restrictions
                 backward_order.push_back(dim);
