@@ -2,7 +2,7 @@
 
 ### Introduction
 
-The Inference Engine API provides an ability to [configure devices](https://docs.openvino.ai/2021.4/openvino_docs_IE_DG_InferenceEngine_QueryAPI.html) via configuration keys and [get device specific metrics](https://docs.openvino.ai/2021.4/openvino_docs_IE_DG_InferenceEngine_QueryAPI.html#getmetric). The values taken from `InferenceEngine::Core::GetConfig` are requested by their name strings, while the return type is `InferenceEngine::Parameter` making users lost on what the actual type stored in this parameter is.
+The Inference Engine API provides the [ability to configure devices](https://docs.openvino.ai/2021.4/openvino_docs_IE_DG_InferenceEngine_QueryAPI.html) via configuration keys and [get device specific metrics](https://docs.openvino.ai/2021.4/openvino_docs_IE_DG_InferenceEngine_QueryAPI.html#getmetric). The values taken from `InferenceEngine::Core::GetConfig` are requested by its string name, while the return type is `InferenceEngine::Parameter`, making users lost on what the actual type stored in this parameter is.
 
 The OpenVINO Runtime API 2.0 solves these issues by introducing [properties](../supported_plugins/config_properties.md), which unify metrics and configuration key concepts. Their main advantage is that they have the C++ type:
 

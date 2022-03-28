@@ -1,4 +1,4 @@
-# Automatic device selection {#openvino_docs_IE_DG_supported_plugins_AUTO}
+# Automatic device selection {#openvino_docs_OV_UG_supported_plugins_AUTO}
 
 @sphinxdirective
 
@@ -6,7 +6,7 @@
    :maxdepth: 1
    :hidden:
 
-   Debugging Auto-Device Plugin <openvino_docs_IE_DG_supported_plugins_AUTO_debugging>
+   Debugging Auto-Device Plugin <openvino_docs_OV_UG_supported_plugins_AUTO_debugging>
 
 @endsphinxdirective
 
@@ -28,17 +28,17 @@ The best device is chosen using the following logic:
 | Choice   || Supported                                           || Supported                          |
 | Priority || Device                                              || model precision                    |
 +==========+======================================================+=====================================+
-| 1        || dGPU                                                | FP32, FP16, INT8, BIN               |
-|          || (e.g. Intel® Iris® Xe MAX)                          |                                     |
+| 1        || dGPU                                                || FP32, FP16, INT8, BIN              |
+|          || (e.g. Intel® Iris® Xe MAX)                          ||                                    |
 +----------+------------------------------------------------------+-------------------------------------+
-| 2        || iGPU                                                | FP32, FP16, BIN                     |
-|          || (e.g. Intel® UHD Graphics 620 (iGPU))               |                                     |
+| 2        || iGPU                                                || FP32, FP16, BIN                    |
+|          || (e.g. Intel® UHD Graphics 620 (iGPU))               ||                                    |
 +----------+------------------------------------------------------+-------------------------------------+
-| 3        || Intel® Movidius™ Myriad™ X VPU                      | FP16                                |
-|          || (e.g. Intel® Neural Compute Stick 2 (Intel® NCS2))  |                                     |
+| 3        || Intel® Movidius™ Myriad™ X VPU                      || FP16                               |
+|          || (e.g. Intel® Neural Compute Stick 2 (Intel® NCS2))  ||                                    |
 +----------+------------------------------------------------------+-------------------------------------+
-| 4        || Intel® CPU                                          | FP32, FP16, INT8, BIN               |
-|          || (e.g. Intel® Core™ i7-1165G7)                       |                                     |
+| 4        || Intel® CPU                                          || FP32, FP16, INT8, BIN              |
+|          || (e.g. Intel® Core™ i7-1165G7)                       ||                                    |
 +----------+------------------------------------------------------+-------------------------------------+
 @endsphinxdirective
 
