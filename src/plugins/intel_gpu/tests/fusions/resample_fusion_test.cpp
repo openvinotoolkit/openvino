@@ -33,7 +33,7 @@ struct resample_test_params {
 class ResamplePrimitiveFusingTest : public ::BaseFusingTest<resample_test_params> {
 public:
 
-    void execute(resample_test_params& p) {
+    void execute(resample_test_params& p, std::map<std::string, std::vector<std::string>> expected_fused_primitives_ids = {}) {
         auto input_prim = get_mem(get_input_layout(p));
         network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
         network network_fused(this->engine, this->topology_fused, bo_fused);
@@ -41,6 +41,7 @@ public:
         network_not_fused.set_input_data("input", input_prim);
 
         compare(network_not_fused, network_fused, p);
+        check_fusions_correctness(network_fused, expected_fused_primitives_ids);
     }
 
     layout get_input_layout(resample_test_params& p) {
@@ -327,7 +328,7 @@ TEST_P(resample_scale_fusing_through, reshape) {
     );
 
     tolerance = 1e-5f;
-    execute(p);
+    execute(p, {{"resample_prim", {"scale"}}});
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_scale_fusing_through, ::testing::ValuesIn(std::vector<resample_test_params>{

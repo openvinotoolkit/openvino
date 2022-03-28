@@ -8,8 +8,8 @@
 
 __attribute__((reqd_work_group_size(LWS, 1, 1)))
 KERNEL (softmax_gpu_continuous_bfyx)(
-    const __global UNIT_TYPE* input,
-    __global UNIT_TYPE* output
+    const __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS
     , FUSED_OPS_DECLS
 #endif

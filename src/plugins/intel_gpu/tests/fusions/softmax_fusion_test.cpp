@@ -32,7 +32,7 @@ struct softmax_test_params {
 class SoftmaxPrimitiveFusingTest : public ::BaseFusingTest<softmax_test_params> {
 public:
 
-    void execute(softmax_test_params& p) {
+    void execute(softmax_test_params& p, std::map<std::string, std::vector<std::string>> expected_fused_primitives_ids = {}) {
         auto input_prim = get_mem(get_input_layout(p));
         network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
         network network_fused(this->engine, this->topology_fused, bo_fused);
@@ -40,6 +40,7 @@ public:
         network_not_fused.set_input_data("input", input_prim);
 
         compare(network_not_fused, network_fused, p);
+        check_fusions_correctness(network_fused, expected_fused_primitives_ids);
     }
 
     layout get_input_layout(softmax_test_params& p) {
@@ -115,7 +116,7 @@ TEST_P(softmax_quantize_fusing_through, reshape) {
     );
 
     tolerance = 1.f;
-    execute(p);
+    execute(p, {{"softmax", {"quantize"}}});
 }
 
 TEST_P(softmax_quantize_fusing_through, reorder) {
@@ -133,7 +134,7 @@ TEST_P(softmax_quantize_fusing_through, reorder) {
     );
 
     tolerance = 1.f;
-    execute(p);
+    execute(p, {{"softmax", {"quantize"}}});
 }
 
 TEST_P(softmax_quantize_fusing_through, chain) {
@@ -153,16 +154,18 @@ TEST_P(softmax_quantize_fusing_through, chain) {
     );
 
     tolerance = 1.f;
-    execute(p);
+    execute(p, {{"softmax", {"quantize"}}});
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, softmax_quantize_fusing_through,
     ::testing::ValuesIn(std::vector<softmax_test_params>{
                         softmax_test_params{ CASE_SOFTMAX_FP32_1, 2, 3 },
-                        softmax_test_params{ CASE_SOFTMAX_FP32_2, 3, 3 },
-                        softmax_test_params{ CASE_SOFTMAX_FP32_3, 3, 3 },
+                        // Such fusions not allowed yet
+                        // softmax_test_params{ CASE_SOFTMAX_FP32_2, 3, 3 },
+                        // softmax_test_params{ CASE_SOFTMAX_FP32_3, 3, 3 },
 
                         softmax_test_params{ CASE_SOFTMAX_FP16_1, 2, 3 },
-                        softmax_test_params{ CASE_SOFTMAX_FP16_2, 3, 3 },
-                        softmax_test_params{ CASE_SOFTMAX_FP16_3, 3, 3 },
+                        // Such fusions not allowed yet
+                        // softmax_test_params{ CASE_SOFTMAX_FP16_2, 3, 3 },
+                        // softmax_test_params{ CASE_SOFTMAX_FP16_3, 3, 3 },
 }));
