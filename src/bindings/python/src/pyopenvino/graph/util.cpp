@@ -3,6 +3,7 @@
 //
 
 #include "pyopenvino/graph/util.hpp"
+#include "openvino/core/graph_util.hpp"
 
 #include <pybind11/numpy.h>
 
@@ -31,4 +32,14 @@ void regmodule_graph_util(py::module m) {
                          from the resulting bound, otherwise Null.
                 :rtype: openvino.runtime.op.Constant or openvino.runtime.Node
             )");
-}
+    mod.def("clone_function",
+            (std::shared_ptr<ov::Model>(ov::*)(const ov::Model&)) & ov::clone_model,
+            py::arg("model"),
+            R"(
+                Create a copy of Model.
+
+                :param model: Model to copy.
+                :type model: openvino.runtime.Model
+                :return: A copy of Model.
+                :rtype: openvino.runtime.Model
+            )");
