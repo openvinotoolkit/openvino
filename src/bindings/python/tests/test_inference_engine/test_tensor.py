@@ -109,13 +109,13 @@ def test_init_with_numpy_shared_memory(ov_type, numpy_dtype):
     assert np.array_equal(ov_tensor.data, arr)
     assert ov_tensor.size == arr.size
     assert ov_tensor.byte_size == arr.nbytes
+    assert tuple(ov_tensor.strides) == arr.strides
 
     assert tuple(ov_tensor.get_shape()) == shape
     assert ov_tensor.get_element_type() == ov_type
-    assert ov_tensor.data.dtype == numpy_dtype
-    assert ov_tensor.data.shape == shape
     assert ov_tensor.get_size() == arr.size
     assert ov_tensor.get_byte_size() == arr.nbytes
+    assert tuple(ov_tensor.get_strides()) == arr.strides
 
 
 @pytest.mark.parametrize("ov_type, numpy_dtype", [
@@ -148,7 +148,7 @@ def test_init_with_numpy_copy_memory(ov_type, numpy_dtype):
 
 
 def test_init_with_numpy_fail():
-    arr = read_image()
+    arr = np.asfortranarray(read_image())
     with pytest.raises(RuntimeError) as e:
         _ = Tensor(array=arr, shared_memory=True)
     assert "Tensor with shared memory must be C contiguous" in str(e.value)
