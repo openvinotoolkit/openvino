@@ -275,14 +275,15 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
         return n->get_input_shape(0).back() != 1;
     };
 
-    const auto supported_exec_type = m_generator->get_target_machine()->get_supported_exec_types().front();
-    const size_t lanes = m_generator->get_target_machine()->get_lanes();
+    // At the moment we support only full vector Load/Store and scalar Load/Store so that count is equal to lanes.
+    // Then we are going to support variadic Load/Store with different element count
+    const size_t count = m_generator->get_target_machine()->get_lanes();
 
     ngraph::pass::Manager manager;
     manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
     manager.register_pass<snippets::pass::ConvertPowerToPowerStatic>();
-    manager.register_pass<snippets::pass::InsertLoad>(lanes);
-    manager.register_pass<snippets::pass::InsertStore>(lanes);
+    manager.register_pass<snippets::pass::InsertLoad>(count);
+    manager.register_pass<snippets::pass::InsertStore>(count);
     manager.register_pass<snippets::pass::InsertMoveBroadcast>();
     manager.register_pass<snippets::pass::LoadMoveBroadcastToBroadcastLoad>();
     // Note that, BrodacastMove is typically inserted right after the Load. Such cases are typical for

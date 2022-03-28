@@ -6,5 +6,5 @@
 
 using namespace ngraph;
 
-snippets::op::VectorLoad::VectorLoad(const Output<Node>& x, const size_t lanes) : Load(x, lanes) {
+snippets::op::VectorLoad::VectorLoad(const Output<Node>& x, const size_t count) : Load(x, count) {
 }

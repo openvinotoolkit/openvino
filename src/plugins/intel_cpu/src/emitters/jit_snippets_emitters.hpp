@@ -468,7 +468,7 @@ public:
         }
 
         store_emitter.reset(new jit_store_emitter(h, isa));
-        lanes = ov::as_type_ptr<ngraph::snippets::op::Store>(n)->get_lanes();
+        count = ov::as_type_ptr<ngraph::snippets::op::Store>(n)->get_count();
     }
 
 private:
@@ -493,11 +493,11 @@ private:
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
         if (!store_emitter)
             IE_THROW() << "Store CPU emitter isn't initialized for StoreEmitter!";
-        store_emitter->emit_code({in[0]}, {ea}, std::make_shared<store_emitter_context>(src_prc, dst_prc, lanes),
+        store_emitter->emit_code({in[0]}, {ea}, std::make_shared<store_emitter_context>(src_prc, dst_prc, count),
                                  aux_vec_idxs, aux_gpr_idxs);
 
         Reg64 out_reg(ea);
-        h->add(out_reg, lanes * dst_prc.size());
+        h->add(out_reg, count * dst_prc.size());
     }
 
     void emit_data() const override {
@@ -508,7 +508,7 @@ private:
     size_t aux_gprs_count() const override { return 1lu; }
 
 private:
-    size_t lanes;
+    size_t count;
     std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
 };
 
@@ -580,7 +580,7 @@ public:
         }
 
         load_emitter.reset(new jit_load_emitter(h, isa));
-        lanes = ov::as_type_ptr<ngraph::snippets::op::Load>(n)->get_lanes();
+        count = ov::as_type_ptr<ngraph::snippets::op::Load>(n)->get_count();
     }
 
     size_t get_inputs_num() const override {return 0;}
@@ -607,12 +607,12 @@ private:
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
         if (!load_emitter)
             IE_THROW() << "Load CPU emitter isn't initialized for LoadEmitter!";
-        load_emitter->emit_code({ea}, {out[0]}, std::make_shared<load_emitter_context>(src_prc, dst_prc, lanes),
+        load_emitter->emit_code({ea}, {out[0]}, std::make_shared<load_emitter_context>(src_prc, dst_prc, count),
                                 aux_vec_idxs, aux_gpr_idxs);
 
         if (shouldPostIncrement) {
             Reg64 in_reg(ea);
-            h->add(in_reg, lanes * src_prc.size());
+            h->add(in_reg, count * src_prc.size());
         }
     }
 
@@ -624,7 +624,7 @@ private:
 
 private:
     bool shouldPostIncrement;
-    size_t lanes;
+    size_t count;
     std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
 };
 

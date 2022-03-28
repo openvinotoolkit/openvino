@@ -19,7 +19,7 @@ namespace pass {
  */
 class InsertLoad: public ngraph::pass::MatcherPass {
 public:
-    InsertLoad(const size_t lanes = 0lu);
+    InsertLoad(const size_t count = 0lu);
 };
 
 /**
@@ -30,7 +30,7 @@ public:
  */
 class InsertStore: public ngraph::pass::MatcherPass {
 public:
-    InsertStore(const size_t lanes = 0lu);
+    InsertStore(const size_t count = 0lu);
 };
 
 

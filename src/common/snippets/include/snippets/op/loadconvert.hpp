@@ -20,7 +20,7 @@ class LoadConvert : public Load {
 public:
     OPENVINO_OP("LoadConvert", "SnippetsOpset", ngraph::snippets::op::Load);
 
-    LoadConvert(const Output<Node>& x, const ov::element::Type& destination_type, const size_t lanes = 0lu);
+    LoadConvert(const Output<Node>& x, const ov::element::Type& destination_type, const size_t count = 0lu);
     LoadConvert() = default;
 
     ov::element::Type get_destination_type() const { return m_destination_type; }

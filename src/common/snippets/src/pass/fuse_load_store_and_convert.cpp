@@ -35,7 +35,7 @@ ngraph::snippets::pass::FuseLoadConvert::FuseLoadConvert() {
         if (const auto scalar_load = ov::as_type_ptr<ngraph::snippets::op::ScalarLoad>(load_shared)) {
             load_convert = std::make_shared<ngraph::snippets::op::ScalarLoadConvert>(param, convert->get_destination_type());
         } else if (const auto load = ov::as_type_ptr<ngraph::snippets::op::Load>(load_shared)) {
-            load_convert = std::make_shared<ngraph::snippets::op::LoadConvert>(param, convert->get_destination_type(), load->get_lanes());
+            load_convert = std::make_shared<ngraph::snippets::op::LoadConvert>(param, convert->get_destination_type(), load->get_count());
         } else {
             return false;
         }
@@ -70,7 +70,7 @@ ngraph::snippets::pass::FuseStoreConvert::FuseStoreConvert() {
         if (const auto scalar_store = ov::as_type_ptr<ngraph::snippets::op::ScalarStore>(store_shared)) {
             store_convert = std::make_shared<ngraph::snippets::op::ScalarStoreConvert>(input, convert->get_destination_type());
         } else if (const auto store = ov::as_type_ptr<ngraph::snippets::op::Store>(store_shared)) {
-            store_convert = std::make_shared<ngraph::snippets::op::StoreConvert>(input, convert->get_destination_type(), store->get_lanes());
+            store_convert = std::make_shared<ngraph::snippets::op::StoreConvert>(input, convert->get_destination_type(), store->get_count());
         } else {
             return false;
         }

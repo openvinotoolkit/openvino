@@ -20,7 +20,7 @@ class StoreConvert : public Store {
 public:
     OPENVINO_OP("StoreConvert", "SnippetsOpset", ngraph::snippets::op::Store);
 
-    StoreConvert(const Output<Node>& x, const ov::element::Type& destination_type, const size_t lanes = 0lu);
+    StoreConvert(const Output<Node>& x, const ov::element::Type& destination_type, const size_t count = 0lu);
     StoreConvert() = default;
 
     ov::element::Type get_destination_type() const { return m_destination_type; }

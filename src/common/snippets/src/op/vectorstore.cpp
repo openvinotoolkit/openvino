@@ -6,5 +6,5 @@
 
 using namespace ngraph;
 
-snippets::op::VectorStore::VectorStore(const Output<Node>& x, const size_t lanes) : Store(x, lanes) {
+snippets::op::VectorStore::VectorStore(const Output<Node>& x, const size_t count) : Store(x, count) {
 }

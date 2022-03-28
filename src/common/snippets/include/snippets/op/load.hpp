@@ -23,10 +23,10 @@ class Load : public ngraph::op::Op {
 public:
     OPENVINO_OP("Load", "SnippetsOpset");
 
-    Load(const Output<Node>& x, const size_t lanes = 0lu);
+    Load(const Output<Node>& x, const size_t count = 0lu);
     Load() = default;
 
-    size_t get_lanes() const { return m_lanes; }
+    size_t get_count() const { return m_count; }
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -39,7 +39,7 @@ public:
     OPENVINO_SUPPRESS_DEPRECATED_END
 
 protected:
-    size_t m_lanes = 0lu;
+    size_t m_count = 0lu;
 };
 
 } // namespace op

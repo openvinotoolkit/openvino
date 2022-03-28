@@ -11,7 +11,7 @@
 using namespace std;
 using namespace ngraph;
 
-snippets::op::Load::Load(const Output<Node>& x, const size_t lanes) : Op({x}), m_lanes(lanes) {
+snippets::op::Load::Load(const Output<Node>& x, const size_t count) : Op({x}), m_count(count) {
     constructor_validate_and_infer_types();
 }
 
@@ -22,7 +22,7 @@ bool snippets::op::Load::visit_attributes(AttributeVisitor& visitor) {
 std::shared_ptr<Node> snippets::op::Load::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(Load);
     check_new_args_count(this, new_args);
-    return std::make_shared<Load>(new_args.at(0), m_lanes);
+    return std::make_shared<Load>(new_args.at(0), m_count);
 }
 
 void snippets::op::Load::validate_and_infer_types() {
