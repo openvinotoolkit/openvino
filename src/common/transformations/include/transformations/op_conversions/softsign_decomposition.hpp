@@ -18,8 +18,23 @@ class TRANSFORMATIONS_API SoftSignDecomposition;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief SoftSignDecomposition transformation replaces softmax with the graph, that matches a formula:
- * SoftSign(x) = x / (1 + |x|)
+ * @brief SoftSignDecomposition transformation replaces SoftSign with the following graph
+ *
+ *       Input ---> Abs
+ *         |         |
+ *         |         |
+ *         |         |
+ *         |         V
+ *         |        Add <--- 1
+ *         |         |
+ *         |         |
+ *         V         |
+ *       Divide <----|
+ *         |
+ *         |
+ *         |
+ *         V
+ *       Output
  */
 
 class ngraph::pass::SoftSignDecomposition : public ngraph::pass::MatcherPass {
