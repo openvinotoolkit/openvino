@@ -9,7 +9,7 @@
 namespace ov {
 namespace op {
 namespace v9 {
-class OPENVINO_API SoftSign: public Op {
+class OPENVINO_API SoftSign : public Op {
 public:
     OPENVINO_OP("SoftSign", "opset9");
     BWDCMP_RTTI_DECLARATION;
