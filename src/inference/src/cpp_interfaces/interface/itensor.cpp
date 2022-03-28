@@ -300,14 +300,6 @@ struct BlobTensor : public ITensor {
     std::shared_ptr<ie::Blob> blob;
 };
 
-ITensor::Ptr blob_to_tensor(const std::shared_ptr<ie::Blob>& blob) {
-    if (blob == nullptr) {
-        return {};
-    } else {
-        return std::make_shared<BlobTensor>(blob);
-    }
-}
-
 struct TensorRemoteBlob : public ie::RemoteBlob {
     TensorRemoteBlob(const ITensor::Ptr& tensor_)
         : ie::RemoteBlob{ie::TensorDesc{ie::details::convertPrecision(tensor_->get_element_type()),
@@ -399,6 +391,35 @@ struct TensorMemoryBlob : public ie::TBlob<T> {
     }
     ITensor::Ptr tensor;
 };
+
+ITensor::Ptr blob_to_tensor(const std::shared_ptr<ie::Blob>& blob) {
+#define ELSE_IF(type)                                                                \
+    else if (auto tblob = dynamic_cast<const TensorMemoryBlob<type>*>(blob.get())) { \
+        return tblob->tensor;                                                        \
+    }
+    if (blob == nullptr) {
+        return {};
+    } else if (auto tblob = dynamic_cast<const TensorRemoteBlob*>(blob.get())) {
+        return tblob->tensor;
+    }
+    ELSE_IF(float)
+    ELSE_IF(double)
+    ELSE_IF(int8_t)
+    ELSE_IF(int8_t)
+    ELSE_IF(int16_t)
+    ELSE_IF(int32_t)
+    ELSE_IF(int64_t)
+    ELSE_IF(uint8_t)
+    ELSE_IF(uint8_t)
+    ELSE_IF(uint16_t)
+    ELSE_IF(uint32_t)
+    ELSE_IF(uint64_t)
+    ELSE_IF(int8_t)
+    ELSE_IF(bool) else {
+        return std::make_shared<BlobTensor>(blob);
+    }
+#undef IF
+}
 
 ie::Blob::Ptr tensor_to_blob(const ITensor::Ptr& tensor) {
     if (tensor == nullptr) {
