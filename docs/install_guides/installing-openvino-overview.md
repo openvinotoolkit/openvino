@@ -1,20 +1,19 @@
 # Overview {#openvino_docs_install_guides_overview}
 
-Intel® Distribution of OpenVINO™ toolkit is a comprehensive toolkit for quickly developing applications and solutions that solve a variety of tasks including emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, and many others. It accelerates applications with high-performance, AI and deep learning inference deployed from edge to cloud by:
+Intel® Distribution of OpenVINO™ toolkit is a comprehensive toolkit for developing applications and solutions based on deep learning tasks, such as: emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, etc. It provides high-performance and rich deployment options, from edge to cloud. Some of its advantages are:
 
 * Enabling CNN-based deep learning inference on the edge.
-* Supporting heterogeneous execution across Intel® CPU, Intel® Integrated Graphics, Intel® Neural Compute Stick 2, and Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.
+* Supporting various execution modes across Intel® technologies: Intel® CPU, Intel® Integrated Graphics, Intel® Neural Compute Stick 2, and Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.
 * Speeding time-to-market via an easy-to-use library of computer vision functions and pre-optimized kernels.
 
 ## Installation Options
 
-From the 2022.1 release, the OpenVINO installation package has been separated into two parts: OpenVINO Runtime and OpenVINO Development Tools. See the following instructions to decide your installation process.
-
+Since the 2022.1 release, the OpenVINO installation package has been distributed in two parts: OpenVINO Runtime and OpenVINO Development Tools. See the following instructions to choose your installation process.
 ### Decide What to Install
 
-**If you have already finished your model development and want to deploy your applications on various devices, [install OpenVINO Runtime](installing-openvino-runtime.md)**, which contains a set of libraries for an easy inference integration into your applications and supports heterogeneous execution across Intel® CPU and Intel® GPU hardware.
+**If you have already finished your model development and want to deploy your applications on various devices, [install OpenVINO Runtime](installing-openvino-runtime.md)**, which contains a set of libraries for easy inference integration with your products.
 
-**If you want to download model from [Open Model Zoo](../model_zoo.md), convert to [OpenVINO IR](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md), [optimize](../optimization_guide/model_optimization_guide.md) and tune pre-trained deep learning models**, [install OpenVINO Development Tools](installing-model-dev-tools.md), which provides the following tools:
+**If you want to download models from [Open Model Zoo](../model_zoo.md), [convert your own models to OpenVINO IR](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md), or [optimize and tune pre-trained deep learning models](../optimization_guide/model_optimization_guide.md)**, [install OpenVINO Development Tools](installing-model-dev-tools.md), which provides the following tools:
 
   * Model Optimizer
   * Post-Training Optimization Tool
@@ -25,15 +24,14 @@ From the 2022.1 release, the OpenVINO installation package has been separated in
 
 ### Choose Your Installation Method
 
-For Python developers, you can [install OpenVINO from PyPI](installing-openvino-pip.md), which contains both OpenVINO Runtime and Development Tools and less steps.
+For Python developers, you can [install OpenVINO from PyPI](installing-openvino-pip.md), which contains both OpenVINO Runtime and Development Tools, while requiring fewer steps. 
 
-For C++ developers, you may choose one of the following installation options to install OpenVINO Runtime on your specific operating system:
+For C++ developers, you may choose one of the following installation options for OpenVINO Runtime on your specific operating system:
 
-* Linux: You can install OpenVINO Runtime using an [Installer](installing-openvino-linux.md), [APT](installing-openvino-apt.md), [YUM](installing-openvino-yum.md), [Anaconda Cloud](installing-openvino-conda.md) or [Docker](installing-openvino-docker-linux.md).
-* Windows: You can install OpenVINO Runtime using an [Installer](installing-openvino-windows.md), [Anaconda Cloud](installing-openvino-conda.md) or [Docker](installing-openvino-docker-windows.md).
+* Linux: You can install OpenVINO Runtime using an [Installer](installing-openvino-linux.md), [APT](installing-openvino-apt.md), [YUM](installing-openvino-yum.md), [Anaconda Cloud](installing-openvino-conda.md), or [Docker](installing-openvino-docker-linux.md).
+* Windows: You can install OpenVINO Runtime using an [Installer](installing-openvino-windows.md), [Anaconda Cloud](installing-openvino-conda.md), or [Docker](installing-openvino-docker-windows.md).
 * macOS: You can install OpenVINO Runtime using an [Installer](installing-openvino-macos.md) or [Anaconda Cloud](installing-openvino-conda.md).
 * [Raspbian OS](installing-openvino-raspbian.md).
 
-> **NOTE**: From the 2022.1 release, OpenVINO Development Tools can **only** be installed via PyPI. See [Install OpenVINO Development Tools](installing-model-dev-tools.md) for detailed steps.
-
-Besides, the open source version is also available in the [OpenVINO™ toolkit GitHub repository](https://github.com/openvinotoolkit/openvino/). You can build it for supported platforms using the [OpenVINO Build Instructions](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
+> **NOTE**: With the introduction of the 2022.1 release, the OpenVINO Development Tools can be installed **only** via PyPI. See [Install OpenVINO Development Tools](installing-model-dev-tools.md) for detailed steps.
+Source files are also available in the [OpenVINO toolkit GitHub repository](https://github.com/openvinotoolkit/openvino/), so you can build your own package for the supported platforms, as described in [OpenVINO Build Instructions](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
