@@ -10,6 +10,7 @@ namespace ov {
 namespace op {
 namespace v0 {
 /// \brief Elementwise floor operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Floor : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Floor", "opset1", util::UnaryElementwiseArithmetic);
