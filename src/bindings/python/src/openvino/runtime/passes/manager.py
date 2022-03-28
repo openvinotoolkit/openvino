@@ -6,11 +6,11 @@ from openvino.pyopenvino.passes import PassBase
 
 class Manager(ManagerBase):
     """Manager that additionally holds transformations objects."""
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.passes_list = []  # need to keep python instances alive
 
-    def register_pass(self, *args, **kwargs):
+    def register_pass(self, *args, **kwargs) -> PassBase:
         """Register transformation for further execution."""
         for arg in args:
             if isinstance(arg, PassBase):
