@@ -44,8 +44,8 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
             if (input.get_partial_shape().is_static() && shape.get_partial_shape().is_static()) {
                 const auto input_shape = input.get_shape();
                 const auto output_shape = get_constant_from_source(shape)->cast_vector<int64_t>();
-                const auto input_elems = std::accumulate(input_shape.begin(), input_shape.end(), 1, std::multiplies<size_t>());
-                const auto output_elems = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<size_t>());
+                const auto input_elems = std::accumulate(input_shape.begin(), input_shape.end(), 1, std::multiplies<int64_t>());
+                const auto output_elems = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int64_t>());
                 if (output_elems > 0 && input_elems != output_elems && !mask->all_dims_are_empty()) {
                     const auto consumers = shape.get_node()->get_output_target_inputs(0);
                     if (shape.get_node()->outputs().size() != 1 || consumers.size() != 1) {
@@ -93,7 +93,6 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
         }
 #endif
 
-        //if (!mask) continue;
         // Case mask should adjust value from constant instead of constant pruning
         if (mask->adjust_value() && !mask->all_dims_are_empty()) {
             std::vector<int64_t> new_const_value;

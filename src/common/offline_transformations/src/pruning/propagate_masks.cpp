@@ -871,7 +871,7 @@ public:
 };
 
 
-using dims_vec = std::vector<uint64_t>;
+using dims_vec = std::vector<size_t>;
 static std::vector<dims_vec> map_reshape_dimensions(
     const dims_vec input_shape, const dims_vec output_shape) {
     auto dims_map = std::vector<dims_vec>();
@@ -995,17 +995,17 @@ static ChannelsMap map_channels(
 }
 
 static std::vector<DimsAttr> collect_dims_attrs(
-    const std::vector<dims_vec> dims_map, const std::vector<uint64_t> unsquized_shape) {
+    const std::vector<dims_vec> dims_map, const std::vector<size_t> unsquized_shape) {
     auto dims_attrs = std::vector<DimsAttr>();
-    for (uint64_t squized_dim = 0; squized_dim < dims_map.size(); ++squized_dim) {
+    for (size_t squized_dim = 0; squized_dim < dims_map.size(); ++squized_dim) {
         auto unsquized_dims = dims_map[squized_dim];
-        for (uint64_t in_idx = 0; in_idx < unsquized_dims.size(); ++in_idx) {
-            uint64_t elems_outer_dims = std::accumulate(unsquized_shape.begin() + unsquized_dims[0],
+        for (size_t in_idx = 0; in_idx < unsquized_dims.size(); ++in_idx) {
+            size_t elems_outer_dims = std::accumulate(unsquized_shape.begin() + unsquized_dims[0],
                                                       unsquized_shape.begin() + unsquized_dims[0] + in_idx,
-                                                      1, std::multiplies<uint64_t>());
-            uint64_t elems_inner_dims = std::accumulate(unsquized_shape.begin() + unsquized_dims[0] + in_idx + 1,
+                                                      1, std::multiplies<size_t>());
+            size_t elems_inner_dims = std::accumulate(unsquized_shape.begin() + unsquized_dims[0] + in_idx + 1,
                                                       unsquized_shape.begin() + unsquized_dims[0] + unsquized_dims.size(),
-                                                      1, std::multiplies<uint64_t>());
+                                                      1, std::multiplies<size_t>());
             const auto dim = unsquized_shape[unsquized_dims[in_idx]];
             dims_attrs.push_back(DimsAttr{elems_inner_dims, elems_outer_dims, dim * elems_inner_dims, dim});
         }
