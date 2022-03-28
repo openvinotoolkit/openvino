@@ -12,10 +12,12 @@
 ngraph::OpSet::OpSet(const ov::OpSet& opset) : ov::OpSet(opset) {}
 
 const ngraph::FactoryRegistry<ngraph::Node>& ngraph::OpSet::get_factory_registry() {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     for (const auto& builder : m_factory->get_builders()) {
         m_factory_registry.register_factory(builder.first, builder.second);
     }
     return m_factory_registry;
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 /**

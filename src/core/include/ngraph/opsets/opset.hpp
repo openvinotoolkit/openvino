@@ -24,9 +24,13 @@ public:
     explicit OpSet(const ov::OpSet& opset);
     OpSet(const ngraph::OpSet& opset) = default;
     OpSet() = default;
+
     /// \brief Insert an op into the opset with a particular name and factory
+    NGRAPH_DEPRECATED("This method is deprecated and will be removed in 2023.1.")
     void insert(const std::string& name, const NodeTypeInfo& type_info, FactoryRegistry<Node>::Factory factory) {
+        NGRAPH_SUPPRESS_DEPRECATED_START
         return ov::OpSet::insert(name, type_info, std::move(factory));
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
     /// \brief Insert OP_TYPE into the opset with a special name and the default factory
     template <typename OP_TYPE>
@@ -47,6 +51,7 @@ public:
         ov::OpSet::insert<OP_TYPE>(OP_TYPE::get_type_info_static().name);
     }
 
+    NGRAPH_DEPRECATED("This method is deprecated and will be removed in 2023.1.")
     const ngraph::FactoryRegistry<ngraph::Node>& get_factory_registry();
 
 private:
