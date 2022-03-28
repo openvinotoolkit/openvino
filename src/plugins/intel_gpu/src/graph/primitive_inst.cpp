@@ -154,7 +154,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         for (auto& input : _exec_deps) {
             auto id = input->id();
             try {
-                // if the requested event does not exits it means that it has not been executed, so the processing_order is
+                // if the requested event does not exists it means that it has not been executed, so the processing_order is
                 // wrong or synchronization failed.
                 auto ev = get_network().get_primitive_event(id);
                 dependencies.emplace_back(ev);
