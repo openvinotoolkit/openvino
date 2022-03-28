@@ -368,7 +368,7 @@ struct TensorMemoryBlob : public ie::TBlob<T> {
                        std::iota(blk_order.begin(), blk_order.end(), 0);
                        ie::SizeVector dim_offset(shape.size(), 0);
                        ie::SizeVector blk_strides;
-                       auto byte_strides = element_type.bitwidth() > 8 ? tensor_->get_strides() : Strides{};
+                       auto byte_strides = element_type.bitwidth() >= 8 ? tensor_->get_strides() : Strides{};
                        if (byte_strides.empty()) {
                            blk_strides = ov::row_major_strides(shape);
                        } else {

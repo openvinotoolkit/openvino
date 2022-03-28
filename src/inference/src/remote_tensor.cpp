@@ -13,11 +13,15 @@ namespace ov {
 
 void RemoteTensor::type_check(const Tensor& tensor, const std::map<std::string, std::vector<std::string>>& type_info) {
     OPENVINO_ASSERT(tensor, "Could not check empty tensor type");
+    auto retmote_properties = tensor._impl->get_properties();
+    OPENVINO_ASSERT(!retmote_properties.empty());
     if (!type_info.empty()) {
-        auto params = tensor._impl->get_properties();
         for (auto&& type_info_value : type_info) {
-            auto it_param = params.find(type_info_value.first);
-            OPENVINO_ASSERT(it_param != params.end(), "Parameter with key ", type_info_value.first, " not found");
+            auto it_param = retmote_properties.find(type_info_value.first);
+            OPENVINO_ASSERT(it_param != retmote_properties.end(),
+                            "Parameter with key ",
+                            type_info_value.first,
+                            " not found");
             if (!type_info_value.second.empty()) {
                 auto param_value = it_param->second.as<std::string>();
                 auto param_found = std::any_of(type_info_value.second.begin(),
