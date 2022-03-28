@@ -42,15 +42,9 @@ void regclass_graph_Any(py::module m) {
     });
 
     ov_any.def("__len__", [](const ov::Any& self){
-        return Common::from_ov_any(self).size();
-    });
-
-    ov_any.def("__set__", [](const ov::Any& self){
-
-    });
-
-    ov_any.def("__get__", [](const ov::Any& self){
-
+        py::handle some_object = Common::from_ov_any(self);
+        PyObject *source = some_object.ptr();
+        return PyObject_Length(source);
     });
 
     ov_any.def("__eq__", [](const ov::Any& a, const ov::Any& b) -> bool {

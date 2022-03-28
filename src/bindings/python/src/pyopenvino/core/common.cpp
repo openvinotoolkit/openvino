@@ -310,7 +310,7 @@ py::object from_ov_any(const ov::Any& any) {
         auto val = any.as<int64_t>();
         return py::cast<py::object>(PyLong_FromLong((long)val));
     }
-    // Check for unsinged int
+    // Check for unsigned int
     else if (any.is<unsigned int>()) {
         auto val = any.as<unsigned int>();
         return py::cast<py::object>(PyLong_FromLong((unsigned long)val));

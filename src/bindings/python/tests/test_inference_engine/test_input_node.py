@@ -146,5 +146,4 @@ def test_input_update_rt_info(device):
     rt["test12345"] = "test"
     for k, v in input_node.get_rt_info().items():
         assert k == "test12345"
-        #
-        # assert isinstance(v, OVAny)
+        assert isinstance(v, OVAny)
