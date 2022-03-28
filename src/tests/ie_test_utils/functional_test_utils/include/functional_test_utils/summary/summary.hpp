@@ -90,16 +90,16 @@ public:
 
     void setReportFilename(const std::string& val);
 
-    static void setExtendReport(bool val) { extendReport = val; }
-    static bool getExtendReport() { return extendReport; }
+    static void setExtendReport(bool val);
+    static bool getExtendReport();
 
-    static void setSaveReportWithUniqueName(bool val) { saveReportWithUniqueName = val; }
-    static bool getSaveReportWithUniqueName() { return saveReportWithUniqueName; }
+    static void setSaveReportWithUniqueName(bool val);
+    static bool getSaveReportWithUniqueName();
 
-    static void setSaveReportTimeout(size_t val) { saveReportTimeout = val; }
-    static size_t getSaveReportTimeout() { return saveReportTimeout; }
+    static void setSaveReportTimeout(size_t val);
+    static size_t getSaveReportTimeout();
 
-    static void setOutputFolder(const std::string &val) { outputFolder = val.c_str(); }
+    static void setOutputFolder(const std::string &val);
 };
 
 }  // namespace utils
