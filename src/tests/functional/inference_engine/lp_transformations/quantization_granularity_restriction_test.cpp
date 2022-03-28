@@ -66,6 +66,8 @@ public:
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
             std::vector<float>({ 1.f }),
             { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+            {},
+            {},
             quantizationRestrictions);
     }
 

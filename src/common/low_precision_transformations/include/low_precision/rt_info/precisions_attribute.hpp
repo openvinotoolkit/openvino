@@ -30,6 +30,10 @@ public:
     OPENVINO_RTTI("LowPrecision::Precisions", "", ov::RuntimeAttribute, 0);
     PrecisionsAttribute(const std::vector<ngraph::element::Type>& precisions);
 
+    bool operator==(const PrecisionsAttribute& attribute) const {
+        return this->value() == attribute.value();
+    }
+
     static ov::Any create(
         const std::shared_ptr<ngraph::Node>& node,
         const AttributeParameters& params);

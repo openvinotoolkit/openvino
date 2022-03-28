@@ -25,29 +25,33 @@ public:
 
     ngraph::Node::type_info_t operationType;
     bool specifyVersion;
-    std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>> precisionsByPort;
+    PrecisionsByPort inputPrecisionsByPort;
+    PrecisionsByPort outputPrecisionsByPort;
 
     PrecisionsRestriction() = default;
     PrecisionsRestriction(
         const ngraph::Node::type_info_t operationType,
         const bool specifyVersion,
-        const PrecisionsByPort& precisionsByPort) :
+        const PrecisionsByPort& inputPrecisionsByPort,
+        const PrecisionsByPort& outputPrecisionsByPort = {}) :
         operationType(operationType),
         specifyVersion(specifyVersion),
-        precisionsByPort(precisionsByPort) {}
+        inputPrecisionsByPort(inputPrecisionsByPort),
+        outputPrecisionsByPort(outputPrecisionsByPort) {}
 
     template <typename T>
     static PrecisionsRestriction create(
-        const PrecisionsByPort& precisionsByPort,
+        const PrecisionsByPort& precisionsByInputPorts,
+        const PrecisionsByPort& precisionsByOutputPorts = {},
         const bool specifyVersion = false) {
-        return PrecisionsRestriction(T::get_type_info_static(), specifyVersion, precisionsByPort);
+        return PrecisionsRestriction(T::get_type_info_static(), specifyVersion, precisionsByInputPorts, precisionsByOutputPorts);
     }
 
     template <typename T>
-    static PrecisionsByPort getPrecisionsByOperationType(std::vector<PrecisionsRestriction>& restrictions) {
+    static PrecisionsByPort getPrecisionsByOperationType(std::vector<PrecisionsRestriction>& restrictions, const bool input = true) {
         for (const auto& restriction : restrictions) {
             if (restriction.operationType == T::get_type_info_static()) {
-                return restriction.precisionsByPort;
+                return input ? restriction.inputPrecisionsByPort : restriction.outputPrecisionsByPort;
             }
         }
         return {};

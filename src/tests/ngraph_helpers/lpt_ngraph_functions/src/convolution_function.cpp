@@ -323,6 +323,8 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::get(
     const ngraph::builder::subgraph::FakeQuantizeOnData& fakeQuantizeOnData,
     const std::vector<float>& weightsValues,
     const ngraph::builder::subgraph::FakeQuantizeOnWeights& fakeQuantizeOnWeights,
+    const ngraph::pass::low_precision::PrecisionsRestriction::PrecisionsByPort& inputPrecisionsByPort,
+    const ngraph::pass::low_precision::PrecisionsRestriction::PrecisionsByPort& outputPrecisionsByPort,
     const std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>& restrictions) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
     input->set_friendly_name("input");
@@ -378,6 +380,16 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::get(
             auto& rt = convolution->input(restrictedPort.port).get_rt_info();
             rt[QuantizationGranularityAttribute::get_type_info_static()] = QuantizationGranularityAttribute(restrictedPort.granularity);
         }
+    }
+
+    for (const auto& r : inputPrecisionsByPort) {
+        auto& rt = convolution->input(r.first).get_rt_info();
+        rt[PrecisionsAttribute::get_type_info_static()] = PrecisionsAttribute(r.second);
+    }
+
+    for (const auto& r : outputPrecisionsByPort) {
+        auto& rt = convolution->output(r.first).get_rt_info();
+        rt[PrecisionsAttribute::get_type_info_static()] = PrecisionsAttribute(r.second);
     }
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(convolution) };

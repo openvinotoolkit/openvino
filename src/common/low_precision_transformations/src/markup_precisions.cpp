@@ -28,10 +28,21 @@ ngraph::pass::low_precision::MarkupPrecisions::MarkupPrecisions(
         OPENVINO_SUPPRESS_DEPRECATED_START
         if (it == restrictionsByOperation.end()) {
             Restriction r(restriction.specifyVersion);
-            r.precisionsByVersion.emplace(restriction.operationType.version, restriction.precisionsByPort);
+            if (!restriction.inputPrecisionsByPort.empty()) {
+                r.inputPrecisionsByVersion.emplace(restriction.operationType.version, restriction.inputPrecisionsByPort);
+            }
+
+            if (!restriction.outputPrecisionsByPort.empty()) {
+                r.outputPrecisionsByVersion.emplace(restriction.operationType.version, restriction.outputPrecisionsByPort);
+            }
+
             restrictionsByOperation.emplace(restriction.operationType.name, r);
         } else {
-            it->second.add(restriction.operationType.version, restriction.precisionsByPort);
+            Restriction& r = it->second;
+            it->second.add(restriction.operationType.version, restriction.inputPrecisionsByPort, restriction.outputPrecisionsByPort);
+
+            r.inputPrecisionsByVersion.emplace(restriction.operationType.version, restriction.inputPrecisionsByPort);
+            r.outputPrecisionsByVersion.emplace(restriction.operationType.version, restriction.outputPrecisionsByPort);
         }
         OPENVINO_SUPPRESS_DEPRECATED_END
     }
@@ -40,21 +51,22 @@ ngraph::pass::low_precision::MarkupPrecisions::MarkupPrecisions(
 namespace {
 void setRestriction(
     const std::shared_ptr<Node>& node,
-    const std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>>& precisionsByPort) {
+    const std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>>& precisionsByPort,
+    const bool setForInput) {
     if (precisionsByPort.empty()) {
-        // if available precisions for any port is empty then mark all input ports
-        for (auto& input : node->inputs()) {
-            auto& rt = input.get_rt_info();
+        for (auto i = 0; i < (setForInput ? node->get_input_size() : node->get_output_size()); ++i) {
+            auto& rt = setForInput ? node->input(i).get_rt_info() : node->output(i).get_rt_info();
             rt.emplace(
-                    PrecisionsAttribute::get_type_info_static(),
-                    PrecisionsAttribute(std::vector<element::Type>()));
+                PrecisionsAttribute::get_type_info_static(),
+                PrecisionsAttribute(std::vector<element::Type>()));
         }
     } else {
         for (const std::pair<size_t, std::vector<ngraph::element::Type>>& item : precisionsByPort) {
-            Input<Node> input = node->input(item.first);
-            auto& rt = input.get_rt_info();
+            auto& rt = setForInput ? node->input(item.first).get_rt_info() : node->output(item.first).get_rt_info();
 
-            auto precisionsAttribute = ngraph::pass::low_precision::getAttribute<PrecisionsAttribute>(input);
+            auto precisionsAttribute = setForInput ?
+                ngraph::pass::low_precision::getAttribute<PrecisionsAttribute>(node->input(item.first)) :
+                ngraph::pass::low_precision::getAttributeFromOutput<PrecisionsAttribute>(node->output(item.first));
             if ((!precisionsAttribute.empty()) &&
                 (precisionsAttribute.as<PrecisionsAttribute>().value().empty())) {
                 return;
@@ -80,7 +92,7 @@ bool ngraph::pass::low_precision::MarkupPrecisions::run_on_model(const std::shar
         // if don't set restrictions for not supported operations then accuracy drop appears, issue #59197
         const bool supported = ov::is_type<opset1::Result>(node) || isSupported(node);
         if (!supported || !LayerTransformation::canBeTransformedStatic(node, defaultPrecisions)) {
-            setRestriction(node, std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>> { {0ul, {}}});
+            setRestriction(node, std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>> { {0ul, {}}}, true);
             continue;
         }
 
@@ -96,22 +108,32 @@ bool ngraph::pass::low_precision::MarkupPrecisions::run_on_model(const std::shar
         auto it = restrictionsByOperation.find(typeInfo.name);
         if (it != restrictionsByOperation.end()) {
             const Restriction& r = it->second;
-            if (r.versionIsRequired) {
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                const auto it2 = r.precisionsByVersion.find(typeInfo.version);
-                OPENVINO_SUPPRESS_DEPRECATED_END
-                if (it2 == r.precisionsByVersion.end()) {
-                    continue;
+            auto setRestriction = [&](const std::shared_ptr<Node>& node, const Restriction& r, const bool input) {
+                const auto& precisionsByVersion = input ? r.inputPrecisionsByVersion : r.outputPrecisionsByVersion;
+                if (precisionsByVersion.empty()) {
+                    return;
                 }
 
-                const std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>>& precisionsByPort = it2->second;
-                setRestriction(node, precisionsByPort);
-            } else {
-                assert(r.precisionsByVersion.size() == 1ul);
+                if (r.versionIsRequired) {
+                    const auto& typeInfo = node->get_type_info();
+                    OPENVINO_SUPPRESS_DEPRECATED_START
+                    const auto it2 = precisionsByVersion.find(typeInfo.version);
+                    OPENVINO_SUPPRESS_DEPRECATED_END
+                    if (it2 == precisionsByVersion.end()) {
+                        return;
+                    }
 
-                const std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>>& precisionsByPort = r.precisionsByVersion.begin()->second;
-                setRestriction(node, precisionsByPort);
-            }
+                    const std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>>& precisionsByPort = it2->second;
+                    ::setRestriction(node, precisionsByPort, input);
+                } else {
+                    assert(precisionsByVersion.size() == 1ul);
+
+                    const std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>>& precisionsByPort = precisionsByVersion.begin()->second;
+                    ::setRestriction(node, precisionsByPort, input);
+                }
+            };
+            setRestriction(node, r, true);
+            setRestriction(node, r, false);
         }
     }
     return true;

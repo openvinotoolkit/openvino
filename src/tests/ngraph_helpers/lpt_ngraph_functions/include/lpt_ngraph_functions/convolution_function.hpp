@@ -9,7 +9,7 @@
 #include <ngraph/opsets/opset1.hpp>
 
 #include <low_precision/common/quantization_granularity_restriction.hpp>
-
+#include <low_precision/common/precisions_restriction.hpp>
 #include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
@@ -73,6 +73,8 @@ public:
         const ngraph::builder::subgraph::FakeQuantizeOnData& fakeQuantizeOnData,
         const std::vector<float>& weightsValues,
         const ngraph::builder::subgraph::FakeQuantizeOnWeights& fakeQuantizeOnWeights,
+        const ngraph::pass::low_precision::PrecisionsRestriction::PrecisionsByPort& inputPrecisionsByPort = {},
+        const ngraph::pass::low_precision::PrecisionsRestriction::PrecisionsByPort& outputPrecisionsByPort = {},
         const std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>& restrictions = {});
 };
 }  // namespace subgraph

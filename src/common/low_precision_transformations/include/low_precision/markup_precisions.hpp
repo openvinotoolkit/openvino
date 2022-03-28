@@ -39,16 +39,22 @@ public:
     class Restriction {
     public:
         explicit Restriction(const bool versionIsRequired) : versionIsRequired(versionIsRequired) {}
-        void add(const uint64_t version, const std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>>& precisions) {
-            precisionsByVersion.emplace(version, precisions);
+        void add(
+            const uint64_t version,
+            const std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>>& inputPrecisions,
+            const std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>>& outputPrecisions) {
+            inputPrecisionsByVersion.emplace(version, inputPrecisions);
+            outputPrecisionsByVersion.emplace(version, outputPrecisions);
         }
 
         bool versionIsRequired;
-        std::unordered_map<uint64_t, std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>>> precisionsByVersion;
+        std::unordered_map<uint64_t, std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>>> inputPrecisionsByVersion;
+        std::unordered_map<uint64_t, std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>>> outputPrecisionsByVersion;
     };
 
     OPENVINO_RTTI("MarkupPrecisions", "0");
-    explicit MarkupPrecisions(const std::vector<PrecisionsRestriction>& restrictions = {},
+    explicit MarkupPrecisions(
+        const std::vector<PrecisionsRestriction>& restrictions = {},
         const std::vector<ngraph::element::Type>& defaultPrecisions = { ngraph::element::u8, ngraph::element::i8 });
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 
