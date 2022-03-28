@@ -15,8 +15,6 @@
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::PullReshapeThroughDequantization, "PullReshapeThroughDequantizationFusion", 0);
-
 namespace pull_reshape_through_dequantization {
 namespace {
 

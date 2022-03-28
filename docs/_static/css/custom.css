@@ -49,7 +49,69 @@ main img {
     background-image: url('media/union-up.svg');
 }
 
+div.highlight {
+    margin-bottom: 1.15rem;
+}
+
 .highlight .err {
     border:none;
     color:inherit;
+}
+
+.opt-notice-wrapper {
+    position: fixed;
+    bottom:0;
+    background: black;
+    width:100%;
+    text-align: center;
+    padding: 1rem;
+    z-index: 1000;
+}
+
+.opt-notice {
+    margin-bottom: 0;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    text-align: center;
+    width:100%;
+    color: #fff;
+}
+
+/* Transition banner */
+.transition-banner {
+    top: 60px;
+    background: #76CEFF;
+    position: fixed;
+    text-align: center;
+    color: white;
+    z-index: 1001;
+    display: block;
+    padding:0 2rem;
+    font-size: var(--pst-sidebar-font-size);
+    border: none;
+    border-radius: 0;
+    font-weight: bold;
+}
+
+.transition-banner > p {
+    margin-bottom: 0;
+}
+
+.transition-banner .close {
+    padding: 0 1.25rem;
+    color: #000;
+}
+
+
+@media (max-width: 720px) {
+    .transition-banner {
+        margin-top: 2rem;
+    }
+}
+
+@media (min-width: 1200px) {
+    .container, .container-lg, .container-md, .container-sm, .container-xl {
+        max-width: 1800px;
+    }
 }

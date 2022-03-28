@@ -19,6 +19,7 @@ using namespace Xbyak;
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 namespace {
 
 std::tuple<Algorithm, std::string> getAlgorithmFor(const std::shared_ptr<const ngraph::Node>& op) {
@@ -33,11 +34,11 @@ std::tuple<Algorithm, std::string> getAlgorithmFor(const std::shared_ptr<const n
     return std::make_tuple(Algorithm::Default, std::string("Type ") + op->get_type_name() + " is not supported.");
 }
 
-class Converter : public MKLDNNColorConvertNode::Converter {
-    using Base = MKLDNNColorConvertNode::Converter;
+class Converter : public ColorConvert::Converter {
+    using Base = ColorConvert::Converter;
 
 public:
-    Converter(MKLDNNNode *node);
+    Converter(Node *node);
 
     Shapes shapeInfer() const override;
     bool singlePlane() const;
@@ -46,14 +47,14 @@ public:
     std::tuple<T, T, T> yuv_to_rgb(float y, float u, float v);
 };
 
-Converter::Converter(MKLDNNNode *node)
+Converter::Converter(Node *node)
     : Base(node, node->getAlgorithm() == Algorithm::ColorConvertNV12toRGB
                     || node->getAlgorithm() == Algorithm::ColorConvertI420toRGB
                         ? ColorFormat { { 0, 1, 2 } }
                         : ColorFormat { { 2, 1, 0 } }) {
 }
 
-MKLDNNColorConvertNode::Converter::Shapes
+ColorConvert::Converter::Shapes
 Converter::shapeInfer() const {
     const auto & dims = inputDims(0);
     if (dims.size() != 4)
@@ -275,14 +276,14 @@ void jit_uni_converter::store_tail(const variable<T*> & dst,
 
 namespace nv12 {
 
-MKLDNNColorConvertNode::Converter::PrimitiveDescs supportedPrimitiveDescs(MKLDNNNode *node) {
+ColorConvert::Converter::PrimitiveDescs supportedPrimitiveDescs(Node *node) {
     const LayoutType layout = LayoutType::ncsp; // 0,1,2,3
 
     const Precision precision = node->getOriginalInputPrecisionAtPort(0) == Precision::U8
                                     ? Precision::U8
                                     : Precision::FP32;
 
-    MKLDNNColorConvertNode::Converter::PrimitiveDescs descs;
+    ColorConvert::Converter::PrimitiveDescs descs;
 
     descs.emplace_back(std::vector<PortConfigurator> { node->getOriginalInputsNumber(), { layout, precision } },
                         std::vector<PortConfigurator> { { layout, precision } },
@@ -301,7 +302,7 @@ class TwoPlaneConvert;
 
 class RefConverter : public Converter {
 public:
-    RefConverter(MKLDNNNode *node);
+    RefConverter(Node *node);
 
 protected:
     template<typename T>
@@ -315,7 +316,7 @@ protected:
                  size_t stride_uv);
 };
 
-RefConverter::RefConverter(MKLDNNNode *node)
+RefConverter::RefConverter(Node *node)
     : Converter(node) {
     if (node->getOriginalInputsNumber() != (singlePlane() ? 1: 2))
         IE_THROW() <<"NV12Converter node has incorrect number of inputs";
@@ -553,7 +554,7 @@ const jit_uni_converter & jit_converter_get() {
 template<typename T>
 class SinglePlaneConvert<T, impl_desc_type::jit_uni> : public Converter {
 public:
-    SinglePlaneConvert(MKLDNNNode *node)
+    SinglePlaneConvert(Node *node)
         : Converter(node) {
         jit_converter_create<T>();
     }
@@ -588,7 +589,7 @@ public:
 template<typename T>
 class TwoPlaneConvert<T, impl_desc_type::jit_uni> : public Converter {
 public:
-    TwoPlaneConvert(MKLDNNNode *node)
+    TwoPlaneConvert(Node *node)
         : Converter(node) {
         jit_converter_create<T>();
     }
@@ -624,14 +625,14 @@ public:
 
 namespace i420 {
 
-MKLDNNColorConvertNode::Converter::PrimitiveDescs supportedPrimitiveDescs(MKLDNNNode *node) {
+ColorConvert::Converter::PrimitiveDescs supportedPrimitiveDescs(Node *node) {
     const LayoutType layout = LayoutType::ncsp; // 0,1,2,3
 
     const Precision precision = node->getOriginalInputPrecisionAtPort(0) == Precision::U8
                                     ? Precision::U8
                                     : Precision::FP32;
 
-    MKLDNNColorConvertNode::Converter::PrimitiveDescs descs;
+    ColorConvert::Converter::PrimitiveDescs descs;
 
     descs.emplace_back(std::vector<PortConfigurator> { node->getOriginalInputsNumber(), { layout, precision } },
                         std::vector<PortConfigurator> { { layout, precision } },
@@ -650,7 +651,7 @@ class ThreePlaneConvert;
 
 class RefConverter : public Converter {
 public:
-    RefConverter(MKLDNNNode *node);
+    RefConverter(Node *node);
 
 protected:
     template<typename T>
@@ -665,7 +666,7 @@ protected:
                  size_t stride_uv);
 };
 
-RefConverter::RefConverter(MKLDNNNode *node)
+RefConverter::RefConverter(Node *node)
     : Converter(node) {
     if (node->getOriginalInputsNumber() != (singlePlane() ? 1: 3))
         IE_THROW() <<"I420Converter node has incorrect number of inputs";
@@ -902,7 +903,7 @@ const jit_uni_converter & jit_converter_get() {
 template<typename T>
 class SinglePlaneConvert<T, impl_desc_type::jit_uni> : public Converter {
 public:
-    SinglePlaneConvert(MKLDNNNode *node)
+    SinglePlaneConvert(Node *node)
         : Converter(node) {
         jit_converter_create<T>();
     }
@@ -939,7 +940,7 @@ public:
 template<typename T>
 class ThreePlaneConvert<T, impl_desc_type::jit_uni> : public Converter {
 public:
-    ThreePlaneConvert(MKLDNNNode *node)
+    ThreePlaneConvert(Node *node)
         : Converter(node) {
         jit_converter_create<T>();
     }
@@ -977,50 +978,50 @@ public:
 
 }   // namespace
 
-MKLDNNColorConvertNode::Converter::Converter(MKLDNNNode *node, const ColorFormat & colorFormat)
+ColorConvert::Converter::Converter(Node *node, const ColorFormat & colorFormat)
     : _node(node)
     , _colorFormat(colorFormat) {
 }
 
-InferenceEngine::Precision MKLDNNColorConvertNode::Converter::inputPrecision(size_t idx) const {
+InferenceEngine::Precision ColorConvert::Converter::inputPrecision(size_t idx) const {
     return _node->getParentEdgesAtPort(idx)[0]->getMemory().getDesc().getPrecision();
 }
 
-InferenceEngine::Precision MKLDNNColorConvertNode::Converter::outputPrecision(size_t idx) const {
+InferenceEngine::Precision ColorConvert::Converter::outputPrecision(size_t idx) const {
     return _node->getChildEdgesAtPort(idx)[0]->getMemory().getDesc().getPrecision();
 }
 
-const void * MKLDNNColorConvertNode::Converter::input(size_t idx) const {
+const void * ColorConvert::Converter::input(size_t idx) const {
     return _node->getParentEdgeAt(idx)->getMemoryPtr()->GetPtr();
 }
 
-void * MKLDNNColorConvertNode::Converter::output(size_t idx) const {
+void * ColorConvert::Converter::output(size_t idx) const {
     return _node->getChildEdgeAt(idx)->getMemoryPtr()->GetPtr();
 }
 
-const VectorDims & MKLDNNColorConvertNode::Converter::inputDims(size_t idx) const {
+const VectorDims & ColorConvert::Converter::inputDims(size_t idx) const {
     return _node->getParentEdgesAtPort(idx)[0]->getMemory().getStaticDims();
 }
 
-bool MKLDNNColorConvertNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool ColorConvert::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     Algorithm alg;
     std::tie(alg, errorMessage) = getAlgorithmFor(op);
     return alg != Algorithm::Default;
 }
 
-MKLDNNColorConvertNode::MKLDNNColorConvertNode(const std::shared_ptr<ngraph::Node>& op,
+ColorConvert::ColorConvert(const std::shared_ptr<ngraph::Node>& op,
                                                const mkldnn::engine& eng,
-                                               MKLDNNWeightsSharing::Ptr &cache)
-    : MKLDNNNode(op, eng, cache) {
+                                               WeightsSharing::Ptr &cache)
+    : Node(op, eng, cache) {
     std::string errorMessage;
     std::tie(algorithm, errorMessage) = getAlgorithmFor(op);
     if (algorithm == Algorithm::Default)
         IE_THROW(NotImplemented) << errorMessage;
 }
 
-void MKLDNNColorConvertNode::getSupportedDescriptors() {}
+void ColorConvert::getSupportedDescriptors() {}
 
-void MKLDNNColorConvertNode::initSupportedPrimitiveDescriptors() {
+void ColorConvert::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -1054,9 +1055,9 @@ void MKLDNNColorConvertNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void MKLDNNColorConvertNode::initSupportedNV12Impls() {
+void ColorConvert::initSupportedNV12Impls() {
     #define SUPPORTED_IMPL(Impl, type, desc_type)                           \
-        [](MKLDNNNode *node) {                                              \
+        [](Node *node) {                                              \
             return new nv12::Impl<type, impl_desc_type::desc_type>(node);   \
         };
 
@@ -1081,9 +1082,9 @@ void MKLDNNColorConvertNode::initSupportedNV12Impls() {
     #undef SUPPORTED_IMPL
 }
 
-void MKLDNNColorConvertNode::initSupportedI420Impls() {
+void ColorConvert::initSupportedI420Impls() {
     #define SUPPORTED_IMPL(Impl, type, desc_type)                           \
-        [](MKLDNNNode *node) {                                              \
+        [](Node *node) {                                              \
             return new i420::Impl<type, impl_desc_type::desc_type>(node);   \
         };
 
@@ -1108,7 +1109,7 @@ void MKLDNNColorConvertNode::initSupportedI420Impls() {
     #undef SUPPORTED_IMPL
 }
 
-void MKLDNNColorConvertNode::createPrimitive() {
+void ColorConvert::createPrimitive() {
     const NodeDesc *desc = getSelectedPrimitiveDescriptor();
     if (!desc)
         IE_THROW() << getTypeStr() + " node with name '" + getName() + "' "
@@ -1127,33 +1128,32 @@ void MKLDNNColorConvertNode::createPrimitive() {
     }
 }
 
-void MKLDNNColorConvertNode::execute(mkldnn::stream strm) {
+void ColorConvert::execute(mkldnn::stream strm) {
     if (!_impl)
         IE_THROW() << getTypeStr() + " node with name '" + getName() + "' "
                    << "has no any implemented converter";
     _impl->execute(strm);
 }
 
-bool MKLDNNColorConvertNode::created() const {
-    return getType() == ColorConvert;
+bool ColorConvert::created() const {
+    return getType() == Type::ColorConvert;
 }
 
-std::vector<VectorDims> MKLDNNColorConvertNode::shapeInfer() const {
+std::vector<VectorDims> ColorConvert::shapeInfer() const {
     if (!_impl)
         IE_THROW() << getTypeStr() + " node with name '" + getName() + "' "
                    << "has no any implemented converter";
     return _impl->shapeInfer();
 }
 
-bool MKLDNNColorConvertNode::needPrepareParams() const {
+bool ColorConvert::needPrepareParams() const {
     return false;
 }
 
-void MKLDNNColorConvertNode::executeDynamicImpl(mkldnn::stream strm) {
+void ColorConvert::executeDynamicImpl(mkldnn::stream strm) {
     execute(strm);
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNColorConvertNode, ColorConvert);
-
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

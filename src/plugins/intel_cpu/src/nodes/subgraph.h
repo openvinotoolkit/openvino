@@ -17,14 +17,15 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-/// MKLDNNSnippetNode represents subgraph node in MKLDNN plugin
+/// Snippet represents subgraph node in CPU plugin
 /// potentially, snippet can be placed as a postop to any support operation while it doesn't support postops itself
 /// precision: fp32
-class MKLDNNSnippetNode : public MKLDNNNode {
+class Snippet : public Node {
 public:
-    MKLDNNSnippetNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNSnippetNode() override = default;
+    Snippet(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    ~Snippet() override = default;
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -73,8 +74,8 @@ private:
     size_t schedulerWorkAmount = 0;
     const size_t maxTileRank = 2;
 
-    std::vector<MKLDNNMemoryPtr> srcMemPtrs = {};
-    std::vector<MKLDNNMemoryPtr> dstMemPtrs = {};
+    std::vector<MemoryPtr> srcMemPtrs = {};
+    std::vector<MemoryPtr> dstMemPtrs = {};
 
     std::vector<std::vector<size_t>> dims_in = {};
     std::vector<std::vector<size_t>> offsets_in = {};
@@ -90,5 +91,6 @@ private:
     bool canUseOptimizedImpl = true;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

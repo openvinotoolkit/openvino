@@ -847,10 +847,10 @@ static RefPreprocessParams set_shape_custom_crop() {
         p.build();
         return f;
     };
-    auto input_size = 4 * 4 * 4 * 4;
-    std::vector<float> input_values(input_size);
+    auto input_shape = Shape{4, 4, 4, 4};
+    std::vector<float> input_values(shape_size(input_shape));
     std::iota(input_values.begin(), input_values.end(), 0);
-    res.inputs.emplace_back(element::f32, Shape{4, 4, 4, 4}, input_values);
+    res.inputs.emplace_back(element::f32, input_shape, input_values);
     res.expected.emplace_back(Shape{2, 2, 2, 2}, element::f32, std::vector<float>{ 85,  86,  89,  90,
                                                                                   101, 102, 105, 106,
                                                                                   149, 150, 153, 154,
@@ -877,6 +877,45 @@ static RefPreprocessParams set_shape_with_resize() {
                                                                                  1, 2, 3,
                                                                                  1, 2, 3});
     res.expected.emplace_back(Shape{1, 3, 1, 1}, element::f32, std::vector<float>{ 1,  2,  3});
+    return res;
+}
+
+static RefPreprocessParams preprocess_crop_basic() {
+    RefPreprocessParams res("preprocess_crop_basic");
+    res.function = []() {
+        auto f = create_simple_function(element::f32, PartialShape{2, 2, 2, 2});
+        auto p = PrePostProcessor(f);
+        p.input().tensor().set_shape({4, 4, 4, 4});
+        p.input().preprocess().crop({1, 1, 1, 1}, {-1, -1, -1, -1});
+        p.build();
+        return f;
+    };
+    auto input_shape = Shape{4, 4, 4, 4};
+    std::vector<float> input_values(shape_size(input_shape));
+    std::iota(input_values.begin(), input_values.end(), 0);
+    res.inputs.emplace_back(element::f32, input_shape, input_values);
+    res.expected.emplace_back(Shape{2, 2, 2, 2}, element::f32, std::vector<float>{ 85,  86,  89,  90,
+                                                                                   101, 102, 105, 106,
+                                                                                   149, 150, 153, 154,
+                                                                                   165, 166, 169, 170});
+    return res;
+}
+
+static RefPreprocessParams preprocess_crop_2axis_dynamic() {
+    RefPreprocessParams res("preprocess_crop_2axis_dynamic");
+    res.function = []() {
+        auto f = create_simple_function(element::f32, PartialShape::dynamic());
+        auto p = PrePostProcessor(f);
+        auto max_int = std::numeric_limits<int>::max();
+        p.input().preprocess().crop({0, 0, 1, 1}, {max_int, max_int, max_int, max_int});
+        p.build();
+        return f;
+    };
+    auto input_shape = Shape{1, 3, 2, 2};
+    std::vector<float> input_values(shape_size(input_shape));
+    std::iota(input_values.begin(), input_values.end(), 0);
+    res.inputs.emplace_back(element::f32, Shape{1, 3, 2, 2}, input_values);
+    res.expected.emplace_back(Shape{1, 3, 1, 1}, element::f32, std::vector<float>{3, 7, 11});
     return res;
 }
 
@@ -1154,6 +1193,8 @@ std::vector<RefPreprocessParams> allPreprocessTests() {
             element_type_before_convert_color_nv12(),
             convert_color_i420_to_bgr_three_planes(),
             convert_color_i420_single_plane(),
+            preprocess_crop_basic(),
+            preprocess_crop_2axis_dynamic(),
             set_shape_custom_crop(),
             set_shape_with_resize(),
             postprocess_2_inputs_basic(),

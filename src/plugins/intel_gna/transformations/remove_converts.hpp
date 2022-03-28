@@ -53,7 +53,7 @@ const std::vector<std::pair<ov::element::Type, ov::element::Type>> kSupportedInp
 
 class RemoveInputConvert : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
+  OPENVINO_RTTI("RemoveInputConvert", "0");
   RemoveInputConvert();
 };
 
@@ -91,7 +91,7 @@ const std::vector<std::pair<ov::element::Type, ov::element::Type>> kSupportedOut
 
 class RemoveOutputConvert : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
+  OPENVINO_RTTI("RemoveOutputConvert", "0");
   RemoveOutputConvert();
 };
 

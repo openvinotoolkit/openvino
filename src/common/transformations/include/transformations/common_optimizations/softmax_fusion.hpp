@@ -71,6 +71,6 @@ class TRANSFORMATIONS_API SoftmaxFusion;
 
 class ngraph::pass::SoftmaxFusion : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SoftmaxFusion", "0");
     SoftmaxFusion();
 };
