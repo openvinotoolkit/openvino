@@ -12,6 +12,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
 endif()
 
 file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
+                  "${CMAKE_CURRENT_SOURCE_DIR}/vpu/*.cpp"
                   "${CMAKE_CURRENT_SOURCE_DIR}/gpu/*.cpp")
 
 find_package(OpenCL)
