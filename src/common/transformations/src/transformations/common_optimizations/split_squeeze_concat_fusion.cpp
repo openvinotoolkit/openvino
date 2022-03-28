@@ -13,8 +13,6 @@
 
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SplitSqueezeConcatFusion, "SplitSqueezeConcatFusion", 0);
-
 ngraph::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion() {
     MATCHER_SCOPE(SplitSqueezeConcatFusion);
     // Detect only concat, because we don't know how many inputs will go into concat

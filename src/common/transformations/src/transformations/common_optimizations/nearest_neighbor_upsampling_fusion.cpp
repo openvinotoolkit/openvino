@@ -138,8 +138,6 @@ std::vector<int64_t> get_new_spatial_shape_from_concat_2(const std::shared_ptr<o
 }
 }  // namespace
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::NearestNeighborUpsamplingFusion, "NearestNeighborUpsamplingFusion", 0);
-
 ngraph::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
     MATCHER_SCOPE(NearestNeighborUpsamplingFusion);
     // This transformation looks for Interpolate layer implemented using simple operations, namely ShapeOf,

@@ -110,9 +110,12 @@ std::string node_validation_failure_loc_string(const Node* node);
 
 class NodeAccessor;
 
-/// Nodes are the backbone of the graph of Value dataflow. Every node has
-/// zero or more nodes as arguments and one value, which is either a tensor
-/// or a (possibly empty) tuple of values.
+/**
+ * @brief Nodes are the backbone of the graph of Value dataflow. Every node has
+ * zero or more nodes as arguments and one value, which is either a tensor
+ * or a (possibly empty) tuple of values.
+ * @ingroup ov_model_cpp_api
+ */
 class OPENVINO_API Node : public std::enable_shared_from_this<Node> {
     // For access to m_outputs.
     friend class descriptor::Input;
@@ -424,8 +427,11 @@ public:
     NodeVector get_users(bool check_is_used = false) const;
 
     /// \return Version of this node
+    OPENVINO_DEPRECATED("This method is deprecated and will be removed soon.")
     virtual size_t get_version() const {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         return get_type_info().version;
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     OPENVINO_DEPRECATED("This method is deprecated and will be removed soon.")
