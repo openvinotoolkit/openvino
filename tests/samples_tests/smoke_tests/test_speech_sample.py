@@ -15,9 +15,9 @@ import pytest
 import sys
 import logging as log
 from common.samples_common_test_clas import SamplesCommonTestClass
+from common.samples_common_test_clas import Environment
 from common.samples_common_test_clas import get_tests
 from common.common_utils import parse_avg_err
-from utils.e2e.env_tools import Environment
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
