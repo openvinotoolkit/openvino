@@ -10,14 +10,17 @@ namespace ov {
 namespace frontend {
 namespace paddle {
 namespace op {
-Output<Node> idx_node(const std::string& T1, const std::string& T2, const std::string& T3, const NodeContext& node) {
-    if (node.has_input(T1)) {
-        return node.get_input(T1);
-    } else if (node.has_input(T2)) {
-        auto inputs = node.get_ng_inputs(T2);
+Output<Node> idx_node(const std::string& tensor_alias,
+                      const std::string& list_alias,
+                      const std::string& attr_alias,
+                      const NodeContext& node) {
+    if (node.has_input(tensor_alias)) {
+        return node.get_input(tensor_alias);
+    } else if (node.has_input(list_alias)) {
+        auto inputs = node.get_ng_inputs(list_alias);
         return std::make_shared<default_opset::Concat>(inputs, 0);
     } else {
-        auto values = node.get_attribute<std::vector<int32_t>>(T3);
+        auto values = node.get_attribute<std::vector<int32_t>>(attr_alias);
         return default_opset::Constant::create(element::i32, {values.size()}, values);
     }
 }
