@@ -65,7 +65,7 @@ Assume there are CPU and GPU on the machine, first-inference latency of "AUTO" w
 
 ## Using the Auto-Device Plugin 
 
-Inference with AUTO is configured similarly to other plugins: compile the model on the plugin whth configuration, and finally, execute inference. 
+Inference with AUTO is configured similarly to other plugins: compile the model on the plugin with configuration, and finally, execute inference. 
 
 Following the OpenVINO™ naming convention, the Auto-Device plugin is assigned the label of “AUTO.” It may be defined with no additional parameters, resulting in defaults being used, or configured further with the following setup options: 
 
@@ -94,7 +94,8 @@ Following the OpenVINO™ naming convention, the Auto-Device plugin is assigned 
 @endsphinxdirective
 
 ### Device candidate list
-The device candidate list allows users to customize the priority and limit the choice of devices available to the AUTO plugin. If not specified, the plugin assumes all the devices present in the system can be used. Note, that OpenVINO™ Runtime lets you use “GPU” as an alias for “GPU.0” in function calls. 
+The device candidate list allows users to customize the priority and limit the choice of devices available to the AUTO plugin. If not specified, the plugin assumes all the devices present in the system can be used. Note, that OpenVINO™ Runtime lets you use “GPU” as an alias for “GPU.0” in function calls. More detail on enumerating devices can be found in [Working with devices](supported_plugins/Device_Plugins.md).
+
 The following commands are accepted by the API: 
 
 @sphinxdirective
@@ -174,7 +175,7 @@ The property enables you to control the priorities of models in the Auto-Device 
 @endsphinxdirective
 
 ## Configuring Individual Devices and Creating the Auto-Device plugin on Top
-Although the methods described above are currently the preferred way to execute inference with AUTO, the following steps can be also used as an alternative. It is currently available as a legacy feature and used if the device candidate list includes Myriad (devices uncapable of utilizing the Performance Hints option). 
+Although the methods described above are currently the preferred way to execute inference with AUTO, the following steps can be also used as an alternative. It is currently available as a legacy feature and used if the device candidate list includes Myriad (devices incapable of utilizing the Performance Hints option). 
 
 @sphinxdirective
 

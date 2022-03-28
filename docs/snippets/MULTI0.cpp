@@ -3,17 +3,27 @@
 int main() {
 //! [part0]
 ov::Core core;
+
+// Read a network in IR, PaddlePaddle, or ONNX format:
 std::shared_ptr<ov::Model> model = core.read_model("sample.xml");
-// the "MULTI" device is (globally) pre-configured with the explicit option
-core.set_property("MULTI", ov::device::priorities("HDDL,GPU"));
+
+// compile a model on MULTI using the default list of device candidates.
 ov::CompiledModel compileModel0 = core.compile_model(model, "MULTI");
 
-// configuration of the "MULTI" is part of the compile configuration (and hence specific to the model):
-ov::CompiledModel compileModel1 = core.compile_model(model, "MULTI", ov::device::priorities("HDDL,GPU"));
+// Optional
+// You can also specify the devices to be used by MULTI.
+// The following lines are equivalent:
+ov::CompiledModel compileModel1 = core.compile_model(model, "MULTI:HDDL,GPU");
+ov::CompiledModel compileModel2 = core.compile_model(model, "MULTI", ov::device::priorities("HDDL,GPU"));
 
-// same as previous, but configuration of the "MULTI" is part
-// of the name (so config is empty), also model-specific:
-ov::CompiledModel compileModel2 = core.compile_model(model, "MULTI:HDDL,GPU");
+// Optional
+// MULTI is pre-configured (globally) with the explicit option.
+// Additionally, once the priority list is set, you can alter it on the fly:
+core.set_property("MULTI", ov::device::priorities("HDDL,GPU"));
+
+compileModel.set_property(ov::device::priorities("GPU,HDDL"));
+compileModel.set_property(ov::device::priorities("GPU"));
+compileModel.set_property(ov::device::priorities("HDDL,GPU"));
 //! [part0]
 return 0;
 }
