@@ -134,6 +134,10 @@ void Reshape::initSupportedPrimitiveDescriptors() {
 }
 
 void Reshape::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
+}
+
+void Reshape::execute(mkldnn::stream strm) {
     auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
 
