@@ -49,7 +49,7 @@ Also, consider [OpenVINO Deep Learning Workbench](@ref workbench_docs_Workbench_
 
 > **NOTE**: When playing with [dynamically-shaped inputs](../OV_Runtime_UG/ov_dynamic_shapes.md) use only the streams (no batching), as they tolerate individual requests having different shapes. 
 
-> **NOTE**: Using the [High-Level Performance Hints](./dldt_deployment_optimization_hints.md) is the alternative,  portable and future-proof option, allowing the OpenVINO to find best combination of streams and batching for a given scenario and model. 
+> **NOTE**: Using the [High-Level Performance Hints](../OV_Runtime_UG/performance_hints.md) is the alternative,  portable and future-proof option, allowing the OpenVINO to find best combination of streams and batching for a given scenario and model. 
 
 ### Number of Streams Considerations
 * Select the number of streams is it is **less or equal** to the number of requests that your application would be able to runs simultaneously
