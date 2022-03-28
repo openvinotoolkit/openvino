@@ -134,7 +134,7 @@ assert all(data_done)
 
 #! [releasing_gil]
 import openvino.runtime as ov
-import cv2
+import cv2 as cv
 from threading import Thread
 
 input_data = []
@@ -143,9 +143,9 @@ input_data = []
 # while compilation of the model and creation of the infer request
 # is going to be executed in the main thread.
 def prepare_data(input, image_path):
-    image = cv2.imread(image_path)
+    image = cv.imread(image_path)
     h, w = list(input.shape)[-2:]
-    image = cv2.resize(image, (h, w))
+    image = cv.resize(image, (h, w))
     image = image.transpose((2, 0, 1))
     image = np.expand_dims(image, 0)
     input_data.append(image)
