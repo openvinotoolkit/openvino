@@ -104,6 +104,8 @@ public:
     void updateOPsStats(const ngraph::NodeTypeInfo &op, const PassRate::Statuses &status);
     void updateOPsImplStatus(const ngraph::NodeTypeInfo &op, const bool implStatus);
 
+    std::string getOpName(const ngraph::NodeTypeInfo &type_info);
+
     static Summary &getInstance();
     std::vector<ngraph::OpSet> getOpSets() {
         return opsets;

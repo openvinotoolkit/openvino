@@ -117,6 +117,10 @@ std::string Summary::getOpVersion(const ngraph::NodeTypeInfo &type_info) {
     return "undefined";
 }
 
+std::string Summary::getOpName(const ngraph::NodeTypeInfo &type_info) {
+    return std::string(type_info.name) + "-" + getOpVersion(type_info);
+}
+
 std::map<std::string, PassRate> Summary::getOpStatisticFromReport() {
     pugi::xml_document doc;
 

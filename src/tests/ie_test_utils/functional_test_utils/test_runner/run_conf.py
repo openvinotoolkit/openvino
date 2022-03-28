@@ -1,9 +1,16 @@
+import os
 import re
 import logging
 import argparse
 import subprocess
 
 from datetime import datetime, timedelta
+
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, 'layer_tests_summary')))
+
+import update_xml
+
 
 class Runner():
     def __init__(self, path_to_bin, args):
@@ -72,12 +79,20 @@ class Runner():
                 elif match[1] == 'FAILED':
                     self.failed += 1
 
-    def run(self):
-        gtest_filter = "*"
-        matches = re.match(r".*--gtest_filter=(.*?)\s*--", self.args)
+    def get_value_from_args(self, option, default=''):
+        res = default
+        matches = re.match(r".*--" + re.escape(option) + "=(.+?)($|\s+)", self.args)
         if matches:
-            gtest_filter = matches[1]
+            res = matches[1]
 
+        return res
+
+    def execute(self):
+        gtest_filter = self.get_value_from_args("gtest_filter", "*")
+        device = self.get_value_from_args("device", "")
+        folder_path = self.get_value_from_args("output_folder", os.path.abspath(os.getcwd()))
+
+        # add gtest_filter as separate args to have possibility change it later
         test_filter = gtest_filter
         args_list = [self.path_to_bin]
         args_list.append(f"--gtest_filter={test_filter}")
@@ -86,26 +101,51 @@ class Runner():
 
         exit_code = -1
         output = ""
-        # valid error code: 1 - fail, 0  - passsed 
+        xml_updater = update_xml.XMLUpdater(folder_path, 'report.xml', device)
+
+        # valid error code: 1 - fail, 0  - passsed
         while (exit_code not in [0, 1]):
             start = datetime.now()
+
             process = subprocess.Popen(args_list, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            output, err = process.communicate()
+            try:
+                # timeout 9h 50m
+                output, err = process.communicate(timeout=35400)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                output, err = process.communicate()
+
             exit_code = process.returncode
             self.time += datetime.now() - start
 
             output_str = output.decode('ascii')
+            err_str = err.decode('ascii')
             self.keep_result(output_str, exit_code)
 
             logger.info(output_str)
-            logger.info(err.decode('ascii'))
+            logger.info(err_str)
+            logger.info(f"Exit code: {exit_code}")
 
             if exit_code not in [0, 1]:
-                match = re.findall(r"\[ RUN      \] (.*)\n", output_str)[-1]
-                testIndex = self.tests_list.index(match)
+                # update report.xml in case of kill by environment (OOM killer for example)
+                if 'Unexpected application crash with code:' not in err_str:
+                    res = xml_updater.process_result(output_str)
+                    if res == 0:
+                        logger.info(f"Result saved.")
+                    else:
+                        logger.error(f"Could not keep output result !")
 
-                # finish if we come to the end of tests list
-                if (testIndex == len(self.tests_list) - 1):
+                testIndex = -1
+                try:
+                    match = re.findall(r"\[ RUN      \] (.*)\s*\n", output_str)[-1]
+                    testIndex = self.tests_list.index(match)
+                except ValueError:
+                    logger.error(f"Could not find last run test in test list and collect not running test to execute it, finish !")
+                except IndexError:
+                    logger.error(f"Could not define last run test and collect not running test to execute it, finish !")
+
+                # finish if we come to the end of test list or can't figure out which tests are left to run
+                if testIndex == -1 or testIndex == len(self.tests_list) - 1:
                     break
 
                 test_filter = gtest_filter
@@ -151,7 +191,7 @@ if __name__ == "__main__":
 
     runner.collect_tests_groups()
 
-    runner.run()
+    runner.execute()
 
     logger.info(f"TOTAL TESTS {len(runner.tests_list)}")
     logger.info(f"PASSED {runner.passed}")

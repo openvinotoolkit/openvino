@@ -202,6 +202,18 @@ void ReadIRTest::SetUp() {
         GTEST_SKIP() << "The graph is constant. The case is not applicable for Operation conformance scenario";
     }
     init_input_shapes(inputShapes);
+
+    auto &s = LayerTestsUtils::Summary::getInstance();
+    std::cout << "OPS LIST:";
+    for (const auto &op : function->get_ordered_ops()) {
+        if ((ngraph::is_type<ngraph::op::Parameter>(op) ||
+            ngraph::is_type<ngraph::op::Constant>(op) ||
+            ngraph::is_type<ngraph::op::Result>(op))) {
+            continue;
+        }
+        std::cout << " " << s.getOpName(op->get_type_info());
+    }
+    std::cout << "\n";
 }
 
 } // namespace subgraph
