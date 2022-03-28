@@ -19,7 +19,7 @@ namespace ngraph {
  * @brief PerTensorQuantizationAttribute defines if operation input port requires per-tensor quantization.
  *
  * For more details about the attribute, refer to
- * [PerTensorQuantizationAttribute](@ref openvino_docs_IE_DG_lpt_PerTensorQuantization) page in the Inference Engine Developer Guide.
+ * [PerTensorQuantizationAttribute](@ref openvino_docs_OV_UG_lpt_PerTensorQuantization) page in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API PerTensorQuantizationAttribute : public ov::RuntimeAttribute {
 public:
