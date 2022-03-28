@@ -174,6 +174,7 @@ def test_wait():
     request.start_async(data)
     check_gil_released_safe(request.wait)
 
+
 def test_wait_for():
     data = [np.random.normal(size=list(compiled.input().shape))]
     request.start_async(data)
