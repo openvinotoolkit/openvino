@@ -231,9 +231,30 @@ static const std::vector<std::string> models{std::string("argmax"),
                                              std::string("multiclass_nms_by_nms_top_k"),
                                              std::string("multiclass_nms_flipped_coordinates"),
                                              std::string("multiclass_nms_identical_boxes"),
-                                             std::string("multiclass_nms_lod_roisnum_multiple_images"),
-                                             std::string("multiclass_nms_lod_roisnum_multiple_images_0"),
-                                             std::string("multiclass_nms_lod_roisnum_single_image"),
+                                             // default
+                                             std::string("multiclass_nms_lod_roisnum_multiple_images_default"),
+                                             std::string("multiclass_nms_lod_roisnum_multiple_images_0_default"),
+                                             std::string("multiclass_nms_lod_roisnum_single_image_default"),
+                                             // background
+                                             std::string("multiclass_nms_lod_roisnum_multiple_images_background"),
+                                             std::string("multiclass_nms_lod_roisnum_multiple_images_0_background"),
+                                             std::string("multiclass_nms_lod_roisnum_single_image_background"),
+                                             // score_threshold
+                                             std::string("multiclass_nms_lod_roisnum_multiple_images_score_threshold"),
+                                             std::string("multiclass_nms_lod_roisnum_multiple_images_0_score_threshold"),
+                                             std::string("multiclass_nms_lod_roisnum_single_image_score_threshold"),
+                                             // nms_top_k
+                                             std::string("multiclass_nms_lod_roisnum_multiple_images_nms_top_k"),
+                                             std::string("multiclass_nms_lod_roisnum_multiple_images_0_nms_top_k"),
+                                             std::string("multiclass_nms_lod_roisnum_single_image_nms_top_k"),
+                                             // keep_top_k
+                                             std::string("multiclass_nms_lod_roisnum_multiple_images_keep_top_k"),
+                                             std::string("multiclass_nms_lod_roisnum_multiple_images_0_keep_top_k"),
+                                             std::string("multiclass_nms_lod_roisnum_single_image_keep_top_k"),
+                                             // normalized
+                                             std::string("multiclass_nms_lod_roisnum_multiple_images_normalized"),
+                                             std::string("multiclass_nms_lod_roisnum_multiple_images_0_normalized"),
+                                             std::string("multiclass_nms_lod_roisnum_single_image_normalized"),
                                              std::string("multiclass_nms_not_normalized"),
                                              std::string("multiclass_nms_not_return_indexed"),
                                              std::string("multiclass_nms_single_box"),

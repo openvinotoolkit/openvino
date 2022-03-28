@@ -262,7 +262,8 @@ bool ngraph::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::
         {opset9::NonMaxSuppression::get_type_info_static(), fuse_type_to_nms9},
         {opset8::MatrixNms::get_type_info_static(), fuse_type_to_matrix_nms},
         {opset8::MulticlassNms::get_type_info_static(), fuse_type_to_multiclass_nms},
-        {opset9::GenerateProposals::get_type_info_static(), fuse_type_to_generate_proposals},
+        {opset9::MulticlassNms::get_type_info_static(), fuse_type_to_multiclass_nms},
+        {opset9::GenerateProposals::get_type_info_static(), fuse_type_to_generate_proposals},        
         {opset6::CTCGreedyDecoderSeqLen::get_type_info_static(), fuse_type_to_ctc_greedy_decoder_seq_len},
         {opset4::TopK::get_type_info_static(), fuse_type_to_topk},
         {opset8::MaxPool::get_type_info_static(), fuse_type_to_maxpool},
@@ -448,7 +449,12 @@ bool fuse_type_to_matrix_nms(const std::shared_ptr<ngraph::Node>& node, ngraph::
 }
 
 bool fuse_type_to_multiclass_nms(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
-    auto nms = ov::as_type_ptr<opset8::MulticlassNms>(node);
+    std::shared_ptr<ov::op::util::MulticlassNmsBase> nms;
+    if (node->get_type_info() == opset8::MulticlassNms::get_type_info_static()) {
+        nms = ov::as_type_ptr<opset8::MulticlassNms>(node);
+    } else {
+        nms = ov::as_type_ptr<opset9::MulticlassNms>(node);
+    }
     if (!nms) {
         return false;
     }

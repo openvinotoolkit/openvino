@@ -40,6 +40,7 @@ private:
     // input (port Num)
     const size_t NMS_BOXES = 0;
     const size_t NMS_SCORES = 1;
+    const size_t NMS_ROISNUM = 2;
 
     // output (port Num)
     const size_t NMS_SELECTEDOUTPUTS = 0;
@@ -66,7 +67,7 @@ private:
 
     std::string m_errorPrefix;
 
-    std::vector<std::vector<size_t>> m_numFiltBox;
+    std::vector<std::vector<size_t>> m_numFiltBox; // number of rois after nms for each class in each image
     std::vector<size_t> m_numBoxOffset;
     const std::string m_inType = "input", m_outType = "output";
 
@@ -86,17 +87,18 @@ private:
         int suppress_begin_index;
     };
 
-    std::vector<filteredBoxes> m_filtBoxes;
+    std::vector<filteredBoxes> m_filtBoxes; // rois after nms for each class in each image
 
     void checkPrecision(const InferenceEngine::Precision prec, const std::vector<InferenceEngine::Precision> precList, const std::string name,
                         const std::string type);
 
     float intersectionOverUnion(const float* boxesI, const float* boxesJ, const bool normalized);
 
-    void nmsWithEta(const float* boxes, const float* scores, const InferenceEngine::SizeVector& boxesStrides, const InferenceEngine::SizeVector& scoresStrides);
+    void nmsWithEta(const float* boxes, const float* scores, const int* roisnum, const InferenceEngine::SizeVector& boxesStrides,
+                    const InferenceEngine::SizeVector& scoresStrides, const InferenceEngine::SizeVector& roisnumStrides, const bool shared);
 
-    void nmsWithoutEta(const float* boxes, const float* scores, const InferenceEngine::SizeVector& boxesStrides,
-                       const InferenceEngine::SizeVector& scoresStrides);
+    void nmsWithoutEta(const float* boxes, const float* scores, const int* roisnum, const InferenceEngine::SizeVector& boxesStrides,
+                       const InferenceEngine::SizeVector& scoresStrides, const InferenceEngine::SizeVector& roisnumStrides, const bool shared);
 };
 
 }   // namespace node

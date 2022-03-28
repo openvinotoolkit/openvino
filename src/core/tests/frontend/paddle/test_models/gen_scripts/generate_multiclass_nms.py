@@ -372,15 +372,11 @@ def TEST1(N=7, M=1200, C=21):
     NMS("multiclass_nms_not_normalized_random", boxes, scores, pdpd_attrs)
 
 
-def TestMulticlassNMSLoDInput(M=3, C=2):
+def multiclass_nms_lod(appendix : str = '_default', background = -1, score_threshold = 0.01, nms_threshold = 0.3, nms_top_k = 400, keep_top_k = 200, normalized = False):
     BOX_SIZE = 4
-    background = 0
-    nms_threshold = 0.3
-    nms_top_k = 400
-    keep_top_k = 200
-    score_threshold = 0.01
-    normalized = False
-    
+    M = 3
+    C = 2
+
     scores = np.array([[0.34, 0.66 ],
                     [0.45, 0.61 ],
                     [0.39, 0.59 ]]).astype('float32')
@@ -406,17 +402,23 @@ def TestMulticlassNMSLoDInput(M=3, C=2):
         'nms_eta': 1.0,
         'return_index': True
     }
-    NMS("multiclass_nms_lod_roisnum_single_image", boxes, scores, pdpd_attrs, rois_num)
+    NMS("multiclass_nms_lod_roisnum_single_image" + appendix, boxes, scores, pdpd_attrs, rois_num)
     
     box_lod = [1, 2]
     rois_num = np.array(box_lod).astype('int32')
-    NMS("multiclass_nms_lod_roisnum_multiple_images", boxes, scores, pdpd_attrs, rois_num)
+    NMS("multiclass_nms_lod_roisnum_multiple_images" + appendix, boxes, scores, pdpd_attrs, rois_num)
 
     box_lod = [0, 3]
     rois_num = np.array(box_lod).astype('int32')
-    NMS("multiclass_nms_lod_roisnum_multiple_images_0", boxes, scores, pdpd_attrs, rois_num)
+    NMS("multiclass_nms_lod_roisnum_multiple_images_0" + appendix, boxes, scores, pdpd_attrs, rois_num)
     
 if __name__ == "__main__":
     main()
     TEST1()
-    TestMulticlassNMSLoDInput()
+    multiclass_nms_lod() # default
+    multiclass_nms_lod('_background', background = -1)
+    multiclass_nms_lod('_score_threshold', score_threshold = 0.5)
+    multiclass_nms_lod('_nms_threshold', nms_threshold = 0.0)
+    multiclass_nms_lod('_nms_top_k', nms_top_k = 2)
+    multiclass_nms_lod('_keep_top_k', keep_top_k = 1)
+    multiclass_nms_lod('_normalized', normalized = True)
