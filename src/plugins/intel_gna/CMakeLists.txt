@@ -97,7 +97,7 @@ if(NOT BUILD_SHARED_LIBS)
             DESTINATION runtime/cmake
             COMPONENT gna)
 
-    # install .lib file o Windows
+    # install .lib file on Windows
     if(WIN32)
         file(GLOB_RECURSE gna_libraries  "${libGNA_LIBRARIES_BASE_PATH}/*${CMAKE_STATIC_LIBRARY_SUFFIX}")
         install(FILES ${gna_libraries}
