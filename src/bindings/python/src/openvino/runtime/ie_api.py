@@ -350,4 +350,3 @@ def compile_model(model_path: str) -> CompiledModel:
     """
     core = Core()
     return ExtendedModel(core, core.compile_model(model_path, "AUTO"))
-

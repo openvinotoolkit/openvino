@@ -19,7 +19,6 @@ def test_any_int():
 def test_any_float():
     var = OVAny(21.37)
     assert isinstance(var.value, float)
-    print(var.value)
 
 
 def test_any_string_list():

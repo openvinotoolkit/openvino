@@ -29,21 +29,21 @@ void regclass_graph_Any(py::module m) {
         return ret.str();
     });
 
-    ov_any.def("__getitem__", [](const ov::Any& self, py::object& k){
+    ov_any.def("__getitem__", [](const ov::Any& self, py::object& k) {
         return Common::from_ov_any(self)[k];
     });
 
-    ov_any.def("__setitem__", [](const ov::Any& self, py::object& k, const std::string& v){
+    ov_any.def("__setitem__", [](const ov::Any& self, py::object& k, const std::string& v) {
         Common::from_ov_any(self)[k] = v;
     });
 
-    ov_any.def("__setitem__", [](const ov::Any& self, py::object& k, const int64_t& v){
+    ov_any.def("__setitem__", [](const ov::Any& self, py::object& k, const int64_t& v) {
         Common::from_ov_any(self)[k] = v;
     });
 
-    ov_any.def("__len__", [](const ov::Any& self){
+    ov_any.def("__len__", [](const ov::Any& self) {
         py::handle some_object = Common::from_ov_any(self);
-        PyObject *source = some_object.ptr();
+        PyObject* source = some_object.ptr();
         return PyObject_Length(source);
     });
 
@@ -58,7 +58,7 @@ void regclass_graph_Any(py::module m) {
         [](const ov::Any& self) -> py::object {
             return Common::from_ov_any(self);
         },
-        R"(F
+        R"(
             :return: Value of this OVAny.
             :rtype: Any
         )");
