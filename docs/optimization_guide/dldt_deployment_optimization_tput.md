@@ -21,6 +21,7 @@ Finally, consider the _automatic_ multi-device execution covered below.
 Most generally, throughput-oriented inference applications should:
 * Expose substantial amounts of _inputs_ parallelism (e.g. process multiple video- or audio- sources, text documents, etc)
 * Decompose the data flow into a collection of concurrent inference requests that are aggressively scheduled to be executed in parallel
+   * Setup the configuration for the _device_ (e.g. as parameters of the `ov::Core::compile_model`) via either [OpenVINO performance hints](./dldt_deployment_optimization_hints.md) (**preferable**) or [low-level explicit options](dldt_deployment_optimization_tput_advanced.md), introduced in the previous section 
    * Query the `ov::optimal_number_of_infer_requests` from the `ov::CompiledModel` (resulted from compilation of the model for a device) to create the number of the requests required to saturate the device
 * Use the Async API with callbacks, to avoid any dependency on the requests' completion order and possible device starvation, as explained in the [common-optimizations section](@ref openvino_docs_deployment_optimization_guide_common)
 

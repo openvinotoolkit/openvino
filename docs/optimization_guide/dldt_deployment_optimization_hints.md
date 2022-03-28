@@ -4,7 +4,7 @@ Each of the OpenVINO's [supported devices](../OV_Runtime_UG/supported_plugins/Su
 Tweaking this detailed configuration requires deep architecture understanding.
 
 Also, while the resulting performance may be optimal for the specific combination of the device and the model that is inferred, it is actually neither device/model nor future-proof:
-- Even within a family of the devices (like various CPUs), things like different number of CPU cores would eventually result in different execution configuration to be optimal.
+- Even within a family of the devices (like various CPUs), different instruction set, or number of CPU cores would eventually result in different execution configuration to be optimal.
 - Similarly the optimal batch size is very much specific to the particular instance of the GPU.
 - Compute vs memory-bandwidth requirements for the model being inferenced, as well as inference precision, possible model's quantization also contribute to the optimal parameters selection.
 - Finally, the optimal execution parameters of one device do not transparently map to another device type, for example:
