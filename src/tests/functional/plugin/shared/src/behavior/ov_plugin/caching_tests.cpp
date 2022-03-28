@@ -9,6 +9,7 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "functional_test_utils/summary/api_summary.hpp"
 
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
@@ -158,6 +159,14 @@ void CompileModelCacheTestBase::TearDown() {
     CommonTestUtils::removeFilesWithExt(m_cacheFolderName, "blob");
     std::remove(m_cacheFolderName.c_str());
     core->set_property(ov::cache_dir());
+    auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
+    if (this->HasFailure()) {
+        apiSummary.updateStat(utils::ov_entity::ov_plugin, targetDevice, ov::test::utils::PassRate::Statuses::FAILED);
+    } else if (this->IsSkipped()) {
+        apiSummary.updateStat(utils::ov_entity::ov_plugin, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
+    } else {
+        apiSummary.updateStat(utils::ov_entity::ov_plugin, targetDevice, ov::test::utils::PassRate::Statuses::PASSED);
+    }
 }
 
 void CompileModelCacheTestBase::run() {

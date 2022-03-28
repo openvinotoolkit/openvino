@@ -415,6 +415,14 @@ public:
         if (!configuration.empty()) {
             PluginCache::get().reset();
         }
+        auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
+        if (this->HasFailure()) {
+            apiSummary.updateStat(ov::test::utils::ov_entity::ov_infer_request, targetDevice, ov::test::utils::PassRate::Statuses::FAILED);
+        } else if (this->IsSkipped()) {
+            apiSummary.updateStat(ov::test::utils::ov_entity::ov_infer_request, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
+        } else {
+            apiSummary.updateStat(ov::test::utils::ov_entity::ov_infer_request, targetDevice, ov::test::utils::PassRate::Statuses::PASSED);
+        }
     }
 
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();

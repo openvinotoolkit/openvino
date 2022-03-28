@@ -41,6 +41,17 @@ public:
         std::tie(pluginName, deviceName) = GetParam();
         pluginName += IE_BUILD_POSTFIX;
     }
+
+    void TearDown() override {
+        auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
+        if (this->HasFailure()) {
+            apiSummary.updateStat(utils::ov_entity::ov_plugin, deviceName, ov::test::utils::PassRate::Statuses::FAILED);
+        } else if (this->IsSkipped()) {
+            apiSummary.updateStat(utils::ov_entity::ov_plugin, deviceName, ov::test::utils::PassRate::Statuses::SKIPPED);
+        } else {
+            apiSummary.updateStat(utils::ov_entity::ov_plugin, deviceName, ov::test::utils::PassRate::Statuses::PASSED);
+        }
+    }
 };
 
 class OVClassSetDefaultDeviceIDTest : public ::testing::Test,
@@ -51,6 +62,17 @@ protected:
 public:
     void SetUp() override {
         std::tie(deviceName, deviceID) = GetParam();
+    }
+
+    void TearDown() override {
+        auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
+        if (this->HasFailure()) {
+            apiSummary.updateStat(utils::ov_entity::ov_plugin, deviceName, ov::test::utils::PassRate::Statuses::FAILED);
+        } else if (this->IsSkipped()) {
+            apiSummary.updateStat(utils::ov_entity::ov_plugin, deviceName, ov::test::utils::PassRate::Statuses::SKIPPED);
+        } else {
+            apiSummary.updateStat(utils::ov_entity::ov_plugin, deviceName, ov::test::utils::PassRate::Statuses::PASSED);
+        }
     }
 };
 
@@ -70,6 +92,17 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         std::tie(deviceName, configuration) = GetParam();
         actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
+    }
+
+    void TearDown() override {
+        auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
+        if (this->HasFailure()) {
+            apiSummary.updateStat(utils::ov_entity::ov_plugin, deviceName, ov::test::utils::PassRate::Statuses::FAILED);
+        } else if (this->IsSkipped()) {
+            apiSummary.updateStat(utils::ov_entity::ov_plugin, deviceName, ov::test::utils::PassRate::Statuses::SKIPPED);
+        } else {
+            apiSummary.updateStat(utils::ov_entity::ov_plugin, deviceName, ov::test::utils::PassRate::Statuses::PASSED);
+        }
     }
 };
 
@@ -107,6 +140,17 @@ public:
     void SetUp() override {
         OVClassNetworkTest::SetUp();
         deviceNames = GetParam();
+    }
+
+    void TearDown() override {
+        auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
+        if (this->HasFailure()) {
+            apiSummary.updateStat(utils::ov_entity::ov_plugin, CommonTestUtils::DEVICE_MULTI, ov::test::utils::PassRate::Statuses::FAILED);
+        } else if (this->IsSkipped()) {
+            apiSummary.updateStat(utils::ov_entity::ov_plugin, CommonTestUtils::DEVICE_MULTI, ov::test::utils::PassRate::Statuses::SKIPPED);
+        } else {
+            apiSummary.updateStat(utils::ov_entity::ov_plugin, CommonTestUtils::DEVICE_MULTI, ov::test::utils::PassRate::Statuses::PASSED);
+        }
     }
 };
 using OVClassSeveralDevicesTestLoadNetwork = OVClassSeveralDevicesTest;

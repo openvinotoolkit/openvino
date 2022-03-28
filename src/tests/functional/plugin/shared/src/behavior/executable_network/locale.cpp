@@ -3,6 +3,7 @@
 //
 
 #include "behavior/executable_network/locale.hpp"
+#include "functional_test_utils/summary/api_summary.hpp"
 
 namespace BehaviorTestsDefinitions {
 
@@ -35,6 +36,17 @@ void CustomLocaleTest::SetUp() {
     std::tie(localeName, deviceName) = GetParam();
     testName = ::testing::UnitTest::GetInstance()->current_test_info()->name();
     function = makeTestModel();
+}
+
+void CustomLocaleTest::TearDown() {
+    auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
+    if (this->HasFailure()) {
+        apiSummary.updateStat(ov::test::utils::ov_entity::ie_executable_network, deviceName, ov::test::utils::PassRate::Statuses::FAILED);
+    } else if (this->IsSkipped()) {
+        apiSummary.updateStat(ov::test::utils::ov_entity::ie_executable_network, deviceName, ov::test::utils::PassRate::Statuses::SKIPPED);
+    } else {
+        apiSummary.updateStat(ov::test::utils::ov_entity::ie_executable_network, deviceName, ov::test::utils::PassRate::Statuses::PASSED);
+    }
 }
 
 TEST_P(CustomLocaleTest, CanLoadNetworkWithCustomLocale) {

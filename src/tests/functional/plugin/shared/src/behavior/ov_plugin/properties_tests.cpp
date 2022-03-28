@@ -20,6 +20,17 @@ void OVEmptyPropertiesTests::SetUp() {
     model = ngraph::builder::subgraph::makeConvPoolRelu();
 }
 
+void OVEmptyPropertiesTests::TearDown() {
+    auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
+    if (this->HasFailure()) {
+        apiSummary.updateStat(utils::ov_entity::ov_plugin, device_name, ov::test::utils::PassRate::Statuses::FAILED);
+    } else if (this->IsSkipped()) {
+        apiSummary.updateStat(utils::ov_entity::ov_plugin, device_name, ov::test::utils::PassRate::Statuses::SKIPPED);
+    } else {
+        apiSummary.updateStat(utils::ov_entity::ov_plugin, device_name, ov::test::utils::PassRate::Statuses::PASSED);
+    }
+}
+
 std::string OVPropertiesTests::getTestCaseName(testing::TestParamInfo<PropertiesParams> obj) {
     std::string device_name;
     AnyMap properties;
@@ -41,6 +52,14 @@ void OVPropertiesTests::SetUp() {
 void OVPropertiesTests::TearDown() {
     if (!properties.empty()) {
         utils::PluginCache::get().reset();
+    }
+    auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
+    if (this->HasFailure()) {
+        apiSummary.updateStat(utils::ov_entity::ov_plugin, device_name, ov::test::utils::PassRate::Statuses::FAILED);
+    } else if (this->IsSkipped()) {
+        apiSummary.updateStat(utils::ov_entity::ov_plugin, device_name, ov::test::utils::PassRate::Statuses::SKIPPED);
+    } else {
+        apiSummary.updateStat(utils::ov_entity::ov_plugin, device_name, ov::test::utils::PassRate::Statuses::PASSED);
     }
 }
 

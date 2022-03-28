@@ -74,11 +74,11 @@ public:
         }
         auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
         if (this->HasFailure()) {
-            apiSummary.updateStat(api_entity, targetDevice, ov::test::utils::PassRate::Statuses::FAILED);
+            apiSummary.updateStat(ov::test::utils::ov_entity::ov_infer_request, targetDevice, ov::test::utils::PassRate::Statuses::FAILED);
         } else if (this->IsSkipped()) {
-            apiSummary.updateStat(api_entity, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
+            apiSummary.updateStat(ov::test::utils::ov_entity::ov_infer_request, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
         } else {
-            apiSummary.updateStat(api_entity, targetDevice, ov::test::utils::PassRate::Statuses::PASSED);
+            apiSummary.updateStat(ov::test::utils::ov_entity::ov_infer_request, targetDevice, ov::test::utils::PassRate::Statuses::PASSED);
         }
     }
 
@@ -88,7 +88,6 @@ protected:
     std::string targetDevice;
     ov::AnyMap configuration;
     std::shared_ptr<ov::Model> function;
-    ov::test::utils::ov_entity api_entity = ov::test::utils::ov_entity::ov_infer_request;
 };
 
 inline ov::Core createCoreWithTemplate() {

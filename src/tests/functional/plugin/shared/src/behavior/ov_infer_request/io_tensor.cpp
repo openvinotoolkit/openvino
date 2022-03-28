@@ -209,6 +209,14 @@ void OVInferRequestIOTensorSetPrecisionTest::SetUp() {
 void OVInferRequestIOTensorSetPrecisionTest::TearDown() {
     execNet = {};
     req = {};
+    auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
+    if (this->HasFailure()) {
+        apiSummary.updateStat(ov::test::utils::ov_entity::ov_infer_request, target_device, ov::test::utils::PassRate::Statuses::FAILED);
+    } else if (this->IsSkipped()) {
+        apiSummary.updateStat(ov::test::utils::ov_entity::ov_infer_request, target_device, ov::test::utils::PassRate::Statuses::SKIPPED);
+    } else {
+        apiSummary.updateStat(ov::test::utils::ov_entity::ov_infer_request, target_device, ov::test::utils::PassRate::Statuses::PASSED);
+    }
 }
 
 TEST_P(OVInferRequestIOTensorSetPrecisionTest, CanSetInBlobWithDifferentPrecision) {
@@ -269,6 +277,14 @@ void OVInferRequestCheckTensorPrecision::SetUp() {
 void OVInferRequestCheckTensorPrecision::TearDown() {
     compModel = {};
     req = {};
+    auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
+    if (this->HasFailure()) {
+        apiSummary.updateStat(ov::test::utils::ov_entity::ov_infer_request, target_device, ov::test::utils::PassRate::Statuses::FAILED);
+    } else if (this->IsSkipped()) {
+        apiSummary.updateStat(ov::test::utils::ov_entity::ov_infer_request, target_device, ov::test::utils::PassRate::Statuses::SKIPPED);
+    } else {
+        apiSummary.updateStat(ov::test::utils::ov_entity::ov_infer_request, target_device, ov::test::utils::PassRate::Statuses::PASSED);
+    }
 }
 
 void OVInferRequestCheckTensorPrecision::Run() {

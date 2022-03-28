@@ -25,6 +25,7 @@ protected:
     std::string deviceName;
 
     void SetUp() override;
+    void TearDown() override;
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<LocaleParams> &obj);
 };

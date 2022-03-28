@@ -23,6 +23,14 @@ void OVInferRequestInferenceTests::SetUp() {
 }
 
 void OVInferRequestInferenceTests::TearDown() {
+    auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
+    if (this->HasFailure()) {
+        apiSummary.updateStat(ov::test::utils::ov_entity::ov_infer_request, m_device_name, ov::test::utils::PassRate::Statuses::FAILED);
+    } else if (this->IsSkipped()) {
+        apiSummary.updateStat(ov::test::utils::ov_entity::ov_infer_request, m_device_name, ov::test::utils::PassRate::Statuses::SKIPPED);
+    } else {
+        apiSummary.updateStat(ov::test::utils::ov_entity::ov_infer_request, m_device_name, ov::test::utils::PassRate::Statuses::PASSED);
+    }
 }
 
 std::shared_ptr<Model> OVInferRequestInferenceTests::create_n_inputs(size_t n,

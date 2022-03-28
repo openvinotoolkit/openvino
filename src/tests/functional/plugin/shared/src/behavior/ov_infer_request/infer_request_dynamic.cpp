@@ -65,7 +65,14 @@ void OVInferRequestDynamicTests::TearDown() {
     if (!configuration.empty()) {
         PluginCache::get().reset();
     }
-    function.reset();
+    auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
+    if (this->HasFailure()) {
+        apiSummary.updateStat(utils::ov_entity::ov_infer_request, targetDevice, ov::test::utils::PassRate::Statuses::FAILED);
+    } else if (this->IsSkipped()) {
+        apiSummary.updateStat(utils::ov_entity::ov_infer_request, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
+    } else {
+        apiSummary.updateStat(utils::ov_entity::ov_infer_request, targetDevice, ov::test::utils::PassRate::Statuses::PASSED);
+    }
 }
 
 TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithoutSetShape) {

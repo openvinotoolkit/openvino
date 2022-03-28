@@ -45,6 +45,16 @@ public:
         deviceName = std::get<0>(GetParam());
         std::tie(configKey, configValue) = std::get<1>(GetParam());
     }
+    void TearDown() override {
+        auto& apiSummary = ov::test::utils::ApiSummary::getInstance();
+        if (this->HasFailure()) {
+            apiSummary.updateStat(ov::test::utils::ov_entity::ie_executable_network, targetDevice, ov::test::utils::PassRate::Statuses::FAILED);
+        } else if (this->IsSkipped()) {
+            apiSummary.updateStat(ov::test::utils::ov_entity::ie_executable_network, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
+        } else {
+            apiSummary.updateStat(ov::test::utils::ov_entity::ie_executable_network, targetDevice, ov::test::utils::PassRate::Statuses::PASSED);
+        }
+    }
 };
 
 //
@@ -63,6 +73,16 @@ public:
         deviceName = GetParam();
         heteroDeviceName = CommonTestUtils::DEVICE_HETERO + std::string(":") + deviceName + std::string(",") + CommonTestUtils::DEVICE_CPU;
     }
+    void TearDown() override {
+        auto& apiSummary = ov::test::utils::ApiSummary::getInstance();
+        if (this->HasFailure()) {
+            apiSummary.updateStat(ov::test::utils::ov_entity::ie_executable_network, targetDevice, ov::test::utils::PassRate::Statuses::FAILED);
+        } else if (this->IsSkipped()) {
+            apiSummary.updateStat(ov::test::utils::ov_entity::ie_executable_network, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
+        } else {
+            apiSummary.updateStat(ov::test::utils::ov_entity::ie_executable_network, targetDevice, ov::test::utils::PassRate::Statuses::PASSED);
+        }
+    }
 };
 
 
@@ -70,7 +90,14 @@ public:
 // ImportExportNetwork
 //
 
-using IEClassImportExportTestP = BehaviorTestsUtils::IEClassBaseTestP;
+class IEClassGetMetricP : public BehaviorTestsUtils::IEClassBaseTestP {
+    void SetUp() override {
+        IEClassGetMetricP::SetUp();
+        api_entity = ov::test::utils::ov_entity::ie_executable_network;
+    }
+};
+
+using IEClassImportExportTestP = IEClassGetMetricP;
 
 TEST_P(IEClassImportExportTestP, smoke_ImportNetworkThrowsIfNoDeviceName) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
@@ -112,14 +139,14 @@ TEST_P(IEClassImportExportTestP, smoke_ExportUsingFileNameImportFromStreamNoThro
     ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
 }
 
-using IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS = BehaviorTestsUtils::IEClassBaseTestP;
-using IEClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS = BehaviorTestsUtils::IEClassBaseTestP;
-using IEClassExecutableNetworkGetMetricTest_NETWORK_NAME = BehaviorTestsUtils::IEClassBaseTestP;
-using IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS = BehaviorTestsUtils::IEClassBaseTestP;
-using IEClassExecutableNetworkGetMetricTest_ThrowsUnsupported = BehaviorTestsUtils::IEClassBaseTestP;
-using IEClassExecutableNetworkGetConfigTest = BehaviorTestsUtils::IEClassBaseTestP;
-using IEClassExecutableNetworkSetConfigTest = BehaviorTestsUtils::IEClassBaseTestP;
-using IEClassExecutableNetworkGetConfigTest = BehaviorTestsUtils::IEClassBaseTestP;
+using IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS = IEClassGetMetricP;
+using IEClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS = IEClassGetMetricP;
+using IEClassExecutableNetworkGetMetricTest_NETWORK_NAME = IEClassGetMetricP;
+using IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS = IEClassGetMetricP;
+using IEClassExecutableNetworkGetMetricTest_ThrowsUnsupported = IEClassGetMetricP;
+using IEClassExecutableNetworkGetConfigTest = IEClassGetMetricP;
+using IEClassExecutableNetworkSetConfigTest = IEClassGetMetricP;
+using IEClassExecutableNetworkGetConfigTest = IEClassGetMetricP;
 
 //
 // ExecutableNetwork GetMetric / GetConfig
@@ -280,7 +307,7 @@ using IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS = IEClas
 using IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS = IEClassHeteroExecutableNetworkGetMetricTest;
 using IEClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME = IEClassHeteroExecutableNetworkGetMetricTest;
 using IEClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK = IEClassHeteroExecutableNetworkGetMetricTest;
-using IEClassExecutableNetworkGetMetricTest = BehaviorTestsUtils::IEClassBaseTestP;
+using IEClassExecutableNetworkGetMetricTest = IEClassGetMetricP;
 
 TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();

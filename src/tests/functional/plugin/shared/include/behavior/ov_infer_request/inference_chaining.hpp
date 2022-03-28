@@ -55,6 +55,8 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<InferRequestParams>& obj);
 
     void Run();
+
+    void TearDown() override;
 };
 }  // namespace behavior
 }  // namespace test

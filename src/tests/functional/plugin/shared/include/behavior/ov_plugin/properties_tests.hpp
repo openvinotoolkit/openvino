@@ -30,6 +30,7 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj);
 
     void SetUp() override;
+    void  TearDown() override;
 };
 
 using PropertiesParams = std::tuple<std::string, AnyMap>;

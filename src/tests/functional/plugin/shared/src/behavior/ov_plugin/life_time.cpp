@@ -27,6 +27,14 @@ void OVHoldersTest::SetUp() {
 
 void OVHoldersTest::TearDown() {
     ::testing::GTEST_FLAG(death_test_style) = deathTestStyle;
+    auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
+    if (this->HasFailure()) {
+        apiSummary.updateStat(utils::ov_entity::ov_plugin, targetDevice, ov::test::utils::PassRate::Statuses::FAILED);
+    } else if (this->IsSkipped()) {
+        apiSummary.updateStat(utils::ov_entity::ov_plugin, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
+    } else {
+        apiSummary.updateStat(utils::ov_entity::ov_plugin, targetDevice, ov::test::utils::PassRate::Statuses::PASSED);
+    }
 }
 
 #define EXPECT_NO_CRASH(_statement) \
@@ -119,6 +127,14 @@ void OVHoldersTestOnImportedNetwork::SetUp() {
 
 void OVHoldersTestOnImportedNetwork::TearDown() {
     ::testing::GTEST_FLAG(death_test_style) = deathTestStyle;
+    auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
+    if (this->HasFailure()) {
+        apiSummary.updateStat(utils::ov_entity::ov_plugin, targetDevice, ov::test::utils::PassRate::Statuses::FAILED);
+    } else if (this->IsSkipped()) {
+        apiSummary.updateStat(utils::ov_entity::ov_plugin, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
+    } else {
+        apiSummary.updateStat(utils::ov_entity::ov_plugin, targetDevice, ov::test::utils::PassRate::Statuses::PASSED);
+    }
 }
 
 TEST_P(OVHoldersTestOnImportedNetwork, LoadedTensor) {
