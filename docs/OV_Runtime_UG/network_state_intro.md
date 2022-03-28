@@ -4,17 +4,12 @@ Stateful models {#openvino_2_0_network_state_intro}
 @sphinxdirective
 
 .. toctree::
-:maxdepth: 1
-:hidden:
+    :maxdepth: 1
+    :hidden:
 
-openvino_2_0_ways_to_get_stateful_model
+    openvino_2_0_ways_to_get_stateful_model
 
 @endsphinxdirective
-
-This section describes how to work with stateful networks in OpenVINO toolkit, specifically:
-* [How stateful networks are represented in OpenVINO.](#openvino-state-representation)
-* [How to get the model with states via OpenVINO.](#how-to-get-the-openvino-model-with-states)
-* [How operations with state can be done.](#openvino-state-api)
 
 ## What is a Stateful Network?
 
