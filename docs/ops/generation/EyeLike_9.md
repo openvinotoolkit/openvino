@@ -8,7 +8,7 @@
 
 **Detailed description**:
 
-*EyeLike* operation generates matrix with ones on the diagonal and zeros everywhere else. Index of the diagonal to be populated with ones is given by `diagonal_index`: `output[i, i + diagonal_index] = 1`.
+*EyeLike* operation generates a matrix with ones on the diagonal and zeros everywhere else. The index of the diagonal to be populated with ones is given by `diagonal_index`: `output[i, i + diagonal_index] = 1`.
 
 
 Example 1. *EyeLike* output with `output_type` = f32:
@@ -65,7 +65,7 @@ output  = [[0. 0.]
 
 * *diagonal_index*
 
-    * **Description**: index of the diagonal to be populated. A positive value refers to an upper diagonal and a negative value refers to a lower diagonal. Value `0` populates the main diagonal. If `diagonal_index` is positive value and is not less than `num_rows` or if `diagonal_index` is negative value and is not more than `num_columns`, matrix will be filled with only zeros.
+    * **Description**: the index of the diagonal to be populated. A positive value refers to an upper diagonal and a negative value refers to a lower diagonal. Value `0` populates the main diagonal. If `diagonal_index` is a positive value and is not smaller than `num_rows` or if `diagonal_index` is a negative value and is not larger than `num_columns`, the matrix will be filled with only zeros.
     * **Range of values**: any integer value
     * **Type**: int
     * **Default value**: *0*
@@ -76,12 +76,12 @@ output  = [[0. 0.]
 
 *   **1**: `num_rows` - scalar or 1D tensor with 1 non-negative element of type *T_NUM* describing the number of rows in matrix. **Required.**
 
-*   **2**: `num_columns` - scalar or 1D tensor with 1 non-negative element of type *T_NUM* describing the number of rows in matrix. Optionally, with default value equals to `num_rows`.
+*   **2**: `num_columns` - scalar or 1D tensor with 1 non-negative element of type *T_NUM* describing the number of rows in matrix. This input is optional, and its default value equals to `num_rows`.
 
 
 **Outputs**:
 
-* **1**: A tensor with type specified by the attribute *output_type*. The shape is `[num_rows, num_columns]`
+* **1**: A tensor with the type specified by the *output_type* attribute. The shape is `[num_rows, num_columns]`
 
 **Types**
 
