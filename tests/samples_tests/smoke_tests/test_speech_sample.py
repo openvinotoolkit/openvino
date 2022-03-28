@@ -44,7 +44,6 @@ class TestSpeechSample(SamplesCommonTestClass):
     @pytest.mark.parametrize("param", test_data)
     def test_speech_sample_nthreads(self, param):
         stdout = self._test(param, complete_path=False).split('\n')
-        assert os.path.isfile(param['o']), "Ark file after infer was not found"
 
         avg_error = parse_avg_err(stdout)
         log.info('Average scores diff: {}'.format(avg_error))
