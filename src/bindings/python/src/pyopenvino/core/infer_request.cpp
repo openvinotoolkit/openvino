@@ -238,7 +238,7 @@ void regclass_InferRequest(py::module m) {
             Waits for the result to become available. 
             Blocks until the result becomes available.
 
-            :ref:`Anchor Link <doxid-openvino_docs_OV_Runtime_UG_Python_API_exclusives_releasing_gil>`
+            Function releases GIL, other threads can work while this function is running in the background.
         )");
 
     cls.def(

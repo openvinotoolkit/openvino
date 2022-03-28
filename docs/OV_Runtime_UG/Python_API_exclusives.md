@@ -81,12 +81,6 @@ The callback of `AsyncInferQueue` is uniform for every job. When executed, GIL i
 
 Some functions in Python API release the Global Lock Interpreter (GIL) while running work-intensive code. It can help you to achieve more parallelism in your application using Python threads. For more information about GIL please refer to the Python documentation.
 
-@sphinxdirective
-
-.. doxygensnippet:: docs/snippets/ov_python_exclusives.py
-    :language: python
-    :fragment: [releasing_gil]
-
-@endsphinxdirective
+@snippet docs/snippets/ov_python_exclusives.py releasing_gil
 
 > **NOTE**: While GIL is released functions can still modify and/or operate on Python objects in C++, thus there is no reference counting. User is responsible for thread safety if sharing of these objects with other thread occurs. It can affects your code only if multiple threads are spawned in Python.
