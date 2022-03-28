@@ -10,7 +10,11 @@ Performance can be measured for two inference modes: latency- and throughput-ori
 
 Upon start-up, the application reads command-line parameters and loads a network and inputs (images/binary files) to the specified device.
 
-> **NOTE**: By default, OpenVINO Runtime samples, tools and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified.  For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
+  **NOTE**: By default, OpenVINO™ Toolkit Samples, Tools and Demos expect input with BGR channels order.
+  If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application
+  or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified.
+  For more information about the argument, refer to **When to Reverse Input Channels** section of
+  [Embedding Preprocessing Computation](@ref openvino_docs_MO_DG_Additional_Optimization_Use_Cases).
 
 Device-specific execution parameters (number of streams, threads, and so on) can be either explicitly specified through the command line
 or left default. In the last case, the sample logic will select the values for the optimal throughput.
