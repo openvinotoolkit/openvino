@@ -33,7 +33,7 @@ You can wrap framework data loading classes by `openvino.tools.pot.DataLoader` i
 
 > **NOTE**: Model-specific preprocessing, for example, mean/scale normalization can be embedded into the model at the convertion step using Model Optimizer component. This should be considered during the implementation of the DataLoader interface to avoid "double" normalization which can lead to the loss of accuracy after optimization.
 
-The code example below defines `DataLoader` object that loads images from a specified folder and transforms to a `numpy.array` with (1, 3, 224, 224) shape:
+The code example below defines `DataLoader` for three popular use cases: images, text, and audio.
 
 @sphinxtabset
 
@@ -48,6 +48,13 @@ The code example below defines `DataLoader` object that loads images from a spec
 @snippet tools/pot/docs/code/data_loaders.py text_loader
 
 @endsphinxtab
+
+@sphinxtab{Audio}
+
+@snippet tools/pot/docs/code/data_loaders.py audio_loader
+
+@endsphinxtab
+
 
 @endsphinxtabset
 
