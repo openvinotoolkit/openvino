@@ -28,7 +28,7 @@ public:
 
 private:
     // Inputs:
-    //      im_info, shape [N, 3]
+    //      im_info, shape [N, 3] or [N, 4]
     //      anchors, shape [H, W, A, 4]
     //      deltas,  shape [N, A * 4, H, W]
     //      scores,  shape [N, A, H, W]

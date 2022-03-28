@@ -58,10 +58,11 @@ NamedOutputs generate_proposals_v2(const NodeContext& node) {
     auto pads_begin = default_opset::Constant::create<int64_t>(ov::element::i64, {2}, {0, 0});
     auto pads_end = default_opset::Constant::create<int64_t>(ov::element::i64, {2}, {0, 1});
     auto im_scale = default_opset::Constant::create(ov::element::f32, {}, {1.0});
-    auto im_info = std::make_shared<default_opset::Pad>(im_shape, pads_begin, pads_end, im_scale, ov::op::PadMode::CONSTANT);
+    auto im_info =
+        std::make_shared<default_opset::Pad>(im_shape, pads_begin, pads_end, im_scale, ov::op::PadMode::CONSTANT);
 
     // input:
-    //  1. im_info: [N, H, W, S] or [N, H, W, S_H, S_W]
+    //  1. im_info: [N, 3] or [N, 4]
     //  2. anchors: [H, W, A, 4]
     //  3. deltas: [N, A*4, H, W]
     //  4. scores: [N, A, H, W]
