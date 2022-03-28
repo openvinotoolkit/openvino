@@ -27,8 +27,7 @@ if(NOT CPACK_GENERATOR STREQUAL "DEB")
 endif()
 
 # outbound requirements.txt files for openvino-dev package
-
-if (DEFINED ENV{CI_BUILD_DEV_TAG} AND NOT $ENV{CI_BUILD_DEV_TAG} STREQUAL "")
+if(DEFINED ENV{CI_BUILD_DEV_TAG} AND NOT $ENV{CI_BUILD_DEV_TAG} STREQUAL "")
     set(WHEEL_VERSION "${OpenVINO_VERSION}.$ENV{CI_BUILD_DEV_TAG}")
 else()
     set(WHEEL_VERSION ${OpenVINO_VERSION})
@@ -38,8 +37,8 @@ set(REQUIREMENTS_IN "${CMAKE_CURRENT_SOURCE_DIR}/requirements_dev.in")
 set(EXTRAS_LIST _ caffe kaldi mxnet onnx pytorch tensorflow tensorflow2)
 ie_cpack_add_component(${OV_CPACK_COMP_DEV_REQ_FILES})
 
-foreach(EXTRAS ${EXTRAS_LIST})
-    if(${EXTRAS} STREQUAL "_")
+foreach(EXTRAS IN LISTS EXTRAS_LIST)
+    if(EXTRAS STREQUAL "_")
         set(REQUIREMENTS_OUT "requirements.txt")
         set(EXTRAS "")
     else()

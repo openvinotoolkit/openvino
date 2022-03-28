@@ -4,6 +4,10 @@
 
 set(TARGET_NAME openvino)
 
+#
+# Add openvino library
+#
+
 add_library(${TARGET_NAME}
     $<TARGET_OBJECTS:ngraph_obj>
     $<TARGET_OBJECTS:frontend_common_obj>
@@ -65,7 +69,13 @@ install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
 
 # OpenVINO runtime library dev
 
+#
+# Add openvin::dev target
+#
+
 add_library(${TARGET_NAME}_dev INTERFACE)
+add_library(openvino::runtime::dev ALIAS ${TARGET_NAME}_dev)
+
 target_include_directories(${TARGET_NAME}_dev INTERFACE
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/transformations/include>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/dev_api>
@@ -77,7 +87,7 @@ target_compile_definitions(${TARGET_NAME}_dev INTERFACE
     $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_COMPILE_DEFINITIONS>)
 
 target_link_libraries(${TARGET_NAME}_dev INTERFACE ${TARGET_NAME} pugixml::static openvino::itt openvino::util)
-add_library(openvino::runtime::dev ALIAS ${TARGET_NAME}_dev)
+
 set_ie_threading_interface_for(${TARGET_NAME}_dev)
 set_target_properties(${TARGET_NAME}_dev PROPERTIES EXPORT_NAME runtime::dev)
 
@@ -86,15 +96,17 @@ openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME}_dev)
 # Install static libraries for case BUILD_SHARED_LIBS=OFF
 ov_install_static_lib(${TARGET_NAME}_dev core)
 
+#
 # Install OpenVINO runtime
+#
+
+list(APPEND PATH_VARS "IE_INCLUDE_DIR")
 
 # TODO: dpkg-shlibdeps does not work otherwise
 # TODO: define proper library version, currently SOVERSION 2022
 # set_target_properties(${TARGET_NAME} PROPERTIES
 #     SOVERSION ${OpenVINO_VERSION_MAJOR}
 #     VERSION ${OpenVINO_VERSION})
-
-list(APPEND PATH_VARS "IE_INCLUDE_DIR")
 
 if(ENABLE_INTEL_GNA)
     list(APPEND PATH_VARS "GNA_PATH")
