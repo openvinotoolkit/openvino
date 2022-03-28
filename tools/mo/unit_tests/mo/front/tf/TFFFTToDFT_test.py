@@ -51,7 +51,13 @@ class TFFFTToDFTTest(unittest.TestCase):
                 (1, 'DFT', int64_array([-1])),
                 (1, 'IDFT', int64_array([-1])),
                 (3, 'DFT', int64_array([-3, -2, -1])),
-                (3, 'IDFT', int64_array([-3, -2, -1]))])
+                (3, 'IDFT', int64_array([-3, -2, -1])),
+                (2, 'RDFT', int64_array([-2, -1])),
+                (2, 'IRDFT', int64_array([-2, -1])),
+                (1, 'RDFT', int64_array([-1])),
+                (1, 'IRDFT', int64_array([-1])),
+                (3, 'RDFT', int64_array([-3, -2, -1])),
+                (3, 'IRDFT', int64_array([-3, -2, -1]))])
     def test_replacement(self, num_of_dimensions, dft_type, fft_axes):
         graph = build_graph(nodes_attrs=dft_graph_node_attrs,
                             edges=dft_graph_edges,
