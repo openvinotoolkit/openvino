@@ -27,17 +27,17 @@ The best device is chosen using the following logic:
 | Choice   || Supported                                           || Supported                          |
 | Priority || Device                                              || model precision                    |
 +==========+======================================================+=====================================+
-| 1        || dGPU                                                | FP32, FP16, INT8, BIN               |
-|          || (e.g. Intel® Iris® Xe MAX)                          |                                     |
+| 1        || dGPU                                                || FP32, FP16, INT8, BIN              |
+|          || (e.g. Intel® Iris® Xe MAX)                          ||                                    |
 +----------+------------------------------------------------------+-------------------------------------+
-| 2        || iGPU                                                | FP32, FP16, BIN                     |
-|          || (e.g. Intel® UHD Graphics 620 (iGPU))               |                                     |
+| 2        || iGPU                                                || FP32, FP16, BIN                    |
+|          || (e.g. Intel® UHD Graphics 620 (iGPU))               ||                                    |
 +----------+------------------------------------------------------+-------------------------------------+
-| 3        || Intel® Movidius™ Myriad™ X VPU                      | FP16                                |
-|          || (e.g. Intel® Neural Compute Stick 2 (Intel® NCS2))  |                                     |
+| 3        || Intel® Movidius™ Myriad™ X VPU                      || FP16                               |
+|          || (e.g. Intel® Neural Compute Stick 2 (Intel® NCS2))  ||                                    |
 +----------+------------------------------------------------------+-------------------------------------+
-| 4        || Intel® CPU                                          | FP32, FP16, INT8, BIN               |
-|          || (e.g. Intel® Core™ i7-1165G7)                       |                                     |
+| 4        || Intel® CPU                                          || FP32, FP16, INT8, BIN              |
+|          || (e.g. Intel® Core™ i7-1165G7)                       ||                                    |
 +----------+------------------------------------------------------+-------------------------------------+
 
 What is important, **AUTO starts inference with the CPU by default except the priority list is set and there is no CPU in it**. CPU provides very low latency and can start inference with no additional delays. While it performs inference, the Auto-Device plugin continues to load the model to the device best suited for the purpose and transfers the task to it when ready. This way, the devices which are much slower in compile the model, GPU being the best example, do not impede inference at its initial stages. 
@@ -205,14 +205,14 @@ For unlimited device choice:
 @sphinxdirective
 .. code-block:: sh
 
-   ./benchmark_app –d AUTO –m <model> -i <input> -niter 1000
+   benchmark_app –d AUTO –m <model> -i <input> -niter 1000
 @endsphinxdirective
 
 For limited device choice:
 @sphinxdirective
 .. code-block:: sh
 
-   ./benchmark_app –d AUTO:CPU,GPU,MYRIAD –m <model> -i <input> -niter 1000
+   benchmark_app –d AUTO:CPU,GPU,MYRIAD –m <model> -i <input> -niter 1000
 @endsphinxdirective
 
 For more information, refer to the [C++](../../samples/cpp/benchmark_app/README.md) or [Python](../../tools/benchmark_tool/README.md) version instructions.	

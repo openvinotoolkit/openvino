@@ -127,7 +127,6 @@ This setting reports the total FPS for the dispatching hddl_service (which will 
 ## Additional Resources
 
 - [Intel Distribution of OpenVINO Toolkit home page](https://software.intel.com/en-us/openvino-toolkit)
-- [Intel Distribution of OpenVINO Toolkit documentation](https://docs.openvino.ai)
 - [Troubleshooting Guide](troubleshooting.md)
 - [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs HAL Configuration Guide](/downloads/595850_Intel_Vision_Accelerator_Design_with_Intel_Movidius_VPUs-HAL Configuration Guide_rev1.3.pdf)
 - [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs Workload Distribution User Guide](/downloads/613514_Intel Vision Accelerator Design with Intel Movidius VPUs Workload Distribution_UG_r0.9.pdf)

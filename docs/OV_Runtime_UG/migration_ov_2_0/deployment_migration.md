@@ -14,7 +14,7 @@ Starting from OpenVINO 2022.1, Model Optimizer, Post-Training Optimization tool 
 The structure of OpenVINO 2022.1 installer package has been organized as below:
 
 - The `runtime` folder includes headers, libraries and CMake interfaces.
-- The `tools` folder contains [the compile tool](../../../tools/compile_tool/README.md), [deployment manager](../../install_guides/deployment-manager-tool.md) and a set of `requirements.txt` files with links to the corresponding versions of the `openvino-dev` package.
+- The `tools` folder contains [the compile tool](../../../tools/compile_tool/README.md), [deployment manager](../../OV_Runtime_UG/deployment/deployment-manager-tool.md) and a set of `requirements.txt` files with links to the corresponding versions of the `openvino-dev` package.
 - The `python` folder contains the Python version for OpenVINO Runtime.
 
 ## Installing OpenVINO Development Tools via PyPI
@@ -153,7 +153,7 @@ To build applications without CMake interface, you can also use MSVC IDE, UNIX m
 
 ## Clearer Library Structure for Deployment
 
-OpenVINO 2022.1 has reorganized the libraries to make it easier for deployment. In previous versions, to perform deployment steps, you have to use several libraries. Now you can just use `openvino` or `openvino_c` based on your developing language plus necessary plugins to complete your task. For example, `openvino_intel_cpu_plugin` and `openvino_ir_frontend` plugins will enable you to load OpenVINO IRs and perform inference on CPU device.
+OpenVINO 2022.1 has reorganized the libraries to make it easier for deployment. In previous versions, to perform deployment steps, you have to use several libraries. Now you can just use `openvino` or `openvino_c` based on your developing language plus necessary plugins to complete your task. For example, `openvino_intel_cpu_plugin` and `openvino_ir_frontend` plugins will enable you to load OpenVINO IRs and perform inference on CPU device (see [Local distribution with OpenVINO](../deployment/local-distribution.md) for more details).
 
 Here you can find some detailed comparisons on library structure between OpenVINO 2022.1 and previous versions:
 

@@ -23,7 +23,8 @@
 
 namespace ov {
 namespace op {
-/// Root of all actual ops
+/// \brief Root of all actual ops
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Op : public Node {
 protected:
     Op() : Node() {}
