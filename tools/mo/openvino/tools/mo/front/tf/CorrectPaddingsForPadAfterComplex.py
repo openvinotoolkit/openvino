@@ -2,14 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-import logging as log
-
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
 from openvino.tools.mo.front.subgraph_matcher import SubgraphMatch
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.ops.concat import Concat
-from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 
 
 class CorrectPaddingsForPadAfterComplex(FrontReplacementSubgraph):
@@ -30,7 +28,6 @@ class CorrectPaddingsForPadAfterComplex(FrontReplacementSubgraph):
             ])
 
     def replace_sub_graph(self, graph: Graph, match: [dict, SubgraphMatch]):
-        complex_node = match['complex']
         pad_node = match['pad']
         pads_begin_node = pad_node.in_port(1).get_source().node
         pads_end_node = pad_node.in_port(2).get_source().node

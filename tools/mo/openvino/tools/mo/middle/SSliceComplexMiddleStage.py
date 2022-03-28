@@ -6,11 +6,11 @@ from typing import Dict
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
 from openvino.tools.mo.graph.graph import Graph, Node, rename_nodes
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.ops.transpose import Transpose
-from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
 
 
 class SSliceComplexMiddleStage(MiddleReplacementPattern):
