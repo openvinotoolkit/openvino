@@ -35,46 +35,21 @@ You can wrap framework data loading classes by `openvino.tools.pot.DataLoader` i
 
 The code example below defines `DataLoader` object that loads images from a specified folder and transforms to a `numpy.array` with (1, 3, 224, 224) shape:
 
-```python
-import os
+@sphinxtabset
 
-import numpy as np
-import cv2 as cv
+@sphinxtab{Images}
 
-from openvino.tools.pot import DataLoader
+@snippet tools/pot/docs/code/data_loaders.py image_loader
 
-class ImageLoader(DataLoader):
+@endsphinxtab
 
-    def __init__(self, dataset_path):
-        """ Load images from folder  """
-        # Collect names of image files
-        self._files = []
-        all_files_in_dir = os.listdir(dataset_path)
-        for name in all_files_in_dir:
-            file = os.path.join(dataset_path, name)
-            if cv.haveImageReader(file):
-                self._files.append(file)
+@sphinxtab{Text}
 
-        # Define shape of the model
-        self._shape = (224,224)
+@snippet tools/pot/docs/code/data_loaders.py text_loader
 
-    def __len__(self):
-        """ Returns the length of the dataset """
-        return len(self._files)
+@endsphinxtab
 
-    def __getitem__(self, index):
-        """ Returns image data by index in the NCHW layout
-        Note: model-specific preprocessing is omitted, consider adding it here
-        """
-        if index >= len(self):
-            raise IndexError("Index out of dataset size")
-
-        image = cv.imread(self._files[index]) # read image with OpenCV
-        image = cv.resize(image, self._shape) # resize to a target input size
-        image = np.expand_dims(image, 0)  # add batch dimension
-        image = image.transpose(0, 3, 1, 2)  # convert to NCHW layout
-        return image, None   # annotation is set to None
-```
+@endsphinxtabset
 
 ## Select quantization parameters
 Default Quantization algorithm has mandatory and optional parameters which are defined as a distionary:
