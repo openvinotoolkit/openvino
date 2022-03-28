@@ -42,7 +42,7 @@ def mark_unfused_nodes(graph: Graph, regex_masks: str):
 
 def mark_shape_of_sugraph_as_unfusable(graph: Graph):
     def condition_to_continue(node: Node):
-        for i, port in node.out_ports().items():
+        for port in node.out_ports().values():
             if port.data.get_value() is None:
                 return False
         return True
