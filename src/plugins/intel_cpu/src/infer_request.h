@@ -63,11 +63,13 @@ private:
     void PullStates();
     void redefineMemoryForInputNodes();
 
-    void changeDefaultPtr();
     std::shared_ptr<ExecNetwork>        execNetwork;
     openvino::itt::handle_t             profilingTask;
     std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> memoryStates;
     AsyncInferRequest*                  _asyncRequest = nullptr;
+
+protected:
+    virtual void changeDefaultPtr();
 };
 
 class LegacyInferRequest : public InferRequestBase {
@@ -83,6 +85,9 @@ private:
     void PushInputData() override;
     void initBlobs() override;
     void SetBatch(int batch = -1) override;
+    void changeDefaultPtr() override;
+    void tuneInputDesc(const std::string name, InferenceEngine::TensorDesc &desc);
+    void tuneOutputDesc(InferenceEngine::TensorDesc &desc);
 };
 
 class InferRequest : public InferRequestBase {
