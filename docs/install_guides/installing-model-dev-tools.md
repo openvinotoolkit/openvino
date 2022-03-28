@@ -16,7 +16,7 @@ If you want to download, convert, optimize and tune pre-trained deep learning mo
 
 If you are a Python developer, you may use the instructions below to install OpenVINO Development Tools. For more details, see <https://pypi.org/project/openvino-dev>.
 
-Installation of OpenVINO Development Tools includes OpenVINO Runtime as a dependency, so there is no need to install it separately.
+Installation of OpenVINO Development Tools includes OpenVINO Runtime as a dependency, so there is no need to install OpenVINO Runtime separately.
 
 ### Step 1. Set Up Python Virtual Environment
 
