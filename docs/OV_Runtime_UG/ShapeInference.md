@@ -39,6 +39,8 @@ There are other approaches to change model input shapes during the stage of <a h
 ### Dynamic Shape Notice
 
 Shape-changing functionality could be used to turn dynamic model input into a static one and vice versa.
+It is recommended to always set static shapes in case if the shape of data is not going to change from one inference to another.
+Setting static shapes avoids possible functional limitations, memory and run time overheads for dynamic shapes that vary depending on hardware plugin and model used.
 To learn more about dynamic shapes in OpenVINO please see a [dedicated article](../OV_Runtime_UG/ov_dynamic_shapes.md).
 
 ### Usage of Reshape Method <a name="usage_of_reshape_method"></a>
@@ -103,7 +105,7 @@ For example, [publicly available Inception family models from TensorFlow*](https
 - Changing the model input shape may significantly affect its accuracy.
 For example, Object Detection models from TensorFlow have resizing restrictions by design. 
 To keep the model valid after the reshape, choose a new input shape that satisfies conditions listed in the `pipeline.config` file. 
-For details, refer to the <a href="_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models.html-custom-input-shape">Tensorflow Object Detection API models resizing techniques</a>.
+For details, refer to the <a href="_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models.html#custom-input-shape">Tensorflow Object Detection API models resizing techniques</a>.
 
 ### How To Fix Non-Reshape-able Model<a name="how-to-fix-non-reshape-able-model"></a>
 
@@ -179,6 +181,8 @@ There are other approaches to change model input shapes during the stage of <a h
 ### Dynamic Shape Notice
 
 Shape-changing functionality could be used to turn dynamic model input into a static one and vice versa.
+It is recommended to always set static shapes in case if the shape of data is not going to change from one inference to another.
+Setting static shapes avoids possible functional limitations, memory and run time overheads for dynamic shapes that vary depending on hardware plugin and model used.
 To learn more about dynamic shapes in OpenVINO please see a [dedicated article](../OV_Runtime_UG/ov_dynamic_shapes.md).
 
 ### Usage of Reshape Method <a name="usage_of_reshape_method"></a>
@@ -230,7 +234,7 @@ Dictionary values (representing new shapes) could be
 
 @endsphinxdirective
 
-Please find usage scenarios of `reshape` feature in our [samples](Samples_Overview.md) and [demos](ToDo), starting with [Hello Reshape Sample](../../samples/python/hello_reshape_ssd/README.html)
+Please find usage scenarios of `reshape` feature in our [samples](Samples_Overview.md), starting with [Hello Reshape Sample](../../samples/python/hello_reshape_ssd/README.html)
 
 Practically, some models are not ready to be reshaped. In this case, a new input shape cannot be set with the Model Optimizer or the `Model.reshape` method.
 
