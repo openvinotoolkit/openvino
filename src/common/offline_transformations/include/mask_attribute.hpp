@@ -116,55 +116,6 @@ public:
         }
     }
 
-    Mask::Ptr intersect_masks_reversed_with_broadcasted_dims(
-        Mask *const mask,
-        const std::set<int64_t> left_broadcasted_dims,
-        const std::set<int64_t> right_broadcasted_dims) const {
-        auto result_mask = std::make_shared<Mask>(std::max(size(), mask->size()));
-        auto result_iter = result_mask->rbegin();
-        auto mask_1_iter = rbegin();
-        auto mask_2_iter = mask->rbegin();
-
-        while (mask_1_iter != rend() ||
-               mask_2_iter != mask->rend()) {
-            if (mask_1_iter != rend() &&
-                mask_2_iter != mask->rend()) {
-                auto dist1 = rend() - mask_1_iter - 1;
-                auto dist2 = mask->rend() - mask_2_iter - 1;
-                if (left_broadcasted_dims.find(dist1) != left_broadcasted_dims.end() ||
-                    right_broadcasted_dims.find(dist2) != right_broadcasted_dims.end()) {
-                        // Union masks
-                        for (const auto & value : *mask_1_iter)
-                            result_iter->insert(value);
-                        for (const auto & value : *mask_2_iter)
-                            result_iter->insert(value);
-                    } else {
-                        // Merge mask dimension values for both masks
-                        // Example: (MaskValue[1,2,3,4], MaskValue[2,3]) -> MaskValue[2,3]
-                        for (const auto & value : *mask_1_iter) {
-                            if (mask_2_iter->count(value)) {
-                                result_iter->insert(value);
-                            }
-                        }
-                    }
-            } else {
-                if (mask_1_iter != rend()) {
-                    for (const auto & value : *mask_1_iter)
-                        result_iter->insert(value);
-                }
-                if (mask_2_iter != mask->rend()) {
-                    for (const auto & value : *mask_2_iter)
-                        result_iter->insert(value);
-                }
-            }
-
-            result_iter++;
-            if (mask_1_iter != rend()) mask_1_iter++;
-            if (mask_2_iter != mask->rend()) mask_2_iter++;
-        }
-        return result_mask;
-    }
-
     Mask::Ptr intersect_masks_reversed(Mask *const mask) const {
         auto result_mask = std::make_shared<Mask>(std::max(size(), mask->size()));
         auto result_iter = result_mask->rbegin();
@@ -185,39 +136,6 @@ public:
             result_iter++;
             mask_1_iter++;
             mask_2_iter++;
-        }
-        return result_mask;
-    }
-
-    Mask::Ptr union_masks_reversed_with_broadcasted_dims(Mask *const mask) const {
-        auto result_mask = std::make_shared<Mask>(std::max(size(), mask->size()));
-        auto result_iter = result_mask->rbegin();
-        auto mask_1_iter = rbegin();
-        auto mask_2_iter = mask->rbegin();
-
-        while (mask_1_iter != rend() ||
-               mask_2_iter != mask->rend()) {
-            if (mask_1_iter != rend() &&
-                mask_2_iter != mask->rend()) {
-                // Union masks
-                for (const auto & value : *mask_1_iter)
-                    result_iter->insert(value);
-                for (const auto & value : *mask_2_iter)
-                    result_iter->insert(value);
-            } else {
-                if (mask_1_iter != rend()) {
-                    for (const auto & value : *mask_1_iter)
-                        result_iter->insert(value);
-                }
-                if (mask_2_iter != mask->rend()) {
-                    for (const auto & value : *mask_2_iter)
-                        result_iter->insert(value);
-                }
-            }
-
-            result_iter++;
-            if (mask_1_iter != rend()) mask_1_iter++;
-            if (mask_2_iter != mask->rend()) mask_2_iter++;
         }
         return result_mask;
     }
@@ -249,58 +167,12 @@ public:
         return result_mask;
     }
 
-    Mask::Ptr intersect_masks_reversed_with_broadcast(Mask *const mask, uint64_t shift = 2) const {
-        auto result_mask = std::make_shared<Mask>(std::max(size(), mask->size()));
-        auto result_iter = std::next(result_mask->rbegin(), shift);
-        auto mask_1_iter = std::next(rbegin(), shift);
-        auto mask_2_iter = std::next(mask->rbegin(), shift);
-
-        while (mask_1_iter != rend() ||
-               mask_2_iter != mask->rend()) {
-            if (mask_1_iter != rend() &&
-                mask_2_iter != mask->rend()) {
-                // Merge mask dimension values for both masks
-                // Example: (MaskValue[1,2,3,4], MaskValue[2,3]) -> MaskValue[2,3]
-                for (const auto & value : *mask_1_iter) {
-                    if (mask_2_iter->count(value)) {
-                        result_iter->insert(value);
-                    }
-                }
-            } else {
-                if (mask_1_iter != rend()) {
-                    for (const auto & value : *mask_1_iter)
-                        result_iter->insert(value);
-                }
-                if (mask_2_iter != mask->rend()) {
-                    for (const auto & value : *mask_2_iter)
-                        result_iter->insert(value);
-                }
-            }
-
-            result_iter++;
-            if (mask_1_iter != rend()) mask_1_iter++;
-            if (mask_2_iter != mask->rend()) mask_2_iter++;
-        }
-        return result_mask;
-    }
-
-
     bool add_callback(const std::function<bool(Mask::Ptr)> & receive_callback, Mask::Ptr mask) {
         if (m_callbacks.find(mask.get()) != m_callbacks.end())
             NGRAPH_DEBUG << "Attempt to rewrite callback, could lead to unexpected behaviour";
 
         m_callbacks[mask.get()] = receive_callback;
         m_dependencies.push_back(mask.get());
-        return true;
-    }
-
-    bool remove_callback(Mask::Ptr mask) {
-        if (m_callbacks.find(mask.get()) == m_callbacks.end()) {
-            NGRAPH_DEBUG << "Attempt to remove not existed callback";
-            return false;
-        }
-        m_dependencies.erase(std::remove(m_dependencies.begin(), m_dependencies.end(), mask.get()), m_dependencies.end());
-        m_callbacks.erase(mask.get());
         return true;
     }
 
