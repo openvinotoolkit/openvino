@@ -231,7 +231,6 @@ Gna2DeviceVersion GNADeviceHelper::parseTarget(const std::string& target) {
     const std::map<std::string, Gna2DeviceVersion> targetMap {
         {InferenceEngine::GNAConfigParams::GNA_TARGET_2_0, Gna2DeviceVersion2_0},
         {InferenceEngine::GNAConfigParams::GNA_TARGET_3_0, Gna2DeviceVersion3_0},
-        {InferenceEngine::GNAConfigParams::GNA_TARGET_3_5, Gna2DeviceVersion3_5},
         {"", Gna2DeviceVersionSoftwareEmulation},
     };
     const auto f = targetMap.find(target);
@@ -251,10 +250,6 @@ Gna2DeviceVersion GNADeviceHelper::parseDeclaredTarget(std::string target, const
         if (!isGnaLibVersionSupportGna3())
             throwUnsupportedGnaTarget(", when GNA Library version is " + GetGnaLibraryVersion());
         parsed = Gna2DeviceVersion3_0;
-    } else if (target == InferenceEngine::GNAConfigParams::GNA_TARGET_3_5) {
-        if (!isGnaLibVersionSupportGna3())
-            throwUnsupportedGnaTarget(", when GNA Library version is " + GetGnaLibraryVersion());
-        parsed = Gna2DeviceVersion3_5;
     } else if (target != InferenceEngine::GNAConfigParams::GNA_TARGET_2_0) {
         throwUnsupportedGnaTarget("");
     }
@@ -629,7 +624,6 @@ std::string GNADeviceHelper::GetCompileTarget() const {
     const std::map<Gna2DeviceVersion, std::string> targetMap = {
         {Gna2DeviceVersion2_0, InferenceEngine::GNAConfigParams::GNA_TARGET_2_0},
         {Gna2DeviceVersion3_0, InferenceEngine::GNAConfigParams::GNA_TARGET_3_0},
-        {Gna2DeviceVersion3_5, InferenceEngine::GNAConfigParams::GNA_TARGET_3_5},
     };
     const auto target = getTargetDevice(false);
     auto found = targetMap.find(target);
