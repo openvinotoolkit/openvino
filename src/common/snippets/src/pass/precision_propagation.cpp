@@ -8,22 +8,28 @@
 #include "ngraph_ops/type_relaxed.hpp"
 
 #include <ngraph/rt_info.hpp>
-#include <snippets/snippets_isa.hpp>
 
 
 ngraph::snippets::pass::PrecisionPropagation::PrecisionPropagation(const ov::element::Type default_type) : default_type(default_type) { }
 
 bool ngraph::snippets::pass::PrecisionPropagation::run_on_model(const std::shared_ptr<ov::Model> &m) {
+    RUN_ON_FUNCTION_SCOPE(PrecisionPropagation);
     bool rewritten = false;
-    for (auto& op : m->get_ops()) {
-        // if there is convert with unsupported dst type we should insert new convert with needed dst type after that
+    for (auto& op : m->get_ordered_ops()) {
+        // if there is convert with unsupported dst type we should insert new Convert with needed dst type after that
         // for correct math calculations
         if (auto convert = ov::as_type_ptr<ngraph::op::v0::Convert>(op)) {
             if (convert->get_destination_type() != default_type) {
-               auto re_convert = std::make_shared<ov::op::v0::Convert>(op, default_type);
+               auto new_convert = std::make_shared<ov::op::v0::Convert>(convert, default_type);
                 for (auto consumer : convert->output(0).get_target_inputs()) {
-                    if (consumer.get_node()->shared_from_this() != convert) {
-                        consumer.replace_source_output(convert);
+                    auto shared_consumer = consumer.get_node()->shared_from_this();
+                    // After this Convert, there may be another Convert of the same kind (for example, it's special Convert before Result)
+                    // So we shouldn't insert Convert with another destination type between these nodes
+                    if (auto existing_convert = ov::as_type_ptr<ngraph::op::v0::Convert>(shared_consumer)) {
+                        if (existing_convert->get_destination_type() == convert->get_destination_type())
+                            continue;
+                    } else if (!ov::is_type<ov::op::v0::Result>(shared_consumer) && shared_consumer != new_convert) {
+                        consumer.replace_source_output(new_convert);
                         rewritten |= true;
                     }
                 }

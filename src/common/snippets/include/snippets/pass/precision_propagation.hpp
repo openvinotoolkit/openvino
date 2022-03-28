@@ -18,6 +18,7 @@ namespace pass {
  */
 class PrecisionPropagation: public ngraph::pass::FunctionPass {
 public:
+    OPENVINO_RTTI("PrecisionPropagation", "0");
     PrecisionPropagation(const ov::element::Type default_type = ov::element::f32);
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 private:

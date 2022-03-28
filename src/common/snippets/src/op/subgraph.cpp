@@ -144,28 +144,6 @@ Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShape
                          });
     };
 
-    auto insertConvertAfterNode = [](const std::shared_ptr<Node>& node, const ov::element::Type supported_exec_type) {
-        const auto convert = std::make_shared<ov::op::v0::Convert>(node, supported_exec_type);
-        for (auto output : node->outputs()) {
-            for (auto consumer : output.get_target_inputs()) {
-                if (consumer.get_node()->shared_from_this() != convert) {
-                    consumer.replace_source_output(convert);
-                }
-            }
-        }
-    };
-
-    // We should insert Converts to f32 after scalar constants of unsupported element type
-    // because at the moment scalar is constant node, not parameter as other constant node. Thus we check all ops to find scalars
-    // Also we should use ConstantFolding pass after that in "convert_to_snippet_dialect"
-    // TODO: Need to unit behavior with common constants or to come up with another solution
-    const auto supported_exec_type = m_generator->get_target_machine()->get_supported_exec_types().front();
-    for (auto& node : m_body->get_ops()) {
-        if (op::is_scalar_constant(node) && node->get_element_type() != supported_exec_type) {
-            insertConvertAfterNode(node, supported_exec_type);
-        }
-    }
-
     Shape baseShape;
     AxisVector baseOrder;
     std::tie(baseShape, baseOrder, std::ignore) = getMaxRankBlockedShape(inputShapes);
@@ -204,10 +182,6 @@ Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShape
         const auto paramShape = m_body->get_parameters()[i]->get_shape();
         if (paramShape.size() != inShape.size() || !equal(paramShape.begin(), paramShape.end(), inShape.begin()))
                 m_body->replace_parameter(i, std::make_shared<opset1::Parameter>(inType, inShape));
-
-        if (inType != supported_exec_type) {
-            insertConvertAfterNode(m_body->get_parameters()[i], supported_exec_type);
-        }
     }
 
     m_body->validate_nodes_and_infer_types();
@@ -242,14 +216,56 @@ Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShape
         bool compatibleWithOtherOutputs = PartialShape::broadcast_merge_into(outPShape, shape_i,
                                                                ::ngraph::op::AutoBroadcastType::NUMPY);
         NODE_VALIDATION_CHECK(this, compatibleWithOtherOutputs, "Snippets output shapes must be numpy broadcastable");
-
-        // we should insert Converts with needed dst element type before results because after "validate_nodes_and_infer_types" it can be changed
-        const auto convert = std::make_shared<ov::op::v0::Convert>(
-                body_results[i]->get_input_node_shared_ptr(0), std::get<2>(outputShapes[i]));
-        body_results[i]->set_argument(0, convert);
     }
+
+    // work with precisions. Firstly we should insert Converts after parameters and before results without validate_nodes_and_infer_types() call
+    // because there may be Converts with not supported destination type inside body. Thus, after that we should propagate precision inside body
+    align_precision(outputShapes, inputShapes);
+
     exec_domain = outPShape.get_shape();
     return exec_domain;
+}
+
+void snippets::op::Subgraph::align_precision(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes) {
+    auto insertConvertAfterNode = [](const std::shared_ptr<Node>& node, const ov::element::Type supported_exec_type) {
+        const auto convert = std::make_shared<ov::op::v0::Convert>(node, supported_exec_type);
+        for (auto output : node->outputs()) {
+            for (auto consumer : output.get_target_inputs()) {
+                if (consumer.get_node()->shared_from_this() != convert) {
+                    consumer.replace_source_output(convert);
+                }
+            }
+        }
+    };
+
+    // We should insert Converts to f32 after scalar constants of unsupported element type
+    // because at the moment scalar is constant node, not parameter as other constant node. Thus we check all ops to find scalars
+    // Also we should use ConstantFolding pass after that in "convert_to_snippet_dialect"
+    // TODO: Need to unit behavior with common constants or to come up with another solution
+    const auto supported_exec_type = m_generator->get_target_machine()->get_supported_exec_types().front();
+    for (auto& node : m_body->get_ops()) {
+        if (op::is_scalar_constant(node) && node->get_element_type() != supported_exec_type) {
+            insertConvertAfterNode(node, supported_exec_type);
+        }
+    }
+
+    for (size_t i = 0; i < inputShapes.size(); i++) {
+        if (std::get<2>(inputShapes[i]) != supported_exec_type) {
+            insertConvertAfterNode(m_body->get_parameters()[i], supported_exec_type);
+        }
+    }
+
+    const auto& body_results = m_body->get_results();
+    for (size_t i = 0; i < outputShapes.size(); i++) {
+        const auto convert = std::make_shared<ov::op::v0::Convert>(body_results[i]->get_input_node_shared_ptr(0), std::get<2>(outputShapes[i]));
+        body_results[i]->set_argument(0, convert);
+    }
+
+    ngraph::pass::Manager manager;
+    manager.register_pass<snippets::pass::PrecisionPropagation>(supported_exec_type);
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ngraph::pass::EliminateConvert>();
+    manager.run_passes(m_body);
 }
 
 void snippets::op::Subgraph::convert_to_snippet_dialect() {
@@ -263,11 +279,6 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
     const size_t lanes = m_generator->get_target_machine()->get_lanes();
 
     ngraph::pass::Manager manager;
-
-    manager.register_pass<snippets::pass::PrecisionPropagation>(supported_exec_type);
-    manager.register_pass<ngraph::pass::ConstantFolding>();
-    manager.register_pass<ngraph::pass::EliminateConvert>();
-
     manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
     manager.register_pass<snippets::pass::ConvertPowerToPowerStatic>();
     manager.register_pass<snippets::pass::InsertLoad>(lanes);
