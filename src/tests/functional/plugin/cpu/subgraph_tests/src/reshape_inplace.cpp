@@ -12,6 +12,28 @@
 using namespace InferenceEngine;
 using namespace ov::test;
 namespace SubgraphTestsDefinitions {
+// Subgraph:
+/*
+ *         params[0]   params[1]
+ *             |          |
+ * constant  shapeOf     /
+ *      \      |        /
+ *       broadcast     /
+ *            \       /
+ *             \     /
+ *             reshape
+ *                |
+ *              result
+ *
+ *  This test is designed for correctness of reshape's in-place implementation.
+ *
+ *  Due to non-const target shape parameter (params[1]), reshape node
+ *  is non-constant node even though the input tensor is constant node.
+ *
+ *  some logic protecting constant data from being corrupted by
+ *  the in-place consumer may breaks the in-place assumption, and reshape
+ *  should be able to handle this case correctly.
+ */
 
 class InPlaceReshapeFromConstantCheck : public SubgraphBaseTest {
 protected:
