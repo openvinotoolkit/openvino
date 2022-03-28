@@ -35,8 +35,6 @@
 
 namespace LayerTestsUtils {
 
-
-
 using TargetDevice = std::string;
 
 typedef std::tuple<

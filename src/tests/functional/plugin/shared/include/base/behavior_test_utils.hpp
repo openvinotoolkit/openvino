@@ -36,7 +36,10 @@ public:
         return result.str();
     }
 
+    virtual void setApiEntity() { api_entity = ov::test::utils::ov_entity::UNDEFINED; }
+
     void SetUp() override {
+        setApiEntity();
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
         function = ngraph::builder::subgraph::makeConvPoolRelu();
@@ -46,6 +49,14 @@ public:
         if (!configuration.empty()) {
             PluginCache::get().reset();
         }
+        auto& apiSummary = ov::test::utils::ApiSummary::getInstance();
+        if (this->HasFailure()) {
+            apiSummary.updateStat(api_entity, targetDevice, ov::test::utils::PassRate::Statuses::FAILED);
+        } else if (this->IsSkipped()) {
+            apiSummary.updateStat(api_entity, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
+        } else {
+            apiSummary.updateStat(api_entity, targetDevice, ov::test::utils::PassRate::Statuses::PASSED);
+        }
     }
 
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
@@ -53,6 +64,7 @@ public:
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
+    ov::test::utils::ov_entity api_entity;
 };
 
 typedef std::tuple<
@@ -91,13 +103,13 @@ public:
         if (!configuration.empty()) {
             PluginCache::get().reset();
         }
-        auto apiSummary = ov::test::utils::ApiSummary::getInstance();
+        auto& apiSummary = ov::test::utils::ApiSummary::getInstance();
         if (this->HasFailure()) {
-            apiSummary.updateStat(ov::test::utils::ov_entity::ie_infer_request, targetDevice, ov::test::utils::PassRate::Statuses::FAILED);
+            apiSummary.updateStat(api_entity, targetDevice, ov::test::utils::PassRate::Statuses::FAILED);
         } else if (this->IsSkipped()) {
-            apiSummary.updateStat(ov::test::utils::ov_entity::ie_infer_request, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
+            apiSummary.updateStat(api_entity, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
         } else {
-            apiSummary.updateStat(ov::test::utils::ov_entity::ie_infer_request, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
+            apiSummary.updateStat(api_entity, targetDevice, ov::test::utils::PassRate::Statuses::PASSED);
         }
     }
 
@@ -108,6 +120,7 @@ protected:
     std::shared_ptr<ngraph::Function> function;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
+    ov::test::utils::ov_entity api_entity = ov::test::utils::ov_entity::ie_infer_request;
 };
 
 inline InferenceEngine::Core createIECoreWithTemplate() {
@@ -142,10 +155,24 @@ public:
 class IEClassBaseTestP : public IEClassNetworkTest, public ::testing::WithParamInterface<std::string> {
 public:
     std::string deviceName;
+    ov::test::utils::ov_entity api_entity = ov::test::utils::ov_entity::UNDEFINED;
+
     void SetUp() override {
+        api_entity = ov::test::utils::ov_entity::ie_plugin;
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         IEClassNetworkTest::SetUp();
         deviceName = GetParam();
+    }
+
+    void TearDown() override {
+        auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
+        if (this->HasFailure()) {
+            apiSummary.updateStat(api_entity, deviceName, ov::test::utils::PassRate::Statuses::FAILED);
+        } else if (this->IsSkipped()) {
+            apiSummary.updateStat(api_entity, deviceName, ov::test::utils::PassRate::Statuses::SKIPPED);
+        } else {
+            apiSummary.updateStat(api_entity, deviceName, ov::test::utils::PassRate::Statuses::PASSED);
+        }
     }
 };
 } // namespace BehaviorTestsUtils

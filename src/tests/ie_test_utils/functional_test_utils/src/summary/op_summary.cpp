@@ -240,6 +240,10 @@ void OpSummary::saveReport() {
         return;
     }
 
+    if (opsStats.empty()) {
+        return;
+    }
+
     std::string filename = reportFilename;
     if (saveReportWithUniqueName) {
         auto processId = std::to_string(getpid());

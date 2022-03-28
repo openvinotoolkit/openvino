@@ -16,6 +16,7 @@
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/blob_utils.hpp"
+#include "functional_test_utils/summary/api_summary.hpp"
 
 namespace ov {
 namespace test {
@@ -71,6 +72,14 @@ public:
         if (!configuration.empty()) {
             utils::PluginCache::get().reset();
         }
+        auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
+        if (this->HasFailure()) {
+            apiSummary.updateStat(api_entity, targetDevice, ov::test::utils::PassRate::Statuses::FAILED);
+        } else if (this->IsSkipped()) {
+            apiSummary.updateStat(api_entity, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
+        } else {
+            apiSummary.updateStat(api_entity, targetDevice, ov::test::utils::PassRate::Statuses::PASSED);
+        }
     }
 
 protected:
@@ -79,6 +88,7 @@ protected:
     std::string targetDevice;
     ov::AnyMap configuration;
     std::shared_ptr<ov::Model> function;
+    ov::test::utils::ov_entity api_entity = ov::test::utils::ov_entity::ov_infer_request;
 };
 
 inline ov::Core createCoreWithTemplate() {
@@ -129,8 +139,10 @@ public:
 class OVClassBaseTestP : public OVClassNetworkTest, public ::testing::WithParamInterface<std::string> {
 public:
     std::string deviceName;
+    ov::test::utils::ov_entity api_entity = ov::test::utils::ov_entity::UNDEFINED;
 
     void SetUp() override {
+        api_entity = ov::test::utils::ov_entity::ov_plugin;
         // TODO: Remove it after fixing issue 69529
         // w/a for myriad (cann't store 2 caches simultaneously)
         PluginCache::get().reset();
@@ -138,6 +150,17 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         OVClassNetworkTest::SetUp();
         deviceName = GetParam();
+    }
+
+    void TearDown() override {
+        auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
+        if (this->HasFailure()) {
+            apiSummary.updateStat(api_entity, deviceName, ov::test::utils::PassRate::Statuses::FAILED);
+        } else if (this->IsSkipped()) {
+            apiSummary.updateStat(api_entity, deviceName, ov::test::utils::PassRate::Statuses::SKIPPED);
+        } else {
+            apiSummary.updateStat(api_entity, deviceName, ov::test::utils::PassRate::Statuses::PASSED);
+        }
     }
 };
 
@@ -150,12 +173,25 @@ protected:
     std::string deviceName;
     ov::AnyMap configuration;
     std::shared_ptr<ngraph::Function> simpleNetwork;
+    ov::test::utils::ov_entity api_entity = ov::test::utils::ov_entity::UNDEFINED;
 
 public:
     void SetUp() override {
+        api_entity = ov::test::utils::ov_entity::ov_compiled_model;
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         std::tie(deviceName, configuration) = GetParam();
         simpleNetwork = ngraph::builder::subgraph::makeSingleConv();
+    }
+
+    void TearDown() override {
+        auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
+        if (this->HasFailure()) {
+            apiSummary.updateStat(api_entity, deviceName, ov::test::utils::PassRate::Statuses::FAILED);
+        } else if (this->IsSkipped()) {
+            apiSummary.updateStat(api_entity, deviceName, ov::test::utils::PassRate::Statuses::SKIPPED);
+        } else {
+            apiSummary.updateStat(api_entity, deviceName, ov::test::utils::PassRate::Statuses::PASSED);
+        }
     }
 };
 using OVClassExecutableNetworkGetMetricTest_DEVICE_PRIORITY = OVClassExecutableNetworkGetMetricTest_Priority;

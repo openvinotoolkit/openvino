@@ -300,7 +300,11 @@ TEST_P(ExecutableNetworkBaseTest, pluginDoesNotChangeOriginalNetwork) {
     compare_functions(cnnNet.getFunction(), referenceNetwork);
 }
 
-using ExecNetSetPrecision = BehaviorTestsUtils::BehaviorTestsBasic;
+class ExecNetSetPrecision : public virtual BehaviorTestsUtils::BehaviorTestsBasic {
+    void setApiEntity() override {
+        api_entity = ov::test::utils::ov_entity::ie_executable_network;
+    };
+};
 
 TEST_P(ExecNetSetPrecision, canSetInputPrecisionForNetwork) {
     InferenceEngine::CNNNetwork cnnNet(function);

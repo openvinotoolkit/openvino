@@ -16,7 +16,11 @@
 #include "ie_ngraph_utils.hpp"
 
 namespace BehaviorTestsDefinitions {
-using InferRequestPreprocessTest = BehaviorTestsUtils::BehaviorTestsBasic;
+class InferRequestPreprocessTest : public virtual BehaviorTestsUtils::BehaviorTestsBasic {
+    void setApiEntity() override {
+        api_entity = ov::test::utils::ov_entity::ie_plugin;
+    };
+};
 
 TEST_P(InferRequestPreprocessTest, SetPreProcessToInputInfo) {
     // Create CNNNetwork from ngraph::Function

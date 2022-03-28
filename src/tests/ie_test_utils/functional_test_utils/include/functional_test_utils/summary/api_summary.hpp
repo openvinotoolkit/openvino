@@ -10,13 +10,14 @@ namespace ov {
 namespace test {
 namespace utils {
 
-enum ov_entity {
+enum class ov_entity {
     ie_plugin,
     ie_executable_network,
     ie_infer_request,
     ov_plugin,
     ov_compiled_model,
-    ov_infer_request
+    ov_infer_request,
+    UNDEFINED
 };
 
 class ApiSummary;
@@ -33,7 +34,7 @@ public:
 class ApiSummary : public virtual Summary {
 private:
     static ApiSummary *p_instance;
-    std::map<ov_entity, std::map<std::string, PassRate>> apiStats = {};
+    std::map<ov_entity, std::map<std::string, PassRate>> apiStats;
     static const std::map<ov_entity, std::string> apiInfo;
 
 protected:

@@ -36,7 +36,7 @@ void ApiSummaryDestroyer::initialize(ApiSummary *p) {
     p_instance = p;
 }
 
-ApiSummary::ApiSummary() {
+ApiSummary::ApiSummary() : apiStats() {
     reportFilename = CommonTestUtils::API_REPORT_FILENAME;
 }
 
@@ -137,9 +137,9 @@ void ApiSummary::saveReport() {
     pugi::xml_node currentDeviceNode = resultsNode.append_child(summary.deviceName.c_str());
     std::unordered_set<std::string> opList;
     for (const auto &stat_entity : stats) {
-        pugi::xml_node currentEntity = resultsNode.append_child(apiInfo.at(stat_entity.first).c_str());
+        pugi::xml_node currentEntity = currentDeviceNode.append_child(apiInfo.at(stat_entity.first).c_str());
         for (const auto& stat_device : stat_entity.second) {
-            pugi::xml_node entry = currentDeviceNode.append_child(stat_device.first.c_str());
+            pugi::xml_node entry = currentEntity.append_child(stat_device.first.c_str());
             entry.append_attribute("implemented").set_value(stat_device.second.isImplemented);
             entry.append_attribute("passed").set_value(stat_device.second.passed);
             entry.append_attribute("failed").set_value(stat_device.second.failed);

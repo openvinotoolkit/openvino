@@ -334,6 +334,7 @@ TEST_P(InferRequestIOBBlobTest, canInferWithGetOut) {
 class InferRequestIOBBlobSetPrecisionTest : public BehaviorTestsUtils::BehaviorTestsBasic {
 public:
     void SetUp() override {
+        api_entity = ov::test::utils::ov_entity::ie_infer_request;
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
         function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(targetDevice);

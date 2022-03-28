@@ -50,6 +50,10 @@ int main(int argc, char* argv[]) {
     ov::test::utils::OpSummary::setSaveReportWithUniqueName(FLAGS_report_unique_name);
     ov::test::utils::OpSummary::setOutputFolder(FLAGS_output_folder);
     ov::test::utils::OpSummary::setSaveReportTimeout(FLAGS_save_report_timeout);
+    {
+        auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
+        apiSummary.setDeviceName(FLAGS_device);
+    }
     if (FLAGS_shape_mode == std::string("static")) {
         ov::test::subgraph::shapeMode = ov::test::subgraph::ShapeMode::STATIC;
     } else if (FLAGS_shape_mode == std::string("dynamic")) {
