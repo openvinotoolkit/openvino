@@ -11,8 +11,12 @@ from openvino.tools.mo.ops.dft import DFT, IDFT, IRDFT, RDFT
 
 class TFFFTToDFT(FrontReplacementSubgraph):
     """
-    This transformation converts the operation TFFFT into OpenVINO DFT (if the attribute 'is_inverse' is False),
-    or into OpenVINO IDFT (otherwise).
+    This transformation converts the operation TFFFT into OpenVINO operations DFT, RDFT, IDFT, or IRDFT,
+    according to the following rules:
+        1) FFT, FFT2D, FFT3D are converted into DFT;
+        2) IFFT, IFFT2D, IFFT3D are converted into IDFT;
+        3) RFFT, RFFT2D, RFFT3D are converted into RDFT;
+        4) IRFFT, IRFFT2D, IRFFT3D are converted into IRDFT.
     """
     enabled = True
 
