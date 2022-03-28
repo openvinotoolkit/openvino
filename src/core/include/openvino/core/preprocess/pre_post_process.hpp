@@ -22,6 +22,7 @@ namespace preprocess {
 /// For advanced preprocessing scenarios, like combining several functions with multiple inputs/outputs into one,
 /// client's code can use transformation passes over ov::Model
 ///
+/// \ingroup ov_model_cpp_api
 class OPENVINO_API PrePostProcessor final {
     class PrePostProcessorImpl;
     std::unique_ptr<PrePostProcessorImpl> m_impl;

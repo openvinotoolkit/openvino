@@ -11,6 +11,7 @@ namespace op {
 namespace v0 {
 /// \brief Dynamic Tiling operation which repeats a tensor multiple times
 ///        along each dimension
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Tile : public Op {
 public:
     OPENVINO_OP("Tile", "opset1");
