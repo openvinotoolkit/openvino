@@ -15,8 +15,12 @@
  * main(). The function should not throw any exceptions and responsible for
  * handling it by itself.
  */
-int runPipeline(const std::string &model, const std::string &device) {
-    auto pipeline = [](const std::string &model, const std::string &device) {
+int runPipeline(const std::string &model, const std::string &device,
+                std::map<std::string, ov::PartialShape> reshapeShapes,
+                std::map<std::string, std::vector<size_t>> dataShapes) {
+    auto pipeline = [](const std::string &model, const std::string &device,
+                       std::map<std::string, ov::PartialShape> reshapeShapes,
+                       std::map<std::string, std::vector<size_t>> dataShapes) {
         InferenceEngine::Core ie;
         InferenceEngine::CNNNetwork cnnNetwork;
         InferenceEngine::ExecutableNetwork exeNetwork;
@@ -53,7 +57,7 @@ int runPipeline(const std::string &model, const std::string &device) {
     };
 
     try {
-        pipeline(model, device);
+        pipeline(model, device, reshapeShapes, dataShapes);
     } catch (const InferenceEngine::Exception &iex) {
         std::cerr
                 << "Inference Engine pipeline failed with Inference Engine exception:\n"
