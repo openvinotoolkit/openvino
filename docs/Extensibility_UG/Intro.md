@@ -27,13 +27,11 @@ Custom operations, that is those not included in the list, are not recognized by
 
 Importing models with such operations requires additional steps. This guide illustrates the workflow for running inference on models featuring custom operations, allowing you to plug in your own implementation for them. OpenVINO™ Extensibility API lets you add support for those custom operations and use one implementation for Model Optimizer and OpenVINO™ Runtime.
 
-Defining a new custom operation basically consist of three parts:
+Defining a new custom operation basically consist of two parts:
 
-1. Definition of operation semantics in OpenVINO, the code that describes how this operation should be inferred consuming input tensor(s) and producing output tensor(s).
+1. Definition of operation semantics in OpenVINO, the code that describes how this operation should be inferred consuming input tensor(s) and producing output tensor(s). How to implement execution kernels for [GPU](./GPU_Extensibility.md) and [VPU](./VPU_Extensibility.md) is described in separate guides.
 
 2. Mapping rule that facilitates conversion of framework operation representation to OpenVINO defined operation semantics.
-
-3. Implementing of kernel for custom operation, CPU plugins allows to use `evaluate()` method to infer custom operation, [GPU](./GPU_Extensibility.md) and [VPU](./VPU_Extensibility.md) plugins support to load custom kernels from configuration file.
 
 The first part is required for inference, the second part is required for successful import of a model containing such operations from the original framework model format. There are several options to implement each part, the next sections will describe them in detail.
 
