@@ -33,7 +33,7 @@ class LP_TRANSFORMATIONS_API PropagateSharedValue;
  * through precision preserved operations.
  *
  * For more details about the transformation, refer to
- * [PropagateSharedValue](@ref openvino_docs_IE_DG_lpt_PropagateSharedValue) page
+ * [PropagateSharedValue](@ref openvino_docs_OV_UG_lpt_PropagateSharedValue) page
  * in the Inference Engine Developer Guide.
  */
 template <class AttributeType>

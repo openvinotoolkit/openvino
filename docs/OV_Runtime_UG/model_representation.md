@@ -1,4 +1,4 @@
-# Model Representation in OpenVINO™ Runtime {#openvino_docs_OV_Runtime_UG_Model_Representation}
+# Model Representation in OpenVINO™ Runtime {#openvino_docs_OV_UG_Model_Representation}
 
 In OpenVINO™ Runtime a model is represented by the `ov::Model` class.
 

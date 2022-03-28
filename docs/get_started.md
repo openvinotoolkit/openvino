@@ -37,7 +37,7 @@
    :hidden:
    :caption: OpenVINO Code Samples
 
-   openvino_docs_IE_DG_Samples_Overview
+   openvino_docs_OV_UG_Samples_Overview
 
 .. toctree::
    :maxdepth: 1
@@ -82,11 +82,11 @@
         <h4>DL Workbench		</h4>
         <p>Use a web-based version of OpenVINO with a Graphical User Interface. Installing a DL Workbench container is required. </p>
      </a> 
-     <a href="openvino_docs_IE_DG_Samples_Overview.html" >
+     <a href="openvino_docs_OV_UG_Samples_Overview.html" >
         <h4>OpenVINO samples	</h4>
         <p>See ready-made applications explaining OpenVINO features and various use-cases.		</p>
      </a> 
-     <a href="openvino_docs_IE_DG_Samples_Overview.html" >
+     <a href="openvino_docs_OV_UG_Samples_Overview.html" >
         <h4>Reference Implementation For Speech Recognition Apps</h4>
         <p>Use a speech recognition demo and Kaldi* model conversion tool as reference. </p>
      </a>

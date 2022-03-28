@@ -32,7 +32,7 @@ class PropagateToInput;
  * from parent output ports to consumers input ports.
  *
  * For more details about the transformation, refer to
- * [PropagateToInput](@ref openvino_docs_IE_DG_lpt_PropagateToInput) page
+ * [PropagateToInput](@ref openvino_docs_OV_UG_lpt_PropagateToInput) page
  * in the Inference Engine Developer Guide.
  */
 template <typename AttributeType>

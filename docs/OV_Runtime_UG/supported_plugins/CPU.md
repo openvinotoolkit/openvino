@@ -205,7 +205,7 @@ The next time the model is compiled, the cached representation will be loaded to
 These transformations take a significant amount of time during model compilation, so caching this representation reduces time spent for subsequent compilations of the model,
 thereby reducing first inference latency (FIL).
 
-See [model caching overview](@ref openvino_docs_IE_DG_Model_caching_overview) for more details.
+See [model caching overview](@ref openvino_docs_OV_UG_Model_caching_overview) for more details.
 
 ### Extensibility
 CPU plugin supports fallback on `ov::Op` reference implementation if the plugin do not have its own implementation for such operation.
@@ -217,7 +217,7 @@ To enable fallback on a custom operation implementation, one have to override `o
 ### Stateful models
 CPU plugin supports stateful models without any limitations.
 
-See [stateful models guide](@ref openvino_docs_IE_DG_network_state_intro) for details.
+See [stateful models guide](@ref openvino_docs_OV_UG_network_state_intro) for details.
 
 ## Supported properties
 The plugin supports the properties listed below.

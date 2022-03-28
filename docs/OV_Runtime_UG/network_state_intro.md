@@ -1,4 +1,4 @@
-Stateful models {#openvino_docs_IE_DG_network_state_intro}
+Stateful models {#openvino_docs_OV_UG_network_state_intro}
 ==============================
 
 This section describes how to work with stateful networks in OpenVINO toolkit, specifically:

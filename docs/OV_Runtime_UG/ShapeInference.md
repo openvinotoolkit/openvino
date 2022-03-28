@@ -1,4 +1,4 @@
-# Changing input shapes {#openvino_docs_IE_DG_ShapeInference}
+# Changing input shapes {#openvino_docs_OV_UG_ShapeInference}
 
 ## Introduction (C++)
 
