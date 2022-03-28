@@ -18,6 +18,8 @@
 #include <transformations/convert_precision.hpp>
 
 #include "openvino/core/except.hpp"
+#include "openvino/runtime/properties.hpp"
+#include "ie_icore.hpp"
 #include "template/template_config.hpp"
 #include "template_itt.hpp"
 #include "template_plugin.hpp"
@@ -286,6 +288,10 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name,
     } else if (METRIC_KEY(OPTIMIZATION_CAPABILITIES) == name) {
         // TODO: fill actual list of supported capabilities: e.g. Template device supports only FP32
         std::vector<std::string> capabilities = {METRIC_VALUE(FP32) /*, TEMPLATE_METRIC_VALUE(HARDWARE_CONVOLUTION)*/};
+        auto icore = GetCore();
+        if (icore && icore->isNewAPI()) {
+            capabilities.push_back(ov::device::capability::EXPORT_IMPORT);
+        }
         IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, capabilities);
     } else if (METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS) == name) {
         // TODO: fill with actual values
