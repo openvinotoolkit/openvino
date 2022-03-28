@@ -77,8 +77,7 @@ set(gna_library_installed OFF)
 foreach(gna_lib IN LISTS gna_libraries)
     # install only versioned files like libgna.so.N or libgna.so.N.M
     # and don't install global symlink libgna.so
-    # TODO: once the CVS-79514 is fixed, we need to reaplce ?$ to +$ at the end of regex
-    if(gna_lib MATCHES "^.*${CMAKE_SHARED_LIBRARY_SUFFIX}\(\.[0-9]+\)?$" OR WIN32)
+    if(gna_lib MATCHES "^.*${CMAKE_SHARED_LIBRARY_SUFFIX}\(\.[0-9]+\)+$" OR WIN32)
         install(FILES ${gna_lib}
                 DESTINATION ${IE_CPACK_RUNTIME_PATH}
                 COMPONENT gna)
