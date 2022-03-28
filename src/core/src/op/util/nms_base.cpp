@@ -20,12 +20,11 @@ ov::op::util::NmsBase::NmsBase(ngraph::element::Type& output_type, int& nms_top_
       m_nms_top_k(nms_top_k),
       m_keep_top_k(keep_top_k) {}
 
-ov::op::util::NmsBase::NmsBase(const Output<Node>& boxes,
-                               const Output<Node>& scores,
+ov::op::util::NmsBase::NmsBase(const OutputVector& arguments,
                                ngraph::element::Type& output_type,
                                int& nms_top_k,
                                int& keep_top_k)
-    : Op({boxes, scores}),
+    : Op(arguments),
       m_output_type(output_type),
       m_nms_top_k(nms_top_k),
       m_keep_top_k(keep_top_k) {}
@@ -36,7 +35,7 @@ inline bool is_float_type_admissible(const ov::element::Type& t) {
 }
 }  // namespace
 
-void ov::op::util::NmsBase::validate() {
+bool ov::op::util::NmsBase::validate() {
     NGRAPH_OP_SCOPE(util_NmsBase_validate);
 
     const auto boxes_ps = get_input_partial_shape(0);
@@ -47,7 +46,7 @@ void ov::op::util::NmsBase::validate() {
                           "Output type must be i32 or i64");
 
     if (boxes_ps.is_dynamic() || scores_ps.is_dynamic()) {
-        return;
+        return false;
     }
 
     NODE_VALIDATION_CHECK(this,
@@ -100,6 +99,8 @@ void ov::op::util::NmsBase::validate() {
                           num_boxes_boxes,
                           "; Scores: ",
                           num_boxes_scores);
+
+    return true;
 }
 
 void ov::op::util::NmsBase::validate_and_infer_types() {

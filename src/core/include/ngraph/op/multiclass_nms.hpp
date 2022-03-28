@@ -12,5 +12,8 @@ namespace op {
 namespace v8 {
 using ov::op::v8::MulticlassNms;
 }  // namespace v8
+namespace v9 {
+using ov::op::v9::MulticlassNms;
+}  // namespace v9
 }  // namespace op
 }  // namespace ngraph

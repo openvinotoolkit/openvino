@@ -20,31 +20,20 @@ public:
         NONE      // do not guarantee the order in each batch element
     };
 
+    /// \brief Constructs a NmsBase operation
+    // TODO: remove the reference to inherit, and remove the construtors here.
     NmsBase() = delete;
+    NmsBase(ngraph::element::Type& output_type, int& nms_top_k, int& keep_top_k);
 
     /// \brief Constructs a NmsBase operation
     ///
+    /// \param arguments Node producing the box coordinates and scores, etc.
     /// \param output_type Specifies the output tensor type
     /// \param nms_top_k Specifies maximum number of boxes to be selected per
     /// class, -1 meaning to keep all boxes
     /// \param keep_top_k Specifies maximum number of boxes to be selected per
     /// batch element, -1 meaning to keep all boxes
-    NmsBase(element::Type& output_type, int& nms_top_k, int& keep_top_k);
-
-    /// \brief Constructs a NmsBase operation
-    ///
-    /// \param boxes Node producing the box coordinates
-    /// \param scores Node producing the box scores
-    /// \param output_type Specifies the output tensor type
-    /// \param nms_top_k Specifies maximum number of boxes to be selected per
-    /// class, -1 meaning to keep all boxes
-    /// \param keep_top_k Specifies maximum number of boxes to be selected per
-    /// batch element, -1 meaning to keep all boxes
-    NmsBase(const Output<Node>& boxes,
-            const Output<Node>& scores,
-            element::Type& output_type,
-            int& nms_top_k,
-            int& keep_top_k);
+    NmsBase(const OutputVector& arguments, element::Type& output_type, int& nms_top_k, int& keep_top_k);
 
     void validate_and_infer_types() override;
 
@@ -68,7 +57,7 @@ protected:
     element::Type& m_output_type;
     int& m_nms_top_k;
     int& m_keep_top_k;
-    virtual void validate();
+    virtual bool validate();
 };
 }  // namespace util
 }  // namespace op

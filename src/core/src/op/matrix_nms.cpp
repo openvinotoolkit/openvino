@@ -22,7 +22,7 @@ BWDCMP_RTTI_DEFINITION(ov::op::v8::MatrixNms);
 op::v8::MatrixNms::MatrixNms() : NmsBase(m_attrs.output_type, m_attrs.nms_top_k, m_attrs.keep_top_k) {}
 
 op::v8::MatrixNms::MatrixNms(const Output<Node>& boxes, const Output<Node>& scores, const Attributes& attrs)
-    : NmsBase(boxes, scores, m_attrs.output_type, m_attrs.nms_top_k, m_attrs.keep_top_k),
+    : NmsBase({boxes, scores}, m_attrs.output_type, m_attrs.nms_top_k, m_attrs.keep_top_k),
       m_attrs{attrs} {
     constructor_validate_and_infer_types();
 }
@@ -35,14 +35,15 @@ std::shared_ptr<Node> op::v8::MatrixNms::clone_with_new_inputs(const OutputVecto
     return std::make_shared<op::v8::MatrixNms>(new_args.at(0), new_args.at(1), m_attrs);
 }
 
-void op::v8::MatrixNms::validate() {
+bool op::v8::MatrixNms::validate() {
     NGRAPH_OP_SCOPE(v8_MatrixNms_validate);
-    NmsBase::validate();
+    const auto validated = NmsBase::validate();
 
     NODE_VALIDATION_CHECK(this,
                           m_attrs.background_class >= -1,
                           "The 'background_class' must be great or equal -1. Got:",
                           m_attrs.background_class);
+    return validated;
 }
 
 bool ngraph::op::v8::MatrixNms::visit_attributes(AttributeVisitor& visitor) {

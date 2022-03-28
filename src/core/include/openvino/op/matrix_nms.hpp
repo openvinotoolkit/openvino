@@ -95,7 +95,7 @@ public:
 protected:
     Attributes m_attrs;
 
-    void validate() override;
+    bool validate() override;
 };
 }  // namespace v8
 }  // namespace op
