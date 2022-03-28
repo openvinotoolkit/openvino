@@ -12,6 +12,7 @@
 #  * `Runtime`: OpenVINO C++ and C Core & Inference Runtime, frontend common
 #  * `ONNX`: OpenVINO ONNX frontend
 #  * `Paddle`: OpenVINO Paddle frontend
+#  * `TF`: OpenVINO TensorFlow frontend
 #
 # If no components are specified, `Runtime` component is provided:
 #
@@ -184,7 +185,8 @@ if(NOT TARGET openvino)
     set(_ov_as_external_package ON)
     include("${CMAKE_CURRENT_LIST_DIR}/OpenVINOTargets.cmake")
 
-    # TODO: WA for cmake version < 3.16
+    # WA for cmake version < 3.16 which does not export
+    # IMPORTED_LINK_DEPENDENT_LIBRARIES_** properties if no PUBLIC dependencies for the library
     if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND TBB_FOUND)
         foreach (type RELEASE DEBUG RELWITHDEBINFO MINSIZEREL)
             set_property(TARGET openvino::runtime APPEND PROPERTY IMPORTED_LINK_DEPENDENT_LIBRARIES_${type} "TBB::tbb;TBB::tbbmalloc")
