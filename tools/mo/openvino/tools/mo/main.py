@@ -369,6 +369,8 @@ def check_fallback(argv : argparse.Namespace):
     reasons = [reason for reason, is_applicable in fallback_reasons.items() if is_applicable(argv)]
     return reasons
 
+def convert():
+    return
 
 def prepare_ir(argv : argparse.Namespace):
     argv = arguments_post_parsing(argv)
