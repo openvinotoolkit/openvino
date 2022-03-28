@@ -3,7 +3,7 @@
 //
 
 #include "dnnl_memory_desc.h"
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include <common/memory_desc_wrapper.hpp>
 #include "mkldnn/ie_mkldnn.h"
 
@@ -11,7 +11,7 @@ namespace ov {
 namespace intel_cpu {
 
 DnnlMemoryDesc::DnnlMemoryDesc(const mkldnn::memory::desc& desc) :
-    MemoryDesc(Shape(MKLDNNExtensionUtils::convertToVectorDims(desc.dims())), Mkldnn), desc(desc) {
+    MemoryDesc(Shape(DnnlExtensionUtils::convertToVectorDims(desc.dims())), Mkldnn), desc(desc) {
     if (desc.data.format_kind == dnnl::impl::format_kind::any)
         IE_THROW(Unexpected) << "Memory format any is prohibited!";
 }
@@ -21,7 +21,7 @@ bool DnnlMemoryDesc::canComputeMemSizeZeroDims() const {
 }
 
 size_t DnnlMemoryDesc::getCurrentMemSizeImp() const {
-    return MKLDNNExtensionUtils::getMemSizeForDnnlDesc(desc);
+    return DnnlExtensionUtils::getMemSizeForDnnlDesc(desc);
 }
 
 size_t DnnlMemoryDesc::getElementOffset(size_t elemNumber) const {
@@ -62,7 +62,7 @@ bool DnnlMemoryDesc::isDefinedImp() const {
 }
 
 InferenceEngine::Precision DnnlMemoryDesc::getPrecision() const {
-    return MKLDNNExtensionUtils::DataTypeToIEPrecision(desc.data_type());
+    return DnnlExtensionUtils::DataTypeToIEPrecision(desc.data_type());
 }
 
 MemoryDescPtr DnnlMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims) const {

@@ -19,45 +19,173 @@ It's also important to mention that since OpenVINO 2.0, the Runtime API does not
 The steps below demonstrates how to migrate preprocessing scenarios from Inference Engine API to OpenVINO Runtime API 2.0.
 The snippets suppose we need to preprocess a model input with tensor name `tensor_name`, in Inferenece Engine API using operation names to address the data, it's called `operation_name`.
 
+#### Importing preprocessing in Python
+
+In order to utilize preprocessing following imports must be added.
+
+Inference Engine API:
+
+@snippet docs/snippets/ov_preprocessing_migration.py imports
+
+OpenVINO Runtime API 2.0:
+
+@snippet docs/snippets/ov_preprocessing_migration.py ov_imports
+
+There are two different namespaces `runtime`, which contains OpenVINO Runtime API classes and `preprocess` which provides Preprocessing API.
+
+
 ### Mean and scale values
 
 Inference Engine API:
 
+@sphinxtabset
+
+@sphinxtab{C++}
+
 @snippet docs/snippets/ov_preprocessing_migration.cpp mean_scale
+
+@endsphinxtab
+
+@sphinxtab{Python}
+
+@snippet  docs/snippets/ov_preprocessing_migration.py mean_scale
+
+@endsphinxtab
+
+@endsphinxtabset
 
 OpenVINO Runtime API 2.0:
 
+@sphinxtabset
+
+@sphinxtab{C++}
+
 @snippet docs/snippets/ov_preprocessing_migration.cpp ov_mean_scale
+
+@endsphinxtab
+
+@sphinxtab{Python}
+
+@snippet  docs/snippets/ov_preprocessing_migration.py ov_mean_scale
+
+@endsphinxtab
+
+@endsphinxtabset
 
 ### Precision and layout conversions
 
 Inference Engine API:
 
+@sphinxtabset
+
+@sphinxtab{C++}
+
 @snippet docs/snippets/ov_preprocessing_migration.cpp conversions
+
+@endsphinxtab
+
+@sphinxtab{Python}
+
+@snippet  docs/snippets/ov_preprocessing_migration.py conversions
+
+@endsphinxtab
+
+@endsphinxtabset
 
 OpenVINO Runtime API 2.0:
 
+@sphinxtabset
+
+@sphinxtab{C++}
+
 @snippet docs/snippets/ov_preprocessing_migration.cpp ov_conversions
+
+@endsphinxtab
+
+@sphinxtab{Python}
+
+@snippet  docs/snippets/ov_preprocessing_migration.py ov_conversions
+
+@endsphinxtab
+
+@endsphinxtabset
 
 ### Image scaling
 
 Inference Engine API:
 
+@sphinxtabset
+
+@sphinxtab{C++}
+
 @snippet docs/snippets/ov_preprocessing_migration.cpp image_scale
+
+@endsphinxtab
+
+@sphinxtab{Python}
+
+@snippet  docs/snippets/ov_preprocessing_migration.py image_scale
+
+@endsphinxtab
+
+@endsphinxtabset
 
 OpenVINO Runtime API 2.0:
 
+@sphinxtabset
+
+@sphinxtab{C++}
+
 @snippet docs/snippets/ov_preprocessing_migration.cpp ov_image_scale
+
+@endsphinxtab
+
+@sphinxtab{Python}
+
+@snippet  docs/snippets/ov_preprocessing_migration.py ov_image_scale
+
+@endsphinxtab
+
+@endsphinxtabset
 
 ### Color space conversions
 
 Inference Engine API:
 
+@sphinxtabset
+
+@sphinxtab{C++}
+
 @snippet docs/snippets/ov_preprocessing_migration.cpp color_space
+
+@endsphinxtab
+
+@sphinxtab{Python}
+
+@snippet  docs/snippets/ov_preprocessing_migration.py color_space
+
+@endsphinxtab
+
+@endsphinxtabset
 
 OpenVINO Runtime API 2.0:
 
+@sphinxtabset
+
+@sphinxtab{C++}
+
 @snippet docs/snippets/ov_preprocessing_migration.cpp ov_color_space
+
+@endsphinxtab
+
+@sphinxtab{Python}
+
+@snippet  docs/snippets/ov_preprocessing_migration.py ov_color_space
+
+@endsphinxtab
+
+@endsphinxtabset
+
 
 **See also:**
 - [Preprocessing details](../preprocessing_details.md)

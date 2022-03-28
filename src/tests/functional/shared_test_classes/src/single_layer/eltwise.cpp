@@ -68,6 +68,7 @@ void EltwiseLayerTest::transformInputShapesAccordingEltwise(const ov::PartialSha
 }
 
 void EltwiseLayerTest::SetUp() {
+    // TODO: Remove it after fixing issue 69529
     // w/a for myriad (cann't store 2 caches simultaneously)
     PluginCache::get().reset();
 

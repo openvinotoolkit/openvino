@@ -1,4 +1,4 @@
-# Configure devices {#openvino_2_0_configure_devices}
+# Configuring Devices {#openvino_2_0_configure_devices}
 
 ### Introduction
 
@@ -20,110 +20,184 @@ The snippets below show how to migrate from Inference Engine device configuratio
 
 Inference Engine API:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: Devices
+@sphinxtab{Devices}
 
-    .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
-       :language: cpp
-       :fragment: [core_set_config]
+@snippet docs/snippets/ov_properties_migration.cpp core_set_config
 
-.. tab:: Model Loading
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
-       :language: cpp
-       :fragment: [core_load_network]
+@sphinxtab{Model Loading}
 
-.. tab:: Execution
+@snippet docs/snippets/ov_properties_migration.cpp core_load_network
 
-    .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
-       :language: cpp
-       :fragment: [executable_network_set_config]
+@endsphinxtab
 
-@endsphinxdirective
+@sphinxtab{Execution}
+
+@snippet docs/snippets/ov_properties_migration.cpp executable_network_set_config
+
+@endsphinxtab
+
+@endsphinxtabset
 
 OpenVINO Runtime API 2.0:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: Devices
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
-       :language: cpp
-       :fragment: [core_set_property]
+@sphinxtabset
 
-.. tab:: Model Loading
+@sphinxtab{Devices}
 
-    .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
-       :language: cpp
-       :fragment: [core_compile_model]
+@snippet docs/snippets/ov_properties_migration.cpp core_set_property
 
-.. tab:: Execution
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
-       :language: cpp
-       :fragment: [compiled_model_set_property]
+@sphinxtab{Model Loading}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_properties_migration.cpp core_compile_model
+
+@endsphinxtab
+
+@sphinxtab{Execution}
+
+@snippet docs/snippets/ov_properties_migration.cpp compiled_model_set_property
+
+@endsphinxtab
+
+@endsphinxtabset
+
+@endsphinxtab
+
+@sphinxtab{Python}
+
+@sphinxtabset
+
+@sphinxtab{Devices}
+
+@snippet docs/snippets/ov_properties_migration.py core_set_property
+
+@endsphinxtab
+
+@sphinxtab{Model Loading}
+
+@snippet docs/snippets/ov_properties_migration.py core_compile_model
+
+@endsphinxtab
+
+@sphinxtab{Execution}
+
+@snippet docs/snippets/ov_properties_migration.py compiled_model_set_property
+
+@endsphinxtab
+
+@endsphinxtabset
+
+@endsphinxtab
+
+@endsphinxtabset
 
 ### Get information
 
 Inference Engine API:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: Device configuration
+@sphinxtab{Device Configuration}
 
-    .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
-       :language: cpp
-       :fragment: [core_get_config]
+@snippet docs/snippets/ov_properties_migration.cpp core_get_config
 
-.. tab:: Device metrics
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
-       :language: cpp
-       :fragment: [core_get_metric]
+@sphinxtab{Device metrics}
 
-.. tab:: Execution config
+@snippet docs/snippets/ov_properties_migration.cpp core_get_metric
 
-    .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
-       :language: cpp
-       :fragment: [executable_network_get_config]
+@endsphinxtab
 
-.. tab:: Execution metrics
+@sphinxtab{Execution config}
 
-    .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
-       :language: cpp
-       :fragment: [executable_network_get_metric]
+@snippet docs/snippets/ov_properties_migration.cpp executable_network_get_config
 
-@endsphinxdirective
+@endsphinxtab
+
+@sphinxtab{Execution metrics}
+
+@snippet docs/snippets/ov_properties_migration.cpp executable_network_get_metric
+
+@endsphinxtab
+
+@endsphinxtabset
 
 OpenVINO Runtime API 2.0:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: Device configuration
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
-       :language: cpp
-       :fragment: [core_get_rw_property]
+@sphinxtabset
 
-.. tab:: Device metrics
+@sphinxtab{Device Configuration}
 
-    .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
-       :language: cpp
-       :fragment: [core_get_ro_property]
+@snippet docs/snippets/ov_properties_migration.cpp core_get_rw_property
 
-.. tab:: Execution config
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
-       :language: cpp
-       :fragment: [compiled_model_get_rw_property]
+@sphinxtab{Device metrics}
 
-.. tab:: Execution metrics
+@snippet docs/snippets/ov_properties_migration.cpp core_get_ro_property
 
-    .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
-       :language: cpp
-       :fragment: [compiled_model_get_ro_property]
+@endsphinxtab
 
-@endsphinxdirective
+@sphinxtab{Execution config}
+
+@snippet docs/snippets/ov_properties_migration.cpp compiled_model_get_rw_property
+
+@endsphinxtab
+
+@sphinxtab{Execution metrics}
+
+@snippet docs/snippets/ov_properties_migration.cpp compiled_model_get_ro_property
+
+@endsphinxtab
+
+@endsphinxtabset
+
+@endsphinxtab
+
+@sphinxtab{Python}
+
+@sphinxtabset
+
+@sphinxtab{Device Configuration}
+
+@snippet docs/snippets/ov_properties_migration.py core_get_rw_property
+
+@endsphinxtab
+
+@sphinxtab{Device metrics}
+
+@snippet docs/snippets/ov_properties_migration.py core_get_ro_property
+
+@endsphinxtab
+
+@sphinxtab{Execution config}
+
+@snippet docs/snippets/ov_properties_migration.py compiled_model_get_rw_property
+
+@endsphinxtab
+
+@sphinxtab{Execution metrics}
+
+@snippet docs/snippets/ov_properties_migration.py compiled_model_get_ro_property
+
+@endsphinxtab
+
+@endsphinxtabset
+
+@endsphinxtab
+
+@endsphinxtabset
