@@ -10,19 +10,20 @@
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
 
-namespace ngraph {
+namespace ov {
+namespace intel_cpu {
 
-constexpr const char *MKLDNNInputMemoryFormatsAttr = "MKLDNNInputMemoryFormats";
-constexpr const char *MKLDNNOutputMemoryFormatsAttr = "MKLDNNOutputMemoryFormats";
+constexpr const char *InputMemoryFormatsAttr = "InputMemoryFormats";
+constexpr const char *OutputMemoryFormatsAttr = "OutputMemoryFormats";
 
 template<typename MemoryFormat>
-class MKLDNNMemoryFormats : public ov::RuntimeAttribute {
+class MemoryFormats : public ov::RuntimeAttribute {
 protected:
     std::string memory_format;
 
 public:
-    MKLDNNMemoryFormats() = default;
-    explicit MKLDNNMemoryFormats(const std::string &_memory_format) : memory_format(_memory_format) {}
+    MemoryFormats() = default;
+    explicit MemoryFormats(const std::string &_memory_format) : memory_format(_memory_format) {}
     std::string getMemoryFormats() const { return memory_format; }
 
     ov::Any merge(const ngraph::NodeVector & nodes) const override {
@@ -53,23 +54,25 @@ public:
 };
 
 
-class MKLDNNInputMemoryFormats : public MKLDNNMemoryFormats<MKLDNNInputMemoryFormats> {
+class InputMemoryFormats : public MemoryFormats<InputMemoryFormats> {
 public:
-    OPENVINO_RTTI(MKLDNNInputMemoryFormatsAttr);
-    MKLDNNInputMemoryFormats() = default;
-    explicit MKLDNNInputMemoryFormats(const std::string &_memory_format) : MKLDNNMemoryFormats(_memory_format) {}
-    ~MKLDNNInputMemoryFormats() override;
+    OPENVINO_RTTI(InputMemoryFormatsAttr);
+    InputMemoryFormats() = default;
+    explicit InputMemoryFormats(const std::string &_memory_format) : MemoryFormats(_memory_format) {}
+    ~InputMemoryFormats() override;
 };
 
-std::string getMKLDNNInputMemoryFormats(const std::shared_ptr<ngraph::Node>& node);
+std::string getInputMemoryFormats(const std::shared_ptr<ngraph::Node>& node);
 
-class MKLDNNOutputMemoryFormats : public MKLDNNMemoryFormats<MKLDNNOutputMemoryFormats> {
+class OutputMemoryFormats : public MemoryFormats<OutputMemoryFormats> {
 public:
-    OPENVINO_RTTI(MKLDNNOutputMemoryFormatsAttr);
-    MKLDNNOutputMemoryFormats() = default;
-    explicit MKLDNNOutputMemoryFormats(const std::string &_memory_format) : MKLDNNMemoryFormats(_memory_format) {}
-    ~MKLDNNOutputMemoryFormats() override;
+    OPENVINO_RTTI(OutputMemoryFormatsAttr);
+    OutputMemoryFormats() = default;
+    explicit OutputMemoryFormats(const std::string &_memory_format) : MemoryFormats(_memory_format) {}
+    ~OutputMemoryFormats() override;
 };
-std::string getMKLDNNOutputMemoryFormats(const std::shared_ptr<ngraph::Node>& node);
 
-}  // namespace ngraph
+std::string getOutputMemoryFormats(const std::shared_ptr<ngraph::Node>& node);
+
+}   // namespace intel_cpu
+}   // namespace ov

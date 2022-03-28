@@ -17,6 +17,8 @@
 #include "gflag_config.hpp"
 #include "conformance.hpp"
 
+#include "common_test_utils/crash_handler.hpp"
+
 using namespace ov::test::conformance;
 
 int main(int argc, char* argv[]) {
@@ -55,6 +57,8 @@ int main(int argc, char* argv[]) {
     } else if (FLAGS_shape_mode != std::string("")) {
         throw std::runtime_error("Incorrect value for `--shape_mode`. Should be `dynamic`, `static` or ``. Current value is `" + FLAGS_shape_mode + "`");
     }
+
+    CommonTestUtils::CrashHandler::SetUpTimeout(FLAGS_test_timeout);
 
     // ---------------------------Initialization of Gtest env -----------------------------------------------
     ov::test::conformance::targetDevice = FLAGS_device.c_str();

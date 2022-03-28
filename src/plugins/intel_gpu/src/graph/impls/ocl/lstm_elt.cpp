@@ -28,7 +28,7 @@ protected:
         kernel_arguments_data args = parent::get_arguments(instance, 0);
 
         args.cell = instance.cell_term() ? instance.cell_memory() : nullptr;
-        args.output = instance.output_memory_ptr();
+        args.outputs = { instance.output_memory_ptr() };
 
         return args;
     }

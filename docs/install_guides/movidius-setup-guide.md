@@ -36,21 +36,21 @@ The `hddldaemon` is a system service, a binary executable that is run to manage 
 
 ### Conventions Used in This Document
 
-`<IE>` refers to the following default OpenVINO&trade; Inference Engine directories:
+`<OV>` refers to the following default OpenVINO&trade; Runtime directories:
 -  **Linux:**	   
  ```
- /opt/intel/openvino_2022/inference_engine
+ /opt/intel/openvino_2022/runtime
  ```
 -  **Windows:**	    
 ``` 
-C:\Program Files (x86)\IntelSWTools\openvino\inference_engine 
+C:\Program Files (x86)\IntelSWTools\openvino\runtime 
 ```
 
 If you have installed OpenVINO&trade; in a different directory on your system, you will need to enter your unique directory path.
 
 ### Configuration File Location
 
-`<IE>\external\hddl\config\hddl_service.config`
+`<OV>\3rdparty\hddl\config\hddl_service.config`
 
 ### Service Configuration File Settings
 
@@ -127,7 +127,6 @@ This setting reports the total FPS for the dispatching hddl_service (which will 
 ## Additional Resources
 
 - [Intel Distribution of OpenVINO Toolkit home page](https://software.intel.com/en-us/openvino-toolkit)
-- [Intel Distribution of OpenVINO Toolkit documentation](https://docs.openvino.ai)
 - [Troubleshooting Guide](troubleshooting.md)
 - [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs HAL Configuration Guide](/downloads/595850_Intel_Vision_Accelerator_Design_with_Intel_Movidius_VPUs-HAL Configuration Guide_rev1.3.pdf)
 - [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs Workload Distribution User Guide](/downloads/613514_Intel Vision Accelerator Design with Intel Movidius VPUs Workload Distribution_UG_r0.9.pdf)
