@@ -101,8 +101,8 @@ GnaAllAllocations orderedAllocations(const GnaAllAllocations& all) {
     return GnaAllAllocations(allVector.begin(), allVector.end());
 }
 
-std::pair<bool, uint32_t> checkAndGetAllAllocationOffsetFromBase(const GnaAllAllocations& all, void* ptr) {
-    uint32_t curOffset = 0;
+std::pair<bool, uint64_t> checkAndGetAllAllocationOffsetFromBase(const GnaAllAllocations& all, void* ptr) {
+    uint64_t curOffset = 0;
     for (auto& r : orderedAllocations(all)) {
         auto ptrBegin = static_cast<uint8_t*>(r.ptr);
         const auto size = r.sizeForExport();
