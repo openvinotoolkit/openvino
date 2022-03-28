@@ -10,7 +10,7 @@ import cv2 as cv
 from openvino.tools.pot import DataLoader
 
 class ImageLoader(DataLoader):
-
+    
     def __init__(self, dataset_path):
         """ Load images from folder  """
         # Collect names of image files
@@ -49,14 +49,21 @@ from transformers import AutoTokenizer #pip install transformers
 from openvino.tools.pot import DataLoader
 
 class TextLoader(DataLoader):
+
     def __init__(self):
         """ HuggingFace dataset API is used to process text files """
-        self._dataset = load_dataset('text', data_files='https://huggingface.co/datasets/lhoestq/test/resolve/main/some_text.txt') # replace with your text file
-        self._tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')  # replace with your tokenizer
-        self._dataset = self._dataset.map(self.encode, batched=True)
-        self._dataset.set_format(type='numpy', columns=['input_ids', 'token_type_ids', 'attention_mask']) # replace with names of model inputs
+        # replace with your text file
+        self._dataset = load_dataset('text',
+            data_files='https://huggingface.co/datasets/lhoestq/test/resolve/main/some_text.txt')
+        # replace with your tokenizer
+        self._tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
+        self._dataset = self._dataset.map(self._encode, batched=True)
+        # replace with names of model inputs
+        self._dataset.set_format(type='numpy',
+                    columns=['input_ids', 'token_type_ids', 'attention_mask'])
 
-    def encode(self, examples):
+    def _encode(self, examples):
+        """ Tokenization of the input text """
         return self._tokenizer(examples['text'], truncation=True, padding='max_length')
 
     def __len__(self):
@@ -69,7 +76,9 @@ class TextLoader(DataLoader):
             raise IndexError("Index out of dataset size")
 
         data = self._dataset['train'][index]
-        return {'input_ids': data['input_ids'], 'token_type_ids': data['token_type_ids'], 'attention_mask': data['attention_mask']}, None # annotation is set to None
+        return {'input_ids': data['input_ids'],
+                'token_type_ids': data['token_type_ids'],
+                'attention_mask': data['attention_mask']}, None # annotation is set to None
 #! [text_loader]
 
 #! [audio_loader]
@@ -87,7 +96,8 @@ class AudioLoader(DataLoader):
         # Collect names of wav files
         self._extension = ".wav"
         self._dataset_path = dataset_path
-        self._files = sorted(str(p.stem) for p in Path(self._dataset_path).glob("*" + self._extension))
+        self._files = sorted(str(p.stem) for p in
+            Path(self._dataset_path).glob("*" + self._extension))
 
     def __len__(self):
         """ Returns the length of the dataset """
@@ -102,6 +112,6 @@ class AudioLoader(DataLoader):
 
         file_name = self._files[index] + self._extension
         file_path = os.path.join(self._dataset_path, file_name)
-        waveform, sample_rate = torchaudio.load(file_path) # use a helper from torchaudio to load data
+        waveform, _ = torchaudio.load(file_path) # use a helper from torchaudio to load data
         return waveform.numpy(), None   # annotation is set to None
 #! [audio_loader]
