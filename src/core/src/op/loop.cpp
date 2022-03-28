@@ -248,10 +248,9 @@ void op::v5::Loop::validate_and_infer_types() {
                         auto input_param =
                             m_bodies[0]->get_parameters().at(back_edges[output_description->m_body_value_index]);
                         const auto& input_param_ps = input_param->get_partial_shape();
-                        if (!input_param_ps.compatible(ps)) {
-                            NODE_VALIDATION_CHECK(this,
-                                                  ps.rank().get_length() == input_param_ps.rank().get_length(),
-                                                  "Back edge input and output rank should be same");
+                        if (input_param_ps.rank().is_static() &&
+                            ps.rank().get_length() == input_param_ps.rank().get_length() &&
+                            !input_param_ps.compatible(ps)) {
                             ov::PartialShape new_ps(ps);
                             for (auto i = 0; i < ps.size(); i++) {
                                 if (!ps[i].compatible(input_param_ps[i])) {
