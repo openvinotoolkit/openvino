@@ -19,6 +19,15 @@ struct reorder_onednn : typed_primitive_onednn_impl<reorder, void, dnnl::reorder
     using parent = typed_primitive_onednn_impl<reorder, void, dnnl::reorder::primitive_desc, dnnl::reorder>;
     using parent::parent;
 
+    static std::unique_ptr<primitive_impl> create(const reorder_node& arg) {
+        auto desc = get_reorder_descriptor(arg);
+        auto attr = arg.get_onednn_primitive_attributes();
+
+        std::shared_ptr<void> dummy = nullptr;
+
+        return cldnn::make_unique<reorder_onednn>(arg, dummy, attr, *desc);
+    }
+
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<reorder_onednn>(*this);
@@ -56,16 +65,6 @@ protected:
             engine.get_onednn_engine(),
             output_md,
             *(arg.get_onednn_primitive_attributes()));
-    }
-
-public:
-    static std::unique_ptr<primitive_impl> create(const reorder_node& arg) {
-        auto desc = get_reorder_descriptor(arg);
-        auto attr = arg.get_onednn_primitive_attributes();
-
-        std::shared_ptr<void> dummy = nullptr;
-
-        return make_unique<reorder_onednn>(arg, dummy, attr, *desc);
     }
 };
 

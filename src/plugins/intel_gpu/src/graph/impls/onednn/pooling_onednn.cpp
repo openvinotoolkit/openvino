@@ -19,6 +19,15 @@ struct pooling_onednn : typed_primitive_onednn_impl<pooling, dnnl::pooling_forwa
     using parent = typed_primitive_onednn_impl<pooling, dnnl::pooling_forward::desc>;
     using parent::parent;
 
+    static std::unique_ptr<primitive_impl> create(const pooling_node& arg) {
+        auto& engine = arg.get_program().get_engine();
+        auto desc = get_pooling_descriptor(arg);
+        auto attr = arg.get_onednn_primitive_attributes();
+        dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
+
+        return cldnn::make_unique<pooling_onednn>(arg, desc, attr, prim_desc);
+    }
+
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<pooling_onednn>(*this);
@@ -63,16 +72,6 @@ protected:
             kernel,
             pad_l,
             pad_r);
-    }
-
-public:
-    static std::unique_ptr<primitive_impl> create(const pooling_node& arg) {
-        auto& engine = arg.get_program().get_engine();
-        auto desc = get_pooling_descriptor(arg);
-        auto attr = arg.get_onednn_primitive_attributes();
-        dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
-
-        return make_unique<pooling_onednn>(arg, desc, attr, prim_desc);
     }
 };
 

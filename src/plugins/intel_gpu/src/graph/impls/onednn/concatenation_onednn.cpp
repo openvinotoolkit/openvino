@@ -21,6 +21,15 @@ struct concatenation_onednn : typed_primitive_onednn_impl<concatenation, void, d
     using parent = typed_primitive_onednn_impl<concatenation, void, dnnl::concat::primitive_desc, dnnl::concat>;
     using parent::parent;
 
+    static std::unique_ptr<primitive_impl> create(const concatenation_node& arg) {
+        auto desc = get_concatenation_descriptor(arg);
+        auto attr = arg.get_onednn_primitive_attributes();
+
+        std::shared_ptr<void> dummy = nullptr;
+
+        return cldnn::make_unique<concatenation_onednn>(arg, dummy, attr, *desc);
+    }
+
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<concatenation_onednn>(*this);
@@ -59,16 +68,6 @@ protected:
             prim->axis,
             input_mds,
             engine.get_onednn_engine());
-    }
-
-public:
-    static std::unique_ptr<primitive_impl> create(const concatenation_node& arg) {
-        auto desc = get_concatenation_descriptor(arg);
-        auto attr = arg.get_onednn_primitive_attributes();
-
-        std::shared_ptr<void> dummy = nullptr;
-
-        return make_unique<concatenation_onednn>(arg, dummy, attr, *desc);
     }
 };
 

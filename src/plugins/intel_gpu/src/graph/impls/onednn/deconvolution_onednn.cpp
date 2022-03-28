@@ -31,14 +31,13 @@ struct deconvolution_onednn : typed_primitive_onednn_impl<deconvolution, DescTyp
                          kernel_selector::WeightsReorderParams weights_reorder = {}) :
         parent(arg, desc, attrs, pd, weights_reorder), _id(arg.id()) {}
 
-public:
     static std::unique_ptr<primitive_impl> create(const deconvolution_node& arg) {
         auto& engine = arg.get_program().get_engine();
         auto desc = get_deconvolution_descriptor(arg);
         auto attr = get_primitive_attributes(arg);
         dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
 
-        return make_unique<deconvolution_onednn>(arg, desc, attr, prim_desc, get_weights_reorder(arg, prim_desc));
+        return cldnn::make_unique<deconvolution_onednn>(arg, desc, attr, prim_desc, get_weights_reorder(arg, prim_desc));
     }
 
 protected:

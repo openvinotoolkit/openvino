@@ -39,7 +39,7 @@ struct convolution_onednn : typed_primitive_onednn_impl<convolution, DescType> {
         auto attr = get_primitive_attributes(arg);
         dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
 
-        return make_unique<convolution_onednn>(arg, desc, attr, prim_desc, get_weights_reorder(arg, prim_desc));
+        return cldnn::make_unique<convolution_onednn>(arg, desc, attr, prim_desc, get_weights_reorder(arg, prim_desc));
     }
 
 protected:

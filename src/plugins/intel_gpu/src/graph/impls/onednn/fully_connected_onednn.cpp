@@ -29,14 +29,13 @@ struct fully_connected_onednn : typed_primitive_onednn_impl<fully_connected, Des
                            kernel_selector::WeightsReorderParams weights_reorder = {}) :
         parent(arg, desc, attrs, pd, weights_reorder), _id(arg.id()) {}
 
-public:
     static std::unique_ptr<primitive_impl> create(const fully_connected_node& arg) {
         auto& engine = arg.get_program().get_engine();
         auto desc = get_fully_connected_descriptor(arg);
         auto attr = arg.get_onednn_primitive_attributes();
         dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
 
-        return make_unique<fully_connected_onednn>(arg, desc, attr, prim_desc, get_weights_reorder(arg, prim_desc));
+        return cldnn::make_unique<fully_connected_onednn>(arg, desc, attr, prim_desc, get_weights_reorder(arg, prim_desc));
     }
 
 protected:
