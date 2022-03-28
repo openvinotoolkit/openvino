@@ -86,6 +86,8 @@ void regclass_Core(py::module m) {
             Users can create as many compiled models as they need, and use them simultaneously
             (up to the limitation of the hardware resources).
 
+            GIL is released while running this function.
+
             :param model: Model acquired from read_model function.
             :type model: openvino.runtime.Model
             :param device_name: Name of the device which will load the model.
@@ -110,6 +112,8 @@ void regclass_Core(py::module m) {
             Creates and loads a compiled model from a source model to the default OpenVINO device
             selected by AUTO plugin. Users can create as many compiled models as they need, and use
             them simultaneously (up to the limitation of the hardware resources).
+
+            GIL is released while running this function.
 
             :param model: Model acquired from read_model function.
             :type model: openvino.runtime.Model
@@ -136,6 +140,8 @@ void regclass_Core(py::module m) {
             This can be more efficient than using read_model + compile_model(model_in_memory_object) flow,
             especially for cases when caching is enabled and cached model is available.
 
+            GIL is released while running this function.
+
             :param model_path: A path to a model in IR / ONNX / PDPD format.
             :type model_path: str
             :param device_name: Name of the device to load the model to.
@@ -158,6 +164,8 @@ void regclass_Core(py::module m) {
             Reads model and creates a compiled model from IR / ONNX / PDPD file with device selected by AUTO plugin.
             This can be more efficient than using read_model + compile_model(model_in_memory_object) flow,
             especially for cases when caching is enabled and cached model is available.
+
+            GIL is released while running this function.
 
             :param model_path: A path to a model in IR / ONNX / PDPD format.
             :type model_path: str
@@ -200,6 +208,8 @@ void regclass_Core(py::module m) {
         R"(
             Reads models from IR / ONNX / PDPD formats.
 
+            GIL is released while running this function.
+
             :param model: Bytes with model in IR / ONNX / PDPD format.
             :type model: bytes
             :param weights: Bytes with tensor's data.
@@ -216,6 +226,8 @@ void regclass_Core(py::module m) {
         py::arg("weights") = "",
         R"(
             Reads models from IR / ONNX / PDPD formats.
+
+            GIL is released while running this function.
 
             :param model: A path to a model in IR / ONNX / PDPD format.
             :type model: str
@@ -238,6 +250,8 @@ void regclass_Core(py::module m) {
         R"(
             Reads models from IR / ONNX / PDPD formats.
 
+            GIL is released while running this function.
+
             :param model: A string with model in IR / ONNX / PDPD format.
             :type model: str
             :param weights: Tensor with weights. Reading ONNX / PDPD models doesn't support
@@ -259,6 +273,8 @@ void regclass_Core(py::module m) {
         py::arg("weights") = "",
         R"(
             Reads models from IR / ONNX / PDPD formats.
+
+            GIL is released while running this function.
 
             :param model: A string with model in IR / ONNX / PDPD format.
             :type model: str
@@ -287,6 +303,8 @@ void regclass_Core(py::module m) {
         py::arg("properties") = py::none(),
         R"(
             Imports a compiled model from a previously exported one.
+
+            GIL is released while running this function.
 
             :param model_stream: Input stream, containing a model previously exported, using export_model method.
             :type model_stream: bytes
@@ -340,6 +358,8 @@ void regclass_Core(py::module m) {
             Advanced version of `import_model`. It utilizes, streams from standard
             Python library `io`.
 
+            GIL is released while running this function.
+
 
             :param model_stream: Input stream, containing a model previously exported, using export_model method.
             :type model_stream: io.BytesIO
@@ -385,7 +405,6 @@ void regclass_Core(py::module m) {
 
     cls.def("register_plugin",
             &ov::Core::register_plugin,
-            py::call_guard<py::gil_scoped_release>(),
             py::arg("plugin_name"),
             py::arg("device_name"),
             R"(
@@ -401,7 +420,6 @@ void regclass_Core(py::module m) {
 
     cls.def("register_plugins",
             &ov::Core::register_plugins,
-            py::call_guard<py::gil_scoped_release>(),
             py::arg("xml_config_file"),
             R"(
                 Registers a device plugin to OpenVINO Runtime Core instance using XML configuration
@@ -413,7 +431,6 @@ void regclass_Core(py::module m) {
 
     cls.def("unload_plugin",
             &ov::Core::unload_plugin,
-            py::call_guard<py::gil_scoped_release>(),
             py::arg("device_name"),
             R"(
                 Unloads the previously loaded plugin identified by device_name from OpenVINO Runtime.
@@ -439,6 +456,8 @@ void regclass_Core(py::module m) {
         R"(
             Query device if it supports specified model with specified properties.
 
+            GIL is released while running this function.
+
             :param model: Model object to query.
             :type model: openvino.runtime.Model
             :param device_name: A name of a device to query.
@@ -451,7 +470,6 @@ void regclass_Core(py::module m) {
 
     cls.def("add_extension",
             static_cast<void (ov::Core::*)(const std::string&)>(&ov::Core::add_extension),
-            py::call_guard<py::gil_scoped_release>(),
             py::arg("library_path"),
             R"(
                 Registers an extension to a Core object.
@@ -462,7 +480,6 @@ void regclass_Core(py::module m) {
 
     cls.def("add_extension",
             static_cast<void (ov::Core::*)(const std::shared_ptr<ov::Extension>&)>(&ov::Core::add_extension),
-            py::call_guard<py::gil_scoped_release>(),
             py::arg("extension"),
             R"(
                 Registers an extension to a Core object.
@@ -474,7 +491,6 @@ void regclass_Core(py::module m) {
     cls.def(
         "add_extension",
         static_cast<void (ov::Core::*)(const std::vector<std::shared_ptr<ov::Extension>>&)>(&ov::Core::add_extension),
-        py::call_guard<py::gil_scoped_release>(),
         py::arg("extensions"),
         R"(
             Registers extensions to a Core object.
@@ -488,6 +504,8 @@ void regclass_Core(py::module m) {
                               py::call_guard<py::gil_scoped_release>(),
                               R"(
                                     Returns devices available for inference Core objects goes over all registered plugins.
+
+                                    GIL is released while running this function.
 
                                     :returns: A list of devices. The devices are returned as: CPU, GPU.0, GPU.1, MYRIAD...
                                         If there more than one device of specific type, they are enumerated with .# suffix.

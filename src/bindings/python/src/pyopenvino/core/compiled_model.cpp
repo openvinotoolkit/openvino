@@ -63,6 +63,8 @@ void regclass_CompiledModel(py::module m) {
             It is advised to use a dedicated InferRequest class for performance,
             optimizing workflows, and creating advanced pipelines.
 
+            GIL is released during the inference.
+
             :param inputs: Data to set on input tensors.
             :type inputs: Dict[Union[int, str, openvino.runtime.ConstOutput], openvino.runtime.Tensor]
             :return: Dictionary of results from output tensors with ports as keys.
@@ -79,6 +81,8 @@ void regclass_CompiledModel(py::module m) {
         py::call_guard<py::gil_scoped_release>(),
         R"(
             Exports the compiled model to bytes/output stream.
+
+            GIL is released while running this function.
 
             :return: Bytes object that contains this compiled model.
             :rtype: bytes
@@ -121,6 +125,8 @@ void regclass_CompiledModel(py::module m) {
 
             Function performs flushing of the stream, writes to it, and then rewinds
             the stream to the beginning (using seek(0)).
+
+            GIL is released while running this function.
 
             :param model_stream: A stream object to which the model will be serialized.
             :type model_stream: io.BytesIO

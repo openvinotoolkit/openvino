@@ -267,6 +267,10 @@ void regclass_graph_Model(py::module m) {
         py::call_guard<py::gil_scoped_release>(),
         py::arg("partial_shape"),
         R"(
+                Reshape model input.
+
+                GIL is released while running this function.
+
                 :param partial_shape: New shape.
                 :type partial_shape: PartialShape
                 :return : void
@@ -281,6 +285,10 @@ void regclass_graph_Model(py::module m) {
         },
         py::arg("partial_shape"),
         R"(
+                Reshape model input.
+
+                GIL is released while running this function.
+
                 :param partial_shape: New shape.
                 :type partial_shape: list
                 :return : void
@@ -295,6 +303,10 @@ void regclass_graph_Model(py::module m) {
         },
         py::arg("partial_shape"),
         R"(
+                Reshape model input.
+
+                GIL is released while running this function.
+
                 :param partial_shape: New shape.
                 :type partial_shape: tuple
                 :return : void
@@ -308,6 +320,10 @@ void regclass_graph_Model(py::module m) {
         py::call_guard<py::gil_scoped_release>(),
         py::arg("partial_shape"),
         R"(
+                Reshape model input.
+
+                GIL is released while running this function.
+
                 :param partial_shape: New shape.
                 :type partial_shape: str
                 :return : void
@@ -375,6 +391,10 @@ void regclass_graph_Model(py::module m) {
                 '1' - to define dimension which length is 1
                 '1..10' - to define bounded dimension
                 '..10' or '1..' to define dimension with only lower or only upper limit
+
+            Reshape model input.
+
+            GIL is released while running this function.
 
             :param partial_shapes: New shapes.
             :type partial_shapes: Dict[keys, values]

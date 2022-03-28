@@ -179,6 +179,8 @@ void regclass_InferRequest(py::module m) {
             Blocks all methods of InferRequest while request is running.
             Calling any method will lead to throwing exceptions.
 
+            GIL is released while running the inference.
+
             :param inputs: Data to set on input tensors.
             :type inputs: Dict[Union[int, str, openvino.runtime.ConstOutput], openvino.runtime.Tensor]
             :return: Dictionary of results from output tensors with ports as keys.
@@ -207,8 +209,7 @@ void regclass_InferRequest(py::module m) {
             Starts inference of specified input(s) in asynchronous mode.
             Returns immediately. Inference starts also immediately.
 
-            This function releases the GIL, so another Python thread can
-            work while this function runs in the background.
+            GIL is released while running the inference.
 
             Calling any method on this InferRequest while the request is
             running will lead to throwing exceptions.
@@ -238,7 +239,7 @@ void regclass_InferRequest(py::module m) {
             Waits for the result to become available. 
             Blocks until the result becomes available.
 
-            Function releases GIL, other threads can work while this function is running in the background.
+            GIL is released while running this function.
         )");
 
     cls.def(
@@ -253,7 +254,7 @@ void regclass_InferRequest(py::module m) {
             Blocks until specified timeout has elapsed or
             the result becomes available, whichever comes first.
 
-            Function releases GIL, other threads can work while this function waits.
+            GIL is released while running this function.
 
             :param timeout: Maximum duration in milliseconds (ms) of blocking call.
             :type timeout: int
@@ -522,6 +523,8 @@ void regclass_InferRequest(py::module m) {
             is the most time-consuming operation, not all plugins provide
             meaningful data.
 
+            GIL is released while running this function.
+
             :return: List of profiling information for operations in model.
             :rtype: List[openvino.runtime.ProfilingInfo]
         )");
@@ -534,6 +537,8 @@ void regclass_InferRequest(py::module m) {
         py::call_guard<py::gil_scoped_release>(),
         R"(
             Gets state control interface for given infer request.
+
+            GIL is released while running this function.
 
             :return: List of VariableState objects.
             :rtype: List[openvino.runtime.VariableState]
@@ -625,6 +630,8 @@ void regclass_InferRequest(py::module m) {
         R"(
             Performance is measured per layer to get feedback on the most time-consuming operation.
             Not all plugins provide meaningful data!
+
+            GIL is released while running this function.
             
             :return: Inference time.
             :rtype: List[openvino.runtime.ProfilingInfo]

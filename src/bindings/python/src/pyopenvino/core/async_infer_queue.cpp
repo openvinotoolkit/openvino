@@ -162,7 +162,6 @@ void regclass_AsyncInferQueue(py::module m) {
                 }
                 return new AsyncInferQueue(requests, idle_handles, user_ids);
             }),
-            py::call_guard<py::gil_scoped_release>(),
             py::arg("model"),
             py::arg("jobs") = 0,
             R"(
@@ -211,6 +210,8 @@ void regclass_AsyncInferQueue(py::module m) {
             :type inputs: dict[Union[int, str, openvino.runtime.ConstOutput] : openvino.runtime.Tensor]
             :param userdata: Any data that will be passed to a callback
             :rtype: None
+
+            GIL is released while waiting for the next available InferRequest.
         )");
 
     cls.def("is_ready",
@@ -219,7 +220,7 @@ void regclass_AsyncInferQueue(py::module m) {
             One of 'flow control' functions.
             Returns True if any free request in the pool, otherwise False.
 
-            Function releases GIL, other threads can work while this function waits.
+            GIL is released while running this function.
 
             :return: If there is at least one free InferRequest in a pool, returns True.
             :rtype: bool
@@ -231,7 +232,7 @@ void regclass_AsyncInferQueue(py::module m) {
             One of 'flow control' functions. Blocking call.
             Waits for all InferRequests in a pool to finish scheduled work.
 
-            Function releases GIL, other threads can work while this function waits.
+            GIL is released while running this function.
         )");
 
     cls.def("get_idle_request_id",
@@ -240,7 +241,7 @@ void regclass_AsyncInferQueue(py::module m) {
             Returns next free id of InferRequest from queue's pool.
             Function waits for any request to complete and then returns this request's id.
 
-            Function releases GIL, other threads can work while this function waits.
+            GIL is released while running this function.
 
             :rtype: int
         )");
