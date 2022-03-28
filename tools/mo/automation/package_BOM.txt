@@ -658,9 +658,7 @@ openvino/tools/mo/front/tf/TensorArrayExtractors.py
 openvino/tools/mo/front/tf/TensorArrayGatherV3.py
 openvino/tools/mo/front/tf/tensorflow_custom_operations_config_update.py
 openvino/tools/mo/front/tf/TFFFTToDFT.py
-openvino/tools/mo/front/tf/TFIRFFTToIRDFT.py
 openvino/tools/mo/front/tf/TFResizeToInterpolate.py
-openvino/tools/mo/front/tf/TFRFFTToRDFT.py
 openvino/tools/mo/front/tf/TFScatterNDDecomposition.py
 openvino/tools/mo/front/tf/TFSliceToSlice.py
 openvino/tools/mo/front/tf/tile_ext.py
@@ -1014,9 +1012,7 @@ openvino/tools/mo/ops/TensorArraySize.py
 openvino/tools/mo/ops/TensorArrayWrite.py
 openvino/tools/mo/ops/TensorIterator_ops.py
 openvino/tools/mo/ops/TFFFT.py
-openvino/tools/mo/ops/TFIRFFT.py
 openvino/tools/mo/ops/TFResize.py
-openvino/tools/mo/ops/TFRFFT.py
 openvino/tools/mo/ops/tile.py
 openvino/tools/mo/ops/timeheightconvolution.py
 openvino/tools/mo/ops/topk.py

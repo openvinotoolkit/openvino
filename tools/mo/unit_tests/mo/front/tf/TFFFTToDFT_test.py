@@ -46,17 +46,17 @@ ref_dft_graph_edges = [
 
 @generator
 class TFFFTToDFTTest(unittest.TestCase):
-    @generate(*[(2, False, 'DFT', int64_array([-2, -1])),
-                (2, True, 'IDFT', int64_array([-2, -1])),
-                (1, False, 'DFT', int64_array([-1])),
-                (1, True, 'IDFT', int64_array([-1])),
-                (3, False, 'DFT', int64_array([-3, -2, -1])),
-                (3, True, 'IDFT', int64_array([-3, -2, -1]))])
-    def test_replacement(self, num_of_dimensions, is_inverse, dft_type, fft_axes):
+    @generate(*[(2, 'DFT', int64_array([-2, -1])),
+                (2, 'IDFT', int64_array([-2, -1])),
+                (1, 'DFT', int64_array([-1])),
+                (1, 'IDFT', int64_array([-1])),
+                (3, 'DFT', int64_array([-3, -2, -1])),
+                (3, 'IDFT', int64_array([-3, -2, -1]))])
+    def test_replacement(self, num_of_dimensions, dft_type, fft_axes):
         graph = build_graph(nodes_attrs=dft_graph_node_attrs,
                             edges=dft_graph_edges,
                             update_attributes={
-                                'fft': {'num_of_dimensions': num_of_dimensions, 'is_inverse': is_inverse},
+                                'fft': {'num_of_dimensions': num_of_dimensions, 'fft_kind': dft_type},
                             })
         graph.stage = 'front'
         setattr(graph.graph['cmd_params'], 'disable_nhwc_to_nchw', False)

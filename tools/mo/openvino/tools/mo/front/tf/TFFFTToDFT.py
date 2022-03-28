@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from openvino.tools.mo.ops.dft import DFT, IDFT
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
 from openvino.tools.mo.graph.graph import Graph, rename_nodes
+from openvino.tools.mo.ops.dft import DFT, IDFT, IRDFT, RDFT
 
 
 class TFFFTToDFT(FrontReplacementSubgraph):
@@ -26,7 +26,10 @@ class TFFFTToDFT(FrontReplacementSubgraph):
 
             num_of_dims = tf_fft.soft_get('num_of_dimensions', 1)
             axes = int64_array(range(-num_of_dims, 0))
-            op = IDFT if tf_fft.soft_get('is_inverse', False) else DFT
+            assert tf_fft['fft_kind'] in ['DFT', 'IDFT', 'RDFT', 'IRDFT'], \
+                'Node {} with the operation TFFFT supports only the following FFT-like operations: ' \
+                'DFT, IDFT, RDFT, IRDFT. Got: {}'.format(tf_fft_name, tf_fft['fft_kind'])
+            op = {'DFT': DFT, 'IDFT': IDFT, 'RDFT': RDFT, 'IRDFT': IRDFT}[tf_fft['fft_kind']]
             dft_node = create_op_with_const_inputs(graph, op, {1: axes}, {'in_ports_count': 2},
                                                    tf_fft.in_port(0).get_source().node)
 

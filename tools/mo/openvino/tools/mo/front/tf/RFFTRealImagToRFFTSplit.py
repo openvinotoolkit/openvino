@@ -18,13 +18,13 @@ class RFFTRealImagToRDFTSplit(FrontReplacementSubgraph):
     enabled = True
 
     def run_before(self):
-        from openvino.tools.mo.front.tf.TFRFFTToRDFT import TFRFFTToRDFT
-        return [TFRFFTToRDFT]
+        from openvino.tools.mo.front.tf.TFFFTToDFT import TFFFTToDFT
+        return [TFFFTToDFT]
 
     def pattern(self):
         return dict(
             nodes=[
-                ('rfft', dict(op='TFRFFT')),
+                ('rfft', dict(op='TFFFT', fft_kind='RDFT')),
                 ('real', dict(op='Real')),
                 ('imag', dict(op='Imag')),
             ],

@@ -1,10 +1,8 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.ops.TFFFT import TFFFT
-from openvino.tools.mo.ops.TFIRFFT import TFIRFFT
-from openvino.tools.mo.ops.TFRFFT import TFRFFT
 from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.TFFFT import TFFFT
 
 
 class FFT1DOpFrontExtractor(FrontExtractorOp):
@@ -13,7 +11,7 @@ class FFT1DOpFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        attrs = {'num_of_dimensions': 1, 'is_inverse': False}
+        attrs = {'num_of_dimensions': 1, 'fft_kind': 'DFT'}
         TFFFT.update_node_stat(node, attrs)
         return cls.enabled
 
@@ -24,7 +22,7 @@ class FFT2DOpFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        attrs = {'num_of_dimensions': 2, 'is_inverse': False}
+        attrs = {'num_of_dimensions': 2, 'fft_kind': 'DFT'}
         TFFFT.update_node_stat(node, attrs)
         return cls.enabled
 
@@ -35,7 +33,7 @@ class FFT3DOpFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        attrs = {'num_of_dimensions': 3, 'is_inverse': False}
+        attrs = {'num_of_dimensions': 3, 'fft_kind': 'DFT'}
         TFFFT.update_node_stat(node, attrs)
         return cls.enabled
 
@@ -46,7 +44,7 @@ class IFFT1DOpFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        attrs = {'num_of_dimensions': 1, 'is_inverse': True}
+        attrs = {'num_of_dimensions': 1, 'fft_kind': 'IDFT'}
         TFFFT.update_node_stat(node, attrs)
         return cls.enabled
 
@@ -57,7 +55,7 @@ class IFFT2DOpFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        attrs = {'num_of_dimensions': 2, 'is_inverse': True}
+        attrs = {'num_of_dimensions': 2, 'fft_kind': 'IDFT'}
         TFFFT.update_node_stat(node, attrs)
         return cls.enabled
 
@@ -68,7 +66,7 @@ class IFFT3DOpFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        attrs = {'num_of_dimensions': 3, 'is_inverse': True}
+        attrs = {'num_of_dimensions': 3, 'fft_kind': 'IDFT'}
         TFFFT.update_node_stat(node, attrs)
         return cls.enabled
 
@@ -79,8 +77,8 @@ class RFFT1DOpFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        attrs = {'num_of_dimensions': 1}
-        TFRFFT.update_node_stat(node, attrs)
+        attrs = {'num_of_dimensions': 1, 'fft_kind': 'RDFT'}
+        TFFFT.update_node_stat(node, attrs)
         return cls.enabled
 
 
@@ -90,8 +88,8 @@ class RFFT2DOpFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        attrs = {'num_of_dimensions': 2}
-        TFRFFT.update_node_stat(node, attrs)
+        attrs = {'num_of_dimensions': 2, 'fft_kind': 'RDFT'}
+        TFFFT.update_node_stat(node, attrs)
         return cls.enabled
 
 
@@ -101,8 +99,8 @@ class RFFT3DOpFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        attrs = {'num_of_dimensions': 3}
-        TFRFFT.update_node_stat(node, attrs)
+        attrs = {'num_of_dimensions': 3, 'fft_kind': 'RDFT'}
+        TFFFT.update_node_stat(node, attrs)
         return cls.enabled
 
 
@@ -112,8 +110,8 @@ class IRFFT1DOpFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        attrs = {'num_of_dimensions': 1}
-        TFIRFFT.update_node_stat(node, attrs)
+        attrs = {'num_of_dimensions': 1, 'fft_kind': 'IRDFT'}
+        TFFFT.update_node_stat(node, attrs)
         return cls.enabled
 
 
@@ -123,8 +121,8 @@ class IRFFT2DOpFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        attrs = {'num_of_dimensions': 2}
-        TFIRFFT.update_node_stat(node, attrs)
+        attrs = {'num_of_dimensions': 2, 'fft_kind': 'IRDFT'}
+        TFFFT.update_node_stat(node, attrs)
         return cls.enabled
 
 
@@ -134,6 +132,6 @@ class IRFFT3DOpFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        attrs = {'num_of_dimensions': 3}
-        TFIRFFT.update_node_stat(node, attrs)
+        attrs = {'num_of_dimensions': 3, 'fft_kind': 'IRDFT'}
+        TFFFT.update_node_stat(node, attrs)
         return cls.enabled

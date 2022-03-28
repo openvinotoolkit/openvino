@@ -26,6 +26,6 @@ class TFFFT(Op):
             'out_ports_count': 1,
             'in_ports_count': 1,
         }
-        assert 'is_inverse' in attrs, 'Attribute is_inverse is not given for the operation TFFFT.'
+        assert 'fft_kind' in attrs, 'Attribute fft_kind is not given for the operation TFFFT.'
         assert 'num_of_dimensions' in attrs, 'Attribute num_of_dimensions is not given for the operation TFFFT.'
         super().__init__(graph, mandatory_props, attrs)
