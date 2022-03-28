@@ -10,7 +10,7 @@ import cv2 as cv
 from openvino.tools.pot import DataLoader
 
 class ImageLoader(DataLoader):
-    
+    """ Loads images from a folder """
     def __init__(self, dataset_path):
         """ Load images from folder  """
         # Collect names of image files
@@ -43,21 +43,27 @@ class ImageLoader(DataLoader):
 #! [image_loader]
 
 #! [text_loader]
+import os
+from pathlib import Path
+
 from datasets import load_dataset      #pip install datasets
 from transformers import AutoTokenizer #pip install transformers
 
 from openvino.tools.pot import DataLoader
 
 class TextLoader(DataLoader):
-
-    def __init__(self):
+    """ Loads content of .txt files from a folder """
+    def __init__(self, dataset_path):
         """ HuggingFace dataset API is used to process text files """
-        # replace with your text file
-        self._dataset = load_dataset('text',
-            data_files='https://huggingface.co/datasets/lhoestq/test/resolve/main/some_text.txt')
+        # Collect names of text files
+        extension = ".txt"
+        files = sorted(str(p.stem) for p in
+            Path(dataset_path).glob("*" + extension))
+        files = [os.path.join(dataset_path, file + extension) for file in files]
+        self._dataset = load_dataset('text', data_files=files)
         # replace with your tokenizer
         self._tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
-        self._dataset = self._dataset.map(self._encode, batched=True)
+        self._dataset = self._dataset.map(self._encode, batched=False)
         # replace with names of model inputs
         self._dataset.set_format(type='numpy',
                     columns=['input_ids', 'token_type_ids', 'attention_mask'])
@@ -68,7 +74,7 @@ class TextLoader(DataLoader):
 
     def __len__(self):
         """ Returns the length of the dataset """
-        return len(self._dataset)
+        return len(self._dataset['train'])
 
     def __getitem__(self, index):
         """ Returns data by index as a (dict[str, np.array], None) """
@@ -90,7 +96,7 @@ import torchaudio # pip install torch torchaudio
 from openvino.tools.pot import DataLoader
 
 class AudioLoader(DataLoader):
-
+    """ Loads content of .wav files from a folder """
     def __init__(self, dataset_path):
         """ Load images from folder  """
         # Collect names of wav files
