@@ -18,9 +18,11 @@ if(LINUX)
                       NAMES patchelf
                       DOC "Path to patchelf tool")
     if(NOT patchelf_program)
-        message(FATAL_ERROR "patchelf is not found, which is needed to build ie_wheel")
+        message(FATAL_ERROR "patchelf is not found. It is required to build OpenVINO Runtime wheel")
     endif()
 endif()
+
+ie_check_pip_package(wheel FATAL_ERROR)
 
 # create target for openvino.wheel
 
