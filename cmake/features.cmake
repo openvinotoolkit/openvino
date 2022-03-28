@@ -147,10 +147,12 @@ if(LINUX_OS_NAME MATCHES "^Ubuntu [0-9]+\.[0-9]+$")
         message(WARNING "System TBB is not found, custom TBB version will be downloaded from shared drive")
         # we still need to download prebuilt version of TBB
         set(ENABLE_SYSTEM_TBB_DEFAULT OFF)
-        # remove invalid TBB_DIR=TBB_DIR-NOTFOUND from cache
-        unset(TBB_DIR CACHE)
-        unset(TBB_DIR)
     endif()
+
+    # remove found TBB (or invalid TBB_DIR-NOTFOUND) from cache
+    unset(TBB_DIR CACHE)
+    unset(TBB_DIR)
+    unset(TBB_FOUND)
 else()
     set(ENABLE_SYSTEM_TBB_DEFAULT OFF)
 endif()
