@@ -54,6 +54,12 @@
 #include <transformations/common_optimizations/swish_fusion.hpp>
 #include <transformations/common_optimizations/transpose_sinking.hpp>
 #include <transformations/common_optimizations/transpose_to_reshape.hpp>
+#include <transformations/common_optimizations/fq_mul_fusion.hpp>
+#include <transformations/common_optimizations/pull_transpose_through_fq.hpp>
+#include <transformations/common_optimizations/relu_fake_quantize_fusion.hpp>
+#include <transformations/common_optimizations/fq_reshape_fusion.hpp>
+#include <transformations/common_optimizations/mul_fake_quantize_fusion.hpp>
+#include <transformations/common_optimizations/add_fake_quantize_fusion.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
 #include <transformations/op_conversions/batch_norm_decomposition.hpp>
@@ -178,6 +184,15 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
     multiply_fusions->add_matcher<ngraph::pass::MatMulMultiplyFusion>();
     multiply_fusions->set_name("ngraph::pass::MultiplyFusions");
     manager.register_pass<ngraph::pass::ConstantFolding>();
+
+    auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
+    fq_fusions->add_matcher<ngraph::pass::FakeQuantizeMulFusion>();
+    fq_fusions->add_matcher<ngraph::pass::FakeQuantizeReshapeFusion>();
+    fq_fusions->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
+    fq_fusions->add_matcher<ngraph::pass::ReluFakeQuantizeFusion>();
+    fq_fusions->add_matcher<ngraph::pass::AddFakeQuantizeFusion>();
+    fq_fusions->add_matcher<ngraph::pass::MulFakeQuantizeFusion>();
+    fq_fusions->set_name("ngraph::pass::FakeQuantizeFusions");
 
     manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
 
