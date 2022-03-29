@@ -5,3 +5,4 @@
 
 from openvino.pyopenvino.util import numpy_to_c
 from openvino.pyopenvino.util import get_constant_from_source
+from openvino.pyopenvino.util import clone_model

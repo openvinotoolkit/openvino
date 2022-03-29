@@ -32,14 +32,17 @@ void regmodule_graph_util(py::module m) {
                          from the resulting bound, otherwise Null.
                 :rtype: openvino.runtime.op.Constant or openvino.runtime.Node
             )");
-}
-    mod.def("clone_function",
-            (std::shared_ptr<ov::Model>(ov::*)(const ov::Model&)) & ov::clone_model,
+    mod.def("clone_model",
+            [](ov::Model& model){
+                return ov::clone_model(model);
+            },
             py::arg("model"),
             R"(
-                Create a copy of Model.
+                Creates a copy of a model object.
+
                 :param model: Model to copy.
                 :type model: openvino.runtime.Model
                 :return: A copy of Model.
                 :rtype: openvino.runtime.Model
             )");
+}
