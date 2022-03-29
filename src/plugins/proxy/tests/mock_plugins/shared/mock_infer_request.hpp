@@ -37,4 +37,3 @@ private:
     std::map<std::string, InferenceEngine::Blob::Ptr> m_outputs;
     void allocate_blobs();
 };
-

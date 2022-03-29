@@ -19,7 +19,7 @@ size_t string_to_size_t(const std::string& s) {
     sstream >> idx;
     return idx;
 }
-}
+}  // namespace
 
 ov::proxy::Plugin::Plugin() {}
 ov::proxy::Plugin::~Plugin() {}
@@ -142,7 +142,7 @@ InferenceEngine::Parameter ov::proxy::Plugin::GetMetric(
     if (device_id.empty())
         IE_THROW(NotImplemented);
     size_t idx = string_to_size_t(device_id);
-    return GetCore()->GetMetric(get_primary_device(idx),name, options);
+    return GetCore()->GetMetric(get_primary_device(idx), name, options);
 }
 InferenceEngine::IExecutableNetworkInternal::Ptr ov::proxy::Plugin::ImportNetwork(
     std::istream& model,
