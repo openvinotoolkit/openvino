@@ -713,6 +713,8 @@ private:
         return shape_size(m_shape) * m_element_type.size();
     }
 
+    friend class frontend::FrontEnd;
+    std::shared_ptr<void> m_shared_object{};
     element::Type m_element_type;
     Shape m_shape{};
     std::shared_ptr<ngraph::runtime::AlignedBuffer> m_data;

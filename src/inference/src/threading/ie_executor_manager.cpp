@@ -2,18 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "threading/ie_executor_manager.hpp"
+#include <tbb/task_scheduler_init.h>
 
 #include <memory>
+#include <mutex>
 #include <string>
+#include <threading/ie_cpu_streams_executor.hpp>
+#include <threading/ie_executor_manager.hpp>
 #include <utility>
-
-#include "threading/ie_cpu_streams_executor.hpp"
 
 namespace InferenceEngine {
 namespace {
 class ExecutorManagerImpl : public ExecutorManager {
 public:
+    ~ExecutorManagerImpl();
     ITaskExecutor::Ptr getExecutor(const std::string& id) override;
     IStreamsExecutor::Ptr getIdleCPUStreamsExecutor(const IStreamsExecutor::Config& config) override;
     size_t getExecutorsNumber() const override;
@@ -21,6 +23,7 @@ public:
     void clear(const std::string& id = {}) override;
 
 private:
+    tbb::task_scheduler_init init;
     std::unordered_map<std::string, ITaskExecutor::Ptr> executors;
     std::vector<std::pair<IStreamsExecutor::Config, IStreamsExecutor::Ptr>> cpuStreamsExecutors;
     mutable std::mutex streamExecutorMutex;
@@ -28,6 +31,10 @@ private:
 };
 
 }  // namespace
+
+ExecutorManagerImpl::~ExecutorManagerImpl() {
+    init.blocking_terminate();
+}
 
 ITaskExecutor::Ptr ExecutorManagerImpl::getExecutor(const std::string& id) {
     std::lock_guard<std::mutex> guard(taskExecutorMutex);
@@ -90,9 +97,32 @@ void ExecutorManagerImpl::clear(const std::string& id) {
     }
 }
 
+namespace {
+
+class ExecutorManagerHolder {
+    std::mutex _mutex;
+    std::weak_ptr<ExecutorManager> _manager;
+
+    ExecutorManagerHolder(const ExecutorManagerHolder&) = delete;
+    ExecutorManagerHolder& operator=(const ExecutorManagerHolder&) = delete;
+
+public:
+    ExecutorManagerHolder() = default;
+
+    ExecutorManager::Ptr get() {
+        std::lock_guard<std::mutex> lock(_mutex);
+        auto manager = _manager.lock();
+        if (!manager)
+            _manager = manager = std::make_shared<ExecutorManagerImpl>();
+        return manager;
+    }
+};
+
+}  // namespace
+
 ExecutorManager::Ptr executorManager() {
-    static auto manager = std::make_shared<ExecutorManagerImpl>();
-    return manager;
+    static ExecutorManagerHolder executorManagerHolder;
+    return executorManagerHolder.get();
 }
 
 ExecutorManager* ExecutorManager::getInstance() {
