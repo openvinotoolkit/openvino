@@ -48,19 +48,49 @@ Then device name can be passed to `ov::Core::compile_model()` method:
 
 @sphinxtab{Running on default device}
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/gpu/compile_model.cpp compile_model_default_gpu
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/compile_model.py compile_model_default_gpu
+@endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
 @sphinxtab{Running on specific GPU}
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/gpu/compile_model.cpp compile_model_gpu_with_id
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/compile_model.py compile_model_gpu_with_id
+@endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
 @sphinxtab{Running on specific tile}
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/gpu/compile_model.cpp compile_model_gpu_with_id_and_tile
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/compile_model.py compile_model_gpu_with_id_and_tile
+@endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
@@ -93,7 +123,17 @@ Floating-point precision of a GPU primitive is selected based on operation preci
 If a machine has multiple GPUs (for example integrated GPU and discrete Intel GPU), then any supported model can be executed on all GPUs simultaneously.
 This can be achieved by specifying `"MULTI:GPU.1,GPU.0"` as a target device.
 
-@snippet snippets/gpu/compile_model.cpp compile_model_multi
+@sphinxtabset
+
+@sphinxtab{C++}
+@snippet docs/snippets/gpu/compile_model.cpp compile_model_multi
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/compile_model.py compile_model_multi
+@endsphinxtab
+
+@endsphinxtabset
 
 See [Multi-device execution page](../multi_device.md) for more details.
 
@@ -106,13 +146,33 @@ Alternatively it can be enabled explicitly via the device notion, e.g. `"BATCH:G
 
 @sphinxtab{Batching via BATCH plugin}
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/gpu/compile_model.cpp compile_model_batch_plugin
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/compile_model.py compile_model_batch_plugin
+@endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
 @sphinxtab{Bacthing via throughput hint}
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/gpu/compile_model.cpp compile_model_auto_batch
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/compile_model.py compile_model_auto_batch
+@endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
@@ -141,7 +201,17 @@ For example, batch size 33 may be executed via 2 internal networks with batch si
 
 The code snippet below demonstrates how to use dynamic batch in simple scenarios:
 
-@snippet snippets/gpu/dynamic_batch.cpp dynamic_batch
+@sphinxtabset
+
+@sphinxtab{C++}
+@snippet docs/snippets/gpu/dynamic_batch.cpp dynamic_batch
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/dynamic_batch.py dynamic_batch
+@endsphinxtab
+
+@endsphinxtabset
 
 See [dynamic shapes guide](../ov_dynamic_shapes.md) for more details.
 
@@ -149,7 +219,17 @@ See [dynamic shapes guide](../ov_dynamic_shapes.md) for more details.
 GPU plugin has the following additional preprocessing options:
 - `ov::intel_gpu::memory_type::surface` and `ov::intel_gpu::memory_type::buffer` values for `ov::preprocess::InputTensorInfo::set_memory_type()` preprocessing method. These values are intended to be used to provide a hint for the plugin on the type of input Tensors that will be set in runtime to generate proper kernels.
 
-@snippet snippets/gpu/preprocessing.cpp init_preproc
+@sphinxtabset
+
+@sphinxtab{C++}
+@snippet docs/snippets/gpu/preprocessing.cpp init_preproc
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/preprocessing.py init_preproc
+@endsphinxtab
+
+@endsphinxtabset
 
 With such preprocessing GPU plugin will expect `ov::intel_gpu::ocl::ClImage2DTensor` (or derived) to be passed for each NV12 plane via `ov::InferRequest::set_tensor()` or `ov::InferRequest::set_tensors()` methods.
 
