@@ -12,7 +12,7 @@ from openvino.tools.pot import DataLoader
 class ImageLoader(DataLoader):
     """ Loads images from a folder """
     def __init__(self, dataset_path):
-        """ Load images from folder  """
+        # Use OpenCV to gather image files
         # Collect names of image files
         self._files = []
         all_files_in_dir = os.listdir(dataset_path)
@@ -54,7 +54,7 @@ from openvino.tools.pot import DataLoader
 class TextLoader(DataLoader):
     """ Loads content of .txt files from a folder """
     def __init__(self, dataset_path):
-        """ HuggingFace dataset API is used to process text files """
+        # HuggingFace dataset API is used to process text files
         # Collect names of text files
         extension = ".txt"
         files = sorted(str(p.stem) for p in
@@ -98,7 +98,6 @@ from openvino.tools.pot import DataLoader
 class AudioLoader(DataLoader):
     """ Loads content of .wav files from a folder """
     def __init__(self, dataset_path):
-        """ Load images from folder  """
         # Collect names of wav files
         self._extension = ".wav"
         self._dataset_path = dataset_path
