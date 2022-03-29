@@ -15,29 +15,50 @@
 ov::proxy::Plugin::Plugin() {}
 ov::proxy::Plugin::~Plugin() {}
 
-void ov::proxy::Plugin::SetConfig(const std::map<std::string, std::string>& config) {
-    m_config = config;
-}
-InferenceEngine::QueryNetworkResult ov::proxy::Plugin::QueryNetwork(
-    const InferenceEngine::CNNNetwork& network,
-    const std::map<std::string, std::string>& config) const {
-    IE_THROW(NotImplemented);
-}
-InferenceEngine::IExecutableNetworkInternal::Ptr ov::proxy::Plugin::LoadExeNetworkImpl(
-    const InferenceEngine::CNNNetwork& network,
-    const std::map<std::string, std::string>& config) {
+size_t ov::proxy::Plugin::get_device_from_config(const std::map<std::string, std::string>& config) const {
     OPENVINO_ASSERT(config.find("DEVICE_ID") != config.end());
-
     std::stringstream sstream(config.at("DEVICE_ID"));
     size_t idx;
     sstream >> idx;
-    auto dev_name = get_fallback_device(idx);
+    return idx;
+}
+
+void ov::proxy::Plugin::SetConfig(const std::map<std::string, std::string>& config) {
+    // Set config for primary device
+    m_config = config;
+    ov::AnyMap property;
+    for (const auto it : config) {
+        property[it.first] = it.second;
+    }
+    GetCore()->set_property(get_primary_device(get_device_from_config(config)), property);
+}
+
+InferenceEngine::QueryNetworkResult ov::proxy::Plugin::QueryNetwork(
+    const InferenceEngine::CNNNetwork& network,
+    const std::map<std::string, std::string>& config) const {
+    // Recall for HW device
+    auto dev_id = get_device_from_config(config);
+    auto res = GetCore()->QueryNetwork(network, get_fallback_device(dev_id), config);
+    // Replace hidden device name
+    for (auto&& it : res.supportedLayersMap) {
+        it.second = GetName() + "." + std::to_string(dev_id);
+    }
+    return res;
+}
+
+InferenceEngine::IExecutableNetworkInternal::Ptr ov::proxy::Plugin::LoadExeNetworkImpl(
+    const InferenceEngine::CNNNetwork& network,
+    const std::map<std::string, std::string>& config) {
+    auto dev_name = get_fallback_device(get_device_from_config(config));
     std::cout << dev_name << std::endl;
     return std::make_shared<ov::proxy::CompiledModel>(GetCore()->LoadNetwork(network, dev_name, config));
 }
+
 void ov::proxy::Plugin::AddExtension(const std::shared_ptr<InferenceEngine::IExtension>& extension) {
+    // Don't need to recall add_extension for hidden plugin, because core objects add extensions for all plugins
     IE_THROW(NotImplemented);
 }
+
 InferenceEngine::Parameter ov::proxy::Plugin::GetConfig(
     const std::string& name,
     const std::map<std::string, InferenceEngine::Parameter>& options) const {
@@ -134,6 +155,25 @@ std::vector<std::pair<std::string, std::vector<std::string>>> ov::proxy::Plugin:
     }
     return end_result;
 }
+
+std::vector<std::string> ov::proxy::Plugin::get_primary_devices() const {
+    // Return primary devices
+    std::vector<std::string> devices;
+    const auto all_devices = get_hidden_devices();
+    for (const auto& dev : all_devices) {
+        devices.emplace_back(dev.second.at(0));
+    }
+
+    return devices;
+}
+
+std::string ov::proxy::Plugin::get_primary_device(size_t idx) const {
+    auto devices = get_primary_devices();
+
+    OPENVINO_ASSERT(devices.size() > idx);
+    return devices[idx];
+}
+
 std::string ov::proxy::Plugin::get_fallback_device(size_t idx) const {
     const auto all_devices = get_hidden_devices();
     OPENVINO_ASSERT(all_devices.size() > idx);

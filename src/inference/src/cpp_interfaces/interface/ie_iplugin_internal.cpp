@@ -29,6 +29,7 @@
 #include "ie_parameter.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/extension.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/runtime_attribute.hpp"
 #include "threading/ie_executor_manager.hpp"
@@ -202,6 +203,10 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
 }
 
 void IInferencePlugin::AddExtension(const std::shared_ptr<IExtension>&) {
+    IE_THROW(NotImplemented);
+}
+
+void IInferencePlugin::AddExtension(const ov::Extension::Ptr&) {
     IE_THROW(NotImplemented);
 }
 

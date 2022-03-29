@@ -4,10 +4,12 @@
 
 #pragma once
 
-#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
-#include <ie_icore.hpp>
 #include <map>
 #include <string>
+
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
+#include "ie_icore.hpp"
+#include "openvino/core/extension.hpp"
 
 class MockPluginBde : public InferenceEngine::IInferencePlugin {
 public:
@@ -60,5 +62,9 @@ public:
 
     std::string GetName() const noexcept override;
 
-    std::map<std::string, std::string> config;
+    void AddExtension(const ov::Extension::Ptr& extension) override;
+
+private:
+    std::map<std::string, std::string> m_config;
+    std::vector<ov::Extension::Ptr> m_extensions;
 };

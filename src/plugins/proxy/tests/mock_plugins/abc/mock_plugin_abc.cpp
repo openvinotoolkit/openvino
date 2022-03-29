@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "description_buffer.hpp"
+#include "openvino/core/op_extension.hpp"
 #include "openvino/runtime/common.hpp"
 
 using namespace std;
@@ -18,7 +19,11 @@ using namespace InferenceEngine;
 MockPluginAbc::MockPluginAbc() {}
 
 void MockPluginAbc::SetConfig(const std::map<std::string, std::string>& _config) {
-    this->config = _config;
+    this->m_config = _config;
+}
+
+void MockPluginAbc::AddExtension(const ov::Extension::Ptr& extension) {
+    m_extensions.emplace_back(extension);
 }
 
 Parameter MockPluginAbc::GetConfig(const std::string& name,
@@ -29,6 +34,17 @@ Parameter MockPluginAbc::GetConfig(const std::string& name,
     }
     if (name == ov::device::id) {
         return device_id;
+    } else if (name == "SUPPORTED_METRICS") {
+        std::vector<std::string> metrics;
+        metrics.push_back("AVAILABLE_DEVICES");
+        metrics.push_back("SUPPORTED_METRICS");
+        metrics.push_back("FULL_DEVICE_NAME");
+        return metrics;
+    } else if (name == "SUPPORTED_CONFIG_KEYS") {
+        std::vector<std::string> configs;
+        configs.push_back("NUM_STREAMS");
+        configs.push_back("PERF_COUNT");
+        return configs;
     } else if (name == ov::device::full_name) {
         std::string deviceFullName = "";
         if (device_id == "abc_a")
@@ -63,12 +79,7 @@ Parameter MockPluginAbc::GetMetric(const std::string& name,
         // the whole config is RW before network is loaded.
         std::vector<ov::PropertyName> rwProperties{
             RW_property(ov::num_streams.name()),
-            RW_property(ov::affinity.name()),
-            RW_property(ov::inference_num_threads.name()),
             RW_property(ov::enable_profiling.name()),
-            RW_property(ov::hint::inference_precision.name()),
-            RW_property(ov::hint::performance_mode.name()),
-            RW_property(ov::hint::num_requests.name()),
         };
 
         std::vector<ov::PropertyName> supportedProperties;
@@ -77,6 +88,17 @@ Parameter MockPluginAbc::GetMetric(const std::string& name,
         supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
 
         return decltype(ov::supported_properties)::value_type(supportedProperties);
+    } else if (name == "SUPPORTED_METRICS") {
+        std::vector<std::string> metrics;
+        metrics.push_back("AVAILABLE_DEVICES");
+        metrics.push_back("SUPPORTED_METRICS");
+        metrics.push_back("FULL_DEVICE_NAME");
+        return metrics;
+    } else if (name == "SUPPORTED_CONFIG_KEYS") {
+        std::vector<std::string> configs;
+        configs.push_back("NUM_STREAMS");
+        configs.push_back("PERF_COUNT");
+        return configs;
     } else if (name == ov::device::full_name) {
         std::string deviceFullName = "";
         if (device_id == "abc_a")
@@ -140,7 +162,24 @@ std::shared_ptr<InferenceEngine::RemoteContext> MockPluginAbc::GetDefaultContext
 InferenceEngine::QueryNetworkResult MockPluginAbc::QueryNetwork(
     const InferenceEngine::CNNNetwork& network,
     const std::map<std::string, std::string>& config) const {
-    IE_THROW(NotImplemented);
+    auto model = network.getFunction();
+
+    OPENVINO_ASSERT(model);
+
+    std::unordered_set<std::string> supported_ops = {"Parameter", "Result", "Add", "Constant", "Reshape"};
+
+    for (const auto& ext : m_extensions) {
+        if (const auto& op_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext)) {
+            supported_ops.insert(op_ext->get_type_info().name);
+        }
+    }
+    InferenceEngine::QueryNetworkResult res;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (supported_ops.find(op->get_type_info().name) == supported_ops.end())
+            continue;
+        res.supportedLayersMap.emplace(op->get_friendly_name(), GetName());
+    }
+    return res;
 }
 
 void MockPluginAbc::SetCore(std::weak_ptr<InferenceEngine::ICore> core) noexcept {

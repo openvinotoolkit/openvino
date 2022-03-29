@@ -1307,6 +1307,12 @@ public:
                     ov_extensions.emplace_back(attached_ext);
                 }
             }
+            for (auto& plugin : plugins) {
+                try {
+                    plugin.second.add_extension(ext);
+                } catch (...) {
+                }
+            }
         }
     }
 

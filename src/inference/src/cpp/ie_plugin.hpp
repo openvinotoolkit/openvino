@@ -19,6 +19,7 @@
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "so_ptr.hpp"
 #include "openvino/runtime/common.hpp"
+#include "openvino/core/extension.hpp"
 #include "any_copy.hpp"
 #include "ie_plugin_config.hpp"
 
@@ -278,6 +279,10 @@ public:
     template <typename T, PropertyMutability M>
     T get_property(const ov::Property<T, M>& property, const AnyMap& arguments) const {
         return get_property(property.name(), arguments).template as<T>();
+    }
+
+    void add_extension(const ov::Extension::Ptr& extension) {
+        OV_PLUGIN_CALL_STATEMENT(_ptr->AddExtension(extension));
     }
 };
 

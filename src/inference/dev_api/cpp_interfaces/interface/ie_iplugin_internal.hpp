@@ -25,6 +25,7 @@
 namespace ov {
 class Function;
 class ICore;
+class Extension;
 }  // namespace ov
 namespace InferenceEngine {
 
@@ -278,6 +279,12 @@ public:
      */
     virtual QueryNetworkResult QueryNetwork(const CNNNetwork& network,
                                             const std::map<std::string, std::string>& config) const;
+
+    /**
+     * @brief Registers OpenVINO extension within plugin
+     * @param extension - pointer to already loaded extension
+     */
+    virtual void AddExtension(const std::shared_ptr<ov::Extension>& extension);
 
 protected:
     IInferencePlugin();
