@@ -17,6 +17,7 @@ What else can I do?</a>
 - <a href="#python">When I execute POT CLI, I get "File "/workspace/venv/lib/python3.6/site-packages/nevergrad/optimization/base.py", line 35... SyntaxError: invalid syntax". What is wrong?</a>
 - <a href="#nomodule">What does a message "ModuleNotFoundError: No module named 'some\_module\_name'" mean?</a>
 - <a href="#dump">Is there a way to collect an intermidiate IR when the AccuracyAware mechanism fails?</a>
+- <a name="#outputs"> What do the messages "Output name: <result_operation_name> not found" or "Output node with <result_operation_name> is not found in graph" mean?</a>
 
 
 ### <a name="opensourced">Is the Post-training Optimization Tool (POT) opensourced?</a>
@@ -99,3 +100,6 @@ It means that some required python module is not installed in your environment. 
 ### <a name="dump">Is there a way to collect an intermidiate IR when the AccuracyAware mechanism fails?</a>
 
 You can add `"dump_intermediate_model": true` to the POT configuration file and it will drop an intermidiate IR to `accuracy_aware_intermediate` folder. 
+
+### <a name="outputs"> What do the messages "Output name: <result_operation_name> not found" or "Output node with <result_operation_name> is not found in graph" mean?</a>
+Errors are caused by missing output nodes names in a graph when using the POT tool for model quantization. May appear for some models only for IRs converted from ONNX models using new frontend (which is default conversion path starting from 2022.1 release). To avoid such errors, use legacy MO frontend to convert a model to IR by passing the --use_legacy_frontend option. Then, use produced IR for quantization.
