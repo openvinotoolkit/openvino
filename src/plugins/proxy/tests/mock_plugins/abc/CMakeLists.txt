@@ -14,3 +14,5 @@ ov_add_plugin(NAME ${TARGET_NAME}
               SKIP_INSTALL
               SKIP_REGISTRATION
               ADD_CLANG_FORMAT)
+
+target_link_libraries(${TARGET_NAME} PRIVATE mock_plugin_shared)

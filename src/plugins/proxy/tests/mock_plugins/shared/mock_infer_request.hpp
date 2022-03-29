@@ -33,8 +33,8 @@ public:
 
 private:
     std::shared_ptr<MockCompiledModel> m_compiled_model;
-    InferenceEngine::Blob::Ptr m_input;
-    InferenceEngine::Blob::Ptr m_output;
+    std::map<std::string, InferenceEngine::Blob::Ptr> m_inputs;
+    std::map<std::string, InferenceEngine::Blob::Ptr> m_outputs;
     void allocate_blobs();
 };
 
