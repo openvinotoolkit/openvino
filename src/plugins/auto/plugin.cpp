@@ -345,7 +345,12 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
              strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
              LOG_INFO("[AUTOPLUGIN]:device:%s, priority:%ld", iter->deviceName.c_str(), iter->devicePriority);
         }
-        return std::make_shared<MultiDeviceExecutableNetwork>(modelPath, network, supportDevices, strDevices, this, context, context.needPerfCounters);
+        auto clonedModel = ov::clone_model(*(network.getFunction().get()));
+        auto clonedNetwork = CNNNetwork(std::make_shared<details::CNNNetworkNGraphImpl>(clonedModel,
+                                                        std::vector<IExtensionPtr>{},
+                                                        true));
+
+        return std::make_shared<MultiDeviceExecutableNetwork>(modelPath, clonedNetwork, supportDevices, strDevices, this, context, context.needPerfCounters);
     }
     OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl:MultiMode");
     if (priorities == fullConfig.end()) {
