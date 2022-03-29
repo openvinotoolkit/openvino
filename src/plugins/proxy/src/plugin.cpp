@@ -12,15 +12,21 @@
 #include "openvino/runtime/common.hpp"
 #include "proxy_plugin.hpp"
 
+namespace {
+size_t string_to_size_t(const std::string& s) {
+    std::stringstream sstream(s);
+    size_t idx;
+    sstream >> idx;
+    return idx;
+}
+}
+
 ov::proxy::Plugin::Plugin() {}
 ov::proxy::Plugin::~Plugin() {}
 
 size_t ov::proxy::Plugin::get_device_from_config(const std::map<std::string, std::string>& config) const {
     OPENVINO_ASSERT(config.find("DEVICE_ID") != config.end());
-    std::stringstream sstream(config.at("DEVICE_ID"));
-    size_t idx;
-    sstream >> idx;
-    return idx;
+    return string_to_size_t(config.at("DEVICE_ID"));
 }
 
 void ov::proxy::Plugin::SetConfig(const std::map<std::string, std::string>& config) {
@@ -69,7 +75,10 @@ InferenceEngine::Parameter ov::proxy::Plugin::GetConfig(
     if (name == ov::device::id)
         return device_id;
 
-    IE_THROW(NotImplemented);
+    if (device_id.empty())
+        IE_THROW(NotImplemented);
+    size_t idx = string_to_size_t(device_id);
+    return GetCore()->GetConfig(get_primary_device(idx), name);
 }
 InferenceEngine::Parameter ov::proxy::Plugin::GetMetric(
     const std::string& name,
@@ -130,7 +139,10 @@ InferenceEngine::Parameter ov::proxy::Plugin::GetMetric(
         return decltype(ov::available_devices)::value_type(availableDevices);
     }
 
-    IE_THROW(NotImplemented);
+    if (device_id.empty())
+        IE_THROW(NotImplemented);
+    size_t idx = string_to_size_t(device_id);
+    return GetCore()->GetMetric(get_primary_device(idx),name, options);
 }
 InferenceEngine::IExecutableNetworkInternal::Ptr ov::proxy::Plugin::ImportNetwork(
     std::istream& model,

@@ -10,11 +10,23 @@
 #include <utility>
 
 #include "description_buffer.hpp"
+#include "mock_compiled_model.hpp"
 #include "openvino/core/op_extension.hpp"
 #include "openvino/runtime/common.hpp"
 
 using namespace std;
 using namespace InferenceEngine;
+
+namespace {
+bool support_model(const std::shared_ptr<const ov::Model>& model,
+                   const InferenceEngine::QueryNetworkResult& supported_ops) {
+    for (const auto& op : model->get_ops()) {
+        if (supported_ops.supportedLayersMap.find(op->get_friendly_name()) == supported_ops.supportedLayersMap.end())
+            return false;
+    }
+    return true;
+}
+}  // namespace
 
 MockPluginAbc::MockPluginAbc() {}
 
@@ -119,7 +131,13 @@ Parameter MockPluginAbc::GetMetric(const std::string& name,
 std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> MockPluginAbc::LoadNetwork(
     const CNNNetwork& network,
     const std::map<std::string, std::string>& config) {
-    IE_THROW(NotImplemented);
+    auto model = network.getFunction();
+
+    OPENVINO_ASSERT(model);
+    if (!support_model(model, QueryNetwork(network, config)))
+        throw ov::Exception("Unsupported model");
+
+    return std::make_shared<MockCompiledModel>(model, config);
 }
 
 std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> MockPluginAbc::LoadNetwork(
@@ -138,7 +156,13 @@ std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> MockPluginAbc::Load
 std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> MockPluginAbc::LoadExeNetworkImpl(
     const CNNNetwork& network,
     const std::map<std::string, std::string>& config) {
-    return {};
+    auto model = network.getFunction();
+
+    OPENVINO_ASSERT(model);
+    if (!support_model(model, QueryNetwork(network, config)))
+        throw ov::Exception("Unsupported model");
+
+    return std::make_shared<MockCompiledModel>(model, config);
 }
 
 std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> MockPluginAbc::ImportNetwork(
