@@ -22,6 +22,10 @@ Inference Engine API:
 
 @sphinxtabset
 
+@sphinxtab{C++}
+
+@sphinxtabset
+
 @sphinxtab{Devices}
 
 @snippet docs/snippets/ov_properties_migration.cpp core_set_config
@@ -37,6 +41,36 @@ Inference Engine API:
 @sphinxtab{Execution}
 
 @snippet docs/snippets/ov_properties_migration.cpp executable_network_set_config
+
+@endsphinxtab
+
+@endsphinxtabset
+
+@endsphinxtab
+
+@sphinxtab{Python}
+
+@sphinxtabset
+
+@sphinxtab{Devices}
+
+@snippet docs/snippets/ov_properties_migration.py core_set_config
+
+@endsphinxtab
+
+@sphinxtab{Model Loading}
+
+@snippet docs/snippets/ov_properties_migration.py core_load_network
+
+@endsphinxtab
+
+@sphinxtab{Execution}
+
+@snippet docs/snippets/ov_properties_migration.py executable_network_set_config
+
+@endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
@@ -106,6 +140,10 @@ Inference Engine API:
 
 @sphinxtabset
 
+@sphinxtab{C++}
+
+@sphinxtabset
+
 @sphinxtab{Device Configuration}
 
 @snippet docs/snippets/ov_properties_migration.cpp core_get_config
@@ -127,6 +165,42 @@ Inference Engine API:
 @sphinxtab{Execution metrics}
 
 @snippet docs/snippets/ov_properties_migration.cpp executable_network_get_metric
+
+@endsphinxtab
+
+@endsphinxtabset
+
+@endsphinxtab
+
+@sphinxtab{Python}
+
+@sphinxtabset
+
+@sphinxtab{Device Configuration}
+
+@snippet docs/snippets/ov_properties_migration.py core_get_config
+
+@endsphinxtab
+
+@sphinxtab{Device metrics}
+
+@snippet docs/snippets/ov_properties_migration.py core_get_metric
+
+@endsphinxtab
+
+@sphinxtab{Execution config}
+
+@snippet docs/snippets/ov_properties_migration.py executable_network_get_config
+
+@endsphinxtab
+
+@sphinxtab{Execution metrics}
+
+@snippet docs/snippets/ov_properties_migration.py executable_network_get_metric
+
+@endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
