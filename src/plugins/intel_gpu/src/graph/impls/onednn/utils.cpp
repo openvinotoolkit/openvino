@@ -106,6 +106,8 @@ dnnl::memory::format_tag convert_data_format(cldnn::format fmt) {
         case cldnn::format::bfyx: return dnnl::memory::format_tag::nchw;
         case cldnn::format::bfzyx: return dnnl::memory::format_tag::ncdhw;
         case cldnn::format::byxf: return dnnl::memory::format_tag::nhwc;
+        case cldnn::format::b_fs_yx_fsv2: return dnnl::memory::format_tag::undef;
+        case cldnn::format::b_fs_yx_fsv4: return dnnl::memory::format_tag::aBcd4b;
         case cldnn::format::b_fs_yx_fsv16: return dnnl::memory::format_tag::nChw16c;
         case cldnn::format::b_fs_yx_fsv32: return dnnl::memory::format_tag::aBcd32b;
         case cldnn::format::b_fs_zyx_fsv16: return dnnl::memory::format_tag::nCdhw16c;
@@ -119,6 +121,13 @@ dnnl::memory::format_tag convert_data_format(cldnn::format fmt) {
         case cldnn::format::bs_fs_yx_bsv32_fsv16: return dnnl::memory::format_tag::NChw32n16c;
         case cldnn::format::bs_fs_zyx_bsv16_fsv16: return dnnl::memory::format_tag::NCdhw16n16c;
         default: throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to onednn layout " + fmt_to_str(fmt));
+    }
+}
+
+std::string convert_data_format_string(cldnn::format fmt) {
+    switch (fmt) {
+        case cldnn::format::b_fs_yx_fsv2: return "aBcd2b";
+        default: throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to onednn layout string" + fmt_to_str(fmt));
     }
 }
 
@@ -155,6 +164,79 @@ int64_t get_f_offset(cldnn::layout l, dnnl::memory::desc desc) {
     }
 }
 
+dnnl::memory::desc create_memory_desc_from_format_string(dnnl::memory::dims dims, dnnl::memory::data_type dt, std::string tag) {
+    dnnl::memory::desc desc;
+    dnnl_memory_desc_t* md = &desc.data;
+
+    int ndims = static_cast<int>(dims.size());
+    md->ndims = ndims;
+    if (ndims > DNNL_MAX_NDIMS) throw std::invalid_argument("[clDNN] Unsupported ndims " + std::to_string(ndims));
+
+    std::copy(&dims[0], &dims[0] + ndims, md->dims);
+    md->data_type = static_cast<dnnl_data_type_t>(dt);
+    md->format_kind = dnnl_blocked;
+
+    // Parse dimensions and their block sizes starting from the innermost one.
+    std::vector<std::pair<int, int>> dim_blocks;
+    int pos = static_cast<int>(tag.size()) - 1;
+    int ndims_from_tag = -1;
+    while (pos >= 0) {
+        int pos0 = pos;
+
+        --pos;
+        while (pos >= 0 && std::isdigit(tag[pos]))
+            pos--;
+
+        int dim_idx = std::tolower(tag[pos0]) - 'a';
+        if (dim_idx >= ndims) throw std::invalid_argument("[clDNN] Unsupported tag for oneDNN " + tag);
+        ndims_from_tag = std::max(dim_idx + 1, ndims_from_tag);
+        int block_str_len = pos0 - pos - 1;
+        int block = (block_str_len == 0)
+                ? 1
+                : std::stoi(tag.substr(pos + 1, block_str_len));
+        dim_blocks.emplace_back(dim_idx, block);
+    }
+    if (ndims_from_tag != ndims) throw std::invalid_argument("[clDNN] Unsupported tag for oneDNN " + tag);
+
+    auto &blk = md->format_desc.blocking;
+
+    // Compute strides and fill inner block sizes/indices.
+    dnnl_dim_t stride = 1;
+    dnnl_dims_t full_inner_blks;
+    std::fill(full_inner_blks, full_inner_blks + md->ndims, 1);
+    for (auto &p : dim_blocks) {
+        int dim_idx = p.first;
+        int block = p.second;
+        if (block == 1) {
+            assert(blk.strides[dim_idx] == 0);
+            blk.strides[dim_idx] = stride;
+
+            dnnl_dim_t fib = full_inner_blks[dim_idx];
+            dnnl_dim_t padded_dim = md->dims[dim_idx] == DNNL_RUNTIME_DIM_VAL
+                    ? DNNL_RUNTIME_DIM_VAL
+                    : (md->dims[dim_idx] + fib - 1) / fib * fib;
+            md->padded_dims[dim_idx] = padded_dim;
+            if (padded_dim == DNNL_RUNTIME_DIM_VAL)
+                stride = DNNL_RUNTIME_DIM_VAL;
+            else
+                stride *= (padded_dim / fib);
+        } else {
+            full_inner_blks[dim_idx] *= block;
+            blk.inner_blks[blk.inner_nblks] = block;
+            blk.inner_idxs[blk.inner_nblks] = dim_idx;
+            blk.inner_nblks++;
+            stride *= block;
+        }
+    }
+
+    // Inner block sizes/indices are stored from the outermost to the innermost
+    // so need to reverse them.
+    std::reverse(blk.inner_blks, blk.inner_blks + blk.inner_nblks);
+    std::reverse(blk.inner_idxs, blk.inner_idxs + blk.inner_nblks);
+
+    return desc;
+}
+
 dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_tag target_fmt, bool flatten) {
     dnnl::memory::dims dims;
     dnnl::memory::dims padded_dims;
@@ -162,31 +244,32 @@ dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_t
     if (target_fmt == dnnl::memory::format_tag::ab && flatten) {
         dims = flatten_tensor(l.size);
         dims.insert(dims.begin(), 1);
-        padded_dims = dims;
     } else if (target_fmt == dnnl::memory::format_tag::ab) {
         dims.push_back(l.batch());
         dims.push_back(l.size.count() / l.batch());
         padded_dims = dims;
     } else if (flatten) {
         dims = flatten_tensor(l.size);
-        padded_dims = dims;
     } else {
         auto rank = cldnn::format::dimension(l.format);
         dims = convert_tensor(l.size, rank, cldnn::format::is_grouped(l.format));
-        padded_dims = dims;
     }
-
+    padded_dims = dims;
     pad_dims(padded_dims, l.format);
 
     dnnl::memory::data_type dt = convert_data_type(l.data_type);
     dnnl::memory::format_tag fmt = target_fmt == dnnl::memory::format_tag::undef ? convert_data_format(l.format) : target_fmt;
 
-    dnnl::memory::desc res(dims, dt, fmt);
+    if (fmt == dnnl::memory::format_tag::undef) {
+        return create_memory_desc_from_format_string(dims, dt, convert_data_format_string(l.format));
+    } else {
+        dnnl::memory::desc res(dims, dt, fmt);
 
-    std::copy(padded_dims.begin(), padded_dims.end(), res.data.padded_dims);
-    std::copy(padded_offset.begin(), padded_offset.end(), res.data.padded_offsets);
+        std::copy(padded_dims.begin(), padded_dims.end(), res.data.padded_dims);
+        std::copy(padded_offset.begin(), padded_offset.end(), res.data.padded_offsets);
 
-    return res;
+        return res;
+    }
 }
 
 static bool isSame(dnnl::memory::desc desc, dnnl::memory::format_tag fmt) {
