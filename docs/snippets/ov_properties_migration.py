@@ -49,11 +49,11 @@ from openvino.inference_engine import IECore
 
 core = IECore()
 #! [core_get_metric]
-full_device_name = core.get_config("CPU", "FULL_DEVICE_NAME")
+full_device_name = core.get_metric("CPU", "FULL_DEVICE_NAME")
 #! [core_get_metric]
 
 #! [core_get_config]
-num_streams = core.get_metric("CPU", "CPU_THROUGHPUT_STREAMS")
+num_streams = core.get_config("CPU", "CPU_THROUGHPUT_STREAMS")
 #! [core_get_config]
 
 #! [core_set_config]
