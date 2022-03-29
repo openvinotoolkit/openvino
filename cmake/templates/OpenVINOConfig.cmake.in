@@ -146,7 +146,7 @@ endfunction()
 set(_ov_package_prefix_dir "${PACKAGE_PREFIX_DIR}")
 
 set(THREADING "@THREADING@")
-if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND NOT TBB_FOUND)
+if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO"))
     set(enable_system_tbb "@ENABLE_SYSTEM_TBB@")
     if(NOT enable_system_tbb)
         set_and_check(_tbb_dir "@PACKAGE_IE_TBB_DIR@")
