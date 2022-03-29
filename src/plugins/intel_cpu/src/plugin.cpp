@@ -118,7 +118,6 @@
 #include "ngraph_transformations/move_eltwise_up_data_movement.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
 #include "ngraph_transformations/swap_convert_transpose.hpp"
-#include "snippets/op/subgraph.hpp"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 #ifndef __GNUC_PREREQ
@@ -526,7 +525,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
 
     if (!useLpt && _enableSnippets && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
         ngraph::pass::Manager tokenization_manager;
-//        tokenization_manager.register_pass<SnippetsMarkSkipped>();
+        tokenization_manager.register_pass<SnippetsMarkSkipped>();
         tokenization_manager.register_pass<ngraph::snippets::pass::EnumerateNodes>();
         tokenization_manager.register_pass<ngraph::snippets::pass::TokenizeSnippets>();
         tokenization_manager.get_pass_config()->set_callback<ngraph::snippets::pass::TokenizeSnippets>(
@@ -550,10 +549,6 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                     return has_only_const_inputs || bad_input_rank || bad_output_rank;
                 });
         tokenization_manager.run_passes(nGraphFunc);
-        for (const auto &op : nGraphFunc->get_ops()) {
-            if (ov::is_type<ngraph::snippets::op::Subgraph>(op))
-                std::cerr << "Subgraph " << op->get_friendly_name() << " is present in the graph\n";
-        }
     }
 }
 
