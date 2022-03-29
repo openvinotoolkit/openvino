@@ -37,8 +37,8 @@ const std::vector<int32_t> backgroundClass = {-1, 1};
 const std::vector<int32_t> keepTopK = {-1, 30};
 const std::vector<element::Type> outType = {element::i32, element::i64};
 
-const std::vector<op::v8::MulticlassNms::SortResultType> sortResultType = {
-    op::v8::MulticlassNms::SortResultType::SCORE, op::v8::MulticlassNms::SortResultType::CLASSID, op::v8::MulticlassNms::SortResultType::NONE};
+const std::vector<ov::op::util::MulticlassNmsBase::SortResultType> sortResultType = {
+    ov::op::util::MulticlassNmsBase::SortResultType::SCORE, ov::op::util::MulticlassNmsBase::SortResultType::CLASSID, ov::op::util::MulticlassNmsBase::SortResultType::NONE};
 const std::vector<bool> sortResDesc = {true, false};
 const std::vector<float> nmsEta = {0.6f, 1.0f};
 const std::vector<bool> normalized = {true, false};

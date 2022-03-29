@@ -132,7 +132,7 @@ void MulticlassNmsLayerTest::GetOutputParams(size_t& numBatches, size_t& maxOutp
 
 void MulticlassNmsLayerTest::compare(const std::vector<ov::Tensor> &expectedOutputs,
                                      const std::vector<ov::Tensor> &actualOutputs) {
-    auto batchIndex = -1;
+    auto batchIndex = -1; // output index of output ""
     size_t numBatches(0), maxOutputBoxesPerBatch(0);
     GetOutputParams(numBatches, maxOutputBoxesPerBatch);
     std::vector<int32_t> numPerBatch(numBatches);
@@ -341,7 +341,12 @@ void MulticlassNmsLayerTest::SetUp() {
     m_attrs.background_class = backgroundClass;
     m_attrs.normalized = normalized;
 
-    auto nms = std::make_shared<opset8::MulticlassNms>(paramOuts[0], paramOuts[1], m_attrs);
+    std::shared_ptr<opset9::MulticlassNms> nms;
+    if (paramOuts.size() > 2) {
+        nms = std::make_shared<opset9::MulticlassNms>(paramOuts[0], paramOuts[1], paramOuts[2], m_attrs);
+    } else {
+        nms = std::make_shared<opset9::MulticlassNms>(paramOuts[0], paramOuts[1], m_attrs);
+    }
 
     if (!m_outStaticShape) {
         auto result = std::make_shared<opset5::Result>(nms);

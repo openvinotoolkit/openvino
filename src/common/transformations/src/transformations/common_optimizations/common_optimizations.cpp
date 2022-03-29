@@ -81,6 +81,7 @@
 #include "transformations/op_conversions/convert_maxpool_upgrade.hpp"
 #include "transformations/op_conversions/convert_minimum_to_power_and_max.hpp"
 #include "transformations/op_conversions/convert_mod.hpp"
+#include "transformations/op_conversions/convert_multiclass_nms_upgrade.hpp"
 #include "transformations/op_conversions/convert_negative.hpp"
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 #include "transformations/op_conversions/convert_prior_box_v8_to_v0.hpp"
@@ -203,6 +204,7 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
     manager.register_pass<ngraph::pass::ConvertDetectionOutput8ToDetectionOutput1>();
     manager.register_pass<ngraph::pass::ConvertROIAlign3To9, false>();
     manager.register_pass<ngraph::pass::ConvertROIAlign9To3>();
+    manager.register_pass<ngraph::pass::ConvertMulticlassNms8ToMulticlassNms9>();
 
     auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
     fq_fusions->add_matcher<ngraph::pass::FakeQuantizeMulFusion>();
