@@ -85,19 +85,8 @@ def main():
         benchmark = Benchmark(args.target_device, args.number_infer_requests,
                               args.number_iterations, args.time, args.api_type, args.inference_only)
 
-        ## CPU (OneDNN) extensions
-        if CPU_DEVICE_NAME in device_name and args.path_to_extension:
-            benchmark.add_extension(path_to_extension=args.path_to_extension)
-
-        ## GPU (clDNN) Extensions
-        if GPU_DEVICE_NAME in device_name and args.path_to_cldnn_config:
-            if GPU_DEVICE_NAME not in config.keys():
-                config[GPU_DEVICE_NAME] = {}
-            config[GPU_DEVICE_NAME]['CONFIG_FILE'] = args.path_to_cldnn_config
-
-        if GPU_DEVICE_NAME in config.keys() and 'CONFIG_FILE' in config[GPU_DEVICE_NAME].keys():
-            cldnn_config = config[GPU_DEVICE_NAME]['CONFIG_FILE']
-            benchmark.add_extension(path_to_cldnn_config=cldnn_config)
+        if args.extensions:
+            benchmark.add_extension(args.extensions)
 
         for device in devices:
             supported_properties = benchmark.core.get_property(device, 'SUPPORTED_PROPERTIES')
