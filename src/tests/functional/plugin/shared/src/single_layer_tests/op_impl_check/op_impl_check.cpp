@@ -36,6 +36,17 @@ void OpImplCheckTest::SetUp() {
     std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Model>> funcInfo;
     std::tie(funcInfo, targetDevice, configuration) = this->GetParam();
     function = funcInfo.second;
+    auto &s = LayerTestsUtils::Summary::getInstance();
+    std::cout << "OPS LIST:";
+    for (const auto &op : function->get_ordered_ops()) {
+        if ((ngraph::is_type<ngraph::op::Parameter>(op) ||
+            ngraph::is_type<ngraph::op::Constant>(op) ||
+            ngraph::is_type<ngraph::op::Result>(op))) {
+            continue;
+        }
+        std::cout << " " << s.getOpName(op->get_type_info());
+    }
+    std::cout << "\n";
 }
 
 std::string OpImplCheckTest::getTestCaseName(const testing::TestParamInfo<OpImplParams> &obj) {

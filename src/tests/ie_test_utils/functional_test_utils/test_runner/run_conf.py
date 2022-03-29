@@ -42,8 +42,9 @@ class Runner():
             if line:
                 if "# GetParam()" in line:
                     self.tests_list.append(prefix + line.split("# GetParam()")[0].strip())
+                    print(prefix + line.split("# GetParam()")[0].strip())
                 else:
-                    prefix = line
+                    prefix = line.strip()
 
     def collect_tests_groups(self):
         groups = {}
@@ -124,25 +125,26 @@ class Runner():
 
             logger.info(output_str)
             logger.info(err_str)
-            logger.info(f"Exit code: {exit_code}")
+            logger.info(f" Exit code: {exit_code}")
 
             if exit_code not in [0, 1]:
                 # update report.xml in case of kill by environment (OOM killer for example)
                 if 'Unexpected application crash with code:' not in err_str:
                     res = xml_updater.process_result(output_str)
                     if res == 0:
-                        logger.info(f"Result saved.")
+                        logger.info(f" Result saved.")
                     else:
-                        logger.error(f"Could not keep output result !")
+                        logger.error(f" Could not keep output result !")
 
                 testIndex = -1
                 try:
-                    match = re.findall(r"\[ RUN      \] (.*)\s*\n", output_str)[-1]
+                    match = re.findall(r"\[ RUN      \] (.*)\n", output_str)[-1]
+                    match = match.strip()
                     testIndex = self.tests_list.index(match)
                 except ValueError:
-                    logger.error(f"Could not find last run test in test list and collect not running test to execute it, finish !")
+                    logger.error(f" Could not find last run test in test list and collect not running test to execute it, finish !")
                 except IndexError:
-                    logger.error(f"Could not define last run test and collect not running test to execute it, finish !")
+                    logger.error(f" Could not define last run test and collect not running test to execute it, finish !")
 
                 # finish if we come to the end of test list or can't figure out which tests are left to run
                 if testIndex == -1 or testIndex == len(self.tests_list) - 1:
@@ -159,14 +161,12 @@ class Runner():
                         test_filter += "*" + groupName + "*"
                         lastGroupIndex = groupIndex
 
-                for item in self.tests_list[lastGroupIndex::]:
+                for item in self.tests_list[lastGroupIndex + 1:testIndex+1:]:
                     if (test_filter == gtest_filter):
                         test_filter += ":-"
                     else:
                         test_filter += ":"
                     test_filter += "*" + item + "*"
-                    if (item == match):
-                        break
 
                 args_list[1] = f"--gtest_filter={test_filter}"
 
@@ -193,13 +193,13 @@ if __name__ == "__main__":
 
     runner.execute()
 
-    logger.info(f"TOTAL TESTS {len(runner.tests_list)}")
-    logger.info(f"PASSED {runner.passed}")
-    logger.info(f"FAILED {runner.failed}")
-    logger.info(f"SKIPPED {runner.skipped}")
-    logger.info(f"CRASHED {runner.crashed}")
-    logger.info(f"HANGED {runner.hanged}")
-    logger.info(f"TOTAL TIME {runner.time}")
+    logger.info(f" TOTAL TESTS {len(runner.tests_list)}")
+    logger.info(f" PASSED {runner.passed}")
+    logger.info(f" FAILED {runner.failed}")
+    logger.info(f" SKIPPED {runner.skipped}")
+    logger.info(f" CRASHED {runner.crashed}")
+    logger.info(f" HANGED {runner.hanged}")
+    logger.info(f" TOTAL TIME {runner.time}")
 
     if (runner.failed > 0 or runner.crashed > 0 or runner.hanged > 0):
         exit(1)

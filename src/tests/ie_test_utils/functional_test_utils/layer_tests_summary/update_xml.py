@@ -22,9 +22,15 @@ class XMLUpdater():
         ops_info = {}
 
         test_ops = []
+        test_name = ''
         for line in output_str.split("\n"):
             # remove Unicode whitespace characters from the end of str
             line = re.sub(r"\s*$", "", line)
+
+            match = re.match(r"\[ RUN      \] (.*)\s*", line)
+            if match:
+                test_name = match[1].strip()
+
             # example: OPS LIST: Convolution-1 Add-1
             match = re.match(r"OPS LIST: (.*)", line)
             if match:
@@ -37,7 +43,7 @@ class XMLUpdater():
                 for op in test_ops:
                     if op not in ops_info:
                         ops_info[op] = {}
-                    ops_info[op][status] = ops_info[op].get(status, 0) + 1
+                    ops_info[op][status] = 0 if 'OpImplCheckTest' in test_name else ops_info[op].get(status, 0) + 1
 
                 test_ops = []
 
@@ -53,7 +59,7 @@ class XMLUpdater():
         try:
             xml_root = ET.parse(self.xml_path).getroot()
         except ET.ParseError:
-            logger.error(f' {self.xml_path} is corrupted and skipped')
+            self.logger.error(f' {self.xml_path} is corrupted and skipped')
             return None
 
         device_tag = xml_root.find("results").find(self.device)
@@ -113,7 +119,7 @@ class XMLUpdater():
 
     def update_xml_file(self, xml_root, pretty_xml=False):
         if not os.path.isdir(self.path_to_folder):
-            logger.error(f" {self.path_to_folder} is not a directory!")
+            self.logger.error(f" {self.path_to_folder} is not a directory!")
             return 1
 
         try:
@@ -129,7 +135,7 @@ class XMLUpdater():
                     ET.ElementTree(xml_root).write(self.xml_path)
 
         except EnvironmentError as e:
-            logger.error(f" Error: {e.__class__} occurred in writing xml data to {self.xml_path}!")
+            self.logger.error(f" Error: {e.__class__} occurred in writing xml data to {self.xml_path}!")
             return 1
 
         return 0
