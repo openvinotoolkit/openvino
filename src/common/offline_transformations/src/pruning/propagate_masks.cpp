@@ -911,9 +911,14 @@ static std::vector<ov::Shape> map_reshaped_shapes(
 *  a coordinate of the unsquized dimension.
 */
 struct DimsAttr {
-   size_t elems_inner_dims, elems_outer_dims, shift, dim;
+   size_t elems_inner_dims; // Amount of elements in each channel block
+   size_t elems_outer_dims; // Amount of channel blocks
+   size_t shift; // Distance between two neigboring channel blocks
+   size_t dim; // Elements in dimension
 };
 
+/* Map between squized and unsquized dimensions.
+*/
 struct ChannelsMap {
     std::set<uint64_t> squized_mask;
     std::map<uint64_t, std::set<uint64_t>> unsquized_mask;
@@ -1002,6 +1007,9 @@ static ChannelsMap map_channels(
     return ChannelsMap(std::move(squized_mask_res), std::move(unsquized_mask), should_init);
 }
 
+/* Collects dimensions attributes according to
+* dims_map map vector and unsquized_shape shape.
+*/
 static std::vector<DimsAttr> collect_dims_attrs(
     const std::vector<dims_vec> dims_map, const std::vector<size_t> unsquized_shape) {
     auto dims_attrs = std::vector<DimsAttr>();
