@@ -5,6 +5,7 @@
 #include <memory>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <transformations/common_optimizations/add_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/align_eltwise_input_ranks.hpp>
 #include <transformations/common_optimizations/batch_to_space_fusion.hpp>
 #include <transformations/common_optimizations/binarize_weights.hpp>
@@ -20,6 +21,8 @@
 #include <transformations/common_optimizations/disable_shapeof_constant_folding.hpp>
 #include <transformations/common_optimizations/divide_fusion.hpp>
 #include <transformations/common_optimizations/eliminate_unsqueeze_gather.hpp>
+#include <transformations/common_optimizations/fq_mul_fusion.hpp>
+#include <transformations/common_optimizations/fq_reshape_fusion.hpp>
 #include <transformations/common_optimizations/gelu_fusion.hpp>
 #include <transformations/common_optimizations/hsigmoid_fusion.hpp>
 #include <transformations/common_optimizations/hswish_fusion.hpp>
@@ -29,6 +32,7 @@
 #include <transformations/common_optimizations/matmul_multiply_fusion.hpp>
 #include <transformations/common_optimizations/moc_transformations.hpp>
 #include <transformations/common_optimizations/mul_conv_fusion.hpp>
+#include <transformations/common_optimizations/mul_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/mvn_fusion.hpp>
 #include <transformations/common_optimizations/nearest_neighbor_upsampling_fusion.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
@@ -36,7 +40,9 @@
 #include <transformations/common_optimizations/optimize_strided_slice.hpp>
 #include <transformations/common_optimizations/pad_fusion.hpp>
 #include <transformations/common_optimizations/prelu_fusion.hpp>
+#include <transformations/common_optimizations/pull_transpose_through_fq.hpp>
 #include <transformations/common_optimizations/random_uniform_fusion.hpp>
+#include <transformations/common_optimizations/relu_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
 #include <transformations/common_optimizations/remove_filtering_boxes_by_size.hpp>
 #include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>
@@ -54,12 +60,6 @@
 #include <transformations/common_optimizations/swish_fusion.hpp>
 #include <transformations/common_optimizations/transpose_sinking.hpp>
 #include <transformations/common_optimizations/transpose_to_reshape.hpp>
-#include <transformations/common_optimizations/fq_mul_fusion.hpp>
-#include <transformations/common_optimizations/pull_transpose_through_fq.hpp>
-#include <transformations/common_optimizations/relu_fake_quantize_fusion.hpp>
-#include <transformations/common_optimizations/fq_reshape_fusion.hpp>
-#include <transformations/common_optimizations/mul_fake_quantize_fusion.hpp>
-#include <transformations/common_optimizations/add_fake_quantize_fusion.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
 #include <transformations/op_conversions/batch_norm_decomposition.hpp>
